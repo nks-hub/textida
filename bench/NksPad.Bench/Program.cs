@@ -23,7 +23,8 @@ switch (cmd)
     case "a7": await A7Startup.Run(args); break;
     case "writetest": WriteTest.Run(args); break;
     case "a6": A6Encoding.Run(args); break;
+    case "hex": await HexView.Run(args); break;
     default:
-        Console.WriteLine("commands: corpus [names] [--force] | a3 <file> [--reps N] [--samples N] [--inplace] | a4 | a5 file <names...> | a5 tree | a6");
+        Console.WriteLine("commands: corpus [names] [--force] | a3 <file> [--reps N] [--samples N] [--inplace] | a4 | a5 file <names...> | a5 tree | a6 | hex <file> [--samples N] [--reps N] [--save]");
         break;
 }
