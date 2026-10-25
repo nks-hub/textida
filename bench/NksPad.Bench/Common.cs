@@ -79,8 +79,30 @@ internal sealed class Csv : IDisposable
 
 internal static class Mem
 {
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern uint mach_task_self();
+
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern int task_info(uint task, int flavor, byte[] info, ref uint count);
+
+    /// <summary>
+    /// Private bytes / working set / peaks. Windows: commit and working set of the process. macOS: from
+    /// TASK_VM_INFO, private = phys_footprint, "peak commit" = peak anonymous (internal) memory, working set =
+    /// resident size (includes file-backed mapped pages).
+    /// </summary>
     public static (long PrivateBytes, long WorkingSet, long PeakWorkingSet, long PeakCommit) Snapshot()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            var info = new byte[512];
+            uint count = (uint)(info.Length / 4);
+            if (task_info(mach_task_self(), 22, info, ref count) == 0)
+            {
+                long resident = BitConverter.ToInt64(info, 16), residentPeak = BitConverter.ToInt64(info, 24);
+                long internalPeak = BitConverter.ToInt64(info, 56), footprint = BitConverter.ToInt64(info, 144);
+                return (footprint, resident, residentPeak, internalPeak);
+            }
+        }
         using var p = Process.GetCurrentProcess();
         long peakCommit = 0;
         try { peakCommit = p.PeakPagedMemorySize64; } catch (PlatformNotSupportedException) { }

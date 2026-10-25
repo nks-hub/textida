@@ -195,7 +195,6 @@ public sealed class PagedDocument : IPagedTextSource
                 Mode = FileMode.CreateNew,
                 Access = FileAccess.Write,
                 Share = FileShare.None,
-                Options = FileOptions.SequentialScan,
                 PreallocationSize = ByteLength,
                 BufferSize = 0,
             }))
@@ -232,25 +231,46 @@ public sealed class PagedDocument : IPagedTextSource
         }
     }
 
-    /// <summary>Writes the whole document to <paramref name="stream"/> in 4 MiB slices.</summary>
+    /// <summary>
+    /// Writes the whole document to <paramref name="stream"/> in 8 MiB slices straight from the mapping.
+    /// A single thread faulting in mapped pages tops out near 2.5 GB/s, so upcoming slices are touched
+    /// in parallel on the thread pool while the current one is written.
+    /// </summary>
     public void WriteTo(Stream stream, IProgress<long>? progress = null, CancellationToken ct = default)
     {
-        const int slice = 4 << 20;
-        long written = 0;
+        const int slice = 8 << 20, ahead = 3;
+        var slices = new List<(Piece Piece, long Start, int Length)>();
         foreach (var piece in _tree.EnumerateRange(0, ByteLength))
-        {
             for (long done = 0; done < piece.Length; done += slice)
+                slices.Add((piece, piece.Start + done, (int)Math.Min(slice, piece.Length - done)));
+
+        var prefetch = new Task?[slices.Count];
+        void Prefetch(int i)
+        {
+            if (i >= slices.Count || prefetch[i] is not null || !slices[i].Piece.Original) return;
+            var (_, start, len) = slices[i];
+            prefetch[i] = Task.Run(() => Parallel.For(0, 4, k =>
             {
-                ct.ThrowIfCancellationRequested();
-                int n = (int)Math.Min(slice, piece.Length - done);
-                var span = piece.Original
-                    ? _source.File.GetSpan(piece.Start + done, n)
-                    : _add.AsSpan((int)(piece.Start + done), n);
-                stream.Write(span);
-                written += n;
-            }
-            progress?.Report(written);
+                int part = len / 4, from = k * part, n = k == 3 ? len - from : part;
+                var span = _source.File.GetSpan(start + from, n);
+                byte x = 0;
+                for (int o = 0; o < span.Length; o += 4096) x ^= span[o];
+                GC.KeepAlive(x);
+            }));
         }
+
+        long written = 0;
+        for (int i = 0; i < slices.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            for (int k = i; k <= i + ahead; k++) Prefetch(k);
+            var (piece, start, len) = slices[i];
+            var span = piece.Original ? _source.File.GetSpan(start, len) : _add.AsSpan((int)start, len);
+            stream.Write(span);
+            written += len;
+            if (i + 1 == slices.Count || slices[i + 1].Piece != piece) progress?.Report(written);
+        }
+        foreach (var t in prefetch) t?.Wait();
     }
 
     public void Dispose()

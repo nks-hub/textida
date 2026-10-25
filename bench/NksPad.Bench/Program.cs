@@ -21,6 +21,7 @@ switch (cmd)
     case "a4": await A4LongLine.Run(args); break;
     case "a5": await A5Search.Run(args); break;
     case "a7": await A7Startup.Run(args); break;
+    case "writetest": WriteTest.Run(args); break;
     case "a6": A6Encoding.Run(args); break;
     default:
         Console.WriteLine("commands: corpus [names] [--force] | a3 <file> [--reps N] [--samples N] [--inplace] | a4 | a5 file <names...> | a5 tree | a6");

@@ -207,6 +207,16 @@ internal static class A3Paged
         doc.Delete(a25, e25 - a25);
         long expectedLength = length + inserted.Length - (e25 - a25);
 
+        if (rep == 0)
+        {
+            string refCopy = Path.Combine(Paths.Scratch, "refcopy-" + name);
+            var swCopy = Stopwatch.StartNew();
+            File.Copy(path, refCopy, true);
+            double copySec = swCopy.Elapsed.TotalSeconds;
+            Console.WriteLine($"reference File.Copy of the original: {copySec:F2}s, {length / copySec / 1e9:F2} GB/s");
+            rec("refcopy-throughput", 0, length / copySec / 1e9, "GB/s");
+            File.Delete(refCopy);
+        }
         var swSave = Stopwatch.StartNew();
         await (inPlace ? doc.SaveAsync() : doc.SaveAsync(outPath));
         double sec = swSave.Elapsed.TotalSeconds;
