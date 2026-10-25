@@ -179,6 +179,17 @@ public class LineIndexTests
     }
 
     [Fact]
+    public void ReadColumnsSkipsAcrossManyWindowsOfOneLongLine()
+    {
+        string line = string.Concat(Enumerable.Repeat("ěšč abc 中", 400_000));
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var src = OpenIndexed(f, 4096);
+        foreach (int col in new[] { 0, 1, 999_999, 2_000_003, 3_199_990 })
+            Assert.Equal(line.Substring(col, Math.Min(20, line.Length - col)), src.ReadColumns(0, col, 20));
+        Assert.Equal("", src.ReadColumns(0, line.Length + 5, 20));
+    }
+
+    [Fact]
     public void FindLineEndStopsBeforeCrlf()
     {
         using var f = new TempFile("abc\r\ndef\rgh"u8.ToArray());

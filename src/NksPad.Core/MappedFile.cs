@@ -8,6 +8,7 @@ public sealed unsafe class MappedFile : IDisposable
     private readonly MemoryMappedFile? _mmf;
     private readonly MemoryMappedViewAccessor? _view;
     private readonly byte* _ptr;
+    private int _disposed;
 
     public string Path { get; }
     public long Length { get; }
@@ -56,6 +57,7 @@ public sealed unsafe class MappedFile : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_view is not null)
         {
             _view.SafeMemoryMappedViewHandle.ReleasePointer();

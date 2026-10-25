@@ -29,6 +29,7 @@ public sealed class MappedFileSource : IPagedTextSource
     private readonly object _pub = new();
     private readonly CancellationTokenSource _cts = new();
     private int _published;
+    private int _disposed;
     private long _lastProgress;
     private readonly int _bomLength;
 
@@ -225,7 +226,12 @@ public sealed class MappedFileSource : IPagedTextSource
                 skip -= step;
             }
             else
-                step = SkipUtf8Units(seg, ref skip);
+            {
+                var whole = t < 0 ? seg[..Utf8Validator.CompleteLength(seg)] : seg;
+                int units = Encoding.UTF8.GetCharCount(whole);
+                if (units <= skip) { step = whole.Length; skip -= units; }
+                else step = SkipUtf8Units(whole, ref skip);
+            }
             if (step == 0 || (t >= 0 && step == seg.Length && skip > 0)) return "";
             pos += step;
         }
@@ -256,6 +262,7 @@ public sealed class MappedFileSource : IPagedTextSource
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         try { IndexTask.Wait(); } catch (AggregateException) { }
         _file.Dispose();
