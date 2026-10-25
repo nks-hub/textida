@@ -25,13 +25,25 @@ internal static class A5Search
         new("regex", @"Load\w+Async\(\d{3}, ct\)", true),
     ];
 
+    private static string BaselineName = "rg";
+
     private static double Sec(long t0) => (Stopwatch.GetTimestamp() - t0) / (double)Stopwatch.Frequency;
 
     public static async Task Run(string[] args)
     {
         string mode = args[1];
+        bool count = mode.EndsWith("-count");
+        string kind = mode.Replace("-count", "");
+        BaselineName = count ? "rg-count" : "rg";
+        Func<Pat, string, Task<(double, long)>> baseline = count ? RunRgCount : RunRg;
         using var csv = new Csv($"a5-{mode}.csv", "scenario,target,pattern,engine,rep,value,unit,matches");
-        if (mode == "file")
+        if (mode == "cancel")
+        {
+            string cname = args[2];
+            using var cmf = MappedFile.Open(Path.Combine(Paths.Corpus, cname));
+            await Cancel(csv, cname, FilePatterns[1], FilePatterns[2], cmf, Path.Combine(Paths.Corpus, cname), int.Parse(args[3]));
+        }
+        else if (kind == "file")
         {
             foreach (var name in args.Skip(2))
             {
@@ -40,11 +52,11 @@ internal static class A5Search
                 using var mf = MappedFile.Open(path);
                 foreach (var p in FilePatterns)
                     await Compare(csv, name, p, reps,
-                        () => RunRg(p, path),
+                        () => baseline(p, path),
                         engines: p.Regex
                             ? [("core-compiled", () => CoreRegex(mf, p, RegexOptions.Compiled)), ("core-nonbacktracking", () => CoreRegex(mf, p, RegexOptions.NonBacktracking))]
                             : [("core", () => CoreLiteral(mf, p))]);
-                await Cancel(csv, name, FilePatterns[1], FilePatterns[2], mf, path, 150);
+                if (!count) await Cancel(csv, name, FilePatterns[1], FilePatterns[2], mf, path, 150);
             }
         }
         else
@@ -52,18 +64,18 @@ internal static class A5Search
             string root = Path.Combine(Paths.Corpus, "tree");
             foreach (var p in TreePatterns)
                 await Compare(csv, "tree", p, 5,
-                    () => RunRg(p, root),
+                    () => baseline(p, root),
                     engines: p.Regex
                         ? [("core-compiled", () => TreeRegex(root, p, RegexOptions.Compiled)), ("core-nonbacktracking", () => TreeRegex(root, p, RegexOptions.NonBacktracking))]
                         : [("core", () => TreeLiteral(root, p))]);
-            await CancelTree(csv, root, TreePatterns[1], 100);
+            if (!count) await CancelTree(csv, root, TreePatterns[1], 100);
         }
     }
 
     private static async Task Compare(Csv csv, string target, Pat p, int reps, Func<Task<(double Sec, long Matches)>> rg, (string Name, Func<Task<(double Sec, long Matches)>> Run)[] engines)
     {
         Console.WriteLine($"-- {target} / {p.Label} '{p.Text}' reps={reps}");
-        var all = new List<(string Name, Func<Task<(double, long)>> Run)> { ("rg", rg) };
+        var all = new List<(string Name, Func<Task<(double, long)>> Run)> { (BaselineName, rg) };
         all.AddRange(engines.Select(e => (e.Name, e.Run)));
         var samples = all.ToDictionary(e => e.Name, _ => new List<double>());
         var counts = new Dictionary<string, long>();
@@ -78,11 +90,11 @@ internal static class A5Search
                 csv.Row("A5", target, p.Label, e.Name, i, sec, "s", matches);
             }
         }
-        double rgMed = Stats.Percentile(samples["rg"], .5);
+        double rgMed = Stats.Percentile(samples[BaselineName], .5);
         foreach (var e in all)
         {
             double med = Stats.Percentile(samples[e.Name], .5);
-            Console.WriteLine($"{Stats.Summary(e.Name, samples[e.Name], "s")} matches={counts[e.Name]} ratio-to-rg(median)={med / rgMed:F2}  count {(counts[e.Name] == counts["rg"] ? "== rg" : "!= rg MISMATCH")}");
+            Console.WriteLine($"{Stats.Summary(e.Name, samples[e.Name], "s")} matches={counts[e.Name]} ratio-to-baseline(median)={med / rgMed:F2}  count {(counts[e.Name] == counts[BaselineName] ? "== baseline" : "!= baseline MISMATCH")}");
         }
     }
 
@@ -157,6 +169,24 @@ internal static class A5Search
         if (last is null || !last.Contains("\"type\":\"summary\"")) throw new InvalidOperationException("rg summary not found: " + await err);
         using var doc = JsonDocument.Parse(last);
         return (sec, doc.RootElement.GetProperty("data").GetProperty("stats").GetProperty("matches").GetInt64());
+    }
+
+    /// <summary>Runs rg --count-matches (no JSON) and sums the per-file counts.</summary>
+    private static async Task<(double, long)> RunRgCount(Pat p, string target)
+    {
+        var psi = RgInfo(p, target);
+        psi.ArgumentList.Remove("--json");
+        psi.ArgumentList.Insert(0, "--count-matches");
+        long t0 = Stopwatch.GetTimestamp();
+        using var proc = Process.Start(psi)!;
+        var err = proc.StandardError.ReadToEndAsync();
+        string text = await proc.StandardOutput.ReadToEndAsync();
+        await proc.WaitForExitAsync();
+        double sec = Sec(t0);
+        long total = 0;
+        foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            total += long.Parse(line[(line.LastIndexOf(':') + 1)..].Trim());
+        return (sec, total);
     }
 
     private static async Task Cancel(Csv csv, string name, Pat literal, Pat regex, MappedFile mf, string path, int delayMs)
