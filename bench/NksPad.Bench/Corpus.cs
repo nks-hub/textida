@@ -198,6 +198,25 @@ internal static class Corpus
             (s, r, c, _) => FillLog(s, r, c));
     }
 
+    private static bool Mac => Paths.Profile == "mac";
+    private static int TreeMaxFileBytes => Mac ? 40 * 1024 : 200 * 1024;
+
+    /// <summary>False for corpus items the active profile leaves out.</summary>
+    public static bool InProfile(string name) => !(Mac && name == "text-50GiB.log");
+
+    /// <summary>Arguments that are neither options nor option values.</summary>
+    public static List<string> PositionalArgs(string[] args)
+    {
+        string[] withValue = ["--corpus", "--results", "--scratch", "--profile", "--rg"];
+        var list = new List<string>();
+        for (int i = 1; i < args.Length; i++)
+        {
+            if (withValue.Contains(args[i])) { i++; continue; }
+            if (!args[i].StartsWith("--")) list.Add(args[i]);
+        }
+        return list;
+    }
+
     public static IReadOnlyList<string> Names => Specs().Select(s => s.Name).Append("tree").ToList();
 
     public static async Task GenerateAsync(string name, bool force)
@@ -310,7 +329,7 @@ internal static class Corpus
         {
             var r = new Rng(0xC0FFEEUL + (ulong)i);
             int ext = i % exts.Length;
-            int size = 1024 + r.Next(200 * 1024 - 1024 + 1);
+            int size = 1024 + r.Next(TreeMaxFileBytes - 1024 + 1);
             bool rare = i % 5000 == 17;
             var sink = new Utf8Sink(buf, size);
             int line = 0;

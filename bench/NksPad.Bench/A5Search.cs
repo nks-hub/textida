@@ -45,7 +45,7 @@ internal static class A5Search
         }
         else if (kind == "file")
         {
-            foreach (var name in args.Skip(2))
+            foreach (var name in Corpus.PositionalArgs(args).Skip(1))
             {
                 int reps = name.Contains("10GiB") ? 5 : 10;
                 string path = Path.Combine(Paths.Corpus, name);
@@ -130,7 +130,7 @@ internal static class A5Search
 
     private static ProcessStartInfo RgInfo(Pat p, string target)
     {
-        var psi = new ProcessStartInfo("rg") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        var psi = new ProcessStartInfo(Paths.Rg) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
         foreach (var a in new[] { "--json", "--no-config" }) psi.ArgumentList.Add(a);
         if (!p.Regex) psi.ArgumentList.Add("-F");
         psi.ArgumentList.Add("-e");

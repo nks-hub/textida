@@ -2,14 +2,16 @@
 using NksPad.Bench;
 
 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+Paths.Configure(args);
 string cmd = args.Length > 0 ? args[0] : "help";
 switch (cmd)
 {
     case "corpus":
         {
             bool force = Args.Flag(args, "--force");
-            var names = args.Skip(1).Where(a => !a.StartsWith("--")).ToList();
+            var names = Corpus.PositionalArgs(args).ToList();
             if (names.Count == 0) names = Corpus.Names.ToList();
+            names = names.Where(n => Corpus.InProfile(n)).ToList();
             foreach (var n in names) await Corpus.GenerateAsync(n, force);
             Corpus.WriteManifest();
             break;

@@ -22,11 +22,24 @@ internal sealed class Rng(ulong seed)
 
 internal static class Paths
 {
-    public const string Root = @"C:\nkspad-bench";
-    public static readonly string Corpus = Path.Combine(Root, "corpus");
-    public static readonly string Results = Path.Combine(Root, "results");
-    public static readonly string Manifest = Path.Combine(Corpus, "manifest");
-    public static readonly string Scratch = Path.Combine(Root, "scratch");
+    public static string Root { get; private set; } = OperatingSystem.IsWindows() ? @"C:\nkspad-bench" : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "nkspad");
+    public static string Corpus { get; private set; } = Path.Combine(Root, "corpus");
+    public static string Results { get; private set; } = Path.Combine(Root, "results");
+    public static string Manifest => Path.Combine(Corpus, "manifest");
+    public static string Scratch { get; private set; } = Path.Combine(Root, "scratch");
+    /// <summary>Corpus size profile: "full" (up to 50 GiB, tree ~10 GiB) or "mac" (up to 10 GiB, tree ~2 GiB).</summary>
+    public static string Profile { get; private set; } = "full";
+    public static string Rg { get; private set; } = "rg";
+
+    /// <summary>Applies <c>--corpus</c>, <c>--results</c>, <c>--scratch</c>, <c>--profile</c> and <c>--rg</c> from the command line.</summary>
+    public static void Configure(string[] args)
+    {
+        Corpus = Args.Opt(args, "--corpus") ?? Corpus;
+        Results = Args.Opt(args, "--results") ?? Results;
+        Scratch = Args.Opt(args, "--scratch") ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(Corpus))!, "scratch");
+        Profile = Args.Opt(args, "--profile") ?? Profile;
+        Rg = Args.Opt(args, "--rg") ?? Rg;
+    }
 }
 
 internal static class Stats
@@ -69,7 +82,9 @@ internal static class Mem
     public static (long PrivateBytes, long WorkingSet, long PeakWorkingSet, long PeakCommit) Snapshot()
     {
         using var p = Process.GetCurrentProcess();
-        return (p.PrivateMemorySize64, p.WorkingSet64, p.PeakWorkingSet64, p.PeakPagedMemorySize64);
+        long peakCommit = 0;
+        try { peakCommit = p.PeakPagedMemorySize64; } catch (PlatformNotSupportedException) { }
+        return (p.PrivateMemorySize64, p.WorkingSet64, p.PeakWorkingSet64, peakCommit);
     }
 
     public static string Mib(long bytes) => (bytes / 1048576.0).ToString("F1", CultureInfo.InvariantCulture);
