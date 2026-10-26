@@ -151,18 +151,20 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Ausschneiden und Einfügen gehen nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus (Thema Große Dateien).
 
 ## [edit.select] Auswählen
-commands: nks.edit.selectAll, nks.edit.selectLine
+commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 1. Strg+A wählt den ganzen Text aus.
 2. Strg+L wählt die Zeile samt Zeilenende aus. Ein weiteres Strg+L fügt die nächste Zeile hinzu.
+3. Umschalt+Alt+Pfeil rechts erweitert die Auswahl: erst das Wort, dann den Inhalt der Klammern darum, dann die Klammern selbst, das nächste Klammerpaar, die ganzen Zeilen und zuletzt den ganzen Text.
 - Bei mehreren Cursorn nimmt jeder Cursor seine eigene Zeile.
 
 ## [edit.lines] Arbeiten mit Zeilen
-commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines
+commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 Die Befehle betreffen die Zeile mit dem Cursor oder alle Zeilen der Auswahl. Jeder ist ein Schritt für Rückgängig.
 - Zeile löschen: Strg+Umschalt+K.
 - Zeile duplizieren: Strg+Umschalt+D fügt eine Kopie unter der Zeile ein.
 - Zeile nach oben oder unten verschieben: Alt+Pfeil nach oben, Alt+Pfeil nach unten.
 - Zeilen verbinden: Strg+Umschalt+J verbindet die Zeile mit der nächsten.
+- Kommentar umschalten: Strg+/ kommentiert die Zeilen aus oder wieder ein. Es nimmt die Kommentarzeichen der Sprache an der Zeile, ein Skript in HTML bekommt also // und das HTML darum einen HTML-Kommentar.
 - Alle stehen auch im Menü Bearbeiten.
 - Sie gehen nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus.
 - Im Profil PSPad liegt Zeile löschen auf Strg+Y, Zeile duplizieren auf Umschalt+Alt+Pfeil nach unten, und die Alt+Pfeile verschieben keine Zeilen.

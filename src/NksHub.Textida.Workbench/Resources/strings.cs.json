@@ -114,6 +114,8 @@
   "cmd.edit.selectLine": "Vybrat řádek",
   "cmd.edit.toggleBlockSelect": "Blokový výběr",
   "cmd.edit.joinLines": "Spojit řádky",
+  "cmd.edit.toggleComment": "Zakomentovat / odkomentovat",
+  "cmd.edit.expandSelection": "Rozšířit výběr",
   "cmd.edit.newline": "Nový řádek",
   "cmd.format.reread": "Znovu přečíst jako...",
   "cmd.format.convert": "Převést na...",

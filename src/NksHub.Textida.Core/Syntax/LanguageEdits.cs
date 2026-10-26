@@ -1,7 +1,7 @@
 namespace NksHub.Textida.Core.Syntax;
 
-/// <summary>A whole line replaced by a command: <see cref="Line"/> is 0-based, <see cref="Text"/> the new line without its terminator.</summary>
-public readonly record struct LineReplacement(int Line, string Text);
+/// <summary>Replace <see cref="Length"/> characters at <see cref="Column"/> of <see cref="Line"/> (0-based, columns of the original line) with <see cref="Text"/>.</summary>
+public readonly record struct LineEdit(int Line, int Column, int Length, string Text);
 
 /// <summary>
 /// Toggle comment over whole lines with the markers of the language at each line's first non-blank character, so a line inside
@@ -11,12 +11,13 @@ public readonly record struct LineReplacement(int Line, string Text);
 public static class CommentToggle
 {
     /// <summary>
-    /// The lines to replace for the given line ranges (0-based, inclusive). Within a range the lines of one language are commented when
+    /// The edits for the given line ranges (0-based, inclusive). Within a range the lines of one language are commented when
     /// any non-blank one is not commented yet, otherwise uncommented. Blank lines and languages without markers are left alone.
+    /// Only markers are inserted and removed, so positions in the rest of a line keep their meaning. Sorted by line and column; apply from the end.
     /// </summary>
-    public static IReadOnlyList<LineReplacement> Toggle(IReadOnlyList<string> lines, Tokenizer? tokenizer, IEnumerable<(int First, int Last)> ranges)
+    public static IReadOnlyList<LineEdit> Toggle(IReadOnlyList<string> lines, Tokenizer? tokenizer, IEnumerable<(int First, int Last)> ranges)
     {
-        var result = new List<LineReplacement>();
+        var result = new List<LineEdit>();
         if (tokenizer is null || lines.Count == 0) return result;
         var clamped = ranges.Select(r => (First: Math.Clamp(Math.Min(r.First, r.Last), 0, lines.Count - 1), Last: Math.Clamp(Math.Max(r.First, r.Last), 0, lines.Count - 1)))
             .OrderBy(r => r.First).ToList();
@@ -34,11 +35,14 @@ public static class CommentToggle
                 bool uncomment = members.All(n => IsCommented(g, lines[n]));
                 int indent = members.Min(n => Indent(lines[n]));
                 foreach (int n in members)
-                    result.Add(new LineReplacement(n, uncomment ? Uncomment(g, lines[n]) : Comment(g, lines[n], indent)));
+                {
+                    if (uncomment) Uncomment(g, lines[n], n, result);
+                    else Comment(g, lines[n], n, indent, result);
+                }
             }
             for (int n = first; n <= last; n++) done.Add(n);
         }
-        result.Sort((a, b) => a.Line.CompareTo(b.Line));
+        result.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
         return result;
     }
 
@@ -83,29 +87,35 @@ public static class CommentToggle
         return body.Length >= open.Length + close.Length && body.StartsWith(open, StringComparison.Ordinal) && body.EndsWith(close, StringComparison.Ordinal);
     }
 
-    private static string Comment(Grammar g, string line, int indent)
+    private static void Comment(Grammar g, string line, int n, int indent, List<LineEdit> edits)
     {
-        if (g.LineComment is { } marker) return line[..indent] + marker + " " + line[indent..];
+        if (g.LineComment is { } marker)
+        {
+            edits.Add(new LineEdit(n, indent, 0, marker + " "));
+            return;
+        }
         var (open, close) = g.BlockComment!.Value;
-        string body = line[indent..].TrimEnd();
-        return line[..indent] + open + " " + body + " " + close;
+        int end = line.TrimEnd().Length;
+        edits.Add(new LineEdit(n, indent, 0, open + " "));
+        edits.Add(new LineEdit(n, end, line.Length - end, " " + close));
     }
 
-    private static string Uncomment(Grammar g, string line)
+    private static void Uncomment(Grammar g, string line, int n, List<LineEdit> edits)
     {
         int at = Indent(line);
         if (g.LineComment is { } marker)
         {
             int after = at + marker.Length;
-            if (after < line.Length && line[after] == ' ') after++;
-            return line[..at] + line[after..];
+            edits.Add(new LineEdit(n, at, after - at + (after < line.Length && line[after] == ' ' ? 1 : 0), ""));
+            return;
         }
         var (open, close) = g.BlockComment!.Value;
-        string body = line[at..].TrimEnd();
-        body = body[open.Length..^close.Length];
-        if (body.StartsWith(' ')) body = body[1..];
-        if (body.EndsWith(' ')) body = body[..^1];
-        return line[..at] + body;
+        int bodyStart = at + open.Length;
+        if (bodyStart < line.Length && line[bodyStart] == ' ') bodyStart++;
+        int closeAt = line.TrimEnd().Length - close.Length;
+        int bodyEnd = closeAt > bodyStart && line[closeAt - 1] == ' ' ? closeAt - 1 : closeAt;
+        edits.Add(new LineEdit(n, at, bodyStart - at, ""));
+        edits.Add(new LineEdit(n, Math.Max(bodyEnd, bodyStart), closeAt + close.Length - Math.Max(bodyEnd, bodyStart), ""));
     }
 }
 

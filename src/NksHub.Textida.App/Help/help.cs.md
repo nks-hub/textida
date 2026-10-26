@@ -151,18 +151,20 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Vyjmout a Vložit nejdou u dokumentu jen pro čtení a ve stránkovaném režimu (téma Velké soubory).
 
 ## [edit.select] Výběr
-commands: nks.edit.selectAll, nks.edit.selectLine
+commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 1. Ctrl+A vybere celý text.
 2. Ctrl+L vybere řádek včetně konce řádku. Opakované Ctrl+L přidá další řádek.
+3. Shift+Alt+šipka vpravo rozšíří výběr: nejdřív slovo, pak obsah závorek kolem něj, pak i závorky, další závorky, celé řádky a nakonec celý text.
 - S více kurzory vybere každý kurzor svůj řádek.
 
 ## [edit.lines] Práce s řádky
-commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines
+commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 Příkazy se týkají řádku s kurzorem, případně všech řádků výběru. Každý je jeden krok Zpět.
 - Smazat řádek: Ctrl+Shift+K.
 - Duplikovat řádek: Ctrl+Shift+D vloží kopii pod řádek.
 - Přesunout řádek nahoru nebo dolů: Alt+šipka nahoru, Alt+šipka dolů.
 - Spojit řádky: Ctrl+Shift+J spojí řádek s následujícím.
+- Zakomentovat / odkomentovat: Ctrl+/ řádky zakomentuje, nebo komentář zase odebere. Použije značky jazyka na daném řádku, takže skript uvnitř HTML dostane // a HTML kolem něj komentář HTML.
 - Všechny jsou také v nabídce Úpravy.
 - Nejdou u dokumentu jen pro čtení ani ve stránkovaném režimu.
 - V profilu PSPad je Smazat řádek na Ctrl+Y, Duplikovat řádek na Shift+Alt+šipka dolů, a Alt+šipky řádky nepřesouvají.

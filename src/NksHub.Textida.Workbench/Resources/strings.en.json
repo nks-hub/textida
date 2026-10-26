@@ -114,6 +114,8 @@
   "cmd.edit.selectLine": "Select Line",
   "cmd.edit.toggleBlockSelect": "Block Selection",
   "cmd.edit.joinLines": "Join Lines",
+  "cmd.edit.toggleComment": "Toggle Comment",
+  "cmd.edit.expandSelection": "Expand Selection",
   "cmd.edit.newline": "New Line",
   "cmd.format.reread": "Reopen with Encoding...",
   "cmd.format.convert": "Convert to Encoding...",

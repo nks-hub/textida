@@ -4,10 +4,10 @@ namespace NksHub.Textida.Core.Tests;
 
 public class LanguageEditsTests
 {
-    private static string[] Apply(string[] lines, IReadOnlyList<LineReplacement> edits)
+    private static string[] Apply(string[] lines, IReadOnlyList<LineEdit> edits)
     {
         var copy = (string[])lines.Clone();
-        foreach (var e in edits) copy[e.Line] = e.Text;
+        foreach (var e in edits.Reverse()) copy[e.Line] = copy[e.Line].Remove(e.Column, e.Length).Insert(e.Column, e.Text);
         return copy;
     }
 

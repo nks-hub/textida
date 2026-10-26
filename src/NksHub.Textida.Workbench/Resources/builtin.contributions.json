@@ -331,6 +331,21 @@
       "undo": "transaction"
     },
     {
+      "id": "nks.edit.toggleComment",
+      "title": "cmd.edit.toggleComment",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.expandSelection",
+      "title": "cmd.edit.expandSelection",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.newline",
       "title": "cmd.edit.newline",
       "category": "cat.edit",
@@ -1002,6 +1017,18 @@
       "order": 50
     },
     {
+      "menu": "edit",
+      "command": "nks.edit.toggleComment",
+      "group": "4_lines",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.expandSelection",
+      "group": "3_select",
+      "order": 25
+    },
+    {
       "menu": "format",
       "command": "nks.format.reread",
       "group": "1_encoding",
@@ -1536,6 +1563,16 @@
     {
       "key": "mod+shift+j",
       "command": "nks.edit.joinLines",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+slash",
+      "command": "nks.edit.toggleComment",
+      "when": "editorFocus"
+    },
+    {
+      "key": "shift+alt+right",
+      "command": "nks.edit.expandSelection",
       "when": "editorFocus"
     },
     {

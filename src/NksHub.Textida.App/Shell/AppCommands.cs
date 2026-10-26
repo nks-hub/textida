@@ -82,6 +82,8 @@ internal static class AppCommands
         Edit("nks.edit.insertIndent", (s, sels) => LineOperations.InsertIndent(s.Document, sels, s.Settings.Indent));
         On("nks.edit.tab", w => w.Tab(outdent: false));
         On("nks.edit.newline", w => w.Newline());
+        On("nks.edit.toggleComment", w => w.ToggleComment());
+        On("nks.edit.expandSelection", w => w.ExpandSelection());
 
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));

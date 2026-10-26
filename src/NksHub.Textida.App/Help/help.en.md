@@ -151,18 +151,20 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Cut and Paste do not work in a read-only document or in paged mode (topic Large files).
 
 ## [edit.select] Selecting
-commands: nks.edit.selectAll, nks.edit.selectLine
+commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 1. Ctrl+A selects all text.
 2. Ctrl+L selects the line including its line ending. Pressing Ctrl+L again adds the next line.
+3. Shift+Alt+Right arrow expands the selection: first the word, then the content of the brackets around it, then the brackets too, the next pair out, the whole lines and finally all text.
 - With several carets each caret takes its own line.
 
 ## [edit.lines] Working with lines
-commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines
+commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 The commands act on the line with the caret, or on all lines of the selection. Each is one Undo step.
 - Delete Line: Ctrl+Shift+K.
 - Duplicate Line: Ctrl+Shift+D inserts a copy below the line.
 - Move Line Up or Down: Alt+Up arrow, Alt+Down arrow.
 - Join Lines: Ctrl+Shift+J joins the line with the next one.
+- Toggle Comment: Ctrl+/ comments the lines out or back in, with the comment marks of the language at each line, so a script inside HTML gets // and the HTML around it an HTML comment.
 - All of them are also in the Edit menu.
 - They do not work in a read-only document or in paged mode.
 - In the PSPad profile Delete Line is on Ctrl+Y, Duplicate Line on Shift+Alt+Down arrow, and the Alt+arrows do not move lines.

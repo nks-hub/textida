@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using AvaloniaEdit.Document;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -505,17 +506,82 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { } surface || Active is not { } tab) return CommandOutcome.NotHandled;
         var text = surface.Document;
         var caret = text.GetLocation(surface.CaretOffset);
-        var lines = new List<string>(text.LineCount);
-        foreach (var l in text.Lines) lines.Add(text.GetText(l.Offset, l.Length));
-        var registry = BuiltinGrammars.Registry;
-        var grammar = registry.Find(tab.Doc.Language.Id) ?? (tab.Path is { } p ? registry.ForFile(System.IO.Path.GetFileName(p)) : null);
-        var pair = BracketMatcher.FindPair(lines, grammar is null ? null : new Tokenizer(grammar), caret.Line - 1, caret.Column - 1);
+        var pair = BracketMatcher.FindPair(LinesOf(text), TokenizerOf(tab), caret.Line - 1, caret.Column - 1);
         if (pair is not { } at)
         {
             SetStatusMessage(Loc.Get(K.BracketNone));
             return CommandOutcome.Handled;
         }
         surface.SetSelections([Sel.At(text.GetOffset(at.Line + 1, at.Column + 1))]);
+        return CommandOutcome.Handled;
+    }
+
+    private static List<string> LinesOf(TextDocument text)
+    {
+        var lines = new List<string>(text.LineCount);
+        foreach (var l in text.Lines) lines.Add(text.GetText(l.Offset, l.Length));
+        return lines;
+    }
+
+    /// <summary>Tokenizer of the tab's grammar: the chosen language first, then the file name; null for plain text.</summary>
+    private static Tokenizer? TokenizerOf(DocTab tab)
+    {
+        var registry = BuiltinGrammars.Registry;
+        var grammar = registry.Find(tab.Doc.Language.Id) ?? (tab.Path is { } p ? registry.ForFile(System.IO.Path.GetFileName(p)) : null);
+        return grammar is null ? null : new Tokenizer(grammar);
+    }
+
+    // ---- language edits ----
+
+    /// <summary>Comments the lines of every selection out, or back in, with the markers of the language at each line; one undo step.</summary>
+    internal CommandOutcome ToggleComment()
+    {
+        if (Active is not { Surface: { IsReadOnly: false } } tab) return CommandOutcome.NotHandled;
+        var tokenizer = TokenizerOf(tab);
+        return RunEdit((s, sels) =>
+        {
+            var d = s.Document;
+            var ranges = sels.Select(sel =>
+            {
+                var first = d.GetLineByOffset(sel.Start);
+                var last = d.GetLineByOffset(sel.End);
+                if (!sel.IsEmpty && sel.End == last.Offset && last != first) last = last.PreviousLine;
+                return (first.LineNumber - 1, last.LineNumber - 1);
+            });
+            var edits = CommentToggle.Toggle(LinesOf(d), tokenizer, ranges);
+            if (edits.Count == 0) return sels;
+            TextAnchor Anchor(int offset, AnchorMovementType movement)
+            {
+                var anchor = d.CreateAnchor(offset);
+                anchor.MovementType = movement;
+                anchor.SurviveDeletion = true;
+                return anchor;
+            }
+            // a selection keeps the markers inside it, a caret moves past an inserted marker
+            var anchors = sels.Select(sel => (Start: Anchor(sel.Start, sel.IsEmpty ? AnchorMovementType.AfterInsertion : AnchorMovementType.BeforeInsertion),
+                End: Anchor(sel.End, AnchorMovementType.AfterInsertion))).ToList();
+            using (d.RunUpdate())
+                foreach (var e in edits.Reverse())
+                    d.Replace(d.GetLineByNumber(e.Line + 1).Offset + e.Column, e.Length, e.Text);
+            return anchors.Select(a => new Sel(a.Start.Offset, a.End.Offset)).ToList();
+        });
+    }
+
+    /// <summary>Grows every selection one step: word, bracket content, the brackets, the next pair out, whole lines, all text.</summary>
+    internal CommandOutcome ExpandSelection()
+    {
+        if (Active is not { Surface: { } surface } tab) return CommandOutcome.NotHandled;
+        var d = surface.Document;
+        var lines = LinesOf(d);
+        var tokenizer = TokenizerOf(tab);
+        TextPosition At(int offset) => d.GetLocation(offset) is var l ? new TextPosition(l.Line - 1, l.Column - 1) : default;
+        int OffsetOf(TextPosition p) => d.GetOffset(p.Line + 1, p.Column + 1);
+        var grown = surface.GetSelections().Select(sel =>
+        {
+            var (a, b) = SelectionGrowth.Expand(lines, tokenizer, At(sel.Start), At(sel.End));
+            return new Sel(OffsetOf(a), OffsetOf(b));
+        }).ToList();
+        surface.SetSelections(grown);
         return CommandOutcome.Handled;
     }
 }

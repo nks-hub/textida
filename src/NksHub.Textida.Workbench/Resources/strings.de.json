@@ -114,6 +114,8 @@
   "cmd.edit.selectLine": "Zeile auswählen",
   "cmd.edit.toggleBlockSelect": "Blockauswahl",
   "cmd.edit.joinLines": "Zeilen verbinden",
+  "cmd.edit.toggleComment": "Kommentar umschalten",
+  "cmd.edit.expandSelection": "Auswahl erweitern",
   "cmd.edit.newline": "Neue Zeile",
   "cmd.format.reread": "Mit Codierung neu öffnen...",
   "cmd.format.convert": "In Codierung konvertieren...",

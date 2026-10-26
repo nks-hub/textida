@@ -151,18 +151,20 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Vystrihnúť a Vložiť nejdú pri dokumente len na čítanie a v stránkovanom režime (téma Veľké súbory).
 
 ## [edit.select] Výber
-commands: nks.edit.selectAll, nks.edit.selectLine
+commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 1. Ctrl+A vyberie celý text.
 2. Ctrl+L vyberie riadok vrátane konca riadka. Opakované Ctrl+L pridá ďalší riadok.
+3. Shift+Alt+šípka doprava rozšíri výber: najprv slovo, potom obsah zátvoriek okolo neho, potom aj zátvorky, ďalšie zátvorky, celé riadky a nakoniec celý text.
 - Pri viacerých kurzoroch vyberie každý kurzor svoj riadok.
 
 ## [edit.lines] Práca s riadkami
-commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines
+commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 Príkazy sa týkajú riadka s kurzorom, prípadne všetkých riadkov výberu. Každý je jeden krok Späť.
 - Odstrániť riadok: Ctrl+Shift+K.
 - Duplikovať riadok: Ctrl+Shift+D vloží kópiu pod riadok.
 - Presunúť riadok nahor alebo nadol: Alt+šípka nahor, Alt+šípka nadol.
 - Spojiť riadky: Ctrl+Shift+J spojí riadok s nasledujúcim.
+- Zakomentovať / odkomentovať: Ctrl+/ riadky zakomentuje, alebo komentár zase odstráni. Použije značky jazyka na danom riadku, takže skript vnútri HTML dostane // a HTML okolo neho komentár HTML.
 - Všetky sú aj v ponuke Úpravy.
 - Nejdú pri dokumente len na čítanie ani v stránkovanom režime.
 - V profile PSPad je Odstrániť riadok na Ctrl+Y, Duplikovať riadok na Shift+Alt+šípka nadol a Alt+šípky riadky nepresúvajú.

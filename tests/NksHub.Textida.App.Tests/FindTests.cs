@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Search;
 
 namespace NksHub.Textida.App.Tests;
@@ -288,6 +289,34 @@ public class FindTests : IDisposable
         tab.Editor.CaretOffset = 18;
         Assert.Equal(NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, _w.GoToBracket());
         Assert.Equal(1, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void Ctrl_slash_comments_two_selections_with_the_markers_of_html_and_its_script_as_one_undo_step()
+    {
+        string original = "<p>a</p>\n<script>\n  var x;\n</script>\n";
+        var tab = _w.OpenFile(_temp.File("p.html", original), null);
+        var d = tab.Editor!.Document;
+        int script = d.GetLineByNumber(3).Offset + 4;
+        tab.Editor.SetCarets(Carets.Create([Sel.At(2), Sel.At(script)], 1));
+        TestApp.Press(_w, Key.OemQuestion, TestApp.Mod);
+        Assert.Equal("<!-- <p>a</p> -->\n<script>\n  // var x;\n</script>\n", Text(tab));
+        Assert.Equal(d.GetLineByNumber(3).Offset + 7, tab.Editor.GetSelections()[1].Start);
+        _w.Undo();
+        Assert.Equal(original, Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void Shift_alt_right_grows_the_selection_from_the_word_to_the_bracket_content()
+    {
+        var tab = _w.OpenFile(_temp.File("g.js", "f(a, [b + c]);\n"), null);
+        tab.Editor!.CaretOffset = 6;
+        TestApp.Press(_w, Key.Right, RawInputModifiers.Shift | RawInputModifiers.Alt);
+        Assert.Equal("b", Selected(tab));
+        TestApp.Press(_w, Key.Right, RawInputModifiers.Shift | RawInputModifiers.Alt);
+        Assert.Equal("b + c", Selected(tab));
+        TestApp.Press(_w, Key.Right, RawInputModifiers.Shift | RawInputModifiers.Alt);
+        Assert.Equal("[b + c]", Selected(tab));
     }
 
     [AvaloniaFact]
