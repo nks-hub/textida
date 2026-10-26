@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "example.csharp-hello",
+  "name": "C# hello",
+  "version": "1.0.0",
+  "api": { "min": 1, "max": 1 },
+  "main": {
+    "executable": "/path/to/NksHub.Textida.Samples.CsHello"
+  }
+}

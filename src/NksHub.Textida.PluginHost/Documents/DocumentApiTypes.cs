@@ -1,4 +1,5 @@
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.PluginHost.Permissions;
 
 namespace NksHub.Textida.PluginHost.Documents;
 
@@ -33,6 +34,9 @@ public static class DocumentEvents
 
 public static class DocumentPermissions
 {
+    /// <summary>Lists, reads, searches, maps positions, takes snapshots and subscribes. The scope is a document or all of them.</summary>
+    public const string Read = "document.read";
+    public const string EditPropose = "document.edit.propose";
     public const string EditDirect = "document.edit.direct";
 }
 
@@ -66,8 +70,9 @@ public sealed record DocumentApiOptions
     public required int EventQueueCapacity { get; init; }
     /// <summary>Applied batch ids remembered per plugin, so a repeated batch is answered and not applied twice.</summary>
     public required int MaxRememberedBatches { get; init; }
-    /// <summary>Whether the plugin holds the permission (for example <see cref="DocumentPermissions.EditDirect"/>).</summary>
-    public required Func<string, string, bool> HasPermission { get; init; }
+    /// <summary>Grants of the plugins (see <see cref="DocumentPermissions"/>); revoking one stops new requests and cancels pending ones.</summary>
+    public required PluginPermissions Permissions { get; init; }
+    public required PluginCallLog CallLog { get; init; }
     public required IEditProposals Proposals { get; init; }
 }
 

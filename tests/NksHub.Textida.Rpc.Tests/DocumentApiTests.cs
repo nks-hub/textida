@@ -3,11 +3,12 @@ using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Permissions;
 
 namespace NksHub.Textida.Rpc.Tests;
 
 /// <summary>Document API v1 through real plugin processes: the test plugin calls the editor and reports what it got.</summary>
-public class DocumentApiTests
+public partial class DocumentApiTests
 {
     sealed class OwnerLock : IDocumentOwnerThread
     {
@@ -46,12 +47,23 @@ public class DocumentApiTests
         public required Document Doc { get; init; }
         public required OwnerLock Owner { get; init; }
         public required RecordingProposals Proposals { get; init; }
+        public required PluginPermissions Permissions { get; init; }
+        public required PluginCallLog CallLog { get; init; }
         public required TaskCompletionSource Gate { get; init; }
 
         public static async Task<Rig> CreateAsync(byte[] content, Func<DocumentApiOptions, DocumentApiOptions>? tune = null, bool canEdit = true,
-            TimeProvider? time = null, bool gated = false, IBackendFactory? factory = null, string[]? plugins = null, NksHub.Textida.Core.Encodings.TextCodec? codec = null)
+            TimeProvider? time = null, bool gated = false, IBackendFactory? factory = null, string[]? plugins = null, NksHub.Textida.Core.Encodings.TextCodec? codec = null,
+            Func<Func<PluginHost.PluginHost>, DocumentApi, PluginPermissions, PluginCallLog, PluginApiCallback>? route = null)
         {
             var proposals = new RecordingProposals();
+            var permissions = new PluginPermissions();
+            var callLog = new PluginCallLog(1000);
+            foreach (var id in plugins ?? ["p"])
+            {
+                permissions.Grant(id, DocumentPermissions.Read, GrantScope.All);
+                permissions.Grant(id, DocumentPermissions.EditPropose, GrantScope.All);
+                if (canEdit) permissions.Grant(id, DocumentPermissions.EditDirect, GrantScope.All);
+            }
             var options = new DocumentApiOptions
             {
                 MaxReadBytes = 1 << 16,
@@ -60,7 +72,8 @@ public class DocumentApiTests
                 SnapshotLifetime = TimeSpan.FromSeconds(10),
                 EventQueueCapacity = 64,
                 MaxRememberedBatches = 16,
-                HasPermission = (_, permission) => canEdit && permission == DocumentPermissions.EditDirect,
+                Permissions = permissions,
+                CallLog = callLog,
                 Proposals = proposals,
             };
             if (tune is not null) options = tune(options);
@@ -73,7 +86,7 @@ public class DocumentApiTests
                 await gate.Task;
                 return await host!.SendEventAsync(plugin, name, payload);
             }, time);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(), api.HandleAsync, api);
+            host = new PluginHost.PluginHost(PluginHostTests.Options(), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
             var doc = Document.FromBytes(content, factory ?? PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
             api.Expose(doc, () => SelectionSet.Single(new TextSelection(1, 3)));
             foreach (var id in plugins ?? ["p"])
@@ -81,7 +94,7 @@ public class DocumentApiTests
                 host.Register(new PluginSpec(id, "Plugin " + id, T.DotnetHost, [T.PluginDll], ["onCommand:" + id]));
                 await host.ActivateAsync("onCommand:" + id);
             }
-            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Gate = gate };
+            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Permissions = permissions, CallLog = callLog, Gate = gate };
         }
 
         public string D(string rest = "") => $"{{\"document\":\"{Doc.Id}\"{(rest.Length > 0 ? "," + rest : "")}}}";

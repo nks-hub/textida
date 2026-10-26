@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginHost.Documents;
@@ -32,6 +33,18 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         _owner = owner;
         _send = send;
         _time = time ?? TimeProvider.System;
+        options.Permissions.Revoked += DropRevokedSubscriptions;
+    }
+
+    /// <summary>A plugin that lost the right to read a document no longer hears about its changes.</summary>
+    private void DropRevokedSubscriptions(string pluginId)
+    {
+        lock (_gate)
+        {
+            foreach (var e in _exposed.Values)
+                if (e.Subscribers.Contains(pluginId) && !_options.Permissions.IsGranted(pluginId, DocumentPermissions.Read, GrantScope.OfDocument(e.Doc.Id)))
+                    e.Subscribers.Remove(pluginId);
+        }
     }
 
     private sealed class Exposed(Document document, Func<SelectionSet?>? selections)
@@ -72,11 +85,56 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         foreach (var plugin in subscribers) Enqueue(plugin, document.Id, DocumentEvents.Withdrawn, payload);
     }
 
+    /// <summary>The permission a method needs; null for the calls that only give something back (unsubscribe, release a snapshot).</summary>
+    private static string? Required(string method) => method switch
+    {
+        DocumentMethods.Unsubscribe or DocumentMethods.SnapshotRelease => null,
+        DocumentMethods.EditApply => DocumentPermissions.EditDirect,
+        DocumentMethods.EditPropose => DocumentPermissions.EditPropose,
+        _ => DocumentPermissions.Read,
+    };
+
+    /// <summary>The document a request is about: the one it names, or the one its snapshot was taken from. <see cref="GrantScope.Any"/> when there is none.</summary>
+    private (GrantScope Scope, Guid? Document) ScopeOf(string pluginId, JsonElement p)
+    {
+        if (p.ValueKind != JsonValueKind.Object) return (GrantScope.Any, null);
+        if (p.TryGetProperty("document", out var d) && d.ValueKind == JsonValueKind.String && Guid.TryParse(d.GetString(), out var id)) return (GrantScope.OfDocument(id), id);
+        if (p.TryGetProperty("snapshot", out var s) && s.ValueKind == JsonValueKind.String)
+        {
+            lock (_gate)
+            {
+                if (_snapshots.TryGetValue(pluginId, out var list) && list.Find(x => x.Id == s.GetString()) is { } pin)
+                    return (GrantScope.OfDocument(pin.Snap.DocumentId), pin.Snap.DocumentId);
+            }
+        }
+        return (GrantScope.Any, null);
+    }
+
     public async ValueTask<byte[]?> HandleAsync(string pluginId, string method, JsonElement p, CancellationToken cancellation)
+    {
+        var (scope, document) = ScopeOf(pluginId, p);
+        return await _options.CallLog.RunAsync(pluginId, method, document, async () =>
+        {
+            if (Required(method) is not { } permission) return await DispatchAsync(pluginId, method, p, cancellation, null);
+            using var lease = _options.Permissions.Enter(pluginId, permission, scope, cancellation);
+            try
+            {
+                var work = DispatchAsync(pluginId, method, p, lease.Token, lease);
+                // An edit that already started is not abandoned: the caller must learn that it happened.
+                return method == DocumentMethods.EditApply ? await work : await work.WaitAsync(lease.Token);
+            }
+            catch (OperationCanceledException) when (lease.Revoked && !cancellation.IsCancellationRequested)
+            {
+                throw lease.RevokedError();
+            }
+        });
+    }
+
+    private async Task<byte[]?> DispatchAsync(string pluginId, string method, JsonElement p, CancellationToken cancellation, PermissionLease? lease)
     {
         switch (method)
         {
-            case DocumentMethods.List: return await ListAsync();
+            case DocumentMethods.List: return await ListAsync(pluginId);
             case DocumentMethods.Info: return await InfoAsync(p);
             case DocumentMethods.Subscribe: return await SubscribeAsync(pluginId, p, add: true);
             case DocumentMethods.Unsubscribe: return await SubscribeAsync(pluginId, p, add: false);
@@ -89,7 +147,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.MapRanges: return await MapRangesAsync(p);
             case DocumentMethods.SnapshotCreate: return await SnapshotCreateAsync(pluginId, p);
             case DocumentMethods.SnapshotRelease: return SnapshotRelease(pluginId, p);
-            case DocumentMethods.EditApply: return await ApplyAsync(pluginId, p);
+            case DocumentMethods.EditApply: return await ApplyAsync(pluginId, p, lease!);
             case DocumentMethods.EditPropose: return await ProposeAsync(pluginId, p, cancellation);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
@@ -164,10 +222,10 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
 
     // ---- list, info, subscriptions ----
 
-    private async Task<byte[]> ListAsync()
+    private async Task<byte[]> ListAsync(string pluginId)
     {
         List<Exposed> all;
-        lock (_gate) all = [.. _exposed.Values];
+        lock (_gate) all = [.. _exposed.Values.Where(x => _options.Permissions.IsGranted(pluginId, DocumentPermissions.Read, GrantScope.OfDocument(x.Doc.Id)))];
         return await _owner.InvokeAsync(() =>
         {
             var buffer = new ArrayBufferWriter<byte>();
