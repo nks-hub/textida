@@ -45,6 +45,7 @@ sealed class Handler(int api) : IRpcHandler
     volatile bool _frozen;
     long _sinkCount, _sinkBytes;
     string _resync = "null";
+    readonly List<string> _events = [];
 
     static byte[] Raw(string json) => Encoding.UTF8.GetBytes(json);
     static string Str(JsonElement p, string name) => p.GetProperty(name).GetString()!;
@@ -131,13 +132,19 @@ sealed class Handler(int api) : IRpcHandler
             case "callEditor":
                 try
                 {
-                    var r = await Rpc.RequestAsync(Str(p, "method"));
+                    var r = await Rpc.RequestAsync(Str(p, "method"), p.TryGetProperty("params", out var args) ? Raw(args.GetRawText()) : default);
                     return Raw(r.GetRawText());
                 }
                 catch (RpcException e)
                 {
-                    return Raw($"{{\"error\":{e.Code}}}");
+                    return Raw($"{{\"error\":{e.Code},\"data\":{e.DataJson ?? "null"}}}");
                 }
+            case "callEditorThenCrash":
+                await Rpc.RequestAsync(Str(p, "method"), Raw(p.GetProperty("params").GetRawText()));
+                Environment.Exit(43);
+                return null;
+            case "events":
+                lock (_events) return Raw("[" + string.Join(",", _events) + "]");
             default:
                 throw new RpcException(RpcErrorCodes.MethodNotFound, $"Unknown method '{method}'.");
         }
@@ -151,6 +158,9 @@ sealed class Handler(int api) : IRpcHandler
                 break;
             case PluginMethods.Exit:
                 Environment.Exit(0);
+                break;
+            case PluginMethods.Event:
+                lock (_events) _events.Add(p.GetRawText());
                 break;
             case "sink":
                 Interlocked.Increment(ref _sinkCount);

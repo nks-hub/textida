@@ -136,7 +136,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
                 }
                 RpcMessage msg;
                 try { msg = RpcMessage.Parse(frame.Payload!); }
-                catch (RpcException e) { Enqueue(RpcWire.Error(e.Id, e.Code, e.Message)); continue; }
+                catch (RpcException e) { Enqueue(RpcWire.Error(e.Id, e.Code, e.Message, e.DataJson)); continue; }
                 Dispatch(msg);
             }
         }
@@ -264,7 +264,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         {
             if (_protocol.RespondsToCancelled) response = RpcWire.Error(id, RpcErrorCodes.RequestCancelled, "The request was cancelled.");
         }
-        catch (RpcException e) { response = RpcWire.Error(id, e.Code, e.Message); }
+        catch (RpcException e) { response = RpcWire.Error(id, e.Code, e.Message, e.DataJson); }
         catch (Exception e) { response = RpcWire.Error(id, RpcErrorCodes.InternalError, e.Message); }
         finally
         {

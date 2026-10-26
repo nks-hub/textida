@@ -160,12 +160,13 @@ public static class RpcWire
         d.RootElement.WriteTo(w);
     });
 
-    public static byte[] Error(RpcId? id, int code, string message) => Build(w =>
+    public static byte[] Error(RpcId? id, int code, string message, string? dataJson = null) => Build(w =>
     {
         WriteId(w, id);
         w.WriteStartObject("error");
         w.WriteNumber("code", code);
         w.WriteString("message", message);
+        if (dataJson is not null) WriteRaw(w, "data", System.Text.Encoding.UTF8.GetBytes(dataJson));
         w.WriteEndObject();
     });
 }
