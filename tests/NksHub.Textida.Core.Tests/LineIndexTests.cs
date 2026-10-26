@@ -226,7 +226,7 @@ public class LineIndexTests
         Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf8));
         Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf16BE));
         src.SetCodec(Encodings.TextCodec.Utf16LE);
-        Assert.Equal(["abc", ""], src.ReadLines(0, 5));
+        Assert.Equal(["﻿abc", ""], src.ReadLines(0, 5)); // without the BOM codec the mark is ordinary text
     }
 
     [Fact]
