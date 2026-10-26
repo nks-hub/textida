@@ -56,10 +56,10 @@ public sealed class FrameReader(Stream stream)
             _start += i < 0 ? span.Length : i + 1;
             if (i >= 0) break;
         }
-        if (over) return new Frame(null, FrameStatus.Oversize);
+        if (over) return new Frame(null, FrameStatus.Oversize, prefix[..prefixLen]);
         var line = acc.WrittenSpan;
         if (line.Length > 0 && line[^1] == (byte)'\r') line = line[..^1];
-        return line.Length > max ? new Frame(null, FrameStatus.Oversize) : new Frame(line.ToArray(), FrameStatus.Ok);
+        return line.Length > max ? new Frame(null, FrameStatus.Oversize, prefix[..prefixLen]) : new Frame(line.ToArray(), FrameStatus.Ok);
     }
 
     public async ValueTask<byte[]> ReadExactAsync(int count, CancellationToken ct)

@@ -377,6 +377,7 @@ public sealed class PluginHost : IAsyncDisposable
         await run.Process.WaitForExitAsync().ConfigureAwait(false);
         await Task.WhenAny(run.StderrTask, Task.Delay(1000)).ConfigureAwait(false);
         run.Cts.Cancel();
+        if (!_shuttingDown) p.State = PluginState.WaitingRestart;
         List<string> tail;
         lock (p.Stderr) tail = [.. p.Stderr];
         if (detail.Length == 0) detail = tail.Count > 0 ? "Last stderr line: " + tail[^1] : "The process exited.";

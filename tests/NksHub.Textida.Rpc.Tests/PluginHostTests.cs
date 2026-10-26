@@ -251,7 +251,8 @@ public class PluginHostTests
         var options = Options(o => o with { Limits = o.Limits with { MaxSessionBytes = 100_000 } });
         await using var host = await Started(options, null, null, Spec("loud"), Spec("calm"));
         host.Crashed += i => { lock (crashed) crashed.Add(i); };
-        await host.CallAsync("loud", "notifyBig", Args("{\"bytes\":200000}"));
+        // The plugin is cut off while it is still sending, so its reply may never arrive.
+        await Record.ExceptionAsync(() => host.CallAsync("loud", "notifyBig", Args("{\"bytes\":200000}")));
         await T.Until(() => { lock (crashed) return crashed.Count == 1; });
         Assert.Equal("loud", crashed[0].PluginId);
         Assert.Equal(PluginEndReason.ProtocolViolation, crashed[0].Reason);

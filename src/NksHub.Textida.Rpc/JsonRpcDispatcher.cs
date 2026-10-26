@@ -179,10 +179,10 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
 
     void OnResponse(RpcMessage msg)
     {
-        TaskCompletionSource<RpcMessage>? tcs;
+        TaskCompletionSource<RpcMessage>? tcs = null;
         lock (_gate)
         {
-            tcs = _pending.Remove(msg.Id!.Value, out var t) ? t : null;
+            if (msg.Id is { } id && _pending.Remove(id, out var t)) tcs = t;
         }
         if (tcs is null)
         {

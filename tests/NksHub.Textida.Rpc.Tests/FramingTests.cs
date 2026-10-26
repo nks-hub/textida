@@ -62,7 +62,7 @@ public class FramingTests
         Assert.Equal("{\"t\":\"žluťoučký\"}", Text(await f.ReadAsync(r, 1000, default)));
         Assert.Equal("{\"t\":\"🙂\"}", Text(await f.ReadAsync(r, 1000, default)));
         Assert.Equal(FrameStatus.Eof, (await f.ReadAsync(r, 1000, default)).Status);
-        Assert.StartsWith("Content-Length: 22\r\n\r\n", Encoding.UTF8.GetString(a));
+        Assert.StartsWith($"Content-Length: {Encoding.UTF8.GetByteCount("{\"t\":\"žluťoučký\"}")}\r\n\r\n", Encoding.UTF8.GetString(a));
     }
 
     [Fact]
