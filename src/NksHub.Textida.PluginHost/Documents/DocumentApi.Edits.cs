@@ -1,6 +1,7 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginHost.Documents;
@@ -43,10 +44,11 @@ public sealed partial class DocumentApi
     /// any other revision is a conflict and the plugin reads again. <c>batchId</c> makes a repeat harmless: a batch whose answer
     /// was lost (the plugin or the connection died after the editor applied it) is answered with the stored revision and not applied twice.
     /// </summary>
-    private async Task<byte[]> ApplyAsync(string pluginId, JsonElement p)
+    private async Task<byte[]> ApplyAsync(string pluginId, JsonElement p, PermissionLease lease)
     {
-        if (!_options.HasPermission(pluginId, DocumentPermissions.EditDirect))
-            throw Fail(DocumentErrorCodes.PermissionDenied, $"The plugin does not hold the '{DocumentPermissions.EditDirect}' permission.");
+        if (_options.Permissions.IsDelegated(pluginId))
+            throw new RpcException(DocumentErrorCodes.PermissionDenied, "A command another plugin started cannot write documents.")
+            { DataJson = $"{{\"permission\":\"{DocumentPermissions.EditDirect}\",\"reason\":\"Delegated\"}}" };
         var e = Find(NeedDocumentId(p));
         long revision = NeedLong(p, "revision");
         var batchId = NeedString(p, "batchId");
@@ -64,6 +66,7 @@ public sealed partial class DocumentApi
                     return ApplyResult(previous.Revision, duplicate: true);
                 }
             }
+            lease.Token.ThrowIfCancellationRequested();
             var d = e.Doc;
             CheckCurrent(d, revision);
             var result = d.Apply(ParseEdits(editsJson, d.Codec), new EditOptions { BaseRevision = revision, Source = "plugin:" + pluginId });

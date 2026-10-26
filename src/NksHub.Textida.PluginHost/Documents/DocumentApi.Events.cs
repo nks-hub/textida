@@ -136,6 +136,7 @@ public sealed partial class DocumentApi
     public async ValueTask DisposeAsync()
     {
         _stop.Cancel();
+        _options.Permissions.Revoked -= DropRevokedSubscriptions;
         List<Exposed> exposed;
         List<Outbox> boxes;
         lock (_gate)
