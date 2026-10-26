@@ -8,7 +8,10 @@ public sealed record CommentStyle(string? Line, bool StarBlock)
     public static readonly CommentStyle None = new(null, false);
 }
 
-/// <summary>Auto-closing of brackets and quotes. Pure text edits; the caller wraps one call in one undo step.</summary>
+/// <summary>A replacement of <see cref="Length"/> chars at <see cref="Start"/> in text view offsets.</summary>
+public readonly record struct TextEdit(int Start, int Length, string Text);
+
+/// <summary>Auto-closing of brackets and quotes. Each rule has a <c>TryPlan…</c> form that only describes the edit, so several carets can be combined into one transaction.</summary>
 public static class PairedCharacters
 {
     private const string Brackets = "([{";
@@ -24,6 +27,20 @@ public static class PairedCharacters
     /// </summary>
     public static bool TryType(TextDocument d, Sel sel, char typed, out Sel result)
     {
+        if (!TryPlanType(d, sel, typed, out var edit, out result)) return false;
+        Apply(d, edit);
+        return true;
+    }
+
+    private static void Apply(TextDocument d, TextEdit edit)
+    {
+        if (edit.Length > 0 || edit.Text.Length > 0) d.Replace(edit.Start, edit.Length, edit.Text);
+    }
+
+    /// <summary>Like <see cref="TryType"/> without changing the document; <paramref name="result"/> is the selection after <paramref name="edit"/> alone.</summary>
+    public static bool TryPlanType(TextDocument d, Sel sel, char typed, out TextEdit edit, out Sel result)
+    {
+        edit = default;
         result = sel;
         bool opener = Brackets.Contains(typed) || Quotes.Contains(typed);
         bool closer = Closers.Contains(typed) || Quotes.Contains(typed);
@@ -33,7 +50,7 @@ public static class PairedCharacters
         {
             if (!opener) return false;
             string inner = d.GetText(sel.Start, sel.Length);
-            d.Replace(sel.Start, sel.Length, typed + inner + CloserOf(typed));
+            edit = new(sel.Start, sel.Length, typed + inner + CloserOf(typed));
             result = new Sel(sel.Start + 1, sel.Start + 1 + inner.Length);
             return true;
         }
@@ -43,6 +60,7 @@ public static class PairedCharacters
         char prev = at > 0 ? d.GetCharAt(at - 1) : '\0';
         if (closer && next == typed && (Closers.Contains(typed) || prev != typed || Quotes.Contains(typed)))
         {
+            edit = new(at, 0, "");
             result = Sel.At(at + 1);
             return true;
         }
@@ -50,7 +68,7 @@ public static class PairedCharacters
         if (!opener) return false;
         if (Quotes.Contains(typed) && (char.IsLetterOrDigit(prev) || prev == typed || (next != '\0' && !char.IsWhiteSpace(next) && !Closers.Contains(next)))) return false;
         if (Brackets.Contains(typed) && next != '\0' && !char.IsWhiteSpace(next) && !Closers.Contains(next) && !Quotes.Contains(next)) return false;
-        d.Insert(at, typed.ToString() + CloserOf(typed));
+        edit = new(at, 0, typed.ToString() + CloserOf(typed));
         result = Sel.At(at + 1);
         return true;
     }
@@ -58,13 +76,21 @@ public static class PairedCharacters
     /// <summary>Backspace between an opening and its closing character removes both.</summary>
     public static bool TryBackspace(TextDocument d, Sel sel, out Sel result)
     {
+        if (!TryPlanBackspace(d, sel, out var edit, out result)) return false;
+        Apply(d, edit);
+        return true;
+    }
+
+    public static bool TryPlanBackspace(TextDocument d, Sel sel, out TextEdit edit, out Sel result)
+    {
+        edit = default;
         result = sel;
         int at = sel.Caret;
         if (!sel.IsEmpty || at == 0 || at >= d.TextLength) return false;
         char before = d.GetCharAt(at - 1), after = d.GetCharAt(at);
         bool pair = (Brackets.Contains(before) && CloserOf(before) == after) || (Quotes.Contains(before) && before == after);
         if (!pair) return false;
-        d.Remove(at - 1, 2);
+        edit = new(at - 1, 2, "");
         result = Sel.At(at - 1);
         return true;
     }
@@ -79,6 +105,15 @@ public static class CommentContinuation
     /// </summary>
     public static bool TryContinue(TextDocument d, Sel sel, CommentStyle style, string newLine, out Sel result)
     {
+        if (!TryPlan(d, sel, style, newLine, out var edit, out result)) return false;
+        d.Replace(edit.Start, edit.Length, edit.Text);
+        return true;
+    }
+
+    /// <summary>Like <see cref="TryContinue"/> without changing the document; <paramref name="result"/> is the selection after <paramref name="edit"/> alone.</summary>
+    public static bool TryPlan(TextDocument d, Sel sel, CommentStyle style, string newLine, out TextEdit edit, out Sel result)
+    {
+        edit = default;
         result = sel;
         if (!sel.IsEmpty) return false;
         var line = d.GetLineByOffset(sel.Caret);
@@ -95,14 +130,13 @@ public static class CommentContinuation
         string pad = text[..indent];
         if (afterLead.Trim().Length == 0 && sel.Caret == line.EndOffset && !rest.StartsWith("/*", StringComparison.Ordinal))
         {
-            d.Replace(line.Offset, line.Length, "");
-            d.Insert(line.Offset, newLine);
+            edit = new(line.Offset, line.Length, newLine);
             result = Sel.At(line.Offset + newLine.Length);
             return true;
         }
 
         string insert = newLine + pad + (rest.StartsWith("/*", StringComparison.Ordinal) ? " * " : lead);
-        d.Insert(sel.Caret, insert);
+        edit = new(sel.Caret, 0, insert);
         result = Sel.At(sel.Caret + insert.Length);
         return true;
     }
