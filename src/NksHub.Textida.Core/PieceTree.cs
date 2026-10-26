@@ -64,6 +64,9 @@ internal sealed class PieceTree
         Remeasure(_root);
     }
 
+    /// <summary>Drops the line counts; <see cref="TrackLines"/> measures every piece again.</summary>
+    public void StopTrackingLines() => _measure = null;
+
     private void Remeasure(Node? n)
     {
         if (n is null) return;

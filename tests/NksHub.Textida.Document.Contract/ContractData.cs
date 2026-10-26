@@ -26,6 +26,9 @@ public sealed record TestFormat(string Name, TextCodec Format, Encoding Enc)
     /// <summary>The formats every backend must pass the contract with.</summary>
     public static IReadOnlyList<TestFormat> All { get; } = [Utf8, Utf8Bom, Cp1250, Utf16LE, Utf16BE];
 
+    /// <summary>The formats of the contract suites: <see cref="All"/> plus UTF-32, which only backends that report UTF-16/32 support are run with.</summary>
+    public static IReadOnlyList<TestFormat> WithUtf32 { get; } = [.. All, Utf32LE, Utf32BE];
+
     public byte[] Bom => Format.Bom;
     public bool IsUtf16 => Format.Kind == CodecKind.Utf16;
     public bool IsWide => Format.Kind is CodecKind.Utf16 or CodecKind.Utf32;
