@@ -137,18 +137,32 @@ public sealed partial class Document
             string hash;
             if (plan.Mode == SaveMode.InPlace)
             {
-                hash = await Task.Run(() => HashSnapshot(snapshot!, ct), CancellationToken.None);
-                if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
-                ct.ThrowIfCancellationRequested();
-                Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
-                await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
-                if (await Task.Run(() => VerifyWritten(target, hash), CancellationToken.None) is { } differs) return new(false, differs);
+                try
+                {
+                    hash = await Task.Run(() => HashSnapshot(snapshot!, ct), CancellationToken.None);
+                    if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
+                    ct.ThrowIfCancellationRequested();
+                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+                    await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
+                    if (await Task.Run(() => VerifyWritten(target, hash), CancellationToken.None) is { } differs) return new(false, differs);
+                }
+                catch (SnapshotInvalidatedException) when (guard)
+                {
+                    // the file moved under the snapshot: what it holds now decides between a conflict and an error
+                    if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } changed) return new(false, changed);
+                    throw;
+                }
             }
             else
             {
                 temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
                 string tempPath = temp;
-                hash = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct), CancellationToken.None);
+                try { hash = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct), CancellationToken.None); }
+                catch (SnapshotInvalidatedException) when (guard)
+                {
+                    if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } changed) return new(false, changed);
+                    throw;
+                }
                 if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
                 ct.ThrowIfCancellationRequested();
                 _snapshot = null;
