@@ -51,7 +51,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
     // ---- typing: </ and -> ----
 
     /// <inheritdoc />
-    public bool TryPlan(TextDocument doc, Sel sel, char typed, out TextEdit edit, out Sel result)
+    public bool TryPlan(TextDocument doc, Sel sel, char typed, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = sel;
@@ -61,7 +61,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
         return false;
     }
 
-    private bool TryCloseTag(int caret, out TextEdit edit)
+    private bool TryCloseTag(int caret, out ViewEdit edit)
     {
         edit = default;
         if (caret == 0 || d.GetCharAt(caret - 1) != '<' || (caret < d.TextLength && d.GetCharAt(caret) == '>') || InStringOrComment(caret - 1)) return false;
@@ -161,7 +161,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
     /// When <paramref name="edit"/> changes only the name of a tag, the edit that gives the matching tag the same new name. The tags are paired by
     /// their nesting in the text as it is before the edit, so a half-typed name still finds its partner. False when the edit is elsewhere, empties the name or no partner exists.
     /// </summary>
-    public bool TryPlanRename(TextEdit edit, out TextEdit partner)
+    public bool TryPlanRename(ViewEdit edit, out ViewEdit partner)
     {
         partner = default;
         if (!options.RenameTag || !Markup || (edit.Text.Length > 0 && !edit.Text.All(IsNameChar)) || !InsideTagName(edit.Start)) return false;
@@ -239,7 +239,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
     // ---- Enter: JSON comma, SQL END ----
 
     /// <summary>Enter at the end of a JSON value that another value follows: the comma is added. Enter after SQL <c>BEGIN</c>: an <c>END</c> line follows the new one.</summary>
-    public bool TryPlanLineBreak(Sel sel, string newLine, out TextEdit edit, out Sel result)
+    public bool TryPlanLineBreak(Sel sel, string newLine, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = sel;
@@ -269,7 +269,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
         return "";
     }
 
-    private bool TryJsonComma(DocumentLine line, int caret, string newLine, out TextEdit edit, out Sel result)
+    private bool TryJsonComma(DocumentLine line, int caret, string newLine, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = default;
@@ -288,7 +288,7 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
         return true;
     }
 
-    private bool TrySqlEnd(DocumentLine line, int caret, string newLine, out TextEdit edit, out Sel result)
+    private bool TrySqlEnd(DocumentLine line, int caret, string newLine, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = default;

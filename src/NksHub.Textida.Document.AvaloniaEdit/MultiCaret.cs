@@ -24,7 +24,7 @@ public sealed record Carets(IReadOnlyList<Sel> Items, int Primary)
 }
 
 /// <summary>Where the carets go: by one character, one word, to the edge of the line or of the document.</summary>
-public enum CaretMove { Left, Right, WordLeft, WordRight, LineStart, LineEnd, DocumentStart, DocumentEnd }
+public enum CaretMove { Left, Right, WordLeft, WordRight, LineStart, LineEnd, LineStartEnhanced, LineEndEnhanced, DocumentStart, DocumentEnd }
 
 /// <summary>
 /// Caret movement, selecting and adding carets over a list of selections. All functions are pure over the text and return the
@@ -67,7 +67,7 @@ public static class MultiCaret
         var moved = new List<Sel>(c.Count);
         foreach (var s in c.Items)
         {
-            bool backwards = move is CaretMove.Left or CaretMove.WordLeft or CaretMove.LineStart or CaretMove.DocumentStart;
+            bool backwards = move is CaretMove.Left or CaretMove.WordLeft or CaretMove.LineStart or CaretMove.LineStartEnhanced or CaretMove.DocumentStart;
             int target;
             if (!extend && !s.IsEmpty && move is CaretMove.Left or CaretMove.Right) target = backwards ? s.Start : s.End;
             else target = Target(d, s.Caret, move, smartHome);
@@ -85,6 +85,20 @@ public static class MultiCaret
             case CaretMove.WordLeft: return Next(d, at, LogicalDirection.Backward, CaretPositioningMode.WordStartOrSymbol);
             case CaretMove.WordRight: return Next(d, at, LogicalDirection.Forward, CaretPositioningMode.WordStartOrSymbol);
             case CaretMove.LineEnd: return d.GetLineByOffset(at).EndOffset;
+            case CaretMove.LineEndEnhanced:
+                {
+                    var l = d.GetLineByOffset(at);
+                    int lastNonBlank = l.EndOffset;
+                    while (lastNonBlank > l.Offset && d.GetCharAt(lastNonBlank - 1) is ' ' or '\t') lastNonBlank--;
+                    return lastNonBlank == l.Offset || at == lastNonBlank ? l.EndOffset : lastNonBlank;
+                }
+            case CaretMove.LineStartEnhanced:
+                {
+                    var l = d.GetLineByOffset(at);
+                    int firstNonBlank = l.Offset;
+                    while (firstNonBlank < l.EndOffset && d.GetCharAt(firstNonBlank) is ' ' or '\t') firstNonBlank++;
+                    return firstNonBlank < at || at == l.Offset ? firstNonBlank : l.Offset;
+                }
             case CaretMove.DocumentStart: return 0;
             case CaretMove.DocumentEnd: return d.TextLength;
             default:
@@ -254,8 +268,11 @@ public static class MultiCaret
     }
 }
 
-/// <summary>One caret's part of a multi-caret edit: the replacement and the selection it leaves, relative to the text after that edit alone.</summary>
-public readonly record struct Planned(TextEdit Edit, Sel Local, int Index);
+/// <summary>
+/// One part of a multi-caret edit: the replacement and the selection the caret has after that edit alone (null for an edit that
+/// belongs to no caret, such as the partner tag of a rename). <see cref="Index"/> is the caret it belongs to, -1 for no caret.
+/// </summary>
+public readonly record struct Planned(ViewEdit Edit, Sel? Local, int Index);
 
 /// <summary>
 /// Edits over all carets as one transaction. A <c>Plan…</c> function describes what each caret does; <see cref="Apply"/> turns the plan
@@ -278,14 +295,17 @@ public static class MultiEdit
         return plan;
     }
 
-    /// <summary>Typing of one character through <paramref name="rules"/> (auto-closing pairs, smart keys); a caret no rule handles inserts the character.</summary>
-    public static List<Planned> PlanTyped(TextDocument d, Carets c, string typed, IReadOnlyList<ITypingRule> rules)
+    /// <summary>
+    /// Typing of one character through <paramref name="rules"/> (auto-closing pairs, smart keys); a caret no rule handles inserts the character.
+    /// <paramref name="partnerOf"/> may name a second edit that must go with one of them (the partner of a renamed tag).
+    /// </summary>
+    public static List<Planned> PlanTyped(TextDocument d, Carets c, string typed, IReadOnlyList<ITypingRule> rules, PartnerEdit? partnerOf = null)
     {
         var plan = new List<Planned>(c.Count);
         for (int i = 0; i < c.Count; i++)
         {
             var s = c.Items[i];
-            TextEdit edit = default;
+            ViewEdit edit = default;
             Sel local = default;
             bool done = false;
             if (typed.Length == 1)
@@ -297,18 +317,28 @@ public static class MultiEdit
                 local = Sel.At(s.Start + typed.Length);
             }
             plan.Add(new(edit, local, i));
+            if (partnerOf?.Invoke(edit) is { } partner) plan.Add(new(partner, null, -1));
         }
         return plan;
     }
 
-    /// <summary>Enter at every caret: comment continuation when <paramref name="style"/> is given, else the indentation of the line.</summary>
-    public static List<Planned> PlanLineBreaks(TextDocument d, Carets c, string newLine, CommentStyle? style)
+    /// <summary>Names the edit that has to accompany <paramref name="edit"/>, or null.</summary>
+    public delegate ViewEdit? PartnerEdit(ViewEdit edit);
+
+    /// <summary>One caret's line break from a smart rule (JSON comma, SQL END), or false to use the ordinary one.</summary>
+    public delegate bool SmartLineBreak(Sel sel, out ViewEdit edit, out Sel result);
+
+    /// <summary>Enter at every caret: a smart rule first, then comment continuation when <paramref name="style"/> is given, else the indentation of the line.</summary>
+    public static List<Planned> PlanLineBreaks(TextDocument d, Carets c, string newLine, CommentStyle? style, SmartLineBreak? smart = null)
     {
         var plan = new List<Planned>(c.Count);
         for (int i = 0; i < c.Count; i++)
         {
             var s = c.Items[i];
-            if (style is null || !CommentContinuation.TryPlan(d, s, style, newLine, out var edit, out var local)) LineBreak.Plan(d, s, newLine, out edit, out local);
+            ViewEdit edit;
+            Sel local;
+            if (smart is not null && smart(s, out edit, out local)) { }
+            else if (style is null || !CommentContinuation.TryPlan(d, s, style, newLine, out edit, out local)) LineBreak.Plan(d, s, newLine, out edit, out local);
             plan.Add(new(edit, local, i));
         }
         return plan;
@@ -316,18 +346,20 @@ public static class MultiEdit
 
     /// <summary>
     /// Backspace or Delete at every caret: a selection is removed, an empty caret removes one character (a pair of brackets or quotes
-    /// between the caret when <paramref name="pairs"/>) or, with <paramref name="word"/>, up to the word border.
+    /// between the caret when <paramref name="pairs"/>; spaces back to the previous tab stop at the end of an indentation when
+    /// <paramref name="unindentTab"/> is the tab size) or, with <paramref name="word"/>, up to the word border.
     /// </summary>
-    public static List<Planned> PlanDelete(TextDocument d, Carets c, bool backwards, bool word, bool pairs)
+    public static List<Planned> PlanDelete(TextDocument d, Carets c, bool backwards, bool word, bool pairs, int unindentTab = 0)
     {
         var plan = new List<Planned>(c.Count);
         for (int i = 0; i < c.Count; i++)
         {
             var s = c.Items[i];
-            TextEdit edit;
+            ViewEdit edit;
             Sel local;
             if (!s.IsEmpty) { edit = new(s.Start, s.Length, ""); local = Sel.At(s.Start); }
             else if (backwards && !word && pairs && PairedCharacters.TryPlanBackspace(d, s, out edit, out local)) { }
+            else if (backwards && !word && unindentTab > 0 && IndentBackspace.TryPlan(d, s, unindentTab, out edit, out local)) { }
             else
             {
                 int other = TextUtilities.GetNextCaretPosition(d, s.Caret, backwards ? LogicalDirection.Backward : LogicalDirection.Forward,
@@ -343,21 +375,26 @@ public static class MultiEdit
 
     // ---- applying ----
 
-    /// <summary>Orders the plan and drops edits that overlap an earlier one. <paramref name="carets"/> are the carets after all the kept edits, in the order of <paramref name="kept"/> (not yet merged);
-    /// <paramref name="primary"/> is the kept edit of the primary caret, or the nearest before it.</summary>
+    /// <summary>
+    /// Orders the plan and drops edits that overlap an earlier one. <paramref name="carets"/> are the carets after all the kept edits, in order (not yet merged);
+    /// <paramref name="primary"/> is the one of the primary caret, or the nearest before it.
+    /// </summary>
     public static List<Planned> Assemble(IReadOnlyList<Planned> plan, Carets before, out List<Sel> carets, out int primary)
     {
         var kept = new List<Planned>(plan.Count);
         carets = new List<Sel>(plan.Count);
         primary = 0;
         int delta = 0, end = -1;
-        foreach (var p in plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index))
+        foreach (var p in plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index < 0 ? int.MaxValue : p.Index))
         {
             if (p.Edit.Start < end) continue;
             end = p.Edit.Start + p.Edit.Length;
-            if (p.Index <= before.Primary) primary = kept.Count;
+            if (p.Local is { } local)
+            {
+                if (p.Index <= before.Primary) primary = carets.Count;
+                carets.Add(new(local.Anchor + delta, local.Caret + delta));
+            }
             kept.Add(p);
-            carets.Add(new(p.Local.Anchor + delta, p.Local.Caret + delta));
             delta += p.Edit.Text.Length - p.Edit.Length;
         }
         return kept;
@@ -370,8 +407,9 @@ public static class MultiEdit
     /// Applies the plan as one transaction: one revision and one undo step that gives back every caret. Text goes through the document in
     /// bytes (byte-exact); a lossy single-byte encoding goes through the text view instead, so the loss report of typed characters keeps
     /// working. The byte positions of the new carets are worked out from the edits, not looked up again, so the cost stays linear in the carets.
+    /// Edits with the same <paramref name="coalesceKey"/> in a row (a typing run) share one undo step, which gives back the carets from before the first.
     /// </summary>
-    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan)
+    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null)
     {
         var kept = Assemble(plan, before, out var keptCarets, out int keptPrimary);
         var text = backend.TextDocument;
@@ -386,7 +424,6 @@ public static class MultiEdit
         for (int i = 0; i < offsets.Length; i++) bytesAt[offsets[i]] = converted[i];
 
         // new carets in bytes: where the edit starts (shifted by the edits before it) plus the bytes of the text up to the caret
-        var inserted = new byte[kept.Count][];
         var byteEdits = new List<ByteEdit>(kept.Count);
         var keptBytes = new List<TextSelection>(kept.Count);
         long shift = 0;
@@ -394,7 +431,7 @@ public static class MultiEdit
         {
             var e = kept[i].Edit;
             long b0 = bytesAt[e.Start], b1 = bytesAt[e.Start + e.Length];
-            var bytes = inserted[i] = codec.EncodeLossy(e.Text);
+            var bytes = codec.EncodeLossy(e.Text);
             if (e.Length > 0 || e.Text.Length > 0) byteEdits.Add(new(new(b0, b1), bytes));
             long Position(int localOffset)
             {
@@ -403,7 +440,7 @@ public static class MultiEdit
                 if (k < e.Text.Length) return b0 + shift + codec.EncodeLossy(e.Text.AsSpan(0, k)).Length;
                 return b0 + shift + bytes.Length + codec.EncodeLossy(text.GetText(e.Start + e.Length, k - e.Text.Length)).Length;
             }
-            keptBytes.Add(new(Position(kept[i].Local.Anchor), Position(kept[i].Local.Caret)));
+            if (kept[i].Local is { } local) keptBytes.Add(new(Position(local.Anchor), Position(local.Caret)));
             shift += bytes.Length - (b1 - b0);
         }
         // the same merge on characters and on bytes gives the same selections in the same order
@@ -416,21 +453,45 @@ public static class MultiEdit
         var afterRanges = Ranges(afterBytes.Where((_, i) => i != afterSet.Primary).Append(afterBytes[afterSet.Primary]));
 
         EditResult result;
-        using (doc.BeginUndoGroup(beforeRanges, () => afterRanges))
+        if (codec.IsLossy)
         {
-            if (codec.IsLossy)
-            {
-                using (text.RunUpdate())
-                    for (int k = kept.Count - 1; k >= 0; k--)
-                    {
-                        var e = kept[k].Edit;
-                        if (e.Length > 0 || e.Text.Length > 0) text.Replace(e.Start, e.Length, e.Text);
-                    }
-                result = new(true, doc.Revision, ConflictReason.None);
-            }
-            else result = doc.Apply(byteEdits);
+            using (doc.BeginUndoGroup(beforeRanges, () => afterRanges))
+            using (text.RunUpdate())
+                for (int k = kept.Count - 1; k >= 0; k--)
+                {
+                    var e = kept[k].Edit;
+                    if (e.Length > 0 || e.Text.Length > 0) text.Replace(e.Start, e.Length, e.Text);
+                }
+            result = new(true, doc.Revision, ConflictReason.None);
         }
+        else result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey });
         return new(result, after, afterBytes);
+    }
+}
+
+/// <summary>Backspace at the end of an indentation: removes the spaces back to the previous tab stop (a tab is removed whole).</summary>
+public static class IndentBackspace
+{
+    public static bool TryPlan(TextDocument d, Sel sel, int tabSize, out ViewEdit edit, out Sel result)
+    {
+        edit = default;
+        result = sel;
+        if (!sel.IsEmpty || sel.Caret == 0) return false;
+        var line = d.GetLineByOffset(sel.Caret);
+        if (sel.Caret == line.Offset) return false;
+        for (int i = line.Offset; i < sel.Caret; i++)
+            if (d.GetCharAt(i) is not (' ' or '\t')) return false;
+        int remove = 1;
+        if (d.GetCharAt(sel.Caret - 1) == ' ')
+        {
+            int column = MultiCaret.VisualColumn(d, sel.Caret, tabSize);
+            int toStop = column % tabSize == 0 ? tabSize : column % tabSize;
+            remove = 0;
+            while (remove < toStop && sel.Caret - remove > line.Offset && d.GetCharAt(sel.Caret - remove - 1) == ' ') remove++;
+        }
+        edit = new(sel.Caret - remove, remove, "");
+        result = Sel.At(sel.Caret - remove);
+        return true;
     }
 }
 
@@ -438,21 +499,21 @@ public static class MultiEdit
 public interface ITypingRule
 {
     /// <summary>False when the rule does not apply and the character is inserted as typed; otherwise the edit and the selection after it alone.</summary>
-    bool TryPlan(TextDocument d, Sel sel, char typed, out TextEdit edit, out Sel result);
+    bool TryPlan(TextDocument d, Sel sel, char typed, out ViewEdit edit, out Sel result);
 }
 
 /// <summary><see cref="PairedCharacters"/> as a typing rule.</summary>
 public sealed class PairedCharactersRule : ITypingRule
 {
     public static readonly PairedCharactersRule Instance = new();
-    public bool TryPlan(TextDocument d, Sel sel, char typed, out TextEdit edit, out Sel result) => PairedCharacters.TryPlanType(d, sel, typed, out edit, out result);
+    public bool TryPlan(TextDocument d, Sel sel, char typed, out ViewEdit edit, out Sel result) => PairedCharacters.TryPlanType(d, sel, typed, out edit, out result);
 }
 
 /// <summary>Enter: a line break that keeps the indentation of the line it breaks.</summary>
 public static class LineBreak
 {
     /// <summary>The edit for one selection; <paramref name="result"/> is the caret after <paramref name="edit"/> alone.</summary>
-    public static void Plan(TextDocument d, Sel sel, string newLine, out TextEdit edit, out Sel result)
+    public static void Plan(TextDocument d, Sel sel, string newLine, out ViewEdit edit, out Sel result)
     {
         var line = d.GetLineByOffset(sel.Start);
         int indent = 0;

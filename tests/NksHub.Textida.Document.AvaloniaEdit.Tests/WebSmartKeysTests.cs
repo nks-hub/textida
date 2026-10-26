@@ -40,7 +40,7 @@ public class WebSmartKeysTests
         return (keys, d, caret);
     }
 
-    private static string Apply(TextDocument d, TextEdit e)
+    private static string Apply(TextDocument d, ViewEdit e)
     {
         d.Replace(e.Start, e.Length, e.Text);
         return d.Text;
@@ -59,7 +59,7 @@ public class WebSmartKeysTests
     {
         var (keys, d, caret) = Setup(input, language);
         Assert.True(keys.TryPlan(d, Sel.At(caret), '/', out var edit, out var result));
-        Assert.Equal(new TextEdit(caret, 0, expected), edit);
+        Assert.Equal(new ViewEdit(caret, 0, expected), edit);
         Assert.Equal(Sel.At(caret + expected.Length), result);
     }
 
@@ -100,7 +100,7 @@ public class WebSmartKeysTests
     public void Renaming_div_to_section_changes_the_closing_tag_too()
     {
         var (keys, d, _) = Setup("<div class=\"a\">x</div>|", "html");
-        Assert.True(keys.TryPlanRename(new TextEdit(1, 3, "section"), out var partner));
+        Assert.True(keys.TryPlanRename(new ViewEdit(1, 3, "section"), out var partner));
         Assert.Equal("<div class=\"a\">x</section>", Apply(d, partner));
     }
 
@@ -115,7 +115,7 @@ public class WebSmartKeysTests
     {
         var d = new TextDocument(text);
         var keys = new SmartKeys(d, new Probe(d, BuiltinGrammars.Tokenizer("html")), "html", new SmartKeyOptions());
-        Assert.True(keys.TryPlanRename(new TextEdit(start, length, insert), out var partner));
+        Assert.True(keys.TryPlanRename(new ViewEdit(start, length, insert), out var partner));
         Assert.Equal(expected, Apply(d, partner));
     }
 
@@ -131,7 +131,7 @@ public class WebSmartKeysTests
     {
         var d = new TextDocument(text);
         var keys = new SmartKeys(d, new Probe(d, BuiltinGrammars.Tokenizer("html")), "html", new SmartKeyOptions());
-        Assert.False(keys.TryPlanRename(new TextEdit(start, length, insert), out _));
+        Assert.False(keys.TryPlanRename(new ViewEdit(start, length, insert), out _));
     }
 
     [Fact]
@@ -139,11 +139,11 @@ public class WebSmartKeysTests
     {
         var d = new TextDocument("<a><b/></a>");
         var xml = new SmartKeys(d, new Probe(d, BuiltinGrammars.Tokenizer("xml")), "xml", new SmartKeyOptions());
-        Assert.True(xml.TryPlanRename(new TextEdit(1, 1, "root"), out var partner));
+        Assert.True(xml.TryPlanRename(new ViewEdit(1, 1, "root"), out var partner));
         Assert.Equal("<a><b/></root>", Apply(d, partner));
         var d2 = new TextDocument("<div>x</div>");
         var off = new SmartKeys(d2, new Probe(d2, BuiltinGrammars.Tokenizer("html")), "html", new SmartKeyOptions(RenameTag: false));
-        Assert.False(off.TryPlanRename(new TextEdit(1, 3, "section"), out _));
+        Assert.False(off.TryPlanRename(new ViewEdit(1, 3, "section"), out _));
     }
 
     // ---- escaping pasted text ----
@@ -237,7 +237,7 @@ public class WebSmartKeysTests
     {
         var (keys, d, caret) = Setup(input, "php");
         Assert.True(keys.TryPlan(d, Sel.At(caret), '-', out var edit, out var result));
-        Assert.Equal(new TextEdit(caret, 0, expected), edit);
+        Assert.Equal(new ViewEdit(caret, 0, expected), edit);
         Assert.Equal(Sel.At(caret + 2), result);
     }
 

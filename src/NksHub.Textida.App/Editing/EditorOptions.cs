@@ -50,6 +50,18 @@ internal sealed record EditorOptions(
                 _ => TextCodec.Utf8,
             },
             TrimTrailingWhitespace: s.GetBool("files.trimTrailingWhitespace", l),
-            InsertFinalNewline: s.GetBool("files.insertFinalNewline", l));
+            InsertFinalNewline: s.GetBool("files.insertFinalNewline", l),
+            EnhancedHomeEnd: s.GetBool("editor.enhancedHomeEnd", l),
+            BackspaceUnindent: s.GetBool("editor.backspaceUnindent", l),
+            AltDragBlock: s.GetString("editor.altDragMode") == "block",
+            PspadPairs: s.GetString("editor.pairStyle", l) == "pspad",
+            SmartKeys: new SmartKeyOptions(
+                RenameTag: s.GetBool("editor.smartKeys.renameTag", l),
+                CloseTag: s.GetBool("editor.smartKeys.closeTag", l),
+                EscapeInString: s.GetBool("editor.smartKeys.escapeInString", l),
+                JsonComma: s.GetBool("editor.smartKeys.jsonComma", l),
+                PhpArrow: s.GetBool("editor.smartKeys.phpArrow", l),
+                SelectVariable: s.GetBool("editor.smartKeys.selectVariable", l),
+                SqlEnd: s.GetBool("editor.smartKeys.sqlEnd", l)));
     }
 }

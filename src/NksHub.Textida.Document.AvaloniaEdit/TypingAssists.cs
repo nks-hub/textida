@@ -9,7 +9,7 @@ public sealed record CommentStyle(string? Line, bool StarBlock)
 }
 
 /// <summary>A replacement of <see cref="Length"/> chars at <see cref="Start"/> in text view offsets.</summary>
-public readonly record struct TextEdit(int Start, int Length, string Text);
+public readonly record struct ViewEdit(int Start, int Length, string Text);
 
 /// <summary>Auto-closing of brackets and quotes. Each rule has a <c>TryPlan…</c> form that only describes the edit, so several carets can be combined into one transaction.</summary>
 public static class PairedCharacters
@@ -32,13 +32,13 @@ public static class PairedCharacters
         return true;
     }
 
-    private static void Apply(TextDocument d, TextEdit edit)
+    private static void Apply(TextDocument d, ViewEdit edit)
     {
         if (edit.Length > 0 || edit.Text.Length > 0) d.Replace(edit.Start, edit.Length, edit.Text);
     }
 
     /// <summary>Like <see cref="TryType"/> without changing the document; <paramref name="result"/> is the selection after <paramref name="edit"/> alone.</summary>
-    public static bool TryPlanType(TextDocument d, Sel sel, char typed, out TextEdit edit, out Sel result)
+    public static bool TryPlanType(TextDocument d, Sel sel, char typed, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = sel;
@@ -81,7 +81,7 @@ public static class PairedCharacters
         return true;
     }
 
-    public static bool TryPlanBackspace(TextDocument d, Sel sel, out TextEdit edit, out Sel result)
+    public static bool TryPlanBackspace(TextDocument d, Sel sel, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = sel;
@@ -111,7 +111,7 @@ public static class CommentContinuation
     }
 
     /// <summary>Like <see cref="TryContinue"/> without changing the document; <paramref name="result"/> is the selection after <paramref name="edit"/> alone.</summary>
-    public static bool TryPlan(TextDocument d, Sel sel, CommentStyle style, string newLine, out TextEdit edit, out Sel result)
+    public static bool TryPlan(TextDocument d, Sel sel, CommentStyle style, string newLine, out ViewEdit edit, out Sel result)
     {
         edit = default;
         result = sel;
@@ -155,3 +155,47 @@ public static class CommentContinuation
         return null;
     }
 }
+
+/// <summary>
+/// Paired characters the way the original editor does it (the profile "pspad"): a closing character that is already to the right is typed over
+/// (it need not have been added by the editor); a pair is added only when nothing but a blank follows, and a quote only when the line is empty
+/// or the character before it is no letter or digit and the line is longer than two characters. A selection is replaced, not wrapped.
+/// <c>&lt;</c> pairs in markup only.
+/// </summary>
+public sealed class PspadPairsRule(bool markup) : ITypingRule
+{
+    private const string Openers = "([{\"'`";
+    private const string TypeOver = "\"')>]`}";
+
+    public bool TryPlan(TextDocument d, Sel sel, char typed, out ViewEdit edit, out Sel result)
+    {
+        edit = default;
+        result = sel;
+        var line = d.GetLineByOffset(sel.Start);
+        string rest = d.GetText(sel.End, line.EndOffset - sel.End);
+        if (sel.IsEmpty && TypeOver.Contains(typed) && rest.Length > 0 && rest[0] == typed)
+        {
+            edit = new(sel.Start, 0, "");
+            result = Sel.At(sel.Start + 1);
+            return true;
+        }
+        bool bracket = typed is '(' or '[' or '{' || (typed == '<' && markup);
+        bool quote = typed is '"' or '\'' or '`';
+        if (!bracket && !quote) return false;
+
+        int before = sel.Start - line.Offset;
+        int length = before + 1 + rest.Length;
+        bool roomAfter = bracket ? rest.Length == 0 || rest[0] == ' ' : rest.Length <= 1 || rest[0] == ' ';
+        if (!roomAfter) return false;
+        if (quote)
+        {
+            bool prevIsWord = before >= 1 && char.IsLetterOrDigit(d.GetCharAt(line.Offset + before - 1));
+            if (!(length <= 1 || (length >= 3 && !prevIsWord))) return false;
+        }
+        char closer = typed switch { '(' => ')', '[' => ']', '{' => '}', '<' => '>', _ => typed };
+        edit = new(sel.Start, sel.Length, typed.ToString() + closer);
+        result = Sel.At(sel.Start + 1);
+        return true;
+    }
+}
+
