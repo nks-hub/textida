@@ -155,6 +155,8 @@
   "setting.files.journalFallbackDirectory.description": "Wird verwendet, wenn sich der Hauptordner des Journals nicht beschreiben lässt. Leer: der temporäre Ordner des Systems.",
   "setting.files.largeFileThreshold.title": "Grenze für große Dateien (MiB)",
   "setting.files.largeFileThreshold.description": "Eine Datei über dieser Größe öffnet sich im seitenweisen, schreibgeschützten Modus.",
+  "setting.search.regexTimeoutMs.title": "Zeitlimit für reguläre Ausdrücke (ms)",
+  "setting.search.regexTimeoutMs.description": "Ein Ausdruck mit Rückverweisen, Lookaround oder atomaren Gruppen läuft in der klassischen Engine und wird nach dieser Zeit auf einem Text angehalten. Andere Ausdrücke laufen in der Engine mit linearer Zeit und sind nicht begrenzt.",
   "setting.tools.diffTool.title": "Externes Vergleichsprogramm",
   "setting.tools.diffTool.description": "Pfad eines Programms, das zwei Dateien vergleicht. Leer: Mit Datenträger vergleichen meldet, was fehlt.",
   "setting.tools.diffArguments.title": "Argumente des Vergleichsprogramms",

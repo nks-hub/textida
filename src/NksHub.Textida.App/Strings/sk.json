@@ -363,6 +363,7 @@
   "regex.timedOut": "Výraz bežal nad týmto textom príliš dlho a bol zastavený.",
   "regex.truncated": "Vypísaných je len prvých {max} zhôd.",
   "regex.dialect": "Dialekt: regulárne výrazy .NET, rovnaký stroj ako pri hľadaní. V náhrade: $1, $& a zmena veľkosti písmen \\U \\L \\E \\u \\l.",
+  "regex.limits": "V .NET chýba (len PCRE): privlastňovacie kvantifikátory (a++), \\K \\R \\h \\H \\X \\N \\g1, \\Q...\\E, rekurzia (?R) (?1), reset vetiev (?|...), slovesá (*SKIP) (*FAIL), triedy POSIX [[:alpha:]], (?P<name>...). Namiesto privlastňovacieho kvantifikátora použite (?>...), namiesto triedy POSIX \\p{{L}}. Výraz so spätným odkazom, lookaroundom alebo atomickou skupinou beží v pomalšom klasickom engine a po časovom limite z nastavení sa zastaví; každý iný výraz beží v lineárnom čase.",
   "regex.explain.literal": "Text „{arg}“",
   "regex.explain.any": "Ľubovoľný znak okrem konca riadka",
   "regex.explain.digit": "Číslica",

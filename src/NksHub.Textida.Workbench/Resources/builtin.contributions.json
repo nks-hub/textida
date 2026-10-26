@@ -1862,6 +1862,24 @@
       ]
     },
     {
+      "key": "search.regexTimeoutMs",
+      "type": "integer",
+      "default": 2000,
+      "title": "setting.search.regexTimeoutMs.title",
+      "description": "setting.search.regexTimeoutMs.description",
+      "category": "cat.search",
+      "scope": "application",
+      "minimum": 50,
+      "maximum": 60000,
+      "tags": [
+        "regex",
+        "regular",
+        "expression",
+        "timeout",
+        "backtracking"
+      ]
+    },
+    {
       "key": "tools.diffTool",
       "type": "string",
       "default": "",
