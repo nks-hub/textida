@@ -132,6 +132,7 @@ public sealed partial class Document
 
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
+        if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
         var change = new ChangeSet(++_revision, kind, source, spans);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
@@ -140,10 +141,35 @@ public sealed partial class Document
         Changed?.Invoke(this, new DocumentChangedEventArgs(change));
     }
 
+    private const int TypingRunBytes = 16;
+    private enum TypingKind { None, Insert, Remove }
+    private TypingKind _typingKind;
+    private long _typingEnd;
+    private int _typingRun;
+
+    /// <summary>
+    /// Keystrokes of one run share an undo step: consecutive short insertions, or short removals (Backspace, Delete), at the
+    /// position where the previous one ended. A paste, a replaced selection, another place or any other change starts a new step.
+    /// </summary>
+    private string? TypingKey(BackendEdit e)
+    {
+        var kind = e.Removed.Length == 0 && e.Inserted.Length is > 0 and <= TypingRunBytes ? TypingKind.Insert
+            : e.Inserted.Length == 0 && e.Removed.Length is > 0 and <= TypingRunBytes ? TypingKind.Remove
+            : TypingKind.None;
+        bool continues = kind != TypingKind.None && kind == _typingKind && (kind == TypingKind.Insert
+            ? e.Offset == _typingEnd
+            : e.Offset == _typingEnd || e.Offset + e.Removed.Length == _typingEnd);
+        if (kind != TypingKind.None && !continues) _typingRun++;
+        _typingKind = kind;
+        _typingEnd = kind == TypingKind.Insert ? e.Offset + e.Inserted.Length : e.Offset;
+        return kind == TypingKind.None ? null : "typing#" + _typingRun;
+    }
+
     private void OnBackendEdit(BackendEdit e)
     {
+        var key = TypingKey(e);
         var step = new Step([new AppliedEdit(e.Offset, e.Removed, e.Inserted)], null, null);
-        Commit(ChangeKind.Backend, "backend", [new ChangeSet.Span(e.Offset, e.Removed.Length, e.Inserted.Length)], step, null);
+        Commit(ChangeKind.Backend, "backend", [new ChangeSet.Span(e.Offset, e.Removed.Length, e.Inserted.Length)], step, key);
     }
 
     // ---- change log ----
