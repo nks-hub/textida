@@ -62,9 +62,7 @@ internal static class BatchFiles
         }
         finally
         {
-            try { File.Delete(temp); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            FileSwap.TryDelete(temp);
         }
     }
 
@@ -249,9 +247,9 @@ public sealed class PendingBatch : IDisposable
         var outcomes = new List<FileOutcome>();
         foreach (var p in _plans)
         {
-            CleanTemp(p);
-            var state = Classify(p);
             string target = BatchFiles.ResolveTarget(p.Path);
+            RecoverSwaps(p, target);
+            var state = Classify(p);
             FileOutcome Make(ChangeStatus s, ChangeConflict c, string? msg = null) => new(p.Path, p.Path, s, c, s == ChangeStatus.Applied ? p.Hunks.Count : 0, s == ChangeStatus.Applied ? 0 : p.Hunks.Count, msg);
             try
             {
@@ -299,9 +297,14 @@ public sealed class PendingBatch : IDisposable
 
     private static string TempOf(string target, int index) => target + ".textida-recover-" + index + ".tmp";
 
-    private void CleanTemp(BatchFilePlan p)
+    // Both the applier's swap and an earlier recovery's swap may have died inside File.Replace.
+    private void RecoverSwaps(BatchFilePlan p, string target)
     {
+        string recoverTemp = TempOf(target, p.Index);
+        FileSwap.RecoverInterrupted(recoverTemp, target);
+        BatchRecovery.TryDelete(recoverTemp);
         if (!_intents.TryGetValue(p.Index, out var intent)) return;
+        FileSwap.RecoverInterrupted(intent.TempName, target);
         BatchRecovery.TryDelete(intent.TempName);
     }
 
@@ -323,12 +326,7 @@ public sealed class PendingBatch : IDisposable
 /// <summary>Finds batches that were interrupted (the process died, the machine lost power) in a journal directory.</summary>
 public static class BatchRecovery
 {
-    internal static void TryDelete(string path)
-    {
-        try { File.Delete(path); }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
-    }
+    internal static void TryDelete(string path) => FileSwap.TryDelete(path);
 
     /// <summary>Batches whose process is gone and that did not end. Journals of a running editor are skipped; journals that are finished or empty are deleted.</summary>
     public static IReadOnlyList<PendingBatch> Find(string directory)

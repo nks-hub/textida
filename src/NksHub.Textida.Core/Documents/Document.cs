@@ -54,6 +54,7 @@ public sealed partial class Document : IDisposable
     public static Document Open(string path, IBackendFactory factory, DocumentOptions? options = null)
     {
         path = Path.GetFullPath(path);
+        FileSwap.RecoverAbandoned(path);
         var format = options?.Format ?? DetectFile(path);
         var time = File.GetLastWriteTimeUtc(path);
         var backend = factory.OpenFile(path, format);

@@ -121,7 +121,8 @@ public static class BatchScenario
                 var actual = File.ReadAllBytes(Path.Combine(data, s.Name));
                 if (!actual.AsSpan().SequenceEqual(want(s))) return $"{what}: {s.Name} differs from the expectation ({actual.Length} vs {want(s).Length} bytes)";
             }
-            return Directory.GetFiles(data, "*.tmp").Length > 0 ? $"{what}: temporary files left behind" : null;
+            var left = Directory.GetFiles(data, "*.tmp");
+            return left.Length > 0 ? $"{what}: temporary files left behind: {string.Join(", ", left.Select(Path.GetFileName))}" : null;
         }
 
         string backup = Path.Combine(dir, "interrupted");

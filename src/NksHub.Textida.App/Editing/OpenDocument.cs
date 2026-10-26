@@ -104,6 +104,7 @@ internal sealed class OpenDocument : IDisposable
         path = System.IO.Path.GetFullPath(path);
         try
         {
+            FileSwap.RecoverAbandoned(path);
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException(null, path);
             IBackendFactory factory = info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;

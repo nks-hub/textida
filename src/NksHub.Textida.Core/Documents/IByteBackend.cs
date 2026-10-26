@@ -70,18 +70,80 @@ public static class FileSwap
     /// </summary>
     public static void Replace(string temp, string target)
     {
+        string backup = BackupOf(temp);
         for (int attempt = 0; ; attempt++)
         {
             try
             {
-                if (File.Exists(target)) File.Replace(temp, target, null);
+                if (File.Exists(target))
+                {
+                    TryDelete(backup);
+                    File.Replace(temp, target, backup);
+                }
                 else File.Move(temp, target);
+                TryDelete(backup);
                 return;
             }
             catch (IOException e) when (attempt < 8 && IsTransientLock(e))
             {
                 Thread.Sleep(10 << Math.Min(attempt, 6));
             }
+        }
+    }
+
+    /// <summary>
+    /// Where <see cref="Replace"/> parks the replaced file. Windows ReplaceFile renames the target away before it moves the
+    /// temp in; a crash between the two leaves the target missing and the original content under this name.
+    /// </summary>
+    public static string BackupOf(string temp) => Path.ChangeExtension(temp, ".old.tmp");
+
+    /// <summary>Undoes a <see cref="Replace"/> that died halfway: puts the original back when the target is missing, then drops the backup.</summary>
+    public static void RecoverInterrupted(string temp, string target)
+    {
+        string backup = BackupOf(temp);
+        if (!File.Exists(target) && File.Exists(backup)) File.Move(backup, target);
+        TryDelete(backup);
+    }
+
+    /// <summary>
+    /// Cleanup after a save that died inside <see cref="Replace"/> and whose temp name is unknown: when <paramref name="target"/>
+    /// is missing, the newest parked original takes its place; other parked copies of it are deleted.
+    /// </summary>
+    public static void RecoverAbandoned(string target)
+    {
+        string? dir = Path.GetDirectoryName(target);
+        if (dir is null || !Directory.Exists(dir)) return;
+        string prefix = Path.GetFileName(target) + ".textida-";
+        // shortcut: a second editor instance saving the same file at this very moment would lose its parked copy; acceptable until instances share a lock
+        var parked = Directory.GetFiles(dir, prefix + "*.old.tmp")
+            .Where(p => Path.GetFileName(p).StartsWith(prefix, StringComparison.Ordinal))
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .ToList();
+        if (parked.Count == 0) return;
+        if (!File.Exists(target))
+        {
+            File.Move(parked[0], target);
+            parked.RemoveAt(0);
+        }
+        foreach (var p in parked) TryDelete(p);
+    }
+
+    /// <summary>Deletes the file if it exists, retrying a transient lock like <see cref="Replace"/>; any other failure leaves the file.</summary>
+    public static void TryDelete(string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Delete(path);
+                return;
+            }
+            catch (IOException e) when (attempt < 8 && IsTransientLock(e))
+            {
+                Thread.Sleep(10 << Math.Min(attempt, 6));
+            }
+            catch (IOException) { return; }
+            catch (UnauthorizedAccessException) { return; }
         }
     }
 
