@@ -64,12 +64,29 @@ public interface IBackendFactory
 
 public static class FileSwap
 {
-    /// <summary>Atomic replace of <paramref name="target"/> by <paramref name="temp"/>.</summary>
+    /// <summary>
+    /// Atomic replace of <paramref name="target"/> by <paramref name="temp"/>. A sharing violation is retried
+    /// for about 1.5 s, because virus scanners and indexers open a freshly written file for a few milliseconds.
+    /// </summary>
     public static void Replace(string temp, string target)
     {
-        if (File.Exists(target)) File.Replace(temp, target, null);
-        else File.Move(temp, target);
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (File.Exists(target)) File.Replace(temp, target, null);
+                else File.Move(temp, target);
+                return;
+            }
+            catch (IOException e) when (attempt < 8 && IsTransientLock(e))
+            {
+                Thread.Sleep(10 << Math.Min(attempt, 6));
+            }
+        }
     }
+
+    // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION, ERROR_UNABLE_TO_REMOVE_REPLACED, ERROR_UNABLE_TO_MOVE_REPLACEMENT(_2).
+    private static bool IsTransientLock(IOException e) => (e.HResult & 0xFFFF) is 32 or 33 or 1175 or 1176 or 1177;
 }
 
 /// <summary>Copy of the bytes taken at snapshot time.</summary>

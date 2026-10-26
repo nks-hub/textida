@@ -283,7 +283,7 @@ public sealed class PagedDocument : IPagedTextSource
 
             _source.IndexProgress -= OnSourceProgress;
             _source.Dispose();
-            try { File.Replace(tmp, target, null); }
+            try { Documents.FileSwap.Replace(tmp, target); }
             catch
             {
                 _source = MappedFileSource.Open(target, _options);
