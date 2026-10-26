@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using NksPad.Core.Encodings;
 using NksPad.App.Profile;
 using NksPad.App.Text;
 using NksPad.Core;
@@ -198,9 +199,9 @@ internal sealed class MainWindow : Window
             if (info.Length > DocTab.MaxFileBytes) throw new IOException(Loc.Get(K.ErrorOpenTooLarge, ("path", path)));
             var bytes = File.ReadAllBytes(path);
             const int sampleLength = 64 * 1024;
-            var det = EncodingDetector.Detect(bytes.AsSpan(0, Math.Min(bytes.Length, sampleLength)), wholeFile: bytes.Length <= sampleLength);
-            var text = det.Encoding.GetString(bytes, det.BomLength, bytes.Length - det.BomLength);
-            return new DocTab(path, 0, text) { EncodingName = det.Encoding.WebName.ToUpperInvariant() };
+            var guess = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, sampleLength)), wholeFile: bytes.Length <= sampleLength);
+            var text = guess.Codec.Decode(bytes).Text;
+            return new DocTab(path, 0, text) { EncodingName = guess.Codec.Name };
         }
         catch (Exception e) when (e is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
