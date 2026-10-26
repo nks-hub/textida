@@ -15,7 +15,6 @@
   "status.line": "Z {line}",
   "status.selected": "({count} ausgewählt)",
   "status.ready": "Bereit",
-  "status.largeReadOnly": "Große Datei ({size}): schreibgeschützt, seitenweiser Modus",
   "status.indent.spaces": "Leerzeichen: {size}",
   "status.indent.tabs": "Tabulatoren: {size}",
   "status.eol.mixed": "gemischt",
