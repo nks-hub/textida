@@ -582,27 +582,31 @@ Registr příkazů je společný základ palety, kláves, maker a pluginů. Hran
 - [ ] **P1.6.1** Registr příkazů s vnitřní hranicí rozšíření
   - **Co a proč:** Příkazy mají ID s prefixem `nks.`, kontexty `when` (jazyk, výběr, velký režim, platforma) a registrují se z manifestu stejného tvaru, jaký později použijí pluginy. Bez veřejného API. Stará jména akcí PSPadu jen jako aliasy (až s importem).
   - **Funkce:** F098, F195
+  - **Stav 26. 10. 2026:** registr hotový v knihovně Workbench: všech 37 vestavěných příkazů, menu, kláves a nastavení se načte z vloženého manifestu `builtin.contributions.json` a test ověří čistý průchod; `when` má test pro každý kontextový klíč; konflikty ID, aliasů, dvojích obsluh a ID pluginu s prefixem `nks.` se odhalí; schémata kontroluje test. Zbývá napojit paletu, menu a klávesy aplikace jen na registr (P1.1.1).
   - **Hotovo, když:** všechny vestavěné příkazy se načtou z manifestu; paleta, menu a klávesy čtou jen registr; test ověří vyhodnocení `when` pro každý kontext.
   - **Závisí na:** P1.1.1
   - **Odhad:** F195 1–2 ČT (matice); F098 bez odhadu
 - [ ] **P1.6.2** Výchozí zkratky a mapování kláves
   - **Co a proč:** Výchozí mapa kláves pro Windows (Ctrl) a macOS (⌘), editor zkratek s kontexty a viditelnými konflikty. Klávesa pluginu nikdy nepřepíše výchozí ani uživatelskou zkratku. Příkaz má v registru vazbu na kontext, výběry, zrušení a transakci undo; `Tab` má určený návrat k běžnému odsazení, když ho příkaz neobslouží. Profil „PSPad“ je MVP v P2.
   - **Funkce:** F019, F119
+  - **Stav 26. 10. 2026:** model kláves hotový: konflikty SameLayer, Overridden a Prefix se zdrojem obou vazeb, výchozí mapa nemá nejednoznačný konflikt na Windows, macOS ani Linuxu, příkaz se zkratkou musí být v menu nebo paletě (test), neobsloužený `Tab` spadne na `nks.edit.insertIndent`; model umí i klávesy profilu „PSPad“. Zbývá zobrazení konfliktu v nastavení aplikace.
   - **Hotovo, když:** konflikt dvou zkratek ve stejném kontextu se ukáže v nastavení; každý příkaz se zkratkou je i v menu nebo paletě; neobsloužený `Tab` odsadí jako bez příkazu.
   - **Závisí na:** P1.6.1
   - **Odhad:** bez odhadu
 
 ### P1.7 Nastavení
 
-- [ ] **P1.7.1** Verzované schéma nastavení
+- [x] **P1.7.1** Verzované schéma nastavení
   - **Co a proč:** Vlastní verzované schéma s migrací (kap. 5, řádek Import PSPadu: stará INI neurčují stavbu UI). Hodnoty mají zdroj: výchozí, uživatel, jazyk, EditorConfig, dokument, později plugin. Pořadí přednosti je pevně dané. Nastavení podle jazyka a dokumentu. Pravidlo pro návrat ke starší verzi editoru je součástí schématu.
   - **Funkce:** F103, F106
+  - **Stav 26. 10. 2026:** hotovo. Test tabulky 28 dvojic zdrojů má očekávaného vítěze, `ResolvedSetting` nese zdroj, migrace jsou otestované (schéma je ve verzi 1, produkční migrace zatím žádná), neznámé klíče přežijí, novější nebo nečitelný soubor se nikdy nepřepíše, zápis přes dočasný soubor a záměnu. Pořadí: Default < Plugin < User < UserLanguage < Workspace < WorkspaceLanguage < EditorConfig < Document.
   - **Hotovo, když:** tabulka konfliktů výchozí / uživatel / jazyk / EditorConfig / dokument / plugin má pro každou dvojici očekávaného vítěze a test ji projde; u každé hodnoty jde zjistit zdroj; změna verze schématu převede staré nastavení testovanou migrací a neznámé podporované hodnoty zachová podle zapsaného pravidla; starší verze editoru novější soubor nastavení nepoškodí.
   - **Závisí na:** P1.1.1
   - **Odhad:** bez odhadu
 - [ ] **P1.7.2** Prohledávatelné nastavení
   - **Co a proč:** Napíšu „tab“ a vidím všechny volby, odkud hodnota je a konflikty zkratek.
   - **Funkce:** F164
+  - **Stav 26. 10. 2026:** model hledání hotový: „tab“ najde všechny čtyři volby odsazení a tabulátoru se zdrojem, „kodovani“ najde „Výchozí kódování“, řádky kláves ukazují zkratku, zdroj a konflikty. Zbývá pohled nastavení v aplikaci.
   - **Hotovo, když:** hledání „tab“ najde všechny volby odsazení a tabulátoru se zdrojem hodnoty; konfliktní zkratky jsou označené.
   - **Závisí na:** P1.7.1, P1.6.2
   - **Odhad:** F164 2–3 ČT (matice)
