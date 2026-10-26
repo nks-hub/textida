@@ -39,6 +39,20 @@ public sealed class PagedDocument : IPagedTextSource
         return new PagedDocument(MappedFileSource.Open(path, options), options);
     }
 
+    /// <summary>Opens a document over a copy of <paramref name="bytes"/> held in pinned memory; nothing is written to disk and saving in place is not possible.</summary>
+    public static PagedDocument OpenMemory(ReadOnlySpan<byte> bytes, MappedFileSourceOptions? options = null)
+    {
+        options ??= new();
+        return new PagedDocument(MappedFileSource.Open(MappedFile.FromMemory(bytes), options), options);
+    }
+
+    /// <summary>Forbidden: the paged document never materializes its whole text. Read ranges instead.</summary>
+    [Obsolete("PagedDocument has no Text: read a byte range or lines (PLAN 5.1).", error: true)]
+    public string Text => throw new NotSupportedException();
+
+    /// <summary>Immutable view of the current content; cheap (pieces only) and safe to read from other threads.</summary>
+    public PagedSnapshot CreateSnapshot() => new([.. _tree.EnumerateRange(0, ByteLength)], _add, _source.File);
+
     /// <summary>The unmodified file underneath; searches run against it.</summary>
     public MappedFileSource Source => _source;
     public long ByteLength => _tree.Length;

@@ -63,8 +63,12 @@ public sealed class MappedFileSource : IPagedTextSource
     /// <summary>Opens and maps the file, detects its encoding and starts background line indexing.</summary>
     public static MappedFileSource Open(string path, MappedFileSourceOptions? options = null)
     {
+        return Open(MappedFile.Open(path), options);
+    }
+
+    internal static MappedFileSource Open(MappedFile file, MappedFileSourceOptions? options)
+    {
         options ??= new();
-        var file = MappedFile.Open(path);
         MappedFileSource src;
         try { src = new MappedFileSource(file, options); }
         catch { file.Dispose(); throw; }

@@ -8,13 +8,15 @@ public sealed unsafe class MappedFile : IDisposable
     private readonly MemoryMappedFile? _mmf;
     private readonly MemoryMappedViewAccessor? _view;
     private readonly byte* _ptr;
+    private readonly byte[]? _pinned;
     private int _disposed;
 
     public string Path { get; }
     public long Length { get; }
 
-    private MappedFile(string path, long length, MemoryMappedFile? mmf, MemoryMappedViewAccessor? view, byte* ptr)
+    private MappedFile(string path, long length, MemoryMappedFile? mmf, MemoryMappedViewAccessor? view, byte* ptr, byte[]? pinned = null)
     {
+        _pinned = pinned;
         Path = path;
         Length = length;
         _mmf = mmf;
@@ -38,6 +40,15 @@ public sealed unsafe class MappedFile : IDisposable
         byte* p = null;
         view.SafeMemoryMappedViewHandle.AcquirePointer(ref p);
         return new MappedFile(path, length, mmf, view, p + view.PointerOffset);
+    }
+
+    /// <summary>Wraps a copy of <paramref name="data"/> in pinned memory so an unsaved document can use the paged path without touching the disk.</summary>
+    public static MappedFile FromMemory(ReadOnlySpan<byte> data)
+    {
+        if (data.IsEmpty) return new MappedFile("", 0, null, null, null);
+        var pinned = GC.AllocateUninitializedArray<byte>(data.Length, pinned: true);
+        data.CopyTo(pinned);
+        return new MappedFile("", data.Length, null, null, (byte*)System.Runtime.CompilerServices.Unsafe.AsPointer(ref System.Runtime.InteropServices.MemoryMarshal.GetArrayDataReference(pinned)), pinned);
     }
 
     /// <summary>Returns a span over <paramref name="length"/> bytes at <paramref name="offset"/>.</summary>
