@@ -124,10 +124,15 @@ internal sealed class OpenDocument : IDisposable
     }
 
     /// <summary>Wraps a document the journal rebuilt after a crash or a clean exit; the journal already tracks it.</summary>
-    public static OpenDocument FromRecovered(RecoveredDocument recovered)
+    public static OpenDocument FromRecovered(RecoveredDocument recovered, int? numberHint = null)
     {
         var doc = recovered.Document!;
-        var number = recovered.Path is null ? ++_untitled : 0;
+        int number = 0;
+        if (recovered.Path is null)
+        {
+            number = numberHint is > 0 ? numberHint.Value : _untitled + 1;
+            _untitled = Math.Max(_untitled, number);
+        }
         return new OpenDocument(doc, number, null, LanguageModes.ForPath(doc.FilePath)) { JournalId = recovered.DocId };
     }
 

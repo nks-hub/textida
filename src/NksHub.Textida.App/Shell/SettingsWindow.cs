@@ -72,7 +72,11 @@ internal sealed class SettingsWindow : Window
         AutomationProperties.SetName(_search, Loc.Get(K.SettingsSearchA11y));
     }
 
-    internal void SetQuery(string text) => _search.Text = text;
+    internal void SetQuery(string text)
+    {
+        _search.Text = text;
+        Refresh();
+    }
 
     internal string Query => _search.Text ?? "";
 
@@ -80,6 +84,8 @@ internal sealed class SettingsWindow : Window
     internal IReadOnlyList<string> ShownIds => [.. _results.Children.OfType<Control>().Select(c => c.Tag as string).OfType<string>()];
 
     internal Control? RowOf(string id) => _results.Children.OfType<Control>().FirstOrDefault(c => c.Tag as string == id);
+
+    internal IEnumerable<Control> RowsOf(string id) => _results.Children.OfType<Control>().Where(c => c.Tag as string == id);
 
     internal IReadOnlyList<string> BannerTexts => [.. _banners.Children.OfType<TextBlock>().Select(t => t.Text ?? "")];
 

@@ -97,9 +97,11 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.StatusNormalizeBlocked, ("encoding", doc.Codec.Name)));
             return false;
         }
-        if (!await ConfirmPreviewAsync(tab, preview, Loc.Plural(K.PreviewNormalize, preview.Count, ("form", form.ToString().ToUpperInvariant())))) return false;
+        if (!await ConfirmPreviewAsync(tab, preview, Loc.Plural(K.PreviewNormalize, preview.Count, ("form", FormName(form))))) return false;
         return Apply(tab, preview);
     }
+
+    private static string FormName(NormalizationForm form) => form switch { NormalizationForm.FormC => "NFC", NormalizationForm.FormD => "NFD", NormalizationForm.FormKC => "NFKC", _ => "NFKD" };
 
     private bool Apply(DocTab tab, ChangePreview preview)
     {
@@ -125,9 +127,9 @@ internal sealed partial class MainWindow
     // ---- the menu of the encoding item ----
 
     /// <summary>Opens the encoding menu at the status bar item: both actions as submenus, or only one of them (<paramref name="onlyConvert"/>).</summary>
-    public void ShowEncodingMenu(bool? onlyConvert)
+    public MenuFlyout? ShowEncodingMenu(bool? onlyConvert)
     {
-        if (Active is not { } tab) return;
+        if (Active is not { } tab) return null;
         var flyout = new MenuFlyout();
         MenuItem Submenu(string header, IReadOnlyList<EncodingChoice> choices, Action<EncodingChoice> pick)
         {
@@ -146,6 +148,7 @@ internal sealed partial class MainWindow
                 flyout.Items.Add(ChoiceItem(c, onlyConvert.Value ? c2 => _ = ConvertToAsync(tab, c2.Codec) : c2 => RereadAs(tab, c2.Codec)));
         }
         flyout.ShowAt(_encodingItem);
+        return flyout;
     }
 
     private static MenuItem ChoiceItem(EncodingChoice choice, Action<EncodingChoice> pick)

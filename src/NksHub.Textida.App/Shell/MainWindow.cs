@@ -34,7 +34,6 @@ internal sealed partial class MainWindow : Window
     private readonly Grid _groupsGrid = new();
     private readonly Border _titleTabRow = new() { Height = 38 };
     private readonly StackPanel _notices = new();
-    private readonly TextBlock _emptyHint = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
     private readonly Grid _body = new() { ColumnDefinitions = new ColumnDefinitions("0,*") };
     private readonly ListBox _docList = new() { Background = Brushes.Transparent };
     private readonly TextBlock _docListTitle = new() { FontWeight = FontWeight.SemiBold, Margin = new Thickness(12, 10, 12, 6) };
@@ -156,7 +155,6 @@ internal sealed partial class MainWindow : Window
         Grid.SetRow(_statusBar, 2);
         root.Children.Add(_statusBar);
 
-        _emptyHint.Classes.Add("hint");
         Content = root;
     }
 
@@ -170,7 +168,9 @@ internal sealed partial class MainWindow : Window
 
     private TabGroup AddGroup(int? index = null)
     {
-        var group = new TabGroup { Empty = _emptyHint, ContextActions = TabContextActions };
+        var hint = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Text = EmptyHintText() };
+        hint.Classes.Add("hint");
+        var group = new TabGroup { Empty = hint, ContextActions = TabContextActions };
         group.Activated += (g, tab) => { _activeGroup = g; OnActiveTabChanged(); };
         group.Focused += g => { if (_activeGroup != g) { _activeGroup = g; OnActiveTabChanged(); } };
         group.CloseRequested += tab => _ = CloseTabAsync(tab);
@@ -240,6 +240,8 @@ internal sealed partial class MainWindow : Window
 
     private static void FocusView(DocTab tab) => tab.View.Focus();
 
+    private static string EmptyHintText() => Loc.Get(K.WorkspaceEmpty, ("shortcut", Shortcuts.Display(Avalonia.Input.Key.N)));
+
     private bool IsFocusInTextInput() => FocusManager?.GetFocusedElement() is TextBox;
 
     /// <summary>True when the keyboard focus is inside the active tab's text surface.</summary>
@@ -296,7 +298,7 @@ internal sealed partial class MainWindow : Window
     /// <summary>Sets every user-visible text from the catalogue; called at construction and whenever the language or the tab set changes.</summary>
     public void ApplyTexts()
     {
-        _emptyHint.Text = Loc.Get(K.WorkspaceEmpty, ("shortcut", Shortcuts.Display(Avalonia.Input.Key.N)));
+        foreach (var g in _groups) if (g.Empty is TextBlock hint) hint.Text = EmptyHintText();
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
         _docListEmpty.Text = Loc.Get(K.PanelDocumentsEmpty);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));

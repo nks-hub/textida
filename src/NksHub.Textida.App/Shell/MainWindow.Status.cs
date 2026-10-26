@@ -105,7 +105,7 @@ internal sealed partial class MainWindow
 
     // ---- flyouts of the status bar ----
 
-    private void ShowIndentMenu()
+    internal MenuFlyout ShowIndentMenu()
     {
         var flyout = new MenuFlyout();
         var opts = Options;
@@ -128,11 +128,12 @@ internal sealed partial class MainWindow
             }));
         }
         flyout.ShowAt(_indentItem);
+        return flyout;
     }
 
-    private void ShowEolMenu()
+    internal MenuFlyout? ShowEolMenu()
     {
-        if (Active is not { } tab) return;
+        if (Active is not { } tab) return null;
         var flyout = new MenuFlyout();
         foreach (var (label, style) in new[] { (Loc.Get(K.EolToCrLf), EolStyle.CrLf), (Loc.Get(K.EolToLf), EolStyle.Lf), (Loc.Get(K.EolToCr), EolStyle.Cr) })
         {
@@ -142,11 +143,12 @@ internal sealed partial class MainWindow
             flyout.Items.Add(mi);
         }
         flyout.ShowAt(_eolItem);
+        return flyout;
     }
 
-    internal void ShowLanguageMenu()
+    internal MenuFlyout? ShowLanguageMenu()
     {
-        if (Active is not { } tab) return;
+        if (Active is not { } tab) return null;
         var flyout = new MenuFlyout();
         foreach (var mode in LanguageModes.All)
         {
@@ -156,6 +158,7 @@ internal sealed partial class MainWindow
             flyout.Items.Add(mi);
         }
         flyout.ShowAt(_languageItem);
+        return flyout;
     }
 
     public void SetLanguage(DocTab tab, LanguageMode mode)

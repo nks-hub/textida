@@ -76,14 +76,14 @@ internal static class AppCommands
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
 
         // format
-        Do("nks.format.reread", w => w.ShowEncodingMenu(onlyConvert: false));
-        Do("nks.format.convert", w => w.ShowEncodingMenu(onlyConvert: true));
+        Do("nks.format.reread", w => _ = w.ShowEncodingMenu(onlyConvert: false));
+        Do("nks.format.convert", w => _ = w.ShowEncodingMenu(onlyConvert: true));
         Fire("nks.format.eolCrLf", (w, t) => w.UnifyEolAsync(t, EolStyle.CrLf));
         Fire("nks.format.eolLf", (w, t) => w.UnifyEolAsync(t, EolStyle.Lf));
         Fire("nks.format.eolCr", (w, t) => w.UnifyEolAsync(t, EolStyle.Cr));
         Fire("nks.format.normalizeNfc", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormC));
         Fire("nks.format.normalizeNfd", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormD));
-        Do("nks.format.language", w => w.ShowLanguageMenu());
+        Do("nks.format.language", w => _ = w.ShowLanguageMenu());
 
         // window
         Do("nks.window.new", w => app.NewWindow(w));

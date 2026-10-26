@@ -14,7 +14,7 @@ namespace NksHub.Textida.App.Shell;
 internal sealed class TabGroup : DockPanel
 {
     private static readonly Geometry CloseGlyph = Geometry.Parse("M0,0 L8,8 M8,0 L0,8");
-    private static readonly DataFormat<DocTab> TabFormat = DataFormat.CreateInProcessFormat<DocTab>("textida.tab");
+    internal static readonly DataFormat<DocTab> TabFormat = DataFormat.CreateInProcessFormat<DocTab>("textida.tab");
     private const double DragThreshold = 8;
 
     private readonly ContentControl _content = new();

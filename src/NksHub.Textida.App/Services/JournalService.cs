@@ -67,6 +67,8 @@ internal sealed class JournalService : IDisposable
         doc.JournalId = null;
     }
 
+    public void Flush() => Session.Flush();
+
     public void UpdateSession(SessionModel model) => Session.UpdateSession(model);
 
     /// <summary>Makes everything durable and marks the run as ended normally.</summary>

@@ -43,7 +43,8 @@ internal sealed partial class MainWindow
             long a = Byte(sel.Start), z = Byte(sel.End);
             if (a >= 0 && z >= a) ranges.Add(new ByteRange(a, z));
         }
-        return new SessionTab(tab.Doc.JournalId ?? Guid.Empty, tab.Title, doc.Revision, ranges);
+        // an unnamed document keeps its number as the title, so "Untitled 3" comes back as 3 in any language
+        return new SessionTab(tab.Doc.JournalId ?? Guid.Empty, tab.Path is null ? tab.Doc.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) : tab.Title, doc.Revision, ranges);
     }
 
     // ---- restoring ----
@@ -56,14 +57,17 @@ internal sealed partial class MainWindow
         var opened = new Dictionary<Guid, OpenDocument>();
         var byId = recovery.Documents.Where(d => d.Document is not null).ToDictionary(d => d.DocId);
 
+        var numbers = recovery.Session?.AllTabs.Where(t => int.TryParse(t.Title, out _)).GroupBy(t => t.DocId).ToDictionary(g => g.Key, g => int.Parse(g.First().Title!)) ?? [];
+
         OpenDocument Open(RecoveredDocument rd)
         {
             if (opened.TryGetValue(rd.DocId, out var existing)) return existing;
-            var od = OpenDocument.FromRecovered(rd);
+            var od = OpenDocument.FromRecovered(rd, numbers.TryGetValue(rd.DocId, out var n) ? n : null);
             Adopt(od);
             return opened[rd.DocId] = od;
         }
 
+        TabGroup? wantActive = null;
         if (recovery.Session is { } session)
         {
             int index = 0;
@@ -79,13 +83,13 @@ internal sealed partial class MainWindow
                     if (sg.ActiveDocId == st.DocId && active is null) active = tab;
                 }
                 if (active is not null) group.Select(active);
-                if (index - 1 == session.ActiveGroup) _activeGroup = group;
+                if (index - 1 == session.ActiveGroup) wantActive = group;
             }
         }
         // work the journal kept for tabs that were closed with "keep in journal" or that the session does not list
         foreach (var rd in recovery.Documents.Where(d => d.Document is not null && !opened.ContainsKey(d.DocId)))
             AddView(Open(rd), _groups[0]);
-        if (!_groups.Contains(_activeGroup)) _activeGroup = _groups[0];
+        _activeGroup = wantActive ?? (_groups.Contains(_activeGroup) ? _activeGroup : _groups[0]);
         OnActiveTabChanged();
 
         if (journal.CrashedLastTime) ShowRestoreBar(recovery);
