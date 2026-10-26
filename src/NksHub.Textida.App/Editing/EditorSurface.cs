@@ -4,8 +4,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.Editing;
+using AvaloniaEdit.Rendering;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Syntax;
@@ -33,6 +35,7 @@ internal sealed partial class EditorSurface : TextEditor
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
     private readonly SyntaxColorizer _colorizer;
+    private bool _syntaxViewQueued;
 
     public EditorSurface(OpenDocument doc, EditorOptions options) : base(new EditorTextArea())
     {
@@ -57,7 +60,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.TextView.LineTransformers.Add(_colorizer);
         Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount);
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
-        TextArea.TextView.ScrollOffsetChanged += OnVisualLinesChanged;
+        TextArea.TextView.ScrollOffsetChanged += (_, _) => QueueSyntaxView();
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
@@ -108,21 +111,48 @@ internal sealed partial class EditorSurface : TextEditor
         catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
     }
 
-    /// <summary>Tells the feeder which lines and which UTF-16 columns are on screen; the columns are a safe bound for any glyph widths.</summary>
+    /// <summary>Tells the feeder which lines and which UTF-16 columns of them are on screen, read from the layout of the visible lines.</summary>
     private void OnVisualLinesChanged(object? sender, EventArgs e)
     {
         var view = TextArea.TextView;
-        if (!view.VisualLinesValid || view.VisualLines.Count == 0) return;
-        int first = 0, last;
-        if (WordWrap) last = view.VisualLines.Max(l => l.LastDocumentLine.Length);
-        else
+        var lines = view.VisualLines;
+        if (!view.VisualLinesValid || lines.Count == 0) return;
+        int first = int.MaxValue, last = 0;
+        int step = Math.Max(1, lines.Count / 8);
+        for (int i = 0; i < lines.Count; i += step)
         {
-            double cell = Math.Max(1, view.WideSpaceWidth);
-            first = (int)Math.Max(0, Math.Floor(view.ScrollOffset.X / (cell * Math.Max(2, Options.IndentationSize)))); // a tab is one column and several cells wide
-            last = (int)Math.Min(1 << 20, Math.Ceiling((view.ScrollOffset.X + view.Bounds.Width) / (cell * 0.3)));
+            var line = lines[i];
+            if (WordWrap && lines.Count > 1)
+            {
+                first = 0;
+                last = Math.Max(last, line.LastDocumentLine.Length);
+                continue;
+            }
+            double y = line.VisualTop + 1; // GetPosition takes document coordinates: the scroll offset is part of them
+            int left = ColumnAt(view, view.ScrollOffset.X, y, 0);
+            if (view.ScrollOffset.X > 0 && left >= line.LastDocumentLine.Length) continue; // scrolled past the end of this line: nothing of it is visible
+            first = Math.Min(first, left);
+            last = Math.Max(last, ColumnAt(view, view.ScrollOffset.X + view.Bounds.Width, y, line.LastDocumentLine.Length) + 1);
         }
-        Syntax.SetVisible(view.VisualLines[0].FirstDocumentLine.LineNumber - 1, view.VisualLines[^1].LastDocumentLine.LineNumber - 1, first, last);
+        if (first == int.MaxValue) first = last = 0;
+        Syntax.SetVisible(lines[0].FirstDocumentLine.LineNumber - 1, lines[^1].LastDocumentLine.LineNumber - 1, first, Math.Max(first + 1, last));
     }
+
+    /// <summary>A scroll invalidates the visual lines; the columns are read once they are laid out again.</summary>
+    private void QueueSyntaxView()
+    {
+        if (_syntaxViewQueued) return;
+        _syntaxViewQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _syntaxViewQueued = false;
+            TextArea.TextView.EnsureVisualLines();
+            OnVisualLinesChanged(null, EventArgs.Empty);
+        }, DispatcherPriority.Render);
+    }
+
+    private static int ColumnAt(TextView view, double x, double y, int fallback) =>
+        view.GetPosition(new Point(x, y)) is { } position ? position.Column - 1 : fallback;
 
     // ---- look ----
 

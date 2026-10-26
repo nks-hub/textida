@@ -82,7 +82,7 @@ internal sealed partial class MainWindow
                 ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))
                 : Loc.Get(K.StatusLine, ("line", "≈" + line));
         }
-        string message = _message.Length > 0 ? _message : tab.Syntax.Pending ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
+        string message = _message.Length > 0 ? _message : tab.Syntax is { LineTooLong: true } ? Loc.Get(K.StatusSyntaxLongLine) : tab.Syntax is { Pending: true } ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
         _statusLeft.Text = position + " · " + message;
 
         _indentItem.Content = Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize));

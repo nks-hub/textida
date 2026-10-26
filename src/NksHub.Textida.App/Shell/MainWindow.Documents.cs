@@ -106,7 +106,7 @@ internal sealed partial class MainWindow
             tab.Paged.Refused += SetStatusMessage;
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
-        tab.Syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
+        if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
         group.Add(tab, index);
         _activeGroup = group;
         OnActiveTabChanged();

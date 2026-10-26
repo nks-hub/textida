@@ -16,6 +16,7 @@
   "status.selected": "({count} ausgewählt)",
   "status.ready": "Bereit",
   "status.syntaxPending": "Hervorhebung wird nachberechnet",
+  "status.syntaxLongLine": "Eine Zeile ist zu lang für die Hervorhebung",
   "status.indent.spaces": "Leerzeichen: {size}",
   "status.indent.tabs": "Tabulatoren: {size}",
   "status.eol.mixed": "gemischt",

@@ -76,15 +76,15 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     public void The_editor_colors_the_columns_it_is_scrolled_to()
     {
         var w = Window();
-        var tab = w.OpenFile(_temp.File("h.cs", new string(' ', 5000) + "var x=1;\n"), null);
+        var tab = w.OpenFile(_temp.File("h.cs", new string(' ', 100000) + "var x=1;\n"), null);
         w.UpdateLayout();
         Settle();
         var view = tab.Editor!.TextArea.TextView;
-        ((Avalonia.Controls.Primitives.ILogicalScrollable)view).Offset = new Avalonia.Vector(5000 * view.WideSpaceWidth, 0);
+        ((Avalonia.Controls.Primitives.ILogicalScrollable)view).Offset = new Avalonia.Vector(100000 * view.WideSpaceWidth, 0);
         w.UpdateLayout();
         Settle();
         view.EnsureVisualLines();
-        var element = view.GetVisualLine(1)!.Elements.First(e => e.RelativeTextOffset <= 5000 && 5000 < e.RelativeTextOffset + e.DocumentLength);
+        var element = view.GetVisualLine(1)!.Elements.First(e => e.RelativeTextOffset <= 100000 && 100000 < e.RelativeTextOffset + e.DocumentLength);
         var color = ((ISolidColorBrush)element.TextRunProperties.ForegroundBrush!).Color;
         Assert.True(new[] { ((ISolidColorBrush)SyntaxPalette.Light.GetBrush("keyword")!).Color, ((ISolidColorBrush)SyntaxPalette.Dark.GetBrush("keyword")!).Color }.Contains(color), $"color {color} offset {view.ScrollOffset.X} cell {view.WideSpaceWidth} width {view.Bounds.Width}");
     }
@@ -93,14 +93,14 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     public void The_paged_view_colors_the_columns_it_is_scrolled_to()
     {
         var w = Window(paged: true);
-        var text = new string(' ', 5000) + "var x=1;\n" + string.Concat(Enumerable.Repeat("var y = 2; // filler line\n", 45_000));
+        var text = new string(' ', 12000) + "var x=1;\n" + string.Concat(Enumerable.Repeat("var y = 2; // filler line\n", 45_000));
         var tab = w.OpenFile(_temp.File("h.cs", text), null);
         Assert.True(tab.Doc.IsLarge);
         for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++) { Thread.Sleep(25); Dispatcher.UIThread.RunJobs(); }
         tab.Paged!.Focus();
         TestApp.Press(w, Avalonia.Input.Key.End);
-        for (int i = 0; i < 100 && !(tab.Paged.TokensOf(0)?.Any(t => t.Start >= 5000 && t.Kind == "keyword") ?? false); i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
-        Assert.Contains(tab.Paged.TokensOf(0)!, t => t.Start >= 5000 && t.Kind == "keyword");
+        for (int i = 0; i < 100 && !(tab.Paged.TokensOf(0)?.Any(t => t.Start >= 12000 && t.Kind == "keyword") ?? false); i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
+        Assert.Contains(tab.Paged.TokensOf(0)!, t => t.Start >= 12000 && t.Kind == "keyword");
     }
 
     [AvaloniaFact]
@@ -126,6 +126,20 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         for (int i = 0; i < 100 && !(reported && tab.Paged.TokensOf(0) is null); i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
         Assert.Null(tab.Paged.TokensOf(0));
         Assert.True(reported);
+    }
+
+    [AvaloniaFact]
+    public void A_line_beyond_the_scan_limit_stays_plain_and_is_reported_without_looping()
+    {
+        var w = Window(paged: true);
+        var tab = w.OpenFile(_temp.File("long.js", string.Concat(Enumerable.Repeat("var a = 1; ", 120_000)) + "\nvar b = 2;\n"), null);
+        Assert.True(tab.Doc.IsLarge);
+        for (int i = 0; i < 400 && !tab.Syntax!.LineTooLong; i++) { Thread.Sleep(25); w.UpdateLayout(); Settle(); }
+        Assert.True(tab.Syntax!.LineTooLong);
+        Assert.False(tab.Syntax.Pending);
+        Assert.Null(tab.Paged!.TokensOf(0));
+        Assert.Null(tab.Paged.TokensOf(1));
+        Assert.Contains(Loc.Get(K.StatusSyntaxLongLine), w.StatusLeftText);
     }
 
     [AvaloniaFact]
@@ -175,7 +189,7 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         w.UpdateLayout();
         Settle();
         for (int i = 0; i < 30; i++) { TestApp.Type(w, "w"); Dispatcher.UIThread.RunJobs(); }
-        Assert.Contains(Colors(tab, 2000), c => c.A == 255); // the typed line is colored, not just present
+        Assert.Contains(Colors(tab, 2000), c => c == ((ISolidColorBrush)SyntaxPalette.Light.GetBrush("string")!).Color || c == ((ISolidColorBrush)SyntaxPalette.Dark.GetBrush("string")!).Color);
 
         var rounds = new List<string>();
         double p95 = double.MaxValue;

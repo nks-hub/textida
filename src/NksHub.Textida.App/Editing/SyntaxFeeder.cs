@@ -38,6 +38,7 @@ internal sealed class SyntaxFeeder : IDisposable
     private long _doneRevision = -1;
     private long _pendingSince;
     private bool _pending;
+    private bool _lineTooLong;
     private bool _queued;
     private bool _disposed;
 
@@ -60,6 +61,13 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>The catch-up has been running for a noticeable time, so the view should say that its colors are not complete.</summary>
     public bool Pending => _pending;
 
+    /// <summary>
+    /// The viewport holds a line too long for a full reference scan. That is final for this request: the lines stay plain
+    /// and the view should say so. Scrolling elsewhere or editing starts a new request.
+    /// </summary>
+    public bool LineTooLong => _lineTooLong;
+
+    /// <summary>Raised when <see cref="Pending"/> or <see cref="LineTooLong"/> changed.</summary>
     public event Action? PendingChanged;
 
     /// <summary>
@@ -172,6 +180,7 @@ internal sealed class SyntaxFeeder : IDisposable
         switch (result.Status)
         {
             case SyntaxViewportStatus.Complete:
+                SetLineTooLong(false);
                 _known = result.Lines.ToDictionary(l => l.Line);
                 _knownLines = _lineCount();
                 _apply(result);
@@ -184,6 +193,7 @@ internal sealed class SyntaxFeeder : IDisposable
                 _clear();
                 _pendingSince = 0;
                 SetPending(false);
+                SetLineTooLong(true);
                 break;
             default:
                 if (_pendingSince == 0) _pendingSince = Stopwatch.GetTimestamp();
@@ -211,6 +221,13 @@ internal sealed class SyntaxFeeder : IDisposable
         PendingChanged?.Invoke();
     }
 
+    private void SetLineTooLong(bool value)
+    {
+        if (_lineTooLong == value) return;
+        _lineTooLong = value;
+        PendingChanged?.Invoke();
+    }
+
     private void Release()
     {
         if (_bound is not null) _bound.Changed -= OnChanged;
@@ -218,6 +235,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _session = null;
         _bound = null;
         _requested = default;
+        SetLineTooLong(false);
     }
 
     public void Dispose()

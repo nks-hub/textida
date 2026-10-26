@@ -16,6 +16,7 @@
   "status.selected": "(vybrané {count})",
   "status.ready": "Pripravené",
   "status.syntaxPending": "Zvýraznenie sa dopočítava",
+  "status.syntaxLongLine": "Riadok je príliš dlhý na zvýraznenie",
   "status.indent.spaces": "Medzery: {size}",
   "status.indent.tabs": "Tabulátory: {size}",
   "status.eol.mixed": "zmiešané",

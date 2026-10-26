@@ -16,6 +16,7 @@
   "status.selected": "({count} selected)",
   "status.ready": "Ready",
   "status.syntaxPending": "Highlighting is catching up",
+  "status.syntaxLongLine": "A line is too long to highlight",
   "status.largePaged": "Large file ({size}): paged mode, revision {revision}",
   "status.indent.spaces": "Spaces: {size}",
   "status.indent.tabs": "Tabs: {size}",

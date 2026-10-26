@@ -16,6 +16,7 @@
   "status.selected": "(vybráno {count})",
   "status.ready": "Připraveno",
   "status.syntaxPending": "Zvýraznění se dopočítává",
+  "status.syntaxLongLine": "Řádek je příliš dlouhý na zvýraznění",
   "status.largePaged": "Velký soubor ({size}): stránkovaný režim, revize {revision}",
   "status.indent.spaces": "Mezery: {size}",
   "status.indent.tabs": "Tabulátory: {size}",

@@ -162,15 +162,27 @@ internal sealed class PagedTextView : Grid
     internal IReadOnlyList<Token>? TokensOf(long line) => _tokens.GetValueOrDefault(line);
 
     /// <summary>
-    /// Tells the feeder which lines and columns are on screen. The scroll position and the width are in display cells (tabs expanded);
-    /// a character takes at least one cell and at most a tab, so the UTF-16 columns lie between cells / tab size and cells.
+    /// Tells the feeder which lines and which UTF-16 columns of them are on screen. A line of at most 4096 characters is asked for whole;
+    /// of a longer line only the characters between the left and the right edge of the view, found with the same measuring the caret uses.
     /// </summary>
     private void FeedSyntax()
     {
-        double cell = Math.Max(1, _canvas.CellWidth * 0.3);
-        int first = (int)Math.Max(0, Math.Floor(_hScroll / (_canvas.CellWidth * Math.Max(1, _options.TabSize))));
-        int last = (int)Math.Min(1 << 20, Math.Ceiling((_hScroll + _canvas.TextWidth) / cell));
-        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), first, last);
+        int first = int.MaxValue, last = 0;
+        for (int i = 0; i <= _canvas.VisibleLines; i++)
+        {
+            if (!Indexed || GetLine(TopLine + i) is not { } view) break;
+            int length = view.Map.Text.Length;
+            if (length <= 4096)
+            {
+                first = 0;
+                last = Math.Max(last, length);
+                continue;
+            }
+            first = Math.Min(first, _canvas.IndexAtX(view, _hScroll));
+            last = Math.Max(last, _canvas.IndexAtX(view, _hScroll + _canvas.TextWidth) + 1);
+        }
+        if (first == int.MaxValue) first = 0;
+        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), first, Math.Max(first + 1, last));
     }
 
     private void ApplyTokens(SyntaxViewport viewport)
@@ -615,7 +627,6 @@ internal sealed class PagedTextView : Grid
 
         public int VisibleLines => (int)Math.Ceiling(Math.Max(0, Bounds.Height) / _lineHeight);
         public double LineHeight => _lineHeight;
-        public double CellWidth => Math.Max(1, _digitWidth);
         public double TextLeft => _gutter + TextPadding;
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
 
