@@ -107,7 +107,8 @@ public sealed partial class App : Application
     {
         var chosen = Workbench.Settings.GetString("workbench.uiLanguage");
         if (chosen != "auto") return chosen;
-        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : Loc.DefaultLanguage;
+        var system = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        return Loc.Languages.Contains(system) ? system : Loc.DefaultLanguage;
     }
 
     private void RunStartupOpen(CommandLineArgs args)

@@ -107,6 +107,8 @@
   "cmd.settings.theme.dark": "Tmavý motiv",
   "cmd.settings.language.cs": "Čeština",
   "cmd.settings.language.en": "English",
+  "cmd.settings.language.sk": "Slovenčina",
+  "cmd.settings.language.de": "Deutsch",
   "cmd.help.about": "O aplikaci",
   "setting.editor.autoClosePairs.title": "Párové znaky",
   "setting.editor.autoClosePairs.description": "Po závorce nebo uvozovce doplní uzavírací znak.",

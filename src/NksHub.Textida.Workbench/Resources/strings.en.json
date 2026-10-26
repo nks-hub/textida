@@ -107,6 +107,8 @@
   "cmd.settings.theme.dark": "Theme: Dark",
   "cmd.settings.language.cs": "Čeština",
   "cmd.settings.language.en": "English",
+  "cmd.settings.language.sk": "Slovenčina",
+  "cmd.settings.language.de": "Deutsch",
   "cmd.help.about": "About",
   "setting.editor.autoClosePairs.title": "Paired characters",
   "setting.editor.autoClosePairs.description": "Adds the closing character after a bracket or quote.",

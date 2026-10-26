@@ -31,7 +31,7 @@ public class ManifestTests
     }
 
     [Fact]
-    public void Builtin_manifest_only_uses_known_context_keys_and_has_texts_in_both_languages()
+    public void Builtin_manifest_only_uses_known_context_keys_and_has_texts_in_every_language()
     {
         var host = WorkbenchHost.CreateBuiltin();
         var known = ContextKeys.All.ToHashSet();
@@ -39,7 +39,7 @@ public class ManifestTests
             .Concat(host.ContributedLayers.SelectMany(l => l.Bindings).Where(b => b.When != null).Select(b => WhenExpression.Parse(b.When!)));
         Assert.All(expressions.SelectMany(e => e.Keys), k => Assert.Contains(k, known));
 
-        foreach (var language in new[] { "en", "cs" })
+        foreach (var language in StringTable.UiLanguages)
         {
             var table = BuiltinTable(language);
             foreach (var c in host.Commands.Commands)
@@ -61,6 +61,43 @@ public class ManifestTests
     }
 
     private static StringTable BuiltinTable(string language) => StringTable.LoadBuiltin(language);
+
+    private static Dictionary<string, string> RawTable(string language)
+    {
+        using var stream = typeof(StringTable).Assembly.GetManifestResourceStream($"strings.{language}.json")!;
+        return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!;
+    }
+
+    private static HashSet<string> Placeholders(string text) =>
+        System.Text.RegularExpressions.Regex.Matches(text, @"\{([A-Za-z]+)\}").Select(m => m.Groups[1].Value).ToHashSet();
+
+    [Fact]
+    public void Every_ui_language_has_exactly_the_english_keys_with_the_same_placeholders()
+    {
+        var embedded = typeof(StringTable).Assembly.GetManifestResourceNames()
+            .Where(n => n.StartsWith("strings.", StringComparison.Ordinal) && n.EndsWith(".json", StringComparison.Ordinal)).Select(n => n["strings.".Length..^".json".Length]);
+        Assert.Equal(StringTable.UiLanguages.Order(), embedded.Order());
+        var english = RawTable("en");
+        foreach (var language in StringTable.UiLanguages)
+        {
+            var table = RawTable(language);
+            Assert.True(english.Keys.ToHashSet().SetEquals(table.Keys), $"{language}: missing {string.Join(", ", english.Keys.Except(table.Keys))}; extra {string.Join(", ", table.Keys.Except(english.Keys))}");
+            Assert.All(table, kv => Assert.False(string.IsNullOrWhiteSpace(kv.Value), $"{language}:{kv.Key}"));
+            Assert.All(english, kv => Assert.True(Placeholders(kv.Value).SetEquals(Placeholders(table[kv.Key])), $"{language}:{kv.Key} placeholders differ"));
+        }
+    }
+
+    [Fact]
+    public void Language_setting_and_language_commands_follow_the_ui_language_list()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        Assert.True(host.Settings.TryGet("workbench.uiLanguage", out var setting));
+        Assert.Equal(["auto", .. StringTable.UiLanguages], setting.Values!);
+        var languageCommands = host.Commands.Commands.Select(c => c.Id).Where(id => id.StartsWith("nks.settings.language.", StringComparison.Ordinal));
+        Assert.Equal(StringTable.UiLanguages.Select(l => "nks.settings.language." + l), languageCommands);
+        var inMenu = host.Commands.MenuContributions.Where(m => m.Menu == "settings").Select(m => m.Command).ToHashSet();
+        Assert.All(languageCommands, id => Assert.Contains(id, inMenu));
+    }
 
     [Fact]
     public void Builtin_ids_are_unique_and_follow_the_scheme()

@@ -1,5 +1,6 @@
 using System.Text;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
@@ -12,6 +13,9 @@ namespace NksHub.Textida.App.Shell;
 /// </summary>
 internal static class AppCommands
 {
+    /// <summary>Prefix of the commands that switch the UI language; the language tag follows.</summary>
+    public const string LanguageCommandPrefix = "nks.settings.language.";
+
     public static void Register(App app)
     {
         var registry = app.Workbench.Commands;
@@ -94,8 +98,7 @@ internal static class AppCommands
         Do("nks.settings.theme.system", _ => app.SetTheme("system"));
         Do("nks.settings.theme.light", _ => app.SetTheme("light"));
         Do("nks.settings.theme.dark", _ => app.SetTheme("dark"));
-        Do("nks.settings.language.cs", _ => app.SetLanguage("cs"));
-        Do("nks.settings.language.en", _ => app.SetLanguage("en"));
+        foreach (var tag in Loc.Languages) Do(LanguageCommandPrefix + tag, _ => app.SetLanguage(tag));
         Do("nks.help.about", w => _ = app.Dialogs.ShowAboutAsync(w));
     }
 }

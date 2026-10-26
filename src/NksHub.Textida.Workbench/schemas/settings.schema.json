@@ -134,7 +134,9 @@
           "enum": [
             "auto",
             "cs",
-            "en"
+            "en",
+            "sk",
+            "de"
           ],
           "description": "Interface language. Language of menus and messages. Auto follows the system.",
           "x-scope": "application"

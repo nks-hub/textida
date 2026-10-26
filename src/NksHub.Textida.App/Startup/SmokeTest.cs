@@ -92,9 +92,12 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Check(app.Journal.IsActive, "the journal is active");
 
             var csHeader = window.MenuHeaders[0];
-            app.SetLanguage("en");
-            Check(window.MenuHeaders[0] != csHeader && window.MenuHeaders.All(h => h.Length > 0), "language switch changes menu headers");
-            app.SetLanguage("cs");
+            foreach (var lang in Loc.Languages.Skip(1))
+            {
+                app.SetLanguage(lang);
+                Check(Loc.Language == lang && window.MenuHeaders[0] != csHeader && window.MenuHeaders.All(h => h.Length > 0), $"switch to {lang} changes menu headers");
+            }
+            app.SetLanguage(Loc.DefaultLanguage);
             Check(window.MenuHeaders[0] == csHeader, "switch back restores the default language");
             app.SetTheme("dark");
             await NextFrameAsync();
