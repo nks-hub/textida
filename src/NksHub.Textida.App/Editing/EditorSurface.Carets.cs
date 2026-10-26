@@ -87,6 +87,11 @@ internal sealed partial class EditorSurface
     /// <summary>Releases what the surface holds on the document; called when its tab closes.</summary>
     public void Detach()
     {
+        foreach (var margin in TextArea.LeftMargins.OfType<BookmarkMargin>().ToList())
+        {
+            margin.Release();
+            TextArea.LeftMargins.Remove(margin);
+        }
         if (_hooked is not null) _hooked.Changed -= OnCoreChanged;
         _hooked = null;
         _blink?.Stop();

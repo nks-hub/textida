@@ -295,6 +295,13 @@ commands: nks.search.relatedFile
 - Vlastní dvojice zapíšete v nastavení Pravidla souvisejících souborů ve tvaru koncovka|koncovka, oddělené středníky.
 - Dokument bez souboru napíše: Dokument nejdřív uložte. Bez shody: Pro název není žádný související soubor.
 
+## [search.bookmarks] Záložky
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+1. Ctrl+F2 nastaví nebo zruší záložku na řádku s kurzorem; vlevo od čísel řádků se objeví tečka.
+2. F2 skočí na další záložku, Shift+F2 na předchozí; za poslední se pokračuje od první.
+- Hledat, Smazat záložky odstraní všechny záložky dokumentu.
+- Záložka se posouvá s textem, když nad ní přibudou nebo ubudou řádky, a ukládá se do relace: po restartu je zpět.
+
 ## [view.wordwrap] Zalamování řádků
 commands: nks.view.toggleWordWrap
 1. Stiskněte Alt+Z, nebo zvolte Zobrazit a Přepnout zalamování řádků.

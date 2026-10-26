@@ -34,6 +34,8 @@ public sealed class Bookmarks
 
     public bool HasAny => _anchors.Count > 0;
 
+    internal int ListenerCount => Changed?.GetInvocationList().Length ?? 0;
+
     /// <summary>Adds a bookmark on the line, or removes the ones on it. False when the line has no offset yet (large file, index incomplete).</summary>
     public bool Toggle(long line, out bool added)
     {

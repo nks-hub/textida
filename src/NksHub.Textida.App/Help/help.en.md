@@ -295,6 +295,13 @@ commands: nks.search.relatedFile
 - Your own pairs go into the setting Related file rules as ending|ending, separated by semicolons.
 - A document without a file says: Save the document first. No match: No related file for the name.
 
+## [search.bookmarks] Bookmarks
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+1. Ctrl+F2 sets or removes a bookmark on the line of the caret; a dot appears in the margin left of the line numbers.
+2. F2 jumps to the next bookmark, Shift+F2 to the previous one; after the last one it continues from the first.
+- Search, Clear Bookmarks removes all bookmarks of the document.
+- A bookmark moves with the text when lines are added or removed above it, and it is kept in the session: it is back after a restart.
+
 ## [view.wordwrap] Word wrap
 commands: nks.view.toggleWordWrap
 1. Press Alt+Z, or choose View and then Toggle Word Wrap.
