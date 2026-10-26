@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Native window with an editor surface and the platform accessibility bridge, for verification from a separate process.
+       Publish: dotnet publish -c Release -r win-x64 (or osx-arm64 on the Mac) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <StripSymbols>true</StripSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NksHub.Textida.Accessibility\NksHub.Textida.Accessibility.csproj" />
+  </ItemGroup>
+
+</Project>
