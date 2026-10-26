@@ -53,8 +53,11 @@ The corpus with the 10 GiB and 50 GiB files needs about 130 GB of free disk spac
 
 ```bash
 dotnet build NksHub.Textida.sln
-dotnet test tests/NksHub.Textida.Core.Tests
+dotnet test NksHub.Textida.sln --filter "Category!=Perf"
+dotnet test tests/NksHub.Textida.App.Tests --filter "Category=Perf"
 ```
+
+Tests marked `Perf` measure latency against a limit (typing p95 33 ms), so they run alone, not next to the other test assemblies. `Large` tests use a sparse 4.5 GiB file and take about a minute.
 
 Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 
