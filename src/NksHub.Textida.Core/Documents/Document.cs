@@ -207,6 +207,8 @@ public sealed class DocumentSnapshot
     public Guid DocumentId { get; }
     public long Revision { get; }
     public long ByteLength => _bytes.ByteLength;
+    /// <summary>How the bytes of this revision are read as text.</summary>
+    public TextCodec Codec => _codec;
     public int Read(long offset, Span<byte> destination) => _bytes.Read(offset, destination);
 
     public byte[] ReadBytes(ByteRange range)

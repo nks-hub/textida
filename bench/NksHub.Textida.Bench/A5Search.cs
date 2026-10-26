@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core;
+using NksHub.Textida.Core.Search;
 
 namespace NksHub.Textida.Bench;
 
@@ -42,6 +43,18 @@ internal static class A5Search
             string cname = args[2];
             using var cmf = MappedFile.Open(Path.Combine(Paths.Corpus, cname));
             await Cancel(csv, cname, FilePatterns[1], FilePatterns[2], cmf, Path.Combine(Paths.Corpus, cname), int.Parse(args[3]));
+        }
+        else if (kind == "worker")
+        {
+            foreach (var name in Corpus.PositionalArgs(args).Skip(1))
+            {
+                bool tree = name == "tree";
+                string path = tree ? Path.Combine(Paths.Corpus, "tree") : Path.Combine(Paths.Corpus, name);
+                int reps = name.Contains("10GiB") || tree ? 5 : 10;
+                foreach (var p in tree ? TreePatterns : FilePatterns)
+                    await Compare(csv, name, p, reps, () => baseline(p, path), engines: [("worker", () => Worker(path, p, RegexEngine.Auto)), ("worker-backtracking", () => Worker(path, p, RegexEngine.Backtracking))]);
+                if (!count) await CancelWorker(csv, name, path, tree ? TreePatterns[1] : FilePatterns[1], tree ? 100 : 40);
+            }
         }
         else if (kind == "file")
         {
@@ -111,6 +124,39 @@ internal static class A5Search
         long t0 = Stopwatch.GetTimestamp();
         var r = await PagedSearch.SearchRegexAsync(mf, Encoding.UTF8, rx);
         return (Sec(t0), r.MatchCount);
+    }
+
+    private static async Task<(double, long)> Worker(string path, Pat p, RegexEngine engine)
+    {
+        long t0 = Stopwatch.GetTimestamp();
+        var run = SearchWorker.Start(new SearchPattern(p.Text, p.Regex), new SearchScope([path]),
+            new SearchSettings { MaxResults = 1000, StopAtLimit = false, Engine = engine });
+        await foreach (var _ in run.Batches.ReadAllAsync()) { }
+        var summary = await run.Completion;
+        return (Sec(t0), summary.TotalMatches);
+    }
+
+    private static async Task CancelWorker(Csv csv, string name, string path, Pat literal, int delayMs)
+    {
+        Console.WriteLine($"-- worker cancel on {name}: cancel {delayMs} ms after start, time from cancel request to Completion");
+        var samples = new List<double>();
+        int finishedEarly = 0;
+        for (int i = 0; i < 30; i++)
+        {
+            var run = SearchWorker.Start(new SearchPattern(literal.Text), new SearchScope([path]), new SearchSettings { MaxResults = 1000, StopAtLimit = false });
+            var drain = Task.Run(async () => { await foreach (var _ in run.Batches.ReadAllAsync()) { } });
+            await Task.Delay(delayMs);
+            long t0 = Stopwatch.GetTimestamp();
+            run.Cancel();
+            var summary = await run.Completion;
+            double ms = Sec(t0) * 1000;
+            await drain;
+            if (summary.End != SearchEnd.Cancelled) { finishedEarly++; continue; }
+            samples.Add(ms);
+            csv.Row("A5", name, "frequent-literal", "worker-cancel", i, ms, "ms", 0);
+        }
+        Console.WriteLine($"(finished before the cancel: {finishedEarly})");
+        if (samples.Count > 0) Console.WriteLine(Stats.Summary("worker cancel", samples, "ms"));
     }
 
     private static async Task<(double, long)> TreeLiteral(string root, Pat p)
