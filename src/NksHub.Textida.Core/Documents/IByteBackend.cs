@@ -44,7 +44,13 @@ public interface IByteBackend : IDisposable
     void ReplaceBackingFile(string tempPath, string targetPath);
 }
 
-/// <summary>Immutable bytes of one revision; reads are safe from any thread.</summary>
+/// <summary>
+/// Bytes of one revision, unchanged by document edits and saves; reads are safe from any thread.
+/// File-backed snapshots may throw SnapshotInvalidatedException if the external source changes.
+/// The paged backend checks length and write time on the retained handle before and after each read;
+/// an in-place write that preserves both metadata values is not detected.
+/// Write times may also be delayed while an external writer remains open.
+/// </summary>
 public interface IByteSnapshot
 {
     long ByteLength { get; }
