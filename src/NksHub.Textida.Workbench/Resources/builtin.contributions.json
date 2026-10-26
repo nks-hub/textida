@@ -397,6 +397,16 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.view.toggleOutput",
+      "title": "cmd.view.toggleOutput",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.fullScreen",
+      "title": "cmd.view.fullScreen",
+      "category": "cat.view"
+    },
+    {
       "id": "nks.files.newFile",
       "title": "cmd.files.newFile",
       "category": "cat.file",
@@ -993,6 +1003,18 @@
       "order": 20
     },
     {
+      "menu": "view",
+      "command": "nks.view.toggleOutput",
+      "group": "4_panels",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.fullScreen",
+      "group": "5_screen",
+      "order": 10
+    },
+    {
       "menu": "window",
       "command": "nks.window.new",
       "group": "1_window",
@@ -1393,6 +1415,14 @@
     {
       "key": "mod+shift+e",
       "command": "nks.view.toggleFilePanel"
+    },
+    {
+      "key": "mod+shift+y",
+      "command": "nks.view.toggleOutput"
+    },
+    {
+      "key": "f11",
+      "command": "nks.view.fullScreen"
     },
     {
       "key": "mod+k mod+e",

@@ -112,6 +112,8 @@
   "cmd.file.openFolder": "Otvoriť priečinok...",
   "cmd.file.openPathAtCaret": "Otvoriť cestu pod kurzorom",
   "cmd.view.toggleFilePanel": "Panel súborov",
+  "cmd.view.toggleOutput": "Výstup",
+  "cmd.view.fullScreen": "Celá obrazovka",
   "cmd.files.newFile": "Nový súbor v priečinku...",
   "cmd.files.newFolder": "Nový priečinok...",
   "cmd.files.duplicate": "Duplikovať",

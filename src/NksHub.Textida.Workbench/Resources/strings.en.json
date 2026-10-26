@@ -112,6 +112,8 @@
   "cmd.file.openFolder": "Open Folder...",
   "cmd.file.openPathAtCaret": "Open Path at Caret",
   "cmd.view.toggleFilePanel": "File Panel",
+  "cmd.view.toggleOutput": "Output",
+  "cmd.view.fullScreen": "Full Screen",
   "cmd.files.newFile": "New File in Folder...",
   "cmd.files.newFolder": "New Folder...",
   "cmd.files.duplicate": "Duplicate",

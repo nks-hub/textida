@@ -112,6 +112,8 @@
   "cmd.file.openFolder": "Otevřít složku...",
   "cmd.file.openPathAtCaret": "Otevřít cestu pod kurzorem",
   "cmd.view.toggleFilePanel": "Panel souborů",
+  "cmd.view.toggleOutput": "Výstup",
+  "cmd.view.fullScreen": "Celá obrazovka",
   "cmd.files.newFile": "Nový soubor ve složce...",
   "cmd.files.newFolder": "Nová složka...",
   "cmd.files.duplicate": "Duplikovat",
