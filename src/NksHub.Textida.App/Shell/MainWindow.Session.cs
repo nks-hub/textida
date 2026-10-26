@@ -159,7 +159,7 @@ internal sealed partial class MainWindow
     private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closeApproved) return;
-        bool askFirst = !_app.Journal.IsActive && _docs.Any(d => d.HasUnsavedWork && !d.IsLarge);
+        bool askFirst = !_app.Journal.IsActive && _docs.Any(d => d.HasUnsavedWork);
         if (!askFirst)
         {
             _closeApproved = true;
@@ -167,7 +167,7 @@ internal sealed partial class MainWindow
             return;
         }
         e.Cancel = true;
-        foreach (var od in _docs.Where(d => d.HasUnsavedWork && !d.IsLarge).ToList())
+        foreach (var od in _docs.Where(d => d.HasUnsavedWork).ToList())
         {
             var tab = od.Views[0];
             SelectTab(tab);

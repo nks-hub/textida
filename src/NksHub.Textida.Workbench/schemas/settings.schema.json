@@ -178,10 +178,10 @@
         },
         "files.largeFileThreshold": {
           "type": "integer",
-          "default": 16,
+          "default": 6,
           "minimum": 1,
           "maximum": 2048,
-          "description": "Large file threshold (MiB). A file above this size opens in the paged read-only mode.",
+          "description": "Large file threshold (MiB). A file above this size opens in the paged mode, which edits the file in place without loading the whole text.",
           "x-scope": "application"
         },
         "tools.diffTool": {

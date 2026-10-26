@@ -100,7 +100,8 @@ internal sealed partial class MainWindow
         }
         else
         {
-            tab.Paged!.TopLineChanged += () => { if (tab == Active) UpdateStatus(); };
+            tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
+            tab.Paged.Refused += SetStatusMessage;
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
         group.Add(tab, index);

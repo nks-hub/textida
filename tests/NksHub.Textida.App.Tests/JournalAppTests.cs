@@ -94,6 +94,38 @@ public class JournalAppTests : IDisposable
     private static void _w_Select(MainWindow w, DocTab tab) => w.SelectTab(tab);
 
     [AvaloniaFact]
+    public async Task A_paged_document_comes_back_after_a_crash_with_the_typed_text_and_saves()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
+        var original = Encoding.ASCII.GetBytes(string.Concat(Enumerable.Range(1, 200_000).Select(i => $"line {i}\n")));
+        var path = _temp.Bytes("big.log", original);
+        var w = _app.CreateWindow(null);
+        var tab = w.OpenFile(path, null);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
+        {
+            Thread.Sleep(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+        tab.Paged!.Focus();
+        TestApp.Type(w, "ab");
+        TestApp.Press(w, Avalonia.Input.Key.Enter);
+        TestApp.Type(w, "é");
+
+        var w2 = Crash();
+        w2.RestoreFrom(_app.Journal);
+
+        var restored = w2.Tabs.Single(t => t.Path == path);
+        Assert.True(restored.Doc.IsLarge);
+        Assert.True(restored.Doc.Doc.IsModified);
+        Assert.Equal("ab\néline 1\n", Encoding.UTF8.GetString(restored.Doc.Doc.ReadBytes(new ByteRange(0, 12))));
+        Assert.True(original.AsSpan().SequenceEqual(File.ReadAllBytes(path))); // restoring never touches a user file
+
+        Assert.True(await w2.SaveAsync(restored));
+        byte[] expected = [.. "ab\né"u8, .. original];
+        Assert.True(expected.AsSpan().SequenceEqual(File.ReadAllBytes(path)));
+    }
+
+    [AvaloniaFact]
     public async Task The_restore_bar_opens_a_list_of_what_came_back()
     {
         var w = _app.CreateWindow(null);

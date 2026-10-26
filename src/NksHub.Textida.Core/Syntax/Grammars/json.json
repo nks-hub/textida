@@ -27,7 +27,7 @@
     },
     {"name": "doc-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
     {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
-    {"match": "//.*", "token": "comment"},
+    {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
     {"match": "(?<![\\w.])-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?", "token": "number"},
     {"words": true},
     {"match": "[{}\\[\\],:]", "token": "punctuation"}

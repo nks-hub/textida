@@ -37,7 +37,7 @@
     "code": [
       {"name": "doc-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
       {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
-      {"match": "//.*", "token": "comment"},
+      {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
       {
         "name": "dq-string",
         "begin": "\"",

@@ -109,6 +109,7 @@ public sealed partial class Document
     public SaveResult SaveAs(string path, TextCodec target, string? replacement = null, bool overwriteExternalChanges = false)
     {
         ThrowIfDisposed();
+        if (target == _codec && !_backend.Capabilities.MaterializesText) return Save(path, overwriteExternalChanges); // a paged document is never decoded whole
         var preview = PreviewConvert(target);
         if (preview.Loss.HasLoss && replacement is null) return new(false, null, preview.Loss);
 

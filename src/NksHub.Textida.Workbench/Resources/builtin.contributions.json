@@ -51,14 +51,14 @@
       "title": "cmd.edit.undo",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.edit.redo",
       "title": "cmd.edit.redo",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.edit.cut",
@@ -1283,7 +1283,7 @@
     {
       "key": "files.largeFileThreshold",
       "type": "integer",
-      "default": 16,
+      "default": 6,
       "title": "setting.files.largeFileThreshold.title",
       "description": "setting.files.largeFileThreshold.description",
       "category": "cat.files",
