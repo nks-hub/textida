@@ -27,6 +27,7 @@ internal sealed class SyntaxFeeder : IDisposable
     private readonly Action _clear;
     private readonly Func<long, string?> _lineText;
     private readonly Func<long> _lineCount;
+    private readonly Action _viewRequested;
     private CheckpointSyntaxSession? _session;
     private Tokenizer? _tokenizer;
     private Dictionary<long, LineTokens> _known = [];
@@ -46,17 +47,22 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <param name="clear">Drops all tokens; called when the grammar or the document changes and for lines the grammar cannot handle.</param>
     /// <param name="lineText">Text of a zero-based line as the view shows it, or null when it is not available.</param>
     /// <param name="lineCount">Number of lines of the view's text, or a negative number when it is not known.</param>
-    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount)
+    /// <param name="viewRequested">Asks the view to report what is on screen again; called after the grammar or the document changed.</param>
+    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount, Action viewRequested)
     {
+        _viewRequested = viewRequested;
         _lineText = lineText;
         _lineCount = lineCount;
         _doc = doc;
         _apply = apply;
         _clear = clear;
-        doc.LanguageChanged += Rebuild;
-        doc.Replaced += Rebuild;
+        doc.LanguageChanged += OnSourceChanged;
+        doc.Replaced += OnSourceChanged;
         Rebuild();
     }
+
+    /// <summary>The document has a grammar, so colors are being kept; views skip measuring what is on screen otherwise.</summary>
+    public bool Active => _session is not null;
 
     /// <summary>The catch-up has been running for a noticeable time, so the view should say that its colors are not complete.</summary>
     public bool Pending => _pending;
@@ -84,6 +90,13 @@ internal sealed class SyntaxFeeder : IDisposable
         int column = Math.Max(0, firstColumn - width);
         _wanted = new(start, (int)Math.Min(MaxRows, last + rows - start + 1), column, Math.Min(MaxColumns, lastColumn + width - column));
         Run();
+    }
+
+    private void OnSourceChanged()
+    {
+        if (_disposed) return;
+        Rebuild();
+        _viewRequested();
     }
 
     private void Rebuild()
@@ -242,8 +255,8 @@ internal sealed class SyntaxFeeder : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _doc.LanguageChanged -= Rebuild;
-        _doc.Replaced -= Rebuild;
+        _doc.LanguageChanged -= OnSourceChanged;
+        _doc.Replaced -= OnSourceChanged;
         Release();
     }
 }

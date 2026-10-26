@@ -65,7 +65,7 @@ internal sealed class PagedTextView : Grid
         Children.Add(_canvas);
         Children.Add(_bar);
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
-            line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1);
+            line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
         _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {
@@ -167,6 +167,7 @@ internal sealed class PagedTextView : Grid
     /// </summary>
     private void FeedSyntax()
     {
+        if (!Syntax.Active) return;
         int first = int.MaxValue, last = 0;
         for (int i = 0; i <= _canvas.VisibleLines; i++)
         {

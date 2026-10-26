@@ -157,8 +157,8 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     public void A_jump_past_an_eight_mebibyte_comment_is_colored_within_250_ms()
     {
         var w = Window(paged: true);
-        int rows = (8 << 20) / 81;
-        var text = "/*" + string.Concat(Enumerable.Repeat(new string('x', 80) + "\n", rows)) + "*/\nvar after = 1;\n";
+        int rows = (8 << 20) / 1025;
+        var text = "/*" + string.Concat(Enumerable.Repeat(new string('x', 1024) + "\n", rows)) + "*/\nvar after = 1;\n";
         var tab = w.OpenFile(_temp.Bytes("c.js", Encoding.UTF8.GetBytes(text)), null);
         for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++) { Thread.Sleep(25); Dispatcher.UIThread.RunJobs(); }
         Assert.True(tab.Paged!.Index.Complete);
