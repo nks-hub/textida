@@ -10,8 +10,11 @@ public sealed class SearchRun
 {
     private readonly CancellationTokenSource _cts;
 
-    internal SearchRun(ChannelReader<SearchBatch> batches, Task<SearchSummary> completion, CancellationTokenSource cts)
+    private readonly Func<(long Done, long Total)> _progress;
+
+    internal SearchRun(ChannelReader<SearchBatch> batches, Task<SearchSummary> completion, CancellationTokenSource cts, Func<(long Done, long Total)> progress)
     {
+        _progress = progress;
         Batches = batches;
         Completion = completion;
         _cts = cts;
@@ -19,6 +22,9 @@ public sealed class SearchRun
 
     public ChannelReader<SearchBatch> Batches { get; }
     public Task<SearchSummary> Completion { get; }
+
+    /// <summary>Bytes scanned so far and the bytes of the open documents to scan (files on disk are not counted in the total, so it is 0 for a folder search).</summary>
+    public (long Done, long Total) Progress => _progress();
 
     /// <summary>Asks the workers to stop; they notice within a read chunk or 256 matches.</summary>
     public void Cancel() => _cts.Cancel();
@@ -39,7 +45,7 @@ public static class SearchWorker
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var channel = Channel.CreateUnbounded<SearchBatch>(new UnboundedChannelOptions { SingleReader = true });
         var job = new Job(compiled, scope, settings, channel.Writer, cts);
-        return new SearchRun(channel.Reader, Task.Run(job.RunAsync), cts);
+        return new SearchRun(channel.Reader, Task.Run(job.RunAsync), cts, job.GetProgress);
     }
 
     /// <summary>Runs a search to the end and returns every hit; for callers that do not stream.</summary>
@@ -62,16 +68,22 @@ public static class SearchWorker
         private readonly object _gate = new();
         private readonly List<SearchHit> _pending = [];
         private readonly List<string> _errors = [];
-        private long _scanned, _matched, _total, _delivered, _binary, _unreadable;
+        private long _scanned, _matched, _total, _delivered, _binary, _unreadable, _bytes;
         private int _dropped, _limit;
 
         public Job(CompiledPattern pattern, SearchScope scope, SearchSettings settings, ChannelWriter<SearchBatch> output, CancellationTokenSource cts)
         {
             _pattern = pattern;
             _scope = scope;
-            _s = settings;
+            _s = settings with { Progress = n => { Interlocked.Add(ref _bytes, n); settings.Progress?.Invoke(n); } };
             _out = output;
             _cts = cts;
+        }
+
+        public (long Done, long Total) GetProgress()
+        {
+            long total = _scope.Roots.Count > 0 ? 0 : (_scope.Buffers ?? []).Sum(b => b.Snapshot.ByteLength);
+            return (Math.Min(Interlocked.Read(ref _bytes), total), total);
         }
 
         public async Task<SearchSummary> RunAsync()

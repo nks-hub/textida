@@ -173,6 +173,7 @@ internal static class ContentScanner
 
                 int cut = eof ? have : CutPoint(buf.AsSpan(0, have), codec!);
                 ScanChunk(buf, cut, bufOffset, first, codec!, pattern, settings, state, ct);
+                settings.Progress?.Invoke(cut);
                 Buffer.BlockCopy(buf, cut, buf, 0, have - cut);
                 have -= cut;
                 bufOffset += cut;

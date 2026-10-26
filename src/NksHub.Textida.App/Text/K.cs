@@ -294,6 +294,10 @@ public static class K
     public const string FindTotal = "find.total";
     public const string FindNone = "find.none";
     public const string FindSearching = "find.searching";
+    public const string FindProgress = "find.progress";
+    public const string FindLimit = "find.limit";
+    public const string FindList = "find.list";
+    public const string ResultsListLimit = "results.listLimit";
     public const string FindWrapped = "find.wrapped";
     public const string FindInvalid = "find.invalid";
     public const string FindTooSlow = "find.tooSlow";
