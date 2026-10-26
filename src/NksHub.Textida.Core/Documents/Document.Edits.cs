@@ -322,5 +322,70 @@ public sealed partial class Document
     {
         _saved = _undo.Count > 0 ? _undo[^1] : null;
         _savedUnreachable = false;
+        SavedRevision = _revision;
+    }
+
+    /// <summary>Revision of the last save; the revision the document was created or opened at (0) until then.</summary>
+    public long SavedRevision { get; private set; }
+
+    /// <summary>
+    /// The ranges, in the current revision, that changes after <paramref name="revision"/> inserted or replaced; a deletion leaves an empty range at its place.
+    /// Null when the change log no longer reaches back to that revision. Ranges are ascending and merged where they touch.
+    /// </summary>
+    public IReadOnlyList<ByteRange>? ChangedRangesSince(long revision)
+    {
+        if (revision > _revision || revision < 0 || revision < FirstReachableRevision) return null;
+        var ranges = new List<(long Start, long End)>();
+        if (revision == _revision) return [];
+        for (int i = (int)(revision + 1 - _log[0].Revision); i < _log.Count; i++)
+        {
+            var spans = _log[i].Edits;
+            for (int r = 0; r < ranges.Count; r++) ranges[r] = (ShiftStart(ranges[r].Start, spans), ShiftEnd(ranges[r].End, spans));
+            long shift = 0;
+            foreach (var span in spans)
+            {
+                long start = span.Start + shift;
+                ranges.Add((start, start + span.Inserted));
+                shift += span.Inserted - span.Deleted;
+            }
+            ranges = Merge(ranges);
+        }
+        return [.. ranges.Select(r => new ByteRange(r.Start, r.End))];
+    }
+
+    private static long ShiftStart(long p, IReadOnlyList<ChangeSet.Span> spans)
+    {
+        long shift = 0;
+        foreach (var s in spans)
+        {
+            if (p >= s.Start + s.Deleted) shift += s.Inserted - s.Deleted;
+            else if (p > s.Start) return s.Start + shift;
+            else break;
+        }
+        return p + shift;
+    }
+
+    private static long ShiftEnd(long p, IReadOnlyList<ChangeSet.Span> spans)
+    {
+        long shift = 0;
+        foreach (var s in spans)
+        {
+            if (p >= s.Start + s.Deleted) shift += s.Inserted - s.Deleted;
+            else if (p > s.Start) return s.Start + shift + s.Inserted;
+            else break;
+        }
+        return p + shift;
+    }
+
+    private static List<(long Start, long End)> Merge(List<(long Start, long End)> ranges)
+    {
+        ranges.Sort();
+        var merged = new List<(long Start, long End)>(ranges.Count);
+        foreach (var r in ranges)
+        {
+            if (merged.Count > 0 && r.Start <= merged[^1].End) merged[^1] = (merged[^1].Start, Math.Max(merged[^1].End, r.End));
+            else merged.Add(r);
+        }
+        return merged;
     }
 }

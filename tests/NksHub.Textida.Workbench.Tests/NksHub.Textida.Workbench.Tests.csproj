@@ -19,7 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="EditorConfig/official-cases.json" LogicalName="official-cases.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Workbench\NksHub.Textida.Workbench.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Document.Contract\NksHub.Textida.Document.Contract.csproj" />
   </ItemGroup>
 
 </Project>

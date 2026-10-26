@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core;
+using NksHub.Textida.Core.Search;
 
 namespace NksHub.Textida.Bench;
 
@@ -42,6 +43,24 @@ internal static class A5Search
             string cname = args[2];
             using var cmf = MappedFile.Open(Path.Combine(Paths.Corpus, cname));
             await Cancel(csv, cname, FilePatterns[1], FilePatterns[2], cmf, Path.Combine(Paths.Corpus, cname), int.Parse(args[3]));
+        }
+        else if (kind == "verify")
+        {
+            foreach (var target in Corpus.PositionalArgs(args).Skip(1))
+                foreach (var p in target.StartsWith("tree") ? TreePatterns : FilePatterns)
+                    await VerifyAgainstRg(Path.Combine(Paths.Corpus, target), p);
+        }
+        else if (kind == "worker")
+        {
+            foreach (var name in Corpus.PositionalArgs(args).Skip(1))
+            {
+                bool tree = name == "tree";
+                string path = tree ? Path.Combine(Paths.Corpus, "tree") : Path.Combine(Paths.Corpus, name);
+                int reps = name.Contains("10GiB") || tree ? 5 : 10;
+                foreach (var p in tree ? TreePatterns : FilePatterns)
+                    await Compare(csv, name, p, reps, () => baseline(p, path), engines: [("worker", () => Worker(path, p, RegexEngine.Auto)), ("worker-backtracking", () => Worker(path, p, RegexEngine.Backtracking))]);
+                if (!count) await CancelWorker(csv, name, path, tree ? TreePatterns[1] : FilePatterns[1], tree ? 100 : 40);
+            }
         }
         else if (kind == "file")
         {
@@ -111,6 +130,76 @@ internal static class A5Search
         long t0 = Stopwatch.GetTimestamp();
         var r = await PagedSearch.SearchRegexAsync(mf, Encoding.UTF8, rx);
         return (Sec(t0), r.MatchCount);
+    }
+
+    /// <summary>Compares every match (path, byte offset, byte length) of the worker with the ones from rg --json, in order.</summary>
+    private static async Task VerifyAgainstRg(string target, Pat p)
+    {
+        var (hits, summary) = await SearchWorker.CollectAsync(new SearchPattern(p.Text, p.Regex), new SearchScope([target]),
+            new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Walk = new FileWalkOptions { UseIgnoreFiles = false } });
+        var mine = hits.Select(h => (Path: Path.GetFullPath(h.Source.Path!), Start: h.Range.Start, Length: h.Range.Length))
+            .OrderBy(h => h.Path, StringComparer.Ordinal).ThenBy(h => h.Start).ToList();
+
+        var psi = RgInfo(p, target);
+        using var proc = Process.Start(psi)!;
+        var theirs = new List<(string Path, long Start, long Length)>();
+        string? line;
+        while ((line = await proc.StandardOutput.ReadLineAsync()) is not null)
+        {
+            if (!line.Contains("\"type\":\"match\"")) continue;
+            using var doc = JsonDocument.Parse(line);
+            var data = doc.RootElement.GetProperty("data");
+            string path = Path.GetFullPath(data.GetProperty("path").GetProperty("text").GetString()!);
+            long lineStart = data.GetProperty("absolute_offset").GetInt64();
+            foreach (var m in data.GetProperty("submatches").EnumerateArray())
+                theirs.Add((path, lineStart + m.GetProperty("start").GetInt64(), m.GetProperty("end").GetInt64() - m.GetProperty("start").GetInt64()));
+        }
+        await proc.WaitForExitAsync();
+        theirs = [.. theirs.OrderBy(h => h.Path, StringComparer.Ordinal).ThenBy(h => h.Start)];
+
+        int same = 0;
+        int n = Math.Min(mine.Count, theirs.Count);
+        int firstDiff = -1;
+        for (int i = 0; i < n; i++)
+        {
+            if (mine[i] == theirs[i]) same++;
+            else if (firstDiff < 0) firstDiff = i;
+        }
+        Console.WriteLine($"verify {Path.GetFileName(target)} {p.Label}: worker {mine.Count} matches ({summary.TotalMatches} counted), rg {theirs.Count}; identical ordered (path, offset, length): {same}/{n}"
+            + (mine.Count == theirs.Count && firstDiff < 0 ? "  OK" : $"  MISMATCH first at {firstDiff}: {(firstDiff >= 0 ? mine[firstDiff] + " vs " + theirs[firstDiff] : "")}"));
+    }
+
+    private static async Task<(double, long)> Worker(string path, Pat p, RegexEngine engine)
+    {
+        long t0 = Stopwatch.GetTimestamp();
+        var run = SearchWorker.Start(new SearchPattern(p.Text, p.Regex), new SearchScope([path]),
+            new SearchSettings { MaxResults = 1000, StopAtLimit = false, Engine = engine });
+        await foreach (var _ in run.Batches.ReadAllAsync()) { }
+        var summary = await run.Completion;
+        return (Sec(t0), summary.TotalMatches);
+    }
+
+    private static async Task CancelWorker(Csv csv, string name, string path, Pat literal, int delayMs)
+    {
+        Console.WriteLine($"-- worker cancel on {name}: cancel {delayMs} ms after start, time from cancel request to Completion");
+        var samples = new List<double>();
+        int finishedEarly = 0;
+        for (int i = 0; i < 30; i++)
+        {
+            var run = SearchWorker.Start(new SearchPattern(literal.Text), new SearchScope([path]), new SearchSettings { MaxResults = 1000, StopAtLimit = false });
+            var drain = Task.Run(async () => { await foreach (var _ in run.Batches.ReadAllAsync()) { } });
+            await Task.Delay(delayMs);
+            long t0 = Stopwatch.GetTimestamp();
+            run.Cancel();
+            var summary = await run.Completion;
+            double ms = Sec(t0) * 1000;
+            await drain;
+            if (summary.End != SearchEnd.Cancelled) { finishedEarly++; continue; }
+            samples.Add(ms);
+            csv.Row("A5", name, "frequent-literal", "worker-cancel", i, ms, "ms", 0);
+        }
+        Console.WriteLine($"(finished before the cancel: {finishedEarly})");
+        if (samples.Count > 0) Console.WriteLine(Stats.Summary("worker cancel", samples, "ms"));
     }
 
     private static async Task<(double, long)> TreeLiteral(string root, Pat p)

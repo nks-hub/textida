@@ -1058,13 +1058,14 @@
       "title": "setting.files.encoding.title",
       "description": "setting.files.encoding.description",
       "category": "cat.files",
-      "scope": "language",
+      "scope": "document",
       "enum": [
         "utf-8",
         "utf-8-bom",
         "utf-16le",
         "utf-16be",
         "windows-1250",
+        "windows-1252",
         "iso-8859-2"
       ],
       "tags": [
@@ -1080,7 +1081,7 @@
       "title": "setting.files.eol.title",
       "description": "setting.files.eol.description",
       "category": "cat.files",
-      "scope": "language",
+      "scope": "document",
       "enum": [
         "auto",
         "lf",
@@ -1101,7 +1102,7 @@
       "title": "setting.files.trimTrailingWhitespace.title",
       "description": "setting.files.trimTrailingWhitespace.description",
       "category": "cat.files",
-      "scope": "language",
+      "scope": "document",
       "tags": [
         "whitespace",
         "save"
@@ -1114,7 +1115,7 @@
       "title": "setting.files.insertFinalNewline.title",
       "description": "setting.files.insertFinalNewline.description",
       "category": "cat.files",
-      "scope": "language",
+      "scope": "document",
       "tags": [
         "newline",
         "save",

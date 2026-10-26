@@ -1,0 +1,1325 @@
+{
+ "source": "https://github.com/editorconfig/editorconfig-core-test (glob, parser, properties); the expected values were taken from the regular expressions in their CMakeLists.txt",
+ "license": "Copyright (c) 2011-2018 EditorConfig Team\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without modification,\nare permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this\n   list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice,\n   this list of conditions and the following disclaimer in the documentation\n   and/or other materials provided with the distribution.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR\nANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON\nANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n",
+ "configs": {
+  "glob/star.in": "; test *\r\n\r\nroot=true\r\n\r\n[a*e.c]\r\nkey=value\r\n\r\n[Bar/*]\r\nkeyb=valueb\r\n\r\n[*]\r\nkeyc=valuec\r\n",
+  "glob/question.in": "; test ?\r\n\r\nroot=true\r\n\r\n[som?.c]\r\nkey=value\r\n\r\n",
+  "glob/brackets.in": "; test [ and ]\r\n\r\nroot=true\r\n\r\n; Character choice\r\n[[ab].a]\r\nchoice=true\r\n\r\n; Negative character choice\r\n[[!ab].b]\r\nchoice=false\r\n\r\n; Character range\r\n[[d-g].c]\r\nrange=true\r\n\r\n; Negative character range\r\n[[!d-g].d]\r\nrange=false\r\n\r\n; Range and choice\r\n[[abd-g].e]\r\nrange_and_choice=true\r\n\r\n; Choice with dash\r\n[[-ab].f]\r\nchoice_with_dash=true\r\n\r\n; Close bracket inside\r\n[[\\]ab].g]\r\nclose_inside=true\r\n\r\n; Close bracket outside\r\n[[ab]].g]\r\nclose_outside=true\r\n\r\n; Negative close bracket inside\r\n[[!\\]ab].g]\r\nclose_inside=false\r\n\r\n; Negative¬close bracket outside\r\n[[!ab]].g]\r\nclose_outside=false\r\n\r\n; Slash inside brackets\r\n[ab[e/]cd.i]\r\nslash_inside=true\r\n\r\n; Slash after an half-open bracket\r\n[ab[/c]\r\nslash_half_open=true\r\n",
+  "glob/braces.in": "; test { and }\r\n\r\nroot=true\r\n\r\n; word choice\r\n[*.{py,js,html}]\r\nchoice=true\r\n\r\n; single choice\r\n[{single}.b]\r\nchoice=single\r\n\r\n; empty choice\r\n[{}.c]\r\nempty=all\r\n\r\n; choice with empty word\r\n[a{b,c,}.d]\r\nempty=word\r\n\r\n; choice with empty words\r\n[a{,b,,c,}.e]\r\nempty=words\r\n\r\n; no closing brace\r\n[{.f]\r\nclosing=false\r\n\r\n; nested braces\r\n[{word,{also},this}.g]\r\nnested=true\r\n\r\n; nested braces, adjacent at start\r\n[{{a,b},c}.k]\r\nnested_start=true\r\n\r\n; nested braces, adjacent at end\r\n[{a,{b,c}}.l]\r\nnested_end=true\r\n\r\n; closing inside beginning\r\n[{},b}.h]\r\nclosing=inside\r\n\r\n; opening inside beginning\r\n[{{,b,c{d}.i]\r\nunmatched=true\r\n\r\n; escaped comma\r\n[{a\\,b,cd}.txt]\r\ncomma=yes\r\n\r\n; escaped closing brace\r\n[{e,\\},f}.txt]\r\nclosing=yes\r\n\r\n; escaped backslash\r\n[{g,\\\\,i}.txt]\r\nbackslash=yes\r\n\r\n; patterns nested in braces\r\n[{some,a{*c,b}[ef]}.j]\r\npatterns=nested\r\n\r\n; numeric braces\r\n[{3..120}]\r\nnumber=true\r\n\r\n; alphabetical\r\n[{aardvark..antelope}]\r\nwords=a\r\n",
+  "glob/utf8char.in": "; test EditorConfig files with UTF-8 characters larger than 127\r\n\r\nroot = true\r\n\r\n[中文.txt]\r\nkey = value\r\n",
+  "glob/star_star.in": "; test **\r\n\r\nroot=true\r\n\r\n[a**z.c]\r\nkey1=value1\r\n\r\n[b/**z.c]\r\nkey2=value2\r\n\r\n[c**/z.c]\r\nkey3=value3\r\n\r\n[d/**/z.c]\r\nkey4=value4\r\n",
+  "parser/basic.in": "[*.a]\r\noption1=value1\r\n\r\n; repeat section\r\n[*.a]\r\noption2=value2\r\n\r\n[*.b]\r\noption1 = a\r\noption2 = a\r\n\r\n[b.b]\r\noption2 = b\r\n\r\n[*.b]\r\noption1 = c\r\n",
+  "parser/whitespace.in": "; test whitespace usage\r\n\r\nroot = true\r\n\r\n; no whitespace\r\n[test1.c]\r\nkey=value\r\n\r\n; spaces around equals\r\n[test2.c]\r\nkey = value\r\n\r\n; lots of space after equals\r\n[test3.c]\r\nkey  =   value\r\n\r\n; spaces before property name\r\n[test4.c]\r\n  key=value\r\n\r\n; spaces after property value\r\n[test5.c]\r\nkey=value  \r\n\r\n; blank lines between properties\r\n[test6.c]\r\n\r\nkey1=value1\r\n\r\nkey2=value2\r\n\r\n; spaces in section name\r\n[ test 7 ]\r\nkey=value\r\n\r\n; spaces before section name\r\n  [test8.c]\r\nkey=value\r\n\r\n; spaces after section name\r\n[test9.c]  \r\nkey=value\r\n\r\n; spacing before middle property\r\n[test10.c]\r\nkey1=value1\r\n  key2=value2\r\nkey3=value3\r\n\r\n; value with whitespace inside and the leading and trailing ws ignored\r\n[test11.c]\r\nkey= value with whitespace inside  \r\n\r\n; space in the middle of a key\r\n[test12.c]\r\nke y=value",
+  "parser/comments.in": "; test comments\r\n\r\nroot = true\r\n\r\n[test3.c]\r\n; Comment before properties ignored\r\nkey=value\r\n\r\n[test4.c]\r\nkey1=value1\r\n; Comment between properties ignored\r\nkey2=value2\r\n\r\n; Semicolon or hash at end of value read as part of value\r\n[test5.c]\r\nkey1=value; not comment\r\nkey2=value # not comment\r\n\r\n; Backslash before a semicolon or hash is part of the value\r\n[test6.c]\r\nkey1=value \\; not comment\r\nkey2=value \\# not comment\r\n\r\n; Escaped semicolon in section name\r\n[test\\;.c]\r\nkey=value\r\n\r\n[test9.c]\r\n# Comment before properties ignored\r\nkey=value\r\n\r\n[test10.c]\r\nkey1=value1\r\n# Comment between properties ignored\r\nkey2=value2\r\n\r\n# Octothorpe at end of value read as part of value\r\n[test11.c]\r\nkey=value# not comment\r\n\r\n# Escaped octothorpe in value\r\n[test12.c]\r\nkey=value \\# not comment\r\n\r\n# Escaped octothorpe in section name\r\n[test\\#.c]\r\nkey=value\r\n",
+  "parser/bom.in": "﻿; test EditorConfig files with BOM\r\n\r\nroot = true\r\n\r\n[*]\r\nkey = value\r\n",
+  "parser/crlf.in": "; test EditorConfig files with CRLF line separators\r\n\r\nroot = true\r\n\r\n[*]\r\nkey = value\r\n",
+  "parser/limits.in": "root = true\r\n\r\n; minimum supported key length of 1024 characters\r\n[test1]\r\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=v1024\r\n\r\n; minimum supported value length of 4096 characters\r\n[test2]\r\nk4096=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n\r\n; minimum supported section name length of 1024 characters (excluding [] brackets)\r\n[{test3,aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}]\r\nk1024=v1024\r\n",
+  "parser/empty.in": "",
+  "parser/newlines_only.in": "\r\n\r\n",
+  "parser/comments_only.in": "# Just a comment, nothing else",
+  "parser/comments_and_newlines.in": "\r\n# Just comments\r\n\r\n# ... and newlines\r\n",
+  "parser/empty_values.in": "root = true\r\n\r\n[test1]\r\n; A value set to empty string\r\nkey1=\r\n; Whitespace after equals sign is ignored\r\nkey2=  \r\n; A file final key set to empty string\r\nkey3=\r\n",
+  "parser/leading_slash.in": "root = true\r\n\r\n[/test1/file.{java,js,rb}]\r\n; Has a leading slash along with a slash in between\r\nkey1=val1\r\n[test1/file.{java,js,rb}]\r\n; Has no leading slash but has a slash in between\r\nkey2=val2\r\n[*.{java,js,rb}]\r\n; Has no slash at all but still should match\r\nkey3=val3\r\n",
+  "properties/tab_width_default.in": "root = true\r\n\r\n[test.c]\r\nindent_style = space\r\nindent_size = 4\r\n\r\n[test2.c]\r\nindent_style = tab\r\nindent_size = tab\r\n",
+  "properties/indent_size_default.in": "root = true\r\n\r\n[test.c]\r\nindent_style = tab\r\n\r\n[test2.c]\r\nindent_style = space\r\n\r\n[test3.c]\r\nindent_style = tab\r\ntab_width = 2\r\n",
+  "properties/lowercase_values.in": "; test property name lowercasing\r\n\r\nroot = true\r\n\r\n[test1.c]\r\nindent_style = Space\r\nend_of_line = CRLF\r\n\r\n[test2.c]\r\ninsert_final_newline = TRUE\r\ntrim_trailing_whitespace = False\r\ncharset = UTF-8\r\n\r\n[test3.c]\r\ntest_property = TestValue\r\n",
+  "properties/lowercase_names.in": "; test that property names are lowercased\r\n\r\nroot = true\r\n\r\n[test.c]\r\nTestProperty = testvalue\r\n"
+ },
+ "cases": [
+  {
+   "name": "star_single_ML",
+   "config": "glob/star.in",
+   "path": "ace.c",
+   "expected": {
+    "key": "value",
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_zero_ML",
+   "config": "glob/star.in",
+   "path": "ae.c",
+   "expected": {
+    "key": "value",
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_multiple_ML",
+   "config": "glob/star.in",
+   "path": "abcde.c",
+   "expected": {
+    "key": "value",
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_over_slash",
+   "config": "glob/star.in",
+   "path": "a/e.c",
+   "expected": {
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_after_slash_ML",
+   "config": "glob/star.in",
+   "path": "Bar/foo.txt",
+   "expected": {
+    "keyb": "valueb",
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_matches_dot_file_after_slash_ML",
+   "config": "glob/star.in",
+   "path": "Bar/.editorconfig",
+   "expected": {
+    "keyb": "valueb",
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_matches_dot_file",
+   "config": "glob/star.in",
+   "path": ".editorconfig",
+   "expected": {
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_after_slash_ML_in_subdir",
+   "config": "glob/star.in",
+   "path": "bat/Bar/foo.txt",
+   "expected": {
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "star_matches_dot_file_after_slash_ML_in_subdir",
+   "config": "glob/star.in",
+   "path": "bat/Bar/.editorconfig",
+   "expected": {
+    "keyc": "valuec"
+   }
+  },
+  {
+   "name": "question_single",
+   "config": "glob/question.in",
+   "path": "some.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "question_zero",
+   "config": "glob/question.in",
+   "path": "som.c",
+   "expected": {}
+  },
+  {
+   "name": "question_multiple",
+   "config": "glob/question.in",
+   "path": "something.c",
+   "expected": {}
+  },
+  {
+   "name": "question_slash",
+   "config": "glob/question.in",
+   "path": "som/.c",
+   "expected": {}
+  },
+  {
+   "name": "brackets_close_inside",
+   "config": "glob/brackets.in",
+   "path": "].g",
+   "expected": {
+    "close_inside": "true"
+   }
+  },
+  {
+   "name": "brackets_close_outside",
+   "config": "glob/brackets.in",
+   "path": "b].g",
+   "expected": {
+    "close_outside": "true"
+   }
+  },
+  {
+   "name": "brackets_nclose_inside",
+   "config": "glob/brackets.in",
+   "path": "c.g",
+   "expected": {
+    "close_inside": "false"
+   }
+  },
+  {
+   "name": "brackets_nclose_outside",
+   "config": "glob/brackets.in",
+   "path": "c].g",
+   "expected": {
+    "close_outside": "false"
+   }
+  },
+  {
+   "name": "brackets_choice",
+   "config": "glob/brackets.in",
+   "path": "a.a",
+   "expected": {
+    "choice": "true"
+   }
+  },
+  {
+   "name": "brackets_choice2",
+   "config": "glob/brackets.in",
+   "path": "c.a",
+   "expected": {}
+  },
+  {
+   "name": "brackets_nchoice",
+   "config": "glob/brackets.in",
+   "path": "c.b",
+   "expected": {
+    "choice": "false"
+   }
+  },
+  {
+   "name": "brackets_nchoice2",
+   "config": "glob/brackets.in",
+   "path": "a.b",
+   "expected": {}
+  },
+  {
+   "name": "brackets_range",
+   "config": "glob/brackets.in",
+   "path": "f.c",
+   "expected": {
+    "range": "true"
+   }
+  },
+  {
+   "name": "brackets_range2",
+   "config": "glob/brackets.in",
+   "path": "h.c",
+   "expected": {}
+  },
+  {
+   "name": "brackets_nrange",
+   "config": "glob/brackets.in",
+   "path": "h.d",
+   "expected": {
+    "range": "false"
+   }
+  },
+  {
+   "name": "brackets_nrange2",
+   "config": "glob/brackets.in",
+   "path": "f.d",
+   "expected": {}
+  },
+  {
+   "name": "brackets_range_and_choice",
+   "config": "glob/brackets.in",
+   "path": "e.e",
+   "expected": {
+    "range_and_choice": "true"
+   }
+  },
+  {
+   "name": "brackets_choice_with_dash",
+   "config": "glob/brackets.in",
+   "path": "-.f",
+   "expected": {
+    "choice_with_dash": "true"
+   }
+  },
+  {
+   "name": "brackets_slash_inside1",
+   "config": "glob/brackets.in",
+   "path": "ab/cd.i",
+   "expected": {}
+  },
+  {
+   "name": "brackets_slash_inside2",
+   "config": "glob/brackets.in",
+   "path": "abecd.i",
+   "expected": {}
+  },
+  {
+   "name": "brackets_slash_inside3",
+   "config": "glob/brackets.in",
+   "path": "ab[e/]cd.i",
+   "expected": {
+    "slash_inside": "true"
+   }
+  },
+  {
+   "name": "brackets_slash_inside4",
+   "config": "glob/brackets.in",
+   "path": "ab[/c",
+   "expected": {
+    "slash_half_open": "true"
+   }
+  },
+  {
+   "name": "braces_word_choice1",
+   "config": "glob/braces.in",
+   "path": "test.py",
+   "expected": {
+    "choice": "true"
+   }
+  },
+  {
+   "name": "braces_word_choice2",
+   "config": "glob/braces.in",
+   "path": "test.js",
+   "expected": {
+    "choice": "true"
+   }
+  },
+  {
+   "name": "braces_word_choice3",
+   "config": "glob/braces.in",
+   "path": "test.html",
+   "expected": {
+    "choice": "true"
+   }
+  },
+  {
+   "name": "braces_word_choice4",
+   "config": "glob/braces.in",
+   "path": "test.pyc",
+   "expected": {}
+  },
+  {
+   "name": "braces_single_choice",
+   "config": "glob/braces.in",
+   "path": "{single}.b",
+   "expected": {
+    "choice": "single"
+   }
+  },
+  {
+   "name": "braces_single_choice_negative",
+   "config": "glob/braces.in",
+   "path": ".b",
+   "expected": {}
+  },
+  {
+   "name": "braces_empty_choice",
+   "config": "glob/braces.in",
+   "path": "{}.c",
+   "expected": {
+    "empty": "all"
+   }
+  },
+  {
+   "name": "braces_empty_choice_negative",
+   "config": "glob/braces.in",
+   "path": ".c",
+   "expected": {}
+  },
+  {
+   "name": "braces_empty_word1",
+   "config": "glob/braces.in",
+   "path": "a.d",
+   "expected": {
+    "empty": "word"
+   }
+  },
+  {
+   "name": "braces_empty_word2",
+   "config": "glob/braces.in",
+   "path": "ab.d",
+   "expected": {
+    "empty": "word"
+   }
+  },
+  {
+   "name": "braces_empty_word3",
+   "config": "glob/braces.in",
+   "path": "ac.d",
+   "expected": {
+    "empty": "word"
+   }
+  },
+  {
+   "name": "braces_empty_word4",
+   "config": "glob/braces.in",
+   "path": "a,.d",
+   "expected": {}
+  },
+  {
+   "name": "braces_empty_words1",
+   "config": "glob/braces.in",
+   "path": "a.e",
+   "expected": {
+    "empty": "words"
+   }
+  },
+  {
+   "name": "braces_empty_words2",
+   "config": "glob/braces.in",
+   "path": "ab.e",
+   "expected": {
+    "empty": "words"
+   }
+  },
+  {
+   "name": "braces_empty_words3",
+   "config": "glob/braces.in",
+   "path": "ac.e",
+   "expected": {
+    "empty": "words"
+   }
+  },
+  {
+   "name": "braces_empty_words4",
+   "config": "glob/braces.in",
+   "path": "a,.e",
+   "expected": {}
+  },
+  {
+   "name": "braces_no_closing",
+   "config": "glob/braces.in",
+   "path": "{.f",
+   "expected": {
+    "closing": "false"
+   }
+  },
+  {
+   "name": "braces_no_closing_negative",
+   "config": "glob/braces.in",
+   "path": ".f",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested1",
+   "config": "glob/braces.in",
+   "path": "word,this}.g",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested2",
+   "config": "glob/braces.in",
+   "path": "{also,this}.g",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested3",
+   "config": "glob/braces.in",
+   "path": "word.g",
+   "expected": {
+    "nested": "true"
+   }
+  },
+  {
+   "name": "braces_nested4",
+   "config": "glob/braces.in",
+   "path": "{also}.g",
+   "expected": {
+    "nested": "true"
+   }
+  },
+  {
+   "name": "braces_nested5",
+   "config": "glob/braces.in",
+   "path": "this.g",
+   "expected": {
+    "nested": "true"
+   }
+  },
+  {
+   "name": "braces_nested_start1",
+   "config": "glob/braces.in",
+   "path": "{{a,b},c}.k",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested_start2",
+   "config": "glob/braces.in",
+   "path": "{a,b}.k",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested_start3",
+   "config": "glob/braces.in",
+   "path": "a.k",
+   "expected": {
+    "nested_start": "true"
+   }
+  },
+  {
+   "name": "braces_nested_start4",
+   "config": "glob/braces.in",
+   "path": "b.k",
+   "expected": {
+    "nested_start": "true"
+   }
+  },
+  {
+   "name": "braces_nested_start5",
+   "config": "glob/braces.in",
+   "path": "c.k",
+   "expected": {
+    "nested_start": "true"
+   }
+  },
+  {
+   "name": "braces_nested_end1",
+   "config": "glob/braces.in",
+   "path": "{a,{b,c}}.l",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested_end2",
+   "config": "glob/braces.in",
+   "path": "{b,c}.l",
+   "expected": {}
+  },
+  {
+   "name": "braces_nested_end3",
+   "config": "glob/braces.in",
+   "path": "a.l",
+   "expected": {
+    "nested_end": "true"
+   }
+  },
+  {
+   "name": "braces_nested_end4",
+   "config": "glob/braces.in",
+   "path": "b.l",
+   "expected": {
+    "nested_end": "true"
+   }
+  },
+  {
+   "name": "braces_nested_end5",
+   "config": "glob/braces.in",
+   "path": "c.l",
+   "expected": {
+    "nested_end": "true"
+   }
+  },
+  {
+   "name": "braces_closing_in_beginning",
+   "config": "glob/braces.in",
+   "path": "{},b}.h",
+   "expected": {
+    "closing": "inside"
+   }
+  },
+  {
+   "name": "braces_unmatched1",
+   "config": "glob/braces.in",
+   "path": "{{,b,c{d}.i",
+   "expected": {
+    "unmatched": "true"
+   }
+  },
+  {
+   "name": "braces_unmatched2",
+   "config": "glob/braces.in",
+   "path": "{.i",
+   "expected": {}
+  },
+  {
+   "name": "braces_unmatched3",
+   "config": "glob/braces.in",
+   "path": "b.i",
+   "expected": {}
+  },
+  {
+   "name": "braces_unmatched4",
+   "config": "glob/braces.in",
+   "path": "c{d.i",
+   "expected": {}
+  },
+  {
+   "name": "braces_unmatched5",
+   "config": "glob/braces.in",
+   "path": ".i",
+   "expected": {}
+  },
+  {
+   "name": "braces_escaped_comma1",
+   "config": "glob/braces.in",
+   "path": "a,b.txt",
+   "expected": {
+    "comma": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_comma2",
+   "config": "glob/braces.in",
+   "path": "a.txt",
+   "expected": {}
+  },
+  {
+   "name": "braces_escaped_comma3",
+   "config": "glob/braces.in",
+   "path": "cd.txt",
+   "expected": {
+    "comma": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_brace1",
+   "config": "glob/braces.in",
+   "path": "e.txt",
+   "expected": {
+    "closing": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_brace2",
+   "config": "glob/braces.in",
+   "path": "}.txt",
+   "expected": {
+    "closing": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_brace3",
+   "config": "glob/braces.in",
+   "path": "f.txt",
+   "expected": {
+    "closing": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_backslash1",
+   "config": "glob/braces.in",
+   "path": "g.txt",
+   "expected": {
+    "backslash": "yes"
+   }
+  },
+  {
+   "name": "braces_escaped_backslash3",
+   "config": "glob/braces.in",
+   "path": "i.txt",
+   "expected": {
+    "backslash": "yes"
+   }
+  },
+  {
+   "name": "braces_patterns_nested1",
+   "config": "glob/braces.in",
+   "path": "some.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested2",
+   "config": "glob/braces.in",
+   "path": "abe.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested3",
+   "config": "glob/braces.in",
+   "path": "abf.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested4",
+   "config": "glob/braces.in",
+   "path": "abg.j",
+   "expected": {}
+  },
+  {
+   "name": "braces_patterns_nested5",
+   "config": "glob/braces.in",
+   "path": "ace.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested6",
+   "config": "glob/braces.in",
+   "path": "acf.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested7",
+   "config": "glob/braces.in",
+   "path": "acg.j",
+   "expected": {}
+  },
+  {
+   "name": "braces_patterns_nested8",
+   "config": "glob/braces.in",
+   "path": "abce.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested9",
+   "config": "glob/braces.in",
+   "path": "abcf.j",
+   "expected": {
+    "patterns": "nested"
+   }
+  },
+  {
+   "name": "braces_patterns_nested10",
+   "config": "glob/braces.in",
+   "path": "abcg.j",
+   "expected": {}
+  },
+  {
+   "name": "braces_patterns_nested11",
+   "config": "glob/braces.in",
+   "path": "ae.j",
+   "expected": {}
+  },
+  {
+   "name": "braces_patterns_nested12",
+   "config": "glob/braces.in",
+   "path": ".j",
+   "expected": {}
+  },
+  {
+   "name": "braces_numeric_range1",
+   "config": "glob/braces.in",
+   "path": "1",
+   "expected": {}
+  },
+  {
+   "name": "braces_numeric_range2",
+   "config": "glob/braces.in",
+   "path": "3",
+   "expected": {
+    "number": "true"
+   }
+  },
+  {
+   "name": "braces_numeric_range3",
+   "config": "glob/braces.in",
+   "path": "15",
+   "expected": {
+    "number": "true"
+   }
+  },
+  {
+   "name": "braces_numeric_range4",
+   "config": "glob/braces.in",
+   "path": "60",
+   "expected": {
+    "number": "true"
+   }
+  },
+  {
+   "name": "braces_numeric_range5",
+   "config": "glob/braces.in",
+   "path": "5a",
+   "expected": {}
+  },
+  {
+   "name": "braces_numeric_range6",
+   "config": "glob/braces.in",
+   "path": "120",
+   "expected": {
+    "number": "true"
+   }
+  },
+  {
+   "name": "braces_numeric_range7",
+   "config": "glob/braces.in",
+   "path": "121",
+   "expected": {}
+  },
+  {
+   "name": "braces_numeric_range8",
+   "config": "glob/braces.in",
+   "path": "060",
+   "expected": {}
+  },
+  {
+   "name": "braces_alpha_range1",
+   "config": "glob/braces.in",
+   "path": "{aardvark..antelope}",
+   "expected": {
+    "words": "a"
+   }
+  },
+  {
+   "name": "braces_alpha_range2",
+   "config": "glob/braces.in",
+   "path": "a",
+   "expected": {}
+  },
+  {
+   "name": "braces_alpha_range3",
+   "config": "glob/braces.in",
+   "path": "aardvark",
+   "expected": {}
+  },
+  {
+   "name": "braces_alpha_range4",
+   "config": "glob/braces.in",
+   "path": "agreement",
+   "expected": {}
+  },
+  {
+   "name": "braces_alpha_range5",
+   "config": "glob/braces.in",
+   "path": "antelope",
+   "expected": {}
+  },
+  {
+   "name": "braces_alpha_range6",
+   "config": "glob/braces.in",
+   "path": "antimatter",
+   "expected": {}
+  },
+  {
+   "name": "utf_8_char",
+   "config": "glob/utf8char.in",
+   "path": "中文.txt",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "star_star_over_separator1",
+   "config": "glob/star_star.in",
+   "path": "a/z.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator2",
+   "config": "glob/star_star.in",
+   "path": "amnz.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator3",
+   "config": "glob/star_star.in",
+   "path": "am/nz.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator4",
+   "config": "glob/star_star.in",
+   "path": "a/mnz.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator5",
+   "config": "glob/star_star.in",
+   "path": "amn/z.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator6",
+   "config": "glob/star_star.in",
+   "path": "a/mn/z.c",
+   "expected": {
+    "key1": "value1"
+   }
+  },
+  {
+   "name": "star_star_over_separator7",
+   "config": "glob/star_star.in",
+   "path": "b/z.c",
+   "expected": {
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "star_star_over_separator8",
+   "config": "glob/star_star.in",
+   "path": "b/mnz.c",
+   "expected": {
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "star_star_over_separator9",
+   "config": "glob/star_star.in",
+   "path": "b/mn/z.c",
+   "expected": {
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "star_star_over_separator10",
+   "config": "glob/star_star.in",
+   "path": "bmnz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator11",
+   "config": "glob/star_star.in",
+   "path": "bm/nz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator12",
+   "config": "glob/star_star.in",
+   "path": "bmn/z.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator13",
+   "config": "glob/star_star.in",
+   "path": "c/z.c",
+   "expected": {
+    "key3": "value3"
+   }
+  },
+  {
+   "name": "star_star_over_separator14",
+   "config": "glob/star_star.in",
+   "path": "cmn/z.c",
+   "expected": {
+    "key3": "value3"
+   }
+  },
+  {
+   "name": "star_star_over_separator15",
+   "config": "glob/star_star.in",
+   "path": "c/mn/z.c",
+   "expected": {
+    "key3": "value3"
+   }
+  },
+  {
+   "name": "star_star_over_separator16",
+   "config": "glob/star_star.in",
+   "path": "cmnz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator17",
+   "config": "glob/star_star.in",
+   "path": "cm/nz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator18",
+   "config": "glob/star_star.in",
+   "path": "c/mnz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator19",
+   "config": "glob/star_star.in",
+   "path": "d/z.c",
+   "expected": {
+    "key4": "value4"
+   }
+  },
+  {
+   "name": "star_star_over_separator20",
+   "config": "glob/star_star.in",
+   "path": "d/mn/z.c",
+   "expected": {
+    "key4": "value4"
+   }
+  },
+  {
+   "name": "star_star_over_separator21",
+   "config": "glob/star_star.in",
+   "path": "dmnz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator22",
+   "config": "glob/star_star.in",
+   "path": "dm/nz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator23",
+   "config": "glob/star_star.in",
+   "path": "d/mnz.c",
+   "expected": {}
+  },
+  {
+   "name": "star_star_over_separator24",
+   "config": "glob/star_star.in",
+   "path": "dmn/z.c",
+   "expected": {}
+  },
+  {
+   "name": "repeat_sections_ML",
+   "config": "parser/basic.in",
+   "path": "a.a",
+   "expected": {
+    "option1": "value1",
+    "option2": "value2"
+   }
+  },
+  {
+   "name": "basic_cascade_ML",
+   "config": "parser/basic.in",
+   "path": "b.b",
+   "expected": {
+    "option1": "c",
+    "option2": "b"
+   }
+  },
+  {
+   "name": "no_whitespace",
+   "config": "parser/whitespace.in",
+   "path": "test1.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "single_spaces_around_equals",
+   "config": "parser/whitespace.in",
+   "path": "test2.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "multiple_spaces_around_equals",
+   "config": "parser/whitespace.in",
+   "path": "test3.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "spaces_before_property_name",
+   "config": "parser/whitespace.in",
+   "path": "test4.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "spaces_after_property_value",
+   "config": "parser/whitespace.in",
+   "path": "test5.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "blank_lines_between_properties_ML",
+   "config": "parser/whitespace.in",
+   "path": "test6.c",
+   "expected": {
+    "key1": "value1",
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "spaces_in_section_name",
+   "config": "parser/whitespace.in",
+   "path": " test 7 ",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "spaces_before_section_name",
+   "config": "parser/whitespace.in",
+   "path": "test8.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "spaces_after_section_name",
+   "config": "parser/whitespace.in",
+   "path": "test9.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "spaces_before_middle_property_ML",
+   "config": "parser/whitespace.in",
+   "path": "test10.c",
+   "expected": {
+    "key1": "value1",
+    "key2": "value2",
+    "key3": "value3"
+   }
+  },
+  {
+   "name": "value_with_whitespace_inside",
+   "config": "parser/whitespace.in",
+   "path": "test11.c",
+   "expected": {
+    "key": "value with whitespace inside"
+   }
+  },
+  {
+   "name": "spaces_in_middle_key",
+   "config": "parser/whitespace.in",
+   "path": "test12.c",
+   "expected": {
+    "ke y": "value"
+   }
+  },
+  {
+   "name": "comment_before_props",
+   "config": "parser/comments.in",
+   "path": "test3.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "comment_between_props_ML",
+   "config": "parser/comments.in",
+   "path": "test4.c",
+   "expected": {
+    "key1": "value1",
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "semicolon_or_hash_in_property",
+   "config": "parser/comments.in",
+   "path": "test5.c",
+   "expected": {
+    "key1": "value; not comment",
+    "key2": "value # not comment"
+   }
+  },
+  {
+   "name": "backslashed_semicolon_or_hash_in_property",
+   "config": "parser/comments.in",
+   "path": "test6.c",
+   "expected": {
+    "key1": "value \\; not comment",
+    "key2": "value \\# not comment"
+   }
+  },
+  {
+   "name": "escaped_semicolon_in_section",
+   "config": "parser/comments.in",
+   "path": "test;.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "octothorpe_comment_before_props",
+   "config": "parser/comments.in",
+   "path": "test9.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "octothorpe_comment_between_props_ML",
+   "config": "parser/comments.in",
+   "path": "test10.c",
+   "expected": {
+    "key1": "value1",
+    "key2": "value2"
+   }
+  },
+  {
+   "name": "octothorpe_in_value",
+   "config": "parser/comments.in",
+   "path": "test11.c",
+   "expected": {
+    "key": "value# not comment"
+   }
+  },
+  {
+   "name": "escaped_octothorpe_in_section",
+   "config": "parser/comments.in",
+   "path": "test#.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "bom_at_head",
+   "config": "parser/bom.in",
+   "path": "a.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "crlf_linesep",
+   "config": "parser/crlf.in",
+   "path": "a.c",
+   "expected": {
+    "key": "value"
+   }
+  },
+  {
+   "name": "min_supported_key_length",
+   "config": "parser/limits.in",
+   "path": "test1",
+   "expected": {
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "v1024"
+   }
+  },
+  {
+   "name": "min_supported_value_length",
+   "config": "parser/limits.in",
+   "path": "test2",
+   "expected": {
+    "k4096": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  },
+  {
+   "name": "min_supported_section_name_length",
+   "config": "parser/limits.in",
+   "path": "test3",
+   "expected": {
+    "k1024": "v1024"
+   }
+  },
+  {
+   "name": "empty_editorconfig_file",
+   "config": "parser/empty.in",
+   "path": "test4",
+   "expected": {}
+  },
+  {
+   "name": "newlines_only_editorconfig_file",
+   "config": "parser/newlines_only.in",
+   "path": "test4",
+   "expected": {}
+  },
+  {
+   "name": "comments_only_editorconfig_file",
+   "config": "parser/comments_only.in",
+   "path": "test4",
+   "expected": {}
+  },
+  {
+   "name": "comments_and_newlines_editorconfig_file",
+   "config": "parser/comments_and_newlines.in",
+   "path": "test4",
+   "expected": {}
+  },
+  {
+   "name": "key_set_to_empty_string",
+   "config": "parser/empty_values.in",
+   "path": "test1",
+   "expected": {
+    "key1": "",
+    "key2": "",
+    "key3": ""
+   }
+  },
+  {
+   "name": "leading_slash_relevance",
+   "config": "parser/leading_slash.in",
+   "path": "test1/file.java",
+   "expected": {
+    "key1": "val1",
+    "key2": "val2",
+    "key3": "val3"
+   }
+  },
+  {
+   "name": "tab_width_default_ML",
+   "config": "properties/tab_width_default.in",
+   "path": "test.c",
+   "expected": {
+    "indent_size": "4",
+    "indent_style": "space",
+    "tab_width": "4"
+   }
+  },
+  {
+   "name": "tab_width_default_indent_size_tab_ML",
+   "config": "properties/tab_width_default.in",
+   "path": "test2.c",
+   "expected": {
+    "indent_size": "tab",
+    "indent_style": "tab"
+   }
+  },
+  {
+   "name": "indent_size_default_ML",
+   "config": "properties/indent_size_default.in",
+   "path": "test.c",
+   "expected": {
+    "indent_size": "tab",
+    "indent_style": "tab"
+   }
+  },
+  {
+   "name": "indent_size_default_space",
+   "config": "properties/indent_size_default.in",
+   "path": "test2.c",
+   "expected": {
+    "indent_style": "space"
+   }
+  },
+  {
+   "name": "indent_size_default_with_tab_width_ML",
+   "config": "properties/indent_size_default.in",
+   "path": "test3.c",
+   "expected": {
+    "indent_size": "2",
+    "indent_style": "tab",
+    "tab_width": "2"
+   }
+  },
+  {
+   "name": "lowercase_values1_ML",
+   "config": "properties/lowercase_values.in",
+   "path": "test1.c",
+   "expected": {
+    "end_of_line": "crlf",
+    "indent_style": "space"
+   }
+  },
+  {
+   "name": "lowercase_values2_ML",
+   "config": "properties/lowercase_values.in",
+   "path": "test2.c",
+   "expected": {
+    "charset": "utf-8",
+    "insert_final_newline": "true",
+    "trim_trailing_whitespace": "false"
+   }
+  },
+  {
+   "name": "lowercase_values3",
+   "config": "properties/lowercase_values.in",
+   "path": "test3.c",
+   "expected": {
+    "test_property": "TestValue"
+   }
+  },
+  {
+   "name": "lowercase_names",
+   "config": "properties/lowercase_names.in",
+   "path": "test.c",
+   "expected": {
+    "testproperty": "testvalue"
+   }
+  }
+ ]
+}

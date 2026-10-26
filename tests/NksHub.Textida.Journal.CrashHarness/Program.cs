@@ -9,6 +9,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Length >= 3 && args[0] == "child") return Child(args[1], int.Parse(args[2]));
+        if (args.Length >= 4 && args[0] == "batch-child") return BatchScenario.Child(args[1], int.Parse(args[2]), args[3]);
         if (args.Length == 2 && args[0] == "dump")
         {
             using var reader = new JournalReader(args[1]);
@@ -28,9 +29,11 @@ public static class Program
                 case "--work": work = args[i + 1]; break;
             }
         }
+        if (args.Length > 0 && args[0] == "batch")
+            return BatchScenario.RunAll(iterations == 200 ? 20 : iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "nkspad-batch-" + Guid.NewGuid().ToString("N")[..8]));
         if (args.Length == 0 || args[0] != "run")
         {
-            Console.Error.WriteLine("usage: run [--iterations N] [--parallel N] [--seed N] [--work DIR] | child DIR SEED");
+            Console.Error.WriteLine("usage: run|batch [--iterations N] [--parallel N] [--seed N] [--work DIR] | child DIR SEED | batch-child DIR SEED POINT");
             return 2;
         }
         return Verifier.RunAll(iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "textida-crash-" + Guid.NewGuid().ToString("N")[..8]));
