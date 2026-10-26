@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 using Avalonia;
@@ -277,8 +278,14 @@ internal sealed class PagedTextView : Grid
         if (origin < 0) return;
         int window = (int)Math.Min(Doc.ByteLength - origin, 128 * 1024);
         bool toEnd = origin + window >= Doc.ByteLength;
-        var buffer = new byte[window];
-        Doc.Read(origin, buffer);
+        var buffer = ArrayPool<byte>.Shared.Rent(window); // a fresh 128 KiB array per edit lands on the large object heap
+        try { FillLines(first, origin, buffer, window, toEnd); }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
+    }
+
+    private void FillLines(long first, long origin, byte[] buffer, int window, bool toEnd)
+    {
+        Doc.Read(origin, buffer.AsSpan(0, window));
         int limit = Math.Max(64, _canvas.VisibleLines + 8), pos = 0;
         for (long line = first; line < LineCount && line - first < limit; line++)
         {
@@ -298,7 +305,7 @@ internal sealed class PagedTextView : Grid
             int take = Math.Min(length, MaxLineBytes);
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
-            _lines[line] = new LineView(origin + pos, truncated, Doc.Codec.WithBom(false).Decode(buffer.AsMemory(pos, take)), _options.TabSize);
+            _lines[line] = new LineView(origin + pos, truncated, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
             pos = next;
         }
     }
