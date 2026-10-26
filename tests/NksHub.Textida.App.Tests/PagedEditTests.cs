@@ -77,6 +77,7 @@ public class PagedEditTests : IDisposable
         Assert.Equal("ab\néline 1\n", Head(tab, 12));
         Assert.Equal((2L, 2L), tab.CaretPosition());
         Assert.Contains("Ř 2, Sl 2", _w.StatusLeftText);
+        Assert.Contains("revize " + tab.Doc.Doc.Revision, _w.StatusLeftText);
 
         Press(Key.Left);
         Press(Key.Delete); // removes the two bytes of é

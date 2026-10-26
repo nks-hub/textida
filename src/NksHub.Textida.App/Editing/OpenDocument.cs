@@ -17,7 +17,7 @@ namespace NksHub.Textida.App.Editing;
 internal sealed class OpenDocument : IDisposable
 {
     private const int SampleBytes = 1 << 20;
-    private const int EolBlockChars = 1 << 16;
+    private const int EolBlockChars = 1 << 14;
 
     private static int _untitled;
     private readonly DispatcherTimer _eolTimer;

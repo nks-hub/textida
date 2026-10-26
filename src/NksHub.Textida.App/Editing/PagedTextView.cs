@@ -22,8 +22,8 @@ namespace NksHub.Textida.App.Editing;
 /// offset and each visible line is decoded with a character map between UTF-16 columns and bytes.
 /// </summary>
 /// <remarks>
-/// shortcut: no selection, clipboard, IME or block mode; a line longer than <see cref="MaxLineBytes"/> shows its first part
-/// and cannot be edited; no horizontal scroll bar. Product quality is the paged surface of P3.1.10.
+/// shortcut: no selection, clipboard, inline IME preedit or block mode; a line longer than <see cref="MaxLineBytes"/> shows its first part
+/// and cannot be edited; no horizontal scroll bar; saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed class PagedTextView : Grid
 {

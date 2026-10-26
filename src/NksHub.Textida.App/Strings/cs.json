@@ -15,7 +15,7 @@
   "status.line": "Ř {line}",
   "status.selected": "(vybráno {count})",
   "status.ready": "Připraveno",
-  "status.largePaged": "Velký soubor ({size}): stránkovaný režim",
+  "status.largePaged": "Velký soubor ({size}): stránkovaný režim, revize {revision}",
   "status.indent.spaces": "Mezery: {size}",
   "status.indent.tabs": "Tabulátory: {size}",
   "status.eol.mixed": "smíšené",
