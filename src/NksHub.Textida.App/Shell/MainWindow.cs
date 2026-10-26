@@ -2,54 +2,55 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Chrome;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using NksHub.Textida.Core.Encodings;
+using Avalonia.VisualTree;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Profile;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
-using NksHub.Textida.Core;
 
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
 /// D5 main window: only a text menu and tabs on top, the document below, a status bar at the bottom, a hidden list of open documents on the left.
 /// Windows: menu in the title strip and tabs in a row under it. macOS: tabs in the title bar next to the traffic lights, menu in the system menu bar.
+/// Tabs live in groups side by side; two tabs of one document are the views of a split.
 /// </summary>
-internal sealed class MainWindow : Window
+internal sealed partial class MainWindow : Window
 {
     private const double PanelWidth = 220;
 
     private readonly App _app;
     private readonly ShellLook _look;
-    private readonly List<DocTab> _tabs = [];
-    private DocTab? _active;
+    private readonly List<TabGroup> _groups = [];
+    private readonly List<OpenDocument> _docs = [];
+    private TabGroup _activeGroup = null!;
     private bool _syncing;
+    private bool _closeApproved;
 
-    private readonly TabStrip _tabStrip = new() { Background = Brushes.Transparent };
-    private readonly ContentControl _editorHost = new();
+    private readonly Grid _groupsGrid = new();
+    private readonly Border _titleTabRow = new() { Height = 38 };
+    private readonly StackPanel _notices = new();
     private readonly TextBlock _emptyHint = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
     private readonly Grid _body = new() { ColumnDefinitions = new ColumnDefinitions("0,*") };
     private readonly ListBox _docList = new() { Background = Brushes.Transparent };
     private readonly TextBlock _docListTitle = new() { FontWeight = FontWeight.SemiBold, Margin = new Thickness(12, 10, 12, 6) };
     private readonly TextBlock _docListEmpty = new() { Margin = new Thickness(12, 4), Opacity = 0.7 };
-    private readonly TextBlock _statusPosition = new();
-    private readonly TextBlock _statusMessage = new();
-    private readonly TextBlock _statusTabs = new();
     private readonly Border _statusBar = new() { Height = 26 };
     private readonly ContentControl _menuHost = new() { VerticalAlignment = VerticalAlignment.Center };
-
-    private static readonly Geometry CloseGlyph = Geometry.Parse("M0,0 L8,8 M8,0 L0,8");
-    private static int _untitledCounter;
     private PixelPoint _normalPosition;
     private Size _normalSize;
 
-    public IReadOnlyList<DocTab> Tabs => _tabs;
-    public DocTab? Active => _active;
+    public IReadOnlyList<TabGroup> Groups => _groups;
+    public TabGroup ActiveGroup => _activeGroup;
+    public IReadOnlyList<OpenDocument> Documents => _docs;
+    public IEnumerable<DocTab> Tabs => _groups.SelectMany(g => g.Tabs);
+    public DocTab? Active => _activeGroup.Active;
     public bool DocumentsPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0;
+    public EditorOptions Options => EditorOptions.From(_app.Workbench.Settings, Active?.Doc.Language.Id);
 
     /// <summary>Text of the menu groups currently shown, for tests and accessibility checks.</summary>
     public IReadOnlyList<string> MenuHeaders => _menuModel.Select(g => g.Label).ToList();
@@ -84,19 +85,21 @@ internal sealed class MainWindow : Window
         _normalSize = new Size(placement.Width, placement.Height);
 
         BuildLayout();
+        AddGroup();
         ApplyTexts();
         Loc.Changed += OnLanguageChanged;
         PositionChanged += (_, e) => { if (WindowState == WindowState.Normal) _normalPosition = e.Point; };
         Resized += (_, e) => { if (WindowState == WindowState.Normal) _normalSize = e.ClientSize; };
-        _tabStrip.SelectionChanged += (_, _) => { if (!_syncing && _tabStrip.SelectedIndex is var i and >= 0 && i < _tabs.Count) Select(_tabs[i]); };
-        _docList.SelectionChanged += (_, _) => { if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < _tabs.Count) Select(_tabs[i]); };
-        KeyDown += (_, e) =>
+        _docList.SelectionChanged += (_, _) =>
         {
-            if (e.Key != Key.Escape || !DocumentsPanelOpen) return;
-            ToggleDocuments(false);
-            e.Handled = true;
+            if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < Tabs.Count()) SelectTab(Tabs.ElementAt(i));
         };
+        AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        AddHandler(DragDrop.DropEvent, OnWindowDrop);
+        DragDrop.SetAllowDrop(this, true);
+        Closing += OnWindowClosing;
         Closed += OnWindowClosed;
+        _app.Workbench.SettingChanged += OnSettingChanged;
     }
 
     public SavedWindow CaptureGeometry() => new()
@@ -105,20 +108,20 @@ internal sealed class MainWindow : Window
         Maximized = WindowState == WindowState.Maximized,
     };
 
+    // ---- layout ----
+
     private void BuildLayout()
     {
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
-
-        var tabRow = new Border { Child = _tabStrip, Padding = _look.TabsInTitleBar ? new Thickness(78, 0, 8, 0) : new Thickness(8, 2, 8, 0), VerticalAlignment = VerticalAlignment.Bottom };
-        tabRow.Classes.Add("tabrow");
-        WindowDecorationProperties.SetElementRole(_tabStrip, WindowDecorationsElementRole.User);
+        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
 
         if (_look.TabsInTitleBar)
         {
-            tabRow.Height = 38;
-            WindowDecorationProperties.SetElementRole(tabRow, WindowDecorationsElementRole.TitleBar);
-            Grid.SetRow(tabRow, 0);
-            root.Children.Add(tabRow);
+            _titleTabRow.Padding = new Thickness(78, 0, 8, 0);
+            _titleTabRow.VerticalAlignment = VerticalAlignment.Bottom;
+            _titleTabRow.Classes.Add("tabrow");
+            WindowDecorationProperties.SetElementRole(_titleTabRow, WindowDecorationsElementRole.TitleBar);
+            Grid.SetRow(_titleTabRow, 0);
+            root.Children.Add(_titleTabRow);
         }
         else
         {
@@ -131,31 +134,25 @@ internal sealed class MainWindow : Window
             WindowDecorationProperties.SetElementRole(title, WindowDecorationsElementRole.TitleBar);
             WindowDecorationProperties.SetElementRole(_menuHost, WindowDecorationsElementRole.User);
             Grid.SetRow(title, 0);
-            Grid.SetRow(tabRow, 1);
             root.Children.Add(title);
-            root.Children.Add(tabRow);
         }
 
         var panel = new Border { Child = new DockPanel { Children = { Dock(_docListTitle, Avalonia.Controls.Dock.Top), Dock(_docListEmpty, Avalonia.Controls.Dock.Bottom), _docList } } };
         panel.Classes.Add("sidepanel");
-        Grid.SetColumn(_editorHost, 1);
+
+        var editorArea = new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } };
+        Grid.SetColumn(editorArea, 1);
         _body.Children.Add(panel);
-        _body.Children.Add(_editorHost);
-        var content = new Border { Child = _body };
+        _body.Children.Add(editorArea);
+
+        var content = new Border { Child = new Panel { Children = { _body, BuildPalette() } } };
         content.Classes.Add("content");
-        Grid.SetRow(content, 2);
+        Grid.SetRow(content, 1);
         root.Children.Add(content);
 
-        var status = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), Margin = new Thickness(14, 0), VerticalAlignment = VerticalAlignment.Center };
-        _statusPosition.Margin = new Thickness(0, 0, 16, 0);
-        Grid.SetColumn(_statusMessage, 1);
-        Grid.SetColumn(_statusTabs, 2);
-        status.Children.Add(_statusPosition);
-        status.Children.Add(_statusMessage);
-        status.Children.Add(_statusTabs);
-        _statusBar.Child = status;
+        _statusBar.Child = BuildStatusBar();
         _statusBar.Classes.Add("statusbar");
-        Grid.SetRow(_statusBar, 3);
+        Grid.SetRow(_statusBar, 2);
         root.Children.Add(_statusBar);
 
         _emptyHint.Classes.Add("hint");
@@ -168,107 +165,112 @@ internal sealed class MainWindow : Window
         return c;
     }
 
-    // ---- documents ----
+    // ---- groups ----
 
-    public DocTab NewDocument()
+    private TabGroup AddGroup(int? index = null)
     {
-        var tab = new DocTab(null, ++_untitledCounter, "");
-        Add(tab);
-        return tab;
+        var group = new TabGroup { Empty = _emptyHint, ContextActions = TabContextActions };
+        group.Activated += (g, tab) => { _activeGroup = g; OnActiveTabChanged(); };
+        group.Focused += g => { if (_activeGroup != g) { _activeGroup = g; OnActiveTabChanged(); } };
+        group.CloseRequested += tab => _ = CloseTabAsync(tab);
+        group.TabDropped += (target, tab, at) => MoveTab(tab, target, at);
+        group.FilesDropped += (target, paths) => OpenDropped(target, paths);
+        _groups.Insert(Math.Clamp(index ?? _groups.Count, 0, _groups.Count), group);
+        _activeGroup ??= group;
+        Relayout();
+        return group;
     }
 
-    /// <summary>Opens a file in this window or activates its tab. Throws <see cref="IOException"/> with a localised message when it cannot be read.</summary>
-    public DocTab OpenFile(string path, int? line)
+    private void RemoveGroupIfEmpty(TabGroup group)
     {
-        path = Path.GetFullPath(path);
-        var tab = _tabs.FirstOrDefault(t => string.Equals(t.Path, path, PathComparison)) ?? Add(Read(path));
-        Select(tab);
-        if (line is { } l) tab.GoToLine(l);
-        tab.Editor.Focus();
-        return tab;
+        if (group.Tabs.Count > 0 || _groups.Count <= 1) return;
+        _groups.Remove(group);
+        if (_activeGroup == group) _activeGroup = _groups[0];
+        Relayout();
     }
 
-    public static StringComparison PathComparison => OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-
-    private DocTab Read(string path)
+    private void Relayout()
     {
-        try
+        _groupsGrid.Children.Clear();
+        _groupsGrid.ColumnDefinitions.Clear();
+        foreach (var g in _groups) g.StripHost.Child = null;
+        bool inTitle = _look.TabsInTitleBar && _groups.Count == 1;
+        if (_look.TabsInTitleBar) _titleTabRow.Child = inTitle ? _groups[0].Strip : null;
+        for (int i = 0; i < _groups.Count; i++)
         {
-            var info = new FileInfo(path);
-            if (!info.Exists) throw new FileNotFoundException(null, path);
-            if (info.Length > DocTab.MaxFileBytes) throw new IOException(Loc.Get(K.ErrorOpenTooLarge, ("path", path)));
-            var bytes = File.ReadAllBytes(path);
-            const int sampleLength = 64 * 1024;
-            var guess = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, sampleLength)), wholeFile: bytes.Length <= sampleLength);
-            var text = guess.Codec.Decode(bytes).Text;
-            return new DocTab(path, 0, text) { EncodingName = guess.Codec.Name };
-        }
-        catch (Exception e) when (e is UnauthorizedAccessException or IOException or System.Security.SecurityException)
-        {
-            throw new IOException(e is IOException io && io.Message.Contains(path, StringComparison.Ordinal) ? io.Message : Loc.Get(K.ErrorOpenFailed, ("path", path), ("reason", e.Message)), e);
+            var g = _groups[i];
+            g.StripHost.IsVisible = !inTitle;
+            if (!inTitle) g.StripHost.Child = g.Strip;
+            if (i > 0)
+            {
+                _groupsGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
+                var splitter = new GridSplitter { ResizeDirection = GridResizeDirection.Columns, Background = Brushes.Transparent, Width = 4 };
+                splitter.Classes.Add("groupsplitter");
+                Grid.SetColumn(splitter, _groupsGrid.ColumnDefinitions.Count - 1);
+                _groupsGrid.Children.Add(splitter);
+            }
+            _groupsGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star) { MinWidth = 120 });
+            Grid.SetColumn(g, _groupsGrid.ColumnDefinitions.Count - 1);
+            _groupsGrid.Children.Add(g);
         }
     }
 
-    private DocTab Add(DocTab tab)
+    // ---- tabs ----
+
+    public DocTab SelectTab(DocTab tab)
     {
-        _tabs.Add(tab);
-        tab.Editor.GetObservable(TextBox.CaretIndexProperty).Subscribe(new ActionObserver<int>(_ => { if (tab == _active) UpdateStatus(); }));
-        AutomationProperties.SetName(tab.Editor, Loc.Get(K.A11yEditor));
-        tab.Editor.PlaceholderText = tab.ReadOnly ? null : Loc.Get(K.EditorPlaceholder);
-        Select(tab);
+        var group = tab.Group!;
+        _activeGroup = group;
+        group.Select(tab);
+        OnActiveTabChanged();
         return tab;
     }
 
-    public void Select(DocTab tab)
+    private void OnActiveTabChanged()
     {
-        _active = tab;
-        _editorHost.Content = tab.Editor;
-        RefreshTabs();
+        RefreshDocList();
+        ApplyLanguageOptions();
         UpdateStatus();
-        Dispatcher.UIThread.Post(() => { if (_active == tab && !_docList.IsKeyboardFocusWithin) tab.Editor.Focus(); }, DispatcherPriority.Input);
+        RefreshTitle();
+        _menuModel = BuildMenuModel();
+        var tab = Active;
+        Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_docList.IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
-    public void CloseTab(DocTab tab)
-    {
-        int index = _tabs.IndexOf(tab);
-        if (index < 0) return;
-        _tabs.RemoveAt(index);
-        tab.Closed.TrySetResult();
-        if (_active == tab)
-        {
-            _active = _tabs.Count == 0 ? null : _tabs[Math.Min(index, _tabs.Count - 1)];
-            _editorHost.Content = (Control?)_active?.Editor ?? _emptyHint;
-        }
-        RefreshTabs();
-        UpdateStatus();
-    }
+    private static void FocusView(DocTab tab) => tab.View.Focus();
 
-    private void RefreshTabs()
+    private bool IsFocusInTextInput() => FocusManager?.GetFocusedElement() is TextBox;
+
+    /// <summary>True when the keyboard focus is inside the active tab's text surface.</summary>
+    public bool EditorHasFocus => Active is { } tab && FocusManager?.GetFocusedElement() is Visual v && (ReferenceEquals(v, tab.View) || tab.View.IsVisualAncestorOf(v));
+
+    private void RefreshTitle() => Title = Active is null ? Loc.Get(K.AppName) : $"{Active.Title} - {Loc.Get(K.AppName)}";
+
+    private void RefreshDocList()
     {
         _syncing = true;
-        _tabStrip.Items.Clear();
         _docList.Items.Clear();
-        foreach (var tab in _tabs)
-        {
-            var title = new TextBlock { Text = tab.Title, VerticalAlignment = VerticalAlignment.Center };
-            var close = new Button { Content = new Avalonia.Controls.Shapes.Path { Data = CloseGlyph, StrokeThickness = 1.2, Width = 8, Height = 8, Stretch = Stretch.None }, Margin = new Thickness(8, 0, 0, 0) };
-            close.Classes.Add("tabclose");
-            AutomationProperties.SetName(close, Loc.Get(K.TabCloseA11y, ("title", tab.Title)));
-            var captured = tab;
-            close.Click += (_, e) => { CloseTab(captured); e.Handled = true; };
-            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 6, 0), Children = { title, close } };
-            var item = new TabStripItem { Content = header };
-            AutomationProperties.SetName(item, tab.Title);
-            _tabStrip.Items.Add(item);
-            _docList.Items.Add(new ListBoxItem { Content = tab.Title });
-        }
-        int selected = _active is null ? -1 : _tabs.IndexOf(_active);
-        _tabStrip.SelectedIndex = selected;
-        _docList.SelectedIndex = selected;
-        _docListEmpty.IsVisible = _tabs.Count == 0;
-        if (_tabs.Count == 0) _editorHost.Content = _emptyHint;
+        foreach (var tab in Tabs) _docList.Items.Add(new ListBoxItem { Content = tab.Title });
+        _docList.SelectedIndex = Active is null ? -1 : Tabs.ToList().IndexOf(Active);
+        _docListEmpty.IsVisible = !Tabs.Any();
         _syncing = false;
-        Title = _active is null ? Loc.Get(K.AppName) : $"{_active.Title} - {Loc.Get(K.AppName)}";
+    }
+
+    /// <summary>Applies the settings of the active tab's language to every editor; called when the active tab or a setting changes.</summary>
+    private void ApplyLanguageOptions()
+    {
+        foreach (var tab in Tabs)
+        {
+            var options = EditorOptions.From(_app.Workbench.Settings, tab.Doc.Language.Id);
+            tab.Surface?.ApplyOptions(options);
+            tab.Paged?.ApplyOptions(options);
+        }
+    }
+
+    private void RefreshHeaders()
+    {
+        foreach (var g in _groups)
+            if (g.Tabs.Any(t => TabGroup.HeaderStateOf(t) != t.HeaderState)) g.Refresh();
     }
 
     // ---- panels ----
@@ -279,7 +281,7 @@ internal sealed class MainWindow : Window
         _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
         _menuModel = BuildMenuModel();
         if (show) _docList.Focus();
-        else _active?.Editor.Focus();
+        else if (Active is { } tab) FocusView(tab);
     }
 
     // ---- text ----
@@ -293,130 +295,51 @@ internal sealed class MainWindow : Window
     /// <summary>Sets every user-visible text from the catalogue; called at construction and whenever the language or the tab set changes.</summary>
     public void ApplyTexts()
     {
-        _emptyHint.Text = Loc.Get(K.WorkspaceEmpty, ("shortcut", Shortcuts.Display(Key.N)));
+        _emptyHint.Text = Loc.Get(K.WorkspaceEmpty, ("shortcut", Shortcuts.Display(Avalonia.Input.Key.N)));
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
         _docListEmpty.Text = Loc.Get(K.PanelDocumentsEmpty);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
-        AutomationProperties.SetName(_tabStrip, Loc.Get(K.A11yTabs));
+        foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
-        AutomationProperties.SetName(_editorHost, Loc.Get(K.A11yWorkspace));
+        AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
         AutomationProperties.SetName(_menuHost, Loc.Get(K.A11yMainMenu));
-        foreach (var tab in _tabs) tab.Editor.PlaceholderText = tab.ReadOnly ? null : Loc.Get(K.EditorPlaceholder);
-
+        ApplyPaletteTexts();
         _menuModel = BuildMenuModel();
-        RefreshTabs();
+        foreach (var g in _groups) g.Refresh();
+        RefreshDocList();
+        UpdateStatus();
+        RefreshTitle();
+    }
+
+    public void SetStatusMessage(string text)
+    {
+        _message = text;
         UpdateStatus();
     }
 
-    public void SetStatusMessage(string text) => _statusMessage.Text = text;
-
-    private void UpdateStatus()
+    private void OnSettingChanged(string key)
     {
-        if (_active is { } tab)
-        {
-            var (line, column) = tab.CaretPosition();
-            _statusPosition.Text = Loc.Get(K.StatusPosition, ("line", line), ("column", column));
-            _statusMessage.Text = tab.ReadOnly ? $"{tab.EncodingName} · {Loc.Get(K.StatusReadOnly)}" : "";
-        }
-        else
-        {
-            _statusPosition.Text = "";
-            _statusMessage.Text = Loc.Get(K.StatusReady);
-        }
-        _statusTabs.Text = Loc.Plural(K.StatusTabs, _tabs.Count);
+        if (key is "workbench.theme" or "workbench.uiLanguage") return;
+        ApplyLanguageOptions();
+        UpdateStatus();
+        _menuModel = BuildMenuModel();
     }
 
-    // ---- menu ----
-
-    private IReadOnlyList<MenuGroup> BuildMenuModel()
-    {
-        var theme = _app.Settings.Theme;
-        MenuCommand Theme(string label, string tag) => new(label, () => _app.SetTheme(tag), Checked: theme == tag, Radio: true);
-        MenuCommand Lang(string label, string tag) => new(label, () => _app.SetLanguage(tag), Checked: Loc.Language == tag, Radio: true);
-        MenuCommand Edit(string label, Key key, Action run, bool shift = false) => new(label, run, Shortcuts.Gesture(key, shift), ShowOnly: true);
-
-        var file = new List<MenuNode>
-        {
-            new MenuCommand(Loc.Get(K.MenuFileNew), () => NewDocument(), Shortcuts.Gesture(Key.N)),
-            new MenuCommand(Loc.Get(K.MenuFileNewWindow), () => _app.NewWindow(this), Shortcuts.Gesture(Key.N, shift: true)),
-            new MenuCommand(Loc.Get(K.MenuFileOpen), () => _ = OpenWithDialogAsync(), Shortcuts.Gesture(Key.O)),
-            new MenuSeparator(),
-            new MenuCommand(Loc.Get(K.MenuFileClose), () => { if (_active is { } t) CloseTab(t); }, Shortcuts.Gesture(Key.W)),
-        };
-        if (!_look.NativeMenu) file.AddRange([new MenuSeparator(), new MenuCommand(Loc.Get(K.MenuFileExit), _app.Exit)]);
-
-        var groups = new List<MenuGroup>
-        {
-            new(Loc.Get(K.MenuFile), file),
-            new(Loc.Get(K.MenuEdit),
-            [
-                Edit(Loc.Get(K.MenuEditUndo), Key.Z, () => _active?.Editor.Undo()),
-                Edit(Loc.Get(K.MenuEditRedo), Key.Y, () => _active?.Editor.Redo()),
-                new MenuSeparator(),
-                Edit(Loc.Get(K.MenuEditCut), Key.X, () => _active?.Editor.Cut()),
-                Edit(Loc.Get(K.MenuEditCopy), Key.C, () => _active?.Editor.Copy()),
-                Edit(Loc.Get(K.MenuEditPaste), Key.V, () => _active?.Editor.Paste()),
-                Edit(Loc.Get(K.MenuEditSelectAll), Key.A, () => _active?.Editor.SelectAll()),
-            ]),
-            new(Loc.Get(K.MenuView),
-            [
-                new MenuCommand(Loc.Get(K.MenuViewDocuments), () => ToggleDocuments(), Shortcuts.Gesture(Key.B), Checked: DocumentsPanelOpen),
-                new MenuSeparator(),
-                new MenuGroup(Loc.Get(K.MenuViewTheme), [Theme(Loc.Get(K.MenuViewThemeSystem), "system"), Theme(Loc.Get(K.MenuViewThemeLight), "light"), Theme(Loc.Get(K.MenuViewThemeDark), "dark")]),
-                new MenuGroup(Loc.Get(K.MenuViewLanguage), [Lang(Loc.Get(K.LanguageNameCs), "cs"), Lang(Loc.Get(K.LanguageNameEn), "en")]),
-            ]),
-            new(Loc.Get(K.MenuHelp), [new MenuCommand(Loc.Get(K.MenuHelpAbout, ("name", Loc.Get(K.AppName))), () => _ = ShowAboutAsync())]),
-        };
-
-        if (_look.NativeMenu)
-        {
-            if (_nativeMenu is null) NativeMenu.SetMenu(this, _nativeMenu = new NativeMenu());
-            MenuRenderer.FillNative(_nativeMenu, groups);
-        }
-        else _menuHost.Content = MenuRenderer.ToMenu(groups);
-        return groups;
-    }
-
-    private async Task OpenWithDialogAsync()
-    {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Loc.Get(K.DialogOpenTitle), AllowMultiple = true });
-        foreach (var f in files)
-        {
-            if (f.TryGetLocalPath() is not { } path) continue;
-            try { OpenFile(path, null); }
-            catch (IOException e) { SetStatusMessage(e.Message); }
-        }
-    }
-
-    private async Task ShowAboutAsync()
-    {
-        var version = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "";
-        var close = new Button { Content = Loc.Get(K.DialogAboutClose), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true, IsCancel = true };
-        var dialog = new Window
-        {
-            Title = Loc.Get(K.DialogAboutTitle, ("name", Loc.Get(K.AppName))),
-            Width = 340, SizeToContent = SizeToContent.Height, CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(20), Spacing = 10,
-                Children = { new TextBlock { Text = Loc.Get(K.AppName), FontSize = 20, FontWeight = FontWeight.SemiBold }, new TextBlock { Text = Loc.Get(K.DialogAboutVersion, ("version", version)) }, close },
-            },
-        };
-        close.Click += (_, _) => dialog.Close();
-        await dialog.ShowDialog(this);
-    }
+    // ---- shutdown ----
 
     private void OnWindowClosed(object? sender, EventArgs e)
     {
         Loc.Changed -= OnLanguageChanged;
-        foreach (var tab in _tabs) tab.Closed.TrySetResult();
+        _app.Workbench.SettingChanged -= OnSettingChanged;
+        bool others = _app.Windows.Count > 1;
+        foreach (var doc in _docs.ToList())
+        {
+            // work in a closed window stays in the journal (hot exit); a document without changes only when the whole app ends
+            if (others && !doc.HasUnsavedWork) _app.Journal.Untrack(doc);
+            doc.Closed.TrySetResult();
+            doc.Dispose();
+        }
+        _docs.Clear();
         _app.WindowClosed(this);
     }
-}
-
-internal sealed class ActionObserver<T>(Action<T> onNext) : IObserver<T>
-{
-    public void OnNext(T value) => onNext(value);
-    public void OnError(Exception error) { }
-    public void OnCompleted() { }
 }
