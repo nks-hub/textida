@@ -91,7 +91,7 @@ public static class JournalRecovery
         return result;
     }
 
-    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends)
+    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, bool retried = false)
     {
         var open = JournalRecords.DecodeOpen(log.Open.Payload);
         var edits = log.Rest.Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo or RecordType.DocCodec).ToList();
@@ -147,6 +147,9 @@ public static class JournalRecovery
         }
         catch (Exception e) when (e is JournalFormatException or InvalidDataException or EndOfStreamException or NotSupportedException or IOException or ArgumentException)
         {
+            // byte edits of the hex view can split characters, which only the byte backend can hold
+            if (!retried && e is ArgumentException or InvalidDataException && open.Backend != "paged" && backends("paged") is { } paged)
+                return Replay(log, name => name == open.Backend ? paged : backends(name), retried: true);
             return Make(RecoveryStatus.Failed, error: e.Message);
         }
         finally
@@ -185,7 +188,7 @@ public static class JournalRecovery
                 var target = e.Codec is null ? null : TextCodec.ByName(e.Codec) ?? throw new InvalidDataException($"Codec '{e.Codec}' is not known.");
                 var result = target is not null && target != doc.Codec
                     ? doc.ApplyConversion(byteEdits, target, e.Source)
-                    : doc.Apply(byteEdits, new EditOptions { CoalesceKey = key, Source = e.Source });
+                    : doc.Apply(byteEdits, new EditOptions { CoalesceKey = key, Source = e.Source, RawBytes = true });
                 if (!result.Applied || baseRevision + doc.Revision != e.Revision)
                     throw new InvalidDataException($"Replay of revision {e.Revision} ended at {baseRevision + doc.Revision} ({result.Conflict}).");
             }

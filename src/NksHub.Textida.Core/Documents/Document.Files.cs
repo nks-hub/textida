@@ -105,10 +105,12 @@ public sealed partial class Document
     public SaveResult Save(string? path = null, bool overwriteExternalChanges = false)
     {
         ThrowIfDisposed();
+        if (_saving) throw new InvalidOperationException("A save is already running.");
         string target = Path.GetFullPath(path ?? FilePath ?? throw new InvalidOperationException("An unnamed document needs a path."));
         bool inPlace = FilePath is not null && SamePath(target, FilePath);
         bool guard = inPlace && !overwriteExternalChanges;
         if (guard && CheckExternalChange() is { } early) return new(false, early);
+        if (inPlace && PlanSave() is { Mode: SaveMode.InPlace } plan) return SaveInPlace(target, plan, guard);
 
         string temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try

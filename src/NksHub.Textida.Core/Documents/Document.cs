@@ -55,6 +55,7 @@ public sealed partial class Document : IDisposable
     {
         path = Path.GetFullPath(path);
         FileSwap.RecoverAbandoned(path);
+        InPlacePatch.Recover(path);
         var format = options?.Format ?? DetectFile(path);
         var time = File.GetLastWriteTimeUtc(path);
         var backend = factory.OpenFile(path, format);
@@ -164,17 +165,20 @@ public sealed partial class Document : IDisposable
 
     /// <summary>
     /// Moves the content to another backend in memory. Identity, revision, change log, undo, anchors and the saved state stay;
-    /// nothing is written to disk. Snapshots taken before stay readable.
+    /// nothing is written to disk. Snapshots taken before stay readable. <paramref name="backendCodec"/> is how the new backend reads
+    /// newlines when the document codec is one it cannot hold (the hex view of a UTF-16 file); the document keeps its own codec.
     /// </summary>
-    public void SwitchBackend(IBackendFactory factory)
+    public void SwitchBackend(IBackendFactory factory, TextCodec? backendCodec = null)
     {
+        if (_saving) throw new InvalidOperationException("The document cannot change its backend while it is being saved.");
         if (ByteLength > Array.MaxLength) throw new NotSupportedException("Switching a document over 2 GiB is not supported.");
         var bytes = new byte[ByteLength];
         _backend.Read(0, bytes);
-        var next = factory.Create(bytes, _codec);
+        var next = factory.Create(bytes, backendCodec ?? _codec);
         _backend.EditedByBackend -= OnBackendEdit;
         var old = _backend;
         _backend = next;
+        _bomLength = BomOf(next, _codec);
         _backend.EditedByBackend += OnBackendEdit;
         old.Dispose();
     }

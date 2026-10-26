@@ -45,6 +45,7 @@ public sealed partial class Document
     public EditResult Apply(IReadOnlyList<ByteEdit> edits, EditOptions? options = null)
     {
         ThrowIfDisposed();
+        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
         options ??= new();
         long baseRevision = options.BaseRevision ?? _revision;
         var work = new List<Pending>(edits.Count);
@@ -61,7 +62,7 @@ public sealed partial class Document
         for (int k = 0; k < work.Count; k++)
         {
             var w = work[k];
-            if (w.Start < _bomLength || w.Start + w.Deleted > ByteLength) return EditResult.Fail(ConflictReason.InvalidRange, _revision);
+            if ((!options.RawBytes && w.Start < _bomLength) || w.Start + w.Deleted > ByteLength) return EditResult.Fail(ConflictReason.InvalidRange, _revision);
             if (k > 0)
             {
                 var p = work[k - 1];
@@ -70,7 +71,7 @@ public sealed partial class Document
             }
         }
 
-        var removed = Execute(work, validate: true, captureRemoved: true, out var failure);
+        var removed = Execute(work, validate: !options.RawBytes, captureRemoved: true, out var failure);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
         var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
@@ -134,6 +135,7 @@ public sealed partial class Document
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
         var change = new ChangeSet(++_revision, kind, source, spans);
+        if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
         UpdateAnchors(change);
@@ -280,7 +282,7 @@ public sealed partial class Document
     public UndoResult? Undo()
     {
         ThrowIfDisposed();
-        if (_undo.Count == 0) return null;
+        if (_saving || _undo.Count == 0) return null;
         var entry = _undo[^1];
         _undo.RemoveAt(_undo.Count - 1);
         _redo.Add(entry);
@@ -304,7 +306,7 @@ public sealed partial class Document
     public UndoResult? Redo()
     {
         ThrowIfDisposed();
-        if (_redo.Count == 0) return null;
+        if (_saving || _redo.Count == 0) return null;
         var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
         _undo.Add(entry);
