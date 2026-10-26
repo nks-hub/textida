@@ -1,4 +1,5 @@
 using System.Text;
+using NksPad.Core.Encodings;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Automation;
@@ -261,7 +262,7 @@ public partial class ShellTests : IDisposable
 
         Assert.Equal("Příliš žluťoučký kůň", tab.Editor.Text);
         Assert.True(tab.Editor.IsReadOnly);
-        Assert.Equal("WINDOWS-1250", tab.EncodingName);
+        Assert.Equal(TextCodec.Cp1250.Name, tab.EncodingName);
         w.Close();
     }
 
