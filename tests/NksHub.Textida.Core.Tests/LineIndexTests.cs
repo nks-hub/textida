@@ -127,11 +127,106 @@ public class LineIndexTests
         Assert.Equal(["příliš žluťoučký", "kůň"], src.ReadLines(0, 10));
     }
 
-    [Fact]
-    public void Utf16IsRejectedExplicitly()
+    public static TheoryData<string> WideCodecs => new(Encodings.TextCodec.All.Where(c => c.Alignment > 1).Select(c => c.Name));
+
+    private static MappedFileSource OpenWide(TempFile f, Encodings.TextCodec codec, int block)
     {
-        using var f = new TempFile([0xFF, 0xFE, .. Encoding.Unicode.GetBytes("abc")]);
-        Assert.Throws<NotSupportedException>(() => MappedFileSource.Open(f.Path));
+        var src = MappedFileSource.Open(f.Path, new MappedFileSourceOptions { IndexBlockSize = block, Codec = codec });
+        src.IndexTask.Wait();
+        return src;
+    }
+
+    /// <summary>Line starts by walking code units, independent of the scanner under test.</summary>
+    private static List<long> NaiveWideLineStarts(byte[] b, Encodings.TextCodec c, int bom)
+    {
+        int w = c.Alignment;
+        uint U(int i) => w == 2 ? (c.BigEndian ? (uint)(b[i] << 8 | b[i + 1]) : (uint)(b[i + 1] << 8 | b[i]))
+            : (c.BigEndian ? (uint)(b[i] << 24 | b[i + 1] << 16 | b[i + 2] << 8 | b[i + 3]) : (uint)(b[i + 3] << 24 | b[i + 2] << 16 | b[i + 1] << 8 | b[i]));
+        var starts = new List<long> { bom };
+        for (int i = bom; i + w <= b.Length; i += w)
+            if (U(i) == 10 || (U(i) == 13 && !(i + 2 * w <= b.Length && U(i + w) == 10)))
+                starts.Add(i + w);
+        return starts;
+    }
+
+    [Theory]
+    [MemberData(nameof(WideCodecs))]
+    public void WideEncodingsIndexReadAndAlignLikeText(string name)
+    {
+        var codec = Encodings.TextCodec.ByName(name)!;
+        int bomLen = codec.Bom.Length, w = codec.Alignment;
+        var r = new Random(name.GetHashCode());
+        foreach (int block in new[] { 1, 2, 3, 5, 16, 1000 })
+            for (int round = 0; round < 12; round++)
+            {
+                string text = Gen.LineSoup(r, r.Next(0, 150)) + (round % 3 == 0 ? Gen.Mixed(r, 20, astral: true) : "");
+                byte[] bytes = [.. codec.Bom, .. codec.EncodeLossy(text)];
+                using var f = new TempFile(bytes);
+                using var src = OpenWide(f, codec, block);
+                var starts = NaiveWideLineStarts(bytes, codec, bomLen);
+                string[] expected = Regex.Split(text, "\r\n|\n|\r");
+
+                Assert.Equal((starts.Count, true), src.LineIndexState);
+                Assert.Equal(expected, src.ReadLines(0, int.MaxValue));
+                for (int line = 0; line < starts.Count; line++)
+                {
+                    Assert.True(src.TryGetLineStart(line, out long off));
+                    Assert.Equal(line == 0 ? 0 : starts[line], off);
+                    if (line > 0) Assert.Equal(expected.Skip(line).Take(3).ToArray(), src.ReadLines(off, 3));
+                }
+                Assert.False(src.TryGetLineStart(starts.Count, out _));
+                for (int off = bomLen; off <= bytes.Length; off += w)
+                    Assert.Equal(starts.Last(s => s <= off), Math.Max(bomLen, src.AlignToLineStart(off)));
+                for (int i = 0; i < starts.Count; i++)
+                    Assert.Equal(src.FindLineEnd(starts[i]) - starts[i], codec.EncodeLossy(expected[i]).Length);
+            }
+    }
+
+    [Theory]
+    [MemberData(nameof(WideCodecs))]
+    public void WideEncodingsKeepCrlfAcrossBlocksAndTreatBrokenTailAsReplacement(string name)
+    {
+        var codec = Encodings.TextCodec.ByName(name)!;
+        int w = codec.Alignment;
+        for (int block = 1; block <= 4 * w + 2; block++)
+        {
+            byte[] bytes = [.. codec.Bom, .. codec.EncodeLossy("ab\r\ncd\r\n\r\nef"), .. new byte[w - 1]];
+            using var f = new TempFile(bytes);
+            using var src = OpenWide(f, codec, block);
+            Assert.Equal((4L, true), src.LineIndexState);
+            Assert.Equal(["ab", "cd", "", "ef�"], src.ReadLines(0, 10));
+            Assert.True(src.TryGetLineStart(2, out long l2));
+            Assert.Equal(codec.Bom.Length + 8 * w, l2);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(WideCodecs))]
+    public void WideEncodingsReadColumnsLikeSubstring(string name)
+    {
+        var codec = Encodings.TextCodec.ByName(name)!;
+        var r = new Random(7);
+        for (int round = 0; round < 30; round++)
+        {
+            string line = Gen.Mixed(r, 300, astral: false);
+            using var f = new TempFile([.. codec.Bom, .. codec.EncodeLossy("první\n" + line + "\nposlední")]);
+            using var src = OpenWide(f, codec, 7);
+            Assert.True(src.TryGetLineStart(1, out long start));
+            foreach (var (col, count) in new[] { (0, 5), (3, 4), (10, 100), (250, 8) })
+                Assert.Equal(line.Substring(Math.Min(col, line.Length), Math.Min(count, Math.Max(0, line.Length - col))), src.ReadColumns(start, col, count));
+        }
+    }
+
+    [Fact]
+    public void ReinterpretingAcrossCodeUnitSizesIsRefused()
+    {
+        using var f = new TempFile([0xFF, 0xFE, .. Encoding.Unicode.GetBytes("abc\n")]);
+        using var src = OpenIndexed(f, 4);
+        Assert.Same(Encodings.TextCodec.Utf16LEBom, src.Codec);
+        Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf8));
+        Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf16BE));
+        src.SetCodec(Encodings.TextCodec.Utf16LE);
+        Assert.Equal(["abc", ""], src.ReadLines(0, 5));
     }
 
     [Fact]

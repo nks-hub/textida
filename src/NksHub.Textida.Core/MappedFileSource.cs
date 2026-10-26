@@ -11,13 +11,14 @@ public sealed class MappedFileSourceOptions
     public int IndexBlockSize { get; init; } = 1 << 20;
     public int IndexParallelism { get; init; } = Math.Max(1, Environment.ProcessorCount - 2);
     public bool StartIndexing { get; init; } = true;
-    /// <summary>Overrides detection; must be an ASCII-compatible encoding (UTF-8 or a single-byte code page). Reinterpreting a document updates it.</summary>
+    /// <summary>Overrides detection. Reinterpreting a document updates it, but only to an encoding that shares the line index (see <c>MappedFileSource.SharesLineIndex</c>).</summary>
     public TextCodec? Codec { get; set; }
 }
 
 /// <summary>
 /// Read-only paged text source over a memory-mapped file. Lines are indexed lazily on the thread pool
 /// with a block table (cumulative terminator counts), so memory stays proportional to file size / block size.
+/// Terminators are found per code unit, so UTF-16 and UTF-32 (either byte order) work like the byte encodings.
 /// </summary>
 public sealed class MappedFileSource : IPagedTextSource
 {
@@ -44,30 +45,34 @@ public sealed class MappedFileSource : IPagedTextSource
     private MappedFileSource(MappedFile file, MappedFileSourceOptions options)
     {
         _file = file;
-        _blockSize = options.IndexBlockSize;
+        bool whole = file.Length <= 1 << 20;
+        var codec = options.Codec ?? EncodingGuesser.Guess(file.GetSpanClamped(0, 1 << 20), whole).Codec;
+        int unit = codec.Alignment; // blocks must start on a code unit; SetCodec never changes the unit size
+        _blockSize = (options.IndexBlockSize + unit - 1) / unit * unit;
         _blocks = (int)((file.Length + _blockSize - 1) / _blockSize);
         _cum = new long[_blocks + 1];
         _blockCounts = new int[_blocks];
         _ready = new bool[_blocks];
-
-        bool whole = file.Length <= 1 << 20;
-        var codec = options.Codec ?? EncodingGuesser.Guess(file.GetSpanClamped(0, 1 << 20), whole).Codec;
-        RequireByteNewlines(codec);
         Codec = codec;
         _bomLength = codec.BomLengthIn(file.GetSpanClamped(0, 4));
     }
 
-    /// <summary>The paged source scans newlines per byte, so UTF-16 and UTF-32 are refused until P3.1.2.</summary>
+    /// <summary>Guard for <see cref="PagedDocument"/> and <c>PagedBackend</c>, whose edited-line counting still looks at single bytes; this source itself serves every encoding.</summary>
     internal static void RequireByteNewlines(TextCodec codec)
     {
         if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32)
-            throw new NotSupportedException($"{codec.Name} is not supported by the paged source: newline scanning is byte based.");
+            throw new NotSupportedException($"{codec.Name} is not supported by the paged document yet: edited line counts are byte based.");
     }
 
-    /// <summary>Switches the text view of the same bytes; refused for encodings the byte scan cannot serve.</summary>
+    /// <summary>True when both encodings split the bytes into the same code units, so a line index built for one is valid for the other.</summary>
+    internal static bool SharesLineIndex(TextCodec a, TextCodec b) =>
+        a.Alignment == b.Alignment && (a.Alignment == 1 || a.BigEndian == b.BigEndian);
+
+    /// <summary>Switches the text view of the same bytes; refused when the code unit size or byte order differs, because the line index would no longer match.</summary>
     internal void SetCodec(TextCodec codec)
     {
-        RequireByteNewlines(codec);
+        if (!SharesLineIndex(Codec, codec))
+            throw new NotSupportedException($"{Codec.Name} cannot be reinterpreted as {codec.Name}: the line index is built per code unit.");
         Codec = codec;
         _bomLength = codec.BomLengthIn(_file.GetSpanClamped(0, 4));
     }
@@ -116,8 +121,9 @@ public sealed class MappedFileSource : IPagedTextSource
     {
         long start = (long)b * _blockSize;
         int len = (int)Math.Min(_blockSize, _file.Length - start);
-        var span = _file.GetSpan(start, (int)Math.Min(len + 1L, _file.Length - start));
-        int count = (int)LineScanner.CountTerminators(span, len);
+        var codec = Codec;
+        var span = _file.GetSpan(start, (int)Math.Min(len + (long)codec.Alignment, _file.Length - start));
+        int count = (int)LineScanner.CountTerminators(span, len, codec);
         lock (_pub)
         {
             _blockCounts[b] = count;
@@ -152,8 +158,8 @@ public sealed class MappedFileSource : IPagedTextSource
         }
         long start = (long)lo * _blockSize;
         int len = (int)Math.Min(_blockSize, _file.Length - start);
-        var span = _file.GetSpan(start, (int)Math.Min(len + 1L, _file.Length - start));
-        byteOffset = start + LineScanner.FindNthTerminator(span, len, line - _cum[lo]) + 1;
+        var span = _file.GetSpan(start, (int)Math.Min(len + (long)Codec.Alignment, _file.Length - start));
+        byteOffset = start + LineScanner.FindNthTerminator(span, len, line - _cum[lo], Codec) + Codec.Alignment;
         return true;
     }
 
@@ -167,8 +173,8 @@ public sealed class MappedFileSource : IPagedTextSource
         long start = (long)b * _blockSize;
         int len = (int)(offset - start);
         if (len == 0) return _cum[b];
-        var span = _file.GetSpan(start, (int)Math.Min(len + 1L, _file.Length - start));
-        return _cum[b] + LineScanner.CountTerminators(span, len);
+        var span = _file.GetSpan(start, (int)Math.Min(len + (long)Codec.Alignment, _file.Length - start));
+        return _cum[b] + LineScanner.CountTerminators(span, len, Codec);
     }
 
     public ValueTask<IReadOnlyList<string>> ReadLinesAtAsync(long byteOffset, int maxLines, CancellationToken ct = default)
@@ -193,16 +199,29 @@ public sealed class MappedFileSource : IPagedTextSource
     public long AlignToLineStart(long byteOffset)
     {
         if (byteOffset <= 0) return 0;
+        int w = Codec.Alignment;
         long end = Math.Min(byteOffset, _file.Length);
         while (end > 0)
         {
             long start = Math.Max(0, end - 65536);
-            var span = _file.GetSpanClamped(start, end - start + 1);
-            int j = (int)(end - start);
-            while ((j = span[..j].LastIndexOfAny((byte)'\n', (byte)'\r')) >= 0)
+            var span = _file.GetSpanClamped(start, end - start + w);
+            if (w == 1)
             {
-                if (span[j] == (byte)'\n' || !(j + 1 < span.Length && span[j + 1] == (byte)'\n'))
-                    return start + j + 1;
+                int j = (int)(end - start);
+                while ((j = span[..j].LastIndexOfAny((byte)'\n', (byte)'\r')) >= 0)
+                {
+                    if (span[j] == (byte)'\n' || !(j + 1 < span.Length && span[j + 1] == (byte)'\n'))
+                        return start + j + 1;
+                }
+            }
+            else
+            {
+                for (int p = (int)((end - start - w) / w * w); p >= 0; p -= w)
+                {
+                    uint u = LineScanner.Unit(span, p, Codec);
+                    if (u == 10 || (u == 13 && !(p + 2 * w <= span.Length && LineScanner.Unit(span, p + w, Codec) == 10)))
+                        return start + p + w;
+                }
             }
             end = start;
         }
@@ -212,15 +231,16 @@ public sealed class MappedFileSource : IPagedTextSource
     /// <summary>Offset of the terminator ending the line that starts at <paramref name="lineStart"/>, or the file length.</summary>
     public long FindLineEnd(long lineStart)
     {
+        int w = Codec.Alignment;
         long pos = lineStart;
         while (pos < _file.Length)
         {
             var span = _file.GetSpanClamped(pos, 1 << 20);
-            int t = LineScanner.FindTerminator(span, 0);
+            int t = LineScanner.FindTerminator(span, 0, Codec);
             if (t >= 0)
             {
                 long at = pos + t;
-                if (span[t] == (byte)'\n' && at > lineStart && _file.GetSpan(at - 1, 1)[0] == (byte)'\r') at--;
+                if (LineScanner.Unit(span, t, Codec) == 10 && at > lineStart && LineScanner.Unit(_file.GetSpan(at - w, w), 0, Codec) == 13) at -= w;
                 return at;
             }
             pos += span.Length;
@@ -246,32 +266,43 @@ public sealed class MappedFileSource : IPagedTextSource
             ct.ThrowIfCancellationRequested();
             var window = _file.GetSpanClamped(pos, 1 << 20);
             if (window.IsEmpty) return "";
-            int t = LineScanner.FindTerminator(window, 0);
+            int t = LineScanner.FindTerminator(window, 0, Codec);
             var seg = t < 0 ? window : window[..t];
             if (seg.IsEmpty) return "";
             int step;
-            if (!utf8 || System.Text.Ascii.IsValid(seg))
+            if (Codec.Kind == CodecKind.SingleByte || (utf8 && System.Text.Ascii.IsValid(seg)))
             {
                 step = (int)Math.Min(skip, seg.Length);
                 skip -= step;
             }
             else
             {
-                var whole = t < 0 ? seg[..Utf8Validator.CompleteLength(seg)] : seg;
-                int units = Encoding.UTF8.GetCharCount(whole);
+                var whole = t < 0 ? seg[..Codec.CompleteLength(seg)] : seg;
+                int units = Codec.CountChars(whole);
                 if (units <= skip) { step = whole.Length; skip -= units; }
-                else step = SkipUtf8Units(whole, ref skip);
+                else step = utf8 ? SkipUtf8Units(whole, ref skip) : SkipUnits(whole, ref skip);
             }
             if (step == 0 || (t >= 0 && step == seg.Length && skip > 0)) return "";
             pos += step;
         }
 
-        var read = _file.GetSpanClamped(pos, (long)maxColumns * 3 + 4);
-        int stop = LineScanner.FindTerminator(read, 0);
+        var read = _file.GetSpanClamped(pos, (long)maxColumns * 4 + 4);
+        int stop = LineScanner.FindTerminator(read, 0, Codec);
         if (stop >= 0) read = read[..stop];
         if (!(stop >= 0 || pos + read.Length >= _file.Length)) read = read[..Codec.CompleteLength(read)];
         var text = Codec.GetString(read);
         return text.Length <= maxColumns ? text : text[..maxColumns];
+    }
+
+    private int SkipUnits(ReadOnlySpan<byte> seg, ref long skip)
+    {
+        int i = 0;
+        while (skip > 0 && i < seg.Length)
+        {
+            i += Codec.ReadUnit(seg[i..], out int chars);
+            skip -= chars;
+        }
+        return i;
     }
 
     private static int SkipUtf8Units(ReadOnlySpan<byte> seg, ref long skip)
