@@ -99,11 +99,28 @@ public sealed class AnchoredSelections
         for (int i = 0; i < _pairs.Length; i++)
         {
             var s = set.Items[i];
-            var (anchorGravity, caretGravity) = s.IsEmpty ? (AnchorGravity.Right, AnchorGravity.Right)
-                : s.IsForward ? (AnchorGravity.Right, AnchorGravity.Left) : (AnchorGravity.Left, AnchorGravity.Right);
+            var (anchorGravity, caretGravity) = GravitiesOf(s);
             _pairs[i] = new(document.CreateAnchor(s.Anchor, anchorGravity), document.CreateAnchor(s.Caret, caretGravity));
         }
         _primary = set.Primary;
+    }
+
+    private static (AnchorGravity Anchor, AnchorGravity Caret) GravitiesOf(TextSelection s) =>
+        s.IsEmpty ? (AnchorGravity.Right, AnchorGravity.Right)
+        : s.IsForward ? (AnchorGravity.Right, AnchorGravity.Left) : (AnchorGravity.Left, AnchorGravity.Right);
+
+    /// <summary>True when these anchors already stand where <paramref name="set"/> puts its selections and follow the text the way new ones would, so new ones are not needed.</summary>
+    public bool Matches(SelectionSet set)
+    {
+        if (set.Count != _pairs.Length || set.Primary != _primary) return false;
+        for (int i = 0; i < _pairs.Length; i++)
+        {
+            var (a, c) = _pairs[i];
+            var s = set.Items[i];
+            var (anchorGravity, caretGravity) = GravitiesOf(s);
+            if (!a.IsValid || !c.IsValid || a.Offset != s.Anchor || c.Offset != s.Caret || a.Gravity != anchorGravity || c.Gravity != caretGravity) return false;
+        }
+        return true;
     }
 
     /// <summary>Stops following the document. Anchors that nobody uses any more cost every later change, so a holder that replaces its selections releases the old ones.</summary>
