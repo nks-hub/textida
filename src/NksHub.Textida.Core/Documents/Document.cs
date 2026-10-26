@@ -195,7 +195,10 @@ public sealed partial class Document : IDisposable
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 }
 
-/// <summary>Immutable content of one revision; reads are safe from any thread.</summary>
+/// <summary>
+/// Content of one revision, unchanged by document edits and saves; reads are safe from any thread.
+/// See <see cref="IByteSnapshot"/> for external-file invalidation and its detection limits.
+/// </summary>
 public sealed class DocumentSnapshot
 {
     private readonly IByteSnapshot _bytes;

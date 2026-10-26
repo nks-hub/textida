@@ -295,6 +295,7 @@ public sealed class PagedDocument : IPagedTextSource
             _tree.Reset(new Piece(true, 0, _source.ByteLength));
             _undo.Clear();
             _redo.Clear();
+            _add = new byte[4096];
             _addLength = 0;
         }
         finally
