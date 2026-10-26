@@ -26,6 +26,7 @@ internal sealed partial class MainWindow
         {
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
             if (DocumentsPanelOpen) { ToggleDocuments(false); e.Handled = true; return; }
+            if (_find.IsVisible) { HideFind(); e.Handled = true; return; }
         }
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
         // AltGr arrives as Ctrl+Alt on Windows and types a character: that is text, not a command
@@ -231,8 +232,7 @@ internal sealed partial class MainWindow
         if (Active is not { } tab) return;
         var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.GoToLineTitle), Loc.Get(K.GoToLineLabel), "");
         if (answer is null) return;
-        if (int.TryParse(answer.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int line) && line >= 1) tab.GoToLine(line);
-        else SetStatusMessage(Loc.Get(K.GoToLineInvalid, ("text", answer)));
+        GoTo(answer);
     }
 
     // ---- view ----

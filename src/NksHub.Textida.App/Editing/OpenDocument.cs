@@ -6,6 +6,7 @@ using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -33,6 +34,7 @@ internal sealed class OpenDocument : IDisposable
         _eolTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _eolTimer.Tick += (_, _) => { _eolTimer.Stop(); RefreshEol(); Changed?.Invoke(); };
         RefreshEol();
+        RefreshEditorConfig();
         Hook(doc);
     }
 
@@ -58,13 +60,18 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null;
+    public bool ReadOnly => IsResults;
+    /// <summary>The document behind the "Search Results" tab: it has no text of its own, is never saved and never journaled.</summary>
+    public bool IsResults { get; private init; }
+    /// <summary>The <c>.editorconfig</c> properties of the file; empty for a document without a path. Refreshed by <see cref="RefreshEditorConfig"/>.</summary>
+    public EditorConfigResult EditorConfig { get; private set; } = EditorConfigResult.Empty;
     public string? Path => _doc.FilePath;
 
     /// <summary>Changes worth asking about: modified, and not just a new document nobody typed into.</summary>
-    public bool HasUnsavedWork => _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
+    public bool HasUnsavedWork => !IsResults && _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
     public EolStats Eol => _eol;
 
-    public string Title => Path is null ? Loc.Get(K.TabUntitled, ("number", Number)) : System.IO.Path.GetFileName(Path);
+    public string Title => IsResults ? Loc.Get(K.ResultsTab) : Path is null ? Loc.Get(K.TabUntitled, ("number", Number)) : System.IO.Path.GetFileName(Path);
 
     /// <summary>True when the encoding was a guess the user should confirm (status bar marks it).</summary>
     public bool EncodingUncertain => Guess is { IsUncertain: true };
@@ -88,6 +95,14 @@ internal sealed class OpenDocument : IDisposable
         var doc = Document.FromBytes(codec.Bom, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = codec });
         return new OpenDocument(doc, ++_untitled, null, LanguageModes.Plain);
     }
+
+    /// <summary>An empty document that stands behind a tab with a view of its own (the search results).</summary>
+    public static OpenDocument NewResults() =>
+        new(Document.FromBytes(ReadOnlyMemory<byte>.Empty, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 }), 0, null, LanguageModes.Plain) { IsResults = true };
+
+    /// <summary>Reads the <c>.editorconfig</c> files that apply to the path of the document again; call it when the document is activated or saved.</summary>
+    public void RefreshEditorConfig() =>
+        EditorConfig = Path is { } p ? EditorConfigResolver.Resolve(System.IO.Path.GetFullPath(p), new DiskEditorConfigFiles()) : EditorConfigResult.Empty;
 
     /// <summary>Opens a file; above <paramref name="largeFileBytes"/> (the <c>files.largeFileThreshold</c> setting) it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
     public static OpenDocument Open(string path, long largeFileBytes)
@@ -182,6 +197,7 @@ internal sealed class OpenDocument : IDisposable
 
     private void OnSaved(object? sender, EventArgs e)
     {
+        RefreshEditorConfig();
         if (Language.Id == LanguageModes.PlainId) Language = LanguageModes.ForPath(Path);
         Changed?.Invoke();
     }

@@ -26,6 +26,10 @@
                     <SolidColorBrush x:Key="SelectionBg">#3D0F7B6C</SolidColorBrush>
                     <SolidColorBrush x:Key="InfoBg">#E8F1EF</SolidColorBrush>
                     <SolidColorBrush x:Key="WarnBg">#FFF4D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffRemoved">#FFD5D2</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffAdded">#C9EBCF</SolidColorBrush>
+                    <SolidColorBrush x:Key="Danger">#B3261E</SolidColorBrush>
+                    <SolidColorBrush x:Key="Good">#1B6E3A</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
@@ -47,6 +51,10 @@
                     <SolidColorBrush x:Key="SelectionBg">#553DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="InfoBg">#26322F</SolidColorBrush>
                     <SolidColorBrush x:Key="WarnBg">#40361A</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffRemoved">#5E2B2B</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffAdded">#27502F</SolidColorBrush>
+                    <SolidColorBrush x:Key="Danger">#FF8A80</SolidColorBrush>
+                    <SolidColorBrush x:Key="Good">#7FD99A</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -265,6 +273,84 @@
         </Style>
         <Style Selector="GridSplitter.groupsplitter">
             <Setter Property="Background" Value="{DynamicResource Border}" />
+        </Style>
+
+        <Style Selector="Border.findbar">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+        </Style>
+        <Style Selector="TextBox.findinput">
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="TextBlock.findcount">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.findcount.error">
+            <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+        </Style>
+        <Style Selector="ToggleButton.findtoggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="ToggleButton.findtoggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="ToggleButton.findtoggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="Button.findbutton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="Button.findbutton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+
+        <Style Selector="TextBlock.resultfile">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style Selector="TextBlock.resultmuted">
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.resultbad">
+            <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+        </Style>
+        <Style Selector="TextBlock.resultgood">
+            <Setter Property="Foreground" Value="{DynamicResource Good}" />
+        </Style>
+        <Style Selector="ListBox.resultlist ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="ListBox.resultlist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ListBox.resultlist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="DockPanel.results">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
         </Style>
     </Application.Styles>
 </Application>

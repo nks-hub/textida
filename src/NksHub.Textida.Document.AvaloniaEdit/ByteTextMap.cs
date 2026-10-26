@@ -114,6 +114,7 @@ internal sealed class ByteTextMap
         if (k == 0) return (0, false);
         if (k == r.Chars) return (r.Bytes, false);
         var (chars, bytes) = StartAtChar(r, k);
+        if (chars == k) return (bytes, false);
         foreach (var (c, b) in Units(r, chars, bytes))
         {
             if (chars + c > k) return (bytes, true);
@@ -129,6 +130,7 @@ internal sealed class ByteTextMap
         if (b == 0) return 0;
         if (b == r.Bytes) return r.Chars;
         var (chars, bytes) = StartAtByte(r, b);
+        if (bytes == b) return chars;
         foreach (var (c, n) in Units(r, chars, bytes))
         {
             chars += c;

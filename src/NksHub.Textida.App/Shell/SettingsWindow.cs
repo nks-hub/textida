@@ -155,7 +155,7 @@ internal sealed class SettingsWindow : Window
         var title = new TextBlock { Text = hit.Title, FontWeight = FontWeight.SemiBold };
         var key = new TextBlock { Text = hit.Id, Opacity = 0.55, FontSize = 12, VerticalAlignment = VerticalAlignment.Bottom };
         var description = new TextBlock { Text = hit.Description ?? "", TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
-        var source = new TextBlock { Text = Loc.Get(K.SettingsValueSource, ("source", SourceName(resolved.Source))), Opacity = 0.65, FontSize = 12 };
+        var source = new TextBlock { Text = Loc.Get(K.SettingsValueSource, ("source", SourceName(resolved.Source) + (resolved.Source == SettingSource.EditorConfig && resolved.LayerName is { } layer ? " (" + layer + ")" : ""))), Opacity = 0.65, FontSize = 12 };
         var error = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#C0392B")), IsVisible = false, TextWrapping = TextWrapping.Wrap };
 
         var editor = MakeEditor(definition, resolved, error);

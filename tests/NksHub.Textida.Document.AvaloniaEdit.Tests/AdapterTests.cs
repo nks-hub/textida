@@ -242,4 +242,17 @@ public class AdapterTests
         Assert.Equal(data.Length + 200, d.ByteLength);
         Assert.Equal(200, d.Revision);
     }
+
+    [Theory]
+    [InlineData(1024)]
+    [InlineData(2048)]
+    [InlineData(3072)]
+    public void ARangeStartingExactlyOnAMapCheckpointCanBeReadAndReplaced(int at)
+    {
+        using var d = Doc.FromBytes(Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("foo ", 1500))), AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TestFormat.Utf8.Format });
+        Assert.Equal("foo ", d.ReadText(new ByteRange(at, at + 4)));
+        Assert.True(d.Replace(new ByteRange(at, at + 3), "bar"u8.ToArray()).Applied);
+        Assert.Equal("bar ", d.ReadText(new ByteRange(at, at + 4)));
+        Assert.Equal("bar", Backend(d).TextDocument.GetText(at, 3));
+    }
 }

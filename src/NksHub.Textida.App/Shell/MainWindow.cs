@@ -11,6 +11,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Profile;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -52,10 +53,15 @@ internal sealed partial class MainWindow : Window
     public EditorOptions Options => Active is { } tab ? OptionsFor(tab) : EditorOptions.From(_app.Workbench.Settings);
 
     /// <summary>Settings for a tab: its language layer, with the indentation detected from the file when the setting asks for it.</summary>
-    internal EditorOptions OptionsFor(DocTab tab)
+    internal EditorOptions OptionsFor(DocTab tab) => OptionsFor(tab.Doc);
+
+    /// <summary>The same for a document: its <c>.editorconfig</c> layer goes into the settings stack first, so every value carries its source; an indentation set there beats the one detected from the content.</summary>
+    internal EditorOptions OptionsFor(OpenDocument od)
     {
-        var options = EditorOptions.From(_app.Workbench.Settings, tab.Doc.Language.Id);
-        return tab.Doc.IndentOverride is { } indent ? options.WithIndent(indent) : options;
+        EditorConfigSettings.Apply(_app.Workbench.Settings, od.EditorConfig);
+        var options = EditorOptions.From(_app.Workbench.Settings, od.Language.Id);
+        bool configIndent = od.EditorConfig.Properties.Keys.Any(k => k is "indent_style" or "indent_size" or "tab_width");
+        return od.IndentOverride is { } indent && !configIndent ? options.WithIndent(indent) : options;
     }
 
     /// <summary>Text of the menu groups currently shown, for tests and accessibility checks.</summary>
@@ -153,7 +159,7 @@ internal sealed partial class MainWindow : Window
         _body.Children.Add(panel);
         _body.Children.Add(editorArea);
 
-        var content = new Border { Child = new Panel { Children = { _body, BuildPalette() } } };
+        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
         Grid.SetRow(content, 1);
         root.Children.Add(content);
@@ -237,6 +243,7 @@ internal sealed partial class MainWindow : Window
 
     private void OnActiveTabChanged()
     {
+        FindActiveTabChanged();
         RefreshDocList();
         ApplyLanguageOptions();
         UpdateStatus();
@@ -275,12 +282,14 @@ internal sealed partial class MainWindow : Window
     /// <summary>Applies the settings of the active tab's language to every editor; called when the active tab or a setting changes.</summary>
     private void ApplyLanguageOptions()
     {
+        Active?.Doc.RefreshEditorConfig();
         foreach (var tab in Tabs)
         {
             var options = OptionsFor(tab);
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
         }
+        if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }
 
     private void RefreshHeaders()
@@ -319,6 +328,7 @@ internal sealed partial class MainWindow : Window
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
         ApplyPaletteTexts();
+        ApplyFindTexts();
         _menuModel = BuildMenuModel();
         foreach (var g in _groups) g.Refresh();
         RefreshDocList();

@@ -166,7 +166,7 @@ public static class ReplacePlanner
         foreach (Match m in q.Regex.Matches(dt.Text))
         {
             if (m.Length == 0 || SplitsPair(dt.Text, m.Index) || SplitsPair(dt.Text, m.Index + m.Length)) continue;
-            edits.Add((m.Index, m.Index + m.Length, isRegex ? m.Result(replacement) : replacement));
+            edits.Add((m.Index, m.Index + m.Length, isRegex ? RegexTools.ExpandReplacement(m, replacement) : replacement));
         }
         if (edits.Count == 0) return null;
         string key = src.DocumentId is { } d ? d.ToString() : src.Path!;

@@ -78,12 +78,14 @@ public class SaveOptionsTests : IDisposable
         var path = _temp.File("t.txt", "a  \r\nb\t\r\nc");
         var tab = _w.OpenFile(path, null);
         tab.Doc.FlushEol();
+        tab.Editor!.Document.Insert(0, "x");
 
         Assert.True(await _w.SaveAsync(tab));
 
-        Assert.Equal("a\r\nb\r\nc\r\n", File.ReadAllText(path));
+        // only the edited line is trimmed; the blanks of the line nobody touched stay
+        Assert.Equal("xa\r\nb\t\r\nc\r\n", File.ReadAllText(path));
         _w.Undo();
-        Assert.Equal("a  \r\nb\t\r\nc", Text(tab));
+        Assert.Equal("xa  \r\nb\t\r\nc", Text(tab));
         Assert.True(tab.Doc.Doc.IsModified);
     }
 

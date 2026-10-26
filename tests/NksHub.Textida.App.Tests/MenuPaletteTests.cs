@@ -67,8 +67,8 @@ public class MenuPaletteTests : IDisposable
             Assert.True(_app.Workbench.Commands.HasHandler(c.CommandId!), c.CommandId + " has no handler");
             Assert.False(string.IsNullOrWhiteSpace(c.Label));
         });
-        // the document search belongs to P2.4; its commands exist in the manifest but are not offered yet
-        Assert.DoesNotContain(all, c => c.CommandId is "nks.search.find" or "nks.search.replace" or "nks.search.findNext");
+        Assert.Contains(all, c => c.CommandId == "nks.search.find");
+        Assert.Contains(all, c => c.CommandId == "nks.search.findInFiles");
         Assert.Contains(all, c => c.CommandId == "nks.search.gotoLine");
     }
 
@@ -208,7 +208,7 @@ public class MenuPaletteTests : IDisposable
         Assert.True(_w.PaletteResults.Count > 30);
         Assert.All(_w.PaletteResults, r => Assert.True(_app.Workbench.Commands.HasHandler(r.CommandId)));
         _w.SetPaletteQuery("najít");
-        Assert.DoesNotContain(_w.PaletteResults, r => r.CommandId.StartsWith("nks.search.find", StringComparison.Ordinal));
+        Assert.Contains(_w.PaletteResults, r => r.CommandId == "nks.search.find");
         _w.SetPaletteQuery("zzzzzz");
         Assert.Empty(_w.PaletteResults);
         TestApp.Press(_w, Key.Escape);
