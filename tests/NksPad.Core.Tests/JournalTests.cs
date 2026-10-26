@@ -128,11 +128,9 @@ public class JournalFormatTests
         using (var fs = new FileStream(legacy, FileMode.CreateNew))
         {
             fs.Write(JournalFormat.FileHeader(1));
-            var format = DocFormat.Of(EncodingDetector.Detect(bytes, true));
-            fs.Write(JournalFormat.EncodeRecord(1, 0, RecordType.DocOpen, JournalRecords.Encode(new OpenRecord(id, null, null, format, "reference", 0, bytes.Length)), 1));
+            fs.Write(JournalFormat.EncodeRecord(1, 0, RecordType.DocOpen, LegacyOpen(id, bytes.Length), 1));
             fs.Write(JournalFormat.EncodeRecord(2, 0, RecordType.DocSeed, JournalRecords.Encode(new SeedRecord(id, 0, bytes)), 1));
-            fs.Write(JournalFormat.EncodeRecord(3, 0, RecordType.DocEdit, JournalRecords.Encode(new EditRecord(id, 1, ChangeKind.Edit, null, true,
-                [new ChangeEdit(0, 0, U("A "))])), 1));
+            fs.Write(JournalFormat.EncodeRecord(3, 0, RecordType.DocEdit, LegacyEdit(id, U("A ")), 1));
         }
 
         var direct = JournalRecovery.Recover(legacy, ReferenceResolver);
@@ -147,6 +145,47 @@ public class JournalFormatTests
         using var reader = new JournalReader(session.JournalPath!);
         Assert.Equal(JournalFormat.CurrentVersion, reader.Version);
         doc.Dispose();
+    }
+
+    /// <summary>Payload of a layout 1 DocOpen: encoding as kind, BOM length and code page instead of a codec name.</summary>
+    private static byte[] LegacyOpen(Guid id, int seedLength)
+    {
+        var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms))
+        {
+            w.Write((byte)1);
+            w.Write(id.ToByteArray());
+            w.Write(false);
+            w.Write(false);
+            w.Write((byte)1);
+            w.Write(0);
+            w.Write(65001);
+            w.Write("reference");
+            w.Write(0L);
+            w.Write((long)seedLength);
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>Payload of a layout 1 DocEdit: no codec field.</summary>
+    private static byte[] LegacyEdit(Guid id, byte[] inserted)
+    {
+        var ms = new MemoryStream();
+        using (var w = new BinaryWriter(ms))
+        {
+            w.Write((byte)1);
+            w.Write(id.ToByteArray());
+            w.Write(1L);
+            w.Write((byte)ChangeKind.Edit);
+            w.Write(false);
+            w.Write(true);
+            w.Write(1);
+            w.Write(0L);
+            w.Write(0L);
+            w.Write(inserted.Length);
+            w.Write(inserted);
+        }
+        return ms.ToArray();
     }
 
     internal static IBackendFactory? ReferenceResolver(string name) => name switch
@@ -441,6 +480,31 @@ public class JournalRecoveryTests
         Assert.Equal(RecoveryStatus.Clean, back.Status);
         Assert.Equal(U("start saved"), All(back.Document!));
         back.Document!.Dispose();
+    }
+
+    [Fact]
+    public void CodecChangesAreJournaledByNameAndKeepTheirUndoSteps()
+    {
+        using var dir = new JournalTempDir();
+        using var session = NewSession(dir);
+        using var doc = Doc.FromBytes(U("řeč"), ReferenceBackendFactory.Instance);
+        session.Track(doc);
+        doc.ReinterpretAs(NksPad.Core.Encodings.TextCodec.Cp1250);
+        doc.ReinterpretAs(NksPad.Core.Encodings.TextCodec.Utf8);
+        Assert.True(doc.ConvertTo(NksPad.Core.Encodings.TextCodec.Utf8Bom).Applied);
+        doc.Insert(doc.ByteLength, U("!"));
+
+        var back = Assert.Single(Crash(session).Documents);
+        using var restored = back.Document!;
+        Assert.Equal(NksPad.Core.Encodings.TextCodec.Utf8Bom, restored.Codec);
+        Assert.Equal(All(doc), All(restored));
+        Assert.Equal(doc.Revision, restored.Revision + back.BaseRevision);
+        doc.Undo();
+        doc.Undo();
+        restored.Undo();
+        restored.Undo();
+        Assert.Equal(NksPad.Core.Encodings.TextCodec.Utf8, restored.Codec);
+        Assert.Equal(All(doc), All(restored));
     }
 
     [Fact]
@@ -898,6 +962,11 @@ public class BackupAndAutosaveTests
     }
 }
 
+/// <summary>Runs alone: the harness is CPU heavy and would starve the timing-sensitive paged index tests.</summary>
+[CollectionDefinition("Crash harness", DisableParallelization = true)]
+public class CrashHarnessCollection;
+
+[Collection("Crash harness")]
 public class CrashHarnessSmokeTest
 {
     [Fact]

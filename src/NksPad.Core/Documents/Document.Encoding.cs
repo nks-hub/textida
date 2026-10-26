@@ -124,6 +124,20 @@ public sealed partial class Document
         return result;
     }
 
+    /// <summary>Applies a conversion that is already known (journal replay): the edits and the codec the document has afterwards, as one undo step.</summary>
+    internal EditResult ApplyConversion(IReadOnlyList<ByteEdit> edits, TextCodec target, string? source)
+    {
+        ThrowIfDisposed();
+        RequireSupported(target);
+        var work = edits.Select(e => new Pending(e.Range.Start, e.Range.Length, e.Insert)).OrderBy(w => w.Start).ToList();
+        var before = _codec;
+        var removed = Execute(work, validate: false, captureRemoved: true, out _);
+        SetCodec(target);
+        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
+        Commit(ChangeKind.Edit, source, work, step, null);
+        return new(true, _revision, ConflictReason.None);
+    }
+
     // ---- line endings and normalisation ----
 
     /// <summary>Which line endings would change to <paramref name="target"/>; apply with <see cref="ApplyPreview"/>.</summary>

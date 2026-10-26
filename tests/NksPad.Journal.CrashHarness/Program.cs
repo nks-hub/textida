@@ -9,6 +9,13 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Length >= 3 && args[0] == "child") return Child(args[1], int.Parse(args[2]));
+        if (args.Length == 2 && args[0] == "dump")
+        {
+            using var reader = new JournalReader(args[1]);
+            while (reader.TryRead(out var rec)) Console.WriteLine($"{rec.Seq} {rec.Type} {rec.Payload.Length}B {(rec.Type is RecordType.DocEdit ? JournalRecordsView.Edit(rec.Payload) : "")}");
+            Console.WriteLine($"tail {reader.Tail}");
+            return 0;
+        }
         int iterations = 200, parallel = 4, seed0 = 1000;
         string? work = null;
         for (int i = 1; i + 1 < args.Length; i += 2)
@@ -58,6 +65,7 @@ public static class Program
         for (int op = 0; watchdog.Elapsed < TimeSpan.FromMinutes(2); op++)
         {
             scene.RunOp(rng, op, UpdateSession);
+            if (!session.IsActive && !File.Exists(Path.Combine(dir, "fault.txt"))) File.WriteAllText(Path.Combine(dir, "fault.txt"), $"op {op}: {session.Fault}");
             stdout.WriteLine($"{op} {JournalFormat.NowMs()}");
             int roll = timing.Next(100);
             if (roll < 85) Thread.Sleep(timing.Next(2));
@@ -65,5 +73,15 @@ public static class Program
             else Thread.Sleep(100 + timing.Next(700));
         }
         return 0;
+    }
+}
+
+internal static class JournalRecordsView
+{
+    public static string Edit(byte[] payload)
+    {
+        var m = typeof(JournalFormat).Assembly.GetType("NksPad.Core.Journal.JournalRecords")!.GetMethod("DecodeEdit")!;
+        var e = (EditRecord)m.Invoke(null, [payload])!;
+        return $"doc {e.DocId.ToString()[..4]} rev {e.Revision} {e.Kind} new={e.NewUndoEntry} codec={e.Codec} edits={e.Edits.Count}";
     }
 }

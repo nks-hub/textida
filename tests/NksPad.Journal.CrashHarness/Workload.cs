@@ -73,11 +73,11 @@ public sealed class Scene : IDisposable
         return sb.ToString();
     }
 
-    private string DocHash(int d) => _hashCache[d] ??= $"{Docs[d].Revision}:{SavedAt[d]}:{Hex(Docs[d].ReadBytes(new ByteRange(0, Docs[d].ByteLength)))}";
+    private string DocHash(int d) => _hashCache[d] ??= $"{Docs[d].Revision}:{SavedAt[d]}:{Docs[d].Codec.Name}:{Hex(Docs[d].ReadBytes(new ByteRange(0, Docs[d].ByteLength)))}";
 
     /// <summary>The same hash for documents rebuilt by recovery (journal revision = base + document revision).</summary>
     public static string StateHash(IEnumerable<RecoveredDocument> docs) =>
-        string.Concat(docs.Select(r => $"{r.BaseRevision + r.Document!.Revision}:{r.BaseRevision}:{Hex(r.Document.ReadBytes(new ByteRange(0, r.Document.ByteLength)))}|"));
+        string.Concat(docs.Select(r => $"{r.BaseRevision + r.Document!.Revision}:{r.BaseRevision}:{r.Document.Codec.Name}:{Hex(r.Document.ReadBytes(new ByteRange(0, r.Document.ByteLength)))}|"));
 
     public void Dispose()
     {
@@ -133,8 +133,17 @@ public sealed class Scene : IDisposable
             }
         }
         else if (r < 88) Save(d, op);
-        else if (r < 93) onSession?.Invoke(op);
+        else if (r < 91) onSession?.Invoke(op);
+        else if (r < 93) SwitchCodec(doc, rng);
         else doc.Insert(Boundary(doc, rng), Gen.Text(rng, 20_000 + rng.Next(130_000)), new EditOptions { Source = "paste" });
+    }
+
+    /// <summary>Re-reads the bytes as another encoding (a view change), or converts UTF-8 to and from its BOM variant (an undoable edit).</summary>
+    private void SwitchCodec(Document doc, Random rng)
+    {
+        var current = doc.Codec;
+        if (rng.Next(2) == 0) doc.ReinterpretAs(current.Kind == NksPad.Core.Encodings.CodecKind.SingleByte ? NksPad.Core.Encodings.TextCodec.Utf8 : NksPad.Core.Encodings.TextCodec.Cp1250);
+        else if (current.Kind == NksPad.Core.Encodings.CodecKind.Utf8) doc.ConvertTo(current.WithBom(current.Bom.Length == 0));
     }
 
     private void Notify(int d) => DocChanged?.Invoke(d);
@@ -155,7 +164,7 @@ public sealed class Scene : IDisposable
     private static long Boundary(Document doc, Random rng)
     {
         long at = doc.ByteLength == 0 ? 0 : rng.NextInt64(0, doc.ByteLength + 1);
-        if (at < doc.Codec.BomLength) at = doc.Codec.BomLength;
+        if (at < doc.BomLength) at = doc.BomLength;
         while (!doc.IsCharBoundary(at)) at++;
         return at;
     }

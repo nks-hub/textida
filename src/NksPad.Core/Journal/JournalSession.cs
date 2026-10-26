@@ -144,7 +144,7 @@ public sealed class JournalSession : IDisposable
             if (_disposed) return id;
             var named = doc.FilePath is not null && doc.Fingerprint is not null;
             Append(RecordType.DocOpen, JournalRecords.Encode(new OpenRecord(id, named ? doc.FilePath : null, named ? doc.Fingerprint : null,
-                DocFormat.Of(doc.Format), doc.Capabilities.Name, 0, named ? 0 : doc.ByteLength)));
+                doc.Codec.Name, doc.Capabilities.Name, 0, named ? 0 : doc.ByteLength)));
             if (!named)
             {
                 var buf = new byte[(int)Math.Min(SeedChunk, Math.Max(1, doc.ByteLength))];
@@ -329,6 +329,9 @@ public sealed class JournalSession : IDisposable
                         _redoOk.Clear();
                         owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, c.Kind, undoNow > _undo)));
                         break;
+                    case ChangeKind.View:
+                        owner.Append(RecordType.DocCodec, JournalRecords.Encode(new CodecRecord(id, revision, doc.Codec.Name)));
+                        break;
                     case ChangeKind.Undo:
                         if (undoNow < _undo)
                         {
@@ -376,19 +379,19 @@ public sealed class JournalSession : IDisposable
                 shift += s.Inserted - s.Deleted;
                 edits[i] = new(s.Start, s.Deleted, inserted);
             }
-            return new EditRecord(id, c.Revision + baseRevision, kind, c.Source, isNew, edits);
+            return new EditRecord(id, c.Revision + baseRevision, kind, c.Source, isNew, edits, doc.Codec.Name);
         }
 
         private void OnSaving(object? sender, SavingEventArgs e)
         {
-            owner.Append(RecordType.DocSaveIntent, JournalRecords.Encode(new SaveIntentRecord(id, doc.Revision + baseRevision, e.Target, e.Size, e.Sha256)));
+            owner.Append(RecordType.DocSaveIntent, JournalRecords.Encode(new SaveIntentRecord(id, doc.Revision + baseRevision, e.Target, e.Size, e.Sha256, doc.Codec.Name)));
             owner.Flush();
         }
 
         private void OnSaved(object? sender, EventArgs e)
         {
             if (doc.FilePath is not { } path || doc.Fingerprint is not { } print) return;
-            owner.Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.Revision + baseRevision, path, print)));
+            owner.Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.Revision + baseRevision, path, print, doc.Codec.Name)));
             _floor = doc.UndoDepth;
             _diverged = false;
             _redoOk.Clear();

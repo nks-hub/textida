@@ -33,18 +33,22 @@ a `DocSaveIntent` and syncs at once, before the new file replaces the old one.
 
 ## Records
 
-Payloads start with a layout byte (1) followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes).
+Payloads start with a layout byte followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes). Layout 2 is current. Layout 1 stored the encoding as kind, BOM length and
+code page and had no codec field in `DocEdit`, `DocSave` and `DocSaveIntent`; it is still read (the codec is derived from the old fields, or the
+opening codec is kept). The codec is always stored by its stable `TextCodec.Name` and resolved with `TextCodec.ByName`; an unknown name fails
+that document, not the journal.
 
 | Type | Content |
 | --- | --- |
 | 1 SessionState | active group, groups: active document, tabs (document id, title, revision, selections as byte ranges) |
-| 2 DocOpen | document id, path and fingerprint (named) or none, encoding kind/BOM/code page, backend name, base revision, seed length |
+| 2 DocOpen | document id, path and fingerprint (named) or none, codec name, backend name, base revision, seed length |
 | 3 DocSeed | document id, offset, bytes: initial content of an unnamed document, in chunks |
-| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes) in the coordinates of the previous revision |
+| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes) in the coordinates of the previous revision, codec name after the change (a different codec means a conversion, replayed as one undo step) |
 | 5 DocUndo, 6 DocRedo | document id, revision; replayed by calling `Undo()`/`Redo()` |
-| 7 DocSave | document id, revision, path, new fingerprint |
+| 7 DocSave | document id, revision, path, new fingerprint, codec name |
 | 8 DocClose | document id |
-| 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place |
+| 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place, codec name |
+| 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
 
 Named documents are recorded as path plus fingerprint (size and SHA-256), never as content, so a paged 100 MiB file costs a few
 hundred bytes. Unnamed documents carry their initial bytes as seeds.
@@ -52,7 +56,7 @@ hundred bytes. Unnamed documents carry their initial bytes as seeds.
 ## Recovery
 
 1. Closed documents are dropped. For each document everything up to its last save is replaced by a new `DocOpen` that points at
-   the saved file (base revision = revision of the save). A `DocSaveIntent` after the last save counts as a save when the file on
+   the saved file (base revision = revision of the save, codec = codec at the save). A `DocSaveIntent` after the last save counts as a save when the file on
    disk has the intended hash (the process died after the swap, before the save record).
 2. A named document is opened from its file. If the file no longer matches the fingerprint and there are edits, the result is
    `Conflict` (or `Missing`): nothing is applied and the records are kept. Otherwise the edits are replayed through

@@ -42,6 +42,7 @@ public abstract class DocumentEncodingSuite
         long revision = d.Revision;
         var kinds = new List<ChangeKind>();
         d.Changed += (_, e) => kinds.Add(e.Change.Kind);
+        SpinWait.SpinUntil(() => d.LineIndexState.Complete, TimeSpan.FromSeconds(10));
         Assert.True(d.TryGetOffset(new(1, 0), out long lineTwo));
 
         d.ReinterpretAs(TextCodec.Cp1250);

@@ -143,7 +143,11 @@ public static class Verifier
 
             string recovered = Scene.StateHash(recovery.Documents);
             int match = candidates.FindLastIndex(c => c.Hash == recovered && c.Op <= k + 1);
-            if (match < 0) return Bad($"recovered state matches no state of the oracle ({candidates.Count} candidates, last acknowledged op {k})", k + 1);
+            if (match < 0) {
+                string Short(string h) => string.Join(" | ", h.Split('|', StringSplitOptions.RemoveEmptyEntries).Select(x => { var p = x.Split(':'); return $"{p[0]}:{p[1]}:{p[2]}:{p[3][..6]}"; }));
+                int lastIdx = candidates.FindLastIndex(c => c.Op <= k + 1);
+                return Bad($"recovered state matches no state of the oracle ({candidates.Count} candidates, last acknowledged op {k}); recovered {Short(recovered)}; last oracle {Short(candidates[lastIdx].Hash)} (op {candidates[lastIdx].Op}); tail {recovery.Tail}, records {recovery.Records}, notes {string.Join("; ", recovery.Notes)}", k + 1);
+            }
 
             long TimeOf(int op) => op < 0 ? readyAt : opTimes[Math.Min(op, k)];
             int last = candidates.FindLastIndex(c => c.Op <= k + 1);

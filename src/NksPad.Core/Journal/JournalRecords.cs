@@ -1,40 +1,31 @@
 using System.Text;
 using NksPad.Core.Documents;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core.Journal;
 
-public readonly record struct DocFormat(EncodingKind Kind, int BomLength, int CodePage)
-{
-    public static DocFormat Of(DetectedEncoding e) => new(e.Kind, e.BomLength, e.Encoding.CodePage);
-
-    public DetectedEncoding ToEncoding() => new(Kind switch
-    {
-        EncodingKind.Ascii or EncodingKind.Utf8 => new UTF8Encoding(BomLength > 0),
-        EncodingKind.Utf16LE => new UnicodeEncoding(false, BomLength > 0),
-        EncodingKind.Utf16BE => new UnicodeEncoding(true, BomLength > 0),
-        EncodingKind.Utf32LE => new UTF32Encoding(false, BomLength > 0),
-        EncodingKind.Utf32BE => new UTF32Encoding(true, BomLength > 0),
-        _ => Encoding.GetEncoding(CodePage),
-    }, Kind, BomLength);
-}
-
 /// <summary>Start of a document in the journal: either a file and its fingerprint, or an unnamed document whose bytes follow as seeds.</summary>
-public sealed record OpenRecord(Guid DocId, string? Path, FileFingerprint? Fingerprint, DocFormat Format, string Backend, long BaseRevision, long SeedLength);
+public sealed record OpenRecord(Guid DocId, string? Path, FileFingerprint? Fingerprint, string Codec, string Backend, long BaseRevision, long SeedLength);
 
 public sealed record SeedRecord(Guid DocId, long Offset, byte[] Bytes);
 
 public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted);
 
 /// <summary>A change in the coordinates of the previous revision. <see cref="NewUndoEntry"/> is false when the edit joined the previous undo step.</summary>
-public sealed record EditRecord(Guid DocId, long Revision, ChangeKind Kind, string? Source, bool NewUndoEntry, IReadOnlyList<ChangeEdit> Edits);
+/// <param name="Codec">Name of the codec after the change; null in version 1 records. A different codec means the edit was a conversion.</param>
+public sealed record EditRecord(Guid DocId, long Revision, ChangeKind Kind, string? Source, bool NewUndoEntry, IReadOnlyList<ChangeEdit> Edits, string? Codec = null);
+
+/// <summary>"Re-read as": the document shows the same bytes through another codec.</summary>
+public sealed record CodecRecord(Guid DocId, long Revision, string Codec);
 
 /// <summary>Undo or redo; replayed by calling <c>Undo()</c>/<c>Redo()</c>, so one step of the user is one entry.</summary>
 public sealed record UndoRedoRecord(Guid DocId, long Revision);
 
-public sealed record SaveRecord(Guid DocId, long Revision, string Path, FileFingerprint Fingerprint);
+/// <param name="Codec">Codec of the document at the save (null in version 1 records); recovery reopens the saved file with it.</param>
+public sealed record SaveRecord(Guid DocId, long Revision, string Path, FileFingerprint Fingerprint, string? Codec = null);
 
 /// <summary>Written and fsynced before a save moves the new file into place; if the process dies in the swap, recovery recognises the file by its hash.</summary>
-public sealed record SaveIntentRecord(Guid DocId, long Revision, string Path, long Size, string Sha256);
+public sealed record SaveIntentRecord(Guid DocId, long Revision, string Path, long Size, string Sha256, string? Codec = null);
 
 /// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to.</summary>
 public sealed record SessionTab(Guid DocId, string? Title, long Revision, IReadOnlyList<ByteRange> Selections)
@@ -53,7 +44,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    private const int FormatVersionOfPayloads = 1;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name.</summary>
+    private const int PayloadLayout = 2;
 
     // ---- primitives ----
 
@@ -84,18 +76,32 @@ internal static class JournalRecords
         var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true))
         {
-            w.Write((byte)FormatVersionOfPayloads);
+            w.Write((byte)PayloadLayout);
             fill(w);
         }
         return ms.ToArray();
     }
 
-    private static T Parse<T>(byte[] payload, Func<BinaryReader, T> read)
+    private static T Parse<T>(byte[] payload, Func<BinaryReader, int, T> read)
     {
         using var r = new BinaryReader(new MemoryStream(payload), Encoding.UTF8);
-        if (r.ReadByte() != FormatVersionOfPayloads) throw new JournalFormatException("Unknown record layout.");
-        return read(r);
+        int layout = r.ReadByte();
+        if (layout is < 1 or > PayloadLayout) throw new JournalFormatException("Unknown record layout.");
+        return read(r, layout);
     }
+
+    private static T Parse<T>(byte[] payload, Func<BinaryReader, T> read) => Parse(payload, (r, _) => read(r));
+
+    /// <summary>Codec of a layout 1 record (old encoding kinds: 0 ASCII, 1 UTF-8, 2/3 UTF-16 LE/BE, 4/5 UTF-32 LE/BE, 6 single byte).</summary>
+    private static string LegacyCodec(byte kind, int bomLength, int codePage) => (kind switch
+    {
+        0 or 1 => TextCodec.Utf8.WithBom(bomLength > 0),
+        2 => TextCodec.Utf16LE.WithBom(bomLength > 0),
+        3 => TextCodec.Utf16BE.WithBom(bomLength > 0),
+        4 => TextCodec.Utf32LE.WithBom(bomLength > 0),
+        5 => TextCodec.Utf32BE.WithBom(bomLength > 0),
+        _ => codePage switch { 1252 => TextCodec.Cp1252, 28592 => TextCodec.Latin2, _ => TextCodec.Cp1250 },
+    }).Name;
 
     // ---- records ----
 
@@ -104,16 +110,20 @@ internal static class JournalRecords
         PutGuid(w, o.DocId);
         PutString(w, o.Path);
         PutPrint(w, o.Fingerprint);
-        w.Write((byte)o.Format.Kind);
-        w.Write(o.Format.BomLength);
-        w.Write(o.Format.CodePage);
+        w.Write(o.Codec);
         w.Write(o.Backend);
         w.Write(o.BaseRevision);
         w.Write(o.SeedLength);
     });
 
-    public static OpenRecord DecodeOpen(byte[] p) => Parse(p, r => new OpenRecord(GetGuid(r), GetString(r), GetPrint(r),
-        new DocFormat((EncodingKind)r.ReadByte(), r.ReadInt32(), r.ReadInt32()), r.ReadString(), r.ReadInt64(), r.ReadInt64()));
+    public static OpenRecord DecodeOpen(byte[] p) => Parse(p, (r, layout) =>
+    {
+        var id = GetGuid(r);
+        var path = GetString(r);
+        var print = GetPrint(r);
+        string codec = layout == 1 ? LegacyCodec(r.ReadByte(), r.ReadInt32(), r.ReadInt32()) : r.ReadString();
+        return new OpenRecord(id, path, print, codec, r.ReadString(), r.ReadInt64(), r.ReadInt64());
+    });
 
     public static byte[] Encode(SeedRecord s) => Build(w =>
     {
@@ -145,9 +155,10 @@ internal static class JournalRecords
             w.Write(x.Inserted.Length);
             w.Write(x.Inserted);
         }
+        PutString(w, e.Codec);
     });
 
-    public static EditRecord DecodeEdit(byte[] p) => Parse(p, r =>
+    public static EditRecord DecodeEdit(byte[] p) => Parse(p, (r, layout) =>
     {
         var id = GetGuid(r);
         long rev = r.ReadInt64();
@@ -160,8 +171,17 @@ internal static class JournalRecords
             long start = r.ReadInt64(), deleted = r.ReadInt64();
             edits[i] = new(start, deleted, r.ReadBytes(r.ReadInt32()));
         }
-        return new EditRecord(id, rev, kind, source, isNew, edits);
+        return new EditRecord(id, rev, kind, source, isNew, edits, layout >= 2 ? GetString(r) : null);
     });
+
+    public static byte[] Encode(CodecRecord c) => Build(w =>
+    {
+        PutGuid(w, c.DocId);
+        w.Write(c.Revision);
+        w.Write(c.Codec);
+    });
+
+    public static CodecRecord DecodeCodec(byte[] p) => Parse(p, r => new CodecRecord(GetGuid(r), r.ReadInt64(), r.ReadString()));
 
     public static byte[] Encode(UndoRedoRecord u) => Build(w =>
     {
@@ -177,9 +197,10 @@ internal static class JournalRecords
         w.Write(s.Revision);
         w.Write(s.Path);
         PutPrint(w, s.Fingerprint);
+        PutString(w, s.Codec);
     });
 
-    public static SaveRecord DecodeSave(byte[] p) => Parse(p, r => new SaveRecord(GetGuid(r), r.ReadInt64(), r.ReadString(), GetPrint(r)!));
+    public static SaveRecord DecodeSave(byte[] p) => Parse(p, (r, layout) => new SaveRecord(GetGuid(r), r.ReadInt64(), r.ReadString(), GetPrint(r)!, layout >= 2 ? GetString(r) : null));
 
     public static byte[] Encode(SaveIntentRecord s) => Build(w =>
     {
@@ -188,9 +209,10 @@ internal static class JournalRecords
         w.Write(s.Path);
         w.Write(s.Size);
         w.Write(s.Sha256);
+        PutString(w, s.Codec);
     });
 
-    public static SaveIntentRecord DecodeSaveIntent(byte[] p) => Parse(p, r => new SaveIntentRecord(GetGuid(r), r.ReadInt64(), r.ReadString(), r.ReadInt64(), r.ReadString()));
+    public static SaveIntentRecord DecodeSaveIntent(byte[] p) => Parse(p, (r, layout) => new SaveIntentRecord(GetGuid(r), r.ReadInt64(), r.ReadString(), r.ReadInt64(), r.ReadString(), layout >= 2 ? GetString(r) : null));
 
     public static byte[] EncodeClose(Guid docId) => Build(w => PutGuid(w, docId));
     public static Guid DecodeClose(byte[] p) => Parse(p, GetGuid);

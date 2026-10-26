@@ -1,4 +1,5 @@
 using NksPad.Core.Documents;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core.Journal;
 
@@ -93,7 +94,7 @@ public static class JournalRecovery
     private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends)
     {
         var open = JournalRecords.DecodeOpen(log.Open.Payload);
-        var edits = log.Rest.Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo).ToList();
+        var edits = log.Rest.Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo or RecordType.DocCodec).ToList();
         long lastMs = log.Rest.Count > 0 ? log.Rest[^1].TimestampMs : log.Open.TimestampMs;
 
         RecoveredDocument Make(RecoveryStatus status, Document? doc = null, ExternalChange? conflict = null, string? error = null, long lastRevision = 0) => new()
@@ -113,7 +114,9 @@ public static class JournalRecovery
 
         var factory = backends(open.Backend);
         if (factory is null) return Make(RecoveryStatus.Failed, error: $"Backend '{open.Backend}' is not available.");
-        var options = new DocumentOptions { Format = open.Format.ToEncoding() };
+        var codec = TextCodec.ByName(open.Codec);
+        if (codec is null) return Make(RecoveryStatus.Failed, error: $"Codec '{open.Codec}' is not known.");
+        var options = new DocumentOptions { Format = codec };
         Document? document = null;
         try
         {
@@ -178,10 +181,19 @@ public static class JournalRecovery
             {
                 var e = JournalRecords.DecodeEdit(rec.Payload);
                 string key = (e.NewUndoEntry ? null : doc.TopUndoKey) ?? "j" + ++keyCounter;
-                var result = doc.Apply([.. e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.Inserted))],
-                    new EditOptions { CoalesceKey = key, Source = e.Source });
+                var byteEdits = e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.Inserted)).ToList();
+                var target = e.Codec is null ? null : TextCodec.ByName(e.Codec) ?? throw new InvalidDataException($"Codec '{e.Codec}' is not known.");
+                var result = target is not null && target != doc.Codec
+                    ? doc.ApplyConversion(byteEdits, target, e.Source)
+                    : doc.Apply(byteEdits, new EditOptions { CoalesceKey = key, Source = e.Source });
                 if (!result.Applied || baseRevision + doc.Revision != e.Revision)
                     throw new InvalidDataException($"Replay of revision {e.Revision} ended at {baseRevision + doc.Revision} ({result.Conflict}).");
+            }
+            else if (rec.Type == RecordType.DocCodec)
+            {
+                var c = JournalRecords.DecodeCodec(rec.Payload);
+                doc.ReinterpretAs(TextCodec.ByName(c.Codec) ?? throw new InvalidDataException($"Codec '{c.Codec}' is not known."));
+                if (baseRevision + doc.Revision != c.Revision) throw new InvalidDataException($"Replay of the codec change for revision {c.Revision} ended at {baseRevision + doc.Revision}.");
             }
             else
             {
@@ -286,13 +298,13 @@ internal static class JournalCompactor
                 if (verifyIntent!(intent) is { } actual && actual.Size == intent.Size && actual.Sha256 == intent.Sha256)
                 {
                     save = intentAt;
-                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, actual);
+                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, actual, intent.Codec);
                 }
             }
             if (point is not null)
             {
                 var o = JournalRecords.DecodeOpen(log.Open.Payload);
-                var open = o with { Path = point.Path, Fingerprint = point.Fingerprint, BaseRevision = point.Revision, SeedLength = 0 };
+                var open = o with { Path = point.Path, Fingerprint = point.Fingerprint, BaseRevision = point.Revision, SeedLength = 0, Codec = point.Codec ?? o.Codec };
                 log.Open = new JournalRecord(0, log.Rest[save].TimestampMs, RecordType.DocOpen, JournalRecords.Encode(open));
                 log.Rest = log.Rest.GetRange(save + 1, log.Rest.Count - save - 1);
             }
