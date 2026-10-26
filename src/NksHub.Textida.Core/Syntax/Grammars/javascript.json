@@ -1,0 +1,102 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "javascript",
+  "name": "JavaScript",
+  "version": "1.0.0",
+  "extensions": [".js", ".mjs", ".cjs", ".jsx"],
+  "firstLine": "^#!.*\\bnode\\b",
+  "wordPattern": "[\\p{L}_$][\\p{L}\\p{N}_$]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "async", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+        "delete", "do", "else", "export", "extends", "finally", "for", "from", "function", "get", "if",
+        "import", "in", "instanceof", "let", "new", "of", "return", "set", "static", "super", "switch",
+        "throw", "try", "typeof", "var", "void", "while", "with", "yield"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null", "undefined", "NaN", "Infinity", "this"]
+    },
+    {
+      "name": "builtins",
+      "token": "type",
+      "words": [
+        "Array", "Object", "String", "Number", "Boolean", "Map", "Set", "WeakMap", "WeakSet", "Promise",
+        "Symbol", "BigInt", "Date", "RegExp", "Error", "JSON", "Math", "console", "window", "document",
+        "globalThis", "Proxy", "Reflect"
+      ]
+    }
+  ],
+  "repository": {
+    "code": [
+      {"name": "doc-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
+      {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+      {"match": "//.*", "token": "comment"},
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "template",
+        "begin": "`",
+        "end": "`",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"},
+          {
+            "name": "template-expr",
+            "begin": "\\$\\{",
+            "end": "\\}",
+            "multiline": true,
+            "beginToken": "punctuation",
+            "endToken": "punctuation",
+            "rules": [
+              {"include": "#code"}
+            ]
+          }
+        ]
+      },
+      {
+        "match": "(?<=(?:^|[=(:,\\[!&|?{};])[ \\t]*|\\breturn[ \\t]+)/(?![/*])(?:[^/\\\\\\[\\r\\n]|\\\\.|\\[(?:[^\\]\\\\\\r\\n]|\\\\.)*\\])+/[dgimsuvy]*",
+        "token": "regex"
+      },
+      {
+        "match": "(?<![\\w$])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?n?|\\.\\d[\\d_]*(?:[eE][+-]?\\d+)?)",
+        "token": "number"
+      },
+      {"words": true},
+      {
+        "operators": [
+          "===", "!==", "**=", "...", ">>>", "<<=", ">>=", "&&=", "||=", "??=", "=>", "==", "!=", "<=", ">=",
+          "&&", "||", "??", "?.", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>",
+          "**", "+", "-", "*", "/", "%", "=", "<", ">", "!", "~", "&", "|", "^", "?", ":"
+        ]
+      },
+      {"match": "[{}()\\[\\];,.]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"include": "#code"}
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "json",
+  "name": "JSON",
+  "version": "1.0.0",
+  "extensions": [".json", ".jsonc", ".geojson", ".webmanifest", ".har"],
+  "fileNames": [".babelrc", ".eslintrc", "composer.lock"],
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null"]
+    }
+  ],
+  "rules": [
+    {"match": "\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"(?=[ \\t]*:)", "token": "property"},
+    {
+      "name": "string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})", "token": "string.escape"},
+        {"match": "\\\\.", "token": "invalid"}
+      ]
+    },
+    {"name": "doc-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
+    {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+    {"match": "//.*", "token": "comment"},
+    {"match": "(?<![\\w.])-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?", "token": "number"},
+    {"words": true},
+    {"match": "[{}\\[\\],:]", "token": "punctuation"}
+  ]
+}

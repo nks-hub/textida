@@ -1,0 +1,58 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "xml",
+  "name": "XML",
+  "version": "1.0.0",
+  "extensions": [
+    ".xml", ".xsd", ".xsl", ".xslt", ".svg", ".rss", ".atom", ".plist", ".resx", ".xaml", ".axaml",
+    ".csproj", ".vbproj", ".fsproj", ".props", ".targets", ".config", ".manifest", ".wsdl", ".kml",
+    ".gpx", ".nuspec", ".vcxproj"
+  ],
+  "firstLine": "^\\s*<\\?xml\\b",
+  "repository": {
+    "attrs": [
+      {
+        "name": "dq-attr",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "&(?:#\\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-attr",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "&(?:#\\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);", "token": "string.escape"}
+        ]
+      },
+      {"match": "=", "token": "operator"},
+      {"match": "[^\\s\\\"'=<>/`]+(?=\\s*=)|[A-Za-z_:@][\\w:.@-]*", "token": "attribute"}
+    ]
+  },
+  "rules": [
+    {"name": "comment", "begin": "<!--", "end": "-->", "token": "comment", "multiline": true},
+    {"name": "cdata", "begin": "<!\\[CDATA\\[", "end": "\\]\\]>", "token": "string", "multiline": true},
+    {"name": "prolog", "begin": "<\\?", "end": "\\?>", "token": "meta", "multiline": true},
+    {"name": "doctype", "begin": "<!DOCTYPE\\b", "end": ">", "token": "meta", "multiline": true},
+    {"match": "</[A-Za-z_:][\\w:.-]*\\s*>", "token": "tag"},
+    {
+      "name": "tag",
+      "begin": "<[A-Za-z_:][\\w:.-]*",
+      "end": "/?>",
+      "multiline": true,
+      "beginToken": "tag",
+      "endToken": "tag",
+      "rules": [
+        {"include": "#attrs"}
+      ]
+    },
+    {"match": "&(?:#\\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);", "token": "string.escape"}
+  ]
+}

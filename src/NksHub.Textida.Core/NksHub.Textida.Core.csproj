@@ -5,6 +5,10 @@
     <InternalsVisibleTo Include="NksHub.Textida.Document.Contract" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Syntax\Grammars\*.json" LogicalName="Grammars/%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

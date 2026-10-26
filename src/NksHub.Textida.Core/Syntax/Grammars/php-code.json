@@ -1,0 +1,91 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "php-code",
+  "name": "PHP code",
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "abstract", "and", "as", "break", "callable", "case", "catch", "class", "clone", "const",
+        "continue", "declare", "default", "do", "echo", "else", "elseif", "empty", "enddeclare", "endfor",
+        "endforeach", "endif", "endswitch", "endwhile", "enum", "extends", "final", "finally", "fn", "for",
+        "foreach", "function", "global", "goto", "if", "implements", "include", "include_once",
+        "instanceof", "insteadof", "interface", "isset", "list", "match", "namespace", "new", "or",
+        "print", "private", "protected", "public", "readonly", "require", "require_once", "return",
+        "static", "switch", "throw", "trait", "try", "unset", "use", "var", "while", "xor", "yield",
+        "exit", "die", "eval", "array"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": [
+        "true", "false", "null", "__class__", "__dir__", "__file__", "__function__", "__line__",
+        "__method__", "__namespace__", "php_eol", "php_int_max"
+      ]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "int", "float", "string", "bool", "boolean", "integer", "double", "object", "mixed", "void",
+        "never", "iterable", "self", "parent", "null"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "doc-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
+    {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+    {"match": "(?://|#(?!\\[))(?:(?!\\?>).)*", "token": "comment"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"},
+        {"match": "\\$+[A-Za-z_\\x80-￿][\\w\\x80-￿]*", "token": "variable"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\['\\\\]", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "heredoc",
+      "begin": "<<<[ \\t]*['\\\"]?[A-Za-z_]\\w*['\\\"]?",
+      "end": "^[ \\t]*[A-Z_][A-Z0-9_]*(?=;|\\)|,|[ \\t]*$)",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"},
+        {"match": "\\$+[A-Za-z_\\x80-￿][\\w\\x80-￿]*", "token": "variable"}
+      ]
+    },
+    {"match": "`[^`\\r\\n]*`", "token": "string"},
+    {"match": "\\$+[A-Za-z_\\x80-￿][\\w\\x80-￿]*", "token": "variable"},
+    {"match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:\\d[\\d_]*(?:\\.\\d[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d+)?)", "token": "number"},
+    {"match": "(?<=\\bfunction[ \\t]+&?[ \\t]*)[A-Za-z_]\\w*", "token": "function"},
+    {"match": "(?<=\\b(?:class|interface|trait|enum|extends|implements|new)[ \\t]+)\\\\?[A-Za-z_][\\w\\\\]*", "token": "type"},
+    {"words": true},
+    {
+      "operators": [
+        "<=>", "===", "!==", "**=", "...", "<<=", ">>=", "??=", "?->", "->", "=>", "::", "==", "!=", "<>",
+        "<=", ">=", "&&", "||", "??", "++", "--", "+=", "-=", "*=", "/=", ".=", "%=", "&=", "|=", "^=",
+        "<<", ">>", "**", "+", "-", "*", "/", "%", "=", "<", ">", "!", "~", "&", "|", "^", "?", ":", "."
+      ]
+    },
+    {"match": "[{}()\\[\\];,]", "token": "punctuation"}
+  ]
+}

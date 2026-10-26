@@ -1,0 +1,71 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "shell",
+  "name": "Shell",
+  "version": "1.0.0",
+  "extensions": [".sh", ".bash", ".zsh", ".ksh", ".bashrc", ".zshrc", ".profile", ".env"],
+  "fileNames": [".bashrc", ".bash_profile", ".zshrc", ".profile", "PKGBUILD"],
+  "firstLine": "^#!.*\\b(?:ba|z|k|da)?sh\\b",
+  "wordPattern": "[A-Za-z_][\\w-]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done", "case", "esac", "in",
+        "select", "function", "time", "coproc", "return", "break", "continue"
+      ]
+    },
+    {
+      "name": "builtins",
+      "token": "function",
+      "words": [
+        "alias", "bg", "bind", "builtin", "cd", "command", "declare", "echo", "enable", "eval", "exec",
+        "exit", "export", "fg", "getopts", "hash", "help", "history", "jobs", "kill", "let", "local",
+        "popd", "printf", "pushd", "pwd", "read", "readonly", "set", "shift", "source", "test", "trap",
+        "type", "typeset", "ulimit", "umask", "unalias", "unset", "wait"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false"]
+    }
+  ],
+  "rules": [
+    {"match": "^#!.*", "token": "meta"},
+    {"match": "(?<=^|[\\s;&|(])#.*", "token": "comment"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"},
+        {"match": "\\$(?:[A-Za-z_]\\w*|\\{[^}\\r\\n]*\\}|[@*#?$!0-9-])", "token": "variable"}
+      ]
+    },
+    {"name": "sq-string", "begin": "'", "end": "'", "token": "string", "multiline": true},
+    {
+      "name": "backtick",
+      "begin": "`",
+      "end": "`",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"match": "\\$(?:[A-Za-z_]\\w*|\\{[^}\\r\\n]*\\}|[@*#?$!0-9-])", "token": "variable"},
+    {"match": "(?<=^[ \\t]*(?:export[ \\t]+|local[ \\t]+|readonly[ \\t]+)?)[A-Za-z_]\\w*(?=\\+?=)", "token": "variable"},
+    {"match": "(?<=[ \\t])--?[A-Za-z][\\w-]*", "token": "attribute"},
+    {"match": "(?<![\\w.-])\\d+(?![\\w.-])", "token": "number"},
+    {"words": true},
+    {
+      "operators": ["&&", "||", ";;", ">>", "<<", "<&", ">&", "|&", "|", "&", ">", "<", "=", "!"]
+    },
+    {"match": "[(){}\\[\\];]", "token": "punctuation"}
+  ]
+}

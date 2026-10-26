@@ -1,0 +1,51 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "neon",
+  "name": "NEON",
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".neon", ".neon.dist"],
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null", "yes", "no", "on", "off"]
+    }
+  ],
+  "rules": [
+    {"match": "#.*", "token": "comment"},
+    {"name": "multiline-sq-string", "begin": "'''", "end": "'''", "token": "string", "multiline": true},
+    {"name": "multiline-dq-string", "begin": "\"\"\"", "end": "\"\"\"", "token": "string", "multiline": true},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "''", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<=^[ \\t]*(?:-[ \\t]+)*)[^\\s#:'\\\"\\-\\[\\]{}(),=][^:#\\r\\n(),'\\\"=]*?(?=[ \\t]*:(?:[ \\t]|$))", "token": "property"},
+    {"match": "(?<=[{,(][ \\t]*)[^\\s,:{}\\[\\]()='\\\"]+(?=[ \\t]*[:=](?:[ \\t]|$|[^=]))", "token": "property"},
+    {"match": "(?<![\\w$\\\\])\\\\?[A-Za-z_][\\w\\\\]*(?=\\()", "token": "type"},
+    {"match": "@[\\w\\\\.:]+", "token": "variable"},
+    {"match": "%[\\w.]+%", "token": "variable"},
+    {"match": "(?<=^[ \\t]*(?:-[ \\t]+)*)-(?=[ \\t]|$)", "token": "punctuation"},
+    {"match": "(?<![\\w.:/-])[-+]?(?:0x[0-9a-fA-F]+|0o[0-7]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)(?![\\w.:/-])", "token": "number"},
+    {"words": true},
+    {
+      "operators": ["::", "=", ":"]
+    },
+    {"match": "[\\[\\]{}(),]", "token": "punctuation"}
+  ]
+}
