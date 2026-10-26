@@ -314,7 +314,7 @@ public class HexTests : IDisposable
         Assert.Contains("mimo soubor", MainWindow.PreviewOffset(hex, "end")); // overwrite has no byte at the end
         hex.ToggleInsert();
         Assert.Equal("→ 0x00002710 (10000) · konec souboru", MainWindow.PreviewOffset(hex, "end"));
-        Assert.Contains("mimo soubor", MainWindow.PreviewOffset(hex, "end+1"));
+        Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "end+1")); // the expression itself refuses a target past the end
         hex.ToggleInsert();
         Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "0x"));
 
