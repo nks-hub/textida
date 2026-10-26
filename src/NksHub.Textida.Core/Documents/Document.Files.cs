@@ -23,6 +23,23 @@ public sealed partial class Document
     /// <summary>Raised after a successful save, when <see cref="FilePath"/> and <see cref="Fingerprint"/> describe the new file.</summary>
     public event EventHandler? Saved;
 
+    /// <summary>Raised after <see cref="MoveTo"/>, when <see cref="FilePath"/> already names the new location.</summary>
+    public event EventHandler? Moved;
+
+    /// <summary>
+    /// The file of this document was renamed or moved on disk by the caller, unchanged: the document follows it and keeps its text, revision,
+    /// undo history and unsaved state. The fingerprint stays, because the content did not change. Watching restarts on the new location.
+    /// </summary>
+    public void MoveTo(string newPath)
+    {
+        ThrowIfDisposed();
+        if (FilePath is null) throw new InvalidOperationException("An unnamed document has no file to move.");
+        FilePath = Path.GetFullPath(newPath);
+        _lastReported = null;
+        if (_watcher is not null) StartWatching();
+        Moved?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>
     /// Compares the file with the recorded fingerprint, content included, so a change with the same size and time is found.
     /// A conflict raises <see cref="ExternalChangeDetected"/> once per distinct state of the file.

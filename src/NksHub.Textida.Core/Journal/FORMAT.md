@@ -49,6 +49,7 @@ that document, not the journal.
 | 8 DocClose | document id |
 | 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place, codec name |
 | 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
+| 17 DocMove | document id, new path: the file was renamed or moved on disk, the unsaved work follows it; recovery opens the new path |
 | 11-16 Batch* | Replace in Files batch, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
 
 Named documents are recorded as path plus fingerprint (size and SHA-256), never as content, so a paged 100 MiB file costs a few
@@ -59,7 +60,7 @@ hundred bytes. Unnamed documents carry their initial bytes as seeds.
 1. Closed documents are dropped. For each document everything up to its last save is replaced by a new `DocOpen` that points at
    the saved file (base revision = revision of the save, codec = codec at the save). A `DocSaveIntent` after the last save counts as a save when the file on
    disk has the intended hash (the process died after the swap, before the save record).
-2. A named document is opened from its file. If the file no longer matches the fingerprint and there are edits, the result is
+2. A `DocMove` after the last save changes the path of the start record to the new one. A named document is opened from its file. If the file no longer matches the fingerprint and there are edits, the result is
    `Conflict` (or `Missing`): nothing is applied and the records are kept. Otherwise the edits are replayed through
    `Document.Apply`/`Undo`/`Redo`, and every revision is checked against the record.
 3. The rebuilt document has the same bytes, revision (base + revision), undo steps and unsaved state as before the crash.

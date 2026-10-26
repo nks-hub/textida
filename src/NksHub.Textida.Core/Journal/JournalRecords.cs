@@ -25,6 +25,9 @@ public sealed record UndoRedoRecord(Guid DocId, long Revision);
 public sealed record SaveRecord(Guid DocId, long Revision, string Path, FileFingerprint Fingerprint, string? Codec = null);
 
 /// <summary>Written and fsynced before a save moves the new file into place; if the process dies in the swap, recovery recognises the file by its hash.</summary>
+/// <summary>The file of a document was renamed or moved on disk; its unsaved work now belongs to <paramref name="Path"/>.</summary>
+public sealed record MoveRecord(Guid DocId, string Path);
+
 public sealed record SaveIntentRecord(Guid DocId, long Revision, string Path, long Size, string Sha256, string? Codec = null);
 
 /// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to.</summary>
@@ -213,6 +216,14 @@ internal static class JournalRecords
     });
 
     public static SaveIntentRecord DecodeSaveIntent(byte[] p) => Parse(p, (r, layout) => new SaveIntentRecord(GetGuid(r), r.ReadInt64(), r.ReadString(), r.ReadInt64(), r.ReadString(), layout >= 2 ? GetString(r) : null));
+
+    public static byte[] Encode(MoveRecord m) => Build(w =>
+    {
+        PutGuid(w, m.DocId);
+        w.Write(m.Path);
+    });
+
+    public static MoveRecord DecodeMove(byte[] p) => Parse(p, r => new MoveRecord(GetGuid(r), r.ReadString()));
 
     public static byte[] EncodeClose(Guid docId) => Build(w => PutGuid(w, docId));
     public static Guid DecodeClose(byte[] p) => Parse(p, GetGuid);
