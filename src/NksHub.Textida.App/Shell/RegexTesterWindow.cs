@@ -76,6 +76,7 @@ internal sealed class RegexTesterWindow : Window
         _case.IsCheckedChanged += (_, _) => Refresh();
         Loc.Changed += OnLanguageChanged;
         Closed += (_, _) => Loc.Changed -= OnLanguageChanged;
+        Opened += (_, _) => { _pattern.Focus(); _pattern.SelectAll(); };
         ApplyTexts();
         Refresh();
     }
