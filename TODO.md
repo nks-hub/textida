@@ -836,9 +836,10 @@ Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba n�
 
 Chytré klávesy (P2.2.2) a párové závorky (P2.4.2) potřebují tokeny dřív, než vznikne zvýrazňování v P3. Proto tady vzniká sdílený základ a P3.2 na něm dokončí vykreslení, pravidla a výkon. Druhý, zahazovaný tokenizér nevznikne.
 
-- [ ] **P2.7.1** Stavový tokenizér a formát gramatiky
+- [x] **P2.7.1** Stavový tokenizér a formát gramatiky
   - **Co a proč:** Tokenizér se stavem na začátku řádku a formát gramatiky jako data (stejný budou používat pluginy, F197). Zatím jen gramatiky, které potřebují P2.2.2 a P2.4.2: HTML, PHP, JSON, SQL.
   - **Funkce:** F121 (částečně: tokenový základ)
+  - **Stav 26. 10. 2026:** hotovo (commity 0d0c58b–d7a7adb, sloučeno a0a5e7d): formát gramatik JSON se schématem (`formatVersion` 1), skupiny klíčových slov, regiony begin/end s vnořením a `embed`; stav řádku je internovaný zásobník otevřených regionů. 16 vestavěných gramatik (text, INI, JSON, XML, HTML s CSS/JS/PHP, CSS, JS, PHP, C#, SQL, Markdown, Python, Shell, YAML, Latte, NEON). Ručně psané fixture HTML, PHP, JSON a SQL sedí, víceřádkové řetězce a komentáře mají správný stav; inkrementální = plná tokenizace v náhodném testu nad 15 gramatikami. Úhoz v 1 MiB p95 1,6–2,8 ms (rozpočet zvýrazňovače ~6,6 ms z 33 ms). Chybí: těla blokových skalárů YAML, heredoc v PHP a Shellu, makra Latte uvnitř HTML značek; skok hluboko do souboru potřebuje kontrolní body stavu (P3).
   - **Hotovo, když:** tokeny HTML, PHP, JSON a SQL se pro testovací soubory shodují s ručně zapsaným očekáváním; řetězec a komentář přes více řádků mají správný stav na začátku každého řádku.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
