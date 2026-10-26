@@ -316,6 +316,17 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Strg+0 stellt die Standardgröße wieder her.
 - Die Größe liegt zwischen 6 und 72 Punkt und wird in der Einstellung Schriftgröße gespeichert.
 
+## [view.display] Verborgene Zeichen, Zeilennummern und Minimap
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+1. Wählen Sie Ansicht und Verborgene Zeichen anzeigen (Strg+K, Strg+W): Leerzeichen, Tabulatoren und die Zeilenenden CR, LF und CRLF werden gezeichnet. Das Dokument wird nicht verändert.
+2. Zeilennummern anzeigen (Strg+K, Strg+N), Aktuelle Zeile hervorheben, Rechten Rand anzeigen (senkrechte Linie bei Spalte 80, einstellbar mit der Einstellung Spalte des rechten Rands) und Anklickbare Links schalten den Rest ein und aus.
+3. Minimap anzeigen (Strg+K, Strg+M) zeigt am rechten Rand ein verkleinertes Bild des Textes in den Farben der Hervorhebung. Klicken oder Ziehen scrollt. Bei einer großen Datei zeigt sie nur die Zeilen um den Bildschirm.
+- Treffer der Suchleiste sind im schmalen Streifen am rechten Rand der Minimap markiert.
+- Links öffnen sich mit Strg+Klick und sind im seitenweisen Modus nicht verfügbar.
+- Eine Zeile mit mehr als 50.000 Zeichen wird nie umgebrochen: Zeilenumbruch umschalten sagt das in der Statusleiste. Der seitenweise Modus bricht nie um.
+- Zeichen, die die Hauptschrift nicht hat, werden mit den Schriften der Einstellung Ersatzschriften gezeichnet.
+- Strg und das Mausrad ändern die Schriftgröße wie die Zoom-Befehle.
+
 ## [view.tabs] Tabs wechseln
 commands: nks.view.nextTab, nks.view.previousTab
 1. Strg+Tab wechselt zum nächsten Tab der Gruppe, Strg+Umschalt+Tab zum vorherigen.

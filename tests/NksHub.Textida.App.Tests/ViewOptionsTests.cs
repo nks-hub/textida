@@ -159,6 +159,18 @@ public class ViewOptionsTests : IDisposable
         return count;
     }
 
+    private static string Changed(Shot a, Shot b, Rect area)
+    {
+        var seen = new HashSet<string>();
+        for (int y = (int)area.Top; y < (int)area.Bottom; y++)
+            for (int x = (int)area.Left; x < (int)area.Right; x++)
+            {
+                int at = y * a.Stride + x * 4;
+                if (!a.Data.AsSpan(at, 4).SequenceEqual(b.Data.AsSpan(at, 4)) && seen.Count < 8) seen.Add($"{x},{y}:{b.Data[at + 2]:X2}{b.Data[at + 1]:X2}{b.Data[at]:X2}");
+            }
+        return string.Join(" ", seen) + " area " + area;
+    }
+
     private static int Matching(Shot shot, Rect area, IEnumerable<Color> colors, int tolerance = 3)
     {
         var wanted = colors.ToList();
@@ -169,7 +181,8 @@ public class ViewOptionsTests : IDisposable
                 int at = y * shot.Stride + x * 4;
                 if (at + 3 >= shot.Data.Length) continue;
                 byte b = shot.Data[at], g = shot.Data[at + 1], r = shot.Data[at + 2];
-                if (wanted.Any(c => Math.Abs(c.R - r) <= tolerance && Math.Abs(c.G - g) <= tolerance && Math.Abs(c.B - b) <= tolerance)) count++;
+                // the headless frame is RGBA or BGRA depending on the platform: accept both orders
+                if (wanted.Any(c => Math.Abs(c.G - g) <= tolerance && ((Math.Abs(c.R - r) <= tolerance && Math.Abs(c.B - b) <= tolerance) || (Math.Abs(c.R - b) <= tolerance && Math.Abs(c.B - r) <= tolerance)))) count++;
             }
         return count;
     }
@@ -238,7 +251,7 @@ public class ViewOptionsTests : IDisposable
     [AvaloniaFact]
     public void Hidden_characters_are_drawn_on_the_paged_surface_too()
     {
-        var tab = Open("p.txt", "a  b\t\tc\r\nsecond line\r\n" + CodeLines(50), paged: true);
+        var tab = Open("p.txt", "a  b\t\tc\r\nsecond line\r\n" + CodeLines(45_000), paged: true);
         string before = Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new NksHub.Textida.Core.Documents.ByteRange(0, tab.Doc.Doc.ByteLength)));
         long revision = tab.Doc.Doc.Revision;
         var plain = Capture();
@@ -276,7 +289,7 @@ public class ViewOptionsTests : IDisposable
         Assert.True(Differences(highlighted, Capture(), line) > 50);
         _w.ToggleCurrentLine();
 
-        var paged = Open("n2.txt", CodeLines(200), paged: true);
+        var paged = Open("n2.txt", CodeLines(45_000), paged: true);
         var pagedGutter = InWindow(paged.Paged!, new Rect(0, 0, 40, 100));
         var pagedLine = PagedBand(paged);
         var pagedShot = Capture();
@@ -298,7 +311,7 @@ public class ViewOptionsTests : IDisposable
         Assert.True(Differences(before, Capture(), strip) > 10);
         Set("editor.rightMargin", JsonValue.Create(0));
 
-        var paged = Open("m2.txt", CodeLines(200), paged: true);
+        var paged = Open("m2.txt", CodeLines(45_000), paged: true);
         before = Capture();
         Set("editor.rightMargin", JsonValue.Create(40));
         Assert.True(Differences(before, Capture(), strip) > 10);
@@ -413,6 +426,7 @@ public class ViewOptionsTests : IDisposable
         MenuCommand Item(string id) => FlattenCommands(_w.MenuModel).Single(c => c.CommandId == id);
         bool Checked(string id) => Item(id).CheckedNow?.Invoke() ?? Item(id).Checked ?? false;
 
+        Assert.Equal(SettingSource.Default, _app.Workbench.Settings.Resolve("editor.lineNumbers")!.Source);
         foreach (string id in ids)
         {
             Assert.True(_app.Workbench.Commands.HasHandler(id), id);
@@ -423,7 +437,6 @@ public class ViewOptionsTests : IDisposable
             Item(id).Run();
             Assert.Equal(before, Checked(id));
         }
-        Assert.Equal(SettingSource.Default, _app.Workbench.Settings.Resolve("editor.lineNumbers")!.Source);
         _w.ToggleLineNumbers();
         Assert.Equal(SettingSource.User, _app.Workbench.Settings.Resolve("editor.lineNumbers")!.Source);
         Assert.NotNull(tab.Minimap);
@@ -465,7 +478,7 @@ public class ViewOptionsTests : IDisposable
     public void Both_surfaces_have_a_named_minimap_that_the_switch_hides()
     {
         var editor = Open("a.cs", CodeLines(100));
-        var paged = Open("b.cs", CodeLines(100), paged: true);
+        var paged = Open("b.cs", CodeLines(45_000), paged: true);
         foreach (var tab in new[] { editor, paged })
         {
             Assert.NotNull(tab.Minimap);
@@ -561,7 +574,7 @@ public class ViewOptionsTests : IDisposable
         tab.Minimap.SetMarks([new MinimapMark(2900, MinimapMarkKind.Error), new MinimapMark(1500, MinimapMarkKind.Warning)]);
         var after = Capture();
         Assert.True(Differences(before, after, strip) > 4);
-        Assert.True(Matching(after, strip, [Color.Parse("#E5484D")], 4) > 0);
+        Assert.True(Matching(after, strip, [Color.Parse("#E5484D")], 4) > 0, Changed(before, after, strip));
         Assert.True(Matching(after, strip, [Color.Parse("#E2A400")], 4) > 0);
     }
 

@@ -316,6 +316,17 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 restores the default size.
 - The size ranges from 6 to 72 points and is stored in the setting Font size.
 
+## [view.display] Hidden characters, line numbers and minimap
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+1. Choose View and then Show Hidden Characters (Ctrl+K, Ctrl+W): spaces, tabs and the line endings CR, LF and CRLF are drawn. The document is not changed.
+2. Show Line Numbers (Ctrl+K, Ctrl+N), Highlight Current Line, Show Right Margin (a vertical line at column 80, set with the setting Right margin column) and Clickable Links switch the rest on and off.
+3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting. Click or drag it to scroll. In a large file it shows only the lines around the screen.
+- Matches of the find bar are marked in the narrow strip at the right edge of the minimap.
+- Links open with Ctrl+click and are not available in paged mode.
+- A line longer than 50,000 characters is never wrapped: Toggle Word Wrap then says so in the status bar. The paged mode never wraps.
+- Characters the main font lacks are drawn with the fonts of the setting Fallback fonts.
+- Ctrl and the mouse wheel change the font size like the zoom commands.
+
 ## [view.tabs] Switching tabs
 commands: nks.view.nextTab, nks.view.previousTab
 1. Ctrl+Tab switches to the next tab of the group, Ctrl+Shift+Tab to the previous one.
