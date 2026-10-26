@@ -16,3 +16,4 @@ AGENTS.md
 # benchmark data and results kept outside the repo
 corpus/
 *.log
+.playwright-mcp/
