@@ -181,7 +181,14 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
     private static async Task BuildIndex(MainWindow w, DocTab tab, int column)
     {
         var source = SourceOf(tab);
-        if (column == 0) { source.ReadColumns(0, long.MaxValue, 0); return; }
+        if (column == 0)
+        {
+            source.ReadColumns(0, long.MaxValue, 0);
+            // one scroll through the UI like the far columns get below, so the first measured jump does not pay for the first paint path
+            tab.Paged!.ScrollToColumn(5);
+            Present(w);
+            return;
+        }
         tab.Paged!.ScrollToColumn(column + 5);
         Present(w);
         for (int i = 0; i < 2000 && (tab.Paged.WindowsPending || !source.TryGetLineColumns(0, out _)); i++) { await Task.Delay(10); Dispatcher.UIThread.RunJobs(); }
