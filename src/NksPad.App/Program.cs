@@ -8,8 +8,8 @@ namespace NksPad.App;
 
 public static partial class Program
 {
-    /// <summary>Name of the single-instance channel of normal runs.</summary>
-    internal const string MainChannel = "main";
+    /// <summary>Single-instance channel; <c>TEXTIDA_CHANNEL</c> separates test runs from a real instance.</summary>
+    internal static readonly string MainChannel = Environment.GetEnvironmentVariable("TEXTIDA_CHANNEL") is { Length: > 0 } c ? c : "main";
 
     private const string Usage = "usage: textida [--new-window] [--wait] [--line N] [--] [path ...]";
 
@@ -35,7 +35,7 @@ public static partial class Program
             if (instanceLock is null) return ForwardToRunningInstance(parsed);
         }
 
-        App.Startup = new StartupContext(parsed, new ProfileStore(ProfileLocation.ResolveForThisMachine()), parsed.Smoke ? "smoke" : MainChannel, instanceLock);
+        App.Startup = new StartupContext(parsed, new ProfileStore(Environment.GetEnvironmentVariable("TEXTIDA_PROFILE") is { Length: > 0 } p ? p : ProfileLocation.ResolveForThisMachine()), parsed.Smoke ? "smoke" : MainChannel, instanceLock);
         try { return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         finally { instanceLock?.Dispose(); }
     }

@@ -41,11 +41,11 @@ internal static class MenuRenderer
         }
     }
 
-    public static NativeMenu ToNative(IEnumerable<MenuGroup> groups)
+    /// <summary>Replaces the items of an existing menu. The exporter rejects a different <see cref="NativeMenu"/> instance on a window that already has one.</summary>
+    public static void FillNative(NativeMenu menu, IEnumerable<MenuGroup> groups)
     {
-        var menu = new NativeMenu();
-        foreach (var g in groups) menu.Items.Add((NativeMenuItemBase)ToNativeItem(g));
-        return menu;
+        menu.Items.Clear();
+        foreach (var g in groups) menu.Items.Add(ToNativeItem(g));
     }
 
     private static NativeMenuItemBase ToNativeItem(MenuNode node)

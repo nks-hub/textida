@@ -54,6 +54,7 @@ internal sealed class MainWindow : Window
     public IReadOnlyList<string> MenuHeaders => _menuModel.Select(g => g.Label).ToList();
     internal IReadOnlyList<MenuGroup> MenuModel => _menuModel;
     private IReadOnlyList<MenuGroup> _menuModel = [];
+    private NativeMenu? _nativeMenu;
 
     public MainWindow(App app, ShellLook look, SavedWindow? saved)
     {
@@ -366,7 +367,11 @@ internal sealed class MainWindow : Window
             new(Loc.Get(K.MenuHelp), [new MenuCommand(Loc.Get(K.MenuHelpAbout, ("name", Loc.Get(K.AppName))), () => _ = ShowAboutAsync())]),
         };
 
-        if (_look.NativeMenu) NativeMenu.SetMenu(this, MenuRenderer.ToNative(groups));
+        if (_look.NativeMenu)
+        {
+            if (_nativeMenu is null) NativeMenu.SetMenu(this, _nativeMenu = new NativeMenu());
+            MenuRenderer.FillNative(_nativeMenu, groups);
+        }
         else _menuHost.Content = MenuRenderer.ToMenu(groups);
         return groups;
     }

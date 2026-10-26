@@ -65,13 +65,19 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         }
         catch (Exception e)
         {
+            RemoveTemp(temp);
             Fail(e.Message);
         }
         finally
         {
-            if (temp is not null) try { Directory.Delete(temp, recursive: true); } catch (IOException) { }
+            RemoveTemp(temp);
             GC.KeepAlive(watchdog);
         }
+    }
+
+    private static void RemoveTemp(string? dir)
+    {
+        if (dir is not null) try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
     }
 
     private void Check(bool condition, string what)
