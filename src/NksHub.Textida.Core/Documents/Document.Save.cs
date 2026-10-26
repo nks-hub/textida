@@ -80,8 +80,24 @@ public sealed partial class Document
         if (guard && CheckExternalChange() is { } late) return new(false, late);
         Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
         InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks, _backend.BeginInPlaceWrite());
+        if (VerifyWritten(target, hash) is { } differs) return new(false, differs);
         CompleteSave(target, hash);
         return new(true, null);
+    }
+
+    /// <summary>
+    /// After an in-place write the file on disk is read once more: it must hash to what the revision is. A part of the file nobody wrote to can differ
+    /// from what the document believes only when something else changed it behind the document; then nothing is recorded as saved, and the difference is reported.
+    /// </summary>
+    private ExternalChange? VerifyWritten(string target, string hash)
+    {
+        var actual = FileFingerprint.TryRead(target);
+        if (actual is not null && actual.Size == ByteLength && actual.Sha256 == hash) return null;
+        var expected = Fingerprint ?? new FileFingerprint(ByteLength, default, hash);
+        var change = new ExternalChange(Id, _revision, target, expected, actual, actual is null ? ExternalChangeKind.Missing : ExternalChangeKind.Modified);
+        _lastReported = (change.Kind, actual?.Sha256);
+        ExternalChangeDetected?.Invoke(this, change);
+        return change;
     }
 
     private void CompleteSave(string target, string hash)
@@ -117,20 +133,15 @@ public sealed partial class Document
 
             var plan = inPlace ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
             IByteSnapshot? snapshot = _backend.CreateSnapshot();
-            var seen = guard && plan.Mode == SaveMode.InPlace ? new FileInfo(target) : null;
             string hash;
             if (plan.Mode == SaveMode.InPlace)
             {
                 hash = await Task.Run(() => HashSnapshot(snapshot!, ct), CancellationToken.None);
-                if (seen is not null)
-                {
-                    var now = new FileInfo(target);
-                    if (!now.Exists || now.Length != seen.Length || now.LastWriteTimeUtc != seen.LastWriteTimeUtc)
-                        if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
-                }
+                if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
                 ct.ThrowIfCancellationRequested();
                 Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
                 await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
+                if (await Task.Run(() => VerifyWritten(target, hash), CancellationToken.None) is { } differs) return new(false, differs);
             }
             else
             {

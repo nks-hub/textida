@@ -110,7 +110,7 @@ internal static class AppCommands
         On("nks.hex.inspector", w => w.ToggleInspector());
         On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.layout", w => { w.ShowHexLayoutMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
-        foreach (int size in HexView.Sizes) On("nks.hex.bytesPerRow." + size, w => w.HexCommand(h => h.SetBytesPerRow(size)));
+        foreach (int size in HexView.Sizes) On("nks.hex.bytesPerRow" + size, w => w.HexCommand(h => h.SetBytesPerRow(size)));
         On("nks.hex.offsetFormat", w => w.HexCommand(h => h.ToggleOffsetFormat()));
         On("nks.hex.inspectChanges", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.ShowHexChangesAsync(tab); return CommandOutcome.Handled; });
 

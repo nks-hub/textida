@@ -18,7 +18,7 @@ internal sealed class HexInspectorPanel : Border
 {
     private const int ReadWindow = 16;
     private readonly HexView _owner;
-    private readonly ListBox _list = new() { SelectionMode = SelectionMode.Single, Background = Avalonia.Media.Brushes.Transparent };
+    private readonly ListBox _list = new() { SelectionMode = SelectionMode.Single, Focusable = true, Background = Avalonia.Media.Brushes.Transparent };
     private readonly ToggleButton _little = new() { MinWidth = 40, HorizontalContentAlignment = HorizontalAlignment.Center };
     private readonly ToggleButton _big = new() { MinWidth = 40, HorizontalContentAlignment = HorizontalAlignment.Center };
     private readonly TextBlock _title = new() { FontWeight = Avalonia.Media.FontWeight.SemiBold };
@@ -57,13 +57,26 @@ internal sealed class HexInspectorPanel : Border
         stack.Children.Add(_list);
         Child = stack;
         ApplyTexts();
+    }
+
+    protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
         Loc.Changed += ApplyTexts;
+    }
+
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Loc.Changed -= ApplyTexts;
     }
 
     public bool IsEditing => _editing is not null;
     public bool BigEndian => _bigEndian;
     internal TextBox EditBox => _edit;
     internal ListBox Rows => _list;
+    /// <summary>The error line under the edit box, or null; for tests.</summary>
+    internal string? ErrorShown => _error.IsVisible ? _error.Text : null;
 
     /// <summary>Row texts, for tests.</summary>
     internal IReadOnlyList<string> RowTexts => [.. _list.Items.OfType<ListBoxItem>().Select(i => AutomationProperties.GetName(i))];

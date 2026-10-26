@@ -264,6 +264,57 @@ public class HexSaveTests
         Assert.Equal(original, old.ReadBytes(new(0, old.ByteLength)));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_foreign_change_that_keeps_size_and_write_time_is_not_recorded_as_our_save(bool async)
+    {
+        byte[] original = Random(2 << 20);
+        using var file = new TempFile(original);
+        using var d = Open(file.Path);
+        d.Replace(new(10, 14), new byte[] { 1, 2, 3, 4 }, Raw);
+        // between the writing and the check someone changes a byte nobody wrote to and puts the write time back
+        d.InPlaceHooks = new PatchHooks
+        {
+            AfterStep = step =>
+            {
+                if (step != "commit") return;
+                var time = File.GetLastWriteTimeUtc(file.Path);
+                using (var fs = new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    fs.Position = 1_500_000;
+                    fs.WriteByte((byte)(original[1_500_000] ^ 0xFF));
+                }
+                File.SetLastWriteTimeUtc(file.Path, time);
+            },
+        };
+        var result = async ? await d.SaveAsync() : d.Save();
+        Assert.False(result.Saved);
+        Assert.NotNull(result.Conflict);
+        Assert.Equal(ExternalChangeKind.Modified, result.Conflict!.Kind);
+        Assert.True(d.IsModified);
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(original)), d.Fingerprint!.Sha256);
+        Assert.NotNull(d.CheckExternalChange());
+    }
+
+    [Fact]
+    public async Task After_our_own_save_the_baseline_is_the_hash_of_the_file_on_disk_and_nothing_is_flagged()
+    {
+        byte[] original = Random(2 << 20);
+        using var file = new TempFile(original);
+        using var d = Open(file.Path);
+        d.Replace(new(10, 14), new byte[] { 1, 2, 3, 4 }, Raw);
+        int events = 0;
+        d.ExternalChangeDetected += (_, _) => events++;
+        Assert.True((await d.SaveAsync()).Saved);
+        var disk = FileFingerprint.TryRead(file.Path)!;
+        Assert.Equal(disk.Sha256, d.Fingerprint!.Sha256);
+        Assert.Equal(disk.Size, d.Fingerprint.Size);
+        Assert.Equal(disk.LastWriteUtc, d.Fingerprint.LastWriteUtc);
+        Assert.Null(d.CheckExternalChange());
+        Assert.Equal(0, events);
+    }
+
     // ---- async save ----
 
     [Fact]

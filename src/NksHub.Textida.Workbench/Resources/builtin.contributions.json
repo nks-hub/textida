@@ -589,37 +589,37 @@
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.8",
+      "id": "nks.hex.bytesPerRow8",
       "title": "cmd.hex.bytesPerRow.8",
       "category": "cat.hex",
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.16",
+      "id": "nks.hex.bytesPerRow16",
       "title": "cmd.hex.bytesPerRow.16",
       "category": "cat.hex",
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.24",
+      "id": "nks.hex.bytesPerRow24",
       "title": "cmd.hex.bytesPerRow.24",
       "category": "cat.hex",
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.32",
+      "id": "nks.hex.bytesPerRow32",
       "title": "cmd.hex.bytesPerRow.32",
       "category": "cat.hex",
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.48",
+      "id": "nks.hex.bytesPerRow48",
       "title": "cmd.hex.bytesPerRow.48",
       "category": "cat.hex",
       "enablement": "hexMode"
     },
     {
-      "id": "nks.hex.bytesPerRow.64",
+      "id": "nks.hex.bytesPerRow64",
       "title": "cmd.hex.bytesPerRow.64",
       "category": "cat.hex",
       "enablement": "hexMode"
