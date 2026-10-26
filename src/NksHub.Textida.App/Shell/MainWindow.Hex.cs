@@ -139,7 +139,12 @@ internal sealed partial class MainWindow
         od.NotifyChanged();
         OnDocReplacedRefresh(od);
         if (failure is not null) SetStatusMessage(Loc.Get(K.HexSwitchFailed, ("reason", failure.Message)));
-        if (activeTab is not null) FocusView(activeTab);
+        if (activeTab is not null)
+        {
+            FocusView(activeTab);
+            var focusTab = activeTab; // the view has no size and no focus until the first layout
+            Dispatcher.UIThread.Post(() => { if (Active == focusTab) FocusView(focusTab); }, DispatcherPriority.Background);
+        }
         return failure is null;
     }
 

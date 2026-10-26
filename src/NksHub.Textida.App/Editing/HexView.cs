@@ -39,6 +39,7 @@ internal sealed partial class HexView : Grid
     private int _group = 1;
     private bool _decimalOffsets;
     private bool _dragging;
+    private bool _revealWhenSized;
 
     /// <summary>Choices made in one hex view are the starting point of the next one.</summary>
     internal static int LastBytesPerRow { get; private set; } = 16;
@@ -227,11 +228,24 @@ internal sealed partial class HexView : Grid
         _firstRow = Math.Clamp(_firstRow, 0, (long)_bar.Maximum);
         _bar.Value = _firstRow;
         _syncingBar = false;
+        // a jump asked for before the view had a size is shown once it has one
+        if (_revealWhenSized && _canvas.Bounds.Height > 40)
+        {
+            _revealWhenSized = false;
+            CenterIfOutside(Editor.Caret);
+        }
     }
+
+    private bool Sized => _canvas.Bounds.Height > 40;
 
     /// <summary>Scrolls so the byte is on screen: the nearest row, not a jump to the middle.</summary>
     public void Reveal(long offset)
     {
+        if (!Sized)
+        {
+            _revealWhenSized = true;
+            return;
+        }
         long row = offset / _bytesPerRow;
         int visible = VisibleRows;
         if (row < _firstRow) _firstRow = row;
@@ -262,6 +276,11 @@ internal sealed partial class HexView : Grid
     /// <summary>Scrolls to the byte only when its row is off screen, then puts it in the middle: a jump to a far place.</summary>
     public void CenterIfOutside(long offset)
     {
+        if (!Sized)
+        {
+            _revealWhenSized = true;
+            return;
+        }
         long row = offset / _bytesPerRow;
         if (row < _firstRow || row >= _firstRow + VisibleRows) Center(offset);
     }
