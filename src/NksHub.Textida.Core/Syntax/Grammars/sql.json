@@ -53,7 +53,7 @@
     }
   ],
   "rules": [
-    {"match": "--.*", "token": "comment"},
+    {"name": "comment-line", "begin": "--", "end": "$", "token": "comment"},
     {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
     {
       "name": "string",

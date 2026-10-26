@@ -14,10 +14,10 @@
     }
   ],
   "rules": [
-    {"match": "(?<=^[ \\t]*)[;#].*", "token": "comment"},
+    {"name": "comment-line", "begin": "(?<=^[ \\t]*)[;#]", "end": "$", "token": "comment"},
     {"match": "(?<=^[ \\t]*)\\[[^\\]\\r\\n]*\\]", "token": "heading"},
     {"match": "(?<=^[ \\t]*)[^=;#\\[\\s][^=\\r\\n]*?(?=[ \\t]*=)", "token": "property"},
-    {"match": "(?<=[ \\t]);.*", "token": "comment"},
+    {"name": "comment-line", "begin": "(?<=[ \\t]);", "end": "$", "token": "comment"},
     {"name": "dq-string", "begin": "(?<!\\w)\"(?=[^\"\\r\\n]*\")", "end": "\"", "token": "string"},
     {"name": "sq-string", "begin": "(?<!\\w)'(?=[^'\\r\\n]*')", "end": "'", "token": "string"},
     {"match": "\\$\\{[^}\\r\\n]*\\}|%\\([^)\\r\\n]*\\)s", "token": "variable"},

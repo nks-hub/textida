@@ -34,8 +34,8 @@
     }
   ],
   "rules": [
-    {"match": "^#!.*", "token": "meta"},
-    {"match": "(?<=^|[\\s;&|(])#.*", "token": "comment"},
+    {"name": "meta-line", "begin": "^#!", "end": "$", "token": "meta"},
+    {"name": "comment-line", "begin": "(?<=^|[\\s;&|(])#", "end": "$", "token": "comment"},
     {
       "name": "dq-string",
       "begin": "\"",

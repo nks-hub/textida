@@ -28,7 +28,8 @@ public sealed class Tokenizer(Grammar grammar)
     /// A non-final chunk stops a little before its end and returns how far it got, so the caller continues with the rest in front of the next chunk.
     /// Token columns are offset by <paramref name="shift"/>.
     /// </summary>
-    internal int Scan(string text, int begin, bool final, ref LineState state, List<Token> tokens, int shift)
+    internal int Scan(string text, int begin, bool final, ref LineState state, List<Token> tokens, int shift,
+        int firstColumn = 0, int lastColumn = int.MaxValue, Action? regionEnded = null)
     {
         int n = text.Length;
         int limit = final ? n : SafeLimit(text, begin);
@@ -52,7 +53,7 @@ public sealed class Tokenizer(Grammar grammar)
             if (m is not { Success: true } || (final ? m.Index > n : m.Index >= limit))
             {
                 int stop = Math.Max(pos, limit);
-                Emit(tokens, pos, stop, ctx.Token, shift);
+                Emit(tokens, pos, stop, ctx.Token, shift, firstColumn, lastColumn);
                 pos = stop;
                 break;
             }
@@ -64,8 +65,9 @@ public sealed class Tokenizer(Grammar grammar)
 
             if (a.Kind == AltKind.End)
             {
-                Emit(tokens, pos, index, ctx.Token, shift);
-                Emit(tokens, index, index + length, ctx.EndToken, shift);
+                regionEnded?.Invoke();
+                Emit(tokens, pos, index, ctx.Token, shift, firstColumn, lastColumn);
+                Emit(tokens, index, index + length, ctx.EndToken, shift, firstColumn, lastColumn);
                 state = state.Parent!;
                 pos = from = index + length;
                 continue;
@@ -77,19 +79,19 @@ public sealed class Tokenizer(Grammar grammar)
                 continue;
             }
 
-            Emit(tokens, pos, index, ctx.Token, shift);
+            Emit(tokens, pos, index, ctx.Token, shift, firstColumn, lastColumn);
             switch (a.Kind)
             {
                 case AltKind.Match:
-                    Emit(tokens, index, index + length, a.Token, shift);
+                    Emit(tokens, index, index + length, a.Token, shift, firstColumn, lastColumn);
                     break;
                 case AltKind.Word:
-                    Emit(tokens, index, index + length, a.Owner.LookupWord(m.ValueSpan), shift);
+                    Emit(tokens, index, index + length, a.Owner.LookupWord(m.ValueSpan), shift, firstColumn, lastColumn);
                     break;
                 case AltKind.Begin:
                     var child = a.Child!;
                     if (state.Depth < LineState.MaxDepth) state = child.Push(state);
-                    Emit(tokens, index, index + length, child.BeginToken, shift);
+                    Emit(tokens, index, index + length, child.BeginToken, shift, firstColumn, lastColumn);
                     break;
             }
             pos = from = index + length;
@@ -109,19 +111,21 @@ public sealed class Tokenizer(Grammar grammar)
         return limit;
     }
 
-    private static void Emit(List<Token> tokens, int start, int end, string? kind, int shift)
+    private static void Emit(List<Token> tokens, int start, int end, string? kind, int shift, int firstColumn, int lastColumn)
     {
         if (kind is null || end <= start) return;
-        int s = start + shift;
+        int s = Math.Max(start + shift, firstColumn);
+        int e = Math.Min(end + shift, lastColumn);
+        if (e <= s) return;
         if (tokens.Count > 0)
         {
             var last = tokens[^1];
             if (last.End == s && (ReferenceEquals(last.Kind, kind) || last.Kind == kind))
             {
-                tokens[^1] = last with { Length = last.Length + (end - start) };
+                tokens[^1] = last with { Length = last.Length + (e - s) };
                 return;
             }
         }
-        tokens.Add(new Token(s, end - start, kind));
+        tokens.Add(new Token(s, e - s, kind));
     }
 }
