@@ -38,6 +38,7 @@ internal sealed class FindBar : Border
         ReplaceOneButton = TextButton();
         ReplaceAllButton = TextButton();
         GoButton = TextButton();
+        ListButton = TextButton();
         TryButton = TextButton();
         BrowseButton = TextButton();
         CloseButton = new Button { Content = new Avalonia.Controls.Shapes.Path { Data = CloseGlyph, StrokeThickness = 1.2, Width = 8, Height = 8, Stretch = Stretch.None }, VerticalAlignment = VerticalAlignment.Center };
@@ -46,7 +47,7 @@ internal sealed class FindBar : Border
         CountText.Classes.Add("findcount");
 
         FindBox.InnerLeftContent = new Avalonia.Controls.Shapes.Path { Data = SearchGlyph, Stroke = Brushes.Gray, StrokeThickness = 1.3, Width = 14, Height = 14, Stretch = Stretch.Uniform, Margin = new Thickness(8, 0, 0, 0) };
-        foreach (var c in new Control[] { FindBox, CountText, CaseToggle, RegexToggle, WordToggle, SelectionToggle, TryButton, GoButton, ReplaceBox, ReplaceOneButton, ReplaceAllButton, CloseButton })
+        foreach (var c in new Control[] { FindBox, CountText, CaseToggle, RegexToggle, WordToggle, SelectionToggle, TryButton, GoButton, ListButton, ReplaceBox, ReplaceOneButton, ReplaceAllButton, CloseButton })
         {
             c.Margin = c is TextBlock ? c.Margin : new Thickness(0, 2, 4, 2);
             _row.Children.Add(c);
@@ -63,6 +64,7 @@ internal sealed class FindBar : Border
 
         CloseButton.Click += (_, _) => CloseRequested?.Invoke();
         GoButton.Click += (_, _) => GoRequested?.Invoke();
+        ListButton.Click += (_, _) => ListRequested?.Invoke();
         ReplaceOneButton.Click += (_, _) => ReplaceOneRequested?.Invoke();
         ReplaceAllButton.Click += (_, _) => ReplaceAllRequested?.Invoke();
         TryButton.Click += (_, _) => TryRequested?.Invoke();
@@ -85,6 +87,7 @@ internal sealed class FindBar : Border
     public Button ReplaceOneButton { get; }
     public Button ReplaceAllButton { get; }
     public Button GoButton { get; }
+    public Button ListButton { get; }
     public Button TryButton { get; }
     public Button BrowseButton { get; }
     public Button CloseButton { get; }
@@ -102,6 +105,8 @@ internal sealed class FindBar : Border
     public event Action? ReplaceOneRequested;
     public event Action? ReplaceAllRequested;
     public event Action? GoRequested;
+    /// <summary>The matches of the current document are to be listed in the Search Results tab.</summary>
+    public event Action? ListRequested;
     public event Action? TryRequested;
     public event Action? BrowseRequested;
 
@@ -124,6 +129,7 @@ internal sealed class FindBar : Border
         ReplaceAllButton.IsVisible = ReplaceShown && !FilesMode;
         SelectionToggle.IsVisible = !FilesMode;
         GoButton.IsVisible = FilesMode;
+        ListButton.IsVisible = !FilesMode;
         TryButton.IsVisible = RegexToggle.IsChecked == true;
         _folderRow.IsVisible = FilesMode;
         CountText.IsVisible = !FilesMode;
@@ -141,6 +147,7 @@ internal sealed class FindBar : Border
         ReplaceOneButton.Content = Loc.Get(K.FindReplaceOne);
         ReplaceAllButton.Content = Loc.Get(K.FindReplaceAll);
         GoButton.Content = Loc.Get(ReplaceShown ? K.FindPreview : K.FindAll);
+        ListButton.Content = Loc.Get(K.FindList);
         TryButton.Content = Loc.Get(K.FindTry);
         BrowseButton.Content = Loc.Get(K.FindBrowse);
         _folderLabel.Text = Loc.Get(K.FindFolder);

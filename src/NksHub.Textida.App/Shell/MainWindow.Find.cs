@@ -24,6 +24,7 @@ internal sealed partial class MainWindow
 
     private readonly FindBar _find = new();
     private readonly DispatcherTimer _findDebounce = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly DispatcherTimer _findProgress = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private SearchRun? _findRun;
     private int _findGeneration;
     private List<SearchHit> _hits = [];
@@ -50,6 +51,11 @@ internal sealed partial class MainWindow
         _find.ReplaceAllRequested += () => _ = ReplaceAsync(all: true);
         _find.GoRequested += () => _ = RunFilesSearchAsync();
         _find.TryRequested += ShowRegexTester;
+        _find.ListRequested += () => _ = ListFindResultsAsync();
+        _findProgress.Tick += (_, _) =>
+        {
+            if (_findRun is { Progress: { Total: > 0 } p } && _findRunning) _find.ShowCount(Loc.Get(K.FindProgress, ("percent", p.Done * 100 / p.Total)));
+        };
         _find.BrowseRequested += () => _ = BrowseFolderAsync();
         _findDebounce.Tick += (_, _) =>
         {
@@ -119,6 +125,7 @@ internal sealed partial class MainWindow
         _findGeneration++;
         _findRun?.Cancel();
         _findRunning = false;
+        _findProgress.Stop();
         ShowFindMarks(null, null);
         DropScope();
         _find.Close();
@@ -213,6 +220,7 @@ internal sealed partial class MainWindow
         _findRun = run;
         _findRunning = true;
         _find.ShowCount(Loc.Get(K.FindSearching));
+        _findProgress.Start();
         return CollectFindAsync(run, generation, tab, buffer.Snapshot.Revision, jump);
     }
 
@@ -230,6 +238,7 @@ internal sealed partial class MainWindow
         var summary = await run.Completion;
         if (generation != _findGeneration) return;
         _findRunning = false;
+        _findProgress.Stop();
         _hits = hits;
         _hitsRevision = revision;
         _hitsTotal = _scopeStart is null ? summary.TotalMatches : hits.Count;
@@ -243,10 +252,29 @@ internal sealed partial class MainWindow
         if (tooSlow) { _find.ShowCount(Loc.Get(K.FindTooSlow), error: true); return; }
         if (string.IsNullOrEmpty(_find.FindBox.Text)) { _find.ShowCount(""); return; }
         long total = Math.Max(_hitsTotal, _hits.Count);
+        if (!_findRunning && total > _hits.Count) { _find.ShowCount(Loc.Get(K.FindLimit, ("total", total), ("listed", _hits.Count))); return; }
         _find.ShowCount(total == 0 ? Loc.Get(K.FindNone) : _findIndex >= 0 ? Loc.Get(K.FindCount, ("current", _findIndex + 1), ("total", total)) : Loc.Get(K.FindTotal, ("total", total)));
     }
 
     private int _findIndex = -1;
+
+    /// <summary>Lists the matches of the active document in the Search Results tab (searching again first when the listed ones are not of its current text).</summary>
+    private async Task ListFindResultsAsync()
+    {
+        if (Active is not { Custom: null } tab || string.IsNullOrEmpty(_find.FindBox.Text)) return;
+        var doc = tab.Doc.Doc;
+        if (_findRunning || _hitsRevision != doc.Revision || _hitsDocument != doc.Id) await StartFindSearch(jump: false);
+        if (_findRunning || Active != tab || _hitsRevision != doc.Revision || _hits.Count == 0) return;
+        var pattern = FindPattern();
+        var (_, view) = EnsureResultsTab();
+        view.Clear();
+        view.Highlight = RegexTools.Create(pattern);
+        string title = Loc.Get(K.ResultsTitleSearch, ("query", pattern.Text));
+        view.AddHits(_hits, path => path);
+        if (_hitsTotal > _hits.Count) view.SetLimit(Loc.Get(K.ResultsListLimit, ("shown", _hits.Count), ("total", _hitsTotal)));
+        view.SetHeader(title, "");
+        FinishResults(view, Loc.Plural(K.ResultsMatches, _hitsTotal));
+    }
 
     // ---- stepping ----
 
