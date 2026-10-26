@@ -32,9 +32,58 @@ internal sealed class ByteTextMap
         _orig = original;
         _codec = codec;
         if (original.Length > 0) _runs.Add(new Run { Original = true, Bytes = original.Length, Chars = chars });
+        _totalBytes = original.Length;
     }
 
-    public long TotalBytes => _runs.Sum(r => (long)r.Bytes);
+    // Start of every run in bytes and chars. Entries below _valid are known; a change at run i keeps the entries up to i, and lookups
+    // extend the known part forward only as far as they need, so a batch of edits from the end of the text to its start stays cheap.
+    private long[] _byteStart = new long[8];
+    private int[] _charStart = new int[8];
+    private int _valid = 1;
+
+    private int ExtendedChar(int entry)
+    {
+        ExtendTo(entry);
+        return _charStart[entry];
+    }
+
+    private void Invalidate(int fromRun) => _valid = Math.Min(_valid, fromRun + 1);
+
+    private void ExtendTo(int entry)
+    {
+        int n = _runs.Count;
+        entry = Math.Min(entry, n);
+        if (_byteStart.Length < n + 1) { Array.Resize(ref _byteStart, n + 1 + n / 2); Array.Resize(ref _charStart, n + 1 + n / 2); }
+        for (; _valid <= entry; _valid++)
+        {
+            _byteStart[_valid] = _byteStart[_valid - 1] + _runs[_valid - 1].Bytes;
+            _charStart[_valid] = _charStart[_valid - 1] + _runs[_valid - 1].Chars;
+        }
+    }
+
+    /// <summary>First run whose end is at or after <paramref name="target"/> (chars or bytes); the run count when there is none. The entries up to the answer and the one after it are known afterwards.</summary>
+    private int Locate(bool chars, long target)
+    {
+        int n = _runs.Count;
+        if (n == 0 || target <= 0) return 0;
+        long Start(int i) => chars ? _charStart[i] : _byteStart[i];
+        while (_valid <= n && Start(_valid - 1) < target) ExtendTo(_valid);
+        int lo = 0, hi = Math.Min(_valid - 1, n); // either Start(hi) >= target, or hi == n and the target is past the end
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            if (Start(mid + 1) >= target) hi = mid; else lo = mid + 1;
+        }
+        return lo;
+    }
+
+    private long _totalBytes;
+
+    public long TotalBytes => _totalBytes;
+
+    private int RunEndingAtOrAfterChar(int c) => Locate(true, c);
+
+    private int RunEndingAtOrAfterByte(long b) => Locate(false, b);
 
     private List<(int Char, int Byte)> Checkpoints()
     {
@@ -114,6 +163,7 @@ internal sealed class ByteTextMap
         if (k == 0) return (0, false);
         if (k == r.Chars) return (r.Bytes, false);
         var (chars, bytes) = StartAtChar(r, k);
+        if (chars == k) return (bytes, false); // the walk starts exactly on a checkpoint
         foreach (var (c, b) in Units(r, chars, bytes))
         {
             if (chars + c > k) return (bytes, true);
@@ -129,6 +179,7 @@ internal sealed class ByteTextMap
         if (b == 0) return 0;
         if (b == r.Bytes) return r.Chars;
         var (chars, bytes) = StartAtByte(r, b);
+        if (bytes == b) return chars; // the walk starts exactly on a checkpoint
         foreach (var (c, n) in Units(r, chars, bytes))
         {
             chars += c;
@@ -143,93 +194,66 @@ internal sealed class ByteTextMap
     public long CharToByte(int c, out bool splitsPair)
     {
         splitsPair = false;
-        long bytes = 0;
-        int chars = 0;
-        foreach (var r in _runs)
+        int i = RunEndingAtOrAfterChar(c);
+        if (i == _runs.Count)
         {
-            if (c <= chars + r.Chars)
-            {
-                var (b, split) = LocalCharsToBytes(r, c - chars);
-                splitsPair = split;
-                return bytes + b;
-            }
-            chars += r.Chars;
-            bytes += r.Bytes;
+            if (c == _charStart[i]) return _byteStart[i];
+            throw new ArgumentOutOfRangeException(nameof(c));
         }
-        if (c == chars) return bytes;
-        throw new ArgumentOutOfRangeException(nameof(c));
+        var (b, split) = LocalCharsToBytes(_runs[i], c - _charStart[i]);
+        splitsPair = split;
+        return _byteStart[i] + b;
     }
 
-    /// <summary>Byte offsets (after the BOM) of char offsets given in ascending order, found in one walk over the runs.</summary>
-    public long[] CharsToBytes(ReadOnlySpan<int> ascending)
+    /// <summary>Byte offsets (after the BOM) of char offsets.</summary>
+    public long[] CharsToBytes(ReadOnlySpan<int> chars)
     {
-        var result = new long[ascending.Length];
-        int run = 0, chars = 0;
-        long bytes = 0;
-        for (int q = 0; q < ascending.Length; q++)
-        {
-            int c = ascending[q];
-            while (run < _runs.Count && c > chars + _runs[run].Chars)
-            {
-                chars += _runs[run].Chars;
-                bytes += _runs[run].Bytes;
-                run++;
-            }
-            if (run == _runs.Count)
-            {
-                if (c != chars) throw new ArgumentOutOfRangeException(nameof(ascending));
-                result[q] = bytes;
-            }
-            else result[q] = bytes + LocalCharsToBytes(_runs[run], c - chars).Bytes;
-        }
+        var result = new long[chars.Length];
+        for (int q = 0; q < chars.Length; q++) result[q] = CharToByte(chars[q], out _);
         return result;
     }
 
     public int ByteToChar(long b)
     {
-        long bytes = 0;
-        int chars = 0;
-        foreach (var r in _runs)
+        int i = RunEndingAtOrAfterByte(b);
+        if (i == _runs.Count)
         {
-            if (b <= bytes + r.Bytes) return chars + LocalBytesToChars(r, (int)(b - bytes));
-            chars += r.Chars;
-            bytes += r.Bytes;
+            if (b == _byteStart[i]) return _charStart[i];
+            throw new ArgumentOutOfRangeException(nameof(b));
         }
-        if (b == bytes) return chars;
-        throw new ArgumentOutOfRangeException(nameof(b));
+        return _charStart[i] + LocalBytesToChars(_runs[i], (int)(b - _byteStart[i]));
     }
 
     /// <summary>Index of the run that starts exactly at char <paramref name="c"/>, splitting a run when needed.</summary>
     private int SplitAt(int c)
     {
-        int chars = 0;
-        for (int i = 0; i < _runs.Count; i++)
+        int i = RunEndingAtOrAfterChar(c);
+        // a run that ends exactly at c is followed by the one that starts there
+        while (i < _runs.Count && ExtendedChar(i + 1) == c) i++;
+        if (i == _runs.Count)
         {
-            var r = _runs[i];
-            if (c == chars) return i;
-            if (c < chars + r.Chars)
-            {
-                int k = c - chars;
-                var (b, _) = LocalCharsToBytes(r, k);
-                Run left, right;
-                if (r.Original)
-                {
-                    left = new Run { Original = true, OrigByte = r.OrigByte, OrigChar = r.OrigChar, Bytes = b, Chars = k };
-                    right = new Run { Original = true, OrigByte = r.OrigByte + b, OrigChar = r.OrigChar + k, Bytes = r.Bytes - b, Chars = r.Chars - k };
-                }
-                else
-                {
-                    left = new Run { Data = r.Data!.AsSpan(0, b).ToArray(), Bytes = b, Chars = k, Text = r.Text?[..k] };
-                    right = new Run { Data = r.Data.AsSpan(b).ToArray(), Bytes = r.Bytes - b, Chars = r.Chars - k, Text = r.Text?[k..] };
-                }
-                _runs[i] = left;
-                _runs.Insert(i + 1, right);
-                return i + 1;
-            }
-            chars += r.Chars;
+            if (c == _charStart[i]) return i;
+            throw new ArgumentOutOfRangeException(nameof(c));
         }
-        if (c == chars) return _runs.Count;
-        throw new ArgumentOutOfRangeException(nameof(c));
+        if (_charStart[i] == c) return i;
+        var r = _runs[i];
+        int k = c - _charStart[i];
+        var (b, _) = LocalCharsToBytes(r, k);
+        Run left, right;
+        if (r.Original)
+        {
+            left = new Run { Original = true, OrigByte = r.OrigByte, OrigChar = r.OrigChar, Bytes = b, Chars = k };
+            right = new Run { Original = true, OrigByte = r.OrigByte + b, OrigChar = r.OrigChar + k, Bytes = r.Bytes - b, Chars = r.Chars - k };
+        }
+        else
+        {
+            left = new Run { Data = r.Data!.AsSpan(0, b).ToArray(), Bytes = b, Chars = k, Text = r.Text?[..k] };
+            right = new Run { Data = r.Data.AsSpan(b).ToArray(), Bytes = r.Bytes - b, Chars = r.Chars - k, Text = r.Text?[k..] };
+        }
+        _runs[i] = left;
+        _runs.Insert(i + 1, right);
+        Invalidate(i);
+        return i + 1;
     }
 
     /// <summary>Replaces chars <c>[c0, c1)</c> (both unit boundaries) and returns the bytes that were removed.</summary>
@@ -241,6 +265,8 @@ internal sealed class ByteTextMap
         for (int i = i0; i < i1; i++) removed.AddRange(BytesOf(_runs[i]).ToArray());
         _runs.RemoveRange(i0, i1 - i0);
         if (bytes.Length > 0 || chars > 0) _runs.Insert(i0, new Run { Data = bytes, Bytes = bytes.Length, Chars = chars, Text = text });
+        _totalBytes += bytes.Length - removed.Count;
+        Invalidate(i0);
         return [.. removed];
     }
 
@@ -257,18 +283,17 @@ internal sealed class ByteTextMap
 
     public int Read(long offset, Span<byte> destination)
     {
-        long at = 0;
         int done = 0;
-        foreach (var r in _runs)
+        for (int i = RunEndingAtOrAfterByte(offset + 1); i < _runs.Count && done < destination.Length; i++)
         {
-            if (done == destination.Length) break;
-            if (offset + done >= at + r.Bytes) { at += r.Bytes; continue; }
-            int skip = (int)(offset + done - at);
-            var src = BytesOf(r)[skip..];
+            var r = _runs[i];
+            ExtendTo(i);
+            long at = _byteStart[i];
+            if (offset + done >= at + r.Bytes) continue;
+            var src = BytesOf(r)[(int)(offset + done - at)..];
             int n = Math.Min(src.Length, destination.Length - done);
             src[..n].CopyTo(destination[done..]);
             done += n;
-            at += r.Bytes;
         }
         return done;
     }

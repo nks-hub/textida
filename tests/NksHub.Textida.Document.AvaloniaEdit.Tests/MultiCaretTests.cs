@@ -350,4 +350,24 @@ public class MultiCaretTests
         doc.Undo();
         Assert.Equal(original, doc.ReadBytes(new ByteRange(0, doc.ByteLength)));
     }
+
+    [Fact]
+    public void Offsets_that_fall_on_a_checkpoint_of_the_byte_map_convert_both_ways_and_edit_exactly()
+    {
+        string text = string.Concat(Enumerable.Repeat("0123456789abcdef", 400)); // 6400 chars, checkpoints every 1024
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(text), AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        var backend = (AvaloniaEditBackend)doc.Backend;
+        foreach (int c in new[] { 1024, 2048, 3072, 6144 })
+        {
+            Assert.Equal(c, backend.ToByteOffset(c));
+            Assert.True(backend.TryToCharOffset(c, out int back));
+            Assert.Equal(c, back);
+        }
+        var carets = Carets.Create([Sel.At(1024), Sel.At(2048), Sel.At(3072)], 0);
+        var applied = MultiEdit.Apply(doc, backend, carets, MultiEdit.PlanText(carets, "é"));
+        Assert.True(applied.Edit.Applied);
+        string expected = text.Insert(3072, "é").Insert(2048, "é").Insert(1024, "é");
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), doc.ReadBytes(new ByteRange(0, doc.ByteLength)));
+        Assert.Equal(expected, backend.TextDocument.Text);
+    }
 }
