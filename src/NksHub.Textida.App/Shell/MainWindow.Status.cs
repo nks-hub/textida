@@ -59,7 +59,7 @@ internal sealed partial class MainWindow
     private void UpdateStatusCore()
     {
         CheckJournalHealth();
-        _statusRight.Children.Clear();
+        if (Active is not { Custom: null, Hex: null }) _statusRight.Children.Clear(); // a text tab keeps its items and swaps them only when they differ
         if (Active is not { } tab)
         {
             _statusLeft.Text = Loc.Get(K.StatusReady);
@@ -118,12 +118,22 @@ internal sealed partial class MainWindow
 
         var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem };
         if (_configItem.IsVisible) items.Add(_configItem);
+        var shown = new List<Control>(items.Count * 2);
         for (int i = 0; i < items.Count; i++)
         {
-            if (i > 0) _statusRight.Children.Add(StatusDot());
-            _statusRight.Children.Add(items[i]);
+            if (i > 0)
+            {
+                while (_statusDots.Count < i) _statusDots.Add(StatusDot());
+                shown.Add(_statusDots[i - 1]);
+            }
+            shown.Add(items[i]);
         }
+        if (_statusRight.Children.SequenceEqual(shown)) return;
+        _statusRight.Children.Clear();
+        _statusRight.Children.AddRange(shown);
     }
+
+    private readonly List<Border> _statusDots = [];
 
     private static Border StatusDot()
     {
