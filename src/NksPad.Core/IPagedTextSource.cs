@@ -4,7 +4,7 @@ namespace NksPad.Core;
 public interface IPagedTextSource : IDisposable
 {
     long ByteLength { get; }
-    System.Text.Encoding Encoding { get; }
+    Encodings.TextCodec Codec { get; }
     /// <summary>Known line count so far and whether indexing finished.</summary>
     (long Lines, bool Complete) LineIndexState { get; }
     event EventHandler? IndexProgress;

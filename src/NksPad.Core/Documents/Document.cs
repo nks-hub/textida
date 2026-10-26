@@ -1,3 +1,5 @@
+using NksPad.Core.Encodings;
+
 namespace NksPad.Core.Documents;
 
 /// <summary>
@@ -12,7 +14,8 @@ public sealed partial class Document : IDisposable
     private readonly List<ChangeSet> _log = [];
     private readonly List<WeakReference<Anchor>> _anchors = [];
     private IByteBackend _backend;
-    private ByteCodec _codec;
+    private TextCodec _codec;
+    private int _bomLength;
     private long _revision;
     private DocumentSnapshot? _snapshot;
     private bool _disposed;
@@ -20,7 +23,8 @@ public sealed partial class Document : IDisposable
     private Document(IByteBackend backend, DocumentOptions? options, string? path, FileFingerprint? fingerprint, bool unsaved)
     {
         _backend = backend;
-        _codec = new ByteCodec(backend.Format);
+        _codec = backend.Codec;
+        _bomLength = BomOf(backend, _codec);
         _logCapacity = Math.Max(1, options?.ChangeLogCapacity ?? new DocumentOptions().ChangeLogCapacity);
         FilePath = path;
         Fingerprint = fingerprint;
@@ -31,8 +35,10 @@ public sealed partial class Document : IDisposable
     public Guid Id { get; } = Guid.NewGuid();
     public long Revision => _revision;
     public long ByteLength => _backend.ByteLength;
-    public DetectedEncoding Format => _codec.Format;
-    public ByteCodec Codec => _codec;
+    /// <summary>How the bytes are read as text. Changes through <see cref="ReinterpretAs"/>, <see cref="ConvertTo"/> and their undo.</summary>
+    public TextCodec Codec => _codec;
+    /// <summary>Bytes at the start that are a byte order mark of <see cref="Codec"/> and not text.</summary>
+    public int BomLength => _bomLength;
     public BackendCapabilities Capabilities => _backend.Capabilities;
     public IByteBackend Backend => _backend;
     public event EventHandler<DocumentChangedEventArgs>? Changed;
@@ -40,7 +46,7 @@ public sealed partial class Document : IDisposable
     /// <summary>Creates an unnamed document over a copy of the bytes. It counts as unsaved until it is saved.</summary>
     public static Document FromBytes(ReadOnlyMemory<byte> bytes, IBackendFactory factory, DocumentOptions? options = null)
     {
-        var format = options?.Format ?? EncodingDetector.Detect(bytes.Span[..Math.Min(bytes.Length, SampleSize)], bytes.Length <= SampleSize);
+        var format = options?.Format ?? EncodingGuesser.Guess(bytes.Span[..Math.Min(bytes.Length, SampleSize)], bytes.Length <= SampleSize).Codec;
         return new Document(factory.Create(bytes, format), options, null, null, unsaved: true);
     }
 
@@ -65,12 +71,12 @@ public sealed partial class Document : IDisposable
 
     private const int SampleSize = 1 << 20;
 
-    private static DetectedEncoding DetectFile(string path)
+    private static TextCodec DetectFile(string path)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         var sample = new byte[(int)Math.Min(fs.Length, SampleSize)];
         fs.ReadExactly(sample);
-        return EncodingDetector.Detect(sample, fs.Length <= SampleSize);
+        return EncodingGuesser.Guess(sample, fs.Length <= SampleSize).Codec;
     }
 
     private static string HashBackend(IByteBackend backend)
@@ -106,23 +112,23 @@ public sealed partial class Document : IDisposable
     /// <summary>Text view of a range; both ends must be character boundaries inside the text (not in the BOM).</summary>
     public string ReadText(ByteRange range)
     {
-        if (range.End > ByteLength || range.Start < _codec.BomLength) throw new ArgumentOutOfRangeException(nameof(range));
+        if (range.End > ByteLength || range.Start < _bomLength) throw new ArgumentOutOfRangeException(nameof(range));
         if (!IsCharBoundary(range.Start) || !IsCharBoundary(range.End)) throw new ArgumentException("The range does not fall on character boundaries.", nameof(range));
         return _backend.ReadText(range);
     }
 
     public bool IsCharBoundary(long offset)
     {
-        if (offset < _codec.BomLength || offset > ByteLength) return false;
-        if (offset == _codec.BomLength || offset == ByteLength) return true;
+        if (offset < _bomLength || offset > ByteLength) return false;
+        if (offset == _bomLength || offset == ByteLength) return true;
         var (window, pos) = Window(offset, 4, 4);
         return _codec.IsBoundary(window, pos);
     }
 
     private (byte[] Window, int Pos) Window(long offset, int before, int after)
     {
-        long start = Math.Max(_codec.BomLength, offset - before);
-        if (_codec.Alignment == 2 && ((start - _codec.BomLength) & 1) == 1) start--;
+        long start = Math.Max(_bomLength, offset - before);
+        start -= (start - _bomLength) % _codec.Alignment;
         long end = Math.Min(ByteLength, offset + after);
         var window = new byte[end - start];
         _backend.Read(start, window);
@@ -164,7 +170,7 @@ public sealed partial class Document : IDisposable
         if (ByteLength > Array.MaxLength) throw new NotSupportedException("Switching a document over 2 GiB is not supported.");
         var bytes = new byte[ByteLength];
         _backend.Read(0, bytes);
-        var next = factory.Create(bytes, Format);
+        var next = factory.Create(bytes, _codec);
         _backend.EditedByBackend -= OnBackendEdit;
         var old = _backend;
         _backend = next;
@@ -188,9 +194,9 @@ public sealed partial class Document : IDisposable
 public sealed class DocumentSnapshot
 {
     private readonly IByteSnapshot _bytes;
-    private readonly ByteCodec _codec;
+    private readonly TextCodec _codec;
 
-    internal DocumentSnapshot(Guid documentId, long revision, IByteSnapshot bytes, ByteCodec codec)
+    internal DocumentSnapshot(Guid documentId, long revision, IByteSnapshot bytes, TextCodec codec)
     {
         DocumentId = documentId;
         Revision = revision;
@@ -212,5 +218,5 @@ public sealed class DocumentSnapshot
     }
 
     /// <summary>Decodes a range whose ends are character boundaries of this revision.</summary>
-    public string ReadText(ByteRange range) => _codec.Decode(ReadBytes(range));
+    public string ReadText(ByteRange range) => _codec.GetString(ReadBytes(range));
 }

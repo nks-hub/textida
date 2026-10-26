@@ -112,7 +112,7 @@ public class LineIndexTests
     {
         using var f = new TempFile([0xEF, 0xBB, 0xBF, .. "ahoj\nsvět"u8.ToArray()]);
         using var src = OpenIndexed(f, 4);
-        Assert.Equal(EncodingKind.Utf8, src.Detected.Kind);
+        Assert.Same(Encodings.TextCodec.Utf8Bom, src.Codec);
         Assert.Equal(["ahoj", "svět"], src.ReadLines(0, 10));
     }
 
@@ -123,7 +123,7 @@ public class LineIndexTests
         var cp = Encoding.GetEncoding(1250);
         using var f = new TempFile(cp.GetBytes("příliš žluťoučký\nkůň"));
         using var src = OpenIndexed(f, 8);
-        Assert.Equal(EncodingKind.SingleByte, src.Detected.Kind);
+        Assert.Same(Encodings.TextCodec.Cp1250, src.Codec);
         Assert.Equal(["příliš žluťoučký", "kůň"], src.ReadLines(0, 10));
     }
 

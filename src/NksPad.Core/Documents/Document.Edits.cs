@@ -1,10 +1,12 @@
+using NksPad.Core.Encodings;
+
 namespace NksPad.Core.Documents;
 
 public sealed partial class Document
 {
     private readonly record struct Pending(long Start, long Deleted, ReadOnlyMemory<byte> Insert);
     private readonly record struct AppliedEdit(long Offset, byte[] Removed, byte[] Inserted);
-    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After);
+    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null);
 
     private sealed class UndoEntry(string? key)
     {
@@ -54,7 +56,7 @@ public sealed partial class Document
         for (int k = 0; k < work.Count; k++)
         {
             var w = work[k];
-            if (w.Start < _codec.BomLength || w.Start + w.Deleted > ByteLength) return EditResult.Fail(ConflictReason.InvalidRange, _revision);
+            if (w.Start < _bomLength || w.Start + w.Deleted > ByteLength) return EditResult.Fail(ConflictReason.InvalidRange, _revision);
             if (k > 0)
             {
                 var p = work[k - 1];
@@ -251,6 +253,7 @@ public sealed partial class Document
                 shift += e.Inserted.Length - e.Removed.Length;
             }
             Execute(work, validate: false, captureRemoved: false, out _);
+            if (entry.Steps[s].CodecBefore is { } before) SetCodec(before);
             Commit(ChangeKind.Undo, null, work, null, null);
         }
         return new(_revision, entry.Steps[0].Before ?? []);
@@ -268,6 +271,7 @@ public sealed partial class Document
         {
             var work = step.Edits.Select(e => new Pending(e.Offset, e.Removed.Length, e.Inserted)).ToList();
             Execute(work, validate: false, captureRemoved: false, out _);
+            if (step.CodecAfter is { } after) SetCodec(after);
             Commit(ChangeKind.Redo, null, work, null, null);
         }
         return new(_revision, entry.Steps[^1].After ?? []);

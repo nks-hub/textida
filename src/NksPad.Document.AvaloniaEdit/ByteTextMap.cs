@@ -1,5 +1,4 @@
-using System.Text;
-using NksPad.Core.Documents;
+using NksPad.Core.Encodings;
 
 namespace NksPad.AvaloniaEditAdapter;
 
@@ -24,11 +23,11 @@ internal sealed class ByteTextMap
     }
 
     private readonly byte[] _orig;
-    private readonly ByteCodec _codec;
+    private readonly TextCodec _codec;
     private List<(int Char, int Byte)>? _checkpoints;
     private List<Run> _runs = [];
 
-    public ByteTextMap(byte[] original, ByteCodec codec, int chars)
+    public ByteTextMap(byte[] original, TextCodec codec, int chars)
     {
         _orig = original;
         _codec = codec;
@@ -65,7 +64,7 @@ internal sealed class ByteTextMap
             for (int i = 0; i < text.Length;)
             {
                 int n = char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]) ? 2 : 1;
-                yield return (n, _codec.Encoding.GetByteCount(text.AsSpan(i, n)));
+                yield return (n, _codec.LossyByteCount(text.AsSpan(i, n)));
                 i += n;
             }
             yield break;

@@ -1,3 +1,5 @@
+using NksPad.Core.Encodings;
+
 namespace NksPad.Core.Documents;
 
 /// <summary>Half-open byte range <c>[Start, End)</c> of one document revision.</summary>
@@ -42,6 +44,8 @@ public enum ConflictReason
     EditsOverlap,
     /// <summary>Outside the document, inside the BOM, or not on a character boundary (also after the edit).</summary>
     InvalidRange,
+    /// <summary>The change would lose characters and no replacement was confirmed.</summary>
+    LossNotConfirmed,
 }
 
 public readonly record struct EditResult(bool Applied, long Revision, ConflictReason Conflict)
@@ -67,7 +71,8 @@ public sealed class EditOptions
     public string? Source { get; init; }
 }
 
-public enum ChangeKind { Edit, Undo, Redo, Backend }
+/// <summary><c>View</c> changed how the bytes are read (re-read as another encoding) and no byte.</summary>
+public enum ChangeKind { Edit, Undo, Redo, Backend, View }
 
 /// <summary>One change as stored in the log: edits in the coordinates of the previous revision, ascending and disjoint.</summary>
 public sealed record ChangeSet(long Revision, ChangeKind Kind, string? Source, IReadOnlyList<ChangeSet.Span> Edits)
@@ -85,7 +90,7 @@ public sealed class DocumentOptions
     /// <summary>Number of change log entries kept; a request based on an older revision is a conflict.</summary>
     public int ChangeLogCapacity { get; init; } = 4096;
     /// <summary>Forces the encoding instead of detecting it.</summary>
-    public DetectedEncoding? Format { get; init; }
+    public TextCodec? Format { get; init; }
 }
 
 public enum AnchorGravity

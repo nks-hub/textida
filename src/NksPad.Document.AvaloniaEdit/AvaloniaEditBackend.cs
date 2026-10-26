@@ -1,6 +1,6 @@
 using AvaloniaEdit.Document;
-using NksPad.Core;
 using NksPad.Core.Documents;
+using NksPad.Core.Encodings;
 
 namespace NksPad.AvaloniaEditAdapter;
 
@@ -10,7 +10,7 @@ public sealed class AvaloniaEditBackendFactory : IBackendFactory
     internal static readonly BackendCapabilities Caps = new("avaloniaedit", int.MaxValue, SupportsUtf16: true, PositionsMayBeUnknown: false, MaterializesText: true);
     public static AvaloniaEditBackendFactory Instance { get; } = new();
     public BackendCapabilities Capabilities => Caps;
-    public IByteBackend Create(ReadOnlyMemory<byte> bytes, DetectedEncoding format) => new AvaloniaEditBackend(bytes.ToArray(), format);
+    public IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec) => new AvaloniaEditBackend(bytes.ToArray(), codec);
 }
 
 /// <summary>
@@ -26,29 +26,58 @@ public sealed class AvaloniaEditBackendFactory : IBackendFactory
 /// </remarks>
 public sealed class AvaloniaEditBackend : IByteBackend
 {
-    private readonly ByteCodec _codec;
-    private readonly byte[] _bom;
-    private readonly ByteTextMap _map;
+    private TextCodec _codec;
+    private byte[] _bom = [];
+    private ByteTextMap _map = null!;
     private bool _applying;
 
-    public AvaloniaEditBackend(byte[] bytes, DetectedEncoding format)
+    public AvaloniaEditBackend(byte[] bytes, TextCodec codec)
     {
-        _codec = new ByteCodec(format);
-        Format = format;
-        _bom = bytes.AsSpan(0, Math.Min(format.BomLength, bytes.Length)).ToArray();
-        var body = bytes.AsSpan(_bom.Length).ToArray();
-        string text = _codec.Decode(body);
-        _map = new ByteTextMap(body, _codec, text.Length);
+        _codec = codec;
+        string text = Load(bytes);
         TextDocument = new TextDocument(text);
         TextDocument.UndoStack.SizeLimit = 0;
         TextDocument.Changed += OnTextChanged;
+    }
+
+    /// <summary>Splits off the BOM, decodes the rest and builds the byte map; returns the text to show.</summary>
+    private string Load(byte[] bytes)
+    {
+        _bom = bytes.AsSpan(0, _codec.BomLengthIn(bytes)).ToArray();
+        var body = bytes.AsSpan(_bom.Length).ToArray();
+        string text = _codec.GetString(body);
+        _map = new ByteTextMap(body, _codec, text.Length);
+        return text;
+    }
+
+    private byte[] AllBytes()
+    {
+        using var ms = new MemoryStream(checked((int)ByteLength));
+        CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    private void Show(string text)
+    {
+        _applying = true;
+        try { TextDocument.Replace(0, TextDocument.TextLength, text); }
+        finally { _applying = false; }
+    }
+
+    public bool Supports(TextCodec codec) => true;
+
+    public void Reinterpret(TextCodec codec)
+    {
+        var bytes = AllBytes();
+        _codec = codec;
+        Show(Load(bytes));
     }
 
     /// <summary>The document the text control binds to.</summary>
     public TextDocument TextDocument { get; }
 
     public BackendCapabilities Capabilities => AvaloniaEditBackendFactory.Caps;
-    public DetectedEncoding Format { get; }
+    public TextCodec Codec => _codec;
     public long ByteLength => _bom.Length + _map.TotalBytes;
     public string? BackingPath => null;
     public event Action<BackendEdit>? EditedByBackend;
@@ -67,10 +96,21 @@ public sealed class AvaloniaEditBackend : IByteBackend
 
     public void Replace(long offset, long deleteLength, ReadOnlySpan<byte> insert)
     {
+        if (offset < _bom.Length)
+        {
+            // an edit inside the BOM can change where the text starts: rebuild from the spliced bytes
+            var all = AllBytes();
+            var spliced = new byte[all.Length - deleteLength + insert.Length];
+            all.AsSpan(0, (int)offset).CopyTo(spliced);
+            insert.CopyTo(spliced.AsSpan((int)offset));
+            all.AsSpan((int)(offset + deleteLength)).CopyTo(spliced.AsSpan((int)offset + insert.Length));
+            Show(Load(spliced));
+            return;
+        }
         int c0 = _map.ByteToChar(offset - _bom.Length);
         int c1 = _map.ByteToChar(offset + deleteLength - _bom.Length);
         var bytes = insert.ToArray();
-        string text = _codec.Decode(bytes);
+        string text = _codec.GetString(bytes);
         _applying = true;
         try { TextDocument.Replace(c0, c1 - c0, text); }
         finally { _applying = false; }
@@ -88,7 +128,7 @@ public sealed class AvaloniaEditBackend : IByteBackend
         if (splitStart) c0--;
         if (splitEnd) c1++;
         string text = prefix + e.InsertedText.Text + suffix;
-        var bytes = _codec.Encode(text);
+        var bytes = _codec.EncodeLossy(text);
         var removed = _map.Replace(c0, c1, bytes, text, text.Length);
         EditedByBackend?.Invoke(new BackendEdit(_bom.Length + b0, removed, bytes));
     }

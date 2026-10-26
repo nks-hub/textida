@@ -1,6 +1,6 @@
 using System.Text;
 using NksPad.AvaloniaEditAdapter;
-using NksPad.Core;
+using NksPad.Core.Encodings;
 using NksPad.Core.Documents;
 using NksPad.Document.Contract;
 using Doc = NksPad.Core.Documents.Document;
@@ -9,6 +9,16 @@ namespace NksPad.Document.AvaloniaEdit.Tests;
 
 /// <summary>P1.2.7 and P1.2.10 over the AvaloniaEdit adapter: the same contract suite, plus the byte checks that need its text control.</summary>
 public class AvaloniaEditContractTests : DocumentContractSuite
+{
+    protected override IBackendFactory Factory => AvaloniaEditBackendFactory.Instance;
+}
+
+public class AvaloniaEditByteFidelityGate : ByteFidelityGateSuite
+{
+    protected override IBackendFactory Factory => AvaloniaEditBackendFactory.Instance;
+}
+
+public class AvaloniaEditEncodingOperations : DocumentEncodingSuite
 {
     protected override IBackendFactory Factory => AvaloniaEditBackendFactory.Instance;
 }
@@ -98,6 +108,37 @@ public class AdapterTests
     }
 
     [Fact]
+    public void ReReadConvertAndTheirUndoKeepTheTextControlInStepWithTheBytes()
+    {
+        const string crlf = "příliš\r\nžlutý";
+        byte[] original = [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes(crlf)];
+        using var d = Doc.FromBytes(original, AvaloniaEditBackendFactory.Instance);
+        var text = Backend(d).TextDocument;
+        Assert.Equal(crlf, text.Text);
+
+        d.ReinterpretAs(TextCodec.Cp1250);
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        Assert.Equal(Encoding.GetEncoding(1250).GetString(original), text.Text);
+        d.ReinterpretAs(TextCodec.Utf8Bom);
+        Assert.Equal(crlf, text.Text);
+
+        Assert.True(d.ConvertTo(TextCodec.Utf16BE).Applied);
+        Assert.Equal(crlf, text.Text);
+        Assert.Equal(new UnicodeEncoding(true, false).GetBytes(crlf), d.ReadBytes(new(0, d.ByteLength)));
+        text.Replace(0, 1, "P");
+        d.Undo();
+        d.Undo();
+        Assert.Equal(original, d.ReadBytes(new(0, d.ByteLength)));
+        Assert.Equal(crlf, text.Text);
+        Assert.Same(TextCodec.Utf8Bom, d.Codec);
+
+        Assert.True(d.UnifyEol(Core.Encodings.EolStyle.Lf).Applied);
+        Assert.Equal("příliš\nžlutý", text.Text);
+        d.Undo();
+        Assert.Equal(crlf, text.Text);
+    }
+
+    [Fact]
     public void OpenTypeOneCharacterSaveWritesOnlyThatRange()
     {
         using var dir = new TempDir();
@@ -105,7 +146,7 @@ public class AdapterTests
         byte[] original = [0xEF, 0xBB, 0xBF, .. "a\r\nb\nc\rd"u8, 0xE2, 0x82, (byte)'x', 0xFF, 0xC3, 0xA9, 0x80, .. "\r\n\r"u8];
         File.WriteAllBytes(path, original);
         using var d = Doc.Open(path, AvaloniaEditBackendFactory.Instance);
-        Assert.Equal(TestFormat.Utf8Bom.Format.Kind, d.Format.Kind);
+        Assert.Same(TextCodec.Utf8Bom, d.Codec);
         Assert.True(d.Save().Saved);
         Assert.Equal(original, File.ReadAllBytes(path));
 

@@ -1,4 +1,4 @@
-using System.Text;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core;
 
@@ -58,7 +58,7 @@ public static class LineScanner
     /// Decodes whole lines from <paramref name="data"/>. When <paramref name="atEof"/> is false the span is
     /// only a window: an unterminated tail and a CR at the last byte are left undecoded.
     /// </summary>
-    public static List<string> Decode(ReadOnlySpan<byte> data, Encoding enc, int maxLines, bool atEof)
+    public static List<string> Decode(ReadOnlySpan<byte> data, TextCodec enc, int maxLines, bool atEof)
     {
         var lines = new List<string>(Math.Min(maxLines, 256));
         int pos = 0;

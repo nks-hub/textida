@@ -34,7 +34,7 @@ public static class RandomizedParity
     {
         var r = new Random(seed);
         byte[] initial = [.. (seed % 2 == 0 ? new byte[] { 0xEF, 0xBB, 0xBF } : []), .. RandomBytes(r, 40)];
-        var format = TestFormat.Utf8Bom.Format with { BomLength = initial.AsSpan().StartsWith("﻿"u8) ? 3 : 0 };
+        var format = TestFormat.Utf8Bom.Format;
         var docs = factories.Select(f => Doc.FromBytes(initial, f, new DocumentOptions { Format = format, ChangeLogCapacity = 64 })).ToArray();
         try
         {

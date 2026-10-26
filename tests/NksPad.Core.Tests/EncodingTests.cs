@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Unicode;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core.Tests;
 
@@ -70,19 +71,15 @@ public class EncodingTests
     public void DetectionCoversBomsUtf8Utf16AndFallback()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        Assert.Equal(EncodingKind.Ascii, EncodingDetector.Detect("plain"u8, true).Kind);
-        Assert.Equal(EncodingKind.Utf8, EncodingDetector.Detect("příliš"u8, true).Kind);
-        var bom = EncodingDetector.Detect([0xEF, 0xBB, 0xBF, (byte)'a'], true);
-        Assert.Equal((EncodingKind.Utf8, 3), (bom.Kind, bom.BomLength));
-        var le = EncodingDetector.Detect([0xFF, 0xFE, (byte)'a', 0], true);
-        Assert.Equal((EncodingKind.Utf16LE, 2), (le.Kind, le.BomLength));
-        var be = EncodingDetector.Detect([0xFE, 0xFF, 0, (byte)'a'], true);
-        Assert.Equal(EncodingKind.Utf16BE, be.Kind);
-        Assert.Equal(EncodingKind.Utf16LE, EncodingDetector.Detect(Encoding.Unicode.GetBytes("hello world, no bom here"), true).Kind);
-        Assert.Equal(EncodingKind.Utf16BE, EncodingDetector.Detect(Encoding.BigEndianUnicode.GetBytes("hello world, no bom here"), true).Kind);
-        var cp = EncodingDetector.Detect(Encoding.GetEncoding(1250).GetBytes("žluťoučký kůň"), true);
-        Assert.Equal(EncodingKind.SingleByte, cp.Kind);
-        Assert.Equal(1250, cp.Encoding.CodePage);
+        static TextCodec Detect(ReadOnlySpan<byte> sample, bool whole = true) => EncodingGuesser.Guess(sample, whole).Codec;
+        Assert.Same(TextCodec.Utf8, Detect("plain"u8));
+        Assert.Same(TextCodec.Utf8, Detect("příliš"u8));
+        Assert.Same(TextCodec.Utf8Bom, Detect([0xEF, 0xBB, 0xBF, (byte)'a']));
+        Assert.Same(TextCodec.Utf16LEBom, Detect([0xFF, 0xFE, (byte)'a', 0]));
+        Assert.Same(TextCodec.Utf16BEBom, Detect([0xFE, 0xFF, 0, (byte)'a']));
+        Assert.Same(TextCodec.Utf16LE, Detect(Encoding.Unicode.GetBytes("hello world, no bom here")));
+        Assert.Same(TextCodec.Utf16BE, Detect(Encoding.BigEndianUnicode.GetBytes("hello world, no bom here")));
+        Assert.Same(TextCodec.Cp1250, Detect(Encoding.GetEncoding(1250).GetBytes("žluťoučký kůň")));
     }
 
     [Fact]
@@ -90,6 +87,6 @@ public class EncodingTests
     {
         var bytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("příliš žluťoučký kůň ", 20)));
         for (int cut = 100; cut < 140; cut++)
-            Assert.Equal(EncodingKind.Utf8, EncodingDetector.Detect(bytes.AsSpan(0, cut), wholeFile: false).Kind);
+            Assert.Same(TextCodec.Utf8, EncodingGuesser.Guess(bytes.AsSpan(0, cut), wholeFile: false).Codec);
     }
 }

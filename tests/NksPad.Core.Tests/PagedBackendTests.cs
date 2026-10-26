@@ -80,14 +80,14 @@ public class PagedBackendTests
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var r = new Random(7);
-        foreach (var f in TestFormat.All)
+        foreach (var f in TestFormat.All.Append(TestFormat.Utf32LE).Append(TestFormat.Utf32BE))
         {
-            var codec = new ByteCodec(f.Format);
+            var codec = f.Format;
             for (int round = 0; round < 300; round++)
             {
                 var bytes = new byte[r.Next(0, 40)];
                 r.NextBytes(bytes);
-                if (r.Next(2) == 0) for (int i = 0; i < bytes.Length; i++) bytes[i] = (byte)(bytes[i] % 4 == 0 ? 0xD8 + r.Next(4) : bytes[i] & 0x7F);
+                if (r.Next(2) == 0) for (int i = 0; i < bytes.Length; i++) bytes[i] = (byte)(bytes[i] % 4 == 0 ? 0xD8 + r.Next(4) : bytes[i] % 7 == 0 ? 0xFF : bytes[i] & 0x7F);
                 int at = 0;
                 var sb = new StringBuilder();
                 while (at < bytes.Length)

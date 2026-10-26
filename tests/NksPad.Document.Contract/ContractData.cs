@@ -1,11 +1,11 @@
 using System.Text;
-using NksPad.Core;
 using NksPad.Core.Documents;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Document.Contract;
 
 /// <summary>Document formats used by the contract data; the BOM is part of the expected bytes.</summary>
-public sealed record TestFormat(string Name, DetectedEncoding Format, byte[] Bom)
+public sealed record TestFormat(string Name, TextCodec Format, Encoding Enc)
 {
     private static readonly bool Registered = Register();
 
@@ -15,15 +15,20 @@ public sealed record TestFormat(string Name, DetectedEncoding Format, byte[] Bom
         return true;
     }
 
-    public static TestFormat Utf8 { get; } = new("utf8", new(new UTF8Encoding(false), EncodingKind.Utf8, 0), []);
-    public static TestFormat Utf8Bom { get; } = new("utf8-bom", new(new UTF8Encoding(true), EncodingKind.Utf8, 3), [0xEF, 0xBB, 0xBF]);
-    public static TestFormat Cp1250 { get; } = new("cp1250", new(Encoding.GetEncoding(1250), EncodingKind.SingleByte, 0), []);
-    public static TestFormat Utf16LE { get; } = new("utf16le", new(new UnicodeEncoding(false, true), EncodingKind.Utf16LE, 2), [0xFF, 0xFE]);
-    public static TestFormat Utf16BE { get; } = new("utf16be", new(new UnicodeEncoding(true, true), EncodingKind.Utf16BE, 2), [0xFE, 0xFF]);
+    // The framework encodings are the independent oracle for the codec under test.
+    public static TestFormat Utf8 { get; } = new("utf8", TextCodec.Utf8, new UTF8Encoding(false));
+    public static TestFormat Utf8Bom { get; } = new("utf8-bom", TextCodec.Utf8Bom, new UTF8Encoding(false));
+    public static TestFormat Cp1250 { get; } = new("cp1250", TextCodec.Cp1250, Encoding.GetEncoding(1250));
+    public static TestFormat Utf16LE { get; } = new("utf16le", TextCodec.Utf16LEBom, new UnicodeEncoding(false, false));
+    public static TestFormat Utf16BE { get; } = new("utf16be", TextCodec.Utf16BEBom, new UnicodeEncoding(true, false));
+    public static TestFormat Utf32LE { get; } = new("utf32le", TextCodec.Utf32LEBom, new UTF32Encoding(false, false));
+    public static TestFormat Utf32BE { get; } = new("utf32be", TextCodec.Utf32BEBom, new UTF32Encoding(true, false));
+    /// <summary>The formats every backend must pass the contract with.</summary>
     public static IReadOnlyList<TestFormat> All { get; } = [Utf8, Utf8Bom, Cp1250, Utf16LE, Utf16BE];
 
-    public bool IsUtf16 => Format.Kind is EncodingKind.Utf16LE or EncodingKind.Utf16BE;
-    public Encoding Enc => Format.Encoding;
+    public byte[] Bom => Format.Bom;
+    public bool IsUtf16 => Format.Kind == CodecKind.Utf16;
+    public bool IsWide => Format.Kind is CodecKind.Utf16 or CodecKind.Utf32;
 
     /// <summary>BOM plus the text encoded without replacement surprises (text must be representable).</summary>
     public byte[] Bytes(string text) => [.. Bom, .. Enc.GetBytes(text)];
@@ -35,18 +40,27 @@ public sealed record TestFormat(string Name, DetectedEncoding Format, byte[] Bom
 /// <summary>Plain <c>byte[]</c> backend; the reference every other backend is compared with. Positions are computed naively from the unit walk.</summary>
 public sealed class ReferenceBackend : IByteBackend
 {
-    private readonly ByteCodec _codec;
+    private TextCodec _codec;
+    private int _bom;
     private byte[] _bytes;
 
-    public ReferenceBackend(byte[] bytes, DetectedEncoding format)
+    public ReferenceBackend(byte[] bytes, TextCodec codec)
     {
         _bytes = bytes;
-        Format = format;
-        _codec = new ByteCodec(format);
+        _codec = codec;
+        _bom = codec.BomLengthIn(bytes);
+    }
+
+    public bool Supports(TextCodec codec) => true;
+
+    public void Reinterpret(TextCodec codec)
+    {
+        _codec = codec;
+        _bom = codec.BomLengthIn(_bytes);
     }
 
     public BackendCapabilities Capabilities => ReferenceBackendFactory.Caps;
-    public DetectedEncoding Format { get; }
+    public TextCodec Codec => _codec;
     public long ByteLength => _bytes.Length;
     public string? BackingPath => null;
 #pragma warning disable CS0067
@@ -69,7 +83,7 @@ public sealed class ReferenceBackend : IByteBackend
         _bytes = next;
     }
 
-    public string ReadText(ByteRange range) => _codec.Decode(_bytes.AsSpan((int)range.Start, (int)range.Length));
+    public string ReadText(ByteRange range) => _codec.GetString(_bytes.AsSpan((int)range.Start, (int)range.Length));
     public IByteSnapshot CreateSnapshot() => new ArraySnapshot((byte[])_bytes.Clone());
     public void CopyTo(Stream destination) => destination.Write(_bytes);
     public void ReplaceBackingFile(string tempPath, string targetPath) => FileSwap.Replace(tempPath, targetPath);
@@ -79,12 +93,12 @@ public sealed class ReferenceBackend : IByteBackend
     private List<(long Offset, long Line, long Column, bool InsideCrLf)> Walk()
     {
         var result = new List<(long, long, long, bool)>();
-        long off = _codec.BomLength, line = 0, col = 0;
+        long off = _bom, line = 0, col = 0;
         while (off < _bytes.Length)
         {
             int len = _codec.ReadUnit(_bytes.AsSpan((int)off), out int chars);
-            string unit = _codec.Decode(_bytes.AsSpan((int)off, len));
-            bool crlf = unit == "\r" && off + len < _bytes.Length && _codec.Decode(_bytes.AsSpan((int)(off + len), _codec.ReadUnit(_bytes.AsSpan((int)(off + len)), out _))) == "\n";
+            string unit = _codec.GetString(_bytes.AsSpan((int)off, len));
+            bool crlf = unit == "\r" && off + len < _bytes.Length && _codec.GetString(_bytes.AsSpan((int)(off + len), _codec.ReadUnit(_bytes.AsSpan((int)(off + len)), out _))) == "\n";
             result.Add((off, line, col, false));
             if (crlf)
             {
@@ -137,7 +151,7 @@ public sealed class ReferenceBackendFactory : IBackendFactory
     internal static readonly BackendCapabilities Caps = new("reference", int.MaxValue, SupportsUtf16: true, PositionsMayBeUnknown: false, MaterializesText: true);
     public static ReferenceBackendFactory Instance { get; } = new();
     public BackendCapabilities Capabilities => Caps;
-    public IByteBackend Create(ReadOnlyMemory<byte> bytes, DetectedEncoding format) => new ReferenceBackend(bytes.ToArray(), format);
+    public IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec) => new ReferenceBackend(bytes.ToArray(), codec);
 }
 
 /// <summary>Naive UTF-8 model of a document: a byte list and positions computed straight from <see cref="Encoding.UTF8"/>.</summary>

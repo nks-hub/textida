@@ -1,4 +1,4 @@
-using System.Text;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core;
 
@@ -56,7 +56,14 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>The unmodified file underneath; searches run against it.</summary>
     public MappedFileSource Source => _source;
     public long ByteLength => _tree.Length;
-    public Encoding Encoding => _source.Encoding;
+    public TextCodec Codec => _source.Codec;
+
+    /// <summary>Shows the same bytes through another codec; refused (before anything changes) for UTF-16 and UTF-32.</summary>
+    public void Reinterpret(TextCodec codec)
+    {
+        _source.SetCodec(codec);
+        _options.Codec = codec;
+    }
     public bool IsModified => _undo.Count > 0;
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
@@ -127,7 +134,7 @@ public sealed class PagedDocument : IPagedTextSource
         return p.Length; // the trailing CR, a terminator only because the next piece does not start with LF
     }
 
-    public void Insert(long offset, string text) => Replace(offset, 0, Encoding.GetBytes(text));
+    public void Insert(long offset, string text) => Replace(offset, 0, Codec.EncodeLossy(text));
 
     public void Insert(long offset, ReadOnlySpan<byte> bytes) => Replace(offset, 0, bytes);
 
@@ -219,7 +226,7 @@ public sealed class PagedDocument : IPagedTextSource
 
     private List<string> ReadLinesFromTree(long byteOffset, int maxLines)
     {
-        int bom = _source.Detected.BomLength;
+        int bom = _source.Codec.BomLengthIn(_source.File.GetSpanClamped(0, 4));
         long from = byteOffset == 0 ? Math.Min(bom, ByteLength) : byteOffset;
         int window = 1 << 16;
         while (true)
@@ -227,7 +234,7 @@ public sealed class PagedDocument : IPagedTextSource
             var buf = new byte[(int)Math.Min(window, Math.Max(0, ByteLength - from))];
             int n = Read(from, buf);
             bool atEof = from + n >= ByteLength;
-            var lines = LineScanner.Decode(buf.AsSpan(0, n), Encoding, maxLines, atEof);
+            var lines = LineScanner.Decode(buf.AsSpan(0, n), Codec, maxLines, atEof);
             if (lines.Count == maxLines || atEof) return lines;
             window = checked(window * 4);
         }

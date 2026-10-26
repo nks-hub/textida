@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Unicode;
 using NksPad.Core;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Bench;
 
@@ -90,8 +91,8 @@ internal static class A6Encoding
         foreach (var name in new[] { "text-10MiB.log", "text-1GiB.log", "cp1250-10MiB.txt", "utf16le-100MiB.txt", "oneline-100MiB.txt", "json-100MiB.json", "csv-1GiB.csv" })
         {
             using var f = MappedFile.Open(Path.Combine(Paths.Corpus, name));
-            var d = EncodingDetector.Detect(f.GetSpanClamped(0, 1 << 20), f.Length <= 1 << 20);
-            Console.WriteLine($"detect {name}: {d.Kind}, {d.Encoding.WebName}, bom={d.BomLength}");
+            var d = EncodingGuesser.Guess(f.GetSpanClamped(0, 1 << 20), f.Length <= 1 << 20);
+            Console.WriteLine($"detect {name}: {d.Codec.Name}, bom={d.Codec.Bom.Length}, confidence={d.Confidence:0.00}");
         }
 
         string big = Path.Combine(Paths.Corpus, "text-1GiB.log");
@@ -101,7 +102,7 @@ internal static class A6Encoding
             for (int i = 0; i < 30; i++)
             {
                 long t0 = Stopwatch.GetTimestamp();
-                EncodingDetector.Detect(f.GetSpanClamped(0, 1 << 20), false);
+                EncodingGuesser.Guess(f.GetSpanClamped(0, 1 << 20), false);
                 detect.Add(Sec(t0) * 1000);
             }
             Report("detect-1MiB-sample", detect, "ms");

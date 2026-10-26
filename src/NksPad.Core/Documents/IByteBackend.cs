@@ -1,14 +1,16 @@
+using NksPad.Core.Encodings;
+
 namespace NksPad.Core.Documents;
 
 /// <summary>
-/// Storage under a <see cref="Document"/>. The bytes are the authority; the text is only a view decoded by <see cref="ByteCodec"/>.
+/// Storage under a <see cref="Document"/>. The bytes are the authority; the text is only a view decoded by <see cref="TextCodec"/>.
 /// <see cref="Document"/> validates ranges and character boundaries before it calls <see cref="Replace"/>, so a backend may trust its arguments.
 /// There is deliberately no whole-text member: a paged backend must never build one.
 /// </summary>
 public interface IByteBackend : IDisposable
 {
     BackendCapabilities Capabilities { get; }
-    DetectedEncoding Format { get; }
+    TextCodec Codec { get; }
     long ByteLength { get; }
     /// <summary>File the backend currently maps, or null.</summary>
     string? BackingPath { get; }
@@ -19,6 +21,13 @@ public interface IByteBackend : IDisposable
     void Replace(long offset, long deleteLength, ReadOnlySpan<byte> insert);
     /// <summary>Text of a range whose ends are character boundaries.</summary>
     string ReadText(ByteRange range);
+    /// <summary>
+    /// Shows the same bytes through another codec: nothing is written and the length is unchanged. A backend that cannot hold the
+    /// codec throws <see cref="NotSupportedException"/> before it changes anything.
+    /// </summary>
+    void Reinterpret(TextCodec codec);
+    /// <summary>False when <see cref="Reinterpret"/> would refuse the codec (the paged backend scans newlines per byte, so no UTF-16/32).</summary>
+    bool Supports(TextCodec codec);
 
     /// <summary>Line count so far and whether the index covers the whole document.</summary>
     (long Lines, bool Complete) LineIndexState { get; }
@@ -46,9 +55,9 @@ public interface IByteSnapshot
 public interface IBackendFactory
 {
     BackendCapabilities Capabilities { get; }
-    IByteBackend Create(ReadOnlyMemory<byte> bytes, DetectedEncoding format);
+    IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec);
     /// <summary>Opens a file; the default reads it whole.</summary>
-    IByteBackend OpenFile(string path, DetectedEncoding format) => Create(File.ReadAllBytes(path), format);
+    IByteBackend OpenFile(string path, TextCodec codec) => Create(File.ReadAllBytes(path), codec);
     /// <summary>True when <see cref="OpenFile"/> maps the file instead of reading it.</summary>
     bool MapsFiles => false;
 }

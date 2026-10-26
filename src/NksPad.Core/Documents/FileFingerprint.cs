@@ -34,7 +34,8 @@ public enum ExternalChangeKind
 /// <summary>A conflict between the document and its file on disk.</summary>
 public sealed record ExternalChange(Guid DocumentId, long Revision, string Path, FileFingerprint Expected, FileFingerprint? Actual, ExternalChangeKind Kind);
 
-public sealed record SaveResult(bool Saved, ExternalChange? Conflict);
+/// <param name="Loss">Set when a save in another encoding was refused because characters would be lost and no replacement was confirmed.</param>
+public sealed record SaveResult(bool Saved, ExternalChange? Conflict, Encodings.LossReport? Loss = null);
 
 /// <summary>Stream wrapper that hashes what is written through it.</summary>
 internal sealed class HashingStream(Stream inner) : Stream

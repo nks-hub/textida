@@ -146,8 +146,7 @@ public static class ByteFidelity
     public static SavePlan PlanConvert(DecodedText doc, TextCodec target, string? replacement = null)
     {
         var bom = new OutputSegment(0, 0, target.Bom);
-        bool sameBytes = target.Kind == doc.Codec.Kind && target.BigEndian == doc.Codec.BigEndian && target.CodePage == doc.Codec.CodePage;
-        if (sameBytes)
+        if (target.SameBytesAs(doc.Codec))
             return new SavePlan(doc.Bytes, [bom, new OutputSegment(doc.BomLength, doc.Bytes.Length - doc.BomLength, null)], LossReport.None, true);
 
         var rep = ReplacementBytes(target, replacement);

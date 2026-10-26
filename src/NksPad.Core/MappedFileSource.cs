@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using NksPad.Core.Encodings;
 
 namespace NksPad.Core;
 
@@ -10,8 +11,8 @@ public sealed class MappedFileSourceOptions
     public int IndexBlockSize { get; init; } = 1 << 20;
     public int IndexParallelism { get; init; } = Math.Max(1, Environment.ProcessorCount - 2);
     public bool StartIndexing { get; init; } = true;
-    /// <summary>Overrides detection; must be an ASCII-compatible encoding (UTF-8 or a single-byte code page).</summary>
-    public Encoding? Encoding { get; init; }
+    /// <summary>Overrides detection; must be an ASCII-compatible encoding (UTF-8 or a single-byte code page). Reinterpreting a document updates it.</summary>
+    public TextCodec? Codec { get; set; }
 }
 
 /// <summary>
@@ -31,14 +32,13 @@ public sealed class MappedFileSource : IPagedTextSource
     private int _published;
     private int _disposed;
     private long _lastProgress;
-    private readonly int _bomLength;
+    private int _bomLength;
 
     public Task IndexTask { get; private set; } = Task.CompletedTask;
     public MappedFile File => _file;
     public string Path => _file.Path;
-    public DetectedEncoding Detected { get; }
+    public TextCodec Codec { get; private set; }
     public long ByteLength => _file.Length;
-    public Encoding Encoding => Detected.Encoding;
     public event EventHandler? IndexProgress;
 
     private MappedFileSource(MappedFile file, MappedFileSourceOptions options)
@@ -51,13 +51,25 @@ public sealed class MappedFileSource : IPagedTextSource
         _ready = new bool[_blocks];
 
         bool whole = file.Length <= 1 << 20;
-        var detected = EncodingDetector.Detect(file.GetSpanClamped(0, 1 << 20), whole);
-        if (options.Encoding is { } forced)
-            detected = new(forced, forced.CodePage == 65001 ? EncodingKind.Utf8 : EncodingKind.SingleByte, detected.Kind == EncodingKind.Utf8 ? detected.BomLength : 0);
-        if (detected.Kind is EncodingKind.Utf16LE or EncodingKind.Utf16BE or EncodingKind.Utf32LE or EncodingKind.Utf32BE)
-            throw new NotSupportedException($"{detected.Encoding.WebName} is not supported by the paged source: newline scanning is byte based.");
-        Detected = detected;
-        _bomLength = detected.BomLength;
+        var codec = options.Codec ?? EncodingGuesser.Guess(file.GetSpanClamped(0, 1 << 20), whole).Codec;
+        RequireByteNewlines(codec);
+        Codec = codec;
+        _bomLength = codec.BomLengthIn(file.GetSpanClamped(0, 4));
+    }
+
+    /// <summary>The paged source scans newlines per byte, so UTF-16 and UTF-32 are refused until P3.1.2.</summary>
+    internal static void RequireByteNewlines(TextCodec codec)
+    {
+        if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32)
+            throw new NotSupportedException($"{codec.Name} is not supported by the paged source: newline scanning is byte based.");
+    }
+
+    /// <summary>Switches the text view of the same bytes; refused for encodings the byte scan cannot serve.</summary>
+    internal void SetCodec(TextCodec codec)
+    {
+        RequireByteNewlines(codec);
+        Codec = codec;
+        _bomLength = codec.BomLengthIn(_file.GetSpanClamped(0, 4));
     }
 
     /// <summary>Opens and maps the file, detects its encoding and starts background line indexing.</summary>
@@ -172,7 +184,7 @@ public sealed class MappedFileSource : IPagedTextSource
         long from = byteOffset == 0 ? Math.Min(_bomLength, _file.Length) : byteOffset;
         var span = _file.GetSpanClamped(from, long.MaxValue);
         bool atEof = from + span.Length == _file.Length;
-        var lines = LineScanner.Decode(span, Encoding, maxLines, atEof);
+        var lines = LineScanner.Decode(span, Codec, maxLines, atEof);
         if (!atEof && lines.Count < maxLines) throw new NotSupportedException("A line longer than 2 GiB cannot be decoded in one piece; use ReadColumns.");
         return lines;
     }
@@ -226,7 +238,7 @@ public sealed class MappedFileSource : IPagedTextSource
 
     public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default)
     {
-        bool utf8 = Detected.Kind is EncodingKind.Utf8 or EncodingKind.Ascii;
+        bool utf8 = Codec.Kind == CodecKind.Utf8;
         long pos = lineStart == 0 ? Math.Min(_bomLength, _file.Length) : lineStart;
         long skip = startColumn;
         while (skip > 0)
@@ -257,10 +269,9 @@ public sealed class MappedFileSource : IPagedTextSource
         var read = _file.GetSpanClamped(pos, (long)maxColumns * 3 + 4);
         int stop = LineScanner.FindTerminator(read, 0);
         if (stop >= 0) read = read[..stop];
-        var chars = new char[maxColumns + 2];
-        var decoder = Encoding.GetDecoder();
-        decoder.Convert(read, chars, flush: stop >= 0 || pos + read.Length >= _file.Length, out _, out int written, out _);
-        return new string(chars, 0, Math.Min(written, maxColumns));
+        if (!(stop >= 0 || pos + read.Length >= _file.Length)) read = read[..Codec.CompleteLength(read)];
+        var text = Codec.GetString(read);
+        return text.Length <= maxColumns ? text : text[..maxColumns];
     }
 
     private static int SkipUtf8Units(ReadOnlySpan<byte> seg, ref long skip)

@@ -1,3 +1,5 @@
+using NksPad.Core.Encodings;
+
 namespace NksPad.Core.Documents;
 
 /// <summary>Creates <see cref="PagedBackend"/> instances.</summary>
@@ -6,8 +8,8 @@ public sealed class PagedBackendFactory(bool startIndexing = true, int indexBloc
     public static PagedBackendFactory Instance { get; } = new();
     public BackendCapabilities Capabilities => PagedBackend.Caps;
     public bool MapsFiles => true;
-    public IByteBackend Create(ReadOnlyMemory<byte> bytes, DetectedEncoding format) => PagedBackend.FromMemory(bytes.Span, format, startIndexing, indexBlockSize);
-    public IByteBackend OpenFile(string path, DetectedEncoding format) => PagedBackend.FromFile(path, format, startIndexing, indexBlockSize);
+    public IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec) => PagedBackend.FromMemory(bytes.Span, codec, startIndexing, indexBlockSize);
+    public IByteBackend OpenFile(string path, TextCodec codec) => PagedBackend.FromFile(path, codec, startIndexing, indexBlockSize);
 }
 
 /// <summary>
@@ -19,38 +21,43 @@ public sealed class PagedBackend : IByteBackend
     internal static readonly BackendCapabilities Caps = new("paged", long.MaxValue, SupportsUtf16: false, PositionsMayBeUnknown: true, MaterializesText: false);
     private const int Chunk = 1 << 16;
 
-    private readonly ByteCodec _codec;
     private readonly MappedFileSourceOptions _options;
     private readonly List<WeakReference<PagedSnapshot>> _snapshots = [];
     private PagedDocument _doc;
     private string? _path;
+    private int _bom;
 
-    private PagedBackend(PagedDocument doc, string? path, DetectedEncoding format, MappedFileSourceOptions options)
+    private PagedBackend(PagedDocument doc, string? path, MappedFileSourceOptions options)
     {
         _doc = doc;
         _path = path;
         _options = options;
-        Format = format;
-        _codec = new ByteCodec(format);
+        _bom = Codec.BomLengthIn(Head());
     }
 
-    public static PagedBackend FromFile(string path, DetectedEncoding format, bool startIndexing = true, int indexBlockSize = 1 << 20)
+    private ReadOnlySpan<byte> Head()
     {
-        var options = OptionsFor(format, startIndexing, indexBlockSize);
-        return new(PagedDocument.Open(path, options), Path.GetFullPath(path), format, options);
+        var head = new byte[(int)Math.Min(4, ByteLength)];
+        _doc.Read(0, head);
+        return head;
     }
 
-    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, DetectedEncoding format, bool startIndexing = true, int indexBlockSize = 1 << 20)
+    public static PagedBackend FromFile(string path, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20)
     {
-        var options = OptionsFor(format, startIndexing, indexBlockSize);
-        return new(PagedDocument.OpenMemory(bytes, options), null, format, options);
+        var options = OptionsFor(codec, startIndexing, indexBlockSize);
+        return new(PagedDocument.Open(path, options), Path.GetFullPath(path), options);
     }
 
-    private static MappedFileSourceOptions OptionsFor(DetectedEncoding format, bool startIndexing, int indexBlockSize)
+    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20)
     {
-        if (format.Kind is not (EncodingKind.Ascii or EncodingKind.Utf8 or EncodingKind.SingleByte))
-            throw new NotSupportedException($"The paged backend cannot hold {format.Kind}: newline scanning is byte based.");
-        return new() { Encoding = format.Encoding, StartIndexing = startIndexing, IndexBlockSize = indexBlockSize };
+        var options = OptionsFor(codec, startIndexing, indexBlockSize);
+        return new(PagedDocument.OpenMemory(bytes, options), null, options);
+    }
+
+    private static MappedFileSourceOptions OptionsFor(TextCodec codec, bool startIndexing, int indexBlockSize)
+    {
+        MappedFileSource.RequireByteNewlines(codec);
+        return new() { Codec = codec, StartIndexing = startIndexing, IndexBlockSize = indexBlockSize };
     }
 
     /// <summary>Forbidden: a paged document has no whole text.</summary>
@@ -58,7 +65,15 @@ public sealed class PagedBackend : IByteBackend
     public string Text => throw new NotSupportedException();
 
     public BackendCapabilities Capabilities => Caps;
-    public DetectedEncoding Format { get; }
+    public TextCodec Codec => _doc.Codec;
+
+    public bool Supports(TextCodec codec) => codec.Kind is not (CodecKind.Utf16 or CodecKind.Utf32);
+
+    public void Reinterpret(TextCodec codec)
+    {
+        _doc.Reinterpret(codec);
+        _bom = codec.BomLengthIn(Head());
+    }
     public long ByteLength => _doc.ByteLength;
     public string? BackingPath => _path;
     public (long Lines, bool Complete) LineIndexState => _doc.LineIndexState;
@@ -78,7 +93,7 @@ public sealed class PagedBackend : IByteBackend
         if (range.Length > Array.MaxLength) throw new NotSupportedException("A range over 2 GiB cannot be decoded in one piece.");
         var bytes = new byte[range.Length];
         _doc.Read(range.Start, bytes);
-        return _codec.Decode(bytes);
+        return Codec.GetString(bytes);
     }
 
     public IByteSnapshot CreateSnapshot()
@@ -114,7 +129,7 @@ public sealed class PagedBackend : IByteBackend
 
     private long LineStartOf(long line)
     {
-        if (line == 0) return _codec.BomLength;
+        if (line == 0) return _bom;
         return _doc.TryGetLineStart(line, out long start) ? start : -1;
     }
 
@@ -122,7 +137,7 @@ public sealed class PagedBackend : IByteBackend
     {
         position = default;
         var (lines, complete) = _doc.LineIndexState;
-        if (!complete || offset < _codec.BomLength || offset > ByteLength) return false;
+        if (!complete || offset < _bom || offset > ByteLength) return false;
         long lo = 0, hi = lines - 1;
         while (lo < hi)
         {
@@ -173,8 +188,8 @@ public sealed class PagedBackend : IByteBackend
             long stop = Math.Min(end, pos + Chunk);
             var buf = ReadWindow(pos, stop);
             int cut = (int)(stop - pos);
-            while (stop < end && cut > 0 && !_codec.IsBoundary(buf, cut)) cut--;
-            total += _codec.CountChars(buf.AsSpan(0, cut));
+            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
+            total += Codec.CountChars(buf.AsSpan(0, cut));
             pos += cut;
         }
         return total;
@@ -190,18 +205,18 @@ public sealed class PagedBackend : IByteBackend
             long stop = Math.Min(end, offset + Chunk);
             var buf = ReadWindow(offset, stop);
             int cut = (int)(stop - offset);
-            while (stop < end && cut > 0 && !_codec.IsBoundary(buf, cut)) cut--;
+            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
             var span = buf.AsSpan(0, cut);
-            if (_codec.CountChars(span) <= remaining)
+            if (Codec.CountChars(span) <= remaining)
             {
-                remaining -= _codec.CountChars(span);
+                remaining -= Codec.CountChars(span);
                 offset += cut;
                 continue;
             }
             int i = 0;
             while (i < cut && remaining > 0)
             {
-                i += _codec.ReadUnit(span[i..], out int chars);
+                i += Codec.ReadUnit(span[i..], out int chars);
                 remaining -= chars;
             }
             if (remaining < 0) return false;

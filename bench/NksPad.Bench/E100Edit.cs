@@ -41,9 +41,9 @@ internal static class E100Edit
         public long LineStart(long line) => doc.TryGetLineStart(line, out long o) ? o : throw new InvalidOperationException($"line {line} has no start");
         public Caret Resolve(long line) { long s = LineStart(line); return new(s, doc.ReadLines(s, 1)[0]); }
         public IReadOnlyList<string> View(long top) => doc.ReadLines(LineStart(top), ViewLines);
-        public void Insert(Caret c, int col, string text) => doc.Insert(c.Start + doc.Encoding.GetByteCount(c.Text.AsSpan(0, col)), text);
+        public void Insert(Caret c, int col, string text) => doc.Insert(c.Start + doc.Codec.LossyByteCount(c.Text.AsSpan(0, col)), text);
         public void Delete(Caret c, int col, int chars) =>
-            doc.Delete(c.Start + doc.Encoding.GetByteCount(c.Text.AsSpan(0, col)), doc.Encoding.GetByteCount(c.Text.AsSpan(col, chars)));
+            doc.Delete(c.Start + doc.Codec.LossyByteCount(c.Text.AsSpan(0, col)), doc.Codec.LossyByteCount(c.Text.AsSpan(col, chars)));
         public bool Undo() => doc.Undo();
         public bool Redo() => doc.Redo();
         public void Save(string path) => doc.SaveAsync(path).GetAwaiter().GetResult();
