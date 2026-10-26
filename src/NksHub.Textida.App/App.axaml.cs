@@ -54,7 +54,13 @@ public sealed partial class App : Application
 
         var first = CreateWindow(ctx.Args.Smoke ? null : ctx.Profile.LoadWindow(), show: false);
         desktop.MainWindow = first;
-        desktop.Exit += (_, _) => Journal.Shutdown();
+        desktop.Exit += (_, _) =>
+        {
+            Journal.Shutdown();
+            if (!ctx.Args.Smoke) return;
+            try { Directory.Delete(ProfileDirectory, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a check leaves nothing in the profile it ran in */ }
+        };
 
         if (!ctx.Args.Smoke)
         {

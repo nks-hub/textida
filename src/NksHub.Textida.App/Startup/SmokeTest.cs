@@ -105,7 +105,6 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Console.Out.WriteLine("SMOKE_OK " + string.Join(' ', _log));
             Console.Out.Flush();
             RemoveTemp(temp);
-            RemoveTemp(app.ProfileDirectory);
             desktop.Shutdown(0);
         }
         catch (Exception e)
