@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 using Avalonia;
@@ -141,9 +142,11 @@ internal sealed partial class PagedTextView : Grid
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
+        long t = TypingTrace.Begin();
         if (!_own) _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
         UpdateScrollRange();
         _canvas.InvalidateVisual();
+        TypingTrace.End("paged.onDocChanged", t);
     }
 
     /// <summary>A save maps the new file again, so the line index starts over.</summary>
@@ -266,13 +269,26 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     private void FillFrom(long first)
     {
+        long t = TypingTrace.Begin();
+        FillFromCore(first);
+        TypingTrace.End("paged.fillLines", t);
+    }
+
+    private void FillFromCore(long first)
+    {
         if (!Indexed || first < 0 || first >= LineCount) return;
         long origin = LineStart(first);
         if (origin < 0) return;
         int window = (int)Math.Min(Doc.ByteLength - origin, 128 * 1024);
         bool toEnd = origin + window >= Doc.ByteLength;
-        var buffer = new byte[window];
-        Doc.Read(origin, buffer);
+        var buffer = ArrayPool<byte>.Shared.Rent(window); // a fresh 128 KiB array per edit lands on the large object heap
+        try { FillLines(first, origin, buffer, window, toEnd); }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
+    }
+
+    private void FillLines(long first, long origin, byte[] buffer, int window, bool toEnd)
+    {
+        Doc.Read(origin, buffer.AsSpan(0, window));
         int limit = Math.Max(64, _canvas.VisibleLines + 8), pos = 0;
         for (long line = first; line < LineCount && line - first < limit; line++)
         {
@@ -292,7 +308,7 @@ internal sealed partial class PagedTextView : Grid
             int take = Math.Min(length, MaxLineBytes);
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
-            _lines[line] = new LineView(origin + pos, truncated, Doc.Codec.WithBom(false).Decode(buffer.AsMemory(pos, take)), _options.TabSize);
+            _lines[line] = new LineView(origin + pos, truncated, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
             pos = next;
         }
     }
@@ -404,15 +420,23 @@ internal sealed partial class PagedTextView : Grid
         };
         _own = true;
         EditResult result;
+        long tApply = TypingTrace.Begin();
         try { result = Doc.Apply([new ByteEdit(new ByteRange(at, at + deleted), insert)], options); }
         finally { _own = false; }
+        TypingTrace.End("paged.docApply", tApply);
         if (!result.Applied) return false;
         _caret = caretAfter;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
         _wanted = -1;
+        long t = TypingTrace.Begin();
         UpdateScrollRange();
+        TypingTrace.End("paged.scrollRange", t);
+        t = TypingTrace.Begin();
         Reveal();
+        TypingTrace.End("paged.reveal", t);
+        t = TypingTrace.Begin();
         RaiseViewChanged();
+        TypingTrace.End("paged.viewChanged", t);
         return true;
     }
 
@@ -502,7 +526,9 @@ internal sealed partial class PagedTextView : Grid
             _pendingHigh = text[0];
             return;
         }
+        long t = TypingTrace.Begin();
         InsertText(text);
+        TypingTrace.End("paged.insertText", t);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -696,6 +722,7 @@ internal sealed partial class PagedTextView : Grid
             long started = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw(context);
             long ended = System.Diagnostics.Stopwatch.GetTimestamp();
+            TypingTrace.End("paged.render", started);
             var state = (owner.Doc.Revision, owner._caret, owner.TopLine);
             if (owner._drawn == state) return;
             owner._drawn = state;

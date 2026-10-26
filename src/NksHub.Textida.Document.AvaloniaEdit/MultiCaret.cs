@@ -411,7 +411,9 @@ public static class MultiEdit
     /// </summary>
     public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null)
     {
+        long tAsm = Core.TypingTrace.Begin();
         var kept = Assemble(plan, before, out var keptCarets, out int keptPrimary);
+        Core.TypingTrace.End("multi.assemble", tAsm);
         var text = backend.TextDocument;
         var codec = doc.Codec;
 
@@ -419,9 +421,11 @@ public static class MultiEdit
         foreach (var s in before.Items) { wanted.Add(s.Start); wanted.Add(s.End); }
         foreach (var p in kept) { wanted.Add(p.Edit.Start); wanted.Add(p.Edit.Start + p.Edit.Length); }
         var offsets = wanted.ToArray();
+        long tBytes = Core.TypingTrace.Begin();
         var bytesAt = new Dictionary<int, long>(offsets.Length);
         var converted = backend.ToByteOffsets(offsets);
         for (int i = 0; i < offsets.Length; i++) bytesAt[offsets[i]] = converted[i];
+        Core.TypingTrace.End("multi.toBytes", tBytes);
 
         // new carets in bytes: where the edit starts (shifted by the edits before it) plus the bytes of the text up to the caret
         var byteEdits = new List<ByteEdit>(kept.Count);
@@ -467,7 +471,9 @@ public static class MultiEdit
         else
         {
             // one update block: the views react to the text view once, not once per caret
+            long tApply = Core.TypingTrace.Begin();
             using (text.RunUpdate()) result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey });
+            Core.TypingTrace.End("multi.docApply", tApply);
         }
         return new(result, after, afterBytes);
     }

@@ -51,6 +51,13 @@ internal sealed partial class MainWindow
 
     private void UpdateStatus()
     {
+        long t = Core.TypingTrace.Begin();
+        UpdateStatusCore();
+        Core.TypingTrace.End("win.updateStatus", t);
+    }
+
+    private void UpdateStatusCore()
+    {
         CheckJournalHealth();
         _statusRight.Children.Clear();
         if (Active is not { } tab)
