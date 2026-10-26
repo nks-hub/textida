@@ -68,6 +68,13 @@ internal sealed partial class EditorSurface
 
     private void OnCoreChanged(object? sender, NksHub.Textida.Core.Documents.DocumentChangedEventArgs e)
     {
+        long t = Core.TypingTrace.Begin();
+        try { OnCoreChangedCore(e); }
+        finally { Core.TypingTrace.End("carets.onCoreChanged", t); }
+    }
+
+    private void OnCoreChangedCore(NksHub.Textida.Core.Documents.DocumentChangedEventArgs e)
+    {
         _stamp++;
         if (_others is null) return;
         // a reread replaces the whole text of the view and the area loses its selection; the primary one is put back from its anchors
@@ -282,9 +289,13 @@ internal sealed partial class EditorSurface
     private bool Run(List<Planned> plan, Carets before, string? kind)
     {
         if (Doc.TextBackend is not { } backend || IsReadOnly) return false;
+        long t = Core.TypingTrace.Begin();
         var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before));
+        Core.TypingTrace.End("carets.multiEditApply", t);
         if (!result.Edit.Applied) return false;
+        t = Core.TypingTrace.Begin();
         SetCarets(result.Carets, result.Bytes);
+        Core.TypingTrace.End("carets.setCarets", t);
         (_runKind, _runRevision, _runCarets) = (kind ?? "", Doc.Doc.Revision, result.Carets);
         return true;
     }
@@ -314,6 +325,13 @@ internal sealed partial class EditorSurface
     /// </summary>
     private bool TypeAtCarets(string text)
     {
+        long t = Core.TypingTrace.Begin();
+        try { return TypeAtCaretsCore(text); }
+        finally { Core.TypingTrace.End("carets.typeAtCarets", t); }
+    }
+
+    private bool TypeAtCaretsCore(string text)
+    {
         if (IsReadOnly || IsBlockSelection || text.Any(char.IsControl)) return false;
         var smart = Smart();
         var rules = TypingRules(smart);
@@ -321,7 +339,9 @@ internal sealed partial class EditorSurface
         if (!multi && rules.Count == 0) return false;
         var carets = GetCarets();
         MultiEdit.PartnerEdit? partner = smart is null ? null : e => smart.TryPlanRename(e, out var p) ? p : null;
+        long tPlan = Core.TypingTrace.Begin();
         var plan = MultiEdit.PlanTyped(Document, carets, text, rules, partner);
+        Core.TypingTrace.End("carets.planTyped", tPlan);
         if (!multi && plan.Count == 1 && plan[0].Edit == new ViewEdit(carets.PrimarySel.Start, carets.PrimarySel.Length, text)) return false; // nothing special: the area does it
         if (!multi && plan.Count == 1)
         {

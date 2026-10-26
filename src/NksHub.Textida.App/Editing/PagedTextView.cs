@@ -139,9 +139,11 @@ internal sealed class PagedTextView : Grid
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
+        long t = TypingTrace.Begin();
         if (!_own) _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
         UpdateScrollRange();
         _canvas.InvalidateVisual();
+        TypingTrace.End("paged.onDocChanged", t);
     }
 
     /// <summary>A save maps the new file again, so the line index starts over.</summary>
@@ -262,6 +264,13 @@ internal sealed class PagedTextView : Grid
     /// Looking up every line start separately would scan a block of the line index for each of them.
     /// </summary>
     private void FillFrom(long first)
+    {
+        long t = TypingTrace.Begin();
+        FillFromCore(first);
+        TypingTrace.End("paged.fillLines", t);
+    }
+
+    private void FillFromCore(long first)
     {
         if (!Indexed || first < 0 || first >= LineCount) return;
         long origin = LineStart(first);
@@ -401,15 +410,23 @@ internal sealed class PagedTextView : Grid
         };
         _own = true;
         EditResult result;
+        long tApply = TypingTrace.Begin();
         try { result = Doc.Apply([new ByteEdit(new ByteRange(at, at + deleted), insert)], options); }
         finally { _own = false; }
+        TypingTrace.End("paged.docApply", tApply);
         if (!result.Applied) return false;
         _caret = caretAfter;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
         _wanted = -1;
+        long t = TypingTrace.Begin();
         UpdateScrollRange();
+        TypingTrace.End("paged.scrollRange", t);
+        t = TypingTrace.Begin();
         Reveal();
+        TypingTrace.End("paged.reveal", t);
+        t = TypingTrace.Begin();
         RaiseViewChanged();
+        TypingTrace.End("paged.viewChanged", t);
         return true;
     }
 
@@ -499,7 +516,9 @@ internal sealed class PagedTextView : Grid
             _pendingHigh = text[0];
             return;
         }
+        long t = TypingTrace.Begin();
         InsertText(text);
+        TypingTrace.End("paged.insertText", t);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -678,6 +697,7 @@ internal sealed class PagedTextView : Grid
             long started = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw(context);
             long ended = System.Diagnostics.Stopwatch.GetTimestamp();
+            TypingTrace.End("paged.render", started);
             var state = (owner.Doc.Revision, owner._caret, owner.TopLine);
             if (owner._drawn == state) return;
             owner._drawn = state;

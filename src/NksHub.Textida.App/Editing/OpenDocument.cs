@@ -269,6 +269,13 @@ internal sealed class OpenDocument : IDisposable
 
     private void RefreshEol()
     {
+        long t = Core.TypingTrace.Begin();
+        RefreshEolCore();
+        Core.TypingTrace.End("od.refreshEol", t);
+    }
+
+    private void RefreshEolCore()
+    {
         if (TextBackend is { } text)
         {
             // block by block: the whole text as one string would double the memory of a large document at every pause in typing

@@ -106,6 +106,13 @@ internal sealed partial class EditorSurface : TextEditor
 
     private void ApplyTokens(SyntaxViewport viewport)
     {
+        long t = Core.TypingTrace.Begin();
+        try { ApplyTokensCore(viewport); }
+        finally { Core.TypingTrace.End("editor.applyTokens", t); }
+    }
+
+    private void ApplyTokensCore(SyntaxViewport viewport)
+    {
         if (viewport.Revision != Doc.Doc.Revision) return;
         try { _colorizer.SetTokens(Document.Version, viewport.Lines); }
         catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
@@ -116,6 +123,13 @@ internal sealed partial class EditorSurface : TextEditor
     /// width allows for the narrowest glyph; scrolled, the columns come from the layout of the visible lines.
     /// </summary>
     private void OnVisualLinesChanged(object? sender, EventArgs e)
+    {
+        long t = Core.TypingTrace.Begin();
+        try { OnVisualLinesChangedCore(); }
+        finally { Core.TypingTrace.End("editor.visualLinesChanged", t); }
+    }
+
+    private void OnVisualLinesChangedCore()
     {
         var view = TextArea.TextView;
         if (!Syntax.Active || !view.VisualLinesValid) return; // the getter of the lines throws while they are invalid
@@ -316,6 +330,13 @@ internal sealed partial class EditorSurface : TextEditor
     }
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
+    {
+        long t = Core.TypingTrace.Begin();
+        try { OnTextEnteringCore(e); }
+        finally { Core.TypingTrace.End("editor.textEntering", t); }
+    }
+
+    private void OnTextEnteringCore(TextInputEventArgs e)
     {
         if (e.Text is { Length: > 0 } entered && TypeAtCarets(entered))
         {

@@ -139,9 +139,11 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void OnChanged(object? sender, DocumentChangedEventArgs e)
     {
+        long t = Core.TypingTrace.Begin();
         _doneRevision = -1;
         if (!Dispatcher.UIThread.CheckAccess()) Dispatcher.UIThread.Post(() => Run());
         else if (!TryRetokenizeLine(e.Change)) Run();
+        Core.TypingTrace.End("syntax.onChanged", t);
     }
 
     private bool TryRetokenizeLine(ChangeSet change)
@@ -177,6 +179,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         if (_doneRevision == _session.Revision) return;
         SyntaxViewport result;
+        long tRun = Core.TypingTrace.Begin();
         try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
@@ -190,6 +193,7 @@ internal sealed class SyntaxFeeder : IDisposable
             SetPending(false);
             return;
         }
+        Core.TypingTrace.End("syntax.tokenizeViewport", tRun);
         switch (result.Status)
         {
             case SyntaxViewportStatus.Complete:

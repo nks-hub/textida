@@ -71,7 +71,9 @@ public sealed partial class Document
             }
         }
 
+        long tExec = TypingTrace.Begin();
         var removed = Execute(work, validate: !options.RawBytes, captureRemoved: true, out var failure);
+        TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
         var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
@@ -138,9 +140,13 @@ public sealed partial class Document
         if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
+        long tAnchors = TypingTrace.Begin();
         UpdateAnchors(change);
+        TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
+        long tChanged = TypingTrace.Begin();
         Changed?.Invoke(this, new DocumentChangedEventArgs(change));
+        TypingTrace.End("doc.changedEvent", tChanged);
     }
 
     private const int TypingRunBytes = 16;

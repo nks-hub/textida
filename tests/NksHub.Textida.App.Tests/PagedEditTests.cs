@@ -194,14 +194,24 @@ public class PagedEditTests : IDisposable
         _w.UpdateLayout();
         for (int i = 0; i < 30; i++) { TestApp.Type(_w, "w"); Dispatcher.UIThread.RunJobs(); } // warm up
         var times = new List<double>();
+        NksHub.Textida.Core.TypingTrace.Enabled = true;
+        NksHub.Textida.Core.TypingTrace.Reset();
         for (int i = 0; i < 300; i++)
         {
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            long tt = NksHub.Textida.Core.TypingTrace.Begin();
             TestApp.Type(_w, "x");
+            NksHub.Textida.Core.TypingTrace.End("test.type", tt);
+            tt = NksHub.Textida.Core.TypingTrace.Begin();
             _w.UpdateLayout();
+            NksHub.Textida.Core.TypingTrace.End("test.layout", tt);
+            tt = NksHub.Textida.Core.TypingTrace.Begin();
             Dispatcher.UIThread.RunJobs();
+            NksHub.Textida.Core.TypingTrace.End("test.jobs", tt);
             times.Add(System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+            NksHub.Textida.Core.TypingTrace.End("test.total", t0);
         }
+        NksHub.Textida.Core.TypingTrace.Dump("paged typing");
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)];
         Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
