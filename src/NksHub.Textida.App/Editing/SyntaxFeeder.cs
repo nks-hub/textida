@@ -42,14 +42,26 @@ internal sealed class SyntaxFeeder : IDisposable
     private bool _lineTooLong;
     private bool _queued;
     private bool _disposed;
+    private readonly DispatcherTimer? _settleTimer;
 
     /// <param name="apply">Receives the tokens of a complete viewport.</param>
     /// <param name="clear">Drops all tokens; called when the grammar or the document changes and for lines the grammar cannot handle.</param>
     /// <param name="lineText">Text of a zero-based line as the view shows it, or null when it is not available.</param>
     /// <param name="lineCount">Number of lines of the view's text, or a negative number when it is not known.</param>
     /// <param name="viewRequested">Asks the view to report what is on screen again; called after the grammar or the document changed.</param>
-    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount, Action viewRequested)
+    /// <param name="settle">When set, an edit is followed by one new request after this quiet time instead of at once; for views that are not the one being typed in.</param>
+    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount, Action viewRequested, TimeSpan? settle = null)
     {
+        if (settle is { } quiet)
+        {
+            var timer = new DispatcherTimer { Interval = quiet };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                Run();
+            };
+            _settleTimer = timer;
+        }
         _viewRequested = viewRequested;
         _lineText = lineText;
         _lineCount = lineCount;
@@ -139,9 +151,23 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void OnChanged(object? sender, DocumentChangedEventArgs e)
     {
+        long t = Core.TypingTrace.Begin();
         _doneRevision = -1;
-        if (!Dispatcher.UIThread.CheckAccess()) Dispatcher.UIThread.Post(() => Run());
+        if (_settleTimer is { } timer)
+        {
+            if (Dispatcher.UIThread.CheckAccess()) Restart(timer);
+            else Dispatcher.UIThread.Post(() => Restart(timer));
+        }
+        else if (!Dispatcher.UIThread.CheckAccess()) Dispatcher.UIThread.Post(() => Run());
         else if (!TryRetokenizeLine(e.Change)) Run();
+        Core.TypingTrace.End("syntax.onChanged", t);
+    }
+
+    private void Restart(DispatcherTimer timer)
+    {
+        if (_disposed) return;
+        timer.Stop();
+        timer.Start();
     }
 
     private bool TryRetokenizeLine(ChangeSet change)
@@ -177,6 +203,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         if (_doneRevision == _session.Revision) return;
         SyntaxViewport result;
+        long tRun = Core.TypingTrace.Begin();
         try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
@@ -190,6 +217,7 @@ internal sealed class SyntaxFeeder : IDisposable
             SetPending(false);
             return;
         }
+        Core.TypingTrace.End("syntax.tokenizeViewport", tRun);
         switch (result.Status)
         {
             case SyntaxViewportStatus.Complete:
@@ -255,6 +283,7 @@ internal sealed class SyntaxFeeder : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _settleTimer?.Stop();
         _doc.LanguageChanged -= OnSourceChanged;
         _doc.Replaced -= OnSourceChanged;
         Release();

@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -27,7 +28,10 @@ internal interface IDialogs
     Task<IReadOnlyList<string>> PickFilesAsync(Window owner);
     /// <summary>The folder the user chose, or null when the dialog was cancelled.</summary>
     Task<string?> PickFolderAsync(Window owner);
-    Task<string?> PromptAsync(Window owner, string title, string label, string initial);
+    /// <param name="preview">Text shown under the input and refreshed on every edit, so the user sees what the answer would do before confirming.</param>
+    Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null);
+    /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
+    Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected);
     Task ShowAboutAsync(Window owner);
 }
 
@@ -73,7 +77,30 @@ internal sealed class AvaloniaDialogs : IDialogs
         return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
-    public async Task<string?> PromptAsync(Window owner, string title, string label, string initial)
+    public async Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected)
+    {
+        var items = targets.Select(t => t.Lost > 0 ? $"{t.Codec.Name} · {Loc.Plural(K.EncodingLossy, t.Lost)}" : t.Codec.Name).ToList();
+        var combo = new ComboBox { ItemsSource = items, SelectedIndex = Math.Max(0, targets.ToList().FindIndex(t => t.Codec == preselected)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetName(combo, label);
+        var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
+        var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
+        var panel = new StackPanel
+        {
+            Margin = new Thickness(20), Spacing = 10,
+            Children =
+            {
+                new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap },
+                combo,
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
+            },
+        };
+        var dialog = Frame(title, panel, 420);
+        ok.Click += (_, _) => dialog.Close(combo.SelectedIndex >= 0 ? targets[combo.SelectedIndex].Codec : null);
+        cancel.Click += (_, _) => dialog.Close(null);
+        return await dialog.ShowDialog<TextCodec?>(owner);
+    }
+
+    public async Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null)
     {
         var input = new TextBox { Text = initial, MinWidth = 260 };
         var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
@@ -88,6 +115,18 @@ internal sealed class AvaloniaDialogs : IDialogs
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
+        if (preview is not null)
+        {
+            var shown = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.8, MinHeight = 18, Text = preview(initial) };
+            AutomationProperties.SetName(shown, Loc.Get(K.HexGotoPreviewA11y));
+            AutomationProperties.SetLiveSetting(shown, AutomationLiveSetting.Polite);
+            input.TextChanged += (_, _) =>
+            {
+                shown.Text = preview(input.Text ?? "");
+                AutomationProperties.SetHelpText(input, shown.Text);
+            };
+            panel.Children.Insert(2, shown);
+        }
         var dialog = Frame(title, panel, 360);
         ok.Click += (_, _) => dialog.Close(input.Text ?? "");
         cancel.Click += (_, _) => dialog.Close(null);

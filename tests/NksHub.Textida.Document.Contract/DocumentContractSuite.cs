@@ -12,8 +12,8 @@ public abstract partial class DocumentContractSuite
 {
     protected abstract IBackendFactory Factory { get; }
 
-    protected bool Supports(TestFormat f) => !f.IsUtf16 || Factory.Capabilities.SupportsUtf16;
-    protected IEnumerable<TestFormat> Formats => TestFormat.All.Where(Supports);
+    protected bool Supports(TestFormat f) => !f.IsWide || Factory.Capabilities.SupportsUtf16;
+    protected IEnumerable<TestFormat> Formats => TestFormat.WithUtf32.Where(Supports);
 
     protected NksHub.Textida.Core.Documents.Document New(byte[] bytes, TestFormat? format = null, int logCapacity = 4096) =>
         NksHub.Textida.Core.Documents.Document.FromBytes(bytes, Factory, new DocumentOptions { Format = (format ?? TestFormat.Utf8).Format, ChangeLogCapacity = logCapacity });
@@ -262,7 +262,7 @@ public abstract partial class DocumentContractSuite
     [Fact]
     public void BomShiftsTheFirstLineStartNotTheColumns()
     {
-        foreach (var f in new[] { TestFormat.Utf8Bom }.Concat(Formats.Where(x => x.IsUtf16)))
+        foreach (var f in new[] { TestFormat.Utf8Bom }.Concat(Formats.Where(x => x.IsWide)))
         {
             using var d = New(f.Bytes("ab\ncd"), f);
             WaitIndex(d);

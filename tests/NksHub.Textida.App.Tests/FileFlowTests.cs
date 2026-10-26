@@ -89,7 +89,7 @@ public class FileFlowTests : IDisposable
         var tab = NewWith("ř č 😀");
         var path = Path.Combine(_temp.Path, "loss.txt");
         _dialogs.SaveAs.Enqueue(new SaveAsChoice(path, TextCodec.Cp1252));
-        _dialogs.Answers.Enqueue(1); // cancel in the loss dialog
+        _dialogs.Answers.Enqueue(2); // cancel in the loss dialog
 
         Assert.False(await _w.SaveAsync(tab));
 
@@ -109,13 +109,75 @@ public class FileFlowTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Inspector_for_three_characters_cp1250_cannot_hold_offers_cancel_change_encoding_and_replace_with_exact_results()
+    {
+        var tab = NewWith("a ★ b ♥ c ☺ d");
+        var path = Path.Combine(_temp.Path, "cp1250.txt");
+        var choice = new SaveAsChoice(path, TextCodec.Cp1250);
+
+        _dialogs.SaveAs.Enqueue(choice);
+        _dialogs.Answers.Enqueue(2); // cancel: nothing is written
+        Assert.False(await _w.SaveAsync(tab));
+        Assert.False(File.Exists(path));
+        var ask = Assert.Single(_dialogs.Asked);
+        Assert.Equal(3, ask.Details!.Count);
+        Assert.All(ask.Details, d => Assert.Contains("→ 3F", d));
+        Assert.Contains("řádek 1", ask.Details[0]);
+        Assert.Contains("bajt", ask.Details[0]);
+        Assert.Contains("→", ask.Message); // size before and after
+        Assert.Equal([Loc.Get(K.LossSaveReplaced), Loc.Get(K.LossChangeEncoding), Loc.Get(K.DialogCancel)], ask.Buttons.Select(b => b.Label));
+
+        _dialogs.SaveAs.Enqueue(choice);
+        _dialogs.Answers.Enqueue(1); // change the encoding
+        _dialogs.Encodings.Enqueue(TextCodec.Utf8);
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes("a ★ b ♥ c ☺ d"), File.ReadAllBytes(path));
+        Assert.Equal(TextCodec.Utf8, tab.Doc.Doc.Codec);
+        Assert.DoesNotContain(_dialogs.EncodingsOffered[0], t => t.Codec == TextCodec.Cp1250);
+
+        var other = NewWith("a ★ b ♥ c ☺ d");
+        var replaced = Path.Combine(_temp.Path, "cp1250-replaced.txt");
+        _dialogs.SaveAs.Enqueue(new SaveAsChoice(replaced, TextCodec.Cp1250));
+        _dialogs.Answers.Enqueue(0); // explicit replacement
+        Assert.True(await _w.SaveAsync(other));
+        Assert.Equal(Encoding.ASCII.GetBytes("a ? b ? c ? d"), File.ReadAllBytes(replaced));
+    }
+
+    [AvaloniaFact]
+    public async Task Changing_the_encoding_for_typed_text_writes_it_as_typed()
+    {
+        var path = _temp.Bytes("typed.txt", [0x61, 0x62]);
+        var tab = _w.OpenFile(path, null);
+        tab.Doc.Doc.ReinterpretAs(TextCodec.Cp1252);
+        tab.Editor!.Document.Insert(1, "č");
+        _dialogs.Answers.Enqueue(1);
+        _dialogs.Encodings.Enqueue(TextCodec.Utf8);
+
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes("ačb"), File.ReadAllBytes(path));
+        Assert.Equal("ačb", Text(tab));
+        Assert.Equal(TextCodec.Utf8, tab.Doc.Doc.Codec);
+    }
+
+    [AvaloniaFact]
+    public async Task Convert_to_a_lossy_encoding_can_switch_to_another_encoding_from_the_inspector()
+    {
+        var tab = NewWith("řč😀");
+        _dialogs.Answers.Enqueue(1);
+        _dialogs.Encodings.Enqueue(TextCodec.Utf16LE);
+        Assert.True(await _w.ConvertToAsync(tab, TextCodec.Cp1250));
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        Assert.Equal("řč😀", Text(tab));
+    }
+
+    [AvaloniaFact]
     public async Task Typed_character_the_code_page_cannot_hold_is_confirmed_before_saving()
     {
         var path = _temp.Bytes("cp1252.txt", [0x61, 0x62]);
         var tab = _w.OpenFile(path, null);
         tab.Doc.Doc.ReinterpretAs(TextCodec.Cp1252);
         tab.Editor!.Document.Insert(1, "č");
-        _dialogs.Answers.Enqueue(1);
+        _dialogs.Answers.Enqueue(2); // cancel
 
         Assert.False(await _w.SaveAsync(tab));
         Assert.Equal(new byte[] { 0x61, 0x62 }, File.ReadAllBytes(path));
@@ -447,12 +509,11 @@ public class FileFlowTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Large_file_in_an_encoding_the_paged_backend_cannot_hold_says_so()
+    public void Large_file_in_UTF16_opens_in_the_paged_backend()
     {
         _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
         var content = Encoding.Unicode.GetBytes(new string('a', 700_000));
         var path = _temp.Bytes("wide.txt", [.. Encoding.Unicode.GetPreamble(), .. content]);
-        var ex = Assert.Throws<IOException>(() => _w.OpenFile(path, null));
-        Assert.Contains("UTF-16", ex.Message);
+        Assert.NotNull(_w.OpenFile(path, null).Paged);
     }
 }

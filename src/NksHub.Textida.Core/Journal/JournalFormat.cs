@@ -227,7 +227,6 @@ public sealed class JournalWriter : IDisposable
             Access = FileAccess.Write,
             Share = FileShare.Read | FileShare.Delete,
             BufferSize = 0,
-            Options = FileOptions.WriteThrough,
         });
         _file.Write(JournalFormat.FileHeader());
         _file.Flush(true);

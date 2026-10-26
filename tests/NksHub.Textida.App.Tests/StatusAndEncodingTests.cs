@@ -184,7 +184,7 @@ public class StatusAndEncodingTests : IDisposable
         tab.Editor!.Document.Text = "řč😀";
         var utf8 = DocBytes(tab);
 
-        _dialogs.Answers.Enqueue(1); // cancel
+        _dialogs.Answers.Enqueue(2); // cancel
         Assert.False(await _w.ConvertToAsync(tab, TextCodec.Cp1250));
         var loss = Assert.Single(_dialogs.Asked);
         var entry = Assert.Single(loss.Details!);

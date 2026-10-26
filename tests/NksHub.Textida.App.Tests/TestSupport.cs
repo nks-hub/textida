@@ -87,8 +87,23 @@ internal sealed class ScriptedDialogs : IDialogs
 
     public Task<string?> PickFolderAsync(Window owner) => Task.FromResult(Folders.Count > 0 ? Folders.Dequeue() : null);
 
-    public Task<string?> PromptAsync(Window owner, string title, string label, string initial) =>
-        Task.FromResult(Prompts.Count > 0 ? Prompts.Dequeue() : null);
+    /// <summary>What the preview of the prompt showed for the scripted answer, for tests of the preview.</summary>
+    public List<string> Previews { get; } = [];
+    public Queue<TextCodec?> Encodings { get; } = new();
+    public List<IReadOnlyList<(TextCodec Codec, int Lost)>> EncodingsOffered { get; } = [];
+
+    public Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null)
+    {
+        var answer = Prompts.Count > 0 ? Prompts.Dequeue() : null;
+        if (preview is not null && answer is not null) Previews.Add(preview(answer));
+        return Task.FromResult(answer);
+    }
+
+    public Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected)
+    {
+        EncodingsOffered.Add(targets);
+        return Task.FromResult(Encodings.Count > 0 ? Encodings.Dequeue() : throw new InvalidOperationException("Unexpected encoding picker"));
+    }
 
     public Task ShowAboutAsync(Window owner) => Task.CompletedTask;
 }

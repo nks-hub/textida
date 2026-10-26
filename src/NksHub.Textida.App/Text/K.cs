@@ -26,6 +26,8 @@ public static class K
     public const string StatusReady = "status.ready";
     public const string StatusSyntaxPending = "status.syntaxPending";
     public const string StatusSyntaxLongLine = "status.syntaxLongLine";
+    public const string A11yMinimap = "a11y.minimap";
+    public const string ViewWrapSuppressed = "view.wrapSuppressed";
     public const string StatusLargePaged = "status.largePaged";
     public const string StatusIndentSpaces = "status.indent.spaces";
     public const string StatusIndentTabs = "status.indent.tabs";
@@ -102,6 +104,11 @@ public static class K
     public const string LossEntry = "loss.entry";
     public const string LossMore = "loss.more";
     public const string LossSaveReplaced = "loss.saveReplaced";
+    public const string LossSize = "loss.size";
+    public const string LossChangeEncoding = "loss.changeEncoding";
+    public const string LossHexShow = "loss.hexShow";
+    public const string LossPickTitle = "loss.pick.title";
+    public const string LossPickLabel = "loss.pick.label";
     public const string LossConvertReplaced = "loss.convertReplaced";
     public const string EncodingRereadAs = "encoding.rereadAs";
     public const string EncodingConvertTo = "encoding.convertTo";
@@ -208,6 +215,10 @@ public static class K
     public const string RelatedUnsaved = "related.unsaved";
     public const string NavNoBack = "nav.noBack";
     public const string NavNoForward = "nav.noForward";
+    public const string BookmarkAdded = "bookmarks.added";
+    public const string BookmarkRemoved = "bookmarks.removed";
+    public const string BookmarkNone = "bookmarks.none";
+    public const string BookmarksCleared = "bookmarks.cleared";
     public const string A11yPalette = "a11y.palette";
     public const string A11yPaletteResults = "a11y.palette.results";
     public const string RestoreBar = "restore.bar";
@@ -283,6 +294,10 @@ public static class K
     public const string FindTotal = "find.total";
     public const string FindNone = "find.none";
     public const string FindSearching = "find.searching";
+    public const string FindProgress = "find.progress";
+    public const string FindLimit = "find.limit";
+    public const string FindList = "find.list";
+    public const string ResultsListLimit = "results.listLimit";
     public const string FindWrapped = "find.wrapped";
     public const string FindInvalid = "find.invalid";
     public const string FindTooSlow = "find.tooSlow";
@@ -460,6 +475,9 @@ public static class K
     public const string HexBarKeep = "hex.bar.keep";
     public const string HexGotoTitle = "hex.goto.title";
     public const string HexGotoLabel = "hex.goto.label";
+    public const string HexGotoPreview = "hex.goto.preview";
+    public const string HexGotoPreviewEnd = "hex.goto.previewEnd";
+    public const string HexGotoPreviewA11y = "hex.goto.previewA11y";
     public const string HexGotoInvalid = "hex.goto.invalid";
     public const string HexGotoOutside = "hex.goto.outside";
     public const string HexFindTitle = "hex.find.title";

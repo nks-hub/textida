@@ -58,11 +58,13 @@ public sealed class PagedDocument : IPagedTextSource
     public long ByteLength => _tree.Length;
     public TextCodec Codec => _source.Codec;
 
-    /// <summary>Shows the same bytes through another codec; refused (before anything changes) for UTF-16 and UTF-32.</summary>
+    /// <summary>Shows the same bytes through another codec; the line index is rebuilt when the code unit size or byte order differs.</summary>
     public void Reinterpret(TextCodec codec)
     {
+        bool reindex = !MappedFileSource.SharesLineIndex(_source.Codec, codec);
         _source.SetCodec(codec);
         _options.Codec = codec;
+        if (reindex) _tree.StopTrackingLines();
     }
     public bool IsModified => _undo.Count > 0;
     public bool CanUndo => _undo.Count > 0;
@@ -102,24 +104,25 @@ public sealed class PagedDocument : IPagedTextSource
 
     private LineStats Measure(Piece p)
     {
-        var first = PieceBytes(p with { Length = 1 });
-        var last = PieceBytes(p with { Start = p.Start + p.Length - 1, Length = 1 });
-        bool lastCr = last[0] == (byte)'\r';
+        int w = Codec.Alignment;
+        bool whole = p.Length % w == 0; // only a partial unit at the very end of the file can break this
+        bool firstLf = whole && LineScanner.Unit(PieceBytes(p with { Length = w }), 0, Codec) == 10;
+        bool lastCr = whole && LineScanner.Unit(PieceBytes(p with { Start = p.Start + p.Length - w, Length = w }), 0, Codec) == 13;
         long n;
         if (p.Original)
         {
             long end = p.Start + p.Length;
             n = _source.CountTerminatorsBefore(end) - _source.CountTerminatorsBefore(p.Start);
             // the base index skips a CR followed by LF; read on its own the piece ends with a terminator
-            if (lastCr && end < _source.ByteLength && _source.File.GetSpan(end, 1)[0] == (byte)'\n') n++;
+            if (lastCr && end + w <= _source.ByteLength && LineScanner.Unit(_source.File.GetSpan(end, w), 0, Codec) == 10) n++;
         }
         else
         {
             // shortcut: rescans the whole inserted block, fine for typing; pastes of hundreds of MiB need per-block counts (P7.1.2)
             var bytes = PieceBytes(p);
-            n = LineScanner.CountTerminators(bytes, bytes.Length);
+            n = LineScanner.CountTerminators(bytes, bytes.Length, Codec);
         }
-        return new LineStats(n, first[0] == (byte)'\n', lastCr);
+        return new LineStats(n, firstLf, lastCr);
     }
 
     private long AfterNthTerminator(Piece p, long k)
@@ -127,7 +130,7 @@ public sealed class PagedDocument : IPagedTextSource
         if (!p.Original)
         {
             var bytes = PieceBytes(p);
-            return LineScanner.FindNthTerminator(bytes, bytes.Length, k) + 1;
+            return LineScanner.FindNthTerminator(bytes, bytes.Length, k, Codec) + Codec.Alignment;
         }
         long g = _source.CountTerminatorsBefore(p.Start) + k;
         if (_source.TryGetLineStart(g, out long start) && start <= p.Start + p.Length) return start - p.Start;
