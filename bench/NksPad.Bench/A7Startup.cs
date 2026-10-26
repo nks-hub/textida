@@ -23,7 +23,7 @@ internal static class A7Startup
         for (int i = -warmup; i < n; i++)
         {
             var psi = new ProcessStartInfo(exe, mode) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = false };
-            if (OperatingSystem.IsWindows()) psi.Environment["DOTNET_ROOT"] = @"C:\Users\LuRy\.dotnet";
+            if (Environment.GetEnvironmentVariable("DOTNET_ROOT") is { Length: > 0 } dotnetRoot) psi.Environment["DOTNET_ROOT"] = dotnetRoot;
             long t0 = Stopwatch.GetTimestamp();
             using var p = Process.Start(psi)!;
             var stdout = p.StandardOutput.ReadToEndAsync();
