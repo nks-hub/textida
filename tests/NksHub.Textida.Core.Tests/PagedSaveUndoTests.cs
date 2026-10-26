@@ -129,7 +129,7 @@ public class PagedSaveUndoTests
             string path = Path.Combine(dir, "big.txt");
             string originalSha = Generate(path, utf8Log);
             var model = new ChunkModel(path);
-            using var d = Doc.Open(path, new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Utf8 });
+            using var d = Doc.Open(path, new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Utf8, ChangeLogCapacity = 8192 });
             var r = new Random(5);
             var checkpoints = new Dictionary<int, string>();
 
