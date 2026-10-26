@@ -83,6 +83,9 @@ public sealed class PagedDocument : IPagedTextSource
         }
     }
 
+    /// <summary>Bytes from the start whose line numbers are known: the indexed prefix of an unedited file, everything once the index is complete, nothing for an edited file still being indexed.</summary>
+    public long IndexedBytes => IsModified ? (LineIndexState.Complete ? ByteLength : 0) : _source.IndexedBytes;
+
     private void OnSourceProgress(object? sender, EventArgs e) => IndexProgress?.Invoke(this, e);
 
     public bool TryGetLineStart(long line, out long byteOffset)

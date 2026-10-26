@@ -114,6 +114,19 @@ public sealed class MappedFileSource : IPagedTextSource
         }
     }
 
+    /// <summary>Test seam: called with the source and the block number before a block is counted, so a test can hold the index at a chosen prefix.</summary>
+    internal static Action<MappedFileSource, int>? IndexBlockHook { get; set; }
+
+    /// <summary>Bytes from the start whose terminators are all counted; <see cref="ByteLength"/> once the index is complete.</summary>
+    public long IndexedBytes
+    {
+        get
+        {
+            int pub = Volatile.Read(ref _published);
+            return pub == _blocks ? _file.Length : Math.Min(_file.Length, (long)pub * _blockSize);
+        }
+    }
+
     private void StartIndexing(int parallelism)
     {
         if (_blocks == 0) { IndexTask = Task.CompletedTask; return; }
@@ -131,6 +144,7 @@ public sealed class MappedFileSource : IPagedTextSource
 
     private void IndexBlock(int b)
     {
+        IndexBlockHook?.Invoke(this, b);
         long start = (long)b * _blockSize;
         int len = (int)Math.Min(_blockSize, _file.Length - start);
         var codec = Codec;

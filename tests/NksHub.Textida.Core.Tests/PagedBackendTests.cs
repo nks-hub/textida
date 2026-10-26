@@ -37,6 +37,49 @@ public class PagedBackendTests
         Assert.Equal("ax\nb\r\nc"u8.ToArray(), d.ReadBytes(new(0, d.ByteLength)));
     }
 
+    [Fact]
+    public void PositionsInsideTheIndexedPrefixAreKnownWhileTheRestIsBeingIndexed()
+    {
+        string text = string.Concat(Enumerable.Range(0, 120).Select(i => i % 5 == 0 ? $"row {i}\r\n" : $"row {i}\n"));
+        var bytes = Encoding.ASCII.GetBytes(text);
+        using var tmp = new TempFile(bytes);
+        using var gate = new ManualResetEventSlim();
+        MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == tmp.Path && block >= 4) gate.Wait(); };
+        try
+        {
+            using var d = Doc.Open(tmp.Path, new PagedBackendFactory(indexBlockSize: 64), new DocumentOptions { Format = TestFormat.Utf8.Format });
+            var paged = ((PagedBackend)d.Backend).Paged;
+            for (int i = 0; i < 1000 && paged.IndexedBytes < 256; i++) Thread.Sleep(5);
+            Assert.Equal(256, paged.IndexedBytes);
+            Assert.False(d.LineIndexState.Complete);
+
+            var starts = new List<int> { 0 };
+            for (int i = 0; i < text.Length; i++)
+                if (text[i] == '\n' || text[i] == '\r' && text[i + 1] != '\n') starts.Add(i + 1);
+            long known = d.LineIndexState.Lines;
+            for (int offset = 0; offset <= text.Length; offset++)
+            {
+                bool inside = offset < 256 && !(offset > 0 && text[offset - 1] == '\r' && text[offset] == '\n');
+                if (!d.IsCharBoundary(offset) || offset > 0 && offset < text.Length && text[offset - 1] == '\r' && text[offset] == '\n') continue;
+                Assert.Equal(inside, d.TryGetPosition(offset, out var p));
+                if (!inside) continue;
+                int line = starts.FindLastIndex(s => s <= offset);
+                Assert.Equal(new LinePosition(line, offset - starts[line]), p);
+            }
+            for (int line = 0; line < 120; line++)
+            {
+                bool expected = line + 1 < known;
+                Assert.Equal(expected, d.TryGetOffset(new(line, 2), out long at));
+                if (expected) Assert.Equal(starts[line] + 2, at);
+            }
+        }
+        finally
+        {
+            gate.Set();
+            MappedFileSource.IndexBlockHook = null;
+        }
+    }
+
     [Theory]
     [InlineData(1, 64)]
     [InlineData(2, 7)]
