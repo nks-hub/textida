@@ -566,6 +566,26 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Find_matches_are_marked_in_the_strip_and_the_marks_go_with_the_bar()
+    {
+        var tab = Open("f.cs", KeywordFile(3000));
+        var strip = InWindow(tab.Minimap!, new Rect(tab.Minimap!.Bounds.Width - 5, 0, 4, tab.Minimap.Bounds.Height));
+        var blue = Color.Parse("#3B82F6");
+        Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        _w.FindBar.FindBox.Text = "// line 2500";
+        Dispatcher.UIThread.RunJobs();
+        for (var clock = Stopwatch.StartNew(); _w.FindIsRunning && clock.ElapsedMilliseconds < 10_000;)
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(Matching(Capture(), strip, [blue], 4) > 0, "the match is not marked");
+        _w.HideFind();
+        Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Perf")]
     public void Dragging_the_minimap_moves_the_editor_within_the_budget()
     {

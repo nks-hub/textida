@@ -18,6 +18,8 @@ internal sealed partial class EditorSurface : IMinimapHost
     private LineEndingRenderer? _lineEndings;
     private RightMarginRenderer? _margin;
     private TextDocument? _guarded;
+    private ITextSourceVersion? _giantVersion;
+    private bool _giant;
     private Action? _mapChanged;
     private (long First, long Count) _mapVisible = (0, 1);
 
@@ -64,11 +66,20 @@ internal sealed partial class EditorSurface : IMinimapHost
         return renderer;
     }
 
+    /// <summary>Whether a line is longer than <see cref="WrapLineLimit"/>; the scan runs once per version of the text.</summary>
     private bool HasGiantLine()
     {
+        var version = Document.Version;
+        if (_giantVersion is not null && version.BelongsToSameDocumentAs(_giantVersion) && version.CompareAge(_giantVersion) == 0) return _giant;
+        _giantVersion = version;
+        _giant = false;
         foreach (var line in Document.Lines)
-            if (line.Length > WrapLineLimit) return true;
-        return false;
+            if (line.Length > WrapLineLimit)
+            {
+                _giant = true;
+                break;
+            }
+        return _giant;
     }
 
     /// <summary>Watches the document the surface shows: an edit that makes a line giant turns wrapping off at once.</summary>
