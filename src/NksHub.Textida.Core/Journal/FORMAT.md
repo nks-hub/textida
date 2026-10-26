@@ -49,6 +49,7 @@ that document, not the journal.
 | 8 DocClose | document id |
 | 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place, codec name |
 | 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
+| 11-16 Batch* | Replace in Files batch, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
 
 Named documents are recorded as path plus fingerprint (size and SHA-256), never as content, so a paged 100 MiB file costs a few
 hundred bytes. Unnamed documents carry their initial bytes as seeds.
@@ -72,3 +73,23 @@ hundred bytes. Unnamed documents carry their initial bytes as seeds.
 
 `Compact()` (automatic past `CompactThresholdBytes`) applies the reduction of step 1 and keeps the newest session state. It
 writes `<journal>.tmp`, syncs it and moves it over the journal, so a crash leaves either the old or the new file.
+
+## Replace batch journal
+
+A batch of file replacements (`Changes/ChangeApplier.cs`) has its own journal `batch-<id>.njl` with a lock file, in the same format.
+Document targets are not part of it: their edits are recorded by the session journal like any other edit.
+
+| Type | Content |
+| --- | --- |
+| 11 BatchBegin | batch id, title, origin, creation time, number of files |
+| 12 BatchFilePlan | batch id, file index, path, codec name, size and SHA-256 of the content the plan is based on, hunks (start, old bytes, new bytes) |
+| 13 BatchFileIntent | batch id, file index, size and SHA-256 of the new content, name of the temporary file; written and fsynced before the new file is moved into place |
+| 14 BatchFileDone | batch id, file index (not fsynced on its own) |
+| 15 BatchFileSkipped | batch id, file index, reason (the file no longer matched its base) |
+| 16 BatchEnd | batch id; the journal is deleted right after it |
+
+`BatchBegin` and all plans are fsynced once before the first file is touched, so a plan is either whole or no file was changed.
+After a crash the state of every file comes from its hash, not from `BatchFileDone`: the base hash means untouched, the intended hash
+(from the intent) means applied, anything else means someone else changed it and the file is left alone. `BatchRecovery` offers to
+finish (apply the plans of untouched files) or to roll back (reverse the hunks of applied files, checked against the base hash);
+both are safe to repeat, because a crash during recovery leaves files in the same hash-defined states.

@@ -1,0 +1,207 @@
+using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Journal;
+
+namespace NksHub.Textida.Core.Changes;
+
+/// <summary>
+/// Applies a reviewed <see cref="ChangeProposal"/>. Every target is all or nothing: an open document gets all its accepted hunks in one
+/// transaction (one revision, one undo step) and only when it is still at the proposal's revision; a file on disk is rewritten only
+/// when its content is still the base of the proposal, from a temporary file moved into place, with every byte outside the hunks
+/// copied verbatim and the replacement texts encoded in the file's own codec. A stale target is reported as a conflict and left alone,
+/// the others go on. Disk files are journaled (see FORMAT.md) so that an interrupted batch can be finished or rolled back
+/// (<see cref="BatchRecovery"/>). The call is synchronous and, because it edits documents, runs on the thread that owns them.
+/// </summary>
+/// <param name="findDocument">Resolves the document a proposal names; null when it is not open.</param>
+/// <param name="journalDirectory">Directory of the batch journals; null applies disk files without crash recovery.</param>
+public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? journalDirectory = null)
+{
+    /// <summary>Test seam called at named points of a batch ("plan", "before-swap:N", "after-swap:N", "after-file:N", "before-end").</summary>
+    public Action<string>? FaultPoint { get; init; }
+
+    private sealed record DiskItem(FileChange File, IReadOnlyList<Hunk> Hunks, BatchFilePlan Plan);
+
+    public ApplyReport Apply(ChangeProposal proposal, ChangeSelection? selection = null)
+    {
+        selection ??= new();
+        var outcomes = new Dictionary<string, FileOutcome>();
+        var disk = new List<(FileChange File, IReadOnlyList<Hunk> Hunks)>();
+        foreach (var file in proposal.Files)
+        {
+            var chosen = selection.Selected(file);
+            if (chosen.Count == 0) outcomes[file.Key] = new(file.Key, file.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, file.Hunks.Count);
+            else if (file.IsDocument) outcomes[file.Key] = ApplyDocument(proposal, file, chosen);
+            else disk.Add((file, chosen));
+        }
+        Guid? batch = disk.Count > 0 ? ApplyDisk(proposal, disk, outcomes) : null;
+        return new ApplyReport(proposal.Id, [.. proposal.Files.Select(f => outcomes[f.Key])], batch);
+    }
+
+    private static FileOutcome Conflict(FileChange f, ChangeConflict reason, int hunks, string message) =>
+        new(f.Key, f.DisplayName, ChangeStatus.Conflict, reason, 0, hunks, message);
+
+    private FileOutcome ApplyDocument(ChangeProposal proposal, FileChange file, IReadOnlyList<Hunk> chosen)
+    {
+        if (file.DocumentId is not { } id || findDocument(id) is not { } doc) return Conflict(file, ChangeConflict.DocumentUnavailable, chosen.Count, "The document is not open any more.");
+        if (doc.Revision != file.BaseRevision) return Conflict(file, ChangeConflict.StaleRevision, chosen.Count, $"The document changed (revision {file.BaseRevision} -> {doc.Revision}); make a new preview.");
+
+        var edits = new List<ByteEdit>(chosen.Count);
+        foreach (var h in chosen)
+        {
+            try
+            {
+                if (doc.ReadText(h.Range) != h.OldText) return Conflict(file, ChangeConflict.StaleRevision, chosen.Count, "The text at a range is not the one in the preview.");
+                edits.Add(new ByteEdit(h.Range, doc.Codec.Encode(h.NewText)));
+            }
+            catch (ArgumentException)
+            {
+                return Conflict(file, ChangeConflict.InvalidRange, chosen.Count, $"Range {h.Range} is not valid in the document.");
+            }
+            catch (UnrepresentableCharactersException)
+            {
+                return Conflict(file, ChangeConflict.EncodingLoss, chosen.Count, $"The new text cannot be written in {doc.Codec.Name}.");
+            }
+        }
+        var result = doc.Apply(edits, new EditOptions { Source = proposal.Origin });
+        if (!result.Applied)
+        {
+            var reason = result.Conflict is ConflictReason.FutureRevision or ConflictReason.LogTruncated or ConflictReason.Overlap ? ChangeConflict.StaleRevision : ChangeConflict.InvalidRange;
+            return Conflict(file, reason, chosen.Count, $"The document refused the edits ({result.Conflict}).");
+        }
+        return new(file.Key, file.DisplayName, ChangeStatus.Applied, ChangeConflict.None, chosen.Count, file.Hunks.Count - chosen.Count);
+    }
+
+    private Guid? ApplyDisk(ChangeProposal proposal, List<(FileChange File, IReadOnlyList<Hunk> Hunks)> selected, Dictionary<string, FileOutcome> outcomes)
+    {
+        // 1. check every file against its base and encode the new texts; only intact files enter the batch
+        var items = new List<DiskItem>();
+        foreach (var (file, hunks) in selected)
+        {
+            try
+            {
+                if (file.Path is null || file.BaseFingerprint is null) throw new ArgumentException($"File change '{file.Key}' has no path and fingerprint.");
+                var bytes = BatchFiles.TryRead(BatchFiles.ResolveTarget(file.Path));
+                if (bytes is null)
+                {
+                    outcomes[file.Key] = File.Exists(file.Path) ? Failed(file, hunks.Count, "The file cannot be read.") : Conflict(file, ChangeConflict.Missing, hunks.Count, "The file is gone.");
+                    continue;
+                }
+                if (bytes.Length != file.BaseFingerprint.Size || BatchFiles.Sha(bytes) != file.BaseFingerprint.Sha256)
+                {
+                    outcomes[file.Key] = Conflict(file, ChangeConflict.ExternalChange, hunks.Count, "The file was changed by another program after the preview; make a new preview.");
+                    continue;
+                }
+                var plan = Plan(items.Count, file, hunks, bytes);
+                items.Add(new DiskItem(file, hunks, plan));
+            }
+            catch (UnrepresentableCharactersException)
+            {
+                outcomes[file.Key] = Conflict(file, ChangeConflict.EncodingLoss, hunks.Count, $"The new text cannot be written in {file.Codec.Name}.");
+            }
+            catch (InvalidDataException e)
+            {
+                outcomes[file.Key] = Conflict(file, ChangeConflict.InvalidRange, hunks.Count, e.Message);
+            }
+        }
+        if (items.Count == 0) return null;
+
+        // 2. write the whole plan and sync it before the first file is touched
+        BatchJournalWriter? journal = null;
+        Guid batchId = Guid.NewGuid();
+        if (journalDirectory is not null)
+        {
+            try
+            {
+                journal = BatchJournalWriter.Create(journalDirectory, batchId);
+                journal.Begin(proposal.Title, proposal.Origin, items.Count);
+                foreach (var item in items) journal.Plan(item.Plan);
+                journal.Flush();
+                if (journal.Fault is not null) throw new IOException("The journal could not be written.", journal.Fault);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                journal?.Dispose();
+                foreach (var item in items) outcomes[item.File.Key] = Failed(item.File, item.Hunks.Count, "The recovery journal could not be written, so nothing was changed: " + e.Message);
+                return null;
+            }
+        }
+
+        // 3. one file at a time: intent (synced), temporary file, move into place
+        try
+        {
+            FaultPoint?.Invoke("plan");
+            foreach (var item in items) outcomes[item.File.Key] = ApplyFile(item, batchId, journal);
+            FaultPoint?.Invoke("before-end");
+        }
+        catch
+        {
+            journal?.Dispose(); // an interrupted batch keeps its journal for recovery
+            throw;
+        }
+        if (journal is not null)
+        {
+            if (journal.Fault is null) journal.Complete();
+            else journal.Dispose();
+        }
+        return journalDirectory is null ? null : batchId;
+    }
+
+    private static FileOutcome Failed(FileChange f, int hunks, string message) => new(f.Key, f.DisplayName, ChangeStatus.Failed, ChangeConflict.None, 0, hunks, message);
+
+    private static BatchFilePlan Plan(int index, FileChange file, IReadOnlyList<Hunk> hunks, byte[] bytes)
+    {
+        var list = new List<BatchHunk>(hunks.Count);
+        long end = 0;
+        foreach (var h in hunks.OrderBy(h => h.Range.Start))
+        {
+            if (h.Range.Start < end || h.Range.End > bytes.Length) throw new InvalidDataException($"Range {h.Range} overlaps another or lies outside the file.");
+            list.Add(new BatchHunk(h.Range.Start, bytes.AsSpan((int)h.Range.Start, (int)h.Range.Length).ToArray(), file.Codec.Encode(h.NewText)));
+            end = h.Range.End;
+        }
+        return new BatchFilePlan(index, file.Path!, file.Codec.Name, bytes.Length, BatchFiles.Sha(bytes), list);
+    }
+
+    private FileOutcome ApplyFile(DiskItem item, Guid batchId, BatchJournalWriter? journal)
+    {
+        var (file, hunks, plan) = (item.File, item.Hunks, item.Plan);
+        string target = BatchFiles.ResolveTarget(file.Path!);
+        string temp = $"{target}.textida-{batchId.ToString("N")[..8]}-{plan.Index}.tmp";
+        try
+        {
+            var stamp = File.GetLastWriteTimeUtc(target);
+            var current = BatchFiles.TryRead(target);
+            if (current is null || current.Length != plan.BaseSize || BatchFiles.Sha(current) != plan.BaseSha)
+            {
+                journal?.Skipped(plan.Index, "changed after the plan was made");
+                return Conflict(file, current is null ? ChangeConflict.Missing : ChangeConflict.ExternalChange, hunks.Count, "The file changed while the batch ran.");
+            }
+            var content = BatchFiles.Apply(current, plan.Hunks);
+            journal?.Intent(new BatchIntent(plan.Index, content.Length, BatchFiles.Sha(content), temp));
+            journal?.Flush();
+            if (journal?.Fault is { } fault) throw new IOException("The journal could not be written.", fault);
+
+            bool changedMeanwhile = false;
+            BatchFiles.WriteReplacing(target, temp, content, () =>
+            {
+                FaultPoint?.Invoke($"before-swap:{plan.Index}");
+                var now = new FileInfo(target);
+                if (now.Length != plan.BaseSize || now.LastWriteTimeUtc != stamp) changedMeanwhile = true;
+                if (changedMeanwhile) throw new InvalidDataException("changed during the write");
+            });
+            FaultPoint?.Invoke($"after-swap:{plan.Index}");
+            journal?.Done(plan.Index);
+            FaultPoint?.Invoke($"after-file:{plan.Index}");
+            return new(file.Key, file.DisplayName, ChangeStatus.Applied, ChangeConflict.None, hunks.Count, file.Hunks.Count - hunks.Count);
+        }
+        catch (InvalidDataException)
+        {
+            journal?.Skipped(plan.Index, "changed during the write");
+            return Conflict(file, ChangeConflict.ExternalChange, hunks.Count, "The file changed while the batch ran.");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            journal?.Skipped(plan.Index, e.Message);
+            return Failed(file, hunks.Count, e.Message);
+        }
+    }
+}
