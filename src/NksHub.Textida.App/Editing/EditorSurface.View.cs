@@ -135,8 +135,12 @@ internal sealed partial class EditorSurface : IMinimapHost
         }
     }
 
-    void IMinimapHost.ScrollToLine(long line) =>
-        ScrollToVerticalOffset(TextArea.TextView.GetVisualTopByDocumentLine((int)Math.Clamp(line + 1, 1, Document.LineCount)));
+    void IMinimapHost.ScrollToLine(long line)
+    {
+        var view = TextArea.TextView;
+        var scrollable = (Avalonia.Controls.Primitives.ILogicalScrollable)view;
+        scrollable.Offset = new Vector(scrollable.Offset.X, view.GetVisualTopByDocumentLine((int)Math.Clamp(line + 1, 1, Document.LineCount)));
+    }
 }
 
 /// <summary>Draws CR, LF or CRLF after the last character of each line; the document is not touched.</summary>

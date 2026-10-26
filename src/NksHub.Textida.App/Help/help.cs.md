@@ -316,6 +316,17 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 vrátí výchozí velikost.
 - Velikost je v rozsahu 6 až 72 bodů a ukládá se do nastavení Velikost písma.
 
+## [view.display] Skryté znaky, čísla řádků a minimapa
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+1. Zvolte Zobrazit a Zobrazit skryté znaky (Ctrl+K, Ctrl+W): vykreslí se mezery, tabulátory a konce řádků CR, LF a CRLF. Dokument se nemění.
+2. Zobrazit čísla řádků (Ctrl+K, Ctrl+N), Zvýraznit aktuální řádek, Zobrazit pravý okraj (svislá čára ve sloupci 80, nastavuje se v nastavení Sloupec pravého okraje) a Klikací odkazy zapínají a vypínají zbytek.
+3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění. Kliknutím nebo tažením se posouvá. U velkého souboru ukazuje jen řádky kolem obrazovky.
+- Shody z lišty hledání jsou označené v úzkém pruhu na pravém okraji minimapy.
+- Odkazy se otevřou kliknutím s Ctrl a ve stránkovaném režimu nejsou k dispozici.
+- Řádek delší než 50 000 znaků se nikdy nezalomí: Přepnout zalamování to řekne ve stavovém řádku. Stránkovaný režim nezalamuje nikdy.
+- Znaky, které hlavní písmo nemá, se vykreslí písmy z nastavení Náhradní písma.
+- Ctrl a kolečko myši mění velikost písma jako příkazy zvětšení.
+
 ## [view.tabs] Přepínání karet
 commands: nks.view.nextTab, nks.view.previousTab
 1. Ctrl+Tab přepne na další kartu skupiny, Ctrl+Shift+Tab na předchozí.
