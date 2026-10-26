@@ -1256,7 +1256,7 @@
     {
       "key": "files.largeFileThreshold",
       "type": "integer",
-      "default": 16,
+      "default": 6,
       "title": "setting.files.largeFileThreshold.title",
       "description": "setting.files.largeFileThreshold.description",
       "category": "cat.files",

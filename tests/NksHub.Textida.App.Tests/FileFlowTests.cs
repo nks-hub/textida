@@ -9,6 +9,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -424,6 +425,25 @@ public class FileFlowTests : IDisposable
         Assert.True(_app.Workbench.Commands.TryGet("nks.edit.undo", out var undo) && undo.IsEnabled(ctx));
         tab.GoToLine(100_000);
         Assert.True(tab.CaretPosition().Line >= 1);
+    }
+
+    [AvaloniaFact]
+    public void The_switch_size_is_a_setting_with_a_measured_default_and_a_visible_source()
+    {
+        var settings = _app.Workbench.Settings;
+        var resolved = settings.Resolve("files.largeFileThreshold")!;
+        Assert.Equal(SettingSource.Default, resolved.Source);
+        Assert.Equal(6, settings.GetInt("files.largeFileThreshold")); // measured: the largest size whose AvaloniaEdit peak commit stayed within 350 MiB on every machine
+
+        var line = Encoding.ASCII.GetBytes("0123456789abcde\n");
+        var atTheLimit = new byte[6 << 20];
+        for (int i = 0; i < atTheLimit.Length; i += line.Length) line.CopyTo(atTheLimit, i);
+        Assert.False(_w.OpenFile(_temp.Bytes("limit.log", atTheLimit), null).Doc.IsLarge); // the limit itself still opens in AvaloniaEdit
+        Assert.True(_w.OpenFile(_temp.Bytes("over.log", [.. atTheLimit, (byte)'x']), null).Doc.IsLarge); // one byte more opens paged and editable
+
+        _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(16));
+        Assert.Equal(SettingSource.User, settings.Resolve("files.largeFileThreshold")!.Source);
+        Assert.False(_w.OpenFile(_temp.Bytes("over2.log", [.. atTheLimit, (byte)'y']), null).Doc.IsLarge);
     }
 
     [AvaloniaFact]
