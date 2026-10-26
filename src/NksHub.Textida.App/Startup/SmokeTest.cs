@@ -73,6 +73,8 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             window.CloseTab(largeTab);
             window.CloseTab(opened);
 
+            await CheckNavigationAsync(temp);
+
             // palette, settings view, undo, split
             var edit = window.NewDocument();
             edit.Editor!.Document.Text = Lines;
@@ -119,6 +121,70 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         finally
         {
             GC.KeepAlive(watchdog);
+        }
+    }
+
+    /// <summary>The file panel on a real folder, Go to Anything, the related file, a rename that carries an open document along, and the system recycle bin.</summary>
+    private async Task CheckNavigationAsync(string temp)
+    {
+        string proj = Path.Combine(temp, "proj");
+        Directory.CreateDirectory(Path.Combine(proj, "src"));
+        File.WriteAllText(Path.Combine(proj, "src", "main.c"), "int main(void) { return 0; }\n");
+        File.WriteAllText(Path.Combine(proj, "src", "main.h"), "#pragma once\n");
+        Check(await window.ShowFolderAsync(proj) && window.FilePanelOpen && window.Files!.Rows.Count == 1, "the file panel lists the first level of a folder");
+        await window.Files!.ExpandAsync(Path.Combine(proj, "src"));
+        Check(window.Files.Rows.Select(r => r.Entry.Name).SequenceEqual(["src", "main.c", "main.h"]), "an opened folder lists its entries, folders first");
+
+        var main = window.OpenFile(Path.Combine(proj, "src", "main.c"), null);
+        window.GoToRelatedFile();
+        Check(window.Active?.Path == Path.Combine(proj, "src", "main.h"), "the related file of main.c is main.h");
+
+        window.ShowQuickOpen("src main");
+        for (int i = 0; i < 100 && !window.QuickResults.Any(r => r.Title == "main.c" && r.Category is null); i++) await Task.Delay(50);
+        Check(window.QuickResults.Any(r => r.Title == "main.c"), "Go to Anything finds a file by parts of its path");
+        window.ClosePalette();
+
+        main.Editor!.Document.Insert(0, "// ");
+        string renamed = Path.Combine(proj, "src", "start.c");
+        await window.RenameEntryAsync(Path.Combine(proj, "src", "main.c"), "start.c");
+        Check(main.Path == renamed && main.Doc.Doc.IsModified && File.Exists(renamed) && !File.Exists(Path.Combine(proj, "src", "main.c")), "renaming an open file renames the tab and keeps the unsaved change");
+
+        window.ShowPalette();
+        window.SetPaletteQuery("=1+2*3");
+        Check(window.QuickResults is [{ Title: "= 7" }], "the palette calculates 1+2*3");
+        window.ClosePalette();
+        CheckRecycleBin(temp);
+    }
+
+    private void CheckRecycleBin(string temp)
+    {
+        if (!Services.RecycleBin.IsSupported) return;
+        string name = $"textida-smoke-{Environment.ProcessId}.txt";
+        string victim = Path.Combine(temp, name);
+        File.WriteAllText(victim, "x");
+        Services.RecycleBin.Move(victim);
+        Check(!File.Exists(victim), "the system recycle bin took the file out of its folder");
+        string? found = null;
+        if (OperatingSystem.IsMacOS())
+        {
+            string trash = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".Trash");
+            found = Directory.EnumerateFiles(trash, "textida-smoke-" + Environment.ProcessId + "*").FirstOrDefault();
+            Check(found is not null, "the file is in the Trash");
+            if (found is not null) File.Delete(found);
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            string bin = Path.Combine(Path.GetPathRoot(victim)!, "$Recycle.Bin", System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value);
+            foreach (var meta in Directory.EnumerateFiles(bin, "$I*"))
+            {
+                var bytes = File.ReadAllBytes(meta);
+                if (bytes.Length < 28 || BitConverter.ToInt64(bytes, 0) != 2 || !Encoding.Unicode.GetString(bytes, 28, Math.Max(0, BitConverter.ToInt32(bytes, 24) - 1) * 2).Equals(victim, StringComparison.OrdinalIgnoreCase)) continue;
+                found = meta;
+                File.Delete(meta);
+                string data = Path.Combine(bin, "$R" + Path.GetFileName(meta)[2..]);
+                if (File.Exists(data)) File.Delete(data);
+            }
+            Check(found is not null, "the file is in the recycle bin");
         }
     }
 

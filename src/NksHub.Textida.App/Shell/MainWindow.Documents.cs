@@ -35,6 +35,7 @@ internal sealed partial class MainWindow
     {
         path = Path.GetFullPath(path);
         var tab = Tabs.FirstOrDefault(t => string.Equals(t.Path, path, PathComparison));
+        _app.Recent.Add(path);
         if (tab is null)
         {
             var od = OpenDocument.Open(path, LargeFileBytes);
@@ -62,6 +63,7 @@ internal sealed partial class MainWindow
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         _app.Journal.Track(od);
         od.EnsureWatching();
+        TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);
     }
@@ -142,6 +144,7 @@ internal sealed partial class MainWindow
             if (wasActive) SelectTab(fresh);
         }
         od.EnsureWatching();
+        TrackEdits(od);
         od.Autosave?.Dispose();
         od.Autosave = null;
         ConfigureAutosave(od);
@@ -187,6 +190,7 @@ internal sealed partial class MainWindow
         tab.ShowBar(null);
         if (od.Views.Count == 0)
         {
+            ForgetDocument(od);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();

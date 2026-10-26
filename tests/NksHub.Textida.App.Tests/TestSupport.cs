@@ -68,6 +68,7 @@ internal sealed class ScriptedDialogs : IDialogs
     public List<SaveAsRequest> SaveAsAsked { get; } = [];
     public Queue<string?> Prompts { get; } = new();
     public List<string> Picked { get; } = [];
+    public Queue<string?> Folders { get; } = new();
 
     public Task<int> ChooseAsync(Window owner, ChoiceRequest request)
     {
@@ -83,6 +84,8 @@ internal sealed class ScriptedDialogs : IDialogs
     }
 
     public Task<IReadOnlyList<string>> PickFilesAsync(Window owner) => Task.FromResult<IReadOnlyList<string>>([.. Picked]);
+
+    public Task<string?> PickFolderAsync(Window owner) => Task.FromResult(Folders.Count > 0 ? Folders.Dequeue() : null);
 
     public Task<string?> PromptAsync(Window owner, string title, string label, string initial) =>
         Task.FromResult(Prompts.Count > 0 ? Prompts.Dequeue() : null);

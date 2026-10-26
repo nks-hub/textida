@@ -25,6 +25,8 @@ internal interface IDialogs
     Task<int> ChooseAsync(Window owner, ChoiceRequest request);
     Task<SaveAsChoice?> SaveAsAsync(Window owner, SaveAsRequest request);
     Task<IReadOnlyList<string>> PickFilesAsync(Window owner);
+    /// <summary>The folder the user chose, or null when the dialog was cancelled.</summary>
+    Task<string?> PickFolderAsync(Window owner);
     Task<string?> PromptAsync(Window owner, string title, string label, string initial);
     Task ShowAboutAsync(Window owner);
 }
@@ -63,6 +65,12 @@ internal sealed class AvaloniaDialogs : IDialogs
     {
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Loc.Get(K.DialogOpenTitle), AllowMultiple = true });
         return [.. files.Select(f => f.TryGetLocalPath()).OfType<string>()];
+    }
+
+    public async Task<string?> PickFolderAsync(Window owner)
+    {
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = Loc.Get(K.DialogOpenFolderTitle), AllowMultiple = false });
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
     public async Task<string?> PromptAsync(Window owner, string title, string label, string initial)

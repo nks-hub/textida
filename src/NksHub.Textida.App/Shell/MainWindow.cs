@@ -48,7 +48,6 @@ internal sealed partial class MainWindow : Window
     public IReadOnlyList<OpenDocument> Documents => _docs;
     public IEnumerable<DocTab> Tabs => _groups.SelectMany(g => g.Tabs);
     public DocTab? Active => _activeGroup.Active;
-    public bool DocumentsPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0;
     public EditorOptions Options => Active is { } tab ? OptionsFor(tab) : EditorOptions.From(_app.Workbench.Settings);
 
     /// <summary>Settings for a tab: its language layer, with the indentation detected from the file when the setting asks for it.</summary>
@@ -98,7 +97,7 @@ internal sealed partial class MainWindow : Window
         Resized += (_, e) => { if (WindowState == WindowState.Normal) _normalSize = e.ClientSize; };
         _docList.SelectionChanged += (_, _) =>
         {
-            if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < Tabs.Count()) SelectTab(Tabs.ElementAt(i));
+            if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < _docListTabs.Count) SelectTab(_docListTabs[i]);
         };
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -145,8 +144,7 @@ internal sealed partial class MainWindow : Window
             root.Children.Add(title);
         }
 
-        var panel = new Border { Child = new DockPanel { Children = { Dock(_docListTitle, Avalonia.Controls.Dock.Top), Dock(_docListEmpty, Avalonia.Controls.Dock.Bottom), _docList } } };
-        panel.Classes.Add("sidepanel");
+        var panel = BuildLeftColumn();
 
         var editorArea = new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } };
         Grid.SetColumn(editorArea, 1);
@@ -243,7 +241,7 @@ internal sealed partial class MainWindow : Window
         RefreshTitle();
         _menuModel = BuildMenuModel();
         var tab = Active;
-        Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_docList.IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
+        Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_body.Children[0].IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
     /// <summary>Gives the keyboard to the text area of the tab, so typing works at once without a click.</summary>
@@ -265,10 +263,21 @@ internal sealed partial class MainWindow : Window
     private void RefreshDocList()
     {
         _syncing = true;
+        string filter = (_docFilter.Text ?? "").Trim();
+        _docListTabs.Clear();
         _docList.Items.Clear();
-        foreach (var tab in Tabs) _docList.Items.Add(new ListBoxItem { Content = tab.Title });
-        _docList.SelectedIndex = Active is null ? -1 : Tabs.ToList().IndexOf(Active);
-        _docListEmpty.IsVisible = !Tabs.Any();
+        foreach (var tab in Tabs)
+        {
+            if (filter.Length > 0 && !Matches(filter, tab.Title + " " + tab.Path)) continue;
+            bool modified = tab.Doc.HasUnsavedWork;
+            var item = new ListBoxItem { Content = modified ? tab.Title + " ●" : tab.Title };
+            AutomationProperties.SetName(item, modified ? Loc.Get(K.TabModifiedName, ("title", tab.Title)) : tab.Title);
+            _docListTabs.Add(tab);
+            _docList.Items.Add(item);
+        }
+        _docList.SelectedIndex = filter.Length > 0 ? (_docListTabs.Count > 0 ? 0 : -1) : Active is null ? -1 : _docListTabs.IndexOf(Active);
+        _docListEmpty.IsVisible = _docListTabs.Count == 0;
+        _docListEmpty.Text = Loc.Get(Tabs.Any() ? K.PanelDocumentsNoMatch : K.PanelDocumentsEmpty);
         _syncing = false;
     }
 
@@ -289,17 +298,6 @@ internal sealed partial class MainWindow : Window
             if (g.Tabs.Any(t => TabGroup.HeaderStateOf(t) != t.HeaderState)) g.Refresh();
     }
 
-    // ---- panels ----
-
-    public void ToggleDocuments(bool? open = null)
-    {
-        bool show = open ?? !DocumentsPanelOpen;
-        _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
-        _menuModel = BuildMenuModel();
-        if (show) _docList.Focus();
-        else if (Active is { } tab) FocusView(tab);
-    }
-
     // ---- text ----
 
     private void OnLanguageChanged()
@@ -313,8 +311,8 @@ internal sealed partial class MainWindow : Window
     {
         foreach (var g in _groups) if (g.Empty is TextBlock hint) hint.Text = EmptyHintText();
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
-        _docListEmpty.Text = Loc.Get(K.PanelDocumentsEmpty);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
+        ApplyFileTexts();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
@@ -347,6 +345,7 @@ internal sealed partial class MainWindow : Window
     {
         Loc.Changed -= OnLanguageChanged;
         _app.Workbench.SettingChanged -= OnSettingChanged;
+        ReleaseNavigation();
         bool others = _app.Windows.Count > 1;
         foreach (var doc in _docs.ToList())
         {

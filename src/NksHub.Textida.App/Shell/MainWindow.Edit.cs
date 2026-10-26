@@ -25,7 +25,7 @@ internal sealed partial class MainWindow
         if (e.Key == Key.Escape)
         {
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
-            if (DocumentsPanelOpen) { ToggleDocuments(false); e.Handled = true; return; }
+            if (CloseLeftPanel()) { e.Handled = true; return; }
         }
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
         // AltGr arrives as Ctrl+Alt on Windows and types a character: that is text, not a command
@@ -63,6 +63,7 @@ internal sealed partial class MainWindow
         _ when commandId.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal) => (Loc.Language == commandId[AppCommands.LanguageCommandPrefix.Length..], true),
         "nks.view.toggleWordWrap" => (Options.WordWrap, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
+        "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         _ => null,
     };
 
@@ -226,7 +227,7 @@ internal sealed partial class MainWindow
         if (Active is not { } tab) return;
         var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.GoToLineTitle), Loc.Get(K.GoToLineLabel), "");
         if (answer is null) return;
-        if (int.TryParse(answer.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int line) && line >= 1) tab.GoToLine(line);
+        if (int.TryParse(answer.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int line) && line >= 1) { RecordJump(); tab.GoToLine(line); }
         else SetStatusMessage(Loc.Get(K.GoToLineInvalid, ("text", answer)));
     }
 
