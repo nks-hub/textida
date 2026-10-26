@@ -322,19 +322,30 @@ public static class AtomicFile
                 stream.Flush(flushToDisk: true);
             }
 
-            if (File.Exists(path))
-            {
-                File.Replace(temp, path, null);
-            }
-            else
-            {
-                File.Move(temp, path);
-            }
+            Swap(temp, path);
         }
         catch
         {
             File.Delete(temp);
             throw;
+        }
+    }
+
+    // Same retry as Core's FileSwap.Replace: a scanner holding the fresh file for a few ms fails File.Replace with 1175.
+    private static void Swap(string temp, string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
+                return;
+            }
+            catch (IOException e) when (attempt < 8 && (e.HResult & 0xFFFF) is 32 or 33 or 1175 or 1176 or 1177)
+            {
+                Thread.Sleep(10 << Math.Min(attempt, 6));
+            }
         }
     }
 }
