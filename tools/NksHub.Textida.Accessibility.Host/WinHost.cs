@@ -291,7 +291,7 @@ internal static unsafe class WinHost
                 WinNative.DestroyWindow(hwnd);
                 return 0;
             case WinNative.WmDestroy:
-                Console.WriteLine("FINAL " + Escape(_surface.GetText(0, _surface.Length)));
+                Console.WriteLine("FINAL " + Program.Escape(_surface.GetText(0, _surface.Length)));
                 Console.Out.Flush();
                 WinNative.PostQuitMessage(0);
                 return 0;
@@ -354,11 +354,4 @@ internal static unsafe class WinHost
         return WinNative.DefWindowProcW(hwnd, msg, wParam, lParam);
     }
 
-    public static string Escape(string s)
-    {
-        var sb = new System.Text.StringBuilder();
-        foreach (char c in s)
-            sb.Append(c switch { '\r' => "\\r", '\n' => "\\n", '\t' => "\\t", '\\' => "\\\\", < ' ' or > '~' => $"\\u{(int)c:x4}", _ => c.ToString() });
-        return sb.ToString();
-    }
 }
