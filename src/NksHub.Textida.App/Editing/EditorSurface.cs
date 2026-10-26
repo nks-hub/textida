@@ -79,7 +79,8 @@ internal sealed partial class EditorSurface : TextEditor
     public bool IsBlockSelection => TextArea.Selection is RectangleSelection;
 
     /// <summary>Creates the invisible native control that publishes this editor to UI Automation; the caller puts it into the visual tree next to the editor.</summary>
-    public EditorAutomationHost CreateAutomationHost() => ((EditorTextArea)TextArea).Automation = new EditorAutomationHost(this);
+    public EditorAutomationHost CreateAutomationHost() => ((EditorTextArea)TextArea).Automation = new EditorAutomationHost(
+        Doc, () => new EditorTextSurface(this), () => TextArea.Focus(), () => Avalonia.Automation.AutomationProperties.GetName(this) ?? "Editor");
 
     protected override AutomationPeer OnCreateAutomationPeer() =>
         EditorAutomationHook.Provider?.CreatePeer(this, Doc.Doc) ?? base.OnCreateAutomationPeer();

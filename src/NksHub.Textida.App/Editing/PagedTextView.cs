@@ -27,7 +27,7 @@ namespace NksHub.Textida.App.Editing;
 /// offset and each visible line is decoded with a character map between UTF-16 columns and bytes.
 /// </summary>
 /// <remarks>
-/// shortcut: one selection only (no extra carets, no block mode), no inline IME preedit; a line longer than <see cref="MaxLineBytes"/> shows its first part
+/// shortcut: one selection only (no extra carets, no block mode); a line longer than <see cref="MaxLineBytes"/> shows its first part
 /// and cannot be edited; no horizontal scroll bar; saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
@@ -56,6 +56,9 @@ internal sealed partial class PagedTextView : Grid
     private bool _own;
     private char _pendingHigh;
     private readonly InputClient _inputClient;
+    private Detour? _detour;
+    private string _preedit = "";
+    private PagedDocument? _watched;
 
     public PagedTextView(OpenDocument doc, EditorOptions options)
     {
@@ -75,6 +78,7 @@ internal sealed partial class PagedTextView : Grid
         _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {
+            LeaveDetourWhenIndexed();
             UpdateScrollRange();
             _canvas.InvalidateVisual();
             if (Doc.LineIndexState.Complete) _indexTimer.Stop();
@@ -100,7 +104,13 @@ internal sealed partial class PagedTextView : Grid
     private Document Doc => _doc.Doc;
     private PagedDocument Paged => ((PagedBackend)Doc.Backend).Paged;
     private bool Indexed => Doc.LineIndexState.Complete;
-    private long LineCount => Doc.LineIndexState.Lines;
+    /// <summary>Lines of the document; while the index is being built the lines counted so far, in a detour the estimate.</summary>
+    private long LineCount => _detour is { } d ? Math.Max(EstimatedLines(d), d.BaseLine + d.Starts.Count) : Doc.LineIndexState.Lines;
+    /// <summary>Lines whose start and end are known: the last line of a partial index is still open.</summary>
+    private long ShownLines => LineCount - (Indexed || _detour is not null ? 0 : 1);
+    /// <summary>False while the line numbers are estimates (after a jump beyond the indexed part); they are marked with "≈".</summary>
+    public bool LinesExact => _detour is null;
+    private bool CanLocate(long offset) => _detour is not null || Indexed || offset < Paged.IndexedBytes;
 
     /// <summary>Zero-based first line on screen.</summary>
     public long TopLine => (long)_bar.Value;
@@ -137,8 +147,14 @@ internal sealed partial class PagedTextView : Grid
         _canvas.InvalidateVisual();
     }
 
+    /// <summary>Creates the invisible native control that publishes this surface to UI Automation; the caller puts it into the visual tree next to the view.</summary>
+    public EditorAutomationHost CreateAutomationHost() => Automation = new EditorAutomationHost(
+        _doc, () => new TextSurface(this), () => Focus(), () => Avalonia.Automation.AutomationProperties.GetName(this) ?? "Editor");
+
+    private EditorAutomationHost? Automation { get; set; }
+
     protected override AutomationPeer OnCreateAutomationPeer() =>
-        EditorAutomationHook.Provider?.CreatePeer(this, Doc) ?? base.OnCreateAutomationPeer();
+        Automation?.CreateProxyPeer() ?? EditorAutomationHook.Provider?.CreatePeer(this, Doc) ?? base.OnCreateAutomationPeer();
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -146,6 +162,7 @@ internal sealed partial class PagedTextView : Grid
         Doc.Changed += OnDocChanged;
         _doc.Bookmarks.Changed += RepaintBookmarks;
         Doc.Saved += OnSaved;
+        WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
 
@@ -155,12 +172,15 @@ internal sealed partial class PagedTextView : Grid
         Doc.Changed -= OnDocChanged;
         _doc.Bookmarks.Changed -= RepaintBookmarks;
         Doc.Saved -= OnSaved;
+        if (_watched is not null) _watched.IndexProgress -= OnIndexProgress;
+        _watched = null;
         _indexTimer.Stop();
     }
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
         long t = TypingTrace.Begin();
+        _preedit = "";
         if (!_own)
         {
             _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
@@ -175,14 +195,151 @@ internal sealed partial class PagedTextView : Grid
     private void OnSaved(object? sender, EventArgs e)
     {
         _lines.Clear();
+        _detour = null;
+        WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
 
-    public void GoToLine(long line)
+    /// <summary>
+    /// Goes to a one-based line. While the index is being built a line inside the indexed part is exact; a later one cannot be found yet and
+    /// the call returns false. With a complete index a number past the end goes to the last line.
+    /// </summary>
+    /// <summary>The index reports from its own thread; the view catches up on the UI thread, so a detour ends as soon as the index reaches it.</summary>
+    private void WatchIndex()
     {
-        _bar.Value = Math.Clamp(line - 1, 0, _bar.Maximum);
-        long target = Math.Clamp(line - 1, 0, Math.Max(0, LineCount - 1));
-        if (Indexed && LineStart(target) is var start and >= 0) MoveTo(start, target);
+        if (ReferenceEquals(_watched, Paged)) return;
+        if (_watched is not null) _watched.IndexProgress -= OnIndexProgress;
+        _watched = Paged;
+        _watched.IndexProgress += OnIndexProgress;
+    }
+
+    private void OnIndexProgress(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        if (_watched is null) return; // the view was closed while the notice was on its way
+        if (_detour is null && Doc.LineIndexState.Complete) return;
+        LeaveDetourWhenIndexed();
+        UpdateScrollRange();
+        _canvas.InvalidateVisual();
+        RaiseViewChanged();
+    });
+
+    public bool GoToLine(long line)
+    {
+        long target = Math.Max(0, line - 1);
+        if (Indexed) target = Math.Min(target, Math.Max(0, LineCount - 1));
+        long start = target == 0 ? Doc.BomLength : Paged.TryGetLineStart(target, out long s) ? s : -1;
+        if (start < 0) return false;
+        LeaveDetour(target);
+        UpdateScrollRange();
+        _bar.Value = Math.Clamp(target, 0, _bar.Maximum);
+        MoveTo(start, target);
+        return true;
+    }
+
+    /// <summary>
+    /// Puts the caret on a byte offset (on a character boundary) and shows its line. Inside the indexed part the line number is exact; beyond it
+    /// the view continues from the start of that line and numbers the lines by estimate until the index catches up.
+    /// </summary>
+    public void GoToOffset(long offset)
+    {
+        offset = Math.Clamp(offset, Doc.BomLength, Doc.ByteLength);
+        if (!Indexed && offset >= Paged.IndexedBytes)
+        {
+            EnterDetour(offset);
+            return;
+        }
+        _detour = null;
+        _lines.Clear();
+        _lineMemo = (-1, -1, 0);
+        long line = LineOf(offset);
+        UpdateScrollRange();
+        _bar.Value = Math.Clamp(line, 0, _bar.Maximum);
+        MoveTo(offset, line);
+    }
+
+    /// <summary>A view that starts at a byte offset beyond the indexed part: its lines are found by scanning forward from there.</summary>
+    private sealed class Detour(long baseStart, long baseLine, double bytesPerLine)
+    {
+        public long BaseStart { get; } = baseStart;
+        public long BaseLine { get; } = baseLine;
+        public double BytesPerLine { get; } = bytesPerLine;
+        public List<long> Starts { get; } = [baseStart];
+        public bool AtEnd { get; set; }
+    }
+
+    private long EstimatedLines(Detour d) => d.BaseLine + (long)((Doc.ByteLength - d.BaseStart) / d.BytesPerLine);
+
+    /// <summary>Start of the next line, or -1 when the line is the last one. Terminators are single bytes here, as in the line loader.</summary>
+    private long NextLineStart(long start)
+    {
+        long end = Paged.Source.FindLineEnd(start);
+        if (end >= Doc.ByteLength) return -1;
+        Span<byte> two = stackalloc byte[2];
+        int n = Doc.Read(end, two);
+        return end + (n == 2 && two[0] == 13 && two[1] == 10 ? 2 : 1);
+    }
+
+    private long DetourStart(Detour d, long line)
+    {
+        long index = line - d.BaseLine;
+        if (index < 0) return -1;
+        while (d.Starts.Count <= index && !d.AtEnd)
+        {
+            long next = NextLineStart(d.Starts[^1]);
+            if (next < 0) d.AtEnd = true; else d.Starts.Add(next);
+        }
+        return index < d.Starts.Count ? d.Starts[(int)index] : -1;
+    }
+
+    private long DetourLineOf(Detour d, long offset)
+    {
+        while (!d.AtEnd && d.Starts[^1] <= offset) DetourStart(d, d.BaseLine + d.Starts.Count);
+        int i = d.Starts.BinarySearch(offset);
+        return d.BaseLine + Math.Max(0, i >= 0 ? i : ~i - 1);
+    }
+
+    private void EnterDetour(long offset)
+    {
+        long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
+        var sample = new byte[(int)Math.Min(Doc.ByteLength, 64 * 1024)];
+        long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length);
+        Doc.Read(from, sample);
+        int breaks = sample.AsSpan().Count((byte)10);
+        double perLine = breaks > 0 ? Math.Max(1.0, (double)sample.Length / breaks) : Math.Max(1.0, sample.Length);
+        // the gap between the indexed part and the target is counted with the mean of the density at both ends
+        var (prefixLines, _) = Doc.LineIndexState;
+        long indexed = Paged.IndexedBytes;
+        double gapPerLine = prefixLines > 1 && indexed > 0 ? (perLine + (double)indexed / (prefixLines - 1)) / 2 : perLine;
+        long baseLine = Math.Max(0, prefixLines - 1) + (long)Math.Max(0, (start - indexed) / gapPerLine);
+        _detour = new Detour(start, baseLine, perLine);
+        _lines.Clear();
+        _lineMemo = (-1, -1, 0);
+        _anchor = -1;
+        _wanted = -1;
+        _typingKey = null;
+        _caret = offset;
+        UpdateScrollRange();
+        _bar.Value = DetourLineOf(_detour, offset);
+        Reveal();
+        RaiseViewChanged();
+    }
+
+    /// <summary>Drops the detour; the first line on screen keeps its text and takes its exact number.</summary>
+    private void LeaveDetour(long? top = null)
+    {
+        if (_detour is not { } d) return;
+        double old = _bar.Value;
+        _detour = null;
+        long exact = CanLocate(d.BaseStart) ? LineOf(d.BaseStart) : 0;
+        _lines.Clear();
+        _lineMemo = (-1, -1, 0);
+        UpdateScrollRange();
+        _bar.Value = Math.Clamp(top ?? (long)old - d.BaseLine + exact, 0, _bar.Maximum);
+    }
+
+    private void LeaveDetourWhenIndexed()
+    {
+        if (_detour is { } d && (Indexed || d.BaseStart < Paged.IndexedBytes)) LeaveDetour();
     }
 
     /// <summary>Token runs the view colors a line with, for tests; null when the line has none.</summary>
@@ -228,9 +385,11 @@ internal sealed partial class PagedTextView : Grid
 
     private void UpdateScrollRange()
     {
-        long lines = Math.Max(1, Index.Lines);
+        long lines = Math.Max(1, ShownLines);
         int visible = Math.Max(1, _canvas.VisibleLines);
-        _bar.Maximum = Math.Max(0, lines - visible);
+        long min = _detour?.BaseLine ?? 0;
+        _bar.Minimum = min;
+        _bar.Maximum = Math.Max(min, lines - visible);
         _bar.ViewportSize = visible;
         _bar.LargeChange = Math.Max(1, visible - 1);
         FeedSyntax();
@@ -239,7 +398,11 @@ internal sealed partial class PagedTextView : Grid
 
     // ---- lines and the character map ----
 
-    private long LineStart(long line) => line == 0 ? Doc.BomLength : Paged.TryGetLineStart(line, out long start) ? start : -1;
+    private long LineStart(long line)
+    {
+        if (_detour is { } d) return DetourStart(d, line);
+        return line == 0 ? Doc.BomLength : Paged.TryGetLineStart(line, out long start) ? start : -1;
+    }
 
     /// <summary>Start, end of the text (before the line break) and start of the next line; false while the index is not complete.</summary>
     private bool TryBounds(long line, out long start, out long end, out long next)
@@ -252,14 +415,13 @@ internal sealed partial class PagedTextView : Grid
     private bool TryBoundsCore(long line, out long start, out long end, out long next)
     {
         start = end = next = 0;
-        long lines = LineCount;
-        if (!Indexed || line < 0 || line >= lines || (start = LineStart(line)) < 0) return false;
-        if (line + 1 >= lines)
+        if (line < 0 || (start = LineStart(line)) < 0) return false;
+        if ((next = LineStart(line + 1)) < 0)
         {
+            if (!Indexed && _detour is null) return false; // the end of the last indexed line is not known yet
             end = next = Doc.ByteLength;
             return true;
         }
-        if ((next = LineStart(line + 1)) < 0) return false;
         Span<byte> tail = stackalloc byte[2];
         int n = (int)Math.Min(2, next - start);
         Doc.Read(next - n, tail[..n]);
@@ -305,9 +467,9 @@ internal sealed partial class PagedTextView : Grid
 
     private void FillFromCore(long first)
     {
-        if (!Indexed || first < 0 || first >= LineCount) return;
+        if (first < 0) return;
         long origin = LineStart(first);
-        if (origin < 0) return;
+        if (origin < 0 || !Indexed && _detour is null && first >= ShownLines) return;
         int window = (int)Math.Min(Doc.ByteLength - origin, 128 * 1024);
         bool toEnd = origin + window >= Doc.ByteLength;
         var buffer = ArrayPool<byte>.Shared.Rent(window); // a fresh 128 KiB array per edit lands on the large object heap
@@ -319,15 +481,17 @@ internal sealed partial class PagedTextView : Grid
     {
         Doc.Read(origin, buffer.AsSpan(0, window));
         int limit = Math.Max(64, _canvas.VisibleLines + 8), pos = 0;
-        for (long line = first; line < LineCount && line - first < limit; line++)
+        for (long line = first; line - first < limit; line++)
         {
             int end = pos;
             while (end < window && buffer[end] != 10 && buffer[end] != 13) end++;
             int next;
+            bool last = false;
             if (end == window)
             {
                 if (!toEnd) return; // the line is longer than the window: the caller decodes it on its own
                 next = window;
+                last = true;
             }
             else if (buffer[end] == 10) next = end + 1;
             else if (end + 1 < window) next = buffer[end + 1] == 10 ? end + 2 : end + 1;
@@ -338,6 +502,7 @@ internal sealed partial class PagedTextView : Grid
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
             _lines[line] = new LineView(origin + pos, truncated, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
+            if (last) return;
             pos = next;
         }
     }
@@ -351,6 +516,7 @@ internal sealed partial class PagedTextView : Grid
 
     private long LineOfCore(long offset)
     {
+        if (_detour is { } d) return DetourLineOf(d, offset);
         long lo = 0, hi = LineCount - 1;
         while (lo < hi)
         {
@@ -362,7 +528,7 @@ internal sealed partial class PagedTextView : Grid
 
     private (long Line, LineView View)? CaretLine()
     {
-        if (!Indexed) return null;
+        if (!CanLocate(_caret)) return null;
         if (_lineMemo.Revision != Doc.Revision || _lineMemo.Caret != _caret) _lineMemo = (Doc.Revision, _caret, LineOf(_caret));
         return GetLine(_lineMemo.Line) is { } view ? (_lineMemo.Line, view) : null;
     }
@@ -374,6 +540,7 @@ internal sealed partial class PagedTextView : Grid
         if (!_extend) _anchor = -1;
         else if (_anchor < 0) _anchor = _caret;
         _caret = caret;
+        _preedit = "";
         if (_anchor == _caret) _anchor = -1;
         if (line is { } known) _lineMemo = (Doc.Revision, caret, known);
         if (!keepWanted) _wanted = -1;
@@ -398,7 +565,7 @@ internal sealed partial class PagedTextView : Grid
         var map = c.View.Map;
         int i = map.CharIndexOf(_caret - c.View.Start);
         if (i < map.Text.Length) MoveTo(c.View.Start + map.ByteOffsetOf(map.IsCharBoundary(i + 1) ? i + 1 : i + 2), c.Line);
-        else if (!c.View.Truncated && c.Line + 1 < LineCount) MoveTo(LineStart(c.Line + 1), c.Line + 1);
+        else if (!c.View.Truncated && LineStart(c.Line + 1) is >= 0 and var next) MoveTo(next, c.Line + 1);
     }
 
     private void Vertical(long delta)
@@ -436,6 +603,7 @@ internal sealed partial class PagedTextView : Grid
     {
         line = 0;
         view = null!;
+        if (!Indexed) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         if (CaretLine() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         if (c.View.Truncated) { Refused?.Invoke(Loc.Get(K.PagedLongLine, ("size", OpenDocument.FormatSize(MaxLineBytes)))); return false; }
         (line, view) = c;
@@ -605,6 +773,7 @@ internal sealed partial class PagedTextView : Grid
         base.OnTextInput(e);
         if (e.Text is not { Length: > 0 } text || text.Any(char.IsControl)) return;
         e.Handled = true;
+        _preedit = "";
         if (_pendingHigh != 0)
         {
             text = _pendingHigh + text;
@@ -630,7 +799,7 @@ internal sealed partial class PagedTextView : Grid
     {
         Focus();
         base.OnPointerPressed(e);
-        if (!Indexed || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         Place(e.GetPosition(_canvas), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragFrom = _caret;
         e.Pointer.Capture(this);
@@ -640,7 +809,7 @@ internal sealed partial class PagedTextView : Grid
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (_dragFrom < 0 || !Indexed) return;
+        if (_dragFrom < 0) return;
         Place(e.GetPosition(_canvas), extend: true);
         e.Handled = true;
     }
@@ -676,8 +845,8 @@ internal sealed partial class PagedTextView : Grid
             case Key.Down: Vertical(1); break;
             case Key.PageUp: Vertical(-PageLines); break;
             case Key.PageDown: Vertical(PageLines); break;
-            case Key.Home when command: if (Indexed) MoveTo(Doc.BomLength, 0); break;
-            case Key.End when command: if (Indexed) MoveTo(Doc.ByteLength, LineCount - 1); break;
+            case Key.Home when command: GoToOffset(Doc.BomLength); break;
+            case Key.End when command: GoToOffset(Doc.ByteLength); break;
             case Key.Home: LineEdge(end: false); break;
             case Key.End: LineEdge(end: true); break;
             case Key.Back when !command: Backspace(); break;
@@ -693,15 +862,44 @@ internal sealed partial class PagedTextView : Grid
 
     // ---- input method ----
 
+    private void SetPreedit(string text)
+    {
+        if (text == _preedit) return;
+        _preedit = text;
+        _canvas.InvalidateVisual();
+        _inputClient.PreeditChanged();
+    }
+
+    /// <summary>Selects the characters between two UTF-16 indexes of the caret line (the surrounding text the input method sees).</summary>
+    private void SelectInCaretLine(int start, int end)
+    {
+        if (CaretLine() is not { } c) return;
+        var map = c.View.Map;
+        int a = Math.Clamp(start, 0, map.Text.Length), b = Math.Clamp(end, 0, map.Text.Length);
+        while (a > 0 && !map.IsCharBoundary(a)) a--;
+        while (b > 0 && !map.IsCharBoundary(b)) b--;
+        SelectBytes(c.View.Start + map.ByteOffsetOf(a), c.View.Start + map.ByteOffsetOf(b), c.Line);
+    }
+
+    /// <summary>Selects from <paramref name="anchor"/> to <paramref name="caret"/>, both byte offsets on character boundaries.</summary>
+    internal void SelectBytes(long anchor, long caret, long? line = null)
+    {
+        _extend = true;
+        _anchor = anchor;
+        try { MoveTo(caret, line); }
+        finally { _extend = false; }
+    }
+
+
     /// <summary>
-    /// What the system input method asks of the surface: where the caret is, so that its candidate window opens there, and the line around it.
-    /// The composition is drawn by the system window (<see cref="SupportsPreedit"/> is false); the committed text arrives as ordinary text input.
+    /// What the system input method asks of the surface: where the caret is, so that its candidate window opens there, the line around it, and
+    /// the composition, which is drawn at the caret and underlined without touching the document. The committed text arrives as ordinary text
+    /// input and replaces the composition; reconversion sets the selection inside the caret line.
     /// </summary>
-    /// <remarks>shortcut: no inline preedit, no reconversion (the selection cannot be set); both belong to the surface of P3.</remarks>
     private sealed class InputClient(PagedTextView owner) : TextInputMethodClient
     {
         public override Visual TextViewVisual => owner._canvas;
-        public override bool SupportsPreedit => false;
+        public override bool SupportsPreedit => true;
         public override bool SupportsSurroundingText => true;
         public override string SurroundingText => owner.CaretLine() is { } c ? c.View.Map.Text : "";
         public override Rect CursorRectangle => owner._canvas.CaretRect();
@@ -713,10 +911,12 @@ internal sealed partial class PagedTextView : Grid
                 int i = owner.CaretLine() is { } c ? c.View.Map.CharIndexOf(owner._caret - c.View.Start) : 0;
                 return new Avalonia.Input.TextInput.TextSelection(i, i);
             }
-            set { }
+            set => owner.SelectInCaretLine(value.Start, value.End);
         }
 
-        public override void SetPreeditText(string? preeditText) { }
+        public override void SetPreeditText(string? preeditText) => owner.SetPreedit(preeditText ?? "");
+
+        public void PreeditChanged() => RaiseCursorRectangleChanged();
 
         public void CaretChanged()
         {
@@ -790,6 +990,7 @@ internal sealed partial class PagedTextView : Grid
 
         public int VisibleLines => (int)Math.Ceiling(Math.Max(0, Bounds.Height) / _lineHeight);
         public double LineHeight => _lineHeight;
+        public double DigitWidth => _digitWidth;
         public double TextLeft => _gutter + TextPadding;
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
 
@@ -801,6 +1002,7 @@ internal sealed partial class PagedTextView : Grid
         {
             if (owner.CaretLine() is not { } c || c.Line < owner.TopLine || c.Line > owner.TopLine + VisibleLines) return default;
             double x = TextLeft - owner._hScroll + XOf(c.View, c.View.Map.CharIndexOf(owner._caret - c.View.Start));
+            if (owner._preedit.Length > 0) x += Format(owner._preedit, Brushes.Black).WidthIncludingTrailingWhitespace;
             return new Rect(x, (c.Line - owner.TopLine) * _lineHeight, 1.5, _lineHeight);
         }
 
@@ -870,8 +1072,9 @@ internal sealed partial class PagedTextView : Grid
             var selection = Brush("SelectionBg", Brushes.LightBlue);
             var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);
             context.FillRectangle(back, new Rect(Bounds.Size));
-            var (lines, _) = owner.Index;
-            int digits = Math.Max(3, (lines > 0 ? lines : 1).ToString(CultureInfo.InvariantCulture).Length);
+            long lines = owner.LineCount;
+            string approx = owner.LinesExact ? "" : "≈";
+            int digits = Math.Max(3, (lines > 0 ? lines : 1).ToString(CultureInfo.InvariantCulture).Length + approx.Length);
             _gutter = options.LineNumbers ? (digits + 1) * _digitWidth + 14 : owner._doc.Bookmarks.HasAny ? 14 : 0;
             long top = owner.TopLine;
             var caretLine = owner.CaretLine();
@@ -890,13 +1093,26 @@ internal sealed partial class PagedTextView : Grid
                     if (options.CurrentLine && caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
                     if (owner.HasSelection) DrawSelection(context, view, y, selection);
                     string shown = options.ShowWhitespace ? view.Marked : view.Display;
+                    int insertAt = -1, insertLength = 0;
+                    if (owner._preedit.Length > 0 && caretLine is { } pl && pl.Line == line)
+                    {
+                        insertAt = view.DisplayAt[view.Map.CharIndexOf(owner._caret - view.Start)];
+                        insertLength = owner._preedit.Length;
+                        shown = shown.Insert(insertAt, owner._preedit);
+                    }
                     var text = Format(shown, fore);
                     if (owner._tokens.TryGetValue(line, out var tokens))
                         foreach (var token in tokens)
                         {
                             int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
+                            if (insertLength > 0)
+                            {
+                                if (from >= insertAt) from += insertLength;
+                                if (to > insertAt) to += insertLength;
+                            }
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
+                    if (insertLength > 0) text.SetTextDecorations(TextDecorations.Underline, insertAt, insertLength);
                     if (options.ShowWhitespace)
                         for (int k = 0; k < shown.Length;)
                         {
@@ -919,8 +1135,8 @@ internal sealed partial class PagedTextView : Grid
             for (int i = 0; options.LineNumbers && i < VisibleLines + 1; i++)
             {
                 long line = top + i;
-                if (line >= lines) break;
-                var number = Format((line + 1).ToString(CultureInfo.InvariantCulture), numbers);
+                if (line >= lines || owner.GetLine(line) is null) break;
+                var number = Format(approx + (line + 1).ToString(CultureInfo.InvariantCulture), numbers);
                 context.DrawText(number, new Point(_gutter - 10 - number.Width, i * _lineHeight));
             }
             owner.DrawBookmarks(context, top, _lineHeight, VisibleLines + 1);

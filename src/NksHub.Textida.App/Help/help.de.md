@@ -263,7 +263,7 @@ commands: nks.search.gotoLine
 3. Bestätigen Sie mit der Eingabetaste. Der Cursor springt dorthin.
 - Eine Zahl über der Zeilenzahl führt zur letzten Zeile.
 - Eine ungültige Eingabe meldet „...“ ist keine Zeilennummer.
-- In einer großen Datei, deren Zeilen noch nummeriert werden, meldet die Statusleiste: Der Zeilenindex reicht noch nicht bis zu dieser Position; versuchen Sie es gleich noch einmal.
+- In einer großen Datei, deren Zeilen noch nummeriert werden, meldet die Statusleiste: Der Zeilenindex reicht noch nicht bis zu dieser Position; versuchen Sie es gleich noch einmal. Ein Byte-Offset (@4096) oder eine Prozentangabe wirkt sofort; bis die Nummerierung aufgeholt hat, ist die Zeilennummer nach einem solchen Sprung mit ≈ markiert.
 
 ## [search.gotoBracket] Zur passenden Klammer springen
 commands: nks.search.gotoBracket

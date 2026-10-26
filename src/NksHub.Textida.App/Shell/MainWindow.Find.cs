@@ -472,7 +472,7 @@ internal sealed partial class MainWindow
                     break;
                 }
             case GoToKind.Line:
-                tab.GoToLine((int)Math.Min(target.Value, int.MaxValue));
+                if (!tab.GoToLine((int)Math.Min(target.Value, int.MaxValue))) SetStatusMessage(Loc.Get(K.GoToNotIndexed));
                 break;
             default:
                 GoToByte(tab, target.Kind == GoToKind.Percent ? (long)(doc.ByteLength * (decimal)target.Value / 100m) : target.Value);
@@ -485,6 +485,11 @@ internal sealed partial class MainWindow
         var doc = tab.Doc.Doc;
         offset = Math.Clamp(offset, 0, doc.ByteLength);
         while (offset > 0 && !doc.IsCharBoundary(offset)) offset--;
+        if (tab.Paged is { } paged)
+        {
+            paged.GoToOffset(offset);
+            return;
+        }
         if (!doc.TryGetPosition(offset, out var position))
         {
             SetStatusMessage(Loc.Get(K.GoToNotIndexed));

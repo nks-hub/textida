@@ -91,7 +91,7 @@ internal sealed partial class MainWindow
         else
         {
             var (line, column) = tab.CaretPosition();
-            position = tab.Paged!.Index.Complete
+            position = tab.Paged!.LinesExact && tab.Paged.CaretLineColumn() is not null
                 ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))
                 : Loc.Get(K.StatusLine, ("line", "≈" + line));
         }

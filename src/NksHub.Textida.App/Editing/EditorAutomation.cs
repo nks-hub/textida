@@ -33,10 +33,7 @@ internal sealed class EditorTextSurface : DocumentTextSurface
     }
 
     private TextView TextView => _editor.TextArea.TextView;
-    private double Scaling => TopLevel.GetTopLevel(_editor)?.RenderScaling ?? 1;
-
-    // The bridges take pixels on Windows and points on macOS; Avalonia's screen coordinates are pixels on both.
-    private double PixelsPerUnit => OperatingSystem.IsMacOS() ? Scaling : 1;
+    private double PixelsPerUnit => AutomationScreen.PixelsPerUnit(_editor);
 
     private void OnEditorSelection(object? sender, EventArgs e) => SyncSelection();
     private void OnEditorFocus(object? sender, EventArgs e) => RaiseFocusChanged();
@@ -72,13 +69,7 @@ internal sealed class EditorTextSurface : DocumentTextSurface
         else Dispatcher.UIThread.Invoke(action);
     }
 
-    private ScreenRect ToScreen(Visual visual, Rect rect)
-    {
-        if (TopLevel.GetTopLevel(visual) is not { } top) return default;
-        var origin = visual.PointToScreen(rect.TopLeft);
-        double unit = 1 / PixelsPerUnit, scale = top.RenderScaling;
-        return new(origin.X * unit, origin.Y * unit, rect.Width * scale * unit, rect.Height * scale * unit);
-    }
+    private ScreenRect ToScreen(Visual visual, Rect rect) => AutomationScreen.ToScreen(visual, rect);
 
     public override ScreenRect ScreenBounds => ToScreen(_editor, new Rect(_editor.Bounds.Size));
 
@@ -157,6 +148,21 @@ internal sealed class EditorTextSurface : DocumentTextSurface
     }
 }
 
+/// <summary>Screen geometry for the accessibility bridges.</summary>
+internal static class AutomationScreen
+{
+    /// <summary>The bridges take pixels on Windows and points on macOS; Avalonia's screen coordinates are pixels on both.</summary>
+    public static double PixelsPerUnit(Visual visual) => OperatingSystem.IsMacOS() ? TopLevel.GetTopLevel(visual)?.RenderScaling ?? 1 : 1;
+
+    public static ScreenRect ToScreen(Visual visual, Rect rect)
+    {
+        if (TopLevel.GetTopLevel(visual) is not { } top) return default;
+        var origin = visual.PointToScreen(rect.TopLeft);
+        double unit = 1 / PixelsPerUnit(visual), scale = top.RenderScaling;
+        return new(origin.X * unit, origin.Y * unit, rect.Width * scale * unit, rect.Height * scale * unit);
+    }
+}
+
 /// <summary>
 /// The text area of <see cref="EditorSurface"/>. Keyboard focus sits on the text area, so UI Automation's focused element is the
 /// element of this control; its peer is the native proxy the accessibility library publishes, which carries TextPattern.
@@ -171,28 +177,36 @@ internal sealed class EditorTextArea : TextArea
 }
 
 /// <summary>
-/// Invisible native control next to the editor. On Windows it is a child window answering <c>WM_GETOBJECT</c> with the
+/// Invisible native control next to the editor (or the paged view). On Windows it is a child window answering <c>WM_GETOBJECT</c> with the
 /// editor's UIA element, on macOS an NSView with the NSAccessibility text methods; Avalonia puts the native control into
 /// its own accessibility tree, so the element appears under the window together with the rest of the UI, which keeps
 /// Avalonia's automation peers.
 /// </summary>
 internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
 {
-    private readonly EditorSurface _editor;
+    private readonly OpenDocument _doc;
+    private readonly Func<ITextAutomationSurface> _create;
+    private readonly Action _focus;
+    private readonly Func<string> _label;
     private UiaProxyWindow? _window;
     private nint _view;
-    private EditorTextSurface? _surface;
+    private ITextAutomationSurface? _surface;
 
-    public EditorAutomationHost(EditorSurface editor)
+    /// <param name="create">Builds the surface of the view the host belongs to; called again after the document was replaced.</param>
+    /// <param name="focus">Gives the keyboard focus to that view.</param>
+    public EditorAutomationHost(OpenDocument doc, Func<ITextAutomationSurface> create, Action focus, Func<string> label)
     {
-        _editor = editor;
+        _doc = doc;
+        _create = create;
+        _focus = focus;
+        _label = label;
         Width = 0;
         Height = 0;
         IsHitTestVisible = false;
-        editor.Doc.Replaced += OnDocumentReplaced;
+        doc.Replaced += OnDocumentReplaced;
     }
 
-    private string Label => Avalonia.Automation.AutomationProperties.GetName(_editor) ?? "Editor";
+    private string Label => _label();
 
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent)
     {
@@ -201,7 +215,7 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
             if (_window is null)
             {
                 _window = UiaProxyWindow.Create(parent.Handle, CreateBridge);
-                _window.FocusRequested += () => _editor.TextArea.Focus();
+                _window.FocusRequested += () => _focus();
             }
             _window.Reparent(parent.Handle);
             return new PlatformHandle(_window.Handle, "HWND");
@@ -229,10 +243,10 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
     /// <summary>The automation peer of the native proxy, detached from the peer this control shows in the tree.</summary>
     internal AutomationPeer? CreateProxyPeer() => base.OnCreateAutomationPeer().GetChildren().FirstOrDefault();
 
-    private EditorTextSurface NewSurface()
+    private ITextAutomationSurface NewSurface()
     {
-        _surface?.Dispose();
-        return _surface = new EditorTextSurface(_editor);
+        (_surface as IDisposable)?.Dispose();
+        return _surface = _create();
     }
 
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
@@ -241,14 +255,14 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
     private void OnDocumentReplaced()
     {
         if (OperatingSystem.IsWindows()) _window?.ResetBridge();
-        _surface?.Dispose();
+        (_surface as IDisposable)?.Dispose();
         _surface = null;
         if (OperatingSystem.IsMacOS() && _view != 0) MacAxBridge.Attach(_view, NewSurface, Label);
     }
 
     public void Dispose()
     {
-        _editor.Doc.Replaced -= OnDocumentReplaced;
+        _doc.Replaced -= OnDocumentReplaced;
         if (OperatingSystem.IsWindows()) _window?.Dispose();
         _window = null;
         if (OperatingSystem.IsMacOS() && _view != 0)
@@ -257,7 +271,7 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
             ObjC.Msg(_view, "release");
         }
         _view = 0;
-        _surface?.Dispose();
+        (_surface as IDisposable)?.Dispose();
         _surface = null;
     }
 }

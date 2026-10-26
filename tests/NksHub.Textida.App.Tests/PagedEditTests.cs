@@ -398,7 +398,7 @@ public class PagedEditTests : IDisposable
         var args = new Avalonia.Input.TextInput.TextInputMethodClientRequestedEventArgs { RoutedEvent = Avalonia.Input.InputElement.TextInputMethodClientRequestedEvent };
         tab.Paged!.RaiseEvent(args);
         var client = Assert.IsAssignableFrom<Avalonia.Input.TextInput.TextInputMethodClient>(args.Client);
-        Assert.False(client.SupportsPreedit); // the system window draws the composition
+        Assert.True(client.SupportsPreedit); // the composition is drawn inline at the caret
         var start = client.CursorRectangle;
         int changes = 0;
         client.CursorRectangleChanged += (_, _) => changes++;

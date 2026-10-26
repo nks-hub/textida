@@ -263,7 +263,7 @@ commands: nks.search.gotoLine
 3. Confirm with Enter. The caret jumps there.
 - A number above the line count goes to the last line.
 - An invalid entry says “...” is not a line number.
-- In a large file whose lines are still being numbered the status bar says: The line index does not reach that position yet; try again in a moment.
+- In a large file whose lines are still being numbered the status bar says: The line index does not reach that position yet; try again in a moment. A byte offset (@4096) or a percentage works at once; until the numbering catches up, the line number after such a jump is marked with ≈.
 
 ## [search.gotoBracket] Go to matching bracket
 commands: nks.search.gotoBracket
