@@ -451,7 +451,27 @@ public class HexSaveTests
             foreach (long offset in zips) { stream.Position = offset; stream.Write([0x50, 0x4B, 0x33, 0x04]); }
         }
         var pattern = BytePattern.ParseHex("50 4B ?? 04");
-        using var d = Open(file.Path);
+        var d = Open(file.Path);
+        try
+        {
+            await TenGibiByteScenario(d, file.Path, length, zips, pattern);
+        }
+        finally
+        {
+            // the streamed save made a fully allocated 10 GiB file: it must not outlive the test
+            d.Dispose();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            for (int attempt = 0; attempt < 20 && File.Exists(file.Path); attempt++)
+            {
+                try { File.Delete(file.Path); }
+                catch (IOException) { Thread.Sleep(200); }
+            }
+        }
+    }
+
+    private static async Task TenGibiByteScenario(Doc d, string path, long length, long[] zips, BytePattern pattern)
+    {
         Assert.Equal(length, d.ByteLength);
 
         // jump to end-512, overwrite 4 bytes, insert 1 byte lower in the file, undo and redo
@@ -472,7 +492,7 @@ public class HexSaveTests
 
         // the length changed: the whole file is streamed; undo is still there afterwards
         Assert.True((await d.SaveAsync()).Saved);
-        Assert.Equal(length + 1, new FileInfo(file.Path).Length);
+        Assert.Equal(length + 1, new FileInfo(path).Length);
         Assert.True(d.UndoDepth >= 2);
 
         // then a 4 byte overwrite in the saved file goes in place
@@ -488,7 +508,7 @@ public class HexSaveTests
         long patched = length + 1 - 512;
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var differing = new List<(long Start, long End)>();
-        using (var fs = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20, FileOptions.SequentialScan))
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20, FileOptions.SequentialScan))
         {
             var buf = new byte[1 << 20];
             var model = new byte[1 << 20];
