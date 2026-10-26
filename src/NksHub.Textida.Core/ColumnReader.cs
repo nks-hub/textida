@@ -18,6 +18,7 @@ internal sealed class ColumnIndex
     private readonly object _gate = new();
     private readonly Dictionary<long, List<(long Column, long Position)>> _lines = [];
     private readonly List<long> _recent = [];
+    private readonly Dictionary<long, long> _lengths = [];
     private int _points;
     private (long Line, long Column, long Position) _last = (-1, 0, 0);
 
@@ -58,6 +59,21 @@ internal sealed class ColumnIndex
         }
     }
 
+    /// <summary>Notes the length in UTF-16 columns of the line that starts at <paramref name="lineStart"/>, once a read has reached its end.</summary>
+    public void SetLength(long lineStart, long columns)
+    {
+        lock (_gate)
+        {
+            if (_lengths.Count >= MaxPoints) _lengths.Clear();
+            _lengths[lineStart] = columns;
+        }
+    }
+
+    public bool TryGetLength(long lineStart, out long columns)
+    {
+        lock (_gate) return _lengths.TryGetValue(lineStart, out columns);
+    }
+
     public void SetLast(long lineStart, long column, long position)
     {
         lock (_gate) _last = (lineStart, column, position);
@@ -69,6 +85,7 @@ internal sealed class ColumnIndex
         {
             _lines.Clear();
             _recent.Clear();
+            _lengths.Clear();
             _points = 0;
             _last = (-1, 0, 0);
         }
@@ -109,10 +126,10 @@ internal static class ColumnReader
         {
             ct.ThrowIfCancellationRequested();
             var data = window(pos, 1 << 20);
-            if (data.IsEmpty) return "";
+            if (data.IsEmpty) return EndOfLine(index, lineStart, startColumn - skip);
             int t = LineScanner.FindTerminator(data, 0, codec);
             var seg = t < 0 ? data : data[..t];
-            if (seg.IsEmpty) return "";
+            if (seg.IsEmpty) return EndOfLine(index, lineStart, startColumn - skip);
             int step;
             if (codec.Kind == CodecKind.SingleByte || (utf8 && System.Text.Ascii.IsValid(seg)))
             {
@@ -126,7 +143,8 @@ internal static class ColumnReader
                 if (units <= skip) { step = whole.Length; skip -= units; }
                 else step = utf8 ? SkipUtf8Units(whole, ref skip) : SkipUnits(codec, whole, ref skip);
             }
-            if (step == 0 || (t >= 0 && step == seg.Length && skip > 0)) return "";
+            if (step == 0) return "";
+            if (t >= 0 && step == seg.Length && skip > 0) return EndOfLine(index, lineStart, startColumn - skip);
             pos += step;
             long column = startColumn - skip;
             if (column - lastMark >= ColumnIndex.Spacing)
@@ -143,6 +161,12 @@ internal static class ColumnReader
         if (!(stop >= 0 || pos + read.Length >= length)) read = read[..codec.CompleteLength(read)];
         var text = codec.GetString(read);
         return text.Length <= maxColumns ? text : text[..maxColumns];
+    }
+
+    private static string EndOfLine(ColumnIndex index, long lineStart, long columns)
+    {
+        index.SetLength(lineStart, columns);
+        return "";
     }
 
     private static int SkipUnits(TextCodec codec, ReadOnlySpan<byte> seg, ref long skip)

@@ -240,6 +240,10 @@ public sealed class PagedDocument : IPagedTextSource
         return ColumnReader.Read(EditedWindow, ByteLength, Codec, _source.BomLength, _editedColumns, lineStart, startColumn, maxColumns, ct);
     }
 
+    /// <summary>Length in UTF-16 columns of a line, when a read has reached its end since the last edit.</summary>
+    public bool TryGetLineColumns(long lineStart, out long columns) =>
+        IsModified ? _editedColumns.TryGetLength(lineStart, out columns) : _source.TryGetLineColumns(lineStart, out columns);
+
     /// <summary>Bytes at <paramref name="position"/> straight from a piece when one holds them all, else copied across pieces.</summary>
     private ReadOnlySpan<byte> EditedWindow(long position, long maxLength)
     {
