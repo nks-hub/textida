@@ -141,6 +141,7 @@
   "cmd.settings.language.sk": "Slovenčina",
   "cmd.settings.language.de": "Deutsch",
   "cmd.help.about": "About",
+  "cmd.help.contents": "Help",
   "setting.editor.autoClosePairs.title": "Paired characters",
   "setting.editor.autoClosePairs.description": "Adds the closing character after a bracket or quote.",
   "setting.editor.continueComments.title": "Continue comments",

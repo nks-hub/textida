@@ -383,5 +383,12 @@
   "regex.explain.unsupported": "Not supported: {token} is syntax of another dialect. The search reads .NET regular expressions, so this pattern would fail or mean something else.",
   "status.carets.one": "({count} caret)",
   "status.carets.other": "({count} carets)",
-  "source.profile": "profile"
+  "source.profile": "profile",
+  "help.title": "Help",
+  "help.search.watermark": "Search help…",
+  "help.noResults": "Nothing in the help matches",
+  "help.buildNote": "Help for version {version}. It describes only what this version can do.",
+  "a11y.help.search": "Search the help",
+  "a11y.help.topics": "Help topics",
+  "a11y.help.content": "Topic text"
 }

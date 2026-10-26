@@ -377,4 +377,11 @@ public static class K
     public const string RegexExplainBetween = "regex.explain.between";
     public const string RegexExplainLazy = "regex.explain.lazy";
     public const string RegexExplainUnsupported = "regex.explain.unsupported";
+    public const string HelpTitle = "help.title";
+    public const string HelpSearchWatermark = "help.search.watermark";
+    public const string HelpNoResults = "help.noResults";
+    public const string HelpBuildNote = "help.buildNote";
+    public const string HelpSearchA11y = "a11y.help.search";
+    public const string HelpTopicsA11y = "a11y.help.topics";
+    public const string HelpContentA11y = "a11y.help.content";
 }

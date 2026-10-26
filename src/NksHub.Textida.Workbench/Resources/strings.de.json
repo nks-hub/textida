@@ -141,6 +141,7 @@
   "cmd.settings.language.sk": "Slovenčina",
   "cmd.settings.language.de": "Deutsch",
   "cmd.help.about": "Info",
+  "cmd.help.contents": "Hilfe",
   "setting.editor.autoClosePairs.title": "Paarzeichen",
   "setting.editor.autoClosePairs.description": "Fügt nach einer Klammer oder einem Anführungszeichen das schließende Zeichen ein.",
   "setting.editor.continueComments.title": "Kommentare fortsetzen",

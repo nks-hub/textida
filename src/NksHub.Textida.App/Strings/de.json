@@ -383,5 +383,12 @@
   "regex.explain.unsupported": "Nicht unterstützt: {token} ist Syntax eines anderen Dialekts. Die Suche liest reguläre Ausdrücke von .NET; dieser Ausdruck würde fehlschlagen oder etwas anderes bedeuten.",
   "status.carets.one": "({count} Cursor)",
   "status.carets.other": "({count} Cursor)",
-  "source.profile": "Profil"
+  "source.profile": "Profil",
+  "help.title": "Hilfe",
+  "help.search.watermark": "In der Hilfe suchen…",
+  "help.noResults": "In der Hilfe passt nichts dazu",
+  "help.buildNote": "Hilfe zu Version {version}. Sie beschreibt nur, was diese Version kann.",
+  "a11y.help.search": "In der Hilfe suchen",
+  "a11y.help.topics": "Hilfethemen",
+  "a11y.help.content": "Text des Themas"
 }

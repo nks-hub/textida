@@ -398,5 +398,12 @@
   "status.carets.one": "({count} kurzor)",
   "status.carets.few": "({count} kurzory)",
   "status.carets.other": "({count} kurzorů)",
-  "source.profile": "profil"
+  "source.profile": "profil",
+  "help.title": "Nápověda",
+  "help.search.watermark": "Hledat v nápovědě…",
+  "help.noResults": "V nápovědě nic takového není",
+  "help.buildNote": "Nápověda k verzi {version}. Popisuje jen to, co tato verze umí.",
+  "a11y.help.search": "Hledání v nápovědě",
+  "a11y.help.topics": "Témata nápovědy",
+  "a11y.help.content": "Text tématu"
 }

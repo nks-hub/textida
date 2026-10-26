@@ -1,0 +1,505 @@
+## [start] Erste Schritte
+commands: nks.help.contents
+Diese Hilfe ist Teil des Programms und braucht keine Internetverbindung. Sie öffnen sie mit F1 oder über das Menü Hilfe. Drücken Sie F1 bei einem markierten Befehl in der Befehlspalette oder in einem geöffneten Bereich (Suche, Dateien, Dokumente, Einstellungen, Regex-Tester), öffnet sich gleich dessen Thema.
+### In der Hilfe suchen
+- Links steht die Themenliste. Tippen Sie ein Wort in das Feld darüber; es bleiben nur Themen, die alle eingegebenen Wörter enthalten. Groß- und Kleinschreibung und Akzente spielen keine Rolle.
+- Die Pfeiltasten nach oben und unten im Feld wechseln die Themen, Esc schließt die Hilfe.
+### Tastenkürzel
+- In allen Anleitungen steht Strg; auf macOS gilt stattdessen ⌘ (Cmd). Die genannten Kürzel sind die Standardkürzel. Eigene Kürzel stehen in den Einstellungen, und das Verhaltensprofil PSPad ändert einige davon (Thema Verhaltensprofil).
+- Jeden Befehl finden Sie in der Befehlspalette: Strg+Umschalt+P und einen Teil des Namens tippen.
+### Was diese Hilfe abdeckt
+- Sie beschreibt nur Funktionen, die diese Version wirklich hat. Was diese Version nicht kann, steht im Thema Was diese Version nicht kann.
+- Besondere Themen: Wiederherstellung nach Absturz, Große Dateien (Seitenmodus), Fehlermeldungen.
+
+## [view.palette] Befehlspalette
+commands: nks.view.commandPalette
+Die Palette ist eine durchsuchbare Liste aller Befehle des Programms.
+1. Drücken Sie Strg+Umschalt+P.
+2. Tippen Sie einen Teil des Befehlsnamens, zum Beispiel speich.
+3. Wählen Sie mit den Pfeiltasten eine Zeile und drücken Sie die Eingabetaste. Esc schließt die Palette.
+- Bei einem Befehl steht sein Kürzel. Ein Befehl, der gerade nicht benutzt werden kann (zum Beispiel Speichern ohne geöffnetes Dokument), ist abgeblendet und nennt den Grund.
+- Beginnen Sie mit /, durchsucht die Palette die Einstellungen, und die Eingabetaste öffnet die Einstellungen an der gefundenen Stelle.
+- Beginnen Sie mit =, rechnet die Palette: =1+2*3 zeigt 7, und die Eingabetaste kopiert das Ergebnis. Einen ungültigen Ausdruck, eine Division durch null oder eine zu große Zahl meldet die Palette neben dem Ausdruck.
+- F1 beim markierten Befehl öffnet sein Hilfethema.
+
+## [help.contents] Hilfe
+commands: nks.help.contents
+Öffnet dieses Hilfefenster.
+1. Drücken Sie F1 oder wählen Sie Hilfe und dann Hilfe.
+2. Das Fenster öffnet sich bei dem Thema, das zu Ihrer Situation passt: bei einem markierten Befehl in der Palette bei dessen Thema, in der Suchleiste, im Dateipanel oder in der Dokumentliste beim Thema dieses Bereichs, sonst auf der Startseite.
+3. F1 in den Einstellungen öffnet das Thema über die Einstellungen, F1 im Regex-Tester das Thema über den Tester.
+- Die Hilfe ist ein einziges Fenster. Ein weiteres F1 schaltet es nur auf ein anderes Thema um.
+
+## [help.about] Info
+commands: nks.help.about
+Zeigt den Programmnamen und die Versionsnummer.
+1. Wählen Sie Hilfe und dann Info.
+2. Schließen Sie das Fenster mit der Schaltfläche Schließen oder mit Esc.
+- Dieselbe Versionsnummer steht oben in jedem Hilfethema.
+
+## [file.new] Neues Dokument
+commands: nks.file.new
+1. Drücken Sie Strg+N oder wählen Sie Datei und dann Neu.
+2. Ein Tab Unbenannt 1 öffnet sich (die nächsten bekommen 2, 3 und so weiter), und der Cursor steht darin.
+- Die Codierung eines neuen Dokuments bestimmt die Einstellung Standardcodierung, die Zeilenenden die Einstellung Zeilenende.
+- Der Text wird sofort ins Wiederherstellungsjournal geschrieben und geht deshalb auch bei einem Absturz nicht verloren (Thema Wiederherstellung nach Absturz). Namen und Ort bekommt das Dokument beim ersten Speichern.
+
+## [file.open] Eine Datei öffnen
+commands: nks.file.open
+1. Drücken Sie Strg+O oder wählen Sie Datei und dann Öffnen.
+2. Wählen Sie im Systemfenster eine oder mehrere Dateien und bestätigen Sie.
+3. Jede Datei öffnet sich in einem eigenen Tab. Eine Datei, die schon offen ist, wird nur angezeigt.
+- Dateien lassen sich auch ins Programmfenster ziehen.
+- Die Codierung wird automatisch erkannt. Ist es nur eine Schätzung, zeigt die Statusleiste den Prozentwert der Sicherheit; ein Klick auf die Codierung ändert sie (Thema Codierung).
+- Eine Datei über der Grenze für große Dateien (standardmäßig 6 MiB) öffnet sich im Seitenmodus mit eingeschränkter Bearbeitung (Thema Große Dateien).
+- Eine Datei, die sich nicht lesen lässt, wird nicht geöffnet, und die Statusleiste nennt den Grund (Thema Fehlermeldungen).
+
+## [file.openFolder] Einen Ordner öffnen
+commands: nks.file.openFolder
+1. Drücken Sie Strg+K und dann Strg+O oder wählen Sie Datei und dann Ordner öffnen.
+2. Wählen Sie im Systemfenster den Ordner.
+3. Links erscheint das Panel Dateien mit dem Ordnerbaum. Die Dateisuche nach Namen (Strg+P) und In Dateien suchen arbeiten dann über diesem Ordner.
+- Lässt sich der Ordner nicht öffnen, nennt die Statusleiste den Grund.
+
+## [file.save] Speichern
+commands: nks.file.save, nks.file.saveAll
+1. Strg+S speichert den aktiven Tab, Strg+Alt+S speichert alle Tabs mit ungespeicherten Änderungen.
+2. Ein Dokument ohne Datei fragt beim Speichern nach Name und Codierung, genau wie Speichern unter.
+3. Nach dem Speichern zeigt die Statusleiste Gespeichert.
+- Bevor eine Datei überschrieben wird, legt das Programm eine Sicherung der alten Fassung an. Misslingt die Sicherung, bleibt die Datei unverändert, und die Statusleiste sagt es. Misslingt nur die Sicherung nach dem Schreiben, steht dort Gespeichert, aber die Sicherung ist fehlgeschlagen.
+- Hat sich die Datei inzwischen geändert oder ist verschwunden, fragt das Programm: Überschreiben, Vergleichen oder Abbrechen. Ohne Ihre Zustimmung wird nichts überschrieben (Thema Datei von außen geändert).
+- Enthält der Text Zeichen, die die Codierung der Datei nicht darstellen kann, listet das Programm sie auf und bietet Ersetzen und speichern (die Zeichen werden zu einem Fragezeichen) oder Abbrechen an.
+- Die Einstellungen Leerraum am Zeilenende entfernen, Zeilenende am Dateiende einfügen und Automatisch speichern betreffen das Speichern.
+
+## [file.saveAs] Speichern unter
+commands: nks.file.saveAs
+1. Drücken Sie Strg+Umschalt+S oder wählen Sie Datei und dann Speichern unter.
+2. Tippen Sie im Feld Datei den Pfad oder wählen Sie ihn mit Durchsuchen.
+3. Wählen Sie im Feld Codierung eine Codierung. Eine Codierung, die einige Zeichen verlieren würde, ist als verlustbehaftet mit der Zeichenzahl gekennzeichnet.
+4. Bestätigen Sie mit Speichern.
+- Existiert die Zieldatei, fragt das Programm nach dem Überschreiben.
+- Der Tab gehört danach zur neuen Datei.
+- Eine große Datei im Seitenmodus lässt sich nur in ihrer eigenen Codierung speichern.
+
+## [file.close] Einen Tab schließen
+commands: nks.file.close
+1. Drücken Sie Strg+W oder wählen Sie Datei und dann Schließen.
+2. Hat das Dokument ungespeicherte Änderungen, fragt das Programm: Speichern, Nicht speichern, Im Journal behalten oder Abbrechen. Im Journal behalten wird nur angeboten, wenn die Wiederherstellung nach Absturz funktioniert; die Änderungen warten dann im Journal und kommen beim nächsten Start zurück.
+- Sind zwei Ansichten desselben Dokuments offen (geteilte Ansicht), fragt das Schließen einer Ansicht nichts.
+- Im Verhaltensprofil PSPad schaltet Strg+W den Zeilenumbruch um; den Tab schließen Sie dann über das Menü oder mit dem Kreuz am Tab.
+
+## [file.reload] Vom Datenträger neu laden
+commands: nks.file.reload
+1. Wählen Sie Datei und dann Vom Datenträger neu laden oder suchen Sie den Befehl in der Palette.
+2. Hat der Tab ungespeicherte Änderungen, fragt das Programm; die Schaltfläche Änderungen verwerfen und neu laden verwirft sie.
+3. Die Statusleiste zeigt Vom Datenträger neu geladen.
+- Der Befehl funktioniert nur bei einem Tab, der eine Datei auf dem Datenträger hat.
+- Dasselbe bietet die Leiste über dem Dokument an, wenn sich eine Datei von außen ändert (Thema Datei von außen geändert).
+
+## [file.compare] Mit Datenträger vergleichen
+commands: nks.file.compareWithDisk
+Der Befehl startet Ihr eigenes Vergleichsprogramm: links die Datei auf dem Datenträger, rechts der Inhalt des Tabs.
+1. Tragen Sie einmal in den Einstellungen das Externe Vergleichsprogramm (den Pfad zu einem Programm) und bei Bedarf die Argumente des Vergleichsprogramms ein. In der Vorlage steht {left} für die Datei auf dem Datenträger und {right} für den Inhalt des Tabs.
+2. Wählen Sie Datei und dann Mit Datenträger vergleichen.
+- Ist kein Programm eingestellt, erscheint eine Leiste: Kein externes Vergleichsprogramm eingestellt, mit der Schaltfläche Einstellungen öffnen.
+- Ein Tab ohne Datei auf dem Datenträger meldet: Der Tab hat keine Datei auf dem Datenträger, mit der verglichen werden kann.
+- Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
+- Ein eigenes Vergleichsfenster hat das Programm nicht; es verwendet das von Ihnen eingestellte Programm.
+
+## [file.openPath] Pfad am Cursor öffnen
+commands: nks.file.openPathAtCaret
+1. Setzen Sie den Cursor auf einen Dateipfad im Text, zum Beispiel src/a.cs:12.
+2. Wählen Sie Datei und dann Pfad am Cursor öffnen oder suchen Sie den Befehl in der Palette. Ein Kürzel hat er nicht.
+3. Die Datei öffnet sich; eine Zeile (und Spalte) nach dem Doppelpunkt wird verwendet.
+- Ein relativer Pfad wird im Ordner der aktuellen Datei und im geöffneten Ordner gesucht. Ein Pfad, der mit ~/ beginnt, zeigt in Ihren Benutzerordner.
+- Zeigt der Pfad auf einen Ordner, wird er im Panel Dateien angezeigt.
+- Kein Pfad am Cursor: Am Cursor steht kein Dateipfad. Datei existiert nicht: Der Pfad wird mit dem Hinweis genannt, dass er nicht existiert.
+
+## [app.settings] Einstellungen
+commands: nks.app.openSettings
+1. Drücken Sie Strg+Komma oder wählen Sie Einstellungen und dann Einstellungen.
+2. Tippen Sie oben, was Sie suchen, zum Beispiel tab oder Kürzel. Durchsucht werden Einstellungen und Tastenkürzel.
+3. Jeder Eintrag zeigt den gültigen Wert und woher er stammt (Standard, Benutzer, Arbeitsbereich, EditorConfig, Dokument).
+4. Ändern Sie den Wert direkt in der Zeile; er wirkt sofort und wird in die Einstellungsdatei geschrieben. Auf Standard zurücksetzen stellt den ursprünglichen Wert wieder her.
+- Ein unsinniger Wert wird abgelehnt, und die Zeile sagt, was daran nicht stimmt. Lässt sich die Einstellungsdatei nicht schreiben, steht der Grund über der Liste.
+- Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
+- F1 in diesem Fenster öffnet dieses Thema.
+
+## [app.quit] Beenden
+commands: nks.app.quit
+1. Drücken Sie Strg+Q oder wählen Sie Datei und dann Beenden.
+2. Funktioniert die Wiederherstellung nach Absturz, fragt das Programm nichts: Ungespeicherter Text bleibt im Journal und kommt beim nächsten Start zurück.
+3. Funktioniert sie nicht (das Journal lässt sich nicht schreiben), fragt das Programm bei jedem Dokument mit ungespeicherten Änderungen: Speichern, Nicht speichern, Abbrechen.
+- Die Anordnung der Tabs wird beim Beenden gespeichert und beim nächsten Start wiederhergestellt.
+
+## [edit.undo] Rückgängig und Wiederholen
+commands: nks.edit.undo, nks.edit.redo
+1. Strg+Z macht den letzten Schritt rückgängig, Strg+Y oder Strg+Umschalt+Z stellt ihn wieder her. Das Menü Bearbeiten hat dasselbe.
+2. Ein Schritt ist eine zusammenhängende Eingabe oder ein Befehl (zum Beispiel Zeile löschen oder eine Codierungsumwandlung).
+3. Nach einem Schritt springt der Cursor an die Stelle, an der die Änderung stattfand.
+- Zwei Ansichten desselben Dokuments teilen sich den Verlauf.
+- Rückgängig und Wiederholen funktionieren auch im Seitenmodus.
+- Das Profil PSPad hat zusätzlich Alt+Rücktaste (Rückgängig) und Umschalt+Alt+Rücktaste (Wiederholen).
+
+## [edit.clipboard] Ausschneiden, Kopieren, Einfügen
+commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
+1. Markieren Sie Text; Strg+X schneidet ihn aus, Strg+C kopiert ihn, Strg+V fügt ihn an der Cursorposition oder über der Auswahl ein.
+- Eingefügter Text übernimmt die Zeilenenden des Dokuments.
+- Bei mehreren Cursorn werden die markierten Texte zeilenweise kopiert, und beim Einfügen bekommt jeder Cursor sein Stück.
+- In einer Blockauswahl geht eine Zeile der Zwischenablage in jede Zeile des Blocks.
+- Beim Einfügen in eine Zeichenkette einer Programmiersprache werden Anführungszeichen und Backslashes maskiert (Einstellung Beim Einfügen in Zeichenketten maskieren).
+- Ausschneiden und Einfügen gehen nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus (Thema Große Dateien).
+
+## [edit.select] Auswählen
+commands: nks.edit.selectAll, nks.edit.selectLine
+1. Strg+A wählt den ganzen Text aus.
+2. Strg+L wählt die Zeile samt Zeilenende aus. Ein weiteres Strg+L fügt die nächste Zeile hinzu.
+- Bei mehreren Cursorn nimmt jeder Cursor seine eigene Zeile.
+
+## [edit.lines] Arbeiten mit Zeilen
+commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines
+Die Befehle betreffen die Zeile mit dem Cursor oder alle Zeilen der Auswahl. Jeder ist ein Schritt für Rückgängig.
+- Zeile löschen: Strg+Umschalt+K.
+- Zeile duplizieren: Strg+Umschalt+D fügt eine Kopie unter der Zeile ein.
+- Zeile nach oben oder unten verschieben: Alt+Pfeil nach oben, Alt+Pfeil nach unten.
+- Zeilen verbinden: Strg+Umschalt+J verbindet die Zeile mit der nächsten.
+- Alle stehen auch im Menü Bearbeiten.
+- Sie gehen nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus.
+- Im Profil PSPad liegt Zeile löschen auf Strg+Y, Zeile duplizieren auf Umschalt+Alt+Pfeil nach unten, und die Alt+Pfeile verschieben keine Zeilen.
+
+## [edit.indent] Einzug
+commands: nks.edit.indent, nks.edit.outdent, nks.edit.insertIndent, nks.edit.tab
+1. Strg+] vergrößert den Einzug der markierten Zeilen (oder der Zeile mit dem Cursor), Strg+[ verkleinert ihn.
+2. Die Tabulatortaste rückt bei einer Auswahl über mehrere Zeilen alle ein, ohne eine solche Auswahl fügt sie einen Einzug an der Cursorposition ein. Umschalt+Tab verkleinert den Einzug.
+- Der Einzug besteht aus so vielen Leerzeichen oder Tabulatoren, wie die Einstellungen Einzugsgröße und Mit Leerzeichen einrücken sagen. Bei einer geöffneten Datei schätzt das Programm den Einzug (Einstellung Einrückung erkennen), und eine Datei, für die .editorconfig gilt, folgt diesem. Den Einzug ändern Sie per Klick darauf in der Statusleiste.
+- Der Befehl Einzug einfügen hat kein Kürzel; er ist das, was Tab ohne Auswahl über mehrere Zeilen tut.
+- Im Profil PSPad liegen Einzug vergrößern und verkleinern auf Strg+Umschalt+I und Strg+Umschalt+U.
+
+## [edit.newline] Neue Zeile
+commands: nks.edit.newline
+1. Die Eingabetaste beginnt eine neue Zeile mit dem Einzug der vorherigen, im Zeilenendformat des Dokuments.
+2. Steht der Cursor in einem Kommentar, setzt die neue Zeile den Kommentar fort (Einstellung Kommentare fortsetzen).
+
+## [edit.case] Groß- und Kleinschreibung
+commands: nks.edit.upperCase, nks.edit.lowerCase
+1. Markieren Sie Text.
+2. Strg+K und dann Strg+U macht die Buchstaben groß, Strg+K und dann Strg+L klein.
+- Ohne Auswahl sind die Befehle abgeblendet. Sie stehen auch im Menü Bearbeiten.
+
+## [edit.carets] Mehrere Cursor
+commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
+1. Markieren Sie ein Wort; Strg+D fügt sein nächstes Vorkommen zur Auswahl hinzu. Wiederholen Sie das für weitere Vorkommen.
+2. Strg+K und dann Strg+D überspringt das letzte Vorkommen und nimmt das nächste.
+3. Strg+Umschalt+L wählt alle Vorkommen auf einmal aus.
+4. Strg+Alt+Pfeil nach oben und Strg+Alt+Pfeil nach unten fügen einen Cursor in der Zeile darüber und darunter hinzu.
+5. Beim Tippen ändern sich alle Stellen gleichzeitig. Esc lässt nur einen Cursor übrig.
+- Die Statusleiste zeigt die Anzahl der Cursor.
+- Alt+Ziehen mit der Maus erzeugt je nach Einstellung Alt+Ziehen einen Cursor in jeder Zeile oder eine Blockauswahl.
+
+## [edit.mark] Marke und bis Marke auswählen
+commands: nks.edit.selectToMark
+1. Suchen Sie den Befehl Marke setzen / bis Marke auswählen im Menü Bearbeiten.
+2. Die erste Benutzung speichert eine Marke an der Cursorposition.
+3. Bewegen Sie den Cursor woandershin und benutzen Sie den Befehl erneut: Der Text von der Marke bis zum Cursor wird ausgewählt, und die Marke verschwindet.
+- Die Taste F8 hat dieser Befehl nur im Verhaltensprofil PSPad; im Standardprofil ist F8 die Blockauswahl.
+
+## [edit.block] Blockauswahl
+commands: nks.edit.toggleBlockSelect
+1. Drücken Sie F8 (im Profil PSPad Strg+Umschalt+C).
+2. Erweitern Sie das Rechteck über Zeilen und Spalten mit den Pfeiltasten, Pos1 oder Umschalt mit den Pfeilen.
+3. Beim Tippen oder Einfügen ändert sich der Text in jeder Zeile des Blocks. Beim Einfügen werden die Zeilen der Zwischenablage einzeln verwendet.
+4. Ein weiteres F8 hebt den Block auf.
+- Ein Block lässt sich auch mit gedrückter Alt-Taste und der Maus ziehen, wenn die Einstellung Alt+Ziehen es zulässt.
+- Im Seitenmodus gibt es keine Blockauswahl.
+
+## [search.find] Im Dokument suchen
+commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.search.findWord
+1. Strg+F öffnet unten die Suchleiste. Tippen Sie den Text; die Trefferzahl erscheint neben dem Feld, und die Treffer werden markiert.
+2. Die Eingabetaste findet das nächste Vorkommen, Umschalt+Eingabe das vorherige. Genauso arbeiten F3 und Umschalt+F3.
+3. Strg+F3 sucht das Wort unter dem Cursor.
+4. Esc schließt die Leiste.
+- Schalter: Aa beachtet die Groß- und Kleinschreibung (Alt+C), .* ist ein regulärer Ausdruck (Alt+R), ab ganze Wörter (Alt+W), Auswahl sucht nur im markierten Text.
+- Erreicht die Suche das Ende, geht sie am Anfang weiter, und die Statusleiste meldet es.
+- Ein ungültiger Ausdruck wird bei der Trefferzahl angezeigt. Ein zu langsamer Ausdruck wird von der Suche abgebrochen.
+- Die Suche funktioniert auch im Seitenmodus; das Ersetzen dort nicht.
+- Schalten Sie den regulären Ausdruck ein, erscheint die Schaltfläche Testen (Thema Regex-Tester).
+
+## [search.replace] Ersetzen
+commands: nks.search.replace
+1. Drücken Sie Strg+H oder wählen Sie Suchen und dann Ersetzen. Die Leiste hat zusätzlich das Feld Ersetzen durch.
+2. Tippen Sie den Suchtext und den Ersatztext.
+3. Die Eingabetaste im Ersatzfeld ersetzt einen Treffer, Strg+Alt+Eingabe alle. Dasselbe tun die Schaltflächen Ersetzen und Alle.
+4. Die Statusleiste meldet, wie viele Treffer ersetzt wurden, oder Es wurde nichts ersetzt.
+- Beim Ersetzen mit regulären Ausdrücken gelten $1, $& und die Umwandlung der Schreibweise \U \L \E \u \l.
+- Es geht nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus.
+
+## [search.inFiles] In Dateien suchen und ersetzen
+commands: nks.search.findInFiles, nks.search.replaceInFiles
+1. Strg+Umschalt+F öffnet die Leiste mit dem Feld Ordner; Strg+Umschalt+H fügt das Ersatzfeld hinzu.
+2. Tragen Sie Suchtext und Ordner ein (die Schaltfläche Durchsuchen wählt ihn) und drücken Sie die Eingabetaste oder Suchen.
+3. Die Ergebnisse öffnen sich im Tab Suchergebnisse: Dateien, Zeilen und Anzahlen. Die Eingabetaste oder ein Doppelklick öffnet einen Treffer.
+4. Beim Ersetzen zeigt die Schaltfläche Vorschau die vorgeschlagenen Änderungen. Durch Abwählen nehmen Sie eine Datei oder eine einzelne Änderung heraus, Ausgewählte Änderungen anwenden schreibt sie.
+- Eine Suche lässt sich mit der Schaltfläche Abbrechen oder Esc abbrechen. Bei zu vielen Treffern hält sie an und nennt, wie viele sie gezeigt hat.
+- Beim Ersetzen bleiben Dateien mit Konflikt unverändert: Das Dokument wurde nach der Vorschau geändert, ein anderes Programm hat die Datei geändert, die Datei ist verschwunden, der neue Text lässt sich in der Codierung der Datei nicht schreiben oder die Änderung passt nicht mehr. Neue Vorschau erstellt die Vorschau erneut.
+- Vor dem Schreiben in Dateien trägt das Programm den Plan ins Journal ein; nach einem Absturz mitten im Stapel bietet es Abschließen oder Zurücksetzen an.
+- F1 im Ergebnis-Tab öffnet dieses Thema.
+
+## [search.regex] Regex-Tester
+commands: nks.search.regexTester
+1. Wählen Sie Suchen und dann Regex-Tester oder drücken Sie in der Suchleiste bei eingeschaltetem regulärem Ausdruck auf Testen.
+2. Tippen Sie den Ausdruck, optional einen Ersatz und einen Beispieltext.
+3. Das Fenster zeigt die Treffer mit ihren Gruppen, den Text nach dem Ersetzen und eine Erklärung des Ausdrucks Teil für Teil.
+- Es nutzt dieselbe Engine wie die Suche (.NET-Regex). Die Erklärung kennzeichnet Syntax anderer Dialekte als nicht unterstützt.
+- Läuft ein Ausdruck zu lange, wird er abgebrochen, und das Fenster sagt es. Es wird nur eine begrenzte Zahl von Treffern aufgelistet.
+- F1 in diesem Fenster öffnet dieses Thema.
+
+## [search.gotoLine] Gehe zu Zeile
+commands: nks.search.gotoLine
+1. Drücken Sie Strg+G oder wählen Sie Suchen und dann Gehe zu Zeile.
+2. Tippen Sie eine Zeilennummer (120), Zeile und Spalte (120:5), einen Prozentwert (40 %) oder ein Byte (@4096).
+3. Bestätigen Sie mit der Eingabetaste. Der Cursor springt dorthin.
+- Eine Zahl über der Zeilenzahl führt zur letzten Zeile.
+- Eine ungültige Eingabe meldet „...“ ist keine Zeilennummer.
+- In einer großen Datei, deren Zeilen noch nummeriert werden, meldet die Statusleiste: Der Zeilenindex reicht noch nicht bis zu dieser Position; versuchen Sie es gleich noch einmal.
+
+## [search.gotoBracket] Zur passenden Klammer springen
+commands: nks.search.gotoBracket
+1. Setzen Sie den Cursor neben eine Klammer.
+2. Drücken Sie Strg+Umschalt+Backslash oder wählen Sie Suchen und dann Zur passenden Klammer springen.
+3. Der Cursor springt zur Gegenklammer.
+- Hat die Klammer kein Gegenstück, meldet die Statusleiste Die Klammer hat kein Gegenstück.
+- In einer großen Datei im Seitenmodus gibt es den Befehl nicht.
+
+## [search.gotoAnything] Gehe zu Beliebigem
+commands: nks.search.gotoAnything
+1. Drücken Sie Strg+P.
+2. Tippen Sie einen Teil eines Dateinamens oder Pfads. Die Liste zeigt Dateien des geöffneten Ordners, geöffnete Dokumente und zuletzt verwendete Dateien.
+3. Die Eingabetaste öffnet die Datei. Tippen Sie :120, springt der Cursor zu Zeile 120 des aktiven Dokuments.
+- Ohne geöffneten Ordner werden nur offene und zuletzt verwendete Dateien aufgelistet.
+- Eine Datei, die nicht mehr existiert, ist als fehlt gekennzeichnet.
+- Unter der Liste steht eine Vorschau der markierten Datei; eine Binärdatei wird nicht angezeigt.
+
+## [search.jump] Bearbeitungsorte und Sprünge
+commands: nks.search.recentEdits, nks.search.jumpBack, nks.search.jumpForward
+1. Strg+K und dann Strg+E öffnet eine Liste der Stellen, an denen Sie zuletzt Text bearbeitet haben, die neuesten zuerst. Ein Kontrollkästchen beschränkt sie auf geänderte Dokumente. Die Eingabetaste springt zur Stelle.
+2. Alt+Pfeil nach links kehrt zur Stelle zurück, von der aus Sie gesprungen sind (nach Gehe zu Zeile, dem Öffnen eines Pfads, einer zugehörigen Datei und Ähnlichem). Alt+Pfeil nach rechts geht wieder vor.
+- Gibt es keinen Ort zum Springen, meldet die Statusleiste Kein Ort zum Zurückspringen oder Vorwärtsspringen. Eine Liste ohne Bearbeitungen meldet Noch keine Bearbeitungsorte.
+- Die Stellen wandern mit dem Text mit und überstehen das Schließen eines Dokuments.
+
+## [search.related] Zugehörige Datei
+commands: nks.search.relatedFile
+1. Drücken Sie in einem gespeicherten Dokument Alt+O oder wählen Sie Suchen und dann Zur zugehörigen Datei.
+2. Wird genau eine gefunden, öffnet sie sich. Sind es mehrere, wählen Sie aus der Liste.
+- Eingebaute Paare: .c mit .h oder .hpp, .cpp mit .hpp oder .h, .m mit .h, eine Datei und ihr _test (Go, Python), Test.php, Tests.cs, .spec.ts und .test.ts, .xaml mit .xaml.cs (ebenso axaml, razor).
+- Eigene Paare tragen Sie in der Einstellung Regeln für zugehörige Dateien als Endung|Endung ein, durch Semikolons getrennt.
+- Ein Dokument ohne Datei meldet: Speichern Sie das Dokument zuerst. Kein Treffer: Keine zugehörige Datei für den Namen.
+
+## [view.wordwrap] Zeilenumbruch
+commands: nks.view.toggleWordWrap
+1. Drücken Sie Alt+Z oder wählen Sie Ansicht und dann Zeilenumbruch umschalten.
+2. Lange Zeilen werden am Fensterrand umbrochen. Mit erneutem Drücken kehren Sie zurück.
+- Die Wahl wird in der Einstellung Zeilenumbruch gespeichert.
+- Im Seitenmodus gibt es den Befehl nicht.
+- Im Profil PSPad lautet das Kürzel Strg+W.
+
+## [view.zoom] Schriftgröße
+commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
+1. Strg+= vergrößert die Schrift um einen Punkt, Strg+- verkleinert sie.
+2. Strg+0 stellt die Standardgröße wieder her.
+- Die Größe liegt zwischen 6 und 72 Punkt und wird in der Einstellung Schriftgröße gespeichert.
+
+## [view.tabs] Tabs wechseln
+commands: nks.view.nextTab, nks.view.previousTab
+1. Strg+Tab wechselt zum nächsten Tab der Gruppe, Strg+Umschalt+Tab zum vorherigen.
+2. Nach dem letzten Tab geht es mit dem ersten weiter.
+- Tabs lassen sich auch mit der Maus ziehen und anordnen.
+
+## [view.documents] Liste der geöffneten Dokumente
+commands: nks.view.toggleDocumentList
+1. Strg+B öffnet oder schließt links das Panel Geöffnete Dokumente.
+2. Wählen Sie mit den Pfeilen ein Dokument und drücken Sie die Eingabetaste, um es anzuzeigen. Ungespeicherte Dokumente tragen die Marke ●.
+3. Das Feld oben filtert die Liste.
+- Esc schließt das Panel.
+
+## [view.files] Panel Dateien
+commands: nks.view.toggleFilePanel
+1. Strg+Umschalt+E öffnet oder schließt das Panel Dateien. Ohne geöffneten Ordner bietet es Ordner öffnen an.
+2. Die Pfeile gehen durch den Baum, Pfeil nach rechts und links klappen einen Ordner auf und zu, die Eingabetaste oder ein Doppelklick öffnet eine Datei.
+3. Die rechte Maustaste bietet Dateivorgänge an (Thema Dateivorgänge). F2 benennt um, Entf verschiebt in den Papierkorb, F5 aktualisiert.
+- Der Baum folgt Änderungen auf dem Datenträger selbstständig.
+
+## [files.create] Neue Datei und neuer Ordner
+commands: nks.files.newFile, nks.files.newFolder
+1. Öffnen Sie einen Ordner und wählen Sie im Panel Dateien den Ordner, in dem erstellt werden soll.
+2. Wählen Sie mit der rechten Maustaste Neue Datei im Ordner oder Neuer Ordner oder suchen Sie den Befehl in der Palette.
+3. Tippen Sie den Namen und bestätigen Sie.
+- Die Statusleiste zeigt Erstellt und den Namen.
+- Ein ungültiger oder schon vorhandener Name wird abgelehnt (Thema Fehlermeldungen), und nichts ändert sich.
+
+## [files.manage] Duplizieren, umbenennen, verschieben, löschen
+commands: nks.files.duplicate, nks.files.rename, nks.files.move, nks.files.delete
+Wählen Sie im Panel Dateien eine Datei oder einen Ordner. Die Vorgänge stehen im Kontextmenü und in der Palette.
+- Duplizieren legt eine Kopie neben dem Original an.
+- Umbenennen (F2): Tippen Sie den neuen Namen. Offene Tabs und die Listen der Stellen folgen mit.
+- Verschieben: Tippen Sie den Zielordner.
+- In den Papierkorb verschieben (Entf): Das Programm fragt nach, und die Datei kommt in den Papierkorb, aus dem Sie sie wiederherstellen können. Ist sie mit ungespeicherten Änderungen geöffnet, bleibt der Tab offen und behält sie.
+- Misslingt ein Vorgang, nennt eine Leiste über dem Dokument den Grund und sagt Es wurde nichts geändert.
+
+## [files.refresh] Aktualisieren und Datei anzeigen
+commands: nks.files.refresh, nks.files.reveal
+- Dateien aktualisieren (F5 im Panel) liest den Baum erneut vom Datenträger.
+- Aktive Datei im Panel anzeigen öffnet das Panel und wählt darin die Datei des aktiven Tabs aus. Es funktioniert bei geöffnetem Ordner und geöffnetem Dokument.
+
+## [format.encoding] Codierung
+commands: nks.format.reread, nks.format.convert
+Die Statusleiste zeigt die Codierung; ein Klick darauf öffnet dieselbe Auswahl. Ist die Codierung geschätzt, steht der Prozentwert der Sicherheit dabei.
+- Mit Codierung neu öffnen: Die Datei wird in einer anderen Codierung erneut vom Datenträger gelesen. Nutzen Sie das, wenn nach dem Öffnen falsche Buchstaben erscheinen.
+- In Codierung konvertieren: Das Dokument wird in eine andere Codierung umgewandelt. Welche Zeichen verloren gingen, zeigen die Liste (verlustbehaftet und eine Anzahl) und ein Fenster mit Zeile, Spalte und Byte jedes Zeichens. Ersetzen und konvertieren ersetzt sie durch ein Fragezeichen.
+- Standardliste der Codierungen in den Einstellungen: UTF-8 (mit und ohne BOM), UTF-16 LE und BE, Windows-1250, Windows-1252, ISO-8859-2.
+- Bei einer großen Datei im Seitenmodus sind beide Auswahlen nicht verfügbar.
+
+## [format.eol] Zeilenenden
+commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
+1. Wählen Sie Format und dann Zeilenenden auf CRLF, LF oder CR oder klicken Sie in der Statusleiste auf die Zeilenenden (gemischte heißen gemischt).
+2. Eine Vorschau der Änderung erscheint: wie viele Zeilenenden sich ändern. Anwenden führt sie aus.
+- Gibt es nichts zu ändern, meldet die Statusleiste Nichts zu ändern.
+- Mit Rückgängig lässt es sich zurücknehmen.
+- In einem schreibgeschützten Dokument und im Seitenmodus gibt es den Befehl nicht.
+
+## [format.normalize] Unicode-Normalisierung
+commands: nks.format.normalizeNfc, nks.format.normalizeNfd
+Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem getrennten Akzent (NFD) geschrieben sein. Sie sehen gleich aus, aber Suche und Vergleich unterscheiden sie.
+1. Wählen Sie Format und dann Unicode nach NFC normalisieren (oder NFD).
+2. Eine Vorschau mit der Zahl der Stellen erscheint. Anwenden führt sie aus.
+- Ließe sich nach dem Normalisieren ein Zeichen nicht in der Codierung der Datei schreiben, lehnt das Programm die Änderung ab und sagt es.
+- Gab es nichts zu ändern, meldet die Statusleiste Nichts zu ändern.
+
+## [format.language] Sprachmodus
+commands: nks.format.language
+1. Wählen Sie Format und dann Sprachmodus oder klicken Sie in der Statusleiste auf die Sprache.
+2. Wählen Sie eine Sprache, zum Beispiel Nur-Text.
+- Die Sprache bestimmt, welche Einstellungen nur für diese Sprache gelten (zum Beispiel Zeilenumbruch oder Einzug), und die Regeln der Hervorhebung.
+- Beim Öffnen wird die Sprache anhand der Dateiendung gewählt.
+
+## [window.new] Neues Fenster
+commands: nks.window.new
+1. Drücken Sie Strg+Umschalt+N oder wählen Sie Fenster und dann Neues Fenster.
+2. Ein zweites Programmfenster öffnet sich. Jedes Fenster hat eigene Dokumente und Tabs.
+- Beim Schließen eines Fensters bleibt ungespeicherte Arbeit im Journal und kommt beim nächsten Start zurück.
+
+## [window.split] Geteilte Ansicht
+commands: nks.window.splitView, nks.window.moveToOtherGroup
+1. Strg+\ zeigt eine zweite Ansicht desselben Dokuments in der Gruppe rechts. Beide Ansichten teilen sich Text und Rückgängig-Verlauf.
+2. Tab in andere Gruppe verschieben bringt den Tab in die andere Gruppe (der Befehl steht im Menü Fenster).
+3. Die Grenze zwischen den Gruppen lässt sich mit der Maus ziehen.
+- Tabs lassen sich auch zwischen Gruppen ziehen.
+- Eine Gruppe verschwindet, wenn kein Tab mehr darin ist.
+
+## [settings.theme] Design
+commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.theme.dark
+1. Wählen Sie Einstellungen und eines der Designs: Design: wie System, Design: Hell, Design: Dunkel.
+2. Die Änderung wirkt sofort und wird gemerkt.
+- Wie System bedeutet, dass das Programm der Systemeinstellung folgt.
+
+## [settings.language] Sprache der Oberfläche
+commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
+1. Wählen Sie Einstellungen und dann Čeština, English, Slovenčina oder Deutsch.
+2. Menüs, Meldungen und diese Hilfe schalten sofort um.
+- Standard ist die Systemsprache (Einstellung Sprache der Oberfläche).
+
+## [settings.profile] Verhaltensprofil
+commands: nks.settings.profile.default, nks.settings.profile.pspad
+1. Wählen Sie Einstellungen und dann Verhaltensprofil: Standard oder Verhaltensprofil: PSPad.
+- Das Profil PSPad ändert: Pos1 und Ende springen zwischen dem ersten Zeichen und dem Zeilenrand, die Rücktaste im Einzug löscht bis zum Tabstopp, Alt+Ziehen macht eine Blockauswahl, Zeichenpaare werden wie in PSPad ergänzt, und einige Kürzel (Zeile löschen Strg+Y, Rückgängig Alt+Rücktaste, Zeilenumbruch Strg+W, F8 Marke, Strg+Umschalt+C Blockauswahl, Einzug Strg+Umschalt+I und U).
+- Eigene Kürzel in den Einstellungen haben Vorrang vor dem Profil.
+
+## [recovery] Wiederherstellung nach Absturz
+Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens zwei Sekunden nach einer Änderung. Ein ungespeichertes Dokument geht so auch nicht verloren, wenn das Programm abstürzt oder der Rechner ausgeschaltet wird.
+1. Starten Sie das Programm erneut.
+2. Die Tabs kommen samt ungespeichertem Text zurück. Über dem Dokument steht eine Leiste Nach einem unerwarteten Beenden wurden Tabs wiederhergestellt, und in Klammern die Zahl der Tabs mit ungespeicherten Änderungen.
+3. Die Schaltfläche Details listet jedes Dokument auf: samt ungespeicherten Änderungen wiederhergestellt, aus der Datei neu geöffnet, die Datei hat sich inzwischen geändert, die Datei existiert nicht mehr oder konnte nicht wiederhergestellt werden mit dem Grund.
+- Hat sich eine Datei inzwischen auf dem Datenträger geändert, bleiben die Änderungen im Journal, und nichts wird überschrieben.
+- Das Journal liegt im Profilordner. Einen anderen Ordner bestimmt die Einstellung Journalordner, einen Ersatz die Einstellung Ersatzordner für das Journal.
+- Lässt sich das Journal in keinen Ordner schreiben, sagt die Leiste: Die Wiederherstellung nach Absturz ist aus. Ungespeicherter Text bleibt dann nur in den Tabs; speichern Sie von Hand. Hört es im Betrieb auf zu funktionieren: Das Journal funktioniert nicht mehr, die Wiederherstellung nach Absturz gilt nicht mehr, speichern Sie von Hand.
+- Wird der Ersatzordner verwendet, nennt die Leiste, welcher.
+- Ein unterbrochener Stapel von Ersetzungen in Dateien wird nach dem Start angeboten: Abschließen oder Zurücksetzen.
+
+## [paged] Große Dateien (Seitenmodus)
+Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht.
+Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
+### Was geht
+- Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
+- Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
+- Suchen (Strg+F). In Dateien suchen.
+### Was nicht geht
+- Auswahl, Zwischenablage (Ausschneiden, Kopieren, Einfügen), Blockauswahl, mehrere Cursor.
+- Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
+- Zur passenden Klammer springen, Zeilenumbruch.
+- Konvertieren und erneutes Lesen der Codierung, Vereinheitlichen der Zeilenenden, Normalisierung.
+- Speichern unter nur in derselben Codierung.
+- Eine Zeile über 16 KiB wird nur teilweise angezeigt und lässt sich nicht bearbeiten.
+### Meldungen
+- Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich: Warten Sie, bis die Datei durchgelesen ist.
+- Die Zeile ist länger als 16 KiB und kann im Seitenmodus nicht bearbeitet werden: Bearbeiten Sie die Zeile mit einem anderen Programm.
+- Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
+- Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
+- Das Speichern einer großen Datei hält das Fenster auf.
+
+## [conflict] Datei von außen geändert
+Ändert ein anderes Programm die Datei, erscheint über dem Dokument eine Leiste: Die Datei wurde auf dem Datenträger geändert.
+- Neu laden verwirft Ihre Änderungen und lädt die Datei vom Datenträger.
+- Meine behalten behält Ihre Änderungen; das nächste Speichern fragt nach, bevor es die Datei überschreibt.
+- Vergleichen öffnet das Vergleichsprogramm (Thema Mit Datenträger vergleichen).
+Wurde die Datei gelöscht oder umbenannt, sagt die Leiste, dass sie nicht mehr da ist. Behalten lässt den Tab, Tab schließen schließt ihn.
+Beim Speichern bekommen Sie dieselbe Frage im Fenster Datei geändert: Überschreiben, Vergleichen, Abbrechen. Ohne Zustimmung wird nichts überschrieben.
+
+## [statusbar] Statusleiste
+Unten sehen Sie Zeile und Spalte des Cursors (bei einer Auswahl die Zeichenzahl, bei mehreren Cursorn deren Anzahl), den Einzug, die Codierung, die Zeilenenden und die Sprache. Meldungen über das Ergebnis eines Befehls erscheinen an derselben Stelle.
+- Ein Klick auf den Einzug bietet Leerzeichen oder Tabulatoren und die Größe an.
+- Ein Klick auf die Codierung öffnet die Auswahl der Codierung (Thema Codierung).
+- Ein Klick auf die Zeilenenden vereinheitlicht sie (Thema Zeilenenden).
+- Ein Klick auf die Sprache öffnet die Auswahl der Sprache (Thema Sprachmodus).
+- Bei einer Datei, für die .editorconfig gilt, wird der Eintrag .editorconfig angezeigt; ein Klick öffnet die Datei.
+
+## [errors.file] Fehlermeldungen: Dateien
+- Die Datei konnte nicht geöffnet werden: Pfad (Grund). Prüfen Sie, ob die Datei existiert, ob Sie die Berechtigung haben und ob kein anderes Programm sie festhält.
+- Speichern fehlgeschlagen: Grund. Der Inhalt bleibt im Tab. Speichern Sie woanders (Speichern unter) oder beheben Sie die Ursache (Speicherplatz, Berechtigungen) und speichern Sie erneut.
+- Die Sicherung ist fehlgeschlagen, die Datei blieb unverändert: Beheben Sie die Ursache (meist Speicherplatz) und speichern Sie erneut.
+- Gespeichert, aber die Sicherung ist fehlgeschlagen: Die Datei ist in Ordnung, nur die Sicherung der früheren Fassung fehlt.
+- Datei geändert oder Die Datei ist nicht mehr auf dem Datenträger: siehe Thema Datei von außen geändert.
+- Zeichen, die die Codierung nicht darstellen kann: Wählen Sie eine andere Codierung (zum Beispiel UTF-8) oder Ersetzen und speichern, wodurch die Zeichen durch ein Fragezeichen ersetzt werden.
+- Nach der Normalisierung ließen sich Zeichen nicht in der Codierung schreiben: Ändern Sie die Codierung der Datei und wiederholen Sie dann die Normalisierung.
+- Die Änderung ist fehlgeschlagen, der Text hat sich inzwischen geändert: Wiederholen Sie den Befehl.
+- Leerzeichen am Zeilenende wurden beim Speichern nicht entfernt: Die Datei wird ohne Entfernen gespeichert; schalten Sie das Entfernen in den Einstellungen aus oder verkleinern Sie die Datei.
+- Eine große Datei in einer Codierung lässt sich noch nicht öffnen: siehe Thema Große Dateien.
+
+## [errors.files] Fehlermeldungen: Panel Dateien
+Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der Vorgang ist fehlgeschlagen mit dem Grund und immer Es wurde nichts geändert.
+- Pfad existiert nicht: Aktualisieren Sie den Baum (F5), die Datei ist inzwischen verschwunden.
+- Pfad existiert bereits: Wählen Sie einen anderen Namen.
+- Keine Berechtigung für Pfad: Ändern Sie die Berechtigungen im Dateimanager des Systems.
+- Pfad wird von einem anderen Programm verwendet: Schließen Sie dieses Programm und versuchen Sie es erneut.
+- Nicht genug Speicherplatz: Schaffen Sie Platz.
+- Name ist kein gültiger Name: Entfernen Sie Zeichen, die das System in Namen verbietet.
+- Pfad lässt sich auf diesem System so nicht behandeln: Nutzen Sie den Dateimanager des Systems.
+- Der Ordner lässt sich nicht öffnen: Wählen Sie einen anderen Ordner oder prüfen Sie die Berechtigungen.
+
+## [errors.search] Fehlermeldungen: Suche
+- Ungültiger Ausdruck: Grund. Korrigieren Sie den regulären Ausdruck oder schalten Sie .* aus; die Schaltfläche Testen zeigt, wie der Ausdruck gelesen wird.
+- Der Ausdruck ist zu langsam; die Suche wurde abgebrochen: Vereinfachen Sie den Ausdruck, besonders verschachtelte Wiederholungen.
+- Markieren Sie zuerst den Text, in dem gesucht werden soll: Der Schalter Auswahl ist ohne Auswahl eingeschaltet; markieren Sie Text oder schalten Sie ihn aus.
+- Ordner nicht gefunden: Korrigieren Sie den Pfad im Feld Ordner.
+- Keine Treffer: Es gibt keinen Treffer; prüfen Sie die Schalter Aa, .* und ab.
+- Die ersten N Treffer werden angezeigt; die Suche wurde angehalten: Grenzen Sie die Suche ein.
+- Suche abgebrochen: Starten Sie sie erneut.
+- Dateien mit Konflikt blieben unverändert: siehe Thema In Dateien suchen und ersetzen.
+- Das Wiederherstellungsjournal ist nicht verfügbar: Das Ersetzen in Dateien läuft ohne die Sicherheit, dass es sich nach einem Absturz abschließen oder zurücksetzen lässt; starten Sie es besser, wenn das Journal funktioniert.
+- „...“ ist keine Zeilennummer: Tippen Sie im Fenster Gehe zu Zeile eine Zahl, Zeile:Spalte, einen Prozentwert oder @Byte (Thema Gehe zu Zeile).
+
+## [limits] Was diese Version nicht kann
+Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge sind noch nicht darin:
+- Programmaktualisierung: Das Programm aktualisiert sich nicht selbst und sucht nicht nach neuen Versionen. Eine neue Version installieren Sie selbst.
+- Hexadezimale Ansicht und Bearbeitung: nicht in dieser Version. Eine Datei, die kein Text ist, öffnet das Programm als Text.
+- Ein eigenes Vergleichsfenster: Es wird ein externes Vergleichsprogramm verwendet (Thema Mit Datenträger vergleichen).
+- Bearbeiten sehr großer Dateien: nur eingeschränkt, siehe Thema Große Dateien.
+- Erweiterungen (Plugins), entfernte Dateien und weitere Funktionen aus dem Plan für Version 1.0: nicht in dieser Version.

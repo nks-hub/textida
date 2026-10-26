@@ -316,6 +316,7 @@ internal sealed partial class MainWindow
     internal void ShowRegexTester()
     {
         var window = new RegexTesterWindow(FindPattern());
+        window.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.F1) { _app.OpenHelp("search.regex"); e.Handled = true; } };
         window.Show(this);
     }
 }

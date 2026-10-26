@@ -502,6 +502,11 @@
       "category": "cat.app"
     },
     {
+      "id": "nks.help.contents",
+      "title": "cmd.help.contents",
+      "category": "cat.app"
+    },
+    {
       "id": "nks.edit.addNextOccurrence",
       "title": "cmd.edit.addNextOccurrence",
       "category": "cat.edit",
@@ -983,6 +988,12 @@
     },
     {
       "menu": "help",
+      "command": "nks.help.contents",
+      "group": "0_contents",
+      "order": 10
+    },
+    {
+      "menu": "help",
       "command": "nks.help.about",
       "group": "1_about",
       "order": 10
@@ -1204,6 +1215,10 @@
     {
       "key": "mod+shift+p",
       "command": "nks.view.commandPalette"
+    },
+    {
+      "key": "f1",
+      "command": "nks.help.contents"
     },
     {
       "key": "alt+z",

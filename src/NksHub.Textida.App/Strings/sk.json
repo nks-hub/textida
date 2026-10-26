@@ -398,5 +398,12 @@
   "status.carets.one": "({count} kurzor)",
   "status.carets.few": "({count} kurzory)",
   "status.carets.other": "({count} kurzorov)",
-  "source.profile": "profil"
+  "source.profile": "profil",
+  "help.title": "Pomocník",
+  "help.search.watermark": "Hľadať v pomocníkovi…",
+  "help.noResults": "V pomocníkovi nič také nie je",
+  "help.buildNote": "Pomocník k verzii {version}. Opisuje len to, čo táto verzia vie.",
+  "a11y.help.search": "Hľadanie v pomocníkovi",
+  "a11y.help.topics": "Témy pomocníka",
+  "a11y.help.content": "Text témy"
 }

@@ -141,6 +141,7 @@
   "cmd.settings.language.sk": "Slovenčina",
   "cmd.settings.language.de": "Deutsch",
   "cmd.help.about": "O aplikácii",
+  "cmd.help.contents": "Pomocník",
   "setting.editor.autoClosePairs.title": "Párové znaky",
   "setting.editor.autoClosePairs.description": "Po zátvorke alebo úvodzovke doplní uzatvárací znak.",
   "setting.editor.continueComments.title": "Pokračovať v komentári",
