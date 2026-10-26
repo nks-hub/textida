@@ -82,7 +82,7 @@ public class JournalAppTests : IDisposable
         Assert.Equal("untouched", Text(w2.Tabs.Single(t => t.Path?.EndsWith("clean.txt", StringComparison.Ordinal) == true)));
         // the two views of saved.txt are one document again
         Assert.Equal(2, w2.Tabs.Count(t => t.Path == path));
-        Assert.Equal(1, w2.Tabs.Where(t => t.Path == path).Select(t => t.Doc).Distinct().Count());
+        Assert.Single(w2.Tabs.Where(t => t.Path == path).Select(t => t.Doc).Distinct());
 
         Assert.True(_app.Journal.CrashedLastTime);
         var bar = Assert.Single(w2.Notices, n => n.Message.Contains("neočekávaném ukončení"));

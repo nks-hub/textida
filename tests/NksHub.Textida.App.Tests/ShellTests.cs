@@ -73,7 +73,7 @@ public partial class ShellTests : IDisposable
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
         var doc = w.NewDocument();
-        doc.Editor.Text = "Příliš žluťoučký kůň\r\nřádek 2\n";
+        doc.Editor!.Text = "Příliš žluťoučký kůň\r\nřádek 2\n";
         var bytesBefore = Encoding.UTF8.GetBytes(doc.Editor.Text);
 
         foreach (var lang in Loc.Languages.Concat(["cs"]))
