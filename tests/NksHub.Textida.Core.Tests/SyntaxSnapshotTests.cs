@@ -39,7 +39,7 @@ public class SyntaxSnapshotTests
     {
         string[] handWritten = ["html", "php", "json", "sql", "php-code"];
         var covered = Snapshots.All.Select(s => s.Grammar).Concat(handWritten).ToHashSet();
-        Assert.Empty(BuiltinGrammars.Registry.All.Select(g => g.Id).Where(id => !covered.Contains(id)));
+        Assert.All(BuiltinGrammars.Registry.All.Select(g => g.Id), id => Assert.Contains(id, covered));
     }
 
     private static class Snapshots

@@ -4,25 +4,77 @@ using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core.Syntax;
 
-/// <summary>Lines of a <see cref="Document"/> whose line index is complete, decoded one at a time.</summary>
+/// <summary>
+/// Lines of a <see cref="Document"/> whose line index is complete, decoded one at a time. Reading the lines in order costs one scan of the bytes;
+/// a jump to another line costs one position lookup of the document.
+/// </summary>
 public sealed class DocumentLineSource(Document document) : ILineSource
 {
-    private long _cachedRevision = -1;
-    private long _cachedLine = -1;
-    private long _cachedNextStart;
+    private const int Block = 1 << 16;
+    private const byte Lf = 10, Cr = 13;
+    private readonly bool _byteNewlines = document.Codec.Kind is not (CodecKind.Utf16 or CodecKind.Utf32);
+    private byte[] _buffer = new byte[Block];
+    private long _bufferStart;
+    private int _bufferLength;
+    private long _revision = -1;
+    private long _nextLine = -1;
+    private long _nextOffset;
 
     public long LineCount => document.LineIndexState.Lines;
 
     public string GetLine(long line)
     {
-        long start = line == _cachedLine && _cachedRevision == document.Revision ? _cachedNextStart : StartOf(line);
-        long lines = LineCount;
-        long next = line + 1 < lines ? StartOf(line + 1) : document.ByteLength;
-        (_cachedRevision, _cachedLine, _cachedNextStart) = (document.Revision, line + 1, next);
+        if (_revision != document.Revision || _nextLine != line)
+        {
+            _nextOffset = StartOf(line);
+            _revision = document.Revision;
+            _bufferLength = 0;
+        }
+
+        string text = _byteNewlines ? ReadByteLine(_nextOffset, out long next) : ReadWideLine(line, _nextOffset, out next);
+        (_nextLine, _nextOffset) = (line + 1, next);
+        return text;
+    }
+
+    private string ReadByteLine(long start, out long next)
+    {
+        long length = document.ByteLength;
+        int want = Block;
+        while (true)
+        {
+            if (start < _bufferStart || start >= _bufferStart + _bufferLength || (_bufferStart + _bufferLength < length && _bufferStart + _bufferLength - start < want / 2))
+                Fill(start, want);
+            int rel = (int)(start - _bufferStart);
+            int term = _buffer.AsSpan(rel, _bufferLength - rel).IndexOfAny(Lf, Cr);
+            bool more = _bufferStart + _bufferLength < length;
+            if (term < 0 && more || term >= 0 && more && _buffer[rel + term] == Cr && rel + term + 1 == _bufferLength)
+            {
+                want = (int)Math.Min((long)_bufferLength * 2, Array.MaxLength);
+                Fill(start, want);
+                continue;
+            }
+
+            int bytes = term < 0 ? _bufferLength - rel : term;
+            int terminator = term < 0 ? 0 : _buffer[rel + term] == Cr && rel + term + 1 < _bufferLength && _buffer[rel + term + 1] == Lf ? 2 : 1;
+            next = start + bytes + terminator;
+            return document.Codec.GetString(_buffer.AsSpan(rel, bytes));
+        }
+    }
+
+    private void Fill(long from, int want)
+    {
+        if (_buffer.Length < want) _buffer = new byte[want];
+        _bufferStart = from;
+        _bufferLength = document.Read(from, _buffer.AsSpan(0, (int)Math.Min(want, document.ByteLength - from)));
+    }
+
+    private string ReadWideLine(long line, long start, out long next)
+    {
+        next = line + 1 < LineCount ? StartOf(line + 1) : document.ByteLength;
         var text = document.ReadText(new ByteRange(start, next));
         int end = text.Length;
-        if (end > 0 && text[end - 1] == '\n') end--;
-        if (end > 0 && text[end - 1] == '\r') end--;
+        if (end > 0 && text[end - 1] == (char)10) end--;
+        if (end > 0 && text[end - 1] == (char)13) end--;
         return text[..end];
     }
 
@@ -40,13 +92,16 @@ public sealed class SyntaxSession : IDisposable
     /// <summary>Largest document a session follows; above it the cost of catching the states up to a viewport is not bounded by a keystroke budget.</summary>
     public const long DenseLimitBytes = 64L << 20;
 
+    private const int MaxCountedInsert = 1 << 20;
     private readonly Document _document;
     private readonly IncrementalTokenizer _tokens;
+    private readonly bool _byteNewlines;
 
     public SyntaxSession(Document document, Tokenizer tokenizer)
     {
         if (!CanFollow(document)) throw new NotSupportedException("The document is too large or its line index is not complete; use ViewportTokenizer.");
         _document = document;
+        _byteNewlines = document.Codec.Kind is not (CodecKind.Utf16 or CodecKind.Utf32);
         _tokens = new IncrementalTokenizer(tokenizer, new DocumentLineSource(document));
         document.Changed += OnChanged;
     }
@@ -69,26 +124,56 @@ public sealed class SyntaxSession : IDisposable
             return;
         }
 
-        long newCount = _document.LineIndexState.Lines;
         var span = change.Edits[0];
-        if (change.Edits.Count != 1 || !_document.TryGetPosition(span.Start, out var at))
+        if (!TryLineOf(span.Start, out long line))
         {
-            _tokens.Invalidate(change.Edits.Count > 0 && _document.TryGetPosition(change.Edits[0].Start, out var p) ? Math.Max(0, p.Line - 1) : 0);
+            _tokens.Invalidate(0);
             return;
         }
 
         // One line of margin on each side covers a CR/LF pair that the edit joined or split.
-        long first = Math.Max(0, at.Line - 1);
-        if (!_document.TryGetPosition(span.Start + span.Inserted, out var to))
+        long first = Math.Max(0, line - 1);
+        if (change.Edits.Count != 1 || !TryLineAfter(span, line, out long endLine))
         {
             _tokens.Invalidate(first);
             return;
         }
 
-        long last = Math.Min(to.Line + 1, newCount - 1);
+        long newCount = _document.LineIndexState.Lines;
+        long last = Math.Min(endLine + 1, newCount - 1);
         long inserted = last - first + 1;
         long removed = inserted - (newCount - _tokens.LineCount);
         _tokens.OnEdit(first, removed, inserted);
+    }
+
+    /// <summary>Line of an offset; an offset between the CR and the LF of a pair is on the line of the CR.</summary>
+    private bool TryLineOf(long offset, out long line)
+    {
+        line = 0;
+        if (_document.TryGetPosition(offset, out var p) || (_byteNewlines && offset > 0 && _document.TryGetPosition(offset - 1, out p)))
+        {
+            line = p.Line;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Line the inserted text ends on. With byte newlines it is counted from the inserted bytes (a trailing CR counts as a break, which can only
+    /// over-estimate); a position lookup serves the wide encodings.
+    /// </summary>
+    private bool TryLineAfter(ChangeSet.Span span, long startLine, out long endLine)
+    {
+        endLine = startLine;
+        if (!_byteNewlines) return TryLineOf(span.Start + span.Inserted, out endLine);
+        if (span.Inserted > MaxCountedInsert) return TryLineOf(span.Start + span.Inserted, out endLine);
+        var bytes = new byte[span.Inserted];
+        _document.Read(span.Start, bytes);
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            if (bytes[i] == 10 || (bytes[i] == 13 && (i + 1 == bytes.Length || bytes[i + 1] != 10))) endLine++;
+        }
+        return true;
     }
 }
 
