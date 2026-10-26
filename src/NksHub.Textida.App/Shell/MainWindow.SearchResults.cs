@@ -1,6 +1,7 @@
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Changes;
@@ -181,6 +182,7 @@ internal sealed partial class MainWindow
     {
         view.SetRunning(false);
         view.SetHeader(view.TitleText, summary);
+        _app.Output.Append(OutputChannel.Search, view.TitleText, summary);
         UpdateStatus();
     }
 

@@ -117,7 +117,7 @@ internal sealed partial class MainWindow : Window
     public SavedWindow CaptureGeometry() => new()
     {
         X = _normalPosition.X, Y = _normalPosition.Y, Width = _normalSize.Width, Height = _normalSize.Height,
-        Maximized = WindowState == WindowState.Maximized,
+        Maximized = WindowState == WindowState.Maximized || (IsFullScreen && _beforeFullScreen == WindowState.Maximized),
     };
 
     // ---- layout ----
@@ -157,7 +157,7 @@ internal sealed partial class MainWindow : Window
         _body.Children.Add(panel);
         _body.Children.Add(editorArea);
 
-        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
+        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
         Grid.SetRow(content, 1);
         root.Children.Add(content);
@@ -322,6 +322,7 @@ internal sealed partial class MainWindow : Window
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
         ApplyFileTexts();
+        ApplyOutputTexts();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
@@ -356,6 +357,7 @@ internal sealed partial class MainWindow : Window
         Loc.Changed -= OnLanguageChanged;
         _app.Workbench.SettingChanged -= OnSettingChanged;
         ReleaseNavigation();
+        ReleaseOutput();
         bool others = _app.Windows.Count > 1;
         foreach (var doc in _docs.ToList())
         {

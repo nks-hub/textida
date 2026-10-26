@@ -98,6 +98,8 @@ internal static class AppCommands
         Do("nks.view.nextTab", w => w.CycleTab(1));
         Do("nks.view.previousTab", w => w.CycleTab(-1));
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
+        Do("nks.view.toggleOutput", w => w.ToggleOutput());
+        Do("nks.view.fullScreen", w => w.ToggleFullScreen());
 
         // format
         Do("nks.format.reread", w => _ = w.ShowEncodingMenu(onlyConvert: false));
