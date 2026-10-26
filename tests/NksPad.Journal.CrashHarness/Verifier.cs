@@ -156,9 +156,12 @@ public static class Verifier
             string? parity = CompareUndo(seed, k, candidates, match, recovery);
             if (parity is not null) return Bad(parity, k + 1);
 
+            var tear = TearCheck(dir, seed, candidates, k, out var tornTail);
+            if (tear is not null) return Bad(tear, k + 1);
+
             string? again = AdoptAndCheck(dir, recovered);
             if (again is not null) return Bad(again, k + 1);
-            return new(iteration, seed, true, "", k + 1, loss, lag, lost, recovery.Tail != JournalTail.Clean, saves, loose);
+            return new(iteration, seed, true, "", k + 1, loss, lag, lost, tornTail, saves, loose);
         }
         finally
         {
@@ -207,6 +210,48 @@ public static class Verifier
         {
             try { Directory.Delete(dir, recursive: true); }
             catch (IOException) { }
+        }
+    }
+
+    /// <summary>
+    /// Emulates a power loss that persisted only part of the last writes: the journal is cut (or one byte is damaged) somewhere after
+    /// everything that was fsynced for certain (document starts, seeds and save intents). Recovery must still give a state the oracle passed through.
+    /// </summary>
+    private static string? TearCheck(string dir, int seed, List<Candidate> candidates, int k, out bool tornTail)
+    {
+        tornTail = false;
+        var bytes = File.ReadAllBytes(JournalOf(dir));
+        long floor = JournalFormat.FileHeaderSize, offset = floor;
+        using (var reader = new JournalReader(JournalOf(dir)))
+            while (reader.TryRead(out var rec))
+            {
+                offset += JournalFormat.RecordHeaderSize(JournalFormat.CurrentVersion) + rec.Payload.Length;
+                if (rec.Type is RecordType.DocOpen or RecordType.DocSeed or RecordType.DocSaveIntent) floor = offset;
+            }
+        if (bytes.Length <= floor + 1) return null;
+
+        var rng = new Random(seed * 31 + 5);
+        int at = (int)rng.NextInt64(floor, bytes.Length);
+        var torn = rng.Next(2) == 0 ? bytes[..at] : (byte[])bytes.Clone();
+        if (torn.Length == bytes.Length) torn[at] ^= (byte)(1 << rng.Next(8));
+        var tearDir = Path.Combine(dir, "tear");
+        Directory.CreateDirectory(tearDir);
+        var tornPath = Path.Combine(tearDir, "session-tear.njl");
+        File.WriteAllBytes(tornPath, torn);
+
+        var result = JournalRecovery.Recover(tornPath, Scene.Resolve);
+        tornTail = result.Tail != JournalTail.Clean;
+        try
+        {
+            if (result.Documents.Count != Scene.DocCount || result.Documents.Any(d => d.Status is not (RecoveryStatus.Restored or RecoveryStatus.Clean)))
+                return $"torn journal (cut/damage at {at} of {bytes.Length}, floor {floor}): " + string.Join(", ", result.Documents.Select(d => $"{d.Status} {d.Error}"));
+            string hash = Scene.StateHash(result.Documents);
+            return candidates.FindLastIndex(c => c.Hash == hash && c.Op <= k + 1) < 0
+                ? $"torn journal (at {at} of {bytes.Length}) recovered a state the oracle never had" : null;
+        }
+        finally
+        {
+            foreach (var d in result.Documents) d.Document?.Dispose();
         }
     }
 
