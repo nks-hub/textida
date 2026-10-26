@@ -350,9 +350,10 @@ public sealed class LongLineTokenizer
     private readonly Tokenizer _tokenizer;
     private readonly int _windowBytes;
     private readonly List<Checkpoint> _checkpoints;
+    private readonly List<Token> _scratch = [];
     private bool _complete;
 
-    public LongLineTokenizer(Document document, Tokenizer tokenizer, long lineStart, LineState? startState = null, int windowBytes = 1 << 20)
+    public LongLineTokenizer(Document document, Tokenizer tokenizer, long lineStart, LineState? startState = null, int windowBytes = 1 << 16)
     {
         ViewportTokenizer.RequireByteNewlines(document.Codec);
         if (windowBytes < 4 * Tokenizer.Margin) throw new ArgumentOutOfRangeException(nameof(windowBytes));
@@ -367,19 +368,31 @@ public sealed class LongLineTokenizer
     public bool IsComplete => _complete;
 
     /// <summary>Tokens of window <paramref name="index"/>, scanning the windows before it first when they are not reached yet; null when the line is shorter.</summary>
-    public LineWindow? GetWindow(int index, CancellationToken ct = default)
+    public LineWindow? GetWindow(int index, CancellationToken ct = default) => GetWindow(index, 0, int.MaxValue, ct);
+
+    /// <summary>
+    /// Like <see cref="GetWindow(int, CancellationToken)"/> but returns only the tokens that touch <paramref name="takeChars"/> characters
+    /// from <paramref name="skipChars"/> characters after the start of the window; a viewport needs a few hundred columns, not every token of the window.
+    /// </summary>
+    public LineWindow? GetWindow(int index, int skipChars, int takeChars, CancellationToken ct = default)
     {
         while (_checkpoints.Count <= index)
         {
             if (_complete) return null;
             ct.ThrowIfCancellationRequested();
-            Scan(_checkpoints.Count - 1, null);
+            Scan(_checkpoints.Count - 1);
         }
-        var tokens = new List<Token>();
-        return Scan(index, tokens);
+
+        var window = Scan(index);
+        long from = window.CharStart + skipChars, to = from + takeChars;
+        var slice = new List<Token>();
+        foreach (var t in _scratch)
+            if (t.End > from && t.Start < to) slice.Add(t);
+        return window with { Tokens = slice };
     }
 
-    private LineWindow Scan(int index, List<Token>? collect)
+    /// <summary>Scans one window into <see cref="_scratch"/>.</summary>
+    private LineWindow Scan(int index)
     {
         var cp = _checkpoints[index];
         var codec = _document.Codec;
@@ -397,7 +410,9 @@ public sealed class LongLineTokenizer
             string text = cp.Prefix == '\0' ? cp.Tail + fresh : cp.Prefix + cp.Tail + fresh;
             int begin = cp.Prefix == '\0' ? 0 : 1;
             var state = cp.State;
-            var tokens = collect ?? [];
+            var tokens = _scratch;
+            tokens.Clear();
+            if (cp.CharStart + text.Length > int.MaxValue) throw new NotSupportedException("Token columns are 32 bit, so a line over 2 Gi characters cannot be tokenized.");
             int pos = _tokenizer.Scan(text, begin, final, ref state, tokens, (int)cp.CharStart - begin);
             if (!final && pos == begin)
             {
@@ -417,7 +432,7 @@ public sealed class LongLineTokenizer
                 _checkpoints.Add(new Checkpoint(nextOffset, cp.CharStart + consumed, text[pos - 1], text[pos..], state));
             }
 
-            return new LineWindow(index, cp.ReadOffset, cp.CharStart, consumed, tokens, state, final);
+            return new LineWindow(index, cp.ReadOffset, cp.CharStart, consumed, [], state, final);
         }
         finally
         {
