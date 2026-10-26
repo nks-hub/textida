@@ -34,11 +34,12 @@ public sealed class Place
 
     public bool IsLive => _document is not null;
 
-    public static Place At(Document document, long byteOffset)
+    /// <param name="refresh">False leaves <see cref="Line"/> and <see cref="Column"/> at zero until <see cref="Refresh"/>; looking a position up can cost a scan of the line index.</param>
+    public static Place At(Document document, long byteOffset, bool refresh = true)
     {
         var anchor = document.CreateAnchor(Math.Clamp(byteOffset, 0, document.ByteLength));
         var place = new Place(document, anchor, document.FilePath, 0, 0);
-        place.Refresh();
+        if (refresh) place.Refresh();
         return place;
     }
 
@@ -82,10 +83,12 @@ public sealed class Place
     /// <summary>True when both places are on the same line of the same document or file.</summary>
     public bool SameLineAs(Place other)
     {
+        bool same = _document is not null ? ReferenceEquals(_document, other._document) : other._document is null && Path is not null && string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase);
+        if (!same) return false;
+        if (_document is { } doc && _anchor is { IsValid: true } a && other._anchor is { IsValid: true } b && doc.NoLineBreakBetween(a.Offset, b.Offset)) return true;
         Refresh();
         other.Refresh();
-        bool same = _document is not null ? ReferenceEquals(_document, other._document) : other._document is null && Path is not null && string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase);
-        return same && Line == other.Line;
+        return Line == other.Line;
     }
 }
 
@@ -142,7 +145,7 @@ public sealed class PlaceList(int capacity = 100)
             at = span.Start + shift + span.Inserted;
             shift += span.Inserted - span.Deleted;
         }
-        Record(Place.At(document, at));
+        Record(Place.At(document, at, refresh: false));
     }
 
     public void Record(Place place)

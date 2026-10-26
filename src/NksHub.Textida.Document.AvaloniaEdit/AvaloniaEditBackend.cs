@@ -112,9 +112,13 @@ public sealed class AvaloniaEditBackend : IByteBackend
         var bytes = insert.ToArray();
         string text = _codec.GetString(bytes);
         _applying = true;
+        long trace = Core.TypingTrace.Begin();
         try { TextDocument.Replace(c0, c1 - c0, text); }
         finally { _applying = false; }
+        Core.TypingTrace.End("backend.textDocument", trace);
+        trace = Core.TypingTrace.Begin();
         _map.Replace(c0, c1, bytes, null, _codec.CountChars(bytes));
+        Core.TypingTrace.End("backend.map", trace);
     }
 
     private void OnTextChanged(object? sender, DocumentChangeEventArgs e)

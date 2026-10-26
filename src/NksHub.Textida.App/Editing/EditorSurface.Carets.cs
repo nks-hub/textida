@@ -49,6 +49,9 @@ internal sealed partial class EditorSurface
 
     public int CaretCount => IsMulti ? OtherSels().Count + 1 : 1;
 
+    /// <summary>Characters selected over all carets.</summary>
+    public int SelectedLength => IsMulti ? OtherSels().Sum(s => s.Length) + PrimarySel().Length : TextArea.Selection.Length;
+
     private void InitCarets()
     {
         TextArea.TextView.BackgroundRenderers.Add(new SelectionLayer(this));
@@ -538,6 +541,13 @@ internal sealed partial class EditorSurface
 
         public void Draw(TextView textView, DrawingContext drawingContext)
         {
+            long trace = Core.TypingTrace.Begin();
+            try { DrawCore(textView, drawingContext); }
+            finally { Core.TypingTrace.End("carets.drawSelections", trace); }
+        }
+
+        private void DrawCore(TextView textView, DrawingContext drawingContext)
+        {
             if (owner._others is null || owner.TextArea.SelectionBrush is not { } brush || !textView.VisualLinesValid) return;
             foreach (var s in owner.VisibleOthers(textView))
             {
@@ -554,6 +564,13 @@ internal sealed partial class EditorSurface
         public KnownLayer Layer => KnownLayer.Caret;
 
         public void Draw(TextView textView, DrawingContext drawingContext)
+        {
+            long trace = Core.TypingTrace.Begin();
+            try { DrawCore(textView, drawingContext); }
+            finally { Core.TypingTrace.End("carets.drawCarets", trace); }
+        }
+
+        private void DrawCore(TextView textView, DrawingContext drawingContext)
         {
             if (owner._others is null || !owner._caretOn || owner._caretBrush is not { } brush || !textView.VisualLinesValid) return;
             DrawCaret(textView, drawingContext, brush, owner.PrimarySel().Caret, 1);

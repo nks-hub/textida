@@ -84,7 +84,7 @@ internal sealed partial class MainWindow
         {
             var (line, column) = surface.CaretLineColumn();
             position = Loc.Get(K.StatusPosition, ("line", line), ("column", column));
-            int selected = surface.IsMulti ? surface.GetSelections().Sum(s => s.Length) : surface.TextArea.Selection.Length;
+            int selected = surface.SelectedLength;
             if (surface.IsMulti) position += " " + Loc.Plural(K.StatusCarets, surface.CaretCount);
             if (selected > 0) position += " " + Loc.Get(K.StatusSelected, ("count", selected));
         }

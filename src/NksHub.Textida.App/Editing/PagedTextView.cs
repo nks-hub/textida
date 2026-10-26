@@ -429,14 +429,20 @@ internal sealed class PagedTextView : Grid
             SelectionsAfter = [new ByteRange(caretAfter, caretAfter)],
             Source = "user",
         };
+        // The handlers of Changed (status bar) read the caret while Apply runs; naming the new caret and its line first spares them a search through the line index.
+        var (caretBefore, memoBefore) = (_caret, _lineMemo);
+        (_caret, _lineMemo) = (caretAfter, (Doc.Revision + 1, caretAfter, lineAfter));
         _own = true;
-        EditResult result;
+        EditResult result = default;
         long tApply = TypingTrace.Begin();
         try { result = Doc.Apply([new ByteEdit(new ByteRange(at, at + deleted), insert)], options); }
-        finally { _own = false; }
+        finally
+        {
+            _own = false;
+            if (result is not { Applied: true }) (_caret, _lineMemo) = (caretBefore, memoBefore);
+        }
         TypingTrace.End("paged.docApply", tApply);
         if (!result.Applied) return false;
-        _caret = caretAfter;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
         _wanted = -1;
         long t = TypingTrace.Begin();

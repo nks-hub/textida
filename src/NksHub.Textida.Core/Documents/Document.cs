@@ -152,6 +152,18 @@ public sealed partial class Document : IDisposable
 
     public bool TryGetOffset(LinePosition position, out long offset) => _backend.TryGetOffset(position, out offset);
 
+    /// <summary>
+    /// True when the bytes between two offsets hold no CR or LF byte, so both are on one line. Only a short stretch is read, and false means
+    /// "unknown" (a line break, or too far apart): the caller then asks <see cref="TryGetPosition"/>, which can cost a scan of the line index.
+    /// </summary>
+    public bool NoLineBreakBetween(long a, long b)
+    {
+        long from = Math.Min(a, b), to = Math.Max(a, b);
+        if (from < 0 || to > ByteLength || to - from > 4096) return false;
+        Span<byte> bytes = stackalloc byte[(int)(to - from)];
+        return Read(from, bytes) == bytes.Length && bytes.IndexOfAny((byte)10, (byte)13) < 0;
+    }
+
     // ---- snapshots ----
 
     /// <summary>Immutable bytes of the current revision for reading on other threads.</summary>
