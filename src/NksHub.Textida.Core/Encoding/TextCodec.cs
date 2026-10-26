@@ -201,6 +201,7 @@ public sealed class TextCodec
     /// <summary>Decodes a fragment that starts and ends on unit boundaries into the same text units as <see cref="Decode(ReadOnlyMemory{byte})"/>.</summary>
     public string GetString(ReadOnlySpan<byte> bytes)
     {
+        if (Kind == CodecKind.Utf8 && Ascii.IsValid(bytes)) return Encoding.ASCII.GetString(bytes);
         var text = new StringBuilder(bytes.Length);
         DecodeCore(bytes, 0, text, null, null);
         return text.ToString();
