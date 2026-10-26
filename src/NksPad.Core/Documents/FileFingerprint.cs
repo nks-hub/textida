@@ -34,6 +34,14 @@ public enum ExternalChangeKind
 /// <summary>A conflict between the document and its file on disk.</summary>
 public sealed record ExternalChange(Guid DocumentId, long Revision, string Path, FileFingerprint Expected, FileFingerprint? Actual, ExternalChangeKind Kind);
 
+/// <summary>Size and SHA-256 of the file a save is about to move over <see cref="Target"/>.</summary>
+public sealed class SavingEventArgs(string target, long size, string sha256) : EventArgs
+{
+    public string Target { get; } = target;
+    public long Size { get; } = size;
+    public string Sha256 { get; } = sha256;
+}
+
 /// <param name="Loss">Set when a save in another encoding was refused because characters would be lost and no replacement was confirmed.</param>
 public sealed record SaveResult(bool Saved, ExternalChange? Conflict, Encodings.LossReport? Loss = null);
 

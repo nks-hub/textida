@@ -23,6 +23,11 @@ public sealed partial class Document
 
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
+    /// <summary>Number of undo steps; a journal uses it to tell a new undo step from an edit merged into the previous one.</summary>
+    public int UndoDepth => _undo.Count;
+    public int RedoDepth => _redo.Count;
+    /// <summary>Coalesce key of the newest undo step; a journal replay joins edits to that step through it.</summary>
+    internal string? TopUndoKey => _undo.Count > 0 ? _undo[^1].Key : null;
 
     /// <summary>True when the content differs from the last save (or the document was never saved).</summary>
     public bool IsModified => _savedUnreachable || (_undo.Count > 0 ? _undo[^1] : null) != _saved;

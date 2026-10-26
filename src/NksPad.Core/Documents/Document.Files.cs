@@ -17,6 +17,12 @@ public sealed partial class Document
     /// <summary>Raised (possibly on a thread-pool thread) when the file no longer matches <see cref="Fingerprint"/>; the event carries the revision.</summary>
     public event EventHandler<ExternalChange>? ExternalChangeDetected;
 
+    /// <summary>Raised when the new file is complete and about to replace the target; a journal records the intent here, so a crash during the swap is understood.</summary>
+    public event EventHandler<SavingEventArgs>? Saving;
+
+    /// <summary>Raised after a successful save, when <see cref="FilePath"/> and <see cref="Fingerprint"/> describe the new file.</summary>
+    public event EventHandler? Saved;
+
     /// <summary>
     /// Compares the file with the recorded fingerprint, content included, so a change with the same size and time is found.
     /// A conflict raises <see cref="ExternalChangeDetected"/> once per distinct state of the file.
@@ -109,6 +115,7 @@ public sealed partial class Document
             BeforeSaveCommit?.Invoke();
             if (guard && CheckExternalChange() is { } late) return new(false, late);
 
+            Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
             if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
             else FileSwap.Replace(temp, target);
 
@@ -116,6 +123,7 @@ public sealed partial class Document
             Fingerprint = new FileFingerprint(ByteLength, File.GetLastWriteTimeUtc(target), hash);
             _lastReported = null;
             MarkSaved();
+            Saved?.Invoke(this, EventArgs.Empty);
             return new(true, null);
         }
         finally
