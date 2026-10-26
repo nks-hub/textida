@@ -509,5 +509,7 @@
   "plugin.pick.watermark": "Zum Filtern tippen",
   "a11y.plugin.pick": "Auswahl des Plugins",
   "plugin.unavailable": "Das Plugin {name} konnte nicht ausgeführt werden: {reason}",
-  "plugin.proposal": "{title}: {changes} vorgeschlagene Änderungen."
+  "plugin.proposal": "{title}: {changes} vorgeschlagene Änderungen.",
+  "plugin.symbols.title": "Gliederung",
+  "plugin.symbols.outdated": "Gliederung (veraltet)"
 }

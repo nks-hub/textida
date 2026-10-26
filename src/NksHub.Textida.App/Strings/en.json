@@ -509,5 +509,7 @@
   "plugin.pick.watermark": "Type to filter",
   "a11y.plugin.pick": "Plugin choices",
   "plugin.unavailable": "The plugin {name} could not be run: {reason}",
-  "plugin.proposal": "{title}: {changes} proposed changes."
+  "plugin.proposal": "{title}: {changes} proposed changes.",
+  "plugin.symbols.title": "Outline",
+  "plugin.symbols.outdated": "Outline (outdated)"
 }

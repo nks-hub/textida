@@ -49,6 +49,7 @@ public sealed partial class DocumentApi
     /// <summary>Runs on the thread that changed the document, so it only queues. Ranges and revisions go out, never text.</summary>
     private void OnChanged(Exposed e, ChangeSet change)
     {
+        MarkSymbolsOutdated(e.Doc, change.Revision);
         string[] subscribers;
         lock (_gate) subscribers = [.. e.Subscribers];
         if (subscribers.Length == 0) return;

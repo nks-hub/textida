@@ -8,8 +8,11 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.PluginHost;
+using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Workbench.Commands;
 
@@ -194,9 +197,171 @@ public class PluginUiTests : IDisposable
         foreach (var tag in Loc.Languages)
         {
             Loc.SetLanguage(tag);
-            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal })
+            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated })
                 Assert.NotEqual(key, Loc.Get(key));
         }
+    }
+
+    // ---- P3b.3.5: outline, reveal, snippets and Tab for early tools ----
+
+    private static byte[] Bytes(string s) => Encoding.UTF8.GetBytes(s);
+
+    private async Task<DocTab> OpenForPluginAsync(string name, string content, bool expose = true)
+    {
+        await StartPluginAsync();
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
+            _app.Plugins.Permissions.Grant("p", permission, GrantScope.All);
+        var tab = _w.OpenFile(_temp.File(name, content), null);
+        Dispatcher.UIThread.RunJobs();
+        if (expose) _app.Plugins.Documents.Expose(tab.Doc.Doc, tab.Editor!.ByteSelections);
+        return tab;
+    }
+
+    private static string DocParams(DocTab tab, string rest) => $"{{\"document\":\"{tab.Doc.Doc.Id}\",\"revision\":{tab.Doc.Doc.Revision},{rest}}}";
+
+    private ByteRange Selected(DocTab tab) => tab.Editor!.ByteSelections()!.PrimarySelection.ToRange();
+
+    private TreeViewItem OutlineItem(string id) => _w.PluginTree.Items.OfType<TreeViewItem>().Single(i => (string?)i.Tag == id);
+
+    private const string TwoSymbols = "\"symbols\":[{\"id\":\"a\",\"name\":\"é1\",\"kind\":\"function\",\"start\":0,\"end\":3},{\"id\":\"b\",\"name\":\"f2\",\"kind\":\"function\",\"start\":4,\"end\":6}]";
+
+    [AvaloniaFact]
+    public async Task Symbols_of_a_revision_fill_the_outline_and_an_older_answer_is_never_shown_as_current()
+    {
+        var tab = await OpenForPluginAsync("o.txt", "é1\nf2\nend\n");
+        var firstRevision = tab.Doc.Doc.Revision;
+
+        await Pump(Editor(DocumentMethods.SymbolsPublish, DocParams(tab, TwoSymbols)));
+        await Until(() => _w.PluginPanelOpen, "the outline");
+        Assert.Equal(Loc.Get(K.PluginSymbolsTitle), _w.PluginPanelTitle);
+        Assert.Equal(["a", "b"], _w.PluginTree.Items.OfType<TreeViewItem>().Select(i => (string?)i.Tag));
+
+        // the text moves on: the same outline stays, marked as outdated
+        tab.Doc.Doc.Insert(0, Bytes("12"));
+        await Until(() => _w.PluginPanelTitle == Loc.Get(K.PluginSymbolsOutdated), "the outdated mark");
+
+        // the plugin answers late for the revision it read: refused, the outline is not marked current again
+        var late = await Pump(Editor(DocumentMethods.SymbolsPublish, $"{{\"document\":\"{tab.Doc.Doc.Id}\",\"revision\":{firstRevision},{TwoSymbols}}}"));
+        Assert.Equal(DocumentErrorCodes.RevisionConflict, late.GetProperty("error").GetInt32());
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(Loc.Get(K.PluginSymbolsOutdated), _w.PluginPanelTitle);
+
+        // a click on an outdated entry still lands on the same text, where it is now
+        _w.PluginTree.SelectedItem = OutlineItem("b");
+        _w.ActivatePluginItem();
+        Assert.Equal(new ByteRange(6, 8), Selected(tab));
+        Assert.Equal("f2", Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(Selected(tab))));
+
+        // an entry whose text was changed is not revealed at all
+        Assert.True(tab.Doc.Doc.Replace(new ByteRange(4, 5), Bytes("Q")).Applied);
+        _w.PluginTree.SelectedItem = OutlineItem("a");
+        tab.Editor!.SetSelections([Sel.At(0)]);
+        _w.ActivatePluginItem();
+        Assert.Equal(new ByteRange(0, 0), Selected(tab));
+
+        await Pump(Editor(DocumentMethods.SymbolsPublish, DocParams(tab, "\"symbols\":[{\"id\":\"a\",\"name\":\"zz\",\"start\":0,\"end\":2}]")));
+        await Until(() => _w.PluginPanelTitle == Loc.Get(K.PluginSymbolsTitle), "the current outline");
+    }
+
+    [AvaloniaFact]
+    public async Task Reveal_selects_the_same_bytes_as_a_click_in_the_outline()
+    {
+        var tab = await OpenForPluginAsync("r.txt", "é1\nf2\nend\n");
+        await Pump(Editor(DocumentMethods.SymbolsPublish, DocParams(tab, TwoSymbols)));
+        await Until(() => _w.PluginPanelOpen, "the outline");
+
+        _w.PluginTree.SelectedItem = OutlineItem("a");
+        _w.ActivatePluginItem();
+        var clicked = Selected(tab);
+        Assert.Equal(new ByteRange(0, 3), clicked); // "é1": two characters, three bytes
+
+        tab.Editor!.SetSelections([Sel.At(8)]);
+        Assert.Equal(new ByteRange(9, 9), Selected(tab));
+        var answer = await Pump(Editor(DocumentMethods.Reveal, DocParams(tab, "\"start\":0,\"end\":3")));
+        Assert.True(answer.GetProperty("revealed").GetBoolean());
+        Assert.Equal(clicked, Selected(tab));
+
+        _w.PluginTree.SelectedItem = OutlineItem("b");
+        _w.ActivatePluginItem();
+        clicked = Selected(tab);
+        tab.Editor.SetSelections([Sel.At(0)]);
+        await Pump(Editor(DocumentMethods.Reveal, DocParams(tab, "\"start\":4,\"end\":6")));
+        Assert.Equal((new ByteRange(4, 6), clicked), (Selected(tab), new ByteRange(4, 6)));
+
+        // not on a character boundary, or for an old revision: nothing moves
+        tab.Editor.SetSelections([Sel.At(0)]);
+        var split = await Pump(Editor(DocumentMethods.Reveal, DocParams(tab, "\"start\":1,\"end\":3")));
+        Assert.Equal(DocumentErrorCodes.InvalidRange, split.GetProperty("error").GetInt32());
+        var oldRevision = tab.Doc.Doc.Revision;
+        tab.Doc.Doc.Insert(tab.Doc.Doc.ByteLength, Bytes("x"));
+        var stale = await Pump(Editor(DocumentMethods.Reveal, $"{{\"document\":\"{tab.Doc.Doc.Id}\",\"revision\":{oldRevision},\"start\":4,\"end\":6}}"));
+        Assert.Equal(DocumentErrorCodes.RevisionConflict, stale.GetProperty("error").GetInt32());
+        Assert.Equal(new ByteRange(0, 0), Selected(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task A_snippet_puts_text_and_carets_into_all_selections_as_one_undo_step()
+    {
+        var tab = await OpenForPluginAsync("s.txt", "é1\né2\n");
+        var surface = tab.Editor!;
+        surface.SetSelections([new Sel(1, 2), new Sel(4, 5)]);
+        Assert.Equal(2, surface.CaretCount);
+        var doc = tab.Doc.Doc;
+        var depth = doc.UndoDepth;
+        var revision = doc.Revision;
+
+        var answer = await Pump(Editor(DocumentMethods.SnippetInsert, DocParams(tab, "\"text\":\"[]\",\"carets\":[1]")));
+
+        Assert.True(answer.GetProperty("applied").GetBoolean());
+        Assert.Equal("é[]\né[]\n", Utf8(tab));
+        Assert.Equal((revision + 1, depth + 1), (doc.Revision, doc.UndoDepth));
+        Assert.Equal(2, surface.CaretCount);
+        Assert.Equal([TextSelection.At(3), TextSelection.At(8)], surface.ByteSelections()!.Items);
+
+        _w.Undo();
+        Assert.Equal("é1\né2\n", Utf8(tab));
+        Assert.Equal([new TextSelection(2, 3), new TextSelection(6, 7)], surface.ByteSelections()!.Items);
+    }
+
+    [AvaloniaFact]
+    public async Task An_unhandled_Tab_indents_as_without_a_plugin_and_a_handled_one_does_not()
+    {
+        const string content = "ab\ncd\n";
+        var baseline = _w.OpenFile(_temp.File("t0.txt", content), null);
+        Dispatcher.UIThread.RunJobs();
+        baseline.Editor!.TextArea.Focus();
+        await RunTabAsync();
+        var indented = Utf8(baseline);
+        Assert.NotEqual(content, indented);
+
+        // the document is not visible to plugins before and after Tab; the editor shows it only while it asks
+        await OpenForPluginAsync("t.txt", "", expose: false);
+        await Pump(Editor(DocumentMethods.TabRegister, "{\"enabled\":true}"));
+        await Pump(Host.CallAsync("p", "setTab", Encoding.UTF8.GetBytes("{\"handled\":false}")));
+        var tab = _w.OpenFile(_temp.File("t1.txt", content), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        await RunTabAsync();
+        Assert.Equal(indented, Utf8(tab));
+        Assert.False(_app.Plugins.Documents.IsExposed(tab.Doc.Doc.Id));
+        var asked = await Pump(Host.CallAsync("p", "tabRequests"));
+        Assert.Equal(1, asked.GetArrayLength());
+        Assert.Equal(tab.Doc.Doc.Id.ToString(), asked[0].GetProperty("document").GetString());
+
+        await Pump(Host.CallAsync("p", "setTab", Encoding.UTF8.GetBytes("{\"handled\":true}")));
+        var handled = _w.OpenFile(_temp.File("t2.txt", content), null);
+        Dispatcher.UIThread.RunJobs();
+        handled.Editor!.TextArea.Focus();
+        await RunTabAsync();
+        Assert.Equal(content, Utf8(handled));
+        Assert.Equal(2, (await Pump(Host.CallAsync("p", "tabRequests"))).GetArrayLength());
+    }
+
+    private async Task RunTabAsync()
+    {
+        var run = _app.Workbench.Commands.ExecuteAsync("nks.edit.tab", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => run.IsCompleted, "the Tab command");
+        Assert.Equal(CommandOutcome.Handled, await run);
     }
 
     // ---- JSON formatter inside the app ----

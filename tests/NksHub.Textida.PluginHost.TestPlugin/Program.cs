@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.PluginHost;
+using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Rpc;
 
 // Test double for a real plugin: a separate process speaking the plugin protocol on stdin/stdout.
@@ -46,6 +47,9 @@ sealed class Handler(int api) : IRpcHandler
     long _sinkCount, _sinkBytes;
     string _resync = "null";
     readonly List<string> _events = [];
+    readonly List<string> _tabs = [];
+    volatile bool _tabHandled, _tabError;
+    volatile int _tabDelayMs;
 
     static byte[] Raw(string json) => Encoding.UTF8.GetBytes(json);
     static string Str(JsonElement p, string name) => p.GetProperty(name).GetString()!;
@@ -145,6 +149,18 @@ sealed class Handler(int api) : IRpcHandler
                 return null;
             case "events":
                 lock (_events) return Raw("[" + string.Join(",", _events) + "]");
+            case DocumentRequests.Tab:
+                lock (_tabs) _tabs.Add(p.GetRawText());
+                if (_tabDelayMs > 0) await Task.Delay(_tabDelayMs, ct);
+                if (_tabError) throw new RpcException(RpcErrorCodes.InternalError, "test plugin: Tab failed");
+                return Raw($"{{\"handled\":{(_tabHandled ? "true" : "false")}}}");
+            case "setTab":
+                _tabHandled = p.TryGetProperty("handled", out var h) && h.GetBoolean();
+                _tabDelayMs = p.TryGetProperty("delayMs", out var delay) ? delay.GetInt32() : 0;
+                _tabError = p.TryGetProperty("error", out var err) && err.GetBoolean();
+                return Raw("true");
+            case "tabRequests":
+                lock (_tabs) return Raw("[" + string.Join(",", _tabs) + "]");
             default:
                 throw new RpcException(RpcErrorCodes.MethodNotFound, $"Unknown method '{method}'.");
         }

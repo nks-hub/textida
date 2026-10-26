@@ -504,4 +504,6 @@ public static class K
     public const string A11yPluginPick = "a11y.plugin.pick";
     public const string PluginUnavailable = "plugin.unavailable";
     public const string PluginProposal = "plugin.proposal";
+    public const string PluginSymbolsTitle = "plugin.symbols.title";
+    public const string PluginSymbolsOutdated = "plugin.symbols.outdated";
 }

@@ -525,5 +525,7 @@
   "plugin.pick.watermark": "Píšte na filtrovanie",
   "a11y.plugin.pick": "Voľby zásuvného modulu",
   "plugin.unavailable": "Zásuvný modul {name} sa nepodarilo spustiť: {reason}",
-  "plugin.proposal": "{title}: navrhnuté zmeny ({changes})."
+  "plugin.proposal": "{title}: navrhnuté zmeny ({changes}).",
+  "plugin.symbols.title": "Osnova",
+  "plugin.symbols.outdated": "Osnova (zastaraná)"
 }

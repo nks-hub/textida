@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost.Documents;
@@ -61,7 +62,34 @@ internal sealed partial class MainWindow
     internal void ActivatePluginItem()
     {
         if (_pluginPanelKey is not { } key || _pluginTree.SelectedItem is not TreeViewItem { Tag: string item }) return;
-        if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
+        if (key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal)) _app.Plugins.RevealSymbol(key.Plugin, key.Panel, item);
+        else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
+    }
+
+    /// <summary>Selects the bytes of <paramref name="range"/> in the tab and scrolls to them; the outline and the plugin API both end here.</summary>
+    internal bool RevealBytes(DocTab tab, ByteRange range)
+    {
+        if (tab.Surface is not { } surface || tab.Doc.TextBackend is not { } backend) return false;
+        if (!backend.TryToCharOffset(range.Start, out int start) || !backend.TryToCharOffset(range.End, out int end)) return false;
+        SelectTab(tab);
+        surface.SetSelections([new Sel(start, end)]);
+        return true;
+    }
+
+    /// <summary>Puts the carets a plugin computed (bytes of the current revision) into the tab; the last one that can be placed stays the primary.</summary>
+    internal void PlaceSelections(DocTab tab, SelectionSet set)
+    {
+        if (tab.Surface is not { } surface || tab.Doc.TextBackend is not { } backend) return;
+        var sels = new List<Sel>(set.Count);
+        int primary = 0;
+        for (int i = 0; i < set.Count; i++)
+        {
+            var s = set.Items[i];
+            if (!backend.TryToCharOffset(s.Anchor, out int anchor) || !backend.TryToCharOffset(s.Caret, out int caret)) continue;
+            if (i == set.Primary) primary = sels.Count;
+            sels.Add(new Sel(anchor, caret));
+        }
+        if (sels.Count > 0) surface.SetCarets(Carets.Create(sels, primary));
     }
 
     private void OnPluginPanelRevealed(string plugin, string panel)

@@ -19,19 +19,22 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     private readonly DocumentApiOptions _options;
     private readonly IDocumentOwnerThread _owner;
     private readonly PluginEventSender _send;
+    private readonly PluginRequestSender _request;
     private readonly TimeProvider _time;
     private readonly object _gate = new();
     private readonly Dictionary<Guid, Exposed> _exposed = [];
     private readonly Dictionary<string, List<Pinned>> _snapshots = [];
 
-    public DocumentApi(DocumentApiOptions options, IDocumentOwnerThread owner, PluginEventSender send, TimeProvider? time = null)
+    public DocumentApi(DocumentApiOptions options, IDocumentOwnerThread owner, PluginEventSender send, PluginRequestSender request, TimeProvider? time = null)
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
-            || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1)
+            || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
+            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
         _send = send;
+        _request = request;
         _time = time ?? TimeProvider.System;
         options.Permissions.Revoked += DropRevokedSubscriptions;
     }
@@ -81,6 +84,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             subscribers = [.. e.Subscribers];
         }
         document.Changed -= e.Handler;
+        ClearSymbols(key => key.Document == document.Id);
         var payload = Obj(w => w.WriteString("document", document.Id));
         foreach (var plugin in subscribers) Enqueue(plugin, document.Id, DocumentEvents.Withdrawn, payload);
     }
@@ -89,7 +93,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     private static string? Required(string method) => method switch
     {
         DocumentMethods.Unsubscribe or DocumentMethods.SnapshotRelease => null,
-        DocumentMethods.EditApply => DocumentPermissions.EditDirect,
+        DocumentMethods.EditApply or DocumentMethods.SnippetInsert => DocumentPermissions.EditDirect,
         DocumentMethods.EditPropose => DocumentPermissions.EditPropose,
         _ => DocumentPermissions.Read,
     };
@@ -121,7 +125,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             {
                 var work = DispatchAsync(pluginId, method, p, lease.Token, lease);
                 // An edit that already started is not abandoned: the caller must learn that it happened.
-                return method == DocumentMethods.EditApply ? await work : await work.WaitAsync(lease.Token);
+                return method is DocumentMethods.EditApply or DocumentMethods.SnippetInsert ? await work : await work.WaitAsync(lease.Token);
             }
             catch (OperationCanceledException) when (lease.Revoked && !cancellation.IsCancellationRequested)
             {
@@ -149,6 +153,10 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.SnapshotRelease: return SnapshotRelease(pluginId, p);
             case DocumentMethods.EditApply: return await ApplyAsync(pluginId, p, lease!);
             case DocumentMethods.EditPropose: return await ProposeAsync(pluginId, p, cancellation);
+            case DocumentMethods.SymbolsPublish: return await PublishSymbolsAsync(pluginId, p);
+            case DocumentMethods.Reveal: return await RevealAsync(p);
+            case DocumentMethods.SnippetInsert: return await InsertSnippetAsync(pluginId, p, lease!);
+            case DocumentMethods.TabRegister: return RegisterTab(pluginId, p);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
@@ -571,9 +579,11 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     public byte[] BuildState(string pluginId)
     {
         ClearOutbox(pluginId);
+        ClearSymbols(key => key.Plugin == pluginId);
         lock (_gate)
         {
             _snapshots.Remove(pluginId);
+            _tabProviders.Remove(pluginId);
             var buffer = new ArrayBufferWriter<byte>();
             using (var w = new Utf8JsonWriter(buffer))
             {
