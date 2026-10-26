@@ -1,0 +1,862 @@
+{
+  "schemaVersion": 1,
+  "id": "nks.core",
+  "commands": [
+    {
+      "id": "nks.file.new",
+      "title": "cmd.file.new",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.file.open",
+      "title": "cmd.file.open",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.file.save",
+      "title": "cmd.file.save",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.saveAs",
+      "title": "cmd.file.saveAs",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.saveAll",
+      "title": "cmd.file.saveAll",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.close",
+      "title": "cmd.file.close",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.app.openSettings",
+      "title": "cmd.app.openSettings",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.app.quit",
+      "title": "cmd.app.quit",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.edit.undo",
+      "title": "cmd.edit.undo",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.redo",
+      "title": "cmd.edit.redo",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.cut",
+      "title": "cmd.edit.cut",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.copy",
+      "title": "cmd.edit.copy",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.paste",
+      "title": "cmd.edit.paste",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.selectAll",
+      "title": "cmd.edit.selectAll",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.deleteLine",
+      "title": "cmd.edit.deleteLine",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.duplicateLine",
+      "title": "cmd.edit.duplicateLine",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.moveLineUp",
+      "title": "cmd.edit.moveLineUp",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.moveLineDown",
+      "title": "cmd.edit.moveLineDown",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.indent",
+      "title": "cmd.edit.indent",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.outdent",
+      "title": "cmd.edit.outdent",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.tab",
+      "title": "cmd.edit.tab",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly",
+      "fallback": "nks.edit.insertIndent",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertIndent",
+      "title": "cmd.edit.insertIndent",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.upperCase",
+      "title": "cmd.edit.upperCase",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "hasSelection && !readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.lowerCase",
+      "title": "cmd.edit.lowerCase",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "hasSelection && !readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.search.find",
+      "title": "cmd.search.find",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.findNext",
+      "title": "cmd.search.findNext",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.findPrevious",
+      "title": "cmd.search.findPrevious",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.replace",
+      "title": "cmd.search.replace",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.search.gotoLine",
+      "title": "cmd.search.gotoLine",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.commandPalette",
+      "title": "cmd.view.commandPalette",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.toggleWordWrap",
+      "title": "cmd.view.toggleWordWrap",
+      "category": "cat.view",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.view.zoomIn",
+      "title": "cmd.view.zoomIn",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.zoomOut",
+      "title": "cmd.view.zoomOut",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.zoomReset",
+      "title": "cmd.view.zoomReset",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.nextTab",
+      "title": "cmd.view.nextTab",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.previousTab",
+      "title": "cmd.view.previousTab",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    }
+  ],
+  "menus": [
+    {
+      "menu": "file",
+      "command": "nks.file.new",
+      "group": "1_new",
+      "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.open",
+      "group": "1_new",
+      "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.save",
+      "group": "2_save",
+      "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.saveAs",
+      "group": "2_save",
+      "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.saveAll",
+      "group": "2_save",
+      "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.close",
+      "group": "3_close",
+      "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.app.openSettings",
+      "group": "8_app",
+      "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.app.quit",
+      "group": "9_exit",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.undo",
+      "group": "1_undo",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.redo",
+      "group": "1_undo",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.cut",
+      "group": "2_clip",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copy",
+      "group": "2_clip",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.paste",
+      "group": "2_clip",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectAll",
+      "group": "3_select",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.deleteLine",
+      "group": "4_lines",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.duplicateLine",
+      "group": "4_lines",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.moveLineUp",
+      "group": "4_lines",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.moveLineDown",
+      "group": "4_lines",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.indent",
+      "group": "5_indent",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.outdent",
+      "group": "5_indent",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.upperCase",
+      "group": "6_case",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.lowerCase",
+      "group": "6_case",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.find",
+      "group": "1_find",
+      "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.findNext",
+      "group": "1_find",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.findPrevious",
+      "group": "1_find",
+      "order": 30
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.replace",
+      "group": "2_replace",
+      "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.gotoLine",
+      "group": "3_goto",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.commandPalette",
+      "group": "1_palette",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleWordWrap",
+      "group": "2_text",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.zoomIn",
+      "group": "2_text",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.zoomOut",
+      "group": "2_text",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.zoomReset",
+      "group": "2_text",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.nextTab",
+      "group": "3_tabs",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.previousTab",
+      "group": "3_tabs",
+      "order": 20
+    }
+  ],
+  "keybindings": [
+    {
+      "key": "mod+n",
+      "command": "nks.file.new"
+    },
+    {
+      "key": "mod+o",
+      "command": "nks.file.open"
+    },
+    {
+      "key": "mod+s",
+      "command": "nks.file.save"
+    },
+    {
+      "key": "mod+shift+s",
+      "command": "nks.file.saveAs"
+    },
+    {
+      "key": "mod+alt+s",
+      "command": "nks.file.saveAll"
+    },
+    {
+      "key": "mod+w",
+      "command": "nks.file.close"
+    },
+    {
+      "key": "mod+comma",
+      "command": "nks.app.openSettings"
+    },
+    {
+      "key": "mod+q",
+      "command": "nks.app.quit"
+    },
+    {
+      "key": "mod+z",
+      "command": "nks.edit.undo",
+      "when": "editorFocus"
+    },
+    {
+      "key": "ctrl+y",
+      "command": "nks.edit.redo",
+      "mac": "mod+shift+z",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+shift+z",
+      "command": "nks.edit.redo",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+x",
+      "command": "nks.edit.cut",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+c",
+      "command": "nks.edit.copy",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+v",
+      "command": "nks.edit.paste",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+a",
+      "command": "nks.edit.selectAll",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+shift+k",
+      "command": "nks.edit.deleteLine",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+shift+d",
+      "command": "nks.edit.duplicateLine",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+up",
+      "command": "nks.edit.moveLineUp",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+down",
+      "command": "nks.edit.moveLineDown",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+bracketright",
+      "command": "nks.edit.indent",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+bracketleft",
+      "command": "nks.edit.outdent",
+      "when": "editorFocus"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.edit.outdent",
+      "when": "editorFocus && !readOnly"
+    },
+    {
+      "key": "tab",
+      "command": "nks.edit.tab",
+      "when": "editorFocus && !readOnly"
+    },
+    {
+      "key": "mod+k mod+u",
+      "command": "nks.edit.upperCase",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+k mod+l",
+      "command": "nks.edit.lowerCase",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+f",
+      "command": "nks.search.find"
+    },
+    {
+      "key": "f3",
+      "command": "nks.search.findNext",
+      "mac": "mod+g"
+    },
+    {
+      "key": "shift+f3",
+      "command": "nks.search.findPrevious",
+      "mac": "mod+shift+g"
+    },
+    {
+      "key": "ctrl+h",
+      "command": "nks.search.replace",
+      "mac": "mod+alt+f"
+    },
+    {
+      "key": "ctrl+g",
+      "command": "nks.search.gotoLine"
+    },
+    {
+      "key": "mod+shift+p",
+      "command": "nks.view.commandPalette"
+    },
+    {
+      "key": "alt+z",
+      "command": "nks.view.toggleWordWrap"
+    },
+    {
+      "key": "mod+equal",
+      "command": "nks.view.zoomIn"
+    },
+    {
+      "key": "mod+minus",
+      "command": "nks.view.zoomOut"
+    },
+    {
+      "key": "mod+0",
+      "command": "nks.view.zoomReset"
+    },
+    {
+      "key": "ctrl+tab",
+      "command": "nks.view.nextTab"
+    },
+    {
+      "key": "ctrl+shift+tab",
+      "command": "nks.view.previousTab"
+    }
+  ],
+  "settings": [
+    {
+      "key": "editor.tabSize",
+      "type": "integer",
+      "default": 4,
+      "title": "setting.editor.tabSize.title",
+      "description": "setting.editor.tabSize.description",
+      "category": "cat.editor",
+      "scope": "document",
+      "minimum": 1,
+      "maximum": 32,
+      "tags": [
+        "tab",
+        "indent",
+        "indentation",
+        "width"
+      ]
+    },
+    {
+      "key": "editor.indentSize",
+      "type": "integer",
+      "default": 4,
+      "title": "setting.editor.indentSize.title",
+      "description": "setting.editor.indentSize.description",
+      "category": "cat.editor",
+      "scope": "document",
+      "minimum": 1,
+      "maximum": 32,
+      "tags": [
+        "indent",
+        "indentation",
+        "tab",
+        "level"
+      ]
+    },
+    {
+      "key": "editor.insertSpaces",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.insertSpaces.title",
+      "description": "setting.editor.insertSpaces.description",
+      "category": "cat.editor",
+      "scope": "document",
+      "tags": [
+        "indent",
+        "indentation",
+        "tab",
+        "spaces"
+      ]
+    },
+    {
+      "key": "editor.detectIndentation",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.detectIndentation.title",
+      "description": "setting.editor.detectIndentation.description",
+      "category": "cat.editor",
+      "scope": "document",
+      "tags": [
+        "indent",
+        "indentation",
+        "tab",
+        "guess"
+      ]
+    },
+    {
+      "key": "editor.wordWrap",
+      "type": "string",
+      "default": "off",
+      "title": "setting.editor.wordWrap.title",
+      "description": "setting.editor.wordWrap.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "enum": [
+        "off",
+        "on"
+      ],
+      "tags": [
+        "wrap",
+        "line"
+      ]
+    },
+    {
+      "key": "editor.renderWhitespace",
+      "type": "string",
+      "default": "none",
+      "title": "setting.editor.renderWhitespace.title",
+      "description": "setting.editor.renderWhitespace.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "enum": [
+        "none",
+        "selection",
+        "all"
+      ],
+      "tags": [
+        "whitespace",
+        "tab",
+        "space",
+        "invisible"
+      ]
+    },
+    {
+      "key": "editor.fontFamily",
+      "type": "string",
+      "default": "Cascadia Mono, Consolas, Menlo, monospace",
+      "title": "setting.editor.fontFamily.title",
+      "description": "setting.editor.fontFamily.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "font"
+      ]
+    },
+    {
+      "key": "editor.fontSize",
+      "type": "integer",
+      "default": 14,
+      "title": "setting.editor.fontSize.title",
+      "description": "setting.editor.fontSize.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "minimum": 6,
+      "maximum": 72,
+      "tags": [
+        "font",
+        "size"
+      ]
+    },
+    {
+      "key": "files.encoding",
+      "type": "string",
+      "default": "utf-8",
+      "title": "setting.files.encoding.title",
+      "description": "setting.files.encoding.description",
+      "category": "cat.files",
+      "scope": "language",
+      "enum": [
+        "utf-8",
+        "utf-8-bom",
+        "utf-16le",
+        "utf-16be",
+        "windows-1250",
+        "iso-8859-2"
+      ],
+      "tags": [
+        "encoding",
+        "charset",
+        "codepage"
+      ]
+    },
+    {
+      "key": "files.eol",
+      "type": "string",
+      "default": "auto",
+      "title": "setting.files.eol.title",
+      "description": "setting.files.eol.description",
+      "category": "cat.files",
+      "scope": "language",
+      "enum": [
+        "auto",
+        "lf",
+        "crlf"
+      ],
+      "tags": [
+        "line",
+        "ending",
+        "newline",
+        "crlf",
+        "lf"
+      ]
+    },
+    {
+      "key": "files.trimTrailingWhitespace",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.files.trimTrailingWhitespace.title",
+      "description": "setting.files.trimTrailingWhitespace.description",
+      "category": "cat.files",
+      "scope": "language",
+      "tags": [
+        "whitespace",
+        "save"
+      ]
+    },
+    {
+      "key": "files.insertFinalNewline",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.files.insertFinalNewline.title",
+      "description": "setting.files.insertFinalNewline.description",
+      "category": "cat.files",
+      "scope": "language",
+      "tags": [
+        "newline",
+        "save",
+        "eol"
+      ]
+    },
+    {
+      "key": "files.autoSave",
+      "type": "string",
+      "default": "off",
+      "title": "setting.files.autoSave.title",
+      "description": "setting.files.autoSave.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "off",
+        "afterDelay"
+      ],
+      "tags": [
+        "save",
+        "automatic"
+      ]
+    },
+    {
+      "key": "workbench.keymapProfile",
+      "type": "string",
+      "default": "default",
+      "title": "setting.workbench.keymapProfile.title",
+      "description": "setting.workbench.keymapProfile.description",
+      "category": "cat.workbench",
+      "scope": "application",
+      "tags": [
+        "keys",
+        "shortcuts",
+        "keybindings",
+        "profile"
+      ]
+    },
+    {
+      "key": "workbench.uiLanguage",
+      "type": "string",
+      "default": "auto",
+      "title": "setting.workbench.uiLanguage.title",
+      "description": "setting.workbench.uiLanguage.description",
+      "category": "cat.workbench",
+      "scope": "application",
+      "tags": [
+        "language",
+        "locale",
+        "czech",
+        "english"
+      ]
+    }
+  ]
+}

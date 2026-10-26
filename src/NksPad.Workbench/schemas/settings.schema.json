@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Editor settings file",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "editor.tabSize": {
+          "type": "integer",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 32,
+          "description": "Tab size. Number of columns a tab character occupies.",
+          "x-scope": "document"
+        },
+        "editor.indentSize": {
+          "type": "integer",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 32,
+          "description": "Indent size. Number of columns of one indentation level.",
+          "x-scope": "document"
+        },
+        "editor.insertSpaces": {
+          "type": "boolean",
+          "default": true,
+          "description": "Indent with spaces. Pressing Tab inserts spaces instead of a tab character.",
+          "x-scope": "document"
+        },
+        "editor.detectIndentation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Detect indentation. Guesses the tab size and whether to indent with spaces or tabs from the opened file.",
+          "x-scope": "document"
+        },
+        "editor.wordWrap": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "on"
+          ],
+          "description": "Word wrap. Wraps long lines at the window edge.",
+          "x-scope": "language"
+        },
+        "editor.renderWhitespace": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "selection",
+            "all"
+          ],
+          "description": "Show whitespace. Draws spaces and tab characters.",
+          "x-scope": "language"
+        },
+        "editor.fontFamily": {
+          "type": "string",
+          "default": "Cascadia Mono, Consolas, Menlo, monospace",
+          "description": "Font family. Comma-separated list of font families, the first installed one is used.",
+          "x-scope": "application"
+        },
+        "editor.fontSize": {
+          "type": "integer",
+          "default": 14,
+          "minimum": 6,
+          "maximum": 72,
+          "description": "Font size. Font size in points.",
+          "x-scope": "application"
+        },
+        "files.encoding": {
+          "type": "string",
+          "default": "utf-8",
+          "enum": [
+            "utf-8",
+            "utf-8-bom",
+            "utf-16le",
+            "utf-16be",
+            "windows-1250",
+            "iso-8859-2"
+          ],
+          "description": "Default encoding. Encoding used for new files and for files whose encoding cannot be detected.",
+          "x-scope": "language"
+        },
+        "files.eol": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "lf",
+            "crlf"
+          ],
+          "description": "End of line. Line ending for new files. Auto uses the platform default.",
+          "x-scope": "language"
+        },
+        "files.trimTrailingWhitespace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Trim trailing whitespace. Removes spaces and tabs at line ends when saving.",
+          "x-scope": "language"
+        },
+        "files.insertFinalNewline": {
+          "type": "boolean",
+          "default": false,
+          "description": "Insert final newline. Adds a line ending at the end of the file when saving.",
+          "x-scope": "language"
+        },
+        "files.autoSave": {
+          "type": "string",
+          "default": "off",
+          "enum": [
+            "off",
+            "afterDelay"
+          ],
+          "description": "Auto save. Saves changed files to their own path.",
+          "x-scope": "application"
+        },
+        "workbench.keymapProfile": {
+          "type": "string",
+          "default": "default",
+          "description": "Keymap profile. Id of the keymap profile layered over the default keys.",
+          "x-scope": "application"
+        },
+        "workbench.uiLanguage": {
+          "type": "string",
+          "default": "auto",
+          "description": "Interface language. Language of menus and messages. Auto follows the system.",
+          "x-scope": "application"
+        }
+      },
+      "additionalProperties": true
+    },
+    "languages": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/properties/settings"
+      }
+    }
+  },
+  "additionalProperties": true
+}
