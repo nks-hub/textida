@@ -109,6 +109,7 @@ internal sealed partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(DragDrop.DragOverEvent, OnWindowDragOver, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         DragDrop.SetAllowDrop(this, true);
+        Activated += (_, _) => Dispatcher.UIThread.Post(FocusViewIfLost, DispatcherPriority.Input);
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
         _app.Workbench.SettingChanged += OnSettingChanged;

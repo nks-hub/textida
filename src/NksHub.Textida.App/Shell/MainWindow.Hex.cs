@@ -33,6 +33,13 @@ internal sealed partial class MainWindow
 
     internal HexView? ActiveHex => Active?.Hex;
 
+    /// <summary>A window that was just activated has no focus or has it on the menu bar; the keyboard then goes to the document.</summary>
+    private void FocusViewIfLost()
+    {
+        if (Active is not { } tab || IsPaletteOpen) return;
+        if (FocusManager?.GetFocusedElement() is null or Avalonia.Controls.Menu or Avalonia.Controls.MenuItem) FocusView(tab);
+    }
+
     /// <summary>Gives the keyboard to the view of the active tab.</summary>
     internal void FocusActiveView()
     {
