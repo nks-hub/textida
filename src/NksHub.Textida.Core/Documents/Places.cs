@@ -14,8 +14,8 @@ public sealed class Place
         _document = document;
         _anchor = anchor;
         Path = path;
-        Line = line;
-        Column = column;
+        _line = line;
+        _column = column;
     }
 
     /// <summary>The open document the place lives in; null after <see cref="Freeze"/>.</summary>
@@ -25,16 +25,27 @@ public sealed class Place
     public string? Path { get; internal set; }
 
     /// <summary>Zero-based line; for a live place the position of the anchor as of the last <see cref="Refresh"/>.</summary>
-    public long Line { get; private set; }
+    public long Line
+    {
+        get { if (!_looked) Refresh(); return _line; }
+        private set => _line = value;
+    }
 
-    public long Column { get; private set; }
+    public long Column
+    {
+        get { if (!_looked) Refresh(); return _column; }
+        private set => _column = value;
+    }
+
+    private long _line, _column;
+    private bool _looked;
 
     /// <summary>A line of text around the place, for lists. Set by whoever has the text.</summary>
     public string? Snippet { get; set; }
 
     public bool IsLive => _document is not null;
 
-    /// <param name="refresh">False leaves <see cref="Line"/> and <see cref="Column"/> at zero until <see cref="Refresh"/>; looking a position up can cost a scan of the line index.</param>
+    /// <param name="refresh">False looks the line up when <see cref="Line"/> or <see cref="Column"/> is first read; a lookup can cost a scan of the line index.</param>
     public static Place At(Document document, long byteOffset, bool refresh = true)
     {
         var anchor = document.CreateAnchor(Math.Clamp(byteOffset, 0, document.ByteLength));
@@ -53,6 +64,7 @@ public sealed class Place
 
     private void RefreshCore()
     {
+        _looked = true;
         if (_document is not { } doc || _anchor is not { IsValid: true } a) return;
         try
         {
