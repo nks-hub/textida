@@ -135,17 +135,24 @@ public sealed class PluginHost : IAsyncDisposable
         var payload = EventPayload(name, payloadJson);
         List<Plugin> all;
         lock (_gate) all = [.. _plugins.Values];
-        foreach (var p in all)
+        foreach (var p in all) await SendAsync(p, payload).ConfigureAwait(false);
+    }
+
+    /// <summary>Sends an event to one plugin. False when it could not be delivered (the plugin is down); it then counts as lost.</summary>
+    public Task<bool> SendEventAsync(string pluginId, string name, ReadOnlyMemory<byte> payloadJson) =>
+        SendAsync(Get(pluginId), EventPayload(name, payloadJson));
+
+    static async Task<bool> SendAsync(Plugin p, byte[] payload)
+    {
+        var run = p.Current;
+        if (p.State == PluginState.Running && run is not null)
         {
-            var run = p.Current;
-            if (p.State == PluginState.Running && run is not null)
-            {
-                try { await run.Rpc.NotifyAsync(PluginMethods.Event, payload).ConfigureAwait(false); continue; }
-                catch (IOException) { }
-            }
-            if (p.State is PluginState.Running or PluginState.Starting or PluginState.WaitingRestart)
-                Interlocked.Increment(ref p.LostEvents);
+            try { await run.Rpc.NotifyAsync(PluginMethods.Event, payload).ConfigureAwait(false); return true; }
+            catch (IOException) { }
         }
+        if (p.State is PluginState.Running or PluginState.Starting or PluginState.WaitingRestart)
+            Interlocked.Increment(ref p.LostEvents);
+        return false;
     }
 
     static byte[] EventPayload(string name, ReadOnlyMemory<byte> payloadJson)
