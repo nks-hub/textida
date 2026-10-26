@@ -118,8 +118,9 @@ internal sealed partial class EditorSurface : TextEditor
     private void OnVisualLinesChanged(object? sender, EventArgs e)
     {
         var view = TextArea.TextView;
+        if (!Syntax.Active || !view.VisualLinesValid) return; // the getter of the lines throws while they are invalid
         var lines = view.VisualLines;
-        if (!Syntax.Active || !view.VisualLinesValid || lines.Count == 0) return;
+        if (lines.Count == 0) return;
         double scrolled = view.ScrollOffset.X;
         int first = int.MaxValue, last = 0;
         int step = Math.Max(1, lines.Count / 8);
