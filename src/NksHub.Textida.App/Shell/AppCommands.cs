@@ -85,6 +85,8 @@ internal static class AppCommands
         On("nks.edit.newline", w => w.Newline());
         On("nks.edit.toggleComment", w => w.ToggleComment());
         On("nks.edit.expandSelection", w => w.ExpandSelection());
+        Fire("nks.edit.formatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: false));
+        Fire("nks.edit.previewFormatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: true));
 
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));

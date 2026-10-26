@@ -155,7 +155,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
 
     // ---- json helpers ----
 
-    private static byte[] Obj(Action<Utf8JsonWriter> body)
+    internal static byte[] Obj(Action<Utf8JsonWriter> body)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var w = new Utf8JsonWriter(buffer))
@@ -167,9 +167,9 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         return buffer.WrittenSpan.ToArray();
     }
 
-    private static RpcException Invalid(string message) => new(RpcErrorCodes.InvalidParams, message);
+    internal static RpcException Invalid(string message) => new(RpcErrorCodes.InvalidParams, message);
 
-    private static RpcException Fail(int code, string message, Action<Utf8JsonWriter>? data = null) =>
+    internal static RpcException Fail(int code, string message, Action<Utf8JsonWriter>? data = null) =>
         new(code, message) { DataJson = data is null ? null : Encoding.UTF8.GetString(Obj(data)) };
 
     private static RpcException Conflict(string reason, long currentRevision, int? index = null) =>
@@ -180,13 +180,13 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             if (index is { } i) w.WriteNumber("index", i);
         });
 
-    private static JsonElement Need(JsonElement p, string name) =>
+    internal static JsonElement Need(JsonElement p, string name) =>
         p.ValueKind == JsonValueKind.Object && p.TryGetProperty(name, out var v) ? v : throw Invalid($"Missing parameter '{name}'.");
 
-    private static long NeedLong(JsonElement p, string name) =>
+    internal static long NeedLong(JsonElement p, string name) =>
         Need(p, name) is { ValueKind: JsonValueKind.Number } v && v.TryGetInt64(out var n) ? n : throw Invalid($"Parameter '{name}' must be an integer.");
 
-    private static string NeedString(JsonElement p, string name) =>
+    internal static string NeedString(JsonElement p, string name) =>
         Need(p, name) is { ValueKind: JsonValueKind.String } v ? v.GetString()! : throw Invalid($"Parameter '{name}' must be a string.");
 
     private static Guid NeedDocumentId(JsonElement p) =>

@@ -188,6 +188,14 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Ctrl+K a potom Ctrl+U zmení písmená na veľké, Ctrl+K a potom Ctrl+L na malé.
 - Bez výberu sú príkazy stlmené. Sú aj v ponuke Úpravy.
 
+## [edit.json] Formátovanie JSON
+commands: nks.edit.formatJson, nks.edit.previewFormatJson
+1. Označte text JSON, alebo neoznačujte nič a naformátuje sa celý dokument.
+2. Ponuka Úpravy, Formátovať JSON, naformátuje označené časti (každý výber) alebo celý dokument. Všetky časti sú jeden krok Späť; text mimo nich zostane bajt po bajte rovnaký, vrátane koncov riadkov.
+3. Náhľad formátovania JSON ukáže zmenu najprv ako návrh. Použite ho z lišty nad editorom, alebo ho zahoďte.
+- Chyba syntaxe sa ohlási s riadkom a stĺpcom a nič sa nezmení. Text väčší ako limit sa odmietne so správou.
+- Ak sa dokument po spustení príkazu zmenil, príkaz sa zastaví a vyzve vás na opätovné spustenie.
+
 ## [edit.carets] Viac kurzorov
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Vyberte slovo; Ctrl+D pridá ďalší jeho výskyt do výberu. Opakujte pre ďalšie výskyty.

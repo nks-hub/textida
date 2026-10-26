@@ -29,6 +29,7 @@ public sealed partial class App : Application
     internal JournalService Journal { get; private set; } = null!;
     internal BackupService Backups { get; private set; } = null!;
     internal OutputChannels Output { get; private set; } = null!;
+    internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
@@ -61,6 +62,7 @@ public sealed partial class App : Application
         desktop.Exit += (_, _) =>
         {
             Journal.Shutdown();
+            Plugins.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
             if (!ctx.Args.Smoke) return;
             try { Directory.Delete(ProfileDirectory, recursive: true); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a check leaves nothing in the profile it ran in */ }
@@ -108,6 +110,8 @@ public sealed partial class App : Application
         Journal = JournalService.Start(primary, fallback);
         Recent = RecentFiles.Load(ProfileDirectory);
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
+        Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
+        Plugins = new PluginServices(this);
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
     }
 

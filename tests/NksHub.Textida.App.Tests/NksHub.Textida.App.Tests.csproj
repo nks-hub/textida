@@ -25,5 +25,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.App\NksHub.Textida.App.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <Target Name="CopyJsonPlugin" AfterTargets="Build">
+    <ItemGroup>
+      <JsonPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Json\bin\$(Configuration)\$(TargetFramework)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -59,6 +59,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csharp-hello", "csharp-hell
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NksHub.Textida.Samples.CsHello", "samples\csharp-hello\NksHub.Textida.Samples.CsHello.csproj", "{78492B3F-8F30-48D6-9371-8ECB27171C38}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NksHub.Textida.Plugins.Json", "src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj", "{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -333,6 +335,18 @@ Global
 		{78492B3F-8F30-48D6-9371-8ECB27171C38}.Release|x64.Build.0 = Release|Any CPU
 		{78492B3F-8F30-48D6-9371-8ECB27171C38}.Release|x86.ActiveCfg = Release|Any CPU
 		{78492B3F-8F30-48D6-9371-8ECB27171C38}.Release|x86.Build.0 = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|x64.Build.0 = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Debug|x86.Build.0 = Debug|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|x64.ActiveCfg = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|x64.Build.0 = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|x86.ActiveCfg = Release|Any CPU
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -361,5 +375,6 @@ Global
 		{73DE1548-EAEA-4070-A896-5DF88938D53C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{89E7D9DC-9F6F-D006-EB04-02325886A55A} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{78492B3F-8F30-48D6-9371-8ECB27171C38} = {89E7D9DC-9F6F-D006-EB04-02325886A55A}
+		{BBDEB575-17F0-41B3-819F-A59FAE70EFFB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

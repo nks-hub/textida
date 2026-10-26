@@ -184,6 +184,14 @@ internal sealed partial class EditorSurface
         if (reveal) TextArea.Caret.BringCaretToView();
     }
 
+    /// <summary>The carets as byte ranges of the document, in document order with the primary one marked; what the plugin API reports as selections.</summary>
+    public SelectionSet? ByteSelections()
+    {
+        if (Doc.TextBackend is not { } backend) return null;
+        var carets = GetCarets();
+        return SelectionSet.Create(BytesOf(backend, [.. carets.Items]), carets.Primary);
+    }
+
     private static List<TextSelection> BytesOf(AvaloniaEditBackend backend, List<Sel> sels)
     {
         var offsets = sels.SelectMany(s => new[] { s.Anchor, s.Caret }).Distinct().Order().ToArray();

@@ -188,6 +188,14 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Ctrl+K then Ctrl+U turns the letters to upper case, Ctrl+K then Ctrl+L to lower case.
 - Without a selection the commands are dimmed. They are also in the Edit menu.
 
+## [edit.json] Format JSON
+commands: nks.edit.formatJson, nks.edit.previewFormatJson
+1. Select JSON text, or select nothing to format the whole document.
+2. Edit menu, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings.
+3. Preview JSON Formatting shows the change as a proposal first. Apply it from the bar above the editor, or discard it.
+- A syntax error is reported with its line and column and nothing is changed. Text larger than the limit is refused with a message.
+- If the document changed after the command started, the command stops and asks you to run it again.
+
 ## [edit.carets] Multiple carets
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Select a word; Ctrl+D adds its next occurrence to the selection. Repeat for further occurrences.

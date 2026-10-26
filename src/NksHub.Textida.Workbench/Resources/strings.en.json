@@ -116,6 +116,8 @@
   "cmd.edit.joinLines": "Join Lines",
   "cmd.edit.toggleComment": "Toggle Comment",
   "cmd.edit.expandSelection": "Expand Selection",
+  "cmd.edit.formatJson": "Format JSON",
+  "cmd.edit.previewFormatJson": "Preview JSON Formatting",
   "cmd.edit.newline": "New Line",
   "cmd.format.reread": "Reopen with Encoding...",
   "cmd.format.convert": "Convert to Encoding...",

@@ -12,7 +12,7 @@ using NksHub.Textida.Core.Files;
 
 namespace NksHub.Textida.App.Shell;
 
-internal enum LeftPanel { Documents, Files }
+internal enum LeftPanel { Documents, Files, Plugin }
 
 /// <summary>
 /// The panels on the left, one at a time, hidden until asked for: the open documents (Ctrl+B) and the files of a folder on disk (Ctrl+Shift+E).
@@ -73,7 +73,7 @@ internal sealed partial class MainWindow
         _filePanel.Children.Add(Dock(_filesEmpty, Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(_fileList);
 
-        var host = new Border { Child = new Panel { Children = { _docPanel, _filePanel } } };
+        var host = new Border { Child = new Panel { Children = { _docPanel, _filePanel, BuildPluginPanel() } } };
         host.Classes.Add("sidepanel");
         return host;
     }
@@ -115,17 +115,18 @@ internal sealed partial class MainWindow
 
     private void ToggleLeft(LeftPanel which, bool? open)
     {
-        bool isOpen = which == LeftPanel.Documents ? DocumentsPanelOpen : FilePanelOpen;
+        bool isOpen = which switch { LeftPanel.Documents => DocumentsPanelOpen, LeftPanel.Files => FilePanelOpen, _ => PluginPanelOpen };
         bool show = open ?? !isOpen;
         if (show)
         {
             _docPanel.IsVisible = which == LeftPanel.Documents;
             _filePanel.IsVisible = which == LeftPanel.Files;
+            _pluginPanel.IsVisible = which == LeftPanel.Plugin;
             if (which == LeftPanel.Files) RestoreFolder();
         }
         _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
         _menuModel = BuildMenuModel();
-        if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
+        if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : which == LeftPanel.Plugin ? _pluginTree : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
         else if (Active is { } tab) FocusView(tab);
     }
 

@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" />
   </ItemGroup>
 
 </Project>
