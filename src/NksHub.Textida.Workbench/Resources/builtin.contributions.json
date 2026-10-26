@@ -191,10 +191,37 @@
       "enablement": "hasDocument && !readOnly"
     },
     {
+      "id": "nks.search.findWord",
+      "title": "cmd.search.findWord",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.findInFiles",
+      "title": "cmd.search.findInFiles",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.replaceInFiles",
+      "title": "cmd.search.replaceInFiles",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.regexTester",
+      "title": "cmd.search.regexTester",
+      "category": "cat.search"
+    },
+    {
       "id": "nks.search.gotoLine",
       "title": "cmd.search.gotoLine",
       "category": "cat.search",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.gotoBracket",
+      "title": "cmd.search.gotoBracket",
+      "category": "cat.search",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.view.commandPalette",
@@ -538,15 +565,45 @@
     },
     {
       "menu": "search",
+      "command": "nks.search.findWord",
+      "group": "1_find",
+      "order": 40
+    },
+    {
+      "menu": "search",
       "command": "nks.search.replace",
       "group": "2_replace",
       "order": 10
     },
     {
       "menu": "search",
+      "command": "nks.search.findInFiles",
+      "group": "2_replace",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.replaceInFiles",
+      "group": "2_replace",
+      "order": 30
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.regexTester",
+      "group": "2_replace",
+      "order": 40
+    },
+    {
+      "menu": "search",
       "command": "nks.search.gotoLine",
       "group": "3_goto",
       "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.gotoBracket",
+      "group": "3_goto",
+      "order": 20
     },
     {
       "menu": "view",
@@ -880,8 +937,25 @@
       "mac": "mod+alt+f"
     },
     {
+      "key": "ctrl+f3",
+      "command": "nks.search.findWord",
+      "mac": "mod+e"
+    },
+    {
+      "key": "mod+shift+f",
+      "command": "nks.search.findInFiles"
+    },
+    {
+      "key": "mod+shift+h",
+      "command": "nks.search.replaceInFiles"
+    },
+    {
       "key": "ctrl+g",
       "command": "nks.search.gotoLine"
+    },
+    {
+      "key": "mod+shift+backslash",
+      "command": "nks.search.gotoBracket"
     },
     {
       "key": "mod+shift+p",

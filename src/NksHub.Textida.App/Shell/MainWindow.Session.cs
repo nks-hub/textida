@@ -22,7 +22,7 @@ internal sealed partial class MainWindow
         foreach (var g in _groups.Where(g => g.Tabs.Count > 0))
         {
             if (g == _activeGroup) activeGroup = groups.Count;
-            groups.Add(new SessionGroup([.. g.Tabs.Select(CaptureTab)], g.Active?.Doc.JournalId));
+            groups.Add(new SessionGroup([.. g.Tabs.Where(t => !t.Doc.IsResults).Select(CaptureTab)], g.Active?.Doc.JournalId));
         }
         return new SessionModel(groups, activeGroup);
     }
@@ -136,6 +136,7 @@ internal sealed partial class MainWindow
     /// <summary>A journal on the fallback location, or none at all, must be said out loud: nothing may promise a recovery that cannot happen.</summary>
     internal void ShowJournalWarnings()
     {
+        CheckPendingBatches();
         var location = _app.Journal.Location;
         if (!location.RecoveryAvailable)
             ShowNotice("journal", Loc.Get(K.JournalOff, ("primary", location.PrimaryProblem ?? ""), ("fallback", location.FallbackProblem ?? "")), warning: true);

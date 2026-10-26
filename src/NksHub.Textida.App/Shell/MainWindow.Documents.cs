@@ -89,8 +89,7 @@ internal sealed partial class MainWindow
 
     private DocTab AddView(OpenDocument od, TabGroup group, int? index = null)
     {
-        var tab = new DocTab(od, EditorOptions.From(_app.Workbench.Settings, od.Language.Id));
-        if (od.IndentOverride is not null) tab.Surface?.ApplyOptions(OptionsFor(tab));
+        var tab = new DocTab(od, OptionsFor(od));
         if (tab.Surface is { } surface)
         {
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };

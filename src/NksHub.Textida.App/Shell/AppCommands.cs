@@ -67,6 +67,15 @@ internal static class AppCommands
         On("nks.edit.newline", w => w.Newline());
 
         // search
+        On("nks.search.find", w => w.ShowFind(replace: false));
+        On("nks.search.replace", w => w.ShowFind(replace: true));
+        Do("nks.search.findNext", w => _ = w.FindStepAsync(forward: true));
+        Do("nks.search.findPrevious", w => _ = w.FindStepAsync(forward: false));
+        On("nks.search.findWord", w => w.FindWord());
+        On("nks.search.findInFiles", w => w.ShowFindInFiles(replace: false));
+        On("nks.search.replaceInFiles", w => w.ShowFindInFiles(replace: true));
+        Do("nks.search.regexTester", w => w.ShowRegexTester());
+        On("nks.search.gotoBracket", w => w.GoToBracket());
         Do("nks.search.gotoLine", w => _ = w.GoToLineAsync());
 
         // view
