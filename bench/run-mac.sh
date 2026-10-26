@@ -7,12 +7,12 @@ export PATH="$HOME/.dotnet:/opt/homebrew/bin:$PATH" DOTNET_ROOT="$HOME/.dotnet" 
 cd "$(dirname "$0")/.."
 OPT="--corpus $BASE/corpus --results $BASE/results --profile mac"
 mkdir -p "$BASE/results" "$BASE/build"
-dotnet build bench/NksPad.Bench -c Release -o "$BASE/build" 2>&1 | tail -n 3
-B="dotnet $BASE/build/NksPad.Bench.dll"
+dotnet build bench/NksHub.Textida.Bench -c Release -o "$BASE/build" 2>&1 | tail -n 3
+B="dotnet $BASE/build/NksHub.Textida.Bench.dll"
 R="$BASE/results"
 { date; sysctl -n machdep.cpu.brand_string; sw_vers -productVersion; rg --version | head -n 1; } > "$R/environment.txt" 2>&1
 $B corpus $OPT > "$R/corpus.txt" 2>&1
-{ dotnet test tests/NksPad.Core.Tests 2>&1 | tail -n 5; } > "$R/tests.txt"
+{ dotnet test tests/NksHub.Textida.Core.Tests 2>&1 | tail -n 5; } > "$R/tests.txt"
 $B a6 $OPT > "$R/a6.txt" 2>&1
 $B a4 $OPT > "$R/a4.txt" 2>&1
 $B a3 text-1GiB.log --reps 3 --inplace $OPT > "$R/a3-text-1GiB.log.txt" 2>&1

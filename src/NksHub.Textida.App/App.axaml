@@ -1,0 +1,128 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NksHub.Textida.App.App"
+             RequestedThemeVariant="Default">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Bg0">#EEF0F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="Bg1">#F5F6F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgEditor">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgHover">#E6E9EE</SolidColorBrush>
+                    <SolidColorBrush x:Key="Border">#DCDFE4</SolidColorBrush>
+                    <SolidColorBrush x:Key="Fg">#1B1D21</SolidColorBrush>
+                    <SolidColorBrush x:Key="FgMuted">#565B64</SolidColorBrush>
+                    <SolidColorBrush x:Key="Accent">#0F7B6C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFg">#FFFFFF</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
+                    <SolidColorBrush x:Key="Bg1">#2A2C30</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgEditor">#1F1F1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgHover">#34373C</SolidColorBrush>
+                    <SolidColorBrush x:Key="Border">#3C3F45</SolidColorBrush>
+                    <SolidColorBrush x:Key="Fg">#E6E8EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="FgMuted">#A9AEB7</SolidColorBrush>
+                    <SolidColorBrush x:Key="Accent">#3DC2AC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFg">#00201A</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="Window.shell">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, SF Pro Text, Helvetica Neue, Arial" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Background" Value="{DynamicResource Bg0}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+
+        <Style Selector="Border.mark">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style Selector="Border.mark TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentFg}" />
+        </Style>
+
+        <Style Selector="Menu > MenuItem">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,3" />
+        </Style>
+
+        <Style Selector="TabStripItem">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,1,0" />
+            <Setter Property="CornerRadius" Value="7,7,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TabStripItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="TabStripItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="TabStripItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+        </Style>
+        <Style Selector="TabStripItem:pointerover:not(:selected) /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+
+        <!-- Avalonia draws the title text and a full-screen button in the window decorations; D5 keeps only the system buttons -->
+        <Style Selector="Panel#PART_TitleTextPanel">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="Button#PART_FullScreenButton">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="Button.tabclose">
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.tabclose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="Button.tabclose Path">
+            <Setter Property="Stroke" Value="{DynamicResource FgMuted}" />
+        </Style>
+
+        <Style Selector="Border.content">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+        </Style>
+        <Style Selector="Border.sidepanel">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+        </Style>
+        <Style Selector="Border.statusbar TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+
+        <Style Selector="TextBox.editor">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="TextBox.editor:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TextBox.editor:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+        </Style>
+    </Application.Styles>
+</Application>

@@ -1,0 +1,76 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace NksHub.Textida.App.Profile;
+
+/// <summary>Where the profile lives: next to the executable when it carries a marker file, else in the user's profile.</summary>
+public static class ProfileLocation
+{
+    public const string PortableMarker = "textida.portable";
+    public const string PortableFolder = "profile";
+
+    /// <summary>Pure rule so it can be tested without touching the disk.</summary>
+    public static string Resolve(string exeDirectory, bool markerExists, bool isMac, string homeDirectory, string appDataDirectory)
+    {
+        if (markerExists) return Path.Combine(exeDirectory, PortableFolder);
+        return isMac
+            ? Path.Combine(homeDirectory, "Library", "Application Support", "Textida")
+            : Path.Combine(appDataDirectory, "Textida");
+    }
+
+    public static string ResolveForThisMachine()
+    {
+        var exeDir = AppContext.BaseDirectory;
+        return Resolve(exeDir, File.Exists(Path.Combine(exeDir, PortableMarker)), OperatingSystem.IsMacOS(),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+    }
+}
+
+/// <summary>Last window geometry. Size is in device-independent units, position in physical pixels.</summary>
+public sealed class SavedWindow
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
+    public bool Maximized { get; set; }
+}
+
+/// <summary>User settings. Values are language-neutral tags, never translated text.</summary>
+public sealed class Settings
+{
+    public string Language { get; set; } = "cs";
+    /// <summary>"system", "light" or "dark".</summary>
+    public string Theme { get; set; } = "system";
+}
+
+[JsonSerializable(typeof(SavedWindow))]
+[JsonSerializable(typeof(Settings))]
+[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+internal sealed partial class ProfileJson : JsonSerializerContext;
+
+/// <summary>Reads and writes the profile files. A missing or damaged file yields defaults instead of blocking startup.</summary>
+public sealed class ProfileStore(string directory)
+{
+    public string Directory { get; } = directory;
+
+    public SavedWindow? LoadWindow() => Load("window.json", ProfileJson.Default.SavedWindow);
+    public void SaveWindow(SavedWindow state) => Save("window.json", state, ProfileJson.Default.SavedWindow);
+    public Settings LoadSettings() => Load("settings.json", ProfileJson.Default.Settings) ?? new Settings();
+    public void SaveSettings(Settings settings) => Save("settings.json", settings, ProfileJson.Default.Settings);
+
+    private T? Load<T>(string file, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> info) where T : class
+    {
+        try { return JsonSerializer.Deserialize(File.ReadAllText(System.IO.Path.Combine(Directory, file)), info); }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { return null; }
+    }
+
+    private void Save<T>(string file, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> info)
+    {
+        System.IO.Directory.CreateDirectory(Directory);
+        var path = System.IO.Path.Combine(Directory, file);
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(value, info));
+        File.Move(temp, path, overwrite: true);
+    }
+}

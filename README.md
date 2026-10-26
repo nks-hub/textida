@@ -12,12 +12,12 @@ Textida is a working name. The editor is a new program inspired by PSPad; it doe
 
 What exists in the repository today:
 
-- 📄 **Paged document core** - `NksPad.Core` maps the file into memory and keeps edits in a piece tree with undo. On the reference Windows VM (4 cores, 16 GiB RAM, virtual disk) the first screen of a 50 GiB file renders in 1.8 ms warm and 19.5 ms cold, with about 110 MiB private memory.
+- 📄 **Paged document core** - `NksHub.Textida.Core` maps the file into memory and keeps edits in a piece tree with undo. On the reference Windows VM (4 cores, 16 GiB RAM, virtual disk) the first screen of a 50 GiB file renders in 1.8 ms warm and 19.5 ms cold, with about 110 MiB private memory.
 - ✏️ **Editing large files** - line counts stay correct after edits without a rescan. A 100 MiB file takes its first edit in under 40 ms (p95, warm) and adds at most 1.2 MiB of memory; inserting a character costs about 1 µs.
 - 💾 **Byte-exact saving** - untouched ranges are written back byte for byte; saved files are checked against SHA-256 of an independently built expected file.
 - 🔍 **Search** - literal and regex search over the paged document with cancellation. On 4 cores it takes 0.01-0.6 of the time of `rg --json` on the same data, with identical match counts.
 - 🔤 **Encoding detection** - BOM, UTF-8 validation (parallel, 15 GB/s on 4 cores of the reference VM), UTF-16 without BOM and a single-byte fallback to CP1250.
-- 📊 **Benchmarks** - `bench/NksPad.Bench` generates its own corpus and reproduces every number above.
+- 📊 **Benchmarks** - `bench/NksHub.Textida.Bench` generates its own corpus and reproduces every number above.
 
 The application itself (window, tabs, menus) is being built in stage P1.
 
@@ -43,8 +43,8 @@ dotnet test
 Generate the benchmark corpus and run a scenario:
 
 ```bash
-dotnet run -c Release --project bench/NksPad.Bench -- corpus --corpus ./bench-data/corpus --results ./bench-data/results
-dotnet run -c Release --project bench/NksPad.Bench -- a3 text-1GiB.log --corpus ./bench-data/corpus --results ./bench-data/results
+dotnet run -c Release --project bench/NksHub.Textida.Bench -- corpus --corpus ./bench-data/corpus --results ./bench-data/results
+dotnet run -c Release --project bench/NksHub.Textida.Bench -- a3 text-1GiB.log --corpus ./bench-data/corpus --results ./bench-data/results
 ```
 
 The corpus with the 10 GiB and 50 GiB files needs about 130 GB of free disk space. `bench/run-mac.sh` runs the macOS size profile.
@@ -52,11 +52,11 @@ The corpus with the 10 GiB and 50 GiB files needs about 130 GB of free disk spac
 ## Development
 
 ```bash
-dotnet build NksPad.sln
-dotnet test tests/NksPad.Core.Tests
+dotnet build NksHub.Textida.sln
+dotnet test tests/NksHub.Textida.Core.Tests
 ```
 
-Namespaces keep the `NksPad` prefix until the final product name is confirmed. The task list for all stages is in [TODO.md](TODO.md) (Czech).
+Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 
 ## Contributing
 

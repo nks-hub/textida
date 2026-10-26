@@ -31,7 +31,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
   - **Co a proč:** Každý commit se sestaví a otestuje na Windows (win-x64) i macOS (osx-arm64). macOS je povinná platforma, testy jádra už na Macu prošly ručně. Testy knihoven pod JIT jsou oddělené od testů publikovaného AOT programu (PR.1.2).
   - **Funkce:** žádná (infrastruktura)
   - **Kroky:**
-    - build celého `NksPad.sln` a `dotnet test` na obou OS
+    - build celého `NksHub.Textida.sln` a `dotnet test` na obou OS
     - testy UI headless; testy, které potřebují data PSPadu, z produktových sad vyřadit (kap. 7)
     - kontrola, že produktová sada a instalátor projdou bez dat reverzní analýzy, ne jen podle názvů cest
     - rychlé kontroly při každém commitu na novějších systémech; úplná matice R10 ze seznamu P1.1.6 před každým vydáním (PR.1.3)
@@ -69,7 +69,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
 Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní měření P0 z 25. 10. 2026 je historické: Windows jen warm na silnějším vývojovém PC (Ryzen 9 7900X3D), Mac na referenční Mac starším kódem prototypu (commit 15e3ebb) a s neznámým stavem cache. Dne 26. 10. 2026 proběhlo měření jádra a prototypu na referenční Windows VM včetně cold. Jeho cold znamená cold ve virtuálu se stavem cache hostitele neznámým a start běžel jen v session 0 bez prezentace. Ani jedno měření není měření produktu; produkt se měří znovu.
 
 - [ ] **PR.2.1** Korpus a malé fixture soubory v testech
-  - **Co a proč:** Korpus z plánu musí běžet automaticky: UTF-8 (ASCII i čeština), UTF-16 LE/BE, UTF-32 LE/BE s BOM i bez něj, CP1250/CP1252, Kamenický, poškozené sekvence a vícebajtový znak na hranici bloku, lichý nebo neúplný konec UTF-16 a UTF-32, dlouhé řádky, minifikovaný JSON, logy, CSV s víceřádkovou buňkou, CRLF rozdělené mezi bloky. Generátor velkých souborů je hotový v `bench/NksPad.Bench`. Dnešní `text-100MiB.log` má 104 857 600 B, ale 103 247 302 znaků, protože obsahuje i české zprávy; je to UTF-8 log, ne čistý ASCII vstup paměťové brány kap. 3.
+  - **Co a proč:** Korpus z plánu musí běžet automaticky: UTF-8 (ASCII i čeština), UTF-16 LE/BE, UTF-32 LE/BE s BOM i bez něj, CP1250/CP1252, Kamenický, poškozené sekvence a vícebajtový znak na hranici bloku, lichý nebo neúplný konec UTF-16 a UTF-32, dlouhé řádky, minifikovaný JSON, logy, CSV s víceřádkovou buňkou, CRLF rozdělené mezi bloky. Generátor velkých souborů je hotový v `bench/NksHub.Textida.Bench`. Dnešní `text-100MiB.log` má 104 857 600 B, ale 103 247 302 znaků, protože obsahuje i české zprávy; je to UTF-8 log, ne čistý ASCII vstup paměťové brány kap. 3.
   - **Funkce:** žádná (infrastruktura)
   - **Kroky:**
     - nový fixture: čistý ASCII text 100 MiB (jen bajty 0x20–0x7E a LF), s pevným SHA-256 zapsaným v korpusu
@@ -236,20 +236,20 @@ P0 je uzavřená (5–7 ČT). Výsledky: měření, screenshoty v měření.
 
 ### P0.1 Výsledky
 
-- [x] **P0.1.1** Stránkované jádro `src/NksPad.Core`
+- [x] **P0.1.1** Stránkované jádro `src/NksHub.Textida.Core`
   - **Co a proč:** Dokument nad souborem mapovaným do paměti, strom úseků s undo, líný index řádků, uložení streamem, detekce kódování, hledání literálu a regexu se zrušením. 59 testů prošlo na Windows i macOS.
   - **Funkce:** žádná (P0 ověřovalo technologii)
   - **Hotovo, když:** splněno; brána P0 jádro přijala.
   - **Závisí na:** žádná
   - **Odhad:** součást P0
-- [x] **P0.1.2** Měřicí harness `bench/NksPad.Bench`
+- [x] **P0.1.2** Měřicí harness `bench/NksHub.Textida.Bench`
   - **Co a proč:** Generátor korpusu, měření A1–A7, scénář `hex`, skript `bench/run-mac.sh` pro macOS.
   - **Funkce:** žádná (P0 ověřovalo technologii)
   - **Hotovo, když:** splněno; výsledky v měření.
   - **Závisí na:** žádná
   - **Odhad:** součást P0
-- [x] **P0.1.3** Prototyp UI `src/NksPad.P0.App` a headless testy
-  - **Co a proč:** Avalonia 12, karty, paleta, Goto Anything, víc kurzorů jako vrstva nad AvaloniaEdit, Code Explorer, velký soubor, inspektor kódování, varianty vzhledu. Screenshoty a měření UI z `tests/NksPad.P0.App.Tests`.
+- [x] **P0.1.3** Prototyp UI `src/NksHub.Textida.P0.App` a headless testy
+  - **Co a proč:** Avalonia 12, karty, paleta, Goto Anything, víc kurzorů jako vrstva nad AvaloniaEdit, Code Explorer, velký soubor, inspektor kódování, varianty vzhledu. Screenshoty a měření UI z `tests/NksHub.Textida.P0.App.Tests`.
   - **Funkce:** žádná (P0 ověřovalo technologii)
   - **Hotovo, když:** splněno; verdikty v měření.
   - **Závisí na:** žádná
@@ -264,14 +264,14 @@ P0 je uzavřená (5–7 ČT). Výsledky: měření, screenshoty v měření.
 ### P0.2 Co se pro produkt přepíše
 
 Prototyp P0 není základ produktu. Z něj se přebírají ověřené postupy, kód se píše znovu:
-- `NksPad.P0.App` má ukázková data. Hledání v souborech, náhrada, hot exit, uložení nastavení a import jsou jen vzhled; panel souborů nevidí disk.
+- `NksHub.Textida.P0.App` má ukázková data. Hledání v souborech, náhrada, hot exit, uložení nastavení a import jsou jen vzhled; panel souborů nevidí disk.
 - Karty a řádky palety jsou `Border` bez role a fokusu; nahradí je `TabStrip`, `ListBox`, `Button`.
 - `PspadScan.cs` a průvodce importem čtou data PSPadu z lokální kopie PSPadu. To do produktu nesmí (kap. 7, licence bod 3).
 - `MultiCaret` drží výběry jako čísla, ne kotvy, a undo obnoví jen primární kurzor.
 - TextMate zvýrazňování se nahradí vlastním zvýrazňovačem.
 - Přepínače vzhledů `--variant` a `--look` zůstanou jen v prototypu; produkt má jen D5.
-- `NksPad.Core`: po úpravě chybí čísla řádků, UTF-16 stránkovaný zdroj chybí, add buffer má limit 2 GiB, úpravy během uložení se odmítají, uložení přes otevřený soubor smaže undo a hledání běží jen nad souborem na disku.
-- Prototyp hex mřížky je jen v benchmarku (`bench/NksPad.Bench/HexView.cs`).
+- `NksHub.Textida.Core`: po úpravě chybí čísla řádků, UTF-16 stránkovaný zdroj chybí, add buffer má limit 2 GiB, úpravy během uložení se odmítají, uložení přes otevřený soubor smaže undo a hledání běží jen nad souborem na disku.
+- Prototyp hex mřížky je jen v benchmarku (`bench/NksHub.Textida.Bench/HexView.cs`).
 
 ## P1 – bezpečný základ
 
@@ -284,13 +284,13 @@ Souběžně mohou běžet kostra, D5 a CI (P1.1) a čisté jádro dokumentu (P1.
 Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT a ve vzhledu D5 na obou OS.
 
 - [ ] **P1.1.1** Produkční projekt aplikace
-  - **Co a proč:** Nový projekt aplikace vedle `NksPad.Core`, bez kódu prototypu, který čte data PSPadu. Start rovnou do pracovní plochy, bez povinného dialogu šablon. Umístění profilu portable i uživatelské. Poloha okna se obnoví na dostupném monitoru.
+  - **Co a proč:** Nový projekt aplikace vedle `NksHub.Textida.Core`, bez kódu prototypu, který čte data PSPadu. Start rovnou do pracovní plochy, bez povinného dialogu šablon. Umístění profilu portable i uživatelské. Poloha okna se obnoví na dostupném monitoru.
   - **Funkce:** F002, F021, F143
   - **Kroky:**
-    - projekt aplikace a testovací projekt v `NksPad.sln`
+    - projekt aplikace a testovací projekt v `NksHub.Textida.sln`
     - umístění profilu: portable vedle aplikace nebo v profilu uživatele, vlastní formát
     - obnova polohy okna s kontrolou monitoru
-  - **Stav 26. 10. 2026:** projekt `NksPad.App` hotový (commity 6829658, ecf1cf1): start do prázdné plochy, profil portable i uživatelský, umístění okna jako čistá funkce s 12 testy včetně odpojeného monitoru. Neověřeno odpojení skutečného monitoru.
+  - **Stav 26. 10. 2026:** projekt `NksHub.Textida.App` hotový (commity 6829658, ecf1cf1): start do prázdné plochy, profil portable i uživatelský, umístění okna jako čistá funkce s 12 testy včetně odpojeného monitoru. Neověřeno odpojení skutečného monitoru.
   - **Hotovo, když:** aplikace startuje na Windows i macOS do prázdné pracovní plochy; po odpojení monitoru se okno otevře na dostupném; nic v projektu nečte soubory PSPadu a produktová sada projde bez dat reverzní analýzy.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu
@@ -467,7 +467,7 @@ Bajtová věrnost je hlavní slib produktu (kap. 5.1) a mezera na trhu. Chován�
 - [ ] **P1.3.1** Detekce kódování
   - **Co a proč:** Pořadí BOM → sonda UTF-8 nad celým vzorkem → statistický odhad 8bitové stránky → výchozí kódování (`10` kap. 1, 2, 10). Statistika má vlastní tabulky, tabulky z binárky PSPadu se nepřebírají. Nejistota se přizná a nabídne volbu. Rozšíří se `EncodingDetector` z P0 o Kamenický a UTF-32 (`10` kap. 10 bod 6). Detekce sama není podpora: čtení a zápis UTF-32 řeší P1.3.2 a P3.1.2.
   - **Funkce:** F014
-  - **Stav 26. 10. 2026:** služba hotová v `NksPad.Core.Encodings` (`EncodingGuesser.Guess`, commity 3c81d47–166a380): fixture s BOM a jednoznačné fixture (UTF-8/16/32 s BOM i bez, CP1250, CP1252, ISO-8859-2, Kamenický podle veřejné tabulky) mají jistotu ≥ 0,8, `café` v CP1252 vrací nejistotu s alternativami, prázdný soubor UTF-8. Zbývá zobrazení nejistoty a ruční volba ve stavovém řádku (P1.4.6). Neumí: UTF-16 bez BOM s CJK textem.
+  - **Stav 26. 10. 2026:** služba hotová v `NksHub.Textida.Core.Encodings` (`EncodingGuesser.Guess`, commity 3c81d47–166a380): fixture s BOM a jednoznačné fixture (UTF-8/16/32 s BOM i bez, CP1250, CP1252, ISO-8859-2, Kamenický podle veřejné tabulky) mají jistotu ≥ 0,8, `café` v CP1252 vrací nejistotu s alternativami, prázdný soubor UTF-8. Zbývá zobrazení nejistoty a ruční volba ve stavovém řádku (P1.4.6). Neumí: UTF-16 bez BOM s CJK textem.
   - **Hotovo, když:** soubory s BOM a vlastní jednoznačné fixture mají přesně určený výsledek a dostanou ho; nejednoznačný vzorek má v testu očekávanou nejistotu, stavový řádek ji ukáže a nabídne ruční volbu; prázdný soubor dostane určené výchozí kódování.
   - **Závisí na:** P1.2.1, PR.2.1
   - **Odhad:** bez odhadu
@@ -564,14 +564,14 @@ Neuložená práce přežije restart i pád. Žurnál je oddělený od automatic
 - [ ] **P1.5.1** Žurnál relace: pády a limit ztráty
   - **Co a proč:** Společný žurnál relace a snapshoty pro každý backend. Nepojmenovaný i změněný dokument přežije restart a pád. Ukládá se i stav pracovní plochy: karty a jejich skutečný neuložený obsah. Položka spojuje části P1.5.3–P1.5.5 a ověřuje celek.
   - **Funkce:** F150, F027
-  - **Stav 26. 10. 2026:** jádro hotové (commity 9832275–1e21479): harness `tests/NksPad.Journal.CrashHarness` zabíjí skutečný proces v náhodném okamžiku a porovnává s orákulem; 3 běhy (200, 300 a 200 iterací, celkem přes 53 000 operací) bez chyby, největší ztráta 920 ms při limitu 2000 ms, 371 useknutých nebo poškozených konců žurnálu rozpoznáno. Zbývá lišta „co se vrátilo“ v aplikaci.
+  - **Stav 26. 10. 2026:** jádro hotové (commity 9832275–1e21479): harness `tests/NksHub.Textida.Journal.CrashHarness` zabíjí skutečný proces v náhodném okamžiku a porovnává s orákulem; 3 běhy (200, 300 a 200 iterací, celkem přes 53 000 operací) bez chyby, největší ztráta 920 ms při limitu 2000 ms, 371 useknutých nebo poškozených konců žurnálu rozpoznáno. Zbývá lišta „co se vrátilo“ v aplikaci.
   - **Hotovo, když:** zabití procesu během psaní a nový start obnoví všechny karty včetně nepojmenovaných se ztrátou nejvýš 2 s žurnálu (kap. 3), změřeno podle časových značek žurnálu; pád během zápisu žurnálu nepoškodí předchozí potvrzený stav; po obnově lišta ukáže, co se vrátilo.
   - **Závisí na:** P1.5.3, P1.5.4, P1.5.5
   - **Odhad:** F150 4–6 ČT (matice) za P1.5.1 a P1.5.3–P1.5.5; F027 bez odhadu
 - [x] **P1.5.3** Formát žurnálu
   - **Co a proč:** Verzovaný formát žurnálu s kontrolním součtem záznamu a body potvrzení. Stejný žurnál použije uložení hexu na místo (P3.5.5), dávka náhrad (P2.5.6) a revize změn F178.
   - **Funkce:** F150 (částečně: formát)
-  - **Stav 26. 10. 2026:** hotovo: verzovaný formát s CRC na záznam, zápis po dávkách s fsync každých 500 ms (interval nad 1 s se odmítne), bezpečná komprese; uříznutí na každém bajtu a otočení libovolného bitu vrátí právě předchozí záznamy; rozložení 2 (kodek podle `TextCodec.Name`) čte i rozložení 1 migrací. Popis v `src/NksPad.Core/Journal/FORMAT.md`.
+  - **Stav 26. 10. 2026:** hotovo: verzovaný formát s CRC na záznam, zápis po dávkách s fsync každých 500 ms (interval nad 1 s se odmítne), bezpečná komprese; uříznutí na každém bajtu a otočení libovolného bitu vrátí právě předchozí záznamy; rozložení 2 (kodek podle `TextCodec.Name`) čte i rozložení 1 migrací. Popis v `src/NksHub.Textida.Core/Journal/FORMAT.md`.
   - **Hotovo, když:** useknutý nebo poškozený poslední záznam se při čtení pozná a zahodí bez ztráty předchozích; starší verze formátu se přečte testovanou migrací.
   - **Závisí na:** P1.2.4
   - **Odhad:** v rámci F150 (viz P1.5.1)
@@ -963,7 +963,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
 ### P3.3 Minimapa
 
 - [ ] **P3.3.1** Minimapa D5
-  - **Co a proč:** Vpravo zmenšený obraz textu v barvách zvýraznění, průhledný obdélník viditelné části, posun tažením. U velkého souboru vzorkovaný obraz a značky shod filtrů v celém souboru (ERROR červeně, timeout žlutě). Značky změn až později. Prototyp je `src/NksPad.P0.App/Minimap.cs`.
+  - **Co a proč:** Vpravo zmenšený obraz textu v barvách zvýraznění, průhledný obdélník viditelné části, posun tažením. U velkého souboru vzorkovaný obraz a značky shod filtrů v celém souboru (ERROR červeně, timeout žlutě). Značky změn až později. Prototyp je `src/NksHub.Textida.P0.App/Minimap.cs`.
   - **Funkce:** F161
   - **Hotovo, když:** tažení v minimapě posouvá editor bez zpoždění nad cíl 33 ms; u 10GiB souboru se ukáže vzorkovaná mapa se značkami filtrů a nenačítá se celý soubor.
   - **Závisí na:** P3.1.1, P3.2.1
@@ -985,7 +985,7 @@ Plný hex editor už v MVP (rozhodnutí majitele 25. 10. 2026, kap. 5.5). Hex a 
 Hotovo celku (kap. 6 P3): 10GiB soubor v hexu: skok na `end-512`, přepis 4 B, vložení 1 B, undo, redo, uložení; binární rozdíl obsahuje jen tyto rozsahy i po přepnutí text ↔ hex; hledání `50 4B ?? 04` najde stejný počet jako nezávislý průchod i po úpravě; uint32 BE zapsaný v inspektoru jde vrátit jedním undo; vše bez myši na Windows i macOS, s NVDA i VoiceOverem.
 
 - [ ] **P3.5.1** Služba `ByteSearch` v jádru
-  - **Co a proč:** Nová služba hledá nad stromem úseků, i v upraveném dokumentu. Libovolné bajty včetně `0A` a `0D`, zástupné znaky na bajt (`??`) i půlbajt (`4?`), žádné dělení podle řádků, výsledek s revizí. Dnešní `PagedSearch` neumí zástupné znaky ani vzor s LF a hledá jen v původním souboru. Druhy dotazu: hex, text v kódování, číslo s typem; najít vše do karty výsledků. Vzorové hledání v `bench/NksPad.Bench/HexView.cs` není produktová služba.
+  - **Co a proč:** Nová služba hledá nad stromem úseků, i v upraveném dokumentu. Libovolné bajty včetně `0A` a `0D`, zástupné znaky na bajt (`??`) i půlbajt (`4?`), žádné dělení podle řádků, výsledek s revizí. Dnešní `PagedSearch` neumí zástupné znaky ani vzor s LF a hledá jen v původním souboru. Druhy dotazu: hex, text v kódování, číslo s typem; najít vše do karty výsledků. Vzorové hledání v `bench/NksHub.Textida.Bench/HexView.cs` není produktová služba.
   - **Funkce:** F235
   - **Hotovo, když:** hledání `50 4B ?? 04` v 10GiB souboru najde stejné uspořádané offsety jako nezávislý naivní průchod, před úpravou i po ní; projdou i vzory s půlbajtem, s LF a s NUL, vzor přes hranici úseků, text v kódování a číslo s typem; počet výsledků jde omezit a karta dosažení limitu ohlásí.
   - **Závisí na:** P0.1.1, P1.2.4
@@ -1106,7 +1106,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
     - [x] rešerše známek „Textida“ (26. 10. 2026): Rešerše známek 26. 10. 2026 v TMview (EUIPO, ÚPV, USPTO, WIPO a další národní úřady), podobnostní hledání „textida“: shodné znění TEXTIDA mají jen dvě **zaniklé** francouzské známky (INPI 950860 z 1976 a 3270089 z 2004, třídy 24 a 25, textil a oděvy). Platná podobná znění ve třídách 9 nebo 42 (software): **Textima** (DPMA 3020140525968, platná, třídy 7, 37, 42) a TEXTINA (CNIPA, Čína, třídy 9 a 42). Ve třídě 9 ani 42 v EU platná shodná známka není. Není to právní posudek; před registrací vlastní známky ji má posoudit odborník.
     - rozhodnout, zda přihlásit vlastní známku (EUIPO nebo ÚPV, třídy 9 a 42), a nechat posoudit podobnost s Textima
     - zaregistrovat domény, které majitel zvolí
-    - přejmenovat jmenné prostory `NksPad.*`, sestavení, bundle ID a ID příkazů na konečné jméno
+    - přejmenovat jmenné prostory `NksHub.Textida.*`, sestavení, bundle ID a ID příkazů na konečné jméno
   - **Funkce:** žádná (rozhodnutí a záznam)
   - **Hotovo, když:** majitel potvrdil Textidu jako konečné jméno (R2) po rešerši známek a rozhodl o vlastní přihlášce a v repozitáři je zapsané: jméno, bundle ID pro macOS, identifikátory instalátoru a aktualizací pro Windows, jméno balíku SDK a prefix ID příkazů, pokud se mění; dokud rozhodnutí chybí, platí pracovní název a žádný veřejný balík nevznikne.
   - **Závisí na:** žádná
@@ -2194,7 +2194,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
 ### P8b.2 Veřejné SDK a ověřování
 
 - [ ] **P8b.2.1** Veřejné C# SDK
-  - **Co a proč:** NuGet `NksPad.Plugin.Sdk` (AOT, `net10.0`), šablona `dotnet new nkspad-plugin` pro `win-x64`, `osx-arm64`, `osx-x64`, JSON Schema API, testovací hostitel bez editoru. Dokumentace kontraktů a skutečných chybových stavů pro celé široké API: P3b, vzdálené zdroje, diff a stage, náhled, panel agenta a virtuální dokumenty z P6.2, symboly a snippety z P3b.3.5, diagnostika, doplňování a workspace edit z P8.4. Definice API generují DTO, schéma a základ dokumentace; ručně se píše sémantika, chybové stavy a scénáře. Jazyk SDK a jeho dokumentace určuje matice P1.1.7; čtyři jazyky UI se na něj automaticky nevztahují. SDK se nepřibaluje do instalátoru editoru.
+  - **Co a proč:** NuGet `NksHub.Textida.Plugin.Sdk` (AOT, `net10.0`), šablona `dotnet new nkspad-plugin` pro `win-x64`, `osx-arm64`, `osx-x64`, JSON Schema API, testovací hostitel bez editoru. Dokumentace kontraktů a skutečných chybových stavů pro celé široké API: P3b, vzdálené zdroje, diff a stage, náhled, panel agenta a virtuální dokumenty z P6.2, symboly a snippety z P3b.3.5, diagnostika, doplňování a workspace edit z P8.4. Definice API generují DTO, schéma a základ dokumentace; ručně se píše sémantika, chybové stavy a scénáře. Jazyk SDK a jeho dokumentace určuje matice P1.1.7; čtyři jazyky UI se na něj automaticky nevztahují. SDK se nepřibaluje do instalátoru editoru.
   - **Funkce:** F202
   - **Hotovo, když:** plugin vytvořený šablonou se sestaví pro tři RID a projde testovacím hostitelem s přehranými událostmi; každý příklad v dokumentaci se v CI sestaví a spustí proti aktuálnímu API; každý chybový stav API má v dokumentaci popis a postup návratu.
   - **Závisí na:** P3b.5.1, P8b.1.1, P3b.3.5, P6.2.3, P6.2.2, P6.2.4, P6.2.5, P6.2.6, P8.4.2, P8.4.3
