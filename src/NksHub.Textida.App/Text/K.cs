@@ -334,6 +334,7 @@ public static class K
     public const string RegexTimedOut = "regex.timedOut";
     public const string RegexTruncated = "regex.truncated";
     public const string RegexDialect = "regex.dialect";
+    public const string RegexLimits = "regex.limits";
     public const string RegexExplainLiteral = "regex.explain.literal";
     public const string RegexExplainAny = "regex.explain.any";
     public const string RegexExplainDigit = "regex.explain.digit";

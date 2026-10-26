@@ -11,6 +11,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
@@ -98,6 +99,7 @@ public sealed partial class App : Application
         Workbench.SetLanguage(Settings.Language);
         Loc.SetLanguage(Settings.Language);
         ApplyThemeVariant();
+        ApplyRegexTimeout();
 
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
@@ -257,8 +259,13 @@ public sealed partial class App : Application
                 Loc.SetLanguage(Settings.Language);
                 foreach (var w in _windows) w.ApplyTexts();
                 break;
+            case "search.regexTimeoutMs":
+                ApplyRegexTimeout();
+                break;
         }
     }
+
+    private void ApplyRegexTimeout() => RegexTools.MatchTimeoutMs = (int)Workbench.Settings.GetInt("search.regexTimeoutMs");
 
     private void ApplyThemeVariant() => RequestedThemeVariant = Settings.Theme switch
     {

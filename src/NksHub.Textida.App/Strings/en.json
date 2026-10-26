@@ -338,6 +338,7 @@
   "regex.timedOut": "The pattern ran too long on this text and was stopped.",
   "regex.truncated": "Only the first {max} matches are listed.",
   "regex.dialect": "Dialect: .NET regular expressions, the same engine as the search. In the replacement: $1, $& and case conversion \\U \\L \\E \\u \\l.",
+  "regex.limits": "Not in .NET (PCRE only): possessive quantifiers (a++), \\K \\R \\h \\H \\X \\N \\g1, \\Q...\\E, recursion (?R) (?1), branch reset (?|...), verbs (*SKIP) (*FAIL), POSIX classes [[:alpha:]], (?P<name>...). Use (?>...) instead of a possessive quantifier and \\p{{L}} instead of a POSIX class. A pattern with a backreference, lookaround or atomic group runs in the slower backtracking engine and is stopped after the time limit in the settings; every other pattern runs in linear time.",
   "regex.explain.literal": "Text “{arg}”",
   "regex.explain.any": "Any character except a line break",
   "regex.explain.digit": "A digit",
