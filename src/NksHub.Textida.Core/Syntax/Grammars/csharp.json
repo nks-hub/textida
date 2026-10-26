@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "csharp",
   "name": "C#",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
   "version": "1.0.0",
   "extensions": [".cs", ".csx", ".cake"],
   "wordPattern": "@?[\\p{L}_][\\p{L}\\p{N}_]*",

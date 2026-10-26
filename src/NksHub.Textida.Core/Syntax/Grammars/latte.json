@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "latte",
   "name": "Latte",
+  "comments": {"block": ["{*", "*}"]},
   "version": "1.0.0",
   "extensions": [".latte"],
   "wordPattern": "[A-Za-z_][\\w]*",

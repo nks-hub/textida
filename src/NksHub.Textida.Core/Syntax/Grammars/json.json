@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "json",
   "name": "JSON",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
   "version": "1.0.0",
   "extensions": [".json", ".jsonc", ".geojson", ".webmanifest", ".har"],
   "fileNames": [".babelrc", ".eslintrc", "composer.lock"],

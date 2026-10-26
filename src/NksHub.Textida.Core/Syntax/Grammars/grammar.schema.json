@@ -18,6 +18,15 @@
     "caseSensitive": { "type": "boolean", "default": true, "description": "Applies to every pattern and keyword of the grammar unless a keyword group overrides it." },
     "wordPattern": { "type": "string", "description": "What a word is for the keyword groups. Default: letters, digits and underscore, not starting with a digit." },
     "keywords": { "type": "array", "items": { "$ref": "#/$defs/keywordGroup" }, "description": "Words that get a token kind when a { \"words\": true } rule matches them." },
+    "comments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": { "type": "string", "minLength": 1, "description": "Marker that comments out the rest of a line (//, #, --)." },
+        "block": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 2, "maxItems": 2, "description": "Opening and closing marker of a block comment." }
+      },
+      "description": "Markers the Toggle comment command writes. A grammar without a line marker comments lines with the block markers."
+    },
     "repository": { "type": "object", "additionalProperties": { "$ref": "#/$defs/rules" }, "description": "Named rule lists for { \"include\": \"#name\" }." },
     "rules": { "$ref": "#/$defs/rules", "description": "Rules at the top level of the file." }
   },

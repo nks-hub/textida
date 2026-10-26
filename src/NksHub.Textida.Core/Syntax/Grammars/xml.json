@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "xml",
   "name": "XML",
+  "comments": {"block": ["<!--", "-->"]},
   "version": "1.0.0",
   "extensions": [
     ".xml", ".xsd", ".xsl", ".xslt", ".svg", ".rss", ".atom", ".plist", ".resx", ".xaml", ".axaml",

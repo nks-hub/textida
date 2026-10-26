@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "python",
   "name": "Python",
+  "comments": {"line": "#"},
   "version": "1.0.0",
   "extensions": [".py", ".pyw", ".pyi", ".pyx", ".gyp", ".gypi", ".bzl", ".sc"],
   "firstLine": "^#!.*\\bpython",

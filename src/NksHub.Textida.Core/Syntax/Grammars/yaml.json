@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "yaml",
   "name": "YAML",
+  "comments": {"line": "#"},
   "version": "1.0.0",
   "extensions": [".yml", ".yaml"],
   "fileNames": [".clang-format", ".clang-tidy"],

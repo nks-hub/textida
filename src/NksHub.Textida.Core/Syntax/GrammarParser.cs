@@ -6,7 +6,8 @@ namespace NksHub.Textida.Core.Syntax;
 /// <summary>Reads a grammar file strictly: unknown properties and malformed values are errors, so a typo in a rule is not silently ignored.</summary>
 internal static class GrammarParser
 {
-    private static readonly HashSet<string> TopKeys = ["$schema", "formatVersion", "id", "name", "version", "extensions", "fileNames", "firstLine", "caseSensitive", "wordPattern", "keywords", "repository", "rules"];
+    private static readonly HashSet<string> TopKeys = ["$schema", "formatVersion", "id", "name", "version", "extensions", "fileNames", "firstLine", "caseSensitive", "wordPattern", "keywords", "comments", "repository", "rules"];
+    private static readonly HashSet<string> CommentKeys = ["line", "block"];
     private static readonly HashSet<string> GroupKeys = ["name", "token", "words", "caseSensitive"];
     private static readonly HashSet<string> RuleKeys = ["match", "words", "operators", "begin", "include", "token", "end", "beginToken", "endToken", "multiline", "rules", "embed", "name"];
     private static readonly Regex KindPattern = new(@"^[a-z][a-z0-9]*(\.[a-z0-9]+)*$", RegexOptions.CultureInvariant);
@@ -49,6 +50,20 @@ internal static class GrammarParser
             {
                 if (groups.ValueKind != JsonValueKind.Array) throw new GrammarException($"{id}: keywords must be an array.");
                 foreach (var group in groups.EnumerateArray()) ParseGroup(g, group);
+            }
+
+            if (root.TryGetProperty("comments", out var comments))
+            {
+                if (comments.ValueKind != JsonValueKind.Object) throw new GrammarException($"{id}: comments must be an object.");
+                CheckKeys(comments, CommentKeys, id + ".comments");
+                g.LineComment = OptionalString(comments, "line") is { Length: > 0 } line ? line : comments.TryGetProperty("line", out _)
+                    ? throw new GrammarException($"{id}.comments.line must not be empty.") : null;
+                if (comments.TryGetProperty("block", out _))
+                {
+                    var block = StringList(comments, "block");
+                    if (block.Count != 2 || block.Any(m => m.Length == 0)) throw new GrammarException($"{id}.comments.block must be two non-empty markers.");
+                    g.BlockComment = (block[0], block[1]);
+                }
             }
 
             if (root.TryGetProperty("repository", out var repo))

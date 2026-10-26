@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "php-code",
   "name": "PHP code",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
   "version": "1.0.0",
   "caseSensitive": false,
   "keywords": [

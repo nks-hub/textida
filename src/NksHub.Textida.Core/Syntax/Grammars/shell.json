@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "shell",
   "name": "Shell",
+  "comments": {"line": "#"},
   "version": "1.0.0",
   "extensions": [".sh", ".bash", ".zsh", ".ksh", ".bashrc", ".zshrc", ".profile", ".env"],
   "fileNames": [".bashrc", ".bash_profile", ".zshrc", ".profile", "PKGBUILD"],

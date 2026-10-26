@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "neon",
   "name": "NEON",
+  "comments": {"line": "#"},
   "version": "1.0.0",
   "caseSensitive": false,
   "extensions": [".neon", ".neon.dist"],

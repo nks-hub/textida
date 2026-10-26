@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "ini",
   "name": "INI",
+  "comments": {"line": ";"},
   "version": "1.0.0",
   "extensions": [".ini", ".cfg", ".conf", ".properties", ".editorconfig", ".gitconfig"],
   "caseSensitive": false,

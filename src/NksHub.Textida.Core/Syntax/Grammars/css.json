@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "css",
   "name": "CSS",
+  "comments": {"block": ["/*", "*/"]},
   "version": "1.0.0",
   "extensions": [".css", ".pcss", ".postcss"],
   "caseSensitive": false,

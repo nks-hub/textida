@@ -55,7 +55,7 @@ public static class BracketMatcher
 
     private static bool IsBracket(string text, int column) => (uint)column < (uint)text.Length && Brackets.Contains(text[column]);
 
-    private sealed class LineTokens(IReadOnlyList<string> lines, Tokenizer? tokenizer)
+    internal sealed class LineTokens(IReadOnlyList<string> lines, Tokenizer? tokenizer)
     {
         private readonly List<List<Token>> _done = [];
         private LineState? _state = tokenizer?.InitialState;

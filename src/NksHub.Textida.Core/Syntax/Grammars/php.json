@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "php",
   "name": "PHP",
+  "comments": {"block": ["<!--", "-->"]},
   "version": "1.0.0",
   "extensions": [".php", ".phtml", ".php3", ".php4", ".php5", ".php7", ".phps", ".inc"],
   "fileNames": ["composer.json.php"],

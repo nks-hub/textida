@@ -47,6 +47,9 @@ public sealed class Grammar
     public IReadOnlyList<string> FileNames { get; }
     /// <summary>Regular expression a first line must match for a file without a known extension (shebang, XML prolog).</summary>
     public string? FirstLinePattern { get; }
+    /// <summary>Marker that comments out the rest of a line; null when the language has none.</summary>
+    public string? LineComment { get; internal set; }
+    public (string Open, string Close)? BlockComment { get; internal set; }
 
     internal GrammarRegistry Registry { get; }
     internal string WordPattern { get; }

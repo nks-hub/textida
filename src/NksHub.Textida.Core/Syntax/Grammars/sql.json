@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "sql",
   "name": "SQL",
+  "comments": {"line": "--", "block": ["/*", "*/"]},
   "version": "1.0.0",
   "caseSensitive": false,
   "extensions": [".sql", ".ddl", ".dml", ".psql", ".mysql", ".pgsql"],

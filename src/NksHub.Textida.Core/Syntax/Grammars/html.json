@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "html",
   "name": "HTML",
+  "comments": {"block": ["<!--", "-->"]},
   "version": "1.0.0",
   "caseSensitive": false,
   "extensions": [".html", ".htm", ".xhtml", ".shtml", ".vue", ".svelte", ".ejs", ".erb", ".twig", ".tpl"],

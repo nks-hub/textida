@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "markdown",
   "name": "Markdown",
+  "comments": {"block": ["<!--", "-->"]},
   "version": "1.0.0",
   "extensions": [".md", ".markdown", ".mdown", ".mkd", ".mdx"],
   "rules": [

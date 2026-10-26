@@ -3,6 +3,7 @@
   "formatVersion": 1,
   "id": "javascript",
   "name": "JavaScript",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
   "version": "1.0.0",
   "extensions": [".js", ".mjs", ".cjs", ".jsx"],
   "firstLine": "^#!.*\\bnode\\b",
