@@ -163,6 +163,14 @@ public class SettingsViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void String_settings_show_their_value_without_json_escaping()
+    {
+        var view = Open("diffArguments");
+        var box = view.RowOf("tools.diffArguments")!.GetVisualDescendants().OfType<TextBox>().Single();
+        Assert.Equal("\"{left}\" \"{right}\"", box.Text);
+    }
+
+    [AvaloniaFact]
     public void The_view_follows_the_language()
     {
         var view = Open("");

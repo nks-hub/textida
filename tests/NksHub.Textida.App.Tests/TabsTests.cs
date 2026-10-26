@@ -188,6 +188,16 @@ public class TabsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Many_tabs_stay_in_one_row_instead_of_wrapping()
+    {
+        for (int i = 0; i < 25; i++) Open($"tab-number-{i}.txt");
+        _w.UpdateLayout();
+        var items = _w.Groups[0].Strip.Items.OfType<TabStripItem>().ToList();
+        Assert.IsType<StackPanel>(_w.Groups[0].Strip.ItemsPanelRoot);
+        Assert.Single(items.Select(i => i.Bounds.Y).Distinct());
+    }
+
+    [AvaloniaFact]
     public void Next_and_previous_tab_commands_cycle_within_the_group()
     {
         var a = Open("a.txt");

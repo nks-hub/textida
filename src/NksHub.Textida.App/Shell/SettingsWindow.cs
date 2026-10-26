@@ -188,7 +188,8 @@ internal sealed class SettingsWindow : Window
             combo.SelectionChanged += (_, _) => { if (combo.SelectedItem is string s && s != resolved.Value.GetValue<string>()) Commit(id, JsonValue.Create(s), error); };
             return combo;
         }
-        var text = new TextBox { Text = resolved.ValueText.Trim('"'), MinWidth = 260 };
+        string current = resolved.Value is JsonValue jv && jv.TryGetValue<string>(out var str) ? str : resolved.ValueText;
+        var text = new TextBox { Text = current, MinWidth = 260 };
         AutomationProperties.SetName(text, id);
         void Apply()
         {
@@ -201,7 +202,7 @@ internal sealed class SettingsWindow : Window
                 _ => null,
             };
             if (node is null) { error.Text = Loc.Get(K.SettingsInvalidNumber, ("text", value)); error.IsVisible = true; return; }
-            if (value == resolved.ValueText.Trim('"')) return;
+            if (value == current) return;
             Commit(id, node, error);
         }
         text.LostFocus += (_, _) => Apply();
