@@ -65,7 +65,13 @@ internal sealed partial class MainWindow
         "nks.settings.theme.light" => (_app.Settings.Theme == "light", true),
         "nks.settings.theme.dark" => (_app.Settings.Theme == "dark", true),
         _ when commandId.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal) => (Loc.Language == commandId[AppCommands.LanguageCommandPrefix.Length..], true),
-        "nks.view.toggleWordWrap" => (Options.WordWrap, false),
+        "nks.view.toggleWordWrap" => (Active?.Surface?.WordWrap ?? Options.WordWrap, false),
+        "nks.view.toggleHiddenCharacters" => (HiddenCharactersShown, false),
+        "nks.view.toggleLineNumbers" => (Options.LineNumbers, false),
+        "nks.view.toggleCurrentLine" => (Options.CurrentLine, false),
+        "nks.view.toggleRightMargin" => (Options.RightMargin > 0, false),
+        "nks.view.toggleLinks" => (Options.Links, false),
+        "nks.view.toggleMinimap" => (Options.Minimap, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
@@ -287,7 +293,11 @@ internal sealed partial class MainWindow
 
     internal void ZoomReset() => _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
 
-    internal void ToggleWordWrap() => _app.Workbench.Set("editor.wordWrap", Options.WordWrap ? "off" : "on");
+    internal void ToggleWordWrap()
+    {
+        _app.Workbench.Set("editor.wordWrap", Options.WordWrap ? "off" : "on");
+        if (Active?.Surface is { WrapSuppressed: true }) SetStatusMessage(Loc.Get(K.ViewWrapSuppressed, ("limit", EditorSurface.WrapLineLimit)));
+    }
 
     internal void CycleTab(int step)
     {

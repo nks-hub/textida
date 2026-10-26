@@ -17,6 +17,8 @@
   "status.ready": "Připraveno",
   "status.syntaxPending": "Zvýraznění se dopočítává",
   "status.syntaxLongLine": "Řádek je příliš dlouhý na zvýraznění",
+  "a11y.minimap": "Minimapa",
+  "view.wrapSuppressed": "Zalamování je u tohoto souboru vypnuto: má řádek delší než {limit} znaků.",
   "status.largePaged": "Velký soubor ({size}): stránkovaný režim, revize {revision}",
   "status.indent.spaces": "Mezery: {size}",
   "status.indent.tabs": "Tabulátory: {size}",

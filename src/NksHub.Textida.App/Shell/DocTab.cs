@@ -25,15 +25,24 @@ internal sealed class DocTab
             _automation[DockPanel.DockProperty] = Dock.Top;
             Root.Children.Add(_automation);
         }
+        if (custom is null && ((IMinimapHost?)Surface ?? Paged) is { } host)
+        {
+            Minimap = new Minimap(doc, host) { IsVisible = options.Minimap, [DockPanel.DockProperty] = Dock.Right };
+            Root.Children.Add(Minimap);
+        }
         Root.Children.Add(View);
         doc.Views.Add(this);
     }
+
+    /// <summary>The reduced picture of the text at the right edge; null for a tab without a text surface.</summary>
+    public Minimap? Minimap { get; }
 
     private readonly EditorAutomationHost? _automation;
 
     /// <summary>Releases what the view holds outside the visual tree.</summary>
     public void Close()
     {
+        Minimap?.Dispose();
         Syntax?.Dispose();
         _automation?.Dispose();
         Surface?.Detach();

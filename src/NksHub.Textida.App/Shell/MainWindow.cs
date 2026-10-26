@@ -106,6 +106,7 @@ internal sealed partial class MainWindow : Window
             if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < _docListTabs.Count) SelectTab(_docListTabs[i]);
         };
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnWheelZoom, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(DragDrop.DragOverEvent, OnWindowDragOver, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         DragDrop.SetAllowDrop(this, true);
@@ -299,6 +300,7 @@ internal sealed partial class MainWindow : Window
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
             tab.Hex?.ApplyOptions(options);
+            if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap;
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }
@@ -329,6 +331,7 @@ internal sealed partial class MainWindow : Window
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
+        foreach (var tab in Tabs) tab.Minimap?.UpdateName();
         ApplyPaletteTexts();
         ApplyFindTexts();
         _menuModel = BuildMenuModel();

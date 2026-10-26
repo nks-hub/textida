@@ -250,6 +250,42 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.view.toggleHiddenCharacters",
+      "title": "cmd.view.toggleHiddenCharacters",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleLineNumbers",
+      "title": "cmd.view.toggleLineNumbers",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleCurrentLine",
+      "title": "cmd.view.toggleCurrentLine",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleRightMargin",
+      "title": "cmd.view.toggleRightMargin",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleLinks",
+      "title": "cmd.view.toggleLinks",
+      "category": "cat.view",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.view.toggleMinimap",
+      "title": "cmd.view.toggleMinimap",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.view.nextTab",
       "title": "cmd.view.nextTab",
       "category": "cat.view",
@@ -871,6 +907,42 @@
       "order": 40
     },
     {
+      "menu": "view",
+      "command": "nks.view.toggleHiddenCharacters",
+      "group": "3_display",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleLineNumbers",
+      "group": "3_display",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleCurrentLine",
+      "group": "3_display",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleRightMargin",
+      "group": "3_display",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleLinks",
+      "group": "3_display",
+      "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleMinimap",
+      "group": "3_display",
+      "order": 60
+    },
+    {
       "menu": "file",
       "command": "nks.file.reload",
       "group": "2_disk",
@@ -1369,6 +1441,18 @@
       "command": "nks.view.zoomReset"
     },
     {
+      "key": "mod+k mod+w",
+      "command": "nks.view.toggleHiddenCharacters"
+    },
+    {
+      "key": "mod+k mod+n",
+      "command": "nks.view.toggleLineNumbers"
+    },
+    {
+      "key": "mod+k mod+m",
+      "command": "nks.view.toggleMinimap"
+    },
+    {
       "key": "ctrl+tab",
       "command": "nks.view.nextTab"
     },
@@ -1618,6 +1702,111 @@
       "tags": [
         "font",
         "size"
+      ]
+    },
+    {
+      "key": "editor.fallbackFontFamily",
+      "type": "string",
+      "default": "Segoe UI Symbol, Segoe UI Emoji, Microsoft YaHei UI, Apple Symbols, Apple Color Emoji, PingFang SC, Noto Sans Symbols 2, Noto Color Emoji, Noto Sans CJK SC",
+      "title": "setting.editor.fallbackFontFamily.title",
+      "description": "setting.editor.fallbackFontFamily.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "font",
+        "unicode",
+        "fallback",
+        "symbols",
+        "emoji"
+      ]
+    },
+    {
+      "key": "editor.renderLineEndings",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.renderLineEndings.title",
+      "description": "setting.editor.renderLineEndings.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "line ending",
+        "eol",
+        "cr",
+        "lf",
+        "invisible"
+      ]
+    },
+    {
+      "key": "editor.lineNumbers",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.lineNumbers.title",
+      "description": "setting.editor.lineNumbers.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "line",
+        "number",
+        "gutter"
+      ]
+    },
+    {
+      "key": "editor.highlightCurrentLine",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.highlightCurrentLine.title",
+      "description": "setting.editor.highlightCurrentLine.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "line",
+        "current",
+        "highlight"
+      ]
+    },
+    {
+      "key": "editor.links",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.links.title",
+      "description": "setting.editor.links.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "link",
+        "url",
+        "hyperlink"
+      ]
+    },
+    {
+      "key": "editor.rightMargin",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.editor.rightMargin.title",
+      "description": "setting.editor.rightMargin.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "minimum": 0,
+      "maximum": 500,
+      "tags": [
+        "margin",
+        "ruler",
+        "column",
+        "guide"
+      ]
+    },
+    {
+      "key": "editor.minimap",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.minimap.title",
+      "description": "setting.editor.minimap.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "minimap",
+        "overview",
+        "scroll"
       ]
     },
     {

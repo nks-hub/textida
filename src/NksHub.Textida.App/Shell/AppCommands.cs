@@ -101,6 +101,12 @@ internal static class AppCommands
         Do("nks.view.zoomIn", w => w.Zoom(1));
         Do("nks.view.zoomOut", w => w.Zoom(-1));
         Do("nks.view.zoomReset", w => w.ZoomReset());
+        Do("nks.view.toggleHiddenCharacters", w => w.ToggleHiddenCharacters());
+        Do("nks.view.toggleLineNumbers", w => w.ToggleLineNumbers());
+        Do("nks.view.toggleCurrentLine", w => w.ToggleCurrentLine());
+        Do("nks.view.toggleRightMargin", w => w.ToggleRightMargin());
+        Do("nks.view.toggleLinks", w => w.ToggleLinks());
+        Do("nks.view.toggleMinimap", w => w.ToggleMinimap());
         Do("nks.view.nextTab", w => w.CycleTab(1));
         Do("nks.view.previousTab", w => w.CycleTab(-1));
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());

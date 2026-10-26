@@ -64,6 +64,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
+        InitViewOptions();
         InitCarets();
     }
 
@@ -165,15 +166,15 @@ internal sealed partial class EditorSurface : TextEditor
     public void ApplyOptions(EditorOptions o)
     {
         Settings = o;
-        FontFamily = new FontFamily(o.FontFamily);
+        FontFamily = new FontFamily(o.FullFontFamily);
         FontSize = o.FontSize;
-        WordWrap = o.WordWrap;
         Options.IndentationSize = o.TabSize;
         Options.ConvertTabsToSpaces = o.InsertSpaces;
         Options.ShowSpaces = o.ShowWhitespace;
         Options.ShowTabs = o.ShowWhitespace;
         Options.EnableTextDragDrop = true;
         Options.AcceptsTab = false;
+        ApplyViewOptions(o);
     }
 
     private void ApplyTheme()
