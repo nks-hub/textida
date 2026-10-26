@@ -641,18 +641,21 @@ měření obojí řadí do P1 jako samostatné úkoly. P1 ověří nativní vrst
 - [ ] **P1.8.3** Nativní most UIA a AX pod NativeAOT
   - **Co a proč:** Proveditelnost se ověří hned na začátku P1, ne až v P9: UIA s TextPattern na Windows a NSAccessibility na macOS v publikovaném AOT programu. NativeAOT nemá vestavěný klasický COM interop; pro UIA je cesta přes ComWrappers se source generation. Proto se ověřuje skutečný nativní most, ne jen spravovaný automation peer.
   - **Funkce:** žádná (infrastruktura)
+  - **Stav 26. 10. 2026:** Windows hotovo (commity 52fc47f–d033896): most UIA přes zdrojově generované COM, AOT win-x64 bez varování; samostatný klient (System.Windows.Automation a UIA3 TextPattern2) prošel 29 kontrol: text DocumentRange včetně ěščř a emoji, výběr, 5 pohybů kurzoru = 5 událostí, Select, změny textu, pohyb po slovech, řádcích a odstavcích, FindText, RangeFromPoint, obdélníky řádků, GetCaretRange. Avalonia 12.1.4 TextPattern nemá, proto vlastní most; zatím není připojený do stromu UIA okna Avalonie. macOS: most NSAccessibility přes ObjC runtime, AOT osx-arm64 bez varování, vlastní test 31 kontrol; skutečný AX klient ho nepřečetl (zamčená obrazovka, chybí oprávnění Accessibility), není připojený k NSView Avalonie.
   - **Hotovo, když:** v AOT buildu v matici R10 (PR.4) přečte NVDA a VoiceOver text a pozici kurzoru z minimálního textového prvku a změnu fokusu mezi kartou a editorem; záznam uvádí verzi OS, RID a hash buildu.
   - **Závisí na:** P1.1.2
   - **Odhad:** bez odhadu
 - [ ] **P1.8.1** Vrstva UIA a AX pro běžný editor
   - **Co a proč:** AvaloniaEdit nemá automation peer a Avalonia nemá UIA TextPattern. Běžný editor potřebuje vlastní vrstvu nad mostem z P1.8.3: UIA s TextPattern na Windows a NSAccessibility na macOS. Vrstva je napsaná nad kontraktem dokumentu, aby ji v P3 převzala stránkovaná plocha.
   - **Funkce:** žádná (infrastruktura)
+  - **Stav 26. 10. 2026:** `ITextAutomationSurface` a základ `DocumentTextSurface` nad dokumentem hotové a ověřené klientem UIA. Chybí napojení na editor z P1.4, běh s NVDA a VoiceOver a matice R10.
   - **Hotovo, když:** NVDA i VoiceOver přečtou řádek, slovo, výběr, pozici kurzoru, změnu fokusu a změnu po nové revizi podle předem zapsaného očekávání, nad AOT buildem v matici R10 (PR.4).
   - **Závisí na:** P1.4.1, P1.8.3
   - **Odhad:** bez odhadu
 - [ ] **P1.8.2** Kontrola preeditu IME
   - **Co a proč:** AvaloniaEdit hlásí `SupportsPreedit = false`; rozpracovaný text IME se kreslí v okně systému. Ručně ověřit českou, japonskou a čínskou klávesnici a podle výsledku doplnit preedit v řádku.
   - **Funkce:** žádná (infrastruktura)
+  - **Stav 26. 10. 2026:** AvaloniaEdit hlásí `SupportsPreedit=False`, rozpracovaný text kreslí systém, ne editor; přesné místo pro napojení (obal klienta v `TextArea`) je v interním záznamu. Skutečná IME (česká, japonská, čínská klávesnice) neověřena.
   - **Hotovo, když:** v matici R10 (PR.4) v přihlášené relaci projde u tří klávesnic zahájení, změna, potvrzení a zrušení kompozice, přepnutí karty během kompozice, změna DPI, kompozice s více kurzory (po P2.2.1 se zopakuje) a undo, bez zdvojení i ztráty textu; rozpracovaný text se kreslí v řádku editoru, nebo je zapsané rozhodnutí majitele, proč ne.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
