@@ -497,6 +497,26 @@ commands: nks.hex.inspectChanges
 - If the length changes, a new file is written and swapped in atomically.
 - Before a smaller file is overwritten a backup is made; if it fails, the file stays unchanged.
 
+## [view.options] Editor display
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+The commands are in the View menu and in the palette. Each toggles one setting; the settings can also be changed in the settings.
+- Show Hidden Characters (Ctrl+K then Ctrl+W): draws spaces and tabs. It matches the setting Show whitespace.
+- Show Line Numbers (Ctrl+K then Ctrl+N): a column with line numbers on the left (setting Line numbers).
+- Highlight Current Line: shades the line with the caret (setting Highlight current line).
+- Show Right Margin: a vertical line after the column from the setting Right margin column; the value 0 turns the line off.
+- Clickable Links: a web address opens on a click with Ctrl held (setting Clickable links). The command is not available in a large file in paged mode.
+- Show Minimap (Ctrl+K then Ctrl+M): a reduced picture of the text on the right, dragging scrolls it (setting Minimap).
+- The commands are dimmed without an open document.
+
+## [bookmarks] Bookmarks
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+A bookmark marks a line you want to return to.
+1. Ctrl+F2 sets a bookmark on the line with the caret, and removes it on a line that already has one. The status bar says Bookmark set on line N, or Bookmark on line N removed.
+2. F2 jumps to the next bookmark, Shift+F2 to the previous one. After the last it continues with the first.
+3. Clear Bookmarks (in the palette) removes all bookmarks of the document; the status bar says Bookmarks removed.
+- If the document has no bookmarks, the status bar says The document has no bookmarks.
+- There are no bookmarks in hex or in a search results tab. In a large file whose lines are still being numbered the command says the line index does not reach that place yet.
+
 ## [recovery] Crash recovery
 The program continuously writes unsaved text to a journal, within two seconds of a change at the latest. An unsaved document is not lost even if the program crashes or the computer is switched off.
 1. Start the program again.

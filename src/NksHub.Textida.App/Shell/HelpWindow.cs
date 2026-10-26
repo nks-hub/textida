@@ -72,7 +72,11 @@ internal sealed partial class HelpWindow : Window
         _ => "",
     };
 
-    internal void Search(string text) => _search.Text = text;
+    internal void Search(string text)
+    {
+        _search.Text = text;
+        Refresh(select: null);
+    }
 
     /// <summary>Shows a topic by id; the search is cleared so the topic is in the list. An unknown id shows the start page.</summary>
     internal void ShowTopic(string id)
