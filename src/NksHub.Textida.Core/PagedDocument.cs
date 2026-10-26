@@ -24,6 +24,7 @@ public sealed class PagedDocument : IPagedTextSource
     private byte[] _add = new byte[4096];
     private int _addLength;
     private bool _saving;
+    private readonly ColumnIndex _editedColumns = new();
 
     private PagedDocument(MappedFileSource source, MappedFileSourceOptions options)
     {
@@ -63,6 +64,7 @@ public sealed class PagedDocument : IPagedTextSource
     {
         bool reindex = !MappedFileSource.SharesLineIndex(_source.Codec, codec);
         _source.SetCodec(codec);
+        _editedColumns.Clear();
         _options.Codec = codec;
         if (reindex) _tree.StopTrackingLines();
     }
@@ -178,6 +180,7 @@ public sealed class PagedDocument : IPagedTextSource
 
     private Piece[] Apply(long offset, long removeLength, Piece[] insert)
     {
+        _editedColumns.Clear();
         var removed = _tree.Remove(offset, removeLength);
         _tree.Insert(offset, insert);
         return removed;
@@ -226,6 +229,31 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>Synchronous variant of <see cref="ReadLinesAtAsync"/>.</summary>
     public IReadOnlyList<string> ReadLines(long byteOffset, int maxLines) =>
         IsModified ? ReadLinesFromTree(byteOffset, maxLines) : _source.ReadLines(byteOffset, maxLines);
+
+    /// <summary>
+    /// At most <paramref name="maxColumns"/> UTF-16 columns of the line that starts at <paramref name="lineStart"/>, from column
+    /// <paramref name="startColumn"/>, without decoding the rest of the line. An edit drops the column points noted for the edited text.
+    /// </summary>
+    public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default)
+    {
+        if (!IsModified) return _source.ReadColumns(lineStart, startColumn, maxColumns, ct);
+        return ColumnReader.Read(EditedWindow, ByteLength, Codec, _source.BomLength, _editedColumns, lineStart, startColumn, maxColumns, ct);
+    }
+
+    /// <summary>Bytes at <paramref name="position"/> straight from a piece when one holds them all, else copied across pieces.</summary>
+    private ReadOnlySpan<byte> EditedWindow(long position, long maxLength)
+    {
+        long want = Math.Min(maxLength, ByteLength - position);
+        if (want <= 0) return default;
+        foreach (var piece in _tree.EnumerateRange(position, want))
+        {
+            if (piece.Length == want) return PieceBytes(piece);
+            break;
+        }
+        var copy = new byte[want];
+        Read(position, copy);
+        return copy;
+    }
 
     private List<string> ReadLinesFromTree(long byteOffset, int maxLines)
     {

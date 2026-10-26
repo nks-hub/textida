@@ -66,6 +66,14 @@ public class PagedEditTests : IDisposable
 
     private void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) => TestApp.Press(_w, key, mods);
 
+    [AvaloniaTheory]
+    [InlineData(0, 10, 14, true)]
+    [InlineData(0, 10, 13, false)]
+    [InlineData(0, 10, 10, false)]
+    [InlineData(20, 5, 12, false)]
+    public void Only_lines_ending_before_the_first_change_keep_their_decoded_text(long start, long length, long firstChange, bool kept) =>
+        Assert.Equal(kept, PagedTextView.LineSurvives(start, length, firstChange));
+
     [AvaloniaFact]
     public async Task Typing_moving_deleting_undo_redo_and_save_keep_the_bytes_exact()
     {

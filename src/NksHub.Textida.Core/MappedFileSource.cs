@@ -35,6 +35,7 @@ public sealed class MappedFileSource : IPagedTextSource
     private int _disposed;
     private long _lastProgress;
     private int _bomLength;
+    private readonly ColumnIndex _columns = new();
 
     public Task IndexTask { get; private set; } = Task.CompletedTask;
     public MappedFile File => _file;
@@ -82,6 +83,7 @@ public sealed class MappedFileSource : IPagedTextSource
             _cts = new();
         }
         Codec = codec;
+        _columns.Clear();
         _bomLength = codec.BomLengthIn(_file.GetSpanClamped(0, 4));
         if (!reindex) return;
         AllocateIndex();
@@ -268,69 +270,15 @@ public sealed class MappedFileSource : IPagedTextSource
     public ValueTask<string> ReadColumnsAsync(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default) =>
         new(Task.Run(() => ReadColumns(lineStart, startColumn, maxColumns, ct), ct));
 
-    public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default)
-    {
-        bool utf8 = Codec.Kind == CodecKind.Utf8;
-        long pos = lineStart == 0 ? Math.Min(_bomLength, _file.Length) : lineStart;
-        long skip = startColumn;
-        while (skip > 0)
-        {
-            ct.ThrowIfCancellationRequested();
-            var window = _file.GetSpanClamped(pos, 1 << 20);
-            if (window.IsEmpty) return "";
-            int t = LineScanner.FindTerminator(window, 0, Codec);
-            var seg = t < 0 ? window : window[..t];
-            if (seg.IsEmpty) return "";
-            int step;
-            if (Codec.Kind == CodecKind.SingleByte || (utf8 && System.Text.Ascii.IsValid(seg)))
-            {
-                step = (int)Math.Min(skip, seg.Length);
-                skip -= step;
-            }
-            else
-            {
-                var whole = t < 0 ? seg[..Codec.CompleteLength(seg)] : seg;
-                int units = Codec.CountChars(whole);
-                if (units <= skip) { step = whole.Length; skip -= units; }
-                else step = utf8 ? SkipUtf8Units(whole, ref skip) : SkipUnits(whole, ref skip);
-            }
-            if (step == 0 || (t >= 0 && step == seg.Length && skip > 0)) return "";
-            pos += step;
-        }
+    /// <summary>
+    /// Synchronous variant of <see cref="ReadColumnsAsync"/>. Skipped columns are noted in a sparse column index, so a later jump to a
+    /// column on the same line resumes from the nearest known point; <c>ReadColumns(start, long.MaxValue, 0)</c> builds that index for the whole line.
+    /// </summary>
+    public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default) =>
+        ColumnReader.Read((pos, max) => _file.GetSpanClamped(pos, max), _file.Length, Codec, _bomLength, _columns, lineStart, startColumn, maxColumns, ct);
 
-        var read = _file.GetSpanClamped(pos, (long)maxColumns * 4 + 4);
-        int stop = LineScanner.FindTerminator(read, 0, Codec);
-        if (stop >= 0) read = read[..stop];
-        if (!(stop >= 0 || pos + read.Length >= _file.Length)) read = read[..Codec.CompleteLength(read)];
-        var text = Codec.GetString(read);
-        return text.Length <= maxColumns ? text : text[..maxColumns];
-    }
-
-    private int SkipUnits(ReadOnlySpan<byte> seg, ref long skip)
-    {
-        int i = 0;
-        while (skip > 0 && i < seg.Length)
-        {
-            i += Codec.ReadUnit(seg[i..], out int chars);
-            skip -= chars;
-        }
-        return i;
-    }
-
-    private static int SkipUtf8Units(ReadOnlySpan<byte> seg, ref long skip)
-    {
-        int i = 0;
-        while (skip > 0 && i < seg.Length)
-        {
-            byte lead = seg[i];
-            int len = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
-            if (lead >= 0x80 && lead < 0xC0) len = 1;
-            if (i + len > seg.Length) break;
-            skip -= lead >= 0xF0 ? 2 : 1;
-            i += len;
-        }
-        return i;
-    }
+    internal ColumnIndex Columns => _columns;
+    internal int BomLength => _bomLength;
 
     public void Dispose()
     {
