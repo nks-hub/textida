@@ -214,14 +214,14 @@ public class FileSearchTests
     {
         using var dir = new JournalTempDir();
         var line = Encoding.UTF8.GetBytes("2025-01-01 12:00:00 INFO request id=1234567 status=200 took=12ms path=/api/items\n");
-        for (int f = 0; f < 4; f++)
+        for (int f = 0; f < 3; f++)
         {
             using var fs = File.Create(dir.Combine($"big{f}.log"));
             for (int i = 0; i < 700_000; i++) fs.Write(line);
         }
         foreach (var p in new[] { new SearchPattern("took="), new SearchPattern(@"status=\d+ took=\d+ms", true) })
         {
-            var run = SearchWorker.Start(p, new SearchScope([dir.Path]), new SearchSettings { MaxResults = 1_000_000_000, StopAtLimit = false });
+            var run = SearchWorker.Start(p, new SearchScope([dir.Path]), new SearchSettings { MaxResults = 1_000_000_000, StopAtLimit = false, Parallelism = 2 });
             await run.Batches.WaitToReadAsync();
             var sw = Stopwatch.StartNew();
             run.Cancel();

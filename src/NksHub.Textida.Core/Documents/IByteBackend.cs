@@ -67,8 +67,20 @@ public static class FileSwap
     /// <summary>Atomic replace of <paramref name="target"/> by <paramref name="temp"/>.</summary>
     public static void Replace(string temp, string target)
     {
-        if (File.Exists(target)) File.Replace(temp, target, null);
-        else File.Move(temp, target);
+        // a virus scanner or an indexer may hold a file for a moment; the swap is atomic, so trying again is safe
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (File.Exists(target)) File.Replace(temp, target, null);
+                else File.Move(temp, target);
+                return;
+            }
+            catch (IOException) when (attempt < 5 && File.Exists(temp))
+            {
+                Thread.Sleep(20 << attempt);
+            }
+        }
     }
 }
 
