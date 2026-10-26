@@ -33,6 +33,8 @@ internal sealed class ScanOutcome
     public List<RawHit> Hits = [];
     public TextCodec? Codec;
     public bool Binary;
+    /// <summary>Number of line feeds in the scanned range; the next range numbers its lines from here.</summary>
+    public long LineBreaks;
 }
 
 /// <summary>
@@ -52,6 +54,80 @@ internal static class ContentScanner
         public long Count;
         public long LinesBefore;
         public readonly List<RawHit> Hits = [];
+    }
+
+    /// <summary>Content of one source from <paramref name="start"/> to <paramref name="end"/>, read as if it began at 0.</summary>
+    private sealed class RangeSource(IChunkSource inner, long start, long end) : IChunkSource
+    {
+        public long Length => end - start;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            long left = end - start - offset;
+            return left <= 0 ? 0 : inner.Read(start + offset, destination[..(int)Math.Min(destination.Length, left)]);
+        }
+    }
+
+    /// <summary>Sources larger than this are cut into line-aligned ranges that are scanned in parallel.</summary>
+    internal const long LargeSource = 64L << 20;
+
+    /// <summary>
+    /// Like <see cref="Scan"/>, but a large source in a byte-oriented encoding is cut at line starts into ranges scanned by several threads,
+    /// the way the paged search does; the hits come back as if the source had been scanned in one go (offsets, line numbers, order).
+    /// </summary>
+    public static ScanOutcome ScanLarge(IChunkSource source, CompiledPattern pattern, SearchSettings settings, TextCodec? forcedCodec, int keep, CancellationToken ct)
+    {
+        long length = source.Length;
+        if (length < LargeSource || settings.Parallelism < 2) return Scan(source, pattern, settings, forcedCodec, keep, ct);
+
+        var codec = forcedCodec;
+        if (codec is null)
+        {
+            var head = new byte[SampleSize];
+            int n = source.Read(0, head);
+            codec = Detect(head.AsSpan(0, n), length);
+            if (codec is null) return new ScanOutcome { Binary = true };
+        }
+        if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) return Scan(source, pattern, settings, codec, keep, ct);
+
+        int parts = (int)Math.Clamp(length / (16L << 20), 2, settings.Parallelism * 4);
+        var bounds = new long[parts + 1];
+        bounds[parts] = length;
+        for (int k = 1; k < parts; k++) bounds[k] = Math.Max(bounds[k - 1], LineStartAtOrAfter(source, length * k / parts, ct));
+
+        var outcomes = new ScanOutcome[parts];
+        Parallel.For(0, parts, new ParallelOptions { CancellationToken = ct, MaxDegreeOfParallelism = settings.Parallelism }, k =>
+        {
+            outcomes[k] = Scan(new RangeSource(source, bounds[k], bounds[k + 1]), pattern, settings, k == 0 ? codec : codec.WithBom(false), keep, ct);
+        });
+
+        var merged = new ScanOutcome { Codec = codec };
+        long lines = 0;
+        for (int k = 0; k < parts; k++)
+        {
+            merged.Count += outcomes[k].Count;
+            foreach (var h in outcomes[k].Hits)
+                if (merged.Hits.Count < keep) merged.Hits.Add(h with { Start = h.Start + bounds[k], Line = (int)(h.Line + lines) });
+            lines += outcomes[k].LineBreaks;
+        }
+        merged.LineBreaks = lines;
+        return merged;
+    }
+
+    /// <summary>Offset of the first line start at or after <paramref name="raw"/> (the length when no line feed follows).</summary>
+    private static long LineStartAtOrAfter(IChunkSource source, long raw, CancellationToken ct)
+    {
+        var window = new byte[1 << 16];
+        for (long pos = Math.Max(0, raw - 1); pos < source.Length;)
+        {
+            ct.ThrowIfCancellationRequested();
+            int n = source.Read(pos, window);
+            if (n <= 0) break;
+            int i = window.AsSpan(0, n).IndexOf((byte)'\n');
+            if (i >= 0) return pos + i + 1;
+            pos += n;
+        }
+        return source.Length;
     }
 
     /// <param name="forcedCodec">The codec of an open document; null detects it from the content and skips binary files.</param>
@@ -105,6 +181,7 @@ internal static class ContentScanner
             }
             outcome.Count = state.Count;
             outcome.Hits = state.Hits;
+            outcome.LineBreaks = state.LinesBefore;
             return outcome;
         }
         finally

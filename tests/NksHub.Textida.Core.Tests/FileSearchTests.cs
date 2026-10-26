@@ -280,6 +280,55 @@ public class FileSearchTests
     }
 
     [Fact]
+    public async Task AFileNamedAsTheRootIsSearchedWhateverItsSizeButFilesFoundByTheWalkRespectTheLimit()
+    {
+        using var dir = new JournalTempDir();
+        string big = dir.Combine("big.txt");
+        File.WriteAllText(big, string.Concat(Enumerable.Repeat("needle line\n", 2000)));
+        var settings = Small with { Walk = new FileWalkOptions { MaxFileSize = 1000 } };
+
+        var (single, _) = await SearchWorker.CollectAsync(new SearchPattern("needle"), new SearchScope([big]), settings);
+        Assert.Equal(2000, single.Count);
+
+        var (walked, summary) = await SearchWorker.CollectAsync(new SearchPattern("needle"), new SearchScope([dir.Path]), settings);
+        Assert.Empty(walked);
+        Assert.Equal(1, summary.Walk.TooLarge);
+    }
+
+    [Fact]
+    public async Task ALargeFileScannedInParallelRangesGivesTheSameHitsAsOneSequentialPass()
+    {
+        using var dir = new JournalTempDir();
+        string path = dir.Combine("large.log");
+        using (var fs = File.Create(path))
+        {
+            fs.Write(TextCodec.Utf8Bom.Bom);
+            var sb = new StringBuilder();
+            for (int i = 0; i < 3_000_000; i++)
+            {
+                sb.Clear();
+                sb.Append("row ").Append(i).Append(i % 61 == 0 ? " needle7 " : " plain ").Append("ěš");
+                sb.Append(i % 9 == 0 ? "\r\n" : "\n");
+                fs.Write(Encoding.UTF8.GetBytes(sb.ToString()));
+            }
+        }
+        Assert.True(new FileInfo(path).Length > ContentScannerLimit);
+
+        foreach (var pattern in new[] { new SearchPattern("needle7"), new SearchPattern(@"ne+dle(\d)\s", true) })
+        {
+            var sequential = await SearchWorker.CollectAsync(pattern, new SearchScope([path]), new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Parallelism = 1 });
+            var parallel = await SearchWorker.CollectAsync(pattern, new SearchScope([path]), new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Parallelism = 8 });
+            Assert.Equal(sequential.Summary.TotalMatches, parallel.Summary.TotalMatches);
+            Assert.True(sequential.Hits.Count > 20_000);
+            Assert.Equal(
+                sequential.Hits.Select(h => (h.Range, h.Line, h.Column, h.Preview)),
+                parallel.Hits.OrderBy(h => h.Range.Start).Select(h => (h.Range, h.Line, h.Column, h.Preview)));
+        }
+    }
+
+    private const long ContentScannerLimit = 64L << 20;
+
+    [Fact]
     public async Task FilesRemovedWhileTheSearchRunsDoNotBreakIt()
     {
         using var dir = new JournalTempDir();

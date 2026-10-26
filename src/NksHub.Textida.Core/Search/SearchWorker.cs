@@ -110,7 +110,7 @@ public static class SearchWorker
                     if (File.Exists(root))
                     {
                         var info = new FileInfo(root);
-                        if (!live.Contains(info.FullName)) writer.WriteAsync(new FileEntry(info.FullName, info.Length, info.LastWriteTimeUtc), ct).AsTask().GetAwaiter().GetResult();
+                        if (!live.Contains(info.FullName)) writer.WriteAsync(new FileEntry(info.FullName, info.Length, info.LastWriteTimeUtc, Explicit: true), ct).AsTask().GetAwaiter().GetResult();
                         continue;
                     }
                     if (!Directory.Exists(root))
@@ -167,7 +167,7 @@ public static class SearchWorker
             {
                 using var handle = File.OpenHandle(entry.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan);
                 long length = RandomAccess.GetLength(handle);
-                if (length > _s.Walk.MaxFileSize)
+                if (!entry.Explicit && length > _s.Walk.MaxFileSize)
                 {
                     _walk.AddTooLarge();
                     return;
@@ -192,7 +192,7 @@ public static class SearchWorker
             int keep = (int)Math.Max(0, Math.Min(int.MaxValue, _s.MaxResults - Interlocked.Read(ref _delivered)));
             try
             {
-                return ContentScanner.Scan(source, _pattern, _s, codec, keep, ct);
+                return ContentScanner.ScanLarge(source, _pattern, _s, codec, keep, ct);
             }
             catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
             {

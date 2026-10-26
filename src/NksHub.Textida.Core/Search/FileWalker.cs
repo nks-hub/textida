@@ -51,7 +51,8 @@ public sealed class FileWalkStats
     internal void AddUnreadable() => Interlocked.Increment(ref _unreadable);
 }
 
-public readonly record struct FileEntry(string Path, long Length, DateTime LastWriteUtc);
+/// <param name="Explicit">The file was named as a search root, so the size limit of the walk does not apply to it.</param>
+public readonly record struct FileEntry(string Path, long Length, DateTime LastWriteUtc, bool Explicit = false);
 
 /// <summary>
 /// Walks a directory tree in a stable order (per directory: files by name, then subdirectories by name) and leaves out what the
