@@ -222,6 +222,13 @@ internal sealed class EditorSurface : TextEditor
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
     {
+        if (IsBlockSelection && !IsReadOnly && e.Text is { Length: > 0 } typed && !typed.Contains('\n') && !typed.Contains('\r'))
+        {
+            // one keystroke edits every row; one undo step for all of them
+            using (Doc.Doc.BeginUndoGroup()) TextArea.Selection.ReplaceSelectionWithText(typed);
+            e.Handled = true;
+            return;
+        }
         if (!Settings.AutoClosePairs || IsReadOnly || IsBlockSelection || e.Text is not { Length: 1 } text) return;
         if (PairedCharacters.TryType(Document, GetSelections()[0], text[0], out var result))
         {

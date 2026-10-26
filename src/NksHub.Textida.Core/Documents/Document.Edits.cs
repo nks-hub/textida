@@ -228,14 +228,18 @@ public sealed partial class Document
 
     // ---- undo ----
 
-    /// <summary>Groups every edit made until the returned scope is disposed into one undo step. Scopes nest.</summary>
-    public IDisposable BeginUndoGroup()
+    /// <summary>
+    /// Groups every edit made until the returned scope is disposed into one undo step. Scopes nest; the outermost one decides.
+    /// <paramref name="selectionsBefore"/> and <paramref name="selectionsAfter"/> (asked when the scope ends) are what undo and redo give back,
+    /// for edits made through a text control that cannot pass them per edit.
+    /// </summary>
+    public IDisposable BeginUndoGroup(IReadOnlyList<ByteRange>? selectionsBefore = null, Func<IReadOnlyList<ByteRange>>? selectionsAfter = null)
     {
         _groupDepth++;
-        return new GroupScope(this);
+        return new GroupScope(this, selectionsBefore, selectionsAfter);
     }
 
-    private sealed class GroupScope(Document owner) : IDisposable
+    private sealed class GroupScope(Document owner, IReadOnlyList<ByteRange>? before, Func<IReadOnlyList<ByteRange>>? after) : IDisposable
     {
         private Document? _owner = owner;
 
@@ -243,7 +247,13 @@ public sealed partial class Document
         {
             if (_owner is not { } d) return;
             _owner = null;
-            if (--d._groupDepth == 0) d._groupEntry = null;
+            if (--d._groupDepth != 0) return;
+            if (d._groupEntry is { Steps.Count: > 0 } entry && (before is not null || after is not null))
+            {
+                if (before is not null) entry.Steps[0] = entry.Steps[0] with { Before = before };
+                if (after is not null) entry.Steps[^1] = entry.Steps[^1] with { After = after() };
+            }
+            d._groupEntry = null;
         }
     }
 

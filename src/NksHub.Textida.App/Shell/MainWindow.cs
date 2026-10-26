@@ -95,7 +95,8 @@ internal sealed partial class MainWindow : Window
             if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < Tabs.Count()) SelectTab(Tabs.ElementAt(i));
         };
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        AddHandler(DragDrop.DropEvent, OnWindowDrop);
+        AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         DragDrop.SetAllowDrop(this, true);
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;

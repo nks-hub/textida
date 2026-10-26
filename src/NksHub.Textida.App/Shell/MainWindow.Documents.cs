@@ -226,9 +226,19 @@ internal sealed partial class MainWindow
 
     // ---- files dropped from the system ----
 
+    private DragEventArgs? _dropHandled;
+
+    private void OnWindowDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.TryGetFiles() is not { Length: > 0 }) return;
+        e.DragEffects = DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
     private void OnWindowDrop(object? sender, DragEventArgs e)
     {
-        if (e.DataTransfer.TryGetFiles() is not { Length: > 0 } files) return;
+        if (e.DataTransfer.TryGetFiles() is not { Length: > 0 } files || _dropHandled == e) return;
+        _dropHandled = e;
         var paths = files.Select(f => f.TryGetLocalPath()).OfType<string>().ToList();
         var group = (e.Source as Visual)?.FindAncestorOfType<TabGroup>() ?? _activeGroup;
         OpenDropped(group, paths);

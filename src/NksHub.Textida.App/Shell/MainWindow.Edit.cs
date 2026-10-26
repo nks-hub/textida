@@ -104,9 +104,31 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         var before = surface.GetSelections();
         IReadOnlyList<Sel> after;
-        using (surface.Doc.Doc.BeginUndoGroup()) after = command(surface, before);
-        surface.SetSelections(after);
+        using (surface.Doc.Doc.BeginUndoGroup(ToBytes(surface, before), () => ToBytes(surface, surface.GetSelections())))
+        {
+            after = command(surface, before);
+            surface.SetSelections(after);
+        }
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>Selections as byte ranges of the document, what undo and redo give back to restore them.</summary>
+    private static IReadOnlyList<ByteRange> ToBytes(EditorSurface surface, IReadOnlyList<Sel> sels)
+    {
+        var doc = surface.Doc.Doc;
+        var text = surface.Document;
+        long ByteOf(int offset)
+        {
+            var loc = text.GetLocation(Math.Clamp(offset, 0, text.TextLength));
+            return doc.TryGetOffset(new LinePosition(loc.Line - 1, loc.Column - 1), out long b) ? b : -1;
+        }
+        var list = new List<ByteRange>();
+        foreach (var s in sels)
+        {
+            long a = ByteOf(s.Start), z = ByteOf(s.End);
+            if (a >= 0 && z >= a) list.Add(new ByteRange(a, z));
+        }
+        return list;
     }
 
     internal CommandOutcome Tab(bool outdent)
@@ -166,7 +188,8 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         var text = Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
         if (string.IsNullOrEmpty(text)) return CommandOutcome.Handled;
-        PasteText(surface, text);
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) PasteText(surface, text);
+        else await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => PasteText(surface, text));
         return CommandOutcome.Handled;
     }
 
