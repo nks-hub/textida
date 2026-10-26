@@ -45,16 +45,21 @@ public sealed class SavingEventArgs(string target, long size, string sha256) : E
 /// <param name="Loss">Set when a save in another encoding was refused because characters would be lost and no replacement was confirmed.</param>
 public sealed record SaveResult(bool Saved, ExternalChange? Conflict, Encodings.LossReport? Loss = null);
 
-/// <summary>Stream wrapper that hashes what is written through it.</summary>
-internal sealed class HashingStream(Stream inner) : Stream
+/// <summary>Stream wrapper that hashes what is written through it, and optionally captures its block digests.</summary>
+internal sealed class HashingStream(Stream inner, OriginalBlockHashes? blocks = null) : Stream
 {
     private readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
     public long Written { get; private set; }
-    public string Finish() => Convert.ToHexString(_hash.GetHashAndReset());
+    public string Finish()
+    {
+        blocks?.Seal(Written);
+        return Convert.ToHexString(_hash.GetHashAndReset());
+    }
 
     public override void Write(ReadOnlySpan<byte> buffer)
     {
         _hash.AppendData(buffer);
+        blocks?.Append(buffer);
         inner.Write(buffer);
         Written += buffer.Length;
     }

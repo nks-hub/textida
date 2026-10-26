@@ -68,6 +68,8 @@ internal sealed partial class MainWindow
         "nks.view.toggleWordWrap" => (Options.WordWrap, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
+        "nks.view.toggleOutput" => (OutputPanelOpen, false),
+        "nks.view.fullScreen" => (IsFullScreen, false),
         _ => null,
     };
 

@@ -120,6 +120,7 @@ public sealed partial class Document
         try
         {
             string hash;
+            var blocks = new OriginalBlockHashes();
             using (var fs = new FileStream(temp, new FileStreamOptions
             {
                 Mode = FileMode.CreateNew,
@@ -129,7 +130,7 @@ public sealed partial class Document
                 BufferSize = 0,
             }))
             {
-                var hashing = new HashingStream(fs);
+                var hashing = new HashingStream(fs, blocks);
                 _backend.CopyTo(hashing);
                 fs.Flush(true);
                 hash = hashing.Finish();
@@ -143,6 +144,7 @@ public sealed partial class Document
             else FileSwap.Replace(temp, target);
 
             FilePath = target;
+            _baseline = blocks;
             Fingerprint = new FileFingerprint(ByteLength, File.GetLastWriteTimeUtc(target), hash);
             _lastReported = null;
             MarkSaved();

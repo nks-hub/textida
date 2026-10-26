@@ -24,6 +24,8 @@ public static class K
     public const string StatusSelected = "status.selected";
     public const string StatusCarets = "status.carets";
     public const string StatusReady = "status.ready";
+    public const string StatusSyntaxPending = "status.syntaxPending";
+    public const string StatusSyntaxLongLine = "status.syntaxLongLine";
     public const string StatusLargePaged = "status.largePaged";
     public const string StatusIndentSpaces = "status.indent.spaces";
     public const string StatusIndentTabs = "status.indent.tabs";
@@ -170,6 +172,15 @@ public static class K
     public const string A11yFilesFolderOpen = "a11y.files.folder.expanded";
     public const string A11yFilesFolderClosed = "a11y.files.folder.collapsed";
     public const string A11yFilesFile = "a11y.files.file";
+    public const string PanelOutputTasks = "panel.output.tasks";
+    public const string PanelOutputSearch = "panel.output.search";
+    public const string PanelOutputClear = "panel.output.clear";
+    public const string PanelOutputClose = "panel.output.close";
+    public const string PanelOutputEmpty = "panel.output.empty";
+    public const string A11yOutputPanel = "a11y.output.panel";
+    public const string A11yOutputText = "a11y.output.text";
+    public const string A11yOutputTasks = "a11y.output.tasks";
+    public const string A11yOutputSearch = "a11y.output.search";
     public const string DialogOpenFolderTitle = "dialog.openFolder.title";
     public const string FilesNewFileTitle = "files.newFile.title";
     public const string FilesNewFileLabel = "files.newFile.label";
@@ -339,6 +350,7 @@ public static class K
     public const string RegexTimedOut = "regex.timedOut";
     public const string RegexTruncated = "regex.truncated";
     public const string RegexDialect = "regex.dialect";
+    public const string RegexLimits = "regex.limits";
     public const string RegexExplainLiteral = "regex.explain.literal";
     public const string RegexExplainAny = "regex.explain.any";
     public const string RegexExplainDigit = "regex.explain.digit";

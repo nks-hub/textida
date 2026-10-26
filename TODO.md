@@ -538,6 +538,7 @@ Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru
   - **Funkce:** F029, F030, F034, F035, F037, F108
   - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Oprava 26. 10. 2026:** náhodné zabití v testu dávky ukázalo, že Windows `ReplaceFile` napřed přejmenuje cíl a pak přesune nový soubor; pád mezi tím nechal cíl chybět a původní obsah pod jménem `~RF….TMP`. Přepis teď parkuje original pod známým jménem `*.textida-*.old.tmp`; otevření souboru ho vrátí, když cíl chybí, a zbylé kopie smaže (`FileSwap.RecoverAbandoned`, test). Zabití přímo uvnitř `ReplaceFile` u běžného uložení harness zatím nezkouší.
+  - **Rozhodnutí majitele 26. 10. 2026 (velké mapované soubory):** soubor se nezamyká; změna zvenku se pozná podle délky a času a před uložením se obsah nezměněných částí originálu ověří proti blokovým otiskům (SHA-256 po 1 MiB, pořízeným při čtení, bez druhého celého průchodu); při rozdílu konflikt místo uložení. Čtení zastaralého snímku vyhodí `SnapshotInvalidatedException` (hotovo, Codex fa4521e). Blokové otisky **zbývá** implementovat, návrh v `p3/block-hashes-design.md`.
   - **Hotovo, když:** pád injektovaný před a po flush a před a po výměně souboru nechá na disku buď starou, nebo novou verzi celou, ověřeno nezávislým porovnáním; plný disk při uložení nic nepoškodí a neuložený obsah zůstane v kartě; zavření neuložené karty nabídne uložit, zahodit nebo nechat v žurnálu; v režimu jen pro čtení nejde změnit dokument žádnou cestou.
   - **Závisí na:** P1.3.2, P1.2.3
   - **Odhad:** bez odhadu
@@ -581,6 +582,7 @@ Neuložená práce přežije restart i pád. Žurnál je oddělený od automatic
   - **Funkce:** F150, F027
   - **Stav 26. 10. 2026:** jádro hotové (commity 9832275–1e21479): harness `tests/NksHub.Textida.Journal.CrashHarness` zabíjí skutečný proces v náhodném okamžiku a porovnává s orákulem; 3 běhy (200, 300 a 200 iterací, celkem přes 53 000 operací) bez chyby, největší ztráta 920 ms při limitu 2000 ms, 371 useknutých nebo poškozených konců žurnálu rozpoznáno. Zbývá lišta „co se vrátilo“ v aplikaci.
   - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
+  - **Nález 26. 10. 2026 (referenční Windows VM):** test `BatchedRecordsAreOnDiskWithinTheFlushIntervalAndWellInsideTwoSeconds` (Perf, samostatný běh projektu) dal 2565 ms a jednou 1702 ms proti limitu 1500 ms; na vývojovém PC prošel. Na referenčním stroji se tedy záznam žurnálu může dostat na disk až za 2,5 s – prověřit (fsync po 500 ms vs. výkon disku VM) a buď opravit, nebo doložit, že limit ztráty z P1.5.1 platí.
   - **Hotovo, když:** zabití procesu během psaní a nový start obnoví všechny karty včetně nepojmenovaných se ztrátou nejvýš 2 s žurnálu (kap. 3), změřeno podle časových značek žurnálu; pád během zápisu žurnálu nepoškodí předchozí potvrzený stav; po obnově lišta ukáže, co se vrátilo.
   - **Závisí na:** P1.5.3, P1.5.4, P1.5.5
   - **Odhad:** F150 4–6 ČT (matice) za P1.5.1 a P1.5.3–P1.5.5; F027 bez odhadu
@@ -816,7 +818,7 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
 - [ ] **P2.4.3** Regulární výrazy a zkouška regexu
   - **Co a proč:** Jeden určený dialekt a jeden engine ve všech cestách textového hledání, `\u \l \U \L \E` v náhradě. Matice slibuje PCRE2 rozšířeně (F063). Úkol určí dialekt a omezení po režimech (běžný, stránkovaný) a buď slib PCRE2 splní knihovnou ověřenou pod AOT, nebo předloží konkrétní rozpor majiteli. Předstírat podporu nesmí. Regex z P0 hledá bez shod přes konce řádků a jeho testy nedokládají celý rozsah. U pole hledání „Zkusit“ nad vzorovým textem (shody, skupiny) a „Vysvětlit“. Import vzorů TRegExpr z PSPadu je až po 1.0.
   - **Funkce:** F063, F188
-  - **Stav 26. 10. 2026:** částečně: `\U \L \E \u \l` v náhradě, okno „Zkusit“ se stejným enginem a vysvětlením konstrukcí. Otevřené: dialekt je .NET, matice F063 slibuje PCRE2 (rozhodne majitel); prázdné shody se ignorují, takže `^` pro vložení předpony nefunguje.
+  - **Stav 26. 10. 2026:** částečně: `\U \L \E \u \l` v náhradě, okno „Zkusit“ se stejným enginem a vysvětlením konstrukcí. Dialekt rozhodl majitel 26. 10. 2026 (R11): .NET Regex, bez PCRE2. Zbývá: engine `NonBacktracking` pro výrazy, které ho dovolí (hlavně stránkovaný a velký soubor), časový limit pro klasický engine, výpis rozdílů proti PCRE v nápovědě a prázdné shody (`^` pro vložení předpony dnes nefunguje).
   - **Hotovo, když:** sada vzorů pro zvolený dialekt projde včetně skupin, náhrad, víceřádkových shod a chybného vzoru s jasnou chybou; vzor nad časovým limitem se zastaví; výsledek „Zkusit“ nad vzorovým textem je stejný jako hledání stejným vzorem v dokumentu; `\U$1` převede skupinu na velká písmena; „Vysvětlit“ popíše každou podporovanou konstrukci vzoru a u nepodporované řekne omezení.
   - **Závisí na:** P2.4.1
   - **Odhad:** F188 0,5–1 ČT (matice); převod velikosti v náhradě 0,5 ČT; výběr a ověření dialektu bez odhadu
@@ -964,6 +966,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
 - [ ] **P3.1.11** Psaní a mazání na stránkované ploše
   - **Co a proč:** Hlavní nová práce MVP podle spiku: stránkovaná plocha musí text nad hranicí přepnutí upravovat, ne jen číst. Kurzor podle čísla řádku a sloupce v aktuální revizi, psaní, Backspace, Delete, Enter a Tab, přepsání výběru psaním a seskupení undo (souvislé psaní je jeden krok). Výpočet za úpravou trval v jádře na referenční Windows VM p95 0,80 ms bez vykreslení; vstup → prezentace změřený není. Sloupec se dnes zjišťuje dekódováním celého řádku, proto MVP editaci řádku nad limitem odmítne; lokální editace dlouhých řádků zůstává v P7.1.5.
   - **Funkce:** F154 (částečně: psaní a mazání v textu do 100 MiB)
+  - **Stav 26. 10. 2026:** prototyp z P1.2.9 umí psát a mazat; test `Typing_on_the_paged_surface_stays_within_33_ms_at_p95` na referenční Windows VM (4 jádra, přihlášená relace ABF, headless) dává p95 56,3 ms, medián 37,7 ms, tedy cíl 33 ms **nesplněn**; na vývojovém PC prošel. Potřeba profilovat cestu úhozu stránkované plochy.
   - **Před zahájením:** limit délky řádku, nad kterým se editace odmítne, se zapíše jako vstupní rozhodnutí (úvod TODO).
   - **Hotovo, když:** v čistém ASCII souboru 100 MiB i v UTF-8 logu 100 MiB z korpusu (PR.2.1) dá předem zapsaná sekvence kláves (psaní včetně českých znaků, Backspace, Delete, Enter, Tab, přepsání výběru, úpravy u CRLF) po uložení soubor se stejným SHA-256 jako nezávislý výpočet; kurzor stojí po každém kroku na zapsaném řádku a sloupci; souvislé psaní slova je jeden krok undo a 500 kroků undo a redo vrátí obsah okna podle očekávání; úprava řádku delšího než zapsaný limit se odmítne s hlášením v liště stránkovaného režimu a dokument se nezmění; psaní má na obou strojích R8 vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms.
   - **Závisí na:** P3.1.7, P3.1.8, P1.2.6, P1.2.8
@@ -993,6 +996,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
     - napojení rendereru běžné i stránkované plochy
     - gramatiky MVP a snapshot testy podle případů z `09` kap. 12
     - checkpointy stavu z P3.2.3
+  - **Stav 26. 10. 2026:** částečně: barvy v běžném editoru (`SyntaxColorizer`) i ve stránkované ploše z jednoho `SyntaxFeeder`, palety světlá a tmavá podle D5, ruční volba jazyka přežije reload, neúplný výřez se ohlásí po 150 ms, dlouhé řádky přes streamovací sken (Codex), úprava řádku přetokenizuje jen ten řádek. Měření na referenční Windows VM (starší build): psaní v 1 MiB `.cs` p95 36–37 ms proti 33 ms, skok za 8MiB komentář 327 ms proti 250 ms – **nesplněno**; po posledních úpravách neměřeno. Snímky D5 z dřívějšího buildu (`p3/ui-review-d5-syntax.md`).
   - **Hotovo, když:** psaní v souboru 1 MiB se zvýrazněním má vstup → prezentace p95 ≤ 33 ms (cíl, který TextMate nesplnil); snapshot testy tokenů všech gramatik MVP procházejí; ruční volba jazyka přežije reload.
   - **Závisí na:** P2.7.1, P3.2.3
   - **Odhad:** bez odhadu
@@ -1000,6 +1004,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Co a proč:** „Jen viditelná část“ nezajistí správné tokeny po skoku doprostřed souboru. Stav tokenizéru se ukládá v checkpointech; po skoku za nezpracovanou část se doplní s omezeným rozpočtem skenování a neúplný výsledek se pozná. Změna komentáře mimo viewport zneplatní checkpointy za ní.
   - **Funkce:** F121 (částečně: checkpointy)
   - **Před zahájením:** rozpočet času a paměti dopočtu (ms, MiB) a velikost testovacího komentáře se zapíšou jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026:** částečně: checkpointy a dopočet (Codex 344b9ee, 6d67600), rozpočet schválen majitelem (250 ms, 16 MiB, komentář 8 MiB); jádro na referenční Windows VM prošlo 8MiB testem, v aplikaci skok za komentář 327 ms (starší build) – brána zatím nesplněna.
   - **Hotovo, když:** po skoku za několikamegabajtový komentář nebo řetězec a po editaci jeho začátku mimo viewport se tokeny výřezu po dopočtu shodují s plným referenčním průchodem; dopočet nepřekročí zapsaný rozpočet času a paměti a do jeho konce je výřez označený jako neúplný.
   - **Závisí na:** P2.7.1, P3.1.8
   - **Odhad:** bez odhadu
@@ -1024,6 +1029,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
 - [ ] **P3.4.1** Základ inspektoru před uložením
   - **Co a proč:** Před uložením ukáže, co se v souboru skutečně změní: změněné rozsahy, zachované kódování a konce řádků, znaky, které v cílovém kódování nejdou zapsat. Rozšiřuje malý náhled z P1.3.3, nevytváří druhý. Plný inspektor je v P5.5.1.
   - **Funkce:** F169
+  - **Stav 26. 10. 2026:** částečně: pro hex příkaz „Změny před uložením…“ (rozsahy, staré a nové bajty, způsob uložení). Chybí varianta pro text s nezapsatelnými znaky (bajtový rozdíl a volba změnit kódování).
   - **Hotovo, když:** u uložení do CP1250 se třemi nezapsatelnými znaky inspektor vypíše tyto znaky, jejich řádky a bajtový rozdíl a nabídne tři volby, každou s přesně určeným výsledkem: zrušit (nic se nezapíše), změnit kódování (zápis v nově zvoleném kódování) a výslovná náhrada (zápis s určenými náhradními bajty); tichý best-fit nenastane nikdy.
   - **Závisí na:** P1.3.4
   - **Odhad:** F169 2–4 ČT navíc za základ i plnou verzi (matice); podíl P3 určí PR.8.2
@@ -1034,51 +1040,59 @@ Plný hex editor už v MVP (rozhodnutí majitele 25. 10. 2026, kap. 5.5). Hex a 
 
 Hotovo celku (kap. 6 P3): 10GiB soubor v hexu: skok na `end-512`, přepis 4 B, vložení 1 B, undo, redo, uložení; binární rozdíl obsahuje jen tyto rozsahy i po přepnutí text ↔ hex; hledání `50 4B ?? 04` najde stejný počet jako nezávislý průchod i po úpravě; uint32 BE zapsaný v inspektoru jde vrátit jedním undo; vše bez myši na Windows i macOS, s NVDA i VoiceOverem.
 
-- [ ] **P3.5.1** Služba `ByteSearch` v jádru
+- [x] **P3.5.1** Služba `ByteSearch` v jádru
   - **Co a proč:** Nová služba hledá nad stromem úseků, i v upraveném dokumentu. Libovolné bajty včetně `0A` a `0D`, zástupné znaky na bajt (`??`) i půlbajt (`4?`), žádné dělení podle řádků, výsledek s revizí. Dnešní `PagedSearch` neumí zástupné znaky ani vzor s LF a hledá jen v původním souboru. Druhy dotazu: hex, text v kódování, číslo s typem; najít vše do karty výsledků. Vzorové hledání v `bench/NksHub.Textida.Bench/HexView.cs` není produktová služba.
   - **Funkce:** F235
+  - **Stav 26. 10. 2026:** hotovo (Codex 2bf3183): `ByteSearch.Find` nad snapshotem, masky bajtů i půlbajtů, text a číselné vzory; na referenční Windows VM hledání nad řídkým 10GiB souborem před i po úpravě shodné s nezávislým průchodem.
   - **Hotovo, když:** hledání `50 4B ?? 04` v 10GiB souboru najde stejné uspořádané offsety jako nezávislý naivní průchod, před úpravou i po ní; projdou i vzory s půlbajtem, s LF a s NUL, vzor přes hranici úseků, text v kódování a číslo s typem; počet výsledků jde omezit a karta dosažení limitu ohlásí.
   - **Závisí na:** P0.1.1, P1.2.4
   - **Odhad:** F235 2–3 ČT (matice)
-- [ ] **P3.5.2** Hex pohled
+- [x] **P3.5.2** Hex pohled
   - **Co a proč:** Vlastní prvek nad Skia: offset / hex / text, bajtů na řádek a seskupení, formát offsetu, kódování znakové části (jednobajtová, UTF-8, UTF-16), třídy bajtů, stavový řádek hex, soubory do 50 GiB. AvaloniaHex jen jako zdroj nápadů, ne závislost. Nad bajtovým kontraktem P1.2.8, souběžně s textovou plochou P3.1.
   - **Funkce:** F230, F012
+  - **Stav 26. 10. 2026:** hotovo: vlastní mřížka s offsetem, hexem a znaky, 8 až 64 bajtů na řádek, seskupení, dec/hex offset, 6 kódování znakové části, neplatný bajt jako zvýrazněné `�`, změněné bajty podbarvené a podtržené. Neměřeno: vstup→prezentace na referenční Windows VM a pohled nad 50 GiB.
   - **Hotovo, když:** výřez 64 × 16 B na náhodném místě 50GiB souboru má posun vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms, měřeno až po prezentaci v Avalonii na obou strojích R8 (v P0 změřené není); znaková část v UTF-8 ukáže neplatný bajt jako zvýrazněný `�`.
   - **Závisí na:** P1.2.8
   - **Odhad:** F230 2–3 ČT (matice)
 - [ ] **P3.5.3** Přepínání text ↔ hex
   - **Co a proč:** Přepnutí aktivní karty nic nenačítá znovu, kurzor a výběr se převedou přes bajtový offset. *Otevřít v hex*, `--hex` a `--offset`, nabídka u binárního souboru v liště, ne dialog. Karta AvaloniaEdit se převede na bajtový dokument v paměti nad původními bajty podle kontraktu P1.2.1; přepnutí není příkaz Uložit a nic nezapisuje na disk. Nezapsatelný text otevře inspektor F169.
   - **Funkce:** F231
+  - **Stav 26. 10. 2026:** částečně: Ctrl+K Ctrl+H, převod výběru přes bajtové offsety se zachovanou identitou, revizí, undo a stavem „neuloženo“, `--hex` a `--offset`, nabídka u souboru s NUL v prvních 8 000 B. Chybí volba „vždy / zeptat se / nikdy“ a otevření inspektoru F169 u nezapsatelného textu.
   - **Hotovo, když:** výběr v textu se po přepnutí do hexu a zpět vrátí na stejné bajty; nepojmenovaný neuložený dokument s BOM, smíšenými EOL a vadným UTF-8 projde text → hex → text, nic se nezapíše na disk a zachová se identita, revize, stav „neuloženo“, undo i neplatné bajty; `--hex --offset 0x1F40` otevře soubor na offsetu; soubor s NUL v prvních 8 000 B nabídne hex lištou.
   - **Závisí na:** P3.5.2, P1.1.4, P3.4.1, P1.2.10
   - **Odhad:** F231 1–2 ČT (matice)
-- [ ] **P3.5.4** Hex úpravy
+- [x] **P3.5.4** Hex úpravy
   - **Co a proč:** Přepis je výchozí, vkládání jen výslovně a viditelně (`PŘEPIS` / `VKLÁDÁNÍ`). Půlbajty, psaní ve sloupci text, schránka jako hex text i binárně. Skupiny undo. macOS nemá klávesu `Insert`, přepínač je i v menu a stavovém řádku.
   - **Funkce:** F232
+  - **Stav 26. 10. 2026:** hotovo: přepis jako výchozí, vkládání výslovně (stav PŘEPIS/VKLÁDÁNÍ), půlbajty, psaní ve znakovém sloupci, schránka hex i binárně, dotaz u Delete v přepisu a u delšího vložení, souvislé psaní jeden krok undo.
   - **Hotovo, když:** `Delete` v přepisu nic nesmaže potichu a nabídne vynulovat nebo smazat; psaní souvislého úseku je jeden krok undo; vložení delší schránky než zbytek souboru se zeptá.
   - **Závisí na:** P3.5.2, P1.2.6
   - **Odhad:** F232 2–3 ČT (matice)
-- [ ] **P3.5.5** Společné bajtové uložení, snapshot a žurnál
+- [x] **P3.5.5** Společné bajtové uložení, snapshot a žurnál
   - **Co a proč:** MVP hex nesmí záviset na ukládání dokončeném až v P7. Tady vzniká společná ukládací služba pro text i hex: neměnný snapshot ukládané revize, zápis na místo, když se délka nemění, jinak stream přes dočasný soubor a atomickou výměnu. Body obnovy zápisu na místo: žurnál původních bajtů → data → potvrzení. Před zápisem na místo se původní bajty zkopírují, aby undo po uložení fungovalo; žurnál určuje, kdy se smí uvolnit. Hex část inspektoru F169 ukáže rozsahy a způsob uložení. Vzorový zápis v `HexView.cs` používá kopii souboru a `Flush`, ne produkční žurnál. P7 tuto službu jen rozšíří o velké nové bloky a souběžnou textovou editaci.
   - **Funkce:** F233
+  - **Stav 26. 10. 2026:** hotovo: zápis na místě přes žurnál (staré bajty, data, potvrzení), jinak stream přes dočasný soubor; uložení na pozadí ze snímku, zrušitelné Esc; staré snímky po uložení na místě čtou původní bajty (kopie přepisovaných rozsahů), čtení a vlastní zápis synchronizované zámkem a počítadlem verzí; po zápisu se ověří hash disku. Brána 10 GiB na referenční Windows VM prošla (přepis 4 B na `end-512`, vložení 1 B, undo, redo, uložení na místě i streamem, binární rozdíl jen očekávané rozsahy, `50 4B ?? 04` shodně s naivním průchodem). Přepnutí text ↔ hex v 10GiB testu není (jen UI test na malém souboru). Pád těsně před potvrzením uložení jen simulovaný.
   - **Hotovo, když:** zápis na místo i streamové uložení projdou testem: po přepisu 4 B v 10GiB souboru se uloží na místo, po vložení 1 B streamem, a SHA-256 obou výsledků odpovídá nezávislému výpočtu; pád injektovaný po každém kroku žurnál → data → potvrzení jde po startu dokončit nebo vrátit, včetně pádu těsně před a těsně po potvrzení žurnálu; injektované zdržení flush aspoň 1,5 s neblokuje UI, které dál splní limity kap. 3, uložení jde během něj zrušit a potvrzení uložení nepřijde dřív než flush; zrušení, cizí změna podkladu a plný disk nepoškodí originál; undo po uložení vrátí původní bajty a výsledek po restartu je stejný.
   - **Závisí na:** P3.5.4, P1.5.1, P3.4.1
   - **Odhad:** F233 1–2 ČT (matice); přesunutá část F154 z P7 bez odhadu, podíl a odečet z P7 určí PR.8.2
-- [ ] **P3.5.6** Inspektor dat
+- [x] **P3.5.6** Inspektor dat
   - **Co a proč:** Panel na požádání: celá čísla 8–64 bit, LEB128, float16–64, datum a čas, znaky, GUID, přepínač LE / BE. Enter na řádku upraví hodnotu jako jeden krok undo.
   - **Funkce:** F234
+  - **Stav 26. 10. 2026:** hotovo: čísla 8–64 bit, LEB128, float16–64, čtyři typy data a času, znaky, GUID, LE/BE, zápis hodnoty Enterem jako jeden krok undo, chyba rozsahu hned, neúplná hodnota na konci souboru označená.
   - **Hotovo, když:** každý deklarovaný typ má test s krajními hodnotami v LE i BE; hodnota uint32 BE zapsaná Enterem se objeví v mřížce a jde vrátit jedním undo; chyba rozsahu se ukáže hned; neúplná hodnota na konci souboru se ukáže jako neúplná, ne jako nula.
   - **Závisí na:** P3.5.4
   - **Odhad:** F234 1,5–2 ČT (matice)
 - [ ] **P3.5.7** Skok na offset s výrazy
   - **Co a proč:** Ctrl+G v hex kartě: `0x1F40`, `1F40h`, `$1F40`, `+0x100`, `end-512`, `50%`, `4K`, závorky a `+ - * /`, `sel`, `val`. Náhled cíle před potvrzením, historie skoků sdílená s F174.
   - **Funkce:** F236
+  - **Stav 26. 10. 2026:** částečně: `OffsetExpression` (Codex 994147a, `end` = délka, EOF platný, procenta dolů, K/M/G = 1024^n) a Ctrl+G v hex pohledu s `Alt+←`. Chybí náhled cíle před potvrzením.
   - **Hotovo, když:** každý zápis z analýzy konkurence má test; `end-512` u 10GiB souboru skočí přesně; Alt+← vrátí předchozí místo.
   - **Závisí na:** P3.5.2, P2.1.4
   - **Odhad:** F236 0,5–1 ČT (matice)
 - [ ] **P3.5.8** Přístupnost hex: základ
   - **Co a proč:** Automation peer mřížky: čtečka čte offset, bajt, hodnotu a znak. Posun po bajtu, skupině, řádku, stránce a výběr klávesnicí. Plná verze v P9.1.2.
   - **Funkce:** F248
+  - **Stav 26. 10. 2026:** částečně: prvek mřížky hlásí „offset, bajt, hodnota, znak“ a výběr a změnu ve čtyřech jazycích; NVDA a VoiceOver neověřeny (potřebují člověka).
   - **Hotovo, když:** celý hex test celku P3.5 projde bez myši v matici R10 (PR.4); NVDA i VoiceOver přečtou při pohybu kurzoru, výběru a po úpravě stejný offset a hodnotu podle předem zapsaného očekávání; důkazy textové plochy se nepřebírají.
   - **Závisí na:** P3.5.2, P1.8.1
   - **Odhad:** F248 1–2 ČT za základ i plnou verzi (matice); podíl P3 určí PR.8.2
@@ -1105,9 +1119,10 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Hotovo, když:** záložka se po vložení řádků nad ní posune s textem a přežije restart přes žurnál.
   - **Závisí na:** P1.2.5, P1.5.1
   - **Odhad:** bez odhadu
-- [ ] **P3.6.3** Panely a okno výstupu
+- [x] **P3.6.3** Panely a okno výstupu
   - **Co a proč:** Panely na požádání (Soubory vlevo, Code Explorer vpravo vedle minimapy), celá obrazovka. Výstupy úloh a hledání jsou oddělené podle účelu a zůstanou čitelné i po pádu procesu, který je psal.
   - **Funkce:** F134, F135
+  - **Stav 26. 10. 2026:** hotovo: výchozí stav jen editor; Dokumenty Ctrl+B, Soubory Ctrl+Shift+E, Výstup Ctrl+Shift+Y (zavře i Esc), F11 celá obrazovka; `OutputChannels` s kanály Úlohy a Hledání jako soubory v profilu (řádek = zápis), test se skutečným zabitým procesem; review D5 `p3/ui-review-d5-panels.md`. Code Explorer vpravo patří do P4. macOS: F11 zabírá systém, nativní zkratka celé obrazovky chybí.
   - **Hotovo, když:** výchozí stav je jen editor; každý panel jde otevřít z menu Zobrazit nebo klávesou a zavřít; výstup spadlého nástroje zůstane v okně výstupu.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu

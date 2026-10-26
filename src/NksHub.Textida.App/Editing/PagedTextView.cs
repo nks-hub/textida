@@ -10,9 +10,11 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -35,6 +37,7 @@ internal sealed class PagedTextView : Grid
     private readonly ScrollBar _bar = new() { Orientation = Orientation.Vertical, Minimum = 0, SmallChange = 1, AllowAutoHide = false };
     private readonly DispatcherTimer _indexTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private readonly Dictionary<long, LineView> _lines = [];
+    private Dictionary<long, Token[]> _tokens = [];
     private EditorOptions _options;
     private long _linesRevision = -1;
     private long _caret;
@@ -61,7 +64,9 @@ internal sealed class PagedTextView : Grid
         SetColumn(_bar, 1);
         Children.Add(_canvas);
         Children.Add(_bar);
-        _bar.ValueChanged += (_, _) => { _canvas.InvalidateVisual(); RaiseViewChanged(); };
+        Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
+            line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
+        _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {
             UpdateScrollRange();
@@ -81,6 +86,9 @@ internal sealed class PagedTextView : Grid
 
     /// <summary>Raised with a localised sentence when an edit was refused.</summary>
     public event Action<string>? Refused;
+
+    /// <summary>Keeps the syntax colors of this view current.</summary>
+    public SyntaxFeeder Syntax { get; }
 
     private Document Doc => _doc.Doc;
     private PagedDocument Paged => ((PagedBackend)Doc.Backend).Paged;
@@ -150,6 +158,47 @@ internal sealed class PagedTextView : Grid
         if (Indexed && LineStart(target) is var start and >= 0) MoveTo(start, target);
     }
 
+    /// <summary>Token runs the view colors a line with, for tests; null when the line has none.</summary>
+    internal IReadOnlyList<Token>? TokensOf(long line) => _tokens.GetValueOrDefault(line);
+
+    /// <summary>
+    /// Tells the feeder which lines and which UTF-16 columns of them are on screen. A line of at most 4096 characters is asked for whole;
+    /// of a longer line only the characters between the left and the right edge of the view, found with the same measuring the caret uses.
+    /// </summary>
+    private void FeedSyntax()
+    {
+        if (!Syntax.Active) return;
+        int first = int.MaxValue, last = 0;
+        for (int i = 0; i <= _canvas.VisibleLines; i++)
+        {
+            if (!Indexed || GetLine(TopLine + i) is not { } view) break;
+            int length = view.Map.Text.Length;
+            if (length <= 4096)
+            {
+                first = 0;
+                last = Math.Max(last, length);
+                continue;
+            }
+            first = Math.Min(first, _canvas.IndexAtX(view, _hScroll));
+            last = Math.Max(last, _canvas.IndexAtX(view, _hScroll + _canvas.TextWidth) + 1);
+        }
+        if (first == int.MaxValue) first = 0;
+        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), first, Math.Max(first + 1, last));
+    }
+
+    private void ApplyTokens(SyntaxViewport viewport)
+    {
+        if (viewport.Revision != Doc.Revision) return;
+        _tokens = viewport.Lines.ToDictionary(line => line.Line, line => line.Tokens.ToArray());
+        _canvas.InvalidateVisual();
+    }
+
+    private void ClearTokens()
+    {
+        _tokens.Clear();
+        _canvas.InvalidateVisual();
+    }
+
     private void UpdateScrollRange()
     {
         long lines = Math.Max(1, Index.Lines);
@@ -157,6 +206,7 @@ internal sealed class PagedTextView : Grid
         _bar.Maximum = Math.Max(0, lines - visible);
         _bar.ViewportSize = visible;
         _bar.LargeChange = Math.Max(1, visible - 1);
+        FeedSyntax();
     }
 
     // ---- lines and the character map ----
@@ -316,6 +366,7 @@ internal sealed class PagedTextView : Grid
         double x = _canvas.XOf(c.View, c.View.Map.CharIndexOf(_caret - c.View.Start)), width = _canvas.TextWidth;
         if (x < _hScroll) _hScroll = Math.Max(0, x - 24);
         else if (x > _hScroll + width - 8) _hScroll = x - width + 32;
+        FeedSyntax();
         _canvas.InvalidateVisual();
     }
 
@@ -641,6 +692,7 @@ internal sealed class PagedTextView : Grid
             var fore = Brush("Fg", Brushes.Black);
             var numbers = Brush("LineNumbers", Brushes.Gray);
             var current = Brush("CurrentLine", Brushes.Transparent);
+            var palette = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
             context.FillRectangle(back, new Rect(Bounds.Size));
             var (lines, _) = owner.Index;
             int digits = Math.Max(3, (lines > 0 ? lines : 1).ToString(CultureInfo.InvariantCulture).Length);
@@ -655,7 +707,14 @@ internal sealed class PagedTextView : Grid
                     if (owner.GetLine(line) is not { } view) break;
                     double y = i * _lineHeight;
                     if (caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
-                    context.DrawText(Format(view.Display, fore), new Point(TextLeft - owner._hScroll, y));
+                    var text = Format(view.Display, fore);
+                    if (owner._tokens.TryGetValue(line, out var tokens))
+                        foreach (var token in tokens)
+                        {
+                            int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
+                            if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
+                        }
+                    context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
                 }
                 if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
             }

@@ -9,7 +9,7 @@ namespace NksHub.Textida.Core.Search;
 /// What to look for. Regular expressions use the .NET dialect (System.Text.RegularExpressions, culture invariant) with
 /// <c>^</c> and <c>$</c> at line starts and ends and <c>.</c> not matching LF. A CRLF file therefore needs <c>\r?$</c> to match
 /// before the line break. Whole word wraps the pattern in <c>\b</c> (a literal only on the sides that start or end with a word character).
-/// The search is case sensitive unless <see cref="CaseSensitive"/> is false. Empty matches are ignored. An empty or invalid pattern
+/// The search is case sensitive unless <see cref="CaseSensitive"/> is false. Empty matches are not listed (Replace uses them, see <see cref="RegexTools.ReplacementEdits"/>). An empty or invalid pattern
 /// throws <see cref="ArgumentException"/> when the search starts.
 /// A match never crosses the cut between two read chunks of a file larger than <see cref="SearchSettings.ChunkBytes"/>;
 /// chunks are cut after a line feed, so only a pattern that itself contains a line break can be affected.
@@ -18,7 +18,7 @@ public sealed record SearchPattern(string Text, bool IsRegex = false, bool CaseS
 
 public enum RegexEngine
 {
-    /// <summary>The linear-time engine when the pattern allows it (no lookarounds, backreferences), else backtracking with a match timeout.</summary>
+    /// <summary>The linear-time engine when the pattern allows it (no lookarounds, backreferences, atomic groups), else backtracking with <see cref="RegexTools.MatchTimeoutMs"/>.</summary>
     Auto,
     Backtracking,
 }
@@ -39,6 +39,8 @@ public sealed record SearchSettings
     /// <summary>Longest preview text of a hit in UTF-16 units.</summary>
     public int PreviewChars { get; init; } = 240;
     public RegexEngine Engine { get; init; } = RegexEngine.Auto;
+    /// <summary>Count matches without text (<c>^</c>, <c>$</c>) too; Replace in Files needs them, a search list does not.</summary>
+    public bool IncludeEmpty { get; init; }
     /// <summary>Called on a worker thread for every source with at least one match and its match count; callers must be thread safe.</summary>
     public Action<SearchSource, long>? FileMatched { get; init; }
     public FileWalkOptions Walk { get; init; } = new();
@@ -110,7 +112,7 @@ internal sealed class CompiledPattern
             try { regex = new Regex(body, options | RegexOptions.NonBacktracking); }
             catch (NotSupportedException) { }
         }
-        regex ??= new Regex(body, options, TimeSpan.FromMilliseconds(500));
+        regex ??= new Regex(body, options, TimeSpan.FromMilliseconds(RegexTools.MatchTimeoutMs));
         bool plain = !p.IsRegex && p.CaseSensitive && !p.WholeWord;
         return new CompiledPattern(p, regex, plain ? Encoding.UTF8.GetBytes(p.Text) : null);
     }

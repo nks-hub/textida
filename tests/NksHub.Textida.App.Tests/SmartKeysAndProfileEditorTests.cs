@@ -42,7 +42,7 @@ public class SmartKeysAndProfileEditorTests : IDisposable
     private DocTab Open(string text, string language = "plaintext")
     {
         var tab = _w.NewDocument();
-        tab.Doc.Language = LanguageModes.ById(language);
+        tab.Doc.ChooseLanguage(LanguageModes.ById(language));
         tab.Editor!.Document.Text = text;
         Dispatcher.UIThread.RunJobs();
         tab.Doc.FlushEol();

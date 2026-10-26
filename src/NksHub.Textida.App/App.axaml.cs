@@ -11,6 +11,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
@@ -27,6 +28,7 @@ public sealed partial class App : Application
     internal AppWorkbench Workbench { get; private set; } = null!;
     internal JournalService Journal { get; private set; } = null!;
     internal BackupService Backups { get; private set; } = null!;
+    internal OutputChannels Output { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
@@ -98,11 +100,13 @@ public sealed partial class App : Application
         Workbench.SetLanguage(Settings.Language);
         Loc.SetLanguage(Settings.Language);
         ApplyThemeVariant();
+        ApplyRegexTimeout();
 
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
         Recent = RecentFiles.Load(ProfileDirectory);
+        Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
     }
 
@@ -259,8 +263,13 @@ public sealed partial class App : Application
                 Loc.SetLanguage(Settings.Language);
                 foreach (var w in _windows) w.ApplyTexts();
                 break;
+            case "search.regexTimeoutMs":
+                ApplyRegexTimeout();
+                break;
         }
     }
+
+    private void ApplyRegexTimeout() => RegexTools.MatchTimeoutMs = (int)Workbench.Settings.GetInt("search.regexTimeoutMs");
 
     private void ApplyThemeVariant() => RequestedThemeVariant = Settings.Theme switch
     {

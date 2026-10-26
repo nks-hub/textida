@@ -30,6 +30,18 @@ public static class RegexTools
 {
     public const int MaxTestMatches = 1000;
 
+    /// <summary>Default of the <c>search.regexTimeoutMs</c> setting.</summary>
+    public const int DefaultMatchTimeoutMs = 2000;
+
+    private static int _matchTimeoutMs = DefaultMatchTimeoutMs;
+
+    /// <summary>How long the backtracking engine may run on one text before it is stopped; the app sets it from <c>search.regexTimeoutMs</c>. The linear-time engine is not limited.</summary>
+    public static int MatchTimeoutMs
+    {
+        get => Volatile.Read(ref _matchTimeoutMs);
+        set => Volatile.Write(ref _matchTimeoutMs, Math.Max(1, value));
+    }
+
     /// <summary>The reason <paramref name="pattern"/> cannot be searched for, or null when it is usable (an empty pattern is usable: it finds nothing).</summary>
     public static string? Validate(SearchPattern pattern)
     {
@@ -48,7 +60,7 @@ public static class RegexTools
     /// <summary>A regex for <paramref name="pattern"/> exactly as the search builds it. Throws <see cref="ArgumentException"/> for an empty or invalid pattern.</summary>
     public static Regex Create(SearchPattern pattern, RegexEngine engine = RegexEngine.Auto) => CompiledPattern.Create(pattern, engine).Regex;
 
-    /// <summary>Runs the pattern over a sample text the way the search runs it over a document; empty matches are left out like in the search.</summary>
+    /// <summary>Runs the pattern over a sample text the way the search runs it over a document; empty matches are not listed, as in the search, but the replacement applies them (<see cref="ReplacementEdits"/>).</summary>
     public static RegexTestResult Test(SearchPattern pattern, string sample, string? replacement = null)
     {
         Regex regex;
@@ -87,18 +99,47 @@ public static class RegexTools
         string? replaced = null;
         if (replacement is not null)
         {
-            var sb = new StringBuilder();
-            int at = 0;
-            foreach (Match m in regex.Matches(sample))
+            try
             {
-                if (m.Length == 0) continue;
-                sb.Append(sample, at, m.Index - at).Append(pattern.IsRegex ? ExpandReplacement(m, replacement) : replacement);
-                at = m.Index + m.Length;
+                var sb = new StringBuilder();
+                int at = 0;
+                foreach (var (start, end, text) in ReplacementEdits(regex, sample, replacement, pattern.IsRegex))
+                {
+                    sb.Append(sample, at, start - at).Append(text);
+                    at = end;
+                }
+                replaced = sb.Append(sample, at, sample.Length - at).ToString();
             }
-            replaced = sb.Append(sample, at, sample.Length - at).ToString();
+            catch (RegexMatchTimeoutException)
+            {
+                return new RegexTestResult(matches, null, true, truncated, null);
+            }
         }
         return new RegexTestResult(matches, null, false, truncated, replaced);
     }
+
+    /// <summary>
+    /// The edits that replace every match in <paramref name="text"/>, ascending and disjoint, shared by Replace in Files, the find bar and the tester. Empty matches are
+    /// kept (<c>^</c> inserts a prefix at every line start, <c>$</c> appends at every line end); the scan moves past an empty match like the standard replace loop.
+    /// <c>$</c> stops between the CR and the LF of a CRLF break, so an empty match there is moved before the CR and the line ending stays intact.
+    /// </summary>
+    public static List<(int Start, int End, string Text)> ReplacementEdits(Regex regex, string text, string replacement, bool isRegex)
+    {
+        var edits = new List<(int, int, string)>();
+        int last = 0;
+        foreach (Match m in regex.Matches(text))
+        {
+            int start = m.Index, end = m.Index + m.Length;
+            if (SplitsPair(text, start) || SplitsPair(text, end)) continue;
+            if (m.Length == 0 && start > last && start < text.Length && text[start] == '\n' && text[start - 1] == '\r') start = end = start - 1;
+            edits.Add((start, end, isRegex ? ExpandReplacement(m, replacement) : replacement));
+            last = end;
+        }
+        return edits;
+    }
+
+    private static bool SplitsPair(string text, int index) =>
+        index > 0 && index < text.Length && char.IsLowSurrogate(text[index]) && char.IsHighSurrogate(text[index - 1]);
 
     /// <summary>
     /// Expands <paramref name="replacement"/> for one match: <c>$1</c>, <c>${name}</c>, <c>$&amp;</c> as in .NET, and <c>\U</c> (upper case until <c>\E</c>),
