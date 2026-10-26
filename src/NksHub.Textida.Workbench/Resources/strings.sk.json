@@ -189,5 +189,20 @@
   "setting.editor.smartKeys.sqlEnd.title": "Uzavrieť BEGIN príkazom END",
   "setting.editor.smartKeys.sqlEnd.description": "Enter za BEGIN v SQL doplní riadok s príslušným END.",
   "cmd.settings.profile.default": "Profil správania: predvolený",
-  "cmd.settings.profile.pspad": "Profil správania: PSPad"
+  "cmd.settings.profile.pspad": "Profil správania: PSPad",
+  "cat.hex": "Hex",
+  "cmd.view.hex": "Prepnúť hex a text",
+  "cmd.file.openAsHex": "Otvoriť v hex...",
+  "cmd.hex.toggleInsert": "Prepnúť prepis a vkladanie bajtov",
+  "cmd.hex.inspector": "Inspektor dát",
+  "cmd.hex.charset": "Kódovanie znakového stĺpca...",
+  "cmd.hex.layout": "Rozloženie hex: bajtov na riadok, zoskupenie...",
+  "cmd.hex.bytesPerRow.8": "8 bajtov na riadok",
+  "cmd.hex.bytesPerRow.16": "16 bajtov na riadok",
+  "cmd.hex.bytesPerRow.24": "24 bajtov na riadok",
+  "cmd.hex.bytesPerRow.32": "32 bajtov na riadok",
+  "cmd.hex.bytesPerRow.48": "48 bajtov na riadok",
+  "cmd.hex.bytesPerRow.64": "64 bajtov na riadok",
+  "cmd.hex.offsetFormat": "Prepnúť offsety desiatkovo a hexadecimálne",
+  "cmd.hex.inspectChanges": "Zmeny pred uložením..."
 }

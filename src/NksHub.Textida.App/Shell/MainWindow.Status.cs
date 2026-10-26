@@ -64,6 +64,12 @@ internal sealed partial class MainWindow
             return;
         }
 
+        if (tab.Hex is not null)
+        {
+            ShowHexStatus(tab);
+            return;
+        }
+
         var od = tab.Doc;
         var opts = Options;
         string position;

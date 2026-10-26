@@ -552,6 +552,89 @@
       "id": "nks.settings.profile.pspad",
       "title": "cmd.settings.profile.pspad",
       "category": "cat.app"
+    },
+    {
+      "id": "nks.view.hex",
+      "title": "cmd.view.hex",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.openAsHex",
+      "title": "cmd.file.openAsHex",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.hex.toggleInsert",
+      "title": "cmd.hex.toggleInsert",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.inspector",
+      "title": "cmd.hex.inspector",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.charset",
+      "title": "cmd.hex.charset",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.layout",
+      "title": "cmd.hex.layout",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow8",
+      "title": "cmd.hex.bytesPerRow.8",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow16",
+      "title": "cmd.hex.bytesPerRow.16",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow24",
+      "title": "cmd.hex.bytesPerRow.24",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow32",
+      "title": "cmd.hex.bytesPerRow.32",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow48",
+      "title": "cmd.hex.bytesPerRow.48",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bytesPerRow64",
+      "title": "cmd.hex.bytesPerRow.64",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.offsetFormat",
+      "title": "cmd.hex.offsetFormat",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.inspectChanges",
+      "title": "cmd.hex.inspectChanges",
+      "category": "cat.hex",
+      "enablement": "hexMode"
     }
   ],
   "menus": [
@@ -1040,6 +1123,48 @@
       "command": "nks.settings.profile.pspad",
       "group": "3_profile",
       "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openAsHex",
+      "group": "1_new",
+      "order": 25
+    },
+    {
+      "menu": "file",
+      "command": "nks.hex.inspectChanges",
+      "group": "2_save",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.hex",
+      "group": "3_hex",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.toggleInsert",
+      "group": "3_hex",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.inspector",
+      "group": "3_hex",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.charset",
+      "group": "3_hex",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.layout",
+      "group": "3_hex",
+      "order": 50
     }
   ],
   "keybindings": [
@@ -1319,6 +1444,21 @@
       "key": "escape",
       "command": "nks.edit.clearCarets",
       "when": "editorFocus && multipleCarets"
+    },
+    {
+      "key": "mod+k mod+h",
+      "command": "nks.view.hex"
+    },
+    {
+      "key": "insert",
+      "command": "nks.hex.toggleInsert",
+      "mac": "mod+alt+i",
+      "when": "hexMode && editorFocus"
+    },
+    {
+      "key": "mod+k mod+i",
+      "command": "nks.hex.inspector",
+      "when": "hexMode"
     }
   ],
   "settings": [

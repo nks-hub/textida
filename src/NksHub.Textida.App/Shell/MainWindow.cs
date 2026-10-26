@@ -109,6 +109,7 @@ internal sealed partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(DragDrop.DragOverEvent, OnWindowDragOver, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
         DragDrop.SetAllowDrop(this, true);
+        Activated += (_, _) => Dispatcher.UIThread.Post(FocusViewIfLost, DispatcherPriority.Input);
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
         _app.Workbench.SettingChanged += OnSettingChanged;
@@ -297,6 +298,7 @@ internal sealed partial class MainWindow : Window
             var options = OptionsFor(tab);
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
+            tab.Hex?.ApplyOptions(options);
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }
@@ -322,6 +324,7 @@ internal sealed partial class MainWindow : Window
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
         ApplyFileTexts();
+        ApplyHexTexts();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));

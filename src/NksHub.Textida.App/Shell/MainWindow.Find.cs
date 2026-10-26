@@ -76,6 +76,12 @@ internal sealed partial class MainWindow
     internal CommandOutcome ShowFind(bool replace)
     {
         if (Active is not { Custom: null } tab) return CommandOutcome.NotHandled;
+        if (tab.Hex is { } hex)
+        {
+            if (replace) return CommandOutcome.NotHandled;
+            _ = FindBytesAsync(hex);
+            return CommandOutcome.Handled;
+        }
         bool wasOpen = _find.IsVisible;
         _find.Open(files: false, replace);
         string? seed = wasOpen ? null : SelectedSingleLine(tab);
@@ -245,6 +251,11 @@ internal sealed partial class MainWindow
     internal async Task FindStepAsync(bool forward)
     {
         if (Active is not { Custom: null } tab) return;
+        if (tab.Hex is { } hex)
+        {
+            await HexFindStepAsync(hex, forward);
+            return;
+        }
         if (!_find.IsVisible || string.IsNullOrEmpty(_find.FindBox.Text))
         {
             ShowFind(false);

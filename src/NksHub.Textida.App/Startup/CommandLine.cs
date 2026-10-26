@@ -1,7 +1,7 @@
 namespace NksHub.Textida.App.Startup;
 
-/// <summary>A file named on the command line with an optional 1-based line.</summary>
-public readonly record struct OpenRequest(string Path, int? Line);
+/// <summary>A file named on the command line with an optional 1-based line; <paramref name="Hex"/> opens it in the hex view, at <paramref name="Offset"/> when given.</summary>
+public readonly record struct OpenRequest(string Path, int? Line, bool Hex = false, long? Offset = null);
 
 /// <summary>Result of parsing the command line. When <see cref="Error"/> is set nothing else is meaningful.</summary>
 public sealed record CommandLineArgs(
@@ -12,8 +12,9 @@ public sealed record CommandLineArgs(
     string? Error);
 
 /// <summary>
-/// Parses <c>[--new-window] [--wait] [--line N] [--smoke] [--] path...</c>. <c>--line N</c> (or <c>--line=N</c>)
-/// applies to the nearest path without a line: the previous one, otherwise the next one.
+/// Parses <c>[--new-window] [--wait] [--line N] [--hex] [--offset N] [--smoke] [--] path...</c>. <c>--line N</c> (or <c>--line=N</c>)
+/// applies to the nearest path without a line: the previous one, otherwise the next one. <c>--hex</c> opens that path in the hex view and
+/// <c>--offset N</c> (decimal or <c>0x</c> hex, also <c>--offset=N</c>) puts the caret on a byte; an offset implies <c>--hex</c>.
 /// </summary>
 public static class CommandLine
 {
@@ -22,8 +23,16 @@ public static class CommandLine
         var files = new List<OpenRequest>();
         bool newWindow = false, wait = false, smoke = false, onlyPaths = false;
         int? pendingLine = null;
+        bool pendingHex = false;
+        long? pendingOffset = null;
 
         CommandLineArgs Fail(string error) => new([], false, false, false, error);
+
+        bool TryOffset(string text, out long offset)
+        {
+            bool hex = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+            return long.TryParse(hex ? text[2..] : text, hex ? System.Globalization.NumberStyles.AllowHexSpecifier : System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out offset) && offset >= 0;
+        }
 
         bool TryLine(string text, out int line) => int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out line) && line >= 1;
 
@@ -32,8 +41,10 @@ public static class CommandLine
             var a = args[i];
             if (onlyPaths || !a.StartsWith("--", StringComparison.Ordinal))
             {
-                files.Add(new OpenRequest(Path.GetFullPath(a, workingDirectory), pendingLine));
+                files.Add(new OpenRequest(Path.GetFullPath(a, workingDirectory), pendingLine, pendingHex || pendingOffset is not null, pendingOffset));
                 pendingLine = null;
+                pendingHex = false;
+                pendingOffset = null;
                 continue;
             }
 
@@ -43,8 +54,20 @@ public static class CommandLine
                 case "--new-window": newWindow = true; break;
                 case "--wait": wait = true; break;
                 case "--smoke": smoke = true; break;
+                case "--hex":
+                    if (files.Count > 0 && !files[^1].Hex) files[^1] = files[^1] with { Hex = true };
+                    else pendingHex = true;
+                    break;
                 default:
                     string? value = null;
+                    if (a == "--offset" || a.StartsWith("--offset=", StringComparison.Ordinal))
+                    {
+                        value = a == "--offset" ? (i + 1 < args.Count ? args[++i] : null) : a["--offset=".Length..];
+                        if (value is null || !TryOffset(value, out long offset)) return Fail($"--offset needs a byte offset, got: {value ?? "(nothing)"}");
+                        if (files.Count > 0 && files[^1].Offset is null) files[^1] = files[^1] with { Hex = true, Offset = offset };
+                        else pendingOffset = offset;
+                        break;
+                    }
                     if (a == "--line") value = i + 1 < args.Count ? args[++i] : null;
                     else if (a.StartsWith("--line=", StringComparison.Ordinal)) value = a["--line=".Length..];
                     else return Fail($"unknown option: {a}");
@@ -57,6 +80,7 @@ public static class CommandLine
         }
 
         if (pendingLine is not null) return Fail("--line has no path to apply to");
+        if (pendingHex || pendingOffset is not null) return Fail("--hex and --offset need a path to apply to");
         if (wait && files.Count == 0) return Fail("--wait needs at least one path");
         return new CommandLineArgs(files, newWindow, wait, smoke, null);
     }

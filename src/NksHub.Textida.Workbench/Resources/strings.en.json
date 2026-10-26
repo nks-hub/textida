@@ -189,5 +189,20 @@
   "setting.editor.smartKeys.sqlEnd.title": "Close BEGIN with END",
   "setting.editor.smartKeys.sqlEnd.description": "Enter after BEGIN in SQL adds a matching END line.",
   "cmd.settings.profile.default": "Behaviour Profile: Default",
-  "cmd.settings.profile.pspad": "Behaviour Profile: PSPad"
+  "cmd.settings.profile.pspad": "Behaviour Profile: PSPad",
+  "cat.hex": "Hex",
+  "cmd.view.hex": "Toggle Hex View",
+  "cmd.file.openAsHex": "Open in Hex...",
+  "cmd.hex.toggleInsert": "Toggle Overwrite and Insert Mode",
+  "cmd.hex.inspector": "Data Inspector",
+  "cmd.hex.charset": "Character Column Encoding...",
+  "cmd.hex.layout": "Hex Layout: Bytes per Row, Grouping...",
+  "cmd.hex.bytesPerRow.8": "8 Bytes per Row",
+  "cmd.hex.bytesPerRow.16": "16 Bytes per Row",
+  "cmd.hex.bytesPerRow.24": "24 Bytes per Row",
+  "cmd.hex.bytesPerRow.32": "32 Bytes per Row",
+  "cmd.hex.bytesPerRow.48": "48 Bytes per Row",
+  "cmd.hex.bytesPerRow.64": "64 Bytes per Row",
+  "cmd.hex.offsetFormat": "Toggle Decimal and Hexadecimal Offsets",
+  "cmd.hex.inspectChanges": "Changes Before Saving..."
 }
