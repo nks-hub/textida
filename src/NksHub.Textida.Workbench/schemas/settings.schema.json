@@ -83,10 +83,11 @@
             "utf-16le",
             "utf-16be",
             "windows-1250",
+            "windows-1252",
             "iso-8859-2"
           ],
           "description": "Default encoding. Encoding used for new files and for files whose encoding cannot be detected.",
-          "x-scope": "language"
+          "x-scope": "document"
         },
         "files.eol": {
           "type": "string",
@@ -97,19 +98,19 @@
             "crlf"
           ],
           "description": "End of line. Line ending for new files. Auto uses the platform default.",
-          "x-scope": "language"
+          "x-scope": "document"
         },
         "files.trimTrailingWhitespace": {
           "type": "boolean",
           "default": false,
           "description": "Trim trailing whitespace. Removes spaces and tabs at line ends when saving.",
-          "x-scope": "language"
+          "x-scope": "document"
         },
         "files.insertFinalNewline": {
           "type": "boolean",
           "default": false,
           "description": "Insert final newline. Adds a line ending at the end of the file when saving.",
-          "x-scope": "language"
+          "x-scope": "document"
         },
         "files.autoSave": {
           "type": "string",
