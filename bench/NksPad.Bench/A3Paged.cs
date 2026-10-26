@@ -102,6 +102,7 @@ internal static class A3Paged
             Report("jump-50pct", mid, "ms");
             Report("jump-end", end, "ms");
         }
+        if (reps == 0) return; // --reps 0: first image and jumps only, for runs after a cache purge
 
         // 3. full index
         var indexSec = new List<double>();
