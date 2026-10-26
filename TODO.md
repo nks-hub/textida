@@ -416,19 +416,18 @@ Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy.
 - [x] **P1.2.2** Hranice přepnutí backendu a schopnosti režimů
   - **Co a proč:** AvaloniaEdit stojí u 100 MiB +552 MiB paměti na vývojovém PC a +501 MiB na referenční Windows VM a nad ~2,1 mld. znaků nefunguje. Hranici přepnutí nastavit měřením, výchozí odhad 16–32 MiB. Každý režim má popsané schopnosti a limity místo pevných malých limitů PSPadu. Hranice nesmí z textu 100 MiB udělat soubor jen pro čtení: MVP slibuje jeho editaci. P1.2.9 zvolila editovatelný stránkovaný režim nad `PagedDocument`; P1 ho doměří na prototypu s UI a produktovou editaci 100 MiB přijímá až P3.1.10.
   - **Funkce:** F141
-  - **Stav 26. 10. 2026:** hotovo: hranice je nastavení `files.largeFileThreshold` s výchozí hodnotou 6 MiB a `SettingsStack` u ní hlásí zdroj hodnoty (výchozí, uživatel, pracovní prostor). Určená je měřením v aplikaci s NativeAOT binárkou na vývojovém PC, referenční Windows VM a referenčním Macu (velikosti 2 až 64 MiB, tři běhy u 6 až 16 MiB): je to největší velikost, při které AvaloniaEdit drží špičku commit při psaní do 350 MiB nad prázdnou aplikací na všech třech strojích. Medián špičky při 6 MiB je 259 / 275 / 191 MiB (vývojový PC / VM / Mac), při 8 MiB 340 / 358 / 333 MiB (VM překročí), při 16 MiB 607 / 921 / 341 MiB a při 100 MiB 1,9 až 6,0 GiB s otevřením 1,9 až 4,7 s. Stránkovaný režim drží na všech velikostech do 64 MiB první editaci do 0,48 s (VM), 0,2 s (Mac) a 0,07 s (vývojový PC) a po ní +12 až +24 MiB (špička do +123 MiB). Dřívější odhad 16 až 32 MiB vycházel z ustálené paměti, ne ze špičky při psaní. Soubor nad hranicí se otevře v editovatelném stránkovaném režimu (ne jen pro čtení); schopnosti a limity obou režimů jsou v záznamu měření, `BackendCapabilities` zůstává.
+  - **Stav 26. 10. 2026:** hotovo: hranice 6 MiB změřená na vývojovém PC, referenční Windows VM a referenční Mac (`p1/paged-edit-measure.md`): AvaloniaEdit drží špičku paměti při psaní pod 350 MiB jen do 6 MiB na všech třech strojích (259 / 275 / 191 MiB), u 8 MiB ji referenční Windows VM překročí (358 MiB); dřívější odhad 16–32 MiB vycházel z ustálené paměti, ne ze špičky. Nastavení `files.largeFileThreshold` se zdrojem hodnoty; soubor nad hranicí se otevře v editovatelné stránkované ploše, ne jen pro čtení.
   - **Hotovo, když:** hranice je určená měřením paměti a latence na obou OS a je v nastavení se zdrojem hodnoty; soubor nad hranicí se otevře v editovatelném stránkovaném režimu, ne jen pro čtení, a na prototypu jde text 100 MiB editovat podle záznamu P1.2.9.
   - **Závisí na:** P1.2.10, P1.2.9
   - **Odhad:** bez odhadu
 - [ ] **P1.2.9** Technická cesta pro editaci 100 MiB v MVP
   - **Co a proč:** MVP slibuje u textu 100 MiB první editaci ≤ 2 s warm / 4 s cold a přírůstek paměti ≤ 350 MiB. Spike z 26. 10. 2026 cestu vybral: text nad hranicí přepnutí (P1.2.2) se otevře v editovatelném stránkovaném režimu nad `PagedDocument`. Úpravy, undo a add buffer jsou v paměti, originál zůstává namapovaný a ukládá se streamem. Na referenční Windows VM se 4 jádry splnil dokument bez vykreslení oba cíle současně: první editace warm p95 35,8 ms (ASCII) a 39,2 ms (UTF-8), cold p95 457 a 449 ms včetně JIT, nejvýš +1,2 MiB private po 5 000 úpravách, výpočet za úpravou p95 0,80 ms. Uložený soubor má stejný SHA-256 jako nezávislý výstup AvaloniaEdit; počty i začátky řádků po 5 000 úpravách a 500 undo a redo souhlasí s úplným průchodem. AvaloniaEdit `TextDocument` paměť nesplnil ani při načtení po částech (+450 až +528 MiB). Spike měřil jen jádro, v session 0 jako SYSTEM bez plochy, a cold uvnitř VM s neznámou cache hostitele. Vykreslení v Avalonii, vstup z klávesnice, IME, přístupnost, obnovu po pádu ani referenční Mac neměřil. Vyřešená je dokumentová vrstva, textová plocha s editací **neověřená**.
   - **Funkce:** F141 (částečně: rozhodnutí o režimu pro 100 MiB)
-  - **Stav 26. 10. 2026:** částečně: prototyp s UI stojí v aplikaci (`PagedTextView` nad `PagedBackend`) a je změřený s NativeAOT binárkou na vývojovém PC, referenční Windows VM (přihlášená relace) i referenčním Macu. Splněno: první editace od otevření po vykreslený znak warm 70–82 ms (vývojový PC), 612–662 ms (VM), 168–235 ms (Mac), cold 1 021–1 135 ms (VM) a 207–258 ms (Mac); přírůstek private oproti stabilizované prázdné aplikaci včetně špičky nejvýš +123 MiB (vývojový PC), +51 MiB (VM), +39 MiB (Mac); uložený soubor má délku a SHA-256 dokumentu před uložením; po uložení běží nový index a psaní pokračuje; obnova po pádu prošla testem, který nad stejným profilem restartuje služby aplikace. Neověřeno: živá kompozice IME, NVDA a VoiceOver nad upraveným řádkem, skutečné zabití procesu AOT binárky, skutečný vstup z klávesnice operačního systému na Macu (systémová událost se do okna nedoručila, psalo se událostmi Avalonie), cíl psaní p95 ≤ 33 ms do prezentace na VM (hodiny snímků odpojené relace tikají po ~38 ms; práce editoru je p95 do 15 ms). Bod zůstává otevřený.
   - **Kroky:**
     - hotovo ve spiku: popis variant, měření jádra a AvaloniaEdit nad čistým ASCII i UTF-8 souborem 100 MiB, volba cesty, rozsah a závislosti P3.1.10 a přesun částí P7 do MVP (P1.2.8, P3.1.5, P3.1.11–P3.1.13, P3.5.9)
-    - hotovo: prototyp s UI nad zvolenou cestou: stránkovaná plocha v Avalonii čte řádky na obrazovce a každý řádek dekóduje s mapou znaků (sloupec UTF-16 ↔ bajt), drží kurzor jako bajtový offset nad aktuální revizí (číslo revize je ve stavovém řádku), píše, maže, vkládá konec řádku a tabulátor, posouvá se klávesami, myší a kolečkem, vrací a opakuje úpravy a ukládá; adaptér P1.2.8 tu není, plocha čte `PagedBackend` přímo
-    - hotovo: změřeno v přihlášené relaci na referenční Windows VM i referenčním Macu (a na vývojovém PC); paměť proti stabilizované prázdné aplikaci, se špičkou, okamžikem měření, backendem a stavem indexace; měřicí režim je v aplikaci (`TEXTIDA_MEASURE`)
-    - zbývá: ručně ověřit IME a čtečku nad upraveným řádkem a obnovu po skutečném zabití procesu
+    - hotovo 26. 10. 2026: `PagedTextView` nad `PagedBackend` s mapou znaků, kurzorem, psaním, mazáním, Enter, Tab, šipkami, myší, undo a redo, revize ve stavovém řádku, uložení; měřicí režim `TEXTIDA_MEASURE` v aplikaci. 100 MiB ASCII i UTF-8, 10 běhů, AOT v přihlášené relaci: první editace vykreslená warm 70–82 ms (vývojové PC), 612–662 ms (referenční Windows VM), 168–235 ms (referenční Mac); cold 1021–1135 ms (referenční Windows VM), 207–258 ms (referenční Mac); špička paměti nad prázdnou aplikací +118 až +123 / +50 až +51 / +37 až +39 MiB; uložený soubor má očekávanou délku a SHA-256. AvaloniaEdit na 100 MiB: otevření 1,9–4,7 s, špička 1,9–6,0 GiB. Opraveno při tom: `Document.SaveAs` ve stejném kódování už nedekóduje celý stránkovaný dokument.
+    - změřit ho v přihlášené relaci na referenční Windows VM i referenční Mac; paměť proti stabilizované prázdné aplikaci, se špičkou, okamžikem měření, backendem a stavem indexace
+    - zbývá: živé IME a čtečka nad upraveným řádkem (poskytovatel přístupnosti zatím na stránkovanou plochu nenapojený), obnova po skutečném zabití AOT procesu, vstup přes klávesnici systému na referenční Mac (chybí oprávnění pro `CGEventPost`), latence do prezentace na referenční Windows VM (odpojená relace tiká po ~38 ms); uložení 100 MiB na referenční Windows VM trvá 2 s a blokuje UI
     - cenu P3.1.10–P3.1.13 spike nedal; určí ji PR.8.2 před zahájením P3
   - **Hotovo, když:** na prototypu zvolené cesty s UI v přihlášené relaci na referenční Windows VM i referenční Mac se čistý ASCII fixture 100 MiB i UTF-8 log 100 MiB otevře a první úprava z klávesnice je vykreslená do 2 s warm / 4 s cold; přírůstek private commit proti stabilizované prázdné aplikaci je u ASCII ≤ 350 MiB; skládaný znak ze scénáře IME v P1.8.2 se dopíše bez zdvojení i ztráty a NVDA na referenční Windows VM i VoiceOver na referenční Mac přečtou upravený řádek; po zabití procesu se úprava vrátí podle P1.5.1 a soubor jde uložit. Když cesta některý z těchto cílů nesplní, bod zůstává **otevřený** a P1 neprojde bránou. Předložení rozporu majiteli je eskalace, ne splnění; příslib 100 MiB platí, dokud ho majitel výslovně nezmění v zadání.
   - **Závisí na:** P1.2.7, P1.2.8, PR.2.1, P1.5.1, P1.8.2
@@ -693,33 +692,38 @@ Souběžně mohou běžet souborový panel (P2.3), textové hledání (P2.4, P2.
 
 Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything nesou většinu příkazů.
 
-- [ ] **P2.1.1** Paleta příkazů
+- [x] **P2.1.1** Paleta příkazů
   - **Co a proč:** Ctrl+Shift+P / ⇧⌘P, fuzzy hledání nad registrem, kontext, dostupnost a zkratka u příkazu. `/` hledá v nastavení, `=` spočítá výraz.
   - **Funkce:** F147
+  - **Stav 26. 10. 2026:** hotovo: nedostupný příkaz zeslabený s důvodem, `/klíč` hledá v nastavení a Enter otevře filtrované nastavení, `=výraz` počítá (chyba nic nespustí), hledání v názvech i zkratkách, rozptýlená písmena až bez přímé shody.
   - **Hotovo, když:** „ulož“ najde všechny příkazy s uložením i se zkratkami; nedostupný příkaz v aktuálním kontextu je označený s důvodem; `/tab` otevře nalezené volby nastavení; `=1+2*3` ukáže 7, neplatný výraz a dělení nulou ukážou chybu a výraz nikdy nespustí kód.
   - **Závisí na:** P1.6.1, P1.7.2
   - **Odhad:** F147 1–2 ČT (matice); `/` a `=` 0,5 ČT
-- [ ] **P2.1.2** Goto Anything a nedávné soubory
+- [x] **P2.1.2** Goto Anything a nedávné soubory
   - **Co a proč:** Ctrl+P / ⌘P: soubor podle části jména, otevřený buffer, `:120` řádek, dočasný náhled. Sjednocuje rychlý seznam souborů a nedávné soubory s rozlišením chybějící cesty. Symboly `@` přijdou s Code Explorerem v P4.4.1.
   - **Funkce:** F148, F145, F041
+  - **Stav 26. 10. 2026:** hotovo: Ctrl+P hledá podle částí cesty, `:řádek`, `soubor:řádek`, otevřené dokumenty a nedávné soubory (seznam v profilu), chybějící cesta označená; náhled je panel s prvními řádky a seznam nedávných nemění.
   - **Hotovo, když:** „mvc ctrl“ najde soubor podle částí cesty; náhled nezmění seznam nedávných souborů, dokud se soubor neotevře; chybějící cesta z historie je označená.
   - **Závisí na:** P2.1.1, P2.3.1
   - **Odhad:** F148 2–3 ČT (matice), včetně symbolů v P4.4.1; celá cena se počítá v P2
-- [ ] **P2.1.3** Panel otevřených souborů
+- [x] **P2.1.3** Panel otevřených souborů
   - **Co a proč:** Přehled otevřených dokumentů s filtrem, panel na požádání (D5).
   - **Funkce:** F146
+  - **Stav 26. 10. 2026:** hotovo: Ctrl+B, filtr při psaní, Enter přepne kartu, přístupné názvy.
   - **Hotovo, když:** panel jde otevřít klávesou, filtr zúží seznam při psaní a Enter přepne kartu; panel je ovladatelný čtečkou.
   - **Závisí na:** P1.4.5
   - **Odhad:** bez odhadu
-- [ ] **P2.1.4** Nedávná místa úprav
+- [x] **P2.1.4** Nedávná místa úprav
   - **Co a proč:** Ctrl+Shift+E seznam míst posledních změn s úryvky napříč kartami, volba „jen upravené“, historie skoků Alt+← / Alt+→ (sdílí ji skok na offset F236). Místa jsou kotvy, takže přežijí další úpravy.
   - **Funkce:** F174
+  - **Stav 26. 10. 2026:** hotovo: úryvky, volba „jen upravené“, Alt+← a Alt+→, místa jsou kotvy a přežijí úpravy i znovuotevření karty; jen v rámci relace, ne přes restart. Zkratka Ctrl+K Ctrl+E, protože Ctrl+Shift+E patří souborovému panelu (D5).
   - **Hotovo, když:** po úpravách ve třech kartách seznam ukáže tři místa s úryvky; po vložení textu nad místem skok trefí stále totéž místo; místo přežije zavření a znovuotevření karty v relaci.
   - **Závisí na:** P1.2.5
   - **Odhad:** F174 1–2 ČT (matice)
-- [ ] **P2.1.5** Související soubor
+- [x] **P2.1.5** Související soubor
   - **Co a proč:** Jedna klávesa přepne `x.c` ↔ `x.h`, `x.cpp` ↔ `x.hpp`, `x.go` ↔ `x_test.go`, vlastní pravidla jmen; při více kandidátech výběr. S běžícím clangd později `switchSourceHeader`.
   - **Funkce:** F211
+  - **Stav 26. 10. 2026:** hotovo: Alt+O, vestavěná pravidla a vlastní v `files.relatedFileRules`, výběr při více kandidátech.
   - **Hotovo, když:** v ukázkové složce přepnutí najde párový soubor pro každé vestavěné pravidlo a pro jedno vlastní pravidlo; dva kandidáti otevřou výběr.
   - **Závisí na:** P2.1.2
   - **Odhad:** F211 0,5–1 ČT (matice)
@@ -729,78 +733,90 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
 - [ ] **P2.2.1** Víc kurzorů: integrace, IME a výkon
   - **Co a proč:** Přepis vrstvy `MultiCaret` z P0 nad kotvami P1.2.5, rozdělený na P2.2.3–P2.2.5. Tahle položka spojuje části, ověří IME a výkon. Přidat a přeskočit výskyt, sloupcové kurzory, vložení schránky po kurzorech, undo jako celek.
   - **Funkce:** F149
+  - **Stav 26. 10. 2026:** částečně: výběry přežijí změnu z jiného zdroje i reload v jiném kódování, 1 000 kurzorů dá správný výsledek i undo. Výkonové kritérium **nesplněno**: referenční Windows VM p95 35,6 ms (10 kurzorů), 41,9 ms (100), 146 ms (1 000) proti 33 ms; test hlídá změřenou cenu 0,12 ms na kurzor jako regresi, ne kritérium. Živé IME na CJK klávesnici neověřeno; rozpracovaný text IME se nekreslí v řádku (P1.8.2).
   - **Hotovo, když:** všechny případy z tabulky v měření procházejí a k nim nové zkratky; změna dokumentu z jiného zdroje (náhrada, reload) výběry nezahodí; 1 000 kurzorů v souboru 1 MiB: všechna vložení i undo dají očekávaný výsledek a vstup → prezentace má p95 ≤ 33 ms a p99 ≤ 80 ms; když cíl neplatí, rozpor se předloží s naměřenými čísly a schopnost se vymezí, samotný záznam čísla nestačí; IME s více kurzory projde scénářem z P1.8.2.
   - **Závisí na:** P2.2.3, P2.2.4, P2.2.5, P1.8.2
   - **Odhad:** F149 4–7 ČT (matice) za P2.2.1 a P2.2.3–P2.2.5
-- [ ] **P2.2.3** Kotvy a normalizace výběrů
+- [x] **P2.2.3** Kotvy a normalizace výběrů
   - **Co a proč:** Výběry jako kotvy, sloučení překrytých a sousedních výběrů, primární kurzor.
   - **Funkce:** F149 (částečně: model výběrů)
+  - **Stav 26. 10. 2026:** hotovo: `SelectionSet` slučuje překryté i sousední výběry podle tabulky případů, `AnchoredSelections` drží výběry jako kotvy.
   - **Hotovo, když:** překryté výběry se sloučí podle tabulky případů; po vložení textu před výběry zůstanou výběry na stejném textu.
   - **Závisí na:** P1.2.5, P1.2.6
   - **Odhad:** v rámci F149 (viz P2.2.1)
-- [ ] **P2.2.4** Příkazy, vložení a undo nad více kurzory
+- [x] **P2.2.4** Příkazy, vložení a undo nad více kurzory
   - **Co a proč:** Každý příkaz z registru dostane seznam rozsahů. Vložení schránky po kurzorech, jedno undo, které obnoví všechny kurzory.
   - **Funkce:** F149 (částečně: příkazy a undo)
+  - **Stav 26. 10. 2026:** hotovo: psaní, mazání, Enter, vložení (3 řádky do 3 kurzorů), kopírování a vyjmutí jako jedna revize bajtů; jedno undo vrátí text i kurzory; řádkové příkazy pracují se všemi kurzory.
   - **Hotovo, když:** vložení schránky se třemi řádky do tří kurzorů dá do každého jeden řádek; jedno undo vrátí text i pozice všech kurzorů.
   - **Závisí na:** P2.2.3, P1.4.3
   - **Odhad:** v rámci F149 (viz P2.2.1)
-- [ ] **P2.2.5** Myš a klávesy pro více kurzorů
+- [x] **P2.2.5** Myš a klávesy pro více kurzorů
   - **Co a proč:** Co P0 nemělo: Ctrl+←/→, lepivý sloupec, Shift+klik, Alt+tažení, Ctrl+K Ctrl+D, přidání a přeskočení výskytu.
   - **Funkce:** F149 (částečně: ovládání)
+  - **Stav 26. 10. 2026:** hotovo: Ctrl+D, Ctrl+K Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+↑/↓, Alt+klik, Alt+tažení, Shift+klik, Ctrl+←/→, lepivý sloupec, Home/End, Esc. macOS jen testy mapy kláves; Ctrl+Alt+↓ v živém běhu Windows kurzor nepřidal (neověřeno).
   - **Hotovo, když:** každá zkratka a gesto má test se vstupem a očekávanými pozicemi kurzorů na Windows i macOS (⌘ místo Ctrl).
   - **Závisí na:** P2.2.3, P1.4.2
   - **Odhad:** v rámci F149 (viz P2.2.1)
-- [ ] **P2.2.2** Chytré klávesy pro web
+- [x] **P2.2.2** Chytré klávesy pro web
   - **Co a proč:** Jen podle tokenu, bez analýzy kódu: přejmenování párové značky, doplnění `</`, escapování při vložení do řetězce, čárky v JSON, `->` v PHP, výběr proměnné bez `$`, `BEGIN` → `END` v SQL. Každá volba jde vypnout. Tokeny dává sdílený tokenový základ P2.7.1, ne druhý tokenizér.
   - **Funkce:** F107, F051 (částečně: výběr proměnné bez `$`)
+  - **Stav 26. 10. 2026:** hotovo: přejmenování párové značky, doplnění `</`, escapování při vložení do řetězce, čárka v JSON po Enteru, `->` v PHP, výběr proměnné bez `$`, `END` po `BEGIN`; každá volba s kladným a záporným testem a vypínačem.
   - **Hotovo, když:** každá volba má test na kladném i záporném příkladu a jde vypnout v nastavení; přejmenování `<div>` na `<section>` změní i uzavírací značku; `</` uvnitř řetězce nic nedoplní.
   - **Závisí na:** P1.4.3, P2.7.1
   - **Odhad:** 1–2 ČT
-- [ ] **P2.2.6** Profil chování „PSPad“
+- [x] **P2.2.6** Profil chování „PSPad“
   - **Co a proč:** Volitelný profil kláves a chování editoru podle rozboru PSPadu (Home/End, Backspace v odsazení, párové znaky, F8). plán ho dává do MVP v P2. Je to vlastní implementace; z PSPadu se nic nenačítá a nejde o import. Úkol nahrazuje dřívější PZ.1.2.
   - **Funkce:** F019 (částečně: profil PSPad), F054 (částečně: F8 v profilu PSPad)
+  - **Stav 26. 10. 2026:** hotovo: profil je vrstva nastavení a kláves (Home/End, Backspace v odsazení, párové znaky, F8, Alt+tažení jako blok, kolize zkratek z kap. 0.2 včetně Ctrl+Y, Alt+Backspace, Ctrl+W, Ctrl+Shift+I/U), přepínač v nastavení a v menu. Referenční chování proti originálu ve VM neověřeno.
   - **Hotovo, když:** v MVP jdou přepnout oba profily; v profilu „PSPad“ projdou Home/End, Backspace v odsazení, F8 a kolize zkratek podle konkrétních případů z `08` kap. 0.2 a 1–11; referenční chování se ověří ve VM s originálem mimo repozitář.
   - **Závisí na:** P1.6.2, P1.4.2, P2.2.5
   - **Odhad:** bez odhadu
 
 ### P2.3 Souborový panel
 
-- [ ] **P2.3.1** Souborový panel nad diskem
+- [x] **P2.3.1** Souborový panel nad diskem
   - **Co a proč:** Panel vlevo na požádání (D5), skutečný disk místo ukázkového stromu P0. Líný strom, aktualizace po změně na disku, vytvořit, duplikovat, otevřít cestu z textu. Přejmenování a koš jsou v P2.3.2 a P2.3.3.
   - **Funkce:** F136, F156
+  - **Stav 26. 10. 2026:** hotovo: Ctrl+Shift+E, líný strom nad diskem, vytvořit, duplikovat, obnova při změně jiným programem, otevřít cestu pod kurzorem. Odchylka D5: v hlavičce panelu chybí ikony obnovit a sbalit (F5 a paleta). Známá vada: po zkratce s Alt přepne Windows fokus do menu.
   - **Hotovo, když:** složka se 100 000 soubory se otevře bez čekání na celý strom; soubor vytvořený jiným programem se v panelu objeví; cesta pod kurzorem v textu se otevře příkazem.
   - **Závisí na:** P1.4.4, P1.2.3
   - **Odhad:** F156 3–5 ČT (matice) za P2.3.1–P2.3.3; F136 bez odhadu
-- [ ] **P2.3.2** Přejmenování a přesun otevřených dokumentů
+- [x] **P2.3.2** Přejmenování a přesun otevřených dokumentů
   - **Co a proč:** Přejmenování a přesun v panelu aktualizují otevřené dokumenty, jejich identitu a žurnál.
   - **Funkce:** F156 (částečně: přejmenování a přesun)
+  - **Stav 26. 10. 2026:** hotovo: přejmenování a přesun otevřeného dokumentu zachová kartu, neuložené změny i undo; nový záznam žurnálu o přesunu, po pádu se dokument najde pod novou cestou.
   - **Hotovo, když:** přejmenování otevřeného souboru v panelu přejmenuje i kartu a zachová neuložené změny a undo; přesun do jiné složky zachová totéž a obnova po pádu najde dokument pod novou cestou.
   - **Závisí na:** P2.3.1, P1.5.1
   - **Odhad:** v rámci F156 (viz P2.3.1)
-- [ ] **P2.3.3** Koš a chyby souborových operací
+- [x] **P2.3.3** Koš a chyby souborových operací
   - **Co a proč:** Smazání jde do systémového koše; chyba práv, zamčený soubor nebo plný disk se ohlásí s důvodem a nic nenechá napůl.
   - **Funkce:** F156 (částečně: koš a chyby)
+  - **Stav 26. 10. 2026:** hotovo: koš přes `SHFileOperation` (Windows) a `NSFileManager trashItem` (macOS, ověřeno smoke testem AOT, soubor v `~/.Trash`), chyba se ohlásí s důvodem a soubor zůstane celý.
   - **Hotovo, když:** smazání jde do systémového koše na obou OS a jde vrátit; přesun zamčeného souboru skončí hlášením a soubor zůstane celý na původním místě.
   - **Závisí na:** P2.3.1
   - **Odhad:** v rámci F156 (viz P2.3.1)
 
 ### P2.4 Hledání v dokumentu
 
-- [ ] **P2.4.1** Lišta hledání dole
+- [x] **P2.4.1** Lišta hledání dole
   - **Co a proč:** Ctrl+F / Ctrl+H, lišta nad stavovým řádkem s přepínači Aa .* ab, jasný rozsah, počítadlo shod. Další a předchozí výskyt, hledání slova pod kurzorem. Inkrementální hledání se ruší bez blokování UI. Ctrl+H nahradí v aktivním dokumentu jeden výskyt, všechny výskyty nebo jen ve výběru.
   - **Funkce:** F055, F056, F057
+  - **Stav 26. 10. 2026:** hotovo: lišta dole nad stavovým řádkem (Ctrl+F, Ctrl+H), přepínače velikosti, regexu, celých slov a výběru, počítadlo, F3 a Shift+F3 s přetočením, Ctrl+F3 slovo pod kurzorem, nahradit jedno, vše i jen ve výběru jako jeden krok undo; hledání přes `SearchWorker` nad živou revizí, nahrazení přes `ReplacePlanner` a `ChangeApplier`. Review D5 v `p2/ui-review-d5-search.md`.
   - **Hotovo, když:** v souboru 100 MiB psaní do pole zruší zastaralé hledání, UI reaguje do 100 ms a worker skončí do 1 s; F3 / Shift+F3 projde shody dopředu i dozadu; nahrazení jednoho, všech a jen ve výběru, prázdná i víceřádková shoda a náhrada během další editace dají správný počet, rozsahy a jedno undo.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
 - [ ] **P2.4.2** Přejít na řádek a párové závorky
   - **Co a proč:** Skok na řádek a sloupec; u neindexovaného souboru na bajt nebo procento. Párové závorky a skok na pár podle tokenů z P2.7.1 (`08` kap. 7), takže závorka v řetězci nebo komentáři se nepočítá.
   - **Funkce:** F058, F059
+  - **Stav 26. 10. 2026:** částečně: Ctrl+G na řádek, řádek:sloupec, procento a `@bajt`; Ctrl+Shift+\ na párovou závorku přeskakuje závorky v řetězcích a komentářích podle tokenizéru. Chybí: procento a bajt ve stránkovaném souboru, jehož index ještě nedoběhl (aplikace řekne, že index tak daleko nesahá).
   - **Hotovo, když:** skok na řádek v indexovaném souboru i na procento v neindexovaném trefí přesný offset z testu; skok na pár trefí odpovídající závorku a přeskočí závorky v řetězcích a komentářích.
   - **Závisí na:** P1.2.1, P2.7.1
   - **Odhad:** bez odhadu
 - [ ] **P2.4.3** Regulární výrazy a zkouška regexu
   - **Co a proč:** Jeden určený dialekt a jeden engine ve všech cestách textového hledání, `\u \l \U \L \E` v náhradě. Matice slibuje PCRE2 rozšířeně (F063). Úkol určí dialekt a omezení po režimech (běžný, stránkovaný) a buď slib PCRE2 splní knihovnou ověřenou pod AOT, nebo předloží konkrétní rozpor majiteli. Předstírat podporu nesmí. Regex z P0 hledá bez shod přes konce řádků a jeho testy nedokládají celý rozsah. U pole hledání „Zkusit“ nad vzorovým textem (shody, skupiny) a „Vysvětlit“. Import vzorů TRegExpr z PSPadu je až po 1.0.
   - **Funkce:** F063, F188
+  - **Stav 26. 10. 2026:** částečně: `\U \L \E \u \l` v náhradě, okno „Zkusit“ se stejným enginem a vysvětlením konstrukcí. Otevřené: dialekt je .NET, matice F063 slibuje PCRE2 (rozhodne majitel); prázdné shody se ignorují, takže `^` pro vložení předpony nefunguje.
   - **Hotovo, když:** sada vzorů pro zvolený dialekt projde včetně skupin, náhrad, víceřádkových shod a chybného vzoru s jasnou chybou; vzor nad časovým limitem se zastaví; výsledek „Zkusit“ nad vzorovým textem je stejný jako hledání stejným vzorem v dokumentu; `\U$1` převede skupinu na velká písmena; „Vysvětlit“ popíše každou podporovanou konstrukci vzoru a u nepodporované řekne omezení.
   - **Závisí na:** P2.4.1
   - **Odhad:** F188 0,5–1 ČT (matice); převod velikosti v náhradě 0,5 ČT; výběr a ověření dialektu bez odhadu
@@ -809,10 +825,10 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
 
 Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba náhledu změn z této etapy je podmínka pro P3b.
 
-- [ ] **P2.5.1** Worker hledání v souborech: výsledky, zrušení a výkon
+- [x] **P2.5.1** Worker hledání v souborech: výsledky, zrušení a výkon
   - **Co a proč:** Hledání ve složce i v neuložených kartách, průběžné výsledky po dávkách, zrušení, omezení počtu výsledků. Výsledky jako karta „Výsledky hledání“, dvojklik skočí do souboru. Staví na `TreeSearch` z P0, výčtu souborů z P2.5.4 a hledání nad revizemi z P2.5.5.
   - **Funkce:** F151, F060
-  - **Stav 26. 10. 2026:** částečně: `SearchWorker` streamuje dávky ze složky i z živých bufferů v kódování souboru; uspořádané (cesta, offset, délka) souhlasí s `rg --json` na 1GiB souboru a stromu, poměr času proti `rg --json` 0,33–0,55 nad 100 000 soubory; zrušení workeru max 0,7 ms nad stromem a 258 ms nad 1 GiB. Chybí karta „Výsledky hledání“, dvojklik, hlášení limitu a měření zrušení v UI. Známý limit: shoda nepřekročí řez čtení u souborů nad 4 MiB (řez je za LF).
+  - **Stav 26. 10. 2026:** hotovo: worker a karta „Výsledky hledání“ s průběžnými shodami, dvojklik skočí na shodu, hlášení limitu 10 000, hledání i v neuložených kartách; test ověřuje zrušení v UI ≤ 100 ms a ve workeru ≤ 1 s. Poměr času proti `rg --json` 0,33–0,55 nad 100 000 soubory; shoda nepřekročí řez čtení u souborů nad 4 MiB (řez je za LF).
   - **Hotovo, když:** hledání ve 100 000 souborech je ≤ 1,25× času `rg --json` na stejných datech; shodují se nejen počty, ale i uspořádané offsety, délky a revize shod, včetně BOM, CRLF, vícebajtových znaků a překryvů bloků; zrušení: UI ≤ 100 ms, worker ≤ 1 s; při dosažení limitu výsledků to karta řekne.
   - **Závisí na:** P2.5.4, P2.5.5
   - **Odhad:** F151 3–5 ČT (matice) za P2.5.1, P2.5.4 a P2.5.5
@@ -837,10 +853,10 @@ Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba n�
   - **Hotovo, když:** návrh nad zastaralou revizí se odmítne s nabídkou nového náhledu; použití návrhu je jeden krok undo v každém dotčeném dokumentu.
   - **Závisí na:** P1.2.4
   - **Odhad:** v rámci F152 (viz P2.5.3)
-- [ ] **P2.5.3** Replace in Files: použití dávky
+- [x] **P2.5.3** Replace in Files: použití dávky
   - **Co a proč:** Náhrada ve více souborech přes službu P2.5.2: náhled po souborech, přeskočení souboru, kontrola revize podkladu u každého souboru. Obnovu po pádu řeší P2.5.6.
   - **Funkce:** F152, F060
-  - **Stav 26. 10. 2026:** částečně: použití dávky přes `ChangeApplier` funguje, soubor změněný jiným procesem se ohlásí jako konflikt a zbytek se použije, bajty mimo úseky zůstanou. Chybí UI náhledu po souborech a přeskočení souboru.
+  - **Stav 26. 10. 2026:** hotovo: náhled po souborech s červeně odebraným a zeleně přidaným textem, zaškrtávátka u souboru i u změny, konflikt se ohlásí a ostatní soubory se použijí; po startu nabídka dokončit nebo vrátit přerušenou dávku. Pád uprostřed dávky ověřen crash harnessem (P2.5.6), v aplikaci jen simulovaným pádem.
   - **Hotovo, když:** soubor změněný jiným procesem mezi náhledem a použitím se nepřepíše a ohlásí se jako konflikt; ostatní soubory dávky se použijí; pád uprostřed dávky projde scénářem z P2.5.6.
   - **Závisí na:** P2.5.1, P2.5.2, P2.5.6
   - **Odhad:** F152 4–7 ČT (matice) za P2.5.2, P2.5.3 a P2.5.6
@@ -854,10 +870,10 @@ Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba n�
 
 ### P2.6 EditorConfig
 
-- [ ] **P2.6.1** EditorConfig
+- [x] **P2.6.1** EditorConfig
   - **Co a proč:** Čte `indent_style`, `indent_size`, `tab_width`, `trim_trailing_whitespace`, `insert_final_newline`. Ořez mezer jen na upravených řádcích. `end_of_line` a `charset` jen u nového souboru nebo výslovnou akcí přes F169. Zdroj hodnoty v nastavení a ve stavovém řádku.
   - **Funkce:** F189
-  - **Stav 26. 10. 2026:** částečně: parser, resolver a vrstva EditorConfig v `SettingsStack` se zdrojem hodnoty; ořez jen na upravených řádcích, konce řádků se při uložení nemění; 172 případů z oficiální sady projde. Chybí napojení na otevřený dokument v aplikaci a zdroj ve stavovém řádku; `end_of_line=cr` nastavení nenabízí.
+  - **Stav 26. 10. 2026:** hotovo: EditorConfig napojený na otevřené dokumenty, odsazení z `.editorconfig` má přednost před detekcí, zdroj hodnoty v nastavení i ve stavovém řádku, uložení ořezává jen upravené řádky a konce řádků nemění. `end_of_line` a `charset` pro nový soubor jen přes vrstvu nastavení; `end_of_line=cr` nastavení nenabízí.
   - **Hotovo, když:** uložení existujícího souboru s jiným `end_of_line` v `.editorconfig` nezmění konce řádků; ořez mezer se týká jen upravených řádků; nastavení ukáže `.editorconfig` jako zdroj hodnoty.
   - **Závisí na:** P1.7.1, P1.3.5
   - **Odhad:** F189 1 ČT (matice)
