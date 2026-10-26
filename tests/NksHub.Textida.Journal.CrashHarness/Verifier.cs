@@ -129,7 +129,10 @@ public static class Verifier
             // the files of the user: only a complete save may ever have changed them
             for (int d = 1; d < Scene.DocCount; d++)
             {
-                var actual = Scene.Hex(File.ReadAllBytes(Path.Combine(dir, "data", Path.GetFileName(model.FilePathOf(d)))));
+                string file = Path.Combine(dir, "data", Path.GetFileName(model.FilePathOf(d)));
+                // a kill inside the file swap of a save leaves the original parked; the next open puts it back the same way
+                FileSwap.RecoverAbandoned(file);
+                var actual = Scene.Hex(File.ReadAllBytes(file));
                 if (!model.FileStates[d].Any(s => s.Hash == actual && s.Op <= k + 1)) return Bad($"user file of document {d} is not the result of any save");
             }
         }
