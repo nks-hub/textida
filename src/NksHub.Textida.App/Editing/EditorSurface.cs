@@ -57,6 +57,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.TextView.LineTransformers.Add(_colorizer);
         Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount);
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
+        TextArea.TextView.ScrollOffsetChanged += OnVisualLinesChanged;
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
@@ -107,11 +108,20 @@ internal sealed partial class EditorSurface : TextEditor
         catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
     }
 
+    /// <summary>Tells the feeder which lines and which UTF-16 columns are on screen; the columns are a safe bound for any glyph widths.</summary>
     private void OnVisualLinesChanged(object? sender, EventArgs e)
     {
         var view = TextArea.TextView;
         if (!view.VisualLinesValid || view.VisualLines.Count == 0) return;
-        Syntax.SetVisible(view.VisualLines[0].FirstDocumentLine.LineNumber - 1, view.VisualLines[^1].LastDocumentLine.LineNumber - 1);
+        int first = 0, last;
+        if (WordWrap) last = view.VisualLines.Max(l => l.LastDocumentLine.Length);
+        else
+        {
+            double cell = Math.Max(1, view.WideSpaceWidth);
+            first = (int)Math.Max(0, Math.Floor(view.ScrollOffset.X / (cell * Math.Max(2, Options.IndentationSize)))); // a tab is one column and several cells wide
+            last = (int)Math.Min(1 << 20, Math.Ceiling((view.ScrollOffset.X + view.Bounds.Width) / (cell * 0.3)));
+        }
+        Syntax.SetVisible(view.VisualLines[0].FirstDocumentLine.LineNumber - 1, view.VisualLines[^1].LastDocumentLine.LineNumber - 1, first, last);
     }
 
     // ---- look ----

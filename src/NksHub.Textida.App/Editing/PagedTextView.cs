@@ -161,7 +161,17 @@ internal sealed class PagedTextView : Grid
     /// <summary>Token runs the view colors a line with, for tests; null when the line has none.</summary>
     internal IReadOnlyList<Token>? TokensOf(long line) => _tokens.GetValueOrDefault(line);
 
-    private void FeedSyntax() => Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines));
+    /// <summary>
+    /// Tells the feeder which lines and columns are on screen. The scroll position and the width are in display cells (tabs expanded);
+    /// a character takes at least one cell and at most a tab, so the UTF-16 columns lie between cells / tab size and cells.
+    /// </summary>
+    private void FeedSyntax()
+    {
+        double cell = Math.Max(1, _canvas.CellWidth * 0.3);
+        int first = (int)Math.Max(0, Math.Floor(_hScroll / (_canvas.CellWidth * Math.Max(1, _options.TabSize))));
+        int last = (int)Math.Min(1 << 20, Math.Ceiling((_hScroll + _canvas.TextWidth) / cell));
+        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), first, last);
+    }
 
     private void ApplyTokens(SyntaxViewport viewport)
     {
@@ -343,6 +353,7 @@ internal sealed class PagedTextView : Grid
         double x = _canvas.XOf(c.View, c.View.Map.CharIndexOf(_caret - c.View.Start)), width = _canvas.TextWidth;
         if (x < _hScroll) _hScroll = Math.Max(0, x - 24);
         else if (x > _hScroll + width - 8) _hScroll = x - width + 32;
+        FeedSyntax();
         _canvas.InvalidateVisual();
     }
 
@@ -604,6 +615,7 @@ internal sealed class PagedTextView : Grid
 
         public int VisibleLines => (int)Math.Ceiling(Math.Max(0, Bounds.Height) / _lineHeight);
         public double LineHeight => _lineHeight;
+        public double CellWidth => Math.Max(1, _digitWidth);
         public double TextLeft => _gutter + TextPadding;
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
 

@@ -73,6 +73,62 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_editor_colors_the_columns_it_is_scrolled_to()
+    {
+        var w = Window();
+        var tab = w.OpenFile(_temp.File("h.cs", new string(' ', 5000) + "var x=1;\n"), null);
+        w.UpdateLayout();
+        Settle();
+        var view = tab.Editor!.TextArea.TextView;
+        ((Avalonia.Controls.Primitives.ILogicalScrollable)view).Offset = new Avalonia.Vector(5000 * view.WideSpaceWidth, 0);
+        w.UpdateLayout();
+        Settle();
+        view.EnsureVisualLines();
+        var element = view.GetVisualLine(1)!.Elements.First(e => e.RelativeTextOffset <= 5000 && 5000 < e.RelativeTextOffset + e.DocumentLength);
+        var color = ((ISolidColorBrush)element.TextRunProperties.ForegroundBrush!).Color;
+        Assert.True(new[] { ((ISolidColorBrush)SyntaxPalette.Light.GetBrush("keyword")!).Color, ((ISolidColorBrush)SyntaxPalette.Dark.GetBrush("keyword")!).Color }.Contains(color), $"color {color} offset {view.ScrollOffset.X} cell {view.WideSpaceWidth} width {view.Bounds.Width}");
+    }
+
+    [AvaloniaFact]
+    public void The_paged_view_colors_the_columns_it_is_scrolled_to()
+    {
+        var w = Window(paged: true);
+        var text = new string(' ', 5000) + "var x=1;\n" + string.Concat(Enumerable.Repeat("var y = 2; // filler line\n", 45_000));
+        var tab = w.OpenFile(_temp.File("h.cs", text), null);
+        Assert.True(tab.Doc.IsLarge);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++) { Thread.Sleep(25); Dispatcher.UIThread.RunJobs(); }
+        tab.Paged!.Focus();
+        TestApp.Press(w, Avalonia.Input.Key.End);
+        for (int i = 0; i < 100 && !(tab.Paged.TokensOf(0)?.Any(t => t.Start >= 5000 && t.Kind == "keyword") ?? false); i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
+        Assert.Contains(tab.Paged.TokensOf(0)!, t => t.Start >= 5000 && t.Kind == "keyword");
+    }
+
+    [AvaloniaFact]
+    public void A_file_changed_behind_the_paged_view_drops_the_colors_and_leaves_the_check_to_the_document()
+    {
+        var w = Window(paged: true);
+        var path = _temp.File("x.js", string.Concat(Enumerable.Repeat("var y = 2; // filler line\n", 45_000)));
+        var tab = w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++) { Thread.Sleep(25); Dispatcher.UIThread.RunJobs(); }
+        for (int i = 0; i < 100 && tab.Paged!.TokensOf(0) is null; i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
+        Assert.NotNull(tab.Paged!.TokensOf(0));
+        bool reported = false;
+        tab.Doc.ExternalChangeDetected += _ => reported = true;
+
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+        {
+            fs.Position = 4;
+            fs.WriteByte((byte)'Z');
+        }
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
+        tab.Paged.GoToLine(30_000);
+        for (int i = 0; i < 100 && !(reported && tab.Paged.TokensOf(0) is null); i++) { Thread.Sleep(20); w.UpdateLayout(); Settle(); }
+        Assert.Null(tab.Paged.TokensOf(0));
+        Assert.True(reported);
+    }
+
+    [AvaloniaFact]
     public void The_paged_view_colors_the_visible_lines()
     {
         var w = Window(paged: true);

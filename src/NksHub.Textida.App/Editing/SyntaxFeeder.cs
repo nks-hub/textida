@@ -17,6 +17,7 @@ namespace NksHub.Textida.App.Editing;
 internal sealed class SyntaxFeeder : IDisposable
 {
     private const int MaxRows = 1024;
+    private const int MaxColumns = 65536;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(6);
     private static readonly TimeSpan BackgroundSlice = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan ShowPendingAfter = TimeSpan.FromMilliseconds(150);
@@ -31,8 +32,9 @@ internal sealed class SyntaxFeeder : IDisposable
     private Dictionary<long, LineTokens> _known = [];
     private long _knownLines = -1;
     private Document? _bound;
-    private (long First, int Count) _wanted = (-1, 0);
-    private (long First, int Count) _requested;
+    private readonly record struct Window(long First, int Count, int Column, int Columns);
+    private Window _wanted = new(-1, 0, 0, 0);
+    private Window _requested;
     private long _doneRevision = -1;
     private long _pendingSince;
     private bool _pending;
@@ -60,13 +62,19 @@ internal sealed class SyntaxFeeder : IDisposable
 
     public event Action? PendingChanged;
 
-    /// <summary>The zero-based lines on screen. Scrolling inside the margin of the last request costs nothing.</summary>
-    public void SetVisible(long first, long last)
+    /// <summary>
+    /// The zero-based lines and UTF-16 columns (<paramref name="lastColumn"/> exclusive) on screen. Scrolling inside the margin of the
+    /// last request costs nothing.
+    /// </summary>
+    public void SetVisible(long first, long last, int firstColumn, int lastColumn)
     {
-        long count = Math.Max(1, last - first + 1);
-        if (_wanted.First >= 0 && first >= _wanted.First && last < _wanted.First + _wanted.Count) return;
-        long start = Math.Max(0, first - count);
-        _wanted = (start, (int)Math.Min(MaxRows, last + count - start + 1));
+        if (_wanted.First >= 0 && first >= _wanted.First && last < _wanted.First + _wanted.Count
+            && firstColumn >= _wanted.Column && lastColumn <= _wanted.Column + _wanted.Columns) return;
+        long rows = Math.Max(1, last - first + 1);
+        int width = Math.Max(1, lastColumn - firstColumn);
+        long start = Math.Max(0, first - rows);
+        int column = Math.Max(0, firstColumn - width);
+        _wanted = new(start, (int)Math.Min(MaxRows, last + rows - start + 1), column, Math.Min(MaxColumns, lastColumn + width - column));
         Run();
     }
 
@@ -93,12 +101,19 @@ internal sealed class SyntaxFeeder : IDisposable
         Run();
     }
 
+    /// <summary>
+    /// The file changed behind the snapshot: drop the session and the colors. The check that tells the user hashes the file, so it runs
+    /// off the UI thread; whatever it throws, the watcher of the document reports the change again.
+    /// </summary>
     private void Abandon()
     {
+        var doc = _bound;
+        Release();
+        _known = [];
+        _clear();
         _pendingSince = 0;
         SetPending(false);
-        try { _bound?.CheckExternalChange(); }
-        catch (IOException) { } // the watcher reports it again
+        if (doc is not null) Task.Run(() => { try { doc.CheckExternalChange(); } catch (Exception) { } });
     }
 
     private void OnChanged(object? sender, DocumentChangedEventArgs e)
@@ -116,10 +131,15 @@ internal sealed class SyntaxFeeder : IDisposable
         // no line break typed, and (same line count) none deleted: only line at.Line changed
         Span<byte> typed = stackalloc byte[(int)edit.Inserted];
         if (_bound.Read(edit.Start, typed) != typed.Length || typed.IndexOfAny((byte)10, (byte)13) >= 0) return false;
-        if (_lineCount() != _knownLines || !_known.TryGetValue(at.Line, out var old) || _lineText(at.Line) is not { Length: <= 4096 } text) return false;
-        var tokens = new List<Token>();
-        var end = _tokenizer.TokenizeLine(text, old.StartState, tokens);
+        if (_lineCount() != _knownLines || !_known.TryGetValue(at.Line, out var old) || _lineText(at.Line) is not { Length: <= MaxColumns } text) return false;
+        var all = new List<Token>();
+        var end = _tokenizer.TokenizeLine(text, old.StartState, all);
         if (!ReferenceEquals(end, old.EndState)) return false;
+        var tokens = new List<Token>(all.Count);
+        int to = _wanted.Column + _wanted.Columns;
+        foreach (var token in all)
+            if (Math.Max(token.Start, _wanted.Column) is var from && Math.Min(token.End, to) is var stop && from < stop)
+                tokens.Add(new Token(from, stop - from, token.Kind));
         _known[at.Line] = new LineTokens(at.Line, tokens, old.StartState, end);
         _apply(new SyntaxViewport(_bound.Id, _session.Revision, _known.Values.OrderBy(l => l.Line).ToArray(), SyntaxViewportStatus.Complete, 0));
         _doneRevision = _session.Revision;
@@ -136,7 +156,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         if (_doneRevision == _session.Revision) return;
         SyntaxViewport result;
-        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice); }
+        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
             Abandon();
