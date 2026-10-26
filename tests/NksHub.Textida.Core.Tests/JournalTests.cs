@@ -221,6 +221,7 @@ public class JournalFormatTests
     }
 
     [Fact]
+    [Trait("Category", "Perf")]
     public void BatchedRecordsAreOnDiskWithinTheFlushIntervalAndWellInsideTwoSeconds()
     {
         using var dir = new JournalTempDir();
