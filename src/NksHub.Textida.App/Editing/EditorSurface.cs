@@ -32,7 +32,7 @@ internal sealed class EditorSurface : TextEditor
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
 
-    public EditorSurface(OpenDocument doc, EditorOptions options)
+    public EditorSurface(OpenDocument doc, EditorOptions options) : base(new EditorTextArea())
     {
         Doc = doc;
         Document = doc.TextBackend!.TextDocument;
@@ -61,6 +61,9 @@ internal sealed class EditorSurface : TextEditor
     public EditorOptions Settings { get; private set; }
     public bool BlockMode { get; private set; }
     public bool IsBlockSelection => TextArea.Selection is RectangleSelection;
+
+    /// <summary>Creates the invisible native control that publishes this editor to UI Automation; the caller puts it into the visual tree next to the editor.</summary>
+    public EditorAutomationHost CreateAutomationHost() => ((EditorTextArea)TextArea).Automation = new EditorAutomationHost(this);
 
     protected override AutomationPeer OnCreateAutomationPeer() =>
         EditorAutomationHook.Provider?.CreatePeer(this, Doc.Doc) ?? base.OnCreateAutomationPeer();

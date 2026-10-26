@@ -52,6 +52,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Check(opened!.Editor!.Document.Text.StartsWith("Příliš žluťoučký kůň", StringComparison.Ordinal), "Windows-1250 file decoded");
             Check(opened.CaretPosition().Line == 3, "caret is on the requested line");
             Check(!opened.Doc.ReadOnly && window.StatusRightText.Contains("Windows-1250", StringComparison.Ordinal), "the file is editable and the status bar names its encoding");
+            if (OperatingSystem.IsMacOS()) await CheckMacAccessibilityAsync(opened);
 
             opened.Editor.Document.Replace(1, 1, "r"); // ř -> r: one byte changes
             Check(opened.Doc.Doc.IsModified, "an edit marks the tab modified");
@@ -119,6 +120,39 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         {
             GC.KeepAlive(watchdog);
         }
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("macos")]
+    private async Task CheckMacAccessibilityAsync(DocTab tab)
+    {
+        var editor = tab.Editor!;
+        nint root = window.TryGetPlatformHandle()!.Handle;
+        editor.TextArea.Focus();
+        await NextFrameAsync();
+        nint element = 0;
+        for (int i = 0; i < 30 && element == 0; i++)
+        {
+            element = MacAccessibilitySmoke.FindEditor(root);
+            if (element == 0) await Task.Delay(100);
+        }
+        if (element == 0) Console.Error.WriteLine(MacAccessibilitySmoke.Dump(root));
+        Check(element != 0, "the accessibility tree of the window contains the editor text element");
+        Check(MacAccessibilitySmoke.Value(element) == editor.Document.Text, "AXValue is the document text");
+        editor.CaretOffset = 5;
+        await NextFrameAsync();
+        Check(MacAccessibilitySmoke.SelectedRange(element) == (5, 0), "AXSelectedTextRange follows the caret");
+        editor.Select(2, 3);
+        await NextFrameAsync();
+        Check(MacAccessibilitySmoke.SelectedRange(element) == (2, 3) && MacAccessibilitySmoke.SelectedText(element) == editor.SelectedText, "AXSelectedTextRange and AXSelectedText follow the selection");
+        Check(MacAccessibilitySmoke.FocusedRole() == "AXTextArea", "the editor text element is the focused element");
+        var strip = window.Groups[0].Strip;
+        Check(strip.ContainerFromIndex(strip.SelectedIndex)?.Focus() == true, "the tab strip item takes the keyboard focus");
+        await NextFrameAsync();
+        string focusedRole = MacAccessibilitySmoke.FocusedRole();
+        Check(focusedRole != "AXTextArea", $"the focused element leaves the editor for the tab strip (role {focusedRole})");
+        editor.TextArea.Focus();
+        await NextFrameAsync();
+        Check(MacAccessibilitySmoke.FocusedRole() == "AXTextArea", "the focus returns to the editor text element");
     }
 
     private static void RemoveTemp(string? dir)

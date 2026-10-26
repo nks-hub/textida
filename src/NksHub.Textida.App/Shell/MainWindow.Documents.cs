@@ -137,6 +137,7 @@ internal sealed partial class MainWindow
             }
             group.Remove(tab);
             od.Views.Remove(tab);
+            tab.Close();
             var fresh = AddViewAt(od, group, index);
             if (wasActive) SelectTab(fresh);
         }
@@ -182,6 +183,7 @@ internal sealed partial class MainWindow
         if (group is null) return;
         group.Remove(tab);
         od.Views.Remove(tab);
+        tab.Close();
         tab.ShowBar(null);
         if (od.Views.Count == 0)
         {

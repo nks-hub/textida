@@ -10,7 +10,7 @@ namespace NksHub.Textida.Accessibility.UiaClient;
 /// element identity, DocumentRange text, selection, caret, units, bounding rectangles, and the text, selection and focus events.
 /// Exit code is the number of failed checks.
 /// </summary>
-internal static class Program
+internal static partial class Program
 {
     private const string Sample = "Hello Textida\r\nsecond line, with words\r\nthird: \u011b\u0161\u010d\u0159 \U0001F600 end\r\n";
     private const uint WmKeyDown = 0x100, WmChar = 0x102;
@@ -43,6 +43,7 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args is ["app", var appExe]) return RunApp(appExe);
         var psi = new ProcessStartInfo(args[0], "--exit-after 90") { RedirectStandardOutput = true, UseShellExecute = false };
         using var host = Process.Start(psi)!;
         string? ready = host.StandardOutput.ReadLine();
@@ -140,7 +141,7 @@ internal static class Program
         Check("multi-line range has one rectangle per line", twoLines.GetBoundingRectangles().Length == 2, $"{twoLines.GetBoundingRectangles().Length} rectangles");
 
         // TextPattern2.GetCaretRange needs the UIA3 COM client
-        Check("TextPattern2.GetCaretRange", CaretThroughComClient(hwnd, out string caretDetail), caretDetail);
+        Check("TextPattern2.GetCaretRange", CaretThroughComClient(hwnd, 13, out string caretDetail), caretDetail);
 
         // typing replaces the selection ("Textida"), backspace deletes
         int textBefore = _textEvents;
@@ -193,7 +194,7 @@ internal static class Program
 
     // ---- UIA3 COM client, only for TextPattern2 which the managed wrapper does not offer ----
 
-    private static bool CaretThroughComClient(nint hwnd, out string detail)
+    private static bool CaretThroughComClient(nint hwnd, int expectedOffset, out string detail)
     {
         var uia = (IUIAutomation)new CUIAutomation();
         uia.ElementFromHandle(hwnd, out var element);
@@ -206,7 +207,7 @@ internal static class Program
         head.MoveEndpointByRange(1, caret, 0);
         head.GetText(-1, out string prefix);
         detail = $"isActive={active} caretText='{caretText}' caretOffset={prefix.Length}";
-        return active != 0 && caretText == "" && prefix.Length == 13;
+        return active != 0 && caretText == "" && prefix.Length == expectedOffset;
     }
 
     [ComImport, Guid("ff48dba4-60ef-4201-aa87-54103eef594e")] private class CUIAutomation { }
