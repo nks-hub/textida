@@ -8,7 +8,7 @@ using NksHub.Textida.Core.Syntax;
 namespace NksHub.Textida.Bench;
 
 /// <summary>
-/// P2.7.1: cost of the stateful tokenizer. <c>syntax [--samples N] [--large path] [--large-gib N] [--skip-large] [--skip-long-line]</c>.
+/// P2.7.1: cost of the stateful tokenizer. <c>syntax [--samples N] [--large path] [--large-gib N] [--skip-large] [--skip-long-line] [--only-long-line]</c>.
 /// Keystroke cost = the document edit (which updates the line states) plus tokenizing the viewport again.
 /// The budget is the typing p95 of 33 ms end to end (docs/p0/REPORT.md); what the window already needs without highlighting is taken from
 /// the headless UI timing of a 1 MiB file in the full window (config F: p50 10.7 ms, p95 26.4 ms), so the highlighter has the difference.
@@ -30,8 +30,9 @@ internal static class SyntaxBench
         Console.WriteLine($"window without highlighting (1 MiB, full window): p50 {RenderP50Ms} ms, p95 {RenderP95Ms} ms, so the highlighter has {BudgetMs - RenderP95Ms:F1} ms at p95.");
         Warm();
 
-        foreach (var g in new[] { "javascript", "csharp", "html" }) SmallFile(g, samples);
-        if (!Args.Flag(args, "--skip-large")) foreach (var g in new[] { "plaintext", "javascript" }) LargeFile(args, g, samples);
+        bool onlyLong = Args.Flag(args, "--only-long-line");
+        if (!onlyLong) foreach (var g in new[] { "javascript", "csharp", "html" }) SmallFile(g, samples);
+        if (!onlyLong && !Args.Flag(args, "--skip-large")) foreach (var g in new[] { "plaintext", "javascript" }) LargeFile(args, g, samples);
         if (!Args.Flag(args, "--skip-long-line")) LongLine(args);
         _csv.Dispose();
     }
@@ -284,30 +285,28 @@ internal static class SyntaxBench
             for (long n = 0; n < 100L << 20; n += bytes.Length) fs.Write(bytes);
         }
 
-        Console.WriteLine("\n[one line of 100 MiB, json, windows of 1 MiB]");
+        Console.WriteLine("\n[one line of 100 MiB, json, windows of 64 KiB]");
         using var doc = Document.Open(path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
         var windows = new LongLineTokenizer(doc, BuiltinGrammars.Tokenizer("json"), 0);
         var perWindow = new List<double>();
-        long tokens = 0;
         var total = Stopwatch.StartNew();
         for (int i = 0; ; i++)
         {
             var sw = Stopwatch.StartNew();
-            var w = windows.GetWindow(i)!;
+            var w = windows.GetWindow(i, 0, 400)!;
             perWindow.Add(sw.Elapsed.TotalMilliseconds);
-            tokens += w.Tokens.Count;
             if (w.IsLast) break;
         }
 
-        Report("100MiB-line", "json", "window of 1 MiB", perWindow);
-        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"  whole line {total.Elapsed.TotalSeconds:F2} s, {doc.ByteLength / 1048576.0 / total.Elapsed.TotalSeconds:F0} MiB/s, {tokens:N0} tokens"));
+        Report("100MiB-line", "json", "window of 64 KiB", perWindow);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"  whole line {total.Elapsed.TotalSeconds:F2} s, {doc.ByteLength / 1048576.0 / total.Elapsed.TotalSeconds:F0} MiB/s, viewport slices of 400 columns"));
         var rewind = new List<double>();
         for (int i = 0; i < 20; i++)
         {
             var sw = Stopwatch.StartNew();
-            windows.GetWindow(70);
+            windows.GetWindow(700, 0, 400);
             rewind.Add(sw.Elapsed.TotalMilliseconds);
         }
-        Report("100MiB-line", "json", "window 70 again (checkpoint)", rewind);
+        Report("100MiB-line", "json", "window 700 again (checkpoint)", rewind);
     }
 }
