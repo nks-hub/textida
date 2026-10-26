@@ -18,6 +18,8 @@ public sealed partial class Document : IDisposable
     private int _bomLength;
     private long _revision;
     private DocumentSnapshot? _snapshot;
+    /// <summary>Block digests of the file as this document read or wrote it; null once they cannot be vouched for.</summary>
+    private OriginalBlockHashes? _baseline;
     private bool _disposed;
 
     private Document(IByteBackend backend, DocumentOptions? options, string? path, FileFingerprint? fingerprint, bool unsaved)
@@ -61,8 +63,9 @@ public sealed partial class Document : IDisposable
         var backend = factory.OpenFile(path, format);
         try
         {
-            var print = new FileFingerprint(backend.ByteLength, time, HashBackend(backend));
-            return new Document(backend, options, path, print, unsaved: false);
+            var blocks = new OriginalBlockHashes();
+            var print = new FileFingerprint(backend.ByteLength, time, HashBackend(backend, blocks));
+            return new Document(backend, options, path, print, unsaved: false) { _baseline = blocks };
         }
         catch
         {
@@ -81,7 +84,7 @@ public sealed partial class Document : IDisposable
         return EncodingGuesser.Guess(sample, fs.Length <= SampleSize).Codec;
     }
 
-    private static string HashBackend(IByteBackend backend)
+    private static string HashBackend(IByteBackend backend, OriginalBlockHashes blocks)
     {
         using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
         var buf = new byte[1 << 20];
@@ -89,8 +92,10 @@ public sealed partial class Document : IDisposable
         {
             int n = backend.Read(at, buf);
             hash.AppendData(buf, 0, n);
+            blocks.Append(buf.AsSpan(0, n));
             at += n;
         }
+        blocks.Seal(backend.ByteLength);
         return Convert.ToHexString(hash.GetHashAndReset());
     }
 
