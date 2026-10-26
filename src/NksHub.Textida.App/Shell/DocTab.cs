@@ -1,67 +1,54 @@
 using Avalonia.Controls;
-using Avalonia.Media;
-using NksHub.Textida.App.Text;
+using NksHub.Textida.App.Editing;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>One open document: its editor control, where it came from and a task that completes when the tab is closed (for <c>--wait</c>).</summary>
+/// <summary>
+/// A tab: one view of an <see cref="OpenDocument"/> in a <see cref="TabGroup"/>. Two tabs of one document are the two views of a split;
+/// they show the same revision and share the undo history because they share the document.
+/// </summary>
 internal sealed class DocTab
 {
-    /// <summary>Largest file the P1.1 skeleton opens. The paged document engine arrives in P1.2.</summary>
-    public const long MaxFileBytes = 4 << 20;
+    private readonly ContentControl _barSlot = new() { [DockPanel.DockProperty] = Dock.Top };
 
-    public string? Path { get; }
-    public int Number { get; }
-    public TextBox Editor { get; }
-    public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public string? EncodingName { get; init; }
-
-    /// <summary>Files are shown read-only until saving with byte-exact encoding and line endings exists (P1.2).</summary>
-    public bool ReadOnly => Path is not null;
-
-    public string Title => Path is null ? Loc.Get(K.TabUntitled, ("number", Number)) : System.IO.Path.GetFileName(Path);
-
-    public DocTab(string? path, int number, string text)
+    public DocTab(OpenDocument doc, EditorOptions options)
     {
-        Path = path;
-        Number = number;
-        Editor = new TextBox
-        {
-            Text = text,
-            AcceptsReturn = true,
-            AcceptsTab = true,
-            IsReadOnly = path is not null,
-            BorderThickness = new Avalonia.Thickness(0),
-            Padding = new Avalonia.Thickness(14, 10),
-            CornerRadius = new Avalonia.CornerRadius(0),
-            FontFamily = new FontFamily("Cascadia Mono, Cascadia Code, SF Mono, Menlo, Consolas, monospace"),
-            FontSize = 14,
-            TextWrapping = TextWrapping.NoWrap,
-        };
-        Editor.Classes.Add("editor");
+        Doc = doc;
+        if (doc.IsLarge) Paged = new PagedTextView(doc, options);
+        else Surface = new EditorSurface(doc, options);
+        Root = new DockPanel { Children = { _barSlot, View } };
+        doc.Views.Add(this);
     }
 
-    /// <summary>1-based line and column of the caret.</summary>
-    public (int Line, int Column) CaretPosition()
+    public OpenDocument Doc { get; }
+    public EditorSurface? Surface { get; }
+    public PagedTextView? Paged { get; }
+    /// <summary>The text surface; null for a paged (large, read-only) view.</summary>
+    public EditorSurface? Editor => Surface;
+    public Control View => (Control?)Surface ?? Paged!;
+    public DockPanel Root { get; }
+    public TabGroup? Group { get; set; }
+
+    /// <summary>Header state last drawn, so a keystroke does not rebuild the strip.</summary>
+    public string HeaderState { get; set; } = "";
+
+    public string? Path => Doc.Path;
+    public string Title => Doc.Title;
+    public TaskCompletionSource Closed => Doc.Closed;
+
+    public void ShowBar(Control? bar) => _barSlot.Content = bar;
+    public Control? Bar => _barSlot.Content as Control;
+
+    /// <summary>1-based line and column; for a paged view the first line on screen.</summary>
+    public (long Line, long Column) CaretPosition()
     {
-        var text = Editor.Text ?? "";
-        int caret = Math.Min(Editor.CaretIndex, text.Length);
-        int line = 1, lineStart = 0;
-        for (int i = 0; i < caret; i++)
-            if (text[i] == '\n') { line++; lineStart = i + 1; }
-        return (line, caret - lineStart + 1);
+        if (Surface is { } s) return s.CaretLineColumn();
+        return (Paged!.TopLine + 1, 1);
     }
 
     public void GoToLine(int line)
     {
-        var text = Editor.Text ?? "";
-        int offset = 0;
-        for (int l = 1; l < line; l++)
-        {
-            int nl = text.IndexOf('\n', offset);
-            if (nl < 0) { offset = text.Length; break; }
-            offset = nl + 1;
-        }
-        Editor.CaretIndex = offset;
+        if (Surface is { } s) s.GoToLine(line);
+        else Paged!.GoToLine(line);
     }
 }

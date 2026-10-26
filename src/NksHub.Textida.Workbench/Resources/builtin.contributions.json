@@ -233,6 +233,146 @@
       "title": "cmd.view.previousTab",
       "category": "cat.view",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.reload",
+      "title": "cmd.file.reload",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.compareWithDisk",
+      "title": "cmd.file.compareWithDisk",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.selectLine",
+      "title": "cmd.edit.selectLine",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.toggleBlockSelect",
+      "title": "cmd.edit.toggleBlockSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.joinLines",
+      "title": "cmd.edit.joinLines",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.newline",
+      "title": "cmd.edit.newline",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.format.reread",
+      "title": "cmd.format.reread",
+      "category": "cat.format",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.format.convert",
+      "title": "cmd.format.convert",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.eolCrLf",
+      "title": "cmd.format.eolCrLf",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.eolLf",
+      "title": "cmd.format.eolLf",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.eolCr",
+      "title": "cmd.format.eolCr",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.normalizeNfc",
+      "title": "cmd.format.normalizeNfc",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.normalizeNfd",
+      "title": "cmd.format.normalizeNfd",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.format.language",
+      "title": "cmd.format.language",
+      "category": "cat.format",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleDocumentList",
+      "title": "cmd.view.toggleDocumentList",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.window.new",
+      "title": "cmd.window.new",
+      "category": "cat.window"
+    },
+    {
+      "id": "nks.window.splitView",
+      "title": "cmd.window.splitView",
+      "category": "cat.window",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.window.moveToOtherGroup",
+      "title": "cmd.window.moveToOtherGroup",
+      "category": "cat.window",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.settings.theme.system",
+      "title": "cmd.settings.theme.system",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.theme.light",
+      "title": "cmd.settings.theme.light",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.theme.dark",
+      "title": "cmd.settings.theme.dark",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.language.cs",
+      "title": "cmd.settings.language.cs",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.language.en",
+      "title": "cmd.settings.language.en",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.help.about",
+      "title": "cmd.help.about",
+      "category": "cat.app"
     }
   ],
   "menus": [
@@ -273,9 +413,9 @@
       "order": 10
     },
     {
-      "menu": "file",
+      "menu": "settings",
       "command": "nks.app.openSettings",
-      "group": "8_app",
+      "group": "1_open",
       "order": 10
     },
     {
@@ -429,16 +569,154 @@
       "order": 40
     },
     {
+      "menu": "file",
+      "command": "nks.file.reload",
+      "group": "2_disk",
+      "order": 40
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.compareWithDisk",
+      "group": "2_disk",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectLine",
+      "group": "3_select",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.toggleBlockSelect",
+      "group": "3_select",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.joinLines",
+      "group": "4_lines",
+      "order": 50
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.reread",
+      "group": "1_encoding",
+      "order": 10
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.convert",
+      "group": "1_encoding",
+      "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.eolCrLf",
+      "group": "2_eol",
+      "order": 10
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.eolLf",
+      "group": "2_eol",
+      "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.eolCr",
+      "group": "2_eol",
+      "order": 30
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.normalizeNfc",
+      "group": "3_unicode",
+      "order": 10
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.normalizeNfd",
+      "group": "3_unicode",
+      "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.language",
+      "group": "4_language",
+      "order": 10
+    },
+    {
       "menu": "view",
+      "command": "nks.view.toggleDocumentList",
+      "group": "4_panels",
+      "order": 10
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.new",
+      "group": "1_window",
+      "order": 10
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.splitView",
+      "group": "2_split",
+      "order": 10
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.moveToOtherGroup",
+      "group": "2_split",
+      "order": 20
+    },
+    {
+      "menu": "window",
       "command": "nks.view.nextTab",
       "group": "3_tabs",
       "order": 10
     },
     {
-      "menu": "view",
+      "menu": "window",
       "command": "nks.view.previousTab",
       "group": "3_tabs",
       "order": 20
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.theme.system",
+      "group": "2_theme",
+      "order": 10
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.theme.light",
+      "group": "2_theme",
+      "order": 20
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.theme.dark",
+      "group": "2_theme",
+      "order": 30
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.language.cs",
+      "group": "3_language",
+      "order": 10
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.language.en",
+      "group": "3_language",
+      "order": 20
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.about",
+      "group": "1_about",
+      "order": 10
     }
   ],
   "keybindings": [
@@ -610,6 +888,38 @@
     {
       "key": "ctrl+shift+tab",
       "command": "nks.view.previousTab"
+    },
+    {
+      "key": "mod+l",
+      "command": "nks.edit.selectLine",
+      "when": "editorFocus"
+    },
+    {
+      "key": "f8",
+      "command": "nks.edit.toggleBlockSelect",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+shift+j",
+      "command": "nks.edit.joinLines",
+      "when": "editorFocus"
+    },
+    {
+      "key": "enter",
+      "command": "nks.edit.newline",
+      "when": "editorFocus && !readOnly"
+    },
+    {
+      "key": "mod+shift+n",
+      "command": "nks.window.new"
+    },
+    {
+      "key": "mod+backslash",
+      "command": "nks.window.splitView"
+    },
+    {
+      "key": "mod+b",
+      "command": "nks.view.toggleDocumentList"
     }
   ],
   "settings": [
@@ -856,6 +1166,138 @@
         "locale",
         "czech",
         "english"
+      ],
+      "enum": [
+        "auto",
+        "cs",
+        "en"
+      ]
+    },
+    {
+      "key": "editor.autoClosePairs",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.autoClosePairs.title",
+      "description": "setting.editor.autoClosePairs.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "bracket",
+        "quote",
+        "pair",
+        "close"
+      ]
+    },
+    {
+      "key": "editor.continueComments",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.continueComments.title",
+      "description": "setting.editor.continueComments.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "comment",
+        "enter",
+        "newline"
+      ]
+    },
+    {
+      "key": "workbench.theme",
+      "type": "string",
+      "default": "system",
+      "title": "setting.workbench.theme.title",
+      "description": "setting.workbench.theme.description",
+      "category": "cat.workbench",
+      "scope": "application",
+      "enum": [
+        "system",
+        "light",
+        "dark"
+      ],
+      "tags": [
+        "theme",
+        "dark",
+        "light",
+        "appearance",
+        "color"
+      ]
+    },
+    {
+      "key": "files.journalDirectory",
+      "type": "string",
+      "default": "",
+      "title": "setting.files.journalDirectory.title",
+      "description": "setting.files.journalDirectory.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "journal",
+        "recovery",
+        "crash",
+        "restore"
+      ]
+    },
+    {
+      "key": "files.journalFallbackDirectory",
+      "type": "string",
+      "default": "",
+      "title": "setting.files.journalFallbackDirectory.title",
+      "description": "setting.files.journalFallbackDirectory.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "journal",
+        "recovery",
+        "crash",
+        "fallback"
+      ]
+    },
+    {
+      "key": "files.largeFileThreshold",
+      "type": "integer",
+      "default": 16,
+      "title": "setting.files.largeFileThreshold.title",
+      "description": "setting.files.largeFileThreshold.description",
+      "category": "cat.files",
+      "scope": "application",
+      "minimum": 1,
+      "maximum": 2048,
+      "tags": [
+        "large",
+        "size",
+        "paged",
+        "memory",
+        "mib"
+      ]
+    },
+    {
+      "key": "tools.diffTool",
+      "type": "string",
+      "default": "",
+      "title": "setting.tools.diffTool.title",
+      "description": "setting.tools.diffTool.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "diff",
+        "compare",
+        "merge",
+        "external"
+      ]
+    },
+    {
+      "key": "tools.diffArguments",
+      "type": "string",
+      "default": "\"{left}\" \"{right}\"",
+      "title": "setting.tools.diffArguments.title",
+      "description": "setting.tools.diffArguments.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "diff",
+        "compare",
+        "arguments"
       ]
     }
   ]

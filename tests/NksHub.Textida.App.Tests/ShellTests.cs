@@ -26,9 +26,13 @@ public partial class ShellTests : IDisposable
 
     public void Dispose()
     {
+        if (Application.Current is App app && app.Journal is not null) TestApp.Cleanup(app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
     }
+
+    private static readonly string[] CsMenus = ["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nastavení", "Okno", "Nápověda"];
+    private static readonly string[] EnMenus = ["File", "Edit", "Search", "View", "Format", "Settings", "Window", "Help"];
 
     [GeneratedRegex(@"^[a-z0-9]+(\.[A-Za-z0-9]+)+$")]
     private static partial Regex LooksLikeKey();
@@ -58,7 +62,7 @@ public partial class ShellTests : IDisposable
         Assert.Empty(w.Tabs);
         Assert.Null(w.Active);
         Assert.Equal(Loc.Get(K.AppName), w.Title);
-        Assert.Equal(["Soubor", "Úpravy", "Zobrazit", "Nápověda"], w.MenuHeaders);
+        Assert.Equal(CsMenus, w.MenuHeaders);
         Assert.Single(app.Windows);
         w.Close();
     }
@@ -69,7 +73,7 @@ public partial class ShellTests : IDisposable
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
         var doc = w.NewDocument();
-        doc.Editor.Text = "Příliš žluťoučký kůň\r\nřádek 2\n";
+        doc.Editor!.Text = "Příliš žluťoučký kůň\r\nřádek 2\n";
         var bytesBefore = Encoding.UTF8.GetBytes(doc.Editor.Text);
 
         foreach (var lang in Loc.Languages.Concat(["cs"]))
@@ -80,8 +84,8 @@ public partial class ShellTests : IDisposable
             AssertNoRawKeys(w);
         }
 
-        Assert.Equal(["Soubor", "Úpravy", "Zobrazit", "Nápověda"], w.MenuHeaders);
-        Assert.Equal(bytesBefore, Encoding.UTF8.GetBytes(doc.Editor.Text!));
+        Assert.Equal(CsMenus, w.MenuHeaders);
+        Assert.Equal(bytesBefore, Encoding.UTF8.GetBytes(doc.Editor.Document.Text));
         Assert.Same(doc, w.Active);
         w.Close();
     }
@@ -93,9 +97,9 @@ public partial class ShellTests : IDisposable
         var w = app.CreateWindow(null);
         w.NewDocument();
         app.SetLanguage("en");
-        Assert.Equal(["File", "Edit", "View", "Help"], w.MenuHeaders);
+        Assert.Equal(EnMenus, w.MenuHeaders);
         Assert.Contains("Untitled", w.Active!.Title);
-        Assert.Equal("1 open tab", Loc.Plural(K.StatusTabs, 1));
+        Assert.Equal("1 result", Loc.Plural(K.SettingsResultCount, 1));
         app.SetLanguage("cs");
         Assert.Contains("Bez názvu", w.Active!.Title);
         w.Close();
@@ -137,10 +141,10 @@ public partial class ShellTests : IDisposable
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
         w.NewDocument();
-        Assert.All(w.GetVisualDescendants().OfType<Button>(), b => Assert.True(b.Classes.Contains("tabclose"), "only tab close buttons may be buttons in the chrome"));
+        Assert.All(w.GetVisualDescendants().OfType<Button>(), b => Assert.True(b.Classes.Contains("tabclose") || b.Classes.Contains("statusitem"), "only tab close buttons and status bar items may be buttons in the chrome"));
         Assert.Single(w.GetVisualDescendants().OfType<Menu>());
         Assert.Single(w.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStrip>());
-        Assert.Equal(["Soubor", "Úpravy", "Zobrazit", "Nápověda"], w.GetVisualDescendants().OfType<Menu>().Single().Items.OfType<MenuItem>().Select(m => (string)m.Header!));
+        Assert.Equal(CsMenus, w.GetVisualDescendants().OfType<Menu>().Single().Items.OfType<MenuItem>().Select(m => (string)m.Header!));
         w.Close();
     }
 
@@ -169,7 +173,7 @@ public partial class ShellTests : IDisposable
         var mod = Shortcuts.Primary == KeyModifiers.Meta ? RawInputModifiers.Meta : RawInputModifiers.Control;
         w.KeyPress(Key.N, mod, PhysicalKey.N, "n");
         w.KeyPress(Key.N, mod, PhysicalKey.N, "n");
-        Assert.Equal(2, w.Tabs.Count);
+        Assert.Equal(2, w.Tabs.Count());
         w.KeyPress(Key.W, mod, PhysicalKey.W, "w");
         Assert.Single(w.Tabs);
         w.Close();
@@ -186,7 +190,7 @@ public partial class ShellTests : IDisposable
         Assert.False(wait.IsCompleted);
         var tab = w.Tabs.Single();
         Assert.Equal(file, tab.Path);
-        Assert.Equal(3, tab.CaretPosition().Line);
+        Assert.Equal(3L, tab.CaretPosition().Line);
 
         w.CloseTab(tab);
         await wait.WaitAsync(TimeSpan.FromSeconds(5));
@@ -215,7 +219,7 @@ public partial class ShellTests : IDisposable
         Assert.True(app.OpenRequestAsync(new IpcRequest { Files = [new IpcFile { Path = file }] }).IsCompletedSuccessfully);
         Assert.True(app.OpenRequestAsync(new IpcRequest { Files = [new IpcFile { Path = file, Line = 2 }] }).IsCompletedSuccessfully);
         Assert.Single(w.Tabs);
-        Assert.Equal(2, w.Active!.CaretPosition().Line);
+        Assert.Equal(2L, w.Active!.CaretPosition().Line);
         w.Close();
     }
 
@@ -251,7 +255,7 @@ public partial class ShellTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Single_byte_file_is_decoded_and_shown_read_only()
+    public void Single_byte_file_is_decoded_and_editable()
     {
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
@@ -260,24 +264,25 @@ public partial class ShellTests : IDisposable
 
         var tab = w.OpenFile(path, null);
 
-        Assert.Equal("Příliš žluťoučký kůň", tab.Editor.Text);
-        Assert.True(tab.Editor.IsReadOnly);
-        Assert.Equal(TextCodec.Cp1250.Name, tab.EncodingName);
+        Assert.Equal("Příliš žluťoučký kůň", tab.Editor!.Document.Text);
+        Assert.False(tab.Editor.IsReadOnly);
+        Assert.Equal(TextCodec.Cp1250, tab.Doc.Doc.Codec);
         w.Close();
     }
 
     [AvaloniaFact]
-    public void File_over_the_skeleton_limit_is_refused_with_a_message()
+    public void File_over_the_four_mebibyte_skeleton_cap_opens_now()
     {
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
         var path = Path.Combine(_temp.Path, "big.txt");
-        File.WriteAllBytes(path, new byte[DocTab.MaxFileBytes + 1]);
+        File.WriteAllBytes(path, new byte[5 << 20].Select(_ => (byte)'x').ToArray());
 
-        var ex = Assert.Throws<IOException>(() => w.OpenFile(path, null));
+        var tab = w.OpenFile(path, null);
 
-        Assert.Contains(path, ex.Message);
-        Assert.Empty(w.Tabs);
+        Assert.False(tab.Doc.IsLarge); // 5 MiB is still below the switch size
+        Assert.True(tab.Doc.Doc.ByteLength > 4 << 20);
+        Assert.NotNull(tab.Editor);
         w.Close();
     }
 
@@ -288,7 +293,7 @@ public partial class ShellTests : IDisposable
         var w = app.CreateWindow(null);
         var a = w.NewDocument();
         var b = w.NewDocument();
-        Assert.False(a.Editor.IsReadOnly);
+        Assert.False(a.Editor!.IsReadOnly);
         Assert.NotEqual(a.Title, b.Title);
         w.Close();
     }

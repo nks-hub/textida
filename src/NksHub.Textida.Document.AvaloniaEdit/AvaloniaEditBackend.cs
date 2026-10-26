@@ -133,6 +133,36 @@ public sealed class AvaloniaEditBackend : IByteBackend
         EditedByBackend?.Invoke(new BackendEdit(_bom.Length + b0, removed, bytes));
     }
 
+    /// <summary>
+    /// Characters typed or pasted since the file was read that the encoding cannot hold. The bytes already carry a replacement
+    /// ('?' or U+FFFD) for each of them, so saving writes the replacement; the caller must show this report first.
+    /// Positions are in the text of the view; untouched text never reports a loss.
+    /// </summary>
+    public LossReport TypedLoss()
+    {
+        var typed = _map.TypedRuns().Where(r => r.Text.Any(c => !_codec.CanEncode(c) || char.IsSurrogate(c))).ToList();
+        if (typed.Count == 0) return LossReport.None;
+        var probe = new System.Text.StringBuilder(TextDocument.TextLength);
+        int at = 0;
+        foreach (var (start, text) in typed)
+        {
+            AppendMasked(probe, at, start);
+            probe.Append(text);
+            at = start + text.Length;
+        }
+        AppendMasked(probe, at, TextDocument.TextLength);
+        return LossReport.ForText(probe.ToString(), _codec);
+    }
+
+    private void AppendMasked(System.Text.StringBuilder sb, int from, int to)
+    {
+        for (int i = from; i < to; i++)
+        {
+            char c = TextDocument.GetCharAt(i);
+            sb.Append(c is '\r' or '\n' ? c : 'x');
+        }
+    }
+
     public string ReadText(ByteRange range)
     {
         int c0 = _map.ByteToChar(range.Start - _bom.Length);

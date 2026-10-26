@@ -126,13 +126,13 @@ public class LocalizationTests : IDisposable
         Loc.SetLanguage(lang);
         foreach (long n in new long[] { 0, 1, 2, 3, 4, 5, 11, 21, 22, 100, 101 })
         {
-            var text = Loc.Plural(K.StatusTabs, n);
+            var text = Loc.Plural(K.SettingsResultCount, n);
             Assert.False(string.IsNullOrWhiteSpace(text));
             Assert.DoesNotContain('{', text);
             Assert.DoesNotContain('}', text);
             if (lang != "cs" || n != 1) Assert.Contains(n.ToString(), text);
         }
-        Assert.Equal(lang == "cs" ? "1 otevřená karta" : "1 open tab", Loc.Plural(K.StatusTabs, 1));
+        Assert.Equal(lang == "cs" ? "1 výsledek" : "1 result", Loc.Plural(K.SettingsResultCount, 1));
     }
 
     [Theory]
@@ -164,12 +164,12 @@ public class LocalizationTests : IDisposable
     [Fact]
     public void Unknown_language_tag_uses_the_default_and_switching_back_restores_the_texts()
     {
-        var cs = Loc.Get(K.MenuFile);
+        var cs = Loc.Get(K.DialogSave);
         Assert.Equal("en", Loc.SetLanguage("en"));
-        var en = Loc.Get(K.MenuFile);
+        var en = Loc.Get(K.DialogSave);
         Assert.NotEqual(cs, en);
         Assert.Equal("cs", Loc.SetLanguage("xx"));
-        Assert.Equal(cs, Loc.Get(K.MenuFile));
+        Assert.Equal(cs, Loc.Get(K.DialogSave));
     }
 
     [Fact]
@@ -195,7 +195,8 @@ public class LocalizationTests : IDisposable
     public void Inventory_covers_the_text_categories_of_the_shell()
     {
         var prefixes = BaseKeys("cs").Select(k => k[..k.IndexOf('.')]).ToHashSet();
-        foreach (var required in new[] { "menu", "status", "panel", "dialog", "error", "a11y" }) Assert.Contains(required, prefixes);
+        // menu and command texts live in the Workbench catalogue, next to the commands they name
+        foreach (var required in new[] { "status", "panel", "dialog", "error", "a11y", "palette", "settings", "restore", "journal", "conflict", "loss" }) Assert.Contains(required, prefixes);
     }
 
     [Fact]
@@ -220,7 +221,7 @@ public class LocalizationTests : IDisposable
         sb.AppendLine();
         sb.AppendLine($"Jazyky v prostředcích: {string.Join(", ", Loc.Languages.Order())}. Výchozí: {Loc.DefaultLanguage}. Počet klíčů: {BaseKeys("cs").Count}.");
         sb.AppendLine("Které jazyky vyjdou v MVP, rozhodne P1.1.7; infrastruktura nezná pevný počet jazyků.");
-        sb.AppendLine("Paleta příkazů v P1.1 neexistuje, její klíče přibudou s ní.");
+        sb.AppendLine("Texty nabídek a příkazů jsou v katalogu knihovny Workbench (`strings.cs.json`), ne tady.");
         foreach (var group in BaseKeys("cs").Order(StringComparer.Ordinal).GroupBy(k => k[..k.IndexOf('.')]))
         {
             sb.AppendLine().AppendLine($"## {group.Key}").AppendLine();

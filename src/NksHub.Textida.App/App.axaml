@@ -16,6 +16,16 @@
                     <SolidColorBrush x:Key="FgMuted">#565B64</SolidColorBrush>
                     <SolidColorBrush x:Key="Accent">#0F7B6C</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="LineNumbers">#8A9099</SolidColorBrush>
+                    <SolidColorBrush x:Key="EditorFg">#1B1D21</SolidColorBrush>
+                    <SolidColorBrush x:Key="ChromeBg">#EEF0F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSoft">#D8EDE9</SolidColorBrush>
+                    <SolidColorBrush x:Key="Scrim">#26000000</SolidColorBrush>
+                    <SolidColorBrush x:Key="Highlight">#99FFD866</SolidColorBrush>
+                    <SolidColorBrush x:Key="CurrentLine">#F1F4F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectionBg">#3D0F7B6C</SolidColorBrush>
+                    <SolidColorBrush x:Key="InfoBg">#E8F1EF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarnBg">#FFF4D6</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
@@ -27,13 +37,29 @@
                     <SolidColorBrush x:Key="FgMuted">#A9AEB7</SolidColorBrush>
                     <SolidColorBrush x:Key="Accent">#3DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#00201A</SolidColorBrush>
+                    <SolidColorBrush x:Key="LineNumbers">#6F7681</SolidColorBrush>
+                    <SolidColorBrush x:Key="EditorFg">#D4D7DC</SolidColorBrush>
+                    <SolidColorBrush x:Key="ChromeBg">#202225</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSoft">#1F4A43</SolidColorBrush>
+                    <SolidColorBrush x:Key="Scrim">#4D000000</SolidColorBrush>
+                    <SolidColorBrush x:Key="Highlight">#80B38A00</SolidColorBrush>
+                    <SolidColorBrush x:Key="CurrentLine">#2A2D31</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectionBg">#553DC2AC</SolidColorBrush>
+                    <SolidColorBrush x:Key="InfoBg">#26322F</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarnBg">#40361A</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light" Accent="#0F7B6C" RegionColor="#FFFFFF" />
+                <ColorPaletteResources x:Key="Dark" Accent="#3DC2AC" RegionColor="#1F1F1F" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
         <Style Selector="Window.shell">
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, SF Pro Text, Helvetica Neue, Arial" />
@@ -113,16 +139,132 @@
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
         </Style>
 
-        <Style Selector="TextBox.editor">
-            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+        <Style Selector="Button.statusitem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="MinHeight" Value="22" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="Button.statusitem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
         </Style>
-        <Style Selector="TextBox.editor:focus /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
-            <Setter Property="BorderThickness" Value="0" />
+
+        <Style Selector="Border.infobar">
+            <Setter Property="Background" Value="{DynamicResource InfoBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
-        <Style Selector="TextBox.editor:pointerover /template/ Border#PART_BorderElement">
+        <Style Selector="Border.infobar.warning">
+            <Setter Property="Background" Value="{DynamicResource WarnBg}" />
+        </Style>
+        <Style Selector="Border.infobar Button.barbutton">
             <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+
+        <Style Selector="Border.palette">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BoxShadow" Value="0 8 28 0 #40000000" />
+        </Style>
+        <Style Selector="TextBox.paletteinput:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+        <Style Selector="TextBox.paletteinput:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TextBox.paletteinput">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="CornerRadius" Value="8,8,0,0" />
+        </Style>
+
+        <Style Selector="Border.modifieddot">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style Selector="Panel.tabslot:not(.modified) Border.modifieddot">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Panel.tabslot.modified Button.tabclose">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="TabStripItem:pointerover Panel.tabslot.modified Button.tabclose">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
+        <Style Selector="TabStripItem:pointerover Panel.tabslot.modified Border.modifieddot">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Border.sizebadge">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="4,0" />
+        </Style>
+        <Style Selector="Border.sizebadge TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+
+        <Style Selector="Border.tabrow">
+            <Setter Property="Background" Value="{DynamicResource ChromeBg}" />
+        </Style>
+        <Style Selector="Grid.titlestrip">
+            <Setter Property="Background" Value="{DynamicResource ChromeBg}" />
+        </Style>
+        <Style Selector="Border.scrim">
+            <Setter Property="Background" Value="{DynamicResource Scrim}" />
+        </Style>
+        <Style Selector="Border.keycap">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="5,0" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+        </Style>
+        <Style Selector="Border.keycap TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="ListBox.paletteList ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="6,1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="MinHeight" Value="34" />
+        </Style>
+        <Style Selector="ListBox.paletteList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ListBox.paletteList ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="Border.escchip">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.statusdot">
+            <Setter Property="Background" Value="{DynamicResource FgMuted}" />
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
+        <Style Selector="Border.settingrow">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+        </Style>
+        <Style Selector="GridSplitter.groupsplitter">
+            <Setter Property="Background" Value="{DynamicResource Border}" />
         </Style>
     </Application.Styles>
 </Application>

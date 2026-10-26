@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -5,9 +6,12 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using NksHub.Textida.App.Profile;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
 
@@ -18,11 +22,21 @@ public sealed partial class App : Application
 {
     internal static StartupContext Startup { get; set; } = null!;
 
+    /// <summary>Theme and language as last applied; the source of truth is the user settings file behind <see cref="Workbench"/>.</summary>
     internal Settings Settings { get; private set; } = new();
+    internal AppWorkbench Workbench { get; private set; } = null!;
+    internal JournalService Journal { get; private set; } = null!;
+    internal BackupService Backups { get; private set; } = null!;
+    internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
+    /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
+    internal string ProfileDirectory { get; private set; } = "";
+
     private readonly List<MainWindow> _windows = [];
     private MainWindow? _active;
     private IpcServer? _server;
     private IClassicDesktopStyleApplicationLifetime? _desktop;
+    private SettingsWindow? _settingsWindow;
+    private DispatcherTimer? _sessionTimer;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -36,22 +50,64 @@ public sealed partial class App : Application
 
         _desktop = desktop;
         var ctx = Startup;
-        Settings = ctx.Args.Smoke ? new Settings() : ctx.Profile.LoadSettings();
-        Loc.SetLanguage(Settings.Language);
-        ApplyThemeVariant();
+        Configure();
 
         var first = CreateWindow(ctx.Args.Smoke ? null : ctx.Profile.LoadWindow(), show: false);
         desktop.MainWindow = first;
+        desktop.Exit += (_, _) =>
+        {
+            Journal.Shutdown();
+            if (!ctx.Args.Smoke) return;
+            try { Directory.Delete(ProfileDirectory, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a check leaves nothing in the profile it ran in */ }
+        };
 
         if (!ctx.Args.Smoke)
         {
             _server = new IpcServer(ctx.Channel, request => Dispatcher.UIThread.InvokeAsync(() => OpenRequestAsync(request)));
             desktop.Exit += (_, _) => StopServer();
-            first.Opened += (_, _) => { if (ctx.Args.Files.Count > 0) RunStartupOpen(ctx.Args); };
+            first.Opened += (_, _) =>
+            {
+                first.RestoreFrom(Journal);
+                first.ShowJournalWarnings();
+                if (ctx.Args.Files.Count > 0) RunStartupOpen(ctx.Args);
+            };
         }
         else first.Opened += (_, _) => _ = new SmokeTest(this, first, desktop).RunAsync();
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Builds the services of one run from <see cref="Startup"/>: workbench (commands, keys, settings), journal and backups.
+    /// Called once at start; tests call it for each throw-away profile.
+    /// </summary>
+    internal void Configure()
+    {
+        var ctx = Startup;
+        Journal?.Dispose();
+        ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
+        Workbench = new AppWorkbench(ProfileDirectory, Loc.DefaultLanguage);
+        AppCommands.Register(this);
+        Workbench.SettingChanged += OnSettingChanged;
+
+        var settings = Workbench.Settings;
+        Settings = new Settings { Theme = settings.GetString("workbench.theme"), Language = ctx.Args.Smoke ? Loc.DefaultLanguage : EffectiveLanguage() };
+        Workbench.SetLanguage(Settings.Language);
+        Loc.SetLanguage(Settings.Language);
+        ApplyThemeVariant();
+
+        string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
+        string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
+        Journal = JournalService.Start(primary, fallback);
+        Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
+    }
+
+    private string EffectiveLanguage()
+    {
+        var chosen = Workbench.Settings.GetString("workbench.uiLanguage");
+        if (chosen != "auto") return chosen;
+        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : Loc.DefaultLanguage;
     }
 
     private void RunStartupOpen(CommandLineArgs args)
@@ -94,11 +150,46 @@ public sealed partial class App : Application
         }
         _windows.Remove(window);
         if (_active == window) _active = _windows.LastOrDefault();
+        if (_windows.Count > 0) SaveSession();
     }
 
     internal void Exit() => _desktop?.Shutdown();
 
     internal IReadOnlyList<MainWindow> Windows => _windows;
+
+    internal MainWindow? ActiveWindow => _active ?? _windows.LastOrDefault();
+
+    // ---- session ----
+
+    /// <summary>The tab layout changed; it is written shortly after, not on every click.</summary>
+    internal void SessionChanged()
+    {
+        _sessionTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        _sessionTimer.Tick -= OnSessionTimer;
+        _sessionTimer.Tick += OnSessionTimer;
+        _sessionTimer.Stop();
+        _sessionTimer.Start();
+    }
+
+    private void OnSessionTimer(object? sender, EventArgs e)
+    {
+        _sessionTimer?.Stop();
+        SaveSession();
+    }
+
+    /// <summary>Writes the tab layout of every window into the journal.</summary>
+    internal void SaveSession()
+    {
+        var groups = new List<SessionGroup>();
+        int active = 0;
+        foreach (var w in _windows)
+        {
+            var model = w.CaptureSession();
+            if (w == ActiveWindow) active = groups.Count + model.ActiveGroup;
+            groups.AddRange(model.Groups);
+        }
+        Journal.UpdateSession(new SessionModel(groups, active));
+    }
 
     /// <summary>
     /// Runs on the UI thread. The returned task completes when every requested tab is closed if <see cref="IpcRequest.Wait"/> is set, otherwise at once.
@@ -129,18 +220,40 @@ public sealed partial class App : Application
 
     // ---- settings ----
 
-    internal void SetTheme(string tag)
+    internal void OpenSettings(string? query = null)
     {
-        Settings.Theme = tag;
-        ApplyThemeVariant();
-        SaveSettings();
-        foreach (var w in _windows) w.ApplyTexts();
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow(this);
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+        }
+        else _settingsWindow.Activate();
+        if (query is not null) _settingsWindow.SetQuery(query);
     }
 
-    internal void SetLanguage(string tag)
+    internal SettingsWindow? SettingsView => _settingsWindow;
+
+    internal void SetTheme(string tag) => Workbench.Set("workbench.theme", tag);
+
+    internal void SetLanguage(string tag) => Workbench.Set("workbench.uiLanguage", tag);
+
+    private void OnSettingChanged(string key)
     {
-        Settings.Language = Loc.SetLanguage(tag);
-        SaveSettings();
+        switch (key)
+        {
+            case "workbench.theme":
+                Settings.Theme = Workbench.Settings.GetString("workbench.theme");
+                ApplyThemeVariant();
+                foreach (var w in _windows) w.ApplyTexts();
+                break;
+            case "workbench.uiLanguage":
+                Settings.Language = EffectiveLanguage();
+                Workbench.SetLanguage(Settings.Language);
+                Loc.SetLanguage(Settings.Language);
+                foreach (var w in _windows) w.ApplyTexts();
+                break;
+        }
     }
 
     private void ApplyThemeVariant() => RequestedThemeVariant = Settings.Theme switch
@@ -149,11 +262,4 @@ public sealed partial class App : Application
         "dark" => ThemeVariant.Dark,
         _ => ThemeVariant.Default,
     };
-
-    private void SaveSettings()
-    {
-        if (Startup.Args.Smoke) return;
-        try { Startup.Profile.SaveSettings(Settings); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { _active?.SetStatusMessage(e.Message); }
-    }
 }

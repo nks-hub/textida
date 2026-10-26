@@ -219,6 +219,17 @@ internal sealed class ByteTextMap
         return [.. removed];
     }
 
+    /// <summary>Per char of the view: true when it belongs to typed text (an edited run made from text), false when it comes from the original bytes.</summary>
+    public IEnumerable<(int Start, string Text)> TypedRuns()
+    {
+        int chars = 0;
+        foreach (var r in _runs)
+        {
+            if (r.Text is { } text) yield return (chars, text);
+            chars += r.Chars;
+        }
+    }
+
     public int Read(long offset, Span<byte> destination)
     {
         long at = 0;
