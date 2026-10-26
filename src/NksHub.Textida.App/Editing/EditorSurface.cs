@@ -53,6 +53,7 @@ internal sealed partial class EditorSurface : TextEditor
         FontWeight = FontWeight.Normal;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
         foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
+        TextArea.LeftMargins.Insert(0, new BookmarkMargin(doc.Bookmarks));
         Settings = options;
         ApplyOptions(options);
         _colorizer = new SyntaxColorizer(TextArea.TextView);

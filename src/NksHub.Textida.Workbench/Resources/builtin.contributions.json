@@ -411,6 +411,30 @@
       "category": "cat.search"
     },
     {
+      "id": "nks.bookmarks.toggle",
+      "title": "cmd.bookmarks.toggle",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.next",
+      "title": "cmd.bookmarks.next",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.previous",
+      "title": "cmd.bookmarks.previous",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.clear",
+      "title": "cmd.bookmarks.clear",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.search.relatedFile",
       "title": "cmd.search.relatedFile",
       "category": "cat.search",
@@ -1062,6 +1086,30 @@
       "order": 40
     },
     {
+      "menu": "search",
+      "command": "nks.bookmarks.toggle",
+      "group": "5_bookmarks",
+      "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.next",
+      "group": "5_bookmarks",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.previous",
+      "group": "5_bookmarks",
+      "order": 30
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.clear",
+      "group": "5_bookmarks",
+      "order": 40
+    },
+    {
       "menu": "file",
       "command": "nks.file.openFolder",
       "group": "1_new",
@@ -1534,6 +1582,19 @@
     {
       "key": "alt+right",
       "command": "nks.search.jumpForward"
+    },
+    {
+      "key": "ctrl+f2",
+      "command": "nks.bookmarks.toggle",
+      "mac": "mod+f2"
+    },
+    {
+      "key": "f2",
+      "command": "nks.bookmarks.next"
+    },
+    {
+      "key": "shift+f2",
+      "command": "nks.bookmarks.previous"
     },
     {
       "key": "alt+o",

@@ -29,6 +29,7 @@ internal sealed class OpenDocument : IDisposable
     {
         _doc = doc;
         Number = number;
+        Bookmarks = new Bookmarks(doc);
         Guess = guess;
         Language = language;
         _eolTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
@@ -39,6 +40,8 @@ internal sealed class OpenDocument : IDisposable
     }
 
     public Document Doc => _doc;
+    /// <summary>The bookmarks of the document; all views show the same ones.</summary>
+    public Bookmarks Bookmarks { get; }
     public int Number { get; }
     public LanguageMode Language { get; private set; }
     /// <summary>The user picked the language; the file name no longer decides it, also after a reload or a save under another name.</summary>
@@ -315,6 +318,7 @@ internal sealed class OpenDocument : IDisposable
         var old = _doc;
         Unhook(old);
         _doc = next;
+        Bookmarks.Rebind(next);
         Hook(next);
         Guess = guess;
         RefreshEol();
