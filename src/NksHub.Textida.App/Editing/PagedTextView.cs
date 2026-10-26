@@ -28,7 +28,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 /// <remarks>
 /// shortcut: one selection only (no extra carets, no block mode), no inline IME preedit; a line longer than <see cref="MaxLineBytes"/> shows its first part
-/// and cannot be edited; its columns beyond that part are shown through a bar that counts fixed cells (bytes bound the range, no tokens or selection there); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
+/// and cannot be edited; its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; no tokens there, a selection only when it covers the rest of the line); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
 {
@@ -51,9 +51,10 @@ internal sealed partial class PagedTextView : Grid
     private int _wanted = -1;
     private double _hScroll;
     private readonly ScrollBar _hBar = new() { Orientation = Orientation.Horizontal, Minimum = 0, SmallChange = 1, AllowAutoHide = false, IsVisible = false };
-    private long _truncatedBytes;
+    private long _truncatedColumns;
     private readonly Dictionary<long, (long Revision, long Column, int Columns, string Text)> _windows = [];
     private readonly HashSet<long> _indexing = [];
+    private readonly Dictionary<long, (CancellationTokenSource Cts, long Revision, long Column, int Columns)> _pending = [];
     private CancellationTokenSource? _indexCts;
     private string? _typingKey;
     private bool _typingInsert;
@@ -136,7 +137,10 @@ internal sealed partial class PagedTextView : Grid
     internal long RenderedAt { get; private set; }
     /// <summary>Time the last draw that showed something new took on the UI thread.</summary>
     internal double RenderMs { get; private set; }
-    private (long Revision, long Caret, long Top) _drawn = (-1, -1, -1);
+    private (long Revision, long Caret, long Top, double Side, bool Pending) _drawn = (-1, -1, -1, -1, false);
+
+    /// <summary>True while a horizontal window of a long line is being read off the UI thread; the draw shows a placeholder for it.</summary>
+    internal bool WindowsPending => _pending.Count > 0;
 
     /// <summary>Zero-based line and UTF-16 column of the caret; null while the line index is not complete.</summary>
     public (long Line, long Column)? CaretLineColumn() =>
@@ -172,6 +176,7 @@ internal sealed partial class PagedTextView : Grid
         _indexCts?.Cancel();
         _indexCts = null;
         _indexing.Clear();
+        CancelWindows();
     }
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
@@ -208,6 +213,7 @@ internal sealed partial class PagedTextView : Grid
     private void OnSaved(object? sender, EventArgs e)
     {
         _lines.Clear();
+        CancelWindows();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
 
@@ -467,35 +473,88 @@ internal sealed partial class PagedTextView : Grid
     // ---- long lines ----
 
     /// <summary>
-    /// Sets the range of the horizontal bar from the widest truncated line drawn last. The bar counts columns of the fixed cell width,
-    /// and the byte length of the line is its upper bound.
+    /// Sets the range of the horizontal bar from the widest truncated line drawn last. The bar counts columns of the fixed cell width;
+    /// the bound of a line is its length in characters once a read has reached its end, else its byte length.
     /// </summary>
     private void UpdateSideways()
     {
         double cell = _canvas.CharWidth, columns = _canvas.TextWidth / cell;
-        _hBar.IsVisible = _truncatedBytes > 0;
-        _hBar.Maximum = Math.Max(0, _truncatedBytes - columns);
+        _hBar.IsVisible = _truncatedColumns > 0;
+        _hBar.Maximum = Math.Max(0, _truncatedColumns - columns);
         _hBar.ViewportSize = columns;
         _hBar.LargeChange = Math.Max(1, columns - 1);
     }
 
+    private long ColumnBound(LineView view) => Paged.TryGetLineColumns(view.Start, out long columns) ? columns : view.ByteLength;
+
+    /// <summary>Scrolls the long lines sideways to a column, as the bar does; for tests and measurements.</summary>
+    internal void ScrollToColumn(double column) => _hBar.Value = Math.Clamp(column, 0, _hBar.Maximum);
+
+    /// <summary>Text of the window kept for the line starting at <paramref name="lineStart"/> in the current revision, or null.</summary>
+    internal string? CachedWindow(long lineStart) => _windows.TryGetValue(lineStart, out var known) && known.Revision == Doc.Revision ? known.Text : null;
+
+    /// <summary>Largest column the horizontal bar scrolls to.</summary>
+    internal double HorizontalMaximum => _hBar.Maximum;
+
+    /// <summary>Replaces the read of windows that run off the UI thread, so that tests can hold a read back.</summary>
+    internal Func<long, long, int, CancellationToken, string>? WindowRead { get; set; }
+
     /// <summary>
     /// Text of the columns [<paramref name="column"/>, +<paramref name="columns"/>) of a truncated line, read from the document without decoding the rest of the line.
-    /// The window is kept for the revision it was read in.
+    /// The window is kept for the revision it was read in. A read that would walk far (no column point near, document not edited) runs on the thread pool:
+    /// this returns null at once and the surface draws the window when the read ends; a newer window of the same line cancels the older read.
     /// </summary>
-    private string WindowOf(LineView view, long column, int columns)
+    private string? WindowOf(LineView view, long column, int columns)
     {
         if (_windows.TryGetValue(view.Start, out var known) && known.Revision == Doc.Revision && known.Column == column && known.Columns == columns) return known.Text;
-        if (_windows.Count > 16) _windows.Clear();
-        string text = Paged.ReadColumns(view.Start, column, columns);
-        _windows[view.Start] = (Doc.Revision, column, columns, text);
-        BuildColumnIndexInBackground(view.Start);
-        return text;
+        if (Paged.IsModified || (WindowRead is null && Paged.Source.IsColumnNear(view.Start, column)))
+        {
+            if (_windows.Count > 16) _windows.Clear();
+            string text = Paged.ReadColumns(view.Start, column, columns);
+            _windows[view.Start] = (Doc.Revision, column, columns, text);
+            BuildColumnIndexInBackground(view.Start);
+            return text;
+        }
+        if (_pending.TryGetValue(view.Start, out var pending))
+        {
+            if (pending.Revision == Doc.Revision && pending.Column == column && pending.Columns == columns) return null;
+            pending.Cts.Cancel();
+        }
+        var cts = new CancellationTokenSource();
+        _pending[view.Start] = (cts, Doc.Revision, column, columns);
+        _ = LoadWindow(view.Start, column, columns, cts);
+        return null;
+    }
+
+    private async Task LoadWindow(long lineStart, long column, int columns, CancellationTokenSource cts)
+    {
+        long revision = Doc.Revision;
+        var source = Paged.Source;
+        var read = WindowRead;
+        string? text = null;
+        try { text = await Task.Run(() => read is null ? source.ReadColumns(lineStart, column, columns, cts.Token) : read(lineStart, column, columns, cts.Token), cts.Token); }
+        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException) { }
+        bool current = _pending.TryGetValue(lineStart, out var now) && now.Cts == cts;
+        if (current) _pending.Remove(lineStart);
+        if (!current) return;
+        if (text is not null && !cts.IsCancellationRequested && revision == Doc.Revision)
+        {
+            if (_windows.Count > 16) _windows.Clear();
+            _windows[lineStart] = (revision, column, columns, text);
+            BuildColumnIndexInBackground(lineStart);
+        }
+        _canvas.InvalidateVisual();
+    }
+
+    private void CancelWindows()
+    {
+        foreach (var (_, pending) in _pending) pending.Cts.Cancel();
+        _pending.Clear();
     }
 
     /// <summary>
-    /// Notes the column points of a long line on the thread pool, so that later jumps along it resume from a known point. It reads the mapped original,
-    /// so it only starts while the document is unedited; the index belongs to that file and survives later edits of other parts.
+    /// Notes the column points of a long line on the thread pool, so that later jumps along it resume from a known point, and its length in characters for the bar.
+    /// It reads the mapped original, so it only starts while the document is unedited; the index belongs to that file and survives later edits of other parts.
     /// </summary>
     private void BuildColumnIndexInBackground(long lineStart)
     {
@@ -505,7 +564,8 @@ internal sealed partial class PagedTextView : Grid
         _ = Task.Run(() =>
         {
             try { source.ReadColumns(lineStart, long.MaxValue, 0, token); }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { return; }
+            Dispatcher.UIThread.Post(_canvas.InvalidateVisual);
         });
     }
 
@@ -929,11 +989,18 @@ internal sealed partial class PagedTextView : Grid
             Draw(context);
             long ended = System.Diagnostics.Stopwatch.GetTimestamp();
             TypingTrace.End("paged.render", started);
-            var state = (owner.Doc.Revision, owner._caret, owner.TopLine);
+            var state = (owner.Doc.Revision, owner._caret, owner.TopLine, owner._hScroll, owner.WindowsPending);
             if (owner._drawn == state) return;
             owner._drawn = state;
             owner.RenderedAt = ended;
             owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        }
+
+        /// <summary>True when the selection starts in the shown part of a truncated line and runs to its end or beyond: every column past the shown part is selected.</summary>
+        private bool SelectsRestOf(LineView view)
+        {
+            var range = owner.SelectionRange;
+            return range.Start <= view.Start + view.Map.ByteOffsetOf(view.Map.Text.Length) && range.End >= view.Start + view.ByteLength;
         }
 
         private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush)
@@ -981,12 +1048,18 @@ internal sealed partial class PagedTextView : Grid
                     string shown = options.ShowWhitespace ? view.Marked : view.Display;
                     if (view.Truncated)
                     {
-                        widest = Math.Max(widest, view.ByteLength);
+                        widest = Math.Max(widest, owner.ColumnBound(view));
                         if (owner._hScroll / _digitWidth >= view.Display.Length)
                         {
                             long column = (long)Math.Floor(owner._hScroll / _digitWidth);
-                            string window = owner.WindowOf(view, column, WindowColumns).Replace('\t', ' ');
-                            context.DrawText(Format(window, fore), new Point(TextLeft + column * _digitWidth - owner._hScroll, y));
+                            double x = TextLeft + column * _digitWidth - owner._hScroll;
+                            if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
+                            else
+                            {
+                                window = window.Replace('\t', ' ');
+                                if (owner.HasSelection && SelectsRestOf(view)) context.FillRectangle(selection, new Rect(x, y, window.Length * _digitWidth, _lineHeight));
+                                context.DrawText(Format(window, fore), new Point(x, y));
+                            }
                             continue;
                         }
                     }
@@ -1015,9 +1088,9 @@ internal sealed partial class PagedTextView : Grid
                     }
                 }
                 if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
-                if (widest != owner._truncatedBytes)
+                if (widest != owner._truncatedColumns)
                 {
-                    owner._truncatedBytes = widest;
+                    owner._truncatedColumns = widest;
                     Dispatcher.UIThread.Post(owner.UpdateSideways);
                 }
             }
