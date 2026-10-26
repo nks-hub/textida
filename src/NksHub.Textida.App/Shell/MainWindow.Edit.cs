@@ -9,6 +9,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Contributions;
 using NksHub.Textida.Workbench.Keys;
 using WbKeyModifiers = NksHub.Textida.Workbench.Keys.KeyModifiers;
 
@@ -25,7 +26,8 @@ internal sealed partial class MainWindow
         if (e.Key == Key.Escape)
         {
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
-            if (DocumentsPanelOpen) { ToggleDocuments(false); e.Handled = true; return; }
+            if (CloseLeftPanel()) { e.Handled = true; return; }
+            if (_find.IsVisible) { HideFind(); e.Handled = true; return; }
         }
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
         // AltGr arrives as Ctrl+Alt on Windows and types a character: that is text, not a command
@@ -57,12 +59,15 @@ internal sealed partial class MainWindow
 
     private (bool On, bool Radio)? CheckState(string commandId) => commandId switch
     {
+        "nks.settings.profile.default" => (_app.Workbench.Profile == BehaviourProfiles.Default, true),
+        "nks.settings.profile.pspad" => (_app.Workbench.Profile == BehaviourProfiles.Pspad, true),
         "nks.settings.theme.system" => (_app.Settings.Theme == "system", true),
         "nks.settings.theme.light" => (_app.Settings.Theme == "light", true),
         "nks.settings.theme.dark" => (_app.Settings.Theme == "dark", true),
         _ when commandId.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal) => (Loc.Language == commandId[AppCommands.LanguageCommandPrefix.Length..], true),
         "nks.view.toggleWordWrap" => (Options.WordWrap, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
+        "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         _ => null,
     };
 
@@ -156,6 +161,13 @@ internal sealed partial class MainWindow
     {
         if (ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
         var d = surface.Document;
+        if (surface.IsMulti)
+        {
+            // every caret takes its whole line(s), including the line ending
+            var lines = surface.GetSelections().Select(s => new Sel(d.GetLineByOffset(s.Start).Offset, d.GetLineByOffset(s.End) is var l ? l.EndOffset + l.DelimiterLength : 0)).ToList();
+            surface.SetCarets(Carets.Create(lines, lines.Count - 1));
+            return CommandOutcome.Handled;
+        }
         var sel = surface.GetSelections()[0];
         var first = d.GetLineByOffset(sel.Start);
         var last = d.GetLineByOffset(sel.End);
@@ -179,18 +191,29 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { IsReadOnly: false } surface || surface.IsBlockSelection) return CommandOutcome.NotHandled;
         var od = surface.Doc;
         string newLine = od.NewLine(surface.Settings.ConfiguredEol);
-        return RunEdit((s, sels) =>
+        surface.InsertLineBreaks(newLine, surface.Settings.ContinueComments ? od.Language.Comments : null);
+        return CommandOutcome.Handled;
+    }
+
+    internal CommandOutcome CopyAsync() => CopyOrCut(cut: false);
+
+    internal CommandOutcome CutAsync() => CopyOrCut(cut: true);
+
+    /// <summary>Copy and cut: with several carets the selected texts go to the clipboard one per line.</summary>
+    private CommandOutcome CopyOrCut(bool cut)
+    {
+        if (ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
+        if (!surface.IsMulti)
         {
-            var d = s.Document;
-            var sel = sels[0];
-            if (s.Settings.ContinueComments && CommentContinuation.TryContinue(d, sel, od.Language.Comments, newLine, out var continued)) return [continued];
-            var line = d.GetLineByOffset(sel.Start);
-            int indent = 0;
-            while (indent < sel.Start - line.Offset && d.GetCharAt(line.Offset + indent) is ' ' or '\t') indent++;
-            string text = newLine + d.GetText(line.Offset, indent);
-            d.Replace(sel.Start, sel.Length, text);
-            return [Sel.At(sel.Start + text.Length)];
-        });
+            if (cut) surface.Cut(); else surface.Copy();
+            return CommandOutcome.Handled;
+        }
+        if (surface.SelectedTexts(surface.Doc.NewLine(surface.Settings.ConfiguredEol)) is { } text && Clipboard is { } clipboard)
+        {
+            _ = clipboard.SetTextAsync(text);
+            if (cut && !surface.IsReadOnly) surface.DeleteSelected();
+        }
+        return CommandOutcome.Handled;
     }
 
     internal async Task<CommandOutcome> PasteAsync()
@@ -208,6 +231,12 @@ internal sealed partial class MainWindow
     {
         string newLine = surface.Doc.NewLine(surface.Settings.ConfiguredEol);
         text = TextUtilities.NormalizeNewLines(text, newLine);
+        if (surface.IsMulti && !surface.IsBlockSelection)
+        {
+            surface.PasteAtCarets(text);
+            return;
+        }
+        if (!surface.IsBlockSelection) text = surface.EscapeForPaste(text);
         var doc = surface.Doc.Doc;
         using (doc.BeginUndoGroup())
         {
@@ -231,8 +260,7 @@ internal sealed partial class MainWindow
         if (Active is not { } tab) return;
         var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.GoToLineTitle), Loc.Get(K.GoToLineLabel), "");
         if (answer is null) return;
-        if (int.TryParse(answer.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int line) && line >= 1) tab.GoToLine(line);
-        else SetStatusMessage(Loc.Get(K.GoToLineInvalid, ("text", answer)));
+        GoTo(answer);
     }
 
     // ---- view ----

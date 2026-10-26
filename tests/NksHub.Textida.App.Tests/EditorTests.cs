@@ -329,8 +329,9 @@ public class EditorTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Alt_drag_makes_a_rectangular_selection()
+    public void Alt_drag_makes_a_rectangular_selection_in_the_pspad_profile()
     {
+        _app.Workbench.Set("editor.profile", "pspad");
         var tab = Open("abcdef\nabcdef\nabcdef");
         _w.UpdateLayout();
         var view = tab.Editor!.TextArea.TextView;

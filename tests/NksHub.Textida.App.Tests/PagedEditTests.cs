@@ -187,6 +187,7 @@ public class PagedEditTests : IDisposable
     }
 
     [AvaloniaFact]
+    [Trait("Category", "Perf")]
     public void Typing_on_the_paged_surface_stays_within_33_ms_at_p95()
     {
         var tab = OpenPaged(Rows(300_000));

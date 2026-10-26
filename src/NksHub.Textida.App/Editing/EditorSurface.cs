@@ -28,7 +28,7 @@ public static class EditorAutomationHook
 }
 
 /// <summary>The text surface of a document that lives in the AvaloniaEdit backend: line numbers, current line, block selection and typing assists.</summary>
-internal sealed class EditorSurface : TextEditor
+internal sealed partial class EditorSurface : TextEditor
 {
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
@@ -60,6 +60,7 @@ internal sealed class EditorSurface : TextEditor
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
+        InitCarets();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -89,6 +90,7 @@ internal sealed class EditorSurface : TextEditor
         Document = Doc.TextBackend!.TextDocument;
         _colorizer.BindDocument(Document);
         CaretOffset = 0;
+        RebindCarets();
     }
 
     private string? LineText(long line)
@@ -139,15 +141,17 @@ internal sealed class EditorSurface : TextEditor
         TextArea.SelectionBrush = Find("SelectionBg");
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
-        TextArea.CaretBrush = Find("Fg");
+        _caretBrush = Find("Fg");
+        UpdateNativeCaret();
         _colorizer.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
     }
 
     // ---- selections ----
 
-    /// <summary>The selections as a list: one for a normal selection, one per row for a block selection.</summary>
+    /// <summary>The selections as a list: all carets when there are several, one for a normal selection, one per row for a block selection.</summary>
     public IReadOnlyList<Sel> GetSelections()
     {
+        if (IsMulti) return GetCarets().Items;
         var selection = TextArea.Selection;
         if (selection is RectangleSelection)
         {
@@ -160,11 +164,18 @@ internal sealed class EditorSurface : TextEditor
         return [new Sel(caret == seg.EndOffset ? seg.Offset : seg.EndOffset, caret)];
     }
 
-    public bool HasSelection => !TextArea.Selection.IsEmpty;
+    public bool HasSelection => !TextArea.Selection.IsEmpty || (IsMulti && OtherSels().Any(s => !s.IsEmpty));
 
+    /// <summary>Puts the selections in place. Several selections become several carets (the last one primary) unless a block selection is being edited.</summary>
     public void SetSelections(IReadOnlyList<Sel> sels)
     {
         if (sels.Count == 0) return;
+        if (sels.Count > 1 && !BlockMode && !IsBlockSelection)
+        {
+            SetCarets(Carets.Create(sels, sels.Count - 1));
+            return;
+        }
+        DropOthers();
         var first = sels[0];
         var last = sels[^1];
         using (TextArea.AllowCaretOutsideSelection())
@@ -200,6 +211,7 @@ internal sealed class EditorSurface : TextEditor
 
     public void ToggleBlockMode()
     {
+        DropOthers();
         if (BlockMode) { BlockMode = false; Options.EnableVirtualSpace = false; TextArea.ClearSelection(); return; }
         BlockMode = true;
         Options.EnableVirtualSpace = true;
@@ -236,6 +248,7 @@ internal sealed class EditorSurface : TextEditor
 
     private void OnKeyDownTunnel(object? sender, KeyEventArgs e)
     {
+        if (HandleCaretKey(e)) return;
         if (BlockMode && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home)
         {
             ExtendBlock(e.Key);
@@ -248,7 +261,7 @@ internal sealed class EditorSurface : TextEditor
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.Back && e.KeyModifiers == KeyModifiers.None && Settings.AutoClosePairs && !IsReadOnly && !IsBlockSelection
+        if (e.Key == Key.Back && e.KeyModifiers == KeyModifiers.None && Settings.AutoClosePairs && !Settings.PspadPairs && !IsReadOnly && !IsBlockSelection
             && PairedCharacters.TryBackspace(Document, GetSelections()[0], out var result))
         {
             SetSelections([result]);
@@ -258,18 +271,17 @@ internal sealed class EditorSurface : TextEditor
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
     {
+        if (e.Text is { Length: > 0 } entered && TypeAtCarets(entered))
+        {
+            e.Handled = true;
+            return;
+        }
         if (IsBlockSelection && !IsReadOnly && e.Text is { Length: > 0 } typed && !typed.Contains('\n') && !typed.Contains('\r'))
         {
             // one keystroke edits every row; one undo step for all of them
             using (Doc.Doc.BeginUndoGroup()) TextArea.Selection.ReplaceSelectionWithText(typed);
             e.Handled = true;
             return;
-        }
-        if (!Settings.AutoClosePairs || IsReadOnly || IsBlockSelection || e.Text is not { Length: 1 } text) return;
-        if (PairedCharacters.TryType(Document, GetSelections()[0], text[0], out var result))
-        {
-            SetSelections([result]);
-            e.Handled = true;
         }
     }
 }

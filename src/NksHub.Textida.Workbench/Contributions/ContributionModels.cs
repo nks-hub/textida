@@ -134,6 +134,7 @@ public sealed class KeymapFile
     WriteIndented = true)]
 [JsonSerializable(typeof(ContributionManifest))]
 [JsonSerializable(typeof(KeymapFile))]
+[JsonSerializable(typeof(ProfileFile))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 public sealed partial class ContributionJson : JsonSerializerContext
 {

@@ -89,19 +89,6 @@ internal sealed partial class MainWindow
         return await SaveCoreAsync(tab, overwrite: false);
     }
 
-    /// <summary>Trailing blanks and the final line break, when the settings ask for them. One undo step, done only when a save really goes ahead.</summary>
-    private void PrepareForSave(OpenDocument od)
-    {
-        if (od.TextBackend is not { } text) return;
-        var options = EditorOptions.From(_app.Workbench.Settings, od.Language.Id);
-        if (!options.TrimTrailingWhitespace && !options.InsertFinalNewline) return;
-        using (od.Doc.BeginUndoGroup())
-        {
-            if (options.TrimTrailingWhitespace) SaveAssists.TrimTrailingWhitespace(text.TextDocument);
-            if (options.InsertFinalNewline) SaveAssists.EnsureFinalNewline(text.TextDocument, od.NewLine(options.ConfiguredEol));
-        }
-    }
-
     private async Task<bool> SaveCoreAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
@@ -240,7 +227,7 @@ internal sealed partial class MainWindow
     /// <summary>A file changed on disk behind an open document: a non-modal bar offers reload, keeping the tab, or compare. Nothing is overwritten silently.</summary>
     private void OnExternalChange(OpenDocument od, ExternalChange change)
     {
-        if (!_docs.Contains(od)) return;
+        if (!_docs.Contains(od) || !string.Equals(change.Path, od.Path, PathComparison)) return;
         foreach (var tab in od.Views.ToList())
         {
             var t = tab;

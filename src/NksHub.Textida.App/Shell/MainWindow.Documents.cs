@@ -35,6 +35,7 @@ internal sealed partial class MainWindow
     {
         path = Path.GetFullPath(path);
         var tab = Tabs.FirstOrDefault(t => string.Equals(t.Path, path, PathComparison));
+        _app.Recent.Add(path);
         if (tab is null)
         {
             var od = OpenDocument.Open(path, LargeFileBytes);
@@ -62,6 +63,7 @@ internal sealed partial class MainWindow
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         _app.Journal.Track(od);
         od.EnsureWatching();
+        TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);
     }
@@ -89,12 +91,12 @@ internal sealed partial class MainWindow
 
     private DocTab AddView(OpenDocument od, TabGroup group, int? index = null)
     {
-        var tab = new DocTab(od, EditorOptions.From(_app.Workbench.Settings, od.Language.Id));
-        if (od.IndentOverride is not null) tab.Surface?.ApplyOptions(OptionsFor(tab));
+        var tab = new DocTab(od, OptionsFor(od));
         if (tab.Surface is { } surface)
         {
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
+            surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }
@@ -144,6 +146,7 @@ internal sealed partial class MainWindow
             if (wasActive) SelectTab(fresh);
         }
         od.EnsureWatching();
+        TrackEdits(od);
         od.Autosave?.Dispose();
         od.Autosave = null;
         ConfigureAutosave(od);
@@ -189,6 +192,7 @@ internal sealed partial class MainWindow
         tab.ShowBar(null);
         if (od.Views.Count == 0)
         {
+            ForgetDocument(od);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();

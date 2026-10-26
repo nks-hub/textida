@@ -11,11 +11,12 @@ internal sealed class DocTab
 {
     private readonly ContentControl _barSlot = new() { [DockPanel.DockProperty] = Dock.Top };
 
-    public DocTab(OpenDocument doc, EditorOptions options)
+    public DocTab(OpenDocument doc, EditorOptions options, Control? custom = null)
     {
         Doc = doc;
-        if (doc.IsLarge) Paged = new PagedTextView(doc, options);
-        else Surface = new EditorSurface(doc, options);
+        Custom = custom;
+        if (custom is null && doc.IsLarge) Paged = new PagedTextView(doc, options);
+        else if (custom is null) Surface = new EditorSurface(doc, options);
         Root = new DockPanel { Children = { _barSlot } };
         if (Surface is { } surface && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
         {
@@ -34,6 +35,7 @@ internal sealed class DocTab
     {
         Syntax.Dispose();
         _automation?.Dispose();
+        Surface?.Detach();
     }
 
     /// <summary>The syntax colors of the view; <see cref="SyntaxFeeder.Pending"/> tells that they are not complete yet.</summary>
@@ -44,7 +46,9 @@ internal sealed class DocTab
     public PagedTextView? Paged { get; }
     /// <summary>The AvaloniaEdit surface; null for a paged (large) view.</summary>
     public EditorSurface? Editor => Surface;
-    public Control View => (Control?)Surface ?? Paged!;
+    public Control View => (Control?)Surface ?? (Control?)Paged ?? Custom!;
+    /// <summary>The content of a tab that is not a text view (the search results); null for a document tab.</summary>
+    public Control? Custom { get; }
     public DockPanel Root { get; }
     public TabGroup? Group { get; set; }
 
@@ -62,12 +66,12 @@ internal sealed class DocTab
     public (long Line, long Column) CaretPosition()
     {
         if (Surface is { } s) return s.CaretLineColumn();
-        return Paged!.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (Paged.TopLine + 1, 1);
+        return Paged is { } p ? (p.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (p.TopLine + 1, 1)) : (1, 1);
     }
 
     public void GoToLine(int line)
     {
         if (Surface is { } s) s.GoToLine(line);
-        else Paged!.GoToLine(line);
+        else Paged?.GoToLine(line);
     }
 }

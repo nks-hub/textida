@@ -16,6 +16,7 @@ internal sealed partial class MainWindow
     private readonly Button _encodingItem = StatusItem();
     private readonly Button _eolItem = StatusItem();
     private readonly Button _languageItem = StatusItem();
+    private readonly Button _configItem = StatusItem();
     private readonly StackPanel _statusRight = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
     private static Button StatusItem()
@@ -27,7 +28,7 @@ internal sealed partial class MainWindow
 
     /// <summary>Status bar texts, for tests and accessibility checks.</summary>
     internal string StatusLeftText => _statusLeft.Text ?? "";
-    internal string StatusRightText => string.Join(" · ", new[] { _indentItem, _encodingItem, _eolItem, _languageItem }.Where(b => b.IsVisible).Select(b => (string)b.Content!));
+    internal string StatusRightText => string.Join(" · ", new[] { _indentItem, _encodingItem, _eolItem, _languageItem, _configItem }.Where(b => b.IsVisible).Select(b => (string)b.Content!));
     internal Button IndentItem => _indentItem;
     internal Button EncodingItem => _encodingItem;
     internal Button EolItem => _eolItem;
@@ -43,6 +44,8 @@ internal sealed partial class MainWindow
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);
         _eolItem.Click += (_, _) => ShowEolMenu();
         _languageItem.Click += (_, _) => ShowLanguageMenu();
+        _configItem.Click += (_, _) => OpenEditorConfigFile();
+        _configItem.IsVisible = false;
         return grid;
     }
 
@@ -55,6 +58,11 @@ internal sealed partial class MainWindow
             _statusLeft.Text = Loc.Get(K.StatusReady);
             return;
         }
+        if (tab.Custom is not null)
+        {
+            ShowResultsStatus();
+            return;
+        }
 
         var od = tab.Doc;
         var opts = Options;
@@ -63,7 +71,8 @@ internal sealed partial class MainWindow
         {
             var (line, column) = surface.CaretLineColumn();
             position = Loc.Get(K.StatusPosition, ("line", line), ("column", column));
-            int selected = surface.TextArea.Selection.Length;
+            int selected = surface.IsMulti ? surface.GetSelections().Sum(s => s.Length) : surface.TextArea.Selection.Length;
+            if (surface.IsMulti) position += " " + Loc.Plural(K.StatusCarets, surface.CaretCount);
             if (selected > 0) position += " " + Loc.Get(K.StatusSelected, ("count", selected));
         }
         else
@@ -81,9 +90,12 @@ internal sealed partial class MainWindow
         _encodingItem.Content = codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : "");
         _eolItem.Content = EolLabel(od);
         _languageItem.Content = od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name;
+        _configItem.Content = Loc.Get(K.StatusEditorConfig);
+        _configItem.IsVisible = od.EditorConfig.Properties.Count > 0;
 
         ToolTip.SetTip(_encodingItem, od.EncodingUncertain ? Loc.Get(K.StatusEncodingGuess, ("percent", (int)Math.Round(od.Guess!.Confidence * 100))) : Loc.Get(K.StatusEncodingTip));
-        ToolTip.SetTip(_indentItem, Loc.Get(K.StatusIndentTip));
+        ToolTip.SetTip(_indentItem, IndentSourceFile() is { } indentFile ? Loc.Get(K.StatusIndentFromConfig, ("file", indentFile)) : Loc.Get(K.StatusIndentTip));
+        if (od.EditorConfig.Files.Count > 0) ToolTip.SetTip(_configItem, Loc.Get(K.StatusEditorConfigTip, ("file", od.EditorConfig.Files[0]), ("properties", string.Join(", ", od.EditorConfig.Properties.Keys))));
         ToolTip.SetTip(_eolItem, Loc.Get(K.StatusEolTip));
         ToolTip.SetTip(_languageItem, Loc.Get(K.StatusLanguageTip));
         AutomationProperties.SetName(_encodingItem, Loc.Get(K.StatusEncodingA11y, ("value", (string)_encodingItem.Content)));
@@ -91,8 +103,9 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_indentItem, Loc.Get(K.StatusIndentA11y, ("value", (string)_indentItem.Content)));
         AutomationProperties.SetName(_languageItem, Loc.Get(K.StatusLanguageA11y, ("value", (string)_languageItem.Content)));
 
-        var items = new[] { _indentItem, _encodingItem, _eolItem, _languageItem };
-        for (int i = 0; i < items.Length; i++)
+        var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem };
+        if (_configItem.IsVisible) items.Add(_configItem);
+        for (int i = 0; i < items.Count; i++)
         {
             if (i > 0) _statusRight.Children.Add(StatusDot());
             _statusRight.Children.Add(items[i]);

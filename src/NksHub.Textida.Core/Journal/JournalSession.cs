@@ -307,6 +307,7 @@ public sealed class JournalSession : IDisposable
             doc.Changed += OnChanged;
             doc.Saving += OnSaving;
             doc.Saved += OnSaved;
+            doc.Moved += OnMoved;
         }
 
         public void Stop()
@@ -314,6 +315,7 @@ public sealed class JournalSession : IDisposable
             doc.Changed -= OnChanged;
             doc.Saving -= OnSaving;
             doc.Saved -= OnSaved;
+            doc.Moved -= OnMoved;
         }
 
         private void OnChanged(object? sender, DocumentChangedEventArgs e)
@@ -386,6 +388,11 @@ public sealed class JournalSession : IDisposable
         {
             owner.Append(RecordType.DocSaveIntent, JournalRecords.Encode(new SaveIntentRecord(id, doc.Revision + baseRevision, e.Target, e.Size, e.Sha256, doc.Codec.Name)));
             owner.Flush();
+        }
+
+        private void OnMoved(object? sender, EventArgs e)
+        {
+            if (doc.FilePath is { } path) owner.Append(RecordType.DocMove, JournalRecords.Encode(new MoveRecord(id, path)));
         }
 
         private void OnSaved(object? sender, EventArgs e)
