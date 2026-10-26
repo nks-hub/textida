@@ -6,6 +6,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Input.TextInput;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -26,7 +27,7 @@ namespace NksHub.Textida.App.Editing;
 /// offset and each visible line is decoded with a character map between UTF-16 columns and bytes.
 /// </summary>
 /// <remarks>
-/// shortcut: no selection, clipboard, inline IME preedit or block mode; a line longer than <see cref="MaxLineBytes"/> shows its first part
+/// shortcut: one selection only (no extra carets, no block mode), no inline IME preedit; a line longer than <see cref="MaxLineBytes"/> shows its first part
 /// and cannot be edited; no horizontal scroll bar; saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
@@ -43,6 +44,9 @@ internal sealed partial class PagedTextView : Grid
     private EditorOptions _options;
     private long _linesRevision = -1;
     private long _caret;
+    private long _anchor = -1;
+    private long _dragFrom = -1;
+    private bool _extend;
     private (long Revision, long Caret, long Line) _lineMemo = (-1, -1, 0);
     private int _wanted = -1;
     private double _hScroll;
@@ -103,6 +107,18 @@ internal sealed partial class PagedTextView : Grid
     public (long Lines, bool Complete) Index => Doc.LineIndexState;
     public long CaretOffset => _caret;
 
+    /// <summary>True while a range of bytes is selected.</summary>
+    public bool HasSelection => _anchor >= 0 && _anchor != _caret;
+
+    /// <summary>The selected bytes of the current revision, whichever way the selection was made; empty at the caret.</summary>
+    public ByteRange SelectionRange => HasSelection ? new ByteRange(Math.Min(_anchor, _caret), Math.Max(_anchor, _caret)) : new ByteRange(_caret, _caret);
+
+    /// <summary>Lines a Page Up or Page Down moves.</summary>
+    internal int PageLines => Math.Max(1, _canvas.VisibleLines - 1);
+
+    /// <summary>The selected text exactly as the bytes of the current revision decode, line breaks included.</summary>
+    public string SelectedText() => HasSelection ? Doc.Codec.WithBom(false).Decode(Doc.ReadBytes(SelectionRange)).Text : "";
+
     /// <summary>When the last draw that showed a new revision, caret or first line ended (a <see cref="System.Diagnostics.Stopwatch"/> timestamp); the measurement mode reads it.</summary>
     internal long RenderedAt { get; private set; }
     /// <summary>Time the last draw that showed something new took on the UI thread.</summary>
@@ -145,7 +161,11 @@ internal sealed partial class PagedTextView : Grid
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
         long t = TypingTrace.Begin();
-        if (!_own) _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
+        if (!_own)
+        {
+            _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
+            _anchor = -1;
+        }
         UpdateScrollRange();
         _canvas.InvalidateVisual();
         TypingTrace.End("paged.onDocChanged", t);
@@ -351,7 +371,10 @@ internal sealed partial class PagedTextView : Grid
 
     private void MoveTo(long caret, long? line = null, bool keepWanted = false)
     {
+        if (!_extend) _anchor = -1;
+        else if (_anchor < 0) _anchor = _caret;
         _caret = caret;
+        if (_anchor == _caret) _anchor = -1;
         if (line is { } known) _lineMemo = (Doc.Revision, caret, known);
         if (!keepWanted) _wanted = -1;
         _typingKey = null;
@@ -361,6 +384,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void Left()
     {
+        if (!_extend && HasSelection) { MoveTo(SelectionRange.Start); return; }
         if (CaretLine() is not { } c) return;
         int i = c.View.Map.CharIndexOf(_caret - c.View.Start);
         if (i > 0) MoveTo(c.View.Start + c.View.Map.ByteOffsetOf(c.View.Map.IsCharBoundary(i - 1) ? i - 1 : i - 2), c.Line);
@@ -369,6 +393,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void Right()
     {
+        if (!_extend && HasSelection) { MoveTo(SelectionRange.End); return; }
         if (CaretLine() is not { } c) return;
         var map = c.View.Map;
         int i = map.CharIndexOf(_caret - c.View.Start);
@@ -430,7 +455,7 @@ internal sealed partial class PagedTextView : Grid
         var options = new EditOptions
         {
             CoalesceKey = key,
-            SelectionsBefore = [new ByteRange(_caret, _caret)],
+            SelectionsBefore = [HasSelection ? SelectionRange : new ByteRange(_caret, _caret)],
             SelectionsAfter = [new ByteRange(caretAfter, caretAfter)],
             Source = "user",
         };
@@ -448,6 +473,7 @@ internal sealed partial class PagedTextView : Grid
         }
         TypingTrace.End("paged.docApply", tApply);
         if (!result.Applied) return false;
+        _anchor = -1;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
         _wanted = -1;
         long t = TypingTrace.Begin();
@@ -473,7 +499,46 @@ internal sealed partial class PagedTextView : Grid
             Refused?.Invoke(Loc.Get(K.PagedNotEncodable, ("encoding", Doc.Codec.Name)));
             return false;
         }
-        return Commit(_caret, 0, bytes, _caret + bytes.Length, line + LineBreaks(text), typing, isInsert: true);
+        if (!HasSelection) return Commit(_caret, 0, bytes, _caret + bytes.Length, line + LineBreaks(text), typing, isInsert: true);
+        var (from, to) = (SelectionRange.Start, SelectionRange.End);
+        return Commit(from, to - from, bytes, from + bytes.Length, LineOf(from) + LineBreaks(text), typing: false, isInsert: true);
+    }
+
+    /// <summary>Deletes the selection as one undo step; false when nothing is selected or the edit is refused.</summary>
+    private bool DeleteSelection()
+    {
+        if (!HasSelection || !CanEdit(out _, out _)) return false;
+        var (from, to) = (SelectionRange.Start, SelectionRange.End);
+        return Commit(from, to - from, [], from, LineOf(from), typing: false, isInsert: false);
+    }
+
+    // ---- clipboard ----
+
+    /// <summary>Copies the selected text; with <paramref name="cut"/> also deletes it as one undo step.</summary>
+    public async Task CopyAsync(bool cut)
+    {
+        if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _, out _)) return;
+        await clipboard.SetTextAsync(SelectedText());
+        if (cut) DeleteSelection();
+    }
+
+    /// <summary>Pastes the clipboard text over the selection as one undo step, with the line breaks of the document.</summary>
+    public async Task PasteAsync()
+    {
+        if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+        if (await clipboard.TryGetTextAsync() is { Length: > 0 } text) PasteText(text);
+    }
+
+    internal bool PasteText(string text) =>
+        InsertText(AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, _doc.NewLine(_options.ConfiguredEol)), typing: false);
+
+    public void SelectAll()
+    {
+        if (!Indexed) return;
+        _anchor = Doc.BomLength;
+        _extend = true;
+        try { MoveTo(Doc.ByteLength, LineCount - 1); }
+        finally { _extend = false; }
     }
 
     private static int LineBreaks(string text)
@@ -486,6 +551,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void Backspace()
     {
+        if (HasSelection) { DeleteSelection(); return; }
         if (!CanEdit(out long line, out var view)) return;
         int i = view.Map.CharIndexOf(_caret - view.Start);
         if (i > 0)
@@ -498,6 +564,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void DeleteForward()
     {
+        if (HasSelection) { DeleteSelection(); return; }
         if (!CanEdit(out long line, out var view)) return;
         var map = view.Map;
         int i = map.CharIndexOf(_caret - view.Start);
@@ -563,25 +630,52 @@ internal sealed partial class PagedTextView : Grid
     {
         Focus();
         base.OnPointerPressed(e);
-        if (!Indexed) return;
-        var point = e.GetPosition(_canvas);
+        if (!Indexed || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        Place(e.GetPosition(_canvas), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+        _dragFrom = _caret;
+        e.Pointer.Capture(this);
+        e.Handled = true;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        if (_dragFrom < 0 || !Indexed) return;
+        Place(e.GetPosition(_canvas), extend: true);
+        e.Handled = true;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (_dragFrom < 0) return;
+        _dragFrom = -1;
+        e.Pointer.Capture(null);
+    }
+
+    private void Place(Point point, bool extend)
+    {
         long line = Math.Clamp(TopLine + (long)Math.Floor(point.Y / _canvas.LineHeight), 0, LineCount - 1);
         if (GetLine(line) is not { } view) return;
-        MoveTo(view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, point.X - _canvas.TextLeft + _hScroll)), line);
-        e.Handled = true;
+        _extend = extend;
+        try { MoveTo(view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, point.X - _canvas.TextLeft + _hScroll)), line); }
+        finally { _extend = false; }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         bool command = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
+        _extend = e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End;
+        try
+        {
         switch (e.Key)
         {
             case Key.Left: Left(); break;
             case Key.Right: Right(); break;
             case Key.Up: Vertical(-1); break;
             case Key.Down: Vertical(1); break;
-            case Key.PageUp: Vertical(-Math.Max(1, _canvas.VisibleLines - 1)); break;
-            case Key.PageDown: Vertical(Math.Max(1, _canvas.VisibleLines - 1)); break;
+            case Key.PageUp: Vertical(-PageLines); break;
+            case Key.PageDown: Vertical(PageLines); break;
             case Key.Home when command: if (Indexed) MoveTo(Doc.BomLength, 0); break;
             case Key.End when command: if (Indexed) MoveTo(Doc.ByteLength, LineCount - 1); break;
             case Key.Home: LineEdge(end: false); break;
@@ -592,6 +686,8 @@ internal sealed partial class PagedTextView : Grid
             case Key.Tab when !command && !e.KeyModifiers.HasFlag(KeyModifiers.Shift): Tab(); break;
             default: base.OnKeyDown(e); return;
         }
+        }
+        finally { _extend = false; }
         e.Handled = true;
     }
 
@@ -752,6 +848,16 @@ internal sealed partial class PagedTextView : Grid
             owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
         }
 
+        private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush)
+        {
+            var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
+            long textEnd = view.Start + view.Map.ByteOffsetOf(view.Map.Text.Length);
+            if (to <= view.Start || from > textEnd) return;
+            int a = from <= view.Start ? 0 : view.Map.CharIndexOf(from - view.Start), b = to >= textEnd ? view.Map.Text.Length : view.Map.CharIndexOf(to - view.Start);
+            double x1 = XOf(view, a), x2 = XOf(view, b) + (to > textEnd ? _digitWidth : 0);
+            if (x2 > x1) context.FillRectangle(brush, new Rect(TextLeft - owner._hScroll + x1, y, x2 - x1, _lineHeight));
+        }
+
         private void Draw(DrawingContext context)
         {
             IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
@@ -761,6 +867,7 @@ internal sealed partial class PagedTextView : Grid
             var current = Brush("CurrentLine", Brushes.Transparent);
             var palette = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
             var options = owner._options;
+            var selection = Brush("SelectionBg", Brushes.LightBlue);
             var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);
             context.FillRectangle(back, new Rect(Bounds.Size));
             var (lines, _) = owner.Index;
@@ -781,6 +888,7 @@ internal sealed partial class PagedTextView : Grid
                     if (owner.GetLine(line) is not { } view) break;
                     double y = i * _lineHeight;
                     if (options.CurrentLine && caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
+                    if (owner.HasSelection) DrawSelection(context, view, y, selection);
                     string shown = options.ShowWhitespace ? view.Marked : view.Display;
                     var text = Format(shown, fore);
                     if (owner._tokens.TryGetValue(line, out var tokens))

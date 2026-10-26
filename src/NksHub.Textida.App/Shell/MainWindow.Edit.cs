@@ -208,9 +208,16 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    internal CommandOutcome CopyAsync() => ActiveHex is not null ? HexCopy(cut: false) : CopyOrCut(cut: false);
+    internal CommandOutcome CopyAsync() => ActiveHex is not null ? HexCopy(cut: false) : PagedCopy(cut: false) ?? CopyOrCut(cut: false);
 
-    internal CommandOutcome CutAsync() => ActiveHex is not null ? HexCopy(cut: true) : CopyOrCut(cut: true);
+    internal CommandOutcome CutAsync() => ActiveHex is not null ? HexCopy(cut: true) : PagedCopy(cut: true) ?? CopyOrCut(cut: true);
+
+    private CommandOutcome? PagedCopy(bool cut)
+    {
+        if (Active?.Paged is not { } paged) return null;
+        _ = paged.CopyAsync(cut);
+        return CommandOutcome.Handled;
+    }
 
     /// <summary>Copy and cut: with several carets the selected texts go to the clipboard one per line.</summary>
     private CommandOutcome CopyOrCut(bool cut)
@@ -232,6 +239,11 @@ internal sealed partial class MainWindow
     internal async Task<CommandOutcome> PasteAsync()
     {
         if (ActiveHex is not null) return HexPaste();
+        if (Active?.Paged is { } paged)
+        {
+            await paged.PasteAsync();
+            return CommandOutcome.Handled;
+        }
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         var text = Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
         if (string.IsNullOrEmpty(text)) return CommandOutcome.Handled;

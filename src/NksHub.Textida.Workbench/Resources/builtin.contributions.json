@@ -65,7 +65,7 @@
       "title": "cmd.edit.cut",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "!readOnly || largeFileMode"
     },
     {
       "id": "nks.edit.copy",
@@ -78,7 +78,7 @@
       "title": "cmd.edit.paste",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "!readOnly || largeFileMode"
     },
     {
       "id": "nks.edit.selectAll",
