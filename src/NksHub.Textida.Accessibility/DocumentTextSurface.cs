@@ -117,6 +117,13 @@ public abstract class DocumentTextSurface : ITextAutomationSurface, IDisposable
 
     private void OnDocumentChanged(object? sender, DocumentChangedEventArgs e)
     {
+        long trace = NksHub.Textida.Core.TypingTrace.Begin();
+        try { OnDocumentChangedCore(); }
+        finally { NksHub.Textida.Core.TypingTrace.End("a11y.onDocumentChanged", trace); }
+    }
+
+    private void OnDocumentChangedCore()
+    {
         string old = _text;
         Reload();
         int prefix = 0, max = Math.Min(old.Length, _text.Length);
