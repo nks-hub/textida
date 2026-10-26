@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -65,6 +64,7 @@ public sealed class Grammar
         if (_caseInsensitiveWords.Count > 0 && _caseInsensitiveWords.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(word, out kind)) return kind;
         return null;
     }
+
 
     /// <summary>Compiles every context now, so a bad regular expression or a missing include surfaces as <see cref="GrammarException"/>.</summary>
     public void Validate()
@@ -159,7 +159,7 @@ internal sealed class IncludeRule : Rule
 /// <summary>A region with its own rules: the root, a string, a comment, an embedded language. Its identity is what a <see cref="LineState"/> frame refers to.</summary>
 internal sealed class ContextDef : Rule
 {
-    private readonly ConcurrentDictionary<object, LineState> _states = new(ReferenceEqualityComparer.Instance);
+    private readonly ConditionalWeakTable<object, WeakReference<LineState>> _states = new();
     private Matcher? _matcher;
 
     [SetsRequiredMembers]
@@ -176,7 +176,17 @@ internal sealed class ContextDef : Rule
     public string? Embed { get; init; }
     public List<Rule> Rules { get; } = [];
 
-    public LineState Push(LineState? parent) => _states.GetOrAdd(parent ?? (object)this, _ => new LineState(this, parent));
+    public LineState Push(LineState? parent)
+    {
+        var reference = _states.GetValue(parent ?? (object)this, _ => new WeakReference<LineState>(null!));
+        lock (reference)
+        {
+            if (reference.TryGetTarget(out var state)) return state;
+            state = new LineState(this, parent);
+            reference.SetTarget(state);
+            return state;
+        }
+    }
 
     public Matcher GetMatcher() => _matcher ?? Interlocked.CompareExchange(ref _matcher, Build(), null) ?? _matcher;
 

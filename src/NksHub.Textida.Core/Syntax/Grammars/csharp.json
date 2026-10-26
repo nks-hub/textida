@@ -41,10 +41,10 @@
   ],
   "repository": {
     "code": [
-      {"match": "///.*", "token": "comment.doc"},
+      {"name": "comment-doc-line", "begin": "///", "end": "$", "token": "comment.doc"},
       {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
-      {"match": "//.*", "token": "comment"},
-      {"match": "(?<=^[ \\t]*)#[ \\t]*[A-Za-z]+.*", "token": "preprocessor"},
+      {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
+      {"name": "preprocessor-line", "begin": "(?<=^[ \\t]*)#[ \\t]*[A-Za-z]+", "end": "$", "token": "preprocessor"},
       {"name": "raw-string", "begin": "\"\"\"", "end": "\"\"\"", "token": "string", "multiline": true},
       {
         "name": "verbatim-interp-string",

@@ -14,7 +14,7 @@
     }
   ],
   "rules": [
-    {"match": "#.*", "token": "comment"},
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
     {"name": "multiline-sq-string", "begin": "'''", "end": "'''", "token": "string", "multiline": true},
     {"name": "multiline-dq-string", "begin": "\"\"\"", "end": "\"\"\"", "token": "string", "multiline": true},
     {
