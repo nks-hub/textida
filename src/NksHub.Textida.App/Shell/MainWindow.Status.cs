@@ -36,9 +36,11 @@ internal sealed partial class MainWindow
 
     private Control BuildStatusBar()
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(14, 0), VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(_statusRight, 1);
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), Margin = new Thickness(14, 0), VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(_statusRight, 2);
+        Grid.SetColumn(_pluginStatus, 1);
         grid.Children.Add(_statusLeft);
+        grid.Children.Add(_pluginStatus);
         grid.Children.Add(_statusRight);
         _indentItem.Click += (_, _) => ShowIndentMenu();
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);

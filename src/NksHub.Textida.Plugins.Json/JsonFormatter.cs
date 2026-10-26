@@ -101,7 +101,12 @@ public static class JsonFormatter
         int upTo = (int)Math.Min(bytes.Length - start, byteColumn);
         long column = Encoding.UTF8.GetCharCount(bytes, start, upTo) + 1;
         var message = e.Message;
-        int cut = message.IndexOf(" Path:", StringComparison.Ordinal);
-        return new SyntaxError(cut > 0 ? message[..cut] : message, line + 1, column);
+        // the framework appends "Path: ... | LineNumber: ... | BytePositionInLine: ..."; the place is reported on its own
+        foreach (var marker in new[] { " Path:", " LineNumber:" })
+        {
+            int cut = message.IndexOf(marker, StringComparison.Ordinal);
+            if (cut > 0) message = message[..cut];
+        }
+        return new SyntaxError(message, line + 1, column);
     }
 }

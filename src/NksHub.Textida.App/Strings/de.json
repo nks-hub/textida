@@ -499,5 +499,15 @@
   "loss.pick.label": "Text in dieser Codierung schreiben (Codierungen, die Zeichen verlieren, sind markiert):",
   "hex.goto.preview": "→ {offset} ({decimal}) · Byte {value}",
   "hex.goto.previewEnd": "→ {offset} ({decimal}) · Dateiende",
-  "hex.goto.previewA11y": "Sprungziel"
+  "hex.goto.previewA11y": "Sprungziel",
+  "plugin.panel.close": "Panel schließen",
+  "a11y.plugin.panel": "Plugin-Bereich: {title}",
+  "plugin.task.cancel": "Abbrechen",
+  "a11y.plugin.task.cancel": "Aufgabe abbrechen: {title}",
+  "a11y.plugin.task": "{title}, {percent} %",
+  "a11y.plugin.task.busy": "{title}, läuft",
+  "plugin.pick.watermark": "Zum Filtern tippen",
+  "a11y.plugin.pick": "Auswahl des Plugins",
+  "plugin.unavailable": "Das Plugin {name} konnte nicht ausgeführt werden: {reason}",
+  "plugin.proposal": "{title}: {changes} vorgeschlagene Änderungen."
 }

@@ -494,4 +494,14 @@ public static class K
     public const string HexChangesNone = "hex.changes.none";
     public const string HexChangesClose = "hex.changes.close";
     public const string HexChangeEntry = "hex.changes.entry";
+    public const string PluginPanelClose = "plugin.panel.close";
+    public const string A11yPluginPanel = "a11y.plugin.panel";
+    public const string PluginTaskCancel = "plugin.task.cancel";
+    public const string A11yPluginTaskCancel = "a11y.plugin.task.cancel";
+    public const string A11yPluginTask = "a11y.plugin.task";
+    public const string A11yPluginTaskBusy = "a11y.plugin.task.busy";
+    public const string PluginPickWatermark = "plugin.pick.watermark";
+    public const string A11yPluginPick = "a11y.plugin.pick";
+    public const string PluginUnavailable = "plugin.unavailable";
+    public const string PluginProposal = "plugin.proposal";
 }

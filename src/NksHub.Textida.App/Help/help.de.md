@@ -188,6 +188,14 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Strg+K und dann Strg+U macht die Buchstaben groß, Strg+K und dann Strg+L klein.
 - Ohne Auswahl sind die Befehle abgeblendet. Sie stehen auch im Menü Bearbeiten.
 
+## [edit.json] JSON formatieren
+commands: nks.edit.formatJson, nks.edit.previewFormatJson
+1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.
+2. Menü Bearbeiten, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden.
+3. Vorschau der JSON-Formatierung zeigt die Änderung zuerst als Vorschlag. Wenden Sie ihn in der Leiste über dem Editor an oder verwerfen Sie ihn.
+- Ein Syntaxfehler wird mit Zeile und Spalte gemeldet, und nichts wird geändert. Text über dem Limit wird mit einer Meldung abgelehnt.
+- Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
+
 ## [edit.carets] Mehrere Cursor
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Markieren Sie ein Wort; Strg+D fügt sein nächstes Vorkommen zur Auswahl hinzu. Wiederholen Sie das für weitere Vorkommen.

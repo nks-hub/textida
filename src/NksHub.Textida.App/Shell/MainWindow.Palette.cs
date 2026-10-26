@@ -37,6 +37,7 @@ internal sealed partial class MainWindow
     private PaletteMode _paletteMode;
     private string _choiceWatermark = "", _choiceName = "";
     private DocTab? _paletteReturnTo;
+    private Action? _choiceDismissed;
 
     internal bool IsPaletteOpen => _paletteHost.IsVisible;
     internal PaletteMode PaletteModeNow => _paletteMode;
@@ -101,8 +102,10 @@ internal sealed partial class MainWindow
     public void ShowEditLocations() => OpenPalette(PaletteMode.Edits, "");
 
     /// <summary>A short list to choose from, such as the candidates of "related file".</summary>
-    internal void ShowChoice(string watermark, string name, IReadOnlyList<QuickRow> rows)
+    internal void ShowChoice(string watermark, string name, IReadOnlyList<QuickRow> rows, Action? onDismissed = null)
     {
+        DismissChoice();
+        _choiceDismissed = onDismissed;
         _choiceWatermark = watermark;
         _choiceName = name;
         _choiceRows = rows;
@@ -111,6 +114,7 @@ internal sealed partial class MainWindow
 
     private void OpenPalette(PaletteMode mode, string initial)
     {
+        if (mode != PaletteMode.Choice) DismissChoice();
         _paletteReturnTo = Active;
         _paletteMode = mode;
         _paletteOnlyModified.IsChecked = false;
@@ -132,7 +136,15 @@ internal sealed partial class MainWindow
     {
         if (!_paletteHost.IsVisible) return;
         _paletteHost.IsVisible = false;
+        DismissChoice();
         if (_paletteReturnTo is { } tab && tab.Group is not null) FocusView(tab);
+    }
+
+    private void DismissChoice()
+    {
+        var dismissed = _choiceDismissed;
+        _choiceDismissed = null;
+        dismissed?.Invoke();
     }
 
     internal void SetPaletteQuery(string text)
@@ -355,6 +367,7 @@ internal sealed partial class MainWindow
         // a calculator error or a missing file stays on screen; a disabled command closes the palette and the registry refuses it
         bool isCommand = _paletteMode == PaletteMode.Commands && _paletteItems.Count == _quickRows.Count;
         if (!row.Enabled && !isCommand) return;
+        if (_paletteMode == PaletteMode.Choice) _choiceDismissed = null; // a row was chosen, so the list was not dismissed
         ClosePalette();
         row.Run();
     }

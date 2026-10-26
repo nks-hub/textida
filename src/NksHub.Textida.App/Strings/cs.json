@@ -515,5 +515,15 @@
   "loss.pick.label": "Zapsat text v tomto kódování (kódování, která ztratí znaky, jsou označená):",
   "hex.goto.preview": "→ {offset} ({decimal}) · bajt {value}",
   "hex.goto.previewEnd": "→ {offset} ({decimal}) · konec souboru",
-  "hex.goto.previewA11y": "Cíl skoku"
+  "hex.goto.previewA11y": "Cíl skoku",
+  "plugin.panel.close": "Zavřít panel",
+  "a11y.plugin.panel": "Panel zásuvného modulu: {title}",
+  "plugin.task.cancel": "Zrušit",
+  "a11y.plugin.task.cancel": "Zrušit úlohu: {title}",
+  "a11y.plugin.task": "{title}, {percent} %",
+  "a11y.plugin.task.busy": "{title}, probíhá",
+  "plugin.pick.watermark": "Pište pro filtrování",
+  "a11y.plugin.pick": "Volby zásuvného modulu",
+  "plugin.unavailable": "Zásuvný modul {name} se nepodařilo spustit: {reason}",
+  "plugin.proposal": "{title}: navržené změny ({changes})."
 }

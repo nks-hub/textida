@@ -346,6 +346,21 @@
       "enablement": "!largeFileMode"
     },
     {
+      "id": "nks.edit.formatJson",
+      "title": "cmd.edit.formatJson",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.previewFormatJson",
+      "title": "cmd.edit.previewFormatJson",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode"
+    },
+    {
       "id": "nks.edit.newline",
       "title": "cmd.edit.newline",
       "category": "cat.edit",
@@ -1027,6 +1042,18 @@
       "command": "nks.edit.expandSelection",
       "group": "3_select",
       "order": 25
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.formatJson",
+      "group": "4_lines",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.previewFormatJson",
+      "group": "4_lines",
+      "order": 80
     },
     {
       "menu": "format",

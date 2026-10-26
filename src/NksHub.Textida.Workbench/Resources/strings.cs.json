@@ -116,6 +116,8 @@
   "cmd.edit.joinLines": "Spojit řádky",
   "cmd.edit.toggleComment": "Zakomentovat / odkomentovat",
   "cmd.edit.expandSelection": "Rozšířit výběr",
+  "cmd.edit.formatJson": "Formátovat JSON",
+  "cmd.edit.previewFormatJson": "Náhled formátování JSON",
   "cmd.edit.newline": "Nový řádek",
   "cmd.format.reread": "Znovu přečíst jako...",
   "cmd.format.convert": "Převést na...",

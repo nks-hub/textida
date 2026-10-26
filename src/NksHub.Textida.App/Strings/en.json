@@ -499,5 +499,15 @@
   "loss.pick.label": "Write the text in this encoding (encodings that lose characters are marked):",
   "hex.goto.preview": "→ {offset} ({decimal}) · byte {value}",
   "hex.goto.previewEnd": "→ {offset} ({decimal}) · end of file",
-  "hex.goto.previewA11y": "Jump target"
+  "hex.goto.previewA11y": "Jump target",
+  "plugin.panel.close": "Close panel",
+  "a11y.plugin.panel": "Plugin panel: {title}",
+  "plugin.task.cancel": "Cancel",
+  "a11y.plugin.task.cancel": "Cancel task: {title}",
+  "a11y.plugin.task": "{title}, {percent} %",
+  "a11y.plugin.task.busy": "{title}, in progress",
+  "plugin.pick.watermark": "Type to filter",
+  "a11y.plugin.pick": "Plugin choices",
+  "plugin.unavailable": "The plugin {name} could not be run: {reason}",
+  "plugin.proposal": "{title}: {changes} proposed changes."
 }
