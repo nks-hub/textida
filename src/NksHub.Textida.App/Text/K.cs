@@ -23,7 +23,7 @@ public static class K
     public const string StatusLine = "status.line";
     public const string StatusSelected = "status.selected";
     public const string StatusReady = "status.ready";
-    public const string StatusLargeReadOnly = "status.largeReadOnly";
+    public const string StatusLargePaged = "status.largePaged";
     public const string StatusIndentSpaces = "status.indent.spaces";
     public const string StatusIndentTabs = "status.indent.tabs";
     public const string StatusEolMixed = "status.eol.mixed";
@@ -157,6 +157,9 @@ public static class K
     public const string SourcePlugin = "source.plugin";
     public const string ErrorOpenFailed = "error.open.failed";
     public const string ErrorOpenLargeEncoding = "error.open.largeEncoding";
+    public const string PagedIndexing = "paged.indexing";
+    public const string PagedLongLine = "paged.longLine";
+    public const string PagedNotEncodable = "paged.notEncodable";
     public const string A11yMainMenu = "a11y.menu.main";
     public const string A11yTabs = "a11y.tabs";
     public const string A11yEditor = "a11y.editor";

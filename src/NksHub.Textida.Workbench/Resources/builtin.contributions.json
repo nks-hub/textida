@@ -51,14 +51,14 @@
       "title": "cmd.edit.undo",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.edit.redo",
       "title": "cmd.edit.redo",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.edit.cut",

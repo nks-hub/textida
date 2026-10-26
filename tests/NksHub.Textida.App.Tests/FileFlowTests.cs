@@ -403,7 +403,7 @@ public class FileFlowTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void File_above_the_switch_size_opens_paged_and_read_only_with_a_note_and_a_badge()
+    public void File_above_the_switch_size_opens_paged_and_editable_with_a_note_and_a_badge()
     {
         _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
         var lines = new StringBuilder();
@@ -413,15 +413,15 @@ public class FileFlowTests : IDisposable
         var tab = _w.OpenFile(path, null);
 
         Assert.True(tab.Doc.IsLarge);
-        Assert.True(tab.Doc.ReadOnly);
         Assert.Null(tab.Editor);
         Assert.NotNull(tab.Paged);
-        Assert.Contains("jen pro čtení", _w.StatusLeftText);
+        Assert.Contains("stránkovaný režim", _w.StatusLeftText);
         Assert.Contains("MiB", tab.Doc.SizeBadge);
         Assert.False(tab.Doc.Doc.IsModified);
-        // no edit command works on it: the registry says the command is disabled
+        // the text commands of the AvaloniaEdit surface stay off, undo and redo work on every document
         var ctx = new ShellContext(_w, forMenu: true);
         Assert.False(_app.Workbench.Commands.TryGet("nks.edit.deleteLine", out var cmd) && cmd.IsEnabled(ctx));
+        Assert.True(_app.Workbench.Commands.TryGet("nks.edit.undo", out var undo) && undo.IsEnabled(ctx));
         tab.GoToLine(100_000);
         Assert.True(tab.CaretPosition().Line >= 1);
     }

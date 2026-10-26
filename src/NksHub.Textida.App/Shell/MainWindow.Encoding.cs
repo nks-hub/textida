@@ -23,7 +23,7 @@ internal sealed partial class MainWindow
     public IReadOnlyList<EncodingChoice> ConvertChoices(DocTab tab)
     {
         var doc = tab.Doc.Doc;
-        if (tab.Doc.ReadOnly) return [.. TextCodec.All.Select(c => new EncodingChoice(c, 0, c == doc.Codec, false))];
+        if (tab.Doc.IsLarge) return [.. TextCodec.All.Select(c => new EncodingChoice(c, 0, c == doc.Codec, false))];
         var targets = ByteFidelity.ListTargets(doc.Codec.Decode(doc.ReadBytes(new ByteRange(0, doc.ByteLength))));
         return [.. targets.Select(t => new EncodingChoice(t.Codec, t.Lost, t.Codec == doc.Codec, doc.Backend.Supports(t.Codec)))];
     }
@@ -44,7 +44,7 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         var doc = od.Doc;
-        if (codec == doc.Codec || od.ReadOnly) return false;
+        if (codec == doc.Codec || od.IsLarge) return false;
         if (!await ConfirmTypedLossAsync(od)) return false;
         var preview = doc.PreviewConvert(codec);
         string? replacement = null;
@@ -69,7 +69,7 @@ internal sealed partial class MainWindow
     public async Task<bool> UnifyEolAsync(DocTab tab, EolStyle target)
     {
         var doc = tab.Doc.Doc;
-        if (tab.Doc.ReadOnly) return false;
+        if (tab.Doc.IsLarge) return false;
         var preview = doc.PreviewUnifyEol(target);
         string name = target switch { EolStyle.CrLf => "CRLF", EolStyle.Cr => "CR", _ => "LF" };
         if (preview.Count == 0)
@@ -85,7 +85,7 @@ internal sealed partial class MainWindow
     public async Task<bool> NormalizeAsync(DocTab tab, NormalizationForm form)
     {
         var doc = tab.Doc.Doc;
-        if (tab.Doc.ReadOnly) return false;
+        if (tab.Doc.IsLarge) return false;
         var preview = doc.PreviewNormalize(form);
         if (preview.Count == 0)
         {

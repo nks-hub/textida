@@ -119,7 +119,7 @@
   "setting.files.journalFallbackDirectory.title": "Journal fallback folder",
   "setting.files.journalFallbackDirectory.description": "Used when the main journal folder cannot be written. Empty: the system temp folder.",
   "setting.files.largeFileThreshold.title": "Large file threshold (MiB)",
-  "setting.files.largeFileThreshold.description": "A file above this size opens in the paged read-only mode.",
+  "setting.files.largeFileThreshold.description": "A file above this size opens in the paged mode, which edits the file in place without loading the whole text.",
   "setting.tools.diffTool.title": "External diff tool",
   "setting.tools.diffTool.description": "Path of a program that compares two files. Empty: Compare with Disk says what is missing.",
   "setting.tools.diffArguments.title": "Diff tool arguments",

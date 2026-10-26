@@ -92,7 +92,6 @@ internal sealed class EditorSurface : TextEditor
         Options.ShowTabs = o.ShowWhitespace;
         Options.EnableTextDragDrop = true;
         Options.AcceptsTab = false;
-        IsReadOnly = Doc.ReadOnly;
     }
 
     private void ApplyTheme()

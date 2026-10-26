@@ -119,7 +119,7 @@
   "setting.files.journalFallbackDirectory.title": "Náhradní složka žurnálu",
   "setting.files.journalFallbackDirectory.description": "Použije se, když hlavní složka žurnálu nejde zapsat. Prázdné: dočasná složka systému.",
   "setting.files.largeFileThreshold.title": "Hranice velkého souboru (MiB)",
-  "setting.files.largeFileThreshold.description": "Soubor nad touto velikostí se otevře ve stránkovaném režimu jen pro čtení.",
+  "setting.files.largeFileThreshold.description": "Soubor nad touto velikostí se otevře ve stránkovaném režimu, který upravuje soubor, aniž by načetl celý text.",
   "setting.tools.diffTool.title": "Externí porovnávač",
   "setting.tools.diffTool.description": "Cesta k programu pro porovnání dvou souborů. Prázdné: příkaz Porovnat s diskem řekne, co chybí.",
   "setting.tools.diffArguments.title": "Argumenty porovnávače",
