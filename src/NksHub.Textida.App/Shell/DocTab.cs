@@ -35,7 +35,7 @@ internal sealed class DocTab
     public OpenDocument Doc { get; }
     public EditorSurface? Surface { get; }
     public PagedTextView? Paged { get; }
-    /// <summary>The text surface; null for a paged (large, read-only) view.</summary>
+    /// <summary>The AvaloniaEdit surface; null for a paged (large) view.</summary>
     public EditorSurface? Editor => Surface;
     public Control View => (Control?)Surface ?? Paged!;
     public DockPanel Root { get; }
@@ -51,11 +51,11 @@ internal sealed class DocTab
     public void ShowBar(Control? bar) => _barSlot.Content = bar;
     public Control? Bar => _barSlot.Content as Control;
 
-    /// <summary>1-based line and column; for a paged view the first line on screen.</summary>
+    /// <summary>1-based line and column; for a paged view whose line index is not complete yet the first line on screen.</summary>
     public (long Line, long Column) CaretPosition()
     {
         if (Surface is { } s) return s.CaretLineColumn();
-        return (Paged!.TopLine + 1, 1);
+        return Paged!.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (Paged.TopLine + 1, 1);
     }
 
     public void GoToLine(int line)

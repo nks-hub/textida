@@ -16,9 +16,8 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 internal sealed class OpenDocument : IDisposable
 {
-    // shortcut: fixed default; P1.2.2 sets the real switch size by measurement and the `files.largeFileThreshold` setting overrides it
-    public const long DefaultLargeFileBytes = 16L << 20;
     private const int SampleBytes = 1 << 20;
+    private const int EolBlockChars = 1 << 14;
 
     private static int _untitled;
     private readonly DispatcherTimer _eolTimer;
@@ -57,9 +56,8 @@ internal sealed class OpenDocument : IDisposable
     public event Action? Replaced;
 
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
-    /// <summary>Opened in the paged backend: shown read-only, editing the paged surface is P3.</summary>
+    /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null;
-    public bool ReadOnly => IsLarge;
     public string? Path => _doc.FilePath;
 
     /// <summary>Changes worth asking about: modified, and not just a new document nobody typed into.</summary>
@@ -91,8 +89,8 @@ internal sealed class OpenDocument : IDisposable
         return new OpenDocument(doc, ++_untitled, null, LanguageModes.Plain);
     }
 
-    /// <summary>Opens a file; above <paramref name="largeFileBytes"/> it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
-    public static OpenDocument Open(string path, long largeFileBytes = DefaultLargeFileBytes)
+    /// <summary>Opens a file; above <paramref name="largeFileBytes"/> (the <c>files.largeFileThreshold</c> setting) it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
+    public static OpenDocument Open(string path, long largeFileBytes)
     {
         var (doc, guess) = OpenDocumentOnly(path, largeFileBytes);
         return new OpenDocument(doc, 0, guess, LanguageModes.ForPath(doc.FilePath));
@@ -200,7 +198,14 @@ internal sealed class OpenDocument : IDisposable
 
     private void RefreshEol()
     {
-        if (TextBackend is { } text) _eol = Core.Encodings.Eol.Analyze(text.TextDocument.Text);
+        if (TextBackend is { } text)
+        {
+            // block by block: the whole text as one string would double the memory of a large document at every pause in typing
+            var scanner = new Core.Encodings.EolScanner();
+            var d = text.TextDocument;
+            for (int at = 0; at < d.TextLength; at += EolBlockChars) scanner.Add(d.GetText(at, Math.Min(EolBlockChars, d.TextLength - at)));
+            _eol = scanner.Finish();
+        }
         else
         {
             // shortcut: the paged surface reports the line endings of the first block only

@@ -73,6 +73,7 @@ public sealed partial class App : Application
                 if (ctx.Args.Files.Count > 0) RunStartupOpen(ctx.Args);
             };
         }
+        else if (PagedMeasure.Requested) first.Opened += (_, _) => _ = new PagedMeasure(this, first, desktop).RunAsync();
         else first.Opened += (_, _) => _ = new SmokeTest(this, first, desktop).RunAsync();
 
         base.OnFrameworkInitializationCompleted();

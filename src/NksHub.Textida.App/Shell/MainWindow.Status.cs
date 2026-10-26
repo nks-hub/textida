@@ -68,10 +68,12 @@ internal sealed partial class MainWindow
         }
         else
         {
-            var (_, complete) = tab.Paged!.Index;
-            position = Loc.Get(K.StatusLine, ("line", (complete ? "" : "≈") + (tab.Paged.TopLine + 1)));
+            var (line, column) = tab.CaretPosition();
+            position = tab.Paged!.Index.Complete
+                ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))
+                : Loc.Get(K.StatusLine, ("line", "≈" + line));
         }
-        string message = _message.Length > 0 ? _message : od.IsLarge ? Loc.Get(K.StatusLargeReadOnly, ("size", od.SizeBadge ?? "")) : Loc.Get(K.StatusReady);
+        string message = _message.Length > 0 ? _message : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
         _statusLeft.Text = position + " · " + message;
 
         _indentItem.Content = Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize));
@@ -146,7 +148,7 @@ internal sealed partial class MainWindow
         foreach (var (label, style) in new[] { (Loc.Get(K.EolToCrLf), EolStyle.CrLf), (Loc.Get(K.EolToLf), EolStyle.Lf), (Loc.Get(K.EolToCr), EolStyle.Cr) })
         {
             var target = style;
-            var mi = new MenuItem { Header = label, IsEnabled = !tab.Doc.ReadOnly };
+            var mi = new MenuItem { Header = label, IsEnabled = !tab.Doc.IsLarge };
             mi.Click += (_, _) => _ = UnifyEolAsync(tab, target);
             flyout.Items.Add(mi);
         }

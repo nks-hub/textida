@@ -85,7 +85,6 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         if (od.Path is null) return await SaveAsAsync(tab);
-        if (od.IsLarge) return true; // a paged document cannot have unsaved changes
         if (!await ConfirmTypedLossAsync(od)) return false;
         return await SaveCoreAsync(tab, overwrite: false);
     }
@@ -197,7 +196,7 @@ internal sealed partial class MainWindow
 
     public async Task<bool> SaveAllAsync()
     {
-        foreach (var od in _docs.Where(d => d.Doc.IsModified && !d.IsLarge).ToList())
+        foreach (var od in _docs.Where(d => d.Doc.IsModified).ToList())
             if (od.Views.FirstOrDefault() is { } tab && !await SaveAsync(tab)) return false;
         return true;
     }

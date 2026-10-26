@@ -9,7 +9,7 @@ namespace NksHub.Textida.App.Startup;
 
 /// <summary>
 /// <c>--smoke</c>: runs inside the published program (NativeAOT) and checks what a trimmed build could silently lose.
-/// It edits and saves a single-byte file and checks that only the edited byte changed, opens a file in the paged read-only mode,
+/// It edits and saves a single-byte file and checks that only the edited byte changed, edits a file in the paged mode,
 /// uses the command palette, the settings view and a split, round-trips a request through the real IPC transport,
 /// switches the language and the theme, then exits with 0. Any failure prints the reason and exits with 1.
 /// </summary>
@@ -51,7 +51,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Check(opened is { Path: not null } && opened.Path == file, "IPC request opened the file in a tab");
             Check(opened!.Editor!.Document.Text.StartsWith("Příliš žluťoučký kůň", StringComparison.Ordinal), "Windows-1250 file decoded");
             Check(opened.CaretPosition().Line == 3, "caret is on the requested line");
-            Check(!opened.Doc.ReadOnly && window.StatusRightText.Contains("Windows-1250", StringComparison.Ordinal), "the file is editable and the status bar names its encoding");
+            Check(window.StatusRightText.Contains("Windows-1250", StringComparison.Ordinal), "the status bar names its encoding");
             if (OperatingSystem.IsMacOS()) await CheckMacAccessibilityAsync(opened);
 
             opened.Editor.Document.Replace(1, 1, "r"); // ř -> r: one byte changes
@@ -63,13 +63,20 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Check(saved.SequenceEqual(expected), "the saved file differs from the original only in the edited byte");
             Check(!opened.Doc.Doc.IsModified, "the tab is clean after saving");
 
-            // a file above the switch size opens in the paged read-only mode
+            // a file above the switch size opens in the paged mode and takes a typed character, undo and save
             app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
             var big = Path.Combine(temp, "big.log");
             await File.WriteAllBytesAsync(big, Encoding.ASCII.GetBytes(string.Concat(Enumerable.Range(1, 120_000).Select(i => $"line {i}\n"))));
             var largeTab = window.OpenFile(big, null);
-            Check(largeTab.Doc.IsLarge && largeTab.Doc.ReadOnly && largeTab.Paged is not null, "a file above the threshold opens paged and read-only");
+            Check(largeTab.Doc.IsLarge && largeTab.Paged is not null, "a file above the threshold opens paged");
             Check(largeTab.Doc.SizeBadge is not null, "the large file has a size badge");
+            for (int i = 0; i < 100 && !largeTab.Paged!.Index.Complete; i++) await Task.Delay(50);
+            Check(largeTab.Paged!.InsertText("é"), "the paged view takes a typed character once the lines are indexed");
+            Check(largeTab.Doc.Doc.IsModified && largeTab.Doc.Doc.ReadBytes(new Core.Documents.ByteRange(0, 3)).SequenceEqual("él"u8.ToArray()), "the typed character is in the document bytes");
+            window.Undo();
+            Check(!largeTab.Doc.Doc.IsModified, "undo takes the typed character back");
+            largeTab.Paged.InsertText("x");
+            Check(await window.SaveAsync(largeTab) && (await File.ReadAllBytesAsync(big))[0] == (byte)'x', "the paged document saves the typed character into its file");
             window.CloseTab(largeTab);
             window.CloseTab(opened);
 

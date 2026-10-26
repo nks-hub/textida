@@ -77,7 +77,12 @@ internal sealed partial class MainWindow
     /// <summary>Undo or redo through the document, so the typed run, a line command and a conversion are each one step; then the caret goes where the change happened.</summary>
     private void UndoRedo(bool redo)
     {
-        if (Active is not { Surface: { } surface } tab || tab.Doc.ReadOnly) return;
+        if (Active?.Paged is { } paged)
+        {
+            paged.UndoRedo(redo);
+            return;
+        }
+        if (Active is not { Surface: { } surface } tab) return;
         var doc = tab.Doc.Doc;
         var changes = new List<ChangeSet>();
         void Capture(object? s, NksHub.Textida.Core.Documents.DocumentChangedEventArgs e) => changes.Add(e.Change);
