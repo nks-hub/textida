@@ -50,12 +50,15 @@ public partial class DocumentApiTests
         public required PluginPermissions Permissions { get; init; }
         public required PluginCallLog CallLog { get; init; }
         public required TaskCompletionSource Gate { get; init; }
+        public required RecordingTools Tools { get; init; }
 
         public static async Task<Rig> CreateAsync(byte[] content, Func<DocumentApiOptions, DocumentApiOptions>? tune = null, bool canEdit = true,
             TimeProvider? time = null, bool gated = false, IBackendFactory? factory = null, string[]? plugins = null, NksHub.Textida.Core.Encodings.TextCodec? codec = null,
-            Func<Func<PluginHost.PluginHost>, DocumentApi, PluginPermissions, PluginCallLog, PluginApiCallback>? route = null)
+            Func<Func<PluginHost.PluginHost>, DocumentApi, PluginPermissions, PluginCallLog, PluginApiCallback>? route = null,
+            Func<SelectionSet?>? selections = null)
         {
             var proposals = new RecordingProposals();
+            var tools = new RecordingTools();
             var permissions = new PluginPermissions();
             var callLog = new PluginCallLog(1000);
             foreach (var id in plugins ?? ["p"])
@@ -75,6 +78,12 @@ public partial class DocumentApiTests
                 Permissions = permissions,
                 CallLog = callLog,
                 Proposals = proposals,
+                Tools = tools,
+                MaxSymbolsPerDocument = 100,
+                MaxSymbolTextLength = 50,
+                MaxSnippetLength = 200,
+                MaxSnippetCarets = 4,
+                TabTimeout = TimeSpan.FromMilliseconds(500),
             };
             if (tune is not null) options = tune(options);
             var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -85,16 +94,16 @@ public partial class DocumentApiTests
             {
                 await gate.Task;
                 return await host!.SendEventAsync(plugin, name, payload);
-            }, time);
+            }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
             var doc = Document.FromBytes(content, factory ?? PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
-            api.Expose(doc, () => SelectionSet.Single(new TextSelection(1, 3)));
+            api.Expose(doc, selections ?? (() => SelectionSet.Single(new TextSelection(1, 3))));
             foreach (var id in plugins ?? ["p"])
             {
                 host.Register(new PluginSpec(id, "Plugin " + id, T.DotnetHost, [T.PluginDll], ["onCommand:" + id]));
                 await host.ActivateAsync("onCommand:" + id);
             }
-            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Permissions = permissions, CallLog = callLog, Gate = gate };
+            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Permissions = permissions, CallLog = callLog, Gate = gate, Tools = tools };
         }
 
         public string D(string rest = "") => $"{{\"document\":\"{Doc.Id}\"{(rest.Length > 0 ? "," + rest : "")}}}";

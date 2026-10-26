@@ -34,8 +34,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: entries kept in the plugin call log.</summary>
     public const int CallLogCapacity = 1000;
 
-    public static DocumentApiOptions Documents(IEditProposals proposals, PluginPermissions permissions, PluginCallLog callLog) => new()
+    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog) => new()
     {
+        MaxSymbolsPerDocument = 5000,
+        MaxSymbolTextLength = 400,
+        MaxSnippetLength = 64 * 1024,
+        MaxSnippetCarets = 64,
+        TabTimeout = TimeSpan.FromMilliseconds(500),
+        Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,
         MaxSnapshotsPerPlugin = 4,

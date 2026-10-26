@@ -1,3 +1,4 @@
+using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.PluginHost.Permissions;
 
@@ -21,6 +22,21 @@ public static class DocumentMethods
     public const string SnapshotRelease = "snapshot/release";
     public const string EditApply = "edit/apply";
     public const string EditPropose = "edit/propose";
+    /// <summary>Early tools: the plugin publishes the symbols of one revision (outline).</summary>
+    public const string SymbolsPublish = "symbols/publish";
+    /// <summary>Early tools: jump to a range and highlight it, as a click in the outline does.</summary>
+    public const string Reveal = "editor/reveal";
+    /// <summary>Early tools: insert a snippet with carets into every selection as one undo step.</summary>
+    public const string SnippetInsert = "snippet/insert";
+    /// <summary>Early tools: the plugin offers (or stops offering) to answer the Tab key.</summary>
+    public const string TabRegister = "editor/tabHandler";
+}
+
+/// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
+public static class DocumentRequests
+{
+    /// <summary>Tab was pressed in a document; the answer is <c>{"handled":bool}</c>. An error, a timeout or <c>false</c> leaves Tab to the editor.</summary>
+    public const string Tab = "editor/tab";
 }
 
 /// <summary>Names of the events (<c>$/event</c> payloads) the editor sends for subscribed documents. They carry ranges and revisions, never text.</summary>
@@ -54,6 +70,9 @@ public static class DocumentErrorCodes
     /// <summary>The line index does not know the position yet, or the offset is not a position (data: <c>lines</c>, <c>complete</c>).</summary>
     public const int PositionUnknown = -32026;
     public const int EditsOverlap = -32027;
+    public const int SymbolsQuotaExceeded = -32028;
+    /// <summary>The document has no text view to take selections from or to show a range in.</summary>
+    public const int NoTextView = -32029;
 }
 
 /// <summary>
@@ -74,7 +93,45 @@ public sealed record DocumentApiOptions
     public required PluginPermissions Permissions { get; init; }
     public required PluginCallLog CallLog { get; init; }
     public required IEditProposals Proposals { get; init; }
+    public required IEditorTools Tools { get; init; }
+    /// <summary>Symbols one plugin may publish for one document.</summary>
+    public required int MaxSymbolsPerDocument { get; init; }
+    /// <summary>Longest id, name or kind of a symbol, in UTF-16 code units.</summary>
+    public required int MaxSymbolTextLength { get; init; }
+    /// <summary>Longest snippet text, in UTF-16 code units.</summary>
+    public required int MaxSnippetLength { get; init; }
+    /// <summary>Carets one snippet places in each selection.</summary>
+    public required int MaxSnippetCarets { get; init; }
+    /// <summary>How long a plugin has to answer the Tab key before the editor indents as without it.</summary>
+    public required TimeSpan TabTimeout { get; init; }
 }
+
+/// <summary>One symbol of an outline: a named range of one revision. <paramref name="ParentId"/> names an earlier symbol or is null.</summary>
+public sealed record SymbolInfo(string Id, string Name, string Kind, string? ParentId, ByteRange Range);
+
+/// <summary>The symbols a plugin published for <paramref name="Revision"/> of a document.</summary>
+public sealed record SymbolSet(string PluginId, Guid Document, long Revision, IReadOnlyList<SymbolInfo> Symbols);
+
+/// <summary>
+/// What the editor does for the early tools. The API checks revisions and ranges first; an implementation only draws and moves.
+/// Calls are made on the thread that owns the documents, except <see cref="SymbolsCleared"/> after a plugin restart (any thread).
+/// </summary>
+public interface IEditorTools
+{
+    /// <summary>A symbol set was published, or the document moved past its revision (<paramref name="current"/> false: show it as outdated).</summary>
+    void SymbolsChanged(SymbolSet set, bool current);
+    /// <summary>The symbols of a plugin for a document are gone (document withdrawn, plugin restarted).</summary>
+    void SymbolsCleared(string pluginId, Guid document);
+    /// <summary>Scrolls to the range and selects it. False when the document has no text view.</summary>
+    bool Reveal(Guid document, ByteRange range);
+    /// <summary>Puts these selections (bytes of the current revision) into the text view of the document.</summary>
+    void PlaceSelections(Guid document, SelectionSet selections);
+    /// <summary>The line break a new line of the document gets.</summary>
+    string NewLine(Guid document);
+}
+
+/// <summary>Sends a request to a plugin and waits for its answer (<see cref="PluginHost.CallAsync"/> with the timeout).</summary>
+public delegate Task<JsonElement> PluginRequestSender(string pluginId, string method, ReadOnlyMemory<byte> paramsJson, TimeSpan timeout, CancellationToken cancellation);
 
 /// <summary>Runs work on the thread that owns the documents (the UI thread in the editor); documents are not thread safe.</summary>
 public interface IDocumentOwnerThread

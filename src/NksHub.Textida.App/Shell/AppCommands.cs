@@ -1,4 +1,5 @@
 using System.Text;
+using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -29,6 +30,20 @@ internal static class AppCommands
 
         void Fire(string id, Func<MainWindow, DocTab, Task> run) =>
             On(id, w => { if (w.Active is not { } tab) return CommandOutcome.NotHandled; _ = run(w, tab); return CommandOutcome.Handled; });
+
+        // The registry goes on without the UI thread after an await, so a Tab that no plugin handled does what it does without plugins
+        // (the command itself, then its fallback) right here on the UI thread. If the user left the tab meanwhile, the key is dropped.
+        async ValueTask<CommandOutcome> OfferTab(MainWindow w, DocTab tab, IWhenContext context)
+        {
+            if (await app.Plugins.OfferTabAsync(tab)) return CommandOutcome.Handled;
+            return await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (!ReferenceEquals(w.Active, tab)) return CommandOutcome.Handled;
+                var outcome = w.Tab(outdent: false);
+                if (outcome == CommandOutcome.Handled || !registry.TryGet("nks.edit.tab", out var self) || self.FallbackId is not { } fallback) return outcome;
+                return await registry.ExecuteAsync(fallback, context);
+            });
+        }
 
         void Surface(string id, Action<EditorSurface> run) =>
             On(id, w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; run(s); return CommandOutcome.Handled; });
@@ -81,7 +96,13 @@ internal static class AppCommands
         Edit("nks.edit.indent", (s, sels) => LineOperations.Indent(s.Document, sels, s.Settings.Indent));
         Edit("nks.edit.outdent", (s, sels) => LineOperations.Outdent(s.Document, sels, s.Settings.Indent));
         Edit("nks.edit.insertIndent", (s, sels) => LineOperations.InsertIndent(s.Document, sels, s.Settings.Indent));
-        On("nks.edit.tab", w => w.Tab(outdent: false));
+        registry.SetHandler("nks.edit.tab", (context, _) =>
+        {
+            if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
+            // plugins that registered for Tab answer first; without one the key is handled at once, as it always was
+            if (w.Active is { } tab && app.Plugins.Documents.HasTabProviders) return OfferTab(w, tab, context);
+            return done(w.Tab(outdent: false));
+        });
         On("nks.edit.newline", w => w.Newline());
         On("nks.edit.toggleComment", w => w.ToggleComment());
         On("nks.edit.expandSelection", w => w.ExpandSelection());
