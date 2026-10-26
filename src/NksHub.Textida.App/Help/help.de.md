@@ -295,6 +295,13 @@ commands: nks.search.relatedFile
 - Eigene Paare tragen Sie in der Einstellung Regeln für zugehörige Dateien als Endung|Endung ein, durch Semikolons getrennt.
 - Ein Dokument ohne Datei meldet: Speichern Sie das Dokument zuerst. Kein Treffer: Keine zugehörige Datei für den Namen.
 
+## [search.bookmarks] Lesezeichen
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+1. Strg+F2 setzt oder entfernt ein Lesezeichen in der Zeile des Cursors; links neben den Zeilennummern erscheint ein Punkt.
+2. F2 springt zum nächsten Lesezeichen, Umschalt+F2 zum vorherigen; nach dem letzten geht es beim ersten weiter.
+- Suchen, Lesezeichen löschen entfernt alle Lesezeichen des Dokuments.
+- Ein Lesezeichen wandert mit dem Text, wenn darüber Zeilen hinzukommen oder wegfallen, und wird in der Sitzung gespeichert: Nach einem Neustart ist es wieder da.
+
 ## [view.wordwrap] Zeilenumbruch
 commands: nks.view.toggleWordWrap
 1. Drücken Sie Alt+Z oder wählen Sie Ansicht und dann Zeilenumbruch umschalten.
