@@ -221,7 +221,7 @@ internal sealed partial class MainWindow
         var editor = hex.Editor;
         var doc = tab.Doc.Doc;
         string position = hex.OffsetText(editor.Caret) + $" ({editor.Caret.ToString(CultureInfo.InvariantCulture)})";
-        if (editor.HasSelection) position += " · " + Loc.Get(K.HexStatusSelection, ("count", editor.Selection.Length));
+        if (editor.HasSelection) position += " · " + Loc.Get(K.HexStatusSelection, ("bytes", editor.Selection.Length));
         else if (editor.Caret < doc.ByteLength)
         {
             var info = hex.Describe(editor.Caret);
@@ -232,7 +232,7 @@ internal sealed partial class MainWindow
 
         _hexModeItem.Content = Loc.Get(hex.Insert ? K.HexModeInsert : K.HexModeOverwrite);
         _hexCharsetItem.Content = hex.Charset.Name;
-        _hexRowItem.Content = Loc.Get(K.HexPerRow, ("count", hex.BytesPerRow));
+        _hexRowItem.Content = Loc.Get(K.HexPerRow, ("n", hex.BytesPerRow));
         _hexSize.Text = OpenDocument.FormatSize(doc.ByteLength);
         ToolTip.SetTip(_hexModeItem, Loc.Get(K.HexModeTip));
         ToolTip.SetTip(_hexCharsetItem, Loc.Get(K.HexCharsetTip));
@@ -274,7 +274,7 @@ internal sealed partial class MainWindow
         foreach (int size in HexView.Sizes)
         {
             int chosen = size;
-            var item = new MenuItem { Header = Loc.Get(K.HexPerRow, ("count", size)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.BytesPerRow == size, GroupName = "hexrow" };
+            var item = new MenuItem { Header = Loc.Get(K.HexPerRow, ("n", size)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.BytesPerRow == size, GroupName = "hexrow" };
             item.Click += (_, _) => hex.SetBytesPerRow(chosen);
             flyout.Items.Add(item);
         }
@@ -282,7 +282,7 @@ internal sealed partial class MainWindow
         foreach (int group in new[] { 1, 2, 4, 8 })
         {
             int chosen = group;
-            var item = new MenuItem { Header = Loc.Get(K.HexGroup, ("count", group)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.Group == group, GroupName = "hexgroup", IsEnabled = hex.BytesPerRow % group == 0 };
+            var item = new MenuItem { Header = Loc.Get(K.HexGroup, ("n", group)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.Group == group, GroupName = "hexgroup", IsEnabled = hex.BytesPerRow % group == 0 };
             item.Click += (_, _) => hex.SetGroup(chosen);
             flyout.Items.Add(item);
         }
@@ -416,8 +416,8 @@ internal sealed partial class MainWindow
             int index = 0;
             for (int i = 0; i < total.Matches.Count; i++) if (total.Matches[i].Start == found.Value.Start) { index = i + 1; break; }
             SetStatusMessage(total.LimitReached
-                ? Loc.Get(K.HexFindLimit, ("count", total.Matches.Count))
-                : Loc.Get(K.HexFindCount, ("index", index), ("count", total.Matches.Count)));
+                ? Loc.Get(K.HexFindLimit, ("n", total.Matches.Count))
+                : Loc.Get(K.HexFindCount, ("index", index), ("total", total.Matches.Count)));
         }
         catch (OperationCanceledException) { }
         catch (IOException)
@@ -480,7 +480,7 @@ internal sealed partial class MainWindow
             {
                 od.NotifyChanged();
                 tab.ShowBar(null);
-                SetStatusMessage(path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("count", plan.ChangedBytes)) : Loc.Get(K.StatusSaved));
+                SetStatusMessage(path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("bytes", plan.ChangedBytes)) : Loc.Get(K.StatusSaved));
                 _app.SessionChanged();
                 return true;
             }

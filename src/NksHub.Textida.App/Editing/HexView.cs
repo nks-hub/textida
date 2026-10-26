@@ -316,7 +316,7 @@ internal sealed partial class HexView : Grid
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
             long count = Editor.HasSelection ? Editor.Selection.Length : 1;
-            int answer = Choose is null ? -1 : await Choose(Loc.Get(K.HexDeleteTitle), Loc.Get(K.HexDeleteMessage, ("count", count)),
+            int answer = Choose is null ? -1 : await Choose(Loc.Get(K.HexDeleteTitle), Loc.Get(K.HexDeleteMessage, ("bytes", count)),
                 [Loc.Get(K.HexDeleteZero), Loc.Get(K.HexDeleteRemove), Loc.Get(K.DialogCancel)]);
             if (answer is not (0 or 1)) return;
             result = backspace ? Editor.Backspace(answer == 0 ? DeleteMode.Zero : DeleteMode.Remove) : Editor.Delete(answer == 0 ? DeleteMode.Zero : DeleteMode.Remove);
@@ -380,7 +380,7 @@ internal sealed partial class HexView : Grid
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
             long rest = Doc.ByteLength - (Editor.HasSelection ? Editor.Selection.Start : Editor.Caret);
-            int answer = Choose is null ? -1 : await Choose(Loc.Get(K.HexPasteLongerTitle), Loc.Get(K.HexPasteLongerMessage, ("count", bytes.Length), ("rest", rest)),
+            int answer = Choose is null ? -1 : await Choose(Loc.Get(K.HexPasteLongerTitle), Loc.Get(K.HexPasteLongerMessage, ("bytes", bytes.Length), ("rest", rest)),
                 [Loc.Get(K.HexPasteExtend), Loc.Get(K.HexPasteTruncate), Loc.Get(K.DialogCancel)]);
             if (answer is not (0 or 1)) return;
             result = Editor.Paste(bytes, answer == 0 ? PasteLonger.Extend : PasteLonger.Truncate);
