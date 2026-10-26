@@ -290,6 +290,7 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
     - projekt aplikace a testovací projekt v `NksPad.sln`
     - umístění profilu: portable vedle aplikace nebo v profilu uživatele, vlastní formát
     - obnova polohy okna s kontrolou monitoru
+  - **Stav 26. 10. 2026:** projekt `NksPad.App` hotový (commity 6829658, ecf1cf1): start do prázdné plochy, profil portable i uživatelský, umístění okna jako čistá funkce s 12 testy včetně odpojeného monitoru. Neověřeno odpojení skutečného monitoru.
   - **Hotovo, když:** aplikace startuje na Windows i macOS do prázdné pracovní plochy; po odpojení monitoru se okno otevře na dostupném; nic v projektu nečte soubory PSPadu a produktová sada projde bez dat reverzní analýzy.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu
@@ -301,24 +302,28 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
     - seznam závislostí s ověřenou AOT cestou (Avalonia, AvaloniaEdit, JSON) a evidence výjimek knihoven
     - testy knihoven pod JIT odděleně od scénářů nad publikovaným programem
     - ReadyToRun vést jako technickou zálohu k ověření, ne jako automaticky přijatelnou náhradu: na referenční Windows VM mělo plné okno v session 0 warm p95 1,19 s proti limitu 0,5 s a cold p95 1,67 s proti 1,5 s; záznam rozliší funkční zálohu a zálohu, která splní výkon
+  - **Stav 26. 10. 2026:** AOT publikace win-x64 a osx-arm64 bez varování, analyzátory jako chyby (úmyslné porušení spadne na IL2026/IL3050), seznam závislostí v interním záznamu; `--smoke` na Windows skončí 0 za ~0,8 s, na macOS (minos 14.0) projde smoke i e2e. Chybí měření warm p95, ReadyToRun, UIA/AX a proces pluginu.
   - **Hotovo, když:** scénáře nad publikovaným AOT programem dají na Windows i macOS stejný výsledek jako JIT u I/O, textových prostředků, serializace, UIA/AX a spuštění pluginového procesu; každé varování trimování a AOT má opravu, nebo zdůvodněnou výjimku s testem; start s prázdnou relací má v přihlášené relaci warm p95 ≤ 500 ms (PR.2.2). Přechod z AOT na ReadyToRun je možný jen po zopakování všech výkonových a kompatibilitních bran nad buildem ReadyToRun.
   - **Závisí na:** P1.1.1
   - **Odhad:** bez odhadu
 - [ ] **P1.1.3** Vzhled D5 na Windows a macOS
   - **Co a proč:** D5 je jediný produkční vzhled. Na Windows menu v titulkovém pruhu a karty pod ním, Mica, systémový akcent. Na macOS skutečný AppKit: karty v titulku vedle semaforu, menu v systémové liště, zkratky ⌘. Témata světlé a tmavé; barvy PSPadu se nenačítají (import až po 1.0). Na Windows 10 není Mica, pozadí je jednobarevné podle tématu (R10).
   - **Funkce:** F105, F008, F068
+  - **Stav 26. 10. 2026:** D5 shell na Windows se světlým i tmavým tématem a Mica na Windows 11; review proti D5 (1. kolo) našlo odchylky: menu jen 4 položky, chybí čísla řádků, minimapa, tečka neuložené karty a stavový řádek podle D5. macOS vzhled bez snímku, DPI, Windows 10 22H2 a macOS 14 neověřeno.
   - **Hotovo, když:** hlavní okno na obou OS odpovídá měření kap. D5: nahoře jen menu a karty, žádný pruh tlačítek; na každém OS se navíc funkčně ověří menu, titulková oblast, fokus, přepnutí světlého a tmavého tématu za běhu, změna DPI a dostupnost skrytých panelů z klávesnice; na Windows 10 22H2 má okno jednobarevné pozadí podle tématu.
   - **Závisí na:** P1.1.1
   - **Odhad:** bez odhadu
-- [ ] **P1.1.4** Jedna instance a příkazová řádka
+- [x] **P1.1.4** Jedna instance a příkazová řádka
   - **Co a proč:** Druhé spuštění předá cesty běžící instanci přes vlastní IPC; výslovně jde otevřít nové okno. Příkazová řádka otevře cestu a pozici. `--wait` skončí až po zavření karty, pro Git a `crontab -e`.
   - **Funkce:** F114, F003
+  - **Stav 26. 10. 2026:** jedna instance přes pojmenovanou rouru a unix socket, `--line`, `--wait`, neznámý přepínač skončí 2 se zprávou; ověřeno na publikovaném exe na Windows i macOS. Zavření jedné karty při `--wait` jen v unit testech.
   - **Hotovo, když:** spuštění s cestou a řádkem otevře kartu v běžícím okně na tom řádku; s `--wait` vrátí řízení až po zavření karty; neznámý přepínač se ohlásí.
   - **Závisí na:** P1.1.1
   - **Odhad:** F003 `--wait` 0,5 ČT; jinak bez odhadu
 - [ ] **P1.1.5** Texty rozhraní v prostředcích
   - **Co a proč:** Všechny texty UI jsou v textových prostředcích, ne v kódu, aby šly v P9 přeložit. P1 staví infrastrukturu: klíče, zástupné parametry, množná čísla a fallback. Rozsah jazyků MVP a dalších textů určí P1.1.7; úplnost překladů cs, en, sk a de pro 1.0 ověří P9.2.2. Prostředky v kódu samy nedokazují překlad, změnu jazyka ani přístupné názvy.
   - **Funkce:** F104
+  - **Stav 26. 10. 2026:** klíče, zástupné parametry, množná čísla a fallback; `cs` a `en`; test najde chybějící klíč i text UI zapsaný v kódu (Roslyn). Jazyky MVP čekají na P1.1.7; klíče palety zatím nejsou.
   - **Hotovo, když:** existuje inventář klíčů textů (menu, paleta, stavový řádek, skryté panely, dialogy, chybová hlášení, přístupné názvy); test najde chybějící klíč v kterémkoli jazyce, který P1.1.7 určí pro MVP, a nenajde text UI zapsaný přímo v kódu; klíč se zástupným parametrem a s množným číslem má test pro každý takový jazyk; přepnutí jazyka a návrat na výchozí jazyk nenechá prázdný popisek a nezmění bajty dokumentu ani strojové formáty nastavení.
   - **Závisí na:** P1.1.1, P1.1.7
   - **Odhad:** bez odhadu
@@ -502,6 +507,7 @@ Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru
 - [ ] **P1.4.1** Textová plocha pro běžné soubory
   - **Co a proč:** AvaloniaEdit za úzkým rozhraním z P1.2.1. Psaní, myš, výběry, posun, schránka a mazání bez nechtěné změny formátu, drop souborů a přesun výběru tažením.
   - **Funkce:** F042, F020, F044, F139
+  - **Nález review D5 (1. kolo):** plocha je zatím `TextBox`: chybí čísla řádků a v tmavém tématu text působí tučně. Nahradit AvaloniaEdit nad kontraktem dokumentu a znovu porovnat s `D5-klidny/01-hlavni-okno.png` a `07-tmave.png`.
   - **Hotovo, když:** psaní v souboru 1 MiB bez zvýraznění má p95 ≤ 33 ms (headless i na displeji, PR.2.3); přetažený soubor se otevře v nové kartě; kopie a vložení zachová konce řádků podle cíle.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
@@ -539,12 +545,14 @@ Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru
 - [ ] **P1.4.5** Karty, skupiny a rozdělení okna
   - **Co a proč:** Karty a skupiny karet místo MDI; kontextové menu karty jen s dostupnými akcemi. Rozdělení okna na pohledy jednoho dokumentu. Skupiny a rozdělení nahrazují Cascade a Tile.
   - **Funkce:** F004, F005, F131, F132
+  - **Nález review D5 (1. kolo):** karta neukazuje tečku neuložené změny ani štítek velikosti u velkého souboru.
   - **Hotovo, když:** dva pohledy jednoho dokumentu ukazují stejnou revizi a sdílí undo; kartu jde přetáhnout do jiné skupiny; karty mají roli a fokus z klávesnice.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
 - [ ] **P1.4.6** Stavový řádek
   - **Co a proč:** Vlevo pozice a výběr, vpravo klikací `Mezery: 4 · UTF-8 · CRLF · jazyk` (D5). Nedokončený index řádků se označí.
   - **Funkce:** F017
+  - **Nález review D5 (1. kolo):** stavový řádek má ukazovat vlevo „Ř 21, Sl 16 · Připraveno“ a vpravo „Mezery: 4 · UTF-8 · CRLF · HTML“; dnes je kódování vlevo, chybí konec řádku, odsazení a jazyk a vpravo je „3 otevřené karty“, které D5 nemá.
   - **Hotovo, když:** klik na kódování, EOL a jazyk otevře volbu; u neúplného indexu je číslo řádku označené „≈“.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu
@@ -592,6 +600,7 @@ Registr příkazů je společný základ palety, kláves, maker a pluginů. Hran
   - **Co a proč:** Příkazy mají ID s prefixem `nks.`, kontexty `when` (jazyk, výběr, velký režim, platforma) a registrují se z manifestu stejného tvaru, jaký později použijí pluginy. Bez veřejného API. Stará jména akcí PSPadu jen jako aliasy (až s importem).
   - **Funkce:** F098, F195
   - **Stav 26. 10. 2026:** registr hotový v knihovně Workbench: všech 37 vestavěných příkazů, menu, kláves a nastavení se načte z vloženého manifestu `builtin.contributions.json` a test ověří čistý průchod; `when` má test pro každý kontextový klíč; konflikty ID, aliasů, dvojích obsluh a ID pluginu s prefixem `nks.` se odhalí; schémata kontroluje test. Zbývá napojit paletu, menu a klávesy aplikace jen na registr (P1.1.1).
+  - **Nález review D5 (1. kolo):** menu aplikace má jen Soubor, Úpravy, Zobrazit, Nápověda; D5 má Soubor, Projekty, Úpravy, Hledat, Zobrazit, Formát, Nástroje, HTML, Nastavení, Okno, Nápověda. Menu se má sestavit z registru a manifestu.
   - **Hotovo, když:** všechny vestavěné příkazy se načtou z manifestu; paleta, menu a klávesy čtou jen registr; test ověří vyhodnocení `when` pro každý kontext.
   - **Závisí na:** P1.1.1
   - **Odhad:** F195 1–2 ČT (matice); F098 bez odhadu
