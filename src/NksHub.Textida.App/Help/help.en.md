@@ -250,6 +250,7 @@ commands: nks.search.regexTester
 2. Type the pattern, optionally a replacement, and a sample text.
 3. The window shows the matches with their groups, the text after the replacement, and an explanation of the pattern part by part.
 - It uses the same engine as the search (.NET regular expressions). The explanation marks syntax of other dialects as not supported.
+- A pattern with a backreference, lookaround or an atomic group runs in a slower classic engine and is stopped after the limit in the setting Regular expression timeout (2000 ms by default); other patterns run in linear time without a limit.
 - If a pattern runs too long, it is stopped and the window says so. Only a limited number of matches is listed.
 - F1 in this window opens this topic.
 
@@ -413,6 +414,71 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 - The PSPad profile changes: Home and End jump between the first character and the edge of the line, Backspace in indentation deletes back to the tab stop, Alt+drag makes a block selection, paired characters are completed the PSPad way, and a few shortcuts (Delete Line Ctrl+Y, Undo Alt+Backspace, Word wrap Ctrl+W, F8 mark, Ctrl+Shift+C block selection, indentation Ctrl+Shift+I and U).
 - Your own shortcuts in the settings take precedence over the profile.
 
+## [view.output] Output window
+commands: nks.view.toggleOutput
+The output window is a strip below the editor that tasks and searches write to. It is hidden by default.
+1. Press Ctrl+Shift+Y, or choose View and then Output.
+2. The tabs Tasks and Search switch the channel. The summary of a search in files is also written to the Search channel.
+3. The Clear button empties the channel, Close (or Esc) hides the window.
+- The text can be selected and copied. An empty channel says Nothing has been written to this output yet.
+- The output is read from files in the profile, so it stays visible after the program that wrote it crashed.
+
+## [view.fullscreen] Full screen
+commands: nks.view.fullScreen
+1. Press F11, or choose View and then Full Screen.
+2. The window frame disappears; the menu, tabs, editor and status bar stay. Typing still goes to the editor.
+3. Another F11 restores the previous state, a maximized window too.
+- On macOS the system uses F11; use the View menu.
+
+## [hex.open] Hex: opening and moving
+commands: nks.view.hex, nks.file.openAsHex
+Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It reads only the rows on the screen, so the file size does not matter.
+1. Ctrl+K then Ctrl+H switches the active document between text and hex (View menu, Toggle Hex and Text). It is the same document with the same Undo history; the selection is converted through bytes.
+2. File and then Open in Hex opens the chosen file straight in hex. From the command line the switch --hex does it, optionally with --offset.
+3. A file that looks binary (a NUL byte in the first 8,000 bytes) gets a bar above the document: Open in hex, or Keep as text.
+- Arrows, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End (whole file). Shift extends the selection. Tab switches between the byte column and the character column.
+- Cut, Copy and Paste work with bytes; between two hex views they transfer exactly.
+
+## [hex.find] Hex: finding and go to offset
+- Ctrl+F opens the Find bytes window. Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, or a number with a type (0x1F40 i32).
+- F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit. There is no replacing of bytes.
+- Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
+- Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
+
+## [hex.edit] Hex: editing
+commands: nks.hex.toggleInsert
+1. The Insert key (⌥⌘I on macOS) switches between OVERWRITE and INSERT; the state is shown in the status bar.
+2. In overwrite mode bytes are replaced and the file length does not change. At the end of the file the program says that overwriting does not change the length and to turn on insert mode.
+3. Delete and Backspace in overwrite mode ask: Zero out (the length stays) or Delete (the file gets shorter).
+4. If you paste more bytes than remain to the end of the file, the program asks: Extend the file, or Paste only what fits.
+- A character in the character column that the encoding cannot write is refused: The character cannot be written in the encoding.
+- Undo and Redo work. Changed bytes are shaded and underlined.
+- While the file is being saved, edits wait until the save ends.
+
+## [hex.inspector] Hex: data inspector
+commands: nks.hex.inspector
+1. Ctrl+K then Ctrl+I opens or closes the Data Inspector panel on the right (in hex only).
+2. It shows the value from the caret as various types: numbers, date, GUID, character. The LE and BE switch chooses the byte order.
+3. You overwrite a value in its row: Enter writes it, Esc cancels.
+- A value at the end of the file that lacks bytes is incomplete and cannot be overwritten. An invalid entry and a value outside the range of the type are reported (for example Out of range for the type, Invalid GUID, Date and time as YYYY-MM-DD HH:MM:SS).
+- A value that takes a different number of bytes than it replaces needs insert mode.
+
+## [hex.layout] Hex: grid layout
+commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
+The commands are available in hex, in the View menu, in the status bar and in the palette.
+- Character column encoding: the encoding in which bytes are shown as characters.
+- Layout: bytes per row (8, 16, 24, 32, 48, 64), grouping of bytes and the offset format. Each size also has its own command.
+- Toggle offsets between decimal and hexadecimal.
+- The next hex view remembers the choices.
+
+## [hex.save] Hex: saving and changes before saving
+commands: nks.hex.inspectChanges
+1. Ctrl+S saves the hex. Saving runs in the background and the window stays usable; Esc cancels the save before the data is written (Saving cancelled, the file was left unchanged).
+2. File and then Changes Before Saving shows what the save will write: the changed ranges with old and new bytes and the way of writing.
+- If only byte values change, the save is done in place (Saved in place, N B changed) and the original bytes are first written to the journal so a save interrupted by a crash can be finished or rolled back.
+- If the length changes, a new file is written and swapped in atomically.
+- Before a smaller file is overwritten a backup is made; if it fails, the file stays unchanged.
+
 ## [recovery] Crash recovery
 The program continuously writes unsaved text to a journal, within two seconds of a change at the latest. An unsaved document is not lost even if the program crashes or the computer is switched off.
 1. Start the program again.
@@ -425,7 +491,7 @@ The program continuously writes unsaved text to a journal, within two seconds of
 - An interrupted batch of replacements in files is offered after the start: Finish or Roll back.
 
 ## [paged] Large files (paged mode)
-A file larger than the large file threshold (setting Large file threshold, 6 MiB by default) opens in paged mode. The program reads only the lines on the screen, so the file opens quickly and does not fill the memory.
+A file larger than the large file threshold (setting Large file threshold, 6 MiB by default) opens in paged mode. To browse and edit a file byte by byte without these limits, open it in hex (topic Hex: opening and moving). The program reads only the lines on the screen, so the file opens quickly and does not fill the memory.
 The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
@@ -459,6 +525,7 @@ At the bottom you see the line and column of the caret (the number of characters
 - Clicking the encoding opens the choice of encoding (topic Encoding).
 - Clicking the line endings unifies them (topic Line endings).
 - Clicking the language opens the choice of language (topic Language mode).
+- Highlighting is still being computed: in a long file the highlighting catches up, the text is usable. The line is too long to highlight: such a line stays without colours.
 - For a file covered by .editorconfig the item .editorconfig is shown; clicking it opens the file.
 
 ## [errors.file] Error messages: files
@@ -486,7 +553,7 @@ When an operation on a file fails, a bar above the document says The operation f
 
 ## [errors.search] Error messages: searching
 - Invalid pattern: reason. Fix the regular expression or turn off .*; the Try button shows how the pattern is read.
-- The pattern is too slow; the search stopped it: simplify the pattern, especially nested repetitions.
+- The pattern is too slow; the search stopped it: simplify the pattern, especially nested repetitions, or raise the setting Regular expression timeout.
 - Select the text to search in first: the Selection toggle is on without a selection; select text or turn the toggle off.
 - Folder not found: fix the path in the Folder box.
 - No results: there is no match; check the toggles Aa, .* and ab.
@@ -499,7 +566,7 @@ When an operation on a file fails, a bar above the document says The operation f
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it yet:
 - Program update: the program does not update itself and does not check for new versions. You install a new version yourself.
-- Hexadecimal view and editing: not in this version. A file that is not text is opened as text.
+- The hex editor has no minimap, does not collect all matches into a tab and does not replace bytes; go to offset shows no preview of the target; a setting that would always open files in hex is missing.
 - A comparison window of its own: an external diff tool is used (topic Compare with disk).
 - Editing very large files: only limited, see the topic Large files.
 - Plugins, remote files and other functions planned for version 1.0: not in this version.

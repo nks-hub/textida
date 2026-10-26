@@ -250,6 +250,7 @@ commands: nks.search.regexTester
 2. Napíšte výraz, prípadne náhradu a vzorový text.
 3. Okno ukáže zhody so skupinami, text po náhrade a po častiach vysvetlenie výrazu.
 - Používa sa rovnaký stroj ako pri hľadaní (regulárne výrazy .NET). Syntax iných dialektov vysvetlenie označí ako nepodporovanú.
+- Výraz so spätným odkazom, lookaroundom alebo atómovou skupinou beží v pomalšom klasickom engine a po limite z nastavenia Časový limit regulárneho výrazu (predvolene 2000 ms) sa zastaví; ostatné výrazy bežia v lineárnom čase bez limitu.
 - Ak výraz beží príliš dlho, zastaví sa a okno to napíše. Vypíše sa najviac obmedzený počet zhôd.
 - F1 v tomto okne otvorí túto tému.
 
@@ -413,6 +414,71 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 - Profil PSPad mení: Home a End preskakujú medzi prvým znakom a krajom riadka, Backspace v odsadení maže po tabulačnú zarážku, Alt+ťahanie robí blokový výber, párové znaky sa dopĺňajú podľa PSPadu a niekoľko skratiek (Odstrániť riadok Ctrl+Y, Späť Alt+Backspace, Zalamovanie Ctrl+W, F8 značka, Ctrl+Shift+C blokový výber, Odsadenie Ctrl+Shift+I a U).
 - Vlastné skratky v nastaveniach majú prednosť pred profilom.
 
+## [view.output] Okno výstupu
+commands: nks.view.toggleOutput
+Okno výstupu je pruh pod editorom, do ktorého zapisujú úlohy a hľadania. Predvolene je skryté.
+1. Stlačte Ctrl+Shift+Y, alebo zvoľte Zobraziť a Výstup.
+2. Záložky Úlohy a Hľadanie prepínajú kanál. Súhrn hľadania v súboroch sa zapíše aj do kanála Hľadanie.
+3. Tlačidlo Vymazať kanál vyprázdni, Zavrieť (alebo Esc) okno schová.
+- Text sa dá vybrať a skopírovať. Prázdny kanál napíše Do tohto výstupu sa zatiaľ nič nezapísalo.
+- Výstup sa číta zo súborov v profile, takže po páde programu, ktorý ho písal, zostane viditeľný.
+
+## [view.fullscreen] Celá obrazovka
+commands: nks.view.fullScreen
+1. Stlačte F11, alebo zvoľte Zobraziť a Celá obrazovka.
+2. Zmizne rám okna; zostane ponuka, karty, editor a stavový riadok. Písanie ide ďalej do editora.
+3. Ďalšie F11 vráti predchádzajúci stav, aj maximalizované okno.
+- Na macOS používa F11 systém; použite ponuku Zobraziť.
+
+## [hex.open] Hex: otvorenie a pohyb
+commands: nks.view.hex, nks.file.openAsHex
+Hex zobrazuje súbor po bajtoch: offset, bajty šestnástkovo a znaky. Číta len riadky na obrazovke, takže veľkosť súboru nevadí.
+1. Ctrl+K a potom Ctrl+H prepne aktívny dokument medzi textom a hexom (ponuka Zobraziť, Prepnúť hex a text). Je to ten istý dokument s rovnakou históriou Späť; výber sa prevedie cez bajty.
+2. Súbor a Otvoriť v hex otvorí vybraný súbor rovno v hexe. Z príkazového riadka to robí prepínač --hex, prípadne s --offset.
+3. Súbor, ktorý vyzerá binárne (nulový bajt v prvých 8 000 bajtoch), ponúkne lišta nad dokumentom: Otvoriť v hex, alebo Nechať ako text.
+- Šípky, PageUp a PageDown, Home a End (na riadku), Ctrl+Home a Ctrl+End (celý súbor). Shift rozširuje výber. Tab prepína medzi stĺpcom bajtov a znakov.
+- Vystrihnúť, Kopírovať a Vložiť pracujú s bajtmi; medzi dvoma hexmi sa prenesú presne.
+
+## [hex.find] Hex: hľadanie a skok na offset
+- Ctrl+F otvorí okno Hľadať bajty. Zadajte bajty šestnástkovo (50 4B ?? 04, ?? je ľubovoľný bajt), text v úvodzovkách, alebo číslo s typom (0x1F40 i32).
+- F3 a Shift+F3 nájdu ďalšiu a predchádzajúcu zhodu. Stavový riadok napíše Zhoda 1 z 4, alebo Aspoň N zhôd, keď hľadanie došlo na limit. Nahrádzanie bajtov nie je.
+- Ctrl+G otvorí Prejsť na offset. Zápis: 0x1F40, +0x100 (od kurzora), end-512, 50%, 4K, sel (začiatok výberu), val (štvorbajtová hodnota pod kurzorom).
+- Nenájdené: zhoda nie je. Neplatný vzor alebo Neplatný výraz: opravte zápis. Offset leží mimo súboru: zadajte menšiu hodnotu. Súbor sa medzitým zmenil na disku, výsledok hľadania sa zahodil: hľadanie zopakujte.
+
+## [hex.edit] Hex: úpravy
+commands: nks.hex.toggleInsert
+1. Kláves Insert (na macOS ⌥⌘I) prepína medzi PREPIS a VKLADANIE; stav je vidieť v stavovom riadku.
+2. V prepise sa bajty prepisujú a dĺžka súboru sa nemení. Na konci súboru program napíše, že prepis nemení dĺžku súboru, a nech zapnete vkladanie.
+3. Delete a Backspace v prepise sa opýtajú: Vynulovať (dĺžka zostane), alebo Zmazať (súbor sa skráti).
+4. Ak vložíte viac bajtov, než zostáva do konca súboru, program sa opýta: Predĺžiť súbor, alebo Vložiť len to, čo sa zmestí.
+- Znak v stĺpci znakov, ktorý kódovanie nezapíše, program odmietne: Znak nejde zapísať v kódovaní.
+- Späť a Znova fungujú. Zmenené bajty sú podfarbené a podčiarknuté.
+- Keď sa súbor práve ukladá, úpravy počkajú na koniec ukladania.
+
+## [hex.inspector] Hex: inšpektor dát
+commands: nks.hex.inspector
+1. Ctrl+K a potom Ctrl+I otvorí alebo zavrie panel Inšpektor dát vpravo (len v hexe).
+2. Ukáže hodnotu od kurzora ako rôzne typy: čísla, dátum, GUID, znak. Prepínač LE a BE volí poradie bajtov.
+3. Hodnotu prepíšete v riadku: Enter ju zapíše, Esc zruší.
+- Hodnota na konci súboru, ktorej chýbajú bajty, je neúplná a nedá sa prepísať. Neplatný zápis a hodnota mimo rozsahu typu sa ohlásia (napríklad Mimo rozsahu typu, Neplatný GUID, Dátum a čas v tvare RRRR-MM-DD HH:MM:SS).
+- Hodnota, ktorá zaberie iný počet bajtov, než koľko prepisuje, vyžaduje režim vkladania.
+
+## [hex.layout] Hex: vzhľad mriežky
+commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
+Príkazy sú dostupné v hexe, v ponuke Zobraziť, v stavovom riadku a v palete.
+- Kódovanie stĺpca znakov: výber kódovania, ktorým sa bajty ukazujú ako znaky.
+- Rozloženie: bajtov na riadok (8, 16, 24, 32, 48, 64), zoskupenie po bajtoch a formát offsetov. Každá veľkosť má aj vlastný príkaz.
+- Prepnúť offsety desiatkovo a hexadecimálne.
+- Voľby si ďalšie hex zobrazenie pamätá.
+
+## [hex.save] Hex: uloženie a zmeny pred uložením
+commands: nks.hex.inspectChanges
+1. Ctrl+S uloží hex. Ukladá sa na pozadí a okno ostáva použiteľné; Esc uloženie zruší skôr, než sa zapíšu dáta (Ukladanie zrušené, súbor zostal bez zmeny).
+2. Súbor a Zmeny pred uložením ukáže, čo uloženie zapíše: zmenené úseky so starými a novými bajtmi a spôsob zápisu.
+- Ak sa menia len hodnoty bajtov, uloží sa na mieste (Uložené na mieste, zmenených N B) a pôvodné bajty sa najprv zapíšu do žurnálu, aby sa uloženie po páde dalo dokončiť alebo vrátiť.
+- Ak sa mení dĺžka, uloží sa nový súbor, ktorý sa atomicky vymení.
+- Pred prepísaním menšieho súboru vznikne záloha; ak sa nepodarí, súbor zostane bez zmeny.
+
 ## [recovery] Obnova po páde
 Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch sekúnd od zmeny. Neuložený dokument sa tak nestratí, ani keď program spadne alebo vypnete počítač.
 1. Spustite program znova.
@@ -425,7 +491,7 @@ Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch s
 - Prerušená dávka nahradení v súboroch sa po štarte ponúkne: Dokončiť, alebo Vrátiť späť.
 
 ## [paged] Veľké súbory (stránkovaný režim)
-Súbor väčší ako hranica veľkého súboru (nastavenie Hranica veľkého súboru, predvolene 6 MiB) sa otvorí v stránkovanom režime. Program číta len riadky na obrazovke, takže súbor sa otvorí rýchlo a nezaberie pamäť.
+Súbor väčší ako hranica veľkého súboru (nastavenie Hranica veľkého súboru, predvolene 6 MiB) sa otvorí v stránkovanom režime. Ak chcete súbor prechádzať a upravovať po bajtoch bez týchto obmedzení, otvorte ho v hexe (téma Hex: otvorenie a pohyb). Program číta len riadky na obrazovke, takže súbor sa otvorí rýchlo a nezaberie pamäť.
 Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 ### Čo ide
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
@@ -459,6 +525,7 @@ Dole je vidieť riadok a stĺpec kurzora (pri výbere počet znakov, pri viacer�
 - Kliknutie na kódovanie otvorí výber kódovania (téma Kódovanie).
 - Kliknutie na konce riadkov ich zjednotí (téma Konce riadkov).
 - Kliknutie na jazyk otvorí výber jazyka (téma Režim jazyka).
+- Zvýraznenie sa dopočítava: pri dlhom súbore zvýraznenie dobieha, text je použiteľný. Riadok je príliš dlhý na zvýraznenie: takýto riadok zostane bez farieb.
 - Pri súbore, na ktorý sa vzťahuje .editorconfig, je vidieť položka .editorconfig; kliknutím sa súbor otvorí.
 
 ## [errors.file] Chybové hlásenia: súbory
@@ -486,7 +553,7 @@ Pri nepodarenej operácii so súborom je nad dokumentom lišta Operácia zlyhala
 
 ## [errors.search] Chybové hlásenia: hľadanie
 - Neplatný výraz: dôvod. Opravte regulárny výraz alebo vypnite .*; tlačidlo Skúsiť ukáže, ako sa výraz číta.
-- Výraz je príliš pomalý a hľadanie ho zastavilo: zjednodušte výraz, najmä vnorené opakovania.
+- Výraz je príliš pomalý a hľadanie ho zastavilo: zjednodušte výraz, najmä vnorené opakovania, alebo zvýšte nastavenie Časový limit regulárneho výrazu.
 - Najprv vyberte text, v ktorom sa má hľadať: prepínač Výber je zapnutý bez výberu; vyberte text, alebo prepínač vypnite.
 - Priečinok neexistuje: opravte cestu v poli Priečinok.
 - Nič sa nenašlo: zhoda nie je; skontrolujte prepínače Aa, .* a ab.
@@ -499,7 +566,7 @@ Pri nepodarenej operácii so súborom je nad dokumentom lišta Operácia zlyhala
 ## [limits] Čo táto verzia nevie
 Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej zatiaľ nie sú:
 - Aktualizácia programu: program sa sám neaktualizuje a nekontroluje nové verzie. Novú verziu nainštalujete sami.
-- Hexadecimálne zobrazenie a úpravy: v tejto verzii nie sú. Súbor, ktorý nie je text, program otvorí ako text.
+- Hex editor nemá minimapu, nehľadá všetky zhody do karty a bajty nenahrádza; skok na offset neukazuje náhľad cieľa; nastavenie, ktoré by súbory vždy otváralo v hexe, chýba.
 - Porovnanie súborov vlastným oknom: používa sa externý porovnávač (téma Porovnať s diskom).
 - Úpravy veľmi veľkých súborov: len obmedzené, pozri tému Veľké súbory.
 - Rozšírenia (pluginy), vzdialené súbory a ďalšie funkcie z plánu verzie 1.0: v tejto verzii nie sú.

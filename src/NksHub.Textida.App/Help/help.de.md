@@ -250,6 +250,7 @@ commands: nks.search.regexTester
 2. Tippen Sie den Ausdruck, optional einen Ersatz und einen Beispieltext.
 3. Das Fenster zeigt die Treffer mit ihren Gruppen, den Text nach dem Ersetzen und eine Erklärung des Ausdrucks Teil für Teil.
 - Es nutzt dieselbe Engine wie die Suche (.NET-Regex). Die Erklärung kennzeichnet Syntax anderer Dialekte als nicht unterstützt.
+- Ein Ausdruck mit Rückverweis, Lookaround oder atomarer Gruppe läuft in einer langsameren klassischen Engine und wird nach dem Limit der Einstellung Zeitlimit für reguläre Ausdrücke (standardmäßig 2000 ms) abgebrochen; andere Ausdrücke laufen in linearer Zeit ohne Limit.
 - Läuft ein Ausdruck zu lange, wird er abgebrochen, und das Fenster sagt es. Es wird nur eine begrenzte Zahl von Treffern aufgelistet.
 - F1 in diesem Fenster öffnet dieses Thema.
 
@@ -413,6 +414,71 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 - Das Profil PSPad ändert: Pos1 und Ende springen zwischen dem ersten Zeichen und dem Zeilenrand, die Rücktaste im Einzug löscht bis zum Tabstopp, Alt+Ziehen macht eine Blockauswahl, Zeichenpaare werden wie in PSPad ergänzt, und einige Kürzel (Zeile löschen Strg+Y, Rückgängig Alt+Rücktaste, Zeilenumbruch Strg+W, F8 Marke, Strg+Umschalt+C Blockauswahl, Einzug Strg+Umschalt+I und U).
 - Eigene Kürzel in den Einstellungen haben Vorrang vor dem Profil.
 
+## [view.output] Ausgabefenster
+commands: nks.view.toggleOutput
+Das Ausgabefenster ist ein Streifen unter dem Editor, in den Aufgaben und Suchen schreiben. Standardmäßig ist es ausgeblendet.
+1. Drücken Sie Strg+Umschalt+Y oder wählen Sie Ansicht und dann Ausgabe.
+2. Die Tabs Aufgaben und Suche wechseln den Kanal. Die Zusammenfassung einer Suche in Dateien wird auch in den Kanal Suche geschrieben.
+3. Die Schaltfläche Leeren leert den Kanal, Schließen (oder Esc) blendet das Fenster aus.
+- Der Text lässt sich markieren und kopieren. Ein leerer Kanal meldet In diese Ausgabe wurde noch nichts geschrieben.
+- Die Ausgabe wird aus Dateien im Profil gelesen und bleibt deshalb nach einem Absturz des schreibenden Programms sichtbar.
+
+## [view.fullscreen] Vollbild
+commands: nks.view.fullScreen
+1. Drücken Sie F11 oder wählen Sie Ansicht und dann Vollbild.
+2. Der Fensterrahmen verschwindet; Menü, Tabs, Editor und Statusleiste bleiben. Getippt wird weiter im Editor.
+3. Ein weiteres F11 stellt den vorigen Zustand wieder her, auch ein maximiertes Fenster.
+- Auf macOS verwendet das System F11; nutzen Sie das Menü Ansicht.
+
+## [hex.open] Hex: Öffnen und Bewegen
+commands: nks.view.hex, nks.file.openAsHex
+Hex zeigt eine Datei Byte für Byte: Offset, Bytes hexadezimal und Zeichen. Es liest nur die Zeilen auf dem Bildschirm, deshalb spielt die Dateigröße keine Rolle.
+1. Strg+K und dann Strg+H schaltet das aktive Dokument zwischen Text und Hex um (Menü Ansicht, Hex und Text umschalten). Es ist dasselbe Dokument mit demselben Rückgängig-Verlauf; die Auswahl wird über Bytes umgerechnet.
+2. Datei und dann In Hex öffnen öffnet die gewählte Datei gleich in Hex. Auf der Kommandozeile tut das der Schalter --hex, bei Bedarf mit --offset.
+3. Eine Datei, die binär aussieht (ein NUL-Byte in den ersten 8.000 Bytes), bekommt eine Leiste über dem Dokument: In Hex öffnen oder Als Text behalten.
+- Pfeile, Bild auf und Bild ab, Pos1 und Ende (in der Zeile), Strg+Pos1 und Strg+Ende (ganze Datei). Umschalt erweitert die Auswahl. Tab wechselt zwischen Byte- und Zeichenspalte.
+- Ausschneiden, Kopieren und Einfügen arbeiten mit Bytes; zwischen zwei Hex-Ansichten werden sie exakt übertragen.
+
+## [hex.find] Hex: Suchen und Gehe zu Offset
+- Strg+F öffnet das Fenster Bytes suchen. Geben Sie Bytes hexadezimal ein (50 4B ?? 04, ?? ist ein beliebiges Byte), Text in Anführungszeichen oder eine Zahl mit Typ (0x1F40 i32).
+- F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam. Ein Ersetzen von Bytes gibt es nicht.
+- Strg+G öffnet Gehe zu Offset. Schreibweise: 0x1F40, +0x100 (ab dem Cursor), end-512, 50%, 4K, sel (Beginn der Auswahl), val (der Vier-Byte-Wert am Cursor).
+- Nicht gefunden: Es gibt keinen Treffer. Ungültiges Muster oder Ungültiger Ausdruck: Korrigieren Sie die Eingabe. Der Offset liegt außerhalb der Datei: Geben Sie einen kleineren Wert ein. Die Datei hat sich inzwischen auf dem Datenträger geändert, das Suchergebnis wurde verworfen: Wiederholen Sie die Suche.
+
+## [hex.edit] Hex: Bearbeiten
+commands: nks.hex.toggleInsert
+1. Die Taste Einfg (auf macOS ⌥⌘I) schaltet zwischen ÜBERSCHREIBEN und EINFÜGEN um; der Zustand steht in der Statusleiste.
+2. Beim Überschreiben werden Bytes ersetzt, und die Dateilänge ändert sich nicht. Am Dateiende sagt das Programm, dass Überschreiben die Länge nicht ändert, und dass Sie den Einfügemodus einschalten sollen.
+3. Entf und Rücktaste beim Überschreiben fragen: Nullen (die Länge bleibt) oder Löschen (die Datei wird kürzer).
+4. Fügen Sie mehr Bytes ein, als bis zum Dateiende übrig sind, fragt das Programm: Datei verlängern oder Nur einfügen, was passt.
+- Ein Zeichen in der Zeichenspalte, das die Codierung nicht schreiben kann, wird abgelehnt: Das Zeichen lässt sich in der Codierung nicht schreiben.
+- Rückgängig und Wiederholen funktionieren. Geänderte Bytes sind schattiert und unterstrichen.
+- Während die Datei gespeichert wird, warten Änderungen bis zum Ende des Speicherns.
+
+## [hex.inspector] Hex: Dateninspektor
+commands: nks.hex.inspector
+1. Strg+K und dann Strg+I öffnet oder schließt rechts das Panel Dateninspektor (nur in Hex).
+2. Es zeigt den Wert ab dem Cursor als verschiedene Typen: Zahlen, Datum, GUID, Zeichen. Der Schalter LE und BE wählt die Bytereihenfolge.
+3. Einen Wert überschreiben Sie in seiner Zeile: Eingabetaste schreibt ihn, Esc bricht ab.
+- Ein Wert am Dateiende, dem Bytes fehlen, ist unvollständig und lässt sich nicht überschreiben. Eine ungültige Eingabe und ein Wert außerhalb des Typbereichs werden gemeldet (zum Beispiel Außerhalb des Typbereichs, Ungültige GUID, Datum und Uhrzeit als JJJJ-MM-TT HH:MM:SS).
+- Ein Wert, der eine andere Zahl von Bytes belegt, als er ersetzt, braucht den Einfügemodus.
+
+## [hex.layout] Hex: Aussehen des Rasters
+commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
+Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Palette zur Verfügung.
+- Codierung der Zeichenspalte: die Codierung, in der Bytes als Zeichen angezeigt werden.
+- Layout: Bytes pro Zeile (8, 16, 24, 32, 48, 64), Gruppierung der Bytes und Offsetformat. Jede Größe hat auch einen eigenen Befehl.
+- Offsets zwischen dezimal und hexadezimal umschalten.
+- Die nächste Hex-Ansicht merkt sich die Auswahl.
+
+## [hex.save] Hex: Speichern und Änderungen vor dem Speichern
+commands: nks.hex.inspectChanges
+1. Strg+S speichert das Hex. Das Speichern läuft im Hintergrund, und das Fenster bleibt benutzbar; Esc bricht das Speichern ab, bevor Daten geschrieben werden (Speichern abgebrochen, die Datei blieb unverändert).
+2. Datei und dann Änderungen vor dem Speichern zeigt, was das Speichern schreibt: die geänderten Bereiche mit alten und neuen Bytes und die Art des Schreibens.
+- Ändern sich nur Bytewerte, wird an Ort und Stelle gespeichert (An Ort und Stelle gespeichert, N B geändert), und die ursprünglichen Bytes werden zuerst ins Journal geschrieben, damit ein durch einen Absturz unterbrochenes Speichern abgeschlossen oder zurückgesetzt werden kann.
+- Ändert sich die Länge, wird eine neue Datei geschrieben und atomar ausgetauscht.
+- Bevor eine kleinere Datei überschrieben wird, entsteht eine Sicherung; misslingt sie, bleibt die Datei unverändert.
+
 ## [recovery] Wiederherstellung nach Absturz
 Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens zwei Sekunden nach einer Änderung. Ein ungespeichertes Dokument geht so auch nicht verloren, wenn das Programm abstürzt oder der Rechner ausgeschaltet wird.
 1. Starten Sie das Programm erneut.
@@ -425,7 +491,7 @@ Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens z
 - Ein unterbrochener Stapel von Ersetzungen in Dateien wird nach dem Start angeboten: Abschließen oder Zurücksetzen.
 
 ## [paged] Große Dateien (Seitenmodus)
-Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht.
+Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Um eine Datei ohne diese Einschränkungen byteweise zu durchsuchen und zu bearbeiten, öffnen Sie sie in Hex (Thema Hex: Öffnen und Bewegen). Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht.
 Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Was geht
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
@@ -459,6 +525,7 @@ Unten sehen Sie Zeile und Spalte des Cursors (bei einer Auswahl die Zeichenzahl,
 - Ein Klick auf die Codierung öffnet die Auswahl der Codierung (Thema Codierung).
 - Ein Klick auf die Zeilenenden vereinheitlicht sie (Thema Zeilenenden).
 - Ein Klick auf die Sprache öffnet die Auswahl der Sprache (Thema Sprachmodus).
+- Die Hervorhebung wird noch berechnet: Bei einer langen Datei holt die Hervorhebung auf, der Text ist benutzbar. Die Zeile ist zu lang für die Hervorhebung: Eine solche Zeile bleibt ohne Farben.
 - Bei einer Datei, für die .editorconfig gilt, wird der Eintrag .editorconfig angezeigt; ein Klick öffnet die Datei.
 
 ## [errors.file] Fehlermeldungen: Dateien
@@ -486,7 +553,7 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 
 ## [errors.search] Fehlermeldungen: Suche
 - Ungültiger Ausdruck: Grund. Korrigieren Sie den regulären Ausdruck oder schalten Sie .* aus; die Schaltfläche Testen zeigt, wie der Ausdruck gelesen wird.
-- Der Ausdruck ist zu langsam; die Suche wurde abgebrochen: Vereinfachen Sie den Ausdruck, besonders verschachtelte Wiederholungen.
+- Der Ausdruck ist zu langsam; die Suche wurde abgebrochen: Vereinfachen Sie den Ausdruck, besonders verschachtelte Wiederholungen, oder erhöhen Sie die Einstellung Zeitlimit für reguläre Ausdrücke.
 - Markieren Sie zuerst den Text, in dem gesucht werden soll: Der Schalter Auswahl ist ohne Auswahl eingeschaltet; markieren Sie Text oder schalten Sie ihn aus.
 - Ordner nicht gefunden: Korrigieren Sie den Pfad im Feld Ordner.
 - Keine Treffer: Es gibt keinen Treffer; prüfen Sie die Schalter Aa, .* und ab.
@@ -499,7 +566,7 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge sind noch nicht darin:
 - Programmaktualisierung: Das Programm aktualisiert sich nicht selbst und sucht nicht nach neuen Versionen. Eine neue Version installieren Sie selbst.
-- Hexadezimale Ansicht und Bearbeitung: nicht in dieser Version. Eine Datei, die kein Text ist, öffnet das Programm als Text.
+- Der Hex-Editor hat keine Minimap, sammelt nicht alle Treffer in einem Tab und ersetzt keine Bytes; Gehe zu Offset zeigt keine Vorschau des Ziels; eine Einstellung, die Dateien immer in Hex öffnet, fehlt.
 - Ein eigenes Vergleichsfenster: Es wird ein externes Vergleichsprogramm verwendet (Thema Mit Datenträger vergleichen).
 - Bearbeiten sehr großer Dateien: nur eingeschränkt, siehe Thema Große Dateien.
 - Erweiterungen (Plugins), entfernte Dateien und weitere Funktionen aus dem Plan für Version 1.0: nicht in dieser Version.

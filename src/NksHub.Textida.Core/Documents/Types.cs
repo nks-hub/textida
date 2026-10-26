@@ -46,6 +46,8 @@ public enum ConflictReason
     InvalidRange,
     /// <summary>The change would lose characters and no replacement was confirmed.</summary>
     LossNotConfirmed,
+    /// <summary>A save is running on a snapshot of the current revision; the document takes no change until it ends.</summary>
+    Saving,
 }
 
 public readonly record struct EditResult(bool Applied, long Revision, ConflictReason Conflict)
@@ -69,6 +71,8 @@ public sealed class EditOptions
     public IReadOnlyList<ByteRange>? SelectionsAfter { get; init; }
     /// <summary>Names who edited (user, recipe, MCP); kept in the change log.</summary>
     public string? Source { get; init; }
+    /// <summary>Byte-level edit (hex view): skips the BOM and character boundary checks, so any byte can be written anywhere.</summary>
+    public bool RawBytes { get; init; }
 }
 
 /// <summary><c>View</c> changed how the bytes are read (re-read as another encoding) and no byte.</summary>

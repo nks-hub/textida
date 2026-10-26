@@ -190,6 +190,14 @@
           "description": "Large file threshold (MiB). A file above this size opens in the paged mode, which edits the file in place without loading the whole text.",
           "x-scope": "application"
         },
+        "search.regexTimeoutMs": {
+          "type": "integer",
+          "default": 2000,
+          "minimum": 50,
+          "maximum": 60000,
+          "description": "Regular expression time limit (ms). A pattern with backreferences, lookaround or atomic groups runs in the backtracking engine and is stopped after this time on one text. Other patterns run in the linear-time engine and are not limited.",
+          "x-scope": "application"
+        },
         "tools.diffTool": {
           "type": "string",
           "default": "",

@@ -3,6 +3,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="NksHub.Textida.Core.Tests" />
     <InternalsVisibleTo Include="NksHub.Textida.Document.Contract" />
+    <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>

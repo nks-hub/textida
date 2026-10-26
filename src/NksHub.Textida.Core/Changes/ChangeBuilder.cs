@@ -113,15 +113,16 @@ public sealed record ReplacePlan(ChangeProposal Proposal, IReadOnlyList<string> 
 /// <summary>
 /// Plans Replace in Files: finds the sources with a match (search worker, so ignore rules, encodings and open documents behave as in
 /// the search), reads each fresh and produces one hunk per match. A regex replacement may use <c>$1</c>, <c>${name}</c> and <c>$&amp;</c>;
-/// a literal replacement is taken as it is. Matches without text are ignored.
+/// a literal replacement is taken as it is. Matches without text are replaced too (<c>^</c> inserts a prefix, <c>$</c> appends).
 /// </summary>
 public static class ReplacePlanner
 {
     public static async Task<ReplacePlan> PlanAsync(SearchPattern pattern, string replacement, SearchScope scope, SearchSettings? settings = null, int parallelism = 4, CancellationToken ct = default)
     {
-        var compiled = CompiledPattern.Create(pattern, RegexEngine.Backtracking);
+        settings ??= new();
+        var compiled = CompiledPattern.Create(pattern, settings.Engine);
         var sources = new ConcurrentBag<SearchSource>();
-        var run = SearchWorker.Start(pattern, scope, (settings ?? new()) with { MaxResults = 0, StopAtLimit = false, FileMatched = (src, _) => sources.Add(src) }, ct);
+        var run = SearchWorker.Start(pattern, scope, settings with { MaxResults = 0, StopAtLimit = false, IncludeEmpty = true, FileMatched = (src, _) => sources.Add(src) }, ct);
         await foreach (var _ in run.Batches.ReadAllAsync(CancellationToken.None)) { }
         if ((await run.Completion).End == SearchEnd.Cancelled) throw new OperationCanceledException(ct);
 
@@ -162,17 +163,9 @@ public static class ReplacePlanner
         }
 
         var dt = codec.Decode(bytes);
-        var edits = new List<(int, int, string)>();
-        foreach (Match m in q.Regex.Matches(dt.Text))
-        {
-            if (m.Length == 0 || SplitsPair(dt.Text, m.Index) || SplitsPair(dt.Text, m.Index + m.Length)) continue;
-            edits.Add((m.Index, m.Index + m.Length, isRegex ? RegexTools.ExpandReplacement(m, replacement) : replacement));
-        }
+        var edits = RegexTools.ReplacementEdits(q.Regex, dt.Text, replacement, isRegex);
         if (edits.Count == 0) return null;
         string key = src.DocumentId is { } d ? d.ToString() : src.Path!;
         return ChangeBuilder.FromChars(key, src.Path, src.DocumentId, src.Revision, print, codec, dt, edits);
     }
-
-    private static bool SplitsPair(string text, int index) =>
-        index > 0 && index < text.Length && char.IsLowSurrogate(text[index]) && char.IsHighSurrogate(text[index - 1]);
 }

@@ -92,6 +92,7 @@ internal sealed partial class MainWindow
     private async Task<bool> SaveCoreAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
+        if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite);
         PrepareForSave(od);
         try
         {
@@ -138,7 +139,7 @@ internal sealed partial class MainWindow
         var doc = od.Doc;
         if (!await ConfirmTypedLossAsync(od)) return false;
 
-        IReadOnlyList<(TextCodec Codec, int Lost)> targets = od.IsLarge
+        IReadOnlyList<(TextCodec Codec, int Lost)> targets = od.IsLarge || od.IsHex
             ? [(doc.Codec, 0)]
             : ByteFidelity.ListTargets(doc.Codec.Decode(doc.ReadBytes(new ByteRange(0, doc.ByteLength))));
         var suggested = od.Path ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), od.Title.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? od.Title : od.Title + ".txt");
@@ -153,6 +154,7 @@ internal sealed partial class MainWindow
             if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return false;
         }
 
+        if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite: false, choice.Path);
         PrepareForSave(od);
         try
         {

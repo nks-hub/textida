@@ -152,7 +152,7 @@ public partial class ShellTests : IDisposable
         var app = TestApp.Prepare(_temp);
         var w = app.CreateWindow(null);
         w.NewDocument();
-        Assert.All(w.GetVisualDescendants().OfType<Button>(), b => Assert.True(b.Classes.Contains("tabclose") || b.Classes.Contains("statusitem") || b.Classes.Contains("panelaction") || b.FindAncestorOfType<FindBar>() is not null, "only tab close buttons, status bar items, the empty-panel action and the find bar may have buttons in the chrome"));
+        Assert.All(w.GetVisualDescendants().OfType<Button>(), b => Assert.True(b.Classes.Contains("tabclose") || b.Classes.Contains("statusitem") || b.Classes.Contains("panelaction") || b.Classes.Contains("outputtab") || b.Classes.Contains("outputaction") || b.FindAncestorOfType<FindBar>() is not null, "only tab close buttons, status bar items, the empty-panel action, the hidden output window and the find bar may have buttons in the chrome"));
         Assert.Single(w.GetVisualDescendants().OfType<Menu>());
         Assert.Single(w.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.TabStrip>());
         Assert.Equal(CsMenus, w.GetVisualDescendants().OfType<Menu>().Single().Items.OfType<MenuItem>().Select(m => (string)m.Header!));

@@ -284,7 +284,7 @@ internal static class ContentScanner
         long seen = 0;
         foreach (var m in q.Regex.EnumerateMatches(text))
         {
-            if (m.Length == 0 || SplitsPair(text, m.Index) || SplitsPair(text, m.Index + m.Length)) continue;
+            if ((m.Length == 0 && !s.IncludeEmpty) || SplitsPair(text, m.Index) || SplitsPair(text, m.Index + m.Length)) continue;
             st.Count++;
             if ((++seen & 255) == 0) ct.ThrowIfCancellationRequested();
             if (st.Hits.Count >= st.Keep) continue;
