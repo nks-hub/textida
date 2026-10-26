@@ -320,10 +320,10 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
   - **Hotovo, když:** spuštění s cestou a řádkem otevře kartu v běžícím okně na tom řádku; s `--wait` vrátí řízení až po zavření karty; neznámý přepínač se ohlásí.
   - **Závisí na:** P1.1.1
   - **Odhad:** F003 `--wait` 0,5 ČT; jinak bez odhadu
-- [ ] **P1.1.5** Texty rozhraní v prostředcích
+- [x] **P1.1.5** Texty rozhraní v prostředcích
   - **Co a proč:** Všechny texty UI jsou v textových prostředcích, ne v kódu, aby šly v P9 přeložit. P1 staví infrastrukturu: klíče, zástupné parametry, množná čísla a fallback. Rozsah jazyků MVP a dalších textů určí P1.1.7; úplnost překladů cs, en, sk a de pro 1.0 ověří P9.2.2. Prostředky v kódu samy nedokazují překlad, změnu jazyka ani přístupné názvy.
   - **Funkce:** F104
-  - **Stav 26. 10. 2026:** klíče, zástupné parametry, množná čísla a fallback; `cs` a `en`; test najde chybějící klíč i text UI zapsaný v kódu (Roslyn). Jazyky MVP čekají na P1.1.7; klíče palety zatím nejsou.
+  - **Stav 26. 10. 2026:** klíče, zástupné parametry, množná čísla a fallback; hotovo: cs, en, sk a de v obou sadách textů (aplikace i registr příkazů), jeden seznam jazyků `StringTable.UiLanguages`; testy najdou chybějící klíč a rozdílné zástupné parametry v každém jazyce i text UI v kódu (Roslyn); každý klíč s parametrem nebo množným číslem se zkouší ve všech jazycích pro počty 0–101; přepnutí přes všechny jazyky a zpět nemění bajty dokumentu ani souboru nastavení; volba jazyka v menu Nastavení. Ověřeno i během: smoke přepne en, sk, de a zpět, menu a přístupné názvy přečtené přes UI Automation v každém jazyce. Překlady sk a de nekontroloval rodilý mluvčí (P9.2.2). Nalezeno: prvek menu nemá přístupný název a tlačítka okna od Avalonie jsou vždy anglicky (P1.8.1).
   - **Hotovo, když:** existuje inventář klíčů textů (menu, paleta, stavový řádek, skryté panely, dialogy, chybová hlášení, přístupné názvy); test najde chybějící klíč v kterémkoli jazyce, který P1.1.7 určí pro MVP, a nenajde text UI zapsaný přímo v kódu; klíč se zástupným parametrem a s množným číslem má test pro každý takový jazyk; přepnutí jazyka a návrat na výchozí jazyk nenechá prázdný popisek a nezmění bajty dokumentu ani strojové formáty nastavení.
   - **Závisí na:** P1.1.1, P1.1.7
   - **Odhad:** bez odhadu
@@ -346,12 +346,13 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
   - **Hotovo, když:** seznam a tabulka strojů jsou zapsané a schválené majitelem; testovací PC s Windows 10 s Windows 10 22H2, referenční Windows VM s Windows 11 22H2 a referenční Mac s macOS 15 jsou skutečně dostupné pro přihlášený běh. Bez testovací PC s Windows 10 tento bod ani žádná brána vydání neprojde. macOS 14 a nativní Intel mají podle výjimky R10 záznam „jen staticky“.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu; ocení PR.8.1
-- [ ] **P1.1.7** Matice dodávaných textů a jazyků
+- [x] **P1.1.7** Matice dodávaných textů a jazyků
   - **Co a proč:** R10 určuje jazyky UI pro verzi 1.0: cs, en, sk a de. Neurčuje jazyk ostatních dodávaných textů ani jazykový rozsah MVP. Čtyři jazyky UI samy nevyžadují čtyři jazyky programátorského API ani vývojářské dokumentace. Tyto rozsahy se tu zapíšou jako rozhodnutí majitele, bez automatického rozšíření R10.
   - **Funkce:** žádná (rozhodnutí a záznam)
   - **Kroky:**
     - matice oblast × jazyk × vydání: UI editoru včetně menu, palety, stavového řádku, skrytých panelů, obrazovek obnovy a updateru; příspěvky vlastních pluginů; vlastní obrazovky instalátoru a aktualizátoru (systémové dialogy se vlastním textem nepřekládají); offline nápověda (F142); README a uživatelské návody; veřejné SDK a jeho dokumentace
     - u každé buňky: dodává se / nedodává se / rozhodne majitel, a vydání (MVP, 1.0)
+  - **Stav 26. 10. 2026:** hotovo: majitel rozhodl, že UI, přístupné názvy, obrazovky instalátoru a aktualizátoru, offline nápověda, README a návody mají cs, en, sk a de už v MVP; SDK a jeho dokumentace jen anglicky.
   - **Hotovo, když:** matice je zapsaná v zadání a majitel u ní výslovně rozhodl jazykový rozsah MVP a rozsah překladu nápovědy, návodů a SDK; dokud rozhodnutí chybí, je tento rozsah **otevřený** a nepočítá se za schválený.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu; ocení PR.8.1
@@ -405,10 +406,10 @@ Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy.
   - **Hotovo, když:** po vložení a smazání znaků s vícebajtovým kódováním, CRLF a neplatnou sekvencí převede adaptér každý offset na stejný bajt jako referenční výpočet; čtení nezměněného rozsahu vrátí původní bajty.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
-- [ ] **P1.2.8** Adaptér stránkovaného zdroje
+- [x] **P1.2.8** Adaptér stránkovaného zdroje
   - **Co a proč:** Adaptér `PagedDocument` s pozicemi `long` nad stejným kontraktem. Na něm stojí stránkovaná plocha (P3.1), hex (P3.5) a stránkovaný UTF-16 (P3.1.2). Patří sem i počty řádků po úpravě: každý uzel stromu úseků nese počet konců řádků a CRLF rozdělené mezi dva úseky se odečte. Jádro to umí od commitu `f7defd7`. Dřív to byla P7.1.1; v P7 zůstává ověření nad 10 GiB.
   - **Funkce:** F042 (částečně: adaptér stránkovaného dokumentu), F154 (částečně: čísla řádků po úpravě)
-  - **Stav 26. 10. 2026:** částečně: celá sada a náhodné testy začátků řádků s CR/LF/CRLF projdou nad `PagedBackend`; nad 4,5GiB řídkým souborem s CRLF na hranicích 2^31 a 2^32 projdou pozice, úpravy, rozdělené CRLF a undo, celá sada nad ním ale neběžela. Stránkovaný backend zatím neumí UTF-16 (`MappedFileSource` ho odmítá, P3.1.2).
+  - **Stav 26. 10. 2026:** hotovo: celá sada kontraktu (65 testů) běží nad řídkým souborem 4,5 GiB a projde za 37 s; náhodné úpravy s CR, LF a CRLF na hranicích 2^31 a 2^32 souhlasí s naivním průchodem i po undo; dotaz před dokončením indexu vrátí „neznámé“ (test `LineQueriesAreUnknownUntilTheOriginalIsIndexed`). Stránkovaný UTF-16 zůstává P3.1.2.
   - **Hotovo, když:** sada testů kontraktu z P1.2.1 projde nad souborem větším než 4 GiB a pozice za hranicí `int` se převádějí bez přetečení; po náhodných úpravách s CR, LF a CRLF, včetně CRLF rozděleného mezi úseky, souhlasí počet a začátky řádků s naivním průchodem, i nad souborem větším než 4 GiB; dokud index originálu nedoběhl, vrátí dotaz na začátek řádku po úpravě „neznámé“, ne odhad.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
@@ -536,6 +537,7 @@ Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru
   - **Co a proč:** Prázdný dokument okamžitě; otevření vybere backend podle velikosti; obnovitelné uložení s kontrolou podkladu; zavření s obnovou a srozumitelným zahozením; režim jen pro čtení. Potvrzování podle dopadu, ne při běžném psaní.
   - **Funkce:** F029, F030, F034, F035, F037, F108
   - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
+  - **Oprava 26. 10. 2026:** náhodné zabití v testu dávky ukázalo, že Windows `ReplaceFile` napřed přejmenuje cíl a pak přesune nový soubor; pád mezi tím nechal cíl chybět a původní obsah pod jménem `~RF….TMP`. Přepis teď parkuje original pod známým jménem `*.textida-*.old.tmp`; otevření souboru ho vrátí, když cíl chybí, a zbylé kopie smaže (`FileSwap.RecoverAbandoned`, test). Zabití přímo uvnitř `ReplaceFile` u běžného uložení harness zatím nezkouší.
   - **Hotovo, když:** pád injektovaný před a po flush a před a po výměně souboru nechá na disku buď starou, nebo novou verzi celou, ověřeno nezávislým porovnáním; plný disk při uložení nic nepoškodí a neuložený obsah zůstane v kartě; zavření neuložené karty nabídne uložit, zahodit nebo nechat v žurnálu; v režimu jen pro čtení nejde změnit dokument žádnou cestou.
   - **Závisí na:** P1.3.2, P1.2.3
   - **Odhad:** bez odhadu
@@ -660,14 +662,15 @@ měření obojí řadí do P1 jako samostatné úkoly. P1 ověří nativní vrst
 - [ ] **P1.8.3** Nativní most UIA a AX pod NativeAOT
   - **Co a proč:** Proveditelnost se ověří hned na začátku P1, ne až v P9: UIA s TextPattern na Windows a NSAccessibility na macOS v publikovaném AOT programu. NativeAOT nemá vestavěný klasický COM interop; pro UIA je cesta přes ComWrappers se source generation. Proto se ověřuje skutečný nativní most, ne jen spravovaný automation peer.
   - **Funkce:** žádná (infrastruktura)
-  - **Stav 26. 10. 2026:** Windows hotovo (commity 52fc47f–d033896): most UIA přes zdrojově generované COM, AOT win-x64 bez varování; samostatný klient (System.Windows.Automation a UIA3 TextPattern2) prošel 29 kontrol: text DocumentRange včetně ěščř a emoji, výběr, 5 pohybů kurzoru = 5 událostí, Select, změny textu, pohyb po slovech, řádcích a odstavcích, FindText, RangeFromPoint, obdélníky řádků, GetCaretRange. Avalonia 12.1.4 TextPattern nemá, proto vlastní most; je připojený do stromu UIA okna Avalonie přes skrytý podřízený HWND v `NativeControlHost` (viz P1.8.1). macOS: most NSAccessibility přes ObjC runtime, AOT osx-arm64 bez varování, vlastní test 31 kontrol; připojený k NSView hostovanému Avalonií, čtení přes vlastní strom NSAccessibility procesu prošlo (viz P1.8.1); skutečný AX klient z jiného procesu ho nepřečetl (zamčená obrazovka, volající proces nemá oprávnění Accessibility).
+  - **Stav 26. 10. 2026 (připojení k aplikaci):** most je připojený k editoru v okně aplikace: skrytý nativní prvek vedle editoru (HWND s `WM_GETOBJECT`, na macOS NSView), peer `TextArea` ukazuje na něj. Publikovaná AOT win-x64 bez varování; klient `UiaClient app` prošel 24 kontrol nad skutečným oknem (editor jako Document s TextPattern, text s diakritikou, kurzor a výběr z klávesnice, `Select`, `GetCaretRange`, `RangeFromPoint`, psaní a Backspace s událostmi, fokus karta↔editor). macOS 15 AOT bez varování, smoke v GUI relaci přečetl vlastní strom NSAccessibility okna (AXTextArea, AXValue, AXSelectedTextRange, AXFocusedUIElement editor→karta→editor); AX klient z jiného procesu blokuje zamčená obrazovka a chybějící oprávnění Accessibility. NVDA a VoiceOver potřebují člověka.
+  - **Stav 26. 10. 2026:** Windows hotovo (commity 52fc47f–d033896): most UIA přes zdrojově generované COM, AOT win-x64 bez varování; samostatný klient (System.Windows.Automation a UIA3 TextPattern2) prošel 29 kontrol: text DocumentRange včetně ěščř a emoji, výběr, 5 pohybů kurzoru = 5 událostí, Select, změny textu, pohyb po slovech, řádcích a odstavcích, FindText, RangeFromPoint, obdélníky řádků, GetCaretRange. Avalonia 12.1.4 TextPattern nemá, proto vlastní most; zatím není připojený do stromu UIA okna Avalonie. macOS: most NSAccessibility přes ObjC runtime, AOT osx-arm64 bez varování, vlastní test 31 kontrol; skutečný AX klient ho nepřečetl (zamčená obrazovka, chybí oprávnění Accessibility), není připojený k NSView Avalonie.
   - **Hotovo, když:** v AOT buildu v matici R10 (PR.4) přečte NVDA a VoiceOver text a pozici kurzoru z minimálního textového prvku a změnu fokusu mezi kartou a editorem; záznam uvádí verzi OS, RID a hash buildu.
   - **Závisí na:** P1.1.2
   - **Odhad:** bez odhadu
 - [ ] **P1.8.1** Vrstva UIA a AX pro běžný editor
   - **Co a proč:** AvaloniaEdit nemá automation peer a Avalonia nemá UIA TextPattern. Běžný editor potřebuje vlastní vrstvu nad mostem z P1.8.3: UIA s TextPattern na Windows a NSAccessibility na macOS. Vrstva je napsaná nad kontraktem dokumentu, aby ji v P3 převzala stránkovaná plocha.
   - **Funkce:** žádná (infrastruktura)
-  - **Stav 26. 10. 2026:** `ITextAutomationSurface` a základ `DocumentTextSurface` nad dokumentem hotové a ověřené klientem UIA. Napojení na editor z P1.4 hotové: `EditorTextSurface` nad AvaloniaEdit, skrytý `NativeControlHost` vedle editoru (Windows podřízený HWND s `WM_GETOBJECT`, macOS NSView s metodami NSAccessibility) a `EditorTextArea`, jehož peer je tento nativní prvek, takže fokus mezi kartou a editorem se hlásí na prvku s TextPattern. Windows: AOT win-x64 bez varování, klient UIA proti skutečnému oknu prošel 24 kontrol (text s diakritikou, kurzor a výběr z klávesnice, Select, psaní, události, fokus karta↔editor). macOS 15 arm64: AOT bez varování, `--smoke` projde včetně čtení AXValue, AXSelectedTextRange, AXSelectedText a AXFocusedUIElement ze stromu NSAccessibility okna. Chybí AXObserver z cizího procesu (oprávnění Accessibility a odemčená obrazovka), běh s NVDA a VoiceOver a matice R10.
+  - **Stav 26. 10. 2026:** `EditorTextSurface` napojuje most na AvaloniaEdit v aplikaci (viz P1.8.3), test povrchu v App. Chybí běh s NVDA a VoiceOver a matice R10. Známé vady: prvek menu nemá přístupný název v žádném jazyce, tlačítka okna od Avalonie (Minimize, Maximize, Close) jsou vždy anglicky, `DocumentTextSurface` při dotazu klienta čte celý text po každé změně (O(n) na úhoz; vyřeší povrch P3).
   - **Hotovo, když:** NVDA i VoiceOver přečtou řádek, slovo, výběr, pozici kurzoru, změnu fokusu a změnu po nové revizi podle předem zapsaného očekávání, nad AOT buildem v matici R10 (PR.4).
   - **Závisí na:** P1.4.1, P1.8.3
   - **Odhad:** bez odhadu
@@ -808,36 +811,42 @@ Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba n�
 - [ ] **P2.5.1** Worker hledání v souborech: výsledky, zrušení a výkon
   - **Co a proč:** Hledání ve složce i v neuložených kartách, průběžné výsledky po dávkách, zrušení, omezení počtu výsledků. Výsledky jako karta „Výsledky hledání“, dvojklik skočí do souboru. Staví na `TreeSearch` z P0, výčtu souborů z P2.5.4 a hledání nad revizemi z P2.5.5.
   - **Funkce:** F151, F060
+  - **Stav 26. 10. 2026:** částečně: `SearchWorker` streamuje dávky ze složky i z živých bufferů v kódování souboru; uspořádané (cesta, offset, délka) souhlasí s `rg --json` na 1GiB souboru a stromu, poměr času proti `rg --json` 0,33–0,55 nad 100 000 soubory; zrušení workeru max 0,7 ms nad stromem a 258 ms nad 1 GiB. Chybí karta „Výsledky hledání“, dvojklik, hlášení limitu a měření zrušení v UI. Známý limit: shoda nepřekročí řez čtení u souborů nad 4 MiB (řez je za LF).
   - **Hotovo, když:** hledání ve 100 000 souborech je ≤ 1,25× času `rg --json` na stejných datech; shodují se nejen počty, ale i uspořádané offsety, délky a revize shod, včetně BOM, CRLF, vícebajtových znaků a překryvů bloků; zrušení: UI ≤ 100 ms, worker ≤ 1 s; při dosažení limitu výsledků to karta řekne.
   - **Závisí na:** P2.5.4, P2.5.5
   - **Odhad:** F151 3–5 ČT (matice) za P2.5.1, P2.5.4 a P2.5.5
-- [ ] **P2.5.4** Výčet souborů a pravidla ignorování
+- [x] **P2.5.4** Výčet souborů a pravidla ignorování
   - **Co a proč:** Procházení složky s pravidly `.gitignore`, `.git`, `.codegraph/` a přepisy agentů, bez sledování smyček odkazů.
   - **Funkce:** F151 (částečně: výčet souborů)
+  - **Stav 26. 10. 2026:** hotovo: `FileWalker` s vnořenými `.gitignore` a `.ignore`, negací, složkovými vzory, skrytými soubory, limitem velikosti, ochranou proti smyčkám odkazů a junctionům a přepisy agentů; rozdílový test proti `git ls-files` souhlasí.
   - **Hotovo, když:** výčet nad testovací složkou s vnořenými `.gitignore`, negací a smyčkou odkazů dá stejný seznam jako referenční seznam v testu.
   - **Závisí na:** P1.2.1
   - **Odhad:** v rámci F151 (viz P2.5.1)
-- [ ] **P2.5.5** Hledání nad revizemi a živými buffery
+- [x] **P2.5.5** Hledání nad revizemi a živými buffery
   - **Co a proč:** Otevřený dokument se prohledává v aktuální revizi, ne na disku; výsledek nese revizi.
   - **Funkce:** F151 (částečně: živé buffery)
+  - **Stav 26. 10. 2026:** hotovo: otevřený dokument se prohledává ve snímku své revize včetně neuložených úprav, shoda nese id dokumentu, revizi a bajtový rozsah; test ukazuje, že úprava během hledání nedá neplatný offset.
   - **Hotovo, když:** neuložená karta vrací shody ze živého textu s její revizí; úprava během hledání nezpůsobí shodu s neplatným offsetem.
   - **Závisí na:** P2.5.4, P2.4.3, P1.2.4
   - **Odhad:** v rámci F151 (viz P2.5.1)
-- [ ] **P2.5.2** Služba náhledu změn
+- [x] **P2.5.2** Služba náhledu změn
   - **Co a proč:** Jedno místo, kde se ukáže navrhovaná změna jako rozdíl (červeně co zmizí, zeleně co přibude) a kde se použije, přeskočí nebo vrátí. Návrh nese revizi. Použije ji Replace in Files, recepty, pluginy (P3b) a později revize změn F178; druhý diff ani druhý formát návrhu nevznikne.
   - **Funkce:** F152 (částečně: společná služba)
+  - **Stav 26. 10. 2026:** hotovo jako služba: `ChangeProposal`, `FileChange`, `Hunk`, `ChangeSelection` a `ChangeApplier`; zastaralá revize nebo změněný soubor vrátí `NeedsRepreview`, otevřený dokument dostane jeden krok undo. Barevný rozdíl v UI chybí (přijde s P2.5.3 a P3b).
   - **Hotovo, když:** návrh nad zastaralou revizí se odmítne s nabídkou nového náhledu; použití návrhu je jeden krok undo v každém dotčeném dokumentu.
   - **Závisí na:** P1.2.4
   - **Odhad:** v rámci F152 (viz P2.5.3)
 - [ ] **P2.5.3** Replace in Files: použití dávky
   - **Co a proč:** Náhrada ve více souborech přes službu P2.5.2: náhled po souborech, přeskočení souboru, kontrola revize podkladu u každého souboru. Obnovu po pádu řeší P2.5.6.
   - **Funkce:** F152, F060
+  - **Stav 26. 10. 2026:** částečně: použití dávky přes `ChangeApplier` funguje, soubor změněný jiným procesem se ohlásí jako konflikt a zbytek se použije, bajty mimo úseky zůstanou. Chybí UI náhledu po souborech a přeskočení souboru.
   - **Hotovo, když:** soubor změněný jiným procesem mezi náhledem a použitím se nepřepíše a ohlásí se jako konflikt; ostatní soubory dávky se použijí; pád uprostřed dávky projde scénářem z P2.5.6.
   - **Závisí na:** P2.5.1, P2.5.2, P2.5.6
   - **Odhad:** F152 4–7 ČT (matice) za P2.5.2, P2.5.3 a P2.5.6
-- [ ] **P2.5.6** Žurnál dávky a dokončení nebo vrácení po pádu
+- [x] **P2.5.6** Žurnál dávky a dokončení nebo vrácení po pádu
   - **Co a proč:** Dávka náhrad se zapisuje do žurnálu z P1.5.3 tak, aby po pádu šla dokončit nebo vrátit po souborech.
   - **Funkce:** F152 (částečně: obnova dávky)
+  - **Stav 26. 10. 2026:** hotovo: `BatchRecovery` dávku dokončí nebo vrátí. Náhodná zabití našla pád uvnitř `ReplaceFile` (chybějící soubor, zbylý `~RF….TMP`); obnova teď vrací zaparkovaný originál. Po opravě 20 běhů po 36 pokusech (26 bodů pádu, 10 náhodných zabití) bez chyby.
   - **Hotovo, když:** pád injektovaný po každém souboru dávky jde po startu dokončit nebo vrátit a výsledek se shoduje s nezávisle spočítaným očekáváním.
   - **Závisí na:** P2.5.2, P1.5.1
   - **Odhad:** v rámci F152 (viz P2.5.3)
@@ -847,6 +856,7 @@ Vlastní hledání v jádře místo ripgrepu (rozhodnutí brány P0). Služba n�
 - [ ] **P2.6.1** EditorConfig
   - **Co a proč:** Čte `indent_style`, `indent_size`, `tab_width`, `trim_trailing_whitespace`, `insert_final_newline`. Ořez mezer jen na upravených řádcích. `end_of_line` a `charset` jen u nového souboru nebo výslovnou akcí přes F169. Zdroj hodnoty v nastavení a ve stavovém řádku.
   - **Funkce:** F189
+  - **Stav 26. 10. 2026:** částečně: parser, resolver a vrstva EditorConfig v `SettingsStack` se zdrojem hodnoty; ořez jen na upravených řádcích, konce řádků se při uložení nemění; 172 případů z oficiální sady projde. Chybí napojení na otevřený dokument v aplikaci a zdroj ve stavovém řádku; `end_of_line=cr` nastavení nenabízí.
   - **Hotovo, když:** uložení existujícího souboru s jiným `end_of_line` v `.editorconfig` nezmění konce řádků; ořez mezer se týká jen upravených řádků; nastavení ukáže `.editorconfig` jako zdroj hodnoty.
   - **Závisí na:** P1.7.1, P1.3.5
   - **Odhad:** F189 1 ČT (matice)
