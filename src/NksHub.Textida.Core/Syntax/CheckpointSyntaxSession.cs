@@ -51,6 +51,8 @@ public sealed class CheckpointSyntaxSession : IDisposable
     private bool bufferedLine = true;
     private ContextDef? streamingRegion;
     private bool unsupported;
+    private StreamingSyntaxSession? streaming;
+    private long bytesScanned;
 
     public CheckpointSyntaxSession(Document document, Tokenizer tokenizer)
     {
@@ -64,21 +66,21 @@ public sealed class CheckpointSyntaxSession : IDisposable
     }
 
     public long Revision => snapshot.Revision;
-    public long BytesScanned { get; private set; }
+    public long BytesScanned => bytesScanned + (streaming?.BytesRead ?? 0);
     public int CheckpointCount => checkpoints.Count + stale.Count;
 
     /// <summary>
     /// Conservative checkpoint-storage bound: two 256-entry arrays and two active states, with 65 frames of 128 B per entry
     /// including weak interning. Document storage, shared grammar definitions, text windows and returned/cached viewport tokens are excluded.
     /// </summary>
-    public long CheckpointMemoryUpperBoundBytes => (2L * CheckpointLimit + 2) * (24 + 65 * 128);
+    public long CheckpointMemoryUpperBoundBytes => (2L * CheckpointLimit + 2) * (24 + 65 * 128) + (streaming?.CheckpointMemoryUpperBoundBytes ?? 0);
 
     /// <summary>
     /// Returns only requested UTF-16 columns (4096 by default, at most 65536). At most 1024 lines and 65536 visible token runs can be retained.
     /// The slice is checked between byte windows, not inside a regex match or the final full-line scan; its duration is not the total catch-up time.
     /// A zero slice only reads cached results. Cancellation preserves completed windows for the next call.
-    /// Lines up to 1 Mi UTF-16 characters use a full reference scan. Longer lines stream only a literal comment/string region
-    /// that stays open through every non-final window. Other long lines return FullLineRequired; repeating the request does not scan again.
+    /// Lines up to 1 Mi UTF-16 characters use a full reference scan. Other builtin lines use snapshot-backed streaming plans.
+    /// A custom grammar without a streaming plan can return FullLineRequired; repeating that request does not scan again.
     /// </summary>
     public SyntaxViewport TokenizeViewport(long firstLine, int count, TimeSpan slice,
         CancellationToken ct = default, int firstColumn = 0, int columnCount = 4096)
@@ -90,6 +92,7 @@ public sealed class CheckpointSyntaxSession : IDisposable
             throw new ArgumentOutOfRangeException(nameof(columnCount));
         if (slice < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(slice));
         ct.ThrowIfCancellationRequested();
+        if (streaming is not null) return StreamViewport(firstLine, count, slice, ct, firstColumn, columnCount);
         var next = new Request(firstLine, count, firstColumn, columnCount);
         if (request != next) Begin(next);
         long started = Stopwatch.GetTimestamp();
@@ -99,7 +102,20 @@ public sealed class CheckpointSyntaxSession : IDisposable
             Step();
         }
         var status = unsupported ? SyntaxViewportStatus.FullLineRequired : complete ? SyntaxViewportStatus.Complete : SyntaxViewportStatus.Pending;
+        if (unsupported && ReferenceEquals(tokenizer.Grammar.Registry, BuiltinGrammars.Registry))
+        {
+            streaming = new StreamingSyntaxSession(document, tokenizer);
+            return StreamViewport(firstLine, count, TimeSpan.Zero, ct, firstColumn, columnCount);
+        }
         return new(document.Id, snapshot.Revision, lines.ToArray(), status, currentLine);
+    }
+
+    private SyntaxViewport StreamViewport(long firstLine, int count, TimeSpan slice, CancellationToken ct, int firstColumn, int columnCount)
+    {
+        var view = streaming!.TokenizeWindow(firstLine, count, firstColumn, columnCount, slice, ct);
+        var converted = view.Lines.Select(line => new LineTokens(line.Line,
+            line.Tokens.Select(token => token with { Start = checked(token.Start + firstColumn) }).ToArray(), line.StartState, line.EndState)).ToArray();
+        return new(view.DocumentId, view.Revision, converted, view.Status, view.NextLine);
     }
 
     private void Begin(Request next)
@@ -138,7 +154,7 @@ public sealed class CheckpointSyntaxSession : IDisposable
         var active = request!.Value;
         long before = reader.Offset;
         var chunk = reader.Read();
-        BytesScanned += reader.Offset - before;
+        bytesScanned += reader.Offset - before;
         if (bufferedLine)
         {
             if (fullLine.Length + chunk.Text.Length <= FullLineLimitChars) fullLine.Append(chunk.Text);
@@ -296,6 +312,9 @@ public sealed class CheckpointSyntaxSession : IDisposable
 
     private void OnChanged(object? sender, DocumentChangedEventArgs args)
     {
+        if (streaming is not null) bytesScanned += streaming.BytesRead;
+        streaming?.Dispose();
+        streaming = null;
         var change = args.Change;
         bool unresolved = stale.Count > 0;
         stale.Clear();
@@ -331,6 +350,8 @@ public sealed class CheckpointSyntaxSession : IDisposable
         if (disposed) return;
         document.Changed -= OnChanged;
         disposed = true;
+        streaming?.Dispose();
+        streaming = null;
         checkpoints.Clear();
         stale.Clear();
         lines.Clear();

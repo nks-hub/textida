@@ -21,6 +21,7 @@ public sealed class Grammar
 
     private readonly Dictionary<string, string> _caseSensitiveWords = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _caseInsensitiveWords = new(StringComparer.OrdinalIgnoreCase);
+    internal int MaximumKeywordLength { get; private set; }
 
     internal Grammar(GrammarRegistry registry, string id, string name, string? version, bool caseSensitive, string wordPattern,
         IReadOnlyList<string> extensions, IReadOnlyList<string> fileNames, string? firstLine)
@@ -55,8 +56,11 @@ public sealed class Grammar
     /// <summary>State at the start of the first line.</summary>
     public LineState InitialState => Root.Push(null);
 
-    internal void AddWord(string word, string kind, bool caseSensitive) =>
+    internal void AddWord(string word, string kind, bool caseSensitive)
+    {
         (caseSensitive ? _caseSensitiveWords : _caseInsensitiveWords).TryAdd(word, kind);
+        MaximumKeywordLength = Math.Max(MaximumKeywordLength, word.Length);
+    }
 
     internal string? LookupWord(ReadOnlySpan<char> word)
     {
@@ -193,6 +197,7 @@ internal sealed class ContextDef : Rule
     private Matcher Build()
     {
         var alts = new List<Alt>();
+        var patterns = new List<string>();
         var sb = new StringBuilder();
 
         void Add(string pattern, Grammar owner, Alt alt)
@@ -200,6 +205,7 @@ internal sealed class ContextDef : Rule
             if (sb.Length > 0) sb.Append('|');
             sb.Append("(?<r").Append(alts.Count).Append(">(?").Append(owner.CaseSensitive ? ":" : "i:").Append(pattern).Append("))");
             alts.Add(alt);
+            patterns.Add(pattern);
         }
 
         if (End is not null) Add(End, Owner, new Alt(AltKind.End, null, null, Owner));
@@ -241,7 +247,7 @@ internal sealed class ContextDef : Rule
         }
         var groups = new int[alts.Count];
         for (int i = 0; i < groups.Length; i++) groups[i] = re.GroupNumberFromName("r" + i);
-        return new Matcher(re, [.. alts], groups);
+        return new Matcher(re, [.. alts], groups, [.. patterns]);
     }
 
     private static List<Rule> Resolve(IncludeRule include)
@@ -261,4 +267,4 @@ internal enum AltKind { End, Match, Word, Begin }
 
 internal readonly record struct Alt(AltKind Kind, string? Token, ContextDef? Child, Grammar Owner);
 
-internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups);
+internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups, string[] Patterns);
