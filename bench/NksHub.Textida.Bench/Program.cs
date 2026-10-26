@@ -25,7 +25,8 @@ switch (cmd)
     case "a6": A6Encoding.Run(args); break;
     case "hex": await HexView.Run(args); break;
     case "e100": E100Edit.Run(args); break;
+    case "syntax": SyntaxBench.Run(args); break;
     default:
-        Console.WriteLine("commands: corpus [names] [--force] | a3 <file> [--reps N] [--samples N] [--inplace] | a4 | a5 file <names...> | a5 tree | a6 | hex <file> [--samples N] [--reps N] [--save] | e100 <file> --engine paged|avalonia|avalonia-chunked [--reps N]");
+        Console.WriteLine("commands: corpus [names] [--force] | a3 <file> [--reps N] [--samples N] [--inplace] | a4 | a5 file <names...> | a5 tree | a6 | hex <file> [--samples N] [--reps N] [--save] | e100 <file> --engine paged|avalonia|avalonia-chunked [--reps N] | syntax [--samples N] [--large path] [--large-gib N] [--skip-large] [--skip-long-line]");
         break;
 }
