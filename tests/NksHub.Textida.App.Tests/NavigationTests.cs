@@ -443,6 +443,12 @@ public class NavigationTests : IDisposable
         TestApp.Press(_w, Key.Right);
         await WaitFor(() => _w.Files!.Rows.Count > 4);
         Assert.True(_w.Files!.IsExpanded(_w.SelectedFileRow!.Value.Entry.Path));
+        // the rows were replaced by the expansion; the keyboard must still be in the tree and the window keys must still work
+        await WaitFor(() => _w.FileList.IsKeyboardFocusWithin);
+        TestApp.Press(_w, Key.Down);
+        Assert.Equal(1, _w.FileList.SelectedIndex);
+        TestApp.Press(_w, Key.B, TestApp.Mod);
+        Assert.True(_w.DocumentsPanelOpen);
     }
 
     [AvaloniaFact]

@@ -229,8 +229,11 @@ internal sealed partial class MainWindow
         string? keep = SelectedFileRow?.Entry.Path;
         var scroll = _fileList.Scroll as ScrollViewer;
         var offset = scroll?.Offset;
+        bool hadFocus = _fileList.IsKeyboardFocusWithin;
         _fileList.ItemsSource = tree.Rows;
         _fileList.SelectedIndex = keep is null ? -1 : tree.IndexOf(keep);
+        // the row that held the keyboard was replaced with the others; without this the keys would go nowhere
+        if (hadFocus) Dispatcher.UIThread.Post(() => _fileList.Focus(), DispatcherPriority.Input);
         UpdateFilesEmpty();
         _filesTitle.Text = Path.GetFileName(tree.Root) is { Length: > 0 } n ? n : tree.Root;
         if (offset is { } o) Dispatcher.UIThread.Post(() => { if (_fileList.Scroll is ScrollViewer sv) sv.Offset = o; }, DispatcherPriority.Loaded);
