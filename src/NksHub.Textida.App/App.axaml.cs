@@ -219,6 +219,7 @@ public sealed partial class App : Application
 
         if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
         window.Activate();
+        Dispatcher.UIThread.Post(window.FocusActiveView, DispatcherPriority.Background); // the keyboard goes to the document, not to the menu
         if (failure is not null) return Task.FromException(failure);
         return waits.Count == 0 ? Task.CompletedTask : Task.WhenAll(waits);
     }

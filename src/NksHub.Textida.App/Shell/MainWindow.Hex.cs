@@ -33,6 +33,12 @@ internal sealed partial class MainWindow
 
     internal HexView? ActiveHex => Active?.Hex;
 
+    /// <summary>Gives the keyboard to the view of the active tab.</summary>
+    internal void FocusActiveView()
+    {
+        if (Active is { } tab) FocusView(tab);
+    }
+
     /// <summary>Settings of the Binary-offer bar: bytes searched for a NUL, like the rule of the file search.</summary>
     private const int BinarySampleBytes = 8000;
 
