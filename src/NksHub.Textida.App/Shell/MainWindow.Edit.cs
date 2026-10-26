@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Input;
@@ -45,7 +46,12 @@ internal sealed partial class MainWindow
             if (_nativeMenu is null) NativeMenu.SetMenu(this, _nativeMenu = new NativeMenu());
             MenuRenderer.FillNative(_nativeMenu, groups);
         }
-        else _menuHost.Content = MenuRenderer.ToMenu(groups);
+        else
+        {
+            var menu = MenuRenderer.ToMenu(groups);
+            AutomationProperties.SetName(menu, Loc.Get(K.A11yMainMenu));
+            _menuHost.Content = menu;
+        }
         return groups;
     }
 

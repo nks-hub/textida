@@ -318,7 +318,6 @@ internal sealed partial class MainWindow : Window
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
-        AutomationProperties.SetName(_menuHost, Loc.Get(K.A11yMainMenu));
         ApplyPaletteTexts();
         _menuModel = BuildMenuModel();
         foreach (var g in _groups) g.Refresh();

@@ -160,6 +160,25 @@ public partial class ShellTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_menu_itself_carries_the_accessible_name_in_the_ui_language()
+    {
+        var app = TestApp.Prepare(_temp);
+        var w = app.CreateWindow(null);
+        try
+        {
+            Assert.Equal("Hlavní nabídka", AutomationProperties.GetName(w.GetVisualDescendants().OfType<Menu>().Single()));
+            Loc.SetLanguage("de");
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Hauptmenü", AutomationProperties.GetName(w.GetVisualDescendants().OfType<Menu>().Single()));
+        }
+        finally
+        {
+            Loc.SetLanguage("cs");
+            w.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void Hidden_documents_panel_opens_from_the_keyboard()
     {
         var app = TestApp.Prepare(_temp);
