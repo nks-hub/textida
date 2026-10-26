@@ -40,7 +40,11 @@ internal sealed class OpenDocument : IDisposable
 
     public Document Doc => _doc;
     public int Number { get; }
-    public LanguageMode Language { get; set; }
+    public LanguageMode Language { get; private set; }
+    /// <summary>The user picked the language; the file name no longer decides it, also after a reload or a save under another name.</summary>
+    public bool LanguageChosen { get; private set; }
+    /// <summary>Raised when <see cref="Language"/> changed, so the views choose another grammar.</summary>
+    public event Action? LanguageChanged;
     /// <summary>How the encoding was chosen when the file was read; null for new documents and after an explicit choice.</summary>
     public EncodingGuess? Guess { get; private set; }
     public Guid? JournalId { get; set; }
@@ -59,7 +63,7 @@ internal sealed class OpenDocument : IDisposable
 
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
-    public bool IsLarge => TextBackend is null;
+    public bool IsLarge => TextBackend is null && !_switchedForHex;
     public bool ReadOnly => IsResults;
     /// <summary>The document behind the "Search Results" tab: it has no text of its own, is never saved and never journaled.</summary>
     public bool IsResults { get; private init; }
@@ -77,7 +81,7 @@ internal sealed class OpenDocument : IDisposable
     public bool EncodingUncertain => Guess is { IsUncertain: true };
 
     /// <summary>Size badge for the tab of a large file, like "10 GiB".</summary>
-    public string? SizeBadge => IsLarge ? FormatSize(_doc.ByteLength) : null;
+    public string? SizeBadge => IsHex ? (IsLarge ? "HEX · " + FormatSize(_doc.ByteLength) : "HEX") : IsLarge ? FormatSize(_doc.ByteLength) : null;
 
     public static string FormatSize(long bytes) => bytes switch
     {
@@ -86,6 +90,43 @@ internal sealed class OpenDocument : IDisposable
         >= 1L << 10 => $"{bytes / (double)(1L << 10):0.#} KiB",
         _ => $"{bytes} B",
     };
+
+    // ---- hex ----
+
+    private static readonly PagedBackendFactory HexBackend = new(startIndexing: false);
+    private bool _switchedForHex;
+
+    /// <summary>The hex views show this document: its bytes sit in the byte backend, which takes any byte anywhere.</summary>
+    public bool IsHex { get; private set; }
+
+    /// <summary>
+    /// Moves the bytes of a text document to the byte backend (nothing is written, revision, undo and the unsaved state stay) and marks it as shown in hex.
+    /// The caller has closed the text views first.
+    /// </summary>
+    public void EnterHex()
+    {
+        if (IsHex) return;
+        if (TextBackend is not null)
+        {
+            // the paged backend cannot scan UTF-16 or UTF-32 for newlines; the hex view does not need to
+            var codec = _doc.Codec;
+            _doc.SwitchBackend(HexBackend, codec.Kind is CodecKind.Utf16 or CodecKind.Utf32 ? TextCodec.Cp1252 : null);
+            _switchedForHex = true;
+        }
+        IsHex = true;
+    }
+
+    /// <summary>The inverse of <see cref="EnterHex"/>: the bytes go back to the text backend they came from. The caller has closed the hex views first.</summary>
+    public void LeaveHex()
+    {
+        if (!IsHex) return;
+        if (_switchedForHex)
+        {
+            _doc.SwitchBackend(AvaloniaEditBackendFactory.Instance);
+            _switchedForHex = false;
+        }
+        IsHex = false;
+    }
 
     // ---- creation ----
 
@@ -198,11 +239,25 @@ internal sealed class OpenDocument : IDisposable
     private void OnSaved(object? sender, EventArgs e)
     {
         RefreshEditorConfig();
-        if (Language.Id == LanguageModes.PlainId) Language = LanguageModes.ForPath(Path);
+        if (!LanguageChosen) SetLanguage(LanguageModes.ForPath(Path));
         Changed?.Invoke();
     }
 
     public void NotifyChanged() => Changed?.Invoke();
+
+    /// <summary>Sets the language by the user's choice; it wins over the one the file name gives.</summary>
+    public void ChooseLanguage(LanguageMode mode)
+    {
+        LanguageChosen = true;
+        SetLanguage(mode);
+    }
+
+    private void SetLanguage(LanguageMode mode)
+    {
+        if (ReferenceEquals(Language, mode)) return;
+        Language = mode;
+        LanguageChanged?.Invoke();
+    }
 
     /// <summary>Recomputes the line ending summary now instead of after the typing pause.</summary>
     public void FlushEol()

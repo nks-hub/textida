@@ -42,7 +42,7 @@ public static partial class Program
 
     private static int ForwardToRunningInstance(CommandLineArgs parsed)
     {
-        var request = new IpcRequest { NewWindow = parsed.NewWindow, Wait = parsed.Wait, Files = parsed.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line }).ToList() };
+        var request = new IpcRequest { NewWindow = parsed.NewWindow, Wait = parsed.Wait, Files = parsed.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList() };
         try
         {
             var reply = IpcClient.SendAsync(MainChannel, request, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();

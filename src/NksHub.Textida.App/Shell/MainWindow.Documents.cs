@@ -41,6 +41,7 @@ internal sealed partial class MainWindow
             var od = OpenDocument.Open(path, LargeFileBytes);
             Adopt(od);
             tab = AddView(od, _activeGroup);
+            OfferHex(tab);
         }
         else SelectTab(tab);
         if (line is { } l) tab.GoToLine(l);
@@ -100,12 +101,14 @@ internal sealed partial class MainWindow
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }
+        else if (tab.Hex is { } hex) WireHex(tab, hex);
         else
         {
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
+        if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
         group.Add(tab, index);
         _activeGroup = group;
         OnActiveTabChanged();

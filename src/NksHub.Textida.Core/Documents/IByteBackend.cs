@@ -36,12 +36,26 @@ public interface IByteBackend : IDisposable
     bool TryGetOffset(LinePosition position, out long offset);
 
     IByteSnapshot CreateSnapshot();
+
+    /// <summary>
+    /// Called before the changed bytes of the file this backend maps are written into it in place. The scope receives the old bytes of every
+    /// range just before it is overwritten, so snapshots taken earlier keep reading what they saw; null when the backend maps no file.
+    /// </summary>
+    IInPlaceWriteScope? BeginInPlaceWrite() => null;
+
     void CopyTo(Stream destination);
     /// <summary>
     /// <paramref name="tempPath"/> holds exactly the current bytes. Move it over <paramref name="targetPath"/> atomically;
     /// a backend that maps the target must release the mapping first and map the result afterwards.
     /// </summary>
     void ReplaceBackingFile(string tempPath, string targetPath);
+}
+
+/// <summary>The window in which a file mapped by a backend is overwritten in place; disposing it accepts the file as it is then (its write time included).</summary>
+public interface IInPlaceWriteScope : IDisposable
+{
+    /// <summary>The bytes of the file at <paramref name="offset"/> before they are overwritten.</summary>
+    void Preserve(long offset, ReadOnlySpan<byte> old);
 }
 
 /// <summary>

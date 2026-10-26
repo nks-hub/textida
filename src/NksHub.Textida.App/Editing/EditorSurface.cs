@@ -4,10 +4,13 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.Editing;
+using AvaloniaEdit.Rendering;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -31,6 +34,8 @@ internal sealed partial class EditorSurface : TextEditor
 {
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
+    private readonly SyntaxColorizer _colorizer;
+    private bool _syntaxViewQueued;
 
     public EditorSurface(OpenDocument doc, EditorOptions options) : base(new EditorTextArea())
     {
@@ -50,6 +55,12 @@ internal sealed partial class EditorSurface : TextEditor
         foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
         Settings = options;
         ApplyOptions(options);
+        _colorizer = new SyntaxColorizer(TextArea.TextView);
+        _colorizer.BindDocument(Document);
+        TextArea.TextView.LineTransformers.Add(_colorizer);
+        Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount, () => OnVisualLinesChanged(null, EventArgs.Empty));
+        TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
+        TextArea.TextView.ScrollOffsetChanged += (_, _) => QueueSyntaxView();
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
@@ -59,6 +70,8 @@ internal sealed partial class EditorSurface : TextEditor
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
     public OpenDocument Doc { get; }
+    /// <summary>Keeps the syntax colors of this view current.</summary>
+    public SyntaxFeeder Syntax { get; }
     public EditorOptions Settings { get; private set; }
     public bool BlockMode { get; private set; }
     public bool IsBlockSelection => TextArea.Selection is RectangleSelection;
@@ -79,9 +92,73 @@ internal sealed partial class EditorSurface : TextEditor
     {
         TextArea.ClearSelection();
         Document = Doc.TextBackend!.TextDocument;
+        _colorizer.BindDocument(Document);
         CaretOffset = 0;
         RebindCarets();
     }
+
+    private string? LineText(long line)
+    {
+        if (line >= Document.LineCount) return null;
+        var textLine = Document.GetLineByNumber((int)line + 1);
+        return Document.GetText(textLine.Offset, textLine.Length);
+    }
+
+    private void ApplyTokens(SyntaxViewport viewport)
+    {
+        if (viewport.Revision != Doc.Doc.Revision) return;
+        try { _colorizer.SetTokens(Document.Version, viewport.Lines); }
+        catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
+    }
+
+    /// <summary>
+    /// Tells the feeder which lines and which UTF-16 columns of them are on screen. Unscrolled, a column cannot be farther right than the
+    /// width allows for the narrowest glyph; scrolled, the columns come from the layout of the visible lines.
+    /// </summary>
+    private void OnVisualLinesChanged(object? sender, EventArgs e)
+    {
+        var view = TextArea.TextView;
+        if (!Syntax.Active || !view.VisualLinesValid) return; // the getter of the lines throws while they are invalid
+        var lines = view.VisualLines;
+        if (lines.Count == 0) return;
+        double scrolled = view.ScrollOffset.X;
+        int first = int.MaxValue, last = 0;
+        int step = Math.Max(1, lines.Count / 8);
+        for (int i = 0; i < lines.Count; i += step)
+        {
+            var line = lines[i];
+            int length = line.LastDocumentLine.Length;
+            if (scrolled == 0 || WordWrap)
+            {
+                first = scrolled == 0 || lines.Count > 1 ? 0 : Math.Min(first, ColumnAt(view, 0, line.VisualTop + 1, 0));
+                last = Math.Max(last, length);
+                continue;
+            }
+            double y = line.VisualTop + 1; // GetPosition takes document coordinates: the scroll offset is part of them
+            int left = ColumnAt(view, scrolled, y, 0);
+            if (left >= length) continue; // scrolled past the end of this line: nothing of it is visible
+            first = Math.Min(first, left);
+            last = Math.Max(last, ColumnAt(view, scrolled + view.Bounds.Width, y, length) + 1);
+        }
+        if (first == int.MaxValue) first = last = 0;
+        if (scrolled == 0 && !WordWrap) last = (int)Math.Min(last, Math.Ceiling(view.Bounds.Width / (Math.Max(1, view.WideSpaceWidth) * 0.3)));
+        Syntax.SetVisible(lines[0].FirstDocumentLine.LineNumber - 1, lines[^1].LastDocumentLine.LineNumber - 1, first, Math.Max(first + 1, last));
+    }
+
+    /// <summary>A scroll invalidates the visual lines; the columns are read once they are laid out again.</summary>
+    private void QueueSyntaxView()
+    {
+        if (_syntaxViewQueued) return;
+        _syntaxViewQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _syntaxViewQueued = false;
+            OnVisualLinesChanged(null, EventArgs.Empty);
+        }, DispatcherPriority.Render);
+    }
+
+    private static int ColumnAt(TextView view, double x, double y, int fallback) =>
+        view.GetPosition(new Point(x, y)) is { } position ? position.Column - 1 : fallback;
 
     // ---- look ----
 
@@ -112,6 +189,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.SelectionBorder = null;
         _caretBrush = Find("Fg");
         UpdateNativeCaret();
+        _colorizer.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
     }
 
     // ---- selections ----

@@ -28,6 +28,7 @@ internal sealed class RegexTesterWindow : Window
     private readonly ListBox _explain = new() { Background = Brushes.Transparent };
     private readonly TextBlock _note = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _dialect = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.7, FontSize = 12 };
+    private readonly TextBlock _limits = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.7, FontSize = 12 };
     private readonly TextBlock _patternLabel = new(), _replacementLabel = new(), _sampleLabel = new(), _matchesLabel = new(), _explainLabel = new(), _replacedLabel = new();
 
     public RegexTesterWindow(SearchPattern start)
@@ -65,7 +66,7 @@ internal sealed class RegexTesterWindow : Window
         Grid.SetColumn(right, 1);
         body.Children.Add(left);
         body.Children.Add(right);
-        var footer = new StackPanel { Margin = new Thickness(18, 0, 18, 12), Spacing = 4, Children = { _note, _dialect } };
+        var footer = new StackPanel { Margin = new Thickness(18, 0, 18, 12), Spacing = 4, Children = { _note, _dialect, _limits } };
         var root = new DockPanel { Children = { footer, body } };
         DockPanel.SetDock(footer, Dock.Bottom);
         Content = root;
@@ -110,6 +111,7 @@ internal sealed class RegexTesterWindow : Window
         _explainLabel.Text = Loc.Get(K.RegexExplain);
         _replacedLabel.Text = Loc.Get(K.RegexReplaced);
         _dialect.Text = Loc.Get(K.RegexDialect);
+        _limits.Text = Loc.Get(K.RegexLimits);
         _case.Content = Loc.Get(K.FindCase);
         ToolTip.SetTip(_case, Loc.Get(K.FindCaseTip));
         AutomationProperties.SetName(_pattern, Loc.Get(K.RegexPattern));

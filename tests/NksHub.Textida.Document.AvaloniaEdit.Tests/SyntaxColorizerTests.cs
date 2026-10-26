@@ -23,7 +23,7 @@ public sealed class SyntaxColorizerTests(SyntaxTestSession session) : IClassFixt
         Assert.True(colorizer.SetTokens(version, Tokens(editor.Document)));
         var line = Render(view);
 
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(line, 5));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(line, 5));
         Assert.Equal(Color.Parse("#008000"), ForegroundAt(line, 12));
         Assert.Equal(Colors.Black, ForegroundAt(line, 1));
         Assert.Equal(selected, editor.SelectedText);
@@ -34,17 +34,19 @@ public sealed class SyntaxColorizerTests(SyntaxTestSession session) : IClassFixt
     });
 
     [Fact]
-    public Task Editing_clears_colors_and_rejects_an_outdated_token_result() => session.Run(() =>
+    public Task Editing_keeps_clamped_colors_and_rejects_an_outdated_token_result() => session.Run(() =>
     {
         var view = CreateView(new TextDocument("\"old\""));
         using var colorizer = Attach(view);
         var version = view.Document.Version;
         var tokens = Tokens(view.Document);
         Assert.True(colorizer.SetTokens(version, tokens));
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(Render(view), 1));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
 
-        view.Document.Text = "plain";
+        view.Document.Text = "ab";
         Assert.False(colorizer.SetTokens(version, tokens));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
+        colorizer.ClearTokens();
         Assert.Equal(Colors.Black, ForegroundAt(Render(view), 1));
     });
 
@@ -61,7 +63,7 @@ public sealed class SyntaxColorizerTests(SyntaxTestSession session) : IClassFixt
         Assert.False(colorizer.SetTokens(previous.Version, previousTokens));
         Assert.True(colorizer.SetTokens(current.Version, Tokens(current)));
         previous.Text = "changed";
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(Render(view), 1));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
     });
 
     [Fact]
@@ -70,7 +72,7 @@ public sealed class SyntaxColorizerTests(SyntaxTestSession session) : IClassFixt
         var view = CreateView(new TextDocument("\"text\""));
         var colorizer = Attach(view);
         Assert.True(colorizer.SetTokens(view.Document.Version, Tokens(view.Document)));
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(Render(view), 1));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
         colorizer.Palette = SyntaxPalette.Dark;
         Assert.Equal(Color.Parse("#CE9178"), ForegroundAt(Render(view), 1));
         colorizer.ClearTokens();
@@ -92,10 +94,10 @@ public sealed class SyntaxColorizerTests(SyntaxTestSession session) : IClassFixt
         var mutable = new List<Token> { new(0, 3, "string.escape.custom") };
         Assert.True(colorizer.SetTokens(view.Document.Version, [new(0, mutable, state, state)]));
         mutable.Clear();
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(Render(view), 1));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => colorizer.SetTokens(view.Document.Version,
             [new(0, [new(2, int.MaxValue, "comment")], state, state)]));
-        Assert.Equal(Color.Parse("#0000FF"), ForegroundAt(Render(view), 1));
+        Assert.Equal(Color.Parse("#0451A5"), ForegroundAt(Render(view), 1));
         Assert.Null(SyntaxPalette.Light.GetBrush("unknown.token"));
     });
 

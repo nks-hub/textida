@@ -324,7 +324,7 @@ public class MultiCaretEditorTests : IDisposable
     public void Enter_continues_a_comment_at_every_caret()
     {
         var tab = Open("// a\nx\n// b");
-        tab.Doc.Language = LanguageModes.ById("csharp");
+        tab.Doc.ChooseLanguage(LanguageModes.ById("csharp"));
         PlaceCarets(tab, 4, 11);
         Press(Key.Enter);
         Assert.Equal("// a\n// \nx\n// b\n// ", Text(tab));

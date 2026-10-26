@@ -15,7 +15,8 @@ internal sealed class DocTab
     {
         Doc = doc;
         Custom = custom;
-        if (custom is null && doc.IsLarge) Paged = new PagedTextView(doc, options);
+        if (custom is null && doc.IsHex) Hex = new HexView(doc, options);
+        else if (custom is null && doc.IsLarge) Paged = new PagedTextView(doc, options);
         else if (custom is null) Surface = new EditorSurface(doc, options);
         Root = new DockPanel { Children = { _barSlot } };
         if (Surface is { } surface && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
@@ -33,16 +34,22 @@ internal sealed class DocTab
     /// <summary>Releases what the view holds outside the visual tree.</summary>
     public void Close()
     {
+        Syntax?.Dispose();
         _automation?.Dispose();
         Surface?.Detach();
     }
 
+    /// <summary>The syntax colors of the view (null for tabs that show no document text); <see cref="SyntaxFeeder.Pending"/> tells that they are not complete yet.</summary>
+    public SyntaxFeeder? Syntax => Surface?.Syntax ?? Paged?.Syntax;
+
     public OpenDocument Doc { get; }
     public EditorSurface? Surface { get; }
     public PagedTextView? Paged { get; }
+    /// <summary>The hex view; null for a text or paged view.</summary>
+    public HexView? Hex { get; }
     /// <summary>The AvaloniaEdit surface; null for a paged (large) view.</summary>
     public EditorSurface? Editor => Surface;
-    public Control View => (Control?)Surface ?? (Control?)Paged ?? Custom!;
+    public Control View => (Control?)Surface ?? (Control?)Paged ?? (Control?)Hex ?? Custom!;
     /// <summary>The content of a tab that is not a text view (the search results); null for a document tab.</summary>
     public Control? Custom { get; }
     public DockPanel Root { get; }
@@ -62,6 +69,7 @@ internal sealed class DocTab
     public (long Line, long Column) CaretPosition()
     {
         if (Surface is { } s) return s.CaretLineColumn();
+        if (Hex is not null) return (1, 1);
         return Paged is { } p ? (p.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (p.TopLine + 1, 1)) : (1, 1);
     }
 

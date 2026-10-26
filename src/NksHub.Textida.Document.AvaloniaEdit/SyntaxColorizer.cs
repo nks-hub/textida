@@ -4,7 +4,10 @@ using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.AvaloniaEditAdapter;
 
-/// <summary>Paints prepared UTF-16 tokens on the UI thread. Tokenization never runs during line construction.</summary>
+/// <summary>
+/// Paints prepared UTF-16 tokens on the UI thread. Tokenization never runs during line construction. An edit keeps the prepared tokens
+/// (clamped to the line) until the caller replaces them, so the text does not flash plain between keystroke and new tokens.
+/// </summary>
 public sealed class SyntaxColorizer : DocumentColorizingTransformer, IDisposable
 {
     private readonly TextView view;
@@ -34,9 +37,7 @@ public sealed class SyntaxColorizer : DocumentColorizingTransformer, IDisposable
     public void BindDocument(TextDocument? value)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (document is not null) document.Changed -= OnChanged;
         document = value;
-        if (document is not null) document.Changed += OnChanged;
         ClearTokens();
     }
 
@@ -61,14 +62,36 @@ public sealed class SyntaxColorizer : DocumentColorizingTransformer, IDisposable
                     throw new ArgumentOutOfRangeException(nameof(tokens), "A token is outside its line.");
             replacement.Add(line.Line, copy);
         }
+        var previous = lines;
         lines = replacement;
-        view.Redraw();
+        RedrawChanged(previous, replacement);
         return true;
+    }
+
+    /// <summary>Rebuilds only the lines whose colors differ, so typing does not lay out the whole viewport again.</summary>
+    private void RedrawChanged(Dictionary<long, Token[]> previous, Dictionary<long, Token[]> current)
+    {
+        var changed = new List<long>();
+        foreach (long line in previous.Keys.Union(current.Keys))
+        {
+            previous.TryGetValue(line, out var before);
+            current.TryGetValue(line, out var after);
+            if (!(before ?? []).AsSpan().SequenceEqual(after ?? [])) changed.Add(line);
+        }
+        if (changed.Count > 256) view.Redraw();
+        else
+            foreach (long line in changed)
+                if (line < document!.LineCount)
+                {
+                    var textLine = document.GetLineByNumber((int)line + 1);
+                    view.Redraw(textLine.Offset, textLine.TotalLength);
+                }
     }
 
     public void ClearTokens()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        if (lines.Count == 0) return;
         lines.Clear();
         view.Redraw();
     }
@@ -80,18 +103,16 @@ public sealed class SyntaxColorizer : DocumentColorizingTransformer, IDisposable
         foreach (var token in tokens)
         {
             var brush = palette.GetBrush(token.Kind);
-            if (brush is null || token.Length == 0) continue;
-            ChangeLinePart(line.Offset + token.Start, line.Offset + token.End,
+            int end = Math.Min(token.End, line.Length);
+            if (brush is null || token.Start >= end) continue;
+            ChangeLinePart(line.Offset + token.Start, line.Offset + end,
                 element => element.TextRunProperties.SetForegroundBrush(brush));
         }
     }
 
-    private void OnChanged(object? sender, DocumentChangeEventArgs e) => ClearTokens();
-
     public void Dispose()
     {
         if (disposed) return;
-        if (document is not null) document.Changed -= OnChanged;
         document = null;
         lines.Clear();
         disposed = true;

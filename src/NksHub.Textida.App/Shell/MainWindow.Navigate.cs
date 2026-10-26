@@ -25,8 +25,9 @@ internal sealed partial class MainWindow
     internal Place? CurrentPlace()
     {
         if (Active is not { } tab) return null;
-        var (line, column) = tab.CaretPosition();
         var doc = tab.Doc.Doc;
+        if (tab.Hex is { } hex) return Place.At(doc, hex.Caret);
+        var (line, column) = tab.CaretPosition();
         var place = Place.At(doc, doc.TryGetOffset(new LinePosition(line - 1, column - 1), out long offset) ? offset : 0);
         place.Snippet = SnippetOf(place);
         return place;
@@ -73,7 +74,12 @@ internal sealed partial class MainWindow
             catch (IOException e) { SetStatusMessage(e.Message); }
         }
         if (tab is null) return null;
-        MoveCaret(tab, place.Line, place.Column);
+        if (tab.Hex is { } hexView && place.Offset is { } offset)
+        {
+            hexView.MoveTo(offset);
+            hexView.CenterIfOutside(offset);
+        }
+        else MoveCaret(tab, place.Line, place.Column);
         FocusView(tab);
         return tab;
     }

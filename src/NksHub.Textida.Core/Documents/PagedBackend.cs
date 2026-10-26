@@ -96,6 +96,8 @@ public sealed class PagedBackend : IByteBackend
 
     public IByteSnapshot CreateSnapshot() => _doc.CreateSnapshot();
 
+    public IInPlaceWriteScope? BeginInPlaceWrite() => _doc.Source.File.BeginInPlaceWrite();
+
     public void ReplaceBackingFile(string tempPath, string targetPath)
     {
         _doc.Dispose();
