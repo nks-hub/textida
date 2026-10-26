@@ -1,0 +1,93 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "python",
+  "name": "Python",
+  "version": "1.0.0",
+  "extensions": [".py", ".pyw", ".pyi", ".pyx", ".gyp", ".gypi", ".bzl", ".sc"],
+  "firstLine": "^#!.*\\bpython",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "and", "as", "assert", "async", "await", "break", "case", "class", "continue", "def", "del",
+        "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda",
+        "match", "nonlocal", "not", "or", "pass", "raise", "return", "try", "type", "while", "with",
+        "yield"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["True", "False", "None", "self", "cls", "__name__", "__file__", "NotImplemented", "Ellipsis"]
+    },
+    {
+      "name": "builtins",
+      "token": "type",
+      "words": [
+        "abs", "all", "any", "bool", "bytes", "callable", "chr", "dict", "dir", "enumerate", "filter",
+        "float", "format", "frozenset", "getattr", "hasattr", "int", "isinstance", "issubclass", "iter",
+        "len", "list", "map", "max", "min", "next", "object", "open", "ord", "print", "range", "repr",
+        "reversed", "round", "set", "setattr", "sorted", "str", "sum", "super", "tuple", "type", "zip"
+      ]
+    }
+  ],
+  "rules": [
+    {"match": "#.*", "token": "comment"},
+    {
+      "name": "triple-dq-string",
+      "begin": "(?<![\\w])(?i:[rbuf]{0,2})\"\"\"",
+      "end": "\"\"\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "triple-sq-string",
+      "begin": "(?<![\\w])(?i:[rbuf]{0,2})'''",
+      "end": "'''",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "dq-string",
+      "begin": "(?<![\\w])(?i:[rbuf]{0,2})\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "(?<![\\w])(?i:[rbuf]{0,2})'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<=^[ \\t]*)@[\\w.]+", "token": "meta"},
+    {
+      "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\\d[\\d_]*(?:\\.[\\d_]*)?|\\.\\d[\\d_]*)(?:[eE][+-]?\\d+)?[jJ]?)",
+      "token": "number"
+    },
+    {"match": "(?<=\\bdef[ \\t]+)[A-Za-z_]\\w*", "token": "function"},
+    {"match": "(?<=\\bclass[ \\t]+)[A-Za-z_]\\w*", "token": "type"},
+    {"words": true},
+    {
+      "operators": [
+        "**=", "//=", ">>=", "<<=", "->", ":=", "==", "!=", "<=", ">=", "**", "//", "+=", "-=", "*=", "/=",
+        "%=", "&=", "|=", "^=", "<<", ">>", "+", "-", "*", "/", "%", "=", "<", ">", "~", "&", "|", "^",
+        "@"
+      ]
+    },
+    {"match": "[{}()\\[\\];,.:]", "token": "punctuation"}
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "sql",
+  "name": "SQL",
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".sql", ".ddl", ".dml", ".psql", ".mysql", ".pgsql"],
+  "wordPattern": "[\\p{L}_][\\p{L}\\p{N}_$]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "add", "all", "alter", "and", "any", "as", "asc", "authorization", "backup", "begin", "between",
+        "by", "case", "check", "column", "commit", "constraint", "create", "cross", "database", "declare",
+        "default", "delete", "desc", "distinct", "drop", "else", "elsif", "end", "escape", "except",
+        "exec", "execute", "exists", "foreign", "from", "full", "function", "group", "having", "if",
+        "ilike", "in", "index", "inner", "insert", "intersect", "into", "is", "join", "key", "left",
+        "like", "limit", "materialized", "natural", "not", "offset", "on", "or", "order", "outer", "over",
+        "partition", "primary", "procedure", "references", "return", "returns", "right", "rollback", "row",
+        "rows", "schema", "select", "set", "table", "temp", "temporary", "then", "to", "top",
+        "transaction", "trigger", "truncate", "union", "unique", "update", "use", "using", "values",
+        "view", "when", "where", "while", "with", "returning", "recursive", "replace", "grant", "revoke",
+        "explain", "analyze", "unlock", "lock"
+      ]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "bigint", "binary", "bit", "blob", "bool", "boolean", "char", "clob", "date", "datetime",
+        "decimal", "double", "enum", "float", "int", "integer", "json", "jsonb", "longtext", "mediumint",
+        "mediumtext", "money", "nchar", "numeric", "nvarchar", "real", "serial", "smallint", "text",
+        "time", "timestamp", "tinyint", "uuid", "varbinary", "varchar", "xml"
+      ]
+    },
+    {
+      "name": "functions",
+      "token": "function",
+      "words": [
+        "abs", "avg", "cast", "ceil", "coalesce", "concat", "convert", "count", "current_date",
+        "current_time", "current_timestamp", "date_add", "date_sub", "dense_rank", "extract",
+        "first_value", "floor", "ifnull", "isnull", "lag", "last_value", "lead", "length", "lower",
+        "ltrim", "max", "min", "mod", "now", "nullif", "nvl", "rank", "replace", "round", "row_number",
+        "rtrim", "substr", "substring", "sum", "trim", "upper"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["null", "true", "false", "unknown"]
+    }
+  ],
+  "rules": [
+    {"match": "--.*", "token": "comment"},
+    {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+    {
+      "name": "string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "''", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "quoted-identifier",
+      "begin": "\"",
+      "end": "\"",
+      "token": "variable",
+      "multiline": true,
+      "rules": [
+        {"match": "\"\"", "token": "string.escape"}
+      ]
+    },
+    {"name": "dollar-string", "begin": "\\$\\$", "end": "\\$\\$", "token": "string", "multiline": true},
+    {"match": "`[^`\\r\\n]*`", "token": "variable"},
+    {"match": "@@?[A-Za-z_]\\w*|:[A-Za-z_]\\w*|\\$\\d+", "token": "variable"},
+    {"match": "(?<![\\w.])(?:0[xX][0-9a-fA-F]+|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)", "token": "number"},
+    {"words": true},
+    {
+      "operators": [
+        "<>", "<=", ">=", "!=", "||", "::", "<<", ">>", "->>", "->", "+", "-", "*", "/", "%", "=", "<",
+        ">", "~", "&", "|", "^"
+      ]
+    },
+    {"match": "[(),;.\\[\\]]", "token": "punctuation"}
+  ]
+}

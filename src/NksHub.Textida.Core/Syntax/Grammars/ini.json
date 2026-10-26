@@ -1,0 +1,30 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "ini",
+  "name": "INI",
+  "version": "1.0.0",
+  "extensions": [".ini", ".cfg", ".conf", ".properties", ".editorconfig", ".gitconfig"],
+  "caseSensitive": false,
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "on", "off", "yes", "no", "null", "none"]
+    }
+  ],
+  "rules": [
+    {"match": "(?<=^[ \\t]*)[;#].*", "token": "comment"},
+    {"match": "(?<=^[ \\t]*)\\[[^\\]\\r\\n]*\\]", "token": "heading"},
+    {"match": "(?<=^[ \\t]*)[^=;#\\[\\s][^=\\r\\n]*?(?=[ \\t]*=)", "token": "property"},
+    {"match": "(?<=[ \\t]);.*", "token": "comment"},
+    {"name": "dq-string", "begin": "(?<!\\w)\"(?=[^\"\\r\\n]*\")", "end": "\"", "token": "string"},
+    {"name": "sq-string", "begin": "(?<!\\w)'(?=[^'\\r\\n]*')", "end": "'", "token": "string"},
+    {"match": "\\$\\{[^}\\r\\n]*\\}|%\\([^)\\r\\n]*\\)s", "token": "variable"},
+    {"match": "(?<![\\w.])[-+]?\\d+(?:\\.\\d+)?(?![\\w.])", "token": "number"},
+    {"words": true},
+    {
+      "operators": ["="]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "markdown",
+  "name": "Markdown",
+  "version": "1.0.0",
+  "extensions": [".md", ".markdown", ".mdown", ".mkd", ".mdx"],
+  "rules": [
+    {"name": "fenced-code", "begin": "^[ \\t]*(?:```|~~~).*$", "end": "^[ \\t]*(?:```|~~~)[ \\t]*$", "token": "code", "multiline": true},
+    {"name": "comment", "begin": "<!--", "end": "-->", "token": "comment", "multiline": true},
+    {"match": "^[ \\t]{0,3}#{1,6}(?:[ \\t].*)?$", "token": "heading"},
+    {"match": "^[ \\t]{0,3}(?:(?:-[ \\t]*){3,}|(?:\\*[ \\t]*){3,}|(?:_[ \\t]*){3,})$", "token": "punctuation"},
+    {"match": "^[ \\t]{0,3}>+", "token": "punctuation"},
+    {"match": "^[ \\t]*(?:[-*+]|\\d{1,9}[.)])(?=[ \\t])", "token": "punctuation"},
+    {"match": "`[^`\\r\\n]+`|``[^\\r\\n]+``", "token": "code"},
+    {"match": "\\*\\*[^*\\r\\n]+\\*\\*|__[^_\\r\\n]+__", "token": "strong"},
+    {"match": "(?<![*\\w])\\*[^*\\s](?:[^*\\r\\n]*[^*\\s])?\\*(?![*\\w])|(?<![_\\w])_[^_\\s](?:[^_\\r\\n]*[^_\\s])?_(?![_\\w])", "token": "emphasis"},
+    {"match": "!?\\[[^\\]\\r\\n]*\\](?:\\([^)\\r\\n]*\\)|\\[[^\\]\\r\\n]*\\])", "token": "link"},
+    {"match": "<(?:https?|ftp|mailto):[^>\\s]+>|\\b(?:https?|ftp)://[^\\s<>)]+", "token": "link"},
+    {"match": "^\\[[^\\]\\r\\n]+\\]:[ \\t]*\\S+", "token": "link"},
+    {"match": "</?[A-Za-z][\\w-]*(?:[ \\t][^>\\r\\n]*)?/?>", "token": "tag"}
+  ]
+}

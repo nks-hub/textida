@@ -1,0 +1,78 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "css",
+  "name": "CSS",
+  "version": "1.0.0",
+  "extensions": [".css", ".pcss", ".postcss"],
+  "caseSensitive": false,
+  "wordPattern": "-?[A-Za-z_][\\w-]*",
+  "keywords": [
+    {
+      "name": "values",
+      "token": "constant",
+      "words": [
+        "auto", "none", "inherit", "initial", "unset", "revert", "normal", "block", "inline",
+        "inline-block", "flex", "grid", "absolute", "relative", "fixed", "sticky", "static", "hidden",
+        "visible", "solid", "dashed", "dotted", "double", "bold", "italic", "center", "left", "right",
+        "top", "bottom", "transparent", "currentcolor", "pointer", "default", "no-repeat", "repeat",
+        "cover", "contain", "wrap", "nowrap", "column", "row", "space-between", "uppercase", "lowercase",
+        "underline", "red", "green", "blue", "black", "white", "gray", "grey", "yellow", "orange",
+        "purple", "pink", "brown", "cyan", "magenta"
+      ]
+    }
+  ],
+  "repository": {
+    "body": [
+      {"name": "comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "@[\\w-]+", "token": "keyword"},
+      {"include": "#block"},
+      {"match": "-{0,2}[A-Za-z][\\w-]*(?=\\s*:(?![^;{}\\r\\n]*\\{))", "token": "property"},
+      {"match": "(?i:url)(?=\\()", "token": "function"},
+      {"match": "#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\\b", "token": "constant"},
+      {"match": "(?<![\\w.#-])[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?(?:%|[A-Za-z]+)?", "token": "number"},
+      {"match": "!\\s*important\\b", "token": "keyword"},
+      {"match": "-?[A-Za-z_][\\w-]*(?=\\()", "token": "function"},
+      {"match": "(?<![\\w-])\\.[A-Za-z_-][\\w-]*", "token": "type"},
+      {"match": "\\.[A-Za-z_-][\\w-]*(?=[^;}\\r\\n]*\\{)", "token": "type"},
+      {"match": "#[A-Za-z_-][\\w-]*", "token": "constant"},
+      {"match": "::?[A-Za-z-]+(?=[^;}\\r\\n]*\\{)", "token": "keyword"},
+      {"words": true},
+      {"match": "[;,:>+~*()\\[\\]]", "token": "punctuation"}
+    ],
+    "block": [
+      {
+        "name": "block",
+        "begin": "\\{",
+        "end": "\\}",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "rules": [
+          {"include": "#body"}
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {"include": "#body"}
+  ]
+}

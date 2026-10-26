@@ -1,0 +1,54 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "yaml",
+  "name": "YAML",
+  "version": "1.0.0",
+  "extensions": [".yml", ".yaml"],
+  "fileNames": [".clang-format", ".clang-tidy"],
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": [
+        "true", "True", "TRUE", "false", "False", "FALSE", "null", "Null", "NULL", "yes", "Yes", "YES",
+        "no", "No", "NO", "on", "On", "ON", "off", "Off", "OFF"
+      ]
+    }
+  ],
+  "rules": [
+    {"match": "(?<=^|[ \\t])#.*", "token": "comment"},
+    {"match": "^(?:---|\\.\\.\\.)(?=[ \\t]|$)", "token": "meta"},
+    {
+      "match": "(?<=^[ \\t]*(?:-[ \\t]+)*)(?:\\\"(?:[^\\\"\\\\\\r\\n]|\\\\.)*\\\"|'[^'\\r\\n]*'|[^\\s#:'\\\"\\-?\\[\\]{},&*!|>%@`][^:#\\r\\n]*?)(?=[ \\t]*:(?:[ \\t]|$))",
+      "token": "property"
+    },
+    {"match": "(?<=[{,][ \\t]*)[^\\s,:{}\\[\\]]+(?=[ \\t]*:(?:[ \\t]|$))", "token": "property"},
+    {
+      "name": "dq-string",
+      "begin": "(?<![\\w\\\\])\"(?=[^\\r\\n]*\")",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "(?<!\\w)'(?=[^\\r\\n]*')",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "''", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<=^[ \\t]*(?:-[ \\t]+)*)-(?=[ \\t]|$)", "token": "punctuation"},
+    {"match": "[&*][\\w.-]+", "token": "variable"},
+    {"match": "!{1,2}[\\w!./:<>-]*", "token": "meta"},
+    {"match": "[|>][+-]?\\d*(?=[ \\t]*(?:#.*)?$)", "token": "operator"},
+    {"match": "(?<![\\w.:/-])[-+]?(?:0x[0-9a-fA-F]+|0o[0-7]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)(?![\\w.:/-])", "token": "number"},
+    {"match": "(?<![\\w])~(?![\\w])", "token": "constant"},
+    {"words": true},
+    {"match": "[\\[\\]{},]", "token": "punctuation"}
+  ]
+}

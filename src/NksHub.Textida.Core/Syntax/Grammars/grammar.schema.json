@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nks-hub/textida/schemas/grammar-1.json",
+  "title": "Textida grammar, format version 1",
+  "description": "Rules are tried at every position of a line at once: the leftmost match wins, on a tie the rule listed first. Tokens are the runs a rule names; text no rule names is plain. A region (begin/end) keeps its state across lines when multiline is true and ends at the end of the line otherwise.",
+  "type": "object",
+  "required": ["formatVersion", "id"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "formatVersion": { "const": 1, "description": "Version of this file format. A reader rejects a version it does not know." },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "Name other grammars use in include and embed." },
+    "name": { "type": "string", "description": "Display name." },
+    "version": { "type": "string", "description": "Version of the grammar itself." },
+    "extensions": { "type": "array", "items": { "type": "string", "pattern": "^\\." }, "description": "File name endings that select this grammar; the longest match wins." },
+    "fileNames": { "type": "array", "items": { "type": "string" }, "description": "Exact file names that select this grammar." },
+    "firstLine": { "type": "string", "description": "Regular expression a first line must match to select this grammar for a file without a known extension." },
+    "caseSensitive": { "type": "boolean", "default": true, "description": "Applies to every pattern and keyword of the grammar unless a keyword group overrides it." },
+    "wordPattern": { "type": "string", "description": "What a word is for the keyword groups. Default: letters, digits and underscore, not starting with a digit." },
+    "keywords": { "type": "array", "items": { "$ref": "#/$defs/keywordGroup" }, "description": "Words that get a token kind when a { \"words\": true } rule matches them." },
+    "repository": { "type": "object", "additionalProperties": { "$ref": "#/$defs/rules" }, "description": "Named rule lists for { \"include\": \"#name\" }." },
+    "rules": { "$ref": "#/$defs/rules", "description": "Rules at the top level of the file." }
+  },
+  "$defs": {
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+)*$", "description": "Token kind, dotted lower case (comment, comment.doc, string.escape)." },
+    "keywordGroup": {
+      "type": "object",
+      "required": ["name", "words"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "token": { "$ref": "#/$defs/kind", "default": "keyword" },
+        "words": { "type": "array", "items": { "type": "string" } },
+        "caseSensitive": { "type": "boolean" }
+      }
+    },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "match": { "type": "string", "description": "Regular expression (.NET syntax) for a token inside one line." },
+        "words": { "const": true, "description": "Matches a word and gives it the kind of its keyword group; a word in no group is plain." },
+        "operators": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "Literal operators; the longest is tried first. Kind defaults to operator." },
+        "include": { "type": "string", "description": "#name: a repository entry of this grammar; id: the top-level rules of another grammar; id#name: a repository entry of another grammar." },
+        "begin": { "type": "string", "description": "Regular expression that opens a region; it must consume at least one character." },
+        "end": { "type": "string", "description": "Regular expression that closes the region. May be zero-width (a lookahead) to leave the delimiter to the outer rules." },
+        "token": { "$ref": "#/$defs/kind", "description": "Kind of the match, or of the text of a region." },
+        "beginToken": { "$ref": "#/$defs/kind", "description": "Kind of the begin delimiter; default token." },
+        "endToken": { "$ref": "#/$defs/kind", "description": "Kind of the end delimiter; default token." },
+        "multiline": { "type": "boolean", "default": false, "description": "The region goes on at the next line when it is not closed; otherwise it ends with the line." },
+        "rules": { "$ref": "#/$defs/rules", "description": "Rules that apply inside the region, before those of an embedded grammar." },
+        "embed": { "type": "string", "description": "Id of a grammar whose top-level rules also apply inside the region (CSS in a style element)." },
+        "name": { "type": "string", "description": "Name of the region in the line state." }
+      },
+      "oneOf": [
+        { "required": ["match"] },
+        { "required": ["words"] },
+        { "required": ["operators"] },
+        { "required": ["include"] },
+        { "required": ["begin", "end"] }
+      ]
+    }
+  }
+}

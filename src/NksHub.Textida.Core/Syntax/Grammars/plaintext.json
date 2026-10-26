@@ -1,0 +1,11 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "plaintext",
+  "name": "Plain text",
+  "version": "1.0.0",
+  "extensions": [".txt", ".text", ".log"],
+  "rules": [
+    {"match": "\\b(?:https?|ftp)://[^\\s<>\\\"']+", "token": "link"}
+  ]
+}

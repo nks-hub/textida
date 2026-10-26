@@ -1,0 +1,127 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "csharp",
+  "name": "C#",
+  "version": "1.0.0",
+  "extensions": [".cs", ".csx", ".cake"],
+  "wordPattern": "@?[\\p{L}_][\\p{L}\\p{N}_]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "abstract", "as", "base", "break", "case", "catch", "checked", "class", "const", "continue",
+        "default", "delegate", "do", "else", "enum", "event", "explicit", "extern", "finally", "fixed",
+        "for", "foreach", "goto", "if", "implicit", "in", "interface", "internal", "is", "lock",
+        "namespace", "new", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sealed", "sizeof", "stackalloc", "static", "struct", "switch",
+        "this", "throw", "try", "typeof", "unchecked", "unsafe", "using", "virtual", "volatile", "while",
+        "add", "and", "async", "await", "by", "dynamic", "equals", "field", "file", "from", "get",
+        "global", "group", "init", "into", "join", "let", "nameof", "not", "notnull", "on", "or",
+        "orderby", "partial", "record", "remove", "required", "scoped", "select", "set", "unmanaged",
+        "value", "var", "when", "where", "with", "yield"
+      ]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "bool", "byte", "char", "decimal", "double", "float", "int", "long", "nint", "nuint", "object",
+        "sbyte", "short", "string", "uint", "ulong", "ushort", "void", "String", "Int32", "Int64", "List",
+        "Dictionary", "Task", "ValueTask", "IEnumerable", "Span", "ReadOnlySpan", "Guid", "DateTime",
+        "TimeSpan", "Exception", "Console", "Math"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null"]
+    }
+  ],
+  "repository": {
+    "code": [
+      {"match": "///.*", "token": "comment.doc"},
+      {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+      {"match": "//.*", "token": "comment"},
+      {"match": "(?<=^[ \\t]*)#[ \\t]*[A-Za-z]+.*", "token": "preprocessor"},
+      {"name": "raw-string", "begin": "\"\"\"", "end": "\"\"\"", "token": "string", "multiline": true},
+      {
+        "name": "verbatim-interp-string",
+        "begin": "(?:\\$@|@\\$)\"",
+        "end": "\"(?!\")",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\"\"", "token": "string.escape"},
+          {"match": "\\{\\{|\\}\\}", "token": "string.escape"},
+          {
+            "name": "interpolation",
+            "begin": "\\{(?!\\{)",
+            "end": "\\}",
+            "multiline": true,
+            "beginToken": "punctuation",
+            "endToken": "punctuation",
+            "rules": [
+              {"include": "#code"}
+            ]
+          }
+        ]
+      },
+      {
+        "name": "verbatim-string",
+        "begin": "@\"",
+        "end": "\"(?!\")",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\"\"", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "interp-string",
+        "begin": "\\$\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"},
+          {"match": "\\{\\{|\\}\\}", "token": "string.escape"},
+          {
+            "name": "interpolation",
+            "begin": "\\{(?!\\{)",
+            "end": "\\}",
+            "multiline": true,
+            "beginToken": "punctuation",
+            "endToken": "punctuation",
+            "rules": [
+              {"include": "#code"}
+            ]
+          }
+        ]
+      },
+      {
+        "name": "string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "'(?:[^'\\\\\\r\\n]|\\\\(?:u[0-9a-fA-F]{4}|x[0-9a-fA-F]{1,4}|.))'", "token": "string"},
+      {"match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)[uUlLfFdDmM]*", "token": "number"},
+      {"words": true},
+      {
+        "operators": [
+          "??=", "<<=", ">>=", ">>>", "=>", "==", "!=", "<=", ">=", "&&", "||", "??", "?.", "++", "--", "+=",
+          "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->", "::", "+", "-", "*", "/", "%", "=",
+          "<", ">", "!", "~", "&", "|", "^", "?", ":"
+        ]
+      },
+      {"match": "[{}()\\[\\];,.]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"include": "#code"}
+  ]
+}

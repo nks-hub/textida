@@ -1,0 +1,69 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "latte",
+  "name": "Latte",
+  "version": "1.0.0",
+  "extensions": [".latte"],
+  "wordPattern": "[A-Za-z_][\\w]*",
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null", "TRUE", "FALSE", "NULL"]
+    },
+    {
+      "name": "operators",
+      "token": "keyword",
+      "words": ["as", "and", "or", "xor", "instanceof", "new", "else", "elseif"]
+    }
+  ],
+  "repository": {
+    "macro-body": [
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "(?<=\\{)/?[A-Za-z_][\\w:-]*|(?<=\\{)[_=]|(?<=\\{)\\?", "token": "keyword"},
+      {"match": "\\$[A-Za-z_]\\w*", "token": "variable"},
+      {"match": "\\|[A-Za-z_]\\w*", "token": "function"},
+      {"match": "(?<![\\w.])\\d+(?:\\.\\d+)?", "token": "number"},
+      {"words": true},
+      {
+        "operators": [
+          "->", "?->", "::", "=>", "===", "!==", "==", "!=", "<=", ">=", "&&", "||", "??", "+", "-", "*",
+          "/", "%", "=", "<", ">", "!", "?", ":", "."
+        ]
+      },
+      {"match": "[()\\[\\],]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"name": "latte-comment", "begin": "\\{\\*", "end": "\\*\\}", "token": "comment", "multiline": true},
+    {
+      "name": "macro",
+      "begin": "\\{(?=[/$A-Za-z_=\\\\!?~])",
+      "end": "\\}",
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#macro-body"}
+      ]
+    },
+    {"include": "html"}
+  ]
+}

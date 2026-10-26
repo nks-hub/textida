@@ -1,0 +1,13 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "php",
+  "name": "PHP",
+  "version": "1.0.0",
+  "extensions": [".php", ".phtml", ".php3", ".php4", ".php5", ".php7", ".phps", ".inc"],
+  "fileNames": ["composer.json.php"],
+  "firstLine": "^<\\?php\\b",
+  "rules": [
+    {"include": "html"}
+  ]
+}
