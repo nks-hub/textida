@@ -1,0 +1,57 @@
+{
+  "app.name": "Textida",
+  "lang.name.cs": "Čeština",
+  "lang.name.en": "English",
+
+  "menu.file": "File",
+  "menu.file.new": "New Document",
+  "menu.file.newWindow": "New Window",
+  "menu.file.open": "Open…",
+  "menu.file.close": "Close Tab",
+  "menu.file.exit": "Exit",
+  "menu.edit": "Edit",
+  "menu.edit.undo": "Undo",
+  "menu.edit.redo": "Redo",
+  "menu.edit.cut": "Cut",
+  "menu.edit.copy": "Copy",
+  "menu.edit.paste": "Paste",
+  "menu.edit.selectAll": "Select All",
+  "menu.view": "View",
+  "menu.view.theme": "Appearance",
+  "menu.view.theme.system": "Follow System",
+  "menu.view.theme.light": "Light",
+  "menu.view.theme.dark": "Dark",
+  "menu.view.language": "Language",
+  "menu.view.documents": "Open Documents",
+  "menu.help": "Help",
+  "menu.help.about": "About {name}",
+
+  "tab.untitled": "Untitled {number}",
+  "a11y.tab.close": "Close tab {title}",
+  "workspace.empty": "Press {shortcut} to create a new document.",
+  "editor.placeholder": "Start typing…",
+
+  "status.position": "Line {line}, column {column}",
+  "status.tabs.one": "{count} open tab",
+  "status.tabs.other": "{count} open tabs",
+  "status.readOnly": "Read only",
+  "status.ready": "Ready",
+
+  "panel.documents.title": "Open Documents",
+  "panel.documents.empty": "No open documents",
+
+  "dialog.about.title": "About {name}",
+  "dialog.about.version": "Version {version}",
+  "dialog.about.close": "Close",
+  "dialog.open.title": "Open File",
+
+  "error.open.failed": "Could not open the file: {path} ({reason})",
+  "error.open.tooLarge": "The file is too large for this viewer: {path}",
+
+  "a11y.menu.main": "Main menu",
+  "a11y.tabs": "Document tabs",
+  "a11y.editor": "Text area",
+  "a11y.documents.list": "List of open documents",
+  "a11y.statusBar": "Status bar",
+  "a11y.workspace": "Workspace"
+}

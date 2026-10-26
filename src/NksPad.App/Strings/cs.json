@@ -1,0 +1,58 @@
+{
+  "app.name": "Textida",
+  "lang.name.cs": "Čeština",
+  "lang.name.en": "English",
+
+  "menu.file": "Soubor",
+  "menu.file.new": "Nový dokument",
+  "menu.file.newWindow": "Nové okno",
+  "menu.file.open": "Otevřít…",
+  "menu.file.close": "Zavřít kartu",
+  "menu.file.exit": "Konec",
+  "menu.edit": "Úpravy",
+  "menu.edit.undo": "Zpět",
+  "menu.edit.redo": "Znovu",
+  "menu.edit.cut": "Vyjmout",
+  "menu.edit.copy": "Kopírovat",
+  "menu.edit.paste": "Vložit",
+  "menu.edit.selectAll": "Vybrat vše",
+  "menu.view": "Zobrazit",
+  "menu.view.theme": "Vzhled",
+  "menu.view.theme.system": "Podle systému",
+  "menu.view.theme.light": "Světlý",
+  "menu.view.theme.dark": "Tmavý",
+  "menu.view.language": "Jazyk",
+  "menu.view.documents": "Otevřené dokumenty",
+  "menu.help": "Nápověda",
+  "menu.help.about": "O aplikaci {name}",
+
+  "tab.untitled": "Bez názvu {number}",
+  "a11y.tab.close": "Zavřít kartu {title}",
+  "workspace.empty": "Nový dokument vytvoříte stiskem {shortcut}.",
+  "editor.placeholder": "Začněte psát…",
+
+  "status.position": "Řádek {line}, sloupec {column}",
+  "status.tabs.one": "{count} otevřená karta",
+  "status.tabs.few": "{count} otevřené karty",
+  "status.tabs.other": "{count} otevřených karet",
+  "status.readOnly": "Jen pro čtení",
+  "status.ready": "Připraveno",
+
+  "panel.documents.title": "Otevřené dokumenty",
+  "panel.documents.empty": "Žádný otevřený dokument",
+
+  "dialog.about.title": "O aplikaci {name}",
+  "dialog.about.version": "Verze {version}",
+  "dialog.about.close": "Zavřít",
+  "dialog.open.title": "Otevřít soubor",
+
+  "error.open.failed": "Soubor se nepodařilo otevřít: {path} ({reason})",
+  "error.open.tooLarge": "Soubor je příliš velký pro tento náhled: {path}",
+
+  "a11y.menu.main": "Hlavní nabídka",
+  "a11y.tabs": "Karty dokumentů",
+  "a11y.editor": "Textová plocha",
+  "a11y.documents.list": "Seznam otevřených dokumentů",
+  "a11y.statusBar": "Stavový řádek",
+  "a11y.workspace": "Pracovní plocha"
+}
