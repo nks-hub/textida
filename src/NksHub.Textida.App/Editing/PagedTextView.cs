@@ -64,7 +64,8 @@ internal sealed class PagedTextView : Grid
         SetColumn(_bar, 1);
         Children.Add(_canvas);
         Children.Add(_bar);
-        Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens);
+        Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
+            line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1);
         _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {

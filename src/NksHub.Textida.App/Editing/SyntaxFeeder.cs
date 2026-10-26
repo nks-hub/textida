@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia.Threading;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
@@ -10,17 +11,25 @@ namespace NksHub.Textida.App.Editing;
 /// visible lines (plus a margin) in short slices on the UI thread and hands a finished result to the view; an unfinished one is
 /// continued in the background, and the view keeps what it showed until then. Session queries and document edits both run on the UI
 /// thread, which is what the session requires. The grammar follows <see cref="OpenDocument.Language"/>.
+/// A one-line edit first tries a cheaper way: the line is tokenized again from the state its predecessor left, and when it ends
+/// in the state it ended in before, no other line can have changed.
 /// </summary>
 internal sealed class SyntaxFeeder : IDisposable
 {
     private const int MaxRows = 1024;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(6);
+    private static readonly TimeSpan BackgroundSlice = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan ShowPendingAfter = TimeSpan.FromMilliseconds(150);
 
     private readonly OpenDocument _doc;
     private readonly Action<SyntaxViewport> _apply;
     private readonly Action _clear;
+    private readonly Func<long, string?> _lineText;
+    private readonly Func<long> _lineCount;
     private CheckpointSyntaxSession? _session;
+    private Tokenizer? _tokenizer;
+    private Dictionary<long, LineTokens> _known = [];
+    private long _knownLines = -1;
     private Document? _bound;
     private (long First, int Count) _wanted = (-1, 0);
     private (long First, int Count) _requested;
@@ -32,8 +41,12 @@ internal sealed class SyntaxFeeder : IDisposable
 
     /// <param name="apply">Receives the tokens of a complete viewport.</param>
     /// <param name="clear">Drops all tokens; called when the grammar or the document changes and for lines the grammar cannot handle.</param>
-    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear)
+    /// <param name="lineText">Text of a zero-based line as the view shows it, or null when it is not available.</param>
+    /// <param name="lineCount">Number of lines of the view's text, or a negative number when it is not known.</param>
+    public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount)
     {
+        _lineText = lineText;
+        _lineCount = lineCount;
         _doc = doc;
         _apply = apply;
         _clear = clear;
@@ -65,9 +78,12 @@ internal sealed class SyntaxFeeder : IDisposable
         SetPending(false);
         _pendingSince = 0;
         _doneRevision = -1;
+        _known = [];
+        _tokenizer = null;
         if (LanguageModes.GrammarId(_doc.Language) is not { } id) return;
         _bound = _doc.Doc;
-        try { _session = new CheckpointSyntaxSession(_bound, BuiltinGrammars.Tokenizer(id)); }
+        _tokenizer = BuiltinGrammars.Tokenizer(id);
+        try { _session = new CheckpointSyntaxSession(_bound, _tokenizer); }
         catch (IOException)
         {
             Abandon();
@@ -88,11 +104,29 @@ internal sealed class SyntaxFeeder : IDisposable
     private void OnChanged(object? sender, DocumentChangedEventArgs e)
     {
         _doneRevision = -1;
-        if (Dispatcher.UIThread.CheckAccess()) Run();
-        else Dispatcher.UIThread.Post(Run);
+        if (!Dispatcher.UIThread.CheckAccess()) Dispatcher.UIThread.Post(() => Run());
+        else if (!TryRetokenizeLine(e.Change)) Run();
     }
 
-    private void Run()
+    private bool TryRetokenizeLine(ChangeSet change)
+    {
+        if (_session is null || _tokenizer is null || _bound is null || _known.Count == 0 || change.Kind == ChangeKind.View || change.Edits.Count != 1) return false;
+        var edit = change.Edits[0];
+        if (_bound.Codec.Kind is CodecKind.Utf16 or CodecKind.Utf32 || edit.Inserted > 256 || !_bound.TryGetPosition(edit.Start, out var at)) return false;
+        // no line break typed, and (same line count) none deleted: only line at.Line changed
+        Span<byte> typed = stackalloc byte[(int)edit.Inserted];
+        if (_bound.Read(edit.Start, typed) != typed.Length || typed.IndexOfAny((byte)10, (byte)13) >= 0) return false;
+        if (_lineCount() != _knownLines || !_known.TryGetValue(at.Line, out var old) || _lineText(at.Line) is not { Length: <= 4096 } text) return false;
+        var tokens = new List<Token>();
+        var end = _tokenizer.TokenizeLine(text, old.StartState, tokens);
+        if (!ReferenceEquals(end, old.EndState)) return false;
+        _known[at.Line] = new LineTokens(at.Line, tokens, old.StartState, end);
+        _apply(new SyntaxViewport(_bound.Id, _session.Revision, _known.Values.OrderBy(l => l.Line).ToArray(), SyntaxViewportStatus.Complete, 0));
+        _doneRevision = _session.Revision;
+        return true;
+    }
+
+    private void Run(TimeSpan? slice = null)
     {
         if (_session is null || _wanted.First < 0) return;
         if (_requested != _wanted)
@@ -102,7 +136,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         if (_doneRevision == _session.Revision) return;
         SyntaxViewport result;
-        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, Slice); }
+        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
             Abandon();
@@ -110,6 +144,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         catch (InvalidOperationException) // more token runs than a viewport may hold: show the lines plain
         {
+            _known.Clear();
             _clear();
             SetPending(false);
             return;
@@ -117,12 +152,15 @@ internal sealed class SyntaxFeeder : IDisposable
         switch (result.Status)
         {
             case SyntaxViewportStatus.Complete:
+                _known = result.Lines.ToDictionary(l => l.Line);
+                _knownLines = _lineCount();
                 _apply(result);
                 _doneRevision = result.Revision;
                 _pendingSince = 0;
                 SetPending(false);
                 break;
             case SyntaxViewportStatus.FullLineRequired:
+                _known.Clear();
                 _clear();
                 _pendingSince = 0;
                 SetPending(false);
@@ -142,7 +180,7 @@ internal sealed class SyntaxFeeder : IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             _queued = false;
-            if (!_disposed) Run();
+            if (!_disposed) Run(BackgroundSlice);
         }, DispatcherPriority.Background);
     }
 

@@ -98,7 +98,7 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         for (int i = 0; i < 50&& tab.Paged.TokensOf(0) is null; i++) { Thread.Sleep(20); Dispatcher.UIThread.RunJobs(); }
         var timer = Stopwatch.StartNew();
         tab.Paged.GoToLine(rows + 2);
-        while (timer.ElapsedMilliseconds < 5000 && tab.Paged.TokensOf(rows + 1) is null) { Dispatcher.UIThread.RunJobs(); Thread.Sleep(1); }
+        while (timer.ElapsedMilliseconds < 5000 && tab.Paged.TokensOf(rows + 1) is null) Dispatcher.UIThread.RunJobs();
         double ms = timer.Elapsed.TotalMilliseconds;
         output.WriteLine($"jump-catch-up-ms={ms:F1} pending={tab.Syntax.Pending} line0={tab.Paged.TokensOf(0)?.Count} top={tab.Paged.TopLine} lines={tab.Paged.Index.Lines} rows={rows} topTokens={tab.Paged.TokensOf(tab.Paged.TopLine)?.Count} lastTokens={tab.Paged.TokensOf(tab.Paged.Index.Lines-1)?.Count}");
         Assert.Contains(tab.Paged.TokensOf(rows + 1) ?? [], t => t.Kind == "keyword");

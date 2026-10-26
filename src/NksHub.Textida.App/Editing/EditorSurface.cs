@@ -55,7 +55,7 @@ internal sealed class EditorSurface : TextEditor
         _colorizer = new SyntaxColorizer(TextArea.TextView);
         _colorizer.BindDocument(Document);
         TextArea.TextView.LineTransformers.Add(_colorizer);
-        Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens);
+        Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount);
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -89,6 +89,13 @@ internal sealed class EditorSurface : TextEditor
         Document = Doc.TextBackend!.TextDocument;
         _colorizer.BindDocument(Document);
         CaretOffset = 0;
+    }
+
+    private string? LineText(long line)
+    {
+        if (line >= Document.LineCount) return null;
+        var textLine = Document.GetLineByNumber((int)line + 1);
+        return Document.GetText(textLine.Offset, textLine.Length);
     }
 
     private void ApplyTokens(SyntaxViewport viewport)
