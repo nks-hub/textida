@@ -30,6 +30,7 @@
     <EmbeddedResource Include="Strings\*.json" />
     <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Workbench\NksHub.Textida.Workbench.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Accessibility\NksHub.Textida.Accessibility.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Document.AvaloniaEdit\NksHub.Textida.Document.AvaloniaEdit.csproj" />
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>

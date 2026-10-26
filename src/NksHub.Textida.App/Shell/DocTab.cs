@@ -16,9 +16,21 @@ internal sealed class DocTab
         Doc = doc;
         if (doc.IsLarge) Paged = new PagedTextView(doc, options);
         else Surface = new EditorSurface(doc, options);
-        Root = new DockPanel { Children = { _barSlot, View } };
+        Root = new DockPanel { Children = { _barSlot } };
+        if (Surface is { } surface && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+        {
+            _automation = surface.CreateAutomationHost();
+            _automation[DockPanel.DockProperty] = Dock.Top;
+            Root.Children.Add(_automation);
+        }
+        Root.Children.Add(View);
         doc.Views.Add(this);
     }
+
+    private readonly EditorAutomationHost? _automation;
+
+    /// <summary>Releases what the view holds outside the visual tree.</summary>
+    public void Close() => _automation?.Dispose();
 
     public OpenDocument Doc { get; }
     public EditorSurface? Surface { get; }

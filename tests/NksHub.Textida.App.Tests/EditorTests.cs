@@ -458,6 +458,40 @@ public class EditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Automation_surface_follows_text_caret_and_selection_of_the_editor()
+    {
+        var tab = _w.OpenFile(_temp.File("crlf.txt", "Příliš\r\nžluťoučký\r\nlast\r\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        using var surface = new EditorTextSurface(tab.Editor);
+        int changes = 0, selections = 0;
+        surface.TextChanged += _ => changes++;
+        surface.SelectionChanged += () => selections++;
+        Assert.Equal(tab.Editor.Document.Text, surface.GetText(0, surface.Length));
+        Assert.True(surface.HasFocus);
+
+        Press(Key.Home, RawInputModifiers.Control);
+        Press(Key.Right);
+        Press(Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(new Accessibility.TextSpan(1, 1), surface.Selection);
+        Assert.Equal(2, surface.CaretOffset);
+        Assert.True(selections >= 2);
+
+        TestApp.Type(_w, "r");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, changes);
+        Assert.Equal(tab.Editor.Document.Text, surface.GetText(0, surface.Length));
+        Assert.Equal(2, surface.CaretOffset);
+        Assert.True(surface.Selection.IsEmpty);
+
+        surface.SetSelection(5, 3);
+        Assert.Equal("š\r\n", tab.Editor.SelectedText);
+        surface.SetSelection(8, 0);
+        Assert.Equal(8, tab.Editor.CaretOffset);
+        Assert.Equal("", tab.Editor.SelectedText);
+    }
+
+    [AvaloniaFact]
     public void Typing_in_a_one_mebibyte_file_stays_within_33_ms_at_p95()
     {
         var sb = new StringBuilder();

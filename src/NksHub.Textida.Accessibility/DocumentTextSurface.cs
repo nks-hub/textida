@@ -66,7 +66,7 @@ public abstract class DocumentTextSurface : ITextAutomationSurface, IDisposable
         return i >= 0 ? i : ~i - 1;
     }
 
-    public void SetSelection(int start, int length) => Select(start, start + length);
+    public virtual void SetSelection(int start, int length) => Select(start, start + length);
 
     /// <summary>Selects from an anchor to the caret; the caret may lie before the anchor.</summary>
     public void Select(int anchor, int caret)

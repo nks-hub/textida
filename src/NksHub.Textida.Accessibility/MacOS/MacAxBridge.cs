@@ -12,13 +12,31 @@ namespace NksHub.Textida.Accessibility.MacOS;
 /// <c>accessibilityAttributeValue:</c> and so on), which the accessibility server calls for AXUIElement requests, and the
 /// method per attribute form (<c>accessibilityValue</c>, <c>accessibilitySelectedTextRange</c> and so on). Everything is a
 /// plain function pointer added to the class through the Objective-C runtime, so nothing needs reflection and it runs
-/// under NativeAOT. Not wired yet: attaching the methods to the NSView that Avalonia.Native creates for a window.
+/// under NativeAOT. The app attaches them to a zero-size NSView that Avalonia hosts next to the editor.
 /// </summary>
 [SupportedOSPlatform("macos")]
 public static unsafe partial class MacAxBridge
 {
     private static readonly ConcurrentDictionary<nint, Registration> Views = new();
-    private sealed record Registration(ITextAutomationSurface Surface, string Label);
+
+    /// <summary>One view and its surface; the surface is created on the first accessibility request, so an editor nobody inspects costs nothing.</summary>
+    private sealed class Registration(nint view, Func<ITextAutomationSurface> create, string label)
+    {
+        private ITextAutomationSurface? _surface;
+
+        public string Label => label;
+
+        public ITextAutomationSurface Surface => _surface ??= Create();
+
+        private ITextAutomationSurface Create()
+        {
+            var surface = create();
+            surface.TextChanged += _ => Post(view, "AXValueChanged");
+            surface.SelectionChanged += () => Post(view, "AXSelectedTextChanged");
+            surface.FocusChanged += () => { if (surface.HasFocus) Post(view, "AXFocusedUIElementChanged"); };
+            return surface;
+        }
+    }
 
     private static readonly string[] TextAttributes =
         ["AXValue", "AXNumberOfCharacters", "AXSelectedText", "AXSelectedTextRange", "AXVisibleCharacterRange", "AXInsertionPointLineNumber"];
@@ -35,6 +53,22 @@ public static unsafe partial class MacAxBridge
     private static partial nint class_getMethodImplementation(nint cls, nint selector);
 
     public static double PrimaryScreenHeight => CGDisplayBounds(CGMainDisplayID()).Height;
+
+    private static nint _proxyClass;
+
+    /// <summary>Creates a zero-size NSView of a class that carries the accessibility methods; the caller owns the returned reference.</summary>
+    public static nint CreateProxyView()
+    {
+        if (_proxyClass == 0)
+        {
+            ObjC.LoadFramework("AppKit");
+            nint cls = ObjC.objc_allocateClassPair(ObjC.Class("NSView"), "TextidaEditorAxView", 0);
+            AddAccessibilityMethods(cls);
+            ObjC.objc_registerClassPair(cls);
+            _proxyClass = cls;
+        }
+        return ObjC.Send(ObjC.Msg(_proxyClass, "alloc"), ObjC.Sel("initWithFrame:"), new NSRect(0, 0, 0, 0));
+    }
 
     /// <summary>Adds the accessibility methods to a class that derives from NSView. Call once per class, before instances exist.</summary>
     public static void AddAccessibilityMethods(nint nsViewSubclass)
@@ -68,12 +102,14 @@ public static unsafe partial class MacAxBridge
     }
 
     /// <summary>Connects an instance of a class prepared with <see cref="AddAccessibilityMethods"/> to its surface and starts posting notifications.</summary>
-    public static void Attach(nint view, ITextAutomationSurface surface, string label)
-    {
-        Views[view] = new Registration(surface, label);
-        surface.TextChanged += _ => Post(view, "AXValueChanged");
-        surface.SelectionChanged += () => Post(view, "AXSelectedTextChanged");
-    }
+    public static void Attach(nint view, ITextAutomationSurface surface, string label) => Attach(view, () => surface, label);
+
+    /// <summary>Like the overload above, but builds the surface when an accessibility client first asks; attaching again replaces the registration.</summary>
+    public static void Attach(nint view, Func<ITextAutomationSurface> createSurface, string label) =>
+        Views[view] = new Registration(view, createSurface, label);
+
+    /// <summary>Forgets a view; its accessibility methods fall back to the NSView defaults.</summary>
+    public static void Detach(nint view) => Views.TryRemove(view, out _);
 
     private static void Post(nint view, string notification) =>
         NSAccessibilityPostNotification(view, ObjC.NewString(notification));
