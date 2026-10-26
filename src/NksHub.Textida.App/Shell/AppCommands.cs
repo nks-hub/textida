@@ -4,6 +4,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Contributions;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -29,6 +30,9 @@ internal static class AppCommands
         void Fire(string id, Func<MainWindow, DocTab, Task> run) =>
             On(id, w => { if (w.Active is not { } tab) return CommandOutcome.NotHandled; _ = run(w, tab); return CommandOutcome.Handled; });
 
+        void Surface(string id, Action<EditorSurface> run) =>
+            On(id, w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; run(s); return CommandOutcome.Handled; });
+
         void Edit(string id, Func<EditorSurface, IReadOnlyList<Sel>, IReadOnlyList<Sel>> run) =>
             On(id, w => w.RunEdit(run));
 
@@ -47,11 +51,18 @@ internal static class AppCommands
         // edit
         Do("nks.edit.undo", w => w.Undo());
         Do("nks.edit.redo", w => w.Redo());
-        On("nks.edit.cut", w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; s.Cut(); return CommandOutcome.Handled; });
-        On("nks.edit.copy", w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; s.Copy(); return CommandOutcome.Handled; });
+        On("nks.edit.cut", w => w.CutAsync());
+        On("nks.edit.copy", w => w.CopyAsync());
         On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.edit.selectAll", w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; s.SelectAll(); return CommandOutcome.Handled; });
         On("nks.edit.selectLine", w => w.SelectLine());
+        Surface("nks.edit.addNextOccurrence", s => s.AddNextOccurrence());
+        Surface("nks.edit.skipOccurrence", s => s.SkipOccurrence());
+        Surface("nks.edit.selectAllOccurrences", s => s.SelectAllOccurrences());
+        Surface("nks.edit.addCaretAbove", s => s.AddCaretVertical(-1));
+        Surface("nks.edit.addCaretBelow", s => s.AddCaretVertical(1));
+        Surface("nks.edit.clearCarets", s => s.ClearCarets());
+        Surface("nks.edit.selectToMark", s => s.MarkOrSelectToMark());
         On("nks.edit.toggleBlockSelect", w => w.ToggleBlockSelect());
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));
@@ -95,6 +106,8 @@ internal static class AppCommands
         Do("nks.window.moveToOtherGroup", w => w.MoveToOtherGroup());
 
         // settings and help
+        Do("nks.settings.profile.default", _ => app.Workbench.Set("editor.profile", BehaviourProfiles.Default));
+        Do("nks.settings.profile.pspad", _ => app.Workbench.Set("editor.profile", BehaviourProfiles.Pspad));
         Do("nks.settings.theme.system", _ => app.SetTheme("system"));
         Do("nks.settings.theme.light", _ => app.SetTheme("light"));
         Do("nks.settings.theme.dark", _ => app.SetTheme("dark"));

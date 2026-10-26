@@ -156,5 +156,7 @@
   "setting.editor.smartKeys.selectVariable.title": "Výber premennej PHP bez $",
   "setting.editor.smartKeys.selectVariable.description": "Dvojklik na premennú PHP vyberie jej názov bez znaku dolára.",
   "setting.editor.smartKeys.sqlEnd.title": "Uzavrieť BEGIN príkazom END",
-  "setting.editor.smartKeys.sqlEnd.description": "Enter za BEGIN v SQL doplní riadok s príslušným END."
+  "setting.editor.smartKeys.sqlEnd.description": "Enter za BEGIN v SQL doplní riadok s príslušným END.",
+  "cmd.settings.profile.default": "Profil správania: predvolený",
+  "cmd.settings.profile.pspad": "Profil správania: PSPad"
 }

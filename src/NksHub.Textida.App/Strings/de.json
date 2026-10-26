@@ -161,5 +161,8 @@
   "a11y.editor": "Textbereich",
   "a11y.documents.list": "Liste der geöffneten Dokumente",
   "a11y.statusBar": "Statusleiste",
-  "a11y.workspace": "Arbeitsfläche"
+  "a11y.workspace": "Arbeitsfläche",
+  "status.carets.one": "({count} Cursor)",
+  "status.carets.other": "({count} Cursor)",
+  "source.profile": "Profil"
 }

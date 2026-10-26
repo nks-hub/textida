@@ -30,6 +30,9 @@ public sealed class SmartKeys(TextDocument d, ITokenProbe tokens, string languag
 
     private bool Markup => language is "html" or "xml" or "php";
 
+    /// <summary>True for the languages some smart key applies to, so a surface can skip the tokens for the others.</summary>
+    public static bool HasRulesFor(string language) => language is "html" or "xml" or "php" or "json" or "sql" || EscapingLanguages.Contains(language);
+
     private static bool IsNameChar(char c) => char.IsLetterOrDigit(c) || c is ':' or '_' or '.' or '-';
 
     private static bool IsString(Token t) => t.Kind.StartsWith("string", StringComparison.Ordinal);

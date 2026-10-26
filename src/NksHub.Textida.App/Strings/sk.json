@@ -168,5 +168,9 @@
   "a11y.editor": "Textová plocha",
   "a11y.documents.list": "Zoznam otvorených dokumentov",
   "a11y.statusBar": "Stavový riadok",
-  "a11y.workspace": "Pracovná plocha"
+  "a11y.workspace": "Pracovná plocha",
+  "status.carets.one": "({count} kurzor)",
+  "status.carets.few": "({count} kurzory)",
+  "status.carets.other": "({count} kurzorov)",
+  "source.profile": "profil"
 }

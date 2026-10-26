@@ -156,5 +156,7 @@
   "setting.editor.smartKeys.selectVariable.title": "PHP-Variable ohne $ auswählen",
   "setting.editor.smartKeys.selectVariable.description": "Ein Doppelklick auf eine PHP-Variable wählt ihren Namen ohne das Dollarzeichen aus.",
   "setting.editor.smartKeys.sqlEnd.title": "BEGIN mit END schließen",
-  "setting.editor.smartKeys.sqlEnd.description": "Die Eingabetaste nach BEGIN in SQL ergänzt eine passende END-Zeile."
+  "setting.editor.smartKeys.sqlEnd.description": "Die Eingabetaste nach BEGIN in SQL ergänzt eine passende END-Zeile.",
+  "cmd.settings.profile.default": "Verhaltensprofil: Standard",
+  "cmd.settings.profile.pspad": "Verhaltensprofil: PSPad"
 }

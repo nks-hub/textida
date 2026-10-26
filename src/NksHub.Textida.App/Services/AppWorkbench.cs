@@ -28,6 +28,7 @@ internal sealed class AppWorkbench
         Settings = new SettingsStack(Host.Settings);
         _userFile = SettingsFile.Load(UserSettingsPath);
         _userFile.ApplyTo(Settings, SettingSource.User, SettingSource.UserLanguage, UserSettingsFile);
+        BehaviourProfiles.ApplySettings(Settings, Profile);
         Strings = StringTable.LoadBuiltin(language);
         Keymap = BuildKeymap(out var problem);
         KeymapProblem = problem;
@@ -48,6 +49,9 @@ internal sealed class AppWorkbench
     /// <summary>Why the user's settings file cannot be changed (damaged or written by a newer version), or null.</summary>
     public string? SettingsProblem => _userFile.LoadError ?? (_userFile.IsNewerThanSupported ? "newer" : null);
 
+    /// <summary>Id of the behaviour profile in use: <c>default</c> or <c>pspad</c>.</summary>
+    public string Profile => Settings.GetString("editor.profile");
+
     public string UserSettingsPath => Path.Combine(_profileDirectory, UserSettingsFile);
 
     /// <summary>Raised with the key of a setting after it changed in the user layer.</summary>
@@ -56,6 +60,7 @@ internal sealed class AppWorkbench
     private Keymap BuildKeymap(out string? problem)
     {
         problem = null;
+        var profileLayer = BehaviourProfiles.KeymapLayerOf(Profile);
         var path = Path.Combine(_profileDirectory, UserKeymapFile);
         if (File.Exists(path))
         {
@@ -64,7 +69,8 @@ internal sealed class AppWorkbench
                 var file = JsonSerializer.Deserialize(File.ReadAllText(path), ContributionJson.Default.KeymapFile);
                 if (file is not null)
                 {
-                    var layered = Host.BuildKeymap(Platform, WorkbenchHost.LayerFromFile(file, KeymapLayerKind.User, UserKeymapFile));
+                    var user = WorkbenchHost.LayerFromFile(file, KeymapLayerKind.User, UserKeymapFile);
+                    var layered = Host.BuildKeymap(Platform, profileLayer is null ? [user] : [profileLayer, user]);
                     if (layered.Errors.Count == 0) return layered;
                     problem = string.Join("; ", layered.Errors);
                 }
@@ -74,7 +80,16 @@ internal sealed class AppWorkbench
                 problem = e.Message;
             }
         }
-        return Host.BuildKeymap(Platform);
+        return profileLayer is null ? Host.BuildKeymap(Platform) : Host.BuildKeymap(Platform, profileLayer);
+    }
+
+    /// <summary>Puts the settings and the keys of the chosen profile in their layers and builds the keymap again.</summary>
+    private void ApplyProfile()
+    {
+        BehaviourProfiles.ApplySettings(Settings, Profile);
+        Keymap = BuildKeymap(out var problem);
+        KeymapProblem = problem;
+        Dispatcher = new KeyDispatcher(Keymap, Host.Commands);
     }
 
     public void SetLanguage(string language)
@@ -96,6 +111,7 @@ internal sealed class AppWorkbench
             return saved.ToString();
         }
         _userFile.ApplyTo(Settings, SettingSource.User, SettingSource.UserLanguage, UserSettingsFile);
+        if (key == "editor.profile") ApplyProfile();
         SettingChanged?.Invoke(key);
         return null;
     }

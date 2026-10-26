@@ -161,5 +161,8 @@
   "a11y.editor": "Text area",
   "a11y.documents.list": "List of open documents",
   "a11y.statusBar": "Status bar",
-  "a11y.workspace": "Workspace"
+  "a11y.workspace": "Workspace",
+  "status.carets.one": "({count} caret)",
+  "status.carets.other": "({count} carets)",
+  "source.profile": "profile"
 }

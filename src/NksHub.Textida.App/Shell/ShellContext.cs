@@ -23,6 +23,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true),
             ContextKeys.Platform => OperatingSystem.IsMacOS() ? "macos" : OperatingSystem.IsWindows() ? "windows" : "linux",
             ContextKeys.IsDirty => Bool(tab?.Doc.Doc.IsModified == true),
+            ContextKeys.MultipleCarets => Bool(tab?.Surface?.IsMulti == true),
             _ => null,
         };
     }

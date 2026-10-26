@@ -18,8 +18,16 @@ internal sealed record EditorOptions(
     EolStyle? ConfiguredEol,
     TextCodec NewDocumentCodec,
     bool TrimTrailingWhitespace = false,
-    bool InsertFinalNewline = false)
+    bool InsertFinalNewline = false,
+    bool EnhancedHomeEnd = false,
+    bool BackspaceUnindent = false,
+    bool AltDragBlock = false,
+    bool PspadPairs = false,
+    SmartKeyOptions? SmartKeys = null)
 {
+    /// <summary>The smart keys for web files that are on for the language of the document.</summary>
+    public SmartKeyOptions Smart => SmartKeys ?? new SmartKeyOptions();
+
     /// <summary>The indentation found in the file replaces the configured one for that document.</summary>
     public EditorOptions WithIndent(IndentSettings indent) => this with { InsertSpaces = indent.InsertSpaces, IndentSize = indent.IndentSize, TabSize = indent.TabSize };
 

@@ -425,6 +425,16 @@
       "title": "cmd.edit.selectToMark",
       "category": "cat.edit",
       "when": "editorFocus"
+    },
+    {
+      "id": "nks.settings.profile.default",
+      "title": "cmd.settings.profile.default",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.profile.pspad",
+      "title": "cmd.settings.profile.pspad",
+      "category": "cat.app"
     }
   ],
   "menus": [
@@ -823,6 +833,18 @@
       "command": "nks.edit.selectToMark",
       "group": "3_select",
       "order": 40
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.profile.default",
+      "group": "3_profile",
+      "order": 10
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.profile.pspad",
+      "group": "3_profile",
+      "order": 20
     }
   ],
   "keybindings": [

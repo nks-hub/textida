@@ -156,5 +156,7 @@
   "setting.editor.smartKeys.selectVariable.title": "Select PHP variable without $",
   "setting.editor.smartKeys.selectVariable.description": "A double click on a PHP variable selects its name without the dollar sign.",
   "setting.editor.smartKeys.sqlEnd.title": "Close BEGIN with END",
-  "setting.editor.smartKeys.sqlEnd.description": "Enter after BEGIN in SQL adds a matching END line."
+  "setting.editor.smartKeys.sqlEnd.description": "Enter after BEGIN in SQL adds a matching END line.",
+  "cmd.settings.profile.default": "Behaviour Profile: Default",
+  "cmd.settings.profile.pspad": "Behaviour Profile: PSPad"
 }
