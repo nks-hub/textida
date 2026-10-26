@@ -24,6 +24,8 @@ public static class K
     public const string StatusSelected = "status.selected";
     public const string StatusCarets = "status.carets";
     public const string StatusReady = "status.ready";
+    public const string StatusSyntaxPending = "status.syntaxPending";
+    public const string StatusSyntaxLongLine = "status.syntaxLongLine";
     public const string StatusLargePaged = "status.largePaged";
     public const string StatusIndentSpaces = "status.indent.spaces";
     public const string StatusIndentTabs = "status.indent.tabs";

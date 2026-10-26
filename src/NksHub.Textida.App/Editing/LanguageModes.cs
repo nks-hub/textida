@@ -1,10 +1,11 @@
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
 
 /// <summary>
 /// A language mode of a document: the name shown in the status bar, the file extensions that select it and how its comments continue.
-/// No highlighting yet (P3.2); the mode drives the status bar, the per-language settings layer and comment continuation.
+/// The mode drives the status bar, the per-language settings layer, comment continuation and the highlighting grammar.
 /// </summary>
 internal sealed record LanguageMode(string Id, string Name, string[] Extensions, CommentStyle Comments);
 
@@ -23,7 +24,7 @@ internal static class LanguageModes
         new("javascript", "JavaScript", [".js", ".mjs", ".cjs", ".jsx"], Slash),
         new("typescript", "TypeScript", [".ts", ".tsx"], Slash),
         new("json", "JSON", [".json", ".jsonc"], CommentStyle.None),
-        new("xml", "XML", [".xml", ".xsd", ".xaml", ".axaml", ".csproj", ".svg", ".config"], CommentStyle.None),
+        new("xml", "XML", [".xml", ".xsd", ".xaml", ".axaml", ".csproj", ".props", ".targets", ".svg", ".config"], CommentStyle.None),
         new("csharp", "C#", [".cs"], Slash),
         new("cpp", "C/C++", [".c", ".h", ".cpp", ".hpp", ".cc"], Slash),
         new("java", "Java", [".java"], Slash),
@@ -40,6 +41,13 @@ internal static class LanguageModes
     ];
 
     public static LanguageMode Plain => All[0];
+
+    /// <summary>Id of the built-in grammar that colours the mode; null where none exists yet (plain text and the languages of P8.8.2).</summary>
+    public static string? GrammarId(LanguageMode mode)
+    {
+        string id = mode.Id == "typescript" ? "javascript" : mode.Id;
+        return id != PlainId && BuiltinGrammars.Registry.Find(id) is not null ? id : null;
+    }
 
     public static LanguageMode ById(string id) => All.FirstOrDefault(l => l.Id == id) ?? Plain;
 
