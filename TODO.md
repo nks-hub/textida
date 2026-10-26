@@ -375,37 +375,42 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
 
 Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy. Plán ho vyžaduje už v P1 (kap. 5.1).
 
-- [ ] **P1.2.1** Bajtový kontrakt dokumentu nad dvěma backendy
+- [x] **P1.2.1** Bajtový kontrakt dokumentu nad dvěma backendy
   - **Co a proč:** Jedno rozhraní pro AvaloniaEdit (menší soubory) a stránkovaný `PagedDocument` (velké soubory). Autoritou jsou původní bajty souboru a strom úseků nad nimi; text je pohled přes mapu znaků s hranicemi znaků, ne druhá úplná kopie. Operace pracují s identitou dokumentu, revizí a bajtovými rozsahy `[od, do)`. Převod na řádek a sloupec UTF-16 dělá index dokumentu. Přechod mezi backendy proběhne v paměti nad původními bajty, ne příkazem Uložit. Nikdo nesmí volat `.Text` stránkovaného dokumentu.
   - **Funkce:** F042
   - **Kroky:**
     - rozhraní: čtení rozsahu bajtů i textu, vložení, smazání, převod pozic, stav indexu
     - testovací data a sada testů kontraktu (vložit, smazat, undo, převod pozic) s očekávanými bajty, nezávislá na backendu
     - analyzátor nebo test, který zakáže `.Text` u stránkovaného backendu
+  - **Stav 26. 10. 2026:** hotovo (commity 25426e9–bc2694e): kontrakt `IByteBackend` a společná sada s očekávanými bajty; referenční backend projde; `.Text` u `PagedDocument` a `PagedBackend` je `[Obsolete(error: true)]`, takže volání neprojde překladem (místo analyzátoru), test to ověří reflexí.
   - **Hotovo, když:** rozhraní a sada testů kontraktu jsou v repozitáři; referenční implementace v testech sadou projde; analyzátor `.Text` u stránkovaného backendu odmítne. Přijetí nad oběma backendy je P1.2.10.
   - **Závisí na:** P0.1.1
   - **Odhad:** bez odhadu
-- [ ] **P1.2.10** Společné přijetí kontraktu nad oběma backendy
+- [x] **P1.2.10** Společné přijetí kontraktu nad oběma backendy
   - **Co a proč:** Integrační přijetí po adaptérech. Kontrakt, adaptéry a přijetí jdou v tomto pořadí, aby nevznikly dvě různé smlouvy.
   - **Funkce:** F042 (částečně: integrační přijetí)
+  - **Stav 26. 10. 2026:** hotovo: stejná sada běží nad referenčním, stránkovaným a AvaloniaEdit backendem; šest semínek po 3000 krocích porovná všechny tři s naivním bajtovým modelem; nepojmenovaný dokument s BOM, smíšenými EOL a vadným UTF-8 přejde mezi backendy v paměti se zachovanou identitou, revizí, stavem neuloženo, undo i bajty.
   - **Hotovo, když:** stejná sada testů operací z P1.2.1 projde nad oběma backendy a nad stejnými daty dá stejné bajty; nepojmenovaný neuložený dokument s BOM, smíšenými EOL a vadným UTF-8 přejde mezi backendy tam a zpět, nic se nezapíše na disk a zachová se identita, revize, stav „neuloženo“, undo i neplatné bajty.
   - **Závisí na:** P1.2.7, P1.2.8
   - **Odhad:** bez odhadu
-- [ ] **P1.2.7** Adaptér AvaloniaEdit nad bajtovým kontraktem
+- [x] **P1.2.7** Adaptér AvaloniaEdit nad bajtovým kontraktem
   - **Co a proč:** AvaloniaEdit drží text s offsety `int`. Adaptér vede mapu mezi jeho offsety a bajty původního souboru, aby nezměněné úseky zůstaly bajtově stejné (kap. 5.1).
   - **Funkce:** F042 (částečně: adaptér běžného editoru)
+  - **Stav 26. 10. 2026:** hotovo: psaní překóduje jen napsaný text; nezměněný round trip i změna jednoho znaku jsou bajtově přesné. Známá vada: smazání, které spojí dva neplatné úseky, dál ukazuje dva náhradní znaky; bajty zůstanou správně.
   - **Hotovo, když:** po vložení a smazání znaků s vícebajtovým kódováním, CRLF a neplatnou sekvencí převede adaptér každý offset na stejný bajt jako referenční výpočet; čtení nezměněného rozsahu vrátí původní bajty.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
 - [ ] **P1.2.8** Adaptér stránkovaného zdroje
   - **Co a proč:** Adaptér `PagedDocument` s pozicemi `long` nad stejným kontraktem. Na něm stojí stránkovaná plocha (P3.1), hex (P3.5) a stránkovaný UTF-16 (P3.1.2). Patří sem i počty řádků po úpravě: každý uzel stromu úseků nese počet konců řádků a CRLF rozdělené mezi dva úseky se odečte. Jádro to umí od commitu `f7defd7`. Dřív to byla P7.1.1; v P7 zůstává ověření nad 10 GiB.
   - **Funkce:** F042 (částečně: adaptér stránkovaného dokumentu), F154 (částečně: čísla řádků po úpravě)
+  - **Stav 26. 10. 2026:** částečně: celá sada a náhodné testy začátků řádků s CR/LF/CRLF projdou nad `PagedBackend`; nad 4,5GiB řídkým souborem s CRLF na hranicích 2^31 a 2^32 projdou pozice, úpravy, rozdělené CRLF a undo, celá sada nad ním ale neběžela. Stránkovaný backend zatím neumí UTF-16 (`MappedFileSource` ho odmítá, P3.1.2).
   - **Hotovo, když:** sada testů kontraktu z P1.2.1 projde nad souborem větším než 4 GiB a pozice za hranicí `int` se převádějí bez přetečení; po náhodných úpravách s CR, LF a CRLF, včetně CRLF rozděleného mezi úseky, souhlasí počet a začátky řádků s naivním průchodem, i nad souborem větším než 4 GiB; dokud index originálu nedoběhl, vrátí dotaz na začátek řádku po úpravě „neznámé“, ne odhad.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
 - [ ] **P1.2.2** Hranice přepnutí backendu a schopnosti režimů
   - **Co a proč:** AvaloniaEdit stojí u 100 MiB +552 MiB paměti na vývojovém PC a +501 MiB na referenční Windows VM a nad ~2,1 mld. znaků nefunguje. Hranici přepnutí nastavit měřením, výchozí odhad 16–32 MiB. Každý režim má popsané schopnosti a limity místo pevných malých limitů PSPadu. Hranice nesmí z textu 100 MiB udělat soubor jen pro čtení: MVP slibuje jeho editaci. P1.2.9 zvolila editovatelný stránkovaný režim nad `PagedDocument`; P1 ho doměří na prototypu s UI a produktovou editaci 100 MiB přijímá až P3.1.10.
   - **Funkce:** F141
+  - **Stav 26. 10. 2026:** částečně: existuje jen `BackendCapabilities`; hranice a měření chybí.
   - **Hotovo, když:** hranice je určená měřením paměti a latence na obou OS a je v nastavení se zdrojem hodnoty; soubor nad hranicí se otevře v editovatelném stránkovaném režimu, ne jen pro čtení, a na prototypu jde text 100 MiB editovat podle záznamu P1.2.9.
   - **Závisí na:** P1.2.10, P1.2.9
   - **Odhad:** bez odhadu
@@ -421,27 +426,31 @@ Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy.
   - **Hotovo, když:** na prototypu zvolené cesty s UI v přihlášené relaci na referenční Windows VM i referenční Mac se čistý ASCII fixture 100 MiB i UTF-8 log 100 MiB otevře a první úprava z klávesnice je vykreslená do 2 s warm / 4 s cold; přírůstek private commit proti stabilizované prázdné aplikaci je u ASCII ≤ 350 MiB; skládaný znak ze scénáře IME v P1.8.2 se dopíše bez zdvojení i ztráty a NVDA na referenční Windows VM i VoiceOver na referenční Mac přečtou upravený řádek; po zabití procesu se úprava vrátí podle P1.5.1 a soubor jde uložit. Když cesta některý z těchto cílů nesplní, bod zůstává **otevřený** a P1 neprojde bránou. Předložení rozporu majiteli je eskalace, ne splnění; příslib 100 MiB platí, dokud ho majitel výslovně nezmění v zadání.
   - **Závisí na:** P1.2.7, P1.2.8, PR.2.1, P1.5.1, P1.8.2
   - **Odhad:** bez odhadu; cenu pokusu určí PR.8.1
-- [ ] **P1.2.3** Identita, revize a otisk podkladu
+- [x] **P1.2.3** Identita, revize a otisk podkladu
   - **Co a proč:** Každý dokument má revizi (číslo, které roste s každou změnou) a otisk podkladu na disku (velikost, čas, otisk). Změna souboru jiným programem se pozná a nikdy se tiše nepřepíše. Tady vzniká služba detekce; nabídku v UI (porovnat, znovu načíst, ponechat) přijímá P1.4.8, aby kritéria nebyla kruhová.
   - **Funkce:** F140, F006, F032
+  - **Stav 26. 10. 2026:** hotovo: testy pokrývají událost konfliktu s revizí a otiskem, stejnou velikost a čas (pozná hash), přejmenování, zkrácení, smazání i změnu mezi kontrolou a záměnou; dotyk se stejným obsahem konflikt není. Otisk počítá SHA-256 celého souboru při otevření.
   - **Hotovo, když:** změna souboru jiným procesem při otevřené upravené kartě vyvolá událost konfliktu s revizí a otiskem; řízená změna podkladu před kontrolou i mezi kontrolou a zápisem, se stejnou velikostí a časem, přejmenováním i zkrácením, skončí konfliktem, nikdy tichým přepsáním.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
-- [ ] **P1.2.4** Změnová služba, záznam změn a snapshoty
+- [x] **P1.2.4** Změnová služba, záznam změn a snapshoty
   - **Co a proč:** Jedna služba aplikuje úpravy v transakci a vede záznam změn mezi revizemi. Výsledek hledání, návrh náhrady, recept i požadavek z MCP nebo pluginu nese svou revizi; nad novější revizí se rozsahy přepočítají. Neměnný snapshot revize slouží čtení na pozadí. Záznam změn má určenou dobu platnosti; po jeho zkrácení se starý rozsah nepřepočítá odhadem, ale vrátí konflikt. Na této službě stojí P2.5.2, F178 i F199.
   - **Funkce:** žádná (infrastruktura, kap. 5.1)
+  - **Stav 26. 10. 2026:** hotovo: přepočet rozsahů přes záznam změn; překryv, zkrácený záznam, budoucí revize a dva zdroje nad stejnou revizí vrátí konflikt; snapshot čte stejné bajty i po úpravách a po uložení na místo.
   - **Hotovo, když:** rozsah z revize N se přes záznam změn přepočte na revizi N+k; při překryvu se změnou uživatele, po zkrácení záznamu a při souběžné změně ze dvou zdrojů služba vrátí konflikt; snapshot revize N vrací stejné bajty i po dalších úpravách; vše pokrývají testy.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
-- [ ] **P1.2.5** Kotvy pozic
+- [x] **P1.2.5** Kotvy pozic
   - **Co a proč:** Kotva je pozice, která se posouvá se změnami dokumentu. Potřebují ji výběry víc kurzorů (P0 je měl jako holá čísla), záložky, nedávná místa úprav a výsledky hledání. měření je řadí do P1.
   - **Funkce:** žádná (infrastruktura)
+  - **Stav 26. 10. 2026:** hotovo: tabulkový test a náhodný test proti referenci projdou; smazaná kotva zůstane neplatná i po undo, nic se neodhaduje.
   - **Hotovo, když:** tabulkové testy pokrývají vložení přesně na kotvu, smazání kotvy, překryv, undo a redo, ztracenou historii a nahrazení celého souboru; u nejednoznačného případu se kotva zneplatní nebo vrátí konflikt, pozice se neodhaduje; náhodný test proti referenčnímu výpočtu prochází.
   - **Závisí na:** P1.2.4
   - **Odhad:** bez odhadu
-- [ ] **P1.2.6** Undo a redo jako transakce
+- [x] **P1.2.6** Undo a redo jako transakce
   - **Co a proč:** Undo sjednocuje všechny zdroje úprav. Skupiny undo (psaní v jednom úseku, operace nad výběrem) a správný stav „uloženo“. Undo obnoví všechny kurzory, ne jen primární.
   - **Funkce:** F043
+  - **Stav 26. 10. 2026:** hotovo: undo po uložení vrátí přesně uložený stav a značka neuloženo zmizí; seskupení, slučování a psaní do více kurzorů jedním krokem undo včetně obnovy výběrů mají testy.
   - **Hotovo, když:** po uložení a dalších úpravách undo vrátí přesně uložený stav a značka „neuloženo“ zmizí; jeden krok undo vrátí psaní do všech kurzorů včetně jejich pozic.
   - **Závisí na:** P1.2.4, P1.2.5
   - **Odhad:** bez odhadu
