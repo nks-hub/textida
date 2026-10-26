@@ -44,6 +44,8 @@ public sealed record SearchSettings
     /// <summary>Called on a worker thread for every source with at least one match and its match count; callers must be thread safe.</summary>
     public Action<SearchSource, long>? FileMatched { get; init; }
     public FileWalkOptions Walk { get; init; } = new();
+    /// <summary>Called on worker threads with the number of bytes just scanned; callers must be thread safe.</summary>
+    public Action<long>? Progress { get; init; }
 }
 
 /// <summary>An open document searched in its current revision, including changes that are not saved.</summary>
