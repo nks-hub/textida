@@ -479,6 +479,26 @@ commands: nks.hex.inspectChanges
 - Ändert sich die Länge, wird eine neue Datei geschrieben und atomar ausgetauscht.
 - Bevor eine kleinere Datei überschrieben wird, entsteht eine Sicherung; misslingt sie, bleibt die Datei unverändert.
 
+## [view.options] Anzeige im Editor
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+Die Befehle stehen im Menü Ansicht und in der Palette. Jeder schaltet eine Einstellung um; die Einstellungen lassen sich auch in den Einstellungen ändern.
+- Verborgene Zeichen anzeigen (Strg+K und dann Strg+W): zeichnet Leerzeichen und Tabulatoren. Entspricht der Einstellung Leerraum anzeigen.
+- Zeilennummern anzeigen (Strg+K und dann Strg+N): links eine Spalte mit Zeilennummern (Einstellung Zeilennummern).
+- Aktuelle Zeile hervorheben: schattiert die Zeile mit dem Cursor (Einstellung Aktuelle Zeile hervorheben).
+- Rechten Rand anzeigen: eine senkrechte Linie hinter der Spalte aus der Einstellung Spalte des rechten Rands; der Wert 0 schaltet die Linie aus.
+- Klickbare Links: Eine Webadresse öffnet sich per Klick bei gedrückter Strg-Taste (Einstellung Klickbare Links). In einer großen Datei im Seitenmodus gibt es den Befehl nicht.
+- Minimap anzeigen (Strg+K und dann Strg+M): ein verkleinertes Bild des Textes rechts, durch Ziehen wird gescrollt (Einstellung Minimap).
+- Ohne geöffnetes Dokument sind die Befehle abgeblendet.
+
+## [bookmarks] Lesezeichen
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+Ein Lesezeichen markiert eine Zeile, zu der Sie zurückkehren wollen.
+1. Strg+F2 setzt ein Lesezeichen in der Zeile mit dem Cursor und entfernt es in einer Zeile, die schon eins hat. Die Statusleiste meldet Lesezeichen in Zeile N gesetzt oder Lesezeichen in Zeile N entfernt.
+2. F2 springt zum nächsten Lesezeichen, Umschalt+F2 zum vorherigen. Nach dem letzten geht es beim ersten weiter.
+3. Lesezeichen löschen (in der Palette) entfernt alle Lesezeichen des Dokuments; die Statusleiste meldet Lesezeichen entfernt.
+- Hat das Dokument keine Lesezeichen, meldet die Statusleiste Das Dokument hat keine Lesezeichen.
+- In Hex und in einem Tab mit Suchergebnissen gibt es keine Lesezeichen. In einer großen Datei, deren Zeilen noch nummeriert werden, meldet der Befehl, dass der Zeilenindex diese Stelle noch nicht erreicht.
+
 ## [recovery] Wiederherstellung nach Absturz
 Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens zwei Sekunden nach einer Änderung. Ein ungespeichertes Dokument geht so auch nicht verloren, wenn das Programm abstürzt oder der Rechner ausgeschaltet wird.
 1. Starten Sie das Programm erneut.

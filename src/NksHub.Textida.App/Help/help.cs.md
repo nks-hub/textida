@@ -479,6 +479,26 @@ commands: nks.hex.inspectChanges
 - Mění-li se délka, uloží se nový soubor, který se atomicky vymění.
 - Před přepsáním menšího souboru vznikne záloha; nepovede-li se, soubor zůstane beze změny.
 
+## [view.options] Zobrazení editoru
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+Příkazy jsou v nabídce Zobrazit a v paletě. Každý přepíná jedno nastavení; jde je změnit i v nastavení.
+- Zobrazit skryté znaky (Ctrl+K a potom Ctrl+W): vykreslí mezery a tabulátory. Odpovídá nastavení Zobrazit bílé znaky.
+- Zobrazit čísla řádků (Ctrl+K a potom Ctrl+N): sloupec s čísly řádků vlevo (nastavení Čísla řádků).
+- Zvýraznit aktuální řádek: podbarví řádek s kurzorem (nastavení Zvýraznit aktuální řádek).
+- Zobrazit pravý okraj: svislá čára za sloupcem z nastavení Sloupec pravého okraje; hodnota 0 čáru vypíná.
+- Klikací odkazy: webová adresa se otevře kliknutím při stisknutém Ctrl (nastavení Klikací odkazy). Ve velkém souboru ve stránkovaném režimu příkaz není.
+- Zobrazit minimapu (Ctrl+K a potom Ctrl+M): zmenšený obraz textu vpravo, tažením se posouvá (nastavení Minimapa).
+- Příkazy jsou ztlumené bez otevřeného dokumentu.
+
+## [bookmarks] Záložky
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+Záložka označí řádek, na který se chcete vrátit.
+1. Ctrl+F2 nastaví záložku na řádku s kurzorem, na řádku, který ji už má, ji odstraní. Stavový řádek napíše Záložka nastavena na řádku N, nebo Záložka na řádku N odstraněna.
+2. F2 skočí na další záložku, Shift+F2 na předchozí. Po poslední se pokračuje od první.
+3. Smazat záložky (v paletě) odstraní všechny záložky dokumentu; stavový řádek napíše Záložky odstraněny.
+- Nemá-li dokument žádné záložky, stavový řádek napíše Dokument nemá žádné záložky.
+- Záložky nejsou v hexu ani v kartě výsledků hledání. Ve velkém souboru, jehož řádky se ještě číslují, příkaz napíše, že index řádků ještě nesahá na to místo.
+
 ## [recovery] Obnova po pádu
 Program průběžně zapisuje neuložený text do žurnálu, nejdéle do dvou sekund od změny. Neuložený dokument se tak neztratí, ani když program spadne nebo vypnete počítač.
 1. Spusťte program znovu.

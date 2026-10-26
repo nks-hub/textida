@@ -479,6 +479,26 @@ commands: nks.hex.inspectChanges
 - Ak sa mení dĺžka, uloží sa nový súbor, ktorý sa atomicky vymení.
 - Pred prepísaním menšieho súboru vznikne záloha; ak sa nepodarí, súbor zostane bez zmeny.
 
+## [view.options] Zobrazenie editora
+commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
+Príkazy sú v ponuke Zobraziť a v palete. Každý prepína jedno nastavenie; dajú sa zmeniť aj v nastaveniach.
+- Zobraziť skryté znaky (Ctrl+K a potom Ctrl+W): vykreslí medzery a tabulátory. Zodpovedá nastaveniu Zobraziť biele znaky.
+- Zobraziť čísla riadkov (Ctrl+K a potom Ctrl+N): stĺpec s číslami riadkov vľavo (nastavenie Čísla riadkov).
+- Zvýrazniť aktuálny riadok: podfarbí riadok s kurzorom (nastavenie Zvýrazniť aktuálny riadok).
+- Zobraziť pravý okraj: zvislá čiara za stĺpcom z nastavenia Stĺpec pravého okraja; hodnota 0 čiaru vypína.
+- Klikateľné odkazy: webová adresa sa otvorí kliknutím so stlačeným Ctrl (nastavenie Klikateľné odkazy). Vo veľkom súbore v stránkovanom režime príkaz nie je.
+- Zobraziť minimapu (Ctrl+K a potom Ctrl+M): zmenšený obraz textu vpravo, ťahaním sa posúva (nastavenie Minimapa).
+- Príkazy sú stlmené bez otvoreného dokumentu.
+
+## [bookmarks] Záložky
+commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
+Záložka označí riadok, na ktorý sa chcete vrátiť.
+1. Ctrl+F2 nastaví záložku na riadku s kurzorom, na riadku, ktorý ju už má, ju odstráni. Stavový riadok napíše Záložka nastavená na riadku N, alebo Záložka na riadku N odstránená.
+2. F2 skočí na ďalšiu záložku, Shift+F2 na predchádzajúcu. Po poslednej sa pokračuje od prvej.
+3. Zmazať záložky (v palete) odstráni všetky záložky dokumentu; stavový riadok napíše Záložky odstránené.
+- Ak dokument nemá žiadne záložky, stavový riadok napíše Dokument nemá žiadne záložky.
+- Záložky nie sú v hexe ani v karte výsledkov hľadania. Vo veľkom súbore, ktorého riadky sa ešte číslujú, príkaz napíše, že index riadkov ešte na to miesto nesiaha.
+
 ## [recovery] Obnova po páde
 Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch sekúnd od zmeny. Neuložený dokument sa tak nestratí, ani keď program spadne alebo vypnete počítač.
 1. Spustite program znova.
