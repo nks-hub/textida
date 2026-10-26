@@ -303,6 +303,76 @@ public class HexTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Go_to_offset_previews_the_target_before_it_is_confirmed()
+    {
+        var bytes = Sample(10_000);
+        var tab = OpenHex(bytes);
+        var hex = tab.Hex!;
+        Assert.Equal("", MainWindow.PreviewOffset(hex, " "));
+        Assert.Equal($"→ 0x00001F40 (8000) · bajt {bytes[0x1F40]:X2}", MainWindow.PreviewOffset(hex, "0x1F40"));
+        Assert.Equal($"→ 0x{10_000 - 512:X8} ({10_000 - 512}) · bajt {bytes[10_000 - 512]:X2}", MainWindow.PreviewOffset(hex, "end-512"));
+        Assert.Contains("mimo soubor", MainWindow.PreviewOffset(hex, "end")); // overwrite has no byte at the end
+        hex.ToggleInsert();
+        Assert.Equal("→ 0x00002710 (10000) · konec souboru", MainWindow.PreviewOffset(hex, "end"));
+        Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "end+1")); // the expression itself refuses a target past the end
+        hex.ToggleInsert();
+        Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "0x"));
+
+        _dialogs.Prompts.Enqueue("4K");
+        Press(Key.G, TestApp.Mod);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(4096, hex.Caret);
+        Assert.Equal($"→ 0x00001000 (4096) · bajt {bytes[4096]:X2}", Assert.Single(_dialogs.Previews));
+    }
+
+    [AvaloniaFact]
+    public void The_binary_offer_follows_the_setting_always_ask_never()
+    {
+        var bytes = Sample();
+        _app.Workbench.Set("files.binaryAsHex", "never");
+        var never = _w.OpenFile(_temp.Bytes("never.bin", bytes), null);
+        Assert.Null(never.Bar);
+        Assert.Null(never.Hex);
+
+        _app.Workbench.Set("files.binaryAsHex", "always");
+        var always = _w.OpenFile(_temp.Bytes("always.bin", bytes), null);
+        Assert.NotNull(always.Hex);
+        Assert.True(always.Doc.IsHex);
+        Assert.Contains(always, _w.Tabs);
+        Assert.Same(always, _w.Active);
+
+        _app.Workbench.Set("files.binaryAsHex", "ask");
+        var ask = _w.OpenFile(_temp.Bytes("ask.bin", bytes), null);
+        Assert.IsType<InfoBar>(ask.Bar);
+        Assert.Null(ask.Hex);
+    }
+
+    [AvaloniaFact]
+    public void Switching_text_the_encoding_cannot_hold_to_hex_opens_the_inspector_and_cancel_keeps_the_text_view()
+    {
+        var path = _temp.Bytes("cp1250.txt", [0x61, 0x62]);
+        var tab = _w.OpenFile(path, null);
+        tab.Doc.Doc.ReinterpretAs(Core.Encodings.TextCodec.Cp1252);
+        tab.Editor!.Document.Insert(1, "č");
+
+        _dialogs.Answers.Enqueue(2); // cancel
+        HexChord();
+        Dispatcher.UIThread.RunJobs();
+        var ask = Assert.Single(_dialogs.Asked);
+        Assert.Equal(Loc.Get(K.LossTitle), ask.Title);
+        Assert.Equal(Loc.Get(K.LossHexShow), ask.Buttons[0].Label);
+        Assert.Equal(Loc.Get(K.LossChangeEncoding), ask.Buttons[1].Label);
+        Assert.Contains("→ 3F", Assert.Single(ask.Details!));
+        Assert.Null(_w.Active!.Hex);
+
+        _dialogs.Answers.Enqueue(0); // show in hex
+        HexChord();
+        Dispatcher.UIThread.RunJobs();
+        Assert.NotNull(_w.Active!.Hex);
+        Assert.Equal(new byte[] { 0x61, 0x3F, 0x62 }, Bytes(_w.Active));
+    }
+
+    [AvaloniaFact]
     public void Searching_for_a_masked_pattern_finds_the_same_matches_as_a_plain_pass_and_f3_steps()
     {
         var bytes = Sample(50_000);

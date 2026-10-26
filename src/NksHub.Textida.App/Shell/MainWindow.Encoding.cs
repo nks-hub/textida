@@ -45,12 +45,16 @@ internal sealed partial class MainWindow
         var od = tab.Doc;
         var doc = od.Doc;
         if (codec == doc.Codec || od.IsLarge) return false;
-        if (!await ConfirmTypedLossAsync(od)) return false;
+        var before = doc.Codec;
+        if (!await ConfirmTypedLossAsync(tab)) return false;
+        if (doc.Codec != before) return true; // the inspector already converted to the encoding the user picked
         var preview = doc.PreviewConvert(codec);
         string? replacement = null;
         if (preview.Loss.HasLoss)
         {
-            if (!await ConfirmLossAsync(preview.Loss, codec, Loc.Get(K.LossConvertReplaced))) return false;
+            var (answer, other) = await ConfirmLossAsync(od, preview.Loss, codec, Loc.Get(K.LossConvertReplaced));
+            if (answer == LossAnswer.ChangeEncoding) return await ConvertToAsync(tab, other!);
+            if (answer != LossAnswer.Replace) return false;
             replacement = "?";
         }
         var result = doc.ConvertTo(codec, replacement);

@@ -102,6 +102,11 @@ public static class K
     public const string LossEntry = "loss.entry";
     public const string LossMore = "loss.more";
     public const string LossSaveReplaced = "loss.saveReplaced";
+    public const string LossSize = "loss.size";
+    public const string LossChangeEncoding = "loss.changeEncoding";
+    public const string LossHexShow = "loss.hexShow";
+    public const string LossPickTitle = "loss.pick.title";
+    public const string LossPickLabel = "loss.pick.label";
     public const string LossConvertReplaced = "loss.convertReplaced";
     public const string EncodingRereadAs = "encoding.rereadAs";
     public const string EncodingConvertTo = "encoding.convertTo";
@@ -453,6 +458,9 @@ public static class K
     public const string HexBarKeep = "hex.bar.keep";
     public const string HexGotoTitle = "hex.goto.title";
     public const string HexGotoLabel = "hex.goto.label";
+    public const string HexGotoPreview = "hex.goto.preview";
+    public const string HexGotoPreviewEnd = "hex.goto.previewEnd";
+    public const string HexGotoPreviewA11y = "hex.goto.previewA11y";
     public const string HexGotoInvalid = "hex.goto.invalid";
     public const string HexGotoOutside = "hex.goto.outside";
     public const string HexFindTitle = "hex.find.title";

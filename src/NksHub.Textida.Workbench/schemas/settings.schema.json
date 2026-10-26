@@ -293,6 +293,17 @@
           "default": true,
           "description": "Close BEGIN with END. Enter after BEGIN in SQL adds a matching END line.",
           "x-scope": "language"
+        },
+        "files.binaryAsHex": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "always",
+            "never"
+          ],
+          "description": "Binary files in hex. What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch.",
+          "x-scope": "application"
         }
       },
       "additionalProperties": true

@@ -208,5 +208,7 @@
   "cmd.hex.bytesPerRow.48": "48 bajtov na riadok",
   "cmd.hex.bytesPerRow.64": "64 bajtov na riadok",
   "cmd.hex.offsetFormat": "Prepnúť offsety desiatkovo a hexadecimálne",
-  "cmd.hex.inspectChanges": "Zmeny pred uložením..."
+  "cmd.hex.inspectChanges": "Zmeny pred uložením...",
+  "setting.files.binaryAsHex.title": "Binárne súbory v hexe",
+  "setting.files.binaryAsHex.description": "Čo sa stane, keď má súbor v prvých 8 000 bajtoch bajt NUL: opýtať sa v lište, vždy otvoriť v hexe, alebo nikdy neprepínať."
 }

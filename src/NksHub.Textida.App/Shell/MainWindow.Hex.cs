@@ -175,8 +175,16 @@ internal sealed partial class MainWindow
     internal CommandOutcome ToggleHex()
     {
         if (Active is not { Custom: null } tab) return CommandOutcome.NotHandled;
-        SetHex(tab.Doc, !tab.Doc.IsHex);
+        _ = SwitchHexAsync(tab);
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>Switches a tab between text and hex; text the encoding cannot hold opens the loss inspector first, because hex shows the bytes that would be written.</summary>
+    internal async Task<bool> SwitchHexAsync(DocTab tab)
+    {
+        var od = tab.Doc;
+        if (!od.IsHex && !await ConfirmTypedLossAsync(tab, Loc.Get(K.LossHexShow))) return false;
+        return SetHex(od, !od.IsHex);
     }
 
     /// <summary>Opens a file in hex, optionally at a byte offset.</summary>
@@ -212,13 +220,20 @@ internal sealed partial class MainWindow
         return head.AsSpan(0, n).Contains((byte)0);
     }
 
-    /// <summary>A file with a NUL in its first 8 000 bytes opens as text with a bar above it that offers hex; nothing is decided for the user.</summary>
-    private void OfferHex(DocTab tab)
+    /// <summary>
+    /// A file with a NUL in its first 8 000 bytes; <c>files.binaryAsHex</c> decides: "ask" (default) opens it as text with a bar above it that offers hex,
+    /// "always" opens it in hex, "never" leaves it as text. Returns the tab that shows the document afterwards.
+    /// </summary>
+    private DocTab OfferHex(DocTab tab)
     {
-        if (tab.Doc.IsHex || tab.Doc.IsResults || tab.Surface is null && tab.Paged is null || !LooksBinary(tab.Doc.Doc)) return;
+        if (tab.Doc.IsHex || tab.Doc.IsResults || tab.Surface is null && tab.Paged is null || !LooksBinary(tab.Doc.Doc)) return tab;
         var od = tab.Doc;
+        string mode = _app.Workbench.Settings.GetString("files.binaryAsHex");
+        if (mode == "never") return tab;
+        if (mode == "always" && SetHex(od, true)) return od.Views.FirstOrDefault(v => v.Hex is not null) ?? tab;
         tab.ShowBar(new InfoBar(Loc.Get(K.HexBarBinary),
             [(Loc.Get(K.HexBarOpen), () => SetHex(od, true)), (Loc.Get(K.HexBarKeep), () => tab.ShowBar(null))], warning: false, onClose: () => tab.ShowBar(null)));
+        return tab;
     }
 
     // ---- status line ----
@@ -348,31 +363,51 @@ internal sealed partial class MainWindow
 
     // ---- go to offset ----
 
-    internal async Task GoToOffsetAsync(HexView hex)
+    /// <summary>The target of a go-to expression, or the sentence that says why there is none; the preview and the jump share it.</summary>
+    internal static (long? Target, string? Problem) ResolveOffset(HexView hex, string expression)
     {
         var doc = hex.Editor.Document;
-        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "");
-        if (answer is null) return;
         Span<byte> four = stackalloc byte[4];
         uint? value = doc.Read(hex.Caret, four) == 4 ? System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(four) : null;
         long selection = hex.Editor.HasSelection ? hex.Editor.Selection.Start : hex.Caret;
         try
         {
-            long target = OffsetExpression.Evaluate(answer, new OffsetContext(doc.ByteLength, hex.Caret, selection, value));
+            long target = OffsetExpression.Evaluate(expression, new OffsetContext(doc.ByteLength, hex.Caret, selection, value));
             if (target < 0 || target > doc.ByteLength || (target == doc.ByteLength && !hex.Insert && doc.ByteLength > 0))
-            {
-                SetStatusMessage(Loc.Get(K.HexGotoOutside, ("size", doc.ByteLength)));
-                return;
-            }
-            RecordJump();
-            hex.MoveTo(target);
-            hex.CenterIfOutside(target);
-            hex.Focus();
+                return (null, Loc.Get(K.HexGotoOutside, ("size", doc.ByteLength)));
+            return (target, null);
         }
         catch (Exception e) when (e is FormatException or OverflowException or ArgumentOutOfRangeException or DivideByZeroException)
         {
-            SetStatusMessage(Loc.Get(K.HexGotoInvalid, ("reason", e.Message)));
+            return (null, Loc.Get(K.HexGotoInvalid, ("reason", e.Message)));
         }
+    }
+
+    /// <summary>What Ctrl+G would do with the expression typed so far: the offset it reaches and the byte there, or why it does not.</summary>
+    internal static string PreviewOffset(HexView hex, string expression)
+    {
+        if (string.IsNullOrWhiteSpace(expression)) return "";
+        var (target, problem) = ResolveOffset(hex, expression);
+        if (target is not { } at) return problem!;
+        string offset = hex.OffsetText(at), decimalText = at.ToString(CultureInfo.InvariantCulture);
+        if (at >= hex.Editor.Document.ByteLength) return Loc.Get(K.HexGotoPreviewEnd, ("offset", offset), ("decimal", decimalText));
+        return Loc.Get(K.HexGotoPreview, ("offset", offset), ("decimal", decimalText), ("value", $"{hex.Describe(at).Value:X2}"));
+    }
+
+    internal async Task GoToOffsetAsync(HexView hex)
+    {
+        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "", text => PreviewOffset(hex, text));
+        if (answer is null) return;
+        var (target, problem) = ResolveOffset(hex, answer);
+        if (target is not { } at)
+        {
+            SetStatusMessage(problem!);
+            return;
+        }
+        RecordJump();
+        hex.MoveTo(at);
+        hex.CenterIfOutside(at);
+        hex.Focus();
     }
 
     // ---- search for bytes ----

@@ -2097,6 +2097,25 @@
         "end",
         "block"
       ]
+    },
+    {
+      "key": "files.binaryAsHex",
+      "type": "string",
+      "default": "ask",
+      "title": "setting.files.binaryAsHex.title",
+      "description": "setting.files.binaryAsHex.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "ask",
+        "always",
+        "never"
+      ],
+      "tags": [
+        "hex",
+        "binary",
+        "nul"
+      ]
     }
   ]
 }

@@ -91,7 +91,7 @@
   "loss.message.few": "{count} znaky nemožno zapísať v kódovaní {encoding}: {groups}.",
   "loss.message.other": "{count} znakov nemožno zapísať v kódovaní {encoding}: {groups}.",
   "loss.replacement": "Ak budete pokračovať, každý z nich sa nahradí znakom „?“. Nič iné sa nezmení.",
-  "loss.entry": "{char} ({code}) · riadok {line}, stĺpec {column} · bajt {byte}",
+  "loss.entry": "{char} ({code}) · riadok {line}, stĺpec {column} · bajt {byte} → {replacement}",
   "loss.more": "… a ďalšie",
   "loss.saveReplaced": "Nahradiť a uložiť",
   "loss.convertReplaced": "Nahradiť a previesť",
@@ -490,5 +490,13 @@
   "hex.changes.stream": "Uloží sa ako nový súbor a atomicky sa vymení (dĺžka sa mení z {old} na {new} B).",
   "hex.changes.none": "Žiadne neuložené zmeny.",
   "hex.changes.close": "Zavrieť",
-  "hex.changes.entry": "{offset}  {length} B  nové: {new}"
+  "hex.changes.entry": "{offset}  {length} B  nové: {new}",
+  "loss.size": "Veľkosť v {encoding}: {before} B → {after} B.",
+  "loss.changeEncoding": "Zmeniť kódovanie…",
+  "loss.hexShow": "Zobraziť v hexe",
+  "loss.pick.title": "Zmeniť kódovanie",
+  "loss.pick.label": "Zapísať text v tomto kódovaní (kódovania, ktoré stratia znaky, sú označené):",
+  "hex.goto.preview": "→ {offset} ({decimal}) · bajt {value}",
+  "hex.goto.previewEnd": "→ {offset} ({decimal}) · koniec súboru",
+  "hex.goto.previewA11y": "Cieľ skoku"
 }

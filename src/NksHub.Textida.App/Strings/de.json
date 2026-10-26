@@ -90,7 +90,7 @@
   "loss.message.one": "{count} Zeichen lässt sich nicht in {encoding} schreiben: {groups}.",
   "loss.message.other": "{count} Zeichen lassen sich nicht in {encoding} schreiben: {groups}.",
   "loss.replacement": "Wenn Sie fortfahren, wird jedes davon durch „?“ ersetzt. Sonst ändert sich nichts.",
-  "loss.entry": "{char} ({code}) · Zeile {line}, Spalte {column} · Byte {byte}",
+  "loss.entry": "{char} ({code}) · Zeile {line}, Spalte {column} · Byte {byte} → {replacement}",
   "loss.more": "… und weitere",
   "loss.saveReplaced": "Ersetzen und speichern",
   "loss.convertReplaced": "Ersetzen und konvertieren",
@@ -474,5 +474,13 @@
   "hex.changes.stream": "Wird als neue Datei gespeichert und atomar ausgetauscht (die Länge ändert sich von {old} auf {new} B).",
   "hex.changes.none": "Keine ungespeicherten Änderungen.",
   "hex.changes.close": "Schließen",
-  "hex.changes.entry": "{offset}  {length} B  neu: {new}"
+  "hex.changes.entry": "{offset}  {length} B  neu: {new}",
+  "loss.size": "Größe in {encoding}: {before} B → {after} B.",
+  "loss.changeEncoding": "Codierung ändern…",
+  "loss.hexShow": "Im Hex-Editor zeigen",
+  "loss.pick.title": "Codierung ändern",
+  "loss.pick.label": "Text in dieser Codierung schreiben (Codierungen, die Zeichen verlieren, sind markiert):",
+  "hex.goto.preview": "→ {offset} ({decimal}) · Byte {value}",
+  "hex.goto.previewEnd": "→ {offset} ({decimal}) · Dateiende",
+  "hex.goto.previewA11y": "Sprungziel"
 }

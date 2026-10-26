@@ -91,7 +91,7 @@
   "loss.message.one": "{count} character cannot be written in {encoding}: {groups}.",
   "loss.message.other": "{count} characters cannot be written in {encoding}: {groups}.",
   "loss.replacement": "If you continue, each of them is replaced by “?”. Nothing else changes.",
-  "loss.entry": "{char} ({code}) · line {line}, column {column} · byte {byte}",
+  "loss.entry": "{char} ({code}) · line {line}, column {column} · byte {byte} → {replacement}",
   "loss.more": "… and more",
   "loss.saveReplaced": "Replace and Save",
   "loss.convertReplaced": "Replace and Convert",
@@ -474,5 +474,13 @@
   "hex.changes.stream": "Saves as a new file that is swapped in atomically (the length goes from {old} to {new} B).",
   "hex.changes.none": "No unsaved changes.",
   "hex.changes.close": "Close",
-  "hex.changes.entry": "{offset}  {length} B  new: {new}"
+  "hex.changes.entry": "{offset}  {length} B  new: {new}",
+  "loss.size": "Size in {encoding}: {before} B → {after} B.",
+  "loss.changeEncoding": "Change Encoding…",
+  "loss.hexShow": "Show in Hex",
+  "loss.pick.title": "Change Encoding",
+  "loss.pick.label": "Write the text in this encoding (encodings that lose characters are marked):",
+  "hex.goto.preview": "→ {offset} ({decimal}) · byte {value}",
+  "hex.goto.previewEnd": "→ {offset} ({decimal}) · end of file",
+  "hex.goto.previewA11y": "Jump target"
 }
