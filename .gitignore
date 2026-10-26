@@ -24,3 +24,5 @@ re/
 tools/*.py
 src/NksPad.P0.App/
 tests/NksPad.P0.App.Tests/
+.coord/
+__pycache__/
