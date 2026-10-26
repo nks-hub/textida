@@ -176,10 +176,11 @@ public class MultiCaretEditorTests : IDisposable
         tab.Editor!.Select(0, 2);
         Mod(Key.L, shift: true);
         Assert.Equal(3, tab.Editor.CaretCount);
-        Assert.Contains(Loc.Get(K.StatusCarets, ("count", 3)), _w.StatusLeftText);
+        Assert.DoesNotContain("status.carets", _w.StatusLeftText);
+        Assert.Contains(Loc.Plural(K.StatusCarets, 3), _w.StatusLeftText);
         Assert.Contains(Loc.Get(K.StatusSelected, ("count", 6)), _w.StatusLeftText);
         Press(Key.Escape);
-        Assert.DoesNotContain(Loc.Get(K.StatusCarets, ("count", 3)), _w.StatusLeftText);
+        Assert.DoesNotContain(Loc.Plural(K.StatusCarets, 3), _w.StatusLeftText);
     }
 
     // ---- mouse ----
