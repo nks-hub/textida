@@ -79,13 +79,14 @@ public sealed partial class Document
         string hash = HashSnapshot(snapshot, CancellationToken.None);
         if (guard && CheckExternalChange() is { } late) return new(false, late);
         Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
-        InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks);
+        InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks, _backend.BeginInPlaceWrite());
         CompleteSave(target, hash);
         return new(true, null);
     }
 
     private void CompleteSave(string target, string hash)
     {
+        _snapshot = null; // the cached snapshot predates the write; dropping it lets the preserved old bytes go
         FilePath = target;
         Fingerprint = new FileFingerprint(ByteLength, File.GetLastWriteTimeUtc(target), hash);
         _lastReported = null;
@@ -129,7 +130,7 @@ public sealed partial class Document
                 }
                 ct.ThrowIfCancellationRequested();
                 Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
-                await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks), CancellationToken.None);
+                await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
             }
             else
             {

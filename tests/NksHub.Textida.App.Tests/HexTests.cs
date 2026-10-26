@@ -431,7 +431,7 @@ public class HexTests : IDisposable
         var doc = tab.Doc.Doc;
         TestApp.Type(_w, "FF");
         using var inFlush = new ManualResetEventSlim();
-        doc.InPlaceHooksForTests(ct => { inFlush.Set(); ct.WaitHandle.WaitOne(10_000); });
+        doc.InPlaceHooks = new PatchHooks { BeforeFlush = ct => { inFlush.Set(); ct.WaitHandle.WaitOne(10_000); } };
         Press(Key.S, TestApp.Mod);
         PumpUntil(() => inFlush.IsSet);
         Assert.True(doc.IsSaving);

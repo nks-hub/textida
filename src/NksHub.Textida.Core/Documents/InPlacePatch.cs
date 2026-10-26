@@ -85,44 +85,59 @@ internal static class InPlacePatch
     }
 
     /// <summary>Writes the bytes of <paramref name="ranges"/> from <paramref name="source"/> into <paramref name="target"/>; the length of the file must not change.</summary>
-    public static void Apply(string target, IReadOnlyList<ByteRange> ranges, IByteSnapshot source, CancellationToken ct, PatchHooks? hooks = null)
+    /// <param name="scope">Told the old bytes of every chunk just before it is overwritten, and disposed when the file is final.</param>
+    public static void Apply(string target, IReadOnlyList<ByteRange> ranges, IByteSnapshot source, CancellationToken ct, PatchHooks? hooks = null, IInPlaceWriteScope? scope = null)
     {
+        using var _ = scope;
         string journalPath = JournalPathOf(target);
-        using var file = new FileStream(target, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
-        if (file.Length != source.ByteLength) throw new IOException("The file has another length than the document.");
-        var chunks = Plan(file, ranges, source, ct);
-        if (chunks.Count == 0) return;
-
-        bool dataStarted = false;
+        var file = new FileStream(target, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
         try
         {
-            WriteJournal(journalPath, file, chunks, source, ct);
-            hooks?.AfterStep?.Invoke("journal");
+            if (file.Length != source.ByteLength) throw new IOException("The file has another length than the document.");
+            var chunks = Plan(file, ranges, source, ct);
+            if (chunks.Count == 0) return;
 
-            dataStarted = true;
-            var buffer = new byte[ChunkBytes];
-            for (int i = 0; i < chunks.Count; i++)
+            bool dataStarted = false;
+            try
             {
+                WriteJournal(journalPath, file, chunks, source, ct);
+                hooks?.AfterStep?.Invoke("journal");
+
+                dataStarted = true;
+                var buffer = new byte[ChunkBytes];
+                var old = new byte[ChunkBytes];
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var c = chunks[i];
+                    ReadExactly(source, c.Offset, buffer.AsSpan(0, c.Length));
+                    if (scope is not null)
+                    {
+                        ReadExactly(file, c.Offset, old.AsSpan(0, c.Length));
+                        scope.Preserve(c.Offset, old.AsSpan(0, c.Length));
+                    }
+                    file.Position = c.Offset;
+                    file.Write(buffer, 0, c.Length);
+                    if (i == 0 && chunks.Count > 1) hooks?.AfterStep?.Invoke("data-partial");
+                }
+                hooks?.AfterStep?.Invoke("data");
+                hooks?.BeforeFlush?.Invoke(ct);
                 ct.ThrowIfCancellationRequested();
-                var c = chunks[i];
-                ReadExactly(source, c.Offset, buffer.AsSpan(0, c.Length));
-                file.Position = c.Offset;
-                file.Write(buffer, 0, c.Length);
-                if (i == 0 && chunks.Count > 1) hooks?.AfterStep?.Invoke("data-partial");
+                file.Flush(true);
+                hooks?.AfterStep?.Invoke("flush");
+                ct.ThrowIfCancellationRequested();
+                Commit(journalPath, hooks);
             }
-            hooks?.AfterStep?.Invoke("data");
-            hooks?.BeforeFlush?.Invoke(ct);
-            ct.ThrowIfCancellationRequested();
-            file.Flush(true);
-            hooks?.AfterStep?.Invoke("flush");
-            ct.ThrowIfCancellationRequested();
-            Commit(journalPath, hooks);
+            catch (Exception e) when (e is not PatchCrash)
+            {
+                if (dataStarted) TryRollback(journalPath, file);
+                else TryDelete(journalPath);
+                throw;
+            }
         }
-        catch (Exception e) when (e is not PatchCrash)
+        finally
         {
-            if (dataStarted) TryRollback(journalPath, file);
-            else TryDelete(journalPath);
-            throw;
+            file.Dispose(); // closed before the scope ends, so the write time the scope records is the final one
         }
         hooks?.AfterStep?.Invoke("commit");
         TryDelete(journalPath);

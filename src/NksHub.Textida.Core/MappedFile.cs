@@ -98,6 +98,25 @@ public sealed unsafe class MappedFile : IDisposable
         _snapshotSource.Release();
     }
 
+    /// <summary>Opens the window in which this file is overwritten in place by the document that maps it; see <see cref="IInPlaceWriteScope"/>.</summary>
+    internal IInPlaceWriteScope BeginInPlaceWrite()
+    {
+        _snapshotSource.BeginWrite();
+        return new WriteScope(_snapshotSource);
+    }
+
+    private sealed class WriteScope(SnapshotSource source) : IInPlaceWriteScope
+    {
+        private int _done;
+
+        public void Preserve(long offset, ReadOnlySpan<byte> old) => source.Preserve(offset, old);
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0) source.EndWrite();
+        }
+    }
+
     internal SnapshotLease RetainSnapshot()
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
@@ -108,7 +127,65 @@ public sealed unsafe class MappedFile : IDisposable
     {
         private int references = 1;
         private int invalidated;
-        private readonly DateTime lastWriteUtc = stream is null ? default : File.GetLastWriteTimeUtc(stream.SafeFileHandle);
+        private DateTime lastWriteUtc = stream is null ? default : File.GetLastWriteTimeUtc(stream.SafeFileHandle);
+
+        // In-place writes by the document itself: the old bytes of each overwritten range are kept for as long as a snapshot that
+        // started before the write is alive, and the write time the file has afterwards is the new baseline, not a foreign change.
+        private readonly object patchGate = new();
+        private readonly List<(long Seq, long Offset, byte[] Old)> patches = [];
+        private readonly SortedDictionary<long, int> activeStarts = [];
+        private long patchSeq;
+        private int writing;
+
+        public long BeginLease()
+        {
+            lock (patchGate)
+            {
+                activeStarts[patchSeq] = activeStarts.GetValueOrDefault(patchSeq) + 1;
+                return patchSeq;
+            }
+        }
+
+        public void EndLease(long start)
+        {
+            lock (patchGate)
+            {
+                if (--activeStarts[start] == 0) activeStarts.Remove(start);
+                long oldest = activeStarts.Count == 0 ? long.MaxValue : activeStarts.Keys.First();
+                patches.RemoveAll(p => p.Seq < oldest);
+            }
+        }
+
+        public void BeginWrite() => Interlocked.Increment(ref writing);
+
+        public void Preserve(long offset, ReadOnlySpan<byte> old)
+        {
+            lock (patchGate)
+            {
+                long seq = patchSeq++;
+                if (activeStarts.Count > 0) patches.Add((seq, offset, old.ToArray()));
+            }
+        }
+
+        public void EndWrite()
+        {
+            if (stream is not null) lastWriteUtc = File.GetLastWriteTimeUtc(stream.SafeFileHandle);
+            Interlocked.Decrement(ref writing);
+        }
+
+        /// <summary>Puts the old bytes of the ranges written after the snapshot started over what was read, newest write first.</summary>
+        private void Overlay(long offset, Span<byte> data, long start)
+        {
+            lock (patchGate)
+            {
+                for (int i = patches.Count - 1; i >= 0 && patches[i].Seq >= start; i--)
+                {
+                    var (_, at, old) = patches[i];
+                    long from = Math.Max(at, offset), to = Math.Min(at + old.Length, offset + data.Length);
+                    if (to > from) old.AsSpan((int)(from - at), (int)(to - from)).CopyTo(data.Slice((int)(from - offset), (int)(to - from)));
+                }
+            }
+        }
 
         public void Retain()
         {
@@ -125,7 +202,7 @@ public sealed unsafe class MappedFile : IDisposable
             if (Interlocked.Decrement(ref references) == 0) stream?.Dispose();
         }
 
-        public int Read(long offset, Span<byte> destination)
+        public int Read(long offset, Span<byte> destination, long start = long.MaxValue)
         {
             if (offset < 0 || offset > length) throw new ArgumentOutOfRangeException(nameof(offset));
             int count = (int)Math.Min(destination.Length, length - offset);
@@ -151,6 +228,7 @@ public sealed unsafe class MappedFile : IDisposable
                 throw new SnapshotInvalidatedException("The snapshot backing file could not be read.", error);
             }
             Validate();
+            Overlay(offset, destination[..done], start);
             return done;
         }
 
@@ -169,7 +247,7 @@ public sealed unsafe class MappedFile : IDisposable
                 Interlocked.Exchange(ref invalidated, 1);
                 throw new SnapshotInvalidatedException("The snapshot backing file metadata could not be read.", error);
             }
-            if (currentLength != length || currentWriteUtc != lastWriteUtc)
+            if (currentLength != length || (currentWriteUtc != lastWriteUtc && Volatile.Read(ref writing) == 0))
             {
                 Interlocked.Exchange(ref invalidated, 1);
                 throw new SnapshotInvalidatedException();
@@ -181,10 +259,12 @@ public sealed unsafe class MappedFile : IDisposable
     internal sealed class SnapshotLease : IDisposable
     {
         private SnapshotSource? source;
+        private readonly long start;
 
         internal SnapshotLease(SnapshotSource source)
         {
             source.Retain();
+            start = source.BeginLease();
             this.source = source;
         }
 
@@ -194,7 +274,7 @@ public sealed unsafe class MappedFile : IDisposable
         {
             try
             {
-                return (source ?? throw new ObjectDisposedException(nameof(SnapshotLease))).Read(offset, destination);
+                return (source ?? throw new ObjectDisposedException(nameof(SnapshotLease))).Read(offset, destination, start);
             }
             finally
             {
@@ -208,6 +288,11 @@ public sealed unsafe class MappedFile : IDisposable
             GC.SuppressFinalize(this);
         }
 
-        private void Release() => Interlocked.Exchange(ref source, null)?.Release();
+        private void Release()
+        {
+            if (Interlocked.Exchange(ref source, null) is not { } s) return;
+            s.EndLease(start);
+            s.Release();
+        }
     }
 }

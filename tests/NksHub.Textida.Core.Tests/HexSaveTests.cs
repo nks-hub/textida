@@ -194,6 +194,76 @@ public class HexSaveTests
         Assert.Equal(foreign, File.ReadAllBytes(file.Path));
     }
 
+    // ---- snapshots across an in-place save ----
+
+    [Fact]
+    public void An_older_snapshot_keeps_the_old_bytes_after_an_in_place_save_and_a_newer_one_sees_the_new_ones()
+    {
+        using var file = new TempFile("abc"u8.ToArray());
+        using var d = Open(file.Path);
+        var s0 = d.GetSnapshot();
+        Assert.True(d.Replace(new(1, 2), "X"u8.ToArray(), Raw).Applied);
+        var s1 = d.GetSnapshot();
+        Assert.Equal(SaveMode.InPlace, d.PlanSave().Mode);
+        Assert.True(d.Save().Saved);
+        Assert.Equal("aXc", System.Text.Encoding.ASCII.GetString(File.ReadAllBytes(file.Path)));
+
+        Assert.Equal("abc", System.Text.Encoding.ASCII.GetString(s0.ReadBytes(new(0, 3))));
+        Assert.Equal("aXc", System.Text.Encoding.ASCII.GetString(s1.ReadBytes(new(0, 3))));
+        var s2 = d.GetSnapshot();
+        Assert.Equal("aXc", System.Text.Encoding.ASCII.GetString(s2.ReadBytes(new(0, 3))));
+        Assert.Null(d.CheckExternalChange());
+        Assert.False(d.IsModified);
+        Assert.Equal(Convert.ToHexString(SHA256.HashData("aXc"u8)), d.Fingerprint!.Sha256);
+        Assert.Equal(File.GetLastWriteTimeUtc(file.Path), d.Fingerprint.LastWriteUtc);
+    }
+
+    [Fact]
+    public void Every_snapshot_of_a_chain_of_in_place_saves_reads_its_own_revision()
+    {
+        byte[] original = Random(3 << 20);
+        using var file = new TempFile(original);
+        using var d = Open(file.Path);
+        var states = new List<(DocumentSnapshot Snapshot, byte[] Bytes)> { (d.GetSnapshot(), original) };
+        var current = (byte[])original.Clone();
+        for (int round = 1; round <= 4; round++)
+        {
+            long at = (long)round * 700_000 + 11;
+            var patch = new byte[] { (byte)round, (byte)(round * 3), 0x55 };
+            Assert.True(d.Replace(new(at, at + 3), patch, Raw).Applied);
+            patch.CopyTo(current, at);
+            Assert.Equal(SaveMode.InPlace, d.PlanSave().Mode);
+            Assert.True(d.Save().Saved);
+            Assert.Null(d.CheckExternalChange());
+            states.Add((d.GetSnapshot(), (byte[])current.Clone()));
+        }
+        foreach (var (snapshot, bytes) in states)
+            Assert.Equal(bytes, snapshot.ReadBytes(new(0, snapshot.ByteLength)));
+        Assert.Equal(current, File.ReadAllBytes(file.Path));
+        Assert.Equal(current, ByteReadAll(d));
+    }
+
+    private static byte[] ByteReadAll(Doc d) => d.ReadBytes(new(0, d.ByteLength));
+
+    [Fact]
+    public async Task A_snapshot_read_while_the_in_place_write_runs_sees_one_consistent_revision()
+    {
+        byte[] original = Random(4 << 20);
+        using var file = new TempFile(original);
+        using var d = Open(file.Path);
+        var old = d.GetSnapshot();
+        foreach (long at in new long[] { 100, 2 << 20 }) d.Replace(new(at, at + 8), new byte[8] { 9, 9, 9, 9, 9, 9, 9, 9 }, Raw);
+        using var midWrite = new ManualResetEventSlim();
+        using var go = new ManualResetEventSlim();
+        d.InPlaceHooks = new PatchHooks { AfterStep = s => { if (s == "data-partial") { midWrite.Set(); go.Wait(5000); } } };
+        var save = d.SaveAsync();
+        Assert.True(midWrite.Wait(5000));
+        Assert.Equal(original, old.ReadBytes(new(0, old.ByteLength))); // one chunk is already written, the other is not
+        go.Set();
+        Assert.True((await save).Saved);
+        Assert.Equal(original, old.ReadBytes(new(0, old.ByteLength)));
+    }
+
     // ---- async save ----
 
     [Fact]
