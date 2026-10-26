@@ -20,7 +20,7 @@ public class SettingsStackTests
 {
     private static readonly SettingSource[] Order =
     [
-        SettingSource.Default, SettingSource.Plugin, SettingSource.User, SettingSource.UserLanguage,
+        SettingSource.Default, SettingSource.Plugin, SettingSource.Profile, SettingSource.User, SettingSource.UserLanguage,
         SettingSource.Workspace, SettingSource.WorkspaceLanguage, SettingSource.EditorConfig, SettingSource.Document,
     ];
 

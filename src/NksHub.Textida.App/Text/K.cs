@@ -22,6 +22,7 @@ public static class K
     public const string StatusPosition = "status.position";
     public const string StatusLine = "status.line";
     public const string StatusSelected = "status.selected";
+    public const string StatusCarets = "status.carets";
     public const string StatusReady = "status.ready";
     public const string StatusLargePaged = "status.largePaged";
     public const string StatusIndentSpaces = "status.indent.spaces";
@@ -230,6 +231,7 @@ public static class K
     public const string SourceEditorConfig = "source.editorConfig";
     public const string SourceDocument = "source.document";
     public const string SourcePlugin = "source.plugin";
+    public const string SourceProfile = "source.profile";
     public const string ErrorOpenFailed = "error.open.failed";
     public const string ErrorOpenLargeEncoding = "error.open.largeEncoding";
     public const string PagedIndexing = "paged.indexing";

@@ -508,12 +508,12 @@ internal sealed class PagedTextView : Grid
         public override string SurroundingText => owner.CaretLine() is { } c ? c.View.Map.Text : "";
         public override Rect CursorRectangle => owner._canvas.CaretRect();
 
-        public override TextSelection Selection
+        public override Avalonia.Input.TextInput.TextSelection Selection
         {
             get
             {
                 int i = owner.CaretLine() is { } c ? c.View.Map.CharIndexOf(owner._caret - c.View.Start) : 0;
-                return new TextSelection(i, i);
+                return new Avalonia.Input.TextInput.TextSelection(i, i);
             }
             set { }
         }

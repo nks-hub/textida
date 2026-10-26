@@ -380,5 +380,8 @@
   "regex.explain.atLeast": "At least {n} times",
   "regex.explain.between": "Between {min} and {max} times",
   "regex.explain.lazy": "(as few as possible)",
-  "regex.explain.unsupported": "Not supported: {token} is syntax of another dialect. The search reads .NET regular expressions, so this pattern would fail or mean something else."
+  "regex.explain.unsupported": "Not supported: {token} is syntax of another dialect. The search reads .NET regular expressions, so this pattern would fail or mean something else.",
+  "status.carets.one": "({count} caret)",
+  "status.carets.other": "({count} carets)",
+  "source.profile": "profile"
 }

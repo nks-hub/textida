@@ -37,9 +37,10 @@ public static class ContextKeys
     public const string IsDirty = "isDirty";
     public const string HasFolder = "hasFolder";
     public const string FileSelected = "fileSelected";
+    public const string MultipleCarets = "multipleCarets";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets];
 }
 
 /// <summary>

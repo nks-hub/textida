@@ -31,7 +31,11 @@ internal sealed class DocTab
     private readonly EditorAutomationHost? _automation;
 
     /// <summary>Releases what the view holds outside the visual tree.</summary>
-    public void Close() => _automation?.Dispose();
+    public void Close()
+    {
+        _automation?.Dispose();
+        Surface?.Detach();
+    }
 
     public OpenDocument Doc { get; }
     public EditorSurface? Surface { get; }

@@ -500,6 +500,58 @@
       "id": "nks.help.about",
       "title": "cmd.help.about",
       "category": "cat.app"
+    },
+    {
+      "id": "nks.edit.addNextOccurrence",
+      "title": "cmd.edit.addNextOccurrence",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.skipOccurrence",
+      "title": "cmd.edit.skipOccurrence",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.selectAllOccurrences",
+      "title": "cmd.edit.selectAllOccurrences",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.addCaretAbove",
+      "title": "cmd.edit.addCaretAbove",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.addCaretBelow",
+      "title": "cmd.edit.addCaretBelow",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.edit.clearCarets",
+      "title": "cmd.edit.clearCarets",
+      "category": "cat.edit",
+      "when": "editorFocus && multipleCarets"
+    },
+    {
+      "id": "nks.edit.selectToMark",
+      "title": "cmd.edit.selectToMark",
+      "category": "cat.edit",
+      "when": "editorFocus"
+    },
+    {
+      "id": "nks.settings.profile.default",
+      "title": "cmd.settings.profile.default",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.profile.pspad",
+      "title": "cmd.settings.profile.pspad",
+      "category": "cat.app"
     }
   ],
   "menus": [
@@ -934,6 +986,60 @@
       "command": "nks.help.about",
       "group": "1_about",
       "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addNextOccurrence",
+      "group": "7_carets",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.skipOccurrence",
+      "group": "7_carets",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectAllOccurrences",
+      "group": "7_carets",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addCaretAbove",
+      "group": "7_carets",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addCaretBelow",
+      "group": "7_carets",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clearCarets",
+      "group": "7_carets",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectToMark",
+      "group": "3_select",
+      "order": 40
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.profile.default",
+      "group": "3_profile",
+      "order": 10
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.profile.pspad",
+      "group": "3_profile",
+      "order": 20
     }
   ],
   "keybindings": [
@@ -1183,6 +1289,36 @@
     {
       "key": "mod+k mod+o",
       "command": "nks.file.openFolder"
+    },
+    {
+      "key": "mod+d",
+      "command": "nks.edit.addNextOccurrence",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+k mod+d",
+      "command": "nks.edit.skipOccurrence",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+shift+l",
+      "command": "nks.edit.selectAllOccurrences",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+alt+up",
+      "command": "nks.edit.addCaretAbove",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+alt+down",
+      "command": "nks.edit.addCaretBelow",
+      "when": "editorFocus"
+    },
+    {
+      "key": "escape",
+      "command": "nks.edit.clearCarets",
+      "when": "editorFocus && multipleCarets"
     }
   ],
   "settings": [
@@ -1582,6 +1718,196 @@
         "diff",
         "compare",
         "arguments"
+      ]
+    },
+    {
+      "key": "editor.profile",
+      "type": "string",
+      "default": "default",
+      "title": "setting.editor.profile.title",
+      "description": "setting.editor.profile.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "enum": [
+        "default",
+        "pspad"
+      ],
+      "tags": [
+        "profile",
+        "pspad",
+        "keys",
+        "behaviour"
+      ]
+    },
+    {
+      "key": "editor.enhancedHomeEnd",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.enhancedHomeEnd.title",
+      "description": "setting.editor.enhancedHomeEnd.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "home",
+        "end",
+        "line",
+        "indent"
+      ]
+    },
+    {
+      "key": "editor.backspaceUnindent",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.backspaceUnindent.title",
+      "description": "setting.editor.backspaceUnindent.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "backspace",
+        "indent",
+        "tab stop"
+      ]
+    },
+    {
+      "key": "editor.altDragMode",
+      "type": "string",
+      "default": "carets",
+      "title": "setting.editor.altDragMode.title",
+      "description": "setting.editor.altDragMode.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "enum": [
+        "carets",
+        "block"
+      ],
+      "tags": [
+        "alt",
+        "drag",
+        "column",
+        "block",
+        "caret"
+      ]
+    },
+    {
+      "key": "editor.pairStyle",
+      "type": "string",
+      "default": "default",
+      "title": "setting.editor.pairStyle.title",
+      "description": "setting.editor.pairStyle.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "enum": [
+        "default",
+        "pspad"
+      ],
+      "tags": [
+        "bracket",
+        "quote",
+        "pair",
+        "pspad"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.renameTag",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.renameTag.title",
+      "description": "setting.editor.smartKeys.renameTag.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "html",
+        "tag",
+        "rename",
+        "closing"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.closeTag",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.closeTag.title",
+      "description": "setting.editor.smartKeys.closeTag.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "html",
+        "tag",
+        "close",
+        "slash"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.escapeInString",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.escapeInString.title",
+      "description": "setting.editor.smartKeys.escapeInString.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "paste",
+        "string",
+        "escape",
+        "quote"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.jsonComma",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.jsonComma.title",
+      "description": "setting.editor.smartKeys.jsonComma.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "json",
+        "comma",
+        "enter"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.phpArrow",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.phpArrow.title",
+      "description": "setting.editor.smartKeys.phpArrow.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "php",
+        "arrow",
+        "property"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.selectVariable",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.selectVariable.title",
+      "description": "setting.editor.smartKeys.selectVariable.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "php",
+        "variable",
+        "dollar",
+        "double click"
+      ]
+    },
+    {
+      "key": "editor.smartKeys.sqlEnd",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.smartKeys.sqlEnd.title",
+      "description": "setting.editor.smartKeys.sqlEnd.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "sql",
+        "begin",
+        "end",
+        "block"
       ]
     }
   ]

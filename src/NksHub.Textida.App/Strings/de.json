@@ -380,5 +380,8 @@
   "regex.explain.atLeast": "Mindestens {n} Mal",
   "regex.explain.between": "{min} bis {max} Mal",
   "regex.explain.lazy": "(so wenige wie möglich)",
-  "regex.explain.unsupported": "Nicht unterstützt: {token} ist Syntax eines anderen Dialekts. Die Suche liest reguläre Ausdrücke von .NET; dieser Ausdruck würde fehlschlagen oder etwas anderes bedeuten."
+  "regex.explain.unsupported": "Nicht unterstützt: {token} ist Syntax eines anderen Dialekts. Die Suche liest reguläre Ausdrücke von .NET; dieser Ausdruck würde fehlschlagen oder etwas anderes bedeuten.",
+  "status.carets.one": "({count} Cursor)",
+  "status.carets.other": "({count} Cursor)",
+  "source.profile": "Profil"
 }

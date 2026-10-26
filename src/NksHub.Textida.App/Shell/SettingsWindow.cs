@@ -126,6 +126,7 @@ internal sealed class SettingsWindow : Window
         SettingSource.EditorConfig => Loc.Get(K.SourceEditorConfig),
         SettingSource.Document => Loc.Get(K.SourceDocument),
         SettingSource.Plugin => Loc.Get(K.SourcePlugin),
+        SettingSource.Profile => Loc.Get(K.SourceProfile),
         _ => Loc.Get(K.SourceWorkspace),
     };
 

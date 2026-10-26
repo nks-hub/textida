@@ -201,6 +201,90 @@
           "default": "\"{left}\" \"{right}\"",
           "description": "Diff tool arguments. Argument template; {left} is the file on disk, {right} the content of the tab.",
           "x-scope": "application"
+        },
+        "editor.profile": {
+          "type": "string",
+          "default": "default",
+          "enum": [
+            "default",
+            "pspad"
+          ],
+          "description": "Behaviour profile. Keys and editing behaviour: the default set or the one that follows PSPad.",
+          "x-scope": "application"
+        },
+        "editor.enhancedHomeEnd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Smart Home and End. Home jumps between the first non-blank character and the line start, End between the last non-blank character and the line end.",
+          "x-scope": "language"
+        },
+        "editor.backspaceUnindent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Backspace in indentation. Backspace at the end of the indentation removes spaces back to the previous tab stop.",
+          "x-scope": "language"
+        },
+        "editor.altDragMode": {
+          "type": "string",
+          "default": "carets",
+          "enum": [
+            "carets",
+            "block"
+          ],
+          "description": "Alt+drag. What dragging with Alt held makes: one caret per row, or a block selection.",
+          "x-scope": "application"
+        },
+        "editor.pairStyle": {
+          "type": "string",
+          "default": "default",
+          "enum": [
+            "default",
+            "pspad"
+          ],
+          "description": "Pair rules. Rules for adding closing brackets and quotes: the default ones or the ones of PSPad.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.renameTag": {
+          "type": "boolean",
+          "default": true,
+          "description": "Rename paired tag. Editing the name of an HTML or XML tag changes the matching tag too.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.closeTag": {
+          "type": "boolean",
+          "default": true,
+          "description": "Complete closing tag. Typing </ after an open tag adds its name and the closing bracket.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.escapeInString": {
+          "type": "boolean",
+          "default": true,
+          "description": "Escape on paste into a string. Pasted quotes and backslashes are escaped inside a string literal.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.jsonComma": {
+          "type": "boolean",
+          "default": true,
+          "description": "Commas in JSON. Enter at the end of a JSON value adds the missing comma when another value follows.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.phpArrow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Arrow after a PHP variable. Typing - right after a PHP variable adds ->.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.selectVariable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Select PHP variable without $. A double click on a PHP variable selects its name without the dollar sign.",
+          "x-scope": "language"
+        },
+        "editor.smartKeys.sqlEnd": {
+          "type": "boolean",
+          "default": true,
+          "description": "Close BEGIN with END. Enter after BEGIN in SQL adds a matching END line.",
+          "x-scope": "language"
         }
       },
       "additionalProperties": true

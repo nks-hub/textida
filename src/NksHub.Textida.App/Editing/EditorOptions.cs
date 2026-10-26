@@ -18,8 +18,16 @@ internal sealed record EditorOptions(
     EolStyle? ConfiguredEol,
     TextCodec NewDocumentCodec,
     bool TrimTrailingWhitespace = false,
-    bool InsertFinalNewline = false)
+    bool InsertFinalNewline = false,
+    bool EnhancedHomeEnd = false,
+    bool BackspaceUnindent = false,
+    bool AltDragBlock = false,
+    bool PspadPairs = false,
+    SmartKeyOptions? SmartKeys = null)
 {
+    /// <summary>The smart keys for web files that are on for the language of the document.</summary>
+    public SmartKeyOptions Smart => SmartKeys ?? new SmartKeyOptions();
+
     /// <summary>The indentation found in the file replaces the configured one for that document.</summary>
     public EditorOptions WithIndent(IndentSettings indent) => this with { InsertSpaces = indent.InsertSpaces, IndentSize = indent.IndentSize, TabSize = indent.TabSize };
 
@@ -50,6 +58,18 @@ internal sealed record EditorOptions(
                 _ => TextCodec.Utf8,
             },
             TrimTrailingWhitespace: s.GetBool("files.trimTrailingWhitespace", l),
-            InsertFinalNewline: s.GetBool("files.insertFinalNewline", l));
+            InsertFinalNewline: s.GetBool("files.insertFinalNewline", l),
+            EnhancedHomeEnd: s.GetBool("editor.enhancedHomeEnd", l),
+            BackspaceUnindent: s.GetBool("editor.backspaceUnindent", l),
+            AltDragBlock: s.GetString("editor.altDragMode") == "block",
+            PspadPairs: s.GetString("editor.pairStyle", l) == "pspad",
+            SmartKeys: new SmartKeyOptions(
+                RenameTag: s.GetBool("editor.smartKeys.renameTag", l),
+                CloseTag: s.GetBool("editor.smartKeys.closeTag", l),
+                EscapeInString: s.GetBool("editor.smartKeys.escapeInString", l),
+                JsonComma: s.GetBool("editor.smartKeys.jsonComma", l),
+                PhpArrow: s.GetBool("editor.smartKeys.phpArrow", l),
+                SelectVariable: s.GetBool("editor.smartKeys.selectVariable", l),
+                SqlEnd: s.GetBool("editor.smartKeys.sqlEnd", l)));
     }
 }

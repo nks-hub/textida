@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "pspad",
+  "settings": {
+    "editor.enhancedHomeEnd": true,
+    "editor.backspaceUnindent": true,
+    "editor.altDragMode": "block",
+    "editor.pairStyle": "pspad"
+  },
+  "keybindings": [
+    { "key": "mod+y", "command": "nks.edit.deleteLine", "when": "editorFocus" },
+    { "key": "alt+backspace", "command": "nks.edit.undo", "when": "editorFocus" },
+    { "key": "shift+alt+backspace", "command": "nks.edit.redo", "when": "editorFocus" },
+    { "key": "mod+shift+i", "command": "nks.edit.indent", "when": "editorFocus" },
+    { "key": "mod+shift+u", "command": "nks.edit.outdent", "when": "editorFocus" },
+    { "key": "mod+w", "command": "nks.view.toggleWordWrap" },
+    { "key": "shift+alt+down", "command": "nks.edit.duplicateLine", "when": "editorFocus" },
+    { "key": "alt+up", "command": "-nks.edit.moveLineUp" },
+    { "key": "alt+down", "command": "-nks.edit.moveLineDown" },
+    { "key": "f8", "command": "nks.edit.selectToMark", "when": "editorFocus" },
+    { "key": "mod+shift+c", "command": "nks.edit.toggleBlockSelect", "when": "editorFocus" }
+  ]
+}

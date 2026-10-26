@@ -394,5 +394,9 @@
   "regex.explain.atLeast": "Nejméně {n} výskytů",
   "regex.explain.between": "{min} až {max} výskytů",
   "regex.explain.lazy": "(co nejméně)",
-  "regex.explain.unsupported": "Nepodporováno: {token} je syntaxe jiného dialektu. Hledání čte regulární výrazy .NET, takže by tento výraz selhal nebo znamenal něco jiného."
+  "regex.explain.unsupported": "Nepodporováno: {token} je syntaxe jiného dialektu. Hledání čte regulární výrazy .NET, takže by tento výraz selhal nebo znamenal něco jiného.",
+  "status.carets.one": "({count} kurzor)",
+  "status.carets.few": "({count} kurzory)",
+  "status.carets.other": "({count} kurzorů)",
+  "source.profile": "profil"
 }
