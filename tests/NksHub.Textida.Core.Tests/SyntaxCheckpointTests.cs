@@ -278,33 +278,26 @@ public class SyntaxCheckpointTests(ITestOutputHelper output)
     [InlineData("html", "<script data-x=\"", "\">const x=1;</script>")]
     [InlineData("css", "a:", "hover {}")]
     [InlineData("javascript", "x", "var")]
-    public void Unresolved_long_line_stops_with_an_explicit_status(string grammar, string before, string after)
+    public void Builtin_long_line_resumes_with_an_exact_following_line_state(string grammar, string before, string after)
     {
         string text = before + new string('x', CheckpointSyntaxSession.FullLineLimitChars + 1) + after + "\nnext();";
         using var document = Create(text);
         using var session = new CheckpointSyntaxSession(document, BuiltinGrammars.Tokenizer(grammar));
-        SyntaxViewport result;
-        do { result = session.TokenizeViewport(1, 1, TimeSpan.FromMilliseconds(20)); }
-        while (result.Status == SyntaxViewportStatus.Pending);
-        Assert.Equal(SyntaxViewportStatus.FullLineRequired, result.Status);
-        Assert.False(result.IsComplete);
-        Assert.Empty(result.Lines);
+        var result = Complete(session, 1, 1);
+        AssertReference(text, BuiltinGrammars.Tokenizer(grammar), result, 1, 1);
         long read = session.BytesScanned;
-        Assert.Equal(SyntaxViewportStatus.FullLineRequired, session.TokenizeViewport(1, 1, TimeSpan.FromSeconds(1)).Status);
+        Assert.True(session.TokenizeViewport(1, 1, TimeSpan.FromSeconds(1)).IsComplete);
         Assert.Equal(read, session.BytesScanned);
     }
 
     [Fact]
-    public void Leaving_and_reentering_the_same_region_does_not_prove_streaming_continuity()
+    public void Leaving_and_reentering_the_same_region_replays_the_regex_candidate_exactly()
     {
         string text = "\"" + new string('x', 2 << 20) + "\"; var r = /[\"" + new string('y', 40000) + "]/;\nnext();";
         using var document = Create(text);
         using var session = new CheckpointSyntaxSession(document, BuiltinGrammars.Tokenizer("javascript"));
-        SyntaxViewport result;
-        do { result = session.TokenizeViewport(1, 1, TimeSpan.FromMilliseconds(20)); }
-        while (result.Status == SyntaxViewportStatus.Pending);
-        Assert.Equal(SyntaxViewportStatus.FullLineRequired, result.Status);
-        Assert.Empty(result.Lines);
+        var result = Complete(session, 1, 1);
+        AssertReference(text, BuiltinGrammars.Tokenizer("javascript"), result, 1, 1);
     }
 
     [Fact]
