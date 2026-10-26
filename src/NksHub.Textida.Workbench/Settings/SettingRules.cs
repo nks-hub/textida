@@ -12,6 +12,8 @@ public enum SettingSource
 {
     Default,
     Plugin,
+    /// <summary>Values a behaviour profile (for example "pspad") sets; the user layer still wins.</summary>
+    Profile,
     User,
     UserLanguage,
     Workspace,
@@ -52,7 +54,7 @@ public static class SettingRules
     /// <summary>The narrowest scope a source needs.</summary>
     public static SettingScope RequiredScope(SettingSource source) => source switch
     {
-        SettingSource.Default or SettingSource.Plugin or SettingSource.User => SettingScope.Application,
+        SettingSource.Default or SettingSource.Plugin or SettingSource.Profile or SettingSource.User => SettingScope.Application,
         SettingSource.Workspace => SettingScope.Workspace,
         SettingSource.UserLanguage or SettingSource.WorkspaceLanguage => SettingScope.Language,
         _ => SettingScope.Document,
