@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Workbench\NksHub.Textida.Workbench.csproj" />
   </ItemGroup>
 
 </Project>

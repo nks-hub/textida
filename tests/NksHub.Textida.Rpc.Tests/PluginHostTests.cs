@@ -6,7 +6,7 @@ namespace NksHub.Textida.Rpc.Tests;
 
 public class PluginHostTests
 {
-    static PluginHostOptions Options(Func<PluginHostOptions, PluginHostOptions>? change = null)
+    internal static PluginHostOptions Options(Func<PluginHostOptions, PluginHostOptions>? change = null)
     {
         var o = new PluginHostOptions
         {

@@ -64,6 +64,8 @@ sealed class Handler(int api) : IRpcHandler
                 return Raw("true");
             case PluginMethods.Shutdown:
                 return Raw("true");
+            case "command/execute":
+                return Raw("true");
             case "getResync":
                 return Raw(_resync);
             case "echo":

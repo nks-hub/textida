@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\samples\plugins\**" Link="samples\plugins\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />

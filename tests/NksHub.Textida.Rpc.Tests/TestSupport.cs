@@ -121,6 +121,28 @@ internal static class T
         }
     }
 
+    /// <summary>Full path of the dotnet host; plugin manifests do not accept a bare program name.</summary>
+    public static string DotnetFullPath
+    {
+        get
+        {
+            var host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+            if (host is not null && File.Exists(host)) return host;
+            return FindOnPath("dotnet.exe") ?? FindOnPath("dotnet") ?? throw new FileNotFoundException("dotnet host not found");
+        }
+    }
+
+    public static string? FindOnPath(string file) =>
+        (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(d => Path.Combine(d, file)).FirstOrDefault(p => File.Exists(p) && new FileInfo(p).Length > 0);
+
+    public static string TempDir()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "textida-plugin-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
     public static string TempFile()
     {
         var path = Path.Combine(Path.GetTempPath(), "textida-rpc-" + Guid.NewGuid().ToString("N") + ".txt");
