@@ -128,10 +128,11 @@ public sealed partial class Document
         string? temp = null;
         try
         {
-            if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } early) return new(false, early);
+            var plan = inPlace ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
+            // an in-place save checks the file once, after the hash; a new file checks before and after it is written
+            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(CheckExternalChange, CancellationToken.None) is { } early) return new(false, early);
             ct.ThrowIfCancellationRequested();
 
-            var plan = inPlace ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
             IByteSnapshot? snapshot = _backend.CreateSnapshot();
             string hash;
             if (plan.Mode == SaveMode.InPlace)

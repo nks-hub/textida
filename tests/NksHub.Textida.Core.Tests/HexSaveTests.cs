@@ -432,7 +432,7 @@ public class HexSaveTests
 
     [Fact]
     [Trait("Category", "Perf")]
-    public void Ten_gibibyte_file_overwrite_insert_undo_redo_save_and_search_agree_with_an_independent_pass()
+    public async Task Ten_gibibyte_file_overwrite_insert_undo_redo_save_and_search_agree_with_an_independent_pass()
     {
         const long length = 10L << 30;
         using var file = new TempFile();
@@ -454,48 +454,83 @@ public class HexSaveTests
         using var d = Open(file.Path);
         Assert.Equal(length, d.ByteLength);
 
-        // jump to end-512, overwrite 4 bytes: the overwrite is a PK header, so the count of matches grows by one
+        // jump to end-512, overwrite 4 bytes, insert 1 byte lower in the file, undo and redo
         long at = OffsetExpression.Evaluate("end-512", new OffsetContext(d.ByteLength, 0, 0, null));
         Assert.Equal(length - 512, at);
-        Assert.True(d.Replace(new(at, at + 4), new byte[] { 0x50, 0x4B, 0x07, 0x04 }, Raw).Applied);
-        Assert.True(d.Insert((6L << 30) - 1, new byte[] { 0x50, 0x4B, 0x55, 0x04 }, new() { RawBytes = true }).Applied);
-        Assert.True(d.Undo() is not null);
-        Assert.True(d.Redo() is not null);
-        Assert.Equal(length + 4, d.ByteLength);
+        long insertAt = (6L << 30) - 1;
+        byte[] patch = [0x50, 0x4B, 0x07, 0x04];
+        byte[] inserted = [0x55];
+        Assert.True(d.Replace(new(at, at + 4), patch, Raw).Applied);
+        Assert.True(d.Insert(insertAt, inserted, new() { RawBytes = true }).Applied);
+        Assert.NotNull(d.Undo());
+        Assert.NotNull(d.Undo());
+        Assert.Equal(length, d.ByteLength);
+        Assert.NotNull(d.Redo());
+        Assert.NotNull(d.Redo());
+        Assert.Equal(length + 1, d.ByteLength);
         Assert.Equal(SaveMode.Stream, d.PlanSave().Mode);
 
-        var before = d.GetSnapshot();
-        var expectedHash = NaiveSha(before);
-        Assert.Equal(NaiveZip(before), ByteSearch.Find(before, pattern).Matches.Select(m => m.Start).ToList());
-        Assert.True(d.Save().Saved);
-        using (var fs = File.OpenRead(file.Path)) Assert.Equal(length + 4, fs.Length);
-        Assert.Equal(expectedHash, d.Fingerprint!.Sha256);
-        Assert.Equal(expectedHash, Convert.ToHexString(SHA256.HashData(File.OpenRead(file.Path))));
+        // the length changed: the whole file is streamed; undo is still there afterwards
+        Assert.True((await d.SaveAsync()).Saved);
+        Assert.Equal(length + 1, new FileInfo(file.Path).Length);
+        Assert.True(d.UndoDepth >= 2);
 
-        // an in-place save of a 4 byte overwrite on the saved file
-        at = d.ByteLength - 512;
-        Assert.True(d.Replace(new(at, at + 4), new byte[] { 0x50, 0x4B, 0x09, 0x04 }, Raw).Applied);
-        Assert.Equal(SaveMode.InPlace, d.PlanSave().Mode);
-        var after = d.GetSnapshot();
-        string hash2 = NaiveSha(after);
-        Assert.True(d.Save().Saved);
-        Assert.Equal(hash2, Convert.ToHexString(SHA256.HashData(File.OpenRead(file.Path))));
-        Assert.Equal(NaiveZip(after), ByteSearch.Find(d.GetSnapshot(), pattern).Matches.Select(m => m.Start).ToList());
-        Assert.NotNull(d.Undo());
-        Assert.Equal(NaiveSha(before), NaiveSha(d.GetSnapshot()));
-    }
+        // then a 4 byte overwrite in the saved file goes in place
+        long at2 = d.ByteLength - 512;
+        byte[] patch2 = [0x50, 0x4B, 0x09, 0x04];
+        Assert.True(d.Replace(new(at2, at2 + 4), patch2, Raw).Applied);
+        var plan = d.PlanSave();
+        Assert.Equal(SaveMode.InPlace, plan.Mode);
+        Assert.Equal(4, plan.ChangedBytes);
+        Assert.True((await d.SaveAsync()).Saved);
 
-    private static string NaiveSha(DocumentSnapshot s)
-    {
+        // one independent pass over the file: it is the original plus exactly the edits, and its hash is the baseline of the document
+        long patched = length + 1 - 512;
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buf = new byte[1 << 20];
-        for (long o = 0; o < s.ByteLength;)
+        var differing = new List<(long Start, long End)>();
+        using (var fs = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20, FileOptions.SequentialScan))
         {
-            int n = s.Read(o, buf);
-            hash.AppendData(buf, 0, n);
-            o += n;
+            var buf = new byte[1 << 20];
+            var model = new byte[1 << 20];
+            for (long o = 0; o < fs.Length;)
+            {
+                int n = fs.Read(buf, 0, buf.Length);
+                Assert.True(n > 0);
+                hash.AppendData(buf, 0, n);
+                Array.Clear(model, 0, n);
+                void Put(long position, byte[] bytes)
+                {
+                    for (int i = 0; i < bytes.Length; i++)
+                        if (position + i >= o && position + i < o + n) model[position + i - o] = bytes[i];
+                }
+                foreach (long z in zips) Put(z < insertAt ? z : z + 1, [0x50, 0x4B, 0x33, 0x04]);
+                Put(insertAt, inserted);
+                Put(patched, patch2);
+                for (int i = 0; i < n; i++)
+                {
+                    if (buf[i] == model[i]) continue;
+                    long pos = o + i;
+                    if (differing.Count > 0 && differing[^1].End == pos) differing[^1] = (differing[^1].Start, pos + 1); else differing.Add((pos, pos + 1));
+                }
+                o += n;
+            }
         }
-        return Convert.ToHexString(hash.GetHashAndReset());
+        Assert.Empty(differing);
+        Assert.Equal(Convert.ToHexString(hash.GetHashAndReset()), d.Fingerprint!.Sha256);
+        Assert.Null(d.CheckExternalChange());
+
+        // searching the current revision finds what an independent pass finds
+        var snapshot = d.GetSnapshot();
+        Assert.Equal(NaiveZip(snapshot), ByteSearch.Find(snapshot, pattern).Matches.Select(m => m.Start).ToList());
+
+        // undo after both saves gives the first revision back, and its bytes at the edited places are the original ones
+        while (d.UndoDepth > 0) d.Undo();
+        Assert.Equal(length, d.ByteLength);
+        Span<byte> check = stackalloc byte[4];
+        d.Read(length - 4, check);
+        Assert.Equal([0x50, 0x4B, 0x33, 0x04], check.ToArray());
+        d.Read(length - 512, check);
+        Assert.Equal(new byte[4], check.ToArray());
     }
 
     private static List<long> NaiveZip(DocumentSnapshot s)

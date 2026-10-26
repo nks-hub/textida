@@ -110,7 +110,11 @@ public sealed partial class Document
         bool inPlace = FilePath is not null && SamePath(target, FilePath);
         bool guard = inPlace && !overwriteExternalChanges;
         if (guard && CheckExternalChange() is { } early) return new(false, early);
-        if (inPlace && PlanSave() is { Mode: SaveMode.InPlace } plan) return SaveInPlace(target, plan, guard);
+        if (inPlace && PlanSave() is { Mode: SaveMode.InPlace } plan)
+        {
+            try { return SaveInPlace(target, plan, guard); }
+            catch (SnapshotInvalidatedException) { } // the file was touched (same content, new write time): the whole file is written below instead
+        }
 
         string temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
