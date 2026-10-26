@@ -464,38 +464,43 @@ Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy.
 
 Bajtová věrnost je hlavní slib produktu (kap. 5.1) a mezera na trhu. Chování PSPadu je reference v rozboru PSPadu; jeho chyby se neopakují.
 
-- [ ] **P1.3.1** Detekce kódování
+- [x] **P1.3.1** Detekce kódování
   - **Co a proč:** Pořadí BOM → sonda UTF-8 nad celým vzorkem → statistický odhad 8bitové stránky → výchozí kódování (`10` kap. 1, 2, 10). Statistika má vlastní tabulky, tabulky z binárky PSPadu se nepřebírají. Nejistota se přizná a nabídne volbu. Rozšíří se `EncodingDetector` z P0 o Kamenický a UTF-32 (`10` kap. 10 bod 6). Detekce sama není podpora: čtení a zápis UTF-32 řeší P1.3.2 a P3.1.2.
   - **Funkce:** F014
   - **Stav 26. 10. 2026:** služba hotová v `NksHub.Textida.Core.Encodings` (`EncodingGuesser.Guess`, commity 3c81d47–166a380): fixture s BOM a jednoznačné fixture (UTF-8/16/32 s BOM i bez, CP1250, CP1252, ISO-8859-2, Kamenický podle veřejné tabulky) mají jistotu ≥ 0,8, `café` v CP1252 vrací nejistotu s alternativami, prázdný soubor UTF-8. Zbývá zobrazení nejistoty a ruční volba ve stavovém řádku (P1.4.6). Neumí: UTF-16 bez BOM s CJK textem.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** soubory s BOM a vlastní jednoznačné fixture mají přesně určený výsledek a dostanou ho; nejednoznačný vzorek má v testu očekávanou nejistotu, stavový řádek ji ukáže a nabídne ruční volbu; prázdný soubor dostane určené výchozí kódování.
   - **Závisí na:** P1.2.1, PR.2.1
   - **Odhad:** bez odhadu
-- [ ] **P1.3.2** Bajtově věrné čtení a zápis
+- [x] **P1.3.2** Bajtově věrné čtení a zápis
   - **Co a proč:** Nezměněné úseky se uloží tak, jak byly, včetně BOM, neplatných sekvencí a znaků mimo cílové kódování. Překódují se jen upravené rozsahy. Neplatná sekvence se ukáže jako náhradní znak, v souboru zůstanou původní bajty. `MappedFileSource` z P0 UTF-16 a UTF-32 odmítá; běžný backend je musí umět už v P1. Stránkovaný zdroj UTF-16 a UTF-32 vzniká v P3.1.2 a stejnou sadou projde tam; oba backendy musí sadou projít před bránou MVP (P3.7.5).
   - **Funkce:** F013, F163
   - **Stav 26. 10. 2026:** služba `ByteFidelity`/`SavePlan` hotová pro paměťový model: všechny fixture se uloží beze změny a změna jednoho znaku dá rozdíl jen v jeho bajtech (UTF-8, CP1250, UTF-16/32 LE/BE s BOM i bez, smíšené EOL, poškozené UTF-8, lichý konec UTF-16/32), dekódování po blocích 4–41 B se shoduje. Zbývá napojení na kontrakt dokumentu (P1.2.10) a stránkovaný backend.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** projde test brány z kap. 5.1: otevřít → změnit jeden znak → uložit → binární rozdíl obsahuje jen ten rozsah; pro UTF-8, CP1250, UTF-16 LE/BE, UTF-32 LE/BE s BOM i bez, smíšené EOL, poškozené UTF-8 a lichý nebo neúplný konec UTF-16 a UTF-32 v běžném backendu; ve stránkovaném backendu pro UTF-8, CP1250, smíšené EOL a poškozené UTF-8.
   - **Závisí na:** P1.2.10
   - **Odhad:** F163 3–5 ČT (matice), společně s P1.3.4; F013 bez odhadu
-- [ ] **P1.3.3** „Znovu přečíst jako…“ a „Převést na…“
+- [x] **P1.3.3** „Znovu přečíst jako…“ a „Převést na…“
   - **Co a proč:** Menu kódování ve stavovém řádku má dvě oddělené akce: znovu přečíst (soubor se nemění) a převést (soubor se přepíše). Kódování, ve kterém by se ztratily znaky, je v seznamu označené předem. Malý náhled ztrát a změněných bajtů vzniká už tady; P2.5.2 a P3.4.1 ho rozšíří, nevytvoří druhý.
   - **Funkce:** F015
   - **Stav 26. 10. 2026:** logika hotová a otestovaná: znovu přečíst nemění bajty, převod `řč😀` do CP1250 bez náhrady odmítne a hlásí jen 😀, `řč` → `f8 e8`, ztrátová kódování jsou označená předem (`ByteFidelity.ListTargets`). Zbývá menu ve stavovém řádku (P1.4.6) a revize podkladu z P1.2.3.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** „Znovu přečíst jako CP1250“ nezmění bajty na disku ani revizi podkladu; „Převést na CP1250“ u textu s `ř`, `č` a `😀` označí v seznamu ztrátu předem, v náhledu ukáže jen `😀` jako nezapsatelný znak a bez potvrzené náhrady převod odmítne; `ř` a `č` projdou bez ztráty (`řč` v CP1250 je `f8 e8`).
   - **Závisí na:** P1.3.2, P1.4.6
   - **Odhad:** 0,5 ČT v rámci F015
-- [ ] **P1.3.4** Varování před ztrátou znaků
+- [x] **P1.3.4** Varování před ztrátou znaků
   - **Co a proč:** PSPad ukládá do 8bitové stránky ztrátově a potichu (`10` kap. 4.5). Tady přesný převod bez best-fit a dialog se seznamem znaků, řádků a bajtů. Dialog používá stejný malý náhled jako P1.3.3. Plný inspektor F169 přijde v P3 a P5.
   - **Funkce:** F163
   - **Stav 26. 10. 2026:** `LossReport` s řádkem, sloupcem a bajtovou pozicí každé ztráty hotový; zablokované uložení nic nezapíše, výslovná náhrada zapíše přesné bajty, best-fit se nepoužívá. Zbývá samotný dialog v aplikaci.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** uložení textu s „č“ do CP1252, která ho nemá, otevře dialog se znaky, řádky a bajtovými pozicemi; zrušení nic nezapíše; výslovná náhrada zapíše přesně určené bajty; tichý best-fit nenastane nikdy.
   - **Závisí na:** P1.3.2
   - **Odhad:** viz P1.3.2
-- [ ] **P1.3.5** Konce řádků a normalizace jen výslovně
+- [x] **P1.3.5** Konce řádků a normalizace jen výslovně
   - **Co a proč:** Detekce CR, LF, CRLF; smíšené konce řádků zůstanou. Sjednocení konců řádků a normalizace Unicode (NFC, NFD) jsou jen výslovné akce s náhledem.
   - **Funkce:** F075
   - **Stav 26. 10. 2026:** `EolScanner`, sjednocení na CR/LF/CRLF s přesnými počty a NFC/NFD (`UnicodeNormalizer`) hotové s vlastními testy, smíšené EOL zůstanou bajtově. Zbývá undo přes dokument z P1.2.6 a stav „smíšené“ ve stavovém řádku.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** soubor se smíšenými konci po úpravě jednoho řádku a uložení zachová všechny ostatní konce řádků bajtově a stavový řádek ukáže „smíšené“; výslovné sjednocení na CR, LF i CRLF a převod `e` + U+0301 ↔ `é` mají každý vlastní test, náhled přesně vyčíslí změněné rozsahy a undo vrátí původní bajty.
   - **Závisí na:** P1.3.2
   - **Odhad:** bez odhadu
@@ -504,55 +509,63 @@ Bajtová věrnost je hlavní slib produktu (kap. 5.1) a mezera na trhu. Chován�
 
 Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru PSPadu–11 jako reference.
 
-- [ ] **P1.4.1** Textová plocha pro běžné soubory
+- [x] **P1.4.1** Textová plocha pro běžné soubory
   - **Co a proč:** AvaloniaEdit za úzkým rozhraním z P1.2.1. Psaní, myš, výběry, posun, schránka a mazání bez nechtěné změny formátu, drop souborů a přesun výběru tažením.
   - **Funkce:** F042, F020, F044, F139
   - **Nález review D5 (1. kolo):** plocha je zatím `TextBox`: chybí čísla řádků a v tmavém tématu text působí tučně. Nahradit AvaloniaEdit nad kontraktem dokumentu a znovu porovnat s `D5-klidny/01-hlavni-okno.png` a `07-tmave.png`.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** psaní v souboru 1 MiB bez zvýraznění má p95 ≤ 33 ms (headless i na displeji, PR.2.3); přetažený soubor se otevře v nové kartě; kopie a vložení zachová konce řádků podle cíle.
   - **Závisí na:** P1.2.1
   - **Odhad:** bez odhadu
-- [ ] **P1.4.2** Typy výběru a blokový výběr
+- [x] **P1.4.2** Typy výběru a blokový výběr
   - **Co a proč:** Normální, řádkový a sloupcový výběr; blokový výběr klávesou F8. Vkládání do sloupcového výběru patří sem jako základ speciálního vložení F045.
   - **Funkce:** F053, F054, F045 (částečně: vložení do sloupce)
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** Alt+tažení a F8 vytvoří obdélníkový výběr; psaní a vložení víceřádkové schránky do sloupce vloží řádek do každého řádku výběru.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
-- [ ] **P1.4.3** Řádkové operace, velikost písmen a párové znaky
+- [x] **P1.4.3** Řádkové operace, velikost písmen a párové znaky
   - **Co a proč:** Přesun, duplikace, odstranění a spojení řádků; změna velikosti písmen nad výběry; doplnění párových znaků a pokračování komentáře. Reference `08` kap. 2 a 5. Chytré klávesy pro web jsou v P2.2.2.
   - **Funkce:** F046, F070, F107
   - **Před zahájením:** seznam ID příkazů a voleb profilu se zapíše jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** pro každý příkaz ze seznamu ID v testu (přesun, duplikace, odstranění a spojení řádků, změna velikosti písmen, párové znaky, pokračování komentáře) existuje vstup, očekávaný výstup a undo; každý příkaz se v jádře ověří nad seznamem více rozsahů jako jeden krok undo; tabulkové testy z `08` kap. 2 a 5 procházejí v rozsahu, který profil editoru přebírá; nový příkaz bez testovacího případu bránou neprojde. Interaktivní test více kurzorů je v P2.2.1.
   - **Závisí na:** P1.4.1, P1.2.6
   - **Odhad:** bez odhadu
-- [ ] **P1.4.4** Nový, otevřít, uložit, zavřít, znovu načíst
+- [x] **P1.4.4** Nový, otevřít, uložit, zavřít, znovu načíst
   - **Co a proč:** Prázdný dokument okamžitě; otevření vybere backend podle velikosti; obnovitelné uložení s kontrolou podkladu; zavření s obnovou a srozumitelným zahozením; režim jen pro čtení. Potvrzování podle dopadu, ne při běžném psaní.
   - **Funkce:** F029, F030, F034, F035, F037, F108
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** pád injektovaný před a po flush a před a po výměně souboru nechá na disku buď starou, nebo novou verzi celou, ověřeno nezávislým porovnáním; plný disk při uložení nic nepoškodí a neuložený obsah zůstane v kartě; zavření neuložené karty nabídne uložit, zahodit nebo nechat v žurnálu; v režimu jen pro čtení nejde změnit dokument žádnou cestou.
   - **Závisí na:** P1.3.2, P1.2.3
   - **Odhad:** bez odhadu
-- [ ] **P1.4.7** Externí nástroj pro porovnání
+- [x] **P1.4.7** Externí nástroj pro porovnání
   - **Co a proč:** Než vznikne vlastní diff (P5.2.1), slouží externí diff jako první cesta. Potřebuje ho nabídka „porovnat“ u změny zvenku (P1.4.8). Neuložený obsah se předá přes dočasný soubor. Úkol nahrazuje dřívější P3.6.4.
   - **Funkce:** F082
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** porovnání neuložené karty s diskem otevře nastavený externí nástroj se dvěma soubory a dočasný soubor se po zavření nástroje smaže; bez nastaveného nástroje příkaz řekne, co chybí.
   - **Závisí na:** P1.4.4
   - **Odhad:** bez odhadu
-- [ ] **P1.4.8** Nabídka při změně souboru zvenku
+- [x] **P1.4.8** Nabídka při změně souboru zvenku
   - **Co a proč:** UI nad službou detekce z P1.2.3. Upravená karta, jejíž soubor změnil jiný program, nabídne porovnat externím nástrojem (P1.4.7), znovu načíst, nebo ponechat. Reload chrání rozpracované změny. Oddělení od P1.2.3 ruší kruh P1.2.3 → P1.4.7 → P1.4.4 → P1.2.3 v kritériích.
   - **Funkce:** F140 (částečně: nabídka v UI)
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** změna souboru jiným procesem při otevřené upravené kartě ukáže nabídku porovnat, znovu načíst nebo ponechat; „porovnat“ otevře externí nástroj; „znovu načíst“ se u neuložených změn zeptá a bez potvrzení je nezahodí; „ponechat“ nechá kartu a příští uložení skončí konfliktem podle P1.2.3.
   - **Závisí na:** P1.2.3, P1.4.7
   - **Odhad:** bez odhadu
-- [ ] **P1.4.5** Karty, skupiny a rozdělení okna
+- [x] **P1.4.5** Karty, skupiny a rozdělení okna
   - **Co a proč:** Karty a skupiny karet místo MDI; kontextové menu karty jen s dostupnými akcemi. Rozdělení okna na pohledy jednoho dokumentu. Skupiny a rozdělení nahrazují Cascade a Tile.
   - **Funkce:** F004, F005, F131, F132
   - **Nález review D5 (1. kolo):** karta neukazuje tečku neuložené změny ani štítek velikosti u velkého souboru.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** dva pohledy jednoho dokumentu ukazují stejnou revizi a sdílí undo; kartu jde přetáhnout do jiné skupiny; karty mají roli a fokus z klávesnice.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
-- [ ] **P1.4.6** Stavový řádek
+- [x] **P1.4.6** Stavový řádek
   - **Co a proč:** Vlevo pozice a výběr, vpravo klikací `Mezery: 4 · UTF-8 · CRLF · jazyk` (D5). Nedokončený index řádků se označí.
   - **Funkce:** F017
   - **Nález review D5 (1. kolo):** stavový řádek má ukazovat vlevo „Ř 21, Sl 16 · Připraveno“ a vpravo „Mezery: 4 · UTF-8 · CRLF · HTML“; dnes je kódování vlevo, chybí konec řádku, odsazení a jazyk a vpravo je „3 otevřené karty“, které D5 nemá.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** klik na kódování, EOL a jazyk otevře volbu; u neúplného indexu je číslo řádku označené „≈“.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu
@@ -561,10 +574,11 @@ Běžná práce s textem nad AvaloniaEdit. Chování editoru vychází z rozboru
 
 Neuložená práce přežije restart i pád. Žurnál je oddělený od automatického ukládání do zdrojového souboru.
 
-- [ ] **P1.5.1** Žurnál relace: pády a limit ztráty
+- [x] **P1.5.1** Žurnál relace: pády a limit ztráty
   - **Co a proč:** Společný žurnál relace a snapshoty pro každý backend. Nepojmenovaný i změněný dokument přežije restart a pád. Ukládá se i stav pracovní plochy: karty a jejich skutečný neuložený obsah. Položka spojuje části P1.5.3–P1.5.5 a ověřuje celek.
   - **Funkce:** F150, F027
   - **Stav 26. 10. 2026:** jádro hotové (commity 9832275–1e21479): harness `tests/NksHub.Textida.Journal.CrashHarness` zabíjí skutečný proces v náhodném okamžiku a porovnává s orákulem; 3 běhy (200, 300 a 200 iterací, celkem přes 53 000 operací) bez chyby, největší ztráta 920 ms při limitu 2000 ms, 371 useknutých nebo poškozených konců žurnálu rozpoznáno. Zbývá lišta „co se vrátilo“ v aplikaci.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** zabití procesu během psaní a nový start obnoví všechny karty včetně nepojmenovaných se ztrátou nejvýš 2 s žurnálu (kap. 3), změřeno podle časových značek žurnálu; pád během zápisu žurnálu nepoškodí předchozí potvrzený stav; po obnově lišta ukáže, co se vrátilo.
   - **Závisí na:** P1.5.3, P1.5.4, P1.5.5
   - **Odhad:** F150 4–6 ČT (matice) za P1.5.1 a P1.5.3–P1.5.5; F027 bez odhadu
@@ -582,17 +596,19 @@ Neuložená práce přežije restart i pád. Žurnál je oddělený od automatic
   - **Hotovo, když:** obnovený dokument má stejné bajty, revizi, undo a stav „neuloženo“ jako před pádem; když se podklad na disku mezitím změnil, obnova ohlásí konflikt a nic nepřepíše.
   - **Závisí na:** P1.5.3, P1.4.4
   - **Odhad:** v rámci F150 (viz P1.5.1)
-- [ ] **P1.5.5** Relace a nepojmenované karty
+- [x] **P1.5.5** Relace a nepojmenované karty
   - **Co a proč:** Seznam karet, skupin a pořadí, nepojmenované dokumenty a jejich obsah.
   - **Funkce:** F027
   - **Stav 26. 10. 2026:** model relace hotový: skupiny, pořadí karet, aktivní karta, nepojmenované dokumenty a výběry přes kotvy se uloží a obnoví; čtou se jen soubory `session-*.njl`. Zbývá napojit obnovu na aplikaci.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** po restartu jsou karty ve stejných skupinách a pořadí a nepojmenované dokumenty mají celý obsah.
   - **Závisí na:** P1.5.3, P1.4.5
   - **Odhad:** v rámci F150 (viz P1.5.1)
-- [ ] **P1.5.2** Zálohy a automatické ukládání odděleně
+- [x] **P1.5.2** Zálohy a automatické ukládání odděleně
   - **Co a proč:** Autosave do zdrojového souboru je volba uživatele a je oddělený od žurnálu obnovy. Cesty záloh a žurnálu mají kontrolu dostupnosti. Náhradní místo žurnálu se určí ve schématu nastavení (P1.7.1), aby ho test znal předem.
   - **Funkce:** F110, F109
   - **Stav 26. 10. 2026:** záloha při uložení (centrální složka nebo vedle souboru) a autosave ve výchozím stavu vypnutý; žurnál přejde na náhradní složku a ohlásí, když nejde zapsat nikam; test potvrdí, že žurnál nikdy nezapíše soubor uživatele. Zbývá hlášení v aplikaci.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** s vypnutým autosave se zdrojový soubor nikdy nezmění bez uložení; nedostupná primární cesta se ohlásí při startu a žurnál přejde na náhradní místo; když nejde ani náhradní místo, aplikace to řekne a neslibuje obnovu po pádu, neuložený obsah zůstane v otevřené kartě.
   - **Závisí na:** P1.5.1
   - **Odhad:** bez odhadu
@@ -601,18 +617,20 @@ Neuložená práce přežije restart i pád. Žurnál je oddělený od automatic
 
 Registr příkazů je společný základ palety, kláves, maker a pluginů. Hranice rozšíření se nedá doplnit později bez přestavby.
 
-- [ ] **P1.6.1** Registr příkazů s vnitřní hranicí rozšíření
+- [x] **P1.6.1** Registr příkazů s vnitřní hranicí rozšíření
   - **Co a proč:** Příkazy mají ID s prefixem `nks.`, kontexty `when` (jazyk, výběr, velký režim, platforma) a registrují se z manifestu stejného tvaru, jaký později použijí pluginy. Bez veřejného API. Stará jména akcí PSPadu jen jako aliasy (až s importem).
   - **Funkce:** F098, F195
   - **Stav 26. 10. 2026:** registr hotový v knihovně Workbench: všech 37 vestavěných příkazů, menu, kláves a nastavení se načte z vloženého manifestu `builtin.contributions.json` a test ověří čistý průchod; `when` má test pro každý kontextový klíč; konflikty ID, aliasů, dvojích obsluh a ID pluginu s prefixem `nks.` se odhalí; schémata kontroluje test. Zbývá napojit paletu, menu a klávesy aplikace jen na registr (P1.1.1).
   - **Nález review D5 (1. kolo):** menu aplikace má jen Soubor, Úpravy, Zobrazit, Nápověda; D5 má Soubor, Projekty, Úpravy, Hledat, Zobrazit, Formát, Nástroje, HTML, Nastavení, Okno, Nápověda. Menu se má sestavit z registru a manifestu.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** všechny vestavěné příkazy se načtou z manifestu; paleta, menu a klávesy čtou jen registr; test ověří vyhodnocení `when` pro každý kontext.
   - **Závisí na:** P1.1.1
   - **Odhad:** F195 1–2 ČT (matice); F098 bez odhadu
-- [ ] **P1.6.2** Výchozí zkratky a mapování kláves
+- [x] **P1.6.2** Výchozí zkratky a mapování kláves
   - **Co a proč:** Výchozí mapa kláves pro Windows (Ctrl) a macOS (⌘), editor zkratek s kontexty a viditelnými konflikty. Klávesa pluginu nikdy nepřepíše výchozí ani uživatelskou zkratku. Příkaz má v registru vazbu na kontext, výběry, zrušení a transakci undo; `Tab` má určený návrat k běžnému odsazení, když ho příkaz neobslouží. Profil „PSPad“ je MVP v P2.
   - **Funkce:** F019, F119
   - **Stav 26. 10. 2026:** model kláves hotový: konflikty SameLayer, Overridden a Prefix se zdrojem obou vazeb, výchozí mapa nemá nejednoznačný konflikt na Windows, macOS ani Linuxu, příkaz se zkratkou musí být v menu nebo paletě (test), neobsloužený `Tab` spadne na `nks.edit.insertIndent`; model umí i klávesy profilu „PSPad“. Zbývá zobrazení konfliktu v nastavení aplikace.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** konflikt dvou zkratek ve stejném kontextu se ukáže v nastavení; každý příkaz se zkratkou je i v menu nebo paletě; neobsloužený `Tab` odsadí jako bez příkazu.
   - **Závisí na:** P1.6.1
   - **Odhad:** bez odhadu
@@ -626,10 +644,11 @@ Registr příkazů je společný základ palety, kláves, maker a pluginů. Hran
   - **Hotovo, když:** tabulka konfliktů výchozí / uživatel / jazyk / EditorConfig / dokument / plugin má pro každou dvojici očekávaného vítěze a test ji projde; u každé hodnoty jde zjistit zdroj; změna verze schématu převede staré nastavení testovanou migrací a neznámé podporované hodnoty zachová podle zapsaného pravidla; starší verze editoru novější soubor nastavení nepoškodí.
   - **Závisí na:** P1.1.1
   - **Odhad:** bez odhadu
-- [ ] **P1.7.2** Prohledávatelné nastavení
+- [x] **P1.7.2** Prohledávatelné nastavení
   - **Co a proč:** Napíšu „tab“ a vidím všechny volby, odkud hodnota je a konflikty zkratek.
   - **Funkce:** F164
   - **Stav 26. 10. 2026:** model hledání hotový: „tab“ najde všechny čtyři volby odsazení a tabulátoru se zdrojem, „kodovani“ najde „Výchozí kódování“, řádky kláves ukazují zkratku, zdroj a konflikty. Zbývá pohled nastavení v aplikaci.
+  - **Stav 26. 10. 2026 (editor v aplikaci, sloučeno po fef705d):** hotovo v aplikaci: AvaloniaEdit nad `Document` s čísly řádků a zvýrazněním aktuálního řádku; soubory (nový, otevřít, uložit, uložit jako s volbou kódování a dialogem ztrát, dotaz při zavření, znovu načíst, konflikt při uložení, nemodální lišta při změně zvenku); menu kódování se dvěma akcemi; stavový řádek podle D5; karty s tečkou a štítkem velikosti, skupiny a rozdělení; řádkové a výběrové operace a blokový výběr; menu, paleta a klávesy jen z registru; okno nastavení se zdrojem hodnot a konflikty; žurnál, lišta obnovy a obnova relace v aplikaci. Publikovaný NativeAOT program prošel skutečným vstupem z klávesnice: CP1250 soubor se po jednom znaku a Ctrl+S liší jen v tom bajtu, 20MiB soubor zůstal stránkovaný a bajtově shodný. Review D5 2. kolo v interním záznamu.
   - **Hotovo, když:** hledání „tab“ najde všechny volby odsazení a tabulátoru se zdrojem hodnoty; konfliktní zkratky jsou označené.
   - **Závisí na:** P1.7.1, P1.6.2
   - **Odhad:** F164 2–3 ČT (matice)
