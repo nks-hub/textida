@@ -30,7 +30,14 @@ internal sealed class DocTab
     private readonly EditorAutomationHost? _automation;
 
     /// <summary>Releases what the view holds outside the visual tree.</summary>
-    public void Close() => _automation?.Dispose();
+    public void Close()
+    {
+        Syntax.Dispose();
+        _automation?.Dispose();
+    }
+
+    /// <summary>The syntax colors of the view; <see cref="SyntaxFeeder.Pending"/> tells that they are not complete yet.</summary>
+    public SyntaxFeeder Syntax => Surface?.Syntax ?? Paged!.Syntax;
 
     public OpenDocument Doc { get; }
     public EditorSurface? Surface { get; }

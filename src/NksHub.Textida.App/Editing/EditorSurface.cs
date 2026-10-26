@@ -8,6 +8,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.Editing;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -31,6 +32,7 @@ internal sealed class EditorSurface : TextEditor
 {
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
+    private readonly SyntaxColorizer _colorizer;
 
     public EditorSurface(OpenDocument doc, EditorOptions options) : base(new EditorTextArea())
     {
@@ -50,6 +52,11 @@ internal sealed class EditorSurface : TextEditor
         foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
         Settings = options;
         ApplyOptions(options);
+        _colorizer = new SyntaxColorizer(TextArea.TextView);
+        _colorizer.BindDocument(Document);
+        TextArea.TextView.LineTransformers.Add(_colorizer);
+        Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens);
+        TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
@@ -58,6 +65,8 @@ internal sealed class EditorSurface : TextEditor
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
     public OpenDocument Doc { get; }
+    /// <summary>Keeps the syntax colors of this view current.</summary>
+    public SyntaxFeeder Syntax { get; }
     public EditorOptions Settings { get; private set; }
     public bool BlockMode { get; private set; }
     public bool IsBlockSelection => TextArea.Selection is RectangleSelection;
@@ -78,7 +87,22 @@ internal sealed class EditorSurface : TextEditor
     {
         TextArea.ClearSelection();
         Document = Doc.TextBackend!.TextDocument;
+        _colorizer.BindDocument(Document);
         CaretOffset = 0;
+    }
+
+    private void ApplyTokens(SyntaxViewport viewport)
+    {
+        if (viewport.Revision != Doc.Doc.Revision) return;
+        try { _colorizer.SetTokens(Document.Version, viewport.Lines); }
+        catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
+    }
+
+    private void OnVisualLinesChanged(object? sender, EventArgs e)
+    {
+        var view = TextArea.TextView;
+        if (!view.VisualLinesValid || view.VisualLines.Count == 0) return;
+        Syntax.SetVisible(view.VisualLines[0].FirstDocumentLine.LineNumber - 1, view.VisualLines[^1].LastDocumentLine.LineNumber - 1);
     }
 
     // ---- look ----
@@ -109,6 +133,7 @@ internal sealed class EditorSurface : TextEditor
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
         TextArea.CaretBrush = Find("Fg");
+        _colorizer.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
     }
 
     // ---- selections ----

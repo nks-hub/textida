@@ -225,7 +225,7 @@ public class EditorTests : IDisposable
     {
         var tab = Open("  // note");
         tab.Editor!.CaretOffset = tab.Editor.Document.TextLength;
-        tab.Doc.Language = LanguageModes.ById("csharp");
+        tab.Doc.ChooseLanguage(LanguageModes.ById("csharp"));
         Press(Key.Enter);
         Assert.Equal("  // note" + tab.Doc.NewLine(null) + "  // ", Text(tab));
 
@@ -242,14 +242,14 @@ public class EditorTests : IDisposable
     public void Enter_in_an_empty_comment_ends_it_and_comments_can_be_switched_off()
     {
         var tab = Open("// ");
-        tab.Doc.Language = LanguageModes.ById("javascript");
+        tab.Doc.ChooseLanguage(LanguageModes.ById("javascript"));
         tab.Editor!.CaretOffset = 3;
         Press(Key.Enter);
         Assert.Equal(tab.Doc.NewLine(null), Text(tab));
 
         _app.Workbench.Set("editor.continueComments", System.Text.Json.Nodes.JsonValue.Create(false));
         var plain = Open("// x");
-        plain.Doc.Language = LanguageModes.ById("javascript");
+        plain.Doc.ChooseLanguage(LanguageModes.ById("javascript"));
         plain.Editor!.CaretOffset = 4;
         Press(Key.Enter);
         Assert.Equal("// x" + plain.Doc.NewLine(null), Text(plain));

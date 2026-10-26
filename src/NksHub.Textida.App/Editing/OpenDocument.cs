@@ -38,7 +38,11 @@ internal sealed class OpenDocument : IDisposable
 
     public Document Doc => _doc;
     public int Number { get; }
-    public LanguageMode Language { get; set; }
+    public LanguageMode Language { get; private set; }
+    /// <summary>The user picked the language; the file name no longer decides it, also after a reload or a save under another name.</summary>
+    public bool LanguageChosen { get; private set; }
+    /// <summary>Raised when <see cref="Language"/> changed, so the views choose another grammar.</summary>
+    public event Action? LanguageChanged;
     /// <summary>How the encoding was chosen when the file was read; null for new documents and after an explicit choice.</summary>
     public EncodingGuess? Guess { get; private set; }
     public Guid? JournalId { get; set; }
@@ -182,11 +186,25 @@ internal sealed class OpenDocument : IDisposable
 
     private void OnSaved(object? sender, EventArgs e)
     {
-        if (Language.Id == LanguageModes.PlainId) Language = LanguageModes.ForPath(Path);
+        if (!LanguageChosen) SetLanguage(LanguageModes.ForPath(Path));
         Changed?.Invoke();
     }
 
     public void NotifyChanged() => Changed?.Invoke();
+
+    /// <summary>Sets the language by the user's choice; it wins over the one the file name gives.</summary>
+    public void ChooseLanguage(LanguageMode mode)
+    {
+        LanguageChosen = true;
+        SetLanguage(mode);
+    }
+
+    private void SetLanguage(LanguageMode mode)
+    {
+        if (ReferenceEquals(Language, mode)) return;
+        Language = mode;
+        LanguageChanged?.Invoke();
+    }
 
     /// <summary>Recomputes the line ending summary now instead of after the typing pause.</summary>
     public void FlushEol()

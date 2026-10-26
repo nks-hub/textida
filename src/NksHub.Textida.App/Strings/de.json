@@ -15,7 +15,7 @@
   "status.line": "Z {line}",
   "status.selected": "({count} ausgewählt)",
   "status.ready": "Bereit",
-  "status.largeReadOnly": "Große Datei ({size}): schreibgeschützt, seitenweiser Modus",
+  "status.syntaxPending": "Hervorhebung wird nachberechnet",
   "status.indent.spaces": "Leerzeichen: {size}",
   "status.indent.tabs": "Tabulatoren: {size}",
   "status.eol.mixed": "gemischt",
@@ -161,5 +161,9 @@
   "a11y.editor": "Textbereich",
   "a11y.documents.list": "Liste der geöffneten Dokumente",
   "a11y.statusBar": "Statusleiste",
-  "a11y.workspace": "Arbeitsfläche"
+  "a11y.workspace": "Arbeitsfläche",
+  "status.largePaged": "Große Datei ({size}): seitenweiser Modus, Revision {revision}",
+  "paged.indexing": "Die Zeilennummerierung läuft noch, das Bearbeiten ist gleich möglich",
+  "paged.longLine": "Die Zeile ist länger als {size} und kann im seitenweisen Modus nicht bearbeitet werden",
+  "paged.notEncodable": "Das Zeichen kann in {encoding} nicht geschrieben werden"
 }
