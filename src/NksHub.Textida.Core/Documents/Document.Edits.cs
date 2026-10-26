@@ -145,7 +145,15 @@ public sealed partial class Document
         TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
         long tChanged = TypingTrace.Begin();
-        Changed?.Invoke(this, new DocumentChangedEventArgs(change));
+        var args = new DocumentChangedEventArgs(change);
+        if (TypingTrace.Enabled && Changed is { } changed)
+            foreach (var handler in changed.GetInvocationList())
+            {
+                long tHandler = TypingTrace.Begin();
+                ((EventHandler<DocumentChangedEventArgs>)handler)(this, args);
+                TypingTrace.End("handler " + handler.Method.DeclaringType?.Name + "." + handler.Method.Name, tHandler);
+            }
+        else Changed?.Invoke(this, args);
         TypingTrace.End("doc.changedEvent", tChanged);
     }
 

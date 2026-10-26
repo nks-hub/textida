@@ -45,6 +45,13 @@ public sealed class Place
     /// <summary>Reads the current position from the anchor. An anchor whose text was deleted keeps the last known line, never a guess.</summary>
     public void Refresh()
     {
+        long trace = TypingTrace.Begin();
+        try { RefreshCore(); }
+        finally { TypingTrace.End("place.refresh", trace); }
+    }
+
+    private void RefreshCore()
+    {
         if (_document is not { } doc || _anchor is not { IsValid: true } a) return;
         try
         {

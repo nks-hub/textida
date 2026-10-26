@@ -219,6 +219,13 @@ internal sealed class PagedTextView : Grid
     /// <summary>Start, end of the text (before the line break) and start of the next line; false while the index is not complete.</summary>
     private bool TryBounds(long line, out long start, out long end, out long next)
     {
+        long trace = TypingTrace.Begin();
+        try { return TryBoundsCore(line, out start, out end, out next); }
+        finally { TypingTrace.End("paged.tryBounds", trace); }
+    }
+
+    private bool TryBoundsCore(long line, out long start, out long end, out long next)
+    {
         start = end = next = 0;
         long lines = LineCount;
         if (!Indexed || line < 0 || line >= lines || (start = LineStart(line)) < 0) return false;
@@ -311,6 +318,13 @@ internal sealed class PagedTextView : Grid
     }
 
     private long LineOf(long offset)
+    {
+        long trace = TypingTrace.Begin();
+        try { return LineOfCore(offset); }
+        finally { TypingTrace.End("paged.lineOf", trace); }
+    }
+
+    private long LineOfCore(long offset)
     {
         long lo = 0, hi = LineCount - 1;
         while (lo < hi)
