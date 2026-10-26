@@ -113,6 +113,68 @@ public class PagedBackendTests
 
     [Fact]
     [Trait("Category", "Large")]
+    public void LineStartsAfterRandomCrLfEditsMatchANaivePassOverAFileOver4GiB()
+    {
+        const long size = BigFileBackendFactory.FileSize;
+        var r = new Random(11);
+        string path = BigFileBackendFactory.NewPath();
+        long[] hot = [0, (1L << 31) - 1, (1L << 32) - 1, size - 2];
+        using (var fs = BigFileBackendFactory.CreateSparse(path))
+        {
+            fs.Write(Encoding.UTF8.GetBytes(Gen.LineSoup(r, 300)));
+            foreach (long at in hot[1..]) { fs.Position = at; fs.Write("\r\n"u8); }
+        }
+
+        using var d = Doc.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TestFormat.Utf8.Format });
+        Assert.True(d.ByteLength > 1L << 32);
+        byte[][] inserts = ["\r"u8.ToArray(), "\n"u8.ToArray(), "\r\n"u8.ToArray(), "x"u8.ToArray(), "a\rb\nc"u8.ToArray(), "\n\r"u8.ToArray()];
+        for (int step = 0; step < 60; step++)
+        {
+            // edits at the CRLF pairs on the 2^31 and 2^32 boundaries (one byte before, between, after) and in the small head
+            long at = r.Next(3) == 0 ? r.Next(1, 600) : hot[r.Next(1, hot.Length)] + r.Next(-1, 3);
+            at = Math.Clamp(at, 0, d.ByteLength);
+            int op = r.Next(10);
+            if (op < 6) d.Insert(at, inserts[r.Next(inserts.Length)]);
+            else if (op < 8) d.Delete(new(at, Math.Min(d.ByteLength, at + r.Next(1, 3))));
+            else if (op < 9) d.Undo();
+            else d.Redo();
+            if (step % 20 == 19) AssertLineStartsMatchNaivePass(d);
+        }
+        AssertLineStartsMatchNaivePass(d);
+        while (d.CanUndo) d.Undo();
+        AssertLineStartsMatchNaivePass(d);
+    }
+
+    private static void AssertLineStartsMatchNaivePass(Doc d)
+    {
+        var until = DateTime.UtcNow.AddMinutes(5);
+        while (!d.LineIndexState.Complete) { Assert.True(DateTime.UtcNow < until); Thread.Sleep(20); }
+        var starts = new List<long> { 0 };
+        const int chunk = 1 << 26;
+        long length = d.ByteLength;
+        byte prev = 0;
+        for (long at = 0; at < length; at += chunk)
+        {
+            var bytes = d.ReadBytes(new(at, Math.Min(length, at + chunk)));
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                byte b = bytes[i];
+                if (b == '\n') starts.Add(at + i + 1);
+                else if (prev == '\r') starts.Add(at + i);
+                prev = b;
+            }
+        }
+        if (prev == '\r') starts.Add(length);
+        Assert.Equal((starts.Count, true), d.LineIndexState);
+        for (int line = 0; line < starts.Count; line++)
+        {
+            Assert.True(d.TryGetOffset(new(line, 0), out long off), $"line {line}");
+            Assert.Equal(starts[line], off);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Large")]
     public void ContractOperationsWorkOnAFileOver4GiBWithPositionsBeyondInt()
     {
         const long size = 4_500_000_000;
