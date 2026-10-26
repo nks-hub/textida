@@ -106,6 +106,16 @@ public sealed class AnchoredSelections
         _primary = set.Primary;
     }
 
+    /// <summary>Stops following the document. Anchors that nobody uses any more cost every later change, so a holder that replaces its selections releases the old ones.</summary>
+    public void Release()
+    {
+        foreach (var (a, c) in _pairs)
+        {
+            a.IsValid = false;
+            c.IsValid = false;
+        }
+    }
+
     /// <summary>The selections as they are now; null when every selection was lost.</summary>
     public SelectionSet? Current()
     {

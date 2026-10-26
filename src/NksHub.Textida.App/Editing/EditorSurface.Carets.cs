@@ -154,6 +154,7 @@ internal sealed partial class EditorSurface
             var others = c.Items.Where((_, i) => i != c.Primary).ToList();
             var all = bytes ?? BytesOf(backend, [.. c.Items]);
             var otherBytes = all.Where((_, i) => i != c.Primary).ToList();
+            ReleaseAnchors();
             _others = new AnchoredSelections(Doc.Doc, SelectionSet.Create(otherBytes, 0));
             _primaryKept = new AnchoredSelections(Doc.Doc, SelectionSet.Single(all[c.Primary]));
             _otherChars = others;
@@ -172,9 +173,16 @@ internal sealed partial class EditorSurface
         return [.. sels.Select(s => new TextSelection(at[s.Anchor], at[s.Caret]))];
     }
 
+    private void ReleaseAnchors()
+    {
+        _others?.Release();
+        _primaryKept?.Release();
+    }
+
     private void DropOthers()
     {
         if (_others is null) return;
+        ReleaseAnchors();
         _others = null;
         _primaryKept = null;
         _otherChars = [];

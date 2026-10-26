@@ -464,7 +464,11 @@ public static class MultiEdit
                 }
             result = new(true, doc.Revision, ConflictReason.None);
         }
-        else result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey });
+        else
+        {
+            // one update block: the views react to the text view once, not once per caret
+            using (text.RunUpdate()) result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey });
+        }
         return new(result, after, afterBytes);
     }
 }
