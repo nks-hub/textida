@@ -43,6 +43,11 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>How the encoding was chosen when the file was read; null for new documents and after an explicit choice.</summary>
     public EncodingGuess? Guess { get; private set; }
     public Guid? JournalId { get; set; }
+    /// <summary>Indentation detected from the content of the file when it was opened; replaces the configured one for this document.</summary>
+    public IndentSettings? IndentOverride { get; set; }
+    public AutosaveService? Autosave { get; set; }
+    /// <summary>How often a document with autosave on is written to its own file.</summary>
+    public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.FromSeconds(30);
     public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public List<DocTab> Views { get; } = [];
 
@@ -228,6 +233,7 @@ internal sealed class OpenDocument : IDisposable
     public void Dispose()
     {
         _eolTimer.Stop();
+        Autosave?.Dispose();
         Unhook(_doc);
         _doc.Dispose();
     }

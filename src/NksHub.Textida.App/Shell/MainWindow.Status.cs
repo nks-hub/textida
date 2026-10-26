@@ -48,6 +48,7 @@ internal sealed partial class MainWindow
 
     private void UpdateStatus()
     {
+        CheckJournalHealth();
         _statusRight.Children.Clear();
         if (Active is not { } tab)
         {

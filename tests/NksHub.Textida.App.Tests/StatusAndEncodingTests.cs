@@ -26,6 +26,7 @@ public class StatusAndEncodingTests : IDisposable
     public StatusAndEncodingTests()
     {
         _app = TestApp.Prepare(_temp, _dialogs);
+        _app.Workbench.Set("editor.detectIndentation", System.Text.Json.Nodes.JsonValue.Create(false)); // these tests read the configured indentation
         _w = _app.CreateWindow(null);
     }
 

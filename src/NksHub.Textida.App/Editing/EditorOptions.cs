@@ -16,8 +16,13 @@ internal sealed record EditorOptions(
     bool AutoClosePairs,
     bool ContinueComments,
     EolStyle? ConfiguredEol,
-    TextCodec NewDocumentCodec)
+    TextCodec NewDocumentCodec,
+    bool TrimTrailingWhitespace = false,
+    bool InsertFinalNewline = false)
 {
+    /// <summary>The indentation found in the file replaces the configured one for that document.</summary>
+    public EditorOptions WithIndent(IndentSettings indent) => this with { InsertSpaces = indent.InsertSpaces, IndentSize = indent.IndentSize, TabSize = indent.TabSize };
+
     public IndentSettings Indent => new(InsertSpaces, IndentSize, TabSize);
 
     public static EditorOptions From(SettingsStack s, string? language = null)
@@ -43,6 +48,8 @@ internal sealed record EditorOptions(
                 "windows-1250" => TextCodec.Cp1250,
                 "iso-8859-2" => TextCodec.Latin2,
                 _ => TextCodec.Utf8,
-            });
+            },
+            TrimTrailingWhitespace: s.GetBool("files.trimTrailingWhitespace", l),
+            InsertFinalNewline: s.GetBool("files.insertFinalNewline", l));
     }
 }

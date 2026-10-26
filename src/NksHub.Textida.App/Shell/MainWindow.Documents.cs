@@ -4,11 +4,14 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Journal;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -59,11 +62,35 @@ internal sealed partial class MainWindow
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         _app.Journal.Track(od);
         od.EnsureWatching();
+        DetectIndentation(od);
+        ConfigureAutosave(od);
+    }
+
+    /// <summary>With <c>editor.detectIndentation</c> on, the indentation of a file wins over the configured one for that file.</summary>
+    private void DetectIndentation(OpenDocument od)
+    {
+        if (od.TextBackend is not { } text || od.Path is null || !_app.Workbench.Settings.GetBool("editor.detectIndentation")) return;
+        int length = Math.Min(text.TextDocument.TextLength, 64 * 1024);
+        od.IndentOverride = IndentDetector.Detect(text.TextDocument.GetText(0, length), EditorOptions.From(_app.Workbench.Settings, od.Language.Id).Indent);
+    }
+
+    /// <summary>With <c>files.autoSave</c> on, a named document is written to its own file now and then; off by default, and never the journal's job.</summary>
+    private void ConfigureAutosave(OpenDocument od)
+    {
+        bool on = _app.Workbench.Settings.GetString("files.autoSave") == "afterDelay" && od.Path is not null && !od.IsLarge;
+        if (!on)
+        {
+            od.Autosave?.Dispose();
+            od.Autosave = null;
+            return;
+        }
+        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = OpenDocument.AutosaveInterval }, _app.Backups, a => Dispatcher.UIThread.Post(a));
     }
 
     private DocTab AddView(OpenDocument od, TabGroup group, int? index = null)
     {
         var tab = new DocTab(od, EditorOptions.From(_app.Workbench.Settings, od.Language.Id));
+        if (od.IndentOverride is not null) tab.Surface?.ApplyOptions(OptionsFor(tab));
         if (tab.Surface is { } surface)
         {
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
@@ -90,6 +117,7 @@ internal sealed partial class MainWindow
         RefreshHeaders();
         if (Active?.Doc == od) { UpdateStatus(); RefreshTitle(); }
         od.EnsureWatching();
+        if (od.Autosave is null) ConfigureAutosave(od);
     }
 
     /// <summary>The document under the tabs was swapped (reload). A view of the other kind (text or paged) is rebuilt in place.</summary>
@@ -104,7 +132,7 @@ internal sealed partial class MainWindow
             if (tab.Surface is { } s && !od.IsLarge)
             {
                 s.BindDocument();
-                s.ApplyOptions(EditorOptions.From(_app.Workbench.Settings, od.Language.Id));
+                s.ApplyOptions(OptionsFor(tab));
                 continue;
             }
             group.Remove(tab);
@@ -113,6 +141,9 @@ internal sealed partial class MainWindow
             if (wasActive) SelectTab(fresh);
         }
         od.EnsureWatching();
+        od.Autosave?.Dispose();
+        od.Autosave = null;
+        ConfigureAutosave(od);
         UpdateStatus();
     }
 

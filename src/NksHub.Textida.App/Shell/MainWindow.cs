@@ -49,7 +49,14 @@ internal sealed partial class MainWindow : Window
     public IEnumerable<DocTab> Tabs => _groups.SelectMany(g => g.Tabs);
     public DocTab? Active => _activeGroup.Active;
     public bool DocumentsPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0;
-    public EditorOptions Options => EditorOptions.From(_app.Workbench.Settings, Active?.Doc.Language.Id);
+    public EditorOptions Options => Active is { } tab ? OptionsFor(tab) : EditorOptions.From(_app.Workbench.Settings);
+
+    /// <summary>Settings for a tab: its language layer, with the indentation detected from the file when the setting asks for it.</summary>
+    internal EditorOptions OptionsFor(DocTab tab)
+    {
+        var options = EditorOptions.From(_app.Workbench.Settings, tab.Doc.Language.Id);
+        return tab.Doc.IndentOverride is { } indent ? options.WithIndent(indent) : options;
+    }
 
     /// <summary>Text of the menu groups currently shown, for tests and accessibility checks.</summary>
     public IReadOnlyList<string> MenuHeaders => _menuModel.Select(g => g.Label).ToList();
@@ -270,7 +277,7 @@ internal sealed partial class MainWindow : Window
     {
         foreach (var tab in Tabs)
         {
-            var options = EditorOptions.From(_app.Workbench.Settings, tab.Doc.Language.Id);
+            var options = OptionsFor(tab);
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
         }
@@ -329,6 +336,7 @@ internal sealed partial class MainWindow : Window
     private void OnSettingChanged(string key)
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
+        if (key == "files.autoSave") foreach (var od in _docs) ConfigureAutosave(od);
         ApplyLanguageOptions();
         UpdateStatus();
         _menuModel = BuildMenuModel();

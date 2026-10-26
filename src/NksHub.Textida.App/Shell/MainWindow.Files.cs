@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Journal;
@@ -89,9 +90,23 @@ internal sealed partial class MainWindow
         return await SaveCoreAsync(tab, overwrite: false);
     }
 
+    /// <summary>Trailing blanks and the final line break, when the settings ask for them. One undo step, done only when a save really goes ahead.</summary>
+    private void PrepareForSave(OpenDocument od)
+    {
+        if (od.TextBackend is not { } text) return;
+        var options = EditorOptions.From(_app.Workbench.Settings, od.Language.Id);
+        if (!options.TrimTrailingWhitespace && !options.InsertFinalNewline) return;
+        using (od.Doc.BeginUndoGroup())
+        {
+            if (options.TrimTrailingWhitespace) SaveAssists.TrimTrailingWhitespace(text.TextDocument);
+            if (options.InsertFinalNewline) SaveAssists.EnsureFinalNewline(text.TextDocument, od.NewLine(options.ConfiguredEol));
+        }
+    }
+
     private async Task<bool> SaveCoreAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
+        PrepareForSave(od);
         try
         {
             var outcome = _app.Backups.Save(od.Doc, null, overwrite);
@@ -152,6 +167,7 @@ internal sealed partial class MainWindow
             if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return false;
         }
 
+        PrepareForSave(od);
         try
         {
             var result = doc.SaveAs(choice.Path, choice.Codec);
