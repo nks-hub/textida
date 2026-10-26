@@ -156,7 +156,7 @@ internal sealed partial class MainWindow
         if (found.Count == 0) { SetStatusMessage(Loc.Get(K.RelatedNone, ("name", Path.GetFileName(path)))); return; }
         if (found.Count == 1) { JumpToFile(found[0], null); return; }
         ShowChoice(Loc.Get(K.PaletteRelatedWatermark), Loc.Get(K.A11yRelated), [.. found.Select(f =>
-            new QuickRow(Path.GetFileName(f), null, Path.GetDirectoryName(f), null, true, null, Path.GetFileName(f), () => JumpToFile(f, null), () => ReadPreview(f)))]);
+            new QuickRow(Path.GetFileName(f), null, Display(Path.GetDirectoryName(f)!), null, true, null, Path.GetFileName(f), () => JumpToFile(f, null), () => ReadPreview(f)))]);
     }
 
     /// <summary>Reads a path from the text at the caret (<c>src/a.cs:12</c> too) and opens the file, or shows the folder in the file panel.</summary>
