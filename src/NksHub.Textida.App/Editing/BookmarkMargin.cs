@@ -16,8 +16,13 @@ internal sealed class BookmarkMargin : AbstractMargin
     public BookmarkMargin(Bookmarks bookmarks)
     {
         _bookmarks = bookmarks;
-        bookmarks.Changed += () => InvalidateVisual();
+        bookmarks.Changed += Repaint;
     }
+
+    private void Repaint() => InvalidateVisual();
+
+    /// <summary>The view is closed: stop listening so a closed split view does not stay alive with the document.</summary>
+    public void Release() => _bookmarks.Changed -= Repaint;
 
     protected override Size MeasureOverride(Size availableSize) => new(MarginWidth, 0);
 

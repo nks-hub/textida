@@ -131,6 +131,16 @@ public class TabsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Closing_a_split_view_stops_its_bookmark_margin_listening()
+    {
+        var a = Open("a.txt", "one\ntwo\n");
+        var b = _w.SplitView()!;
+        Assert.Equal(2, a.Doc.Bookmarks.ListenerCount);
+        Assert.True(await _w.CloseTabAsync(b));
+        Assert.Equal(1, a.Doc.Bookmarks.ListenerCount);
+    }
+
+    [AvaloniaFact]
     public void A_tab_moves_to_another_group_and_an_emptied_group_goes_away()
     {
         var a = Open("a.txt");

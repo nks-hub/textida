@@ -745,7 +745,7 @@ internal sealed partial class PagedTextView : Grid
             context.FillRectangle(back, new Rect(Bounds.Size));
             var (lines, _) = owner.Index;
             int digits = Math.Max(3, (lines > 0 ? lines : 1).ToString(CultureInfo.InvariantCulture).Length);
-            _gutter = options.LineNumbers ? (digits + 1) * _digitWidth + 14 : 0;
+            _gutter = options.LineNumbers ? (digits + 1) * _digitWidth + 14 : owner._doc.Bookmarks.HasAny ? 14 : 0;
             long top = owner.TopLine;
             var caretLine = owner.CaretLine();
             using (context.PushClip(new Rect(_gutter, 0, Math.Max(0, Bounds.Width - _gutter), Bounds.Height)))
@@ -795,7 +795,7 @@ internal sealed partial class PagedTextView : Grid
                 var number = Format((line + 1).ToString(CultureInfo.InvariantCulture), numbers);
                 context.DrawText(number, new Point(_gutter - 10 - number.Width, i * _lineHeight));
             }
-            if (options.LineNumbers) owner.DrawBookmarks(context, top, _lineHeight, VisibleLines + 1);
+            owner.DrawBookmarks(context, top, _lineHeight, VisibleLines + 1);
         }
     }
 }
