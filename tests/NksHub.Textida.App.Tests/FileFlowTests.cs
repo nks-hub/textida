@@ -447,12 +447,11 @@ public class FileFlowTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Large_file_in_an_encoding_the_paged_backend_cannot_hold_says_so()
+    public void Large_file_in_UTF16_opens_in_the_paged_backend()
     {
         _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
         var content = Encoding.Unicode.GetBytes(new string('a', 700_000));
         var path = _temp.Bytes("wide.txt", [.. Encoding.Unicode.GetPreamble(), .. content]);
-        var ex = Assert.Throws<IOException>(() => _w.OpenFile(path, null));
-        Assert.Contains("UTF-16", ex.Message);
+        Assert.NotNull(_w.OpenFile(path, null).Paged);
     }
 }

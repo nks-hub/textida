@@ -65,7 +65,7 @@ public sealed class PagedBackend : IByteBackend
     public BackendCapabilities Capabilities => Caps;
     public TextCodec Codec => _doc.Codec;
 
-    public bool Supports(TextCodec codec) => MappedFileSource.SharesLineIndex(Codec, codec);
+    public bool Supports(TextCodec codec) => true;
 
     public void Reinterpret(TextCodec codec)
     {
