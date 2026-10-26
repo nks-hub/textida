@@ -534,7 +534,7 @@ public abstract partial class DocumentContractSuite
             Assert.Equal(path, d.FilePath);
             Assert.Equal(original.Length, d.Fingerprint!.Size);
 
-            var range = new ByteRange(f.Bom.Length, f.Bom.Length + (f.IsUtf16 ? 2 : 1));
+            var range = new ByteRange(f.Bom.Length, f.Bom.Length + f.Format.Alignment);
             var replacement = f.Raw("Z");
             Assert.True(d.Replace(range, replacement).Applied);
             Assert.True(d.IsModified);

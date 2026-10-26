@@ -18,7 +18,7 @@ public sealed class PagedBackendFactory(bool startIndexing = true, int indexBloc
 /// </summary>
 public sealed class PagedBackend : IByteBackend
 {
-    internal static readonly BackendCapabilities Caps = new("paged", long.MaxValue, SupportsUtf16: false, PositionsMayBeUnknown: true, MaterializesText: false);
+    internal static readonly BackendCapabilities Caps = new("paged", long.MaxValue, SupportsUtf16: true, PositionsMayBeUnknown: true, MaterializesText: false);
     private const int Chunk = 1 << 16;
 
     private readonly MappedFileSourceOptions _options;
@@ -55,7 +55,6 @@ public sealed class PagedBackend : IByteBackend
 
     private static MappedFileSourceOptions OptionsFor(TextCodec codec, bool startIndexing, int indexBlockSize)
     {
-        MappedFileSource.RequireByteNewlines(codec);
         return new() { Codec = codec, StartIndexing = startIndexing, IndexBlockSize = indexBlockSize };
     }
 
@@ -66,7 +65,7 @@ public sealed class PagedBackend : IByteBackend
     public BackendCapabilities Capabilities => Caps;
     public TextCodec Codec => _doc.Codec;
 
-    public bool Supports(TextCodec codec) => codec.Kind is not (CodecKind.Utf16 or CodecKind.Utf32);
+    public bool Supports(TextCodec codec) => MappedFileSource.SharesLineIndex(Codec, codec);
 
     public void Reinterpret(TextCodec codec)
     {
@@ -154,10 +153,12 @@ public sealed class PagedBackend : IByteBackend
         {
             long next = LineStartOf(position.Line + 1);
             if (next < 0) return false;
-            var tail = new byte[2];
-            int n = (int)Math.Min(2, next - start);
+            int w = Codec.Alignment;
+            var tail = new byte[2 * w];
+            int n = (int)Math.Min(2 * w, next - start);
             _doc.Read(next - n, tail.AsSpan(0, n));
-            end = next - (n == 2 && tail[0] == 13 && tail[1] == 10 ? 2 : 1);
+            bool crlf = n == 2 * w && LineScanner.Unit(tail, 0, Codec) == 13 && LineScanner.Unit(tail, w, Codec) == 10;
+            end = next - (crlf ? 2 * w : w);
         }
         return WalkColumns(start, end, position.Column, out offset);
     }

@@ -218,15 +218,19 @@ public class LineIndexTests
     }
 
     [Fact]
-    public void ReinterpretingAcrossCodeUnitSizesIsRefused()
+    public void ReinterpretingAcrossCodeUnitSizesRebuildsTheIndex()
     {
         using var f = new TempFile([0xFF, 0xFE, .. Encoding.Unicode.GetBytes("abc\n")]);
         using var src = OpenIndexed(f, 4);
         Assert.Same(Encodings.TextCodec.Utf16LEBom, src.Codec);
-        Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf8));
-        Assert.Throws<NotSupportedException>(() => src.SetCodec(Encodings.TextCodec.Utf16BE));
         src.SetCodec(Encodings.TextCodec.Utf16LE);
         Assert.Equal(["﻿abc", ""], src.ReadLines(0, 5)); // without the BOM codec the mark is ordinary text
+        src.SetCodec(Encodings.TextCodec.Utf8);
+        src.IndexTask.Wait();
+        Assert.Equal((2L, true), src.LineIndexState); // the 0x0A byte of "\n\0" is a terminator for UTF-8
+        src.SetCodec(Encodings.TextCodec.Utf16BE);
+        src.IndexTask.Wait();
+        Assert.Equal((1L, true), src.LineIndexState);
     }
 
     [Fact]

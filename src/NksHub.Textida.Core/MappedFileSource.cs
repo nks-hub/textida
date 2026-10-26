@@ -23,13 +23,14 @@ public sealed class MappedFileSourceOptions
 public sealed class MappedFileSource : IPagedTextSource
 {
     private readonly MappedFile _file;
-    private readonly int _blockSize;
-    private readonly int _blocks;
-    private readonly long[] _cum;
-    private readonly int[] _blockCounts;
-    private readonly bool[] _ready;
+    private readonly MappedFileSourceOptions _options;
+    private int _blockSize;
+    private int _blocks;
+    private long[] _cum = [];
+    private int[] _blockCounts = [];
+    private bool[] _ready = [];
     private readonly object _pub = new();
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource _cts = new();
     private int _published;
     private int _disposed;
     private long _lastProgress;
@@ -45,36 +46,47 @@ public sealed class MappedFileSource : IPagedTextSource
     private MappedFileSource(MappedFile file, MappedFileSourceOptions options)
     {
         _file = file;
+        _options = options;
         bool whole = file.Length <= 1 << 20;
         var codec = options.Codec ?? EncodingGuesser.Guess(file.GetSpanClamped(0, 1 << 20), whole).Codec;
-        int unit = codec.Alignment; // blocks must start on a code unit; SetCodec never changes the unit size
-        _blockSize = (options.IndexBlockSize + unit - 1) / unit * unit;
-        _blocks = (int)((file.Length + _blockSize - 1) / _blockSize);
-        _cum = new long[_blocks + 1];
-        _blockCounts = new int[_blocks];
-        _ready = new bool[_blocks];
         Codec = codec;
+        AllocateIndex();
         _bomLength = codec.BomLengthIn(file.GetSpanClamped(0, 4));
     }
 
-    /// <summary>Guard for <see cref="PagedDocument"/> and <c>PagedBackend</c>, whose edited-line counting still looks at single bytes; this source itself serves every encoding.</summary>
-    internal static void RequireByteNewlines(TextCodec codec)
+    /// <summary>Sizes the block table for the current code unit; blocks must start on a code unit.</summary>
+    private void AllocateIndex()
     {
-        if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32)
-            throw new NotSupportedException($"{codec.Name} is not supported by the paged document yet: edited line counts are byte based.");
+        int unit = Codec.Alignment;
+        _blockSize = (_options.IndexBlockSize + unit - 1) / unit * unit;
+        _blocks = (int)((_file.Length + _blockSize - 1) / _blockSize);
+        _cum = new long[_blocks + 1];
+        _blockCounts = new int[_blocks];
+        _ready = new bool[_blocks];
+        _published = 0;
     }
 
     /// <summary>True when both encodings split the bytes into the same code units, so a line index built for one is valid for the other.</summary>
     internal static bool SharesLineIndex(TextCodec a, TextCodec b) =>
         a.Alignment == b.Alignment && (a.Alignment == 1 || a.BigEndian == b.BigEndian);
 
-    /// <summary>Switches the text view of the same bytes; refused when the code unit size or byte order differs, because the line index would no longer match.</summary>
+    /// <summary>Switches the text view of the same bytes. When the code unit size or byte order differs the line index is dropped and built again.</summary>
     internal void SetCodec(TextCodec codec)
     {
-        if (!SharesLineIndex(Codec, codec))
-            throw new NotSupportedException($"{Codec.Name} cannot be reinterpreted as {codec.Name}: the line index is built per code unit.");
+        bool reindex = !SharesLineIndex(Codec, codec);
+        if (reindex)
+        {
+            _cts.Cancel();
+            try { IndexTask.Wait(); } catch (AggregateException) { }
+            _cts.Dispose();
+            _cts = new();
+        }
         Codec = codec;
         _bomLength = codec.BomLengthIn(_file.GetSpanClamped(0, 4));
+        if (!reindex) return;
+        AllocateIndex();
+        if (_options.StartIndexing) StartIndexing(_options.IndexParallelism);
+        else IndexTask = Task.CompletedTask;
     }
 
     /// <summary>Opens and maps the file, detects its encoding and starts background line indexing.</summary>
