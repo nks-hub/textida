@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
@@ -184,6 +185,187 @@ public class PagedEditTests : IDisposable
         Assert.Contains("Windows-1250", _w.StatusLeftText);
         TestApp.Type(_w, "ř");
         Assert.Equal(0xF8, tab.Doc.Doc.ReadBytes(new ByteRange(0, 1))[0]);
+    }
+
+    private const RawInputModifiers Shift = RawInputModifiers.Shift;
+
+    private static long Offset(string all, int line, int column = 0) =>
+        Encoding.UTF8.GetByteCount(string.Join("", all.Split('\n').Take(line).Select(l => l + "\n"))) + column;
+
+    [AvaloniaFact]
+    public void Selection_over_index_blocks_and_crlf_is_exactly_the_bytes_between_the_ends()
+    {
+        string all = Encoding.UTF8.GetString(Rows(200_000, "\r\n"));
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(all));
+        var view = tab.Paged!;
+        Press(Key.Right);
+        Press(Key.Right);
+        Press(Key.End, TestApp.Mod | Shift); // the whole file is over 2 MiB: several blocks of the line index
+        Assert.True(view.HasSelection);
+        Assert.Equal(new ByteRange(2, all.Length), view.SelectionRange);
+        Assert.Equal(all[2..], view.SelectedText());
+
+        Press(Key.Home, TestApp.Mod | Shift); // the other end of the same anchor: the selection turns around
+        Assert.Equal(new ByteRange(0, 2), view.SelectionRange);
+        Assert.Equal("li", view.SelectedText());
+
+        Press(Key.Right); // collapses to the end of the selection
+        Assert.False(view.HasSelection);
+        Assert.Equal(2L, view.CaretOffset);
+
+        Press(Key.End); // before the line break
+        Press(Key.Right, Shift); // the break CR LF is one step
+        Assert.Equal(new ByteRange(6, 8), view.SelectionRange);
+        Assert.Equal("\r\n", view.SelectedText());
+        Press(Key.Left, Shift);
+        Assert.False(view.HasSelection);
+        Press(Key.Left, Shift);
+        Assert.Equal(new ByteRange(5, 6), view.SelectionRange);
+        Press(Key.Left); // collapses to the start
+        Assert.Equal(5L, view.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void Home_end_and_paging_land_on_the_positions_of_a_naive_pass()
+    {
+        string all = Encoding.UTF8.GetString(Rows(200_000));
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(all));
+        _w.UpdateLayout();
+        var view = tab.Paged!;
+        int page = view.PageLines;
+        Assert.True(page > 1);
+
+        Press(Key.Right);
+        Press(Key.Right);
+        Press(Key.PageDown);
+        Assert.Equal((page + 1L, 3L), tab.CaretPosition()); // the wanted column stays
+        Assert.Equal(Offset(all, page, 2), view.CaretOffset);
+        Press(Key.PageDown, Shift);
+        Assert.Equal(new ByteRange(Offset(all, page, 2), Offset(all, 2 * page, 2)), view.SelectionRange);
+        Press(Key.PageUp, Shift);
+        Assert.False(view.HasSelection);
+        Press(Key.PageUp);
+        Assert.Equal(Offset(all, 0, 2), view.CaretOffset);
+
+        Press(Key.End, Shift);
+        Assert.Equal(new ByteRange(2, 6), view.SelectionRange);
+        Press(Key.Home, Shift);
+        Assert.Equal(new ByteRange(0, 2), view.SelectionRange);
+        Press(Key.Home);
+        Assert.Equal(0L, view.CaretOffset);
+
+        Press(Key.End, TestApp.Mod);
+        Assert.Equal((200_001L, 1L), tab.CaretPosition()); // the empty line after the last break
+        Press(Key.PageUp);
+        Assert.Equal(Offset(all, 200_000 - page), view.CaretOffset);
+        Press(Key.PageDown);
+        Press(Key.PageDown);
+        Assert.Equal((long)all.Length, view.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public async Task Copy_gives_the_exact_text_over_blocks_crlf_and_pieces_of_edits()
+    {
+        string all = Encoding.UTF8.GetString(Rows(200_000, "\r\n"));
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(all));
+        var view = tab.Paged!;
+        TestApp.Type(_w, "xy");
+        Press(Key.Enter); // "xy\r\n" is now a piece of its own in front of the mapped file
+        Press(Key.Home, TestApp.Mod);
+        Press(Key.Right);
+        Press(Key.Down, Shift);
+        Assert.Equal("y\r\nl", view.SelectedText());
+        await view.CopyAsync(cut: false);
+        Assert.Equal("y\r\nl", await _w.Clipboard!.TryGetTextAsync());
+
+        Press(Key.End, TestApp.Mod | Shift);
+        await view.CopyAsync(cut: false);
+        string expected = "xy\r\n" + all;
+        Assert.Equal(expected[1..], await _w.Clipboard!.TryGetTextAsync());
+    }
+
+    [AvaloniaFact]
+    public async Task Cut_and_paste_are_one_undo_step_each_and_typing_over_a_selection_replaces_it()
+    {
+        var tab = OpenPaged(Rows(200_000, "\r\n"));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        void Select()
+        {
+            Press(Key.Home, TestApp.Mod);
+            Press(Key.Right);
+            Press(Key.Down, Shift);
+        }
+
+        Select();
+        string selected = view.SelectedText();
+        Assert.Equal("ine 1\r\nl", selected);
+        int depth = doc.UndoDepth;
+        await view.CopyAsync(cut: true);
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        Assert.Equal("line 2\r\nline", Head(tab, 12));
+        Assert.Equal("ine 1\r\nl", await _w.Clipboard!.TryGetTextAsync());
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(depth, doc.UndoDepth);
+        Assert.Equal("line 1\r\nline 2", Head(tab, 14));
+
+        Select();
+        await _w.Clipboard!.SetTextAsync("A\nB\rC");
+        await view.PasteAsync(); // line breaks become the CRLF of the document
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        Assert.Equal("lA\r\nB\r\nCine ", Head(tab, 12));
+        Assert.Equal((3L, 2L), tab.CaretPosition());
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("line 1\r\nline 2", Head(tab, 14));
+
+        Select();
+        TestApp.Type(_w, "Q");
+        TestApp.Type(_w, "R");
+        Assert.Equal("lQRine 2", Head(tab, 8));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("lQine 2", Head(tab, 7)); // the replacement is its own step, the next typed character is a run of its own
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("line 1\r\nline 2", Head(tab, 14));
+
+        Select();
+        Press(Key.Back);
+        Assert.Equal("line 2", Head(tab, 6));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("line 1\r\nline 2", Head(tab, 14));
+        Select();
+        Press(Key.Delete);
+        Assert.Equal("line 2", Head(tab, 6));
+        Assert.False(view.HasSelection);
+    }
+
+    [AvaloniaFact]
+    public async Task Select_all_copy_cut_and_paste_commands_reach_the_paged_surface()
+    {
+        string all = Encoding.UTF8.GetString(Rows(200_000));
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(all));
+        TestApp.Press(_w, Key.A, TestApp.Mod);
+        Assert.Equal(new ByteRange(0, all.Length), tab.Paged!.SelectionRange);
+        TestApp.Press(_w, Key.C, TestApp.Mod);
+        await Eventually(async () => await _w.Clipboard!.TryGetTextAsync() == all);
+
+        Press(Key.Home, TestApp.Mod);
+        Press(Key.Down, Shift);
+        Assert.Equal(new ByteRange(0, 7), tab.Paged.SelectionRange);
+        TestApp.Press(_w, Key.X, TestApp.Mod);
+        await Eventually(() => Task.FromResult(Head(tab, 6) == "line 2"), () => Head(tab, 30) + "|" + _w.StatusLeftText);
+        TestApp.Press(_w, Key.V, TestApp.Mod);
+        await Eventually(() => Task.FromResult(Head(tab, 6) == "line 1"));
+        Assert.Equal(2, tab.Doc.Doc.UndoDepth);
+    }
+
+    private static async Task Eventually(Func<Task<bool>> condition, Func<string>? state = null)
+    {
+        for (int i = 0; i < 200 && !await condition(); i++)
+        {
+            await Task.Delay(10);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(await condition(), state?.Invoke());
     }
 
     [AvaloniaFact]

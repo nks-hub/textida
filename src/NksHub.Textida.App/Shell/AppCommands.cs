@@ -53,10 +53,11 @@ internal static class AppCommands
         Do("nks.edit.redo", w => w.Redo());
         On("nks.edit.cut", w => w.CutAsync());
         On("nks.edit.copy", w => w.CopyAsync());
-        On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null && w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null && w.ActiveHex is null && w.Active?.Paged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.edit.selectAll", w =>
         {
             if (w.ActiveHex is { } hex) { hex.SelectAll(); return CommandOutcome.Handled; }
+            if (w.Active?.Paged is { } paged) { paged.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled;
             s.SelectAll();
             return CommandOutcome.Handled;
