@@ -232,7 +232,7 @@ internal sealed class OpenDocument : IDisposable
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
-        if (!_eolTimer.IsEnabled) _eolTimer.Start();
+        if (e.Change.TouchesLineBreaks && !_eolTimer.IsEnabled) _eolTimer.Start();
         Changed?.Invoke();
     }
 

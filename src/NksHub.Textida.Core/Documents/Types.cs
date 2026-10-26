@@ -81,6 +81,9 @@ public enum ChangeKind { Edit, Undo, Redo, Backend, View }
 /// <summary>One change as stored in the log: edits in the coordinates of the previous revision, ascending and disjoint.</summary>
 public sealed record ChangeSet(long Revision, ChangeKind Kind, string? Source, IReadOnlyList<ChangeSet.Span> Edits)
 {
+    /// <summary>False when no byte that was inserted or removed is a CR or LF byte, so the line endings of the document cannot have changed; true when unknown.</summary>
+    public bool TouchesLineBreaks { get; init; } = true;
+
     public readonly record struct Span(long Start, long Deleted, long Inserted);
 }
 
