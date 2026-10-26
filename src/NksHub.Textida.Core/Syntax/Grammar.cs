@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -22,6 +21,7 @@ public sealed class Grammar
 
     private readonly Dictionary<string, string> _caseSensitiveWords = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _caseInsensitiveWords = new(StringComparer.OrdinalIgnoreCase);
+    internal int MaximumKeywordLength { get; private set; }
 
     internal Grammar(GrammarRegistry registry, string id, string name, string? version, bool caseSensitive, string wordPattern,
         IReadOnlyList<string> extensions, IReadOnlyList<string> fileNames, string? firstLine)
@@ -56,8 +56,11 @@ public sealed class Grammar
     /// <summary>State at the start of the first line.</summary>
     public LineState InitialState => Root.Push(null);
 
-    internal void AddWord(string word, string kind, bool caseSensitive) =>
+    internal void AddWord(string word, string kind, bool caseSensitive)
+    {
         (caseSensitive ? _caseSensitiveWords : _caseInsensitiveWords).TryAdd(word, kind);
+        MaximumKeywordLength = Math.Max(MaximumKeywordLength, word.Length);
+    }
 
     internal string? LookupWord(ReadOnlySpan<char> word)
     {
@@ -65,6 +68,7 @@ public sealed class Grammar
         if (_caseInsensitiveWords.Count > 0 && _caseInsensitiveWords.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(word, out kind)) return kind;
         return null;
     }
+
 
     /// <summary>Compiles every context now, so a bad regular expression or a missing include surfaces as <see cref="GrammarException"/>.</summary>
     public void Validate()
@@ -159,7 +163,7 @@ internal sealed class IncludeRule : Rule
 /// <summary>A region with its own rules: the root, a string, a comment, an embedded language. Its identity is what a <see cref="LineState"/> frame refers to.</summary>
 internal sealed class ContextDef : Rule
 {
-    private readonly ConcurrentDictionary<object, LineState> _states = new(ReferenceEqualityComparer.Instance);
+    private readonly ConditionalWeakTable<object, WeakReference<LineState>> _states = new();
     private Matcher? _matcher;
 
     [SetsRequiredMembers]
@@ -176,13 +180,24 @@ internal sealed class ContextDef : Rule
     public string? Embed { get; init; }
     public List<Rule> Rules { get; } = [];
 
-    public LineState Push(LineState? parent) => _states.GetOrAdd(parent ?? (object)this, _ => new LineState(this, parent));
+    public LineState Push(LineState? parent)
+    {
+        var reference = _states.GetValue(parent ?? (object)this, _ => new WeakReference<LineState>(null!));
+        lock (reference)
+        {
+            if (reference.TryGetTarget(out var state)) return state;
+            state = new LineState(this, parent);
+            reference.SetTarget(state);
+            return state;
+        }
+    }
 
     public Matcher GetMatcher() => _matcher ?? Interlocked.CompareExchange(ref _matcher, Build(), null) ?? _matcher;
 
     private Matcher Build()
     {
         var alts = new List<Alt>();
+        var patterns = new List<string>();
         var sb = new StringBuilder();
 
         void Add(string pattern, Grammar owner, Alt alt)
@@ -190,6 +205,7 @@ internal sealed class ContextDef : Rule
             if (sb.Length > 0) sb.Append('|');
             sb.Append("(?<r").Append(alts.Count).Append(">(?").Append(owner.CaseSensitive ? ":" : "i:").Append(pattern).Append("))");
             alts.Add(alt);
+            patterns.Add(pattern);
         }
 
         if (End is not null) Add(End, Owner, new Alt(AltKind.End, null, null, Owner));
@@ -231,7 +247,7 @@ internal sealed class ContextDef : Rule
         }
         var groups = new int[alts.Count];
         for (int i = 0; i < groups.Length; i++) groups[i] = re.GroupNumberFromName("r" + i);
-        return new Matcher(re, [.. alts], groups);
+        return new Matcher(re, [.. alts], groups, [.. patterns]);
     }
 
     private static List<Rule> Resolve(IncludeRule include)
@@ -251,4 +267,4 @@ internal enum AltKind { End, Match, Word, Begin }
 
 internal readonly record struct Alt(AltKind Kind, string? Token, ContextDef? Child, Grammar Owner);
 
-internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups);
+internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups, string[] Patterns);

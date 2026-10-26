@@ -4,14 +4,15 @@ namespace NksHub.Textida.Core;
 
 /// <summary>
 /// Frozen content of a <see cref="PagedDocument"/>: the piece list plus references to the append-only add buffer
-/// and the mapping. <see cref="Materialize"/> copies the bytes out when the mapping is about to go away.
+/// and a lease on the original file handle. Closing or saving the document does not copy the snapshot into memory.
+/// External changes to the original file's length or write time invalidate reads; writes preserving both are not detected.
 /// </summary>
 public sealed class PagedSnapshot : IByteSnapshot
 {
     private readonly Piece[] _pieces;
     private readonly long[] _ends;
     private byte[]? _add;
-    private MappedFile? _file;
+    private MappedFile.SnapshotLease? _source;
     private byte[]? _copy;
     private readonly object _gate = new();
 
@@ -19,11 +20,11 @@ public sealed class PagedSnapshot : IByteSnapshot
     {
         _pieces = pieces;
         _add = add;
-        _file = file;
         _ends = new long[pieces.Length];
         long sum = 0;
         for (int i = 0; i < pieces.Length; i++) _ends[i] = sum += pieces[i].Length;
         ByteLength = sum;
+        _source = file.RetainSnapshot();
     }
 
     public long ByteLength { get; }
@@ -47,8 +48,8 @@ public sealed class PagedSnapshot : IByteSnapshot
                 var p = _pieces[i];
                 long skip = offset + done - (_ends[i] - p.Length);
                 int take = (int)Math.Min(p.Length - skip, destination.Length - done);
-                var src = p.Original ? _file!.GetSpan(p.Start + skip, take) : _add.AsSpan((int)(p.Start + skip), take);
-                src.CopyTo(destination[done..]);
+                if (p.Original) _source!.Read(p.Start + skip, destination.Slice(done, take));
+                else _add.AsSpan((int)(p.Start + skip), take).CopyTo(destination[done..]);
                 done += take;
                 i++;
             }
@@ -66,7 +67,8 @@ public sealed class PagedSnapshot : IByteSnapshot
             Read(0, copy);
             _copy = copy;
             _add = null;
-            _file = null;
+            _source?.Dispose();
+            _source = null;
         }
     }
 }

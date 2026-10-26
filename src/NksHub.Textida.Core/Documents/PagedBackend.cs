@@ -22,7 +22,6 @@ public sealed class PagedBackend : IByteBackend
     private const int Chunk = 1 << 16;
 
     private readonly MappedFileSourceOptions _options;
-    private readonly List<WeakReference<PagedSnapshot>> _snapshots = [];
     private PagedDocument _doc;
     private string? _path;
     private int _bom;
@@ -96,19 +95,10 @@ public sealed class PagedBackend : IByteBackend
         return Codec.GetString(bytes);
     }
 
-    public IByteSnapshot CreateSnapshot()
-    {
-        var snapshot = _doc.CreateSnapshot();
-        _snapshots.RemoveAll(w => !w.TryGetTarget(out _));
-        _snapshots.Add(new(snapshot));
-        return snapshot;
-    }
+    public IByteSnapshot CreateSnapshot() => _doc.CreateSnapshot();
 
     public void ReplaceBackingFile(string tempPath, string targetPath)
     {
-        foreach (var weak in _snapshots)
-            if (weak.TryGetTarget(out var s)) s.Materialize();
-        _snapshots.Clear();
         _doc.Dispose();
         try
         {
@@ -227,9 +217,6 @@ public sealed class PagedBackend : IByteBackend
 
     public void Dispose()
     {
-        foreach (var weak in _snapshots)
-            if (weak.TryGetTarget(out var s)) s.Materialize();
-        _snapshots.Clear();
         _doc.Dispose();
     }
 }
