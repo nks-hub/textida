@@ -130,11 +130,12 @@ public class LongLineColumnTests
         using var src = MappedFileSource.Open(f.Path, new MappedFileSourceOptions { StartIndexing = false });
         const int count = 200;
 
-        long before = GC.GetTotalAllocatedBytes(precise: true);
+        // this thread only: tests of other classes allocate in the same process at the same time
+        long before = GC.GetAllocatedBytesForCurrentThread();
         foreach (long col in new long[] { 0, 50_000_000, 90_000_000 })
             Assert.Equal(string.Concat(Enumerable.Range(0, count).Select(k => At(col + k))), src.ReadColumns(0, col, count));
         Assert.Equal("", src.ReadColumns(0, long.MaxValue, 0));
-        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True(allocated < 16 << 20, $"allocated {allocated >> 20} MiB");
 
         Assert.InRange(src.Columns.PointCount, 90, 110);
