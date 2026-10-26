@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksPad.Core\NksPad.Core.csproj" />
     <ProjectReference Include="..\NksPad.Document.Contract\NksPad.Document.Contract.csproj" />
+    <ProjectReference Include="..\NksPad.Journal.CrashHarness\NksPad.Journal.CrashHarness.csproj" />
   </ItemGroup>
 
 </Project>
