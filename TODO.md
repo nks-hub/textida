@@ -564,30 +564,35 @@ Neuložená práce přežije restart i pád. Žurnál je oddělený od automatic
 - [ ] **P1.5.1** Žurnál relace: pády a limit ztráty
   - **Co a proč:** Společný žurnál relace a snapshoty pro každý backend. Nepojmenovaný i změněný dokument přežije restart a pád. Ukládá se i stav pracovní plochy: karty a jejich skutečný neuložený obsah. Položka spojuje části P1.5.3–P1.5.5 a ověřuje celek.
   - **Funkce:** F150, F027
+  - **Stav 26. 10. 2026:** jádro hotové (commity 9832275–1e21479): harness `tests/NksPad.Journal.CrashHarness` zabíjí skutečný proces v náhodném okamžiku a porovnává s orákulem; 3 běhy (200, 300 a 200 iterací, celkem přes 53 000 operací) bez chyby, největší ztráta 920 ms při limitu 2000 ms, 371 useknutých nebo poškozených konců žurnálu rozpoznáno. Zbývá lišta „co se vrátilo“ v aplikaci.
   - **Hotovo, když:** zabití procesu během psaní a nový start obnoví všechny karty včetně nepojmenovaných se ztrátou nejvýš 2 s žurnálu (kap. 3), změřeno podle časových značek žurnálu; pád během zápisu žurnálu nepoškodí předchozí potvrzený stav; po obnově lišta ukáže, co se vrátilo.
   - **Závisí na:** P1.5.3, P1.5.4, P1.5.5
   - **Odhad:** F150 4–6 ČT (matice) za P1.5.1 a P1.5.3–P1.5.5; F027 bez odhadu
-- [ ] **P1.5.3** Formát žurnálu
+- [x] **P1.5.3** Formát žurnálu
   - **Co a proč:** Verzovaný formát žurnálu s kontrolním součtem záznamu a body potvrzení. Stejný žurnál použije uložení hexu na místo (P3.5.5), dávka náhrad (P2.5.6) a revize změn F178.
   - **Funkce:** F150 (částečně: formát)
+  - **Stav 26. 10. 2026:** hotovo: verzovaný formát s CRC na záznam, zápis po dávkách s fsync každých 500 ms (interval nad 1 s se odmítne), bezpečná komprese; uříznutí na každém bajtu a otočení libovolného bitu vrátí právě předchozí záznamy; rozložení 2 (kodek podle `TextCodec.Name`) čte i rozložení 1 migrací. Popis v `src/NksPad.Core/Journal/FORMAT.md`.
   - **Hotovo, když:** useknutý nebo poškozený poslední záznam se při čtení pozná a zahodí bez ztráty předchozích; starší verze formátu se přečte testovanou migrací.
   - **Závisí na:** P1.2.4
   - **Odhad:** v rámci F150 (viz P1.5.1)
-- [ ] **P1.5.4** Zápis a obnova dokumentu
+- [x] **P1.5.4** Zápis a obnova dokumentu
   - **Co a proč:** Změny dokumentu jdou do žurnálu průběžně, velké vložené bloky jako odkaz na snapshot. Obnova postaví dokument nad stejnými původními bajty a revizí podkladu.
   - **Funkce:** F150 (částečně: dokument)
+  - **Stav 26. 10. 2026:** hotovo: obnova vrátí bajty, revizi, kroky undo a stav neuloženo pojmenovaných i nepojmenovaných dokumentů včetně převodů kódování; změněný nebo chybějící soubor dá Conflict nebo Missing a nic se nepoužije ani nezapíše; 20MiB stránkovaný soubor má žurnál pod 4 KB. Undo z doby před uložením se neobnovuje.
   - **Hotovo, když:** obnovený dokument má stejné bajty, revizi, undo a stav „neuloženo“ jako před pádem; když se podklad na disku mezitím změnil, obnova ohlásí konflikt a nic nepřepíše.
   - **Závisí na:** P1.5.3, P1.4.4
   - **Odhad:** v rámci F150 (viz P1.5.1)
 - [ ] **P1.5.5** Relace a nepojmenované karty
   - **Co a proč:** Seznam karet, skupin a pořadí, nepojmenované dokumenty a jejich obsah.
   - **Funkce:** F027
+  - **Stav 26. 10. 2026:** model relace hotový: skupiny, pořadí karet, aktivní karta, nepojmenované dokumenty a výběry přes kotvy se uloží a obnoví; čtou se jen soubory `session-*.njl`. Zbývá napojit obnovu na aplikaci.
   - **Hotovo, když:** po restartu jsou karty ve stejných skupinách a pořadí a nepojmenované dokumenty mají celý obsah.
   - **Závisí na:** P1.5.3, P1.4.5
   - **Odhad:** v rámci F150 (viz P1.5.1)
 - [ ] **P1.5.2** Zálohy a automatické ukládání odděleně
   - **Co a proč:** Autosave do zdrojového souboru je volba uživatele a je oddělený od žurnálu obnovy. Cesty záloh a žurnálu mají kontrolu dostupnosti. Náhradní místo žurnálu se určí ve schématu nastavení (P1.7.1), aby ho test znal předem.
   - **Funkce:** F110, F109
+  - **Stav 26. 10. 2026:** záloha při uložení (centrální složka nebo vedle souboru) a autosave ve výchozím stavu vypnutý; žurnál přejde na náhradní složku a ohlásí, když nejde zapsat nikam; test potvrdí, že žurnál nikdy nezapíše soubor uživatele. Zbývá hlášení v aplikaci.
   - **Hotovo, když:** s vypnutým autosave se zdrojový soubor nikdy nezmění bez uložení; nedostupná primární cesta se ohlásí při startu a žurnál přejde na náhradní místo; když nejde ani náhradní místo, aplikace to řekne a neslibuje obnovu po pádu, neuložený obsah zůstane v otevřené kartě.
   - **Závisí na:** P1.5.1
   - **Odhad:** bez odhadu
