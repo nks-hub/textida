@@ -356,3 +356,28 @@ public class ChangeTests
         Assert.Empty(Directory.GetFiles(journal, "batch-*.njl"));
     }
 }
+
+[Collection("Crash harness")]
+public class BatchCrashHarnessTest
+{
+    [Fact]
+    public void KillingTheEditorInsideAReplaceBatchLeavesABatchThatFinishesOrRollsBackToTheExpectedFiles()
+    {
+        var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Journal.CrashHarness.dll");
+        Assert.True(File.Exists(dll), dll);
+        using var dir = new JournalTempDir();
+        var psi = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var a in new[] { dll, "batch", "--iterations", "10", "--parallel", "4", "--seed", "7000", "--work", dir.Combine("w") }) psi.ArgumentList.Add(a);
+        using var proc = System.Diagnostics.Process.Start(psi)!;
+        var output = proc.StandardOutput.ReadToEndAsync();
+        var error = proc.StandardError.ReadToEndAsync();
+        Assert.True(proc.WaitForExit(240_000), "harness timed out");
+        Assert.True(proc.ExitCode == 0, output.Result + error.Result);
+        Assert.Contains("failures 0", output.Result);
+    }
+}
