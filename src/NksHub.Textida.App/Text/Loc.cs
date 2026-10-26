@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Text;
 
@@ -9,7 +10,7 @@ namespace NksHub.Textida.App.Text;
 internal sealed partial class StringsJson : JsonSerializerContext;
 
 /// <summary>
-/// UI text catalogue. One embedded JSON file per language (<c>Strings/{tag}.json</c>, flat key to text), so a language is added by dropping in a file.
+/// UI text catalogue. One embedded JSON file per language of <see cref="StringTable.UiLanguages"/> (<c>Strings/{tag}.json</c>, flat key to text).
 /// Placeholders are named, <c>{name}</c>; <c>{{</c> and <c>}}</c> are literal braces.
 /// Plural forms are separate keys <c>key.one</c>, <c>key.few</c>, <c>key.many</c>, <c>key.other</c> chosen by <see cref="PluralRules"/>.
 /// A missing key falls back to the default language, then to the key itself, so a label is never empty.
@@ -26,7 +27,7 @@ public static class Loc
     /// <summary>Raised after <see cref="SetLanguage"/> changed the active language.</summary>
     public static event Action? Changed;
 
-    public static IReadOnlyCollection<string> Languages => Catalogs.Keys;
+    public static IReadOnlyList<string> Languages => StringTable.UiLanguages;
 
     internal static IReadOnlyDictionary<string, string> Catalog(string language) => Catalogs[language];
 
@@ -108,14 +109,13 @@ public static class Loc
         var asm = typeof(Loc).Assembly;
         const string prefix = "NksHub.Textida.App.Strings.", suffix = ".json";
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
-        foreach (var name in asm.GetManifestResourceNames())
+        foreach (var tag in StringTable.UiLanguages)
         {
-            if (!name.StartsWith(prefix, StringComparison.Ordinal) || !name.EndsWith(suffix, StringComparison.Ordinal)) continue;
-            using var stream = asm.GetManifestResourceStream(name)!;
-            result[name[prefix.Length..^suffix.Length]] = JsonSerializer.Deserialize(stream, StringsJson.Default.DictionaryStringString)
+            var name = prefix + tag + suffix;
+            using var stream = asm.GetManifestResourceStream(name) ?? throw new InvalidDataException($"string catalogue {name} is not embedded");
+            result[tag] = JsonSerializer.Deserialize(stream, StringsJson.Default.DictionaryStringString)
                 ?? throw new InvalidDataException($"empty string catalogue {name}");
         }
-        if (!result.ContainsKey(DefaultLanguage)) throw new InvalidDataException($"default language '{DefaultLanguage}' is not embedded");
         return result;
     }
 }

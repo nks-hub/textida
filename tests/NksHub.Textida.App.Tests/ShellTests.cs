@@ -75,6 +75,10 @@ public partial class ShellTests : IDisposable
         var doc = w.NewDocument();
         doc.Editor!.Text = "Příliš žluťoučký kůň\r\nřádek 2\n";
         var bytesBefore = Encoding.UTF8.GetBytes(doc.Editor.Text);
+        app.SetLanguage("cs");
+        Assert.Null(app.Workbench.Set("editor.fontSize", System.Text.Json.Nodes.JsonValue.Create(13)));
+        Assert.Null(app.Workbench.Set("tools.diffArguments", "\"{left}\" \"{right}\" –ž"));
+        var settingsBefore = File.ReadAllBytes(app.Workbench.UserSettingsPath);
 
         foreach (var lang in Loc.Languages.Concat(["cs"]))
         {
@@ -86,6 +90,7 @@ public partial class ShellTests : IDisposable
 
         Assert.Equal(CsMenus, w.MenuHeaders);
         Assert.Equal(bytesBefore, Encoding.UTF8.GetBytes(doc.Editor.Document.Text));
+        Assert.Equal(settingsBefore, File.ReadAllBytes(app.Workbench.UserSettingsPath));
         Assert.Same(doc, w.Active);
         w.Close();
     }
@@ -100,6 +105,12 @@ public partial class ShellTests : IDisposable
         Assert.Equal(EnMenus, w.MenuHeaders);
         Assert.Contains("Untitled", w.Active!.Title);
         Assert.Equal("1 result", Loc.Plural(K.SettingsResultCount, 1));
+        app.SetLanguage("sk");
+        Assert.Equal(["Súbor", "Úpravy", "Hľadať", "Zobraziť", "Formát", "Nastavenia", "Okno", "Pomocník"], w.MenuHeaders);
+        Assert.Contains("Bez názvu", w.Active!.Title);
+        app.SetLanguage("de");
+        Assert.Equal(["Datei", "Bearbeiten", "Suchen", "Ansicht", "Format", "Einstellungen", "Fenster", "Hilfe"], w.MenuHeaders);
+        Assert.Contains("Unbenannt", w.Active!.Title);
         app.SetLanguage("cs");
         Assert.Contains("Bez názvu", w.Active!.Title);
         w.Close();

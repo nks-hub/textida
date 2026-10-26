@@ -370,6 +370,16 @@
       "category": "cat.app"
     },
     {
+      "id": "nks.settings.language.sk",
+      "title": "cmd.settings.language.sk",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.language.de",
+      "title": "cmd.settings.language.de",
+      "category": "cat.app"
+    },
+    {
       "id": "nks.help.about",
       "title": "cmd.help.about",
       "category": "cat.app"
@@ -711,6 +721,18 @@
       "command": "nks.settings.language.en",
       "group": "3_language",
       "order": 20
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.language.sk",
+      "group": "3_language",
+      "order": 30
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.language.de",
+      "group": "3_language",
+      "order": 40
     },
     {
       "menu": "help",
@@ -1165,12 +1187,16 @@
         "language",
         "locale",
         "czech",
-        "english"
+        "english",
+        "slovak",
+        "german"
       ],
       "enum": [
         "auto",
         "cs",
-        "en"
+        "en",
+        "sk",
+        "de"
       ]
     },
     {

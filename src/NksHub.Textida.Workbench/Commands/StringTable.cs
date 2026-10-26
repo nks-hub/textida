@@ -7,6 +7,12 @@ namespace NksHub.Textida.Workbench.Commands;
 /// <summary>Resource keys to texts for one UI language, with an optional fallback table (usually English).</summary>
 public sealed class StringTable(IReadOnlyDictionary<string, string> texts, StringTable? fallback = null)
 {
+    /// <summary>
+    /// The UI languages the product ships, in menu order; the first is the default. The only list of languages:
+    /// both string catalogues, the <c>workbench.uiLanguage</c> setting and the language commands are tested against it.
+    /// </summary>
+    public static IReadOnlyList<string> UiLanguages { get; } = ["cs", "en", "sk", "de"];
+
     /// <summary>True when this table itself (not its fallback) has the key, i.e. the text is translated.</summary>
     public bool HasOwn(string key) => texts.ContainsKey(key);
 
@@ -19,7 +25,7 @@ public sealed class StringTable(IReadOnlyDictionary<string, string> texts, Strin
     public static StringTable FromJson(string json, StringTable? fallback = null) =>
         new(JsonSerializer.Deserialize(json, ContributionJson.Default.DictionaryStringString) ?? [], fallback);
 
-    /// <summary>Loads the built-in table for <paramref name="language"/> ("en", "cs"); unknown languages get English.</summary>
+    /// <summary>Loads the built-in table for <paramref name="language"/> (one of <see cref="UiLanguages"/>); unknown languages get English.</summary>
     public static StringTable LoadBuiltin(string language)
     {
         var english = FromJson(BuiltinResources.ReadText("strings.en.json"));

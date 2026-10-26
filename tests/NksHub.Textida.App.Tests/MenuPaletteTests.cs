@@ -111,7 +111,12 @@ public class MenuPaletteTests : IDisposable
         Assert.False(Item("nks.settings.theme.system").Checked);
         Item("nks.settings.language.en").Run();
         Assert.Equal(["File", "Edit", "Search", "View", "Format", "Settings", "Window", "Help"], _w.MenuHeaders);
-        Item("nks.settings.language.cs").Run();
+        foreach (var lang in Loc.Languages.Reverse())
+        {
+            Item("nks.settings.language." + lang).Run();
+            Assert.Equal(lang, _app.Settings.Language);
+            Assert.All(Loc.Languages, other => Assert.Equal(other == lang, Item("nks.settings.language." + other).Checked));
+        }
         Item("nks.settings.theme.system").Run();
     }
 

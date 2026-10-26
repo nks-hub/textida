@@ -39,11 +39,13 @@ public class LocalizationTests : IDisposable
     public static IEnumerable<object[]> Languages() => Loc.Languages.Select(l => new object[] { l });
 
     [Fact]
-    public void Default_language_and_english_ship()
+    public void The_mvp_languages_ship_and_every_embedded_catalogue_is_one_of_them()
     {
-        Assert.Contains("cs", Loc.Languages);
-        Assert.Contains("en", Loc.Languages);
-        Assert.Equal("cs", Loc.DefaultLanguage);
+        Assert.Equal(["cs", "en", "sk", "de"], Loc.Languages); // P1.1.7: MVP UI languages
+        Assert.Equal(Loc.DefaultLanguage, Loc.Languages[0]);
+        const string prefix = "NksHub.Textida.App.Strings.";
+        var embedded = typeof(Loc).Assembly.GetManifestResourceNames().Where(n => n.StartsWith(prefix, StringComparison.Ordinal)).Select(n => n[prefix.Length..^".json".Length]);
+        Assert.Equal(Loc.Languages.Order(), embedded.Order());
     }
 
     [Theory, MemberData(nameof(Languages))]
@@ -130,15 +132,60 @@ public class LocalizationTests : IDisposable
             Assert.False(string.IsNullOrWhiteSpace(text));
             Assert.DoesNotContain('{', text);
             Assert.DoesNotContain('}', text);
-            if (lang != "cs" || n != 1) Assert.Contains(n.ToString(), text);
+            Assert.Contains(n.ToString(), text);
         }
-        Assert.Equal(lang == "cs" ? "1 výsledek" : "1 result", Loc.Plural(K.SettingsResultCount, 1));
+    }
+
+    [Theory]
+    [InlineData("cs", "1 výsledek", "3 výsledky", "5 výsledků")]
+    [InlineData("en", "1 result", "3 results", "5 results")]
+    [InlineData("sk", "1 výsledok", "3 výsledky", "5 výsledkov")]
+    [InlineData("de", "1 Ergebnis", "3 Ergebnisse", "5 Ergebnisse")]
+    public void Plural_forms_read_naturally(string lang, string one, string three, string five)
+    {
+        Loc.SetLanguage(lang);
+        Assert.Equal([one, three, five], new long[] { 1, 3, 5 }.Select(n => Loc.Plural(K.SettingsResultCount, n)));
+    }
+
+    /// <summary>Every key with a placeholder or a plural form, in every language: all placeholders filled, the CLDR form of the count chosen.</summary>
+    [Theory, MemberData(nameof(Languages))]
+    public void Every_placeholder_and_plural_key_formats_completely(string lang)
+    {
+        Loc.SetLanguage(lang);
+        var c = Loc.Catalog(lang);
+        var plurals = PluralBases("cs").ToHashSet();
+        int checkedKeys = 0;
+        foreach (var key in BaseKeys("cs"))
+        {
+            var forms = plurals.Contains(key) ? c.Where(kv => kv.Key.StartsWith(key + ".", StringComparison.Ordinal)).Select(kv => kv.Value).ToList() : [c[key]];
+            var names = forms.SelectMany(Loc.Placeholders).Where(p => p != "count").Distinct().ToList();
+            if (!plurals.Contains(key) && names.Count == 0) continue;
+            var args = names.Select(p => (p, (object)$"<{p}>")).ToArray();
+            checkedKeys++;
+            if (!plurals.Contains(key))
+            {
+                var text = Loc.Get(key, args);
+                Assert.True(text.IndexOfAny(['{', '}']) < 0 && names.All(p => text.Contains($"<{p}>")), $"{lang}:{key} -> {text}");
+                continue;
+            }
+            foreach (long n in new long[] { 0, 1, 2, 3, 4, 5, 11, 21, 22, 101 })
+            {
+                var text = Loc.Plural(key, n, args);
+                var template = c[$"{key}.{PluralRules.Select(lang, n)}"];
+                Assert.Equal(Loc.Format(template, [("count", n), .. args]), text);
+                Assert.True(text.IndexOfAny(['{', '}']) < 0 && names.All(p => text.Contains($"<{p}>")), $"{lang}:{key}({n}) -> {text}");
+                if (template.Contains("{count}")) Assert.Contains(n.ToString(), text);
+            }
+        }
+        Assert.True(checkedKeys >= 40, $"only {checkedKeys} keys checked");
     }
 
     [Theory]
     [InlineData("cs", 0, "other"), InlineData("cs", 1, "one"), InlineData("cs", 2, "few"), InlineData("cs", 4, "few"), InlineData("cs", 5, "other"), InlineData("cs", 21, "other")]
     [InlineData("en", 0, "other"), InlineData("en", 1, "one"), InlineData("en", 2, "other"), InlineData("en", 21, "other")]
-    [InlineData("sk", 3, "few"), InlineData("de", 3, "other"), InlineData("xx", 1, "one")]
+    [InlineData("sk", 0, "other"), InlineData("sk", 1, "one"), InlineData("sk", 2, "few"), InlineData("sk", 4, "few"), InlineData("sk", 5, "other"), InlineData("sk", 22, "other"), InlineData("sk", -3, "few")]
+    [InlineData("de", 0, "other"), InlineData("de", 1, "one"), InlineData("de", 2, "other"), InlineData("de", 3, "other"), InlineData("de", 21, "other")]
+    [InlineData("xx", 1, "one")]
     public void Plural_categories(string lang, long n, string expected) => Assert.Equal(expected, PluralRules.Select(lang, n));
 
     [Fact]
@@ -219,8 +266,8 @@ public class LocalizationTests : IDisposable
         sb.AppendLine();
         sb.AppendLine("Vzniká z `src/NksHub.Textida.App/Strings/cs.json` testem `Inventory_document_is_up_to_date`; ruční úpravy test odmítne. Přegenerování: `UPDATE_INVENTORY=1 dotnet test tests/NksHub.Textida.App.Tests`.");
         sb.AppendLine();
-        sb.AppendLine($"Jazyky v prostředcích: {string.Join(", ", Loc.Languages.Order())}. Výchozí: {Loc.DefaultLanguage}. Počet klíčů: {BaseKeys("cs").Count}.");
-        sb.AppendLine("Které jazyky vyjdou v MVP, rozhodne P1.1.7; infrastruktura nezná pevný počet jazyků.");
+        sb.AppendLine($"Jazyky v prostředcích: {string.Join(", ", Loc.Languages)}. Výchozí: {Loc.DefaultLanguage}. Počet klíčů: {BaseKeys("cs").Count}.");
+        sb.AppendLine("Jazyky MVP určila P1.1.7; jediný seznam je `StringTable.UiLanguages`, testy podle něj hlídají oba katalogy, nastavení `workbench.uiLanguage` a příkazy jazyka.");
         sb.AppendLine("Texty nabídek a příkazů jsou v katalogu knihovny Workbench (`strings.cs.json`), ne tady.");
         foreach (var group in BaseKeys("cs").Order(StringComparer.Ordinal).GroupBy(k => k[..k.IndexOf('.')]))
         {
