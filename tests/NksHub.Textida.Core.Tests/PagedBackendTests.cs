@@ -180,4 +180,19 @@ public class PagedBackendTests
         Assert.True(d.TryGetOffset(new(3, 0), out long third));
         Assert.Equal(lineStarts[3], third);
     }
+
+    [Fact]
+    public void SaveAsInTheSameEncodingWritesTheEditedBytesAndKeepsUndo()
+    {
+        using var tmp = new TempFile("a\nb\n"u8.ToArray());
+        using var d = Doc.Open(tmp.Path, new PagedBackendFactory(), new DocumentOptions { Format = TestFormat.Utf8.Format });
+        Assert.True(d.Insert(2, "é"u8.ToArray()).Applied);
+        var target = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(tmp.Path)!, "copy.txt");
+
+        var result = d.SaveAs(target, d.Codec);
+
+        Assert.True(result.Saved);
+        Assert.Equal("a\né"u8.ToArray().Concat("b\n"u8.ToArray()).ToArray(), File.ReadAllBytes(target));
+        Assert.True(d.CanUndo);
+    }
 }
