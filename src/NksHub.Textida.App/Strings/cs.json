@@ -90,7 +90,7 @@
   "loss.message.few": "{count} znaky nejdou zapsat v kódování {encoding}: {groups}.",
   "loss.message.other": "{count} znaků nejde zapsat v kódování {encoding}: {groups}.",
   "loss.replacement": "Při pokračování se každý z nich nahradí znakem „?“. Nic jiného se nezmění.",
-  "loss.entry": "{char} ({code}) · řádek {line}, sloupec {column} · bajt {byte}",
+  "loss.entry": "{char} ({code}) · řádek {line}, sloupec {column} · bajt {byte} → {replacement}",
   "loss.more": "… a další",
   "loss.saveReplaced": "Nahradit a uložit",
   "loss.convertReplaced": "Nahradit a převést",
@@ -478,5 +478,13 @@
   "hex.changes.stream": "Uloží se jako nový soubor a atomicky se vymění (délka se mění z {old} na {new} B).",
   "hex.changes.none": "Žádné neuložené změny.",
   "hex.changes.close": "Zavřít",
-  "hex.changes.entry": "{offset}  {length} B  nově: {new}"
+  "hex.changes.entry": "{offset}  {length} B  nově: {new}",
+  "loss.size": "Velikost v {encoding}: {before} B → {after} B.",
+  "loss.changeEncoding": "Změnit kódování…",
+  "loss.hexShow": "Zobrazit v hexu",
+  "loss.pick.title": "Změnit kódování",
+  "loss.pick.label": "Zapsat text v tomto kódování (kódování, která ztratí znaky, jsou označená):",
+  "hex.goto.preview": "→ {offset} ({decimal}) · bajt {value}",
+  "hex.goto.previewEnd": "→ {offset} ({decimal}) · konec souboru",
+  "hex.goto.previewA11y": "Cíl skoku"
 }

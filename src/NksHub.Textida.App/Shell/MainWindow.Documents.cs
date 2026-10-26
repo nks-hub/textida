@@ -41,7 +41,7 @@ internal sealed partial class MainWindow
             var od = OpenDocument.Open(path, LargeFileBytes);
             Adopt(od);
             tab = AddView(od, _activeGroup);
-            OfferHex(tab);
+            tab = OfferHex(tab);
         }
         else SelectTab(tab);
         if (line is { } l) tab.GoToLine(l);

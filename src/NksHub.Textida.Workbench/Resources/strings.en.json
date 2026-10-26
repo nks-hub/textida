@@ -204,5 +204,7 @@
   "cmd.hex.bytesPerRow.48": "48 Bytes per Row",
   "cmd.hex.bytesPerRow.64": "64 Bytes per Row",
   "cmd.hex.offsetFormat": "Toggle Decimal and Hexadecimal Offsets",
-  "cmd.hex.inspectChanges": "Changes Before Saving..."
+  "cmd.hex.inspectChanges": "Changes Before Saving...",
+  "setting.files.binaryAsHex.title": "Binary files in hex",
+  "setting.files.binaryAsHex.description": "What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch."
 }
