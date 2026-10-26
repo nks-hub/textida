@@ -315,6 +315,54 @@ public class HexSaveTests
         Assert.Equal(0, events);
     }
 
+    [Fact]
+    public void Snapshot_reads_running_in_parallel_with_repeated_own_saves_never_fail_and_return_their_revision()
+    {
+        byte[] original = Random(4 << 20);
+        using var file = new TempFile(original);
+        using var d = Open(file.Path);
+        var states = new List<(DocumentSnapshot Snapshot, byte[] Bytes)> { (d.GetSnapshot(), original) };
+        var current = (byte[])original.Clone();
+        using var stop = new CancellationTokenSource();
+        var failures = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var readers = Enumerable.Range(0, 4).Select(k => Task.Run(() =>
+        {
+            var r = new Random(k);
+            var buf = new byte[4096];
+            while (!stop.IsCancellationRequested)
+            {
+                DocumentSnapshot snapshot;
+                byte[] bytes;
+                lock (states) (snapshot, bytes) = states[r.Next(states.Count)];
+                long at = r.NextInt64(0, snapshot.ByteLength - buf.Length);
+                try
+                {
+                    int n = snapshot.Read(at, buf);
+                    if (!buf.AsSpan(0, n).SequenceEqual(bytes.AsSpan((int)at, n))) failures.Enqueue($"wrong bytes at {at}");
+                }
+                catch (Exception e)
+                {
+                    failures.Enqueue(e.GetType().Name + ": " + e.Message);
+                }
+            }
+        })).ToArray();
+        for (int round = 0; round < 40; round++)
+        {
+            long at = (round * 97_531L) % (current.Length - 16);
+            var patch = new byte[] { (byte)round, 2, 3, 4, 5, 6, 7, 8 };
+            Assert.True(d.Replace(new(at, at + 8), patch, Raw).Applied);
+            patch.CopyTo(current, at);
+            Assert.True(d.Save().Saved);
+            var snapshot = d.GetSnapshot();
+            lock (states) states.Add((snapshot, (byte[])current.Clone()));
+            Thread.Sleep(2);
+        }
+        stop.Cancel();
+        Task.WaitAll(readers);
+        Assert.Empty(failures);
+        Assert.Null(d.CheckExternalChange());
+    }
+
     // ---- async save ----
 
     [Fact]

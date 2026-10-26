@@ -136,6 +136,7 @@ public sealed unsafe class MappedFile : IDisposable
         private readonly SortedDictionary<long, int> activeStarts = [];
         private long patchSeq;
         private int writing;
+        private long writeEpoch; // changes at the start and the end of every own write; guarded by patchGate
 
         public long BeginLease()
         {
@@ -156,7 +157,14 @@ public sealed unsafe class MappedFile : IDisposable
             }
         }
 
-        public void BeginWrite() => Interlocked.Increment(ref writing);
+        public void BeginWrite()
+        {
+            lock (patchGate)
+            {
+                writing++;
+                writeEpoch++;
+            }
+        }
 
         public void Preserve(long offset, ReadOnlySpan<byte> old)
         {
@@ -169,8 +177,13 @@ public sealed unsafe class MappedFile : IDisposable
 
         public void EndWrite()
         {
-            if (stream is not null) lastWriteUtc = File.GetLastWriteTimeUtc(stream.SafeFileHandle);
-            Interlocked.Decrement(ref writing);
+            // the new baseline and the end of the write become visible together
+            lock (patchGate)
+            {
+                if (stream is not null) lastWriteUtc = File.GetLastWriteTimeUtc(stream.SafeFileHandle);
+                writing--;
+                writeEpoch++;
+            }
         }
 
         /// <summary>Puts the old bytes of the ranges written after the snapshot started over what was read, newest write first.</summary>
@@ -235,20 +248,30 @@ public sealed unsafe class MappedFile : IDisposable
         private void Validate()
         {
             if (Volatile.Read(ref invalidated) != 0) throw new SnapshotInvalidatedException();
-            long currentLength;
-            DateTime currentWriteUtc;
-            try
+            while (true)
             {
-                currentLength = RandomAccess.GetLength(stream!.SafeFileHandle);
-                currentWriteUtc = File.GetLastWriteTimeUtc(stream.SafeFileHandle);
-            }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-            {
-                Interlocked.Exchange(ref invalidated, 1);
-                throw new SnapshotInvalidatedException("The snapshot backing file metadata could not be read.", error);
-            }
-            if (currentLength != length || (currentWriteUtc != lastWriteUtc && Volatile.Read(ref writing) == 0))
-            {
+                long epoch;
+                lock (patchGate) epoch = writeEpoch;
+                long currentLength;
+                DateTime currentWriteUtc;
+                try
+                {
+                    currentLength = RandomAccess.GetLength(stream!.SafeFileHandle);
+                    currentWriteUtc = File.GetLastWriteTimeUtc(stream.SafeFileHandle);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                {
+                    Interlocked.Exchange(ref invalidated, 1);
+                    throw new SnapshotInvalidatedException("The snapshot backing file metadata could not be read.", error);
+                }
+                bool changed;
+                lock (patchGate)
+                {
+                    // an own write started or ended while the metadata was read: the values may belong to either side of it, so read them again
+                    if (epoch != writeEpoch) continue;
+                    changed = currentLength != length || (currentWriteUtc != lastWriteUtc && writing == 0);
+                }
+                if (!changed) return;
                 Interlocked.Exchange(ref invalidated, 1);
                 throw new SnapshotInvalidatedException();
             }
