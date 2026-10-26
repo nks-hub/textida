@@ -176,6 +176,61 @@ public class PagedDocumentTests
         }
     }
 
+    private static List<long> NaiveLineStarts(byte[] b)
+    {
+        var starts = new List<long> { 0 };
+        for (int i = 0; i < b.Length; i++)
+            if (b[i] == '\n' || (b[i] == '\r' && (i + 1 == b.Length || b[i + 1] != '\n'))) starts.Add(i + 1);
+        return starts;
+    }
+
+    [Theory]
+    [InlineData(1, 64)]
+    [InlineData(2, 1 << 20)]
+    [InlineData(3, 7)]
+    public async Task LineStartsAfterEditsMatchRescan(int seed, int blockSize)
+    {
+        var r = new Random(seed);
+        var original = System.Text.Encoding.UTF8.GetBytes(Gen.LineSoup(r, 3000));
+        using var tmp = new TempFile(original);
+        using var doc = PagedDocument.Open(tmp.Path, new MappedFileSourceOptions { IndexBlockSize = blockSize });
+        await doc.Source.IndexTask;
+        byte[][] inserts = ["\r"u8.ToArray(), "\n"u8.ToArray(), "\r\n"u8.ToArray(), "x"u8.ToArray(), "a\rb\nc"u8.ToArray(), "\n\r"u8.ToArray()];
+        for (int step = 0; step < 1500; step++)
+        {
+            int op = r.Next(10);
+            if (op < 5) doc.Insert(r.NextInt64(doc.ByteLength + 1), inserts[r.Next(inserts.Length)]);
+            else if (op < 8 && doc.ByteLength > 0)
+            {
+                long at = r.NextInt64(doc.ByteLength);
+                doc.Delete(at, Math.Min(r.Next(1, 4), doc.ByteLength - at));
+            }
+            else if (op < 9) doc.Undo();
+            else doc.Redo();
+
+            if (step % 25 != 0 && step != 1499) continue;
+            var starts = NaiveLineStarts(Snapshot(doc));
+            Assert.Equal((starts.Count, true), doc.LineIndexState);
+            for (int line = 0; line < starts.Count; line++)
+            {
+                Assert.True(doc.TryGetLineStart(line, out long off), $"step {step} line {line}");
+                Assert.Equal(starts[line], off);
+            }
+            Assert.False(doc.TryGetLineStart(starts.Count, out _));
+        }
+    }
+
+    [Fact]
+    public void EditedLineStartsWaitForBaseIndex()
+    {
+        using var tmp = new TempFile("a\nb\nc"u8.ToArray());
+        using var doc = PagedDocument.Open(tmp.Path, new MappedFileSourceOptions { StartIndexing = false });
+        doc.Insert(1, "\n"u8);
+        Assert.False(doc.TryGetLineStart(1, out _));
+        Assert.False(doc.LineIndexState.Complete);
+        Assert.Equal(["a", "", "b", "c"], doc.ReadLines(0, 10));
+    }
+
     [Fact]
     public void ReadLinesFromEditedDocumentMatchesText()
     {

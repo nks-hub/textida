@@ -141,6 +141,20 @@ public sealed class MappedFileSource : IPagedTextSource
         return true;
     }
 
+    /// <summary>Number of line terminators at offsets below <paramref name="offset"/>; scans at most one index block.</summary>
+    /// <exception cref="InvalidOperationException">The index does not reach <paramref name="offset"/> yet.</exception>
+    public long CountTerminatorsBefore(long offset)
+    {
+        if (offset < 0 || offset > _file.Length) throw new ArgumentOutOfRangeException(nameof(offset));
+        int b = (int)(offset / _blockSize);
+        if (b > Volatile.Read(ref _published)) throw new InvalidOperationException("The line index does not cover this offset yet.");
+        long start = (long)b * _blockSize;
+        int len = (int)(offset - start);
+        if (len == 0) return _cum[b];
+        var span = _file.GetSpan(start, (int)Math.Min(len + 1L, _file.Length - start));
+        return _cum[b] + LineScanner.CountTerminators(span, len);
+    }
+
     public ValueTask<IReadOnlyList<string>> ReadLinesAtAsync(long byteOffset, int maxLines, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

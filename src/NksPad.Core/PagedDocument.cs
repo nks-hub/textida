@@ -8,8 +8,9 @@ namespace NksPad.Core;
 /// in the file encoding and must fall on character boundaries. Not thread safe.
 /// </summary>
 /// <remarks>
-/// Line numbers are not tracked for an edited document: <see cref="TryGetLineStart"/> works only while
-/// the document is unmodified. <see cref="ReadLinesAtAsync"/> works in both states.
+/// Line numbers of an edited document come from terminator counts kept in the piece tree. They start
+/// once the base file index is complete; until then <see cref="TryGetLineStart"/> returns false for an
+/// edited document. <see cref="ReadLinesAtAsync"/> works in all states.
 /// </remarks>
 public sealed class PagedDocument : IPagedTextSource
 {
@@ -48,11 +49,12 @@ public sealed class PagedDocument : IPagedTextSource
     public int PieceCount => _tree.PieceCount();
     public event EventHandler? IndexProgress;
 
-    /// <summary>Base file line state; <c>Complete</c> is false once edits exist because lines of the edited text are not indexed.</summary>
+    /// <summary>Line state of the current text; for an edited document <c>Complete</c> stays false until the base file index is done.</summary>
     public (long Lines, bool Complete) LineIndexState
     {
         get
         {
+            if (IsModified && EnsureLineTracking()) return (_tree.Terminators + 1, true);
             var (lines, complete) = _source.LineIndexState;
             return (lines, complete && !IsModified);
         }
@@ -63,7 +65,52 @@ public sealed class PagedDocument : IPagedTextSource
     public bool TryGetLineStart(long line, out long byteOffset)
     {
         byteOffset = 0;
-        return !IsModified && _source.TryGetLineStart(line, out byteOffset);
+        if (!IsModified) return _source.TryGetLineStart(line, out byteOffset);
+        if (line < 0 || !EnsureLineTracking() || line > _tree.Terminators) return false;
+        if (line > 0) byteOffset = _tree.OffsetAfterTerminator(line, AfterNthTerminator);
+        return true;
+    }
+
+    private bool EnsureLineTracking()
+    {
+        if (_tree.TracksLines) return true;
+        if (!_source.LineIndexState.Complete) return false;
+        _tree.TrackLines(Measure);
+        return true;
+    }
+
+    private LineStats Measure(Piece p)
+    {
+        var first = PieceBytes(p with { Length = 1 });
+        var last = PieceBytes(p with { Start = p.Start + p.Length - 1, Length = 1 });
+        bool lastCr = last[0] == (byte)'\r';
+        long n;
+        if (p.Original)
+        {
+            long end = p.Start + p.Length;
+            n = _source.CountTerminatorsBefore(end) - _source.CountTerminatorsBefore(p.Start);
+            // the base index skips a CR followed by LF; read on its own the piece ends with a terminator
+            if (lastCr && end < _source.ByteLength && _source.File.GetSpan(end, 1)[0] == (byte)'\n') n++;
+        }
+        else
+        {
+            // shortcut: rescans the whole inserted block, fine for typing; pastes of hundreds of MiB need per-block counts (P7.1.2)
+            var bytes = PieceBytes(p);
+            n = LineScanner.CountTerminators(bytes, bytes.Length);
+        }
+        return new LineStats(n, first[0] == (byte)'\n', lastCr);
+    }
+
+    private long AfterNthTerminator(Piece p, long k)
+    {
+        if (!p.Original)
+        {
+            var bytes = PieceBytes(p);
+            return LineScanner.FindNthTerminator(bytes, bytes.Length, k) + 1;
+        }
+        long g = _source.CountTerminatorsBefore(p.Start) + k;
+        if (_source.TryGetLineStart(g, out long start) && start <= p.Start + p.Length) return start - p.Start;
+        return p.Length; // the trailing CR, a terminator only because the next piece does not start with LF
     }
 
     public void Insert(long offset, string text) => Replace(offset, 0, Encoding.GetBytes(text));
@@ -151,6 +198,10 @@ public sealed class PagedDocument : IPagedTextSource
         if (!IsModified) return _source.ReadLinesAtAsync(byteOffset, maxLines, ct);
         return new(Task.Run<IReadOnlyList<string>>(() => ReadLinesFromTree(byteOffset, maxLines), ct));
     }
+
+    /// <summary>Synchronous variant of <see cref="ReadLinesAtAsync"/>.</summary>
+    public IReadOnlyList<string> ReadLines(long byteOffset, int maxLines) =>
+        IsModified ? ReadLinesFromTree(byteOffset, maxLines) : _source.ReadLines(byteOffset, maxLines);
 
     private List<string> ReadLinesFromTree(long byteOffset, int maxLines)
     {

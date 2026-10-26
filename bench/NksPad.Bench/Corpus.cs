@@ -88,13 +88,13 @@ internal static class Corpus
     private static readonly string[] Verbs = ["GET", "POST", "PUT", "GET", "GET", "DELETE"];
     private static readonly string[] UrlPaths = ["/api/v2/orders/", "/api/v2/users/", "/static/app.js?v=", "/health?n=", "/api/v1/items/"];
 
-    private static int LogLine(Rng r, long chunk, long line, Span<char> b, bool injectRare)
+    private static int LogLine(Rng r, long chunk, long line, Span<char> b, bool injectRare, bool ascii)
     {
         int roll = r.Next(1000);
         int level = roll < 850 ? 0 : roll < 930 ? 1 : roll < 973 ? 2 : 3;
         int status = level == 3 ? 500 + r.Next(4) : r.Next(100) < 4 ? 404 : 200;
         int took = r.Next(100) < 3 ? 1000 + r.Next(30000) : 1 + r.Next(300);
-        string msg = r.Next(100) < 35 ? TextParts.MsgCz[r.Next(TextParts.MsgCz.Length)] : TextParts.MsgAscii[r.Next(TextParts.MsgAscii.Length)];
+        string msg = r.Next(100) < 35 && !ascii ? TextParts.MsgCz[r.Next(TextParts.MsgCz.Length)] : TextParts.MsgAscii[r.Next(TextParts.MsgAscii.Length)];
         long sec = 1_000_000 + chunk * 120 + line / 400;
         var ts = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(sec);
         string rare = injectRare ? " " + RareLog : "";
@@ -112,13 +112,13 @@ internal static class Corpus
         s.Add(prefix + new string('x', chars - prefix.Length - suffix.Length) + suffix);
     }
 
-    private static void FillLog(Sink s, Rng r, long chunk)
+    private static void FillLog(Sink s, Rng r, long chunk, bool ascii = false)
     {
         var b = new char[1024];
         long line = 0;
         while (s.Remaining > Reserve)
         {
-            int n = LogLine(r, chunk, line, b, line == 1000 && chunk % 2 == 0);
+            int n = LogLine(r, chunk, line, b, line == 1000 && chunk % 2 == 0, ascii);
             if (!s.Add(b.AsSpan(0, n))) break;
             line++;
         }
@@ -187,6 +187,7 @@ internal static class Corpus
         yield return Log("text-1GiB.log", 1L << 30, 3);
         yield return Log("text-10GiB.log", 10L << 30, 4);
         yield return Log("text-50GiB.log", 50L << 30, 5);
+        yield return new("ascii-100MiB.log", 100L << 20, 11, (b, n) => new Utf8Sink(b, n), (s, r, c, _) => FillLog(s, r, c, ascii: true));
         yield return new("oneline-100MiB.txt", 100L << 20, 6, (b, n) => new Utf8Sink(b, n), (s, r, _, _) => FillOneLine(s, r));
         yield return new("json-100MiB.json", 100L << 20, 7, (b, n) => new Utf8Sink(b, n),
             (s, r, c, cnt) => FillJson(s, r, c, c == 0, c == cnt - 1));
