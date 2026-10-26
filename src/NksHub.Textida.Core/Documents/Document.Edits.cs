@@ -223,11 +223,12 @@ public sealed partial class Document
     private void UpdateAnchors(ChangeSet change)
     {
         int live = 0;
+        var prefix = ChangeMap.ShiftPrefix(change);
         for (int i = 0; i < _anchors.Count; i++)
         {
             if (!_anchors[i].TryGetTarget(out var a) || !a.IsValid) continue;
             long pos = a.Offset;
-            if (ChangeMap.TryMapPoint(ref pos, a.Gravity, change)) a.Offset = pos;
+            if (ChangeMap.TryMapPoint(ref pos, a.Gravity, change, prefix)) a.Offset = pos;
             else a.IsValid = false;
             if (a.IsValid) _anchors[live++] = _anchors[i];
         }

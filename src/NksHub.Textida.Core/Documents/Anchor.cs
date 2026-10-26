@@ -77,4 +77,33 @@ internal static class ChangeMap
         pos += shift;
         return true;
     }
+
+    /// <summary>Running sum of <c>Inserted - Deleted</c> over the edits of a change: entry k is the shift of the first k edits.</summary>
+    public static long[] ShiftPrefix(ChangeSet change)
+    {
+        var edits = change.Edits;
+        var prefix = new long[edits.Count + 1];
+        for (int k = 0; k < edits.Count; k++) prefix[k + 1] = prefix[k] + edits[k].Inserted - edits[k].Deleted;
+        return prefix;
+    }
+
+    /// <summary>
+    /// Same result as <see cref="TryMapPoint(ref long, AnchorGravity, ChangeSet)"/> in O(log n) for the edits of one change (ascending and disjoint),
+    /// given <see cref="ShiftPrefix"/> of that change; many anchors through one big change need this.
+    /// </summary>
+    public static bool TryMapPoint(ref long pos, AnchorGravity gravity, ChangeSet change, long[] prefix)
+    {
+        var edits = change.Edits;
+        int lo = 0, hi = edits.Count;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            if (edits[mid].Start < pos) lo = mid + 1; else hi = mid;
+        }
+        if (lo > 0 && edits[lo - 1] is { Deleted: > 0 } last && pos < last.Start + last.Deleted) return false;
+        long shift = prefix[lo];
+        if (lo < edits.Count && edits[lo] is { Deleted: 0 } at && at.Start == pos && gravity == AnchorGravity.Right) shift += at.Inserted;
+        pos += shift;
+        return true;
+    }
 }

@@ -120,4 +120,30 @@ public class SelectionTests
         doc.Undo();
         Assert.Equal(["foo", "foo"], anchored.Current()!.Items.Select(s => doc.ReadText(s.ToRange())));
     }
+
+    [Fact]
+    public void Mapping_a_point_through_a_big_change_by_search_equals_the_linear_walk()
+    {
+        var random = new Random(7);
+        for (int round = 0; round < 200; round++)
+        {
+            var spans = new List<ChangeSet.Span>();
+            long at = random.Next(3);
+            for (int k = random.Next(1, 20); k > 0; k--)
+            {
+                long deleted = random.Next(3) == 0 ? 0 : random.Next(1, 5);
+                spans.Add(new(at, deleted, random.Next(0, 4)));
+                at += deleted + random.Next(0, 4);
+            }
+            var change = new ChangeSet(1, ChangeKind.Edit, null, spans);
+            var prefix = ChangeMap.ShiftPrefix(change);
+            for (long point = 0; point <= at + 2; point++)
+                foreach (var gravity in new[] { AnchorGravity.Left, AnchorGravity.Right })
+                {
+                    long linear = point, searched = point;
+                    Assert.Equal(ChangeMap.TryMapPoint(ref linear, gravity, change), ChangeMap.TryMapPoint(ref searched, gravity, change, prefix));
+                    Assert.Equal(linear, searched);
+                }
+        }
+    }
 }
