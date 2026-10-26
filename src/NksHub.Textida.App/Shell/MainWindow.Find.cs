@@ -119,6 +119,7 @@ internal sealed partial class MainWindow
         _findGeneration++;
         _findRun?.Cancel();
         _findRunning = false;
+        ShowFindMarks(null, null);
         DropScope();
         _find.Close();
         if (Active is { } tab) FocusView(tab);
@@ -192,6 +193,7 @@ internal sealed partial class MainWindow
         _hitsTotal = 0;
         _findIndex = -1;
         _findRunning = false;
+        ShowFindMarks(null, null);
         var pattern = FindPattern();
         if (string.IsNullOrEmpty(pattern.Text) || Active is not { Custom: null } tab)
         {
@@ -231,6 +233,7 @@ internal sealed partial class MainWindow
         _hits = hits;
         _hitsRevision = revision;
         _hitsTotal = _scopeStart is null ? summary.TotalMatches : hits.Count;
+        ShowFindMarks(tab, hits);
         if (!jumped) StepFrom(tab, hits, forward: true, _findOrigin, wrap: true);
         ShowFindCount(summary.Errors.Count > 0);
     }

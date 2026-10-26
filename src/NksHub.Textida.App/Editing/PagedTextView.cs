@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Input.TextInput;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -27,7 +28,7 @@ namespace NksHub.Textida.App.Editing;
 /// shortcut: no selection, clipboard, inline IME preedit or block mode; a line longer than <see cref="MaxLineBytes"/> shows its first part
 /// and cannot be edited; no horizontal scroll bar; saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
-internal sealed class PagedTextView : Grid
+internal sealed partial class PagedTextView : Grid
 {
     public const int MaxLineBytes = 16 * 1024;
     private const int TextPadding = 4;
@@ -82,6 +83,7 @@ internal sealed class PagedTextView : Grid
     {
         _inputClient.CaretChanged();
         ViewChanged?.Invoke();
+        _mapChanged?.Invoke();
     }
 
     /// <summary>Raised with a localised sentence when an edit was refused.</summary>
@@ -207,6 +209,7 @@ internal sealed class PagedTextView : Grid
         _bar.ViewportSize = visible;
         _bar.LargeChange = Math.Max(1, visible - 1);
         FeedSyntax();
+        _mapChanged?.Invoke();
     }
 
     // ---- lines and the character map ----
@@ -607,6 +610,21 @@ internal sealed class PagedTextView : Grid
         public bool Truncated { get; }
         public DecodedText Map { get; }
         public string Display { get; }
+
+        private string? _marked;
+        /// <summary><see cref="Display"/> with a middle dot for every space and an arrow in the first column of every tab; the same length, so the colors of the tokens still fit.</summary>
+        public string Marked => _marked ??= Mark();
+
+        private string Mark()
+        {
+            var shown = Display.ToCharArray();
+            var text = Map.Text;
+            for (int i = 0; i < text.Length; i++)
+                if (text[i] == ' ') shown[DisplayAt[i]] = '·';
+                else if (text[i] == '\t') shown[DisplayAt[i]] = '→';
+            return new string(shown);
+        }
+
         /// <summary>Column in <see cref="Display"/> of every character index (and one past the end).</summary>
         public int[] DisplayAt { get; }
 
@@ -632,7 +650,7 @@ internal sealed class PagedTextView : Grid
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
 
         private FormattedText Format(string text, IBrush brush) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            new Typeface(new FontFamily(owner._options.FontFamily)), owner._options.FontSize, brush);
+            new Typeface(new FontFamily(owner._options.FullFontFamily)), owner._options.FontSize, brush);
 
         /// <summary>The caret in the coordinates of this surface; empty when its line is not on screen.</summary>
         public Rect CaretRect()
@@ -693,32 +711,55 @@ internal sealed class PagedTextView : Grid
             var numbers = Brush("LineNumbers", Brushes.Gray);
             var current = Brush("CurrentLine", Brushes.Transparent);
             var palette = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+            var options = owner._options;
+            var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);
             context.FillRectangle(back, new Rect(Bounds.Size));
             var (lines, _) = owner.Index;
             int digits = Math.Max(3, (lines > 0 ? lines : 1).ToString(CultureInfo.InvariantCulture).Length);
-            _gutter = (digits + 1) * _digitWidth + 14;
+            _gutter = options.LineNumbers ? (digits + 1) * _digitWidth + 14 : 0;
             long top = owner.TopLine;
             var caretLine = owner.CaretLine();
             using (context.PushClip(new Rect(_gutter, 0, Math.Max(0, Bounds.Width - _gutter), Bounds.Height)))
             {
+                if (options.RightMargin > 0)
+                {
+                    double x = Math.Round(TextLeft - owner._hScroll + options.RightMargin * _digitWidth) + 0.5;
+                    context.DrawLine(new Pen(new ImmutableSolidColorBrush(dim.Color, 0.5), 1), new Point(x, 0), new Point(x, Bounds.Height));
+                }
                 for (int i = 0; i < VisibleLines + 1; i++)
                 {
                     long line = top + i;
                     if (owner.GetLine(line) is not { } view) break;
                     double y = i * _lineHeight;
-                    if (caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
-                    var text = Format(view.Display, fore);
+                    if (options.CurrentLine && caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
+                    string shown = options.ShowWhitespace ? view.Marked : view.Display;
+                    var text = Format(shown, fore);
                     if (owner._tokens.TryGetValue(line, out var tokens))
                         foreach (var token in tokens)
                         {
                             int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
+                    if (options.ShowWhitespace)
+                        for (int k = 0; k < shown.Length;)
+                        {
+                            if (shown[k] is not ('·' or '→')) { k++; continue; }
+                            int end = k + 1;
+                            while (end < shown.Length && shown[end] is '·' or '→') end++;
+                            text.SetForegroundBrush(dim, k, end - k);
+                            k = end;
+                        }
                     context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
+                    if (options.ShowLineEndings && !view.Truncated && owner.LineEndingOf(line) is { Length: > 0 } ending)
+                    {
+                        var mark = Format(ending, dim);
+                        mark.SetFontSize(options.FontSize * 0.7);
+                        context.DrawText(mark, new Point(TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length) + _digitWidth * 0.5, y + Math.Max(0, (_lineHeight - mark.Height) / 2)));
+                    }
                 }
                 if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
             }
-            for (int i = 0; i < VisibleLines + 1; i++)
+            for (int i = 0; options.LineNumbers && i < VisibleLines + 1; i++)
             {
                 long line = top + i;
                 if (line >= lines) break;

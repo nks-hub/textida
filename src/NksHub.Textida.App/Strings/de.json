@@ -17,6 +17,8 @@
   "status.ready": "Bereit",
   "status.syntaxPending": "Hervorhebung wird nachberechnet",
   "status.syntaxLongLine": "Eine Zeile ist zu lang für die Hervorhebung",
+  "a11y.minimap": "Minimap",
+  "view.wrapSuppressed": "Der Zeilenumbruch ist für diese Datei aus: sie hat eine Zeile mit mehr als {limit} Zeichen.",
   "status.indent.spaces": "Leerzeichen: {size}",
   "status.indent.tabs": "Tabulatoren: {size}",
   "status.eol.mixed": "gemischt",

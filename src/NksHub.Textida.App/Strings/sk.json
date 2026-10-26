@@ -17,6 +17,8 @@
   "status.ready": "Pripravené",
   "status.syntaxPending": "Zvýraznenie sa dopočítava",
   "status.syntaxLongLine": "Riadok je príliš dlhý na zvýraznenie",
+  "a11y.minimap": "Minimapa",
+  "view.wrapSuppressed": "Zalamovanie je pri tomto súbore vypnuté: má riadok dlhší ako {limit} znakov.",
   "status.indent.spaces": "Medzery: {size}",
   "status.indent.tabs": "Tabulátory: {size}",
   "status.eol.mixed": "zmiešané",

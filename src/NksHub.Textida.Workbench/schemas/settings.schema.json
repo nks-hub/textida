@@ -74,6 +74,50 @@
           "description": "Font size. Font size in points.",
           "x-scope": "application"
         },
+        "editor.fallbackFontFamily": {
+          "type": "string",
+          "default": "Segoe UI Symbol, Segoe UI Emoji, Microsoft YaHei UI, Apple Symbols, Apple Color Emoji, PingFang SC, Noto Sans Symbols 2, Noto Color Emoji, Noto Sans CJK SC",
+          "description": "Fallback fonts. Comma-separated fonts tried for characters the main font does not have.",
+          "x-scope": "application"
+        },
+        "editor.renderLineEndings": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show line endings. Draws CR, LF or CRLF at the end of each line. The document is not changed.",
+          "x-scope": "language"
+        },
+        "editor.lineNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Line numbers. Shows the column with line numbers.",
+          "x-scope": "application"
+        },
+        "editor.highlightCurrentLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight current line. Colors the line that holds the caret.",
+          "x-scope": "application"
+        },
+        "editor.links": {
+          "type": "boolean",
+          "default": true,
+          "description": "Clickable links. Web addresses open with Ctrl+click.",
+          "x-scope": "application"
+        },
+        "editor.rightMargin": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 500,
+          "description": "Right margin column. Draws a vertical guide after this many columns. 0 turns it off.",
+          "x-scope": "language"
+        },
+        "editor.minimap": {
+          "type": "boolean",
+          "default": true,
+          "description": "Minimap. Shows a reduced picture of the text at the right edge; drag it to scroll.",
+          "x-scope": "application"
+        },
         "files.encoding": {
           "type": "string",
           "default": "utf-8",
