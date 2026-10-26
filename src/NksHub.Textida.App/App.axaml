@@ -258,6 +258,46 @@
         <Style Selector="ListBox.paletteList ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
         </Style>
+        <Style Selector="Border.palettepreview">
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="CornerRadius" Value="0,0,8,8" />
+        </Style>
+        <Style Selector="ListBox.filelist ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="MinHeight" Value="24" />
+        </Style>
+        <Style Selector="ListBox.doclist ListBoxItem">
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="MinHeight" Value="28" />
+        </Style>
+        <Style Selector="ListBox.doclist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ListBox.doclist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="ListBox.filelist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ListBox.filelist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
+        <Style Selector="Path.fileglyph">
+            <Setter Property="Stroke" Value="{DynamicResource FgMuted}" />
+            <Setter Property="StrokeThickness" Value="1.2" />
+        </Style>
+        <Style Selector="TextBox.panelfilter">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
         <Style Selector="Border.escchip">
             <Setter Property="Background" Value="{DynamicResource Bg1}" />
             <Setter Property="CornerRadius" Value="3" />

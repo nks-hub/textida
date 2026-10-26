@@ -237,6 +237,16 @@ internal sealed class OpenDocument : IDisposable
 
     public void SetEncodingChosen() => Guess = null;
 
+    /// <summary>The file was renamed or moved on disk: the document, its tabs and its journal follow it, with text, undo history and unsaved changes intact.</summary>
+    public void MoveTo(string newPath)
+    {
+        bool derived = Path is { } old && Language.Id == LanguageModes.ForPath(old).Id;
+        _doc.MoveTo(newPath);
+        if (derived) Language = LanguageModes.ForPath(newPath);
+        EnsureWatching();
+        Changed?.Invoke();
+    }
+
     /// <summary>Replaces the document by a freshly opened one (reload). Views bind again through <see cref="Replaced"/>.</summary>
     public void Replace(Document next, EncodingGuess? guess = null)
     {

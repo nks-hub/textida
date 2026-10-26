@@ -355,6 +355,96 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.search.gotoAnything",
+      "title": "cmd.search.gotoAnything",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.recentEdits",
+      "title": "cmd.search.recentEdits",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.jumpBack",
+      "title": "cmd.search.jumpBack",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.jumpForward",
+      "title": "cmd.search.jumpForward",
+      "category": "cat.search"
+    },
+    {
+      "id": "nks.search.relatedFile",
+      "title": "cmd.search.relatedFile",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.openFolder",
+      "title": "cmd.file.openFolder",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.file.openPathAtCaret",
+      "title": "cmd.file.openPathAtCaret",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleFilePanel",
+      "title": "cmd.view.toggleFilePanel",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.files.newFile",
+      "title": "cmd.files.newFile",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
+      "id": "nks.files.newFolder",
+      "title": "cmd.files.newFolder",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
+      "id": "nks.files.duplicate",
+      "title": "cmd.files.duplicate",
+      "category": "cat.file",
+      "enablement": "fileSelected"
+    },
+    {
+      "id": "nks.files.rename",
+      "title": "cmd.files.rename",
+      "category": "cat.file",
+      "enablement": "fileSelected"
+    },
+    {
+      "id": "nks.files.move",
+      "title": "cmd.files.move",
+      "category": "cat.file",
+      "enablement": "fileSelected"
+    },
+    {
+      "id": "nks.files.delete",
+      "title": "cmd.files.delete",
+      "category": "cat.file",
+      "enablement": "fileSelected"
+    },
+    {
+      "id": "nks.files.refresh",
+      "title": "cmd.files.refresh",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
+      "id": "nks.files.reveal",
+      "title": "cmd.files.reveal",
+      "category": "cat.file",
+      "enablement": "hasFolder && hasDocument"
+    },
+    {
       "id": "nks.window.new",
       "title": "cmd.window.new",
       "category": "cat.window"
@@ -720,6 +810,54 @@
       "order": 10
     },
     {
+      "menu": "search",
+      "command": "nks.search.gotoAnything",
+      "group": "3_goto",
+      "order": 5
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.recentEdits",
+      "group": "4_places",
+      "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.jumpBack",
+      "group": "4_places",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.jumpForward",
+      "group": "4_places",
+      "order": 30
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.relatedFile",
+      "group": "4_places",
+      "order": 40
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openFolder",
+      "group": "1_new",
+      "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openPathAtCaret",
+      "group": "1_new",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleFilePanel",
+      "group": "4_panels",
+      "order": 20
+    },
+    {
       "menu": "window",
       "command": "nks.window.new",
       "group": "1_window",
@@ -1016,6 +1154,35 @@
     {
       "key": "mod+b",
       "command": "nks.view.toggleDocumentList"
+    },
+    {
+      "key": "mod+p",
+      "command": "nks.search.gotoAnything"
+    },
+    {
+      "key": "mod+shift+e",
+      "command": "nks.view.toggleFilePanel"
+    },
+    {
+      "key": "mod+k mod+e",
+      "command": "nks.search.recentEdits"
+    },
+    {
+      "key": "alt+left",
+      "command": "nks.search.jumpBack"
+    },
+    {
+      "key": "alt+right",
+      "command": "nks.search.jumpForward"
+    },
+    {
+      "key": "alt+o",
+      "command": "nks.search.relatedFile",
+      "mac": "mod+alt+o"
+    },
+    {
+      "key": "mod+k mod+o",
+      "command": "nks.file.openFolder"
     }
   ],
   "settings": [
@@ -1352,6 +1519,22 @@
         "recovery",
         "crash",
         "fallback"
+      ]
+    },
+    {
+      "key": "files.relatedFileRules",
+      "type": "string",
+      "default": "",
+      "title": "setting.files.relatedFileRules.title",
+      "description": "setting.files.relatedFileRules.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "related",
+        "header",
+        "source",
+        "test",
+        "switch"
       ]
     },
     {

@@ -416,6 +416,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.GoToLineInvalid, ("text", text)));
             return;
         }
+        RecordJump();
         var doc = tab.Doc.Doc;
         switch (target.Kind)
         {

@@ -227,7 +227,7 @@ internal sealed partial class MainWindow
     /// <summary>A file changed on disk behind an open document: a non-modal bar offers reload, keeping the tab, or compare. Nothing is overwritten silently.</summary>
     private void OnExternalChange(OpenDocument od, ExternalChange change)
     {
-        if (!_docs.Contains(od)) return;
+        if (!_docs.Contains(od) || !string.Equals(change.Path, od.Path, PathComparison)) return;
         foreach (var tab in od.Views.ToList())
         {
             var t = tab;

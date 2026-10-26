@@ -103,6 +103,8 @@ internal static class AppCommands
         Do("nks.window.splitView", w => w.SplitView());
         Do("nks.window.moveToOtherGroup", w => w.MoveToOtherGroup());
 
+        NavigationCommands.Register(app);
+
         // settings and help
         Do("nks.settings.theme.system", _ => app.SetTheme("system"));
         Do("nks.settings.theme.light", _ => app.SetTheme("light"));

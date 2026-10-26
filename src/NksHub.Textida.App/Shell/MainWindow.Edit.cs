@@ -25,7 +25,7 @@ internal sealed partial class MainWindow
         if (e.Key == Key.Escape)
         {
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
-            if (DocumentsPanelOpen) { ToggleDocuments(false); e.Handled = true; return; }
+            if (CloseLeftPanel()) { e.Handled = true; return; }
             if (_find.IsVisible) { HideFind(); e.Handled = true; return; }
         }
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
@@ -64,6 +64,7 @@ internal sealed partial class MainWindow
         _ when commandId.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal) => (Loc.Language == commandId[AppCommands.LanguageCommandPrefix.Length..], true),
         "nks.view.toggleWordWrap" => (Options.WordWrap, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
+        "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         _ => null,
     };
 

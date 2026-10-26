@@ -27,6 +27,7 @@ public sealed partial class App : Application
     internal AppWorkbench Workbench { get; private set; } = null!;
     internal JournalService Journal { get; private set; } = null!;
     internal BackupService Backups { get; private set; } = null!;
+    internal RecentFiles Recent { get; private set; } = null!;
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
     internal string ProfileDirectory { get; private set; } = "";
@@ -101,6 +102,7 @@ public sealed partial class App : Application
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
+        Recent = RecentFiles.Load(ProfileDirectory);
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
     }
 

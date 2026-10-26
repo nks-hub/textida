@@ -308,6 +308,9 @@ internal static class JournalCompactor
                 log.Open = new JournalRecord(0, log.Rest[save].TimestampMs, RecordType.DocOpen, JournalRecords.Encode(open));
                 log.Rest = log.Rest.GetRange(save + 1, log.Rest.Count - save - 1);
             }
+            int moved = log.Rest.FindLastIndex(r => r.Type == RecordType.DocMove);
+            if (moved >= 0 && JournalRecords.DecodeOpen(log.Open.Payload) is { Path: not null } current)
+                log.Open = new JournalRecord(0, log.Open.TimestampMs, RecordType.DocOpen, JournalRecords.Encode(current with { Path = JournalRecords.DecodeMove(log.Rest[moved].Payload).Path }));
             docs.Add(log);
         }
         return new CompactionPlan(docs, session);

@@ -176,6 +176,12 @@
           "description": "Journal fallback folder. Used when the main journal folder cannot be written. Empty: the system temp folder.",
           "x-scope": "application"
         },
+        "files.relatedFileRules": {
+          "type": "string",
+          "default": "",
+          "description": "Related file rules. Pairs of file name endings that belong together, written as ending|ending and separated by semicolons, for example .vert|.frag;.scss|.css. They are tried before the built-in rules.",
+          "x-scope": "application"
+        },
         "files.largeFileThreshold": {
           "type": "integer",
           "default": 6,
