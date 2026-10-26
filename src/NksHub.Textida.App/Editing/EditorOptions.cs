@@ -23,8 +23,18 @@ internal sealed record EditorOptions(
     bool BackspaceUnindent = false,
     bool AltDragBlock = false,
     bool PspadPairs = false,
-    SmartKeyOptions? SmartKeys = null)
+    SmartKeyOptions? SmartKeys = null,
+    bool ShowLineEndings = false,
+    bool LineNumbers = true,
+    bool CurrentLine = true,
+    bool Links = true,
+    bool Minimap = true,
+    int RightMargin = 0,
+    string FallbackFontFamily = "")
 {
+    /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
+    public string FullFontFamily => FallbackFontFamily.Length == 0 ? FontFamily : FontFamily + ", " + FallbackFontFamily;
+
     /// <summary>The smart keys for web files that are on for the language of the document.</summary>
     public SmartKeyOptions Smart => SmartKeys ?? new SmartKeyOptions();
 
@@ -70,6 +80,13 @@ internal sealed record EditorOptions(
                 JsonComma: s.GetBool("editor.smartKeys.jsonComma", l),
                 PhpArrow: s.GetBool("editor.smartKeys.phpArrow", l),
                 SelectVariable: s.GetBool("editor.smartKeys.selectVariable", l),
-                SqlEnd: s.GetBool("editor.smartKeys.sqlEnd", l)));
+                SqlEnd: s.GetBool("editor.smartKeys.sqlEnd", l)),
+            ShowLineEndings: s.GetBool("editor.renderLineEndings", l),
+            LineNumbers: s.GetBool("editor.lineNumbers"),
+            CurrentLine: s.GetBool("editor.highlightCurrentLine"),
+            Links: s.GetBool("editor.links"),
+            Minimap: s.GetBool("editor.minimap"),
+            RightMargin: (int)s.GetInt("editor.rightMargin", l),
+            FallbackFontFamily: s.GetString("editor.fallbackFontFamily"));
     }
 }

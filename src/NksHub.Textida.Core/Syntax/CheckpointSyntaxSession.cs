@@ -34,8 +34,9 @@ public sealed class CheckpointSyntaxSession : IDisposable
     private readonly List<Token> lineTokens = [];
     private readonly List<LineTokens> lines = [];
     private readonly StringBuilder fullLine = new();
-    private DocumentSnapshot snapshot;
-    private SyntaxChunkReader reader;
+    private DocumentSnapshot? snapshot;
+    private SyntaxChunkReader? reader;
+    private long readerOffset;
     private Request? request;
     private LineState state;
     private LineState lineStart;
@@ -58,14 +59,16 @@ public sealed class CheckpointSyntaxSession : IDisposable
     {
         this.document = document;
         this.tokenizer = tokenizer;
-        snapshot = document.GetSnapshot();
         state = lineStart = tokenizer.InitialState;
-        reader = new SyntaxChunkReader(snapshot, document.BomLength);
+        readerOffset = document.BomLength;
         checkpoints.Add(new(document.BomLength, 0, state));
         document.Changed += OnChanged;
     }
 
-    public long Revision => snapshot.Revision;
+    // The snapshot of a byte backend that keeps its bytes in one piece is a full copy, so it is taken when a scan needs it and not at every edit.
+    private DocumentSnapshot Snapshot => snapshot ??= document.GetSnapshot();
+
+    public long Revision => snapshot?.Revision ?? document.Revision;
     public long BytesScanned => bytesScanned + (streaming?.BytesRead ?? 0);
     public int CheckpointCount => checkpoints.Count + stale.Count;
 
@@ -107,7 +110,7 @@ public sealed class CheckpointSyntaxSession : IDisposable
             streaming = new StreamingSyntaxSession(document, tokenizer);
             return StreamViewport(firstLine, count, TimeSpan.Zero, ct, firstColumn, columnCount);
         }
-        return new(document.Id, snapshot.Revision, lines.ToArray(), status, currentLine);
+        return new(document.Id, Revision, lines.ToArray(), status, currentLine);
     }
 
     private SyntaxViewport StreamViewport(long firstLine, int count, TimeSpan slice, CancellationToken ct, int firstColumn, int columnCount)
@@ -136,7 +139,8 @@ public sealed class CheckpointSyntaxSession : IDisposable
 
     private void Resume(Checkpoint checkpoint)
     {
-        reader = new SyntaxChunkReader(snapshot, checkpoint.Offset);
+        reader = null;
+        readerOffset = checkpoint.Offset;
         currentLine = checkpoint.Line;
         state = lineStart = checkpoint.State;
         prefix = '\0';
@@ -152,6 +156,7 @@ public sealed class CheckpointSyntaxSession : IDisposable
     private void Step()
     {
         var active = request!.Value;
+        reader ??= new SyntaxChunkReader(Snapshot, readerOffset);
         long before = reader.Offset;
         var chunk = reader.Read();
         bytesScanned += reader.Offset - before;
@@ -336,7 +341,7 @@ public sealed class CheckpointSyntaxSession : IDisposable
             stale.Clear();
             checkpoints.Add(new(document.BomLength, 0, tokenizer.InitialState));
         }
-        snapshot = document.GetSnapshot();
+        snapshot = null;
         request = null;
         lines.Clear();
         lineTokens.Clear();

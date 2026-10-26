@@ -69,21 +69,30 @@ public class MultiCaretPerfTests(ITestOutputHelper output) : IDisposable
         w.UpdateLayout();
         for (int i = 0; i < 20; i++) { TestApp.Type(w, "w"); Dispatcher.UIThread.RunJobs(); } // warm up
 
-        double allowance = carets == 1 ? 0 : 0.12 * carets;
         // Up to 3 rounds like the single-caret gate: a busy runner spoils one round, a regression spoils all.
         var rounds = new List<string>();
         double p95 = double.MaxValue, p99 = double.MaxValue;
-        for (int round = 0; round < 3 && !(p95 <= 33 + allowance && p99 <= 80 + allowance); round++)
+        for (int round = 0; round < 3 && !(p95 <= 33 && p99 <= 80); round++)
         {
             var times = new List<double>();
+            NksHub.Textida.Core.TypingTrace.Enabled = true;
+            NksHub.Textida.Core.TypingTrace.Reset();
             for (int i = 0; i < 200; i++)
             {
                 long t0 = Stopwatch.GetTimestamp();
+                long tt = NksHub.Textida.Core.TypingTrace.Begin();
                 TestApp.Type(w, "x");
+                NksHub.Textida.Core.TypingTrace.End("test.type", tt);
+                tt = NksHub.Textida.Core.TypingTrace.Begin();
                 w.UpdateLayout();
+                NksHub.Textida.Core.TypingTrace.End("test.layout", tt);
+                tt = NksHub.Textida.Core.TypingTrace.Begin();
                 Dispatcher.UIThread.RunJobs();
+                NksHub.Textida.Core.TypingTrace.End("test.jobs", tt);
                 times.Add(Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+                NksHub.Textida.Core.TypingTrace.End("test.total", t0);
             }
+            NksHub.Textida.Core.TypingTrace.Dump($"multi {carets} carets round {round}");
             var (p50, q95, q99) = Percentiles(times);
             (p95, p99) = (q95, q99);
             rounds.Add($"p50 {p50:0.0}, p95 {p95:0.0}, p99 {p99:0.0} ms");
@@ -91,10 +100,7 @@ public class MultiCaretPerfTests(ITestOutputHelper output) : IDisposable
         }
         Assert.Equal(carets, tab.Editor!.CaretCount);
         Assert.Equal(1, tab.Doc.Doc.UndoDepth); // one typing run is one undo step
-        // The gate (p95 33 ms, p99 80 ms) holds for one caret. With N carets every caret adds one edit to the transaction (about 0.11 ms each on the
-        // slow runner): measured p95 on win11lite2 was 35.6 ms at 10, 41.9 ms at 100 and 146 ms at 1000 carets, so the gate is NOT met at 1000;
-        // the bound guards the measured capability against regressions and is not the 33 ms promise.
-        Assert.True(p95 <= 33 + allowance && p99 <= 80 + allowance, $"{carets} carets: " + string.Join("; ", rounds));
+        Assert.True(p95 <= 33 && p99 <= 80, $"{carets} carets: " + string.Join("; ", rounds));
     }
 
     [AvaloniaFact]

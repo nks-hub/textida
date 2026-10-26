@@ -222,13 +222,17 @@ public static class JournalRecovery
                 var doc = d.Document;
                 long rel = t.Revision - d.BaseRevision;
                 var selections = new List<ByteRange>();
+                var bookmarks = new List<long>();
                 if (doc is not null && rel >= 0 && rel <= doc.Revision)
                     foreach (var s in t.Selections)
                     {
                         var mapped = doc.MapRange(s, rel);
                         if (mapped.Ok && mapped.Range.End <= doc.ByteLength) selections.Add(mapped.Range);
                     }
-                tabs.Add(new(t.DocId, t.Title, doc?.Revision ?? 0, selections));
+                if (doc is not null && rel >= 0 && rel <= doc.Revision)
+                    foreach (long b in (t.Bookmarks ?? []).Where(b => b >= 0 && (rel < doc.Revision || b <= doc.ByteLength)))
+                        if (doc.CreateAnchor(b, AnchorGravity.Right, rel) is { IsValid: true } mappedMark) bookmarks.Add(mappedMark.Offset);
+                tabs.Add(new(t.DocId, t.Title, doc?.Revision ?? 0, selections, bookmarks));
             }
             groups.Add(new(tabs, g.ActiveDocId is { } a && tabs.Any(t => t.DocId == a) ? a : tabs.FirstOrDefault()?.DocId));
         }

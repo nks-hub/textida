@@ -41,7 +41,7 @@ internal sealed partial class MainWindow
             var od = OpenDocument.Open(path, LargeFileBytes);
             Adopt(od);
             tab = AddView(od, _activeGroup);
-            OfferHex(tab);
+            tab = OfferHex(tab);
         }
         else SelectTab(tab);
         if (line is { } l) tab.GoToLine(l);
@@ -120,10 +120,14 @@ internal sealed partial class MainWindow
 
     private void OnDocChanged(OpenDocument od)
     {
+        long t = Core.TypingTrace.Begin();
         RefreshHeaders();
-        if (Active?.Doc == od) { UpdateStatus(); RefreshTitle(); }
+        Core.TypingTrace.End("win.refreshHeaders", t);
+        if (Active?.Doc == od) { UpdateStatus(); t = Core.TypingTrace.Begin(); RefreshTitle(); Core.TypingTrace.End("win.refreshTitle", t); }
+        t = Core.TypingTrace.Begin();
         od.EnsureWatching();
         if (od.Autosave is null) ConfigureAutosave(od);
+        Core.TypingTrace.End("win.watchAutosave", t);
     }
 
     /// <summary>The document under the tabs was swapped (reload). A view of the other kind (text or paged) is rebuilt in place.</summary>

@@ -195,14 +195,24 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         for (int round = 0; round < 3 && p95 > 33; round++)
         {
             var times = new List<double>();
+            NksHub.Textida.Core.TypingTrace.Enabled = true;
+            NksHub.Textida.Core.TypingTrace.Reset();
             for (int i = 0; i < 300; i++)
             {
                 long t0 = Stopwatch.GetTimestamp();
+                long tt = NksHub.Textida.Core.TypingTrace.Begin();
                 TestApp.Type(w, "x");
+                NksHub.Textida.Core.TypingTrace.End("test.type", tt);
+                tt = NksHub.Textida.Core.TypingTrace.Begin();
                 w.UpdateLayout();
+                NksHub.Textida.Core.TypingTrace.End("test.layout", tt);
+                tt = NksHub.Textida.Core.TypingTrace.Begin();
                 Dispatcher.UIThread.RunJobs();
+                NksHub.Textida.Core.TypingTrace.End("test.jobs", tt);
                 times.Add(Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+                NksHub.Textida.Core.TypingTrace.End("test.total", t0);
             }
+            NksHub.Textida.Core.TypingTrace.Dump("editor typing 1 MiB highlighted round " + round);
             times.Sort();
             p95 = times[(int)(times.Count * 0.95)];
             rounds.Add($"p95 {p95:0.0} ms, median {times[times.Count / 2]:0.0} ms");

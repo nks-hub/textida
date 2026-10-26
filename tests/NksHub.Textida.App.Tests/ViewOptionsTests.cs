@@ -1,0 +1,640 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json.Nodes;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Threading;
+using AvaloniaEdit.Rendering;
+using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Shell;
+using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Workbench.Settings;
+
+namespace NksHub.Textida.App.Tests;
+
+/// <summary>The geometry of the minimap: which lines it draws and where the viewport rectangle sits.</summary>
+public class MinimapGeometryTests
+{
+    [Fact]
+    public void A_file_that_fits_is_drawn_whole_with_the_rectangle_at_its_lines()
+    {
+        var layout = MinimapGeometry.Compute(lines: 100, first: 10, count: 30, height: 800, rowPx: 2);
+        Assert.Equal((0, 100, false), (layout.Top, layout.Rows, layout.Surroundings));
+        Assert.Equal(20, layout.ThumbTop);
+        Assert.Equal(60, layout.ThumbHeight);
+    }
+
+    [Fact]
+    public void A_file_a_few_screens_long_slides_its_window_with_the_scroll_position()
+    {
+        long lines = 900; // capacity 400, so up to 1600 lines slide
+        var start = MinimapGeometry.Compute(lines, 0, 40, 800, 2);
+        var end = MinimapGeometry.Compute(lines, lines - 40, 40, 800, 2);
+        Assert.Equal(0, start.Top);
+        Assert.Equal(lines - 400, end.Top);
+        Assert.Equal(400, start.Rows);
+        Assert.Equal(0, start.ThumbTop);
+        Assert.Equal(800 - 80, end.ThumbTop);
+        Assert.False(start.Surroundings);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(5_000L)]
+    [InlineData(99_999_960L)]
+    [InlineData(100_000_000L)]
+    public void A_huge_file_shows_only_the_surroundings_of_the_viewport(long first)
+    {
+        long lines = 100_000_000;
+        var layout = MinimapGeometry.Compute(lines, first, 40, 800, 2);
+        Assert.True(layout.Surroundings);
+        Assert.Equal(400, layout.Rows);
+        Assert.InRange(layout.Top, 0, lines - 400);
+        Assert.InRange(layout.ThumbTop, 0, 800 - layout.ThumbHeight);
+        Assert.InRange(MinimapGeometry.LineAt(layout, lines, 2, 0), 0, lines - 1);
+    }
+
+    [Fact]
+    public void Dragging_the_rectangle_over_its_whole_travel_scrolls_from_the_first_line_to_the_last()
+    {
+        foreach (long lines in new[] { 100L, 900L, 100_000_000L })
+        {
+            var layout = MinimapGeometry.Compute(lines, 0, 40, 800, 2);
+            long end = MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, layout.Rows * 2.0 - layout.ThumbHeight);
+            long back = MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, end, -(layout.Rows * 2.0));
+            Assert.Equal(0, back);
+            if (!layout.Surroundings) Assert.InRange(end, lines - 40 - 2, lines - 40);
+            else Assert.InRange(end, 1, 400);
+        }
+    }
+}
+
+/// <summary>P3.6.1 and P3.3.1 on both surfaces: the view switches, the hidden characters, wrapping, the fonts and the minimap.</summary>
+[Collection("LocState")]
+public class ViewOptionsTests : IDisposable
+{
+    private readonly TempDir _temp = new();
+    private readonly App _app;
+    private readonly MainWindow _w;
+
+    public ViewOptionsTests()
+    {
+        _app = TestApp.Prepare(_temp);
+        _w = _app.CreateWindow(null);
+        _w.Width = 1200;
+        _w.Height = 800;
+    }
+
+    public void Dispose()
+    {
+        TestApp.Cleanup(_app);
+        Loc.SetLanguage(Loc.DefaultLanguage);
+        _temp.Dispose();
+    }
+
+    private void Set(string key, JsonNode? value) => _app.Workbench.Set(key, value);
+
+    private static void Settle(int rounds = 30)
+    {
+        for (int i = 0; i < rounds; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(5);
+        }
+    }
+
+    private DocTab Open(string name, string content, bool paged = false)
+    {
+        if (paged) Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(_temp.File(name, content), null);
+        if (paged)
+        {
+            Assert.True(tab.Doc.IsLarge);
+            WaitForIndex(tab);
+        }
+        _w.UpdateLayout();
+        Settle();
+        return tab;
+    }
+
+    private static void WaitForIndex(DocTab tab, int seconds = 120)
+    {
+        var clock = Stopwatch.StartNew();
+        while (!tab.Paged!.Index.Complete && clock.Elapsed.TotalSeconds < seconds)
+        {
+            Thread.Sleep(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(tab.Paged.Index.Complete);
+    }
+
+    private sealed record Shot(byte[] Data, int Stride);
+
+    private Shot Capture()
+    {
+        _w.UpdateLayout();
+        Settle(10);
+        var frame = _w.CaptureRenderedFrame()!;
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        Marshal.Copy(buffer.Address, data, 0, data.Length);
+        return new Shot(data, buffer.RowBytes);
+    }
+
+    private static int Differences(Shot a, Shot b, Rect area)
+    {
+        int count = 0;
+        for (int y = (int)area.Top; y < (int)area.Bottom; y++)
+            for (int x = (int)area.Left; x < (int)area.Right; x++)
+            {
+                int at = y * a.Stride + x * 4;
+                if (at + 3 < a.Data.Length && at + 3 < b.Data.Length && !a.Data.AsSpan(at, 4).SequenceEqual(b.Data.AsSpan(at, 4))) count++;
+            }
+        return count;
+    }
+
+    private static int Matching(Shot shot, Rect area, IEnumerable<Color> colors, int tolerance = 3)
+    {
+        var wanted = colors.ToList();
+        int count = 0;
+        for (int y = (int)area.Top; y < (int)area.Bottom; y++)
+            for (int x = (int)area.Left; x < (int)area.Right; x++)
+            {
+                int at = y * shot.Stride + x * 4;
+                if (at + 3 >= shot.Data.Length) continue;
+                byte b = shot.Data[at], g = shot.Data[at + 1], r = shot.Data[at + 2];
+                if (wanted.Any(c => Math.Abs(c.R - r) <= tolerance && Math.Abs(c.G - g) <= tolerance && Math.Abs(c.B - b) <= tolerance)) count++;
+            }
+        return count;
+    }
+
+    private Rect InWindow(Visual visual, Rect local)
+    {
+        var origin = visual.TranslatePoint(default, _w)!.Value;
+        return new Rect(origin.X + local.X, origin.Y + local.Y, local.Width, local.Height);
+    }
+
+    /// <summary>The first text line of the editor from the given column to the right edge.</summary>
+    private Rect EditorBand(DocTab tab, int fromColumn)
+    {
+        var view = tab.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        var line = view.VisualLines[0];
+        double x = fromColumn * view.WideSpaceWidth;
+        return InWindow(view, new Rect(x, line.VisualTop - view.ScrollOffset.Y, Math.Max(10, view.Bounds.Width - x), line.Height));
+    }
+
+    /// <summary>The first row of the paged view, right of the line numbers and the first two columns.</summary>
+    private Rect PagedBand(DocTab tab) => InWindow(tab.Paged!, new Rect(70, 0, 400, 17));
+
+    private static IEnumerable<Color> SyntaxColors(params string[] kinds) =>
+        kinds.SelectMany(k => new[] { SyntaxPalette.Light, SyntaxPalette.Dark }.Select(p => ((ISolidColorBrush)p.GetBrush(k)!).Color));
+
+    private static string CodeLines(int count) =>
+        string.Concat(Enumerable.Range(0, count).Select(i => $"var value{i} = {i}; // line {i}\n"));
+
+    // ---- hidden characters ----
+
+    [AvaloniaFact]
+    public void Hidden_characters_are_drawn_over_the_editor_text_and_leave_the_document_alone()
+    {
+        var tab = Open("a.txt", "a  b\t\tc\r\nsecond line\r\nlast\n");
+        string text = tab.Editor!.Document.Text;
+        long revision = tab.Doc.Doc.Revision;
+        var plain = Capture();
+        var band = EditorBand(tab, 1);
+
+        _w.ToggleHiddenCharacters();
+        var shown = Capture();
+
+        Assert.True(Differences(plain, shown, band) > 40, "spaces, tab and line end were not drawn");
+        Assert.True(tab.Editor.Options.ShowSpaces && tab.Editor.Options.ShowTabs);
+        Assert.Contains(tab.Editor.TextArea.TextView.BackgroundRenderers, r => r is LineEndingRenderer { Enabled: true });
+        Assert.Equal(text, tab.Editor.Document.Text);
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.False(tab.Doc.HasUnsavedWork);
+
+        _w.ToggleHiddenCharacters();
+        Assert.Equal(0, Differences(plain, Capture(), band));
+    }
+
+    [AvaloniaFact]
+    public void Line_endings_alone_are_drawn_after_the_last_character_of_each_line()
+    {
+        var tab = Open("e.txt", "ab\r\ncd\r\n");
+        var plain = Capture();
+        var band = EditorBand(tab, 2);
+        Set("editor.renderLineEndings", JsonValue.Create(true));
+        Assert.True(Differences(plain, Capture(), band) > 10);
+        Assert.False(tab.Editor!.Options.ShowSpaces);
+    }
+
+    [AvaloniaFact]
+    public void Hidden_characters_are_drawn_on_the_paged_surface_too()
+    {
+        var tab = Open("p.txt", "a  b\t\tc\r\nsecond line\r\n" + CodeLines(50), paged: true);
+        string before = Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new NksHub.Textida.Core.Documents.ByteRange(0, tab.Doc.Doc.ByteLength)));
+        long revision = tab.Doc.Doc.Revision;
+        var plain = Capture();
+        var band = PagedBand(tab);
+
+        _w.ToggleHiddenCharacters();
+        var shown = Capture();
+
+        Assert.True(Differences(plain, shown, band) > 40, "spaces, tab and line end were not drawn");
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.Equal(before, Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new NksHub.Textida.Core.Documents.ByteRange(0, tab.Doc.Doc.ByteLength))));
+        _w.ToggleHiddenCharacters();
+        Assert.Equal(0, Differences(plain, Capture(), band));
+    }
+
+    // ---- line numbers, current line, margin, links ----
+
+    [AvaloniaFact]
+    public void Line_numbers_and_the_current_line_switch_off_on_the_editor_and_the_paged_surface()
+    {
+        var editor = Open("n.txt", "one\ntwo\nthree\n");
+        var gutter = InWindow(editor.Editor!, new Rect(0, 0, 40, 100));
+        var withNumbers = Capture();
+        var line = EditorBand(editor, 1);
+
+        _w.ToggleLineNumbers();
+        Assert.False(editor.Editor.ShowLineNumbers);
+        Assert.True(Differences(withNumbers, Capture(), gutter) > 5);
+        _w.ToggleLineNumbers();
+        Assert.True(editor.Editor.ShowLineNumbers);
+
+        var highlighted = Capture();
+        _w.ToggleCurrentLine();
+        Assert.False(editor.Editor.Options.HighlightCurrentLine);
+        Assert.True(Differences(highlighted, Capture(), line) > 50);
+        _w.ToggleCurrentLine();
+
+        var paged = Open("n2.txt", CodeLines(200), paged: true);
+        var pagedGutter = InWindow(paged.Paged!, new Rect(0, 0, 40, 100));
+        var pagedLine = PagedBand(paged);
+        var pagedShot = Capture();
+        _w.ToggleLineNumbers();
+        Assert.True(Differences(pagedShot, Capture(), pagedGutter) > 5);
+        _w.ToggleLineNumbers();
+        pagedShot = Capture();
+        _w.ToggleCurrentLine();
+        Assert.True(Differences(pagedShot, Capture(), pagedLine) > 50);
+    }
+
+    [AvaloniaFact]
+    public void The_right_margin_is_a_vertical_line_on_both_surfaces()
+    {
+        var editor = Open("m.txt", "short\n");
+        var strip = new Rect(0, 400, 1200, 40);
+        var before = Capture();
+        Set("editor.rightMargin", JsonValue.Create(40));
+        Assert.True(Differences(before, Capture(), strip) > 10);
+        Set("editor.rightMargin", JsonValue.Create(0));
+
+        var paged = Open("m2.txt", CodeLines(200), paged: true);
+        before = Capture();
+        Set("editor.rightMargin", JsonValue.Create(40));
+        Assert.True(Differences(before, Capture(), strip) > 10);
+        Assert.NotNull(paged.Paged);
+        Assert.NotNull(editor.Editor);
+    }
+
+    [AvaloniaFact]
+    public void Links_are_clickable_in_the_editor_until_they_are_switched_off()
+    {
+        var tab = Open("l.txt", "see https://example.org/page for details\n");
+        var view = tab.Editor!.TextArea.TextView;
+        bool Linked()
+        {
+            view.EnsureVisualLines();
+            return view.GetVisualLine(1)!.Elements.OfType<VisualLineLinkText>().Any();
+        }
+        Assert.True(Linked());
+        Assert.True(tab.Editor.Options.EnableHyperlinks);
+        _w.ToggleLinks();
+        Assert.False(tab.Editor.Options.EnableHyperlinks);
+        Assert.False(Linked());
+    }
+
+    // ---- wrapping ----
+
+    [AvaloniaFact]
+    public void Word_wrap_follows_the_setting_but_a_giant_line_is_never_wrapped()
+    {
+        Set("editor.wordWrap", "on");
+        var ordinary = Open("o.txt", new string('x', 3000) + "\n");
+        Assert.True(ordinary.Editor!.WordWrap);
+        Assert.False(ordinary.Editor.WrapSuppressed);
+
+        var giant = Open("g.txt", new string('y', EditorSurface.WrapLineLimit + 1) + "\n");
+        Assert.False(giant.Editor!.WordWrap);
+        Assert.True(giant.Editor.WrapSuppressed);
+
+        ordinary.Editor.Document.Insert(0, new string('z', EditorSurface.WrapLineLimit));
+        Assert.False(ordinary.Editor.WordWrap);
+        Assert.True(ordinary.Editor.WrapSuppressed);
+
+        Set("editor.wordWrap", "off");
+        Assert.False(ordinary.Editor.WrapSuppressed);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_line_of_100_MiB_opens_unwrapped_on_the_paged_surface_and_draws_its_first_part()
+    {
+        Set("editor.wordWrap", "on");
+        string path = Path.Combine(_temp.Path, "giant.txt");
+        using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write))
+        {
+            var chunk = new byte[1 << 20];
+            Array.Fill(chunk, (byte)'a');
+            for (int i = 0; i < 100; i++) stream.Write(chunk);
+        }
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        Assert.NotNull(tab.Paged);
+        Assert.Null(tab.Surface);
+        WaitForIndex(tab);
+        Assert.Equal(1, tab.Paged!.Index.Lines);
+        var clock = Stopwatch.StartNew();
+        var shot = Capture();
+        Assert.True(clock.Elapsed.TotalSeconds < 5, $"drawing took {clock.Elapsed}");
+        Assert.True(Differences(shot, new Shot(new byte[shot.Data.Length], shot.Stride), PagedBand(tab)) > 100);
+        Assert.Equal(100L << 20, tab.Doc.Doc.ByteLength);
+    }
+
+    // ---- fonts and zoom ----
+
+    [AvaloniaFact]
+    public void Fallback_fonts_follow_the_main_font_and_zoom_changes_the_size_setting()
+    {
+        var tab = Open("z.txt", "text ☃ ❤\n");
+        var families = tab.Editor!.FontFamily.FamilyNames.ToList();
+        Assert.Equal("Cascadia Mono", families[0]);
+        Assert.True(families.IndexOf("Segoe UI Symbol") > families.IndexOf("monospace"), string.Join("|", families));
+        Assert.True(FontManager.Current.TryMatchCharacter('☃', FontStyle.Normal, FontWeight.Normal, FontStretch.Normal, tab.Editor.FontFamily, null, out _));
+
+        double size = tab.Editor.FontSize;
+        _w.Zoom(2);
+        Assert.Equal(size + 2, tab.Editor.FontSize);
+        Assert.Equal(SettingSource.User, _app.Workbench.Settings.Resolve("editor.fontSize")!.Source);
+
+        var inside = tab.Editor.TranslatePoint(new Point(300, 200), _w)!.Value;
+        _w.MouseWheel(inside, new Vector(0, 1), TestApp.Mod);
+        Assert.Equal(size + 3, tab.Editor.FontSize);
+        _w.MouseWheel(inside, new Vector(0, -1), TestApp.Mod);
+        Assert.Equal(size + 2, tab.Editor.FontSize);
+
+        _w.ZoomReset();
+        Assert.Equal(size, tab.Editor.FontSize);
+
+        Set("editor.fallbackFontFamily", "Noto Sans CJK SC");
+        Assert.EndsWith("Noto Sans CJK SC", string.Join(", ", tab.Editor.FontFamily.FamilyNames));
+    }
+
+    // ---- commands and settings ----
+
+    [AvaloniaFact]
+    public void Every_view_switch_is_a_command_in_the_view_menu_with_a_checked_state_and_a_setting_with_a_source()
+    {
+        var tab = Open("c.txt", "text\n");
+        string[] ids =
+        [
+            "nks.view.toggleHiddenCharacters", "nks.view.toggleLineNumbers", "nks.view.toggleCurrentLine",
+            "nks.view.toggleRightMargin", "nks.view.toggleLinks", "nks.view.toggleMinimap", "nks.view.toggleWordWrap",
+        ];
+        MenuCommand Item(string id) => FlattenCommands(_w.MenuModel).Single(c => c.CommandId == id);
+        bool Checked(string id) => Item(id).CheckedNow?.Invoke() ?? Item(id).Checked ?? false;
+
+        foreach (string id in ids)
+        {
+            Assert.True(_app.Workbench.Commands.HasHandler(id), id);
+            Assert.False(string.IsNullOrWhiteSpace(Item(id).Label), id);
+            bool before = Checked(id);
+            Item(id).Run();
+            Assert.NotEqual(before, Checked(id));
+            Item(id).Run();
+            Assert.Equal(before, Checked(id));
+        }
+        Assert.Equal(SettingSource.Default, _app.Workbench.Settings.Resolve("editor.lineNumbers")!.Source);
+        _w.ToggleLineNumbers();
+        Assert.Equal(SettingSource.User, _app.Workbench.Settings.Resolve("editor.lineNumbers")!.Source);
+        Assert.NotNull(tab.Minimap);
+    }
+
+    [AvaloniaFact]
+    public void The_view_commands_and_settings_have_texts_in_every_language()
+    {
+        string[] ids = ["toggleHiddenCharacters", "toggleLineNumbers", "toggleCurrentLine", "toggleRightMargin", "toggleLinks", "toggleMinimap"];
+        string[] keys = ["fallbackFontFamily", "renderLineEndings", "lineNumbers", "highlightCurrentLine", "links", "rightMargin", "minimap"];
+        var seen = new HashSet<string>();
+        foreach (string language in Loc.Languages)
+        {
+            _app.SetLanguage(language);
+            var labels = new HashSet<string>();
+            foreach (string id in ids) labels.Add(_app.Workbench.Strings.Get("cmd.view." + id));
+            foreach (string key in keys)
+            {
+                labels.Add(_app.Workbench.Strings.Get($"setting.editor.{key}.title"));
+                labels.Add(_app.Workbench.Strings.Get($"setting.editor.{key}.description"));
+            }
+            Assert.All(labels, l => Assert.False(string.IsNullOrWhiteSpace(l) || l.Contains("cmd.view.") || l.Contains("setting.editor."), l));
+            seen.Add(string.Join("|", labels.Order()));
+            Assert.False(string.IsNullOrWhiteSpace(Loc.Get(K.A11yMinimap)));
+        }
+        Assert.Equal(Loc.Languages.Count, seen.Count); // no language reuses another language's wording wholesale
+    }
+
+    private static IEnumerable<MenuCommand> FlattenCommands(IEnumerable<MenuNode> nodes) => nodes.SelectMany(n => n switch
+    {
+        MenuCommand c => [c],
+        MenuGroup g => FlattenCommands(g.Items),
+        _ => [],
+    });
+
+    // ---- minimap ----
+
+    [AvaloniaFact]
+    public void Both_surfaces_have_a_named_minimap_that_the_switch_hides()
+    {
+        var editor = Open("a.cs", CodeLines(100));
+        var paged = Open("b.cs", CodeLines(100), paged: true);
+        foreach (var tab in new[] { editor, paged })
+        {
+            Assert.NotNull(tab.Minimap);
+            Assert.True(tab.Minimap!.IsVisible);
+            Assert.Equal(Loc.Get(K.A11yMinimap), AutomationProperties.GetName(tab.Minimap));
+        }
+        _w.ToggleMinimap();
+        Assert.False(editor.Minimap!.IsVisible);
+        Assert.False(paged.Minimap!.IsVisible);
+        Assert.Null(_w.NewDocument().Hex);
+    }
+
+    private static string KeywordFile(int lines) =>
+        string.Concat(Enumerable.Range(0, lines).Select(i => $"var value{i} = {i}; // line {i}\n"));
+
+    private Rect MinimapLowerPart(DocTab tab)
+    {
+        var map = tab.Minimap!;
+        return InWindow(map, new Rect(2, map.Bounds.Height * 0.65, map.Bounds.Width - 12, map.Bounds.Height * 0.3));
+    }
+
+    private bool WaitForColors(DocTab tab, string[] kinds)
+    {
+        var colors = SyntaxColors(kinds).ToList();
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed.TotalSeconds < 10)
+        {
+            if (Matching(Capture(), MinimapLowerPart(tab), colors) > 20) return true;
+            Thread.Sleep(50);
+        }
+        return false;
+    }
+
+    [AvaloniaFact]
+    public void The_minimap_of_the_editor_draws_the_text_in_the_syntax_colors()
+    {
+        var tab = Open("m.cs", KeywordFile(3000));
+        Assert.True(WaitForColors(tab, ["keyword", "comment"]), "no keyword or comment colors in the minimap");
+        Assert.True(tab.Minimap!.Bounds.Width >= Minimap.LogicalWidth - 1);
+    }
+
+    [AvaloniaFact]
+    public void The_minimap_of_the_paged_surface_draws_the_text_in_the_syntax_colors()
+    {
+        var tab = Open("m2.cs", KeywordFile(120_000), paged: true);
+        Assert.True(WaitForColors(tab, ["keyword", "comment"]), "no keyword or comment colors in the minimap");
+    }
+
+    [AvaloniaFact]
+    public void Clicking_and_dragging_the_minimap_scrolls_the_editor()
+    {
+        var tab = Open("d.cs", KeywordFile(3000));
+        var view = tab.Editor!.TextArea.TextView;
+        int First() { view.EnsureVisualLines(); return view.VisualLines[0].FirstDocumentLine.LineNumber; }
+        Assert.Equal(1, First());
+        var map = tab.Minimap!;
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var press = new Point(origin.X + 40, origin.Y + map.Bounds.Height * 0.6);
+
+        _w.MouseDown(press, MouseButton.Left);
+        _w.UpdateLayout();
+        int clicked = First();
+        Assert.InRange(clicked, 100, 500);
+
+        _w.MouseMove(new Point(press.X, press.Y + 100));
+        _w.UpdateLayout();
+        int dragged = First();
+        Assert.True(dragged > clicked + 20, $"{clicked} -> {dragged}");
+        _w.MouseUp(new Point(press.X, press.Y + 100), MouseButton.Left);
+        _w.MouseMove(new Point(press.X, press.Y + 300));
+        _w.UpdateLayout();
+        Assert.Equal(dragged, First());
+    }
+
+    [AvaloniaFact]
+    public void Clicking_the_minimap_of_the_paged_surface_scrolls_it()
+    {
+        var tab = Open("d2.cs", KeywordFile(120_000), paged: true);
+        var map = tab.Minimap!;
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        Assert.Equal(0, tab.Paged!.TopLine);
+        _w.MouseDown(new Point(origin.X + 40, origin.Y + map.Bounds.Height * 0.6), MouseButton.Left);
+        _w.MouseUp(new Point(origin.X + 40, origin.Y + map.Bounds.Height * 0.6), MouseButton.Left);
+        Assert.InRange(tab.Paged.TopLine, 100, 500);
+    }
+
+    [AvaloniaFact]
+    public void Marks_in_the_strip_are_drawn_over_the_whole_file()
+    {
+        var tab = Open("k.cs", KeywordFile(3000));
+        var strip = InWindow(tab.Minimap!, new Rect(tab.Minimap!.Bounds.Width - 5, 0, 4, tab.Minimap.Bounds.Height));
+        var before = Capture();
+        tab.Minimap.SetMarks([new MinimapMark(2900, MinimapMarkKind.Error), new MinimapMark(1500, MinimapMarkKind.Warning)]);
+        var after = Capture();
+        Assert.True(Differences(before, after, strip) > 4);
+        Assert.True(Matching(after, strip, [Color.Parse("#E5484D")], 4) > 0);
+        Assert.True(Matching(after, strip, [Color.Parse("#E2A400")], 4) > 0);
+    }
+
+    [AvaloniaFact]
+    public async Task Find_matches_are_marked_in_the_strip_and_the_marks_go_with_the_bar()
+    {
+        var tab = Open("f.cs", KeywordFile(3000));
+        var strip = InWindow(tab.Minimap!, new Rect(tab.Minimap!.Bounds.Width - 5, 0, 4, tab.Minimap.Bounds.Height));
+        var blue = Color.Parse("#3B82F6");
+        Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        _w.FindBar.FindBox.Text = "// line 2500";
+        Dispatcher.UIThread.RunJobs();
+        for (var clock = Stopwatch.StartNew(); _w.FindIsRunning && clock.ElapsedMilliseconds < 10_000;)
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(Matching(Capture(), strip, [blue], 4) > 0, "the match is not marked");
+        _w.HideFind();
+        Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void Dragging_the_minimap_moves_the_editor_within_the_budget()
+    {
+        var tab = Open("p.cs", KeywordFile(20_000));
+        var map = tab.Minimap!;
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 100);
+        _w.MouseDown(start, MouseButton.Left);
+        var times = new List<double>();
+        for (int i = 0; i < 200; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            _w.MouseMove(new Point(start.X, start.Y + i * 2.5));
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(clock.Elapsed.TotalMilliseconds);
+        }
+        _w.MouseUp(new Point(start.X, start.Y + 500), MouseButton.Left);
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)];
+        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_ten_gibibyte_file_gets_a_sampled_map_without_reading_the_file()
+    {
+        string path = Path.Combine(_temp.Path, "huge.js");
+        const long length = 10L << 30;
+        if (OperatingSystem.IsWindows())
+        {
+            File.WriteAllBytes(path, []);
+            var command = new ProcessStartInfo("fsutil") { CreateNoWindow = true, UseShellExecute = false };
+            foreach (string arg in new[] { "sparse", "setflag", path }) command.ArgumentList.Add(arg);
+            using var process = Process.Start(command)!;
+            process.WaitForExit();
+        }
+        using (var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
+        {
+            stream.SetLength(length);
+            stream.Position = 0;
+            stream.Write(Encoding.UTF8.GetBytes(KeywordFile(5000)));
+        }
+        Set("files.largeFileThreshold", JsonValue.Create(1));
+        var clock = Stopwatch.StartNew();
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        Assert.True(WaitForColors(tab, ["keyword", "comment"]), "no colors in the map of the 10 GiB file");
+        Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed}");
+        Assert.Equal(length, tab.Doc.Doc.ByteLength);
+    }
+}

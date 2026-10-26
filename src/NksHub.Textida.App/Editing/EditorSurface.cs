@@ -53,6 +53,7 @@ internal sealed partial class EditorSurface : TextEditor
         FontWeight = FontWeight.Normal;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
         foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
+        TextArea.LeftMargins.Insert(0, new BookmarkMargin(doc.Bookmarks));
         Settings = options;
         ApplyOptions(options);
         _colorizer = new SyntaxColorizer(TextArea.TextView);
@@ -64,6 +65,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.TextEntering += OnTextEntering;
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
+        InitViewOptions();
         InitCarets();
     }
 
@@ -106,6 +108,13 @@ internal sealed partial class EditorSurface : TextEditor
 
     private void ApplyTokens(SyntaxViewport viewport)
     {
+        long t = Core.TypingTrace.Begin();
+        try { ApplyTokensCore(viewport); }
+        finally { Core.TypingTrace.End("editor.applyTokens", t); }
+    }
+
+    private void ApplyTokensCore(SyntaxViewport viewport)
+    {
         if (viewport.Revision != Doc.Doc.Revision) return;
         try { _colorizer.SetTokens(Document.Version, viewport.Lines); }
         catch (ArgumentOutOfRangeException) { _colorizer.ClearTokens(); } // the line breaks of the decoded text and of the tokenizer disagree
@@ -116,6 +125,13 @@ internal sealed partial class EditorSurface : TextEditor
     /// width allows for the narrowest glyph; scrolled, the columns come from the layout of the visible lines.
     /// </summary>
     private void OnVisualLinesChanged(object? sender, EventArgs e)
+    {
+        long t = Core.TypingTrace.Begin();
+        try { OnVisualLinesChangedCore(); }
+        finally { Core.TypingTrace.End("editor.visualLinesChanged", t); }
+    }
+
+    private void OnVisualLinesChangedCore()
     {
         var view = TextArea.TextView;
         if (!Syntax.Active || !view.VisualLinesValid) return; // the getter of the lines throws while they are invalid
@@ -165,15 +181,15 @@ internal sealed partial class EditorSurface : TextEditor
     public void ApplyOptions(EditorOptions o)
     {
         Settings = o;
-        FontFamily = new FontFamily(o.FontFamily);
+        FontFamily = new FontFamily(o.FullFontFamily);
         FontSize = o.FontSize;
-        WordWrap = o.WordWrap;
         Options.IndentationSize = o.TabSize;
         Options.ConvertTabsToSpaces = o.InsertSpaces;
         Options.ShowSpaces = o.ShowWhitespace;
         Options.ShowTabs = o.ShowWhitespace;
         Options.EnableTextDragDrop = true;
         Options.AcceptsTab = false;
+        ApplyViewOptions(o);
     }
 
     private void ApplyTheme()
@@ -316,6 +332,13 @@ internal sealed partial class EditorSurface : TextEditor
     }
 
     private void OnTextEntering(object? sender, TextInputEventArgs e)
+    {
+        long t = Core.TypingTrace.Begin();
+        try { OnTextEnteringCore(e); }
+        finally { Core.TypingTrace.End("editor.textEntering", t); }
+    }
+
+    private void OnTextEnteringCore(TextInputEventArgs e)
     {
         if (e.Text is { Length: > 0 } entered && TypeAtCarets(entered))
         {

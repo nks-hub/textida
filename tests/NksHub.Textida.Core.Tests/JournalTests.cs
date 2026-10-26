@@ -779,6 +779,36 @@ public class SessionTests
     private static byte[] All(Doc d) => d.ReadBytes(new ByteRange(0, d.ByteLength));
 
     [Fact]
+    public void BookmarkMovesWithTheTextAndSurvivesARestartThroughTheJournal()
+    {
+        using var dir = new JournalTempDir();
+        var journalDir = dir.Combine("journal");
+        var first = JournalSession.Start(journalDir, Backends, new JournalOptions { Fsync = FsyncPolicy.Manual });
+        var doc = Doc.FromBytes(U("one\ntwo\nthree\nfour\n"), ReferenceBackendFactory.Instance);
+        var id = first.Track(doc);
+        var marks = new Bookmarks(doc);
+        Assert.True(marks.Toggle(2, out bool added));
+        Assert.True(added);
+
+        doc.Insert(0, U("a\nb\n"));
+        Assert.Equal([4L], marks.Lines);
+
+        first.UpdateSession(new SessionModel([new([new SessionTab(id, "Untitled 1", doc.Revision, [], marks.Offsets)], id)], 0));
+        doc.Insert(0, U("c\n"));
+        first.Dispose();
+
+        using var second = JournalSession.Start(journalDir, Backends);
+        var restored = second.Recovery.Documents.Single().Document!;
+        var tab = second.Recovery.Session!.AllTabs.Single();
+        var back = new Bookmarks(restored);
+        back.Restore(tab.Bookmarks!, restored.Revision);
+        Assert.Equal([5L], back.Lines);
+        Assert.Equal(5L, back.Step(5, forward: true));
+        restored.Dispose();
+        doc.Dispose();
+    }
+
+    [Fact]
     public void RestoreReadsOnlyJournalsAndIgnoresForeignSessionFiles()
     {
         using var dir = new JournalTempDir();

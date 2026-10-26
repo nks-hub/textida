@@ -250,6 +250,42 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.view.toggleHiddenCharacters",
+      "title": "cmd.view.toggleHiddenCharacters",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleLineNumbers",
+      "title": "cmd.view.toggleLineNumbers",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleCurrentLine",
+      "title": "cmd.view.toggleCurrentLine",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleRightMargin",
+      "title": "cmd.view.toggleRightMargin",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.view.toggleLinks",
+      "title": "cmd.view.toggleLinks",
+      "category": "cat.view",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.view.toggleMinimap",
+      "title": "cmd.view.toggleMinimap",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.view.nextTab",
       "title": "cmd.view.nextTab",
       "category": "cat.view",
@@ -373,6 +409,30 @@
       "id": "nks.search.jumpForward",
       "title": "cmd.search.jumpForward",
       "category": "cat.search"
+    },
+    {
+      "id": "nks.bookmarks.toggle",
+      "title": "cmd.bookmarks.toggle",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.next",
+      "title": "cmd.bookmarks.next",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.previous",
+      "title": "cmd.bookmarks.previous",
+      "category": "cat.search",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.bookmarks.clear",
+      "title": "cmd.bookmarks.clear",
+      "category": "cat.search",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.search.relatedFile",
@@ -509,6 +569,11 @@
     {
       "id": "nks.help.about",
       "title": "cmd.help.about",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.help.contents",
+      "title": "cmd.help.contents",
       "category": "cat.app"
     },
     {
@@ -871,6 +936,42 @@
       "order": 40
     },
     {
+      "menu": "view",
+      "command": "nks.view.toggleHiddenCharacters",
+      "group": "3_display",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleLineNumbers",
+      "group": "3_display",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleCurrentLine",
+      "group": "3_display",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleRightMargin",
+      "group": "3_display",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleLinks",
+      "group": "3_display",
+      "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleMinimap",
+      "group": "3_display",
+      "order": 60
+    },
+    {
       "menu": "file",
       "command": "nks.file.reload",
       "group": "2_disk",
@@ -985,6 +1086,30 @@
       "order": 40
     },
     {
+      "menu": "search",
+      "command": "nks.bookmarks.toggle",
+      "group": "5_bookmarks",
+      "order": 10
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.next",
+      "group": "5_bookmarks",
+      "order": 20
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.previous",
+      "group": "5_bookmarks",
+      "order": 30
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.clear",
+      "group": "5_bookmarks",
+      "order": 40
+    },
+    {
       "menu": "file",
       "command": "nks.file.openFolder",
       "group": "1_new",
@@ -1085,6 +1210,12 @@
       "command": "nks.settings.language.de",
       "group": "3_language",
       "order": 40
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.contents",
+      "group": "0_contents",
+      "order": 10
     },
     {
       "menu": "help",
@@ -1353,6 +1484,10 @@
       "command": "nks.view.commandPalette"
     },
     {
+      "key": "f1",
+      "command": "nks.help.contents"
+    },
+    {
       "key": "alt+z",
       "command": "nks.view.toggleWordWrap"
     },
@@ -1367,6 +1502,18 @@
     {
       "key": "mod+0",
       "command": "nks.view.zoomReset"
+    },
+    {
+      "key": "mod+k mod+w",
+      "command": "nks.view.toggleHiddenCharacters"
+    },
+    {
+      "key": "mod+k mod+n",
+      "command": "nks.view.toggleLineNumbers"
+    },
+    {
+      "key": "mod+k mod+m",
+      "command": "nks.view.toggleMinimap"
     },
     {
       "key": "ctrl+tab",
@@ -1435,6 +1582,19 @@
     {
       "key": "alt+right",
       "command": "nks.search.jumpForward"
+    },
+    {
+      "key": "ctrl+f2",
+      "command": "nks.bookmarks.toggle",
+      "mac": "mod+f2"
+    },
+    {
+      "key": "f2",
+      "command": "nks.bookmarks.next"
+    },
+    {
+      "key": "shift+f2",
+      "command": "nks.bookmarks.previous"
     },
     {
       "key": "alt+o",
@@ -1618,6 +1778,111 @@
       "tags": [
         "font",
         "size"
+      ]
+    },
+    {
+      "key": "editor.fallbackFontFamily",
+      "type": "string",
+      "default": "Segoe UI Symbol, Segoe UI Emoji, Microsoft YaHei UI, Apple Symbols, Apple Color Emoji, PingFang SC, Noto Sans Symbols 2, Noto Color Emoji, Noto Sans CJK SC",
+      "title": "setting.editor.fallbackFontFamily.title",
+      "description": "setting.editor.fallbackFontFamily.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "font",
+        "unicode",
+        "fallback",
+        "symbols",
+        "emoji"
+      ]
+    },
+    {
+      "key": "editor.renderLineEndings",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.renderLineEndings.title",
+      "description": "setting.editor.renderLineEndings.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "line ending",
+        "eol",
+        "cr",
+        "lf",
+        "invisible"
+      ]
+    },
+    {
+      "key": "editor.lineNumbers",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.lineNumbers.title",
+      "description": "setting.editor.lineNumbers.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "line",
+        "number",
+        "gutter"
+      ]
+    },
+    {
+      "key": "editor.highlightCurrentLine",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.highlightCurrentLine.title",
+      "description": "setting.editor.highlightCurrentLine.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "line",
+        "current",
+        "highlight"
+      ]
+    },
+    {
+      "key": "editor.links",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.links.title",
+      "description": "setting.editor.links.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "link",
+        "url",
+        "hyperlink"
+      ]
+    },
+    {
+      "key": "editor.rightMargin",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.editor.rightMargin.title",
+      "description": "setting.editor.rightMargin.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "minimum": 0,
+      "maximum": 500,
+      "tags": [
+        "margin",
+        "ruler",
+        "column",
+        "guide"
+      ]
+    },
+    {
+      "key": "editor.minimap",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.minimap.title",
+      "description": "setting.editor.minimap.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "minimap",
+        "overview",
+        "scroll"
       ]
     },
     {
@@ -2096,6 +2361,25 @@
         "begin",
         "end",
         "block"
+      ]
+    },
+    {
+      "key": "files.binaryAsHex",
+      "type": "string",
+      "default": "ask",
+      "title": "setting.files.binaryAsHex.title",
+      "description": "setting.files.binaryAsHex.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "ask",
+        "always",
+        "never"
+      ],
+      "tags": [
+        "hex",
+        "binary",
+        "nul"
       ]
     }
   ]

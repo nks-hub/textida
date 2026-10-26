@@ -258,6 +258,31 @@ public class FileSearchTests
     }
 
     [Fact]
+    public async Task AnOpenDocumentReportsProgressAndItsOffsetsMatchAnIndependentWalkAcrossChunks()
+    {
+        var bytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 3000).Select(i => $"řádek {i} žluťoučký needle ✓\n")));
+        using var doc = Doc.FromBytes(bytes, ReferenceBackendFactory.Instance);
+        long reported = 0;
+        var settings = new SearchSettings { MaxResults = 1_000_000, ChunkBytes = 1 << 16, Progress = n => Interlocked.Add(ref reported, n) };
+        var run = SearchWorker.Start(new SearchPattern("needle"), new SearchScope([], [LiveBuffer.Of(doc)]), settings);
+        var hits = new List<SearchHit>();
+        await foreach (var b in run.Batches.ReadAllAsync()) hits.AddRange(b.Hits);
+        await run.Completion;
+
+        var expected = new List<long>();
+        for (int i = bytes.AsSpan().IndexOf("needle"u8); i >= 0 && i < bytes.Length;)
+        {
+            expected.Add(i);
+            int next = bytes.AsSpan(i + 6).IndexOf("needle"u8);
+            i = next < 0 ? -1 : i + 6 + next;
+        }
+        Assert.Equal(expected, hits.Select(h => h.Range.Start));
+        Assert.All(hits, h => Assert.Equal(6, h.Range.Length));
+        Assert.Equal(bytes.Length, reported);
+        Assert.Equal((bytes.Length, (long)bytes.Length), run.Progress);
+    }
+
+    [Fact]
     public async Task AnEditAfterTheSearchNeverLeavesAHitWithAnInvalidOffset()
     {
         using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 200).Select(i => $"line {i} needle\n"))), ReferenceBackendFactory.Instance);

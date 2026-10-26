@@ -6,11 +6,15 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Core.Journal;
 
 namespace NksHub.Textida.App.Shell;
 
 internal enum UnsavedAnswer { Cancel, Save, Discard, KeepInJournal }
+
+/// <summary>Answer of the loss inspector: write nothing, write in another encoding, or write the replacement bytes.</summary>
+internal enum LossAnswer { Cancel, ChangeEncoding, Replace }
 
 internal sealed partial class MainWindow
 {
@@ -62,21 +66,77 @@ internal sealed partial class MainWindow
 
     private static string DisplayOf(int codePoint) => System.Text.Rune.IsValid(codePoint) ? new System.Text.Rune(codePoint).ToString() : $"U+{codePoint:X4}";
 
-    /// <summary>The loss dialog: every character the encoding cannot hold with its line, column and byte position. True when the user explicitly accepts the replacement.</summary>
-    internal async Task<bool> ConfirmLossAsync(LossReport loss, TextCodec codec, string acceptLabel)
+    /// <summary>
+    /// The text part of the byte inspector (F169): every character the encoding cannot hold with its line, column, byte position and the bytes written instead,
+    /// the size before and after, and three answers: cancel (nothing is written), change the encoding (the one picked next) or replace with "?".
+    /// </summary>
+    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmLossAsync(OpenDocument od, LossReport loss, TextCodec codec, string acceptLabel)
     {
-        var details = loss.Entries.Take(500).Select(e => Loc.Get(K.LossEntry, ("char", DisplayOf(e.CodePoint)), ("code", $"U+{e.CodePoint:X4}"), ("line", e.Line), ("column", e.Column), ("byte", e.ByteOffset))).ToList();
+        var doc = od.Doc;
+        string replacement = HexEditor.ToHexText(codec.EncodeLossy("?"));
+        var details = loss.Entries.Take(500).Select(e => Loc.Get(K.LossEntry, ("char", DisplayOf(e.CodePoint)), ("code", $"U+{e.CodePoint:X4}"), ("line", e.Line), ("column", e.Column), ("byte", e.ByteOffset), ("replacement", replacement))).ToList();
         if (loss.Truncated || loss.Entries.Count > 500) details.Add(Loc.Get(K.LossMore));
-        var request = new ChoiceRequest(Loc.Get(K.LossTitle), DescribeLoss(loss, codec) + "\n" + Loc.Get(K.LossReplacement),
-            [new DialogButton(acceptLabel), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], details);
-        return await _app.Dialogs.ChooseAsync(this, request) == 0;
+        string message = DescribeLoss(loss, codec);
+        if (!od.IsLarge)
+            message += "\n" + Loc.Get(K.LossSize, ("encoding", codec.Name), ("before", doc.ByteLength), ("after", codec == doc.Codec ? doc.ByteLength : doc.PreviewConvert(codec).ByteLength));
+        var request = new ChoiceRequest(Loc.Get(K.LossTitle), message + "\n" + Loc.Get(K.LossReplacement),
+            [new DialogButton(acceptLabel), new DialogButton(Loc.Get(K.LossChangeEncoding)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], details);
+        switch (await _app.Dialogs.ChooseAsync(this, request))
+        {
+            case 0: return (LossAnswer.Replace, null);
+            case 1:
+                var targets = LossTargets(od, codec);
+                if (targets.Count == 0) return (LossAnswer.Cancel, null);
+                var picked = await _app.Dialogs.PickEncodingAsync(this, Loc.Get(K.LossPickTitle), Loc.Get(K.LossPickLabel), targets, (targets.FirstOrDefault(t => t.Lost == 0) is { Codec: not null } safe ? safe : targets[0]).Codec);
+                return picked is null ? (LossAnswer.Cancel, null) : (LossAnswer.ChangeEncoding, picked);
+            default: return (LossAnswer.Cancel, null);
+        }
     }
 
-    /// <summary>Characters typed or pasted that the encoding of the document cannot hold already carry a replacement in the bytes; saving writes it, so the user must agree first.</summary>
-    private async Task<bool> ConfirmTypedLossAsync(OpenDocument od)
+    /// <summary>The encodings the document could be written in instead of <paramref name="lossy"/>, each with the number of characters it would lose from the text as the user sees it.</summary>
+    private static IReadOnlyList<(TextCodec Codec, int Lost)> LossTargets(OpenDocument od, TextCodec lossy)
     {
-        if (od.TextBackend?.TypedLoss() is not { HasLoss: true } loss) return true;
-        return await ConfirmLossAsync(loss, od.Doc.Codec, Loc.Get(K.LossSaveReplaced));
+        var doc = od.Doc;
+        IReadOnlyList<(TextCodec Codec, int Lost)> all = od.TextBackend is { } backend && backend.TypedLoss().HasLoss
+            ? [.. TextCodec.All.Select(c => (c, LossReport.ForText(backend.TextDocument.Text, c).Total))]
+            : ByteFidelity.ListTargets(doc.Codec.Decode(doc.ReadBytes(new ByteRange(0, doc.ByteLength))));
+        return [.. all.Where(t => t.Codec != lossy && doc.Backend.Supports(t.Codec))];
+    }
+
+    /// <summary>
+    /// Characters typed or pasted that the encoding of the document cannot hold already carry a replacement in the bytes; saving writes it, so the user must agree first.
+    /// Changing the encoding converts the document and puts the typed text back, so it is written as typed. False when nothing may be written.
+    /// </summary>
+    private async Task<bool> ConfirmTypedLossAsync(DocTab tab, string? acceptLabel = null)
+    {
+        var od = tab.Doc;
+        while (od.TextBackend?.TypedLoss() is { HasLoss: true } loss)
+        {
+            var (answer, codec) = await ConfirmLossAsync(od, loss, od.Doc.Codec, acceptLabel ?? Loc.Get(K.LossSaveReplaced));
+            if (answer == LossAnswer.Replace) return true;
+            if (answer == LossAnswer.Cancel || !ConvertKeepingTyped(od, codec!)) return false;
+        }
+        return true;
+    }
+
+    private bool ConvertKeepingTyped(OpenDocument od, TextCodec codec)
+    {
+        var text = od.TextBackend!.TextDocument;
+        string typed = text.Text;
+        if (!od.Doc.ConvertTo(codec, "?").Applied)
+        {
+            SetStatusMessage(Loc.Get(K.StatusConvertFailed, ("encoding", codec.Name)));
+            return false;
+        }
+        string now = text.Text; // the conversion read the replacement bytes back; the typed characters go in again, encoded in the new codec
+        int head = 0, tail = 0;
+        while (head < now.Length && head < typed.Length && now[head] == typed[head]) head++;
+        while (tail < now.Length - head && tail < typed.Length - head && now[^(tail + 1)] == typed[^(tail + 1)]) tail++;
+        if (head + tail < Math.Max(now.Length, typed.Length)) text.Replace(head, now.Length - head - tail, typed.Substring(head, typed.Length - head - tail));
+        od.SetEncodingChosen();
+        od.NotifyChanged();
+        SetStatusMessage(Loc.Get(K.StatusConverted, ("encoding", codec.Name)));
+        return true;
     }
 
     // ---- save ----
@@ -85,7 +145,7 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         if (od.Path is null) return await SaveAsAsync(tab);
-        if (!await ConfirmTypedLossAsync(od)) return false;
+        if (!await ConfirmTypedLossAsync(tab)) return false;
         return await SaveCoreAsync(tab, overwrite: false);
     }
 
@@ -137,7 +197,7 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         var doc = od.Doc;
-        if (!await ConfirmTypedLossAsync(od)) return false;
+        if (!await ConfirmTypedLossAsync(tab)) return false;
 
         IReadOnlyList<(TextCodec Codec, int Lost)> targets = od.IsLarge || od.IsHex
             ? [(doc.Codec, 0)]
@@ -158,15 +218,18 @@ internal sealed partial class MainWindow
         PrepareForSave(od);
         try
         {
-            var result = doc.SaveAs(choice.Path, choice.Codec);
-            if (result.Loss is { HasLoss: true } loss)
+            var codec = choice.Codec;
+            var result = doc.SaveAs(choice.Path, codec);
+            while (result.Loss is { HasLoss: true } loss)
             {
-                if (!await ConfirmLossAsync(loss, choice.Codec, Loc.Get(K.LossSaveReplaced))) return false;
-                result = doc.SaveAs(choice.Path, choice.Codec, "?");
+                var (answer, picked) = await ConfirmLossAsync(od, loss, codec, Loc.Get(K.LossSaveReplaced));
+                if (answer == LossAnswer.Cancel) return false;
+                if (answer == LossAnswer.Replace) result = doc.SaveAs(choice.Path, codec, "?");
+                else result = doc.SaveAs(choice.Path, codec = picked!);
             }
             if (result.Saved)
             {
-                if (choice.Codec != od.Guess?.Codec) od.SetEncodingChosen();
+                if (codec != od.Guess?.Codec) od.SetEncodingChosen();
                 od.NotifyChanged();
                 RefreshAll();
                 SetStatusMessage(Loc.Get(K.StatusSaved));

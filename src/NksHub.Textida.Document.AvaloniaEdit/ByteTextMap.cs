@@ -256,6 +256,12 @@ internal sealed class ByteTextMap
         return i + 1;
     }
 
+    private const int MaxJoinedRunBytes = 1024;
+
+    /// <summary>Typed runs join typed runs and byte runs join byte runs; a lone high surrogate at the join could pair with the next char.</summary>
+    private static bool CanJoin(Run previous, string? text) =>
+        previous.Text is null ? text is null : text is { Length: > 0 } && !char.IsHighSurrogate(previous.Text[^1]);
+
     /// <summary>Replaces chars <c>[c0, c1)</c> (both unit boundaries) and returns the bytes that were removed.</summary>
     public byte[] Replace(int c0, int c1, byte[] bytes, string? text, int chars)
     {
@@ -264,7 +270,13 @@ internal sealed class ByteTextMap
         var removed = new List<byte>();
         for (int i = i0; i < i1; i++) removed.AddRange(BytesOf(_runs[i]).ToArray());
         _runs.RemoveRange(i0, i1 - i0);
-        if (bytes.Length > 0 || chars > 0) _runs.Insert(i0, new Run { Data = bytes, Bytes = bytes.Length, Chars = chars, Text = text });
+        if (bytes.Length > 0 && i0 > 0 && _runs[i0 - 1] is { Original: false, Bytes: < MaxJoinedRunBytes } previous && CanJoin(previous, text))
+        {
+            // an insertion right behind an inserted run joins it, so a typing run does not add a run per keystroke
+            _runs[i0 - 1] = new Run { Data = [.. previous.Data!, .. bytes], Bytes = previous.Bytes + bytes.Length, Chars = previous.Chars + chars, Text = previous.Text is null ? null : previous.Text + text };
+            i0--;
+        }
+        else if (bytes.Length > 0 || chars > 0) _runs.Insert(i0, new Run { Data = bytes, Bytes = bytes.Length, Chars = chars, Text = text });
         _totalBytes += bytes.Length - removed.Count;
         Invalidate(i0);
         return [.. removed];
