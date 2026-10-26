@@ -4,16 +4,20 @@ namespace NksHub.Textida.Core.Tests;
 
 internal sealed class TempFile : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nkspad-test-" + Guid.NewGuid().ToString("N") + ".bin");
+    // Own folder per file: saves put their temp file next to the target, and other suites count temp files in the temp root.
+    private readonly string _dir = Directory.CreateTempSubdirectory("textida-test-").FullName;
+
+    public string Path { get; }
 
     public TempFile(byte[]? content = null)
     {
+        Path = System.IO.Path.Combine(_dir, "file.bin");
         File.WriteAllBytes(Path, content ?? []);
     }
 
     public void Dispose()
     {
-        try { File.Delete(Path); } catch (IOException) { }
+        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
     }
 }
 

@@ -176,7 +176,7 @@ public static class Verifier
     /// <summary>Runs the oracle again up to the matching state and walks both undo stacks down together.</summary>
     private static string? CompareUndo(int seed, int k, List<Candidate> candidates, int match, RecoveryResult recovery)
     {
-        string dir = Path.Combine(Path.GetTempPath(), "nkspad-undo-" + Guid.NewGuid().ToString("N")[..8]);
+        string dir = Path.Combine(Path.GetTempPath(), "textida-undo-" + Guid.NewGuid().ToString("N")[..8]);
         try
         {
             using var model = Scene.Create(dir, seed);

@@ -242,7 +242,7 @@ public sealed class NaiveModel(byte[] initial)
 
 public sealed class TempDir : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nkspad-doc-" + Guid.NewGuid().ToString("N"));
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "textida-doc-" + Guid.NewGuid().ToString("N"));
 
     public TempDir() => Directory.CreateDirectory(Path);
     public string File(string name) => System.IO.Path.Combine(Path, name);

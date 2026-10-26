@@ -259,7 +259,7 @@ public sealed class PagedDocument : IPagedTextSource
     {
         string target = System.IO.Path.GetFullPath(path ?? _source.Path);
         bool inPlace = string.Equals(target, System.IO.Path.GetFullPath(_source.Path), StringComparison.OrdinalIgnoreCase);
-        string tmp = target + ".nkspad-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        string tmp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
         {
             using (var fs = new FileStream(tmp, new FileStreamOptions

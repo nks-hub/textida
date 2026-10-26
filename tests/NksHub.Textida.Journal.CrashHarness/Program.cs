@@ -33,7 +33,7 @@ public static class Program
             Console.Error.WriteLine("usage: run [--iterations N] [--parallel N] [--seed N] [--work DIR] | child DIR SEED");
             return 2;
         }
-        return Verifier.RunAll(iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "nkspad-crash-" + Guid.NewGuid().ToString("N")[..8]));
+        return Verifier.RunAll(iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "textida-crash-" + Guid.NewGuid().ToString("N")[..8]));
     }
 
     /// <summary>Edits three documents with a journal until the parent kills the process. Prints "ready T" and then "OP T" after every operation.</summary>

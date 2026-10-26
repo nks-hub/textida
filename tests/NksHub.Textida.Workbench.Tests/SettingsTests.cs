@@ -7,7 +7,7 @@ namespace NksHub.Textida.Workbench.Tests;
 
 public sealed class TempDir : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nkspad-tests-" + Guid.NewGuid().ToString("N"));
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "textida-tests-" + Guid.NewGuid().ToString("N"));
 
     public TempDir() => Directory.CreateDirectory(Path);
 

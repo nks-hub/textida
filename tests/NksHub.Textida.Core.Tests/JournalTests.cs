@@ -10,7 +10,7 @@ namespace NksHub.Textida.Core.Tests;
 
 internal sealed class JournalTempDir : IDisposable
 {
-    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nkspad-journal-" + Guid.NewGuid().ToString("N")[..10]);
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "textida-journal-" + Guid.NewGuid().ToString("N")[..10]);
 
     public JournalTempDir() => Directory.CreateDirectory(Path);
     public string Combine(string name) => System.IO.Path.Combine(Path, name);

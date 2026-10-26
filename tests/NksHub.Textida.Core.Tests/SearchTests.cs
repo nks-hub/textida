@@ -135,7 +135,7 @@ public class SearchTests
     [Fact]
     public async Task TreeSearchCountsAcrossFilesAndSkipsBinary()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "nkspad-tree-" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "textida-tree-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "sub"));
         try
         {

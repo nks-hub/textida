@@ -22,7 +22,7 @@ internal sealed class Rng(ulong seed)
 
 internal static class Paths
 {
-    public static string Root { get; private set; } = OperatingSystem.IsWindows() ? @"C:\textida-bench" : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "nkspad");
+    public static string Root { get; private set; } = OperatingSystem.IsWindows() ? @"C:\textida-bench" : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "textida-bench");
     public static string Corpus { get; private set; } = Path.Combine(Root, "corpus");
     public static string Results { get; private set; } = Path.Combine(Root, "results");
     public static string Manifest => Path.Combine(Corpus, "manifest");

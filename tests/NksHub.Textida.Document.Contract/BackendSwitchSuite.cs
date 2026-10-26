@@ -10,7 +10,7 @@ public static class BackendSwitch
     {
         byte[] original = [0xEF, 0xBB, 0xBF, .. "a\r\nb\nc\rd"u8, 0xE2, 0x82, (byte)'x', 0xFF, 0xC3, 0xA9, 0x80, .. "\r\n\r"u8];
         var format = TestFormat.Utf8Bom.Format;
-        int tempBefore = Directory.GetFiles(Path.GetTempPath(), "*.nkspad-*.tmp").Length;
+        int tempBefore = Directory.GetFiles(Path.GetTempPath(), "*.textida-*.tmp").Length;
 
         using var d = Doc.FromBytes(original, chain[0], new DocumentOptions { Format = format });
         Assert.True(d.Insert(3, "Z"u8.ToArray()).Applied);
@@ -51,7 +51,7 @@ public static class BackendSwitch
         d.Redo();
         Assert.Equal([.. bytes, (byte)'!'], d.ReadBytes(new(0, d.ByteLength)));
         Assert.True(d.IsModified);
-        Assert.Equal(tempBefore, Directory.GetFiles(Path.GetTempPath(), "*.nkspad-*.tmp").Length);
+        Assert.Equal(tempBefore, Directory.GetFiles(Path.GetTempPath(), "*.textida-*.tmp").Length);
     }
 
     private static List<(long, bool, LinePosition)> Positions(Doc d)

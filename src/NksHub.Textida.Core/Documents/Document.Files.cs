@@ -93,7 +93,7 @@ public sealed partial class Document
         bool guard = inPlace && !overwriteExternalChanges;
         if (guard && CheckExternalChange() is { } early) return new(false, early);
 
-        string temp = target + ".nkspad-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        string temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
         {
             string hash;
