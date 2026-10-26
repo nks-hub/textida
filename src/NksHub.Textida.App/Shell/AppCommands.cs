@@ -53,8 +53,14 @@ internal static class AppCommands
         Do("nks.edit.redo", w => w.Redo());
         On("nks.edit.cut", w => w.CutAsync());
         On("nks.edit.copy", w => w.CopyAsync());
-        On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
-        On("nks.edit.selectAll", w => { if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled; s.SelectAll(); return CommandOutcome.Handled; });
+        On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null && w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        On("nks.edit.selectAll", w =>
+        {
+            if (w.ActiveHex is { } hex) { hex.SelectAll(); return CommandOutcome.Handled; }
+            if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled;
+            s.SelectAll();
+            return CommandOutcome.Handled;
+        });
         On("nks.edit.selectLine", w => w.SelectLine());
         Surface("nks.edit.addNextOccurrence", s => s.AddNextOccurrence());
         Surface("nks.edit.skipOccurrence", s => s.SkipOccurrence());
@@ -98,6 +104,15 @@ internal static class AppCommands
         Do("nks.view.nextTab", w => w.CycleTab(1));
         Do("nks.view.previousTab", w => w.CycleTab(-1));
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
+        On("nks.view.hex", w => w.ToggleHex());
+        Do("nks.file.openAsHex", w => _ = w.OpenAsHexDialogAsync());
+        On("nks.hex.toggleInsert", w => w.HexCommand(h => h.ToggleInsert()));
+        On("nks.hex.inspector", w => w.ToggleInspector());
+        On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        On("nks.hex.layout", w => { w.ShowHexLayoutMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        foreach (int size in HexView.Sizes) On("nks.hex.bytesPerRow." + size, w => w.HexCommand(h => h.SetBytesPerRow(size)));
+        On("nks.hex.offsetFormat", w => w.HexCommand(h => h.ToggleOffsetFormat()));
+        On("nks.hex.inspectChanges", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.ShowHexChangesAsync(tab); return CommandOutcome.Handled; });
 
         // format
         Do("nks.format.reread", w => _ = w.ShowEncodingMenu(onlyConvert: false));

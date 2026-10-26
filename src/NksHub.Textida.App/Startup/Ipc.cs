@@ -10,6 +10,8 @@ public sealed class IpcFile
 {
     public string Path { get; set; } = "";
     public int? Line { get; set; }
+    public bool Hex { get; set; }
+    public long? Offset { get; set; }
 }
 
 /// <summary>What a second launch asks the running instance to do. One JSON line on the wire.</summary>

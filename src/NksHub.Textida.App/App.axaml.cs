@@ -116,7 +116,7 @@ public sealed partial class App : Application
 
     private void RunStartupOpen(CommandLineArgs args)
     {
-        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line }).ToList() };
+        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList() };
         _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } e) _active?.SetStatusMessage(e.InnerException?.Message ?? e.Message); }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
@@ -210,6 +210,7 @@ public sealed partial class App : Application
             {
                 var owner = _windows.FirstOrDefault(w => w.Tabs.Any(t => string.Equals(t.Path, Path.GetFullPath(f.Path), MainWindow.PathComparison))) ?? window;
                 var tab = owner.OpenFile(f.Path, f.Line);
+                if (f.Hex) tab = owner.OpenHex(tab, f.Offset);
                 if (!ReferenceEquals(owner, window)) window = owner;
                 if (request.Wait) waits.Add(tab.Closed.Task);
             }

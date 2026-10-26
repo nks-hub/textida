@@ -82,6 +82,11 @@ internal sealed partial class MainWindow
     /// <summary>Undo or redo through the document, so the typed run, a line command and a conversion are each one step; then the caret goes where the change happened.</summary>
     private void UndoRedo(bool redo)
     {
+        if (Active?.Hex is { } hex)
+        {
+            hex.UndoRedo(redo);
+            return;
+        }
         if (Active?.Paged is { } paged)
         {
             paged.UndoRedo(redo);
@@ -195,9 +200,9 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    internal CommandOutcome CopyAsync() => CopyOrCut(cut: false);
+    internal CommandOutcome CopyAsync() => ActiveHex is not null ? HexCopy(cut: false) : CopyOrCut(cut: false);
 
-    internal CommandOutcome CutAsync() => CopyOrCut(cut: true);
+    internal CommandOutcome CutAsync() => ActiveHex is not null ? HexCopy(cut: true) : CopyOrCut(cut: true);
 
     /// <summary>Copy and cut: with several carets the selected texts go to the clipboard one per line.</summary>
     private CommandOutcome CopyOrCut(bool cut)
@@ -218,6 +223,7 @@ internal sealed partial class MainWindow
 
     internal async Task<CommandOutcome> PasteAsync()
     {
+        if (ActiveHex is not null) return HexPaste();
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         var text = Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
         if (string.IsNullOrEmpty(text)) return CommandOutcome.Handled;
@@ -258,6 +264,11 @@ internal sealed partial class MainWindow
     internal async Task GoToLineAsync()
     {
         if (Active is not { } tab) return;
+        if (tab.Hex is { } hex)
+        {
+            await GoToOffsetAsync(hex);
+            return;
+        }
         var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.GoToLineTitle), Loc.Get(K.GoToLineLabel), "");
         if (answer is null) return;
         GoTo(answer);

@@ -297,6 +297,7 @@ internal sealed partial class MainWindow : Window
             var options = OptionsFor(tab);
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
+            tab.Hex?.ApplyOptions(options);
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }

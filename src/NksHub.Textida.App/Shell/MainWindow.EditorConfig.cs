@@ -38,7 +38,7 @@ internal sealed partial class MainWindow
     /// </summary>
     private void PrepareForSave(OpenDocument od)
     {
-        if (od.IsLarge) return;
+        if (od.IsLarge || od.IsHex) return;
         od.RefreshEditorConfig();
         var options = OptionsFor(od);
         bool? finalNewline = options.InsertFinalNewline ? true : od.EditorConfig.Get("insert_final_newline") == "false" ? false : null;
