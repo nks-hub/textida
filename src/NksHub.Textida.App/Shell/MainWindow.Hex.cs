@@ -36,6 +36,13 @@ internal sealed partial class MainWindow
     /// <summary>Settings of the Binary-offer bar: bytes searched for a NUL, like the rule of the file search.</summary>
     private const int BinarySampleBytes = 8000;
 
+    /// <summary>The accessible names of the hex views follow the UI language.</summary>
+    private void ApplyHexTexts()
+    {
+        foreach (var tab in Tabs)
+            if (tab.Hex is { } hex) AutomationProperties.SetName(hex, Loc.Get(K.A11yHexEditor));
+    }
+
     // ---- wiring of a hex tab ----
 
     private void WireHex(DocTab tab, HexView hex)
@@ -389,7 +396,7 @@ internal sealed partial class MainWindow
         var cts = _hexFindCts = new CancellationTokenSource();
         var doc = hex.Editor.Document;
         var snapshot = doc.GetSnapshot();
-        long from = hex.Editor.HasSelection && !fromCaret ? (forward ? hex.Editor.Selection.Start + 1 : hex.Editor.Selection.End - 1) : (forward ? hex.Caret + (fromCaret ? 0 : 1) : hex.Caret - 1);
+        long from = hex.Editor.HasSelection && !fromCaret ? (forward ? hex.Editor.Selection.Start + 1 : hex.Editor.Selection.Start) : (forward ? hex.Caret + (fromCaret ? 0 : 1) : hex.Caret);
         SetStatusMessage(Loc.Get(K.HexFindRunning));
         try
         {

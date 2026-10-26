@@ -31,6 +31,7 @@ public class HexTests : IDisposable
     {
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
+        Current = _w;
     }
 
     public void Dispose()
@@ -150,16 +151,16 @@ public class HexTests : IDisposable
     [AvaloniaFact]
     public void A_selection_goes_through_the_bytes_in_both_directions()
     {
-        var tab = _w.OpenFile(_temp.Bytes("t.txt", "a€b\0x"u8.ToArray()), null);
+        var tab = _w.OpenFile(_temp.Bytes("t.txt", "The quick brown fox a€b jumps over"u8.ToArray()), null);
         _w.Active!.Bar?.ToString();
-        tab.Surface!.SetSelections([new NksHub.Textida.AvaloniaEditAdapter.Sel(1, 2)]);
+        tab.Surface!.SetSelections([new NksHub.Textida.AvaloniaEditAdapter.Sel(21, 22)]);
         HexChord();
         var hex = _w.Active!.Hex!;
-        Assert.Equal(new ByteRange(1, 4), hex.Editor.Selection);
-        hex.Select(5, 6);
+        Assert.Equal(new ByteRange(21, 24), hex.Editor.Selection);
+        hex.Select(26, 27);
         HexChord();
         var sel = _w.Active!.Surface!.GetSelections()[0];
-        Assert.Equal((3, 4), (sel.Anchor, sel.Caret));
+        Assert.Equal((24, 25), (sel.Anchor, sel.Caret));
     }
 
     [AvaloniaFact]
@@ -332,6 +333,8 @@ public class HexTests : IDisposable
         PumpUntil(() => hex.Editor.Selection.Start == expected[^1]);
     }
 
+    private static MainWindow? Current;
+
     private static void PumpUntil(Func<bool> condition)
     {
         for (int i = 0; i < 2000 && !condition(); i++)
@@ -339,7 +342,7 @@ public class HexTests : IDisposable
             Thread.Sleep(5);
             Dispatcher.UIThread.RunJobs();
         }
-        Assert.True(condition());
+        Assert.True(condition(), "status: " + Current?.StatusLeftText);
     }
 
     // ---- inspector ----
