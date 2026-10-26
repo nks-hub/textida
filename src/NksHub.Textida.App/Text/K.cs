@@ -215,6 +215,10 @@ public static class K
     public const string RelatedUnsaved = "related.unsaved";
     public const string NavNoBack = "nav.noBack";
     public const string NavNoForward = "nav.noForward";
+    public const string BookmarkAdded = "bookmarks.added";
+    public const string BookmarkRemoved = "bookmarks.removed";
+    public const string BookmarkNone = "bookmarks.none";
+    public const string BookmarksCleared = "bookmarks.cleared";
     public const string A11yPalette = "a11y.palette";
     public const string A11yPaletteResults = "a11y.palette.results";
     public const string RestoreBar = "restore.bar";

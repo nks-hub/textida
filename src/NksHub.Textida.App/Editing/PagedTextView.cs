@@ -128,6 +128,7 @@ internal sealed partial class PagedTextView : Grid
     {
         base.OnAttachedToVisualTree(e);
         Doc.Changed += OnDocChanged;
+        _doc.Bookmarks.Changed += RepaintBookmarks;
         Doc.Saved += OnSaved;
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
@@ -136,6 +137,7 @@ internal sealed partial class PagedTextView : Grid
     {
         base.OnDetachedFromVisualTree(e);
         Doc.Changed -= OnDocChanged;
+        _doc.Bookmarks.Changed -= RepaintBookmarks;
         Doc.Saved -= OnSaved;
         _indexTimer.Stop();
     }
@@ -793,6 +795,7 @@ internal sealed partial class PagedTextView : Grid
                 var number = Format((line + 1).ToString(CultureInfo.InvariantCulture), numbers);
                 context.DrawText(number, new Point(_gutter - 10 - number.Width, i * _lineHeight));
             }
+            if (options.LineNumbers) owner.DrawBookmarks(context, top, _lineHeight, VisibleLines + 1);
         }
     }
 }

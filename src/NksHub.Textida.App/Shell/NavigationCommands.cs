@@ -18,6 +18,10 @@ internal static class NavigationCommands
         Do("nks.search.recentEdits", w => w.ShowEditLocations());
         Do("nks.search.jumpBack", w => w.JumpBack());
         Do("nks.search.jumpForward", w => w.JumpForward());
+        Do("nks.bookmarks.toggle", w => w.ToggleBookmark());
+        Do("nks.bookmarks.next", w => w.StepBookmark(forward: true));
+        Do("nks.bookmarks.previous", w => w.StepBookmark(forward: false));
+        Do("nks.bookmarks.clear", w => w.ClearBookmarks());
         Do("nks.search.relatedFile", w => w.GoToRelatedFile());
         Do("nks.file.openPathAtCaret", w => w.OpenPathAtCaret());
         Fire("nks.file.openFolder", w => w.OpenFolderWithDialogAsync());

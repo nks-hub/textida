@@ -30,8 +30,8 @@ public sealed record MoveRecord(Guid DocId, string Path);
 
 public sealed record SaveIntentRecord(Guid DocId, long Revision, string Path, long Size, string Sha256, string? Codec = null);
 
-/// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to.</summary>
-public sealed record SessionTab(Guid DocId, string? Title, long Revision, IReadOnlyList<ByteRange> Selections)
+/// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to. <see cref="Bookmarks"/> are byte offsets of line starts at the same revision.</summary>
+public sealed record SessionTab(Guid DocId, string? Title, long Revision, IReadOnlyList<ByteRange> Selections, IReadOnlyList<long>? Bookmarks = null)
 {
     /// <summary>Builds a tab from anchors (start, end per selection); selections with an invalid anchor are left out, never guessed.</summary>
     public static SessionTab Capture(Guid docId, Document doc, string? title, IEnumerable<(Anchor Start, Anchor End)> selections) =>
@@ -47,8 +47,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name.</summary>
-    private const int PayloadLayout = 2;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab.</summary>
+    private const int PayloadLayout = 3;
 
     // ---- primitives ----
 
@@ -248,11 +248,13 @@ internal static class JournalRecords
                     w.Write(s.Start);
                     w.Write(s.End);
                 }
+                w.Write(t.Bookmarks?.Count ?? 0);
+                foreach (var b in t.Bookmarks ?? []) w.Write(b);
             }
         }
     });
 
-    public static SessionModel DecodeSession(byte[] p) => Parse(p, r =>
+    public static SessionModel DecodeSession(byte[] p) => Parse(p, (r, layout) =>
     {
         int active = r.ReadInt32();
         var groups = new SessionGroup[r.ReadInt32()];
@@ -267,7 +269,9 @@ internal static class JournalRecords
                 long rev = r.ReadInt64();
                 var sel = new ByteRange[r.ReadInt32()];
                 for (int si = 0; si < sel.Length; si++) sel[si] = new ByteRange(r.ReadInt64(), r.ReadInt64());
-                tabs[ti] = new(id, title, rev, sel);
+                var marks = new long[layout >= 3 ? r.ReadInt32() : 0];
+                for (int bi = 0; bi < marks.Length; bi++) marks[bi] = r.ReadInt64();
+                tabs[ti] = new(id, title, rev, sel, marks);
             }
             groups[gi] = new(tabs, activeDoc);
         }
