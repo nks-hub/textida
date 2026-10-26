@@ -58,7 +58,7 @@ internal sealed partial class MainWindow
         header.Children.Add(Dock(tabs, Avalonia.Controls.Dock.Left));
 
         _outputText.Classes.Add("outputtext");
-        _outputText.AddHandler(KeyDownEvent, (_, e) =>
+        _outputPanel.AddHandler(KeyDownEvent, (_, e) =>
         {
             if (e.Key != Key.Escape) return;
             ToggleOutput(false);
@@ -152,5 +152,13 @@ internal sealed partial class MainWindow
         }
         else WindowState = _beforeFullScreen;
         _menuModel = BuildMenuModel();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        // the system moves the keyboard to the menu while the window changes size; the editor gets it back once that is over
+        if (change.Property == WindowStateProperty && (IsFullScreen || change.OldValue is WindowState.FullScreen))
+            DispatcherTimer.RunOnce(() => { if (Active is { } tab && !IsPaletteOpen && !OutputPanelOpen) FocusView(tab); }, TimeSpan.FromMilliseconds(200));
     }
 }
