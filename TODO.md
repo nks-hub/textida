@@ -948,6 +948,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
 - [ ] **P3.1.4** Hledání ve velkém souboru: integrace F153
   - **Co a proč:** Lišta hledání nad stránkovaným dokumentem: průběh v procentech, výsledky jako karta, zrušení. Algoritmus hledání vzniká v P2 (P2.5.5); tady se jen napojí na stránkovanou plochu, druhá skrytá implementace nevznikne. Hledá v aktuální revizi, tedy i po hex úpravě (P3.5.9).
   - **Funkce:** F153
+  - **Stav 26. 10. 2026:** částečně: hledací lišta nad stránkovaným dokumentem přes `SearchWorker` s průběhem v procentech, hlášením limitu a tlačítkem „Vypsat“ do karty výsledků; test offsetů proti nezávislému průchodu přes hranice bloků (47/47 lokálně). Neověřeno: 10GiB soubor (průběh, zrušení ≤ 1 s) na referenční Windows VM.
   - **Hotovo, když:** hledání v 10GiB souboru ukazuje průběh; uspořádané offsety a délky shod souhlasí s nezávislým průchodem, i přes hranice bloků a s vícebajtovými znaky; zrušení zastaví worker do 1 s; při dosažení limitu výsledků to karta řekne.
   - **Závisí na:** P3.1.1, P2.4.1, P2.5.5
   - **Odhad:** v rámci F153
@@ -1113,9 +1114,10 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Hotovo, když:** zapnutí skrytých znaků ukáže CR, LF, tabulátor a mezery bez změny dokumentu; řádek 100 MiB se nikdy automaticky nezalomí; znak mimo hlavní písmo se vykreslí náhradním písmem.
   - **Závisí na:** P1.4.1, P3.1.1
   - **Odhad:** bez odhadu
-- [ ] **P3.6.2** Záložky v textu
+- [x] **P3.6.2** Záložky v textu
   - **Co a proč:** Záložky jako kotvy, navigace mezi nimi, trvalé uložení v relaci (`08` kap. 6).
   - **Funkce:** F064
+  - **Stav 26. 10. 2026:** hotovo: `Bookmarks` jako kotvy na začátku řádku, Ctrl+F2 / F2 / Shift+F2 v menu Hledat, značka v okraji obou ploch (i bez čísel řádků), uložení v relaci přes žurnál (rozložení záznamu 3, starší se čtou dál); test posunu po vložení řádků i obnovy po restartu. Neověřeno v běžící aplikaci: vykreslení značky a klávesy.
   - **Hotovo, když:** záložka se po vložení řádků nad ní posune s textem a přežije restart přes žurnál.
   - **Závisí na:** P1.2.5, P1.5.1
   - **Odhad:** bez odhadu
@@ -1129,6 +1131,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.5** Nápověda programu
   - **Co a proč:** Vlastní nápověda hotových funkcí, doplňovaná s vydáními. Nápověda PSPadu se nepoužije. Existence odstavce sama nevysvětluje scénář.
   - **Funkce:** F142
+  - **Stav 26. 10. 2026:** částečně: okno nápovědy s hledáním, F1 podle kontextu, 69 témat v cs/en/sk/de jako vložené zdroje, test, že každý registrovaný příkaz má téma ve všech jazycích. Chybí: postupy ověřené na skutečném buildu a snímky (aplikace se na vývojovém PC nespouští), kontrola sk/de rodilým mluvčím.
   - **Hotovo, když:** každý příkaz z registru, který je v MVP, má v nápovědě postup ověřený na skutečném buildu; nápověda popisuje aktualizaci, obnovu po pádu, omezení stránkovaného a hex režimu a konkrétní chybová hlášení s tím, co s nimi dělat; je dostupná bez sítě; existuje v jazycích, které pro MVP určila P1.1.7. Rozšíření na celou 1.0 je P9.2.3.
   - **Závisí na:** P1.6.1, P1.1.7
   - **Odhad:** bez odhadu
