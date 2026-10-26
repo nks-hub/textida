@@ -17,3 +17,10 @@ AGENTS.md
 corpus/
 *.log
 .playwright-mcp/
+
+# internal: analyses, plans, reverse engineering and prototype stay local only
+docs/
+re/
+tools/*.py
+src/NksPad.P0.App/
+tests/NksPad.P0.App.Tests/
