@@ -224,6 +224,13 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Start, end of the text (before the line break) and start of the next line; false while the index is not complete.</summary>
     private bool TryBounds(long line, out long start, out long end, out long next)
     {
+        long trace = TypingTrace.Begin();
+        try { return TryBoundsCore(line, out start, out end, out next); }
+        finally { TypingTrace.End("paged.tryBounds", trace); }
+    }
+
+    private bool TryBoundsCore(long line, out long start, out long end, out long next)
+    {
         start = end = next = 0;
         long lines = LineCount;
         if (!Indexed || line < 0 || line >= lines || (start = LineStart(line)) < 0) return false;
@@ -316,6 +323,13 @@ internal sealed partial class PagedTextView : Grid
     }
 
     private long LineOf(long offset)
+    {
+        long trace = TypingTrace.Begin();
+        try { return LineOfCore(offset); }
+        finally { TypingTrace.End("paged.lineOf", trace); }
+    }
+
+    private long LineOfCore(long offset)
     {
         long lo = 0, hi = LineCount - 1;
         while (lo < hi)
@@ -420,14 +434,20 @@ internal sealed partial class PagedTextView : Grid
             SelectionsAfter = [new ByteRange(caretAfter, caretAfter)],
             Source = "user",
         };
+        // The handlers of Changed (status bar) read the caret while Apply runs; naming the new caret and its line first spares them a search through the line index.
+        var (caretBefore, memoBefore) = (_caret, _lineMemo);
+        (_caret, _lineMemo) = (caretAfter, (Doc.Revision + 1, caretAfter, lineAfter));
         _own = true;
-        EditResult result;
+        EditResult result = default;
         long tApply = TypingTrace.Begin();
         try { result = Doc.Apply([new ByteEdit(new ByteRange(at, at + deleted), insert)], options); }
-        finally { _own = false; }
+        finally
+        {
+            _own = false;
+            if (result is not { Applied: true }) (_caret, _lineMemo) = (caretBefore, memoBefore);
+        }
         TypingTrace.End("paged.docApply", tApply);
         if (!result.Applied) return false;
-        _caret = caretAfter;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
         _wanted = -1;
         long t = TypingTrace.Begin();

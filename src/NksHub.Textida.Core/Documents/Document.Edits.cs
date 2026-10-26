@@ -136,7 +136,7 @@ public sealed partial class Document
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans);
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Edits.Any(e => HasLineBreakByte(e.Removed) || HasLineBreakByte(e.Inserted)) };
         if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
@@ -145,9 +145,19 @@ public sealed partial class Document
         TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
         long tChanged = TypingTrace.Begin();
-        Changed?.Invoke(this, new DocumentChangedEventArgs(change));
+        var args = new DocumentChangedEventArgs(change);
+        if (TypingTrace.Enabled && Changed is { } changed)
+            foreach (var handler in changed.GetInvocationList())
+            {
+                long tHandler = TypingTrace.Begin();
+                ((EventHandler<DocumentChangedEventArgs>)handler)(this, args);
+                TypingTrace.End("handler " + handler.Method.DeclaringType?.Name + "." + handler.Method.Name, tHandler);
+            }
+        else Changed?.Invoke(this, args);
         TypingTrace.End("doc.changedEvent", tChanged);
     }
+
+    private static bool HasLineBreakByte(byte[] bytes) => bytes.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0;
 
     private const int TypingRunBytes = 16;
     private enum TypingKind { None, Insert, Remove }
