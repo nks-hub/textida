@@ -189,6 +189,26 @@ public class EditingCommandTests
         Assert.Equal("aBc\ndEf\ngHi", after);
     }
 
+    // ---- paste into a column ----
+
+    [Theory]
+    [InlineData("a«b»c\nd«e»f", "X", "aXc\ndXf")]
+    [InlineData("..|.\n..|.", "1\n2", "..1.\n..2.")]
+    [InlineData("a|b\nc|d\ne|f", "1\n2\n3", "a1b\nc2d\ne3f")]
+    [InlineData("a|", "1\n2", "a1\n 2")]
+    [InlineData("abc|\nd|", "1\n2", "abc1\nd2")]
+    [InlineData("a|b\n|", "1\n2", "a1b\n2")]
+    public void Column_paste_puts_one_clipboard_line_in_each_row(string input, string pasted, string expected) =>
+        Assert.Equal(expected, Run(input, (b, s) => ColumnEdit.Paste(b.TextDocument, s, pasted, "\n")));
+
+    [Fact]
+    public void Column_paste_of_a_trailing_line_break_does_not_add_a_row() =>
+        Assert.Equal("aXb\ncYd", Run("a|b\nc|d", (b, s) => ColumnEdit.Paste(b.TextDocument, s, "X\nY\n", "\n")));
+
+    [Fact]
+    public void Column_paste_extends_the_document_and_pads_short_rows() =>
+        Assert.Equal("ab1\nc 2\n  3", Run("ab|\nc", (b, s) => ColumnEdit.Paste(b.TextDocument, [s[0]], "1\n2\n3", "\n")));
+
     // ---- paired characters ----
 
     private static string Typed(string marked, char c, string? expected = null)

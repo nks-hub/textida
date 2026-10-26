@@ -180,6 +180,7 @@ public class TabsTests : IDisposable
         Assert.All(items, i => Assert.True(i.Focusable));
         Assert.NotNull(Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(items[0]));
 
+        Dispatcher.UIThread.RunJobs(); // let the pending focus of the new tab settle, then move the focus to the strip
         items[1].Focus();
         TestApp.Press(_w, Key.Left);
         Assert.Same(a, _w.Active);

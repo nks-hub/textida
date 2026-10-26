@@ -75,6 +75,33 @@ public class EditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Shift_right_selects_a_character_and_typing_replaces_it()
+    {
+        var tab = Open("Příliš");
+        Press(Key.Home, RawInputModifiers.Control);
+        Press(Key.Right);
+        Press(Key.Right, RawInputModifiers.Shift);
+        Assert.Equal("ř", tab.Editor!.SelectedText);
+        TestApp.Type(_w, "r");
+        Assert.Equal("Příliš".Replace("ř", "r"), Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_new_or_opened_tab_has_the_keyboard_without_a_click()
+    {
+        var tab = _w.NewDocument();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(tab.Editor!.TextArea, _w.FocusManager!.GetFocusedElement());
+        TestApp.Type(_w, "typed at once");
+        Assert.Equal("typed at once", Text(tab));
+
+        var opened = _w.OpenFile(_temp.File("focus.txt", "abc"), null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(opened.Editor!.TextArea, _w.FocusManager!.GetFocusedElement());
+        Assert.True(_w.EditorHasFocus);
+    }
+
+    [AvaloniaFact]
     public void Surface_follows_the_theme_light_and_dark()
     {
         var tab = Open("x");
@@ -428,6 +455,33 @@ public class EditorTests : IDisposable
             Assert.Same(tab.Editor, provider.Asked);
         }
         finally { EditorAutomationHook.Provider = null; }
+    }
+
+    [AvaloniaFact]
+    public void Typing_in_a_one_mebibyte_file_stays_within_33_ms_at_p95()
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; sb.Length < 1 << 20; i++) sb.Append("line ").Append(i).Append(" lorem ipsum dolor sit amet consectetur\n");
+        var tab = _w.OpenFile(_temp.File("one-mib.txt", sb.ToString()), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.CaretOffset = tab.Editor.Document.GetOffset(2000, 1);
+        _w.UpdateLayout();
+        for (int i = 0; i < 30; i++) { TestApp.Type(_w, "w"); Dispatcher.UIThread.RunJobs(); } // warm up
+
+        var times = new List<double>();
+        for (int i = 0; i < 300; i++)
+        {
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            TestApp.Type(_w, "x");
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+        }
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)];
+        Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
+        Assert.Equal(1, tab.Doc.Doc.UndoDepth); // 330 keystrokes at one place are one undo step
     }
 
     private sealed class RecordingProvider : IEditorAutomationProvider

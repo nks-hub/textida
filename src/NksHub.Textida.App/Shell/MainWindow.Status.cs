@@ -91,9 +91,16 @@ internal sealed partial class MainWindow
         var items = new[] { _indentItem, _encodingItem, _eolItem, _languageItem };
         for (int i = 0; i < items.Length; i++)
         {
-            if (i > 0) _statusRight.Children.Add(new TextBlock { Text = "·", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0), Opacity = 0.7 });
+            if (i > 0) _statusRight.Children.Add(StatusDot());
             _statusRight.Children.Add(items[i]);
         }
+    }
+
+    private static Border StatusDot()
+    {
+        var dot = new Border { Width = 2, Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(2, 0), VerticalAlignment = VerticalAlignment.Center };
+        dot.Classes.Add("statusdot");
+        return dot;
     }
 
     private string EolLabel(OpenDocument od) => od.Eol.Style switch

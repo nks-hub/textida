@@ -128,6 +128,7 @@ internal sealed partial class MainWindow : Window
             var mark = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(5), Margin = new Thickness(12, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = Loc.Get(K.AppName)[..1], FontSize = 11, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
             mark.Classes.Add("mark");
             var title = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"), Height = 32 };
+            title.Classes.Add("titlestrip");
             Grid.SetColumn(_menuHost, 1);
             title.Children.Add(mark);
             title.Children.Add(_menuHost);
@@ -238,7 +239,12 @@ internal sealed partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_docList.IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
-    private static void FocusView(DocTab tab) => tab.View.Focus();
+    /// <summary>Gives the keyboard to the text area of the tab, so typing works at once without a click.</summary>
+    private static void FocusView(DocTab tab)
+    {
+        if (tab.Surface is { } surface) surface.TextArea.Focus();
+        else tab.View.Focus();
+    }
 
     private static string EmptyHintText() => Loc.Get(K.WorkspaceEmpty, ("shortcut", Shortcuts.Display(Avalonia.Input.Key.N)));
 

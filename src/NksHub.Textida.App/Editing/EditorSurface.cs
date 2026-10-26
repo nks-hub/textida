@@ -46,6 +46,8 @@ internal sealed class EditorSurface : TextEditor
         Options.AllowScrollBelowDocument = false;
         Options.CutCopyWholeLine = false;
         FontWeight = FontWeight.Normal;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
+        foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
         Settings = options;
         ApplyOptions(options);
         TextArea.TextEntering += OnTextEntering;
@@ -97,7 +99,7 @@ internal sealed class EditorSurface : TextEditor
     {
         IBrush? Find(string key) => this.TryFindResource(key, ActualThemeVariant, out var value) ? value as IBrush : null;
         Background = Find("BgEditor");
-        Foreground = Find("Fg");
+        Foreground = Find("EditorFg") ?? Find("Fg");
         LineNumbersForeground = Find("LineNumbers");
         TextArea.TextView.CurrentLineBackground = Find("CurrentLine");
         TextArea.TextView.CurrentLineBorder = new Pen(null, 0);
