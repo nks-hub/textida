@@ -37,6 +37,7 @@ internal sealed class SettingsWindow : Window
         var root = new DockPanel { Children = { Dock(top), scroller } };
         Content = root;
         _search.TextChanged += (_, _) => Refresh();
+        KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.F1) { app.OpenHelp("app.settings"); e.Handled = true; } };
         app.Workbench.SettingChanged += OnSettingChanged;
         Loc.Changed += OnLanguageChanged;
         Closed += (_, _) =>

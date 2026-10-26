@@ -39,6 +39,7 @@ public sealed partial class App : Application
     private IpcServer? _server;
     private IClassicDesktopStyleApplicationLifetime? _desktop;
     private SettingsWindow? _settingsWindow;
+    private HelpWindow? _helpWindow;
     private DispatcherTimer? _sessionTimer;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -243,6 +244,21 @@ public sealed partial class App : Application
     }
 
     internal SettingsWindow? SettingsView => _settingsWindow;
+
+    /// <summary>Opens the offline help (one window) at a topic id; without one it keeps the topic on screen, or the start page.</summary>
+    internal void OpenHelp(string? topic = null)
+    {
+        if (_helpWindow is null)
+        {
+            _helpWindow = new HelpWindow();
+            _helpWindow.Closed += (_, _) => _helpWindow = null;
+            _helpWindow.Show();
+        }
+        else _helpWindow.Activate();
+        if (topic is not null) _helpWindow.ShowTopic(topic);
+    }
+
+    internal HelpWindow? HelpView => _helpWindow;
 
     internal void SetTheme(string tag) => Workbench.Set("workbench.theme", tag);
 

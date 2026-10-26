@@ -141,5 +141,6 @@ internal static class AppCommands
         Do("nks.settings.theme.dark", _ => app.SetTheme("dark"));
         foreach (var tag in Loc.Languages) Do(LanguageCommandPrefix + tag, _ => app.SetLanguage(tag));
         Do("nks.help.about", w => _ = app.Dialogs.ShowAboutAsync(w));
+        Do("nks.help.contents", w => { var topic = w.HelpContextTopic(); w.ClosePalette(); app.OpenHelp(topic); });
     }
 }
