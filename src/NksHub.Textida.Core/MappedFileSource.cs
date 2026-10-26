@@ -277,6 +277,13 @@ public sealed class MappedFileSource : IPagedTextSource
     public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default) =>
         ColumnReader.Read((pos, max) => _file.GetSpanClamped(pos, max), _file.Length, Codec, _bomLength, _columns, lineStart, startColumn, maxColumns, ct);
 
+    /// <summary>Length in UTF-16 columns of a line, known once a read has reached its end (<c>ReadColumns(start, long.MaxValue, 0)</c> does).</summary>
+    public bool TryGetLineColumns(long lineStart, out long columns) => _columns.TryGetLength(lineStart, out columns);
+
+    /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
+    public bool IsColumnNear(long lineStart, long column) =>
+        _columns.TryNearest(lineStart, column, out long known, out _) ? column - known <= ColumnIndex.Spacing : column <= ColumnIndex.Spacing;
+
     internal ColumnIndex Columns => _columns;
     internal int BomLength => _bomLength;
 

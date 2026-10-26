@@ -67,6 +67,21 @@ public class LongLineColumnTests
     }
 
     [Fact]
+    public void ReachingTheEndOfALineNotesItsLengthInCharactersNotBytes()
+    {
+        string line = LongLine(30_000) + "😀";
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var src = MappedFileSource.Open(f.Path);
+        Assert.False(src.TryGetLineColumns(0, out _));
+        Assert.False(src.IsColumnNear(0, 2_000_000));
+
+        src.ReadColumns(0, long.MaxValue, 0);
+        Assert.True(src.TryGetLineColumns(0, out long columns));
+        Assert.Equal(line.Length, columns);
+        Assert.True(src.IsColumnNear(0, 5));
+    }
+
+    [Fact]
     public void ColumnPointsStayWithinTheirBound()
     {
         var index = new ColumnIndex();
