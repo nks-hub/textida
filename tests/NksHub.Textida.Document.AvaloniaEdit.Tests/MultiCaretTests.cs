@@ -242,9 +242,10 @@ public class MultiCaretTests
         using var h = Open(input, codec);
         var original = h.Bytes;
         int count = h.Carets.Count;
-        var result = MultiEdit.Apply(h.Doc, h.Backend, h.Carets, plan(h), out var after);
-        Assert.True(result.Applied, result.Conflict.ToString());
-        h.Carets = after;
+        var applied = MultiEdit.Apply(h.Doc, h.Backend, h.Carets, plan(h));
+        Assert.True(applied.Edit.Applied, applied.Edit.Conflict.ToString());
+        var after = h.Carets = applied.Carets;
+        Assert.Equal(after.Items.Select(s => new TextSelection(h.Backend.ToByteOffset(s.Anchor), h.Backend.ToByteOffset(s.Caret))), applied.Bytes); // worked out, not looked up
         Assert.Equal(expectedText, h.Text.Text);
         Assert.Equal(expectedMarked, h.Marked);
         Assert.Equal(codec.Encode(expectedText), h.Bytes); // bytes and the text view agree
@@ -328,7 +329,7 @@ public class MultiCaretTests
     {
         Check("a|b|", h => MultiEdit.PlanText(h.Carets, "ž"), "až|*bž|", "ažbž", TextCodec.Cp1250);
         using var h = Open("a|b|", TextCodec.Cp1250);
-        Assert.True(MultiEdit.Apply(h.Doc, h.Backend, h.Carets, MultiEdit.PlanText(h.Carets, "ж"), out _).Applied);
+        Assert.True(MultiEdit.Apply(h.Doc, h.Backend, h.Carets, MultiEdit.PlanText(h.Carets, "ж")).Edit.Applied);
         Assert.Equal([0x61, 0x3F, 0x62, 0x3F], h.Bytes);
         Assert.True(h.Backend.TypedLoss().HasLoss);
     }
@@ -341,7 +342,9 @@ public class MultiCaretTests
         using var doc = Doc.FromBytes(original, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8Bom });
         var backend = (AvaloniaEditBackend)doc.Backend;
         var carets = Carets.Create([Sel.At(1), Sel.At(4), Sel.At(7)], 0);
-        Assert.True(MultiEdit.Apply(doc, backend, carets, MultiEdit.PlanText(carets, "€"), out var after).Applied);
+        var applied = MultiEdit.Apply(doc, backend, carets, MultiEdit.PlanText(carets, "€"));
+        Assert.True(applied.Edit.Applied);
+        var after = applied.Carets;
         Assert.Equal([.. bom, .. "a€\r\nb€\r\nc€"u8], doc.ReadBytes(new ByteRange(0, doc.ByteLength)));
         Assert.Equal(3, after.Count);
         doc.Undo();

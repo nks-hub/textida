@@ -160,6 +160,31 @@ internal sealed class ByteTextMap
         throw new ArgumentOutOfRangeException(nameof(c));
     }
 
+    /// <summary>Byte offsets (after the BOM) of char offsets given in ascending order, found in one walk over the runs.</summary>
+    public long[] CharsToBytes(ReadOnlySpan<int> ascending)
+    {
+        var result = new long[ascending.Length];
+        int run = 0, chars = 0;
+        long bytes = 0;
+        for (int q = 0; q < ascending.Length; q++)
+        {
+            int c = ascending[q];
+            while (run < _runs.Count && c > chars + _runs[run].Chars)
+            {
+                chars += _runs[run].Chars;
+                bytes += _runs[run].Bytes;
+                run++;
+            }
+            if (run == _runs.Count)
+            {
+                if (c != chars) throw new ArgumentOutOfRangeException(nameof(ascending));
+                result[q] = bytes;
+            }
+            else result[q] = bytes + LocalCharsToBytes(_runs[run], c - chars).Bytes;
+        }
+        return result;
+    }
+
     public int ByteToChar(long b)
     {
         long bytes = 0;

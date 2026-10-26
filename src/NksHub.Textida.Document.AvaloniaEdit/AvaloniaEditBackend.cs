@@ -173,6 +173,14 @@ public sealed class AvaloniaEditBackend : IByteBackend
     /// <summary>Byte offset of a text view offset (inside a surrogate pair: the start of the pair).</summary>
     public long ToByteOffset(int charOffset) => _bom.Length + _map.CharToByte(charOffset, out _);
 
+    /// <summary>Byte offsets of text view offsets given in ascending order, in one pass.</summary>
+    public long[] ToByteOffsets(ReadOnlySpan<int> ascendingChars)
+    {
+        var bytes = _map.CharsToBytes(ascendingChars);
+        for (int i = 0; i < bytes.Length; i++) bytes[i] += _bom.Length;
+        return bytes;
+    }
+
     /// <summary>Text view offset of a byte offset; false when it is not a character boundary or outside the text.</summary>
     public bool TryToCharOffset(long byteOffset, out int charOffset)
     {

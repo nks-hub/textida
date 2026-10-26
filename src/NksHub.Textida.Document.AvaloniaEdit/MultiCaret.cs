@@ -343,60 +343,94 @@ public static class MultiEdit
 
     // ---- applying ----
 
-    /// <summary>Orders the plan, drops edits that overlap an earlier one and returns the carets after all edits (the primary one stays primary when its edit survives).</summary>
-    public static Carets Assemble(IReadOnlyList<Planned> plan, Carets before, out List<TextEdit> edits)
+    /// <summary>Orders the plan and drops edits that overlap an earlier one. <paramref name="carets"/> are the carets after all the kept edits, in the order of <paramref name="kept"/> (not yet merged);
+    /// <paramref name="primary"/> is the kept edit of the primary caret, or the nearest before it.</summary>
+    public static List<Planned> Assemble(IReadOnlyList<Planned> plan, Carets before, out List<Sel> carets, out int primary)
     {
-        var ordered = plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index).ToList();
-        edits = new List<TextEdit>(ordered.Count);
-        var after = new List<Sel>(ordered.Count);
-        int primary = -1, delta = 0, end = -1;
-        foreach (var p in ordered)
+        var kept = new List<Planned>(plan.Count);
+        carets = new List<Sel>(plan.Count);
+        primary = 0;
+        int delta = 0, end = -1;
+        foreach (var p in plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index))
         {
             if (p.Edit.Start < end) continue;
             end = p.Edit.Start + p.Edit.Length;
-            if (p.Index <= before.Primary) primary = after.Count;
-            edits.Add(p.Edit);
-            after.Add(new(p.Local.Anchor + delta, p.Local.Caret + delta));
+            if (p.Index <= before.Primary) primary = kept.Count;
+            kept.Add(p);
+            carets.Add(new(p.Local.Anchor + delta, p.Local.Caret + delta));
             delta += p.Edit.Text.Length - p.Edit.Length;
         }
-        return Carets.Create(after, Math.Max(primary, 0));
+        return kept;
     }
+
+    /// <summary>The carets after an edit, as the text view knows them and as byte positions of the new revision, one per selection in the same order.</summary>
+    public sealed record Result(EditResult Edit, Carets Carets, IReadOnlyList<TextSelection> Bytes);
 
     /// <summary>
-    /// Applies the plan as one transaction. Text goes through the document in bytes (one revision, byte-exact); a lossy single-byte
-    /// encoding goes through the text view instead, so the loss report of typed characters keeps working. Either way it is one undo step.
+    /// Applies the plan as one transaction: one revision and one undo step that gives back every caret. Text goes through the document in
+    /// bytes (byte-exact); a lossy single-byte encoding goes through the text view instead, so the loss report of typed characters keeps
+    /// working. The byte positions of the new carets are worked out from the edits, not looked up again, so the cost stays linear in the carets.
     /// </summary>
-    public static EditResult Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, out Carets after)
+    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan)
     {
-        after = Assemble(plan, before, out var edits);
-        var result = after;
+        var kept = Assemble(plan, before, out var keptCarets, out int keptPrimary);
         var text = backend.TextDocument;
-        using (doc.BeginUndoGroup(ToRanges(backend, before.PrimaryLast()), () => ToRanges(backend, result.PrimaryLast())))
+        var codec = doc.Codec;
+
+        var wanted = new SortedSet<int>();
+        foreach (var s in before.Items) { wanted.Add(s.Start); wanted.Add(s.End); }
+        foreach (var p in kept) { wanted.Add(p.Edit.Start); wanted.Add(p.Edit.Start + p.Edit.Length); }
+        var offsets = wanted.ToArray();
+        var bytesAt = new Dictionary<int, long>(offsets.Length);
+        var converted = backend.ToByteOffsets(offsets);
+        for (int i = 0; i < offsets.Length; i++) bytesAt[offsets[i]] = converted[i];
+
+        // new carets in bytes: where the edit starts (shifted by the edits before it) plus the bytes of the text up to the caret
+        var inserted = new byte[kept.Count][];
+        var byteEdits = new List<ByteEdit>(kept.Count);
+        var keptBytes = new List<TextSelection>(kept.Count);
+        long shift = 0;
+        for (int i = 0; i < kept.Count; i++)
         {
-            if (doc.Codec.IsLossy)
+            var e = kept[i].Edit;
+            long b0 = bytesAt[e.Start], b1 = bytesAt[e.Start + e.Length];
+            var bytes = inserted[i] = codec.EncodeLossy(e.Text);
+            if (e.Length > 0 || e.Text.Length > 0) byteEdits.Add(new(new(b0, b1), bytes));
+            long Position(int localOffset)
+            {
+                int k = localOffset - e.Start;
+                if (k == e.Text.Length) return b0 + shift + bytes.Length;
+                if (k < e.Text.Length) return b0 + shift + codec.EncodeLossy(e.Text.AsSpan(0, k)).Length;
+                return b0 + shift + bytes.Length + codec.EncodeLossy(text.GetText(e.Start + e.Length, k - e.Text.Length)).Length;
+            }
+            keptBytes.Add(new(Position(kept[i].Local.Anchor), Position(kept[i].Local.Caret)));
+            shift += bytes.Length - (b1 - b0);
+        }
+        // the same merge on characters and on bytes gives the same selections in the same order
+        var after = Carets.Create(keptCarets, keptPrimary);
+        var afterSet = SelectionSet.Create(keptBytes, keptPrimary);
+        var afterBytes = afterSet.Items;
+
+        IReadOnlyList<ByteRange> Ranges(IEnumerable<TextSelection> sels) => [.. sels.Select(s => s.ToRange())];
+        var beforeRanges = Ranges(before.PrimaryLast().Select(s => new TextSelection(bytesAt[s.Start], bytesAt[s.End])));
+        var afterRanges = Ranges(afterBytes.Where((_, i) => i != afterSet.Primary).Append(afterBytes[afterSet.Primary]));
+
+        EditResult result;
+        using (doc.BeginUndoGroup(beforeRanges, () => afterRanges))
+        {
+            if (codec.IsLossy)
             {
                 using (text.RunUpdate())
-                    for (int k = edits.Count - 1; k >= 0; k--)
-                        if (edits[k].Length > 0 || edits[k].Text.Length > 0) text.Replace(edits[k].Start, edits[k].Length, edits[k].Text);
-                return new(true, doc.Revision, ConflictReason.None);
+                    for (int k = kept.Count - 1; k >= 0; k--)
+                    {
+                        var e = kept[k].Edit;
+                        if (e.Length > 0 || e.Text.Length > 0) text.Replace(e.Start, e.Length, e.Text);
+                    }
+                result = new(true, doc.Revision, ConflictReason.None);
             }
-            var byteEdits = new List<ByteEdit>(edits.Count);
-            foreach (var e in edits)
-            {
-                if (e.Length == 0 && e.Text.Length == 0) continue;
-                long b0 = backend.ToByteOffset(e.Start);
-                long b1 = e.Length == 0 ? b0 : backend.ToByteOffset(e.Start + e.Length);
-                byteEdits.Add(new(new(b0, b1), doc.Codec.EncodeLossy(e.Text)));
-            }
-            return doc.Apply(byteEdits);
+            else result = doc.Apply(byteEdits);
         }
-    }
-
-    private static IReadOnlyList<ByteRange> ToRanges(AvaloniaEditBackend backend, IReadOnlyList<Sel> sels)
-    {
-        var list = new List<ByteRange>(sels.Count);
-        foreach (var s in sels) list.Add(new(backend.ToByteOffset(s.Start), backend.ToByteOffset(s.End)));
-        return list;
+        return new(result, after, afterBytes);
     }
 }
 
