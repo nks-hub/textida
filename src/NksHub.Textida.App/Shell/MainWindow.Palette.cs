@@ -184,8 +184,8 @@ internal sealed partial class MainWindow
             emptyText = Loc.Get(K.PaletteSettingsNoResults);
             return [.. wb.SearchIndex.Search(text, wb.Settings, wb.Commands, wb.Keymap, null)
                 .Where(h => h.Kind == NksHub.Textida.Workbench.Settings.SearchHitKind.Setting).Take(60)
-                .Select(h => new QuickRow(h.Title, h.Category, h.ValueText, null, true, null,
-                    $"{h.Category}: {h.Title}, {h.ValueText}", () => _app.OpenSettings(text.Length == 0 ? h.Id : text)))];
+                .Select(h => new QuickRow(h.Title, h.Category, h.ValueText?.Trim('"'), null, true, null,
+                    $"{h.Category}: {h.Title}, {h.ValueText?.Trim('"')}", () => _app.OpenSettings(text.Length == 0 ? h.Id : text)))];
         }
         if (query.StartsWith('='))
         {
@@ -233,7 +233,7 @@ internal sealed partial class MainWindow
             string? note = row.Detail is null ? row.Reason : row.Reason is null ? row.Detail : row.Detail + " · " + row.Reason;
             if (note is not null) title.Inlines!.Add(new Run("  " + note) { FontSize = 12, Foreground = Brushes.Gray });
             var keys = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
-            foreach (var key in KeyCaps(row.Shortcut)) keys.Children.Add(KeyCap(key));
+            foreach (var key in KeyCaps(row.Shortcut)) keys.Children.Add(key.Length == 0 ? new Border { Width = 6 } : KeyCap(key));
             var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("110,*,Auto"), Opacity = row.Enabled ? 1 : 0.5 };
             Grid.SetColumn(title, 1);
             Grid.SetColumn(keys, 2);
@@ -259,7 +259,14 @@ internal sealed partial class MainWindow
     private static IEnumerable<string> KeyCaps(string? shortcut)
     {
         if (string.IsNullOrEmpty(shortcut)) return [];
-        return shortcut.Contains('+') ? SplitPlus(shortcut) : shortcut.Select(c => c.ToString());
+        // a sequence ("Ctrl+K Ctrl+O", "⌘K ⌘O") is a group of caps per chord with a gap between them
+        var caps = new List<string>();
+        foreach (var chord in shortcut.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (caps.Count > 0) caps.Add("");
+            caps.AddRange(chord.Contains('+') ? SplitPlus(chord) : chord.Select(c => c.ToString()));
+        }
+        return caps;
     }
 
     private static IEnumerable<string> SplitPlus(string shortcut)

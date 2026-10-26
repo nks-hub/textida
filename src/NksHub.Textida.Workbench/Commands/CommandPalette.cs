@@ -6,7 +6,10 @@ namespace NksHub.Textida.Workbench.Commands;
 /// <summary>One row of the command palette. <paramref name="DisabledReason"/> says in words why a command that is listed cannot run now.</summary>
 public sealed record PaletteItem(string CommandId, string Title, string? Category, string? Shortcut, bool Enabled, int Score, string? DisabledReason = null);
 
-/// <summary>Data source of the command palette: fuzzy match over category and title, with shortcuts.</summary>
+/// <summary>
+/// Data source of the command palette: matches category and title, with shortcuts. Commands whose title contains what was typed come first
+/// and are the only ones listed; letters spread over several words are matched fuzzily only when no title contains the text.
+/// </summary>
 public static class CommandPalette
 {
     /// <summary>
@@ -17,6 +20,8 @@ public static class CommandPalette
         CommandRegistry registry, Keymap keymap, StringTable strings, IWhenContext context, string query, int limit = 50)
     {
         var items = new List<PaletteItem>();
+        var exact = new HashSet<string>(StringComparer.Ordinal);
+        var typed = TextMatching.Fold(query).Trim();
         foreach (var c in registry.Commands)
         {
             if (c.Hidden || !c.IsAvailable(context))
@@ -33,12 +38,18 @@ public static class CommandPalette
                 continue;
             }
 
+            if (typed.Length > 0 && (TextMatching.Fold(title).Contains(typed, StringComparison.Ordinal) || TextMatching.Fold(label).Contains(typed, StringComparison.Ordinal)))
+            {
+                exact.Add(c.Id);
+            }
+
             var shortcut = keymap.ShortcutsFor(c.Id).FirstOrDefault();
             var enabled = c.IsEnabled(context);
             items.Add(new PaletteItem(c.Id, title, category, shortcut, enabled, score.Value, enabled ? null : ReasonFor(c, context, strings)));
         }
 
         return items
+            .Where(i => exact.Count == 0 || exact.Contains(i.CommandId))
             .OrderByDescending(i => i.Score)
             .ThenBy(i => i.Title, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(i => i.CommandId, StringComparer.Ordinal)

@@ -133,6 +133,9 @@ public class PaletteReasonTests
         Assert.Equal("Ctrl+S", hits.Single(h => h.CommandId == "nks.file.save").Shortcut);
         Assert.Equal("Ctrl+Shift+S", hits.Single(h => h.CommandId == "nks.file.saveAs").Shortcut);
         Assert.All(hits.Where(h => h.CommandId.StartsWith("nks.file.save", StringComparison.Ordinal)), h => Assert.True(h.Enabled));
+        // a title that holds the text is the only kind of hit; letters scattered over other titles ("Vložit", "Nový soubor ve složce") are not
+        Assert.All(hits, h => Assert.Contains("uloz", NksHub.Textida.Workbench.Matching.TextMatching.Fold(h.Title), StringComparison.Ordinal));
+        Assert.Equal("nks.edit.duplicateLine", CommandPalette.Query(host.Commands, host.BuildKeymap(Platform.Windows), Setup("en").Strings, ctx, "dupl ln")[0].CommandId);
     }
 
     [Theory]

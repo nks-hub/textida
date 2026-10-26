@@ -48,6 +48,7 @@ internal sealed partial class MainWindow
 
     private Border BuildLeftColumn()
     {
+        _docList.Classes.Add("doclist");
         _docFilter.Classes.Add("panelfilter");
         _docFilter.TextChanged += (_, _) => RefreshDocList();
         _docFilter.AddHandler(KeyDownEvent, OnDocFilterKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -58,9 +59,11 @@ internal sealed partial class MainWindow
 
         _fileList.Classes.Add("filelist");
         _fileList.IsVisible = false;
+        _fileList.Focusable = true; // a list is not a tab stop by default; the panel hands it the keyboard when it opens
+        _docList.Focusable = true;
         _fileList.ItemTemplate = new FuncDataTemplate<FileTreeRow>((row, _) => BuildFileRow(row));
         _fileList.DoubleTapped += (_, _) => _ = ActivateFileRowAsync();
-        _fileList.KeyDown += OnFileListKey;
+        _fileList.AddHandler(KeyDownEvent, OnFileListKey, Avalonia.Interactivity.RoutingStrategies.Tunnel); // before the list takes the arrow keys for itself
         _fileList.PointerPressed += OnFileListPointer;
         _filesOpenButton.Classes.Add("panelaction");
         _filesOpenButton.Click += (_, _) => _ = OpenFolderWithDialogAsync();
@@ -192,6 +195,8 @@ internal sealed partial class MainWindow
         ApplyFileTexts();
         _menuModel = BuildMenuModel();
         if (IsPaletteOpen && _paletteMode == PaletteMode.Files) { EnsureWorkspaceIndex(); RefreshPalette(); }
+        // the panel was opened before the folder was read: the keyboard waited on the button that is gone now
+        if (FilePanelOpen && !IsPaletteOpen) Dispatcher.UIThread.Post(() => _fileList.Focus(), DispatcherPriority.Input);
     }
 
     /// <summary>The folder of the last run is read when the panel or Go to Anything is first used, not at startup.</summary>

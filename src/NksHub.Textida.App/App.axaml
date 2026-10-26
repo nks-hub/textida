@@ -261,6 +261,19 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="MinHeight" Value="24" />
         </Style>
+        <Style Selector="ListBox.doclist ListBoxItem">
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="MinHeight" Value="28" />
+        </Style>
+        <Style Selector="ListBox.doclist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ListBox.doclist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+        </Style>
         <Style Selector="ListBox.filelist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />

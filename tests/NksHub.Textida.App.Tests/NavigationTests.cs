@@ -428,6 +428,24 @@ public class NavigationTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_keyboard_goes_to_the_file_tree_when_the_panel_opens_even_while_the_last_folder_is_still_being_read()
+    {
+        string root = Project();
+        _app.Recent.SetFolder(root);
+        _w.NewDocument();
+        _w.Show();
+        TestApp.Press(_w, Key.E, TestApp.Mod | RawInputModifiers.Shift);
+        Assert.True(_w.FilePanelOpen);
+        await WaitFor(() => _w.Files is not null);
+        await WaitFor(() => _w.FileList.IsKeyboardFocusWithin);
+        TestApp.Press(_w, Key.Down);
+        Assert.Equal(0, _w.FileList.SelectedIndex);
+        TestApp.Press(_w, Key.Right);
+        await WaitFor(() => _w.Files!.Rows.Count > 4);
+        Assert.True(_w.Files!.IsExpanded(_w.SelectedFileRow!.Value.Entry.Path));
+    }
+
+    [AvaloniaFact]
     public async Task File_panel_rows_have_accessible_names_and_the_context_menu_comes_from_the_registry()
     {
         string root = Project();

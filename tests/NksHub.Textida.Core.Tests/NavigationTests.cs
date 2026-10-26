@@ -267,7 +267,7 @@ public class FileOperationsTests
     }
 }
 
-public class FileTreeTests
+public class FileTreeTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
     public async Task Only_opened_folders_are_read_and_folders_come_before_files()
@@ -337,7 +337,7 @@ public class FileTreeTests
         await tree.ExpandAsync(big);
         long opened = sw.ElapsedMilliseconds;
         Assert.Equal(100_002, tree.Rows.Count);
-        Console.WriteLine($"root {root} ms, 100000 files {opened} ms");
+        output.WriteLine($"root folder {root} ms, 100000 files opened in {opened} ms");
         Assert.True(root < 500);
     }
 }
