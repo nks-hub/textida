@@ -1112,6 +1112,17 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 - Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží. Odvolá ji i znovunačtení souboru.
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
 
+## [tools.mcpAgents] Servery MCP agentů
+commands: nks.tools.mcpServers
+Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agenti. Textida čte Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Soubory projektu hledá ve složce aktivního souboru a v nadřazených složkách. Soubory jen čte, nikdy do nich nezapisuje.
+1. Zvolte Nástroje, Servery MCP agentů. Každý řádek ukazuje server, agenta a soubor, odkud pochází, a jeho příkaz nebo adresu se skrytými tajnými hodnotami.
+2. Vyberte server a pak Vyzkoušet. Okno ukáže přesný příkaz, složku a proměnné s hodnotami skrytými (***). Nic se nespustí, dokud nestisknete Spustit.
+3. Po Spustit Textida program spustí, zeptá se ho na nástroje (MCP verze 2026-07-28 a 2025-11-25) a ukončí ho. Výsledek řekne, kolik nástrojů server nabízí, nebo ukáže chybu a poslední řádky, které program napsal na chybový výstup. Stejné řádky jsou ve výstupu Úlohy.
+4. Volba Převést záznam pro jiného agenta otevře záznam ve formátu toho agenta v nové kartě. Úryvek se nejdřív zkontroluje podle toho formátu. Hodnoty proměnných a hlaviček jsou nahrazené ***, doplňte je, než úryvek vložíte do souboru toho agenta.
+- ${NAME} v příkazu, argumentu nebo proměnné se nahradí z prostředí Textidy, ${NAME:-text} dá výchozí hodnotu. Jméno, které tam není, se hledá ve Správci pověření Windows pod textida:mcp:env:NAME. Jméno bez hodnoty je chyba a nic se nespustí.
+- Vyzkoušet jde jen server spouštěný příkazem. Server s adresou se v seznamu ukáže a jde převést, ale nespouští se. npx a npm se spouštějí jako node se skriptem zástupce Node.js, protože Textida nespouští dávkové soubory.
+- Tajné hodnoty jsou skryté v seznamu, v okně, ve výstupu i v úryvcích, také když se objeví uvnitř argumentu nebo v chybovém výstupu programu. Hodnoty kratší než 4 znaky se v textu nehledají.
+
 ## [review.external] Kontrola změn zvenku
 commands: nks.review.open, nks.review.next, nks.review.previous
 Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.

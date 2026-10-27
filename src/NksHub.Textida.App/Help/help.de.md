@@ -1107,6 +1107,17 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen. Auch das erneute Laden einer Datei entzieht sie.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
 
+## [tools.mcpAgents] MCP-Server der Agenten
+commands: nks.tools.mcpServers
+Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Textida liest Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) und OpenCode (opencode.json, opencode.jsonc). Projektdateien werden im Ordner der aktiven Datei und in den übergeordneten Ordnern gesucht. Textida liest diese Dateien nur und schreibt nie hinein.
+1. Wählen Sie Extras, MCP-Server der Agenten. Jede Zeile zeigt den Server, den Agenten und die Datei, aus der er stammt, sowie Befehl oder Adresse mit verborgenen Geheimnissen.
+2. Wählen Sie einen Server und dann Ausprobieren. Ein Dialog zeigt den genauen Befehl, den Ordner und die Variablen mit verborgenen Werten (***). Nichts startet, bevor Sie Starten drücken.
+3. Nach Starten führt Textida das Programm aus, fragt es nach seinen Tools (MCP-Versionen 2026-07-28 und 2025-11-25) und beendet es. Das Ergebnis nennt die Zahl der Tools oder den Fehler und die letzten Zeilen, die das Programm auf die Fehlerausgabe geschrieben hat. Dieselben Zeilen stehen in der Ausgabe Aufgaben.
+4. Mit Eintrag für einen anderen Agenten umwandeln erscheint der Eintrag im Format dieses Agenten in einem neuen Tab. Der Ausschnitt wird zuerst gegen dieses Format geprüft. Werte von Variablen und Headern sind durch *** ersetzt; ergänzen Sie sie, bevor Sie den Ausschnitt in die Datei dieses Agenten einfügen.
+- ${NAME} in einem Befehl, Argument oder einer Variable wird aus der Umgebung von Textida ersetzt, ${NAME:-text} liefert einen Standardwert. Ein dort nicht gesetzter Name wird in der Windows-Anmeldeinformationsverwaltung unter textida:mcp:env:NAME gesucht. Ein Name ohne Wert ist ein Fehler, und nichts startet.
+- Ausprobieren lässt sich nur ein Server, der per Befehl gestartet wird. Ein Server mit Adresse wird aufgelistet und lässt sich umwandeln, wird aber nicht gestartet. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, weil Textida keine Batch-Dateien startet.
+- Geheimnisse sind in der Liste, im Dialog, in der Ausgabe und in den Ausschnitten verborgen, auch wenn eines in einem Argument oder in der Fehlerausgabe des Programms vorkommt. Werte unter 4 Zeichen werden im Text nicht gesucht.
+
 ## [review.external] Änderungen von außen prüfen
 commands: nks.review.open, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.

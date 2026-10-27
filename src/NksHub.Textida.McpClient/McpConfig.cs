@@ -49,8 +49,21 @@ public sealed record McpScan(IReadOnlyList<McpServerEntry> Servers, IReadOnlyLis
 
 public sealed record McpScanProblem(string File, string Message);
 
+public enum McpNoteKind
+{
+    /// <summary>The target has no setting for the working directory, so it is not in the snippet.</summary>
+    WorkingDirectoryDropped,
+    /// <summary>The server is switched off in the source and the target has no such flag, so it will be on.</summary>
+    DisabledDropped,
+    /// <summary>Codex allows only letters, digits, - and _ in a name; <see cref="McpNote.Detail"/> is the name used.</summary>
+    Renamed,
+}
+
+/// <summary>Something a conversion could not keep; the caller words it for the user.</summary>
+public sealed record McpNote(McpNoteKind Kind, string Server, string? Detail);
+
 /// <summary>A snippet in the format of one agent, and what that format could not carry over.</summary>
-public sealed record McpRendering(string Text, IReadOnlyList<string> Notes);
+public sealed record McpRendering(string Text, IReadOnlyList<McpNote> Notes);
 
 /// <summary>
 /// Reads the MCP server lists of Claude Code (<c>.mcp.json</c>, <c>~/.claude.json</c>), Cursor (<c>.cursor/mcp.json</c>), Codex (<c>~/.codex/config.toml</c>) and OpenCode
@@ -250,7 +263,7 @@ public static class McpConfig
     /// </summary>
     public static McpRendering Render(IReadOnlyList<McpServerEntry> entries, McpAgent target, bool maskValues)
     {
-        var notes = new List<string>();
+        var notes = new List<McpNote>();
         string Value(string v) => maskValues ? McpText.MaskValue(v) : v;
         // an address can carry a key in its query string, and an argument can repeat a value of the environment
         if (maskValues)
@@ -287,7 +300,7 @@ public static class McpConfig
         w.WriteEndObject();
     }
 
-    private static void WriteClaudeOrCursor(Utf8JsonWriter w, McpServerEntry e, McpAgent target, List<string> notes, Func<string, string> value)
+    private static void WriteClaudeOrCursor(Utf8JsonWriter w, McpServerEntry e, McpAgent target, List<McpNote> notes, Func<string, string> value)
     {
         if (e.Transport == McpTransport.Stdio)
         {
@@ -297,7 +310,7 @@ public static class McpConfig
             foreach (var a in e.Args) w.WriteStringValue(a);
             w.WriteEndArray();
             WriteMap(w, "env", e.Env, value);
-            if (e.Cwd is not null) notes.Add($"'{e.Name}': the working directory is not carried over; {target} has no setting for it.");
+            if (e.Cwd is not null) notes.Add(new McpNote(McpNoteKind.WorkingDirectoryDropped, e.Name, null));
         }
         else
         {
@@ -305,10 +318,10 @@ public static class McpConfig
             w.WriteString("url", e.Url);
             WriteMap(w, "headers", e.Headers, value);
         }
-        if (!e.Enabled) notes.Add($"'{e.Name}' is switched off in the source; {target} has no such flag, so it will be on.");
+        if (!e.Enabled) notes.Add(new McpNote(McpNoteKind.DisabledDropped, e.Name, null));
     }
 
-    private static void WriteOpenCode(Utf8JsonWriter w, McpServerEntry e, List<string> notes, Func<string, string> value)
+    private static void WriteOpenCode(Utf8JsonWriter w, McpServerEntry e, List<McpNote> notes, Func<string, string> value)
     {
         if (e.Transport == McpTransport.Stdio)
         {
@@ -318,7 +331,7 @@ public static class McpConfig
             foreach (var a in e.Args) w.WriteStringValue(a);
             w.WriteEndArray();
             WriteMap(w, "environment", e.Env, value);
-            if (e.Cwd is not null) notes.Add($"'{e.Name}': the working directory is not carried over; OpenCode has no setting for it.");
+            if (e.Cwd is not null) notes.Add(new McpNote(McpNoteKind.WorkingDirectoryDropped, e.Name, null));
         }
         else
         {
@@ -342,13 +355,13 @@ public static class McpConfig
 
     private static string Key(string key) => key.Length > 0 && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-') ? key : Quote(key);
 
-    private static string RenderToml(IReadOnlyList<McpServerEntry> entries, List<string> notes, Func<string, string> value)
+    private static string RenderToml(IReadOnlyList<McpServerEntry> entries, List<McpNote> notes, Func<string, string> value)
     {
         var sb = new StringBuilder();
         foreach (var e in entries)
         {
             var name = CodexName(e.Name);
-            if (name != e.Name) notes.Add($"'{e.Name}' is called '{name}' in Codex, which allows only letters, digits, - and _.");
+            if (name != e.Name) notes.Add(new McpNote(McpNoteKind.Renamed, e.Name, name));
             if (sb.Length > 0) sb.Append('\n');
             sb.Append("[mcp_servers.").Append(name).Append("]\n");
             var tables = new StringBuilder(); // sub-tables must come after every plain key of the server, or the keys would land in them

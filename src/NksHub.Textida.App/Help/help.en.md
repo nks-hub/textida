@@ -1107,6 +1107,17 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
+## [tools.mcpAgents] MCP servers of agents
+commands: nks.tools.mcpServers
+One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.
+1. Choose Tools, MCP Servers of Agents. Each row shows the server, the agent and file it comes from, and its command or address with secrets hidden.
+2. Choose a server, then Try. A dialog shows the exact command, the folder and the variables with their values hidden (***). Nothing starts until you press Start.
+3. After Start, Textida runs the program, asks it for its tools (MCP versions 2026-07-28 and 2025-11-25) and ends it. The result says how many tools it offers, or gives the error and the last lines the program wrote to its standard error. The same lines are in the Tasks output.
+4. Choose Convert the entry to another agent to get the entry in the format of that agent in a new tab. The snippet is checked against that format first. Values of variables and headers are replaced by ***, so fill them in before you paste the snippet into the file of that agent.
+- ${NAME} in a command, an argument or a variable is replaced from the environment of Textida, ${NAME:-text} gives a default. A name that is not set there is looked up in the Windows Credential Manager under textida:mcp:env:NAME. A name without a value is an error, and nothing starts.
+- Only a server started by a command can be tried. A server reached by an address is listed and can be converted, but it is not started. npx and npm are started as node with the script of the Node.js shim, because Textida does not start batch files.
+- Secrets are hidden in the list, the dialog, the output and the snippets, also where one appears inside an argument or in the error output of the program. Values shorter than 4 characters are not searched for in text.
+
 ## [review.external] Review changes from outside
 commands: nks.review.open, nks.review.next, nks.review.previous
 When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.

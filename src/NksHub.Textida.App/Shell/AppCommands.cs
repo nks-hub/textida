@@ -122,6 +122,7 @@ internal static class AppCommands
         On("nks.tools.mcpServer", w => w.ToggleMcpServer());
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
+        On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
         registry.SetHandler("nks.edit.repeatLast", (context, token) => registry.RepeatLastAsync(context, token));
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));

@@ -1112,6 +1112,17 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia. Odvolá ju aj opätovné načítanie súboru.
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
+## [tools.mcpAgents] Servery MCP agentov
+commands: nks.tools.mcpServers
+Jeden zoznam serverov MCP, s ktorými sú nastavení vaši programovací agenti. Textida číta Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Súbory projektu hľadá v priečinku aktívneho súboru a v nadradených priečinkoch. Súbory iba číta, nikdy do nich nezapisuje.
+1. Zvoľte Nástroje, Servery MCP agentov. Každý riadok ukazuje server, agenta a súbor, odkiaľ pochádza, a jeho príkaz alebo adresu so skrytými tajnými hodnotami.
+2. Vyberte server a potom Vyskúšať. Okno ukáže presný príkaz, priečinok a premenné s hodnotami skrytými (***). Nič sa nespustí, kým nestlačíte Spustiť.
+3. Po Spustiť Textida program spustí, opýta sa ho na nástroje (MCP verzie 2026-07-28 a 2025-11-25) a ukončí ho. Výsledok povie, koľko nástrojov server ponúka, alebo ukáže chybu a posledné riadky, ktoré program napísal na chybový výstup. Rovnaké riadky sú vo výstupe Úlohy.
+4. Voľba Previesť záznam pre iného agenta otvorí záznam vo formáte toho agenta v novej karte. Úryvok sa najprv skontroluje podľa toho formátu. Hodnoty premenných a hlavičiek sú nahradené ***, doplňte ich, kým úryvok vložíte do súboru toho agenta.
+- ${NAME} v príkaze, argumente alebo premennej sa nahradí z prostredia Textidy, ${NAME:-text} dá predvolenú hodnotu. Meno, ktoré tam nie je, sa hľadá v Správcovi poverení Windows pod textida:mcp:env:NAME. Meno bez hodnoty je chyba a nič sa nespustí.
+- Vyskúšať ide iba server spúšťaný príkazom. Server s adresou sa v zozname ukáže a ide previesť, ale nespúšťa sa. npx a npm sa spúšťajú ako node so skriptom zástupcu Node.js, pretože Textida nespúšťa dávkové súbory.
+- Tajné hodnoty sú skryté v zozname, v okne, vo výstupe aj v úryvkoch, tiež keď sa objavia vnútri argumentu alebo v chybovom výstupe programu. Hodnoty kratšie ako 4 znaky sa v texte nehľadajú.
+
 ## [review.external] Kontrola zmien zvonka
 commands: nks.review.open, nks.review.next, nks.review.previous
 Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.

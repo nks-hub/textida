@@ -211,8 +211,8 @@ public sealed class McpConfigTests : IDisposable
         Assert.Contains("DOCS_KEY = \"***\"", codex.Text);
 
         var cursor = McpConfig.Render(all, McpAgent.Cursor, maskValues: true);
-        Assert.Contains(cursor.Notes, n => n.Contains("'other'") && n.Contains("working directory"));
-        Assert.Contains(cursor.Notes, n => n.Contains("'oc'") && n.Contains("switched off"));
+        Assert.Contains(cursor.Notes, n => n is { Kind: McpNoteKind.WorkingDirectoryDropped, Server: "other" });
+        Assert.Contains(cursor.Notes, n => n is { Kind: McpNoteKind.DisabledDropped, Server: "oc" });
         Assert.Contains("\"type\": \"stdio\"", McpConfig.Render([all.Single(s => s.Name == "user-one")], McpAgent.ClaudeCode, true).Text);
     }
 
@@ -222,7 +222,7 @@ public sealed class McpConfigTests : IDisposable
         var entry = new McpServerEntry("my server.v2", McpAgent.Cursor, McpTransport.Stdio, "x", [], new Dictionary<string, string>(), null, new Dictionary<string, string>());
         var codex = McpConfig.Render([entry], McpAgent.Codex, false);
         Assert.Contains("[mcp_servers.my_server_v2]", codex.Text);
-        Assert.Contains(codex.Notes, n => n.Contains("my_server_v2"));
+        Assert.Contains(codex.Notes, n => n is { Kind: McpNoteKind.Renamed, Detail: "my_server_v2" });
         Assert.Empty(McpConfig.Check(McpAgent.Codex, codex.Text));
 
         Assert.NotEmpty(McpConfig.Check(McpAgent.Codex, "[mcp_servers.\"bad name\"]\ncommand = \"x\"\n"));

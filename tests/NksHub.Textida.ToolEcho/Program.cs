@@ -26,6 +26,7 @@ return code;
 
 static int RunMcp(string mode)
 {
+    if (Environment.GetEnvironmentVariable("TEST_MARKER") is { Length: > 0 } marker) File.WriteAllText(marker, "started");
     var stdin = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false));
     var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
     var gate = new object();
