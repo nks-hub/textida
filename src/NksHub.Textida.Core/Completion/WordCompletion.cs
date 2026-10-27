@@ -73,6 +73,17 @@ public static class WordCompletion
         return [.. result.Select(p => p.Key)];
     }
 
+    /// <summary>
+    /// Gives an all-lower-case <paramref name="word"/> the case the user typed: an all-capitals prefix (two letters or more) makes it upper case, a capitalised one capitalises it.
+    /// A word with capitals of its own, or a prefix typed in lower case, leaves it as it is.
+    /// </summary>
+    public static string MatchCase(string word, string prefix)
+    {
+        if (prefix.Length == 0 || word.Any(char.IsUpper) || !char.IsUpper(prefix[0])) return word;
+        if (prefix.Length > 1 && prefix.All(c => !char.IsLower(c))) return word.ToUpperInvariant();
+        return prefix.Skip(1).Any(char.IsUpper) ? word : char.ToUpperInvariant(word[0]) + word[1..];
+    }
+
     private static int Rank(KeyValuePair<string, Count> a, KeyValuePair<string, Count> b)
     {
         int c = b.Value.InFirstSource.CompareTo(a.Value.InFirstSource);
