@@ -2120,10 +2120,11 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P1.6.1, P4.5.4
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P8.1.2** Plné recepty nad sadou souborů
+- [x] **P8.1.2** Plné recepty nad sadou souborů
   - **Co a proč:** Uložený recept se pustí znovu nad jinou sadou souborů, s náhledem, obnovou a kontrolou revizí. Krokem může být převodník, náhrada, formátovač.
   - **Funkce:** F165
   - **Hotovo, když:** recept uložený minulý měsíc projde nad novou sadou souborů s náhledem; konflikt revize jednoho souboru nezastaví ostatní a ohlásí se.
+  - **Stav 27. 10. 2026:** hotovo: „Spustit recept nad soubory…“ nad složkou s maskou, otevřenými kartami nebo výsledky hledání; `FileSetPlanner` staví stejné změny jako Replace in Files, náhled a použití přes stávající dávku s žurnálem; konflikt jednoho souboru ho přeskočí a ohlásí; krok `format` přes `ConfigFormatters`; formát receptu s verzí (bez `version` = 1, nová 2). Testy: starý recept nad novými soubory, konflikt u jednoho ze tří, formátovač přes ToolEcho, CP1250 + CRLF beze změny ostatních bajtů. UI neověřeno spuštěním; krok `format` bez `formatTimeoutSeconds` soubor vynechá.
   - **Závisí na:** P4.11.1, P2.5.3
   - **Odhad:** v rámci F165 (matice, viz P4.11.1)
   - **Umístění:** jádro
@@ -2295,6 +2296,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Výstup PHPStanu, Psalmu, golangci-lint, `cargo clippy`, clang-tidy, RuboCopu jako podtržení v textu a seznam. Tabulka převodu závažností pro každý nástroj. Spuštění při uložení nebo ručně, ne při každé změně; časový limit s hlášením.
   - **Funkce:** F125
   - **Hotovo, když:** chyba PHPStanu se podtrhne na správném řádku a sloupci; po opravě a novém běhu zmizí; každý linter z tabulky P8.5.3 má test úspěchu, syntaktické chyby, chybějícího nástroje a timeoutu; nástroj, který překročí limit, se ohlásí a UI dál reaguje.
+  - **Stav 27. 10. 2026:** částečně: PHPStan, Psalm, golangci-lint, clippy, clang-tidy a RuboCop přes katalog a spouštěč, parser výstupu a převod závažností pro každý; spuštění po uložení (akce `lint`) nebo ručně „Zkontrolovat soubor linterem“, ne při změně; nálezy jdou do stejného úložiště jako diagnostika pluginů (podtržení) a do karty Úlohy; další běh nálezy nahradí; překročení limitu se ohlásí a UI reaguje. Testy přes ToolEcho pro každý linter (správný řádek/sloupec, zmizení po opravě, čistý běh, chybný výstup, chybějící program, timeout). Otevřené: `lintTimeoutSeconds` (bez něj lintery neběží). Neověřeno se skutečnými lintery; PHPStan bez sloupce podtrhne celý řádek; dávkové soubory (`phpstan.bat`) spouštěč na Windows odmítá; soubor s neuloženými změnami se přeskočí; Ruff, ShellCheck, SQLFluff bez parseru.
   - **Závisí na:** P8.4.1, P4.3.1, P8.3.1
   - **Odhad:** 1–2 ČT a lintery 0,5–1 ČT
   - **Umístění:** jádro, vzory jako data
