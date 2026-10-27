@@ -431,6 +431,8 @@ internal sealed partial class CsvView : Grid, IDisposable
 
     public void SelectAll()
     {
+        // like a whole column: the rows the background index has not reached yet belong to the selection too
+        EnsureAllRows();
         _anchorRow = MinRow;
         _anchorCol = 0;
         _row = Math.Max(MinRow, DataRowCount - 1);

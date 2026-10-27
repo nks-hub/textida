@@ -63,6 +63,22 @@ public class CsvViewTests : IDisposable
     private void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) => TestApp.Press(_w, key, mods);
 
     [AvaloniaFact]
+    public void Select_all_before_the_rows_are_indexed_covers_every_row_of_the_file()
+    {
+        var text = new StringBuilder("id,value\n");
+        for (int i = 0; i < 200_000; i++) text.Append(i).Append(",v").Append(i).Append('\n');
+        OpenCsv(text.ToString());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.table"));
+        var view = Assert.IsType<CsvView>(_w.ActiveTable);
+        Assert.False(view.RowsComplete);
+
+        view.SelectAll();
+        Assert.True(view.RowsComplete);
+        Assert.Equal(200_000, view.DataRowCount);
+        Assert.Equal(view.DataRowCount - 1, view.Selection.LastRow); // the header row is selected too
+    }
+
+    [AvaloniaFact]
     public void The_chord_switches_to_the_table_and_back_without_touching_the_bytes()
     {
         var tab = OpenCsv(Sample);
