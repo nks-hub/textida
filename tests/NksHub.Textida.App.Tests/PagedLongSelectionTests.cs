@@ -92,7 +92,7 @@ public class PagedLongSelectionTests : IDisposable
     [AvaloniaFact]
     public async Task A_selection_over_the_copy_limit_is_refused_with_a_message_and_the_clipboard_stays()
     {
-        string model = Repeat(10_000);
+        string model = Repeat(100_000); // 1.4 MB: above the 1 MiB threshold set in the constructor, so the file opens paged
         var tab = OpenLine(model);
         var paged = tab.Paged!;
         paged.CopyLimitBytes = 1000;
