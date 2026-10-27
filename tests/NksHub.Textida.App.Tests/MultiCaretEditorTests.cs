@@ -654,4 +654,95 @@ public class MultiCaretEditorTests : IDisposable
         Assert.Equal(original, Bytes(tab));
         Assert.Equal(1000, tab.Editor.CaretCount);
     }
+
+    [AvaloniaFact]
+    public void A_thousand_carets_in_a_one_mebibyte_file_take_the_insertion_the_undo_and_the_redo_as_expected()
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; sb.Length < 1 << 20; i++) sb.Append("line ").Append(i).Append(" lorem ipsum dolor sit amet consectetur\n");
+        string original = sb.ToString();
+        var tab = Open(original);
+        var d = tab.Editor!.Document;
+        int step = d.LineCount / 1000;
+        var lineNumbers = Enumerable.Range(0, 1000).Select(i => 1 + i * step).ToArray();
+        PlaceCarets(tab, [.. lineNumbers.Select(n => d.GetLineByNumber(n).Offset + 5)]);
+        Assert.Equal(1000, tab.Editor.CaretCount);
+
+        TestApp.Type(_w, "Qé");
+        var lines = original.Split('\n');
+        foreach (int n in lineNumbers) lines[n - 1] = lines[n - 1].Insert(5, "Qé");
+        string expected = string.Join('\n', lines);
+        Assert.True(expected == Text(tab), "the typed text did not land at every caret");
+        Assert.True(expected == Bytes(tab), "the bytes of the document differ from the text");
+        Assert.Equal(1, Steps(tab));
+        Assert.Equal(1000, tab.Editor.CaretCount);
+
+        Mod(Key.Z);
+        Assert.True(original == Text(tab), "one undo did not restore the text");
+        Assert.True(original == Bytes(tab), "one undo did not restore the bytes");
+        Assert.Equal(1000, tab.Editor.CaretCount);
+
+        Mod(Key.Z, shift: true);
+        Assert.True(expected == Text(tab), "the redo did not repeat the insertion");
+        Assert.Equal(1000, tab.Editor.CaretCount);
+    }
+
+    // ---- composition: keys and changes that end it ----
+
+    [AvaloniaFact]
+    public void Arrows_and_Enter_during_a_composition_do_not_move_the_other_carets_or_break_their_lines()
+    {
+        var tab = Open("a b c");
+        var client = ImeClient(tab);
+        foreach (var key in new[] { Key.Left, Key.Right, Key.Home, Key.End, Key.Up, Key.Down })
+        {
+            PlaceCarets(tab, 1, 3, 5);
+            client.SetPreeditText("ni");
+            Assert.True(tab.Editor!.IsComposing);
+            Press(key);
+            // the area moves its own caret as it always does; the other two stay where they were
+            var carets = Carets(tab).ToList();
+            Assert.True(carets.Contains("1:1") && carets.Contains("3:3"), $"{key} moved the carets to {string.Join(" ", carets)}");
+            Assert.Equal(3, tab.Editor.CaretCount);
+            Assert.Equal("a b c", Text(tab));
+        }
+
+        PlaceCarets(tab, 1, 3, 5);
+        client.SetPreeditText("ni");
+        Press(Key.Enter);
+        Assert.Equal(3, tab.Editor!.CaretCount);
+        Assert.True(Text(tab).Count(c => c == '\n') <= 1, "Enter was run as a command at every caret: " + Text(tab).Replace("\n", "\\n"));
+
+        // the same key outside a composition moves every caret, so the checks above can fail
+        tab.Editor.SetCarets(AdapterCarets.Create([Sel.At(1), Sel.At(3)], 1));
+        Assert.False(tab.Editor.IsComposing);
+        Press(Key.Right);
+        Assert.Equal(["2:2", "4:4"], Carets(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_shortcut_with_Ctrl_still_runs_during_a_composition()
+    {
+        var tab = Open("a b c");
+        PlaceCarets(tab, 1, 3);
+        ImeClient(tab).SetPreeditText("ni");
+        int tabs = _w.Tabs.Count();
+        Mod(Key.N);
+        Assert.Equal(tabs + 1, _w.Tabs.Count());
+    }
+
+    [AvaloniaFact]
+    public void A_change_of_the_document_from_another_source_ends_the_composition_without_writing_it()
+    {
+        var tab = Open("abc\nabc");
+        PlaceCarets(tab, 1, 5);
+        ImeClient(tab).SetPreeditText("ka");
+        Assert.Equal([1, 5], Drawn(tab));
+
+        Assert.True(tab.Doc.Doc.Insert(0, ">>"u8.ToArray()).Applied);
+        Assert.Equal("", tab.Editor!.Composition);
+        Assert.Empty(Drawn(tab));
+        Assert.Equal(">>abc\nabc", Text(tab));
+        Assert.Equal(2, tab.Editor.CaretCount);
+    }
 }
