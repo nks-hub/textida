@@ -12,6 +12,7 @@ using NksHub.Textida.Plugins.Git;
 namespace NksHub.Textida.Rpc.Tests;
 
 /// <summary>P8.6.1 and P8.6.2: the Git plugin as a real process against the real host, document API and UI API, on real temporary repositories.</summary>
+[Collection("PATH")]
 public class GitPluginTests
 {
     sealed class Owner : IDocumentOwnerThread

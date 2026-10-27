@@ -298,7 +298,8 @@ public sealed class McpConfigTests : IDisposable
         {
             var batch = Path.Combine(_root, "tool.cmd");
             File.WriteAllText(batch, "@echo off");
-            Assert.Contains("batch file", Assert.Throws<McpClientException>(() => McpConfig.BuildLaunch(Stdio(batch, []), _ => null, _root)).Message);
+            Assert.Equal(batch, McpConfig.BuildLaunch(Stdio(batch, ["a b"]), _ => null, _root).Executable); // a batch file is a program too
+            Assert.Contains("control character", Assert.Throws<McpClientException>(() => McpConfig.BuildLaunch(Stdio(batch, ["one\ntwo"]), _ => null, _root)).Message);
         }
     }
 

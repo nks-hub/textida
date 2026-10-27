@@ -862,7 +862,7 @@ commands: nks.tools.lint
 3. To check after every save, switch on "Check with PHPStan" (or the other linter) in File, Save Actions, or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy and rubocop-lint.
 - The program is looked for in vendor/bin, node_modules/.bin, .venv and PATH; nothing is downloaded. The first run asks you to confirm the command.
 - No time limit is preset: while lintTimeoutSeconds is missing in saveActions.json, no linter runs and the status bar says so. A linter that runs over the limit is stopped and reported; the editor stays usable meanwhile.
-- PHPStan reports a line and no column, so the text of that line is underlined. A program that is a batch file (phpstan.bat) is refused, as for every tool.
+- PHPStan reports a line and no column, so the text of that line is underlined. A program that is a batch file (phpstan.bat) is started through cmd.exe, as for every tool.
 
 ## [file.saveActions] Save actions: format, run a tool, upload
 commands: nks.file.saveActions
@@ -1228,7 +1228,7 @@ An AI assistant that you start on this computer (for example a coding agent) can
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Tools, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A program that exists only as a batch file (.cmd, .bat) is not started.
+1. Tools, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it.
 2. The Agent Panel under the editor shows the conversation. Type a message and press Enter. Cancel Agent Turn (or the Cancel turn button) sends the cancel to the agent and answers its open permission questions with "cancelled"; Stop Agent ends the process.
 3. The agent reads only the tabs you share: Share This Tab with Agent. It then gets the text as it is in the editor, unsaved changes included; values of .env files stay hidden. Stopping the agent takes every shared tab back.
 4. When the agent writes a shared file, the change is shown as hunks in the change review (the Search Results tab) and is written only when you apply it. If you reject it, the agent gets an error. A file that is not shared, or not open, is not written through the editor.
@@ -1243,7 +1243,7 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 3. After Start, Textida runs the program, asks it for its tools (MCP versions 2026-07-28 and 2025-11-25) and ends it. The result says how many tools it offers, or gives the error and the last lines the program wrote to its standard error. The same lines are in the Tasks output.
 4. Choose Convert the entry to another agent to get the entry in the format of that agent in a new tab. The snippet is checked against that format first. Values of variables and headers are replaced by ***, so fill them in before you paste the snippet into the file of that agent.
 - ${NAME} in a command, an argument or a variable is replaced from the environment of Textida, ${NAME:-text} gives a default. A name that is not set there is looked up in the Windows Credential Manager under textida:mcp:env:NAME. A name without a value is an error, and nothing starts.
-- Only a server started by a command can be tried. A server reached by an address is listed and can be converted, but it is not started. npx and npm are started as node with the script of the Node.js shim, because Textida does not start batch files.
+- Only a server started by a command can be tried. A server reached by an address is listed and can be converted, but it is not started. npx and npm are started as node with the script of the Node.js shim, so no cmd.exe stands between the editor and the server. Any other batch file is started through cmd.exe.
 - Secrets are hidden in the list, the dialog, the output and the snippets, also where one appears inside an argument or in the error output of the program. Values shorter than 4 characters are not searched for in text.
 
 ## [tools.shell] Explorer menu and file associations

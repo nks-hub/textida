@@ -200,6 +200,22 @@ public sealed class ToolTests : IDisposable
     }
 
     [Fact]
+    public void The_start_info_of_a_program_has_an_argument_list_and_that_of_a_batch_file_goes_through_cmd_exe()
+    {
+        var program = ProcessLaunch.CreateStartInfo(Dotnet, ["a b", "c&d"]);
+        Assert.Equal(["a b", "c&d"], program.ArgumentList);
+        Assert.Equal("", program.Arguments);
+        if (!OperatingSystem.IsWindows()) return;
+        string bat = EchoBatch();
+        var batch = ProcessLaunch.CreateStartInfo(bat, ["a b", "c&d"]);
+        Assert.Equal(BatchCommandLine.Interpreter, batch.FileName);
+        Assert.Empty(batch.ArgumentList);
+        Assert.Equal(BatchCommandLine.Build(bat, ["a b", "c&d"]), batch.Arguments);
+        Assert.Throws<ToolException>(() => ProcessLaunch.CreateStartInfo(bat, ["one\ntwo"]));
+        ProcessLaunch.CreateStartInfo(Dotnet, ["one\ntwo"]); // a program takes the line break as it is
+    }
+
+    [Fact]
     public async Task A_formatter_can_be_a_batch_file()
     {
         if (!OperatingSystem.IsWindows()) return;

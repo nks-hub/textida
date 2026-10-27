@@ -419,7 +419,8 @@ public static class McpConfig
 
     /// <summary>
     /// Everything needed to start a stdio entry: <c>${NAME}</c> and <c>${NAME:-default}</c> are replaced from <paramref name="variables"/>, the program is looked up in the PATH only
-    /// and refused if it is a batch file (an <c>npx</c> or <c>npm</c> shim of Node.js is replaced by <c>node</c> and the script the shim runs). Nothing is started here.
+    /// and checked for arguments that cannot be passed to it (see <see cref="ProcessLaunch"/>). An <c>npx</c> or <c>npm</c> shim of Node.js is replaced by <c>node</c> and the script the shim runs, so no
+    /// <c>cmd.exe</c> stands between the editor and the server (ending the client then ends the server too, and any argument text passes). Nothing is started here.
     /// </summary>
     /// <exception cref="McpClientException">The entry is remote, a variable has no value or the program is not found.</exception>
     public static McpLaunch BuildLaunch(McpServerEntry entry, Func<string, string?> variables, string defaultDirectory)
@@ -436,8 +437,6 @@ public static class McpConfig
             string Literal(string s) => s.Replace("$", "$$", StringComparison.Ordinal);
             var cwd = entry.Cwd is { Length: > 0 } c ? Literal(Expand(c, variables)) : null;
             var tool = ToolRunner.Resolve(new ToolSpec("mcp:" + entry.Name, Literal(command), [.. args.Select(Literal)], cwd), _ => null, defaultDirectory);
-            if (ToolRunner.IsBatch(tool.Executable))
-                throw new McpClientException($"{tool.Executable} is a batch file; an MCP server has to be started as a program, not through cmd.exe.");
             return new McpLaunch(tool.Executable, [.. args], tool.WorkingDirectory, env, [.. env.Values.Where(v => v.Length > 0)]);
         }
         catch (ToolException e) { throw new McpClientException(e.Message); }

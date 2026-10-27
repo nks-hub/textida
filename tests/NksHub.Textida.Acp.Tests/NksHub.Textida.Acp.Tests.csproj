@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Acp\NksHub.Textida.Acp.csproj" />
     <ProjectReference Include="..\NksHub.Textida.FakeAcp\NksHub.Textida.FakeAcp.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
   </ItemGroup>
 
 </Project>

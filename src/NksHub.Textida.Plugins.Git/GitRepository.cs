@@ -45,7 +45,6 @@ public sealed class GitRepository
         string git;
         try { git = ToolRunner.Resolve(new ToolSpec("git", "git", []), _ => null, folder).Executable; }
         catch (ToolException e) { throw new GitException(e.Message); }
-        if (ToolRunner.IsBatch(git)) throw new GitException($"{git} is a batch file; git has to be found as a program.");
         var probe = new GitRepository(git, folder, "", timeoutMs, maxBytes);
         var (code, output, _) = await probe.RunAsync(folder, ["rev-parse", "--show-toplevel", "--show-prefix"], null, readOnly: true, ct);
         if (code != 0) return null;
@@ -58,18 +57,16 @@ public sealed class GitRepository
 
     private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct)
     {
-        var info = new ProcessStartInfo(_git)
-        {
-            WorkingDirectory = directory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        info.ArgumentList.Add("--literal-pathspecs"); // a file named like a glob is that file
-        foreach (var a in args) info.ArgumentList.Add(a);
+        ProcessStartInfo info;
+        try { info = ProcessLaunch.CreateStartInfo(_git, ["--literal-pathspecs", .. args]); } // a file named like a glob is that file
+        catch (ToolException e) { throw new GitException(e.Message); }
+        info.WorkingDirectory = directory;
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        info.RedirectStandardInput = true;
+        info.RedirectStandardOutput = true;
+        info.RedirectStandardError = true;
+        info.StandardErrorEncoding = Encoding.UTF8;
         if (readOnly) info.Environment["GIT_OPTIONAL_LOCKS"] = "0";
         info.Environment["GIT_TERMINAL_PROMPT"] = "0";
         using var process = new Process { StartInfo = info };
