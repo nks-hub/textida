@@ -1901,17 +1901,19 @@ Společný základ celé etapy (kap. 5.3). F179, F180 a pluginy do ní jen posí
 
 Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí majitele 1 a 4 v kap. 5.4).
 
-- [ ] **P6.2.1** Vzdálené zdroje souborů v API: URI a cache
+- [x] **P6.2.1** Vzdálené zdroje souborů v API: URI a cache
   - **Co a proč:** Poskytovatel souborů: URI, schopnosti, načtení, offline cache. FTPS a SFTP zůstávají v jádře; adaptéry služeb F171 jdou nad tento kontrakt. Zápis s revizí je v P6.2.3.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací poskytovatel v pluginu otevře dokument podle URI, bez spojení ho otevře z cache s označením „offline“ a schopnosti poskytovatele se ukážou v UI.
+  - **Stav 27. 10. 2026:** hotovo: `source/register` (schéma URI, schopnosti `list`/`write`/`atomicWrite`), `source/list|read|stat|write`, oprávnění `document.source`; cache v paměti omezená počtem a bajty (LRU), bez spojení otevře kopii s „Offline“; příkaz `nks.source.open`, lišta nad kartou ukáže původ, revizi, schopnosti a offline; `UriMask` skryje heslo, uživatele a tokeny v názvu karty, liště, nedávných souborech a logu. Testy s pluginem se zdrojem v paměti. Cache nepřežije restart; tajná část uvnitř cesty URI se nepozná; limity jsou placeholdery.
   - **Závisí na:** P3b.3.1, P5.4.2
   - **Odhad:** 3–5 ČT za P6.2.1 a P6.2.3
   - **Umístění:** jádro
-- [ ] **P6.2.3** Revizní zápis vzdálených zdrojů
+- [x] **P6.2.3** Revizní zápis vzdálených zdrojů
   - **Co a proč:** Zápis s očekávanou vzdálenou revizí, chyba konfliktu a obnova bez ztráty práce.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací poskytovatel upraví a uloží dokument; zápis s neočekávanou vzdálenou revizí skončí konfliktem s diffem a lokální změny zůstanou.
+  - **Stav 27. 10. 2026:** hotovo: zápis vždy s revizí, kterou editor přečetl; při změně na straně zdroje se nic nezapíše, lokální text zůstane a dialog „Rozdíly / Přepsat / Zrušit“ otevře stávající porovnání (test); zdroj bez atomického zápisu: stat + zápis s varováním před každým zápisem (okno mezi nimi editor nezavře).
   - **Závisí na:** P6.2.1
   - **Odhad:** v rámci odhadu P6.2.1
   - **Umístění:** jádro
@@ -1972,6 +1974,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Funkce:** F256
   - **Stav 26. 10. 2026:** částečně: 12 nástrojů `editor_*` (čtení neuložených karet, hledání, návrh změn textu i bajtů, osnova, hledání v souborech, fakta o souboru, dotaz do logu, bajtové čtení a hledání); návrhy jdou do stávajícího náhledu změn; `editor_find_in_files` jen ve sdílených kartách (zpřístupnění složky není určené).
   - **Hotovo, když:** `editor_log_query` vrátí úryvky z 10GiB logu bez načtení celého souboru; `editor_file_facts` u CP1250 se smíšenými EOL vrátí obojí.
+  - **Stav 27. 10. 2026:** navíc 13. nástroj `editor_diagnostics` (diagnostika pluginů i linterů z P8.4.1, rozsahy v aktuální revizi, diagnostika zasahující do skryté hodnoty `.env` se nevrátí) a `getDiagnostics` mostu `/ide` vrací skutečná data (`{"files":[…]}`, tvar provizorní). Ověření kritérií „10GiB log“ a „CP1250 se smíšenými EOL“ testem zatím nezapsané.
   - **Závisí na:** P6.3.1, P4.4.1, P4.3.2
   - **Odhad:** F256 1,5–2,5 ČT (matice)
   - **Umístění:** jádro
@@ -1998,6 +2001,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Co a proč:** „Otevřít z…“ → služba → dokument, jako první NKS IS wiki. Stránka se upravuje jako běžný dokument a uloží se zpět. MCP nemá obecný zápis zdrojů, každá služba potřebuje adaptér. Bez atomické kontroly revize na straně NKS IS (P6.4.4) nejde wiki bezpečně dokončit.
   - **Funkce:** F171
   - **Hotovo, když:** záznam uvádí verzi adaptéru i služby; wiki stránka se otevře, upraví a uloží zpět; dva klienti uloží proti stejné revizi, uspěje právě jeden a druhý dostane konflikt s diffem.
+  - **Stav 27. 10. 2026:** částečně: vestavěný plugin `plugins/wiki` (schéma `nksis://wiki/<slug>`) nad API zdrojů P6.2.1, mapování podle OpenAPI NKS IS v1 (`GET {base}/api/v1/wiki?page&limit&search`, `GET/PUT …/wiki/{slug}`, hlavička `X-Api-Key`); revize `version|revisionCount|updatedAt`; `atomicWrite` false (PUT nemá podmínku), editor porovná token před zápisem a varuje; klíč a adresa wiki od uživatele přes úložiště přihlašovacích údajů, 401/403 klíč smaže, 429 ohlásí limit 60/min. 10 testů proti lokálnímu serveru podle spec. Neověřeno proti skutečné wiki; „uspěje právě jeden“ čeká na P6.4.4 (atomická kontrola ve wiki); vytvoření nové stránky přes PUT ve spec není.
   - **Závisí na:** P6.4.3, P6.2.3, P6.4.4
   - **Odhad:** F171 2–4 ČT (matice) za P6.4.1 a P6.4.3
   - **Umístění:** vestavěný plugin
@@ -2089,18 +2093,21 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Co a proč:** Uložení dnes odmítá souběžné úpravy a uložení přes otevřený soubor smaže undo. Undo, které přežije uložení na místo v textu do 100 MiB, je od rozhodnutí majitele 26. 10. 2026 v MVP (P3.1.13). Tady zůstává rozšíření ukládací služby z P3.5.5 o pokračující editaci během uložení a o undo po uložení na místo u souboru většího než RAM.
   - **Funkce:** F154
   - **Hotovo, když:** 50GiB soubor na stroji s menší RAM se upraví a uloží; SHA-256 výsledku sedí s nezávislým výpočtem; během ukládání revize N vznikne úpravou revize N+1, disk po uložení obsahuje přesně N a editor zůstane na N+1 se stavem „neuloženo“; undo po uložení funguje.
+  - **Stav 27. 10. 2026:** částečně (jádro): `Document.SaveAsync` streamuje snapshot do dočasného souboru a prohodí ho; úpravy během uložení se navrství a zůstanou „neuloženo“ (test: SHA-256 souboru = snapshot N, editor na N+1), potvrzení až po flush a prohození, zrušení i selhání prohození nechá originál. Large test 3 GiB lokálně prošel. Aplikace během streamového uložení dovolí psaní, mazání a vkládání (hex, CSV), stavový řádek „Ukládání…“ a potom „Uloženo. Úpravy z doby ukládání zatím v souboru nejsou.“; undo a redo během uložení posouvají jen živou revizi (test: soubor beze změny); kroky undo po uložení nad rozpočtem paměti jdou do scratch souboru. Fill a undo kroku s výplní nebo změnou kódování během uložení zůstávají odmítnuté (odkazují na nahrazovaný soubor). Krok undo nad 2 GiB odmítnut; obnova po pádu během undo při uložení netestována. 50 GiB na stroji s menší RAM neměřeno.
   - **Závisí na:** P7.1.2, P3.5.5, P3.1.13
   - **Odhad:** v rámci F154
 - [ ] **P7.1.4** Obnova velkých změn
   - **Co a proč:** Velké změny jdou do žurnálu na disku. Cíl kap. 3 pro 1.0: obnova po pádu i u velkých dokumentů, ztráta nejvýš 2 s žurnálu. Navazuje na hot exit z P1.5.1 a žurnál zápisu z P3.5.5.
   - **Funkce:** F154
   - **Hotovo, když:** zabití procesu během úpravy a během uložení 50GiB souboru vede po startu k obnově bez poškození originálu; obnovená práce chybí nejvýš za 2 s podle časových značek žurnálu; zrušení uložení nechá originál beze změny.
+  - **Stav 27. 10. 2026:** částečně: úprava nad 1 MiB jde do žurnálu jako odkaz na spill add bufferu nebo kopii v souboru žurnálu (formát verze 3, starší žurnály se čtou, `FORMAT.md`); obnova ověří délku a CRC začátku a konce, jinak `Failed` a nic nezapíše; zbylý dočasný soubor zabitého uložení se při otevření smaže. Crash harness `large` (9 bodů + náhodná zabití, 6 MiB) a Large testy 3 GiB prošly lokálně. Neověřeno: 50 GiB, limit ztráty 2 s u GiB dávek (fsync spillu před zápisem žurnálu); CRC nekryje prostředek bloku. Limit inline úpravy 1 MiB je placeholder.
   - **Závisí na:** P7.1.3, P1.5.1
   - **Odhad:** v rámci F154
 - [ ] **P7.1.5** Editace dlouhých řádků
   - **Co a proč:** Lokální editace v řádku 100 MiB bez materializace celého řádku; v P0 neměřeno. Do té doby MVP editaci řádku nad limitem odmítne (P3.1.11).
   - **Funkce:** F155 (částečně: editace)
   - **Hotovo, když:** psaní uprostřed řádku 100 MiB má vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms a paměť nepřibude o velikost řádku.
+  - **Stav 27. 10. 2026:** částečně: psaní, Backspace, Delete, Enter, Tab, vložení, undo a výběr uprostřed řádku nad 16 KiB na stránkované ploše; dekóduje se jen okolí kurzoru; sloupec přes `ColumnOf`/`OffsetOfColumn` od nejbližšího bodu sloupcového indexu, úprava zachová body před sebou; `PieceChunks` už nealokuje 1 MiB na úpravu. Large testy: 100 MiB řádek v jádru, v aplikaci růst spravované paměti pod 16 MiB. Perf test (sloupce 50 M a 90 M, p95/p99) napsaný, na referenční Windows VM zatím nespuštěný. Opraveno: UTF-16/32 na stránkované ploše dělí řádky po kódových jednotkách (`LineScanner`), `UpdateStatus` alokuje ~6 KB místo 18 KB. Známé: celý úhoz alokuje ~900 KB (velký textový dokument) až ~2 MB (stránkovaný, z toho `doc.execute` ~1 MB), `UpdateStatus` se volá 4× na úhoz; minimapa UTF-16/32 prázdná; kopie výběru desítek MiB dekóduje celý výběr. Limit délky řádku otevřený.
   - **Závisí na:** P3.1.3, P7.1.1
   - **Odhad:** v rámci F155 (matice, viz P3.1.3)
 - [x] **P7.1.6** Hledání nad upraveným stránkovaným dokumentem při textové editaci
