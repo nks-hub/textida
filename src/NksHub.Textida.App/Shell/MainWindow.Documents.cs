@@ -92,7 +92,8 @@ internal sealed partial class MainWindow
             od.Autosave = null;
             return;
         }
-        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = OpenDocument.AutosaveInterval }, _app.Backups, a => Dispatcher.UIThread.Post(a))
+        var interval = OpenDocument.AutosaveInterval > TimeSpan.Zero ? OpenDocument.AutosaveInterval : TimeSpan.FromSeconds(_app.Workbench.Settings.GetInt("advanced.autosaveIntervalSeconds"));
+        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = interval },_app.Backups, a => Dispatcher.UIThread.Post(a))
         {
             Pipeline = () => AutosaveWithActionsAsync(od),
         };

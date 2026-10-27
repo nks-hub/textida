@@ -493,5 +493,20 @@
   "cmd.help.updateCheck": "Nach Updates suchen...",
   "cmd.help.updateReturn": "Zur vorherigen Version zurückkehren...",
   "setting.updates.checkOnStart.title": "Beim Start nach Updates suchen",
-  "setting.updates.checkOnStart.description": "Fragt beim Start die Update-Adresse nach der neuesten Version und zeigt bei einer neueren eine Leiste. Standardmäßig aus; sonst wird nichts gesendet."
+  "setting.updates.checkOnStart.description": "Fragt beim Start die Update-Adresse nach der neuesten Version und zeigt bei einer neueren eine Leiste. Standardmäßig aus; sonst wird nichts gesendet.",
+  "cat.advanced": "Erweitert",
+  "setting.advanced.scrollPastEnd.title": "Über das Textende hinaus scrollen",
+  "setting.advanced.scrollPastEnd.description": "Die letzte Zeile lässt sich bis an den oberen Rand des Editors schieben; unter dem Text bleibt Leerraum.",
+  "setting.advanced.cutCopyWholeLine.title": "Ganze Zeile ohne Auswahl ausschneiden und kopieren",
+  "setting.advanced.cutCopyWholeLine.description": "Ist nichts ausgewählt, nehmen Ausschneiden und Kopieren die Zeile des Cursors samt Zeilenumbruch.",
+  "setting.advanced.hideMouseWhileTyping.title": "Mauszeiger beim Tippen ausblenden",
+  "setting.advanced.hideMouseWhileTyping.description": "Der Mauszeiger verschwindet beim Tippen über dem Text und kehrt bei einer Mausbewegung zurück.",
+  "setting.advanced.linkNeedsCtrl.title": "Links nur mit Strg+Klick öffnen",
+  "setting.advanced.linkNeedsCtrl.description": "An: Ein Link öffnet sich mit Strg+Klick. Aus: Ein einfacher Klick öffnet ihn. Gilt nur bei eingeschalteten Links.",
+  "setting.advanced.wrapIndent.title": "Einzug umbrochener Zeilen (Spalten)",
+  "setting.advanced.wrapIndent.description": "Um wie viele Spalten die Fortsetzung einer umbrochenen Zeile zusätzlich zum Einzug der Zeile selbst eingerückt wird. Gilt bei eingeschaltetem Umbruch.",
+  "setting.advanced.recentFilesCount.title": "Anzahl gemerkter zuletzt geöffneter Dateien",
+  "setting.advanced.recentFilesCount.description": "Wie viele zuletzt geöffnete Dateien die Liste behält. 0 behält keine. Eine kleinere Zahl kürzt die Liste beim nächsten Öffnen einer Datei.",
+  "setting.advanced.autosaveIntervalSeconds.title": "Intervall der automatischen Speicherung (Sekunden)",
+  "setting.advanced.autosaveIntervalSeconds.description": "Wie oft ein geändertes Dokument in seine eigene Datei geschrieben wird, wenn die automatische Speicherung an ist."
 }

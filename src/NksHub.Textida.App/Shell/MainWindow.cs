@@ -362,6 +362,13 @@ internal sealed partial class MainWindow : Window
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
         if (key == "files.autoSave") foreach (var od in _docs) ConfigureAutosave(od);
+        else if (key == "advanced.autosaveIntervalSeconds")
+            foreach (var od in _docs)
+            {
+                od.Autosave?.Dispose();
+                od.Autosave = null;
+                ConfigureAutosave(od);
+            }
         ApplyLanguageOptions();
         UpdateStatus();
         _menuModel = BuildMenuModel();

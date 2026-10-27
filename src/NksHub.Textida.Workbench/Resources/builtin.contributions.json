@@ -5339,6 +5339,121 @@
         "external",
         "reload"
       ]
+    },
+    {
+      "key": "advanced.scrollPastEnd",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.scrollPastEnd.title",
+      "description": "setting.advanced.scrollPastEnd.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "scroll",
+        "end",
+        "document",
+        "blank"
+      ]
+    },
+    {
+      "key": "advanced.cutCopyWholeLine",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.cutCopyWholeLine.title",
+      "description": "setting.advanced.cutCopyWholeLine.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "cut",
+        "copy",
+        "line",
+        "clipboard",
+        "selection"
+      ]
+    },
+    {
+      "key": "advanced.hideMouseWhileTyping",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.advanced.hideMouseWhileTyping.title",
+      "description": "setting.advanced.hideMouseWhileTyping.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "mouse",
+        "pointer",
+        "cursor",
+        "typing",
+        "hide"
+      ]
+    },
+    {
+      "key": "advanced.linkNeedsCtrl",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.advanced.linkNeedsCtrl.title",
+      "description": "setting.advanced.linkNeedsCtrl.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "link",
+        "url",
+        "click",
+        "ctrl",
+        "modifier"
+      ]
+    },
+    {
+      "key": "advanced.wrapIndent",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.advanced.wrapIndent.title",
+      "description": "setting.advanced.wrapIndent.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 32,
+      "tags": [
+        "wrap",
+        "indent",
+        "continuation",
+        "line"
+      ]
+    },
+    {
+      "key": "advanced.recentFilesCount",
+      "type": "integer",
+      "default": 50,
+      "title": "setting.advanced.recentFilesCount.title",
+      "description": "setting.advanced.recentFilesCount.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 200,
+      "tags": [
+        "recent",
+        "files",
+        "history",
+        "list"
+      ]
+    },
+    {
+      "key": "advanced.autosaveIntervalSeconds",
+      "type": "integer",
+      "default": 30,
+      "title": "setting.advanced.autosaveIntervalSeconds.title",
+      "description": "setting.advanced.autosaveIntervalSeconds.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 1,
+      "maximum": 3600,
+      "tags": [
+        "autosave",
+        "save",
+        "interval",
+        "delay",
+        "seconds"
+      ]
     }
   ]
 }

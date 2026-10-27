@@ -493,5 +493,20 @@
   "cmd.help.updateCheck": "Zjistit aktualizace...",
   "cmd.help.updateReturn": "Vrátit se na předchozí verzi...",
   "setting.updates.checkOnStart.title": "Zjišťovat aktualizace při startu",
-  "setting.updates.checkOnStart.description": "Při startu se zeptá adresy aktualizací na nejnovější verzi a při novější ukáže lištu. Ve výchozím stavu vypnuto; nic dalšího se neposílá."
+  "setting.updates.checkOnStart.description": "Při startu se zeptá adresy aktualizací na nejnovější verzi a při novější ukáže lištu. Ve výchozím stavu vypnuto; nic dalšího se neposílá.",
+  "cat.advanced": "Pokročilé",
+  "setting.advanced.scrollPastEnd.title": "Rolovat za konec textu",
+  "setting.advanced.scrollPastEnd.description": "Poslední řádek jde posunout až k hornímu okraji editoru, pod textem zůstane prázdné místo.",
+  "setting.advanced.cutCopyWholeLine.title": "Vyjmout a kopírovat celý řádek bez výběru",
+  "setting.advanced.cutCopyWholeLine.description": "Když nic není vybrané, Vyjmout a Kopírovat vezmou řádek s kurzorem včetně zalomení řádku.",
+  "setting.advanced.hideMouseWhileTyping.title": "Skrýt ukazatel myši při psaní",
+  "setting.advanced.hideMouseWhileTyping.description": "Ukazatel myši nad textem při psaní zmizí a po pohybu myší se vrátí.",
+  "setting.advanced.linkNeedsCtrl.title": "Odkazy otevírat jen přes Ctrl+klik",
+  "setting.advanced.linkNeedsCtrl.description": "Zapnuto: odkaz se otevře přes Ctrl+klik. Vypnuto: otevře ho obyčejné kliknutí. Platí jen při zapnutých odkazech.",
+  "setting.advanced.wrapIndent.title": "Odsazení zalomených řádků (sloupce)",
+  "setting.advanced.wrapIndent.description": "O kolik sloupců je odsazeno pokračování zalomeného řádku navíc k odsazení řádku samotného. Platí při zapnutém zalamování.",
+  "setting.advanced.recentFilesCount.title": "Počet pamatovaných posledních souborů",
+  "setting.advanced.recentFilesCount.description": "Kolik naposledy otevřených souborů si seznam pamatuje. 0 znamená žádný. Nižší číslo seznam zkrátí při dalším otevření souboru.",
+  "setting.advanced.autosaveIntervalSeconds.title": "Interval automatického ukládání (sekundy)",
+  "setting.advanced.autosaveIntervalSeconds.description": "Jak často se změněný dokument zapíše do svého souboru, když je zapnuté automatické ukládání."
 }

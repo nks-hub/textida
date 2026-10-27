@@ -150,7 +150,7 @@ public sealed partial class App : Application
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
-        Recent = RecentFiles.Load(ProfileDirectory);
+        Recent = RecentFiles.Load(ProfileDirectory, () => (int)Workbench.Settings.GetInt("advanced.recentFilesCount"));
         Workspace = WorkspaceStore.Load(ProfileDirectory);
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
         LastParameters = new LastParameters();
