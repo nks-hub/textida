@@ -208,6 +208,14 @@ commands: nks.file.openPathAtCaret
 - If the path points to a folder, it is shown in the Files panel.
 - No path under the caret: No file path at the caret. File does not exist: the path is shown with a note that it does not exist.
 
+## [file.openSpecial] Open Special
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Choose File and then Open Special, or run Open Special in the palette. In the Files panel, right-click a file and choose Open Special.
+2. Choose how to open the file. From the panel the selected file is used; elsewhere the file of the current tab, and if there is none you pick one.
+- Open File as Hex, Open with Encoding (the encoding list opens after the file), Open Read Only (the tab does not save), Open as New Copy (an unsaved document with the text of the file).
+- Reopen with Encoding, Open Path at Caret and Related File work on the current tab.
+- Open Containing Folder shows the folder in the system file manager; Open with Default App hands the file to the program the system assigns to it.
+- Reopen Last Closed Tab opens the file of the tab closed last; closed files that no longer exist are skipped.
 ## [app.settings] Settings
 commands: nks.app.openSettings
 1. Press Ctrl+comma, or choose Settings and then Settings.

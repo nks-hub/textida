@@ -212,6 +212,7 @@ internal sealed partial class MainWindow
         if (od.Views.Count == 0)
         {
             ForgetDocument(od);
+            RememberClosed(od);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();

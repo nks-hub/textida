@@ -118,7 +118,9 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null && !_switchedForHex;
-    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly;
+    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly || UserReadOnly;
+    /// <summary>The user opened the file read only (Open Special); saving is refused until the tab is closed.</summary>
+    public bool UserReadOnly { get; set; }
     /// <summary>The document is a view of data a plugin supplies (P6.2.6): read only, never saved, never journaled and not part of the session.</summary>
     public bool IsVirtual => _doc.IsVirtual;
     /// <summary>The lock this document holds on its file, or the reason the file opened read only; null for a document without a file.</summary>

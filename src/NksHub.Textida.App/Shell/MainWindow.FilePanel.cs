@@ -112,6 +112,16 @@ internal sealed partial class MainWindow
             item.Click += (_, _) => _ = wb.Commands.ExecuteAsync(commandId, new ShellContext(this, forMenu: true));
             menu.Items.Add(item);
         }
+        var special = new MenuItem { Header = Loc.Get(K.SpecialMenu) };
+        foreach (var id in SpecialOpen.Variants)
+        {
+            if (!wb.Commands.TryGet(id, out var command) || !wb.Commands.HasHandler(id)) continue;
+            var item = new MenuItem { Header = wb.Strings.Get(command.TitleKey) };
+            string commandId = id;
+            item.Click += (_, _) => _ = RunSpecialFromPanelAsync(commandId);
+            special.Items.Add(item);
+        }
+        menu.Items.Add(special);
         return menu;
     }
 

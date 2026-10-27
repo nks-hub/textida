@@ -974,6 +974,46 @@
       "category": "cat.file"
     },
     {
+      "id": "nks.open.special",
+      "title": "cmd.open.special",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.hex",
+      "title": "cmd.open.hex",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.withEncoding",
+      "title": "cmd.open.withEncoding",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.readOnly",
+      "title": "cmd.open.readOnly",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.newCopy",
+      "title": "cmd.open.newCopy",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.containingFolder",
+      "title": "cmd.open.containingFolder",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.defaultApp",
+      "title": "cmd.open.defaultApp",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.lastClosed",
+      "title": "cmd.open.lastClosed",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.hex.toggleInsert",
       "title": "cmd.hex.toggleInsert",
       "category": "cat.hex",
@@ -2668,6 +2708,7 @@
       "menu": "file",
       "command": "nks.file.openPathAtCaret",
       "group": "1_new",
+      "submenu": "special",
       "order": 40
     },
     {
@@ -2850,6 +2891,69 @@
       "command": "nks.file.openAsHex",
       "group": "1_new",
       "order": 25
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.hex",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 201
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.withEncoding",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 202
+    },
+    {
+      "menu": "file",
+      "command": "nks.format.reread",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 203
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.readOnly",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 204
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.newCopy",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 205
+    },
+    {
+      "menu": "file",
+      "command": "nks.search.relatedFile",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 206
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.containingFolder",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 207
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.defaultApp",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 208
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.lastClosed",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 209
     },
     {
       "menu": "file",
