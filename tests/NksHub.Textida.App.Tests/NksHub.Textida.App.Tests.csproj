@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
     <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\FtpsServer.cs" Link="Servers\FtpsServer.cs" />
     <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\TestProxy.cs" Link="Servers\TestProxy.cs" />
+    <Compile Include="..\NksHub.Textida.McpClient.Tests\FakeMcpHttpServer.cs" Link="Servers\FakeMcpHttpServer.cs" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
     <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />

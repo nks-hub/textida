@@ -11,7 +11,8 @@ public sealed class McpClientTests
 
     private static readonly McpClientOptions Options = new(
         new RpcLimits(MaxMessageBytes: 1 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 10_000, MaxSessionBytes: 8L << 20, MaxOutgoingQueueBytes: 8L << 20),
-        HandshakeTimeout: TimeSpan.FromSeconds(30), ExitGrace: TimeSpan.FromSeconds(5), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1");
+        HandshakeTimeout: TimeSpan.FromSeconds(30), ExitGrace: TimeSpan.FromSeconds(5), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1",
+        CallTimeout: TimeSpan.FromSeconds(30), MaxResultChars: 1000);
 
     [Fact]
     public async Task A_server_that_is_a_batch_file_gets_every_argument_back_and_a_line_break_is_refused_before_the_start()
@@ -102,6 +103,70 @@ public sealed class McpClientTests
         var e = await Assert.ThrowsAsync<RpcException>(() => client.CallToolAsync("nope"));
         Assert.Equal(RpcErrorCodes.InvalidParams, e.Code);
         Assert.Equal("(unset)", (await client.CallToolAsync("env", """{"name":"NO_SUCH_VARIABLE_XYZ"}""")).Text);
+    }
+
+    [Theory]
+    [InlineData("modern")]
+    [InlineData("legacy")]
+    public async Task Resources_are_listed_and_read_and_a_binary_part_is_named_by_its_size(string mode)
+    {
+        await using var client = await StartAsync(mode, new Log());
+        Assert.True(client.HasResources);
+
+        var resources = await client.ListResourcesAsync();
+        Assert.Equal(["test://notes", "test://blob", "test://big"], resources.Select(r => r.Uri));
+        Assert.Equal(("notes", "Notes", "text/plain"), (resources[0].Name, resources[0].Title, resources[0].MimeType));
+
+        var notes = await client.ReadResourceAsync("test://notes");
+        Assert.Equal(("first notes\nsecond part", "text/plain", false), (notes.Text, notes.MimeType, notes.Truncated));
+        var blob = await client.ReadResourceAsync("test://blob");
+        Assert.Equal("[binary data, application/octet-stream, about 12 bytes]", blob.Text);
+        var missing = await Assert.ThrowsAsync<RpcException>(() => client.ReadResourceAsync("test://nope"));
+        Assert.Equal(-32002, missing.Code);
+    }
+
+    [Fact]
+    public async Task A_result_and_a_resource_longer_than_the_limit_are_cut_and_say_how_long_they_were()
+    {
+        await using var client = await StartAsync("modern", new Log());
+
+        var result = await client.CallToolAsync("big", """{"length":5000,"unit":"y"}""");
+        Assert.Equal((1000, 5000, true), (result.Text.Length, result.FullLength, result.Truncated));
+        Assert.Equal(new string('y', 1000), result.Text);
+        var resource = await client.ReadResourceAsync("test://big");
+        Assert.Equal((1000, 5000, true), (resource.Text.Length, resource.FullLength, resource.Truncated));
+
+        var exact = await client.CallToolAsync("big", """{"length":1000,"unit":"y"}""");
+        Assert.False(exact.Truncated); // exactly the limit is not a cut
+    }
+
+    [Fact]
+    public async Task A_cut_never_splits_the_two_halves_of_a_character()
+    {
+        await using var client = await StartAsync("modern", new Log());
+
+        // "x" and 600 characters of two UTF-16 units each: unit 999 is the first half of a pair
+        var result = await client.CallToolAsync("big", """{"prefix":"x","length":600,"unit":"😀"}""");
+
+        Assert.Equal(999, result.Text.Length);
+        Assert.Equal(1201, result.FullLength);
+        Assert.False(char.IsHighSurrogate(result.Text[^1]));
+        Assert.True(result.Truncated);
+    }
+
+    [Fact]
+    public async Task A_call_that_takes_too_long_ends_with_a_timeout_tells_the_server_and_the_client_goes_on()
+    {
+        var log = new Log();
+        await using var client = await McpClient.StartAsync(new McpLaunch(DotNet, [EchoDll, "--mcp", "modern"], AppContext.BaseDirectory, new Dictionary<string, string>(), []),
+            Options with { CallTimeout = TimeSpan.FromMilliseconds(500) }, log.Add);
+
+        var e = await Assert.ThrowsAsync<McpTimeoutException>(() => client.CallToolAsync("slow"));
+
+        Assert.Contains("did not answer within 0.5 s", e.Message);
+        var started = await log.WaitForAsync(l => l.StartsWith("slow-started:"), "the call to arrive");
+        await log.WaitForAsync(l => l == "cancelled:" + started["slow-started:".Length..], "notifications/cancelled for the call that timed out");
+        Assert.Equal("still here", (await client.CallToolAsync("echo", """{"text":"still here"}""")).Text);
     }
 
     [Theory]

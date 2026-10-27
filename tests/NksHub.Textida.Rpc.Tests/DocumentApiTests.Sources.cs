@@ -10,13 +10,13 @@ public partial class DocumentApiTests
     const string Page = "fake://wiki/page";
 
     static DocumentApiOptions WithSources(DocumentApiOptions o, int cacheEntries = 8, long cacheBytes = 1 << 20) =>
-        o with { Sources = new FileSourceOptions(TimeSpan.FromSeconds(5), 1 << 20, 100, 2, cacheEntries, cacheBytes) };
+        o with { Sources = new FileSourceOptions(TimeSpan.FromSeconds(5), 1 << 20, 100, 2, cacheEntries, cacheBytes, 16, 20) };
 
-    static async Task<Rig> SourceRigAsync(bool atomic = true, int cacheEntries = 8, long cacheBytes = 1 << 20, string[]? plugins = null)
+    static async Task<Rig> SourceRigAsync(bool atomic = true, int cacheEntries = 8, long cacheBytes = 1 << 20, string[]? plugins = null, string extra = "")
     {
         var rig = await Rig.CreateAsync(Utf8("x"), o => WithSources(o, cacheEntries, cacheBytes), plugins: plugins);
         rig.Permissions.Grant("p", DocumentPermissions.Source, GrantScope.All);
-        var ok = await rig.CallAsync(DocumentMethods.SourceRegister, $"{{\"scheme\":\"fake\",\"name\":\"Fake wiki\",\"list\":true,\"write\":true,\"atomicWrite\":{(atomic ? "true" : "false")}}}");
+        var ok = await rig.CallAsync(DocumentMethods.SourceRegister, $"{{\"scheme\":\"fake\",\"name\":\"Fake wiki\",\"list\":true,\"write\":true,\"atomicWrite\":{(atomic ? "true" : "false")}{extra}}}");
         Assert.True(ok.GetProperty("enabled").GetBoolean(), ok.GetRawText());
         await rig.Host.CallAsync("p", "sourceMode", T.Json($"{{\"atomic\":{(atomic ? "true" : "false")}}}"));
         return rig;
@@ -46,6 +46,45 @@ public partial class DocumentApiTests
 
         rig.Permissions.Revoke("p", DocumentPermissions.Source, GrantScope.All);
         Assert.Empty(rig.Api.Sources);
+    }
+
+    [Fact]
+    public async Task ASourceThatSearchesStatesItsVersionsAndFindsFilesByTheirWords()
+    {
+        await using var rig = await SourceRigAsync(extra: ",\"search\":true,\"adapterVersion\":\"1.2.3\",\"serviceVersion\":\"API v1\"");
+        var source = rig.Api.SourceFor(Page)!;
+        Assert.Equal(("1.2.3", "API v1", true), (source.AdapterVersion, source.ServiceVersion, source.Capabilities.Search));
+        await Put(rig, Page, "the quick brown fox");
+        await Put(rig, "fake://wiki/other", "a lazy dog");
+
+        Assert.Equal([Page], (await rig.Api.SourceSearchAsync("fake", "  QUICK ")).Select(e => e.Uri));
+        Assert.Empty(await rig.Api.SourceSearchAsync("fake", "cat"));
+        var empty = await Assert.ThrowsAsync<SourceException>(() => rig.Api.SourceSearchAsync("fake", "   "));
+        Assert.Equal(SourceFailure.Failed, empty.Kind);
+        var tooLong = await Assert.ThrowsAsync<SourceException>(() => rig.Api.SourceSearchAsync("fake", new string('a', 21)));
+        Assert.Contains("1 to 20 characters", tooLong.Message);
+    }
+
+    [Fact]
+    public async Task ASourceThatDoesNotSearchIsNotAskedToAndNamesNoVersions()
+    {
+        await using var rig = await SourceRigAsync();
+        var source = rig.Api.SourceFor(Page)!;
+        Assert.Equal((null, null, false), (source.AdapterVersion, source.ServiceVersion, source.Capabilities.Search));
+
+        var e = await Assert.ThrowsAsync<SourceException>(() => rig.Api.SourceSearchAsync("fake", "x"));
+
+        Assert.Contains("does not search", e.Message);
+    }
+
+    [Fact]
+    public async Task AVersionTextThatIsTooLongOrHoldsControlCharactersIsRefusedAtRegistration()
+    {
+        await using var rig = await SourceRigAsync();
+        await rig.ErrorAsync(DocumentMethods.SourceRegister, "{\"scheme\":\"other\",\"adapterVersion\":\"" + new string('v', 17) + "\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.SourceRegister, "{\"scheme\":\"other\",\"serviceVersion\":\"1\\n2\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.SourceRegister, "{\"scheme\":\"other\",\"serviceVersion\":7}", RpcErrorCodes.InvalidParams);
+        Assert.Single(rig.Api.Sources);
     }
 
     [Fact]

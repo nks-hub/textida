@@ -303,6 +303,58 @@ public sealed class McpConfigTests : IDisposable
         }
     }
 
+    private static McpServerEntry Remote(string url, Dictionary<string, string>? headers = null) =>
+        new("r", McpAgent.ClaudeCode, McpTransport.Remote, null, [], new Dictionary<string, string>(), url, headers ?? [], RemoteType: "http");
+
+    [Fact]
+    public void A_server_at_an_address_gets_its_variables_filled_in_and_every_key_it_holds_is_hidden()
+    {
+        var vars = new Dictionary<string, string> { ["TOKEN"] = "tok-12345", ["HOST"] = "mcp.example" };
+        var entry = Remote("https://${HOST}/mcp?key=query-secret-9&view=1", new() { ["Authorization"] = "Bearer ${TOKEN}", ["X-Plain"] = "plain-value" });
+
+        var remote = McpConfig.BuildRemote(entry, vars.GetValueOrDefault);
+
+        Assert.Equal("https://mcp.example/mcp?key=query-secret-9&view=1", remote.Url.OriginalString);
+        Assert.Equal("Bearer tok-12345", remote.Headers["Authorization"]);
+        Assert.Equal("https://mcp.example/mcp?key=***&view=***", remote.MaskedUrl);
+        Assert.Equal(["Authorization: ***", "X-Plain: ***"], remote.MaskedHeaders);
+        var text = remote.Mask("failed with Bearer tok-12345 and tok-12345 and query-secret-9 and plain-value");
+        Assert.DoesNotContain("tok-12345", text);
+        Assert.DoesNotContain("query-secret-9", text);
+        Assert.DoesNotContain("plain-value", text);
+    }
+
+    [Fact]
+    public void An_address_that_cannot_work_is_refused_with_a_reason()
+    {
+        Assert.Contains("reached by an address", Assert.Throws<McpClientException>(() => McpConfig.BuildRemote(Stdio(DotNet, []), _ => null)).Message);
+        Assert.Contains("full http", Assert.Throws<McpClientException>(() => McpConfig.BuildRemote(Remote("ftp://h.example/mcp"), _ => null)).Message);
+        Assert.Contains("MISSING_VAR", Assert.Throws<McpClientException>(() => McpConfig.BuildRemote(Remote("https://h.example/mcp", new() { ["Authorization"] = "${MISSING_VAR}" }), _ => null)).Message);
+        // keys must not travel in the clear to another computer; the same address without keys, and a local one with keys, are fine
+        Assert.Contains("without encryption", Assert.Throws<McpClientException>(() => McpConfig.BuildRemote(Remote("http://h.example/mcp", new() { ["Authorization"] = "Bearer abcdef" }), _ => null)).Message);
+        Assert.Equal("http://h.example/mcp", McpConfig.BuildRemote(Remote("http://h.example/mcp"), _ => null).Url.AbsoluteUri);
+        Assert.Equal("http://127.0.0.1:5000/mcp", McpConfig.BuildRemote(Remote("http://127.0.0.1:5000/mcp", new() { ["Authorization"] = "Bearer abcdef" }), _ => null).Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public void The_first_variable_without_a_value_is_named_so_the_caller_can_ask_for_it()
+    {
+        var vars = new Dictionary<string, string> { ["HAVE"] = "x" };
+        var stdio = Stdio("${CMD_VAR}", ["--a=${HAVE}", "--b=${NEEDED_ARG}"], new() { ["T"] = "${NEEDED_ENV}" });
+        var remote = Remote("https://h.example/${HAVE}", new() { ["Authorization"] = "Bearer ${NEEDED_KEY}" });
+
+        Assert.Equal("CMD_VAR", McpConfig.FirstMissingVariable(stdio, vars.GetValueOrDefault));
+        vars["CMD_VAR"] = "c";
+        Assert.Equal("NEEDED_ARG", McpConfig.FirstMissingVariable(stdio, vars.GetValueOrDefault));
+        vars["NEEDED_ARG"] = "a";
+        Assert.Equal("NEEDED_ENV", McpConfig.FirstMissingVariable(stdio, vars.GetValueOrDefault));
+        vars["NEEDED_ENV"] = "e";
+        Assert.Null(McpConfig.FirstMissingVariable(stdio, vars.GetValueOrDefault));
+        Assert.Equal("NEEDED_KEY", McpConfig.FirstMissingVariable(remote, vars.GetValueOrDefault));
+        // a variable with a default is not missing
+        Assert.Null(McpConfig.FirstMissingVariable(Stdio("c", ["${OPTIONAL:-fallback}"]), _ => null));
+    }
+
     [Fact]
     public void The_npx_shim_of_node_is_replaced_by_node_and_its_script_when_node_is_installed()
     {

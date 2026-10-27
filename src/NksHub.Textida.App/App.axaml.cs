@@ -42,6 +42,8 @@ public sealed partial class App : Application
     /// <summary>Where passwords live: the credential store of the operating system. Tests replace it.</summary>
     /// <summary>The folder whose dot files hold the MCP server lists of the agents; tests point it at a fixture.</summary>
     internal string AgentConfigHome { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    /// <summary>Limits and timeouts of the MCP client; tests shorten them.</summary>
+    internal NksHub.Textida.McpClient.McpClientOptions McpClientOptions { get; set; } = Services.PluginLimitsPlaceholders.McpClient();
     internal NksHub.Textida.Core.Secrets.ICredentialStore Credentials { get; set; } = NksHub.Textida.Core.Secrets.CredentialStores.ForCurrentPlatform();
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;

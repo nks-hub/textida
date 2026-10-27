@@ -58,12 +58,21 @@ public sealed partial class DocumentApi
             bool write = Flag(p, "write"), atomic = Flag(p, "atomicWrite");
             if (atomic && !write) throw Invalid("A source that writes atomically must also declare 'write'.");
             var name = p.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String && n.GetString() is { Length: > 0 } given ? given : scheme;
-            _sources[scheme] = new FileSource(pluginId, scheme, name, new SourceCapabilities(Flag(p, "list"), write, atomic));
+            _sources[scheme] = new FileSource(pluginId, scheme, name, new SourceCapabilities(Flag(p, "list"), write, atomic, Flag(p, "search")),
+                VersionText(p, "adapterVersion", options.MaxVersionChars), VersionText(p, "serviceVersion", options.MaxVersionChars));
         }
         return Obj(w => w.WriteBoolean("enabled", true));
     }
 
     private static bool Flag(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+
+    private static string? VersionText(JsonElement p, string name, int max)
+    {
+        if (!p.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null) return null;
+        if (v.ValueKind != JsonValueKind.String || v.GetString() is not { Length: > 0 } text || text.Length > max || text.Any(char.IsControl))
+            throw Invalid($"'{name}' must be a text of 1 to {max} characters without control characters.");
+        return text;
+    }
 
     private void DropRevokedSources(string pluginId)
     {
@@ -148,7 +157,23 @@ public sealed partial class DocumentApi
     {
         var (source, options) = NeedSource(uri);
         if (!source.Capabilities.List) throw new SourceException(SourceFailure.Failed, $"The source '{source.Name}' does not list.");
-        var answer = await AskSourceAsync(source, options, DocumentRequests.SourceList, UriRequest(uri), cancellation);
+        return Entries(await AskSourceAsync(source, options, DocumentRequests.SourceList, UriRequest(uri), cancellation), options);
+    }
+
+    /// <summary>The files whose content or name matches <paramref name="query"/>, as the source of <paramref name="scheme"/> finds them (at most <see cref="FileSourceOptions.MaxEntries"/>). Only for a source that declared <c>search</c>.</summary>
+    public async Task<IReadOnlyList<SourceEntry>> SourceSearchAsync(string scheme, string query, CancellationToken cancellation = default)
+    {
+        var options = _options.Sources ?? throw new SourceException(SourceFailure.NoSource, "The editor takes no file sources.");
+        FileSource source;
+        lock (_gate) source = _sources.GetValueOrDefault(scheme) ?? throw new SourceException(SourceFailure.NoSource, $"No plugin serves '{scheme}://'.");
+        if (!source.Capabilities.Search) throw new SourceException(SourceFailure.Failed, $"The source '{source.Name}' does not search.");
+        query = query.Trim();
+        if (query.Length == 0 || query.Length > options.MaxQueryChars) throw new SourceException(SourceFailure.Failed, $"A search takes 1 to {options.MaxQueryChars} characters.");
+        return Entries(await AskSourceAsync(source, options, DocumentRequests.SourceSearch, UriRequest(scheme + "://", w => w.WriteString("query", query)), cancellation), options);
+    }
+
+    private static List<SourceEntry> Entries(JsonElement answer, FileSourceOptions options)
+    {
         if (answer.ValueKind != JsonValueKind.Object || !answer.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
             throw new SourceException(SourceFailure.Failed, "The source answered without entries.");
         List<SourceEntry> list = [];

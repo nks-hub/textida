@@ -34,7 +34,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1 || options.VirtualSaveTimeout is { Ticks: <= 0 }
             || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero
             || options.Workspace is { MaxChanges: < 1 } or { MaxFileBytes: < 1 } || options.Preview is { MaxChars: < 1 } || options.Agent is { MaxUpdateChars: < 1 }
-            || options.Sources is { Timeout.Ticks: <= 0 } or { MaxBytes: < 1 } or { MaxEntries: < 1 } or { MaxSchemesPerPlugin: < 1 } or { CacheEntries: < 1 } or { CacheBytes: < 1 })
+            || options.Sources is { Timeout.Ticks: <= 0 } or { MaxBytes: < 1 } or { MaxEntries: < 1 } or { MaxSchemesPerPlugin: < 1 } or { CacheEntries: < 1 } or { CacheBytes: < 1 } or { MaxVersionChars: < 1 } or { MaxQueryChars: < 1 })
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;

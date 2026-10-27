@@ -37,6 +37,12 @@ public sealed class WikiPlugin : PluginBase
     /// <summary>False until the wiki takes an expected revision and decides in one step (P6.4.4); its API has no such field today.</summary>
     public const bool AtomicWriteVerified = false;
 
+    /// <summary>The service the mapping is written for: the version of the NKS IS API in its path (<c>/api/v1</c>). The log of the editor states it with the version of this adapter.</summary>
+    public const string ServiceVersion = "NKS IS API v1";
+
+    /// <summary>The version of this adapter.</summary>
+    public static string AdapterVersion { get; } = typeof(WikiPlugin).Assembly.GetName().Version?.ToString(3) ?? "0";
+
     private readonly WikiSettings _settings;
     private readonly Func<IWikiEditor> _editor;
     private readonly Func<Uri, string, IWikiApi> _connect;
@@ -51,6 +57,7 @@ public sealed class WikiPlugin : PluginBase
         On(DocumentRequests.SourceList, (p, ct) => Guard(() => ListAsync(p, ct), ct));
         On(DocumentRequests.SourceRead, (p, ct) => Guard(() => ReadAsync(p, ct), ct));
         On(DocumentRequests.SourceStat, (p, ct) => Guard(() => StatAsync(p, ct), ct));
+        On(DocumentRequests.SourceSearch, (p, ct) => Guard(() => SearchAsync(p, ct), ct));
         On(DocumentRequests.SourceWrite, (p, ct) => Guard(() => WriteAsync(p, ct), ct));
     }
 
@@ -66,6 +73,9 @@ public sealed class WikiPlugin : PluginBase
             w.WriteBoolean("list", true);
             w.WriteBoolean("write", true);
             w.WriteBoolean("atomicWrite", AtomicWriteVerified);
+            w.WriteBoolean("search", true);
+            w.WriteString("adapterVersion", AdapterVersion);
+            w.WriteString("serviceVersion", ServiceVersion);
         });
         await Rpc.RequestAsync(DocumentMethods.SourceRegister, request, null, CancellationToken.None).ConfigureAwait(false);
     }
@@ -86,19 +96,32 @@ public sealed class WikiPlugin : PluginBase
 
     private static RpcException Fail(string message) => new(RpcErrorCodes.InternalError, message);
 
-    /// <summary>Turns what the wiki layer throws into the errors of the source protocol, so the editor can tell a conflict from an outage.</summary>
+    /// <summary>
+    /// Turns what the wiki layer throws into the errors of the source protocol, so the editor can tell a conflict from an outage. A key the wiki refuses is dropped from the credential
+    /// store and the user is asked for a new one at once; a key refused again ends the call (and is dropped too).
+    /// </summary>
     private async ValueTask<byte[]?> Guard(Func<Task<byte[]>> work, CancellationToken ct)
     {
-        try { return await work().ConfigureAwait(false); }
+        try
+        {
+            try { return await work().ConfigureAwait(false); }
+            catch (WikiAuthException) { await DropTokenAsync(ct).ConfigureAwait(false); }
+            return await work().ConfigureAwait(false);
+        }
         catch (WikiRateLimitException) { throw new RpcException(DocumentErrorCodes.SourceUnavailable, T("rateLimit")); }
         catch (WikiAuthException)
         {
-            _api = null;
-            await _editor().DeleteSecretAsync(TokenSecret, ct).ConfigureAwait(false);
+            await DropTokenAsync(ct).ConfigureAwait(false);
             throw Fail(T("rejected"));
         }
         catch (WikiUnavailableException e) { throw new RpcException(DocumentErrorCodes.SourceUnavailable, T("unreachable", ("reason", e.Message))); }
         catch (WikiRequestException e) { throw Fail(T("failed", ("status", e.Status.ToString()))); }
+    }
+
+    private async Task DropTokenAsync(CancellationToken ct)
+    {
+        _api = null;
+        await _editor().DeleteSecretAsync(TokenSecret, ct).ConfigureAwait(false);
     }
 
     // ---- connection: base URL and token from the secret storage, asked once ----
@@ -157,21 +180,31 @@ public sealed class WikiPlugin : PluginBase
     {
         var prefix = SlugOf(p, required: false);
         var api = await ConnectAsync(ct).ConfigureAwait(false);
-        var pages = await api.ListAsync(prefix, _settings.MaxEntries, ct).ConfigureAwait(false);
-        return Obj(w =>
-        {
-            w.WriteStartArray("entries");
-            foreach (var page in pages.Take(_settings.MaxEntries))
-            {
-                w.WriteStartObject();
-                w.WriteString("uri", UriOf(page.Slug));
-                w.WriteString("name", page.Title ?? page.Slug[(page.Slug.LastIndexOf('/') + 1)..]);
-                w.WriteBoolean("isDirectory", page.IsFolder);
-                w.WriteEndObject();
-            }
-            w.WriteEndArray();
-        });
+        return Entries(await api.ListAsync(prefix, _settings.MaxEntries, ct).ConfigureAwait(false));
     }
+
+    /// <summary>The wiki's own text search: the words come from the user, the pages come back as addresses to open.</summary>
+    private async Task<byte[]> SearchAsync(JsonElement p, CancellationToken ct)
+    {
+        var query = p.TryGetProperty("query", out var q) && q.ValueKind == JsonValueKind.String ? q.GetString()!.Trim() : "";
+        if (query.Length == 0) throw new RpcException(RpcErrorCodes.InvalidParams, T("emptyQuery"));
+        var api = await ConnectAsync(ct).ConfigureAwait(false);
+        return Entries(await api.SearchAsync(query, _settings.MaxEntries, ct).ConfigureAwait(false));
+    }
+
+    private byte[] Entries(IReadOnlyList<WikiPageInfo> pages) => Obj(w =>
+    {
+        w.WriteStartArray("entries");
+        foreach (var page in pages.Take(_settings.MaxEntries))
+        {
+            w.WriteStartObject();
+            w.WriteString("uri", UriOf(page.Slug));
+            w.WriteString("name", page.Title ?? page.Slug[(page.Slug.LastIndexOf('/') + 1)..]);
+            w.WriteBoolean("isDirectory", page.IsFolder);
+            w.WriteEndObject();
+        }
+        w.WriteEndArray();
+    });
 
     private async Task<byte[]> ReadAsync(JsonElement p, CancellationToken ct)
     {

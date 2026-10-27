@@ -471,7 +471,8 @@ public class McpAppTests : IDisposable
 
     private static readonly McpClientOptions ClientOptions = new(
         new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
-        HandshakeTimeout: TimeSpan.FromSeconds(60), ExitGrace: TimeSpan.FromSeconds(10), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1");
+        HandshakeTimeout: TimeSpan.FromSeconds(60), ExitGrace: TimeSpan.FromSeconds(10), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1",
+        CallTimeout: TimeSpan.FromSeconds(60), MaxResultChars: 1 << 20);
 
     private static McpLaunch BridgeLaunch() => new(
         Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet", [BridgeDll], AppContext.BaseDirectory,
