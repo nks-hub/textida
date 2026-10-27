@@ -359,7 +359,8 @@ public class PluginHostTests
         // once it reads again, what was held back arrives and nothing is lost
         await events.WaitAsync(TimeSpan.FromSeconds(60));
         Assert.Equal("1", (await host.CallAsync("deaf", "echo", Args("1"))).GetRawText());
-        Assert.Equal(2, (await host.CallAsync("deaf", "eventCount")).GetInt32());
+        // the plugin handles notifications on their own loop, after the host has written them
+        await T.Until(() => host.CallAsync("deaf", "eventCount").GetAwaiter().GetResult().GetInt32() == 2, 5000);
         Assert.Equal(0, host.GetLostEvents("deaf"));
         Assert.Equal(PluginState.Running, host.GetState("deaf"));
     }
