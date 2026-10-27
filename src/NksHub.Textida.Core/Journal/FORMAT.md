@@ -33,7 +33,7 @@ a `DocSaveIntent` and syncs at once, before the new file replaces the old one.
 
 ## Records
 
-Payloads start with a layout byte followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes). Layout 3 is current. Layout 1 stored the encoding as kind, BOM length and
+Payloads start with a layout byte followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes). Layout 4 is current (layout 3 plus a repeat length per edit of `DocEdit`). Layout 1 stored the encoding as kind, BOM length and
 code page and had no codec field in `DocEdit`, `DocSave` and `DocSaveIntent`; it is still read (the codec is derived from the old fields, or the
 opening codec is kept). The codec is always stored by its stable `TextCodec.Name` and resolved with `TextCodec.ByName`; an unknown name fails
 that document, not the journal.
@@ -43,7 +43,7 @@ that document, not the journal.
 | 1 SessionState | active group, groups: active document, tabs (document id, title, revision, selections as byte ranges, bookmarks as byte offsets of line starts; layout 3) |
 | 2 DocOpen | document id, path and fingerprint (named) or none, codec name, backend name, base revision, seed length |
 | 3 DocSeed | document id, offset, bytes: initial content of an unnamed document, in chunks |
-| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes) in the coordinates of the previous revision, codec name after the change (a different codec means a conversion, replayed as one undo step) |
+| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes, and from layout 4 a repeat length: when it is not 0 the inserted bytes are a pattern and the edit inserts that many bytes of it repeated, a fill) in the coordinates of the previous revision, codec name after the change (a different codec means a conversion, replayed as one undo step) |
 | 5 DocUndo, 6 DocRedo | document id, revision; replayed by calling `Undo()`/`Redo()` |
 | 7 DocSave | document id, revision, path, new fingerprint, codec name |
 | 8 DocClose | document id |

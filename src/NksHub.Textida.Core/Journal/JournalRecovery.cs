@@ -184,6 +184,13 @@ public static class JournalRecovery
             {
                 var e = JournalRecords.DecodeEdit(rec.Payload);
                 string key = (e.NewUndoEntry ? null : doc.TopUndoKey) ?? "j" + ++keyCounter;
+                if (e.Edits is [{ Repeat: > 0 } fill] && e.Kind == ChangeKind.Edit)
+                {
+                    var filled = doc.Fill(new ByteRange(fill.Start, fill.Start + fill.Deleted), fill.Inserted, fill.Repeat, new EditOptions { CoalesceKey = key, Source = e.Source });
+                    if (!filled.Applied || baseRevision + doc.Revision != e.Revision)
+                        throw new InvalidDataException($"Replay of revision {e.Revision} ended at {baseRevision + doc.Revision} ({filled.Conflict}).");
+                    continue;
+                }
                 var byteEdits = e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.Inserted)).ToList();
                 var target = e.Codec is null ? null : TextCodec.ByName(e.Codec) ?? throw new InvalidDataException($"Codec '{e.Codec}' is not known.");
                 var result = target is not null && target != doc.Codec

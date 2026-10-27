@@ -43,6 +43,16 @@ public interface IByteBackend : IDisposable
     /// </summary>
     IInPlaceWriteScope? BeginInPlaceWrite() => null;
 
+    /// <summary>True when <see cref="ReplaceRepeated"/> keeps a repeated pattern as such, in memory that does not grow with its length.</summary>
+    bool RepeatsPatterns => false;
+    /// <summary>
+    /// Replaces <paramref name="deleteLength"/> bytes by <paramref name="length"/> bytes of <paramref name="pattern"/> repeated from its first byte.
+    /// Returns what was removed, for <see cref="RestoreRemoved"/>; it is good until the backing file is written over (<see cref="BeginInPlaceWrite"/>, <see cref="ReplaceBackingFile"/>).
+    /// </summary>
+    object ReplaceRepeated(long offset, long deleteLength, ReadOnlySpan<byte> pattern, long length) => throw new NotSupportedException();
+    /// <summary>Undoes <see cref="ReplaceRepeated"/>: the <paramref name="insertedLength"/> bytes at <paramref name="offset"/> become what was removed.</summary>
+    void RestoreRemoved(long offset, long insertedLength, object removed) => throw new NotSupportedException();
+
     void CopyTo(Stream destination);
     /// <summary>
     /// <paramref name="tempPath"/> holds exactly the current bytes. Move it over <paramref name="targetPath"/> atomically;

@@ -48,7 +48,8 @@ public sealed class PagedSnapshot : IByteSnapshot
                 var p = _pieces[i];
                 long skip = offset + done - (_ends[i] - p.Length);
                 int take = (int)Math.Min(p.Length - skip, destination.Length - done);
-                if (p.Original) _source!.Read(p.Start + skip, destination.Slice(done, take));
+                if (p.Repeated) p.CopyRepeated(skip, destination.Slice(done, take));
+                else if (p.Original) _source!.Read(p.Start + skip, destination.Slice(done, take));
                 else _add.AsSpan((int)(p.Start + skip), take).CopyTo(destination[done..]);
                 done += take;
                 i++;

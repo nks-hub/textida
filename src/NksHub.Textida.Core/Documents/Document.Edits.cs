@@ -6,7 +6,17 @@ public sealed partial class Document
 {
     private readonly record struct Pending(long Start, long Deleted, ReadOnlyMemory<byte> Insert);
     private readonly record struct AppliedEdit(long Offset, byte[] Removed, byte[] Inserted);
-    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null);
+    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
+
+    /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
+    private sealed class FillEdit(long offset, long deleted, long length, byte[] pattern, object removed)
+    {
+        public long Offset { get; } = offset;
+        public long Deleted { get; } = deleted;
+        public long Length { get; } = length;
+        public byte[] Pattern { get; } = pattern;
+        public object? Removed { get; set; } = removed;
+    }
 
     private sealed class UndoEntry(string? key)
     {
@@ -81,6 +91,50 @@ public sealed partial class Document
         return new(true, _revision, ConflictReason.None);
     }
 
+    /// <summary>
+    /// Replaces <paramref name="range"/> by <paramref name="length"/> bytes of <paramref name="pattern"/> repeated from its first byte, as one undo step.
+    /// Like the edits of the hex view it is byte-level: no BOM or character checks. A backend that keeps patterns takes a fill larger than a patch
+    /// (<see cref="InPlacePatch.MaxPatchBytes"/>) without copying a byte, so the memory does not grow with the length; the undo of such a fill, and
+    /// of the steps before it, ends when a save writes over the file the backend maps. Smaller fills are ordinary edits and keep their undo.
+    /// </summary>
+    public EditResult Fill(ByteRange range, ReadOnlyMemory<byte> pattern, long length, EditOptions? options = null)
+    {
+        ThrowIfDisposed();
+        if (pattern.IsEmpty || length < 0) throw new ArgumentException("A fill needs a pattern of at least one byte and a length of zero or more.");
+        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
+        options ??= new();
+        var mapped = MapRange(range, options.BaseRevision ?? _revision);
+        if (!mapped.Ok) return EditResult.Fail(mapped.Conflict, _revision);
+        var (start, end) = (mapped.Range.Start, mapped.Range.End);
+        if (end > ByteLength) return EditResult.Fail(ConflictReason.InvalidRange, _revision);
+        if (start == end && length == 0) return new(true, _revision, ConflictReason.None);
+
+        if (!_backend.RepeatsPatterns || (end - start <= InPlacePatch.MaxPatchBytes && length <= InPlacePatch.MaxPatchBytes))
+        {
+            if (length > Array.MaxLength) throw new NotSupportedException("This backend cannot hold a fill of more than 2 GiB.");
+            var bytes = new byte[length];
+            for (int at = 0; at < bytes.Length; at += pattern.Length) pattern.Span[..Math.Min(pattern.Length, bytes.Length - at)].CopyTo(bytes.AsSpan(at));
+            return Apply([new ByteEdit(new ByteRange(start, end), bytes)], new EditOptions
+            {
+                Source = options.Source, CoalesceKey = options.CoalesceKey, RawBytes = true,
+                SelectionsBefore = options.SelectionsBefore, SelectionsAfter = options.SelectionsAfter,
+            });
+        }
+
+        byte[] copy = pattern.ToArray();
+        var fill = new FillEdit(start, end - start, length, copy, _backend.ReplaceRepeated(start, end - start, copy, length));
+        Commit(ChangeKind.Edit, options.Source, [new ChangeSet.Span(start, end - start, length) { Pattern = copy }],
+            new Step([], options.SelectionsBefore, options.SelectionsAfter, Fill: fill), null);
+        return new(true, _revision, ConflictReason.None);
+    }
+
+    /// <summary>After a save wrote over the mapped file, what fills removed by reference is gone: those steps and all before them can no longer be undone.</summary>
+    private void ReleaseFillUndo()
+    {
+        int last = _undo.FindLastIndex(e => e.Steps.Any(s => s.Fill?.Removed is not null));
+        if (last >= 0) _undo.RemoveRange(0, last + 1);
+    }
+
     /// <summary>Applies disjoint ascending edits to the backend, highest offset first so lower offsets stay valid.</summary>
     private byte[][]? Execute(List<Pending> work, bool validate, bool captureRemoved, out ConflictReason failure)
     {
@@ -136,7 +190,7 @@ public sealed partial class Document
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Edits.Any(e => HasLineBreakByte(e.Removed) || HasLineBreakByte(e.Inserted)) };
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => HasLineBreakByte(e.Removed) || HasLineBreakByte(e.Inserted)) };
         if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
@@ -305,6 +359,13 @@ public sealed partial class Document
         _redo.Add(entry);
         for (int s = entry.Steps.Count - 1; s >= 0; s--)
         {
+            if (entry.Steps[s].Fill is { } fill)
+            {
+                _backend.RestoreRemoved(fill.Offset, fill.Length, fill.Removed!);
+                fill.Removed = null;
+                Commit(ChangeKind.Undo, null, [new ChangeSet.Span(fill.Offset, fill.Length, fill.Deleted)], null, null);
+                continue;
+            }
             long shift = 0;
             var work = new List<Pending>();
             foreach (var e in entry.Steps[s].Edits)
@@ -329,6 +390,12 @@ public sealed partial class Document
         _undo.Add(entry);
         foreach (var step in entry.Steps)
         {
+            if (step.Fill is { } fill)
+            {
+                fill.Removed = _backend.ReplaceRepeated(fill.Offset, fill.Deleted, fill.Pattern, fill.Length);
+                Commit(ChangeKind.Redo, null, [new ChangeSet.Span(fill.Offset, fill.Deleted, fill.Length) { Pattern = fill.Pattern }], null, null);
+                continue;
+            }
             var work = step.Edits.Select(e => new Pending(e.Offset, e.Removed.Length, e.Inserted)).ToList();
             Execute(work, validate: false, captureRemoved: false, out _);
             if (step.CodecAfter is { } after) SetCodec(after);
@@ -339,6 +406,7 @@ public sealed partial class Document
 
     private void MarkSaved()
     {
+        if (FilePath is { } saved && _backend.BackingPath is { } mapped && SamePath(mapped, saved)) ReleaseFillUndo();
         _saved = _undo.Count > 0 ? _undo[^1] : null;
         _savedUnreachable = false;
         SavedRevision = _revision;

@@ -114,7 +114,13 @@ public sealed class PagedDocument : IPagedTextSource
         bool firstLf = whole && LineScanner.Unit(PieceBytes(p with { Length = w }), 0, Codec) == 10;
         bool lastCr = whole && LineScanner.Unit(PieceBytes(p with { Start = p.Start + p.Length - w, Length = w }), 0, Codec) == 13;
         long n;
-        if (p.Original)
+        if (p.Repeated)
+        {
+            n = 0;
+            if (p.Pattern.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0)
+                foreach (var (_, buffer, length) in RepeatedChunks(p)) n += LineScanner.CountTerminators(buffer, length, Codec);
+        }
+        else if (p.Original)
         {
             long end = p.Start + p.Length;
             n = _source.CountTerminatorsBefore(end) - _source.CountTerminatorsBefore(p.Start);
@@ -130,8 +136,42 @@ public sealed class PagedDocument : IPagedTextSource
         return new LineStats(n, firstLf, lastCr);
     }
 
+    /// <summary>
+    /// A repeated piece in blocks for the line scanner. A block never ends between a CR and an LF, so the terminators of the blocks add up
+    /// to those of the piece; the buffer is reused between blocks.
+    /// </summary>
+    private IEnumerable<(long At, byte[] Buffer, int Length)> RepeatedChunks(Piece p)
+    {
+        int w = Codec.Alignment;
+        int chunk = (1 << 20) - (1 << 20) % w;
+        var buffer = new byte[chunk];
+        var pair = new byte[2 * w];
+        for (long at = 0; at < p.Length;)
+        {
+            int n = (int)Math.Min(chunk, p.Length - at);
+            if (at + n < p.Length)
+            {
+                p.CopyRepeated(at + n - w, pair);
+                if (LineScanner.Unit(pair, 0, Codec) == 13 && LineScanner.Unit(pair, w, Codec) == 10) n -= w;
+            }
+            p.CopyRepeated(at, buffer.AsSpan(0, n));
+            yield return (at, buffer, n);
+            at += n;
+        }
+    }
+
     private long AfterNthTerminator(Piece p, long k)
     {
+        if (p.Repeated)
+        {
+            foreach (var (at, buffer, length) in RepeatedChunks(p))
+            {
+                long here = LineScanner.CountTerminators(buffer, length, Codec);
+                if (k <= here) return at + LineScanner.FindNthTerminator(buffer, length, k, Codec) + Codec.Alignment;
+                k -= here;
+            }
+            return p.Length;
+        }
         if (!p.Original)
         {
             var bytes = PieceBytes(p);
@@ -213,6 +253,12 @@ public sealed class PagedDocument : IPagedTextSource
         int done = 0;
         foreach (var piece in _tree.EnumerateRange(offset, want))
         {
+            if (piece.Repeated)
+            {
+                piece.CopyRepeated(0, destination.Slice(done, (int)piece.Length));
+                done += (int)piece.Length;
+                continue;
+            }
             var src = PieceBytes(piece);
             src.CopyTo(destination[done..]);
             done += src.Length;
@@ -220,8 +266,44 @@ public sealed class PagedDocument : IPagedTextSource
         return done;
     }
 
-    private ReadOnlySpan<byte> PieceBytes(Piece p) =>
-        p.Original ? _source.File.GetSpan(p.Start, checked((int)p.Length)) : _add.AsSpan((int)p.Start, (int)p.Length);
+    /// <summary>
+    /// Replaces <paramref name="deleteLength"/> bytes at <paramref name="offset"/> by <paramref name="length"/> bytes of <paramref name="pattern"/>
+    /// repeated from its first byte. The new bytes are a piece of their own: no memory, no add buffer and no copying, whatever the length.
+    /// Returns what was removed, for <see cref="RestoreRemoved"/>; it refers to the file as mapped now, so it is good until the file is saved over.
+    /// </summary>
+    public object ReplaceRepeated(long offset, long deleteLength, ReadOnlySpan<byte> pattern, long length)
+    {
+        EnsureNotSaving();
+        if (offset < 0 || deleteLength < 0 || offset + deleteLength > ByteLength) throw new ArgumentOutOfRangeException(nameof(offset));
+        if (pattern.IsEmpty || length < 0) throw new ArgumentException("A pattern needs at least one byte and a length of zero or more.");
+        Piece[] inserted = length == 0 ? [] : [new Piece(false, 0, length, pattern.ToArray())];
+        var removed = Apply(offset, deleteLength, inserted);
+        _undo.Add(new Edit(offset, removed, inserted));
+        _redo.Clear();
+        return removed;
+    }
+
+    /// <summary>Puts back what <see cref="ReplaceRepeated"/> removed over the <paramref name="insertedLength"/> bytes at <paramref name="offset"/>.</summary>
+    public void RestoreRemoved(long offset, long insertedLength, object removed)
+    {
+        EnsureNotSaving();
+        var pieces = (Piece[])removed;
+        var gone = Apply(offset, insertedLength, pieces);
+        _undo.Add(new Edit(offset, gone, pieces));
+        _redo.Clear();
+    }
+
+    /// <summary>The bytes of a piece; a repeated piece is expanded into a new array, so ask only for short ones.</summary>
+    private ReadOnlySpan<byte> PieceBytes(Piece p)
+    {
+        if (p.Repeated)
+        {
+            var copy = new byte[checked((int)p.Length)];
+            p.CopyRepeated(0, copy);
+            return copy;
+        }
+        return p.Original ? _source.File.GetSpan(p.Start, checked((int)p.Length)) : _add.AsSpan((int)p.Start, (int)p.Length);
+    }
 
     public ValueTask<IReadOnlyList<string>> ReadLinesAtAsync(long byteOffset, int maxLines, CancellationToken ct = default)
     {
@@ -371,12 +453,20 @@ public sealed class PagedDocument : IPagedTextSource
         }
 
         long written = 0;
+        byte[]? repeated = null;
         for (int i = 0; i < slices.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
             for (int k = i; k <= i + ahead; k++) Prefetch(k);
             var (piece, start, len) = slices[i];
-            var span = piece.Original ? _source.File.GetSpan(start, len) : _add.AsSpan((int)start, len);
+            ReadOnlySpan<byte> span;
+            if (piece.Repeated)
+            {
+                repeated ??= new byte[slice];
+                piece.CopyRepeated(start - piece.Start, repeated.AsSpan(0, len));
+                span = repeated.AsSpan(0, len);
+            }
+            else span = piece.Original ? _source.File.GetSpan(start, len) : _add.AsSpan((int)start, len);
             stream.Write(span);
             written += len;
             if (i + 1 == slices.Count || slices[i + 1].Piece != piece) progress?.Report(written);

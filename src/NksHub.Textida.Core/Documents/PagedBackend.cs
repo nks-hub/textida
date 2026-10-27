@@ -86,6 +86,10 @@ public sealed class PagedBackend : IByteBackend
     public void Replace(long offset, long deleteLength, ReadOnlySpan<byte> insert) => _doc.Replace(offset, deleteLength, insert);
     public void CopyTo(Stream destination) => _doc.WriteTo(destination);
 
+    public bool RepeatsPatterns => true;
+    public object ReplaceRepeated(long offset, long deleteLength, ReadOnlySpan<byte> pattern, long length) => _doc.ReplaceRepeated(offset, deleteLength, pattern, length);
+    public void RestoreRemoved(long offset, long insertedLength, object removed) => _doc.RestoreRemoved(offset, insertedLength, removed);
+
     public string ReadText(ByteRange range)
     {
         if (range.Length > Array.MaxLength) throw new NotSupportedException("A range over 2 GiB cannot be decoded in one piece.");

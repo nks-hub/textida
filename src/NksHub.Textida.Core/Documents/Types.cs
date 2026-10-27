@@ -84,7 +84,11 @@ public sealed record ChangeSet(long Revision, ChangeKind Kind, string? Source, I
     /// <summary>False when no byte that was inserted or removed is a CR or LF byte, so the line endings of the document cannot have changed; true when unknown.</summary>
     public bool TouchesLineBreaks { get; init; } = true;
 
-    public readonly record struct Span(long Start, long Deleted, long Inserted);
+    public readonly record struct Span(long Start, long Deleted, long Inserted)
+    {
+        /// <summary>When set, the inserted bytes are this pattern repeated from its first byte (<see cref="Document.Fill"/>); a journal then needs no copy of them.</summary>
+        public byte[]? Pattern { get; init; }
+    }
 }
 
 public sealed class DocumentChangedEventArgs(ChangeSet change) : EventArgs
