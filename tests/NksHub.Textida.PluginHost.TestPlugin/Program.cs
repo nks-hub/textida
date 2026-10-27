@@ -5,11 +5,9 @@ using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Rpc;
 
 // Test double for a real plugin: a separate process speaking the plugin protocol on stdin/stdout.
-// Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake.
-// The request "deaf" {ms} stops reading standard input for that long while the process lives on.
-
 // Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake,
 // --on-command JSON ({"method","params"} the plugin sends to the editor on command/execute; $document and $revision are filled in from the command).
+// The request "deaf" {ms} stops reading standard input for that long while the process lives on.
 var api = 1;
 var crashOnStart = -1;
 var stderrFlood = 0;
@@ -54,7 +52,6 @@ sealed class Handler(int api, string? onCommand) : IRpcHandler
     string _resync = "null";
     readonly List<string> _events = [];
     readonly List<string> _commands = [];
-
     volatile int _eventDelayMs;
     readonly List<string> _tabs = [];
     volatile bool _tabHandled, _tabError;

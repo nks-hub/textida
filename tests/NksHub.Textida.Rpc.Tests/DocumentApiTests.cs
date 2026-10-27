@@ -104,8 +104,6 @@ public partial class DocumentApiTests
                     Interlocked.Increment(ref refuse.Count);
                     return false;
                 }
-                return await host!.SendEventAsync(plugin, name, payload);
-
                 return await host!.SendEventAsync(plugin, name, payload, paced: true);
             }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time);
             host = new PluginHost.PluginHost(PluginHostTests.Options(hostTune), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
@@ -433,7 +431,9 @@ public partial class DocumentApiTests
 
         rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("c")));
         await rig.WaitEventsAsync(e => e.Count == 2 && e[1].GetProperty("name").GetString() == DocumentEvents.Changed);
+    }
 
+    [Fact]
     public async Task APluginThatHandlesEventsSlowlyGetsEventsLostWithTheCurrentRevisionInsteadOfABacklog()
     {
         await using var rig = await Rig.CreateAsync(Utf8("x"), o => o with { EventQueueCapacity = 2 }, hostTune: o => o with { EventWindow = 1 });

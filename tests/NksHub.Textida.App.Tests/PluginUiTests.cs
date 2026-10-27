@@ -309,8 +309,7 @@ public class PluginUiTests : IDisposable
         {
             Loc.SetLanguage(tag);
             foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated,
-                K.PluginCrashRestart, K.PluginCrashDisabled, K.PluginCrashExited, K.PluginCrashUnresponsive, K.PluginCrashProtocol, K.PluginCrashStart, K.PluginCrashLog, K.PluginLogSource })
-
+                K.PluginCrashRestart, K.PluginCrashDisabled, K.PluginCrashExited, K.PluginCrashUnresponsive, K.PluginCrashProtocol, K.PluginCrashStart, K.PluginCrashLog, K.PluginLogSource,
                 K.PluginTaskCancelling, K.PluginPanelsWatermark, K.A11yPluginPanels, K.PluginPanelsEmpty })
                 Assert.NotEqual(key, Loc.Get(key));
         }

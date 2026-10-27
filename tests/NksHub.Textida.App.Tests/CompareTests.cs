@@ -229,10 +229,6 @@ public class CompareTests : IDisposable
         var lines = Enumerable.Range(0, 300).Select(i => "l" + i).ToList();
         var left = string.Join("\n", lines);
         var right = string.Join("\n", lines.Take(150).Concat(["n1", "n2", "n3"]).Concat(lines.Skip(150)));
-
-        // more rows than a laid-out view shows, so the scroll range reaches every row asked for
-        var left = string.Join("\n", Enumerable.Range(0, 100).Select(i => "l" + i));
-        var right = string.Join("\n", ["l0", "l1", "l2", "n1", "n2", "n3", .. Enumerable.Range(3, 97).Select(i => "l" + i)]);
         var tab = NewWith(left);
         var view = await OpenWithClipboard(tab, right);
 
