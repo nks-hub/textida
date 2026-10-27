@@ -242,6 +242,7 @@
   "cmd.file.openPathAtCaret": "Pfad am Cursor öffnen",
   "cmd.view.toggleFilePanel": "Dateipanel",
   "cmd.view.toggleOutput": "Ausgabe",
+  "cmd.view.pluginPanels": "Plugin-Bereiche...",
   "cmd.view.fullScreen": "Vollbild",
   "cmd.files.newFile": "Neue Datei im Ordner...",
   "cmd.files.newFolder": "Neuer Ordner...",

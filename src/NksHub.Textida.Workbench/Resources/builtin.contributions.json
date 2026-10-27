@@ -2045,6 +2045,11 @@
       "title": "cmd.snippet.end",
       "category": "cat.edit",
       "when": "editorFocus && inSnippet"
+    },
+    {
+      "id": "nks.view.pluginPanels",
+      "title": "cmd.view.pluginPanels",
+      "category": "cat.view"
     }
   ],
   "menus": [
@@ -4151,6 +4156,19 @@
       "group": "2_disk",
       "submenu": "export",
       "order": 100
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.pluginPanels",
+      "group": "3_panels/4_panels",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.template",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 140
     }
   ],
   "keybindings": [

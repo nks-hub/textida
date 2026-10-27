@@ -342,6 +342,7 @@ internal static class AppCommands
         On("nks.hex.bookmarks.export", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ExportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
         On("nks.hex.bookmarks.import", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ImportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
         Do("nks.view.toggleOutput", w => w.ToggleOutput());
+        On("nks.view.pluginPanels", w => w.ShowPluginPanels());
         Do("nks.view.fullScreen", w => w.ToggleFullScreen());
 
         // format

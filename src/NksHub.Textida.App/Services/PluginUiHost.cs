@@ -6,8 +6,8 @@ namespace NksHub.Textida.App.Services;
 /// <summary>A panel as the windows draw it; <paramref name="PluginId"/> and the panel id are the key.</summary>
 internal sealed record PluginPanel(string PluginId, PanelModel Model);
 
-/// <summary>A running task of a plugin with its latest progress.</summary>
-internal sealed record PluginTask(string PluginId, TaskModel Model, TaskProgressModel Progress);
+/// <summary>A running task of a plugin with its latest progress; <paramref name="Cancelling"/> once the user cancelled it and the plugin heard about it.</summary>
+internal sealed record PluginTask(string PluginId, TaskModel Model, TaskProgressModel Progress, bool Cancelling = false);
 
 /// <summary>
 /// The editor's side of the plugin UI contributions: keeps what plugins asked to show (panels, one status item each, tasks) and puts prompts and
@@ -73,6 +73,19 @@ internal sealed class PluginUiHost(App app) : IPluginUi
         _tasks[at] = _tasks[at] with { Progress = progress };
         Changed?.Invoke();
     });
+
+    /// <summary>The user pressed cancel: the plugin hears about it and the row says it is being cancelled until the task ends.</summary>
+    public async Task CancelAsync(string pluginId, string taskId)
+    {
+        if (Api is not { } api || !await api.CancelTaskAsync(pluginId, taskId)) return;
+        OnUi(() =>
+        {
+            int at = _tasks.FindIndex(t => t.PluginId == pluginId && t.Model.Id == taskId);
+            if (at < 0) return;
+            _tasks[at] = _tasks[at] with { Cancelling = true };
+            Changed?.Invoke();
+        });
+    }
 
     public void EndTask(string pluginId, string taskId) => OnUi(() =>
     {

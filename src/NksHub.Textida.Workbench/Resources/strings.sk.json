@@ -242,6 +242,7 @@
   "cmd.file.openPathAtCaret": "Otvoriť cestu pod kurzorom",
   "cmd.view.toggleFilePanel": "Panel súborov",
   "cmd.view.toggleOutput": "Výstup",
+  "cmd.view.pluginPanels": "Panely pluginov...",
   "cmd.view.fullScreen": "Celá obrazovka",
   "cmd.files.newFile": "Nový súbor v priečinku...",
   "cmd.files.newFolder": "Nový priečinok...",

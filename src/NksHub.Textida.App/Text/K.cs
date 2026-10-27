@@ -771,6 +771,10 @@ public static class K
     public const string A11yPluginTaskCancel = "a11y.plugin.task.cancel";
     public const string A11yPluginTask = "a11y.plugin.task";
     public const string A11yPluginTaskBusy = "a11y.plugin.task.busy";
+    public const string PluginTaskCancelling = "plugin.task.cancelling";
+    public const string PluginPanelsWatermark = "plugin.panels.watermark";
+    public const string A11yPluginPanels = "a11y.plugin.panels";
+    public const string PluginPanelsEmpty = "plugin.panels.empty";
     public const string PluginPickWatermark = "plugin.pick.watermark";
     public const string A11yPluginPick = "a11y.plugin.pick";
     public const string PluginUnavailable = "plugin.unavailable";
