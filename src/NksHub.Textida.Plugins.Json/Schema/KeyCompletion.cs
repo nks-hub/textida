@@ -117,6 +117,9 @@ public static class KeyCompletion
             {
                 start = caret;
                 while (start > 0 && IsWordChar(text[start - 1])) start--;
+                int before = start;
+                while (before > 0 && char.IsWhiteSpace(text[before - 1])) before--;
+                if (before > 0 && text[before - 1] == ':') return null; // a value is written after a colon, not a key
                 end = caret;
                 typed = text[start..caret];
                 repaired = typed.Length == 0 ? text : text[..start] + text[caret..];

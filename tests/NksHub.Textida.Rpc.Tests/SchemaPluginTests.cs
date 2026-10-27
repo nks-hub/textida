@@ -192,6 +192,8 @@ public class SchemaPluginTests
         Assert.Contains("version", offer.Keys);
         Assert.Null(KeyCompletion.Offer(schema, DataDialect.Json, "{ \"name\": \"a\", \"version\": 1 }", 12, options)); // inside the value of name
         Assert.Null(KeyCompletion.Offer(schema, DataDialect.Json, "not json at all", 3, options));
+        Assert.Null(KeyCompletion.Offer(schema, DataDialect.Json, "{ \"private\": false }", 13, options)); // right after the colon a value is written, not a key
+        Assert.Null(KeyCompletion.Offer(schema, DataDialect.Json, "{ \"private\":\n  false }", 15, options)); // also on the next line
         var withValue = KeyCompletion.Offer(schema, DataDialect.Json, "{ \"name\": \"a\", \"ve\": 1 }", 18, options);
         Assert.Equal("\"version\"", withValue!.Insert("version")); // the key already has its value: no colon is added
         const string nestedText = "{ \"name\": \"x\", \"author\": { \"na\" }, \"description\": \"de\" }";
