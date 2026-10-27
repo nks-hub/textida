@@ -123,7 +123,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _tokenizer = null;
         if (LanguageModes.GrammarId(_doc.Language) is not { } id) return;
         _bound = _doc.Doc;
-        _tokenizer = BuiltinGrammars.Tokenizer(id);
+        _tokenizer = LanguageModes.Tokenizer(id);
         try { _session = new CheckpointSyntaxSession(_bound, _tokenizer); }
         catch (IOException)
         {

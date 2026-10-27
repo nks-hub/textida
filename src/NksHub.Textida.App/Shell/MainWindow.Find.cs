@@ -531,9 +531,9 @@ internal sealed partial class MainWindow
     /// <summary>Tokenizer of the tab's grammar: the chosen language first, then the file name; null for plain text.</summary>
     private static Tokenizer? TokenizerOf(DocTab tab)
     {
-        var registry = BuiltinGrammars.Registry;
+        var registry = LanguageModes.Grammars;
         var grammar = (LanguageModes.GrammarId(tab.Doc.Language) is { } id ? registry.Find(id) : null)
-            ?? (tab.Path is { } p ? registry.ForFile(System.IO.Path.GetFileName(p)) : null);
+            ?? (tab.Path is { } p ? BuiltinGrammars.Registry.ForFile(System.IO.Path.GetFileName(p)) : null);
         return grammar is null ? null : new Tokenizer(grammar);
     }
 

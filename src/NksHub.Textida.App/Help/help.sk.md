@@ -511,6 +511,10 @@ commands: nks.format.language
 2. Vyberte jazyk, napríklad Obyčajný text.
 - Jazyk určuje nastavenia platné len pre tento jazyk (napríklad zalamovanie riadkov alebo odsadenie) a pravidlá zvýrazňovania.
 - Pri otvorení sa jazyk určí podľa prípony súboru.
+- Vlastné zvýrazňovače sú dáta: contributes.grammars v nkspad-plugin.json uvádza súbory gramatík (JSON, formatVersion 1, popísané v grammar.schema.json): id, name, extensions, fileNames, comments, keywords a rules. Pravidlo je match (regulárny výraz), words, operators, include, alebo oblasť s begin a end, ktorá môže vnoriť iný jazyk.
+- Zvýrazňovač môže zahrnúť a vnoriť vstavané jazyky, napríklad "embed": "javascript". Súbor, ktorý končí jednou z jeho prípon alebo má jeden z jeho fileNames, sa otvorí v tomto jazyku; id zvýrazňovača je jazyk v nastaveniach jazyka.
+- Zvýrazňovač so zlým regulárnym výrazom, neznámou vlastnosťou, neznámym include alebo embed, alebo s id vstavaného jazyka sa pri načítaní pluginu odmietne. Plugin sa preskočí a stavový riadok povie, ktorý súbor a ktoré pravidlo.
+- V príliš dlhom riadku nechá zvýrazňovač z pluginu riadok bez farieb.
 
 ## [window.new] Nové okno
 commands: nks.window.new

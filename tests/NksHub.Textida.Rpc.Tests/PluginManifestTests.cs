@@ -152,4 +152,37 @@ public class PluginManifestTests
         Assert.Equal(CommandOutcome.Handled, await commands.ExecuteAsync("example.python-hello.greet", new WhenContext()));
         await T.Until(() => host.GetStderrTail("example.python-hello").Contains("executed example.python-hello.greet"));
     }
+
+    const string GrammarOnly = "{" + Header + ",\"contributes\":{\"grammars\":[\"g.json\"]}}";
+
+    [Theory]
+    [InlineData("{\"formatVersion\":1,\"id\":\"bad-re\",\"rules\":[{\"match\":\"(\",\"token\":\"comment\"}]}", "bad-re")]
+    [InlineData("{\"formatVersion\":1,\"id\":\"typo\",\"rules\":[{\"mach\":\"a\"}]}", "unknown property 'mach'")]
+    [InlineData("{\"formatVersion\":1,\"id\":\"no-end\",\"rules\":[{\"begin\":\"a\"}]}", "end pattern")]
+    [InlineData("{\"formatVersion\":1,\"id\":\"ghost\",\"rules\":[{\"begin\":\"<<\",\"end\":\">>\",\"embed\":\"no-such-lang\"}]}", "no-such-lang")]
+    [InlineData("{\"formatVersion\":1,\"id\":\"ghost2\",\"rules\":[{\"include\":\"no-such-lang#x\"}]}", "no-such-lang")]
+    [InlineData("{\"formatVersion\":1,\"id\":\"html\",\"rules\":[]}", "built-in")]
+    public void AnInvalidHighlighterRuleIsRefusedWhenThePluginIsRead(string grammar, string expected)
+    {
+        var result = Load(Plugin(GrammarOnly, ("g.json", grammar)));
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, e => e.Contains("Grammar 'g.json'") && e.Contains(expected, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AHighlighterMayEmbedABuiltInLanguageAndColoursWithoutAProcess()
+    {
+        const string embedding = "{\"formatVersion\":1,\"id\":\"tpl\",\"extensions\":[\".tpl\"],\"rules\":[{\"begin\":\"\\\\{js\\\\}\",\"end\":\"\\\\{/js\\\\}\",\"multiline\":true,\"embed\":\"javascript\"}]}";
+        var result = Load(Plugin(GrammarOnly, ("g.json", embedding)));
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        Assert.Null(result.Plugin!.Spec);
+
+        var registry = new GrammarRegistry(BuiltinGrammars.Registry);
+        foreach (var json in result.Plugin.GrammarJson) registry.Add(json);
+        var tokenizer = new Tokenizer(registry.Find("tpl")!);
+        var tokens = new List<Token>();
+        tokenizer.TokenizeLine("{js} var a = 1; {/js}", tokenizer.InitialState, tokens);
+        Assert.Contains(tokens, t => t.Kind == "keyword");
+        Assert.Null(BuiltinGrammars.Registry.Find("tpl"));
+    }
 }

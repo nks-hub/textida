@@ -511,6 +511,10 @@ commands: nks.format.language
 2. Wählen Sie eine Sprache, zum Beispiel Nur-Text.
 - Die Sprache bestimmt, welche Einstellungen nur für diese Sprache gelten (zum Beispiel Zeilenumbruch oder Einzug), und die Regeln der Hervorhebung.
 - Beim Öffnen wird die Sprache anhand der Dateiendung gewählt.
+- Eigene Hervorhebungen sind Daten: contributes.grammars in nkspad-plugin.json nennt Grammatikdateien (JSON, formatVersion 1, beschrieben in grammar.schema.json): id, name, extensions, fileNames, comments, keywords und rules. Eine Regel ist match (ein regulärer Ausdruck), words, operators, include oder ein Bereich mit begin und end, der eine andere Sprache einbetten kann.
+- Eine Hervorhebung kann die eingebauten Sprachen einbinden und einbetten, zum Beispiel "embed": "javascript". Eine Datei, die auf eine ihrer Endungen endet oder einen ihrer fileNames hat, öffnet sich in dieser Sprache; die id der Hervorhebung ist die Sprache in den Spracheinstellungen.
+- Eine Hervorhebung mit falschem regulärem Ausdruck, unbekannter Eigenschaft, unbekanntem include oder embed oder mit der id einer eingebauten Sprache wird beim Lesen des Plugins abgelehnt. Das Plugin wird übersprungen und die Statusleiste nennt Datei und Regel.
+- In einer sehr langen Zeile lässt die Hervorhebung eines Plugins die Zeile ohne Farben.
 
 ## [window.new] Neues Fenster
 commands: nks.window.new

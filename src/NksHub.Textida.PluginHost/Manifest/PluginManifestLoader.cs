@@ -112,7 +112,10 @@ public static class PluginManifestLoader
     private static List<string> LoadGrammars(string root, List<string> paths, long maxBytes, List<string> errors)
     {
         var result = new List<string>();
-        var scratch = new GrammarRegistry();
+        var parsed = new List<(string Path, Grammar Grammar)>();
+        // built-in grammars are the parent, so a user grammar may embed or include them; the grammars of one plugin may refer to each other
+        var scratch = new GrammarRegistry(BuiltinGrammars.Registry) { CompileRegexes = false };
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in paths)
         {
             if (!TryResolveInside(root, path, out var full, out var why)) { errors.Add($"Grammar '{path}': {why}"); continue; }
@@ -123,8 +126,16 @@ public static class PluginManifestLoader
             {
                 var g = scratch.Add(json);
                 if (BuiltinGrammars.Registry.Find(g.Id) is not null) errors.Add($"Grammar '{path}': id '{g.Id}' belongs to a built-in grammar.");
-                else result.Add(json);
+                else if (!ids.Add(g.Id)) errors.Add($"Grammar '{path}': id '{g.Id}' is used by another grammar of the plugin.");
+                else { result.Add(json); parsed.Add((path, g)); }
             }
+            catch (GrammarException e) { errors.Add($"Grammar '{path}': {e.Message}"); }
+        }
+
+        // compiling every region finds what parsing cannot: a pattern the engine rejects, an include or an embed of a grammar that does not exist
+        foreach (var (path, g) in parsed)
+        {
+            try { g.Validate(); }
             catch (GrammarException e) { errors.Add($"Grammar '{path}': {e.Message}"); }
         }
         return result;

@@ -104,6 +104,12 @@ public sealed class Grammar
 public sealed class GrammarRegistry
 {
     private readonly Dictionary<string, Grammar> _byId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly GrammarRegistry? _parent;
+
+    public GrammarRegistry() { }
+
+    /// <summary>A registry whose grammars may include and embed the ones of <paramref name="parent"/> (the built-in grammars); <see cref="All"/> lists only its own.</summary>
+    public GrammarRegistry(GrammarRegistry parent) => _parent = parent;
 
     /// <summary>Compile the regular expressions to IL where the runtime can; the interpreter is the fallback (NativeAOT).</summary>
     public bool CompileRegexes { get; init; } = RuntimeFeature.IsDynamicCodeCompiled;
@@ -118,7 +124,7 @@ public sealed class GrammarRegistry
         return g;
     }
 
-    public Grammar? Find(string id) => _byId.GetValueOrDefault(id);
+    public Grammar? Find(string id) => _byId.GetValueOrDefault(id) ?? _parent?.Find(id);
 
     /// <summary>Grammar for a file name: exact file name first, then the longest matching extension.</summary>
     public Grammar? ForFile(string fileName)
