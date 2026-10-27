@@ -58,7 +58,7 @@ public sealed class CommandDescriptor
 }
 
 /// <summary>A resolved menu entry.</summary>
-public sealed record MenuItemModel(string CommandId, string TitleKey, string Group, int Order, bool Enabled);
+public sealed record MenuItemModel(string CommandId, string TitleKey, string Group, int Order, bool Enabled, string? Submenu = null);
 
 /// <summary>What a handler reports. A handler that declines returns <see cref="NotHandled"/>.</summary>
 public enum CommandOutcome
@@ -364,7 +364,7 @@ public sealed class CommandRegistry
                 continue;
             }
 
-            items.Add(new MenuItemModel(command.Id, command.TitleKey, item.Group, item.Order, command.IsEnabled(context)));
+            items.Add(new MenuItemModel(command.Id, command.TitleKey, item.Group, item.Order, command.IsEnabled(context), item.Submenu));
         }
 
         return items.OrderBy(i => i.Group, StringComparer.Ordinal).ThenBy(i => i.Order).ThenBy(i => i.CommandId, StringComparer.Ordinal).ToList();

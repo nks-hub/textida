@@ -134,6 +134,31 @@ public class ManifestTests
     }
 
     [Fact]
+    public void Plugin_menu_entry_may_name_a_submenu_and_an_empty_name_is_refused()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var nested = PluginManifest.Replace("\"order\": 1 }", "\"order\": 1, \"submenu\": \"formatting\" }");
+        Assert.Empty(host.AddManifest(nested, ManifestTrust.Plugin));
+        Assert.Contains(host.Commands.MenuContributions, m => m.Command == "acme.formatter.format" && m.Submenu == "formatting");
+
+        var empty = PluginManifest.Replace("acme.formatter", "acme.other").Replace("FormatDoc", "OtherDoc").Replace("\"order\": 1 }", "\"order\": 1, \"submenu\": \" \" }");
+        Assert.Contains(WorkbenchHost.CreateBuiltin().AddManifest(empty, ManifestTrust.Plugin), e => e.Contains("submenu", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Every_submenu_of_the_builtin_manifest_has_a_title_in_every_language()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var ids = host.Commands.MenuContributions.Select(m => m.Submenu).OfType<string>().Distinct().ToList();
+        Assert.True(ids.Count >= 20);
+        foreach (var language in StringTable.UiLanguages)
+        {
+            var table = BuiltinTable(language);
+            Assert.All(ids, id => Assert.True(table.HasOwn("submenu." + id), $"{language}: submenu.{id}"));
+        }
+    }
+
+    [Fact]
     public void Plugin_cannot_claim_core_ids_or_foreign_prefixes()
     {
         var host = WorkbenchHost.CreateBuiltin();

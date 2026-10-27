@@ -549,7 +549,7 @@ public class ToolLauncherTests : IDisposable
     public void The_commands_are_in_the_tools_menu()
     {
         var tools = _w.MenuModel.Single(g => g.Label == "Nástroje");
-        var ids = tools.Items.OfType<MenuCommand>().Select(c => c.CommandId).ToList();
+        var ids = tools.Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.tools.run", ids);
         Assert.Contains("nks.tools.stop", ids);
         Assert.Contains("nks.tools.logPattern", ids);

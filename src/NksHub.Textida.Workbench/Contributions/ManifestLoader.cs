@@ -146,6 +146,11 @@ public static class ManifestLoader
                 errors.Add($"Invalid menu item '{menu.Menu}' / '{menu.Command}'.");
             }
 
+            if (menu.Submenu is { } sub && (string.IsNullOrWhiteSpace(sub) || sub.Length > 64))
+            {
+                errors.Add($"Invalid submenu '{sub}' of menu item '{menu.Command}'.");
+            }
+
             CheckWhen(errors, $"Menu item '{menu.Command}' when", menu.When);
         }
 

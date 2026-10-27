@@ -96,6 +96,12 @@
           "order": {
             "type": "integer"
           },
+          "submenu": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "when": {
             "type": [
               "string",

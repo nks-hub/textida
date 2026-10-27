@@ -108,7 +108,7 @@ Der Tab und die Datei auf dem Datenträger werden nebeneinander in einem eigenen
 ## [remote.connections] Remote-Verbindungen
 commands: nks.remote.connections
 Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im Anmeldeinformationsspeicher des Betriebssystems und wird nie in eine Einstellungsdatei oder ein Backup geschrieben.
-1. Wählen Sie Datei und dann Remote-Verbindungen. Die Liste zeigt die gespeicherten Verbindungen.
+1. Wählen Sie Datei und dann Remotedateien und dann Remote-Verbindungen. Die Liste zeigt die gespeicherten Verbindungen.
 2. Wählen Sie Neue Verbindung und beantworten Sie die Fragen: Name, Protokoll, Server, Port, Benutzer und Passwort. Bei SFTP können Sie statt eines Passworts eine Datei mit dem privaten Schlüssel angeben.
 3. Wählen Sie eine Verbindung, um eine Datei daraus zu öffnen oder sie mit dem gespeicherten Passwort zu löschen.
 - Üblich sind FTPS und SFTP. Einfaches FTP sendet Passwort und Dateien unverschlüsselt und wird erst benutzt, wenn Sie es für diese Verbindung ausdrücklich erlauben.
@@ -118,7 +118,7 @@ Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im
 
 ## [remote.open] Remote-Datei öffnen
 commands: nks.remote.open
-1. Wählen Sie Datei und dann Remote-Datei öffnen und wählen Sie eine Verbindung.
+1. Wählen Sie Datei und dann Remotedateien und dann Remote-Datei öffnen und wählen Sie eine Verbindung.
 2. Geben Sie den Pfad auf dem Server ein. Ein Ordnerpfad zeigt seinen Inhalt: Wählen Sie einen Ordner, um hineinzugehen, oder eine Datei, um sie zu öffnen.
 3. Die Datei wird auf diesen Computer kopiert und in einem Tab geöffnet. Bearbeiten und speichern Sie wie gewohnt: Speichern ändert nur die Kopie auf diesem Computer.
 - Die Leiste über dem Text sagt, ob die Kopie dem Stand auf dem Server entspricht. Der Editor selbst arbeitet ohne Verbindung.
@@ -127,7 +127,7 @@ commands: nks.remote.open
 
 ## [remote.upload] Auf Server hochladen
 commands: nks.remote.upload
-1. Wählen Sie Datei und dann Auf Server hochladen. Ein geänderter Tab wird zuerst gespeichert.
+1. Wählen Sie Datei und dann Remotedateien und dann Auf Server hochladen. Ein geänderter Tab wird zuerst gespeichert.
 2. Bevor das Programm etwas sendet, sieht es sich die Datei auf dem Server an. Ist es noch die Version, die Sie geöffnet haben, wird der neue Inhalt unter einem vorläufigen Namen gesendet und ersetzt erst dann die alte Datei. Ein misslungener oder unterbrochener Upload lässt die alte Version auf dem Server.
 3. Hat sich die Datei auf dem Server inzwischen geändert, wird nichts gesendet. Wählen Sie Unterschiede zeigen, sehen Sie die Serverversion neben Ihrer, übernehmen Sie in Ihre Seite, was Sie brauchen, speichern Sie und laden Sie erneut hoch. Trotzdem hochladen ersetzt genau die Serverversion, die Sie gesehen haben.
 - Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
@@ -136,7 +136,7 @@ commands: nks.remote.upload
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
-Wählen Sie Datei und dann Serverversion prüfen. Die Leiste sagt: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert oder die Datei gibt es auf dem Server nicht mehr. Es wird nichts geladen oder geändert.
+Wählen Sie Datei und dann Remotedateien und dann Serverversion prüfen. Die Leiste sagt: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert oder die Datei gibt es auf dem Server nicht mehr. Es wird nichts geladen oder geändert.
 
 ## [remote.unsent] Nicht gesendete Remote-Änderungen
 commands: nks.remote.unsent
@@ -156,14 +156,14 @@ commands: nks.source.open
 
 ## [remote.backup] Verbindungen sichern
 commands: nks.remote.exportConnections, nks.remote.importConnections
-1. Wählen Sie Datei und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
-2. Wählen Sie Datei und dann Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
+1. Wählen Sie Datei und dann Remotedateien und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
+2. Wählen Sie Datei und dann Remotedateien und dann Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
 - Die Datei enthält keine Passwörter, Passphrasen oder Token und kann daher weitergegeben werden. Wählen Sie nach dem Import eine Verbindung und dann Passwort setzen.
 - Eine importierte Verbindung ersetzt eine Verbindung mit derselben internen Kennung.
 
 ## [remote.proxy] Netzwerk-Proxy
 commands: nks.remote.proxy
-1. Wählen Sie Datei und dann Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
+1. Wählen Sie Datei und dann Remotedateien und dann Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
 2. Geben Sie Server und Port ein, bei Bedarf auch Benutzername und Passwort des Proxys. Das Passwort kommt in den Anmeldeinformationsspeicher.
 - Der Proxy wird für FTPS und SFTP verwendet. Eine Verbindung mit eigenem Proxy behält ihn.
 - SOCKS4 funktioniert nur für SFTP. Für FTPS nehmen Sie SOCKS5 oder HTTP.
@@ -178,7 +178,7 @@ Eine Datei wird schreibgeschützt geöffnet, wenn ein anderes Programm sie geöf
 ## [file.history] Lokaler Verlauf
 commands: nks.file.history
 Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein anderes Programm eine Revision der Datei. Es braucht weder ein Projekt noch Git.
-1. Wählen Sie Datei und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
+1. Wählen Sie Datei und dann Verlauf und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
 2. Wählen Sie eine Revision. Vergleichen öffnet sie in Ihrem Vergleichsprogramm (dem von Mit Datenträger vergleichen) links und den Tab rechts. Datei wiederherstellen setzt die ganze Revision in den Tab. Auswahl wiederherstellen ersetzt nur die ausgewählten Zeilen durch die passenden Zeilen der Revision. Bezeichnung gibt der Revision einen Namen.
 - Das Wiederherstellen ist eine Änderung im Tab; Rückgängig nimmt sie zurück, und nichts wird geschrieben, bis Sie speichern. Der Text, der im Tab stand, bleibt als Revision erhalten.
 - Die Revisionen liegen im Profilordner, ein Update des Programms löscht sie also nicht.
@@ -188,13 +188,13 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
-1. Wählen Sie Datei und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
+1. Wählen Sie Datei und dann Verlauf und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
 2. Der aktuelle Text des Tabs wird als Revision mit dieser Bezeichnung gespeichert. Enthält die neueste Revision schon denselben Text, erhält diese die Bezeichnung.
 - Die Revision finden Sie später im Lokalen Verlauf über die Bezeichnung.
 
 ## [file.historySearch] Im Verlauf suchen
 commands: nks.file.historySearch
-1. Wählen Sie Datei und dann Im Verlauf suchen und geben Sie den Text ein.
+1. Wählen Sie Datei und dann Verlauf und dann Im Verlauf suchen und geben Sie den Text ein.
 2. Die Liste zeigt die Revisionen der Datei, die den Text enthalten, mit der Zahl der Treffer und der ersten Zeile. Wählen Sie eine aus, dann öffnen sich die Aktionen, zum Beispiel Vergleichen.
 - Revisionen von Dateien mit geheimen Werten werden nicht durchsucht.
 
@@ -293,7 +293,7 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 ## [edit.insertLines] In Zeilen einfügen
 commands: nks.edit.insertIntoLines
 Der Befehl schreibt Text, Nummern oder Aufzählungszeichen in die Zeilen der Auswahl, oder in alle Zeilen, wenn nur ein Cursor da ist.
-1. Wählen Sie Bearbeiten, In Zeilen einfügen. Die Vorschau zeigt die ersten Zeilen so, wie sie aussehen werden.
+1. Wählen Sie Bearbeiten, Einfügen, In Zeilen einfügen. Die Vorschau zeigt die ersten Zeilen so, wie sie aussehen werden.
 2. Wählen Sie Text, Nummern oder Aufzählungszeichen und wohin geschrieben wird: Anfang jeder Zeile, Ende jeder Zeile, vor eine Spalte oder in jeden Cursor.
 3. Drücken Sie OK. Das Ergebnis ist ein Rückgängig-Schritt.
 - Nummern: Erste Nummer, Stellen (die Nummer wird links mit Nullen auf diese Breite aufgefüllt) und Trenner, der zwischen Nummer und Zeilentext steht (am Zeilenanfang nach der Nummer, am Zeilenende vor der Nummer). In jeden Cursor wird nur die Nummer geschrieben, drei Cursor bekommen also 1, 2 und 3.
@@ -303,7 +303,7 @@ Der Befehl schreibt Text, Nummern oder Aufzählungszeichen in die Zeilen der Aus
 
 ## [edit.sort] Zeilen sortieren
 commands: nks.edit.sortLines
-1. Markieren Sie die Zeilen (oder setzen Sie den Cursor irgendwohin, um alle Zeilen zu sortieren) und wählen Sie Bearbeiten, Zeilen sortieren.
+1. Markieren Sie die Zeilen (oder setzen Sie den Cursor irgendwohin, um alle Zeilen zu sortieren) und wählen Sie Bearbeiten, Umwandlungen und Rezepte, Zeilen sortieren.
 2. Wählen Sie auf- oder absteigend, ob die Groß-/Kleinschreibung zählt, ob doppelte Zeilen entfernt werden und wonach verglichen wird. Die Vorschau zeigt die ersten Zeilen des Ergebnisses.
 3. Drücken Sie OK. Das Ergebnis ist ein Rückgängig-Schritt, und die sortierten Zeilen bleiben markiert.
 - Zeichencode ordnet nach dem Code der Zeichen. Gebietsschema nutzt die Regeln einer Sprache, angegeben als Kürzel wie cs-CZ oder als Hexadezimalzahl wie 0405 (leer heißt sprachneutral). Zahl am Anfang liest die Zahl, mit der eine Zeile beginnt; Zeilen ohne Zahl kommen zuerst.
@@ -339,9 +339,9 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 
 ## [edit.macro] Makros
 commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
-1. Extras, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makroaufzeichnung beenden, beendet sie.
-2. Extras, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
-3. Extras, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
+1. Extras, Makros, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makros, Makroaufzeichnung beenden, beendet sie.
+2. Extras, Makros, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
+3. Extras, Makros, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Makros, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
 - Ein Makro merkt sich Befehle, keine Tasten: Zeile duplizieren, Groß-/Kleinschreibung, Nächstes Vorkommen hinzufügen und Ähnliches, sowie getippten Text. Mit mehreren Einfügemarken tut es dasselbe wie die Schritte von Hand.
 - Das Abspielen ist ein einziger Rückgängig-Schritt. Läuft ein Schritt nicht, hält das Makro dort an und die Statuszeile nennt den Schritt; was vorher lief, bleibt ein Rückgängig-Schritt.
 - Beim Aufzeichnen wird ein Befehl, den ein Makro nicht abspielen kann, abgelehnt und die Statuszeile sagt es: alles mit Dialog, Dateibefehle, Ausschneiden, Kopieren, Einfügen, Bewegen der Einfügemarke mit den Pfeiltasten, Suchen. Die Aufzeichnung läuft weiter.
@@ -350,15 +350,15 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 ## [edit.json] JSON formatieren
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.
-2. Menü Bearbeiten, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden.
+2. Menü Bearbeiten, Formatierung, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden.
 3. Vorschau der JSON-Formatierung zeigt die Änderung zuerst als Vorschlag. Wenden Sie ihn in der Leiste über dem Editor an oder verwerfen Sie ihn.
 - Ein Syntaxfehler wird mit Zeile und Spalte gemeldet, und nichts wird geändert. Text über dem Limit wird mit einer Meldung abgelehnt.
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
 ## [tools.stats] Dokumentstatistik und Hashes
 commands: nks.tools.statistics, nks.tools.hash
-1. Menü Extras, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments.
-2. Menü Extras, Hash berechnen, fragt nach dem Algorithmus (MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder des markierten Teils.
+1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments.
+2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder des markierten Teils.
 - Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
 - Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
 - Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
@@ -376,7 +376,7 @@ commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.conv
 ## [tools.colors] Farben
 commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.tools.colorToHsl, nks.tools.colorToOklch
 1. In CSS-, HTML-, XML-, JavaScript-, TypeScript-, PHP-, Razor- und Latte-Dateien steht vor jedem Farbwert (`#ff8800`, `rgb()`, `hsl()`, `oklch()`) ein kleines Farbfeld in seiner Farbe. Das Farbfeld belegt kein Zeichen des Dokuments.
-2. Klicken Sie auf das Farbfeld, oder setzen Sie den Cursor auf den Wert und wählen Sie Extras, Farbe am Cursor wählen. Es öffnet sich die Auswahl: Regler für Farbton, Sättigung, Helligkeit und Deckkraft und ein Wertfeld, das auch eine Farbe in anderer Schreibweise annimmt. Ein Klick außerhalb der Auswahl schreibt die Farbe über den Wert, in der Schreibweise, die er hatte, als einen Rückgängig-Schritt; Esc schließt die Auswahl ohne Änderung.
+2. Klicken Sie auf das Farbfeld, oder setzen Sie den Cursor auf den Wert und wählen Sie Extras, Farben, Farbe am Cursor wählen. Es öffnet sich die Auswahl: Regler für Farbton, Sättigung, Helligkeit und Deckkraft und ein Wertfeld, das auch eine Farbe in anderer Schreibweise annimmt. Ein Klick außerhalb der Auswahl schreibt die Farbe über den Wert, in der Schreibweise, die er hatte, als einen Rückgängig-Schritt; Esc schließt die Auswahl ohne Änderung.
 3. Extras, Farbe in HEX, RGB, HSL oder oklch umwandeln schreibt den Farbwert am Cursor, oder alle in der Markierung, in dieser Schreibweise neu. Die Farbe bleibt dieselbe Acht-Bit-Farbe; oklch wird mit fünf Nachkommastellen bei Helligkeit und Chroma und zwei beim Farbton geschrieben.
 - Eine Farbe außerhalb des sRGB-Bereichs wird darauf beschnitten. Die Deckkraft bleibt erhalten, als `/ Alpha` oder als die letzten zwei Hexziffern.
 - Text, der nur wie eine Farbe aussieht, etwa `rgb(var(--c))`, die HTML-Entität `&#123;` oder `#12345`, bleibt unberührt.
@@ -385,16 +385,16 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 ## [tools.keys] Schlüsselpfade in YAML und JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In einer YAML- oder JSON-Datei zeigt die Statusleiste den Pfad des Schlüssels am Cursor, zum Beispiel `cs.app.title`. Listeneinträge werden `items[0]` geschrieben, ein Schlüssel mit Punkt oder Klammer wird `["a.b"]` geschrieben. Der Pfad wird für die Revision und den Cursor gelesen, für die gefragt wurde: Tippen oder bewegen Sie sich inzwischen, wird die Antwort verworfen.
-2. Extras, Schlüsselpfad kopieren legt den Pfad in die Zwischenablage.
-3. Extras, Gehe zu Schlüssel (oder `@` in Gehe zu Beliebigem) listet die Schlüssel der Datei nach Pfad; Enter markiert den Schlüssel, wie er geschrieben steht. Schlüsselgliederung anzeigen listet dieselben Schlüssel im Plugin-Bereich, und ein Klick dort markiert dieselben Bytes.
-4. Extras, Schlüssel mit anderer Datei vergleichen fragt nach einer weiteren geöffneten YAML- oder JSON-Datei und schreibt ins Ausgabefenster die Schlüssel mit Wert, die der jeweils anderen Datei fehlen.
+2. Extras, Struktur und Sprache, Schlüsselpfad kopieren legt den Pfad in die Zwischenablage.
+3. Extras, Struktur und Sprache, Gehe zu Schlüssel (oder `@` in Gehe zu Beliebigem) listet die Schlüssel der Datei nach Pfad; Enter markiert den Schlüssel, wie er geschrieben steht. Schlüsselgliederung anzeigen listet dieselben Schlüssel im Plugin-Bereich, und ein Klick dort markiert dieselben Bytes.
+4. Extras, Struktur und Sprache, Schlüssel mit anderer Datei vergleichen fragt nach einer weiteren geöffneten YAML- oder JSON-Datei und schreibt ins Ausgabefenster die Schlüssel mit Wert, die der jeweils anderen Datei fehlen.
 - YAML im Blockstil wird verstanden: verschachtelte Schlüssel, Listen, Schlüssel in Anführungszeichen und Blockskalare. Ein Wert in geschweiften oder eckigen Klammern zählt als ein Wert. JSON darf Kommentare und ein Komma am Ende haben.
 - Ein Syntaxfehler beendet das Lesen an dieser Stelle; die Schlüssel davor bleiben, und die Meldung nennt die Zeile.
 
 ## [tools.outline] Codegliederung und Symbole
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML-, PHP-, CSS-, C#- und Markdown-Dateien zeigt Extras, Codegliederung anzeigen die Funktionen, Klassen, Überschriften und Regeln der Datei als Baum im Plugin-Bereich. Ein Klick markiert den Namen des Symbols.
-2. Extras, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
+1. In HTML-, PHP-, CSS-, C#- und Markdown-Dateien zeigt Extras, Struktur und Sprache, Codegliederung anzeigen die Funktionen, Klassen, Überschriften und Regeln der Datei als Baum im Plugin-Bereich. Ein Klick markiert den Namen des Symbols.
+2. Extras, Struktur und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
 3. Die Gliederung gehört zu einer Revision des Dokuments. Nach einer Änderung wird sie von selbst erneuert; bis die neue da ist, bleibt die alte als veraltet markiert, und ein Sprung wird über die seitdem gemachten Änderungen getragen oder abgelehnt, wenn der Text, auf dem das Symbol stand, geändert wurde. Eine Antwort für eine ältere Revision wird nie als aktuell gezeigt.
 4. Hält der Plugin-Prozess an, wird die Gliederung nach seiner Rückkehr neu gelesen.
 - Gelesen wird mit einfachen Regeln der Sprache, ohne Sprachserver und ohne Projektindex: HTML (Überschriften, Elemente mit `id`, `main`, `nav`, `section` und ähnliche), PHP (Namensräume, Klassen, Schnittstellen, Traits, Enums, Funktionen, Methoden), CSS (Regeln und At-Regeln), C# (Namensräume, Typen, Methoden, Konstruktoren, Eigenschaften), Markdown (`#`-Überschriften).
@@ -752,7 +752,7 @@ commands: nks.hex.inspectChanges
 
 ## [hex.copyAs] Hex: Kopieren, Einfügen und Exportieren als
 commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
-1. Bearbeiten und dann Hex: Auswahl kopieren als legt die ausgewählten Bytes als Text in die Zwischenablage: Hex-Zeichenfolge, Array für C, C#, Java, Python, Rust, Go, JavaScript oder Pascal, Base64, Intel HEX, Motorola S-Record oder Hexdump.
+1. Bearbeiten und dann Hex und dann Hex: Auswahl kopieren als legt die ausgewählten Bytes als Text in die Zwischenablage: Hex-Zeichenfolge, Array für C, C#, Java, Python, Rust, Go, JavaScript oder Pascal, Base64, Intel HEX, Motorola S-Record oder Hexdump.
 2. Hex: Einfügen als liest die Zwischenablage als Hex-Text, Base64 oder Array aus Quellcode und fügt die Bytes wie Strg+V ein.
 3. Hex: Auswahl exportieren schreibt die Auswahl in eine Datei, binär oder in einer der Textformen. Es läuft im Hintergrund, und Esc bricht es ab.
 - Intel HEX, S-Record und Hexdump tragen den Offset jedes Bytes in der Datei als Adresse; Intel HEX und S-Record kennen nur 32-Bit-Adressen, eine Auswahl über 4 GiB wird deshalb abgelehnt.
@@ -1014,12 +1014,12 @@ Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge sind noch nicht 
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
 Ein Clip ist ein Stück Text mit Stellen für Variablen und Eingabemarken. Clips liefern Datenplugins im Ordner plugins des Profils; ein Unterordner pro Plugin, mit der Datei nkspad-plugin.json und ohne Programm.
-1. Bearbeiten, Clip einfügen wählen. Die Liste zeigt die Clips mit einer Vorschau des Textes, der eingefügt würde.
+1. Bearbeiten, Einfügen, Clip einfügen wählen. Die Liste zeigt die Clips mit einer Vorschau des Textes, der eingefügt würde.
 2. Einen Clip wählen. Hat er ein Formular, ausfüllen: Die Vorschau folgt der Eingabe, ein falscher Wert wird markiert und OK bleibt gedimmt, bis jeder Wert zu seinem Typ passt.
 3. Der Text geht in jede Eingabemarke und ersetzt jede Auswahl, als ein Rückgängig-Schritt. Die Eingabemarken stehen danach dort, wo der Clip die Marke $| hat.
 - Auswahl als Clip speichern fragt nach einem Namen und fügt den markierten Text Ihrer eigenen Bibliothek hinzu (Plugin user.clips, Ordner user-clips). Der Text wird wörtlich gespeichert, ein Dollarzeichen bleibt also ein Dollarzeichen. Der Clip steht sofort in der Liste.
 - Vorlagensprache: ${name} ist eine Variable, $| setzt eine Eingabemarke (beliebig viele), $$ ist ein Dollarzeichen. Zeilenumbrüche werden zum Zeilenumbruch des Dokuments.
-- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. Ihre eigenen Variablen (Bearbeiten, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 3. die eingebauten. Derselbe Name bedeutet überall dasselbe.
+- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. Ihre eigenen Variablen (Bearbeiten, Einfügen, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 3. die eingebauten. Derselbe Name bedeutet überall dasselbe.
 - Eingebaute Variablen: file.path, file.dir, file.name, file.base, file.ext (ein ungespeichertes Dokument hat kein file.*), date (jjjj-MM-tt), time (HH:mm:ss), datetime (die Einstellung Datums- und Zeitformat), guid (für jede Eingabemarke neu), selection (der an dieser Eingabemarke markierte Text), user.name. Ein Name ohne Wert stoppt das Einfügen und die Statusleiste nennt ihn.
 - Formularfelder: name, label, type, default, choices, required. Typen: text, integer (ganze Zahl), number (Dezimalpunkt), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (jjjj-MM-tt), file (eine vorhandene Datei), choice (einer der Werte aus choices). Ein Vorgabewert darf Variablen nutzen, etwa ${date}.
 - In nkspad-plugin.json steht ein Clip als {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} unter contributes.clips; ein Clip mit "command" bekommt zusätzlich einen Befehl dieses Namens.
@@ -1035,7 +1035,7 @@ commands: nks.file.newFromTemplate
 ## [edit.convert] Text umwandeln
 commands: nks.edit.convert
 Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Datei, wenn nichts markiert ist. Der neue Text bleibt markiert.
-1. Bearbeiten, Umwandeln wählen. Die Liste zeigt die Umwandlungen mit einer Vorschau am markierten Text (am ersten Beispiel des Konverters, wenn nichts markiert ist).
+1. Bearbeiten, Umwandlungen und Rezepte, Umwandeln wählen. Die Liste zeigt die Umwandlungen mit einer Vorschau am markierten Text (am ersten Beispiel des Konverters, wenn nichts markiert ist).
 2. Eine wählen. Alle Auswahlen ändern sich in einem Schritt für Rückgängig. Lässt sich eine nicht umwandeln, wird nichts geändert und die Statuszeile nennt den Grund.
 - Letzten Befehl wiederholen führt die zuletzt gelaufene Umwandlung ohne die Liste aus.
 - Konverter sind Daten: contributes.converters in nkspad-plugin.json, mit id, title, rules und optional samples und command. Eine Regel ist {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Die Regeln laufen der Reihe nach, jede auf dem Ergebnis der vorigen. Mit regex gilt der Dialekt der Suche: replace darf $1, ${name}, $& und die Groß-/Kleinschreibungs-Codes \U \L \E \u \l nutzen.
@@ -1046,7 +1046,7 @@ Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Dat
 ## [edit.recipes] Bearbeitungsrezepte
 commands: nks.edit.runRecipe
 Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebnis, bevor etwas geschrieben wird.
-1. Bearbeiten, Bearbeitungsrezept ausführen wählen. Die Liste zeigt jedes Rezept mit den Änderungen, die es in dieser Datei machen würde.
+1. Bearbeiten, Umwandlungen und Rezepte, Bearbeitungsrezept ausführen wählen. Die Liste zeigt jedes Rezept mit den Änderungen, die es in dieser Datei machen würde.
 2. Eines wählen. Das Vorschaufenster listet jede Änderung: Zeile, Spalte, alter und neuer Text. Mit Anwenden werden sie geschrieben.
 3. Alle Änderungen sind ein Schritt für Rückgängig; Rückgängig bringt die Datei genau in den alten Zustand zurück. Die geänderten Teile bleiben markiert. Es wird nichts geschrieben, wenn sich die Datei inzwischen geändert hat oder das Rezept nicht laufen kann (Variable ohne Wert, zu langsames Muster).
 - Ein Rezept arbeitet mit den Auswahlen, oder mit der ganzen Datei, wenn nichts markiert ist. Letzten Befehl wiederholen wendet das letzte Rezept ohne Vorschau an.
@@ -1057,7 +1057,7 @@ Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebni
 ## [edit.recipeFiles] Rezepte über Dateien
 commands: nks.edit.runRecipeFiles
 Ein gespeichertes Rezept läuft erneut über eine andere Dateiauswahl. Sie sehen jede Änderung vorher; nichts wird geschrieben, bevor Sie sie anwenden.
-1. Wählen Sie Bearbeiten, Rezept auf Dateien anwenden und ein Rezept: aus einem Daten-Plugin oder eine Datei im Ordner recipes des Profils.
+1. Wählen Sie Bearbeiten, Umwandlungen und Rezepte, Rezept auf Dateien anwenden und ein Rezept: aus einem Daten-Plugin oder eine Datei im Ordner recipes des Profils.
 2. Wählen Sie die Dateien: einen Ordner mit Dateimaske (zum Beispiel *.cs;*.txt; die Ignore-Dateien der Suche gelten), die offenen Tabs oder die Dateien der Suchergebnisse.
 3. Der Tab Suchergebnisse listet die Änderungen Datei für Datei mit denselben Häkchen wie Replace in Files. Anwenden schreibt die angehakten. Eine Datei, die nach der Vorschau von jemand anderem geändert wurde, bleibt unberührt: sie wird als Konflikt gemeldet und die übrigen Dateien werden geschrieben. Offene Dokumente erhalten einen Rückgängig-Schritt.
 - Eine Rezeptdatei ist JSON mit id, title und steps, dieselben Felder wie ein Rezept in nkspad-plugin.json, dazu optional version und eine Liste converters (die Konverter, die ihre convert-Schritte nennen). Eine Datei ohne version ist Version 1, das Format der ersten Rezepte, und lädt wie bisher. Eine Datei neuerer Version wird mit einer Meldung abgelehnt.
@@ -1076,8 +1076,8 @@ Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner al
 ## [edit.fragment] Zeichenkette als JSON, SQL oder HTML bearbeiten
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
 Eine Zeichenkette in einer PHP- oder JavaScript-Datei öffnet sich in einem eigenen Tab in der gewählten Sprache und geht mit dem Escaping ihrer Art zurück in die Zeichenkette.
-1. Setzen Sie den Cursor in die Zeichenkette und wählen Sie Bearbeiten, Zeichenkette als JSON bearbeiten, Zeichenkette als SQL bearbeiten oder Zeichenkette als HTML bearbeiten. Der neue Tab zeigt den Text, für den die Zeichenkette steht, ohne Anführungszeichen und Escapes.
-2. Bearbeiten Sie den Text. Wählen Sie Bearbeiten, Fragment in die Zeichenkette zurückschreiben: Der Text wird für die Zeichenkette escaped und ersetzt ihren Inhalt. Der Tab bleibt offen, Sie können erneut schreiben.
+1. Setzen Sie den Cursor in die Zeichenkette und wählen Sie Bearbeiten, Zeichenfolge bearbeiten als, Zeichenkette als JSON bearbeiten, Zeichenkette als SQL bearbeiten oder Zeichenkette als HTML bearbeiten. Der neue Tab zeigt den Text, für den die Zeichenkette steht, ohne Anführungszeichen und Escapes.
+2. Bearbeiten Sie den Text. Wählen Sie Bearbeiten, Zeichenfolge bearbeiten als, Fragment in die Zeichenkette zurückschreiben: Der Text wird für die Zeichenkette escaped und ersetzt ihren Inhalt. Der Tab bleibt offen, Sie können erneut schreiben.
 - Arten: PHP-Zeichenketten in einfachen und doppelten Anführungszeichen, Heredoc und Nowdoc; JavaScript-Zeichenketten in einfachen und doppelten Anführungszeichen und Templates in Backticks. In einer Zeichenkette in doppelten Anführungszeichen und in einem Heredoc bekommt jedes Dollarzeichen einen Backslash, damit nie versehentlich eine Variable entsteht.
 - Mit Meldung abgelehnt: eine Zeichenkette mit Variablen oder Ausdrücken (`$name`, `{$x}`), ein JavaScript-Template mit `${...}`, ein Escape, der kein Text ist (Byte über 127, Oktal) und beim Schreiben eine Zeile, die ein Heredoc oder Nowdoc beenden würde.
 - Der Tab folgt der Zeichenkette bei Änderungen der Datei an anderer Stelle. Wurde die Datei nach dem Öffnen des Tabs innerhalb der Zeichenkette geändert, wird nichts ohne Rückfrage überschrieben: Der Dialog bietet Überschreiben oder Abbrechen.
@@ -1087,8 +1087,8 @@ Eine Zeichenkette in einer PHP- oder JavaScript-Datei öffnet sich in einem eige
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. Geben Sie in einer HTML- oder CSS-Datei eine Abkürzung ein und drücken Sie Tab. Aus `ul>li*3` wird eine Liste mit drei Einträgen und einem Cursor in jedem.
 2. Tab rückt wie bisher ein, wenn vor dem Cursor keine Abkürzung steht, wenn Text markiert ist, wenn der Cursor in einem offenen Tag steht oder wenn die Abkürzung ungültig ist.
-3. Extras, Emmet-Abkürzung als Vorschau zeigt, was aus der Abkürzung vor dem Cursor würde (`|` markiert die Cursor), und erweitert sie nach Bestätigung.
-4. Extras, Mit Emmet-Abkürzung umschließen (nur HTML) fragt nach einer Abkürzung und umschließt damit jede Markierung. Der Text kommt in das innerste letzte Element; ein nacktes `*` an diesem Element (`ul>li*`) erzeugt ein Element pro Zeile.
+3. Extras, Struktur und Sprache, Emmet-Abkürzung als Vorschau zeigt, was aus der Abkürzung vor dem Cursor würde (`|` markiert die Cursor), und erweitert sie nach Bestätigung.
+4. Extras, Struktur und Sprache, Mit Emmet-Abkürzung umschließen (nur HTML) fragt nach einer Abkürzung und umschließt damit jede Markierung. Der Text kommt in das innerste letzte Element; ein nacktes `*` an diesem Element (`ul>li*`) erzeugt ein Element pro Zeile.
 5. Jede Erweiterung geht in alle Cursor gleichzeitig und ist ein Schritt für Rückgängig.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` Kind, `+` Geschwister, `^` eine Ebene höher, `( )` Gruppe; in Namen, Klassen und Text ist `$` die Nummer der Wiederholung (`$$` füllt mit Nullen, `$@-` zählt abwärts, `$@3` beginnt bei 3). Ein einzelnes Wort wird nur erweitert, wenn es ein HTML-Tag-Name oder ein Kurzname des Plugins ist (`bq`, `btn`, `a:link`, `input:checkbox`, `!` für ein Seitengerüst). In einem Element wird der fehlende Name je nach Eltern zu `li`, `tr`, `td`, `option`, `span` oder `div`.
 - CSS: `m10-20` ist `margin: 10px 20px;`, `w100p` ist `width: 100%;`, `c#f00`, `pos:a`, `dn`, ein `!` am Ende fügt `!important` an, `+` verbindet mehrere Deklarationen. Eine ganze Zahl bekommt `px`, ein Bruch `em`; die Buchstaben `p`, `e`, `x`, `r` nach einer Zahl bedeuten `%`, `em`, `ex`, `rem`. Es funktioniert nur innerhalb eines Blocks `{ }`.
@@ -1109,10 +1109,10 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 
 ## [tools.lsp] Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
-1. Öffnen Sie ein Textdokument und wählen Sie Extras, Sprachserver: für dieses Dokument starten. Der Server für die Sprache des Dokuments startet und erhält den Text. Von da an bekommt er jede Änderung, und was er als Fehler meldet, wird unterstrichen.
+1. Öffnen Sie ein Textdokument und wählen Sie Extras, Sprachserver, Sprachserver: für dieses Dokument starten. Der Server für die Sprache des Dokuments startet und erhält den Text. Von da an bekommt er jede Änderung, und was er als Fehler meldet, wird unterstrichen.
 2. Sprachserver: Zur Definition springen springt zur Definition des Worts am Cursor, auch in eine andere Datei. Sprachserver: Verweise suchen listet alle Stellen im Panel links auf; Enter oder ein Doppelklick auf einen Eintrag öffnet ihn.
 3. Sprachserver: Symbol umbenennen fragt nach dem neuen Namen des Worts am Cursor. Die Änderungen des Servers in allen Dateien, samt dem Anlegen, Umbenennen und Löschen von Dateien, das er verlangt, erscheinen gemeinsam in der Änderungsvorschau; was Sie annehmen, wird als ein Schritt angewendet. Eine Datei, die in einem anderen Tab offen ist, muss ebenfalls mit dem ersten Befehl gestartet worden sein, sonst wird das Umbenennen als Ganzes abgelehnt.
-4. Strg+J (Bearbeiten, Wort oder Clip vervollständigen) listet auch auf, was der laufende Server am Cursor anbietet. Die Wahl eines solchen Eintrags führt im selben Rückgängig-Schritt auch die weiteren Änderungen aus, die der Server verlangt, etwa das Hinzufügen eines Imports. Eine Antwort, die nach einer Textänderung eintrifft, wird nicht angezeigt.
+4. Strg+J (Bearbeiten, Einfügen, Wort oder Clip vervollständigen) listet auch auf, was der laufende Server am Cursor anbietet. Die Wahl eines solchen Eintrags führt im selben Rückgängig-Schritt auch die weiteren Änderungen aus, die der Server verlangt, etwa das Hinzufügen eines Imports. Eine Antwort, die nach einer Textänderung eintrifft, wird nicht angezeigt.
 5. Beendet sich der Server von selbst, meldet das ein Hinweis, und die Unterstreichungen, die er gezeichnet hat, verschwinden. Sprachserver: Neu starten (oder ein anderer Befehl dieser Gruppe) startet ihn erneut und übergibt ihm alle offenen Dokumente so, wie sie jetzt sind. Sprachserver: Beenden fährt ihn herunter.
 - Der Editor startet von sich aus keinen Server: Solange Sie keinen Befehl dieser Gruppe wählen, läuft nichts, und der Server weiß nichts von der Datei.
 - Große Dateien, die seitenweise angezeigt werden, und Dateien über dem Größenlimit gehen nie an einen Server.
@@ -1122,7 +1122,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 
 ## [edit.complete] Vervollständigung von Wörtern und Clips
 commands: nks.edit.complete
-1. Drücken Sie Strg+J (Bearbeiten, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.
+1. Drücken Sie Strg+J (Bearbeiten, Einfügen, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.
 2. Wählen Sie einen Eintrag. Ein Wort ersetzt das Wort vor jedem Cursor; ein Clip wird wie im Thema Clips eingefügt und ersetzt dieses Wort. Es ist ein Schritt für Rückgängig.
 - Die Wörter stammen aus allen offenen Text-Tabs. Das Wort, das gerade getippt wird, wird nicht angeboten, und ein Wort wird nur angeboten, wenn es länger ist als das Getippte. Zuerst kommen Wörter des bearbeiteten Dokuments, dann die häufigeren.
 - Clips stammen aus der Bibliothek des Themas Clips. Ein Clip ohne Sprache passt zu jedem Dokument; ein Clip mit Sprache nur zu Dokumenten dieser Sprache.
@@ -1131,9 +1131,9 @@ commands: nks.edit.complete
 
 ## [edit.sql] SQL: Dialekt und Formatierung
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
-1. Bearbeiten, SQL formatieren ordnet die Auswahlen an, oder die ganze Datei, wenn nichts markiert ist: eine Klausel pro Zeile, ein Select-Element pro Zeile, Unterabfragen eingerückt, Schlüsselwörter in einheitlicher Schreibung. Es ist ein Rückgängig-Schritt, und außerhalb der Auswahl ändert sich nichts.
-2. Bearbeiten, Vorschau der SQL-Formatierung zeigt dasselbe Ergebnis zuerst in der Änderungsvorschau.
-3. Der Dialekt bestimmt die Farben und welche Wörter Schlüsselwörter sind. Es gilt das erste gesetzte von diesen: Extras, SQL-Dialekt (nur diese Datei); `sql_dialect = mysql` in einer `.editorconfig` (jede SQL-Datei in diesem Ordner und darunter); die Einstellung Standard-SQL-Dialekt. Ohne sie ist der Dialekt Generic, und nichts wird als Fehler gemeldet.
+1. Bearbeiten, Formatierung, SQL formatieren ordnet die Auswahlen an, oder die ganze Datei, wenn nichts markiert ist: eine Klausel pro Zeile, ein Select-Element pro Zeile, Unterabfragen eingerückt, Schlüsselwörter in einheitlicher Schreibung. Es ist ein Rückgängig-Schritt, und außerhalb der Auswahl ändert sich nichts.
+2. Bearbeiten, Formatierung, Vorschau der SQL-Formatierung zeigt dasselbe Ergebnis zuerst in der Änderungsvorschau.
+3. Der Dialekt bestimmt die Farben und welche Wörter Schlüsselwörter sind. Es gilt das erste gesetzte von diesen: Extras, Struktur und Sprache, SQL-Dialekt (nur diese Datei); `sql_dialect = mysql` in einer `.editorconfig` (jede SQL-Datei in diesem Ordner und darunter); die Einstellung Standard-SQL-Dialekt. Ohne sie ist der Dialekt Generic, und nichts wird als Fehler gemeldet.
 - Dialekte: generic, mysql, postgres, sqlite, tsql. Der Editor verbindet sich nie mit einer Datenbank.
 - Zeichenfolgen, in Anführungszeichen gesetzte Namen und Kommentare werden unverändert übernommen. Erneutes Formatieren des Ergebnisses ändert nichts.
 - Eine Auswahl über dem Limit des Plugins wird mit einer Meldung abgelehnt.
@@ -1141,8 +1141,8 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 
 ## [edit.html] HTML: Entitäten und HTML Tidy
 commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
-1. Bearbeiten, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
-2. Bearbeiten, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
+1. Bearbeiten, Formatierung, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
+2. Bearbeiten, Formatierung, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
 3. Tidy ist ein eigenes Programm. Der Editor sucht es am Pfad der Einstellung HTML-Tidy-Programm, im Ordner `tidy` neben dem Formatierer-Plugin, in `tools/tidy` des Programmordners und in den Ordnern von PATH. Wird es nicht gefunden, nennt die Meldung alle Orte.
 - Tidy gehört nicht zu diesem Build: Installieren Sie es und setzen Sie den Pfad, oder legen Sie es an einen dieser Orte.
 - Zeilennummern in den Meldungen zählen ab dem Anfang des Textes, der an Tidy geschickt wurde.
@@ -1160,8 +1160,8 @@ commands: nks.help.languageHelp
 ## [table.view] Tabellenansicht für CSV und TSV
 commands: nks.view.table, nks.table.dialect
 Eine CSV- oder TSV-Datei kann als Tabelle angezeigt werden: eine Zeile der Datei je Tabellenzeile, ein Feld je Zelle. Es ist dasselbe Dokument wie in der Textansicht, mit demselben Rückgängig-Verlauf; nichts wird umgewandelt, und das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle.
-1. Strg+K und dann Strg+T (Menü Ansicht, Tabellenansicht umschalten) wechselt zwischen Tabelle und Text. Eine .tsv- oder .tab-Datei wird an Tabulatoren geteilt, jede andere an Kommas.
-2. Ansicht, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist.
+1. Strg+K und dann Strg+T (Menü Ansicht, Tabelle, Tabellenansicht umschalten) wechselt zwischen Tabelle und Text. Eine .tsv- oder .tab-Datei wird an Tabulatoren geteilt, jede andere an Kommas.
+2. Ansicht, Tabelle, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist.
 - Eine große Datei öffnet sich sofort: Die Zeilen werden im Hintergrund gezählt, und der Bildlaufbereich wächst, während die Datei gelesen wird. Bis das Ende erreicht ist, zeigt die Statusleiste die Zeilenzahl mit einem Plus, etwa 12+.
 - Pfeiltasten, Tab, Bild auf und Bild ab, Pos1 und Ende (innerhalb der Zeile), Strg+Pos1 und Strg+Ende bewegen die aktuelle Zelle; Umschalt erweitert die Auswahl. Ein Klick auf eine Spaltenüberschrift wählt die Spalte, ein Klick auf eine Zeilennummer die Zeile.
 - Eine Zelle in Anführungszeichen kann Zeilenumbrüche enthalten; die Tabelle zeigt ihre erste Zeile und das Zeichen ↵.
@@ -1170,15 +1170,15 @@ Eine CSV- oder TSV-Datei kann als Tabelle angezeigt werden: eine Zeile der Datei
 ## [table.edit] Tabellenansicht: Bearbeiten und Filtern
 commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
 1. Eingabe oder F2 (oder einfach Tippen) bearbeitet die aktuelle Zelle. Eingabe speichert und geht nach unten, Umschalt+Eingabe fügt einen Zeilenumbruch ein, Esc bricht ab. Eine Zelle, die in Anführungszeichen stand, bleibt darin; ein anderer Wert wird nur dann in Anführungszeichen gesetzt, wenn er das Trennzeichen, ein Anführungszeichen oder einen Zeilenumbruch enthält.
-2. Ansicht, Zeile einfügen fügt hinter der aktuellen eine leere Zeile ein. Spalte einfügen fragt nach dem Namen der Spalte und fügt sie hinter der aktuellen ein. Zeile löschen und Spalte löschen entfernen die ausgewählten Zeilen oder Spalten. Jede Aktion ist ein Rückgängig-Schritt.
-3. Ansicht, Zeilen filtern zeigt nur die Zeilen, deren aktuelle Spalte den Text enthält (Groß- und Kleinschreibung spielt keine Rolle). Filter entfernen zeigt wieder alle Zeilen. Ein Filter ändert die Datei nie, und die Zeilennummern bleiben die der Datei.
+2. Ansicht, Tabelle, Zeile einfügen fügt hinter der aktuellen eine leere Zeile ein. Spalte einfügen fragt nach dem Namen der Spalte und fügt sie hinter der aktuellen ein. Zeile löschen und Spalte löschen entfernen die ausgewählten Zeilen oder Spalten. Jede Aktion ist ein Rückgängig-Schritt.
+3. Ansicht, Tabelle, Zeilen filtern zeigt nur die Zeilen, deren aktuelle Spalte den Text enthält (Groß- und Kleinschreibung spielt keine Rolle). Filter entfernen zeigt wieder alle Zeilen. Ein Filter ändert die Datei nie, und die Zeilennummern bleiben die der Datei.
 - Entf leert die ausgewählten Zellen. Eine kurze Zeile erhält die fehlenden Trennzeichen, wenn eine Zelle hinter ihrem Ende gefüllt wird.
 - Ist das Anführungszeichen in Tabellentrennzeichen und Kopfzeile ausgeschaltet, wird ein Wert mit Trennzeichen oder Zeilenumbruch abgelehnt.
 - Solange ein Filter aktiv ist, können keine Zeilen hinzugefügt werden.
 
 ## [table.copyAs] Zellen als Markdown, SQL, JSON oder HTML kopieren
 commands: nks.table.copyAs
-Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle kopieren als und dann eine Form. Die Zwischenablage enthält die markierten Spalten und Zeilen in dieser Form.
+Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle, Tabelle kopieren als und dann eine Form. Die Zwischenablage enthält die markierten Spalten und Zeilen in dieser Form.
 - Markdown-Tabelle: eine Tabelle mit senkrechten Strichen, mit Kopfzeile (ohne Kopfzeile mit den Spaltenbuchstaben A, B, ...). Sonderzeichen wie der senkrechte Strich, der Backslash, Sternchen, Unterstriche und spitze Klammern erhalten einen Backslash, und ein Zeilenumbruch in einer Zelle wird zu `<br>`.
 - SQL INSERT: eine Anweisung pro Zeile, die Werte als Text in einfachen Anführungszeichen (ein Anführungszeichen wird verdoppelt). Die Spaltennamen stammen aus der Kopfzeile. Das Programm fragt nach dem Tabellennamen und schlägt den Dateinamen vor.
 - JSON: ein Array von Objekten, benannt nach der Kopfzeile, oder ein Array von Arrays, wenn die Kopfzeile fehlt, einen leeren Namen hat oder einen Namen wiederholt. Alle Werte sind Text.
@@ -1188,7 +1188,7 @@ Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle kop
 
 ## [table.region] Ausgewählten Text als Tabelle bearbeiten
 commands: nks.table.editRegion
-Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen in einer Notiz oder einem Log, und wählen Sie Ansicht, Auswahl als Tabelle bearbeiten.
+Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen in einer Notiz oder einem Log, und wählen Sie Ansicht, Tabelle, Auswahl als Tabelle bearbeiten.
 1. Der Dialog fragt nach dem Trennzeichen (Komma, Semikolon, Tabulator oder senkrechter Strich), ob Anführungszeichen Werte umschließen und ob die erste ausgewählte Zeile die Kopfzeile ist. Die Vorschau zeigt die ersten Zeilen als Zellen.
 2. Der ausgewählte Text wird zur Tabelle. Der Rest der Datei bleibt Text: Das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle, und außerhalb der Auswahl wird nichts gelesen oder geändert.
 - Alles aus der Tabellenansicht funktioniert darin: Bewegen, Bearbeiten, Zeilen und Spalten hinzufügen und löschen, Filtern, Kopieren und Einfügen. Die Statusleiste sagt, dass nur der ausgewählte Text die Tabelle ist.
@@ -1229,8 +1229,8 @@ commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
 1. Wählen Sie Extras, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
 2. Richten Sie den Assistenten so ein, dass er das Programm textida-mcp.exe aus dem Ordner mcp neben dem Editor startet (die Statusleiste zeigt den vollständigen Pfad). Es spricht über eine lokale Pipe mit dem Editor, ein Netzwerkport wird nicht geöffnet.
-3. Öffnen Sie einen Tab und wählen Sie Extras, Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
-4. Mit Extras, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
+3. Öffnen Sie einen Tab und wählen Sie Extras, MCP, Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
+4. Mit Extras, MCP, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
 - Der Assistent liest den Text so, wie er im Editor steht, auch ungespeichert, sucht darin, fragt die Gliederung, die Kodierung und die Zeilenenden ab, findet Zeilen einer Stufe in einem Log beliebiger Größe und liest oder durchsucht Bytes (höchstens 64 KiB pro Lesen).
 - Eine Änderung ist ein Vorschlag für eine Revision des Textes. Hat sich der Text inzwischen geändert, wird der Vorschlag abgelehnt und der Assistent muss neu lesen. Den Vorschlag sehen Sie wie andere Änderungen des ganzen Dokuments und wählen, ob er angewendet wird; der Assistent kann nachfragen, wie er ausging.
 - Werte in .env-Dateien sieht der Assistent als *. Beim Teilen eines solchen Tabs werden Sie gefragt, ob er die echten Werte sehen darf; die Antwort gilt nur für diesen Tab.
@@ -1259,7 +1259,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.mcpAgents] MCP-Server der Agenten
 commands: nks.tools.mcpServers
 Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Textida liest Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) und OpenCode (opencode.json, opencode.jsonc). Projektdateien werden im Ordner der aktiven Datei und in den übergeordneten Ordnern gesucht. Textida liest diese Dateien nur und schreibt nie hinein.
-1. Wählen Sie Extras, MCP-Server der Agenten. Jede Zeile zeigt den Server, den Agenten und die Datei, aus der er stammt, sowie Befehl oder Adresse mit verborgenen Geheimnissen.
+1. Wählen Sie Extras, MCP, MCP-Server der Agenten. Jede Zeile zeigt den Server, den Agenten und die Datei, aus der er stammt, sowie Befehl oder Adresse mit verborgenen Geheimnissen.
 2. Wählen Sie einen Server und dann Ausprobieren. Ein Dialog zeigt den genauen Befehl, den Ordner und die Variablen mit verborgenen Werten (***). Nichts startet, bevor Sie Starten drücken.
 3. Nach Starten führt Textida das Programm aus, fragt es nach seinen Tools (MCP-Versionen 2026-07-28 und 2025-11-25) und beendet es. Das Ergebnis nennt die Zahl der Tools oder den Fehler und die letzten Zeilen, die das Programm auf die Fehlerausgabe geschrieben hat. Dieselben Zeilen stehen in der Ausgabe Aufgaben.
 4. Mit Eintrag für einen anderen Agenten umwandeln erscheint der Eintrag im Format dieses Agenten in einem neuen Tab. Der Ausschnitt wird zuerst gegen dieses Format geprüft. Werte von Variablen und Headern sind durch *** ersetzt; ergänzen Sie sie, bevor Sie den Ausschnitt in die Datei dieses Agenten einfügen.
@@ -1270,10 +1270,10 @@ Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Text
 ## [tools.shell] Explorer-Menü und Dateizuordnungen
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers und in die Liste Öffnen mit eintragen. Dafür sind keine Administratorrechte nötig, und es werden nur Schlüssel von Textida unter HKEY_CURRENT_USER\Software\Classes geschrieben. Schlüssel anderer Programme, auch von PSPad, werden weder gelesen noch geändert. Beide Befehle funktionieren in der installierten Textida.exe.
-1. Wählen Sie Extras, Textida zum Explorer-Menü hinzufügen. Dateien erhalten den Eintrag Mit Textida öffnen; er startet Textida mit der Datei oder gibt die Datei an die bereits laufende Textida weiter. Unter Windows 11 steht der Eintrag unter Weitere Optionen anzeigen.
-2. Wählen Sie Extras, Dateizuordnungen und dann Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
+1. Wählen Sie Extras, Systemintegration, Textida zum Explorer-Menü hinzufügen. Dateien erhalten den Eintrag Mit Textida öffnen; er startet Textida mit der Datei oder gibt die Datei an die bereits laufende Textida weiter. Unter Windows 11 steht der Eintrag unter Weitere Optionen anzeigen.
+2. Wählen Sie Extras, Systemintegration, Dateizuordnungen und dann Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
 3. Damit Textida das Standardprogramm einer Endung wird, nutzen Sie im Explorer Öffnen mit, Andere App auswählen. Diese Wahl verwaltet Windows selbst.
-4. Wählen Sie Extras, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
+4. Wählen Sie Extras, Systemintegration, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
 - Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
 - Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
 

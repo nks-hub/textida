@@ -140,7 +140,7 @@ public class PackagesAppTests : IDisposable
     [AvaloniaFact]
     public void The_commands_are_in_the_tools_menu()
     {
-        var ids = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.OfType<MenuCommand>().Select(c => c.CommandId).ToList();
+        var ids = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.packages.lookup", ids);
         Assert.Contains("nks.packages.refresh", ids);
         Assert.Contains("nks.packages.revoke", ids);

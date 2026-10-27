@@ -73,6 +73,9 @@ public sealed class MenuContribution
 
     public int Order { get; set; }
 
+    /// <summary>Id of a nested menu; entries of one menu with the same id share one submenu, placed at the group and order of the first. Its title is the string <c>submenu.&lt;id&gt;</c>.</summary>
+    public string? Submenu { get; set; }
+
     public string? When { get; set; }
 }
 

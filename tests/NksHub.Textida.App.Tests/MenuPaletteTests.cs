@@ -12,6 +12,17 @@ using NksHub.Textida.Workbench.Commands;
 namespace NksHub.Textida.App.Tests;
 
 /// <summary>Menus, palette and keys read the command registry and nothing else.</summary>
+internal static class MenuNodeExtensions
+{
+    /// <summary>Every command of the nodes, submenus included.</summary>
+    public static IEnumerable<MenuCommand> AllCommands(this IEnumerable<MenuNode> nodes) => nodes.SelectMany(n => n switch
+    {
+        MenuCommand c => [c],
+        MenuGroup g => g.Items.AllCommands(),
+        _ => [],
+    });
+}
+
 [Collection("LocState")]
 public class MenuPaletteTests : IDisposable
 {
@@ -53,6 +64,62 @@ public class MenuPaletteTests : IDisposable
         Assert.DoesNotContain("projects", withCommands);
         Assert.Contains("tools", withCommands);
         Assert.DoesNotContain("html", withCommands);
+    }
+
+    private MenuGroup Menu(string header) => _w.MenuModel.Single(g => g.Label == header);
+
+    [AvaloniaFact]
+    public void Submenus_are_built_from_the_submenu_field_with_separators_between_their_groups()
+    {
+        var tools = Menu("Nástroje");
+        var macros = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Makra");
+        Assert.Contains(Commands(macros.Items), c => c.CommandId == "nks.macro.record");
+        Assert.DoesNotContain(tools.Items.OfType<MenuCommand>(), c => c.CommandId!.StartsWith("nks.macro.", StringComparison.Ordinal));
+        Assert.Contains(tools.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.plugins.manage");
+
+        // one submenu gathers entries of several groups: they stay in their order, split by a separator
+        var structure = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Struktura a jazyk");
+        Assert.Contains(structure.Items, n => n is MenuSeparator);
+        Assert.Contains(Commands(structure.Items), c => c.CommandId == "nks.tools.sqlDialect");
+
+        var edit = Menu("Úpravy");
+        var format = Assert.Single(edit.Items.OfType<MenuGroup>(), g => g.Label == "Formátování");
+        Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatJson");
+        Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatSql");
+        Assert.Contains(edit.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.edit.undo");
+    }
+
+    [AvaloniaFact]
+    public void No_menu_shows_more_than_a_screenful_of_rows_at_the_top_level()
+    {
+        foreach (var g in _w.MenuModel)
+        {
+            int commands = g.Items.Count(n => n is not MenuSeparator);
+            Assert.True(commands <= 30, $"{g.Label} has {commands} items at the top level");
+        }
+        Assert.All(_w.MenuModel.Where(g => g.Label is "Nástroje" or "Zobrazit" or "Soubor"), g => Assert.True(g.Items.Count(n => n is not MenuSeparator) <= 20, g.Label));
+    }
+
+    [AvaloniaFact]
+    public void A_command_in_a_submenu_is_enabled_and_disabled_like_one_at_the_top_level_and_the_item_has_a_name()
+    {
+        var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+        var edit = menu.Items.OfType<MenuItem>().Single(m => (string)m.Header! == "Úpravy");
+        var casing = edit.Items.OfType<MenuItem>().Single(m => (string)m.Header! == "Velikost písmen");
+        Assert.Equal("Velikost písmen", Avalonia.Automation.AutomationProperties.GetName(casing));
+        var upper = casing.Items.OfType<MenuItem>().First(m => m.Tag is MenuCommand { CommandId: "nks.edit.upperCase" });
+        Assert.False(upper.IsEnabled);
+        var gesture = ((MenuCommand)upper.Tag!).Gesture;
+        Assert.Equal(gesture, upper.InputGesture);
+
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = "abc";
+        tab.Editor.Select(0, 2);
+        edit.RaiseEvent(new RoutedEventArgs(MenuItem.SubmenuOpenedEvent));
+        Assert.True(upper.IsEnabled);
+        tab.Editor.Select(0, 0);
+        edit.RaiseEvent(new RoutedEventArgs(MenuItem.SubmenuOpenedEvent));
+        Assert.False(upper.IsEnabled);
     }
 
     [AvaloniaFact]
