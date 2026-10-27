@@ -544,7 +544,8 @@ public class PagedSurfaceTests : IDisposable
     public void Go_to_a_line_and_column_counts_the_column_in_characters_of_the_line()
     {
         const string head = "první\nžluťoučký kůň\n😀ab\n";
-        var tab = OpenIndexed(_temp.Bytes("columns.txt", Encoding.UTF8.GetBytes(head + string.Concat(Enumerable.Repeat("x\n", 600_000)))));
+        // filler of "x\n" pairs reads as UTF-16 LE code units and the file would be detected as one UTF-16 line
+        var tab = OpenIndexed(_temp.Bytes("columns.txt", Encoding.UTF8.GetBytes(head + string.Concat(Enumerable.Range(1, 200_000).Select(i => $"line {i}\n")))));
         var paged = tab.Paged!;
         _w.GoTo("2:5");
         Assert.Equal(Encoding.UTF8.GetByteCount("první\nžluť"), paged.CaretOffset);
