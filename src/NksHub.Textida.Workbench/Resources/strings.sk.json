@@ -391,5 +391,9 @@
   "cmd.macro.run": "Spustiť uložené makro...",
   "cmd.tools.edit": "Upraviť definície nástrojov...",
   "cmd.tools.makeTargets": "Spustiť cieľ Makefile...",
-  "cmd.file.saveActions": "Akcie pri uložení..."
+  "cmd.file.saveActions": "Akcie pri uložení...",
+  "cmd.edit.fragmentJson": "Upraviť reťazec ako JSON",
+  "cmd.edit.fragmentSql": "Upraviť reťazec ako SQL",
+  "cmd.edit.fragmentHtml": "Upraviť reťazec ako HTML",
+  "cmd.edit.fragmentWriteBack": "Zapísať fragment späť do reťazca"
 }

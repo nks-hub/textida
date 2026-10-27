@@ -1169,6 +1169,30 @@
       "category": "cat.log"
     },
     {
+      "id": "nks.edit.fragmentJson",
+      "title": "cmd.edit.fragmentJson",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.fragmentSql",
+      "title": "cmd.edit.fragmentSql",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.fragmentHtml",
+      "title": "cmd.edit.fragmentHtml",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.fragmentWriteBack",
+      "title": "cmd.edit.fragmentWriteBack",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.edit.copyAiContext",
       "title": "cmd.edit.copyAiContext",
       "category": "cat.edit"
@@ -2558,6 +2582,30 @@
       "command": "nks.log.levels",
       "group": "6_log",
       "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.fragmentJson",
+      "group": "9_fragment",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.fragmentSql",
+      "group": "9_fragment",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.fragmentHtml",
+      "group": "9_fragment",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.fragmentWriteBack",
+      "group": "9_fragment",
+      "order": 40
     },
     {
       "menu": "edit",

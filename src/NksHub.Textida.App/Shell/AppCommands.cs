@@ -119,6 +119,10 @@ internal static class AppCommands
         On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
         On("nks.edit.runRecipe", w => w.ShowRecipes(registry.IsRepeating));
         On("nks.edit.copyAiContext", w => w.ShowAiContext());
+        On("nks.edit.fragmentJson", w => w.EditStringAs("json"));
+        On("nks.edit.fragmentSql", w => w.EditStringAs("sql"));
+        On("nks.edit.fragmentHtml", w => w.EditStringAs("html"));
+        On("nks.edit.fragmentWriteBack", w => w.WriteBackFragment());
         On("nks.tools.mcpServer", w => w.ToggleMcpServer());
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
