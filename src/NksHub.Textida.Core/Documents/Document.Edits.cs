@@ -68,7 +68,7 @@ public sealed partial class Document
         }
         if (work.Count == 0) return new(true, _revision, ConflictReason.None);
 
-        work = [.. work.OrderBy(w => w.Start).ThenBy(w => w.Deleted == 0 ? 0 : 1)];
+        if (!IsInEditOrder(work)) work = [.. work.OrderBy(w => w.Start).ThenBy(w => w.Deleted == 0 ? 0 : 1)];
         for (int k = 0; k < work.Count; k++)
         {
             var w = work[k];
@@ -86,7 +86,7 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
+        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -162,8 +162,9 @@ public sealed partial class Document
     private byte[] ReadExact(long offset, long length)
     {
         if (length > Array.MaxLength) throw new NotSupportedException("An edit that removes more than 2 GiB cannot be undone in memory.");
+        if (length == 0) return [];
         var bytes = new byte[length];
-        if (length > 0) _backend.Read(offset, bytes);
+        _backend.Read(offset, bytes);
         return bytes;
     }
 
@@ -171,6 +172,25 @@ public sealed partial class Document
     private bool EditKeepsBoundaries(Pending w)
     {
         long end = w.Start + w.Deleted;
+        // one read around the edit serves both boundary checks and both sides of the join; a long removal reads its two ends apart
+        if (w.Deleted > 64) return EditKeepsBoundariesApart(w, end);
+        var (window, pos) = Window(w.Start, 4, (int)w.Deleted + 4);
+        int endPos = pos + (int)w.Deleted;
+        if (!BoundaryIn(w.Start, window, pos) || !BoundaryIn(end, window, endPos)) return false;
+        int insertLength = w.Insert.Length, rightLength = window.Length - endPos;
+        int total = pos + insertLength + rightLength;
+        Span<byte> joined = total <= 256 ? stackalloc byte[total] : new byte[total];
+        window.AsSpan(0, pos).CopyTo(joined);
+        w.Insert.Span.CopyTo(joined[pos..]);
+        window.AsSpan(endPos).CopyTo(joined[(pos + insertLength)..]);
+        return _codec.IsBoundary(joined, pos) && _codec.IsBoundary(joined, pos + insertLength);
+    }
+
+    private bool BoundaryIn(long offset, byte[] window, int pos) =>
+        offset >= _bomLength && offset <= ByteLength && (offset == _bomLength || offset == ByteLength || _codec.IsBoundary(window, pos));
+
+    private bool EditKeepsBoundariesApart(Pending w, long end)
+    {
         if (!IsCharBoundary(w.Start) || !IsCharBoundary(end)) return false;
         var (left, leftPos) = Window(w.Start, 4, 0);
         var (right, _) = Window(end, 0, 4);
@@ -179,6 +199,17 @@ public sealed partial class Document
         w.Insert.Span.CopyTo(joined.AsSpan(leftPos));
         right.CopyTo(joined, leftPos + w.Insert.Length);
         return _codec.IsBoundary(joined, leftPos) && _codec.IsBoundary(joined, leftPos + w.Insert.Length);
+    }
+
+    /// <summary>True when the edits already stand in the order <see cref="Apply"/> wants: by start, an insertion before a removal at the same place.</summary>
+    private static bool IsInEditOrder(List<Pending> work)
+    {
+        for (int i = 1; i < work.Count; i++)
+        {
+            var (a, b) = (work[i - 1], work[i]);
+            if (a.Start > b.Start || (a.Start == b.Start && a.Deleted != 0 && b.Deleted == 0)) return false;
+        }
+        return true;
     }
 
     private void Commit(ChangeKind kind, string? source, List<Pending> work, Step? step, string? coalesceKey)
@@ -352,8 +383,8 @@ public sealed partial class Document
             _redo.Clear();
         }
         UndoEntry? top = _undo.Count > 0 ? _undo[^1] : null;
-        if (_groupDepth > 0 && _groupEntry is { } group) group.Steps.Add(step);
-        else if (_groupDepth == 0 && key is not null && top is not null && top.Key == key && top != _saved) top.Steps.Add(step);
+        if (_groupDepth > 0 && _groupEntry is { } group) Join(group, step);
+        else if (_groupDepth == 0 && key is not null && top is not null && top.Key == key && top != _saved) Join(top, step);
         else
         {
             var entry = new UndoEntry(key);
@@ -361,6 +392,13 @@ public sealed partial class Document
             _undo.Add(entry);
             if (_groupDepth > 0) _groupEntry = entry;
         }
+    }
+
+    /// <summary>Adds a step to an entry. Undo gives back the selections before its first step and redo those after its last, so the others are not kept.</summary>
+    private static void Join(UndoEntry entry, Step step)
+    {
+        if (entry.Steps.Count > 0 && entry.Steps[^1].After is not null) entry.Steps[^1] = entry.Steps[^1] with { After = null };
+        entry.Steps.Add(step.Before is null ? step : step with { Before = null });
     }
 
     /// <summary>Reverts the last undo step and returns the selections it restored; null when there is nothing to undo.</summary>

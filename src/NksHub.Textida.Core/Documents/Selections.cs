@@ -41,6 +41,7 @@ public sealed class SelectionSet
     {
         if (selections.Count == 0) throw new ArgumentException("A selection set needs at least one selection.", nameof(selections));
         primary = Math.Clamp(primary, 0, selections.Count - 1);
+        if (IsDisjointAscending(selections)) return new([.. selections], primary); // nothing to sort or merge, as with the carets after typing at all of them
         var order = new int[selections.Count];
         for (int i = 0; i < order.Length; i++) order[i] = i;
         Array.Sort(order, (a, b) =>
@@ -75,6 +76,13 @@ public sealed class SelectionSet
         }
         Flush();
         return new(merged, mergedPrimary);
+    }
+
+    private static bool IsDisjointAscending(IReadOnlyList<TextSelection> selections)
+    {
+        for (int i = 1; i < selections.Count; i++)
+            if (selections[i].Start <= selections[i - 1].End) return false;
+        return true;
     }
 
     public SelectionSet WithPrimary(int index) => new(Items, Math.Clamp(index, 0, Items.Count - 1));
