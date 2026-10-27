@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Contributions;
 
 namespace NksHub.Textida.PluginHost.Manifest;
@@ -59,6 +60,7 @@ public sealed class PluginContributions
 
     public List<ConverterContribution> Converters { get; set; } = [];
     public List<ClipContribution> Clips { get; set; } = [];
+    public List<TemplateContribution> Templates { get; set; } = [];
     public List<LogPatternContribution> LogPatterns { get; set; } = [];
     public List<ExternalToolContribution> ExternalTools { get; set; } = [];
 }
@@ -81,7 +83,10 @@ public sealed class ConverterRule
     public bool Regex { get; set; }
 }
 
-/// <summary>Text snippet that a command inserts.</summary>
+/// <summary>
+/// Text that goes into the document at every caret. The text uses the template language of <see cref="Variables"/> (<c>${name}</c>, <c>$|</c> for carets, <c>$$</c>);
+/// <see cref="Fields"/> make a form the user fills in first. A clip with a <see cref="Command"/> has its own command; every clip is in the clip list.
+/// </summary>
 public sealed class ClipContribution
 {
     public string Id { get; set; } = "";
@@ -89,6 +94,17 @@ public sealed class ClipContribution
     public string Text { get; set; } = "";
     public string? Language { get; set; }
     public string? Command { get; set; }
+    public List<ClipField> Fields { get; set; } = [];
+}
+
+/// <summary>Content of a new file; same template language and form as a clip. The carets (<c>$|</c>) stand where the template says.</summary>
+public sealed class TemplateContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Text { get; set; } = "";
+    public string? Command { get; set; }
+    public List<ClipField> Fields { get; set; } = [];
 }
 
 /// <summary>Pattern that recognises a line of a log; named groups become fields.</summary>
@@ -115,6 +131,7 @@ public sealed class ExternalToolContribution
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
-    AllowTrailingCommas = true)]
+    AllowTrailingCommas = true,
+    WriteIndented = true)]
 [JsonSerializable(typeof(PluginManifest))]
 public sealed partial class PluginManifestJson : JsonSerializerContext;
