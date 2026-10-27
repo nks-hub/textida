@@ -73,6 +73,36 @@ public class MinimapGeometryTests
             else Assert.InRange(end, 1, 400);
         }
     }
+
+    [Fact]
+    public void A_sampled_huge_file_spreads_strips_over_the_whole_file_under_a_thin_pointer()
+    {
+        long lines = 100_000_000;
+        var layout = MinimapGeometry.Compute(lines, 50_000_000, 40, 800, 2, sampled: true);
+        Assert.True(layout.Sampled);
+        Assert.False(layout.Surroundings);
+        Assert.Equal((0L, 400), (layout.Top, layout.Rows));
+        Assert.Equal(2, layout.ThumbHeight);
+        Assert.Equal(400, layout.ThumbTop, 3);
+        // 400 rows in strips of 8: 50 strips, each from the start of its fiftieth of the file
+        Assert.Equal(0, MinimapGeometry.LineOfRow(layout, lines, 0, 8));
+        Assert.Equal(7, MinimapGeometry.LineOfRow(layout, lines, 7, 8));
+        Assert.Equal(2_000_000, MinimapGeometry.LineOfRow(layout, lines, 8, 8));
+        Assert.Equal(98_000_007, MinimapGeometry.LineOfRow(layout, lines, 399, 8));
+        Assert.Equal(25_000_000, MinimapGeometry.LineAt(layout, lines, 2, 200));
+    }
+
+    [Fact]
+    public void Sampling_starts_beyond_a_few_screens_and_dragging_a_sampled_map_crosses_the_whole_file()
+    {
+        Assert.False(MinimapGeometry.Compute(1600, 0, 40, 800, 2, sampled: true).Sampled);
+        Assert.False(MinimapGeometry.Compute(100_000_000, 0, 40, 800, 2).Sampled);
+        long lines = 100_000_000;
+        var layout = MinimapGeometry.Compute(lines, 0, 40, 800, 2, sampled: true);
+        Assert.Equal(lines / 2, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, 400));
+        Assert.Equal(lines - 40, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, 1000));
+        Assert.Equal(0, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, lines / 2, -500));
+    }
 }
 
 /// <summary>P3.6.1 and P3.3.1 on both surfaces: the view switches, the hidden characters, wrapping, the fonts and the minimap.</summary>
@@ -554,15 +584,53 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Clicking_the_minimap_of_the_paged_surface_scrolls_it()
+    public void Clicking_the_sampled_minimap_of_the_paged_surface_scrolls_to_that_share_of_the_file()
     {
         var tab = Open("d2.cs", KeywordFile(120_000), paged: true);
         var map = tab.Minimap!;
+        Assert.True(map.IsSampled);
         var origin = map.TranslatePoint(default, _w)!.Value;
         Assert.Equal(0, tab.Paged!.TopLine);
         _w.MouseDown(new Point(origin.X + 40, origin.Y + map.Bounds.Height * 0.6), MouseButton.Left);
         _w.MouseUp(new Point(origin.X + 40, origin.Y + map.Bounds.Height * 0.6), MouseButton.Left);
-        Assert.InRange(tab.Paged.TopLine, 100, 500);
+        Assert.InRange(tab.Paged.TopLine, 66_000, 74_000);
+    }
+
+    [AvaloniaFact]
+    public void The_sampled_minimap_of_a_large_file_shows_its_end_while_the_top_is_on_screen()
+    {
+        string text = string.Concat(Enumerable.Range(0, 60_000).Select(i => $"// only a comment on line {i}\n"))
+            + string.Concat(Enumerable.Range(0, 60_000).Select(i => $"var value{i} = {i};\n"));
+        var tab = Open("halves.cs", text, paged: true);
+        Assert.Equal(0, tab.Paged!.TopLine);
+        Assert.True(tab.Minimap!.IsSampled);
+        // the lower part of the picture comes from the second half of the file, which the surroundings of the top would never show
+        Assert.True(WaitForColors(tab, ["keyword"]), "no keyword colors in the lower part of the map");
+    }
+
+    [AvaloniaFact]
+    public void The_minimap_of_a_log_draws_its_lines_in_the_colors_of_their_levels()
+    {
+        var tab = Open("levels.log", string.Concat(Enumerable.Range(0, 3000).Select(i => $"2026-01-01 ERROR request {i} failed\n")));
+        Assert.True(tab.Doc.IsLog);
+        Assert.True(WaitForColors(tab, ["log.error"]), "no error color in the minimap of the log");
+    }
+
+    [AvaloniaFact]
+    public void The_map_of_a_paged_utf16_file_reads_its_lines()
+    {
+        string path = Path.Combine(_temp.Path, "wide.cs");
+        string text = string.Concat(Enumerable.Range(0, 3000).Select(i => $"line {i} ěšč\r\n"));
+        File.WriteAllBytes(path, [.. Encoding.Unicode.GetPreamble(), .. Encoding.Unicode.GetBytes(text)]);
+        Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        WaitForIndex(tab);
+        var host = (IMinimapHost)tab.Paged!;
+        Assert.Equal("line 0 ěšč", host.LineText(0));
+        Assert.Equal("line 1234 ěšč", host.LineText(1234));
+        Assert.Equal("line 2999 ěšč", host.LineText(2999));
+        Assert.Equal("line 1 ěšč", host.LineText(1));
     }
 
     [AvaloniaFact]
@@ -576,6 +644,22 @@ public class ViewOptionsTests : IDisposable
         Assert.True(Differences(before, after, strip) > 4);
         Assert.True(Matching(after, strip, [Color.Parse("#E5484D")], 4) > 0, Changed(before, after, strip));
         Assert.True(Matching(after, strip, [Color.Parse("#E2A400")], 4) > 0);
+    }
+
+    [AvaloniaFact]
+    public void Filter_marks_share_the_strip_with_the_find_marks()
+    {
+        var tab = Open("fm.cs", KeywordFile(3000));
+        var map = tab.Minimap!;
+        var strip = InWindow(map, new Rect(map.Bounds.Width - 5, 0, 4, map.Bounds.Height));
+        var red = Color.Parse("#E5484D");
+        map.SetMarks([new MinimapMark(500, MinimapMarkKind.Match)]);
+        map.SetFilterMarks([new MinimapMark(2500, MinimapMarkKind.Error)]);
+        var shot = Capture();
+        Assert.True(Matching(shot, strip, [red], 4) > 0, "filter mark");
+        Assert.True(Matching(shot, strip, [Color.Parse("#3B82F6")], 4) > 0, "find mark");
+        map.SetFilterMarks([]);
+        Assert.Equal(0, Matching(Capture(), strip, [red], 4));
     }
 
     [AvaloniaFact]
@@ -623,6 +707,33 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void Dragging_the_sampled_minimap_moves_the_paged_surface_within_the_budget()
+    {
+        var tab = Open("pp.cs", KeywordFile(400_000), paged: true);
+        var map = tab.Minimap!;
+        Assert.True(map.IsSampled);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 2);
+        _w.MouseDown(start, MouseButton.Left);
+        var times = new List<double>();
+        long before = tab.Paged!.TopLine;
+        for (int i = 0; i < 200; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            _w.MouseMove(new Point(start.X, start.Y + i * 2.5));
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(clock.Elapsed.TotalMilliseconds);
+        }
+        _w.MouseUp(new Point(start.X, start.Y + 500), MouseButton.Left);
+        Assert.True(tab.Paged.TopLine > before + 100_000, $"{before} -> {tab.Paged.TopLine}");
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)];
+        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Large")]
     public void A_ten_gibibyte_file_gets_a_sampled_map_without_reading_the_file()
     {
@@ -647,6 +758,7 @@ public class ViewOptionsTests : IDisposable
         var tab = _w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
         Assert.True(WaitForColors(tab, ["keyword", "comment"]), "no colors in the map of the 10 GiB file");
+        Assert.True(tab.Minimap!.IsSampled);
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed}");
         Assert.Equal(length, tab.Doc.Doc.ByteLength);
     }
