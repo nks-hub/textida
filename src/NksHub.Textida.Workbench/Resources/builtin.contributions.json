@@ -3315,17 +3315,17 @@
       "order": 80
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportHtml",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 90
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportRtf",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 100
     },
     {
@@ -4378,16 +4378,6 @@
       "key": "alt+shift+f7",
       "command": "nks.review.previous",
       "when": "editorFocus"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly"
-    },
-    {
-      "key": "tab",
-      "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly"
     }
   ],
   "settings": [

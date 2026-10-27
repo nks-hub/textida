@@ -83,7 +83,7 @@ public sealed class LogFullTests
     public void Heatmap_puts_the_errors_of_a_generated_file_in_their_buckets_and_sampling_keeps_them()
     {
         var sb = new StringBuilder();
-        for (int i = 0; i < 4000; i++) sb.Append(i >= 3000 ? "ERROR boom\n" : "INFO fine\n");
+        for (int i = 0; i < 4000; i++) sb.Append(i >= 3000 ? "ERROR boom\n" : "INFO  fine\n"); // both 11 bytes, so the byte buckets split by line
         var snapshot = new Bytes(Encoding.UTF8.GetBytes(sb.ToString()));
         var full = LogHeat.Compute(snapshot, TextCodec.Utf8, 0, LogLevelRules.Default, 4, new LogHeatLimits(4096, 1 << 30, 1024));
         Assert.Equal(4000, full.Lines.Sum());
