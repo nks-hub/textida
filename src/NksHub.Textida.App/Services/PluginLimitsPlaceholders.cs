@@ -103,6 +103,30 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest content of a virtual document, in bytes.</summary>
     public const long VirtualDocumentMaxBytes = 4L << 20;
 
+    /// <summary>Placeholder: diagnostics one checker (source) of a plugin may publish for one document.</summary>
+    public const int DiagnosticsPerDocument = 2000;
+
+    /// <summary>Placeholder: completion items taken from one plugin's answer.</summary>
+    public const int CompletionItemsPerPlugin = 200;
+
+    /// <summary>Placeholder: additional edits (imports, <c>use</c>) one completion item may carry.</summary>
+    public const int CompletionEditsPerItem = 16;
+
+    /// <summary>Placeholder: how long the completion list waits for the plugins before it shows what it has.</summary>
+    public const int CompletionTimeoutMilliseconds = 1000;
+
+    /// <summary>Placeholder: how long a document rests after an edit before the schema check runs again. OPEN: the owner has not decided it.</summary>
+    public const int SchemaCheckDebounceMilliseconds = 500;
+
+    /// <summary>Placeholder: largest file the schema check and the schema key completion read whole. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int SchemaMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder: deepest nesting the schema check follows in a file and in a schema.</summary>
+    public const int SchemaMaxDepth = 64;
+
+    /// <summary>Placeholder: time one <c>pattern</c> of a schema may take on one value before it counts as not matching.</summary>
+    public const int SchemaRegexTimeoutMilliseconds = 200;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -135,6 +159,10 @@ internal static class PluginLimitsPlaceholders
         MaxScanBytes = InspectionMaxScanBytes,
         MaxVirtualDocumentsPerPlugin = VirtualDocumentsPerPlugin,
         MaxVirtualBytes = VirtualDocumentMaxBytes,
+        MaxDiagnosticsPerDocument = DiagnosticsPerDocument,
+        MaxCompletionItems = CompletionItemsPerPlugin,
+        MaxCompletionEdits = CompletionEditsPerItem,
+        CompletionTimeout = TimeSpan.FromMilliseconds(CompletionTimeoutMilliseconds),
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

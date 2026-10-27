@@ -50,6 +50,7 @@ public sealed partial class DocumentApi
     private void OnChanged(Exposed e, ChangeSet change)
     {
         MarkSymbolsOutdated(e.Doc, change.Revision);
+        MoveDiagnostics(e.Doc, change.Revision);
         string[] subscribers;
         lock (_gate) subscribers = [.. e.Subscribers];
         if (subscribers.Length == 0) return;

@@ -26,6 +26,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 {
     public const string JsonPluginId = "textida.json";
     private const string JsonActivation = "onCommand:json";
+    private const string SchemaCheckCommand = "schema.check";
     public const string TextToolsPluginId = "textida.texttools";
     private const string TextToolsActivation = "onCommand:texttools";
     public const string WebDataPluginId = "textida.webdata";
@@ -82,7 +83,9 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
-            ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString()],
+            ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
+             "--schema-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(), "--schema-depth", PluginLimitsPlaceholders.SchemaMaxDepth.ToString(),
+             "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString()],
             [JsonActivation], folder));
 
         // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
@@ -495,7 +498,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         }
         finally
         {
-            if (own && keep && Documents.HasSymbols(document.Id)) Keep(tab.Doc, document);
+            if (own && keep && (Documents.HasSymbols(document.Id) || Documents.HasDiagnostics(document.Id))) Keep(tab.Doc, document);
             else if (own) Documents.Withdraw(document);
             if (ownOther) Documents.Withdraw(otherDocument!);
             _running.Remove(document.Id);
@@ -529,6 +532,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     {
         Mcp.Closed(document);
         _outlineWanted.Remove(document.Id);
+        _schemaChecked.Remove(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
     }
@@ -605,17 +609,151 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         panelId.StartsWith(SymbolsPanelPrefix, StringComparison.Ordinal) && Guid.TryParseExact(panelId[SymbolsPanelPrefix.Length..], "N", out var document)
         && Documents.ResolveSymbol(pluginId, document, symbolId) is { } range && Reveal(document, range);
 
+    // ---- language services: diagnostics and completion from plugins, the schema check of the JSON plugin ----
+
+    /// <summary>A text tab of a JSON, JSONC or TOML file, which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
+    internal static bool IsSchemaFile(DocTab tab) =>
+        tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && Path.GetExtension(path).ToLowerInvariant() is ".json" or ".jsonc" or ".toml";
+
+    /// <summary>Draws the diagnostics of a document again: byte ranges of the current revision become the underlined text offsets of its tab.</summary>
+    public void DiagnosticsChanged(Guid document) => OnUi(() =>
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var marks = new List<DiagnosticMark>();
+        foreach (var d in Documents.DiagnosticsOf(document))
+            if (backend.TryToCharOffset(d.Range.Start, out int start) && backend.TryToCharOffset(d.Range.End, out int end))
+                marks.Add(new DiagnosticMark(start, end, d.Severity, d.Message));
+        surface.SetDiagnostics(marks);
+    });
+
+    private readonly record struct SchemaStatus(string? Name);
+
+    private readonly Dictionary<Guid, (long Revision, string? Name)> _schemaChecked = [];
+    private DispatcherTimer? _schemaTimer;
+    private (MainWindow Window, DocTab Tab)? _schemaWanted;
+    private bool _schemaShown;
+
+    private void ShowSchema(SchemaStatus? status)
+    {
+        if (status is not { } shown)
+        {
+            if (!_schemaShown) return;
+            _schemaShown = false;
+            Ui.SetStatus(JsonPluginId, null);
+            return;
+        }
+        _schemaShown = true;
+        Ui.SetStatus(JsonPluginId, new StatusModel(shown.Name is null ? Loc.Get(K.SchemaNone) : Loc.Get(K.SchemaName, ("name", shown.Name)), Loc.Get(K.SchemaTip)));
+    }
+
+    /// <summary>
+    /// The status bar is drawn for this tab: shows which schema the file is checked against ("no schema" when none applies) and, once the text has rested after an edit,
+    /// checks it again. Any other tab clears the status item.
+    /// </summary>
+    public void TrackSchema(MainWindow window, DocTab? tab)
+    {
+        if (tab is null || !IsSchemaFile(tab))
+        {
+            _schemaWanted = null;
+            ShowSchema(null);
+            return;
+        }
+        var document = tab.Doc.Doc;
+        bool known = _schemaChecked.TryGetValue(document.Id, out var last);
+        ShowSchema(known ? new SchemaStatus(last.Name) : null);
+        if (known && last.Revision == document.Revision)
+        {
+            _schemaWanted = null;
+            return;
+        }
+        _schemaWanted = (window, tab);
+        if (_schemaTimer is null)
+        {
+            _schemaTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SchemaCheckDebounceMilliseconds) };
+            _schemaTimer.Tick += (_, _) =>
+            {
+                _schemaTimer.Stop();
+                if (_schemaWanted is { } wanted) _ = CheckSchemaAsync(wanted.Window, wanted.Tab);
+            };
+        }
+        _schemaTimer.Stop();
+        _schemaTimer.Start();
+    }
+
+    /// <summary>
+    /// Has the JSON plugin check the file against its schema; the findings come back through the diagnostics API and are underlined, the schema name goes to the status bar.
+    /// A document with findings stays visible to plugins so they follow its edits. Does nothing for a tab that is not a schema file.
+    /// </summary>
+    internal async Task CheckSchemaAsync(MainWindow window, DocTab tab)
+    {
+        if (!IsSchemaFile(tab)) return;
+        var document = tab.Doc.Doc;
+        long revision = document.Revision;
+        var outcome = await ExecuteAsync(window, tab, JsonPluginId, JsonActivation, "JSON", SchemaCheckCommand, notify: false, background: true, keep: true);
+        if (!outcome.Started)
+        {
+            if (_schemaWanted is not null) _schemaTimer?.Start(); // a command was using the document: ask again when it is free
+            return;
+        }
+        var r = outcome.Result;
+        if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() == "stale")
+        {
+            if (r.ValueKind == JsonValueKind.Object && _schemaWanted is not null) _schemaTimer?.Start();
+            return;
+        }
+        string? name = r.GetProperty("name") is { ValueKind: JsonValueKind.String } n ? n.GetString() : null;
+        _schemaChecked[document.Id] = (revision, name);
+        if (ReferenceEquals(window.Active, tab)) ShowSchema(new SchemaStatus(name));
+        if (ReferenceEquals(tab.Doc.Doc, document) && document.Revision != revision) TrackSchema(window, tab); // typed while the plugin read
+    }
+
+    /// <summary>Whether Ctrl+J should ask plugins: the tab has a text surface (a paged tab never does) and a plugin answers, or the JSON plugin can be started for the file.</summary>
+    public bool AsksPluginsForCompletion(DocTab tab) => tab.Surface is not null && (IsSchemaFile(tab) || Documents.HasCompletionProviders);
+
+    /// <summary>
+    /// The offers of the plugins at the caret of the tab, for the revision it has now (null when no plugin answers). The document is visible to plugins only while they answer.
+    /// </summary>
+    public async Task<CompletionAnswer?> RequestCompletionAsync(DocTab tab)
+    {
+        if (tab.Surface is not { } surface) return null;
+        if (IsSchemaFile(tab)) await EnsureAsync(JsonActivation);
+        if (!Documents.HasCompletionProviders || CaretOf(surface) is not { } caret) return null;
+        var document = tab.Doc.Doc;
+        bool own = !Documents.IsExposed(document.Id);
+        if (own) Documents.Expose(document, surface.ByteSelections);
+        try { return await Documents.RequestCompletionAsync(document.Id, caret, default, tab.Doc.Language.Id); }
+        finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
+    }
+
+    /// <summary>Writes an offer of a plugin: its text and additional edits as one undo step. False when the document is not at the revision of the offer any more.</summary>
+    public bool ApplyCompletion(DocTab tab, CompletionItem item)
+    {
+        if (tab.Surface is not { } surface) return false;
+        var document = tab.Doc.Doc;
+        bool own = !Documents.IsExposed(document.Id);
+        if (own) Documents.Expose(document, surface.ByteSelections);
+        try
+        {
+            Documents.ApplyCompletion(item);
+            return true;
+        }
+        catch (NksHub.Textida.Rpc.RpcException) { return false; }
+        finally { if (own) Documents.Withdraw(document); }
+    }
+
     // ---- Emmet ----
 
     /// <summary>The abbreviation syntax (<c>html</c> or <c>css</c>) Emmet expands in a language mode; null for any other mode.</summary>
     internal static string? EmmetSyntax(string languageId) => languageId is "html" or "css" ? languageId : null;
 
     /// <summary>Starts the Emmet process when it is not running, so that it can answer the Tab key. False when it cannot run; Tab then does what it does without it.</summary>
-    private async Task<bool> EnsureEmmetAsync()
+    private Task<bool> EnsureEmmetAsync() => EnsureAsync(EmmetActivation);
+
+    private async Task<bool> EnsureAsync(string activation)
     {
         try
         {
-            await _host.ActivateAsync(EmmetActivation);
+            await _host.ActivateAsync(activation);
             return true;
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException) { return false; }

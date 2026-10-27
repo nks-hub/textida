@@ -37,6 +37,7 @@ public class McpServerTests
         public void SetClipboard(Guid document, string text, string? html) { }
         public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, NksHub.Textida.Core.Encodings.TextCodec codec) => throw new NotSupportedException();
         public bool OpenDiff(DiffRequest request) => false;
+        public void DiagnosticsChanged(Guid document) { }
     }
 
     /// <summary>The user: sees each proposal and answers when the test says so.</summary>
@@ -108,7 +109,7 @@ public class McpServerTests
                 TabTimeout = TimeSpan.FromMilliseconds(500),
                 MaxSecretScanBytes = 1 << 20,
                 MaxClipboardChars = 1000,
-                MaxScanBytes = maxScanBytes, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
+                MaxScanBytes = maxScanBytes, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, owner, (_, _, _) => Task.FromResult(false), (_, _, _, _, _) => throw new NotSupportedException());
             var options = new McpServerOptions
             {

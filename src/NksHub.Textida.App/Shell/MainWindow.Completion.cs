@@ -6,6 +6,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Completion;
 using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Matching;
 
@@ -138,8 +139,29 @@ internal sealed partial class MainWindow
     internal CommandOutcome ShowCompletion()
     {
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
+        if (Active is { } tab && _app.Plugins.AsksPluginsForCompletion(tab)) _ = ShowCompletionWithPluginsAsync(surface, tab);
+        else ShowCompletionRows(surface, []);
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Asks the plugins for their offers first and lists them in the same popup as the words and clips. What a plugin answered for another revision than the one the document
+    /// has now is not listed, and neither is anything when the window or the document changed while the plugins answered.
+    /// </summary>
+    private async Task ShowCompletionWithPluginsAsync(EditorSurface surface, DocTab tab)
+    {
+        var document = tab.Doc.Doc;
+        var answer = await _app.Plugins.RequestCompletionAsync(tab);
+        if (!ReferenceEquals(ActiveEditor, surface) || !ReferenceEquals(tab.Doc.Doc, document)) return;
+        ShowCompletionRows(surface, answer is { Stale: false } && answer.Revision == document.Revision ? answer.Items : []);
+    }
+
+    private void ShowCompletionRows(EditorSurface surface, IReadOnlyList<CompletionItem> pluginItems)
+    {
         var offer = GatherCompletion();
         var rows = new List<QuickRow>();
+        rows.AddRange(pluginItems.Select(item => new QuickRow(
+            item.Label, item.Detail ?? item.Kind ?? item.PluginId, FirstLines(item.Text, 1), null, true, null, item.Label, () => ApplyPluginCompletion(surface, item))));
         if (offer is not null)
         {
             ReportLibraryProblems();
@@ -149,7 +171,13 @@ internal sealed partial class MainWindow
                 () => _ = InsertClipAsync(e, replaceWord: true), () => PreviewOf(e.Clip.Text, e.Clip.Fields))));
         }
         ShowChoice(Loc.Get(K.CompleteWatermark), Loc.Get(K.A11yComplete), rows, emptyText: Loc.Get(K.CompleteEmpty));
-        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Writes the offer of a plugin: the text and its additional edits elsewhere in the file as one undo step. Refused when the document moved on since the plugin answered.</summary>
+    private void ApplyPluginCompletion(EditorSurface surface, CompletionItem item)
+    {
+        if (!ReferenceEquals(ActiveEditor, surface) || surface.IsReadOnly) return;
+        _app.Plugins.ApplyCompletion(Active!, item);
     }
 
     /// <summary>The selections with every empty one stretched back over the word in front of its caret (not into the selection before it).</summary>

@@ -91,7 +91,7 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
             .Where(n => !existing.Contains(n)).Distinct().Order(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>The schema with its <c>$ref</c> and <c>allOf</c> parts folded in, as a list of schemas to read <c>properties</c> from.</summary>
+    /// <summary>The schema with its <c>$ref</c>, <c>allOf</c>, <c>oneOf</c> and <c>anyOf</c> parts folded in, as a list of schemas to read <c>properties</c> from.</summary>
     private static IEnumerable<DataNode> Flatten(DataNode root, DataNode s, int depth)
     {
         if (depth < 0 || s.Kind != DataKind.Object) yield break;
@@ -102,8 +102,9 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
             foreach (var part in r.Text[2..].Split('/')) t = t?.Get(part);
             if (t is not null) foreach (var x in Flatten(root, t, depth - 1)) yield return x;
         }
-        if (s.Get("allOf") is { Kind: DataKind.Array } all)
-            foreach (var a in all.Items) foreach (var x in Flatten(root, a, depth - 1)) yield return x;
+        foreach (var combinator in new[] { "allOf", "oneOf", "anyOf" }) // alternatives are all candidates for a suggestion
+            if (s.Get(combinator) is { Kind: DataKind.Array } parts)
+                foreach (var a in parts.Items) foreach (var x in Flatten(root, a, depth - 1)) yield return x;
     }
 }
 

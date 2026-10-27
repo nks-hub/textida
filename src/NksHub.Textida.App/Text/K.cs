@@ -824,6 +824,9 @@ public static class K
     public const string KeyPathTip = "key.path.tip";
     public const string KeyPathNone = "key.path.none";
     public const string KeyPathCopied = "key.path.copied";
+    public const string SchemaNone = "schema.none";
+    public const string SchemaName = "schema.name";
+    public const string SchemaTip = "schema.tip";
     public const string KeysCompareHeader = "keys.compare.header";
     public const string KeysCompareSyntax = "keys.compare.syntax";
     public const string KeysCompareNoneMissing = "keys.compare.none";

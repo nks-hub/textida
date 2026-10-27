@@ -522,4 +522,95 @@ public class PluginUiTests : IDisposable
         _w.ApplyPlan();
         await Until(() => Utf8(tab) == "[\n  1,\n  2\n]", "the applied preview");
     }
+
+    // ---- P8.4.1, P8.4.2, P8.7.1: diagnostics, completion and the schema check ----
+
+    private async Task<TextBlock> StatusItemAsync(Func<string, bool> match, string what)
+    {
+        TextBlock? found = null;
+        await Until(() => (found = ((Panel)_w.PluginStatusHost).Children.OfType<TextBlock>().FirstOrDefault(t => match(t.Text ?? ""))) is not null, what);
+        return found!;
+    }
+
+    [AvaloniaFact]
+    public async Task Diagnostics_are_underlined_follow_the_text_and_go_when_their_text_is_changed()
+    {
+        var tab = await OpenForPluginAsync("d.txt", "é1\nf2\nend\n");
+        var surface = tab.Editor!;
+        var published = await Pump(Editor(DocumentMethods.DiagnosticsPublish, DocParams(tab, "\"source\":\"t\",\"diagnostics\":[{\"start\":4,\"end\":6,\"severity\":\"warning\",\"message\":\"two\"}]")));
+        Assert.Equal(1, published.GetProperty("accepted").GetInt32());
+        var mark = Assert.Single(surface.Diagnostics);
+        Assert.Equal((3, 5, DiagnosticSeverity.Warning, "two"), (mark.Start, mark.End, mark.Severity, mark.Message)); // bytes 4..6 are characters 3..5 after the two-byte "é"
+        Assert.Equal(mark, surface.DiagnosticAt(4));
+        Assert.Null(surface.DiagnosticAt(5));
+
+        tab.Doc.Doc.Insert(0, Bytes("12"));
+        Assert.Equal((5, 7), (surface.Diagnostics[0].Start, surface.Diagnostics[0].End));
+        Assert.True(tab.Doc.Doc.Replace(new ByteRange(7, 8), Bytes("Q")).Applied);
+        Assert.Empty(surface.Diagnostics);
+    }
+
+    [AvaloniaFact]
+    public async Task A_plugin_offer_is_listed_with_the_words_and_applied_with_its_edit_elsewhere_as_one_undo_step_and_an_older_answer_is_not_listed()
+    {
+        var tab = await OpenForPluginAsync("c.txt", "é1\nf2\nfoot\n");
+        await Pump(Editor(DocumentMethods.CompletionRegister, "{\"enabled\":true}"));
+        var doc = tab.Doc.Doc;
+        tab.Editor!.SetSelections([Sel.At(4)]); // after "f", byte 5
+        string Answer(long revision) => "{\"answer\":{\"revision\":" + revision + ",\"items\":[{\"label\":\"foo\",\"detail\":\"fn\",\"start\":4,\"end\":5,\"text\":\"foo\",\"edits\":[{\"start\":0,\"end\":0,\"text\":\"use x;\\n\"}]}]}}";
+
+        await Pump(Host.CallAsync("p", "setCompletion", Bytes(Answer(doc.Revision - 1))));
+        _w.ShowCompletion();
+        await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the list with the words");
+        Assert.DoesNotContain(_w.QuickResults, r => r.Title == "foo" && r.Category == "fn");
+        Assert.Contains(_w.QuickResults, r => r.Title == "foot");
+        _w.ClosePalette();
+
+        await Pump(Host.CallAsync("p", "setCompletion", Bytes(Answer(doc.Revision))));
+        _w.ShowCompletion();
+        await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the list with the offer");
+        Assert.Equal("foo", _w.QuickResults[0].Title); // the plugin offer comes first, in the same list as the words
+        Assert.Contains(_w.QuickResults, r => r.Title == "foot");
+        var depth = doc.UndoDepth;
+        _w.RunPaletteSelection();
+        Assert.Equal("use x;\né1\nfoo2\nfoot\n", Utf8(tab));
+        Assert.Equal(depth + 1, doc.UndoDepth);
+
+        _w.Undo();
+        Assert.Equal("é1\nf2\nfoot\n", Utf8(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task The_schema_check_underlines_an_error_in_package_json_names_the_schema_in_the_status_bar_and_completes_keys()
+    {
+        var tab = _w.OpenFile(_temp.File("package.json", "{ \"name\": \"demo\", \"ve\": 1, \"private\": \"yes\" }"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab); // the status bar asks once the text has rested; a command that is using the document makes it ask again
+
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline");
+        var mark = Assert.Single(tab.Editor!.Diagnostics);
+        Assert.Equal("\"yes\"", tab.Editor.Document.GetText(mark.Start, mark.End - mark.Start));
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "package.json")), "the schema in the status bar");
+
+        // key completion from the schema, in the same list as the words
+        tab.Editor.SetSelections([Sel.At(tab.Editor.Document.Text.IndexOf("\"ve", StringComparison.Ordinal) + 3)]);
+        _w.ShowCompletion();
+        await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the list with the schema keys");
+        Assert.Contains(_w.QuickResults, r => r.Title == "version");
+        _w.ClosePalette();
+    }
+
+    [AvaloniaFact]
+    public async Task A_json_file_without_a_schema_says_so_and_a_plain_text_tab_is_not_a_schema_file()
+    {
+        var tab = _w.OpenFile(_temp.File("notes.json", "{ \"a\": 1 }"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab);
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaNone), "no schema in the status bar");
+        Assert.Empty(tab.Editor!.Diagnostics);
+
+        var plain = _w.OpenFile(_temp.File("n.txt", "x"), null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(PluginServices.IsSchemaFile(plain));
+    }
 }
