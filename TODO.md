@@ -2134,6 +2134,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Rozšíření spouštěče z P4.3.3: typované proměnné cest a textu, společný editor definic, příkazový řádek s výstupem. Příkaz se ukáže předem. Druhý spouštěč nevznikne. Plný terminál je F159 (později).
   - **Funkce:** F124, F126, F116, F089
   - **Hotovo, když:** definice nástroje se upraví v editoru definic a spustí se se stejnými argumenty jako ze spouštěče P4.3.3; nástroj z cizí konfigurace se poprvé spustí až po potvrzení příkazu a adresáře; typovaná proměnná se špatným typem se odmítne před spuštěním.
+  - **Stav 27. 10. 2026:** částečně: typované proměnné `text`/`path` (špatný typ odmítnut před spuštěním), editor definic „Upravit definice nástrojů…“ zapisuje `tools.json` se stejným rozložením argumentů jako spouštěč (test shody), nástroje z `.textida/tools.json` projektu až po potvrzení příkazu a adresáře (otisk definice, změna se zeptá znovu), příkaz se ukáže předem. Uložení z editoru zahodí komentáře v `tools.json`; prázdný argument v editoru napsat nejde. Výchozí timeout a kódování výstupu otevřené. UI neověřeno spuštěním.
   - **Závisí na:** P4.3.3, P4.1.3, P3.6.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
@@ -2141,6 +2142,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Seznam cílů z otevřeného Makefile, spuštění přes F124 v okně výstupu, odkazy na chyby přes F125.
   - **Funkce:** F124
   - **Hotovo, když:** cíl vybraný ze seznamu se spustí a chyba ve výstupu skočí do souboru.
+  - **Stav 27. 10. 2026:** částečně: „Spustit cíl Makefile…“ vypíše cíle z textu karty, spustí `make -f soubor cíl` přes spouštěč, chybový řádek (`soubor:řádek:sloupec:`, `Makefile:7:`) skočí do souboru; test přes ToolEcho. Se skutečným `make` neověřeno; potvrzení se váže na příkaz, ne na obsah Makefile.
   - **Závisí na:** P8.2.1, P4.3.1
   - **Odhad:** 0,5 ČT
   - **Umístění:** jádro
@@ -2161,6 +2163,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** API v1 diagnostiku, doplňování ani workspace edit nemá (R02). Tři samostatné kontrakty: diagnostika (tady), doplňování (P8.4.2) a workspace edit (P8.4.3). Kreslí a ověřuje jádro. Díky tomu jsou LSP, Git a schémata vestavěné pluginy. Publikace diagnostiky s dokumentem, revizí, zdrojem, rozsahy a závažností.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací plugin publikuje diagnostiku, která se vykreslí jako podtržení a zmizí po nové revizi; diagnostika pro starší revizi se přepočte, nebo zahodí.
+  - **Stav 27. 10. 2026:** částečně: `diagnostics/publish` (zdroj, rozsahy v bajtech, závažnost); diagnostika starší revize se přepočte přes log změn, jinak zahodí; vlnovka s hláškou po najetí; stránkované soubory ji nedostanou. Testy v Rpc a App. Debounce a limit počtu diagnostik jsou placeholdery. Vykreslení neověřeno spuštěním aplikace.
   - **Závisí na:** P3b.3.1, P2.5.2
   - **Odhad:** 3–5 ČT za P8.4.1–P8.4.3
   - **Umístění:** jádro
@@ -2168,6 +2171,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Nabídka doplnění od pluginu s revizí, dodatečnými úpravami (import, `use`) a zrušením zastaralé odpovědi.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací plugin nabídne doplnění s dodatečnou úpravou jinde v souboru a obě se použijí jako jeden krok undo; odpověď pro starší revizi se nezobrazí.
+  - **Stav 27. 10. 2026:** částečně: `completion/request` s revizí a dodatečnými úpravami, použití jedním undo, odpověď pro jinou revizi se nezobrazí, položky pluginu ve stejném okně Ctrl+J jako slova a klipy (testy). Čekání na odpověď a limity položek jsou placeholdery.
   - **Závisí na:** P8.4.1
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
@@ -2242,7 +2246,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Mapování schématu (JSON Schema Store) na soubor, složku nebo masku, kontrola a doplňování. Přibalená schémata běžných konfigurací, stahování jen po svolení a jedním přepínačem vypnutelné. TOML a soubory bez přípony podle jména. Dialekt podle souboru (striktní JSON, JSONC).
   - **Funkce:** F181
   - **Hotovo, když:** chyba v `package.json` proti schématu se podtrhne; doplňování klíčů podle schématu projde přes API doplňování (P8.4.2) a odpověď pro starší revizi se nezobrazí; každý přibalený formát (JSON, JSONC, YAML, TOML) má test platného souboru, syntaktické chyby a chyby proti schématu; bez svolení editor schéma nestáhne (síťový test PR.6.4); stavový řádek ukáže „bez schématu / schéma X“.
-  - **Stav 27. 10. 2026:** částečně: engine v pluginu Json (`Schema/`): čtečky JSON, JSONC, TOML s offsety, validátor podmnožiny JSON Schema (typy, enum, required, properties, items, oneOf/anyOf/allOf, if/then, lokální $ref, pattern s timeoutem), katalog s přibalenými `package.json`, `Cargo.toml` a nastavením Textidy, mapování podle souboru/složky/masky, doplňování klíčů; 16 testů (platný soubor, syntaktická chyba, chyba proti schématu pro JSON, JSONC, TOML). Chybí: podtržení a doplňování v editoru (čeká na P8.4.1/P8.4.2), YAML (parser v repu není), stahování schémat, stavový řádek, lokalizace hlášek. Limity hloubky a timeoutu regexu otevřené.
+  - **Stav 27. 10. 2026:** částečně: engine v pluginu Json (`Schema/`): čtečky JSON, JSONC, TOML s offsety, validátor podmnožiny JSON Schema (typy, enum, required, properties, items, oneOf/anyOf/allOf, if/then, lokální $ref, pattern s timeoutem), katalog s přibalenými `package.json`, `Cargo.toml` a nastavením Textidy, mapování podle souboru/složky/masky, doplňování klíčů; 16 testů (platný soubor, syntaktická chyba, chyba proti schématu pro JSON, JSONC, TOML). Přes P8.4.1/P8.4.2 se chyba v `package.json` podtrhne, klíče se doplňují ze schématu (JSON i TOML), stavový řádek ukazuje „bez schématu / schéma X“ ve 4 jazycích. Chybí: YAML (parser v repu není), stahování schémat, lokalizace hlášek validátoru, doplnění v prázdné TOML tabulce. Limity hloubky a timeoutu regexu otevřené.
   - **Závisí na:** P8.4.1, P8.4.2
   - **Odhad:** F181 2–4 ČT (matice); TOML a další schémata 0,5–1 ČT
   - **Umístění:** vestavěný plugin, schémata jako data
