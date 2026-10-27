@@ -11,12 +11,12 @@ public sealed class PagedSnapshot : IByteSnapshot
 {
     private readonly Piece[] _pieces;
     private readonly long[] _ends;
-    private byte[]? _add;
+    private AddBuffer? _add;
     private MappedFile.SnapshotLease? _source;
     private byte[]? _copy;
     private readonly object _gate = new();
 
-    internal PagedSnapshot(Piece[] pieces, byte[] add, MappedFile file)
+    internal PagedSnapshot(Piece[] pieces, AddBuffer add, MappedFile file)
     {
         _pieces = pieces;
         _add = add;
@@ -50,7 +50,7 @@ public sealed class PagedSnapshot : IByteSnapshot
                 int take = (int)Math.Min(p.Length - skip, destination.Length - done);
                 if (p.Repeated) p.CopyRepeated(skip, destination.Slice(done, take));
                 else if (p.Original) _source!.Read(p.Start + skip, destination.Slice(done, take));
-                else _add.AsSpan((int)(p.Start + skip), take).CopyTo(destination[done..]);
+                else _add!.Read(p.Start + skip, destination.Slice(done, take));
                 done += take;
                 i++;
             }
