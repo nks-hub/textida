@@ -862,7 +862,7 @@ commands: nks.tools.lint
 3. Um nach jedem Speichern zu prüfen, schalten Sie unter Datei, Aktionen beim Speichern „Mit PHPStan prüfen“ (oder den anderen Linter) ein oder schreiben {"kind": "lint", "id": "phpstan"} in saveActions.json. Ein Linter läuft nie bei einer Änderung. Die Kennungen sind phpstan, psalm, golangci-lint, clippy, clang-tidy und rubocop-lint.
 - Das Programm wird in vendor/bin, node_modules/.bin, .venv und PATH gesucht; es wird nichts heruntergeladen. Beim ersten Lauf müssen Sie den Befehl bestätigen.
 - Es ist kein Zeitlimit voreingestellt: Fehlt lintTimeoutSeconds in saveActions.json, läuft kein Linter und die Statuszeile sagt es. Ein Linter, der das Limit überschreitet, wird gestoppt und gemeldet; der Editor bleibt dabei bedienbar.
-- PHPStan meldet eine Zeile und keine Spalte, daher wird der Text der ganzen Zeile unterstrichen. Ein Programm, das eine Batchdatei ist (phpstan.bat), wird wie bei jedem Werkzeug abgelehnt.
+- PHPStan meldet eine Zeile und keine Spalte, daher wird der Text der ganzen Zeile unterstrichen. Ein Programm, das eine Batchdatei ist (phpstan.bat), wird wie bei jedem Werkzeug über cmd.exe gestartet.
 
 ## [file.saveActions] Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen
 commands: nks.file.saveActions
@@ -1228,7 +1228,7 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Werkzeuge, Agent starten... startet einen Coding-Agenten, der das Agent Client Protocol (ACP) spricht: Gemini CLI, Codex, Claude, Junie, GitHub Copilot oder OpenCode. Der Dialog zeigt den genauen Befehl und den Ordner, in dem er läuft; ohne Bestätigung startet nichts. Der Agent muss installiert und im PATH zu finden sein. Ein Programm, das nur als Stapeldatei (.cmd, .bat) vorliegt, wird nicht gestartet.
+1. Werkzeuge, Agent starten... startet einen Coding-Agenten, der das Agent Client Protocol (ACP) spricht: Gemini CLI, Codex, Claude, Junie, GitHub Copilot oder OpenCode. Der Dialog zeigt den genauen Befehl und den Ordner, in dem er läuft; ohne Bestätigung startet nichts. Der Agent muss installiert und im PATH zu finden sein. Eine Stapeldatei (.cmd, .bat), die übliche Form eines über npm installierten Agenten unter Windows, wird über cmd.exe gestartet, und jedes Argument wird dafür in Anführungszeichen gesetzt.
 2. Der Agent-Bereich unter dem Editor zeigt die Unterhaltung. Nachricht tippen und Eingabe drücken. Zug des Agenten abbrechen (oder die Schaltfläche Zug abbrechen) schickt dem Agenten den Abbruch und beantwortet seine offenen Berechtigungsfragen mit „abgebrochen“; Agent beenden beendet den Prozess.
 3. Der Agent liest nur die Tabs, die Sie teilen: Tab mit Agent teilen. Er bekommt den Text, wie er im Editor steht, samt ungespeicherten Änderungen; Werte von .env-Dateien bleiben verborgen. Beim Beenden des Agenten werden alle geteilten Tabs zurückgenommen.
 4. Schreibt der Agent in eine geteilte Datei, erscheint die Änderung abschnittsweise in der Änderungsprüfung (Tab Suchergebnisse) und wird erst geschrieben, wenn Sie sie anwenden. Lehnen Sie sie ab, bekommt der Agent einen Fehler. Eine Datei, die nicht geteilt oder nicht geöffnet ist, wird nicht über den Editor geschrieben.
@@ -1243,7 +1243,7 @@ Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Text
 3. Nach Starten führt Textida das Programm aus, fragt es nach seinen Tools (MCP-Versionen 2026-07-28 und 2025-11-25) und beendet es. Das Ergebnis nennt die Zahl der Tools oder den Fehler und die letzten Zeilen, die das Programm auf die Fehlerausgabe geschrieben hat. Dieselben Zeilen stehen in der Ausgabe Aufgaben.
 4. Mit Eintrag für einen anderen Agenten umwandeln erscheint der Eintrag im Format dieses Agenten in einem neuen Tab. Der Ausschnitt wird zuerst gegen dieses Format geprüft. Werte von Variablen und Headern sind durch *** ersetzt; ergänzen Sie sie, bevor Sie den Ausschnitt in die Datei dieses Agenten einfügen.
 - ${NAME} in einem Befehl, Argument oder einer Variable wird aus der Umgebung von Textida ersetzt, ${NAME:-text} liefert einen Standardwert. Ein dort nicht gesetzter Name wird in der Windows-Anmeldeinformationsverwaltung unter textida:mcp:env:NAME gesucht. Ein Name ohne Wert ist ein Fehler, und nichts startet.
-- Ausprobieren lässt sich nur ein Server, der per Befehl gestartet wird. Ein Server mit Adresse wird aufgelistet und lässt sich umwandeln, wird aber nicht gestartet. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, weil Textida keine Batch-Dateien startet.
+- Ausprobieren lässt sich nur ein Server, der per Befehl gestartet wird. Ein Server mit Adresse wird aufgelistet und lässt sich umwandeln, wird aber nicht gestartet. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, sodass kein cmd.exe zwischen Editor und Server steht. Jede andere Batchdatei wird über cmd.exe gestartet.
 - Geheimnisse sind in der Liste, im Dialog, in der Ausgabe und in den Ausschnitten verborgen, auch wenn eines in einem Argument oder in der Fehlerausgabe des Programms vorkommt. Werte unter 4 Zeichen werden im Text nicht gesucht.
 
 ## [review.external] Änderungen von außen prüfen

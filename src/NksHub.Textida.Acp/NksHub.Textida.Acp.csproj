@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
   </ItemGroup>
 
 </Project>

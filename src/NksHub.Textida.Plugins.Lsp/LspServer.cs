@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Plugins.Lsp;
@@ -60,14 +61,10 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     /// <summary>Starts the program and performs the <c>initialize</c> handshake. The process is ended when the handshake fails.</summary>
     public static async Task<LspServer> StartAsync(ServerLaunch launch, string root, LspSettings settings, Func<string, JsonElement, ValueTask> onNotification, CancellationToken ct)
     {
-        // a batch file started directly gets no cmd.exe quoting of its arguments (CVE-2024-24576)
-        if (OperatingSystem.IsWindows() && Path.GetExtension(launch.Program) is var ext
-            && (ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase))) throw new ServerStartException($"{launch.Program} is a batch file; a language server has to be started as a program.");
-        var info = new ProcessStartInfo(launch.Program)
-        {
-            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = root,
-        };
-        foreach (var argument in launch.Arguments) info.ArgumentList.Add(argument);
+        ProcessStartInfo info;
+        try { info = ProcessLaunch.CreateStartInfo(launch.Program, launch.Arguments); }
+        catch (ToolException e) { throw new ServerStartException(e.Message); }
+        (info.RedirectStandardInput, info.RedirectStandardOutput, info.RedirectStandardError, info.UseShellExecute, info.CreateNoWindow, info.WorkingDirectory) = (true, true, true, false, true, root);
         foreach (var (name, value) in launch.Environment) info.Environment[name] = value;
         Process process;
         try { process = Process.Start(info) ?? throw new ServerStartException("The process did not start."); }

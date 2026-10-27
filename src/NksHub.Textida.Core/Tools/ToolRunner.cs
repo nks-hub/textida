@@ -51,7 +51,7 @@ public static class ToolRunner
         cwd = Path.GetFullPath(cwd);
         string exe = FindExecutable(ToolVariables.Expand(spec.Executable, variables), cwd);
         var args = spec.Args.Select(a => ToolVariables.Expand(a, variables)).ToArray();
-        if (IsBatch(exe)) BatchCommandLine.Build(exe, args); // an argument cmd.exe cannot pass safely is refused here, before anything is shown or started
+        ProcessLaunch.CreateStartInfo(exe, args); // an argument cmd.exe cannot pass safely is refused here, before anything is shown or started
         return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe, cwd));
     }
 
@@ -91,9 +91,6 @@ public static class ToolRunner
         return found;
     }
 
-    /// <summary>A Windows batch file; code that starts a resolved program itself instead of through <see cref="ToolRunner"/> must refuse it, it lacks the cmd.exe quoting (CVE-2024-24576).</summary>
-    public static bool IsBatch(string exe) => OperatingSystem.IsWindows() && BatchCommandLine.IsBatchFile(exe);
-
     private static string? ExistingFile(string path)
     {
         if (OperatingSystem.IsWindows() && Path.GetExtension(path).Length == 0)
@@ -108,20 +105,15 @@ public static class ToolRunner
     /// </summary>
     public static async Task<ToolResult> RunAsync(ToolInvocation tool, Action<string> onLine, CancellationToken ct = default)
     {
-        bool batch = IsBatch(tool.Executable);
-        var info = new ProcessStartInfo(batch ? BatchCommandLine.Interpreter : tool.Executable)
-        {
-            WorkingDirectory = tool.WorkingDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        if (batch) info.Arguments = BatchCommandLine.Build(tool.Executable, tool.Args);
-        else foreach (var arg in tool.Args) info.ArgumentList.Add(arg);
+        var info = ProcessLaunch.CreateStartInfo(tool.Executable, tool.Args);
+        info.WorkingDirectory = tool.WorkingDirectory;
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        info.RedirectStandardInput = true;
+        info.RedirectStandardOutput = true;
+        info.RedirectStandardError = true;
+        info.StandardOutputEncoding = Encoding.UTF8;
+        info.StandardErrorEncoding = Encoding.UTF8;
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException) { throw new ToolException(e.Message); }

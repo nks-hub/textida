@@ -867,7 +867,7 @@ commands: nks.tools.lint
 3. Chcete-li kontrolovat po každém uložení, zapněte v Soubor, Akce při uložení položku „Zkontrolovat nástrojem PHPStan“ (nebo jiného linteru), nebo napište do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter se nikdy nespouští při změně. Identifikátory jsou phpstan, psalm, golangci-lint, clippy, clang-tidy a rubocop-lint.
 - Program se hledá ve vendor/bin, node_modules/.bin, .venv a v PATH; nic se nestahuje. První spuštění vás požádá o potvrzení příkazu.
 - Žádný časový limit není předvolený: dokud v saveActions.json chybí lintTimeoutSeconds, žádný linter neběží a stavový řádek to řekne. Linter, který limit překročí, se zastaví a ohlásí; editor mezitím zůstává použitelný.
-- PHPStan hlásí řádek a žádný sloupec, proto se podtrhne text celého řádku. Program, který je dávkový soubor (phpstan.bat), se odmítne, stejně jako u každého nástroje.
+- PHPStan hlásí řádek a žádný sloupec, proto se podtrhne text celého řádku. Program, který je dávkový soubor (phpstan.bat), se spustí přes cmd.exe, stejně jako u každého nástroje.
 
 ## [file.saveActions] Akce při uložení: formátovat, spustit nástroj, nahrát
 commands: nks.file.saveActions
@@ -1233,7 +1233,7 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 
 ## [tools.agent] Agent přes ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Nástroje, Spustit agenta... spustí programovacího agenta, který mluví Agent Client Protocolem (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot nebo OpenCode. Dialog ukáže přesný příkaz a složku, ve které poběží; bez potvrzení se nespustí nic. Agent musí být nainstalován a nalezen v PATH. Program, který existuje jen jako dávkový soubor (.cmd, .bat), se nespouští.
+1. Nástroje, Spustit agenta... spustí programovacího agenta, který mluví Agent Client Protocolem (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot nebo OpenCode. Dialog ukáže přesný příkaz a složku, ve které poběží; bez potvrzení se nespustí nic. Agent musí být nainstalován a nalezen v PATH. Dávkový soubor (.cmd, .bat), obvyklá podoba agenta nainstalovaného přes npm na Windows, se spouští přes cmd.exe a každý argument se pro něj uzavře do uvozovek.
 2. Panel agenta pod editorem ukazuje konverzaci. Napište zprávu a stiskněte Enter. Zrušit tah agenta (nebo tlačítko Zrušit tah) pošle agentovi zrušení a jeho otevřené dotazy na oprávnění zodpoví „zrušeno“; Zastavit agenta ukončí proces.
 3. Agent čte jen karty, které sdílíte: Sdílet kartu s agentem. Dostane text tak, jak je v editoru, včetně neuložených změn; hodnoty souborů .env zůstanou skryté. Zastavením agenta se všechny sdílené karty vezmou zpět.
 4. Když agent zapíše do sdíleného souboru, změna se ukáže po úsecích v kontrole změn (karta Výsledky hledání) a zapíše se, až ji použijete. Když ji odmítnete, agent dostane chybu. Soubor, který není sdílený nebo otevřený, se přes editor nezapisuje.
@@ -1248,7 +1248,7 @@ Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agent
 3. Po Spustit Textida program spustí, zeptá se ho na nástroje (MCP verze 2026-07-28 a 2025-11-25) a ukončí ho. Výsledek řekne, kolik nástrojů server nabízí, nebo ukáže chybu a poslední řádky, které program napsal na chybový výstup. Stejné řádky jsou ve výstupu Úlohy.
 4. Volba Převést záznam pro jiného agenta otevře záznam ve formátu toho agenta v nové kartě. Úryvek se nejdřív zkontroluje podle toho formátu. Hodnoty proměnných a hlaviček jsou nahrazené ***, doplňte je, než úryvek vložíte do souboru toho agenta.
 - ${NAME} v příkazu, argumentu nebo proměnné se nahradí z prostředí Textidy, ${NAME:-text} dá výchozí hodnotu. Jméno, které tam není, se hledá ve Správci pověření Windows pod textida:mcp:env:NAME. Jméno bez hodnoty je chyba a nic se nespustí.
-- Vyzkoušet jde jen server spouštěný příkazem. Server s adresou se v seznamu ukáže a jde převést, ale nespouští se. npx a npm se spouštějí jako node se skriptem zástupce Node.js, protože Textida nespouští dávkové soubory.
+- Vyzkoušet jde jen server spouštěný příkazem. Server s adresou se v seznamu ukáže a jde převést, ale nespouští se. npx a npm se spouštějí jako node se skriptem zástupce Node.js, takže mezi editorem a serverem nestojí cmd.exe. Jiný dávkový soubor se spouští přes cmd.exe.
 - Tajné hodnoty jsou skryté v seznamu, v okně, ve výstupu i v úryvcích, také když se objeví uvnitř argumentu nebo v chybovém výstupu programu. Hodnoty kratší než 4 znaky se v textu nehledají.
 
 ## [review.external] Kontrola změn zvenku

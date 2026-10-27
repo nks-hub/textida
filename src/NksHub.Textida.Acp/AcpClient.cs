@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Acp;
@@ -25,22 +26,16 @@ public sealed record AcpOptions(RpcLimits Limits, TimeSpan InitializeTimeout, Ti
 public sealed record AcpLaunch(string Executable, IReadOnlyList<string> Args, string WorkingDirectory)
 {
     /// <summary>
-    /// Finds a program by name in PATH. Batch files (<c>.cmd</c>, <c>.bat</c>) are not started here, because their command line is parsed by the shell; the reason is returned instead.
+    /// Finds a program by name in PATH. On Windows a batch file (<c>.cmd</c>, <c>.bat</c>, the shape of the npm shims of most adapters) is found too; it is started through cmd.exe by <see cref="ProcessLaunch"/>.
     /// </summary>
     public static (string? Path, string? Problem) Find(string command, string? searchPath = null)
     {
         if (Path.IsPathRooted(command)) return File.Exists(command) ? (command, null) : (null, $"'{command}' does not exist.");
-        string[] suffixes = OperatingSystem.IsWindows() ? [".exe", ".com"] : [""];
-        string[] batch = OperatingSystem.IsWindows() ? [".cmd", ".bat"] : [];
-        string? batchFound = null;
+        string[] suffixes = OperatingSystem.IsWindows() ? [".exe", ".com", ".cmd", ".bat"] : [""];
         foreach (var folder in (searchPath ?? Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
             foreach (var suffix in suffixes)
                 if (Path.Combine(folder, command + suffix) is var candidate && File.Exists(candidate)) return (candidate, null);
-            foreach (var suffix in batch)
-                if (batchFound is null && Path.Combine(folder, command + suffix) is var candidate && File.Exists(candidate)) batchFound = candidate;
-        }
-        return batchFound is null ? (null, $"'{command}' was not found in PATH.") : (null, $"'{command}' is a batch file ({batchFound}); batch files are not started by the agent client.");
+        return (null, $"'{command}' was not found in PATH.");
     }
 }
 
@@ -162,17 +157,16 @@ public sealed class AcpClient : IAsyncDisposable
     /// <summary>Starts the agent and completes <c>initialize</c>. Throws <see cref="AcpException"/> with a reason the user can read.</summary>
     public static async Task<AcpClient> StartAsync(AcpLaunch launch, AcpOptions options, IAcpHost host, Action<string>? onStderr = null, CancellationToken ct = default)
     {
-        var info = new ProcessStartInfo(launch.Executable)
-        {
-            WorkingDirectory = launch.WorkingDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardErrorEncoding = new UTF8Encoding(false),
-        };
-        foreach (var arg in launch.Args) info.ArgumentList.Add(arg);
+        ProcessStartInfo info;
+        try { info = ProcessLaunch.CreateStartInfo(launch.Executable, launch.Args); }
+        catch (ToolException e) { throw new AcpException(e.Message); }
+        info.WorkingDirectory = launch.WorkingDirectory;
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        info.RedirectStandardInput = true;
+        info.RedirectStandardOutput = true;
+        info.RedirectStandardError = true;
+        info.StandardErrorEncoding = new UTF8Encoding(false);
         var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)

@@ -13,6 +13,28 @@ public sealed class McpClientTests
         new RpcLimits(MaxMessageBytes: 1 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 10_000, MaxSessionBytes: 8L << 20, MaxOutgoingQueueBytes: 8L << 20),
         HandshakeTimeout: TimeSpan.FromSeconds(30), ExitGrace: TimeSpan.FromSeconds(5), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1");
 
+    [Fact]
+    public async Task A_server_that_is_a_batch_file_gets_every_argument_back_and_a_line_break_is_refused_before_the_start()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var dir = Directory.CreateTempSubdirectory("mcp-batch-").FullName;
+        try
+        {
+            string output = Path.Combine(dir, "args.txt");
+            string bat = Path.Combine(dir, "server.cmd");
+            File.WriteAllText(bat, $"@echo off\r\n\"{DotNet}\" \"{EchoDll}\" %* > \"{output}\"\r\n");
+            string[] args = ["a&b", "%PATH%", "say \"hi\"", "c^d", "x y", "100%", "back\\"];
+            // the batch file ends without speaking MCP, so the start fails after the arguments were written
+            await Assert.ThrowsAnyAsync<McpClientException>(() => McpClient.StartAsync(new McpLaunch(bat, args, dir, new Dictionary<string, string>(), []), Options));
+            Assert.Equal(args.Select(a => "[" + a + "]"), File.ReadAllLines(output));
+            File.Delete(output);
+            var refused = await Assert.ThrowsAsync<McpClientException>(() => McpClient.StartAsync(new McpLaunch(bat, ["fine", "one\ntwo"], dir, new Dictionary<string, string>(), []), Options));
+            Assert.Contains("control character", refused.Message);
+            Assert.False(File.Exists(output));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     private sealed class Log
     {
         private readonly List<string> _lines = [];

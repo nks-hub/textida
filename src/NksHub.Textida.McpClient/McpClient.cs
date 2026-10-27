@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.McpClient;
@@ -131,17 +132,16 @@ public sealed class McpClient : IAsyncDisposable
     /// <summary>Starts the server and completes the handshake. Throws <see cref="McpClientException"/> (or <see cref="McpServerExitedException"/>) with a reason the user can read.</summary>
     public static async Task<McpClient> StartAsync(McpLaunch launch, McpClientOptions options, Action<string>? onStderr = null, CancellationToken ct = default)
     {
-        var info = new ProcessStartInfo(launch.Executable)
-        {
-            WorkingDirectory = launch.WorkingDirectory,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardErrorEncoding = new UTF8Encoding(false),
-        };
-        foreach (var arg in launch.Args) info.ArgumentList.Add(arg);
+        ProcessStartInfo info;
+        try { info = ProcessLaunch.CreateStartInfo(launch.Executable, launch.Args); }
+        catch (ToolException e) { throw new McpClientException(launch.Mask(e.Message)); }
+        info.WorkingDirectory = launch.WorkingDirectory;
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        info.RedirectStandardInput = true;
+        info.RedirectStandardOutput = true;
+        info.RedirectStandardError = true;
+        info.StandardErrorEncoding = new UTF8Encoding(false);
         foreach (var (name, value) in launch.Env) info.Environment[name] = value;
         var process = new Process { StartInfo = info };
         try { process.Start(); }

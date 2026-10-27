@@ -249,7 +249,30 @@ public class AcpClientTests
     }
 
     [Fact]
-    public void Programs_are_found_in_PATH_and_batch_files_are_refused()
+    public async Task An_agent_that_is_a_batch_file_gets_every_argument_back_and_a_line_break_is_refused_before_the_start()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var dir = Directory.CreateTempSubdirectory("acp-batch-").FullName;
+        try
+        {
+            string output = Path.Combine(dir, "args.txt");
+            string bat = Path.Combine(dir, "agent.cmd");
+            var dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+            File.WriteAllText(bat, $"@echo off\r\n\"{dotnet}\" \"{Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.ToolEcho.dll")}\" %* > \"{output}\"\r\n");
+            string[] args = ["a&b", "%PATH%", "say \"hi\"", "c^d", "x y", "100%", "back\\"];
+            // the batch file ends without speaking ACP, so the start fails after the arguments were written
+            await Assert.ThrowsAnyAsync<AcpException>(() => AcpClient.StartAsync(new AcpLaunch(bat, args, dir), Options(), new TestHost()));
+            Assert.Equal(args.Select(a => "[" + a + "]"), File.ReadAllLines(output));
+            File.Delete(output);
+            var refused = await Assert.ThrowsAsync<AcpException>(() => AcpClient.StartAsync(new AcpLaunch(bat, ["fine", "one\ntwo"], dir), Options(), new TestHost()));
+            Assert.Contains("control character", refused.Message);
+            Assert.False(File.Exists(output));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Programs_are_found_in_PATH_and_a_batch_file_is_found_after_a_program_of_the_same_folder()
     {
         var folder = Path.Combine(Path.GetTempPath(), "acp-find-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
@@ -259,7 +282,7 @@ public class AcpClientTests
             if (OperatingSystem.IsWindows())
             {
                 File.WriteAllText(Path.Combine(folder, "agent.cmd"), "@echo off");
-                Assert.Contains("batch file", AcpLaunch.Find("agent", folder).Problem);
+                Assert.Equal(Path.Combine(folder, "agent.cmd"), AcpLaunch.Find("agent", folder).Path);
                 File.WriteAllText(Path.Combine(folder, "agent.exe"), "");
                 Assert.Equal(Path.Combine(folder, "agent.exe"), AcpLaunch.Find("agent", folder).Path);
             }
