@@ -88,6 +88,7 @@ internal sealed partial class MainWindow
     {
         _outputTabs[OutputChannel.Tasks].Content = Loc.Get(K.PanelOutputTasks);
         _outputTabs[OutputChannel.Search].Content = Loc.Get(K.PanelOutputSearch);
+        _outputTabs[OutputChannel.Remote].Content = Loc.Get(K.PanelOutputRemote);
         _outputStop.Content = Loc.Get(K.PanelOutputStop);
         AutomationProperties.SetName(_outputStop, Loc.Get(K.PanelOutputStop));
         _outputClear.Content = Loc.Get(K.PanelOutputClear);
@@ -95,7 +96,7 @@ internal sealed partial class MainWindow
         _outputText.PlaceholderText = Loc.Get(K.PanelOutputEmpty);
         AutomationProperties.SetName(_outputPanel, Loc.Get(K.A11yOutputPanel));
         AutomationProperties.SetName(_outputText, Loc.Get(K.A11yOutputText));
-        foreach (var (channel, tab) in _outputTabs) AutomationProperties.SetName(tab, Loc.Get(channel == OutputChannel.Tasks ? K.A11yOutputTasks : K.A11yOutputSearch));
+        foreach (var (channel, tab) in _outputTabs) AutomationProperties.SetName(tab, Loc.Get(channel switch { OutputChannel.Tasks => K.A11yOutputTasks, OutputChannel.Search => K.A11yOutputSearch, _ => K.A11yOutputRemote }));
         AutomationProperties.SetName(_outputClear, Loc.Get(K.PanelOutputClear));
         AutomationProperties.SetName(_outputClose, Loc.Get(K.PanelOutputClose));
         if (_outputPanel.IsVisible) RefreshOutput();

@@ -68,7 +68,7 @@ internal sealed partial class PagedTextView
         public long Revision => Doc.Revision;
         public int Length { get { Ensure(); return _text.Length; } }
         public int LineCount { get { Ensure(); return _starts.Length - 1; } }
-        public bool IsReadOnly => !_owner.Indexed;
+        public bool IsReadOnly => !_owner.Indexed || _owner.ReadOnlyReason is not null;
         public bool HasFocus => _owner.IsFocused;
         public void Focus() => _owner.Focus();
 

@@ -63,6 +63,8 @@ internal sealed partial class MainWindow
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         od.HistoryProblem += result => SetStatusMessage(result.NoSpace ? Loc.Get(K.HistoryNoSpace) : Loc.Get(K.HistoryFailed, ("reason", result.Problem ?? "")));
+        AcquireLock(od);
+        if (od.Path is { } localPath) od.RemoteCopy ??= _app.Remote.Copies.FindByLocalPath(localPath);
         _app.Journal.Track(od);
         od.EnsureWatching();
         TrackEdits(od);
@@ -81,7 +83,7 @@ internal sealed partial class MainWindow
     /// <summary>With <c>files.autoSave</c> on, a named document is written to its own file now and then; off by default, and never the journal's job.</summary>
     private void ConfigureAutosave(OpenDocument od)
     {
-        bool on = _app.Workbench.Settings.GetString("files.autoSave") == "afterDelay" && od.Path is not null && !od.IsLarge;
+        bool on = _app.Workbench.Settings.GetString("files.autoSave") == "afterDelay" && od.Path is not null && !od.IsLarge && !od.LockedReadOnly;
         if (!on)
         {
             od.Autosave?.Dispose();
@@ -114,6 +116,8 @@ internal sealed partial class MainWindow
         AttachEditorMenu(tab);
         group.Add(tab, index);
         _activeGroup = group;
+        if (od.Lock is not null) ApplyLock(od);
+        if (od.RemoteCopy is not null && !od.LockedReadOnly) ShowRemoteBarOffline(tab);
         OnActiveTabChanged();
         _app.SessionChanged();
         return tab;

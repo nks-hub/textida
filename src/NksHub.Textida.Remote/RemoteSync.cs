@@ -73,7 +73,6 @@ public static class RemoteSync
 
         var stat = await client.StatAsync(copy.RemotePath, cancellation).ConfigureAwait(false);
         var revision = new RemoteRevision(stat?.Size ?? new FileInfo(copy.LocalPath).Length, stat?.ModifiedUtc, localHash);
-        options.Log?.Invoke("uploaded; the copy is now the server version");
         return new UploadOutcome(UploadStatus.Uploaded, store.Rebase(copy, revision));
     }
 
@@ -81,7 +80,8 @@ public static class RemoteSync
 
     private readonly record struct Found(WorkingCopy Copy, RemoteStat? Seen, (RemoteRevision Revision, byte[]? Content)? Conflict);
 
-    private static async Task<(RemoteRevision Revision, byte[]? Bytes)> ReadServerAsync(IRemoteClient client, string path, CancellationToken cancellation)
+    /// <summary>The server file as it is now: its revision and bytes, or <see cref="RemoteRevision.None"/> and null when it does not exist.</summary>
+    public static async Task<(RemoteRevision Revision, byte[]? Bytes)> ReadServerAsync(IRemoteClient client, string path, CancellationToken cancellation)
     {
         var stat = await client.StatAsync(path, cancellation).ConfigureAwait(false);
         if (stat is null) return (RemoteRevision.None, null);

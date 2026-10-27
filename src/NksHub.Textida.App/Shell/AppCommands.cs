@@ -62,6 +62,14 @@ internal static class AppCommands
         Fire("nks.file.reload", (w, t) => w.ReloadAsync(t));
         Do("nks.file.compareWithDisk", w => { if (w.Active is { } t) w.CompareWithDisk(t); });
         On("nks.file.history", w => w.ShowHistory());
+        On("nks.remote.open", w => w.OpenRemote());
+        On("nks.remote.connections", w => w.ShowConnections());
+        On("nks.remote.upload", w => w.UploadRemote());
+        On("nks.remote.check", w => w.CheckRemote());
+        On("nks.remote.unsent", w => w.ShowUnsent());
+        On("nks.remote.proxy", w => w.SetNetworkProxy());
+        On("nks.remote.exportConnections", w => w.ExportConnections());
+        On("nks.remote.importConnections", w => w.ImportConnections());
         On("nks.file.historyMark", w => w.MarkRevision());
         On("nks.file.historySearch", w => w.SearchHistory());
         Do("nks.app.openSettings", _ => app.OpenSettings());

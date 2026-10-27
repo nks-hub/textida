@@ -111,6 +111,14 @@ public sealed class WorkingCopyStore(string root)
         return ReadMeta(folder) is { } m ? ToCopy(folder, m) : null;
     }
 
+    /// <summary>The copy whose local file is <paramref name="localPath"/>, or null when the path is not a working copy of this store.</summary>
+    public WorkingCopy? FindByLocalPath(string localPath)
+    {
+        string full = Path.GetFullPath(localPath);
+        if (!full.StartsWith(Path.GetFullPath(Root), StringComparison.OrdinalIgnoreCase)) return null;
+        return All().FirstOrDefault(c => string.Equals(Path.GetFullPath(c.LocalPath), full, StringComparison.OrdinalIgnoreCase));
+    }
+
     public IReadOnlyList<WorkingCopy> All()
     {
         var list = new List<WorkingCopy>();
@@ -123,7 +131,7 @@ public sealed class WorkingCopyStore(string root)
     public LocalState LocalStateOf(WorkingCopy copy)
     {
         if (!File.Exists(copy.LocalPath)) return LocalState.Missing;
-        return RemoteTransfer.HashOfAsync(copy.LocalPath, default).GetAwaiter().GetResult() == copy.Base.Sha256 ? LocalState.InSync : LocalState.Unsent;
+        return RemoteTransfer.HashOf(copy.LocalPath) == copy.Base.Sha256 ? LocalState.InSync : LocalState.Unsent;
     }
 
     /// <summary>The copies with changes that were saved locally and never sent. Works offline; this is what the editor lists after a start.</summary>

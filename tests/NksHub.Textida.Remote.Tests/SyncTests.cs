@@ -130,7 +130,7 @@ public class SyncTests
         Assert.Equal(UploadStatus.NothingToSend, (await RemoteSync.UploadAsync(r.Client, store, copy, VersionCheck.Stat, null, null, default)).Status);
 
         File.WriteAllText(copy.LocalPath, "one and two");
-        var log = new List<string>();
+        var log = new List<TransferEvent>();
         var result = await RemoteSync.UploadAsync(r.Client, store, copy, VersionCheck.Stat, null, new TransferOptions { Log = log.Add }, default);
 
         Assert.Equal(UploadStatus.Uploaded, result.Status);
@@ -138,8 +138,8 @@ public class SyncTests
         Assert.Equal(["a.txt"], ServerFiles(r));
         Assert.Equal(LocalState.InSync, store.LocalStateOf(result.Copy));
         Assert.Equal(11, result.Copy.Base.Size);
-        Assert.Contains(log, l => l.StartsWith("uploading"));
-        Assert.Contains(log, l => l.StartsWith("replacing"));
+        Assert.Contains(log, l => l.Step == TransferStep.Uploading && l.Bytes == 11);
+        Assert.Contains(log, l => l.Step == TransferStep.Replacing && l.Path == "/a.txt");
         // A second upload of the same content has nothing to do.
         Assert.Equal(UploadStatus.NothingToSend, (await RemoteSync.UploadAsync(r.Client, store, result.Copy, VersionCheck.Stat, null, null, default)).Status);
     }

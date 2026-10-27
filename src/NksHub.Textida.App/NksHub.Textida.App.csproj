@@ -34,6 +34,7 @@
     <ProjectReference Include="..\NksHub.Textida.Workbench\NksHub.Textida.Workbench.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Accessibility\NksHub.Textida.Accessibility.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
     <!-- the built-in JSON formatter runs as its own process; it is built first and copied next to the app -->
     <ProjectReference Include="..\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />

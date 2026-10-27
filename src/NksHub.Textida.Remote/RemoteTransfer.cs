@@ -2,11 +2,21 @@ using System.Security.Cryptography;
 
 namespace NksHub.Textida.Remote;
 
+public enum TransferStep
+{
+    RemovingLeftover,
+    Uploading,
+    Replacing,
+}
+
+/// <summary>One step of an upload; the caller words it in the language of the user interface for the transfer log.</summary>
+public readonly record struct TransferEvent(TransferStep Step, string Path, long Bytes);
+
 /// <summary>Hooks and logging of one upload.</summary>
 public sealed class TransferOptions
 {
-    /// <summary>One line per step ("uploading", "verifying", "replacing"), for the transfer log in the output window.</summary>
-    public Action<string>? Log { get; init; }
+    /// <summary>Called at each step of the upload, for the transfer log in the output window.</summary>
+    public Action<TransferEvent>? Log { get; init; }
 
     /// <summary>
     /// Runs after the file is completely on the server under its temporary name and before it replaces the target. It may throw to stop the replacement;
@@ -37,14 +47,14 @@ public static class RemoteTransfer
         // A leftover of an earlier interrupted attempt is never resumed: its bytes were not verified.
         if (await client.StatAsync(temp, cancellation).ConfigureAwait(false) is not null)
         {
-            options.Log?.Invoke($"removing the leftover {temp}");
+            options.Log?.Invoke(new TransferEvent(TransferStep.RemovingLeftover, temp, 0));
             await client.DeleteAsync(temp, cancellation).ConfigureAwait(false);
         }
 
         bool committed = false;
         try
         {
-            options.Log?.Invoke($"uploading {size} bytes to {temp}");
+            options.Log?.Invoke(new TransferEvent(TransferStep.Uploading, temp, size));
             await using (var source = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 await client.UploadAsync(temp, source, cancellation).ConfigureAwait(false);
 
@@ -54,7 +64,7 @@ public static class RemoteTransfer
 
             if (options.BeforeCommit is { } before) await before(cancellation).ConfigureAwait(false);
 
-            options.Log?.Invoke($"replacing {remotePath}");
+            options.Log?.Invoke(new TransferEvent(TransferStep.Replacing, remotePath, size));
             await ReplaceAsync(client, temp, remotePath, cancellation).ConfigureAwait(false);
             committed = true;
         }
@@ -113,6 +123,13 @@ public static class RemoteTransfer
     {
         try { await client.DeleteAsync(path, CancellationToken.None).ConfigureAwait(false); }
         catch (RemoteException) { /* the connection is gone or the file is; RecoverAsync cleans up on the next connect */ }
+    }
+
+    /// <summary>Same as <see cref="HashOfAsync"/> without a task, for callers on the UI thread.</summary>
+    public static string HashOf(string localPath)
+    {
+        using var s = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return Convert.ToHexStringLower(SHA256.HashData(s));
     }
 
     public static async Task<string> HashOfAsync(string localPath, CancellationToken cancellation)

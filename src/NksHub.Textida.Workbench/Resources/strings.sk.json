@@ -341,5 +341,15 @@
   "cmd.compare.copyToRight": "Skopírovať rozdiel doprava",
   "cmd.compare.copyToLeft": "Skopírovať rozdiel doľava",
   "cmd.view.syncScroll": "Synchronizovať posúvanie",
-  "menu.editor.context": "Kontextová ponuka editora"
+  "menu.editor.context": "Kontextová ponuka editora",
+  "cmd.remote.open": "Otvoriť vzdialený súbor...",
+  "cmd.remote.connections": "Vzdialené pripojenia...",
+  "cmd.remote.upload": "Nahrať na server",
+  "cmd.remote.check": "Skontrolovať verziu na serveri",
+  "cmd.remote.unsent": "Neodoslané vzdialené zmeny...",
+  "cmd.remote.proxy": "Sieťový proxy...",
+  "setting.remote.versionCheck.title": "Kontrola verzie na serveri",
+  "setting.remote.versionCheck.description": "stat: veľkosť a čas zmeny (obsah sa stiahne len keď sa líšia). content: obsah zo servera sa vždy stiahne a porovná; pomalšie, pozná aj zmenu v rovnakej sekunde a s rovnakou veľkosťou.",
+  "cmd.remote.exportConnections": "Exportovať pripojenia...",
+  "cmd.remote.importConnections": "Importovať pripojenia..."
 }

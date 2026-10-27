@@ -52,7 +52,8 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         };
         try
         {
-            await client.Connect(cancellation).ConfigureAwait(false);
+            // on the pool: the certificate callback waits for the user and must never run on the caller's (UI) thread
+            await Task.Run(() => client.Connect(cancellation), cancellation).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -97,7 +98,8 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
 
     private static async Task<T> Guard<T>(Func<Task<T>> action)
     {
-        try { return await action().ConfigureAwait(false); }
+        // on the pool: the libraries are not written for a caller with a synchronization context (the UI thread)
+        try { return await Task.Run(action).ConfigureAwait(false); }
         catch (Exception e) when (e is FtpException or IOException or SocketException or TimeoutException or ObjectDisposedException)
         {
             if (e is FtpCommandException c && c.CompletionCode is { Length: > 0 } code && code[0] == '5') throw new RemoteException(RemoteError.Failed, e.Message, e);

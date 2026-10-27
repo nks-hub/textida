@@ -38,7 +38,8 @@ public sealed class SftpRemoteClient(RemoteConnection connection, string? secret
         };
         try
         {
-            await client.ConnectAsync(cancellation).ConfigureAwait(false);
+            // on the pool: the host key callback waits for the user and must never run on the caller's (UI) thread
+            await Task.Run(() => client.ConnectAsync(cancellation), cancellation).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -93,7 +94,8 @@ public sealed class SftpRemoteClient(RemoteConnection connection, string? secret
 
     private static async Task<T> Guard<T>(Func<Task<T>> action)
     {
-        try { return await action().ConfigureAwait(false); }
+        // on the pool: the libraries are not written for a caller with a synchronization context (the UI thread)
+        try { return await Task.Run(action).ConfigureAwait(false); }
         catch (SftpPathNotFoundException e) { throw new RemoteException(RemoteError.NotFound, e.Message, e); }
         catch (Exception e) when (e is SshConnectionException or SocketException or IOException or ObjectDisposedException or InvalidOperationException or SshOperationTimeoutException)
         {
