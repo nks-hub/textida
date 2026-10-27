@@ -137,7 +137,8 @@ internal sealed partial class MainWindow
     private List<QuickRow> KeyRows(string text, out string highlight, out string? emptyText)
     {
         highlight = text;
-        if (Active is not { Surface: not null } tab || PluginServices.SymbolPlugin(tab.Doc.Language.Id) is not { } plugin)
+        if (Active is not { } tab || PluginServices.SymbolPlugin(tab.Doc.Language.Id) is not { } plugin
+            || (tab.Surface is null && !(tab.Paged is not null && plugin == PluginServices.CodeExplorerPluginId)))
         {
             emptyText = Loc.Get(K.PaletteKeysNone);
             return [];

@@ -72,7 +72,10 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the Code Explorer reads per request. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int CodeExplorerChunkBytes = 1 << 20;
 
-    /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols.</summary>
+    /// <summary>Placeholder, OPEN: milliseconds one outline rule may spend on a text; past it the file gets no outline.</summary>
+    public const int CodeExplorerMatchTimeoutMilliseconds = 2000;
+
+    /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols; of a paged (large) file it reads only this many bytes from the start.</summary>
     public const int CodeExplorerMaxBytes = 4 << 20;
 
     /// <summary>Placeholder: largest range the formatters (SQL layout, HTML entities, HTML Tidy) work on; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>

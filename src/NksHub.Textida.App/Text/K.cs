@@ -844,6 +844,7 @@ public static class K
     public const string PluginSecretsTitle = "plugin.secrets.title";
     public const string PluginSecretsMessage = "plugin.secrets.message";
     public const string KeyPathTip = "key.path.tip";
+    public const string SymbolPathTip = "symbol.path.tip";
     public const string KeyPathNone = "key.path.none";
     public const string KeyPathCopied = "key.path.copied";
     public const string SchemaNone = "schema.none";

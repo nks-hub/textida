@@ -856,6 +856,7 @@
   "plugin.secrets.title": "Verborgene Werte",
   "plugin.secrets.message": "{name} liest während der Ausführung die verborgenen Werte von {file}. Zulassen?",
   "key.path.tip": "Schlüsselpfad am Cursor",
+  "symbol.path.tip": "Symbol am Cursor (aus der Codegliederung)",
   "key.path.none": "Am Cursor steht kein Schlüssel.",
   "key.path.copied": "Schlüsselpfad kopiert: {path}",
   "schema.none": "kein Schema",
