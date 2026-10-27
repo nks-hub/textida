@@ -782,4 +782,24 @@ public class MultiCaretEditorTests : IDisposable
         Assert.Equal(">>abc\nabc", Text(tab));
         Assert.Equal(2, tab.Editor.CaretCount);
     }
+
+    [AvaloniaFact]
+    public void An_edit_command_over_a_thousand_carets_is_one_undo_step_and_takes_seconds_not_minutes()
+    {
+        const int count = 1000;
+        var tab = Open(string.Concat(Enumerable.Repeat("ab\n", count)));
+        tab.Editor!.SetCarets(AdapterCarets.Create(Enumerable.Range(0, count).Select(i => new Sel(3 * i, 3 * i + 2)).ToList(), count - 1));
+        int steps = Steps(tab);
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var outcome = _app.Workbench.Commands.ExecuteAsync("nks.edit.upperCase", new ShellContext(_w, forMenu: true)).AsTask().GetAwaiter().GetResult();
+        watch.Stop();
+
+        Assert.Equal(NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, outcome);
+        Assert.Equal(string.Concat(Enumerable.Repeat("AB\n", count)), Text(tab));
+        Assert.Equal(steps + 1, Steps(tab));
+        Assert.Equal(count, tab.Editor.CaretCount);
+        // every edit used to move all the carets again, so the time grew with the square of their number: about 20 s for this in a debug build, a second now
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(8), $"took {watch.Elapsed}");
+    }
 }
