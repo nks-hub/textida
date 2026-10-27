@@ -47,17 +47,22 @@ public static class LanguageServerMatcher
 
     /// <summary>
     /// Whether <paramref name="path"/> matches the glob: <c>*</c> is any run of characters except <c>/</c>, <c>?</c> one character except <c>/</c>, <c>**</c> any run including <c>/</c>. Case does not matter.
-    /// A glob without <c>/</c> is matched against the file name only.
+    /// A glob without <c>/</c> is matched against the file name only; a glob with <c>/</c> matches the end of the path at a folder boundary, and <c>**/</c> also matches no folder.
     /// </summary>
     public static bool MatchesGlob(string glob, string path)
     {
         var normalized = path.Replace('\\', '/');
         var subject = glob.Contains('/') ? normalized : normalized[(normalized.LastIndexOf('/') + 1)..];
-        var pattern = new StringBuilder("^");
+        var pattern = new StringBuilder(glob.Contains('/') ? "(?:^|/)" : "^");
         for (int i = 0; i < glob.Length; i++)
         {
             char c = glob[i];
-            if (c == '*' && i + 1 < glob.Length && glob[i + 1] == '*')
+            if (c == '*' && i + 2 < glob.Length && glob[i + 1] == '*' && glob[i + 2] == '/')
+            {
+                pattern.Append("(?:.*/)?");
+                i += 2;
+            }
+            else if (c == '*' && i + 1 < glob.Length && glob[i + 1] == '*')
             {
                 pattern.Append(".*");
                 i++;

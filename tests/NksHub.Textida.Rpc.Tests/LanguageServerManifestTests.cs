@@ -27,7 +27,8 @@ public class LanguageServerManifestTests
         var s = result.Plugin!.Manifest.Contributes.LanguageServers.Single();
         Assert.Equal(["foo", "foo-x"], s.Languages);
         Assert.Equal(["*.foo", "src/**/*.fx"], s.Globs);
-        Assert.Equal(("foo-ls", "path", ["--stdio"]), (s.Command, s.Locate, s.Args.ToArray()));
+        Assert.Equal(("foo-ls", "path"), (s.Command, s.Locate));
+        Assert.Equal(["--stdio"], s.Args);
         Assert.Equal("strict", s.InitializationOptions!.Value.GetProperty("mode").GetString());
     }
 
@@ -85,6 +86,8 @@ public class LanguageServerManifestTests
     [InlineData("Makefile.?", "src/Makefile.xy", false)]
     [InlineData("src/**/*.fx", "C:\\p\\src\\a\\b\\c.fx", true)]
     [InlineData("src/**/*.fx", "C:\\p\\other\\c.fx", false)]
+    [InlineData("src/**/*.fx", "p/src/c.fx", true)]
+    [InlineData("src/**/*.fx", "p/mysrc/c.fx", false)]
     [InlineData("src/*.fx", "p/src/a/c.fx", false)]
     [InlineData("a+b(1).txt", "a+b(1).txt", true)]
     public void A_glob_matches_the_file_name_or_the_full_path(string glob, string path, bool expected) =>
