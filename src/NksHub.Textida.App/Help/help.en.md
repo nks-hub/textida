@@ -913,6 +913,17 @@ commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 - The rules are kept while the document is open and are not saved.
 - A line longer than 8192 characters is judged by its first 8192 characters in the editor.
 
+## [log.live] Live log: following, saved views, rotation
+commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nks.log.previousMatch
+1. Log: Follow reads the file again whenever lines are added and puts the caret at its end. It works for a file of any size, also in paged mode. It needs a document saved as a file without unsaved changes; with unsaved changes it stops and the status line says so. Run the command again to stop.
+2. Log: Save View asks for a name, a regular expression and the levels to keep (error, warning, info, debug; empty means all). The view is saved in logviews.json in the profile, together with the level rules of the document and the caret position, and becomes the live view of the document.
+3. Log: Views lists the saved views. The chosen one sets the level rules, the filter and the caret position, and reads the file once to find the matching lines. When the view was saved for another file, the position is not used.
+4. Log: Next Match of View and Log: Previous Match of View jump between the lines the filter keeps. As the file grows, only the added lines are examined; the part read before is not read again. A last line without its line ending is taken once the line ends.
+5. If another program truncates the log, or replaces it (rotation: the file is renamed and a new one is created under the old name), the status line says so, the earlier matches are dropped, and reading starts again at the beginning of the new content. A missing file is reported once and waited for.
+- A rotation is told from the first 4096 bytes of the file and, on Windows, from its creation time. A new file that begins with the same bytes and is not shorter than the old one cannot be told apart; a replaced file of the same length with the same time and bytes is not noticed.
+- The file is looked at once per second. This and the 4096 bytes are not decided values.
+- The matches are kept in memory and have no upper limit. The highlight expression of a view is kept in the file but is not drawn yet.
+
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 The commands are in the View menu and in the palette. Each toggles one setting; the settings can also be changed in the settings.

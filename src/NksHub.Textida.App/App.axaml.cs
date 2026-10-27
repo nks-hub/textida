@@ -54,6 +54,9 @@ public sealed partial class App : Application
     /// <summary>The macros the user saved, in the <c>macros</c> folder of the profile.</summary>
     internal MacroStore Macros { get; private set; } = null!;
 
+    /// <summary>The views of logs the user saved, in <c>logviews.json</c> of the profile.</summary>
+    internal NksHub.Textida.Core.Tools.LogViewStore LogViews { get; private set; } = null!;
+
     /// <summary>The recipes the user keeps as files, in the <c>recipes</c> folder of the profile.</summary>
     internal RecipeStore RecipeFiles { get; private set; } = null!;
     /// <summary>The special conversions the conversion list offers next to the converters of data plugins; tests replace the list.</summary>
@@ -154,6 +157,7 @@ public sealed partial class App : Application
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
+        LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
         Clips =new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders);
         ReloadClips();

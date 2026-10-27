@@ -918,6 +918,17 @@ commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 - Pravidlá platia, kým je dokument otvorený, a neukladajú sa.
 - Riadok dlhší ako 8192 znakov sa v editore posudzuje podľa prvých 8192 znakov.
 
+## [log.live] Živý log: sledovanie, uložené pohľady, rotácia
+commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nks.log.previousMatch
+1. Log: sledovať číta súbor znova, kedykoľvek pribudnú riadky, a dá kurzor na jeho koniec. Funguje pri súbore akejkoľvek veľkosti, aj v stránkovanom režime. Potrebuje dokument uložený ako súbor bez neuložených zmien; pri neuložených zmenách sa zastaví a stavový riadok to povie. Ďalším spustením príkazu sledovanie skončí.
+2. Log: uložiť pohľad sa opýta na názov, regulárny výraz a úrovne na ponechanie (error, warning, info, debug; prázdne znamená všetky). Pohľad sa uloží do logviews.json v profile spolu s pravidlami úrovní dokumentu a pozíciou kurzora a stane sa živým pohľadom dokumentu.
+3. Log: pohľady vypíše uložené pohľady. Vybraný nastaví pravidlá úrovní, filter a pozíciu kurzora a raz prečíta súbor, aby našiel vyhovujúce riadky. Ak bol pohľad uložený pre iný súbor, pozícia sa nepoužije.
+4. Log: ďalšia zhoda pohľadu a Log: predchádzajúca zhoda pohľadu skáču medzi riadkami, ktoré filter ponechal. Keď súbor rastie, skúmajú sa len pribudnuté riadky; skôr prečítaná časť sa znova nečíta. Posledný riadok bez konca riadka sa vezme, až keď skončí.
+5. Keď iný program log skráti alebo ho vymení (rotácia: súbor sa premenuje a pod starým menom vznikne nový), povie to stavový riadok, skoršie zhody sa zahodia a čítanie začne znova od začiatku nového obsahu. Chýbajúci súbor sa ohlási raz a čaká sa naň.
+- Rotácia sa pozná podľa prvých 4096 bajtov súboru a vo Windows aj podľa času vzniku. Nový súbor, ktorý začína rovnakými bajtmi a nie je kratší ako starý, sa od neho nerozlíši; vymenený súbor rovnakej dĺžky s rovnakým časom a bajtmi sa nepozná.
+- Súbor sa kontroluje raz za sekundu. Táto hodnota ani 4096 bajtov nie sú rozhodnuté hodnoty.
+- Zhody sa držia v pamäti bez hornej hranice. Výraz zvýraznenia pohľadu sa v súbore uchová, ale zatiaľ sa nevykresľuje.
+
 ## [view.options] Zobrazenie editora
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Príkazy sú v ponuke Zobraziť a v palete. Každý prepína jedno nastavenie; dajú sa zmeniť aj v nastaveniach.
