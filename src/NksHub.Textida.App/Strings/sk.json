@@ -120,12 +120,12 @@
   "history.searchWatermark": "Revízie, ktoré obsahujú text",
   "history.searchNone": "Žiadna revízia tohto súboru text neobsahuje.",
   "history.searchDetail": "{matches}×, riadok {line}: {preview}",
-  "history.pin": "Pripnúť"
-  "history.unpin": "Odopnúť"
-  "history.pinnedTag": "Pripnuté"
-  "history.pinned": "Revízia je pripnutá a zostane, kým ju neodopnete."
-  "history.unpinned": "Revízia už nie je pripnutá."
-  "history.tooLarge": "Súbor je nad limitom veľkosti revízie ({size}), preto sa revízia neuložila."
+  "history.pin": "Pripnúť",
+  "history.unpin": "Odopnúť",
+  "history.pinnedTag": "Pripnuté",
+  "history.pinned": "Revízia je pripnutá a zostane, kým ju neodopnete.",
+  "history.unpinned": "Revízia už nie je pripnutá.",
+  "history.tooLarge": "Súbor je nad limitom veľkosti revízie ({size}), preto sa revízia neuložila.",
   "history.storeDamaged": "Úložisko histórie je poškodené alebo z novšej verzie: {reason} Nič sa nezmenilo.",
   "loss.title": "Znaky, ktoré kódovanie nepodporuje",
   "loss.message.one": "{count} znak nemožno zapísať v kódovaní {encoding}: {groups}.",

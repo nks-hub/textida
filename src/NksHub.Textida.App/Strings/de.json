@@ -120,12 +120,12 @@
   "history.searchWatermark": "Revisionen, die den Text enthalten",
   "history.searchNone": "Keine Revision dieser Datei enthält den Text.",
   "history.searchDetail": "{matches}×, Zeile {line}: {preview}",
-  "history.pin": "Anheften"
-  "history.unpin": "Lösen"
-  "history.pinnedTag": "Angeheftet"
-  "history.pinned": "Die Revision ist angeheftet und bleibt, bis Sie sie lösen."
-  "history.unpinned": "Die Revision ist nicht mehr angeheftet."
-  "history.tooLarge": "Die Datei überschreitet die Größengrenze für Revisionen ({size}); es wurde keine Revision behalten."
+  "history.pin": "Anheften",
+  "history.unpin": "Lösen",
+  "history.pinnedTag": "Angeheftet",
+  "history.pinned": "Die Revision ist angeheftet und bleibt, bis Sie sie lösen.",
+  "history.unpinned": "Die Revision ist nicht mehr angeheftet.",
+  "history.tooLarge": "Die Datei überschreitet die Größengrenze für Revisionen ({size}); es wurde keine Revision behalten.",
   "history.storeDamaged": "Der Verlaufsspeicher ist beschädigt oder stammt aus einer neueren Version: {reason} Nichts wurde geändert.",
   "loss.title": "Zeichen, die die Codierung nicht darstellen kann",
   "loss.message.one": "{count} Zeichen lässt sich nicht in {encoding} schreiben: {groups}.",

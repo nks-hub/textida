@@ -121,12 +121,12 @@
   "history.searchWatermark": "Revisions that contain the text",
   "history.searchNone": "No revision of this file contains the text.",
   "history.searchDetail": "{matches}×, line {line}: {preview}",
-  "history.pin": "Pin"
-  "history.unpin": "Unpin"
-  "history.pinnedTag": "Pinned"
-  "history.pinned": "The revision is pinned and stays until you unpin it."
-  "history.unpinned": "The revision is no longer pinned."
-  "history.tooLarge": "This file is above the size limit for revisions ({size}), so no revision was kept."
+  "history.pin": "Pin",
+  "history.unpin": "Unpin",
+  "history.pinnedTag": "Pinned",
+  "history.pinned": "The revision is pinned and stays until you unpin it.",
+  "history.unpinned": "The revision is no longer pinned.",
+  "history.tooLarge": "This file is above the size limit for revisions ({size}), so no revision was kept.",
   "history.storeDamaged": "The history store is damaged or from a newer version: {reason} Nothing was changed.",
   "loss.title": "Characters the Encoding Cannot Hold",
   "loss.message.one": "{count} character cannot be written in {encoding}: {groups}.",
