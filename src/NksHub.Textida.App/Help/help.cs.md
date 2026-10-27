@@ -808,7 +808,7 @@ commands: nks.tools.run, nks.tools.stop
 3. V executable, args a cwd zastupují proměnné ${File} (úplná cesta), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} a ${Column} aktuální dokument; $$ je znak dolaru. Argument zůstane jedním argumentem, ať hodnota obsahuje cokoli, i mezery a uvozovky: žádný shell se nepoužívá. Neznámá proměnná nebo ${File} u dokumentu bez souboru zastaví spuštění dřív, než cokoli začne.
 4. Nástroj, jehož příkaz a adresář ještě neběžely, se ukáže s oběma a spustí se až po vašem potvrzení. Potvrzení platí, dokud se nezmění definice nebo program, na který vede.
 5. Výstup jde řádek po řádku na kartu Úlohy v okně výstupu, nakonec s kódem ukončení a časem. Tlačítko Zastavit v tom okně nebo příkaz Zastavit běžící nástroj ukončí program i vše, co spustil; totéž udělá časový limit.
-- Dávkové soubory (.bat, .cmd) se ve Windows odmítnou, protože by příkazový interpret argumenty znovu rozdělil a rozvinul. Uveďte program, který dávka spouští.
+- Dávkové soubory (.bat, .cmd) se spouštějí přes cmd.exe a každý argument se pro něj uzavře do uvozovek, takže mezery, uvozovky a znaky jako & | < > ^ % projdou beze změny. Argument s koncem řádku nebo jiným řídicím znakem se odmítne před spuštěním; stejně tak argument s !, když dávka zapíná zpožděné rozvinutí.
 - Název programu bez cesty se hledá jen v PATH, nikdy v pracovním adresáři.
 - Výstup se čte jako UTF-8. Běží vždy jen jeden nástroj.
 
@@ -849,7 +849,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 commands: nks.packages.script
 1. S otevřeným souborem package.json nebo composer.json vypíše Nástroje, Spustit skript balíčku jeho skripty. Vybraný se spustí jako npm run název nebo composer run-script název ve složce souboru.
 2. Jde to přes spouštěč nástrojů jako nástroj z projektové složky: příkaz, složka a soubor, ze kterého skript pochází, se ukážou a je třeba je potvrdit. Potvrzení je vázané na text skriptu, takže změněný skript se zeptá znovu. Výstup jde do karty Úlohy; Zastaviť ho ukončí.
-- npm nebo Composer musí být nainstalovaný. Na Windows jsou oba dávkové soubory, které spouštěč odmítá; editor místo toho spustí Node s npm-cli.js, nebo PHP s composer.phar, ze složky dávkového souboru.
+- npm nebo Composer musí být nainstalovaný. Na Windows jsou oba dávkové soubory; editor spustí Node s npm-cli.js, nebo PHP s composer.phar, ze složky dávkového souboru, takže funguje i název skriptu s koncem řádku nebo s !. Bez tohoto standardního uspořádání se dávka spustí přes cmd.exe.
 
 ## [file.saveActions] Akce při uložení: formátovat, spustit nástroj, nahrát
 commands: nks.file.saveActions

@@ -803,7 +803,7 @@ commands: nks.tools.run, nks.tools.stop
 3. In executable, args und cwd stehen die Variablen ${File} (vollständiger Pfad), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} und ${Column} für das aktuelle Dokument; $$ ist ein Dollarzeichen. Ein Argument bleibt ein Argument, was auch im Wert steht, Leerzeichen und Anführungszeichen eingeschlossen: Es wird keine Shell verwendet. Eine unbekannte Variable oder ${File} bei einem Dokument ohne Datei stoppt den Start, bevor etwas beginnt.
 4. Ein Werkzeug, dessen Befehl und Verzeichnis noch nicht gelaufen sind, wird mit beidem angezeigt und startet erst nach Ihrer Bestätigung. Die Bestätigung gilt, bis sich die Definition oder das Programm dahinter ändert.
 5. Die Ausgabe geht Zeile für Zeile in den Reiter Aufgaben des Ausgabefensters, am Ende mit Exitcode und Zeit. Beenden in diesem Fenster oder Laufendes Werkzeug beenden stoppt das Programm und alles, was es gestartet hat; ebenso das Zeitlimit.
-- Batchdateien (.bat, .cmd) werden unter Windows abgelehnt, weil der Befehlsinterpreter die Argumente erneut zerlegen und auflösen würde. Geben Sie das Programm an, das die Batchdatei startet.
+- Batchdateien (.bat, .cmd) werden über cmd.exe gestartet, und jedes Argument wird dafür in Anführungszeichen gesetzt, sodass Leerzeichen, Anführungszeichen und Zeichen wie & | < > ^ % unverändert ankommen. Ein Argument mit Zeilenumbruch oder einem anderen Steuerzeichen wird vor dem Start abgelehnt, ebenso eines mit !, wenn die Batchdatei die verzögerte Erweiterung einschaltet.
 - Ein Programmname ohne Pfad wird nur in PATH gesucht, nie im Arbeitsverzeichnis.
 - Die Ausgabe wird als UTF-8 gelesen. Es läuft immer nur ein Werkzeug.
 
@@ -844,7 +844,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 commands: nks.packages.script
 1. Bei geöffneter package.json oder composer.json listet Werkzeuge, Paketskript ausführen deren Skripte auf. Das gewählte läuft als npm run Name oder composer run-script Name im Ordner der Datei.
 2. Es läuft über den Werkzeug-Starter wie ein Werkzeug aus einem Projektordner: Befehl, Ordner und die Datei, aus der das Skript stammt, werden gezeigt und müssen bestätigt werden. Die Bestätigung gilt für den Text des Skripts, ein geändertes Skript fragt also erneut. Die Ausgabe geht in den Tab Aufgaben; Stopp beendet es.
-- npm oder Composer muss installiert sein. Unter Windows sind beide Batchdateien, die der Starter ablehnt; der Editor startet stattdessen Node mit npm-cli.js oder PHP mit composer.phar aus dem Ordner der Batchdatei.
+- npm oder Composer muss installiert sein. Unter Windows sind beide Batchdateien; der Editor startet Node mit npm-cli.js oder PHP mit composer.phar aus dem Ordner der Batchdatei, daher funktioniert auch ein Skriptname mit Zeilenumbruch oder !. Ohne dieses Standardlayout wird die Batchdatei über cmd.exe gestartet.
 
 ## [file.saveActions] Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen
 commands: nks.file.saveActions
