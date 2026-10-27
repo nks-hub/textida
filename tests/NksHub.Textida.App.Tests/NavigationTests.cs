@@ -216,8 +216,10 @@ public class NavigationTests : IDisposable
         var b = _w.OpenFile(_temp.File("beta.txt", "b"), null);
         var c = _w.OpenFile(_temp.File("gamma.md", "c"), null);
         Assert.False(_w.DocumentsPanelOpen);
+        Assert.False(_w.DocumentFilter.IsEffectivelyVisible); // a closed panel draws nothing over the editor
         TestApp.Press(_w, Key.B, TestApp.Mod);
         Assert.True(_w.DocumentsPanelOpen);
+        Assert.True(_w.DocumentFilter.IsEffectivelyVisible);
         Assert.False(_w.FilePanelOpen);
         Assert.Equal(3, _w.DocumentListTabs.Count);
 
@@ -242,6 +244,7 @@ public class NavigationTests : IDisposable
         Assert.Equal("", _w.DocumentFilter.Text);
         TestApp.Press(_w, Key.B, TestApp.Mod);
         Assert.False(_w.DocumentsPanelOpen);
+        Assert.False(_w.DocumentFilter.IsEffectivelyVisible);
     }
 
     [AvaloniaFact]

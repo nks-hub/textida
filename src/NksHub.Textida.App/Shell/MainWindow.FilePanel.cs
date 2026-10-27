@@ -33,6 +33,7 @@ internal sealed partial class MainWindow
     private readonly TextBlock _filesEmptyText = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.7 };
     private readonly Button _filesOpenButton = new();
     private FileTree? _fileTree;
+    private Border _leftHost = null!;
 
     public bool DocumentsPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _docPanel.IsVisible;
     public bool FilePanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _filePanel.IsVisible;
@@ -73,9 +74,10 @@ internal sealed partial class MainWindow
         _filePanel.Children.Add(Dock(_filesEmpty, Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(_fileList);
 
-        var host = new Border { Child = new Panel { Children = { _docPanel, _filePanel, BuildPluginPanel() } } };
-        host.Classes.Add("sidepanel");
-        return host;
+        // hidden as a whole while closed: a zero-width column still draws children with a minimum width, such as the filter box, over the editor
+        _leftHost = new Border { Child = new Panel { Children = { _docPanel, _filePanel, BuildPluginPanel() } }, IsVisible = false, ClipToBounds = true };
+        _leftHost.Classes.Add("sidepanel");
+        return _leftHost;
     }
 
     private void ApplyFileTexts()
@@ -125,6 +127,7 @@ internal sealed partial class MainWindow
             if (which == LeftPanel.Files) RestoreFolder();
         }
         _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
+        _leftHost.IsVisible = show;
         _menuModel = BuildMenuModel();
         if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : which == LeftPanel.Plugin ? _pluginTree : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
         else if (Active is { } tab) FocusView(tab);
