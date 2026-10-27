@@ -1093,3 +1093,16 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 2. Wählen Sie Ansicht und dann Scrollen synchronisieren. Der aktive Tab und der aktive Tab der nächsten Gruppe folgen einander. Wählen Sie den Befehl noch einmal, um es zu beenden.
 - Die Zeilen werden mit dem Vergleich aus dem Thema Texte vergleichen zugeordnet: Die andere Datei scrollt zur entsprechenden Zeile, auch über eingefügte oder entfernte Blöcke hinweg. Solange der Vergleich berechnet wird, gilt dieselbe Zeilennummer.
 - Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.
+
+## [tools.mcp] Der Editor als MCP-Server
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
+1. Wählen Sie Extras, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
+2. Richten Sie den Assistenten so ein, dass er das Programm textida-mcp.exe aus dem Ordner mcp neben dem Editor startet (die Statusleiste zeigt den vollständigen Pfad). Es spricht über eine lokale Pipe mit dem Editor, ein Netzwerkport wird nicht geöffnet.
+3. Öffnen Sie einen Tab und wählen Sie Extras, Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
+4. Mit Extras, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
+- Der Assistent liest den Text so, wie er im Editor steht, auch ungespeichert, sucht darin, fragt die Gliederung, die Kodierung und die Zeilenenden ab, findet Zeilen einer Stufe in einem Log beliebiger Größe und liest oder durchsucht Bytes (höchstens 64 KiB pro Lesen).
+- Eine Änderung ist ein Vorschlag für eine Revision des Textes. Hat sich der Text inzwischen geändert, wird der Vorschlag abgelehnt und der Assistent muss neu lesen. Den Vorschlag sehen Sie wie andere Änderungen des ganzen Dokuments und wählen, ob er angewendet wird; der Assistent kann nachfragen, wie er ausging.
+- Werte in .env-Dateien sieht der Assistent als *. Beim Teilen eines solchen Tabs werden Sie gefragt, ob er die echten Werte sehen darf; die Antwort gilt nur für diesen Tab.
+- Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen. Auch das erneute Laden einer Datei entzieht sie.
+- Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.

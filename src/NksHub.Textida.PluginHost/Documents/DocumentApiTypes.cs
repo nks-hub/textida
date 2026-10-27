@@ -1,5 +1,6 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Permissions;
 
 namespace NksHub.Textida.PluginHost.Documents;
@@ -34,6 +35,14 @@ public static class DocumentMethods
     public const string TableSelection = "table/selection";
     /// <summary>Puts text, and optionally HTML, on the clipboard.</summary>
     public const string ClipboardWrite = "clipboard/write";
+    /// <summary>Encoding, byte order mark, line endings, invalid sequences and storage mode of one revision.</summary>
+    public const string Facts = "document/facts";
+    /// <summary>Byte pattern search (hex with <c>?</c> wildcards) over a range of one revision.</summary>
+    public const string FindBytes = "document/findBytes";
+    /// <summary>Lines of a given log level, found block by block from a snapshot.</summary>
+    public const string FindLog = "document/findLog";
+    /// <summary>The symbols plugins published for a document.</summary>
+    public const string SymbolsList = "symbols/list";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -122,6 +131,10 @@ public sealed record DocumentApiOptions
     public required long MaxSecretScanBytes { get; init; }
     /// <summary>Longest text (and longest HTML) one clipboard write holds, in UTF-16 code units.</summary>
     public required int MaxClipboardChars { get; init; }
+    /// <summary>Bytes one inspection call (<see cref="DocumentMethods.Facts"/>, <see cref="DocumentMethods.FindLog"/>) reads before it stops and says where to go on.</summary>
+    public required long MaxScanBytes { get; init; }
+    /// <summary>Log level rules of a document; null (or a null answer) means the default rules.</summary>
+    public Func<Guid, LogLevelRules?>? LogRules { get; init; }
 }
 
 /// <summary>One cell of the table selection: its value as the table shows it and the bytes it occupies in the document (empty at the end of a short row).</summary>
@@ -177,7 +190,8 @@ public interface IDocumentOwnerThread
 public delegate Task<bool> PluginEventSender(string pluginId, string eventName, ReadOnlyMemory<byte> payloadJson);
 
 /// <summary>An edit batch a plugin proposes; the user sees it before anything changes. <paramref name="Revision"/> is the revision the edits refer to.</summary>
-public sealed record EditProposal(string PluginId, Guid DocumentId, long Revision, IReadOnlyList<ByteEdit> Edits, string? Title);
+/// <param name="RawBytes">The edits are byte level (hex): they may start inside a character or the BOM, and the user reviews them as bytes.</param>
+public sealed record EditProposal(string PluginId, Guid DocumentId, long Revision, IReadOnlyList<ByteEdit> Edits, string? Title, bool RawBytes = false);
 
 /// <summary>The change preview service (P2.5.2). It takes proposals the plugin made against a checked, current revision.</summary>
 public interface IEditProposals

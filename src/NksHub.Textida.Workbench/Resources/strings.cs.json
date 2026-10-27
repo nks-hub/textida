@@ -365,5 +365,8 @@
   "setting.remote.versionCheck.title": "Kontrola verze na serveru",
   "setting.remote.versionCheck.description": "stat: velikost a čas změny (obsah se stáhne jen když se liší). content: obsah ze serveru se vždy stáhne a porovná; pomalejší, pozná i změnu ve stejné vteřině a se stejnou velikostí.",
   "cmd.remote.exportConnections": "Exportovat připojení...",
-  "cmd.remote.importConnections": "Importovat připojení..."
+  "cmd.remote.importConnections": "Importovat připojení...",
+  "cmd.tools.mcpServer": "Server MCP: zapnout nebo vypnout...",
+  "cmd.tools.mcpShareTab": "Sdílet kartu s MCP",
+  "cmd.tools.mcpTools": "Nástroje MCP..."
 }

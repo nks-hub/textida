@@ -9,6 +9,7 @@ using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.PluginHost.Ui;
 using Host = NksHub.Textida.PluginHost.PluginHost;
@@ -47,6 +48,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 
     public PluginUiHost Ui { get; }
     public DocumentApi Documents { get; }
+    public McpService Mcp { get; }
     public UiApi UiApi { get; }
     internal PluginPermissions Permissions { get; } = new();
 
@@ -62,7 +64,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
-        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity)), this, send, request);
+        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id)), this, send, request);
+        Mcp = new McpService(this, App.Startup.Channel);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync)), Documents);
@@ -170,11 +173,15 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile).</summary>
     public bool IsBusy => _running.Values.Any(r => !r.Background);
 
+    /// <summary>A plugin command is running on the document, which therefore has to stay visible to plugins until it ends.</summary>
+    internal bool IsRunningOn(Guid document) => _running.ContainsKey(document);
+
     public Task<T> InvokeAsync<T>(Func<T> work) => Dispatcher.UIThread.InvokeAsync(work).GetTask();
 
     /// <summary>The window that runs the command shows the proposal in the same preview as the other whole-document actions; the document is not touched until the user applies it.</summary>
     public async ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
     {
+        if (proposal.PluginId == McpServer.ClientId) return await Mcp.Proposals.SubmitAsync(proposal, cancellation);
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             if (_running.TryGetValue(proposal.DocumentId, out var run)) _ = run.Window.ReviewPluginProposalAsync(proposal, run.Tab);
@@ -496,6 +503,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>The document is going away (its last tab closed): plugins stop seeing it and its symbols go. Call on the UI thread, before the document is disposed.</summary>
     public void Forget(Document document)
     {
+        Mcp.Closed(document);
         _outlineWanted.Remove(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
@@ -604,6 +612,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 
     public async ValueTask DisposeAsync()
     {
+        await Mcp.DisposeAsync();
         await _host.DisposeAsync();
         await Documents.DisposeAsync();
     }

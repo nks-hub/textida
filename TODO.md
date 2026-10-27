@@ -1747,20 +1747,23 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 - [ ] **P5.4.1** Klient FTPS a SFTP a nastavení spojení
   - **Co a proč:** FTPS a SFTP, prosté FTP jen výslovně. Hesla v systémové klíčence, ověření identity serveru. Import spojení z PSPadu až po 1.0.
   - **Funkce:** F009, F010
+  - **Stav 26. 10. 2026:** částečně: FTPS (FluentFTP 55.1, MIT) a SFTP (SSH.NET 2026.0.0, MIT), prosté FTP jen výslovnou volbou, nepodporovaná kombinace jasnou chybou; připnutý klíč SFTP a certifikát FTPS, změněná identita se nepřipojí bez potvrzení (test obou protokolů); hesla ve Windows Credential Manageru, test je nenajde v souboru spojení, exportu, profilu ani logu; testy proti skutečným serverům (FubarDev.FtpServer v procesu, paramiko); NativeAOT publish prošel i živě proti oběma serverům. Chybí: macOS Keychain a Linux (hlásí chybu, neověřitelné tady); RSA klíče se SHA-1 podpisem (ed25519 otestován).
   - **Hotovo, když:** matice testů pokryje FTPS i SFTP: platná a neplatná identita serveru, přihlášení, přerušení spojení a konflikt; spojení se změněným klíčem serveru se nepřipojí bez potvrzení; heslo není v souboru nastavení; prosté FTP vyžaduje výslovnou volbu; nepodporovaná kombinace skončí jasnou chybou.
   - **Závisí na:** P1.7.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P5.4.2** Bezpečná vzdálená editace: kontrola verze a nahrání
+- [x] **P5.4.2** Bezpečná vzdálená editace: kontrola verze a nahrání
   - **Co a proč:** Před nahráním kontrola novější verze na serveru (čas a velikost, nebo obsah), při rozdílu diff místo přepsání. Lišta vzdálené karty „shodné se serverem“ / „změněno, nahrát?“. Lokální kopie je v P5.4.6, přerušení a obnova přenosu v P5.4.7. Záruka kontroly verze má hranice podle protokolu: mezi kontrolou a zápisem ji server nemusí umět zajistit atomicky, a UI to řekne.
   - **Funkce:** F162
+  - **Stav 26. 10. 2026:** hotovo: nahrání přes dočasné jméno, při změně na serveru se nic nepřepíše a otevře se porovnání v kartě porovnání; lišta vzdálené karty; meze atomicity podle protokolu popsané v nápovědě a ve zprávě po nahrání.
   - **Hotovo, když:** změna souboru na serveru mezi otevřením a nahráním otevře diff a nic nepřepíše; řízená změna na serveru těsně před nahráním se v testu pozná u obou protokolů, nebo je popsaná jako mez protokolu.
   - **Závisí na:** P5.4.6, P5.4.7, P5.2.1
   - **Odhad:** F162 5–8 ČT (matice) za P5.4.2, P5.4.6 a P5.4.7; kontrola verze 0,5 ČT v rámci F162
   - **Umístění:** jádro
-- [ ] **P5.4.6** Lokální pracovní kopie a vzdálená revize
+- [x] **P5.4.6** Lokální pracovní kopie a vzdálená revize
   - **Co a proč:** Vzdálený soubor se upravuje v lokální kopii s uloženou vzdálenou revizí (čas, velikost, případně otisk). Práce jde i bez spojení.
   - **Funkce:** F162 (částečně: lokální kopie)
+  - **Stav 26. 10. 2026:** hotovo: lokální pracovní kopie drží vzdálenou revizi, neodeslané změny přežijí zavření i pád.
   - **Hotovo, když:** po odpojení jde soubor dál upravovat a uložit lokálně; neodeslané změny přežijí zavření i pád a po startu se ukážou jako neodeslané.
   - **Závisí na:** P5.4.1, P1.5.1
   - **Odhad:** v rámci F162 (viz P5.4.2)
@@ -1768,6 +1771,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 - [ ] **P5.4.7** Přerušení, opakování a obnova přenosu
   - **Co a proč:** Nahrání přes dočasné jméno na serveru, kde to protokol dovolí; přerušení nenechá na serveru poškozený soubor.
   - **Funkce:** F162 (částečně: přenos)
+  - **Stav 26. 10. 2026:** částečně: přerušení a opakování přenosu (opakování vždy znovu a po nové kontrole verze); přerušení FTPS uprostřed přenosu simulované obalem nad skutečným serverem, SFTP server spojení opravdu utne. Obnova rozpracovaného nahrání chybí.
   - **Hotovo, když:** přerušené nahrání jde zopakovat a na serveru zůstane buď stará, nebo nová verze celá; opakování se nespustí samo bez kontroly verze.
   - **Závisí na:** P5.4.6
   - **Odhad:** v rámci F162 (viz P5.4.2)
@@ -1775,6 +1779,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 - [ ] **P5.4.3** Vzdálená cache a záloha konfigurace
   - **Co a proč:** Lokální cache vzdálených souborů s životním cyklem a vzdálenou revizí; zálohy nastavení bez tajných údajů.
   - **Funkce:** F111
+  - **Stav 26. 10. 2026:** částečně: vzdálená cache a záloha konfigurace; `CachePolicy` bez rozhodnutých limitů nic nemaže (vstupní rozhodnutí otevřené).
   - **Hotovo, když:** export zálohy nastavení neobsahuje hesla ani tokeny; cache se po restartu spáruje se serverem podle uložené vzdálené revize.
   - **Závisí na:** P5.4.2
   - **Odhad:** bez odhadu
@@ -1782,13 +1787,15 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 - [ ] **P5.4.4** Proxy a síťová pravidla
   - **Co a proč:** Proxy a síťová politika společná pro všechny služby editoru; vestavěný e-mail se vypouští.
   - **Funkce:** F117
+  - **Stav 26. 10. 2026:** částečně: proxy HTTP, SOCKS4 a SOCKS5 s testem pro FTPS i SFTP (SOCKS4 pro FTPS odmítnut – FluentFTP posílá datové spojení na řídicí port); `NetworkPolicy.CreateHttpHandler` připravený a otestovaný, ale kontrola aktualizací ani síť pluginů v repu zatím nejsou. `ConnectTimeoutSeconds` otevřené (dnes výchozí knihovny).
   - **Hotovo, když:** nastavená proxy se použije pro FTPS, SFTP, kontrolu aktualizací a síťové požadavky pluginů přes API; každý podporovaný typ proxy má test s FTPS i SFTP a nepodporovaný typ skončí jasnou chybou.
   - **Závisí na:** P5.4.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P5.4.5** Zámky a souběžný zápis
+- [x] **P5.4.5** Zámky a souběžný zápis
   - **Co a proč:** Systémové a vlastní zámky editoru a nový výslovný režim souběžného zápisu. Zámky `.lck` PSPadu se v 1.0 nečtou; editor nenačítá žádné soubory PSPadu.
   - **Funkce:** F026
+  - **Stav 26. 10. 2026:** hotovo: zámky otevřou soubor jen pro čtení s vysvětlením, `.lck` PSPadu se ignoruje; nápověda Zámky souborů.
   - **Hotovo, když:** soubor se systémovým zámkem jiného procesu nebo s vlastním zámkem jiné instance editoru se otevře jen pro čtení s vysvětlením; výslovný režim souběžného zápisu kontroluje podklad před každým uložením; soubor `.lck` PSPadu vedle dokumentu editor ignoruje.
   - **Závisí na:** P1.2.3
   - **Odhad:** bez odhadu
@@ -1946,6 +1953,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.3.1** MCP server
   - **Co a proč:** Uživatel výslovně zpřístupní kartu nebo výběr. Nástroje `editor_list_documents`, `editor_read_range`, `editor_search` (lokálně, modelu jen úryvky), `editor_prepare_changes` (návrh s revizí, bez zápisu), `editor_get_change_status`. Návrhy jdou přes revizi F178 (P6.1.2) a diff API (P6.2.2), čtení přes sdílený filtr maskování (P4.6.2). Lokální transport bez síťového portu. Dialog při zapnutí s výčtem, co klient uvidí; zapnutí a vypnutí po nástrojích. Hodnoty `.env` jen po potvrzení.
   - **Funkce:** F170, F184 (částečně: pravidlo pro agenta)
+  - **Stav 26. 10. 2026:** částečně: MCP server v procesu editoru (verze 2026-07-28 bez handshaku i 2025-11-25 s `initialize`), klient spouští `textida-mcp`, ten mluví s editorem přes lokální rouru bez síťového portu; stejné `DocumentApi`, oprávnění a maska `.env` jako pluginy; dialog při zapnutí vypíše, co asistent dostane, hodnoty `.env` jen po potvrzení u karty; ověřeno oficiálním MCP Inspectorem 2.12.0 přes `npx`. Otevřené: limity (zástupné hodnoty), server po startu vypnutý; AOT publish a distribuce `textida-mcp` neověřeny.
   - **Hotovo, když:** asistent přečte neuloženou kartu a připraví změnu, uživatel ji vidí jako rozdíl a použije; návrh nad zastaralou revizí se odmítne; nezpřístupněnou kartu asistent nevidí ani v `editor_list_documents`; odvolání přístupu za běhu zastaví další čtení; hodnota `.env` bez potvrzení přijde maskovaná.
   - **Závisí na:** P6.1.2, P6.2.2, P3b.1.1, P3b.4.1, P4.6.2
   - **Odhad:** F170 2–4 ČT (matice); souhlas a nástroje 1–2 ČT
@@ -1953,13 +1961,15 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.3.2** Nástroje MCP serveru navíc
   - **Co a proč:** `editor_outline` (osnova i neuložené karty), `editor_find_in_files` (worker F151 i nad živými buffery), `editor_file_facts` (kódování, BOM, EOL, neplatné sekvence, velký režim), `editor_log_query` nad režimem logu. Malá sada nástrojů s přesnými popisy, odpovědi jako úryvky se stropem.
   - **Funkce:** F256
+  - **Stav 26. 10. 2026:** částečně: 12 nástrojů `editor_*` (čtení neuložených karet, hledání, návrh změn textu i bajtů, osnova, hledání v souborech, fakta o souboru, dotaz do logu, bajtové čtení a hledání); návrhy jdou do stávajícího náhledu změn; `editor_find_in_files` jen ve sdílených kartách (zpřístupnění složky není určené).
   - **Hotovo, když:** `editor_log_query` vrátí úryvky z 10GiB logu bez načtení celého souboru; `editor_file_facts` u CP1250 se smíšenými EOL vrátí obojí.
   - **Závisí na:** P6.3.1, P4.4.1, P4.3.2
   - **Odhad:** F256 1,5–2,5 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P6.3.3** Hex pro MCP
+- [x] **P6.3.3** Hex pro MCP
   - **Co a proč:** `editor_read_bytes` (nejvýš 64 KiB, hex nebo base64), `editor_search_bytes`, `editor_prepare_byte_changes` jako návrh s revizí. Modelu se nikdy nepošle celý binární soubor.
   - **Funkce:** F247
+  - **Stav 26. 10. 2026:** hotovo: hex pro MCP – bajtové čtení a hledání přes stejná oprávnění; Large test 10GiB logu a odvolání přístupu uprostřed skenu prošly.
   - **Hotovo, když:** asistent přečte 256 B od offsetu, najde vzor a připraví změnu 4 bajtů; uživatel ji vidí v F169 a použije; návrh nad starší revizí se odmítne.
   - **Závisí na:** P6.3.1, P3.5.1
   - **Odhad:** F247 0,5–1 ČT (matice)

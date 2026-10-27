@@ -365,5 +365,8 @@
   "setting.remote.versionCheck.title": "Prüfung der Serverversion",
   "setting.remote.versionCheck.description": "stat: Größe und Änderungszeit (der Inhalt wird nur geholt, wenn sie sich unterscheiden). content: Der Serverinhalt wird immer geholt und verglichen; langsamer, erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.",
   "cmd.remote.exportConnections": "Verbindungen exportieren...",
-  "cmd.remote.importConnections": "Verbindungen importieren..."
+  "cmd.remote.importConnections": "Verbindungen importieren...",
+  "cmd.tools.mcpServer": "MCP-Server: ein- oder ausschalten...",
+  "cmd.tools.mcpShareTab": "Tab mit MCP teilen",
+  "cmd.tools.mcpTools": "MCP-Werkzeuge..."
 }

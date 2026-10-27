@@ -30,7 +30,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
-            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1)
+            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
@@ -172,6 +172,10 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.TabRegister: return RegisterTab(pluginId, p);
             case DocumentMethods.TableSelection: return await TableSelectionAsync(pluginId, p);
             case DocumentMethods.ClipboardWrite: return await ClipboardWriteAsync(p);
+            case DocumentMethods.Facts: return await FactsAsync(pluginId, p, cancellation);
+            case DocumentMethods.FindBytes: return await FindBytesAsync(pluginId, p, cancellation);
+            case DocumentMethods.FindLog: return await FindLogAsync(pluginId, p, cancellation);
+            case DocumentMethods.SymbolsList: return await SymbolsListAsync(p);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
@@ -365,8 +369,17 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         var t = await ResolveAsync(pluginId, p);
         var range = ReadRange(t, p, limit: true);
+        // with "snap" the range grows to the next character boundaries instead of being refused; the answer names the range actually read
+        bool snap = p.TryGetProperty("snap", out var snapFlag) && snapFlag.ValueKind == JsonValueKind.True;
         var bytes = Guarded(t.Snap, () =>
         {
+            if (snap)
+            {
+                long start = range.Start, end = range.End;
+                while (start > t.Bom && !IsBoundary(t, start)) start--;
+                while (end < t.Snap.ByteLength && !IsBoundary(t, end)) end++;
+                range = new ByteRange(start, end);
+            }
             if (!IsBoundary(t, range.Start) || !IsBoundary(t, range.End)) throw Fail(DocumentErrorCodes.InvalidRange, $"The range {range} does not fall on character boundaries.");
             return t.Snap.ReadBytes(range);
         });
