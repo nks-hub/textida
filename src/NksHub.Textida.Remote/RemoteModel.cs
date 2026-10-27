@@ -89,6 +89,8 @@ public sealed record RemoteConnection
         if (Protocol == RemoteProtocol.Sftp && Auth == SftpAuth.PrivateKey && string.IsNullOrWhiteSpace(PrivateKeyPath)) Bad("Key authentication needs a private key file.");
         if (Protocol != RemoteProtocol.Ftps && FtpsMode != FtpsMode.Explicit) Bad("The implicit TLS mode is available for FTPS only.");
         if (Proxy.Type != ProxyType.None && (string.IsNullOrWhiteSpace(Proxy.Host) || Proxy.Port is <= 0 or > 65535)) Bad("The proxy needs a host and a port.");
+        if (Proxy.Type == ProxyType.Socks4 && Protocol != RemoteProtocol.Sftp)
+            Bad("SOCKS4 is not supported for FTP and FTPS: the FTP library sends the data connection to the control port. Use SOCKS5 or an HTTP proxy.");
         if (!Enum.IsDefined(Proxy.Type) || !Enum.IsDefined(Protocol)) Bad("Unknown protocol or proxy type.");
     }
 }
