@@ -20,6 +20,7 @@ public sealed class JournalSession : IDisposable
     private readonly object _syncGate = new();
     private readonly Dictionary<string, Action> _syncs = [];
     private FileStream? _lock;
+    private Func<string, IBackendFactory?>? _backends;
     private JournalWriter? _writer;
     private long _lengthAfterCompaction;
     private Exception? _broken;
@@ -61,15 +62,17 @@ public sealed class JournalSession : IDisposable
     /// <summary>
     /// Starts a journal in <paramref name="directory"/> (null disables journaling). Journals of runs that are no longer alive are
     /// recovered, their work is copied into the new journal and only then are they deleted, so a crash during start loses nothing.
+    /// With <paramref name="recovery"/> a document whose changes are large is not replayed but reported as <see cref="RecoveryStatus.Pending"/>;
+    /// <see cref="RecoverPending"/> replays it, <see cref="DiscardPending"/> throws it away.
     /// </summary>
-    public static JournalSession Start(string? directory, Func<string, IBackendFactory?> backends, JournalOptions? options = null)
+    public static JournalSession Start(string? directory, Func<string, IBackendFactory?> backends, JournalOptions? options = null, RecoveryOptions? recovery = null)
     {
         options ??= new();
         if (directory is null) return new JournalSession(null, options);
         Directory.CreateDirectory(directory);
         foreach (var stale in Directory.GetFiles(directory, "session-*.njl.tmp")) TryDelete(stale);
 
-        var session = new JournalSession(directory, options);
+        var session = new JournalSession(directory, options) { _backends = backends };
         var combined = new RecoveryResult();
         var seen = new HashSet<Guid>();
         var done = new List<(string Journal, FileStream Lock)>();
@@ -80,7 +83,7 @@ public sealed class JournalSession : IDisposable
         {
             var lockStream = OpenLock(LockPathOf(path));
             if (lockStream is null) continue;
-            var result = JournalRecovery.Recover(path, backends);
+            var result = JournalRecovery.Recover(path, backends, recovery);
             combined.Notes.AddRange(result.Notes.Select(n => $"{Path.GetFileName(path)}: {n}"));
             if (result.Unreadable)
             {
@@ -129,6 +132,62 @@ public sealed class JournalSession : IDisposable
         try { File.Delete(path); }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
+    }
+
+    // ---- changes that wait for a decision ----
+
+    /// <summary>The documents of <see cref="Recovery"/> whose changes wait for <see cref="RecoverPending"/> or <see cref="DiscardPending"/>; a copy, safe to read while another thread settles one.</summary>
+    public IReadOnlyList<RecoveredDocument> Pending
+    {
+        get
+        {
+            lock (_gate) return [.. Recovery.Documents.Where(d => d.Status == RecoveryStatus.Pending)];
+        }
+    }
+
+    /// <summary>
+    /// Replays the changes of a document that start left as <see cref="RecoveryStatus.Pending"/> and starts tracking the rebuilt document. It can take
+    /// minutes for gigabytes of changes, so call it off the UI thread. The result replaces the entry in <see cref="Recovery"/>; when the replay fails
+    /// (<see cref="RecoveryStatus.Failed"/>, <see cref="RecoveryStatus.Conflict"/>, <see cref="RecoveryStatus.Missing"/>) nothing is applied and the records stay in the journal.
+    /// </summary>
+    public RecoveredDocument RecoverPending(Guid docId)
+    {
+        if (_dir is null || _backends is not { } backends) throw new InvalidOperationException("This journal has nothing that waits.");
+        RecoveredDocument pending;
+        lock (_gate) pending = Recovery.Documents.Find(d => d.DocId == docId && d.Status == RecoveryStatus.Pending) ?? throw new InvalidOperationException("No change of this document waits for a decision.");
+        var log = new JournalCompactor.DocLog { Open = pending.Records[0], Rest = pending.Records.GetRange(1, pending.Records.Count - 1) };
+        var rebuilt = JournalRecovery.ReplayDocument(log, backends, JournalPayloads.DirectoryOf(_dir));
+        lock (_gate)
+        {
+            int at = Recovery.Documents.IndexOf(pending);
+            if (at < 0)
+            {
+                rebuilt.Document?.Dispose(); // discarded while it was replayed
+                return rebuilt;
+            }
+            Recovery.Documents[at] = rebuilt;
+        }
+        if (rebuilt.Document is not null) Attach(rebuilt.Document, rebuilt.DocId, rebuilt.BaseRevision);
+        return rebuilt;
+    }
+
+    /// <summary>
+    /// Throws away the changes of a document that start could not or would not replay (pending, failed, in conflict or missing): the close is made durable
+    /// first and then the payload files of the changes go. The file of the document is not touched. False when no such document is listed.
+    /// </summary>
+    public bool DiscardPending(Guid docId)
+    {
+        lock (_gate)
+        {
+            int at = Recovery.Documents.FindIndex(d => d.DocId == docId && d.Document is null);
+            if (at < 0) return false;
+            Recovery.Documents.RemoveAt(at);
+            Append(RecordType.DocClose, JournalRecords.EncodeClose(docId));
+        }
+        if (_dir is null) return true;
+        Flush();
+        JournalPayloads.DeleteAllOf(_dir, docId);
+        return true;
     }
 
     // ---- tracking ----
@@ -332,6 +391,8 @@ public sealed class JournalSession : IDisposable
         private readonly List<(long Revision, string File)> _refs = [];
         private PayloadBlob? _blob;
         private int _blobCount;
+        /// <summary>Inserted bytes written into records of this document since its last save.</summary>
+        private long _inlineBytes;
 
         public Guid Id => id;
         public long BaseRevision => baseRevision;
@@ -405,6 +466,12 @@ public sealed class JournalSession : IDisposable
 
         private EditRecord Edit(ChangeSet c, ChangeKind kind, bool isNew)
         {
+            if (NeedsList(c))
+            {
+                var list = WriteList(c);
+                _refs.Add((c.Revision + baseRevision, list.File));
+                return new EditRecord(id, c.Revision + baseRevision, kind, c.Source, isNew, [], doc.Codec.Name, list);
+            }
             var edits = new ChangeEdit[c.Edits.Count];
             long shift = 0;
             for (int i = 0; i < edits.Length; i++)
@@ -416,7 +483,8 @@ public sealed class JournalSession : IDisposable
                     shift += s.Inserted - s.Deleted;
                     continue;
                 }
-                if (s.Inserted > JournalPlaceholders.MaxInlineEditBytes)
+                // past the inline budget of the document every edit that is more than a keystroke goes to a payload file too, so the records a recovery has to hold stay bounded
+                if (s.Inserted > JournalPlaceholders.MaxInlineEditBytes || (s.Inserted > JournalPlaceholders.SmallEditBytes && _inlineBytes + s.Inserted > JournalPlaceholders.MaxInlineDocumentBytes))
                 {
                     var reference = Externalize(s.Start + shift, s.Inserted);
                     _refs.Add((c.Revision + baseRevision, reference.File));
@@ -426,10 +494,68 @@ public sealed class JournalSession : IDisposable
                 }
                 var inserted = new byte[checked((int)s.Inserted)];
                 if (inserted.Length > 0) doc.Read(s.Start + shift, inserted);
+                _inlineBytes += inserted.Length;
                 shift += s.Inserted - s.Deleted;
                 edits[i] = new(s.Start, s.Deleted, inserted);
             }
             return new EditRecord(id, c.Revision + baseRevision, kind, c.Source, isNew, edits, doc.Codec.Name);
+        }
+
+        /// <summary>True for a change set with so many edits, or so many inline bytes, that its record would be large (Replace All). A fill is one edit and keeps its pattern.</summary>
+        private static bool NeedsList(ChangeSet c)
+        {
+            if (c.Edits.Count > JournalPlaceholders.MaxInlineEditCount) return !c.Edits.Any(s => s.Pattern is not null);
+            long inline = 0;
+            foreach (var s in c.Edits)
+            {
+                if (s.Pattern is not null) return false;
+                if (s.Inserted <= JournalPlaceholders.MaxInlineEditBytes) inline += s.Inserted;
+            }
+            return inline > JournalPlaceholders.MaxInlineRecordBytes;
+        }
+
+        /// <summary>
+        /// Writes the edits of a change set to the payload file of this document, one entry after the other, through a buffer of
+        /// <see cref="SeedChunk"/> bytes: neither the edits nor their text are ever in memory as a whole. The file is synced before the record that names it reaches the disk.
+        /// </summary>
+        private EditListRef WriteList(ChangeSet c)
+        {
+            var blob = _blob ??= new PayloadBlob(JournalPayloads.DirectoryOf(owner._dir!), $"{JournalPayloads.Prefix(owner._id!, id)}-blob-{_blobCount++}.payload");
+            long at = blob.Length;
+            var buffer = new byte[SeedChunk];
+            int used = 0;
+            uint crc = Crc32.Initial;
+            long shift = 0, inserted = 0, deleted = 0;
+            void Drain()
+            {
+                blob.Append(buffer.AsSpan(0, used));
+                crc = Crc32.Update(crc, buffer.AsSpan(0, used));
+                used = 0;
+            }
+            foreach (var s in c.Edits)
+            {
+                if (used + JournalPayloads.ListEntryHeaderBytes > buffer.Length) Drain();
+                var head = buffer.AsSpan(used, JournalPayloads.ListEntryHeaderBytes);
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(head, s.Start);
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(head[8..], s.Deleted);
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(head[16..], s.Inserted);
+                used += JournalPayloads.ListEntryHeaderBytes;
+                for (long done = 0; done < s.Inserted;)
+                {
+                    if (used == buffer.Length) Drain();
+                    int want = (int)Math.Min(buffer.Length - used, s.Inserted - done);
+                    int n = doc.Read(s.Start + shift + done, buffer.AsSpan(used, want));
+                    if (n == 0) throw new EndOfStreamException("The document ended inside a large change.");
+                    used += n;
+                    done += n;
+                }
+                shift += s.Inserted - s.Deleted;
+                inserted += s.Inserted;
+                deleted += s.Deleted;
+            }
+            Drain();
+            owner.AddSync(blob.Name, blob.Sync);
+            return new(blob.Name, at, blob.Length - at, c.Edits.Count, inserted, deleted, Crc32.Finish(crc));
         }
 
         /// <summary>
@@ -498,6 +624,7 @@ public sealed class JournalSession : IDisposable
             if (doc.FilePath is not { } path || doc.Fingerprint is not { } print) return;
             owner.Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.SavedRevision + baseRevision, path, print, doc.Codec.Name)));
             _floor = doc.SavedUndoDepth;
+            _inlineBytes = 0;
             _undo = doc.UndoDepth; // a save over the mapped file drops the undo steps of fills
             _diverged = false;
             _redoOk.Clear();

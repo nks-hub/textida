@@ -1,15 +1,35 @@
+using System.Buffers.Binary;
 using Microsoft.Win32.SafeHandles;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Journal;
 
 /// <summary>
-/// OPEN DECISION (P7.1.4): the owner has not decided from which size on an edit is recorded as a reference instead of inline bytes.
-/// The value below is a placeholder (one flush batch), not a decided number.
+/// OPEN DECISIONS (P7.1.4): the owner has not decided from which size on a change is recorded as a reference or a list instead of inline bytes,
+/// nor from which size on a recovery asks before it replays. The values below are placeholders, not decided numbers.
 /// </summary>
 public static class JournalPlaceholders
 {
-    /// <summary>Placeholder: inserted bytes of one edit above which the journal records a reference to a payload file.</summary>
+    /// <summary>Placeholder, OPEN: inserted bytes of one edit above which the journal records a reference to a payload file.</summary>
     public const int MaxInlineEditBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: inserted bytes of a document that its records may hold inline between two saves; past it every edit of more than <see cref="SmallEditBytes"/> goes to a payload file, so a recovery holds a bounded part of the journal in memory.</summary>
+    public const long MaxInlineDocumentBytes = 32L << 20;
+
+    /// <summary>Placeholder, OPEN: inserted bytes of an edit that always stay inline, whatever the inline budget of the document: typing.</summary>
+    public const int SmallEditBytes = 4096;
+
+    /// <summary>Placeholder, OPEN: edits of one change set above which the journal writes them to a payload file as a list instead of into the record (Replace All over a large file).</summary>
+    public const int MaxInlineEditCount = 4096;
+
+    /// <summary>Placeholder, OPEN: inserted bytes of the edits of one change set that may stand inline in its record; past it the change set is written as a list.</summary>
+    public const int MaxInlineRecordBytes = 8 << 20;
+
+    /// <summary>Placeholder, OPEN: bytes of changes of one document (inserted and removed) above which a recovery waits for the choice to restore or discard instead of replaying them at start.</summary>
+    public const long AskBeforeRecoverBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: most edits of one change set that a recovery rebuilds in memory; a longer list is reported as not restorable and stays in the journal.</summary>
+    public const long MaxRecoveredEdits = 20_000_000;
 }
 
 /// <summary>
@@ -17,6 +37,13 @@ public static class JournalPlaceholders
 /// payload directory. The checksums cover the first and the last 4 KiB; they and the length catch a missing, short or swapped file, not a bit flip in the middle.
 /// </summary>
 public sealed record PayloadRef(string File, long Offset, long Length, uint HeadCrc, uint TailCrc);
+
+/// <summary>
+/// The edits of one change set that has too many of them for a record (Replace All): <paramref name="Count"/> entries one after the other in
+/// <paramref name="File"/>, <paramref name="Length"/> bytes at <paramref name="Offset"/>. Unlike a <see cref="PayloadRef"/> the checksum covers every byte.
+/// An entry is the start, the removed length and the inserted length as three little endian 64 bit integers, then the inserted bytes.
+/// </summary>
+public sealed record EditListRef(string File, long Offset, long Length, long Count, long InsertedBytes, long DeletedBytes, uint Crc);
 
 /// <summary>
 /// Payload files next to the journals (<c>payload</c> directory): append-only files that hold the inserted text of large edits. They are
@@ -60,6 +87,128 @@ internal static class JournalPayloads
             if (SampleCrc(bytes.AsSpan(0, sample)) != r.HeadCrc || SampleCrc(bytes.AsSpan(bytes.Length - sample)) != r.TailCrc)
                 throw new InvalidDataException($"The data of a large change differs from what the journal recorded ({r.File}).");
             return bytes;
+        }
+    }
+
+    /// <summary>Bytes of the header of one entry of an edit list: start, removed length, inserted length.</summary>
+    public const int ListEntryHeaderBytes = 24;
+
+    /// <summary>Inserted blocks up to this size are compared with the one before and share its array when equal (Replace All inserts the same text many times).</summary>
+    private const int ListSharedBlockBytes = 64 << 10;
+
+    /// <summary>
+    /// Reads an edit list back as the edits it was made of. The whole list is checked against its checksum first, so nothing is built from a damaged
+    /// file; an <see cref="InvalidDataException"/> says why a list cannot be used. Memory is the edits themselves: equal short blocks in a row share one array.
+    /// </summary>
+    public static List<ByteEdit> LoadList(string payloadDirectory, EditListRef r)
+    {
+        if (r.File.Length == 0 || r.File != Path.GetFileName(r.File) || r.Offset < 0 || r.Length < 0 || r.Count < 0 || r.InsertedBytes < 0 || r.DeletedBytes < 0)
+            throw new InvalidDataException("A large change refers to an invalid payload file.");
+        if (r.Count > r.Length / ListEntryHeaderBytes) throw new InvalidDataException($"A large change claims more edits than its data can hold ({r.File}).");
+        if (r.Count > JournalPlaceholders.MaxRecoveredEdits) throw new NotSupportedException($"A change of more than {JournalPlaceholders.MaxRecoveredEdits} edits cannot be restored.");
+        string path = Path.Combine(payloadDirectory, r.File);
+        SafeFileHandle handle;
+        try { handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan); }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            throw new InvalidDataException($"The data of a large change is missing ({r.File}).");
+        }
+        using (handle)
+        {
+            if (RandomAccess.GetLength(handle) < r.Offset + r.Length) throw new InvalidDataException($"The data of a large change is incomplete ({r.File} is shorter than the journal says).");
+            var buffer = new byte[1 << 20];
+            uint crc = Crc32.Initial;
+            for (long done = 0; done < r.Length;)
+            {
+                int n = (int)Math.Min(buffer.Length, r.Length - done);
+                ReadAt(handle, buffer.AsSpan(0, n), r.Offset + done, r.File);
+                crc = Crc32.Update(crc, buffer.AsSpan(0, n));
+                done += n;
+            }
+            if (Crc32.Finish(crc) != r.Crc) throw new InvalidDataException($"The data of a large change differs from what the journal recorded ({r.File}).");
+
+            var reader = new RegionReader(handle, r.Offset, r.Length, buffer, r.File);
+            var edits = new List<ByteEdit>((int)Math.Min(r.Count, int.MaxValue));
+            Span<byte> head = stackalloc byte[ListEntryHeaderBytes];
+            byte[]? previous = null;
+            var scratch = new byte[ListSharedBlockBytes];
+            long inserted = 0, deleted = 0;
+            for (long i = 0; i < r.Count; i++)
+            {
+                reader.ReadExactly(head);
+                long start = BinaryPrimitives.ReadInt64LittleEndian(head), remove = BinaryPrimitives.ReadInt64LittleEndian(head[8..]), length = BinaryPrimitives.ReadInt64LittleEndian(head[16..]);
+                if (start < 0 || remove < 0 || length < 0 || length > Array.MaxLength || start > long.MaxValue - remove) throw new InvalidDataException($"A large change holds an edit that cannot be right ({r.File}).");
+                ReadOnlyMemory<byte> insert = default;
+                if (length > 0 && length <= ListSharedBlockBytes)
+                {
+                    var block = scratch.AsSpan(0, (int)length);
+                    reader.ReadExactly(block);
+                    if (previous is null || !previous.AsSpan().SequenceEqual(block)) previous = block.ToArray();
+                    insert = previous;
+                }
+                else if (length > 0)
+                {
+                    var big = new byte[length];
+                    reader.ReadExactly(big);
+                    insert = big;
+                }
+                edits.Add(new ByteEdit(new ByteRange(start, start + remove), insert));
+                inserted += length;
+                deleted += remove;
+            }
+            if (reader.Remaining != 0 || inserted != r.InsertedBytes || deleted != r.DeletedBytes)
+                throw new InvalidDataException($"The data of a large change does not match what the journal recorded ({r.File}).");
+            return edits;
+        }
+    }
+
+    private static void ReadAt(SafeFileHandle handle, Span<byte> destination, long offset, string file)
+    {
+        while (!destination.IsEmpty)
+        {
+            int n = RandomAccess.Read(handle, destination, offset);
+            if (n <= 0) throw new InvalidDataException($"The data of a large change is incomplete ({file}).");
+            destination = destination[n..];
+            offset += n;
+        }
+    }
+
+    /// <summary>Sequential reads of one region of a file through a buffer; a read as large as the buffer goes straight into its target.</summary>
+    private sealed class RegionReader(SafeFileHandle handle, long start, long length, byte[] buffer, string file)
+    {
+        private long _next = start;
+        private readonly long _end = start + length;
+        private int _have, _used;
+
+        public long Remaining => _end - _next + (_have - _used);
+
+        public void ReadExactly(Span<byte> destination)
+        {
+            while (!destination.IsEmpty)
+            {
+                if (_used < _have)
+                {
+                    int n = Math.Min(_have - _used, destination.Length);
+                    buffer.AsSpan(_used, n).CopyTo(destination);
+                    _used += n;
+                    destination = destination[n..];
+                    continue;
+                }
+                long left = _end - _next;
+                if (left <= 0) throw new InvalidDataException($"The data of a large change is incomplete ({file}).");
+                if (destination.Length >= buffer.Length)
+                {
+                    int n = (int)Math.Min(destination.Length, left);
+                    ReadAt(handle, destination[..n], _next, file);
+                    _next += n;
+                    destination = destination[n..];
+                    continue;
+                }
+                _have = (int)Math.Min(buffer.Length, left);
+                _used = 0;
+                ReadAt(handle, buffer.AsSpan(0, _have), _next, file);
+                _next += _have;
+            }
         }
     }
 

@@ -95,6 +95,7 @@ internal sealed partial class MainWindow
         OnActiveTabChanged();
 
         if (journal.CrashedLastTime) ShowRestoreBar(recovery);
+        foreach (var rd in journal.Pending) ShowPendingBar(rd);
     }
 
     private static void ApplySelection(DocTab tab, SessionTab saved)
@@ -107,30 +108,84 @@ internal sealed partial class MainWindow
         if (start >= 0 && end >= start) surface.SetSelections([new Sel(start, end)]);
     }
 
+    private static string NameOfRecovered(RecoveredDocument rd) =>
+        rd.Path is { } p ? System.IO.Path.GetFileName(p) : rd.Title ?? Loc.Get(K.TabUntitled, ("number", ""));
+
+    private static string StatusOfRecovered(RecoveredDocument rd) => rd.Status switch
+    {
+        RecoveryStatus.Restored => Loc.Get(K.RestoreStatusRestored),
+        RecoveryStatus.Clean => Loc.Get(K.RestoreStatusClean),
+        RecoveryStatus.Conflict => Loc.Get(K.RestoreStatusConflict),
+        RecoveryStatus.Missing => Loc.Get(K.RestoreStatusMissing),
+        RecoveryStatus.Pending => Loc.Get(K.RestoreStatusPending, ("size", OpenDocument.FormatSize(rd.PendingBytes))),
+        _ => Loc.Get(K.RestoreStatusFailed, ("reason", rd.Error ?? "")),
+    };
+
     private string DescribeRecovered(RecoveredDocument rd)
     {
-        string name = rd.Path is { } p ? System.IO.Path.GetFileName(p) : rd.Title ?? Loc.Get(K.TabUntitled, ("number", ""));
-        string status = rd.Status switch
-        {
-            RecoveryStatus.Restored => Loc.Get(K.RestoreStatusRestored),
-            RecoveryStatus.Clean => Loc.Get(K.RestoreStatusClean),
-            RecoveryStatus.Conflict => Loc.Get(K.RestoreStatusConflict),
-            RecoveryStatus.Missing => Loc.Get(K.RestoreStatusMissing),
-            _ => Loc.Get(K.RestoreStatusFailed, ("reason", rd.Error ?? "")),
-        };
         string when = rd.LastChange is { } t ? " · " + t.LocalDateTime.ToString("g") : "";
-        return $"{name}: {status}{when}";
+        return $"{NameOfRecovered(rd)}: {StatusOfRecovered(rd)}{when}";
     }
 
     private void ShowRestoreBar(RecoveryResult recovery)
     {
         int back = recovery.Documents.Count(d => d.Document is not null);
         int unsaved = recovery.Documents.Count(d => d.Status == RecoveryStatus.Restored && d.PendingRecords > 0);
-        int failed = recovery.Documents.Count(d => d.Document is null);
+        int failed = recovery.Documents.Count(d => d.Document is null && d.Status != RecoveryStatus.Pending);
+        if (back == 0 && failed == 0) return; // only large changes wait: their own bars say it
         var message = Loc.Plural(K.RestoreBar, back, ("unsaved", unsaved));
         if (failed > 0) message += " " + Loc.Plural(K.RestoreBarFailed, failed);
         var details = recovery.Documents.Select(DescribeRecovered).ToList();
         ShowNotice("restore", message, [(Loc.Get(K.RestoreDetails), () => _ = _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.RestoreTitle), message, [new DialogButton(Loc.Get(K.DialogClose), IsDefault: true, IsCancel: true)], details)))]);
+    }
+
+    // ---- large changes that wait for a decision ----
+
+    private static string PendingKey(RecoveredDocument rd) => "recover:" + rd.DocId.ToString("N");
+
+    /// <summary>A document whose changes were too large to replay at start waits behind a bar: restore them (the journal is read in the background) or discard them.</summary>
+    private void ShowPendingBar(RecoveredDocument rd)
+    {
+        string when = rd.LastChange is { } t ? t.LocalDateTime.ToString("g") : "";
+        ShowNotice(PendingKey(rd), Loc.Get(K.RecoverLargeBar, ("name", NameOfRecovered(rd)), ("size", OpenDocument.FormatSize(rd.PendingBytes)), ("when", when)),
+            [(Loc.Get(K.RecoverLargeRestore), () => _ = RecoverLargeAsync(rd)), (Loc.Get(K.RecoverLargeDiscard), () => _ = DiscardLargeAsync(rd))], warning: true);
+    }
+
+    /// <summary>Replays the large changes off the UI thread and opens the document like any restored one; the file of the document is not touched.</summary>
+    internal async Task RecoverLargeAsync(RecoveredDocument pending)
+    {
+        string name = NameOfRecovered(pending);
+        DismissNotice(PendingKey(pending));
+        SetStatusMessage(Loc.Get(K.RecoverLargeRunning, ("name", name), ("size", OpenDocument.FormatSize(pending.PendingBytes))));
+        RecoveredDocument back;
+        try { back = await _app.Journal.RecoverPendingAsync(pending); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or ObjectDisposedException or NotSupportedException)
+        {
+            ShowNotice(PendingKey(pending), Loc.Get(K.RecoverLargeFailed, ("name", name), ("status", e.Message)), warning: true);
+            return;
+        }
+        if (back.Document is null)
+        {
+            ShowNotice(PendingKey(pending), Loc.Get(K.RecoverLargeFailed, ("name", name), ("status", StatusOfRecovered(back))), warning: true);
+            return;
+        }
+        var od = OpenDocument.FromRecovered(back);
+        Adopt(od);
+        SelectTab(AddView(od, _activeGroup));
+        SetStatusMessage(Loc.Get(K.RecoverLargeDone, ("name", name)));
+    }
+
+    /// <summary>Asks once more, because nothing brings the changes back, and then removes them from the journal.</summary>
+    internal async Task DiscardLargeAsync(RecoveredDocument pending)
+    {
+        string name = NameOfRecovered(pending);
+        var ask = new ChoiceRequest(Loc.Get(K.RecoverLargeDiscardTitle),
+            Loc.Get(K.RecoverLargeDiscardMessage, ("name", name), ("size", OpenDocument.FormatSize(pending.PendingBytes))),
+            [new DialogButton(Loc.Get(K.RecoverLargeDiscard)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
+        if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return;
+        DismissNotice(PendingKey(pending));
+        await _app.Journal.DiscardPendingAsync(pending.DocId);
+        SetStatusMessage(Loc.Get(K.RecoverLargeDiscarded, ("name", name)));
     }
 
     // ---- warnings about the journal itself ----

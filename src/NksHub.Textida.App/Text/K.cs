@@ -314,6 +314,16 @@ public static class K
     public const string RestoreStatusConflict = "restore.status.conflict";
     public const string RestoreStatusMissing = "restore.status.missing";
     public const string RestoreStatusFailed = "restore.status.failed";
+    public const string RestoreStatusPending = "restore.status.pending";
+    public const string RecoverLargeBar = "restore.large.bar";
+    public const string RecoverLargeRestore = "restore.large.restore";
+    public const string RecoverLargeDiscard = "restore.large.discard";
+    public const string RecoverLargeRunning = "restore.large.running";
+    public const string RecoverLargeDone = "restore.large.done";
+    public const string RecoverLargeDiscarded = "restore.large.discarded";
+    public const string RecoverLargeFailed = "restore.large.failed";
+    public const string RecoverLargeDiscardTitle = "restore.large.discardTitle";
+    public const string RecoverLargeDiscardMessage = "restore.large.discardMessage";
     public const string JournalOff = "journal.off";
     public const string JournalFallback = "journal.fallback";
     public const string JournalBroken = "journal.broken";
@@ -342,6 +352,8 @@ public static class K
     public const string ErrorOpenLargeEncoding = "error.open.largeEncoding";
     public const string PagedIndexing = "paged.indexing";
     public const string PagedNotEncodable = "paged.notEncodable";
+    public const string PagedCopyTooLarge = "paged.copyTooLarge";
+    public const string PagedEditTooLarge = "paged.editTooLarge";
     public const string A11yMainMenu = "a11y.menu.main";
     public const string A11yTabs = "a11y.tabs";
     public const string A11yEditor = "a11y.editor";
