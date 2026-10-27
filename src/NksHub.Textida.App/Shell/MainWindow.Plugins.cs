@@ -68,6 +68,7 @@ internal sealed partial class MainWindow
         if (_pluginPanelKey is not { } key || _pluginTree.SelectedItem is not TreeViewItem { Tag: string item }) return;
         if (key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal)) _app.Plugins.RevealSymbol(key.Plugin, key.Panel, item);
         else if (key.Panel == PluginServices.LspLocationsPanel) { if (PluginServices.ParsePlace(item) is { } place) GoToPlace(place.Path, place.Line, place.Character, place.EndLine, place.EndCharacter); }
+        else if (key.Panel == PluginServices.GitStatusPanel) GoToPlace(item, 0, 0, 0, 0);
         else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
     }
 

@@ -1176,14 +1176,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
 ## [tools.git] Git: status, compare and stage a hunk
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
 4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
 - The plugin writes to the repository only on Git: Stage Hunk at Caret. Status and compare only read and do not even refresh the index file.
 - The text open in the editor is staged, saved or not. A file with an unresolved merge conflict is not staged.
-- Not there yet: unstage a hunk, commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
+5. Git: Unstage Hunk at Caret takes back to HEAD only the staged change the caret is in (or points to in the file). The other staged changes stay.
+6. For a merge conflict put the caret in the block between `<<<<<<<` and `>>>>>>>` and choose Git: Conflict, Take Ours / Take Theirs / Take Both. The block is replaced by the chosen side. When no block is left and the file is saved, choose Git: Mark File Resolved; the file is added to the index.
+7. A double click or Enter on a file in the status panel opens it. The status bar shows the branch and counts: `+` staged, `~` changed, `?` untracked, `!` conflicts; it updates after every Git command.
+- Not there yet: commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
 - The Git process starts with the first command. The `git` program must be on the PATH.
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics

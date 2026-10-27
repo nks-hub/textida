@@ -1181,14 +1181,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Proces Emmet se spustí prvním Tabem v souboru HTML nebo CSS.
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Příkaz spusťte znovu, až se repozitář změní zvenku.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
 4. Když se index mezitím změnil jiným programem, nic se nezapíše. Plugin index načte znovu a oznámí konflikt; zkontrolujte změny a příkaz zopakujte.
 - Plugin zapisuje do repozitáře jen při Git: připravit úsek. Stav a porovnání jen čtou a nemění ani soubor index.
 - Připravuje se text otevřený v editoru, i když není uložený. Soubor s nevyřešeným konfliktem slučování se nepřipravuje.
-- Chybí zatím: vrácení úseku z indexu, commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
+5. Git: vrátit úsek pod kurzorem z indexu vezme zpět do HEAD jen přípravenou změnu, ve které kurzor stojí (nebo na ni v souboru ukazuje). Ostatní připravené změny zůstanou.
+6. Při konfliktu slučování umístěte kurzor do bloku mezi `<<<<<<<` a `>>>>>>>` a zvolte Git: konflikt, vzít naše změny / jejich změny / obě strany. Blok se nahradí zvolenou stranou. Až žádný blok nezbyde a soubor je uložený, zvolte Git: označit soubor jako vyřešený; soubor se přidá do indexu.
+7. Panel stavu otevře soubor dvojklikem nebo Enterem. Ve stavovém řádku je větev a počty: `+` v indexu, `~` změněno, `?` nesledováno, `!` konflikty; aktualizuje se po každém příkazu Git.
+- Chybí zatím: commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
 - Proces Git se spustí prvním příkazem. Program `git` musí být v PATH.
 
 ## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
