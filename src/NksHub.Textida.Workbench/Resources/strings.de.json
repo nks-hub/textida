@@ -427,6 +427,7 @@
   "cmd.source.open": "Aus Plugin-Quelle öffnen...",
   "cmd.remote.connections": "Remote-Verbindungen...",
   "cmd.remote.upload": "Auf Server hochladen",
+  "cmd.remote.cancel": "Übertragung abbrechen",
   "cmd.remote.check": "Serverversion prüfen",
   "cmd.remote.unsent": "Nicht gesendete Remote-Änderungen...",
   "cmd.remote.proxy": "Netzwerk-Proxy...",

@@ -133,7 +133,11 @@ commands: nks.remote.upload
 3. Změnil-li se soubor na serveru mezitím, nepošle se nic. Zvolte Zobrazit rozdíly, uvidíte verzi ze serveru vedle své, převezměte do své strany, co potřebujete, uložte a nahrajte znovu. Přesto nahrát nahradí právě tu verzi serveru, kterou jste viděli.
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
-- Nic se neopakuje samo. Po chybě zvolte Nahrát na server znovu; nejdřív zase zkontroluje server.
+- Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
+
+## [remote.cancel] Zrušit přenos
+commands: nks.remote.cancel
+Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání se zastaví, server si ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání.
 
 ## [remote.check] Zkontrolovat verzi na serveru
 commands: nks.remote.check

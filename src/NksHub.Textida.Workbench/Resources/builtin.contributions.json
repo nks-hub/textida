@@ -374,6 +374,11 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.remote.cancel",
+      "title": "cmd.remote.cancel",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.remote.check",
       "title": "cmd.remote.check",
       "category": "cat.file",
@@ -2318,6 +2323,13 @@
       "group": "4_remote",
       "submenu": "remote",
       "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.cancel",
+      "group": "4_remote",
+      "submenu": "remote",
+      "order": 35
     },
     {
       "menu": "file",

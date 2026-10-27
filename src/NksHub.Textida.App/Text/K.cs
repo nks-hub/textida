@@ -1120,6 +1120,10 @@ public static class K
     public const string RemoteLogOpened = "remote.log.opened";
     public const string RemoteLogConflict = "remote.log.conflict";
     public const string RemoteLogLeftover = "remote.log.leftover";
+    public const string RemoteLogResuming = "remote.log.resuming";
+    public const string RemoteLogRetrying = "remote.log.retrying";
+    public const string RemoteCancelled = "remote.cancelled";
+    public const string RemoteNoTransfer = "remote.noTransfer";
     public const string RemoteLogUploading = "remote.log.uploading";
     public const string RemoteLogReplacing = "remote.log.replacing";
     public const string RemoteOpenTitle = "remote.open.title";

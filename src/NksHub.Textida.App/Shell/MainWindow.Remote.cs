@@ -44,6 +44,7 @@ internal sealed partial class MainWindow
     {
         TransferStep.RemovingLeftover => Loc.Get(K.RemoteLogLeftover, ("path", e.Path)),
         TransferStep.Uploading => Loc.Get(K.RemoteLogUploading, ("bytes", e.Bytes), ("path", e.Path)),
+        TransferStep.Resuming => Loc.Get(K.RemoteLogResuming, ("bytes", e.Bytes), ("path", e.Path)),
         _ => Loc.Get(K.RemoteLogReplacing, ("path", e.Path)),
     };
 
@@ -363,6 +364,14 @@ internal sealed partial class MainWindow
         catch (RemoteException e) { SetStatusMessage(Loc.Get(K.RemoteCheckFailed, ("reason", e.Message))); }
     }
 
+    private CancellationTokenSource? _remoteTransfer;
+
+    internal CommandOutcome CancelRemoteTransfer()
+    {
+        if (_remoteTransfer is { } running) running.Cancel(); else SetStatusMessage(Loc.Get(K.RemoteNoTransfer));
+        return CommandOutcome.Handled;
+    }
+
     internal CommandOutcome UploadRemote()
     {
         if (RemoteTarget() is { } tab) _ = UploadRemoteAsync(tab);
@@ -378,14 +387,34 @@ internal sealed partial class MainWindow
         if (od.RemoteCopy is not { } copy) return false;
         if (saveFirst && od.Doc.IsModified && !await SaveAsync(tab)) return false; // the copy on disk is what gets sent
         if (ConnectionOf(copy) is not { } connection) { SetStatusMessage(Loc.Get(K.RemoteConnectionGone)); return false; }
-        await using var client = await ConnectAsync(connection);
+        var client = await ConnectAsync(connection);
         if (client is null) { ShowRemoteBarOffline(tab); return false; }
+        using var cancel = new CancellationTokenSource();
+        _remoteTransfer = cancel;
 
         var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
         _acceptedServerVersion.TryGetValue(od, out var accepted);
         try
         {
-            var outcome = await RemoteSync.UploadAsync(client, _app.Remote.Copies, copy, mode, accepted, new TransferOptions { Log = e => RemoteLog(connection, DescribeStep(e)) }, CancellationToken.None);
+            UploadOutcome outcome;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    outcome = await RemoteSync.UploadAsync(client, _app.Remote.Copies, copy, mode, accepted, new TransferOptions { Log = e => RemoteLog(connection, DescribeStep(e)) }, cancel.Token);
+                    break;
+                }
+                catch (RemoteException e) when (e.Error == RemoteError.ConnectionLost && attempt <= PluginLimitsPlaceholders.RemoteRetryCount)
+                {
+                    // A new call, so the server version is checked again before anything is written; a partial temporary file is continued.
+                    int delay = PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds << (attempt - 1);
+                    RemoteLog(connection, Loc.Get(K.RemoteLogRetrying, ("attempt", attempt), ("max", PluginLimitsPlaceholders.RemoteRetryCount), ("seconds", delay / 1000.0), ("reason", e.Message)));
+                    await client.DisposeAsync();
+                    await Task.Delay(delay, cancel.Token);
+                    client = await ConnectAsync(connection);
+                    if (client is null) { ShowRemoteBarOffline(tab); return false; }
+                }
+            }
             switch (outcome.Status)
             {
                 case UploadStatus.Uploaded:
@@ -409,12 +438,23 @@ internal sealed partial class MainWindow
                     return false;
             }
         }
+        catch (OperationCanceledException)
+        {
+            RemoteLog(connection, Loc.Get(K.RemoteCancelled, ("title", od.Title)));
+            SetStatusMessage(Loc.Get(K.RemoteCancelled, ("title", od.Title)));
+            return false;
+        }
         catch (RemoteException e)
         {
             RemoteLog(connection, Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", e.Message)));
             SetStatusMessage(Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", e.Message)));
             ShowRemoteBarOffline(tab);
             return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(_remoteTransfer, cancel)) _remoteTransfer = null;
+            if (client is not null) await client.DisposeAsync();
         }
     }
 
