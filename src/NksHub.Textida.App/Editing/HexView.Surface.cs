@@ -256,12 +256,20 @@ internal sealed partial class HexView
                         hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
                     }
                     var hex = Format(hexBuilder.ToString(), fore);
-                    for (int col = 0; col < n; col++)
+                    // one span per run of bytes with the same colour: a row of zeros is one span, not one per byte
+                    int runStart = 0;
+                    IBrush? runBrush = null;
+                    for (int col = 0; col <= n; col++)
                     {
-                        byte b = buf[rowOffset - bufStart + col];
-                        if (b == 0) hex.SetForegroundBrush(dim, _hexChar[col], 2);
-                        else if (b == 0xFF) hex.SetForegroundBrush(accent, _hexChar[col], 2);
-                        else if (b < 0x20 || b == 0x7F) hex.SetForegroundBrush(muted, _hexChar[col], 2);
+                        IBrush? brush = null;
+                        if (col < n)
+                        {
+                            byte b = buf[rowOffset - bufStart + col];
+                            brush = b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
+                            if (ReferenceEquals(brush, runBrush)) continue;
+                        }
+                        if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], _hexChar[col - 1] + 2 - _hexChar[runStart]);
+                        (runStart, runBrush) = (col, brush);
                     }
                     context.DrawText(hex, new Point(_hexLeft, y + 1));
 
