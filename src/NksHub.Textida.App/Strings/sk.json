@@ -334,7 +334,6 @@
   "a11y.workspace": "Pracovná plocha",
   "status.largePaged": "Veľký súbor ({size}): stránkovaný režim, revízia {revision}",
   "paged.indexing": "Číslovanie riadkov ešte beží, úpravy pôjdu o chvíľu",
-  "paged.longLine": "Riadok je dlhší ako {size}, v stránkovanom režime sa nedá upraviť",
   "paged.notEncodable": "Znak sa nedá zapísať v kódovaní {encoding}",
   "find.watermark": "Hľadať",
   "find.replaceWatermark": "Nahradiť čím",

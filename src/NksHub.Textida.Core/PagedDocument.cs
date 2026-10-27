@@ -140,7 +140,7 @@ public sealed class PagedDocument : IPagedTextSource
     {
         int w = Codec.Alignment;
         int chunk = (1 << 20) - (1 << 20) % w;
-        var buffer = new byte[chunk];
+        var buffer = new byte[(int)Math.Min(chunk, p.Length)]; // a keystroke makes a piece of a few bytes: a fixed 1 MiB array per edit would land on the large object heap
         var pair = new byte[2 * w];
         for (long at = 0; at < p.Length;)
         {
@@ -219,7 +219,8 @@ public sealed class PagedDocument : IPagedTextSource
 
     private Piece[] Apply(long offset, long removeLength, Piece[] insert)
     {
-        _editedColumns.Clear();
+        if (IsModified) _editedColumns.DropFrom(offset);
+        else _editedColumns.CopyBefore(_source.Columns, offset);
         var removed = _tree.Remove(offset, removeLength);
         _tree.Insert(offset, insert);
         return removed;
@@ -313,7 +314,26 @@ public sealed class PagedDocument : IPagedTextSource
     public bool TryGetLineColumns(long lineStart, out long columns) =>
         IsModified ? _editedColumns.TryGetLength(lineStart, out columns) : _source.TryGetLineColumns(lineStart, out columns);
 
-    /// <summary>Bytes at <paramref name="position"/> straight from a piece when one holds them all, else copied across pieces.</summary>
+    /// <summary>
+    /// UTF-16 columns from the start of the line that starts at <paramref name="lineStart"/> to <paramref name="offset"/>, a character boundary of that line,
+    /// without decoding the line. The count resumes from the nearest point noted by earlier reads; edits keep the points before them.
+    /// </summary>
+    public long ColumnOf(long lineStart, long offset, CancellationToken ct = default) =>
+        IsModified
+            ? ColumnReader.ColumnOf(EditedWindow, ByteLength, Codec, _source.BomLength, _editedColumns, lineStart, offset, ct)
+            : ColumnReader.ColumnOf((pos, max) => _source.File.GetSpanClamped(pos, max), _source.File.Length, Codec, _source.BomLength, _source.Columns, lineStart, offset, ct);
+
+    /// <summary>Byte offset of the UTF-16 column <paramref name="column"/> of the line that starts at <paramref name="lineStart"/>; the end of the line when the line is shorter.</summary>
+    public long OffsetOfColumn(long lineStart, long column, CancellationToken ct = default) =>
+        IsModified
+            ? ColumnReader.OffsetOf(EditedWindow, ByteLength, Codec, _source.BomLength, _editedColumns, lineStart, column, ct)
+            : ColumnReader.OffsetOf((pos, max) => _source.File.GetSpanClamped(pos, max), _source.File.Length, Codec, _source.BomLength, _source.Columns, lineStart, column, ct);
+
+    private byte[] _windowBuffer = [];
+
+    /// <summary>
+    /// Bytes at <paramref name="position"/> straight from a piece when one holds them all, else copied across pieces into a buffer that the next call overwrites.
+    /// </summary>
     private ReadOnlySpan<byte> EditedWindow(long position, long maxLength)
     {
         long want = Math.Min(maxLength, ByteLength - position);
@@ -323,7 +343,8 @@ public sealed class PagedDocument : IPagedTextSource
             if (piece.Length == want) return PieceBytes(piece);
             break;
         }
-        var copy = new byte[want];
+        if (_windowBuffer.Length < want) _windowBuffer = new byte[Math.Max(want, 64 * 1024)];
+        var copy = _windowBuffer.AsSpan(0, (int)want);
         Read(position, copy);
         return copy;
     }

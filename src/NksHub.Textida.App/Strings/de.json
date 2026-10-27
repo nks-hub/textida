@@ -325,7 +325,6 @@
   "a11y.workspace": "Arbeitsfläche",
   "status.largePaged": "Große Datei ({size}): Seitenmodus, Revision {revision}",
   "paged.indexing": "Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich",
-  "paged.longLine": "Die Zeile ist länger als {size} und kann im Seitenmodus nicht bearbeitet werden",
   "paged.notEncodable": "Das Zeichen kann in {encoding} nicht geschrieben werden",
   "find.watermark": "Suchen",
   "find.replaceWatermark": "Ersetzen durch",

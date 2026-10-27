@@ -28,7 +28,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 /// <remarks>
 /// shortcut: one selection only (no extra carets, no block mode); a line longer than <see cref="MaxLineBytes"/> shows its first part
-/// and cannot be edited; its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; no tokens there, a selection only when it covers the rest of the line); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
+/// and is edited through the bytes around the caret (the caret column and the selection come from the column index of the document, never from decoding the line); its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; no tokens there, a selection only when it covers the rest of the line); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
 {
@@ -158,7 +158,7 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>Zero-based line and UTF-16 column of the caret; null while the line index is not complete.</summary>
     public (long Line, long Column)? CaretLineColumn() =>
-        CaretLine() is { } c ? (c.Line, c.View.Map.CharIndexOf(_caret - c.View.Start)) : null;
+        CaretSite() is { } c ? (c.Line, c.Column) : null;
 
     public void ApplyOptions(EditorOptions o)
     {
@@ -233,8 +233,24 @@ internal sealed partial class PagedTextView : Grid
         if (change.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || change.Edits.Count == 0 || _linesRevision != change.Revision - 1) return;
         long first = change.Edits[0].Start;
         foreach (var (line, view) in _lines.ToArray())
-            if (!LineSurvives(view.Start, view.ByteLength, first)) _lines.Remove(line);
+        {
+            if (LineSurvives(view.Start, view.ByteLength, first)) continue;
+            if (LongLineAfterEdit(view, change) is { } resized) _lines[line] = resized;
+            else _lines.Remove(line);
+        }
         _linesRevision = change.Revision;
+    }
+
+    /// <summary>
+    /// The view of a truncated line whose one edit lies behind the part that was decoded and stays inside the line without a line break:
+    /// the decoded part is still right and only the length of the line changed. Null for any other edit.
+    /// </summary>
+    private static LineView? LongLineAfterEdit(LineView view, ChangeSet change)
+    {
+        if (!view.Truncated || change.TouchesLineBreaks || change.Edits.Count != 1) return null;
+        var edit = change.Edits[0];
+        if (edit.Start < view.Start + MaxLineBytes + 4 || edit.Start + edit.Deleted > view.Start + view.ByteLength) return null;
+        return view.WithByteLength(view.ByteLength - edit.Deleted + edit.Inserted);
     }
 
     /// <summary>A save maps the new file again, so the line index starts over.</summary>
@@ -403,6 +419,7 @@ internal sealed partial class PagedTextView : Grid
         for (int i = 0; i <= _canvas.VisibleLines; i++)
         {
             if (!Indexed || GetLine(TopLine + i) is not { } view) break;
+            if (view.Truncated) continue; // the feeder tokenizes it by columns from the document, not from this view
             int length = view.Map.Text.Length;
             if (length <= 4096)
             {
@@ -580,6 +597,77 @@ internal sealed partial class PagedTextView : Grid
         return GetLine(_lineMemo.Line) is { } view ? (_lineMemo.Line, view) : null;
     }
 
+    /// <summary>
+    /// The caret line for moving and editing: <see cref="View"/> holds the whole line, or for a truncated line only the characters around the caret
+    /// (its <c>Start</c> is where they begin), and <see cref="Column"/> is the UTF-16 column of the caret in the whole line.
+    /// </summary>
+    private readonly record struct Site(long Line, LineView View, long Column, bool Long);
+
+    private Site? CaretSite()
+    {
+        if (CaretLine() is not { } c) return null;
+        if (!c.View.Truncated) return new Site(c.Line, c.View, c.View.Map.CharIndexOf(_caret - c.View.Start), false);
+        return new Site(c.Line, LocalView(c.View, _caret), ColumnOfOffset(c.View, _caret), true);
+    }
+
+    private const int LocalBytes = 64;
+
+    /// <summary>Decodes the bytes of a truncated line within <see cref="LocalBytes"/> of an offset, so that editing next to the caret never reads the rest of the line.</summary>
+    private LineView LocalView(LineView full, long offset)
+    {
+        var codec = Doc.Codec;
+        int unit = codec.Alignment;
+        long end = full.Start + full.ByteLength;
+        offset = Math.Clamp(offset, full.Start, end);
+        long from = full.Start + (Math.Max(full.Start, offset - LocalBytes - 3) - full.Start) / unit * unit;
+        long to = Math.Min(end, offset + LocalBytes + 4);
+        var bytes = new byte[to - from];
+        Doc.Read(from, bytes);
+        int first = 0;
+        if (from > full.Start)
+            for (first = (3 + unit - 1) / unit * unit; first < bytes.Length && !codec.IsBoundary(bytes, first); first += unit) { }
+        int last = to < end ? first + codec.CompleteLength(bytes.AsSpan(first)) : bytes.Length;
+        return new LineView(from + first, false, last - first, codec.WithBom(false).Decode(bytes.AsMemory(first, last - first)), _options.TabSize);
+    }
+
+    private long _columnsRevision = -1;
+    private readonly Dictionary<long, long> _columnMemo = [];
+    private readonly Dictionary<long, long> _offsetMemo = [];
+
+    private void ForgetColumns()
+    {
+        if (_columnsRevision == Doc.Revision && _columnMemo.Count <= 16 && _offsetMemo.Count <= 16) return;
+        _columnMemo.Clear();
+        _offsetMemo.Clear();
+        _columnsRevision = Doc.Revision;
+    }
+
+    /// <summary>UTF-16 column of a byte offset of the truncated line <paramref name="line"/>; it counts from the nearest column point, not from the start of the line.</summary>
+    private long ColumnOfOffset(LineView line, long offset)
+    {
+        ForgetColumns();
+        if (_columnMemo.TryGetValue(offset, out long known)) return known;
+        return _columnMemo[offset] = offset <= line.Start ? 0 : Paged.ColumnOf(line.Start, offset);
+    }
+
+    /// <summary>Byte offset of a UTF-16 column of the truncated line <paramref name="line"/>; the end of the line when it is shorter.</summary>
+    private long OffsetOfColumn(LineView line, long column)
+    {
+        ForgetColumns();
+        if (_offsetMemo.TryGetValue(column, out long known)) return known;
+        return _offsetMemo[column] = Paged.OffsetOfColumn(line.Start, column);
+    }
+
+    /// <summary>Remembers the column of an offset that an edit has just put the caret on, so that the next move does not count it again.</summary>
+    private void NoteColumn(long offset, long column)
+    {
+        ForgetColumns();
+        _columnMemo[offset] = column;
+    }
+
+    /// <summary>UTF-16 column of the caret in the line shown by <paramref name="view"/>.</summary>
+    private long CaretColumn(LineView view) => view.Truncated ? ColumnOfOffset(view, _caret) : view.Map.CharIndexOf(_caret - view.Start);
+
     // ---- moving ----
 
     private void MoveTo(long caret, long? line = null, bool keepWanted = false)
@@ -599,7 +687,7 @@ internal sealed partial class PagedTextView : Grid
     private void Left()
     {
         if (!_extend && HasSelection) { MoveTo(SelectionRange.Start); return; }
-        if (CaretLine() is not { } c) return;
+        if (CaretSite() is not { } c) return;
         int i = c.View.Map.CharIndexOf(_caret - c.View.Start);
         if (i > 0) MoveTo(c.View.Start + c.View.Map.ByteOffsetOf(c.View.Map.IsCharBoundary(i - 1) ? i - 1 : i - 2), c.Line);
         else if (c.Line > 0 && TryBounds(c.Line - 1, out _, out long end, out _)) MoveTo(end, c.Line - 1);
@@ -608,7 +696,7 @@ internal sealed partial class PagedTextView : Grid
     private void Right()
     {
         if (!_extend && HasSelection) { MoveTo(SelectionRange.End); return; }
-        if (CaretLine() is not { } c) return;
+        if (CaretSite() is not { } c) return;
         var map = c.View.Map;
         int i = map.CharIndexOf(_caret - c.View.Start);
         if (i < map.Text.Length) MoveTo(c.View.Start + map.ByteOffsetOf(map.IsCharBoundary(i + 1) ? i + 1 : i + 2), c.Line);
@@ -617,17 +705,18 @@ internal sealed partial class PagedTextView : Grid
 
     private void Vertical(long delta)
     {
-        if (CaretLine() is not { } c) return;
+        if (CaretSite() is not { } c) return;
         long target = Math.Clamp(c.Line + delta, 0, LineCount - 1);
         if (target == c.Line || GetLine(target) is not { } view) return;
-        if (_wanted < 0) _wanted = c.View.DisplayAt[c.View.Map.CharIndexOf(_caret - c.View.Start)];
-        MoveTo(view.Start + view.Map.ByteOffsetOf(view.IndexAtDisplay(_wanted)), target, keepWanted: true);
+        if (_wanted < 0) _wanted = c.Long ? (int)Math.Min(c.Column, int.MaxValue) : c.View.DisplayAt[c.View.Map.CharIndexOf(_caret - c.View.Start)];
+        long to = view.Truncated && _wanted >= view.Display.Length ? OffsetOfColumn(view, _wanted) : view.Start + view.Map.ByteOffsetOf(view.IndexAtDisplay(_wanted));
+        MoveTo(to, target, keepWanted: true);
     }
 
     private void LineEdge(bool end)
     {
         if (CaretLine() is not { } c) return;
-        MoveTo(c.View.Start + c.View.Map.ByteOffsetOf(end ? c.View.Map.Text.Length : 0), c.Line);
+        MoveTo(end ? c.View.Start + c.View.ByteLength : c.View.Start, c.Line);
     }
 
     /// <summary>Keeps the caret on screen: scrolls the lines, and sideways when the line is wider than the view.</summary>
@@ -637,7 +726,7 @@ internal sealed partial class PagedTextView : Grid
         int visible = Math.Max(1, _canvas.VisibleLines - 1);
         if (c.Line < TopLine) _bar.Value = c.Line;
         else if (c.Line >= TopLine + visible) _bar.Value = Math.Min(_bar.Maximum, c.Line - visible + 1);
-        double x = _canvas.XOf(c.View, c.View.Map.CharIndexOf(_caret - c.View.Start)), width = _canvas.TextWidth;
+        double x = _canvas.XOfColumn(c.View, CaretColumn(c.View)), width = _canvas.TextWidth;
         if (x < _hScroll) _hScroll = Math.Max(0, x - 24);
         else if (x > _hScroll + width - 8) _hScroll = x - width + 32;
         if (_hBar.IsVisible) _hBar.Value = Math.Clamp(_hScroll / _canvas.CharWidth, 0, _hBar.Maximum);
@@ -749,19 +838,17 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Set while the file is locked by another program or window: edits are refused with this text.</summary>
     public string? ReadOnlyReason { get; set; }
 
-    private bool CanEdit(out long line, out LineView view)
+    private bool CanEdit(out Site site)
     {
-        line = 0;
-        view = null!;
+        site = default;
         if (ReadOnlyReason is { } locked) { Refused?.Invoke(locked); return false; }
         if (!Indexed) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
-        if (CaretLine() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
-        if (c.View.Truncated) { Refused?.Invoke(Loc.Get(K.PagedLongLine, ("size", OpenDocument.FormatSize(MaxLineBytes)))); return false; }
-        (line, view) = c;
+        if (CaretSite() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
+        site = c;
         return true;
     }
 
-    private bool Commit(long at, long deleted, byte[] insert, long caretAfter, long lineAfter, bool typing, bool isInsert)
+    private bool Commit(long at, long deleted, byte[] insert, long caretAfter, long lineAfter, bool typing, bool isInsert, long columnAfter = -1)
     {
         string? key = null;
         if (typing)
@@ -794,6 +881,7 @@ internal sealed partial class PagedTextView : Grid
         if (!result.Applied) return false;
         _anchor = -1;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
+        if (columnAfter >= 0) NoteColumn(caretAfter, columnAfter);
         _wanted = -1;
         long t = TypingTrace.Begin();
         UpdateScrollRange();
@@ -810,7 +898,7 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Types text at the caret. A character the encoding cannot hold is refused, not replaced behind the user's back.</summary>
     public bool InsertText(string text, bool typing = true)
     {
-        if (text.Length == 0 || !CanEdit(out long line, out _)) return false;
+        if (text.Length == 0 || !CanEdit(out var site)) return false;
         byte[] bytes;
         try { bytes = Doc.Codec.Encode(text); }
         catch (UnrepresentableCharactersException)
@@ -818,7 +906,11 @@ internal sealed partial class PagedTextView : Grid
             Refused?.Invoke(Loc.Get(K.PagedNotEncodable, ("encoding", Doc.Codec.Name)));
             return false;
         }
-        if (!HasSelection) return Commit(_caret, 0, bytes, _caret + bytes.Length, line + LineBreaks(text), typing, isInsert: true);
+        if (!HasSelection)
+        {
+            int breaks = LineBreaks(text);
+            return Commit(_caret, 0, bytes, _caret + bytes.Length, site.Line + breaks, typing, isInsert: true, columnAfter: site.Long && breaks == 0 ? site.Column + text.Length : -1);
+        }
         var (from, to) = (SelectionRange.Start, SelectionRange.End);
         return Commit(from, to - from, bytes, from + bytes.Length, LineOf(from) + LineBreaks(text), typing: false, isInsert: true);
     }
@@ -826,7 +918,7 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Deletes the selection as one undo step; false when nothing is selected or the edit is refused.</summary>
     private bool DeleteSelection()
     {
-        if (!HasSelection || !CanEdit(out _, out _)) return false;
+        if (!HasSelection || !CanEdit(out _)) return false;
         var (from, to) = (SelectionRange.Start, SelectionRange.End);
         return Commit(from, to - from, [], from, LineOf(from), typing: false, isInsert: false);
     }
@@ -836,7 +928,7 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Copies the selected text; with <paramref name="cut"/> also deletes it as one undo step.</summary>
     public async Task CopyAsync(bool cut)
     {
-        if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _, out _)) return;
+        if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _)) return;
         string text = SelectedText();
         await clipboard.SetTextAsync(text);
         Copied?.Invoke(text);
@@ -873,12 +965,14 @@ internal sealed partial class PagedTextView : Grid
     private void Backspace()
     {
         if (HasSelection) { DeleteSelection(); return; }
-        if (!CanEdit(out long line, out var view)) return;
+        if (!CanEdit(out var site)) return;
+        var (line, view) = (site.Line, site.View);
         int i = view.Map.CharIndexOf(_caret - view.Start);
         if (i > 0)
         {
-            long at = view.Start + view.Map.ByteOffsetOf(view.Map.IsCharBoundary(i - 1) ? i - 1 : i - 2);
-            Commit(at, _caret - at, [], at, line, typing: true, isInsert: false);
+            int j = view.Map.IsCharBoundary(i - 1) ? i - 1 : i - 2;
+            long at = view.Start + view.Map.ByteOffsetOf(j);
+            Commit(at, _caret - at, [], at, line, typing: true, isInsert: false, columnAfter: site.Long ? site.Column - (i - j) : -1);
         }
         else if (line > 0 && TryBounds(line - 1, out _, out long end, out long next)) Commit(end, next - end, [], end, line - 1, typing: false, isInsert: false);
     }
@@ -886,19 +980,20 @@ internal sealed partial class PagedTextView : Grid
     private void DeleteForward()
     {
         if (HasSelection) { DeleteSelection(); return; }
-        if (!CanEdit(out long line, out var view)) return;
+        if (!CanEdit(out var site)) return;
+        var (line, view) = (site.Line, site.View);
         var map = view.Map;
         int i = map.CharIndexOf(_caret - view.Start);
         if (i < map.Text.Length)
-            Commit(_caret, view.Start + map.ByteOffsetOf(map.IsCharBoundary(i + 1) ? i + 1 : i + 2) - _caret, [], _caret, line, typing: true, isInsert: false);
+            Commit(_caret, view.Start + map.ByteOffsetOf(map.IsCharBoundary(i + 1) ? i + 1 : i + 2) - _caret, [], _caret, line, typing: true, isInsert: false, columnAfter: site.Long ? site.Column : -1);
         else if (line + 1 < LineCount && TryBounds(line, out _, out long end, out long next)) Commit(end, next - end, [], end, line, typing: false, isInsert: false);
     }
 
     private void Tab()
     {
-        if (!CanEdit(out _, out var view)) return;
+        if (!CanEdit(out var site)) return;
         int size = Math.Max(1, _options.InsertSpaces ? _options.IndentSize : _options.TabSize);
-        int column = view.DisplayAt[view.Map.CharIndexOf(_caret - view.Start)];
+        int column = site.Long ? (int)Math.Min(site.Column, int.MaxValue / 2) : site.View.DisplayAt[site.View.Map.CharIndexOf(_caret - site.View.Start)];
         InsertText(_options.InsertSpaces ? new string(' ', size - column % size) : "\t");
     }
 
@@ -981,8 +1076,12 @@ internal sealed partial class PagedTextView : Grid
     {
         long line = Math.Clamp(TopLine + (long)Math.Floor(point.Y / _canvas.LineHeight), 0, LineCount - 1);
         if (GetLine(line) is not { } view) return;
+        double x = point.X - _canvas.TextLeft + _hScroll;
+        long to = view.Truncated && x / _canvas.CharWidth >= view.Display.Length
+            ? OffsetOfColumn(view, (long)Math.Round(x / _canvas.CharWidth))
+            : view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, x));
         _extend = extend;
-        try { MoveTo(view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, point.X - _canvas.TextLeft + _hScroll)), line); }
+        try { MoveTo(to, line); }
         finally { _extend = false; }
     }
 
@@ -1028,7 +1127,7 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Selects the characters between two UTF-16 indexes of the caret line (the surrounding text the input method sees).</summary>
     private void SelectInCaretLine(int start, int end)
     {
-        if (CaretLine() is not { } c) return;
+        if (CaretSite() is not { } c) return;
         var map = c.View.Map;
         int a = Math.Clamp(start, 0, map.Text.Length), b = Math.Clamp(end, 0, map.Text.Length);
         while (a > 0 && !map.IsCharBoundary(a)) a--;
@@ -1056,14 +1155,14 @@ internal sealed partial class PagedTextView : Grid
         public override Visual TextViewVisual => owner._canvas;
         public override bool SupportsPreedit => true;
         public override bool SupportsSurroundingText => true;
-        public override string SurroundingText => owner.CaretLine() is { } c ? c.View.Map.Text : "";
+        public override string SurroundingText => owner.CaretSite() is { } c ? c.View.Map.Text : "";
         public override Rect CursorRectangle => owner._canvas.CaretRect();
 
         public override Avalonia.Input.TextInput.TextSelection Selection
         {
             get
             {
-                int i = owner.CaretLine() is { } c ? c.View.Map.CharIndexOf(owner._caret - c.View.Start) : 0;
+                int i = owner.CaretSite() is { } c ? c.View.Map.CharIndexOf(owner._caret - c.View.Start) : 0;
                 return new Avalonia.Input.TextInput.TextSelection(i, i);
             }
             set => owner.SelectInCaretLine(value.Start, value.End);
@@ -1104,6 +1203,20 @@ internal sealed partial class PagedTextView : Grid
             DisplayAt[text.Length] = display.Length;
             Display = display.ToString();
         }
+
+        private LineView(LineView other, long byteLength)
+        {
+            Start = other.Start;
+            Truncated = other.Truncated;
+            ByteLength = byteLength;
+            Map = other.Map;
+            DisplayAt = other.DisplayAt;
+            Display = other.Display;
+            _marked = other._marked;
+        }
+
+        /// <summary>The same decoded part of a line whose length changed behind it.</summary>
+        public LineView WithByteLength(long byteLength) => new(this, byteLength);
 
         public long Start { get; }
         /// <summary>Bytes of the whole line without its line break, also when only the first part was decoded.</summary>
@@ -1163,10 +1276,14 @@ internal sealed partial class PagedTextView : Grid
         public Rect CaretRect()
         {
             if (owner.CaretLine() is not { } c || c.Line < owner.TopLine || c.Line > owner.TopLine + VisibleLines) return default;
-            double x = TextLeft - owner._hScroll + XOf(c.View, c.View.Map.CharIndexOf(owner._caret - c.View.Start));
+            double x = TextLeft - owner._hScroll + XOfColumn(c.View, owner.CaretColumn(c.View));
             if (owner._preedit.Length > 0) x += Format(owner._preedit, Brushes.Black).WidthIncludingTrailingWhitespace;
             return new Rect(x, (c.Line - owner.TopLine) * _lineHeight, 1.5, _lineHeight);
         }
+
+        /// <summary>Horizontal position of a UTF-16 column: measured inside the decoded part of the line, on the fixed grid of the windows beyond it.</summary>
+        public double XOfColumn(LineView view, long column) =>
+            column <= view.Map.Text.Length ? XOf(view, (int)column) : column * _digitWidth;
 
         public double XOf(LineView view, int index) =>
             view.DisplayAt[index] == 0 ? 0 : Format(view.Display[..view.DisplayAt[index]], Brushes.Black).WidthIncludingTrailingWhitespace;
@@ -1212,11 +1329,16 @@ internal sealed partial class PagedTextView : Grid
             owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
         }
 
-        /// <summary>True when the selection starts in the shown part of a truncated line and runs to its end or beyond: every column past the shown part is selected.</summary>
-        private bool SelectsRestOf(LineView view)
+        /// <summary>Fills the part of the selection that lies in the window of <paramref name="length"/> columns from column <paramref name="column"/> of a truncated line.</summary>
+        private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, int length, IBrush brush)
         {
-            var range = owner.SelectionRange;
-            return range.Start <= view.Start + view.Map.ByteOffsetOf(view.Map.Text.Length) && range.End >= view.Start + view.ByteLength;
+            var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
+            if (to <= view.Start || from > view.Start + view.ByteLength) return;
+            long windowStart = owner.OffsetOfColumn(view, column), windowEnd = owner.OffsetOfColumn(view, column + length);
+            if (to <= windowStart || from >= windowEnd) return;
+            long a = from <= windowStart ? column : owner.ColumnOfOffset(view, from);
+            long b = to >= windowEnd ? column + length : owner.ColumnOfOffset(view, to);
+            if (b > a) context.FillRectangle(brush, new Rect(x + (a - column) * _digitWidth, y, (b - a) * _digitWidth, _lineHeight));
         }
 
         private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush)
@@ -1275,7 +1397,7 @@ internal sealed partial class PagedTextView : Grid
                             else
                             {
                                 window = window.Replace('\t', ' ');
-                                if (owner.HasSelection && SelectsRestOf(view)) context.FillRectangle(selection, new Rect(x, y, window.Length * _digitWidth, _lineHeight));
+                                if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window.Length, selection);
                                 context.DrawText(Format(window, fore), new Point(x, y));
                             }
                             continue;

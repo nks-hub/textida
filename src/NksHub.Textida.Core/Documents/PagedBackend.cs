@@ -19,7 +19,6 @@ public sealed class PagedBackendFactory(bool startIndexing = true, int indexBloc
 public sealed class PagedBackend : IByteBackend
 {
     internal static readonly BackendCapabilities Caps = new("paged", long.MaxValue, SupportsUtf16: true, PositionsMayBeUnknown: true, MaterializesText: false);
-    private const int Chunk = 1 << 16;
 
     private readonly MappedFileSourceOptions _options;
     private PagedDocument _doc;
@@ -143,7 +142,7 @@ public sealed class PagedBackend : IByteBackend
         }
         long lineStart = LineStartOf(lo);
         if (lineStart < 0) return false;
-        position = new(lo, CountChars(lineStart, offset));
+        position = new(lo, _doc.ColumnOf(lineStart, offset));
         return true;
     }
 
@@ -166,60 +165,9 @@ public sealed class PagedBackend : IByteBackend
             bool crlf = n == 2 * w && LineScanner.Unit(tail, 0, Codec) == 13 && LineScanner.Unit(tail, w, Codec) == 10;
             end = next - (crlf ? 2 * w : w);
         }
-        return WalkColumns(start, end, position.Column, out offset);
-    }
-
-    private byte[] ReadWindow(long from, long to)
-    {
-        var buf = new byte[Math.Min(ByteLength, to + 4) - from];
-        _doc.Read(from, buf);
-        return buf;
-    }
-
-    /// <summary>UTF-16 units between two boundaries, read in chunks that end on a boundary.</summary>
-    private long CountChars(long start, long end)
-    {
-        long total = 0;
-        for (long pos = start; pos < end;)
-        {
-            long stop = Math.Min(end, pos + Chunk);
-            var buf = ReadWindow(pos, stop);
-            int cut = (int)(stop - pos);
-            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
-            total += Codec.CountChars(buf.AsSpan(0, cut));
-            pos += cut;
-        }
-        return total;
-    }
-
-    /// <summary>Walks units from <paramref name="start"/> until <paramref name="column"/> chars are passed; false when the column is past the line or splits a surrogate pair.</summary>
-    private bool WalkColumns(long start, long end, long column, out long offset)
-    {
-        offset = start;
-        long remaining = column;
-        while (offset < end && remaining > 0)
-        {
-            long stop = Math.Min(end, offset + Chunk);
-            var buf = ReadWindow(offset, stop);
-            int cut = (int)(stop - offset);
-            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
-            var span = buf.AsSpan(0, cut);
-            if (Codec.CountChars(span) <= remaining)
-            {
-                remaining -= Codec.CountChars(span);
-                offset += cut;
-                continue;
-            }
-            int i = 0;
-            while (i < cut && remaining > 0)
-            {
-                i += Codec.ReadUnit(span[i..], out int chars);
-                remaining -= chars;
-            }
-            if (remaining < 0) return false;
-            offset += i;
-        }
-        return remaining == 0;
+        // the column index resumes from a noted point, so a long line is not walked from its start
+        offset = _doc.OffsetOfColumn(start, position.Column);
+        return offset <= end && _doc.ColumnOf(start, offset) == position.Column;
     }
 
     public void Dispose()

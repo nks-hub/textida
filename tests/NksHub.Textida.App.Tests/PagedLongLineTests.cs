@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -33,9 +34,24 @@ public class PagedLongLineTests : IDisposable
         _temp.Dispose();
     }
 
-    private DocTab OpenLine(string line)
+    /// <summary>Writes one line of <paramref name="size"/> ASCII letters and a second line "next".</summary>
+    internal static void WriteLongLine(string path, int size)
     {
-        var tab = _w.OpenFile(_temp.Bytes("long.txt", Encoding.UTF8.GetBytes(line + "\nnext\n")), null);
+        using var file = File.Create(path);
+        var chunk = new byte[1 << 20];
+        for (long done = 0; done < size; done += chunk.Length)
+        {
+            for (int i = 0; i < chunk.Length; i++) chunk[i] = (byte)('a' + (done + i) * 7 % 26);
+            file.Write(chunk, 0, (int)Math.Min(chunk.Length, size - done));
+        }
+        file.Write("\nnext\n"u8);
+    }
+
+    private DocTab OpenLine(string line) => OpenBytes(Encoding.UTF8.GetBytes(line + "\nnext\n"));
+
+    private DocTab OpenBytes(byte[] content)
+    {
+        var tab = _w.OpenFile(_temp.Bytes("long.txt", content), null);
         Assert.True(tab.Doc.IsLarge);
         for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
         {
@@ -99,6 +115,152 @@ public class PagedLongLineTests : IDisposable
         Assert.Equal("FRESH", paged.CachedWindow(0));
     }
 
+    private const string Unit = "ěšč abc 中";
+
+    private static string Repeat(int units) => string.Concat(Enumerable.Repeat(Unit, units));
+
+    private static long ByteOffset(string text, int column) => Encoding.UTF8.GetByteCount(text.AsSpan(0, column));
+
+    private static string Text(DocTab tab) => Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
+
+    [AvaloniaFact]
+    public void A_line_of_millions_of_columns_is_edited_in_place_with_the_caret_on_the_right_column()
+    {
+        string model = Repeat(300_000); // 3 000 000 characters, 4.2 MB
+        var tab = OpenLine(model);
+        var paged = tab.Paged!;
+        int col = 2_500_000;
+        paged.GoToOffset(ByteOffset(model, col));
+
+        void Expect(string? whole = null, (long Line, long Column)? caret = null)
+        {
+            Draw();
+            Assert.True((whole ?? model + "\nnext\n") == Text(tab), "the document differs from the model");
+            Assert.Equal(caret ?? (1L, (long)col + 1), tab.CaretPosition());
+            if (caret is null) Assert.Equal(ByteOffset(model, col), paged.CaretOffset);
+        }
+        void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) { TestApp.Press(_w, key, mods); Dispatcher.UIThread.RunJobs(); }
+        void Type(string text)
+        {
+            TestApp.Type(_w, text);
+            model = model.Insert(col, text);
+            col += text.Length;
+        }
+
+        Expect();
+        Type("XY");
+        Expect();
+        Assert.Contains("XY", paged.CachedWindow(0));
+
+        Press(Key.Back);
+        model = model.Remove(col - 1, 1);
+        col--;
+        Expect();
+
+        Press(Key.Delete);
+        model = model.Remove(col, 1);
+        Expect();
+
+        Press(Key.Left);
+        Press(Key.Left);
+        Press(Key.Right);
+        col--;
+        Expect();
+
+        Type("😀");
+        Expect();
+        Press(Key.Back); // the whole surrogate pair
+        model = model.Remove(col - 2, 2);
+        col -= 2;
+        Expect();
+
+        Press(Key.End);
+        col = model.Length;
+        Expect();
+        Type("Z");
+        Expect();
+        Press(Key.Home);
+        col = 0;
+        Expect();
+        Type("A");
+        Expect();
+
+        // the selection: three characters by Shift+Right, replaced by typing; then to the end of the line
+        col = 1_000_000;
+        paged.GoToOffset(ByteOffset(model, col));
+        for (int i = 0; i < 3; i++) Press(Key.Right, RawInputModifiers.Shift);
+        Draw();
+        Assert.Equal(model.Substring(col, 3), paged.SelectedText());
+        TestApp.Type(_w, "Q");
+        model = model[..col] + "Q" + model[(col + 3)..];
+        col++;
+        Expect();
+        Press(Key.End, RawInputModifiers.Shift);
+        Draw();
+        Assert.True(model[col..] == paged.SelectedText(), "the selection to the end of the line differs");
+        Press(Key.Delete);
+        model = model[..col];
+        Expect();
+
+        // up and down keep the wanted column through the short line below
+        Press(Key.Down);
+        Draw();
+        Assert.Equal((2L, 5L), tab.CaretPosition());
+        Press(Key.Up);
+        Expect();
+
+        // a paste of one MiB in the middle, then Enter splits the line and Backspace joins it again
+        col = 500_000;
+        paged.GoToOffset(ByteOffset(model, col));
+        string pasted = new string('p', 1 << 20) + "é";
+        Assert.True(paged.PasteText(pasted));
+        model = model.Insert(col, pasted);
+        col += pasted.Length;
+        Expect();
+        Press(Key.Enter);
+        string eol = Text(tab)[col] == '\r' ? "\r\n" : "\n"; // a file whose first lines hold no break gets the default of the platform
+        Expect(model[..col] + eol + model[col..] + "\nnext\n", (2L, 1L));
+        Press(Key.Back);
+        Expect();
+
+        for (int i = 0; i < 100 && tab.Doc.Doc.UndoDepth > 0; i++) { TestApp.Press(_w, Key.Z, TestApp.Mod); Dispatcher.UIThread.RunJobs(); }
+        Draw();
+        Assert.True(Repeat(300_000) + "\nnext\n" == Text(tab), "undo did not restore the line");
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void Typing_in_the_middle_of_a_100_MiB_line_does_not_grow_the_memory_by_the_size_of_the_line()
+    {
+        const int size = 100 * 1024 * 1024;
+        string path = Path.Combine(_temp.Path, "line100.txt");
+        WriteLongLine(path, size);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
+        {
+            Thread.Sleep(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(tab.Paged!.Index.Complete);
+        var paged = tab.Paged;
+        paged.Focus();
+        Draw();
+        paged.GoToOffset(50_000_000);
+        Draw();
+
+        long managed = GC.GetTotalMemory(true);
+        for (int i = 0; i < 100; i++) TestApp.Type(_w, "x");
+        TestApp.Press(_w, Key.Back);
+        TestApp.Press(_w, Key.Delete);
+        Assert.True(paged.PasteText(new string('v', 1 << 20)));
+        Draw();
+        long grown = GC.GetTotalMemory(true) - managed;
+
+        Assert.Equal((1L, 50_000_000L + 99 + (1 << 20) + 1), tab.CaretPosition());
+        Assert.True(grown < 16 << 20, $"managed memory grew by {grown >> 20} MiB");
+    }
+
     [AvaloniaFact]
     public async Task The_scroll_range_of_a_utf8_line_ends_at_its_last_character_not_its_last_byte()
     {
@@ -138,16 +300,7 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
         var w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
         string path = Path.Combine(_temp.Path, "line.txt");
-        using (var file = File.Create(path))
-        {
-            var chunk = new byte[1 << 20];
-            for (long done = 0; done < Size; done += chunk.Length)
-            {
-                for (int i = 0; i < chunk.Length; i++) chunk[i] = (byte)('a' + (done + i) * 7 % 26);
-                file.Write(chunk);
-            }
-            file.Write("\nnext\n"u8);
-        }
+        PagedLongLineTests.WriteLongLine(path, Size);
         var tab = w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
         for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
@@ -230,6 +383,33 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
         }
         output.WriteLine($"column {column}: window complete after " + string.Join(", ", complete.Order().Select(v => v.ToString("0.0"))) + " ms");
         Gate($"first jump to column {column}", first);
+    }
+
+    /// <summary>P7.1.5 gate: a keystroke in the middle of a 100 MiB line, from the key until the frame is rendered.</summary>
+    [AvaloniaTheory]
+    [InlineData(50_000_000, false)]
+    [InlineData(90_000_000, false)]
+    [InlineData(50_000_000, true)]
+    public void Typing_and_Backspace_inside_a_100_MiB_line_stay_within_the_budget(int column, bool backspace)
+    {
+        var (w, tab) = Open();
+        var paged = tab.Paged!;
+        paged.GoToOffset(column);
+        Present(w);
+        TestApp.Type(w, new string('w', 400)); // material for Backspace, and the first, cold edits stay out of the measurement
+        Present(w);
+        var times = new List<double>();
+        for (int i = 0; i < 300; i++)
+        {
+            long t0 = Stopwatch.GetTimestamp();
+            if (backspace) TestApp.Press(w, Avalonia.Input.Key.Back);
+            else TestApp.Type(w, "x");
+            Present(w);
+            Dispatcher.UIThread.RunJobs();
+            times.Add(Since(t0));
+        }
+        Gate($"{(backspace ? "Backspace" : "typing")} at column {column}", times);
+        Assert.InRange(tab.Doc.Doc.UndoDepth, 1, 2); // a run of keystrokes at one place is one undo step
     }
 
     [AvaloniaTheory]
