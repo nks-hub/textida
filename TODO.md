@@ -2194,17 +2194,19 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.5.4, P8.5.5, P8.4.2, P8.4.3
   - **Odhad:** F157 4–7 ČT (matice) za P8.5.1, P8.5.4 a P8.5.5
   - **Umístění:** vestavěný plugin
-- [ ] **P8.5.4** LSP: životní cyklus a synchronizace dokumentu
+- [x] **P8.5.4** LSP: životní cyklus a synchronizace dokumentu
   - **Co a proč:** Spuštění serveru na vyžádání, `initialize`, synchronizace změn s revizemi, restart a ukončení přes adaptér LSP z P3b.1.1.
   - **Funkce:** F157 (částečně: životní cyklus)
   - **Hotovo, když:** po 1 000 úpravách má server stejný text jako editor (ověřeno požadavkem na obsah nebo diagnostikou testovacího serveru); pád serveru se ohlásí a restart znovu synchronizuje otevřené dokumenty.
+  - **Stav 27. 10. 2026:** hotovo: vestavěný plugin `plugins/lsp`, server na vyžádání, `initialize`, synchronizace s revizí jako verzí (inkrementálně, když to server umí), restart a zastavení příkazem; testovací server `tests/NksHub.Textida.FakeLsp` má po 1 000 úpravách stejný text; pád se ohlásí a další příkaz resynchronizuje dva otevřené dokumenty. Bez automatického restartu po pádu; kořen projektu = složka prvního dokumentu. Roslyn LSP / csharp-ls jen jako data v katalogu, nevyzkoušené, připnutá verze otevřená.
   - **Závisí na:** P8.4.1, P3b.1.1
   - **Odhad:** v rámci F157 (viz P8.5.1)
   - **Umístění:** vestavěný plugin
-- [ ] **P8.5.5** LSP: navigace a diagnostika
+- [x] **P8.5.5** LSP: navigace a diagnostika
   - **Co a proč:** Definice, odkazy a diagnostika z LSP přes API z P8.4.1.
   - **Funkce:** F157 (částečně: navigace a diagnostika)
   - **Hotovo, když:** skok na definici trefí bajty, které vrátil server, i v souboru s vícebajtovými znaky; diagnostika zmizí po opravě a nové revizi.
+  - **Stav 27. 10. 2026:** hotovo: definice a odkazy převádějí UTF-16 pozice LSP na bajty podle kodeku (test UTF-8 i UTF-16 LE s `é€😀` před místem, definice v jiném souboru ho otevře); diagnostika přes `diagnostics/publish` zmizí po opravě a nové revizi, odpověď na starou verzi se zahodí. UI neověřeno spuštěním aplikace.
   - **Závisí na:** P8.5.4
   - **Odhad:** v rámci F157 (viz P8.5.1)
   - **Umístění:** vestavěný plugin
@@ -2248,14 +2250,15 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Mapování schématu (JSON Schema Store) na soubor, složku nebo masku, kontrola a doplňování. Přibalená schémata běžných konfigurací, stahování jen po svolení a jedním přepínačem vypnutelné. TOML a soubory bez přípony podle jména. Dialekt podle souboru (striktní JSON, JSONC).
   - **Funkce:** F181
   - **Hotovo, když:** chyba v `package.json` proti schématu se podtrhne; doplňování klíčů podle schématu projde přes API doplňování (P8.4.2) a odpověď pro starší revizi se nezobrazí; každý přibalený formát (JSON, JSONC, YAML, TOML) má test platného souboru, syntaktické chyby a chyby proti schématu; bez svolení editor schéma nestáhne (síťový test PR.6.4); stavový řádek ukáže „bez schématu / schéma X“.
-  - **Stav 27. 10. 2026:** částečně: engine v pluginu Json (`Schema/`): čtečky JSON, JSONC, TOML s offsety, validátor podmnožiny JSON Schema (typy, enum, required, properties, items, oneOf/anyOf/allOf, if/then, lokální $ref, pattern s timeoutem), katalog s přibalenými `package.json`, `Cargo.toml` a nastavením Textidy, mapování podle souboru/složky/masky, doplňování klíčů; 16 testů (platný soubor, syntaktická chyba, chyba proti schématu pro JSON, JSONC, TOML). Přes P8.4.1/P8.4.2 se chyba v `package.json` podtrhne, klíče se doplňují ze schématu (JSON i TOML), stavový řádek ukazuje „bez schématu / schéma X“ ve 4 jazycích. Chybí: YAML (parser v repu není), stahování schémat, lokalizace hlášek validátoru, doplnění v prázdné TOML tabulce. Limity hloubky a timeoutu regexu otevřené.
+  - **Stav 27. 10. 2026:** částečně: engine v pluginu Json (`Schema/`): čtečky JSON, JSONC, TOML s offsety, validátor podmnožiny JSON Schema (typy, enum, required, properties, items, oneOf/anyOf/allOf, if/then, lokální $ref, pattern s timeoutem), katalog s přibalenými `package.json`, `Cargo.toml` a nastavením Textidy, mapování podle souboru/složky/masky, doplňování klíčů; 16 testů (platný soubor, syntaktická chyba, chyba proti schématu pro JSON, JSONC, TOML). Přes P8.4.1/P8.4.2 se chyba v `package.json` podtrhne, klíče se doplňují ze schématu (JSON i TOML), stavový řádek ukazuje „bez schématu / schéma X“ ve 4 jazycích. YAML: vlastní čtečka `YamlDataReader` (blokové i flow kolekce, quoted a blokové skaláry, více dokumentů, core schéma; kotvy, aliasy, tagy a `? ` klíče odmítne jasnou chybou), přibalené ručně psané schéma GitHub Actions workflow; testy platný soubor, syntaktická chyba, chyba proti schématu. Chybí: stahování schémat (PR.6.4 neověřen), lokalizace hlášek validátoru, doplnění v prázdné TOML tabulce, kontrola syntaxe YAML bez schématu. Limity hloubky a timeoutu regexu otevřené.
   - **Závisí na:** P8.4.1, P8.4.2
   - **Odhad:** F181 2–4 ČT (matice); TOML a další schémata 0,5–1 ČT
   - **Umístění:** vestavěný plugin, schémata jako data
-- [ ] **P8.7.2** Soubory agentů a kontrola frontmatteru
+- [x] **P8.7.2** Soubory agentů a kontrola frontmatteru
   - **Co a proč:** Mapování „cesta → schéma → dialekt“ pro `.claude/settings*.json` (striktní JSON), `.mcp.json`, Codex `config.toml`, `opencode.json(c)` (JSONC); vlastní malé schéma pro `.mcp.json`. Kontrola YAML frontmatteru `SKILL.md`, `agents/*.md`, `rules/*.md`, `.mdc` v profilech Agent Skills a Claude Code.
   - **Funkce:** F250, F251
   - **Hotovo, když:** komentář v `.claude/settings.json` a `name` neshodné se složkou v `SKILL.md` editor podtrhne dřív, než agent spadne; oba profily frontmatteru (Agent Skills, Claude Code) mají testovací soubory s platným i neplatným obsahem.
+  - **Stav 27. 10. 2026:** hotovo: `.claude/settings*.json` striktní JSON (komentář = chyba), `.mcp.json` s vlastním schématem, `.codex/config.toml`, `opencode.json(c)` jako JSONC; frontmatter `SKILL.md`, `agents/*.md`, `rules/*.md`, `.claude/rules`, `.mdc` v profilech Agent Skills a Claude Code; `name` ≠ složka chyba jen v profilu Agent Skills (Claude Code to podle dokumentace dovoluje). Pravidla jen z citovatelné dokumentace (zdroje v popisech schémat); testy s platnými i neplatnými soubory obou profilů. Schémata nastavení jsou jen výřezy; neznámá pole v Claude Code profilu se nehlásí (diagnostika zatím jen se závažností error).
   - **Závisí na:** P8.7.1
   - **Odhad:** F250 1–2 ČT, F251 1–2 ČT (matice)
   - **Umístění:** data nad F181 (F250); vestavěný plugin spolu s F181 a datovým profilem (F251), podle plánu
