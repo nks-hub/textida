@@ -356,19 +356,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - If the document changed after the command started, the command stops and asks you to run it again.
 
 ## [tools.stats] Document statistics and hashes
-commands: nks.tools.statistics, nks.tools.hash
-1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document.
-2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of the selected part.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document, or of the selected parts together, and lists the most frequent characters and words.
+2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (CRC-32, MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of every selected part. Calculate Hash and Copy also puts the hash on the clipboard. Compare Hash with Pasted asks for a hash, picks the algorithm by its length and says whether it matches.
 - Both read the document in blocks while you keep working, show progress and can be cancelled. Neither holds the whole file in memory, so they work on files of any size, also in paged and hex view.
 - A cancelled statistic is shown as incomplete, with how many bytes were counted. A cancelled hash gives no result.
 - The statistic and the hash are of the document as it was when the command started; if you edit meanwhile, they do not change.
-- A word is a run of letters and digits. The hash has no result for several selections at once.
+- A word is a run of letters and digits; words are counted in lower case. The word list keeps a limited number of distinct words and says when it is full. Several selected parts are counted as one text.
 
 ## [tools.calculate] Block calculation, expressions and number bases
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Calculate Selected Block adds up the numbers in the selection (a block selection, a column of numbers) and shows the count, sum, smallest, largest and average.
-2. Evaluate Expression asks for an expression, starting with the selected text, and shows the result. It understands + - * / ^ ( ), MOD and the functions ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR and TRUNC. Numbers are written with a dot. Anything else, such as a call of a system command, is refused and nothing is run.
-3. Convert Number Base asks for a whole number, decimal or with the prefix 0x, 0b or 0o, and shows it in decimal, hexadecimal, octal and binary.
+2. Evaluate Expression asks for an expression, starting with the selected text or the line of the caret, and shows the result. Insert Expression Result writes " = result" behind the selection or the line, as one undo step, with a dot as the decimal mark whatever the language is. It understands + - * / ^ ( ), MOD and the functions ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR and TRUNC. Numbers are written with a dot. Anything else, such as a call of a system command, is refused and nothing is run.
+3. Convert Number Base asks for a whole number, decimal, with the prefix 0x, 0b or 0o, or a Roman numeral, and shows it in decimal, hexadecimal, octal and binary, as a Roman numeral (1 to 3999) and as the date it is when read as Unix milliseconds.
 - The program recognises how the numbers in the selection are written (Czech and Slovak: 1 234,50, German: 1.234,50, English: 1,234.50). When more than one way fits, such as 1,234, it takes the one of the program language. The results are shown in the format of the program language. Changing the language does not change the document.
 - Text in the selection that is not a number is skipped and counted. The number conversion works for values from -9223372036854775808 to 18446744073709551615.
 - Powers take a positive base only. The calculation uses double precision numbers.

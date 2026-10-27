@@ -141,6 +141,39 @@ public partial class TextToolsTests
     }
 
     [Fact]
+    public async Task Frequency_lists_count_lower_cased_words_across_chunks_and_stop_at_the_distinct_word_limit()
+    {
+        var bytes = Utf8("Aa aa b\nB aa c");
+        var statistics = new TextStatistics(TextCodec.Utf8, maxDistinctWords: 2, maxWordLength: 64);
+        await ByteScan.RunAsync(0, bytes.Length, 3, ReaderOf(bytes), statistics.Add, null, CancellationToken.None);
+        statistics.Finish(bytes.Length);
+
+        Assert.Equal([("aa", 3L), ("b", 2L)], statistics.TopWords(5));
+        Assert.True(statistics.WordTableFull);
+        Assert.Equal(("a", 5L), statistics.TopCharacters(1)[0]);
+    }
+
+    [Fact]
+    public async Task Crc32_matches_the_published_check_value()
+    {
+        var bytes = Utf8("123456789");
+        var (hex, _) = await BlockHash.ComputeAsync(BlockHash.Crc32, 0, bytes.Length, 4, ReaderOf(bytes), null, CancellationToken.None);
+        Assert.Equal("cbf43926", hex);
+    }
+
+    [Theory]
+    [InlineData("XIV", 14)]
+    [InlineData("mcmxciv", 1994)]
+    [InlineData("MMMCMXCIX", 3999)]
+    public void Roman_numerals_are_read_and_written(string text, int number)
+    {
+        Assert.True(BaseConverter.TryParseRoman(text, out var value));
+        Assert.Equal(number, (int)value);
+        Assert.Equal(text.ToUpperInvariant(), BaseConverter.ToRoman(value));
+        Assert.False(BaseConverter.TryParseRoman("IIII", out _));
+    }
+
+    [Fact]
     public async Task Statistics_through_the_plugin_are_shown_in_the_language_of_the_user_and_leave_the_document_alone()
     {
         var content = Utf8("ab cd\r\nef\n");

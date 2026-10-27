@@ -125,13 +125,16 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString()],
             [JsonActivation], folder));
 
-        // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
+        // the text tools read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text; only inserting an expression result writes
         permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
+        permissions.Grant(TextToolsPluginId, DocumentPermissions.EditDirect, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.ClipboardWrite, GrantScope.All);
         var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
-            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString()],
+            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString(),
+             "--frequency-top", PluginLimitsPlaceholders.TextToolsFrequencyTop.ToString(), "--frequency-max-words", PluginLimitsPlaceholders.TextToolsFrequencyMaxWords.ToString(),
+             "--frequency-max-word-length", PluginLimitsPlaceholders.TextToolsFrequencyMaxWordLength.ToString()],
             [TextToolsActivation], toolsFolder));
 
         // colours and key paths read the text; the colour conversion writes the converted values back
@@ -406,8 +409,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// Runs one of the text tools (<c>text.stats</c>, <c>text.hash</c>, <c>text.calculate</c>, <c>text.expression</c>, <c>text.bases</c>) on the tab through the text tools plugin
     /// process. They work on text, hex and paged tabs alike and read from a snapshot, so a large file is never held in memory. Returns false when nothing was started.
     /// </summary>
-    public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command) =>
-        tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command);
+    public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command, string extra = "") =>
+        tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, extra);
 
     /// <summary>
     /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the
@@ -632,8 +635,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         return true;
     }
 
-    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command) =>
-        (await ExecuteAsync(window, tab, pluginId, activation, name, command)).Started;
+    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command, string extra = "") =>
+        (await ExecuteAsync(window, tab, pluginId, activation, name, command, extra)).Started;
 
     /// <summary>The answer of a plugin command: whether it was started at all (not when it is already running on the document or the user refused), and what the plugin said.</summary>
     private readonly record struct Outcome(bool Started, JsonElement Result);

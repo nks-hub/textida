@@ -177,6 +177,9 @@ internal static class AppCommands
         // tools
         Fire("nks.tools.statistics", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.stats"));
         Fire("nks.tools.hash", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash"));
+        Fire("nks.tools.hashCopy", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"copy\":true"));
+        Fire("nks.tools.hashCompare", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"compare\":true"));
+        Fire("nks.tools.insertExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression", ",\"insert\":true"));
         Fire("nks.tools.calculateBlock", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.calculate"));
         Fire("nks.tools.evaluateExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression"));
         Fire("nks.tools.convertBase", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.bases"));

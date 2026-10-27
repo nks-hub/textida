@@ -361,19 +361,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Ak sa dokument po spustení príkazu zmenil, príkaz sa zastaví a vyzve vás na opätovné spustenie.
 
 ## [tools.stats] Štatistika dokumentu a hashe
-commands: nks.tools.statistics, nks.tools.hash
-1. Ponuka Nástroje, Text a výpočty, Štatistika dokumentu, spočíta bajty, znaky, slová, riadky a najdlhší riadok celého dokumentu.
-2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus (MD5, SHA-1, SHA-256, SHA-384 alebo SHA-512) a vypočíta hash surových bajtov celého súboru alebo označenej časti.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Ponuka Nástroje, Text a výpočty, Štatistika dokumentu, spočíta bajty, znaky, slová, riadky a najdlhší riadok celého dokumentu, alebo označených častí dokopy, a vypíše najčastejšie znaky a slová.
+2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 alebo SHA-512) a vypočíta hash surových bajtov celého súboru alebo každej označenej časti. Vypočítať hash a skopírovať dá hash aj do schránky. Porovnať hash s vloženým sa opýta na hash, algoritmus pozná podľa dĺžky a povie, či sa zhoduje.
 - Oba príkazy čítajú dokument po blokoch a vy môžete ďalej pracovať, ukazujú priebeh a dajú sa zrušiť. Žiadny nedrží celý súbor v pamäti, takže fungujú na súboroch ľubovoľnej veľkosti, aj v stránkovanom a hex zobrazení.
 - Zrušená štatistika sa ukáže ako neúplná s počtom spočítaných bajtov. Zrušený hash výsledok nemá.
 - Štatistika aj hash platia pre dokument, aký bol pri spustení príkazu; úpravy počas výpočtu ich nemenia.
-- Slovo je súvislý rad písmen a číslic. Hash nemá výsledok pre viac označených častí naraz.
+- Slovo je súvislý rad písmen a číslic; slová sa počítajú malými písmenami. Zoznam slov drží obmedzený počet rôznych slov a povie, keď je plný. Viac označených častí sa počíta ako jeden text.
 
 ## [tools.calculate] Výpočet bloku, výrazy a číselné sústavy
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Vypočítať označený blok sčíta čísla v označení (blokové označenie, stĺpec čísel) a ukáže počet, súčet, najmenšie, najväčšie a priemer.
-2. Vyhodnotiť výraz sa opýta na výraz, predvyplní označený text a ukáže výsledok. Rozumie + - * / ^ ( ), MOD a funkciám ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR a TRUNC. Čísla sa píšu s bodkou. Čokoľvek iné, napríklad volanie príkazu systému, sa odmietne a nič sa nespustí.
-3. Previesť číselnú sústavu sa opýta na celé číslo, desiatkovo alebo s predponou 0x, 0b či 0o, a ukáže ho desiatkovo, šestnástkovo, osmičkovo a dvojkovo.
+2. Vyhodnotiť výraz sa opýta na výraz, predvyplní označený text alebo riadok s kurzorom a ukáže výsledok. Vložiť výsledok výrazu zapíše " = výsledok" za označenie alebo riadok ako jeden krok späť, s desatinnou bodkou bez ohľadu na jazyk. Rozumie + - * / ^ ( ), MOD a funkciám ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR a TRUNC. Čísla sa píšu s bodkou. Čokoľvek iné, napríklad volanie príkazu systému, sa odmietne a nič sa nespustí.
+3. Previesť číselnú sústavu sa opýta na celé číslo, desiatkovo, s predponou 0x, 0b či 0o, alebo rímsky, a ukáže ho desiatkovo, šestnástkovo, osmičkovo, dvojkovo, ako rímske číslo (1 až 3999) a ako dátum, ktorým je pri čítaní ako milisekundy od 1. 1. 1970.
 - Program pozná, ako sú čísla v označení zapísané (čeština a slovenčina: 1 234,50, nemčina: 1.234,50, angličtina: 1,234.50). Keď vyhovuje viac zápisov, napríklad 1,234, vezme ten z jazyka programu. Výsledky sa ukážu vo formáte jazyka programu. Zmena jazyka dokument nezmení.
 - Text v označení, ktorý nie je číslo, sa preskočí a spočíta. Prevod čísel funguje pre hodnoty od -9223372036854775808 do 18446744073709551615.
 - Mocnina berie len kladný základ. Výpočet používa čísla s dvojitou presnosťou.

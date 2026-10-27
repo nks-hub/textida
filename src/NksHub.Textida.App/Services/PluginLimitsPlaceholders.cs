@@ -32,6 +32,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the text tools (statistics, hashes) read per request; the one chunk is their working memory. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int TextToolsChunkBytes = 1 << 20;
 
+    /// <summary>Placeholder: entries in each frequency list (characters, words) of the document statistics.</summary>
+    public const int TextToolsFrequencyTop = 10;
+
+    /// <summary>Placeholder: distinct words the statistics keep for the word frequency list; further new words are left out and the list says so.</summary>
+    public const int TextToolsFrequencyMaxWords = 100_000;
+
+    /// <summary>Placeholder: characters of a word that count towards its frequency entry.</summary>
+    public const int TextToolsFrequencyMaxWordLength = 64;
+
     /// <summary>Placeholder: milliseconds between two progress reports of a running text tool.</summary>
     public const int TextToolsProgressMilliseconds = 250;
 

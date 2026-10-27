@@ -4,11 +4,15 @@ using NksHub.Textida.Rpc;
 
 // Built-in text tools (statistics, hashes, block calculation, expressions, number bases): one process speaking the plugin protocol on stdin/stdout.
 // Required options (no defaults, the editor decides): --chunk-bytes N, --progress-ms N.
-int chunk = -1, progress = -1;
+// Optional: --frequency-top N, --frequency-max-words N, --frequency-max-word-length N (frequency lists of the statistics; off without them).
+int chunk = -1, progress = -1, top = 0, maxWords = 0, maxWordLength = 0;
 for (var i = 0; i < args.Length - 1; i++)
 {
     if (args[i] == "--chunk-bytes") chunk = int.Parse(args[i + 1]);
     else if (args[i] == "--progress-ms") progress = int.Parse(args[i + 1]);
+    else if (args[i] == "--frequency-top") top = int.Parse(args[i + 1]);
+    else if (args[i] == "--frequency-max-words") maxWords = int.Parse(args[i + 1]);
+    else if (args[i] == "--frequency-max-word-length") maxWordLength = int.Parse(args[i + 1]);
 }
 if (chunk < 1 || progress < 0)
 {
@@ -16,5 +20,5 @@ if (chunk < 1 || progress < 0)
     return 2;
 }
 
-var plugin = new TextToolsPlugin(new TextToolsSettings(chunk, TimeSpan.FromMilliseconds(progress)));
+var plugin = new TextToolsPlugin(new TextToolsSettings(chunk, TimeSpan.FromMilliseconds(progress), top, maxWords, maxWordLength));
 return await PluginRunner.RunAsync(plugin, new RpcLimits(4 * 1024 * 1024, 8, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024));
