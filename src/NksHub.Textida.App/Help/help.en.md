@@ -830,6 +830,16 @@ commands: nks.tools.makeTargets
 3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
 - Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
 
+## [file.saveActions] Save actions: format, run a tool, upload
+commands: nks.file.saveActions
+1. File, Save Actions lists what runs around a save: format, run a tool, upload to the server. A row switches the action on or off; the row under it switches "only on manual save". A formatter (gofmt, rustfmt, clang-format, RuboCop) is offered only when its configuration file (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) is in the folder of the file or above it, and it is off until you switch it on.
+2. The order is fixed: formatters first, then the save, then tools and the upload. A formatter works on a copy of the text and is stopped when the time limit runs out. If it times out, fails (a syntax error, for example) or is not installed, the file is saved as it is and the status bar and the Tasks tab say why. Text you typed while it ran is never overwritten. Only a document with unsaved changes is formatted.
+3. The upload sends exactly the bytes this save wrote, never older or newer ones. If the file on disk changed after the save, nothing is sent. It works for a file opened from a server and goes to that server.
+4. An autosave runs the actions that are not marked "only on manual save". A save made by a plugin runs no action, so an action that saves cannot start a loop. Save As runs no action.
+5. The actions are written in saveActions.json in the profile (Open the save actions file) and, for a project, in .textida/saveActions.json in the folder of the file or above it. A project entry replaces the entry of the profile with the same kind and id. Example: {"formatTimeoutSeconds": 10, "actions": [{"kind": "format", "id": "gofmt"}, {"kind": "tool", "id": "lint", "onlyManual": true}, {"kind": "upload"}]}. A tool is one of Run Tool, by its id.
+- No time limit is preset: while formatTimeoutSeconds is missing, a formatter does not run and the status bar says so. The value in the example is only an example.
+- After an autosave nobody can answer: a tool that was never confirmed does not start, and a newer version on the server shows on the bar of the tab instead of a dialog.
+- Switching an action in the list rewrites saveActions.json of the profile and drops comments in it. Actions from a project are listed but changed in the project file.
 ## [log.mode] Log mode: levels and the next error
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. A document in the language Log (files ending in .log, or Format, Language) colors each line by its level: error, warning, info or debug. The most severe level found in a line decides.

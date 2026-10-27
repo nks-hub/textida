@@ -19,6 +19,12 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.file.saveActions",
+      "title": "cmd.file.saveActions",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.file.saveAs",
       "title": "cmd.file.saveAs",
       "category": "cat.file",
@@ -1545,6 +1551,12 @@
       "command": "nks.file.saveAll",
       "group": "2_save",
       "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.saveActions",
+      "group": "2_save",
+      "order": 35
     },
     {
       "menu": "file",

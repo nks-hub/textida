@@ -385,5 +385,6 @@
   "cmd.macro.save": "Save Last Macro As...",
   "cmd.macro.run": "Run Saved Macro...",
   "cmd.tools.edit": "Edit Tool Definitions...",
-  "cmd.tools.makeTargets": "Run Makefile Target..."
+  "cmd.tools.makeTargets": "Run Makefile Target...",
+  "cmd.file.saveActions": "Save Actions..."
 }

@@ -8,6 +8,7 @@ using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -185,16 +186,21 @@ internal sealed partial class MainWindow
 
     // ---- save ----
 
-    public async Task<bool> SaveAsync(DocTab tab)
+    /// <param name="origin">Who saves: a save by a plugin runs none of the save actions (<see cref="SaveActionRunner"/>).</param>
+    public async Task<bool> SaveAsync(DocTab tab, SaveOrigin origin = SaveOrigin.Manual)
     {
         var od = tab.Doc;
         if (od.IsVirtual) return RefuseVirtualSave();
         if (od.Path is null) return await SaveAsAsync(tab);
         if (!await ConfirmTypedLossAsync(tab)) return false;
-        return await SaveCoreAsync(tab, overwrite: false);
+        return await SaveCoreAsync(tab, overwrite: false, origin);
     }
 
-    private async Task<bool> SaveCoreAsync(DocTab tab, bool overwrite)
+    /// <summary>The save of a named file with the save actions around it; a save that comes back through here from inside the actions (a conflict answered with "overwrite") runs none again.</summary>
+    private Task<bool> SaveCoreAsync(DocTab tab, bool overwrite, SaveOrigin origin = SaveOrigin.Manual) =>
+        tab.Doc.LockedReadOnly || tab.Hex is not null ? SaveFileAsync(tab, overwrite) : SaveWithActionsAsync(tab, origin, () => SaveFileAsync(tab, overwrite));
+
+    private async Task<bool> SaveFileAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
         if (od.LockedReadOnly)

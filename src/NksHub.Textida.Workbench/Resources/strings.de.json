@@ -385,5 +385,6 @@
   "cmd.macro.save": "Letztes Makro speichern unter...",
   "cmd.macro.run": "Gespeichertes Makro ausführen...",
   "cmd.tools.edit": "Werkzeugdefinitionen bearbeiten...",
-  "cmd.tools.makeTargets": "Makefile-Ziel ausführen..."
+  "cmd.tools.makeTargets": "Makefile-Ziel ausführen...",
+  "cmd.file.saveActions": "Aktionen beim Speichern..."
 }

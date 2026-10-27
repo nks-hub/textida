@@ -369,14 +369,17 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    private async Task UploadRemoteAsync(DocTab tab)
+    /// <param name="saveFirst">False for the upload that follows a save of the save actions: the file on disk is then exactly the saved revision, and a later change of the document must not be saved and sent with it.</param>
+    /// <param name="interactive">False after an autosave: a version conflict is not asked about in a dialog, the bar of the tab says that the server changed.</param>
+    /// <returns>True when the server holds the saved file now (uploaded, or it was already the same).</returns>
+    private async Task<bool> UploadRemoteAsync(DocTab tab, bool saveFirst = true, bool interactive = true)
     {
         var od = tab.Doc;
-        if (od.RemoteCopy is not { } copy) return;
-        if (od.Doc.IsModified && !await SaveAsync(tab)) return; // the copy on disk is what gets sent
-        if (ConnectionOf(copy) is not { } connection) { SetStatusMessage(Loc.Get(K.RemoteConnectionGone)); return; }
+        if (od.RemoteCopy is not { } copy) return false;
+        if (saveFirst && od.Doc.IsModified && !await SaveAsync(tab)) return false; // the copy on disk is what gets sent
+        if (ConnectionOf(copy) is not { } connection) { SetStatusMessage(Loc.Get(K.RemoteConnectionGone)); return false; }
         await using var client = await ConnectAsync(connection);
-        if (client is null) { ShowRemoteBarOffline(tab); return; }
+        if (client is null) { ShowRemoteBarOffline(tab); return false; }
 
         var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
         _acceptedServerVersion.TryGetValue(od, out var accepted);
@@ -390,14 +393,20 @@ internal sealed partial class MainWindow
                     od.RemoteCopy = outcome.Copy;
                     SetStatusMessage(Loc.Get(K.RemoteUploaded, ("title", od.Title), ("name", connection.Name)));
                     await ShowRemoteBarAsync(tab, client);
-                    break;
+                    return true;
                 case UploadStatus.NothingToSend:
                     SetStatusMessage(Loc.Get(K.RemoteNothingToSend, ("title", od.Title)));
                     await ShowRemoteBarAsync(tab, client);
-                    break;
+                    return true;
                 default:
-                    await ResolveUploadConflictAsync(tab, connection, client, outcome);
-                    break;
+                    if (interactive) await ResolveUploadConflictAsync(tab, connection, client, outcome);
+                    else
+                    {
+                        RemoteLog(connection, Loc.Get(K.RemoteLogConflict, ("path", outcome.Copy.RemotePath)));
+                        SetStatusMessage(Loc.Get(K.SaveActionsUploadConflict, ("title", od.Title)));
+                        await ShowRemoteBarAsync(tab, client);
+                    }
+                    return false;
             }
         }
         catch (RemoteException e)
@@ -405,6 +414,7 @@ internal sealed partial class MainWindow
             RemoteLog(connection, Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", e.Message)));
             SetStatusMessage(Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", e.Message)));
             ShowRemoteBarOffline(tab);
+            return false;
         }
     }
 

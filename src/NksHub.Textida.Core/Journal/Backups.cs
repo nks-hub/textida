@@ -163,7 +163,25 @@ public sealed class AutosaveService : IDisposable
         _options = options;
         _backups = backups;
         _invoke = invoke ?? (a => a());
-        if (options.Enabled) _timer = new Timer(_ => _invoke(() => RunOnce()), null, options.Interval, options.Interval);
+        if (options.Enabled) _timer = new Timer(_ => _invoke(Tick), null, options.Interval, options.Interval);
+    }
+
+    /// <summary>When set, the timer calls this instead of <see cref="RunOnce"/>, so the app can put its save actions around the save (which then calls <see cref="RunOnce"/> itself). A tick that finds the previous one still running does nothing.</summary>
+    public Func<Task>? Pipeline { get; set; }
+
+    private int _busy;
+
+    private void Tick()
+    {
+        if (Pipeline is not { } pipeline) { RunOnce(); return; }
+        if (Interlocked.Exchange(ref _busy, 1) == 1) return;
+        _ = Run(pipeline);
+    }
+
+    private async Task Run(Func<Task> pipeline)
+    {
+        try { await pipeline().ConfigureAwait(true); }
+        finally { Volatile.Write(ref _busy, 0); }
     }
 
     public event EventHandler<ExternalChange>? Conflict;
