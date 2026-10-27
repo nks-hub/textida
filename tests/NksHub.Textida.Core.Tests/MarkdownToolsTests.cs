@@ -129,7 +129,7 @@ public class MarkdownToolsTests
         Assert.Equal(2, noDashes.CaretRow);
         Assert.Equal(3, noDashes.Count);
 
-        var colons = MarkdownTools.Repair(Lines("h1|h2\n:-:|--:\nx"), 2)!;
+        var colons = MarkdownTools.Repair(Lines("h1|h2\n:-:|--:\nx|"), 2)!;
         Assert.Equal(["| h1  |  h2 |", "| :-: | --: |", "|  x  |     |"], colons.Lines);
 
         var stray = MarkdownTools.Repair(Lines("| a | b |\n|---|---|\n| 1 | 2 |\n|---|---|"), 0)!;
