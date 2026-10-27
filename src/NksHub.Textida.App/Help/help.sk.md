@@ -1248,7 +1248,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Súbor CSV alebo TSV možno zobraziť ako tabuľku: jeden riadok súboru je jeden riadok tabuľky, jedno pole je jedna bunka. Je to ten istý dokument ako v textovom zobrazení, s rovnakou históriou Späť; nič sa neprevádza a úprava bunky zmení len bajty tej bunky.
 1. Ctrl+K a potom Ctrl+T (ponuka Zobrazenie, Prepnúť tabuľku a text) prepína medzi tabuľkou a textom. Súbor .tsv alebo .tab sa delí podľa tabulátorov, ostatné súbory podľa čiarok.
-2. Zobrazenie, Oddeľovač a záhlavie tabuľky vyberie čiarku, bodkočiarku, tabulátor alebo zvislú čiaru ako oddeľovač, či úvodzovky ohraničujú hodnoty a či je prvý riadok záhlavie.
+2. Zobrazenie, Oddeľovač a záhlavie tabuľky vyberie čiarku, bodkočiarku, tabulátor alebo zvislú čiaru ako oddeľovač, či úvodzovky ohraničujú hodnoty a či je prvý riadok záhlavie. Kým nevyberiete, oddeľovač sa rozpozná z prvých riadkov súboru (keď sú nejasné, rozhodne prípona).
 - Veľký súbor sa otvorí hneď: riadky sa počítajú na pozadí a rozsah posuvníka rastie, ako sa súbor číta. Kým sa nedôjde na koniec, stavový riadok ukazuje počet riadkov s plusom, napríklad 12+.
 - Šípky, Tab, PageUp a PageDown, Home a End (v rámci riadku), Ctrl+Home a Ctrl+End presúvajú aktuálnu bunku; Shift rozširuje výber. Kliknutie na záhlavie stĺpca vyberie stĺpec, kliknutie na číslo riadku vyberie riadok.
 - Bunka v úvodzovkách môže obsahovať zalomenie riadku; tabuľka ukáže jej prvý riadok a značku ↵.

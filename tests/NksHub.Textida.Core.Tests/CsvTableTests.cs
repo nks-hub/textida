@@ -20,6 +20,13 @@ public class CsvTableTests
 
     private const string Multi = "id,name,note\r\n1,Ann,\"first\r\nsecond, \"\"quoted\"\"\"\r\n2,Bob,plain\r\n3,Cyd,\"a,b\"\r\n";
 
+    [Theory]
+    [InlineData("a;b;c\r\n1;2,5;3\r\n4;5;6\r\n", ';')]
+    [InlineData("a|b\n1|\"x|y\"\n", '|')]
+    [InlineData("one column\nsecond\n", ',')]
+    public void Delimiter_is_detected_from_the_first_lines(string text, char expected) =>
+        Assert.Equal(expected, CsvDialect.Detect(text, CsvDialect.Csv).Delimiter);
+
     [Fact]
     public void Quotes_delimiters_and_multiline_cells_are_read()
     {
