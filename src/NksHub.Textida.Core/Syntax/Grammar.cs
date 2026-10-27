@@ -65,6 +65,9 @@ public sealed class Grammar
         MaximumKeywordLength = Math.Max(MaximumKeywordLength, word.Length);
     }
 
+    /// <summary>The token kind the keyword groups give <paramref name="word"/>, or null when the grammar does not list it.</summary>
+    public string? WordKind(ReadOnlySpan<char> word) => LookupWord(word);
+
     internal string? LookupWord(ReadOnlySpan<char> word)
     {
         if (_caseSensitiveWords.Count > 0 && _caseSensitiveWords.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(word, out var kind)) return kind;

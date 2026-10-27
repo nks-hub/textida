@@ -532,7 +532,7 @@ internal sealed partial class MainWindow
     private static Tokenizer? TokenizerOf(DocTab tab)
     {
         var registry = BuiltinGrammars.Registry;
-        var grammar = (LanguageModes.GrammarId(tab.Doc.Language) is { } id ? registry.Find(id) : null)
+        var grammar = (LanguageModes.GrammarId(tab.Doc) is { } id ? registry.Find(id) : null)
             ?? (tab.Path is { } p ? registry.ForFile(System.IO.Path.GetFileName(p)) : null);
         return grammar is null ? null : new Tokenizer(grammar);
     }

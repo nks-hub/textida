@@ -1,0 +1,40 @@
+{
+  "dialects": [
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "keywords": ["auto_increment", "database", "databases", "delayed", "describe", "div", "duplicate", "engine", "ignore", "low_priority", "regexp", "rlike", "show", "straight_join", "tables", "unsigned", "xor", "zerofill"],
+      "types": ["longblob", "mediumblob", "tinyblob", "tinytext", "year"],
+      "functions": ["curdate", "curtime", "date_format", "database", "found_rows", "from_unixtime", "group_concat", "if", "last_insert_id", "str_to_date", "unix_timestamp"],
+      "rules": [
+        {"name": "comment-hash", "begin": "#", "end": "$", "token": "comment"}
+      ]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "keywords": ["analyse", "cluster", "concurrently", "copy", "do", "inherits", "language", "lateral", "listen", "notify", "only", "perform", "plpgsql", "raise", "tablesample", "vacuum"],
+      "types": ["bigserial", "bytea", "cidr", "citext", "inet", "interval", "macaddr", "smallserial", "timestamptz", "tsvector"],
+      "functions": ["array_agg", "generate_series", "jsonb_build_object", "regexp_replace", "string_agg", "to_char", "to_date", "to_timestamp", "unnest"],
+      "rules": []
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "keywords": ["abort", "attach", "autoincrement", "conflict", "detach", "fail", "glob", "indexed", "pragma", "rowid", "vacuum", "without"],
+      "types": [],
+      "functions": ["changes", "group_concat", "instr", "julianday", "last_insert_rowid", "printf", "randomblob", "strftime", "typeof", "zeroblob"],
+      "rules": []
+    },
+    {
+      "id": "tsql",
+      "name": "T-SQL",
+      "keywords": ["apply", "catch", "clustered", "go", "identity", "merge", "nocount", "nolock", "nonclustered", "output", "pivot", "print", "proc", "throw", "tran", "try", "unpivot", "waitfor"],
+      "types": ["datetime2", "datetimeoffset", "image", "ntext", "smalldatetime", "smallmoney", "sql_variant", "uniqueidentifier"],
+      "functions": ["charindex", "dateadd", "datediff", "datepart", "format", "getdate", "getutcdate", "iif", "len", "newid", "scope_identity", "string_agg", "try_cast"],
+      "rules": [
+        {"name": "bracket-identifier", "match": "\\[[^\\]\\r\\n]*\\]", "token": "variable"}
+      ]
+    }
+  ]
+}

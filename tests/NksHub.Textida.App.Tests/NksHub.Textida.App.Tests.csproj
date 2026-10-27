@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.WebData\NksHub.Textida.Plugins.WebData.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <Target Name="CopyJsonPlugin" AfterTargets="Build">
@@ -39,10 +40,12 @@
       <TextToolsPluginFiles Include="..\..\src\NksHub.Textida.Plugins.TextTools\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <WebDataPluginFiles Include="..\..\src\NksHub.Textida.Plugins.WebData\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <CodeExplorerPluginFiles Include="..\..\src\NksHub.Textida.Plugins.CodeExplorer\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <FormattersPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Formatters\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(TextToolsPluginFiles)" DestinationFiles="@(TextToolsPluginFiles->'$(OutDir)plugins\texttools\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(WebDataPluginFiles)" DestinationFiles="@(WebDataPluginFiles->'$(OutDir)plugins\webdata\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(CodeExplorerPluginFiles)" DestinationFiles="@(CodeExplorerPluginFiles->'$(OutDir)plugins\codeexplorer\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(FormattersPluginFiles)" DestinationFiles="@(FormattersPluginFiles->'$(OutDir)plugins\formatters\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

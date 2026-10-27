@@ -54,6 +54,10 @@ internal static class LanguageModes
         return id != PlainId && BuiltinGrammars.Registry.Find(id) is not null ? id : null;
     }
 
+    /// <summary>The grammar of a document: SQL takes the grammar of its dialect, every other mode the one of the mode.</summary>
+    public static string? GrammarId(OpenDocument document) =>
+        document.Language.Id == "sql" ? SqlDialects.GrammarId(document.SqlDialect) : GrammarId(document.Language);
+
     public static LanguageMode ById(string id) => All.FirstOrDefault(l => l.Id == id) ?? Plain;
 
     public static LanguageMode ForPath(string? path)

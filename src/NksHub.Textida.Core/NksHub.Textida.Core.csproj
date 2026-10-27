@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Syntax\Grammars\*.json" LogicalName="Grammars/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Syntax\Dialects\*.json" LogicalName="Dialects/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <PropertyGroup>

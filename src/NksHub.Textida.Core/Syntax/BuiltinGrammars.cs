@@ -24,6 +24,7 @@ public static class BuiltinGrammars
         foreach (var name in assembly.GetManifestResourceNames().Order(StringComparer.Ordinal))
             if (name.StartsWith("Grammars/", StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal) && !name.EndsWith(SchemaResource, StringComparison.Ordinal))
                 registry.Add(ReadResource(name["Grammars/".Length..]));
+        SqlDialects.Register(registry, ReadResource("sql.json"));
         return registry;
     }
 

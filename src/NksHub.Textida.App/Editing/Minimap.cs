@@ -281,7 +281,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     {
         if (_feeder is null)
         {
-            if (LanguageModes.GrammarId(_doc.Language) is null) return;
+            if (LanguageModes.GrammarId(_doc) is null) return;
             _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle);
         }
         if (_feeder.Active && layout.Rows > 0) _feeder.SetVisible(layout.Top, layout.Top + layout.Rows - 1, 0, columns);
