@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Snippets;
 
 namespace NksHub.Textida.Workbench.Clips;
 
@@ -76,8 +77,22 @@ public sealed class VariableScope
     private string? Compute(string name)
     {
         var path = _context.FilePath;
+        var now = _context.Now;
         return name switch
         {
+            "TM_SELECTED_TEXT" => _context.Selection,
+            "TM_FILEPATH" => path,
+            "TM_DIRECTORY" => path is null ? null : Path.GetDirectoryName(path) ?? "",
+            "TM_FILENAME" => path is null ? null : Path.GetFileName(path),
+            "TM_FILENAME_BASE" => path is null ? null : Path.GetFileNameWithoutExtension(path),
+            "UUID" => Guid.NewGuid().ToString(),
+            "CURRENT_YEAR" => now.ToString("yyyy", CultureInfo.InvariantCulture),
+            "CURRENT_YEAR_SHORT" => now.ToString("yy", CultureInfo.InvariantCulture),
+            "CURRENT_MONTH" => now.ToString("MM", CultureInfo.InvariantCulture),
+            "CURRENT_DATE" => now.ToString("dd", CultureInfo.InvariantCulture),
+            "CURRENT_HOUR" => now.ToString("HH", CultureInfo.InvariantCulture),
+            "CURRENT_MINUTE" => now.ToString("mm", CultureInfo.InvariantCulture),
+            "CURRENT_SECOND" => now.ToString("ss", CultureInfo.InvariantCulture),
             "file.path" => path,
             "file.dir" => path is null ? null : Path.GetDirectoryName(path) ?? "",
             "file.name" => path is null ? null : Path.GetFileName(path),
@@ -108,12 +123,17 @@ public enum VariableSource { Field, User, Builtin }
 /// <param name="SyntaxError">What is wrong with the template itself (an unclosed or empty <c>${</c>), or null.</param>
 public sealed record ExpandResult(string Text, IReadOnlyList<int> Carets, IReadOnlyList<string> Missing, string? SyntaxError)
 {
+    /// <summary>Set when the template used numbered tab stops (snippet syntax); <see cref="Text"/> then holds the defaults and <see cref="Carets"/> the first stop.</summary>
+    public ParsedSnippet? Snippet { get; init; }
+
     public bool Ok => Missing.Count == 0 && SyntaxError is null;
 }
 
 /// <summary>
 /// The template language of clips and file templates, also used for the arguments of tools. <c>${name}</c> is a variable, <c>$|</c> marks where a caret
-/// goes (as often as needed), <c>$$</c> is a dollar sign; any other <c>$</c> stays as it is.
+/// goes (as often as needed), <c>$$</c> is a dollar sign; any other <c>$</c> stays as it is. A template with numbered stops (<c>$1</c>, <c>${1:text}</c>,
+/// <c>${1|a,b|}</c>, <c>$0</c>) is a snippet instead (see <see cref="SnippetParser"/>): there <c>$|</c> is no caret, and the variables also have the names
+/// <c>TM_SELECTED_TEXT</c>, <c>TM_FILENAME</c>, <c>TM_FILENAME_BASE</c>, <c>TM_DIRECTORY</c>, <c>TM_FILEPATH</c>, <c>UUID</c> and <c>CURRENT_*</c>.
 /// </summary>
 public static class Variables
 {
@@ -128,6 +148,12 @@ public static class Variables
     /// <summary>Expands <paramref name="template"/>; every line break in the template and in the values becomes <paramref name="newLine"/>.</summary>
     public static ExpandResult Expand(string template, VariableScope scope, string newLine = "\n")
     {
+        if (SnippetParser.HasStops(template))
+        {
+            var snippet = SnippetParser.Parse(template, name => scope.TryGet(name, out var value) ? value : null, newLine);
+            int first = snippet.Stops.Count > 0 ? snippet.Stops[0].Spans[0].Start : snippet.FinalOffset;
+            return new ExpandResult(snippet.Text, [first], snippet.Missing, null) { Snippet = snippet };
+        }
         var sb = new StringBuilder(template.Length + 16);
         var carets = new List<int>();
         var missing = new List<string>();

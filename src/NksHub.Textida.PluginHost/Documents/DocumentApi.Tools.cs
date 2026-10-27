@@ -2,8 +2,10 @@ using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Rpc;
+using NksHub.Textida.Workbench.Clips;
 
 namespace NksHub.Textida.PluginHost.Documents;
 
@@ -197,7 +199,7 @@ public sealed partial class DocumentApi
         return sb.ToString();
     }
 
-    private sealed record SnippetItem(long Start, long End, string Text, int[] Carets);
+    private sealed record SnippetItem(long Start, long End, string Text, int[] Carets, ParsedSnippet? Snippet = null);
 
     /// <summary>
     /// <c>text</c> goes into every selection of the document, replacing what is selected; <c>carets</c> (UTF-16 offsets in <c>text</c>, the first one primary,
@@ -205,6 +207,8 @@ public sealed partial class DocumentApi
     /// Instead of <c>text</c> a plugin may send <c>items</c>: each has its own byte range <c>start</c>/<c>end</c> of the revision, its own <c>text</c> and <c>carets</c>
     /// (an abbreviation in front of the caret, a selection wrapped in markup); the ranges must not overlap and must not touch a hidden secret.
     /// One revision and one undo step for all of them, or nothing; undo brings the old selections back.
+    /// With <c>"format": "template"</c> the <c>text</c> is a template of clips (variables, <c>$|</c> carets) or a snippet (<c>$1</c>, <c>${1:text}</c>, <c>${1|a,b|}</c>, <c>$0</c>):
+    /// the lines after the first take the indentation of the line, and the tab stops of a snippet become a session in the editor (Tab walks through them).
     /// </summary>
     private async Task<byte[]> InsertSnippetAsync(string pluginId, JsonElement p, PermissionLease lease)
     {
@@ -216,6 +220,8 @@ public sealed partial class DocumentApi
         List<SnippetItem>? explicitItems = null;
         string text = "";
         int[] carets = [];
+        bool template = p.TryGetProperty("format", out var format) && format.ValueKind == JsonValueKind.String && format.GetString() == "template";
+        if (template && p.TryGetProperty("items", out var anyItems) && anyItems.ValueKind != JsonValueKind.Null) throw Invalid("The format 'template' applies to 'text', not to 'items'.");
         if (p.TryGetProperty("items", out var itemsJson) && itemsJson.ValueKind != JsonValueKind.Null) explicitItems = ParseSnippetItems(itemsJson);
         else
         {
@@ -231,7 +237,7 @@ public sealed partial class DocumentApi
             CheckCurrent(d, revision);
             var selections = e.Selections?.Invoke() ?? throw Fail(DocumentErrorCodes.NoTextView, "The document has no text view to take selections from.");
             var newLine = _options.Tools.NewLine(d.Id);
-            var items = explicitItems ?? [.. selections.Items.Select(s => new SnippetItem(s.Start, s.End, text, carets))];
+            var items = explicitItems ?? [.. selections.Items.Select(s => template ? ExpandTemplate(d, s, text, newLine) : new SnippetItem(s.Start, s.End, text, carets))];
             items = [.. items.OrderBy(i => i.Start)];
             var edits = new List<ByteEdit>(items.Count);
             var caretBytes = new long[items.Count][];
@@ -250,6 +256,7 @@ public sealed partial class DocumentApi
             if (explicitItems is not null) GuardSecrets(pluginId, d, edits);
             var main = selections.Items[selections.Primary];
             List<TextSelection> placed = new(items.Count);
+            List<(long Start, ParsedSnippet Snippet)> sessions = [];
             int primary = 0;
             bool found = false;
             long shift = 0;
@@ -257,6 +264,7 @@ public sealed partial class DocumentApi
             {
                 if (!found && (explicitItems is null ? i == selections.Primary : items[i].Start <= main.Caret && main.Caret <= items[i].End)) (primary, found) = (placed.Count, true);
                 foreach (var c in caretBytes[i]) placed.Add(TextSelection.At(items[i].Start + shift + c));
+                if (items[i].Snippet is { Stops.Count: > 0 } live) sessions.Add((items[i].Start + shift, live));
                 shift += edits[i].Insert.Length - (items[i].End - items[i].Start);
             }
             var after = SelectionSet.Create(placed, primary);
@@ -269,6 +277,7 @@ public sealed partial class DocumentApi
             });
             if (!result.Applied) throw EditFailure(result.Conflict, result.Revision);
             _options.Tools.PlaceSelections(d.Id, after);
+            if (sessions.Count > 0) _options.Tools.BeginSnippets(d.Id, sessions);
             return Obj(w =>
             {
                 w.WriteBoolean("applied", true);
@@ -276,6 +285,29 @@ public sealed partial class DocumentApi
                 w.WriteNumber("carets", after.Count);
             });
         });
+    }
+
+    /// <summary>The template expanded for one selection: its text as <c>${selection}</c>, the indentation of the line it starts on, the carets or the tab stops.</summary>
+    private SnippetItem ExpandTemplate(Document d, TextSelection selection, string template, string newLine)
+    {
+        string selected = selection.End - selection.Start <= _options.MaxReadBytes ? d.ReadText(new ByteRange(selection.Start, selection.End)) : "";
+        var context = new VariableContext { FilePath = _options.Tools.FilePath(d.Id), Selection = selected };
+        var result = Variables.Expand(template, new VariableScope(context), newLine);
+        if (result.Missing.Count > 0) throw Invalid($"No value for: {string.Join(", ", result.Missing)}.");
+        if (result.Snippet is not { } snippet)
+        {
+            if (result.Text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
+            return new SnippetItem(selection.Start, selection.End, result.Text, result.Carets.Count == 0 ? [result.Text.Length] : [.. result.Carets]);
+        }
+        string lead = "";
+        if (d.TryGetPosition(selection.Start, out var position) && d.TryGetOffset(new LinePosition(position.Line, 0), out long lineStart) && selection.Start - lineStart <= _options.MaxReadBytes)
+        {
+            string before = d.ReadText(new ByteRange(lineStart, selection.Start));
+            lead = before[..(before.Length - before.TrimStart(' ', '\t').Length)];
+        }
+        snippet = snippet.Reindent(lead, _options.Tools.IndentUnit(d.Id), newLine);
+        if (snippet.Text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
+        return new SnippetItem(selection.Start, selection.End, snippet.Text, [snippet.FinalOffset], snippet);
     }
 
     private List<SnippetItem> ParseSnippetItems(JsonElement array)

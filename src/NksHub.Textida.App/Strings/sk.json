@@ -842,6 +842,8 @@
   "clips.watermark": "Vyberte klip na vloženie",
   "a11y.clips": "Klipy",
   "clips.empty": "Zatiaľ nie sú žiadne klipy. Označte text a zvoľte Uložiť výber ako klip, alebo dajte do priečinka plugins v profile dátový plugin s klipmi.",
+  "snippet.choose": "Vyberte hodnotu zástupného miesta",
+  "a11y.snippetChoice": "Hodnoty snippetu",
   "complete.watermark": "Vyberte slovo alebo klip na doplnenie",
   "a11y.complete": "Dopĺňanie",
   "complete.empty": "Niet čo doplniť. Slová sa berú z otvorených kariet a klipy podľa jazyka dokumentu.",

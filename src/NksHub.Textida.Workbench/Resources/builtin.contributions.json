@@ -543,6 +543,24 @@
       "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
     },
     {
+      "id": "nks.snippet.next",
+      "title": "cmd.snippet.next",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.previous",
+      "title": "cmd.snippet.previous",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.end",
+      "title": "cmd.snippet.end",
+      "category": "cat.edit",
+      "when": "editorFocus && inSnippet"
+    },
+    {
       "id": "nks.markdown.nextCell",
       "title": "cmd.markdown.nextCell",
       "category": "cat.tools",
@@ -3845,22 +3863,32 @@
     {
       "key": "shift+tab",
       "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
     },
     {
       "key": "tab",
       "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.snippet.next",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.snippet.previous",
+      "when": "editorFocus && !readOnly && inSnippet"
     },
     {
       "key": "tab",
       "command": "nks.markdown.nextCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
     },
     {
       "key": "shift+tab",
       "command": "nks.markdown.previousCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
     },
     {
       "key": "shift+enter",

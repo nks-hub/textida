@@ -1089,13 +1089,16 @@ Nápověda popisuje jen to, co tato verze umí. Tato věc v ní zatím není:
 - Rozšíření (pluginy), vzdálené soubory a další funkce z plánu verze 1.0: v této verzi nejsou.
 
 ## [edit.clips] Klipy
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Klip je kus textu s místy pro proměnné a kurzory. Klipy dodávají datové pluginy ve složce plugins v profilu; jeden podadresář na plugin, se souborem nkspad-plugin.json a bez programu.
 1. Zvolte Úpravy, Vložit, Vložit klip. Seznam ukazuje klipy s náhledem textu, který by se vložil.
 2. Vyberte klip. Má-li formulář, vyplňte ho: náhled sleduje, co píšete, špatná hodnota je označená a OK zůstane zašedlé, dokud každá hodnota nesedí k svému typu.
 3. Text se vloží do každého kurzoru a nahradí každý výběr, jako jeden krok Zpět. Kurzory skončí tam, kde má klip značku $|.
 - Uložit výběr jako klip se zeptá na název a přidá označený text do vaší vlastní knihovny (plugin user.clips, složka user-clips). Text se uloží doslova, takže dolar v něm zůstane dolarem. Klip je v seznamu hned.
 - Jazyk šablon: ${name} je proměnná, $| značí kurzor (kolik chcete), $$ je znak dolaru. Konce řádků se změní na konec řádku dokumentu.
+- Snippety: klip (a volání pluginu snippet/insert s "format": "template") smí používat číslovaná zástupná místa: $1, ${1:výchozí text}, ${1|jedna,dva,tři|}, $0 (konečný kurzor). Stejné číslo na více místech se upravuje společně. Po vložení je vybráno první místo; Tab skočí na další, Shift+Tab na předchozí a po posledním jde kurzor na $0. Esc nebo klik mimo snippet ho ukončí. Místo se seznamem hodnot otevře seznam k výběru. Při více kurzorech má každý svůj snippet a místa se procházejí společně.
+- Řádky snippetu za prvním dostanou odsazení řádku, na kterém snippet začíná; tabulátory v jeho vlastním odsazení se změní na odsazení dokumentu (tabulátory nebo mezery). Klip bez číslovaných míst se vkládá tak, jak je.
+- Ve snippetu $| není kurzor a dolar před číslicí je zástupné místo: dolar napište $$ nebo \$. Kromě ${name} fungují proměnné TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID a CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (i jako $NAME). Vnořená místa a transformace nejsou podporovány; text, který do syntaxe nezapadá, zůstane, jak je.
 - Odkud proměnná bere hodnotu, od nejsilnějšího: 1. hodnota napsaná ve formuláři klipu, 2. vaše vlastní proměnné (Úpravy, Vložit, Upravit uživatelské proměnné otevře soubor variables.json v profilu: jeden objekt JSON se jménem a textem), 3. vestavěné. Stejné jméno znamená všude totéž.
 - Vestavěné proměnné: file.path, file.dir, file.name, file.base, file.ext (neuložený dokument file.* nemá), date (rrrr-MM-dd), time (HH:mm:ss), datetime (nastavení Formát data a času), guid (pro každý kurzor nový), selection (text vybraný u tohoto kurzoru), user.name. Jméno bez hodnoty vložení zastaví a stavový řádek ho vypíše.
 - Pole formuláře: name, label, type, default, choices, required. Typy: text, integer (celé číslo), number (desetinná tečka), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (rrrr-MM-dd), file (existující soubor), choice (jedna z hodnot choices). Výchozí hodnota smí používat proměnné, třeba ${date}.

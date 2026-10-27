@@ -365,6 +365,14 @@ public interface IEditorTools
     void PlaceSelections(Guid document, SelectionSet selections);
     /// <summary>The line break a new line of the document gets.</summary>
     string NewLine(Guid document);
+    /// <summary>The path of the file the document is saved as; null for a document that is not saved.</summary>
+    string? FilePath(Guid document) => null;
+    /// <summary>One level of indentation in the document: a tab or the spaces of the indent size.</summary>
+    string IndentUnit(Guid document) => "    ";
+    /// <summary>
+    /// Snippets with tab stops were written (each at its byte offset in the current revision, its text as written): starts the session that walks through the stops.
+    /// </summary>
+    void BeginSnippets(Guid document, IReadOnlyList<(long Start, NksHub.Textida.Core.Snippets.ParsedSnippet Snippet)> snippets) { }
     /// <summary>The cells selected in the table view of the document; null when it is not shown as a table.</summary>
     TableSelectionData? TableSelection(Guid document);
     /// <summary>Replaces the clipboard: <paramref name="text"/> and, when given, <paramref name="html"/> as the rich form of it.</summary>

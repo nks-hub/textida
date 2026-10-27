@@ -119,6 +119,28 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_snippet_clip_indents_later_lines_selects_the_first_stop_mirrors_it_and_tab_walks_to_the_end()
+    {
+        Install("acme", Manifest("\"clips\":[{\"id\":\"sn\",\"title\":\"Sn\",\"text\":\"${1:foo} = $1;\\n$2 end\"}]"));
+        var tab = Open("  x");
+        tab.Editor!.CaretOffset = 3;
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal("  xfoo = foo;\n   end", Text(tab).Replace("\r\n", "\n"));
+        Assert.True(tab.Editor.InSnippet);
+        Assert.Equal(new Sel(3, 6), CaretsOf(tab).Single());
+
+        tab.Editor.TypeText("bar");
+        Assert.Equal("  xbar = bar;\n   end", Text(tab).Replace("\r\n", "\n"));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.Equal(Sel.At(Text(tab).IndexOf("end", StringComparison.Ordinal) - 1), CaretsOf(tab).Single());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
     public void The_command_a_clip_names_inserts_it_and_a_selection_is_replaced()
     {
         Install("acme", Manifest(Box));
