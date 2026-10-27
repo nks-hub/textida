@@ -130,6 +130,13 @@ public static class K
     public const string HistorySearchWatermark = "history.searchWatermark";
     public const string HistorySearchNone = "history.searchNone";
     public const string HistorySearchDetail = "history.searchDetail";
+    public const string HistoryPin = "history.pin";
+    public const string HistoryUnpin = "history.unpin";
+    public const string HistoryPinnedTag = "history.pinnedTag";
+    public const string HistoryPinned = "history.pinned";
+    public const string HistoryUnpinned = "history.unpinned";
+    public const string HistoryTooLarge = "history.tooLarge";
+    public const string HistoryStoreDamaged = "history.storeDamaged";
     public const string LossTitle = "loss.title";
     public const string LossMessage = "loss.message";
     public const string LossReplacement = "loss.replacement";

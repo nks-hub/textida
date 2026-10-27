@@ -186,6 +186,7 @@ Program uchovává revizi souboru při každém uložení a při každé změně
 - Soubory s tajnými hodnotami, například .env, se neukládají, dokud v nastavení nezapnete Ukládat historii souborů s tajnými hodnotami.
 - Limity (revizí na soubor, dny, MiB na soubor, MiB celkem) se nastavují v nastavení; 0 znamená bez omezení. Nejnovější revize souboru se nikdy nesmaže.
 - Když je disk plný, stavový řádek to oznámí a žádná revize se nepoškodí.
+- Připnutou revizi limity nikdy nesmažou; Připnout v nabídce revize ji drží, Odepnout ji uvolní. Soubor nad limitem velikosti revize nedostane a stavový řádek to oznámí. Staré revize se uklízejí na pozadí.
 
 ## [file.historyMark] Označit revizi
 commands: nks.file.historyMark

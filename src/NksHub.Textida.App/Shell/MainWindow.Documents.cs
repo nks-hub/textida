@@ -62,7 +62,7 @@ internal sealed partial class MainWindow
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
-        od.HistoryProblem += result => SetStatusMessage(result.NoSpace ? Loc.Get(K.HistoryNoSpace) : Loc.Get(K.HistoryFailed, ("reason", result.Problem ?? "")));
+        od.HistoryProblem += ReportHistory;
         AcquireLock(od);
         if (od.Path is { } localPath) od.RemoteCopy ??= _app.Remote.Copies.FindByLocalPath(localPath);
         _app.Journal.Track(od);
