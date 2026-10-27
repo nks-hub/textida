@@ -47,7 +47,7 @@ that document, not the journal.
 | 5 DocUndo, 6 DocRedo | document id, revision; replayed by calling `Undo()`/`Redo()` |
 | 7 DocSave | document id, revision, path, new fingerprint, codec name |
 | 8 DocClose | document id |
-| 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place, codec name |
+| 9 DocSaveIntent | document id, revision, path, size and SHA-256 of the file about to be moved into place, codec name. For an in-place save (no whole-file hash is computed) the hash field holds `inplace:START-END,...;HEX` instead: the written byte ranges and one SHA-256 over their new bytes. No layout change; an older reader sees a hash that never matches |
 | 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
 | 17 DocMove | document id, new path: the file was renamed or moved on disk, the unsaved work follows it; recovery opens the new path |
 | 11-16 Batch* | Replace in Files batch, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
@@ -59,7 +59,9 @@ hundred bytes. Unnamed documents carry their initial bytes as seeds.
 
 1. Closed documents are dropped. For each document everything up to its last save is replaced by a new `DocOpen` that points at
    the saved file (base revision = revision of the save, codec = codec at the save). A `DocSaveIntent` after the last save counts as a save when the file on
-   disk has the intended hash (the process died after the swap, before the save record).
+   disk has the intended hash (the process died after the swap, before the save record). For an in-place intent the unfinished write of the patch journal
+   is completed or undone first, then the file counts as saved when its size is the intended one and the named ranges hold the intended bytes; the
+   recorded fingerprint of such a save has an empty hash (size and write time only), and is compared by size.
 2. A `DocMove` after the last save changes the path of the start record to the new one. A named document is opened from its file. If the file no longer matches the fingerprint and there are edits, the result is
    `Conflict` (or `Missing`): nothing is applied and the records are kept. Otherwise the edits are replayed through
    `Document.Apply`/`Undo`/`Redo`, and every revision is checked against the record.

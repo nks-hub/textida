@@ -90,7 +90,7 @@ public sealed partial class Document
         BeforeSaveCommit?.Invoke();
         var (digests, blockConflict) = CheckOriginalBlocks(target, plan, snapshot, guard, CancellationToken.None);
         if (blockConflict is not null) return new(false, blockConflict);
-        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, ""));
+        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, InPlaceIntent.Encode(plan.Ranges, snapshot)));
         InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks, _backend.BeginInPlaceWrite());
         if (VerifyWritten(target, plan, snapshot, digests) is { } differs) return new(false, differs);
         CompleteSave(target, "", AcceptDigests(digests));
@@ -270,7 +270,7 @@ public sealed partial class Document
                     BeforeSaveCommit?.Invoke();
                     var (digests, blockConflict) = await Task.Run(() => CheckOriginalBlocks(target, plan, snapshot!, guard, ct), CancellationToken.None);
                     if (blockConflict is not null) return new(false, blockConflict);
-                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, InPlaceIntent.Encode(plan.Ranges, snapshot!)));
                     await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
                     if (await Task.Run(() => VerifyWritten(target, plan, snapshot!, digests), CancellationToken.None) is { } differs) return new(false, differs);
                     baseline = AcceptDigests(digests);

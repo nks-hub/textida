@@ -81,7 +81,7 @@ public static class JournalRecovery
         result.Records = records.Count;
         if (records.Count > 0) result.LastRecord = DateTimeOffset.FromUnixTimeMilliseconds(records[^1].TimestampMs);
 
-        var plan = JournalCompactor.Plan(records, verifyIntent: intent => FileFingerprint.TryRead(intent.Path));
+        var plan = JournalCompactor.Plan(records, verifyIntent: VerifyIntent);
         foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends));
         result.SessionRecord = plan.Session;
         if (plan.Session is { } s)
@@ -90,6 +90,19 @@ public static class JournalRecovery
             catch (Exception e) when (e is JournalFormatException or EndOfStreamException) { result.Notes.Add("The session state could not be read."); }
         }
         return result;
+    }
+
+    /// <summary>
+    /// The file a save intent names, as the intent can vouch for it: whole file for a streamed save; for an in-place save the size and the written
+    /// ranges (after an unfinished write of the patch journal is completed or undone, which opening the file would do anyway). The hash of an in-place
+    /// intent is returned as written when the ranges match and empty when they do not.
+    /// </summary>
+    private static FileFingerprint? VerifyIntent(SaveIntentRecord intent)
+    {
+        if (!InPlaceIntent.IsInPlace(intent.Sha256)) return FileFingerprint.TryRead(intent.Path);
+        if (!File.Exists(intent.Path)) return null;
+        InPlacePatch.Recover(intent.Path);
+        return FileFingerprint.TryReadQuick(intent.Path) is { } quick ? quick with { Sha256 = InPlaceIntent.Matches(intent.Path, intent.Sha256) ? intent.Sha256 : "" } : null;
     }
 
     private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, bool retried = false)
@@ -318,7 +331,8 @@ internal static class JournalCompactor
                 if (verifyIntent!(intent) is { } actual && actual.Size == intent.Size && actual.Sha256 == intent.Sha256)
                 {
                     save = intentAt;
-                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, actual, intent.Codec);
+                    // an in-place save has no whole-file hash to record; the document will have none until it is read again
+                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, InPlaceIntent.IsInPlace(intent.Sha256) ? actual with { Sha256 = "" } : actual, intent.Codec);
                 }
             }
             if (point is not null)
