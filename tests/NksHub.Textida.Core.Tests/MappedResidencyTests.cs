@@ -1,5 +1,9 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Search;
+using NksHub.Textida.Document.Contract;
+using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
 
@@ -86,6 +90,77 @@ public unsafe partial class MappedResidencyTests
         Assert.False(IsResident(file.GetSpan(Mib, 1)));
         Assert.Equal(content[Mib + 5], file.GetSpan(Mib, 4096)[5]); // faulted in again, the same bytes
         Assert.True(IsResident(file.GetSpan(Mib, 1)));
+    }
+
+    [Fact]
+    public void A_sequential_scan_keeps_the_working_set_near_the_budget_where_a_scan_without_a_budget_fills_it()
+    {
+        if (!OperatingSystem.IsWindows()) return; // the working set of single pages is read through a Windows call
+        const int size = 48 * Mib;
+        var content = Pattern(size);
+        using var f = new TempFile(content);
+
+        long Scan(long budget, out long peak)
+        {
+            using var file = MappedFile.Open(f.Path);
+            file.ResidentBudget = budget;
+            byte* start;
+            fixed (byte* p = file.GetSpan(0, 1)) start = p;
+            peak = 0;
+            for (int at = 0; at < size; at += Mib)
+            {
+                Assert.True(file.GetSpan(at, Mib).SequenceEqual(content.AsSpan(at, Mib)), $"chunk at {at}");
+                Thread.Sleep(2); // the pages are given back on the thread pool; give it the time a real scroll leaves it
+                peak = Math.Max(peak, ResidentBytes(start, size));
+            }
+            if (budget > 0) WaitUntil(() => ResidentBytes(start, size) <= budget + 2 * Mib, "the working set is back near the budget");
+            return ResidentBytes(start, size);
+        }
+
+        Scan(0, out long withoutBudget);
+        Assert.True(withoutBudget >= size * 3 / 4, $"without a budget the scan left {withoutBudget >> 20} MiB of {size >> 20} resident, so the measurement shows nothing");
+        long end = Scan(4 * Mib, out long peak);
+        Assert.True(peak <= 4 * Mib + 12 * Mib, $"the working set peaked at {peak >> 20} MiB with a budget of 4 MiB");
+        Assert.True(end <= 6 * Mib, $"{end >> 20} MiB resident after the scan");
+    }
+
+    [Fact]
+    public void A_search_over_a_paged_document_leaves_no_more_of_the_mapping_in_the_working_set_than_the_budget()
+    {
+        if (!OperatingSystem.IsWindows()) return; // the working set of single pages is read through a Windows call
+        var line = Encoding.ASCII.GetBytes("2026-10-26 12:00:00 INFO request handled path=/api/items/42\n");
+        var bytes = new byte[40 * Mib / line.Length * line.Length];
+        for (int at = 0; at < bytes.Length; at += line.Length) line.CopyTo(bytes, at);
+        using var f = new TempFile(bytes);
+
+        long ResidentAfterSearch(long budget)
+        {
+            using var doc = Doc.Open(f.Path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TestFormat.Utf8.Format });
+            var file = ((PagedBackend)doc.Backend).Paged.Source.File;
+            byte* start;
+            fixed (byte* p = file.GetSpan(0, 1)) start = p;
+            file.Trim(); // opening read the file under the default budget; count from here
+            file.ResidentBudget = budget;
+            var settings = new SearchSettings { MaxResults = 10, StopAtLimit = false, ChunkBytes = 1 << 20, Parallelism = 4 };
+            var (_, summary) = SearchWorker.CollectAsync(new SearchPattern("never-in-this-file"), new SearchScope([], [LiveBuffer.Of(doc)]), settings).GetAwaiter().GetResult();
+            Assert.Equal((SearchEnd.Completed, 1L, 0L), (summary.End, summary.FilesScanned, summary.TotalMatches));
+            if (budget > 0) WaitUntil(() => ResidentBytes(start, file.Length) <= budget + 2 * Mib, "the mapped pages are back under the budget after the search");
+            return ResidentBytes(start, file.Length);
+        }
+
+        long without = ResidentAfterSearch(0);
+        long with = ResidentAfterSearch(4 * Mib);
+        Assert.True(with <= 6 * Mib, $"{with >> 20} MiB of the mapping resident after a search with a 4 MiB budget ({without >> 20} MiB without one)");
+    }
+
+    private static long ResidentBytes(byte* start, long length)
+    {
+        const int page = 4096;
+        int pages = (int)((length + page - 1) / page);
+        var infos = new WorkingSetExInformation[pages];
+        for (int i = 0; i < pages; i++) infos[i].VirtualAddress = (nint)(start + (long)i * page);
+        Assert.True(QueryWorkingSetEx(GetCurrentProcess(), ref infos[0], pages * sizeof(WorkingSetExInformation)));
+        return infos.Count(i => (i.VirtualAttributes & 1) != 0) * (long)page;
     }
 
     private static bool IsResident(ReadOnlySpan<byte> at)
