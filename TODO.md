@@ -1493,7 +1493,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.5.5** Doplňování slov a klipů
   - **Co a proč:** Ctrl+J doplní slova z dokumentu a klipy, funguje hned po instalaci. LSP doplňování je v P8.
   - **Funkce:** F076
-  - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Zástupná hodnota 200 slov v nabídce; Perf neměřen.
+  - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Index slov dokumentu se po úpravě opraví jen v dotčených řádcích (test shody s nově postaveným po náhodných úpravách); řádek nad 64 tis. znaků index zahodí a další Ctrl+J ho postaví znovu. Zástupná hodnota 200 slov v nabídce; Perf po úpravě běží na referenční Windows VM.
   - **Hotovo, když:** doplnění nabídne slova z otevřených karet a klipy podle jazyka do 33 ms v souboru 1 MiB.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
