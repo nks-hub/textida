@@ -113,6 +113,7 @@ public sealed partial class App : Application
                 first.ShowJournalWarnings();
                 first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
+                else if (first.Active is null) first.NewDocument(); // nothing to open or restore: start with an empty document, not an empty window
             };
         }
         else if (PagedMeasure.Requested) first.Opened += (_, _) => _ = new PagedMeasure(this, first, desktop).RunAsync();
