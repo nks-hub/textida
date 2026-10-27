@@ -1453,5 +1453,14 @@
   "recipeFiles.nothing.other": "{title}: v {count} súboroch nie je čo meniť",
   "recipeFiles.skipped.one": "{title}: {count} súbor sa vynechal, v ostatných nie je čo meniť. {reason}",
   "recipeFiles.skipped.few": "{title}: {count} súbory sa vynechali, v ostatných nie je čo meniť. Prvý: {reason}",
-  "recipeFiles.skipped.other": "{title}: {count} súborov sa vynechalo, v ostatných nie je čo meniť. Prvý: {reason}"
+  "recipeFiles.skipped.other": "{title}: {count} súborov sa vynechalo, v ostatných nie je čo meniť. Prvý: {reason}",
+  "shell.menu.label": "Otvoriť v Textide",
+  "shell.menu.added": "Položka v ponuke Prieskumníka je pridaná pre {program}. Nájdete ju v kontextovej ponuke súborov.",
+  "shell.removed": "Položka v ponuke Prieskumníka a asociácie súborov Textidy sú odstránené.",
+  "shell.failed": "Integrácia do Prieskumníka sa nepodarila: {reason}",
+  "shell.unavailable": "Integrácia do Prieskumníka funguje len v Textida.exe na Windows.",
+  "shell.assoc.title": "Asociácie súborov",
+  "shell.assoc.watermark": "Vyberte príponu, pri ktorej sa Textida pridá do Otvoriť v, alebo odoberie",
+  "shell.assoc.on": "priradené",
+  "shell.assoc.off": "nepriradené"
 }

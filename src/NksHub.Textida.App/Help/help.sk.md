@@ -1242,6 +1242,16 @@ Jeden zoznam serverov MCP, s ktorými sú nastavení vaši programovací agenti.
 - Vyskúšať ide iba server spúšťaný príkazom. Server s adresou sa v zozname ukáže a ide previesť, ale nespúšťa sa. npx a npm sa spúšťajú ako node so skriptom zástupcu Node.js, pretože Textida nespúšťa dávkové súbory.
 - Tajné hodnoty sú skryté v zozname, v okne, vo výstupe aj v úryvkoch, tiež keď sa objavia vnútri argumentu alebo v chybovom výstupe programu. Hodnoty kratšie ako 4 znaky sa v texte nehľadajú.
 
+## [tools.shell] Ponuka Prieskumníka a asociácie súborov
+commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
+Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho používateľa a do zoznamu Otvoriť v programe. Nič nevyžaduje práva správcu a zapisujú sa len kľúče Textidy pod HKEY_CURRENT_USER\Software\Classes. Kľúče iných programov, vrátane PSPadu, sa nečítajú ani nemenia. Oba príkazy fungujú v nainštalovanej Textida.exe.
+1. Zvoľte Nástroje, Pridať Textidu do ponuky Prieskumníka. Súbory dostanú položku Otvoriť v Textide; spustí Textidu so súborom, alebo súbor odovzdá už bežiacej Textide. Vo Windows 11 je položka pod Zobraziť ďalšie možnosti.
+2. Zvoľte Nástroje, Asociácie súborov a vyberte prípony. Voľba prípony v zozname pridá alebo odoberie Textidu v jej zozname Otvoriť v programe; Escape zoznam zavrie. Kým príponu nevyberiete, žiadna asociácia sa nevytvorí.
+3. Aby bola Textida predvoleným programom prípony, použite v Prieskumníku Otvoriť v programe, Vybrať inú aplikáciu. Túto voľbu si Windows drží sám.
+4. Zvoľte Nástroje, Odobrať Textidu z Prieskumníka: zmaže položku ponuky a všetky asociácie, ktoré Textida pridala. To isté urobí odinštalátor.
+- Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
+- Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.
+
 ## [review.external] Kontrola zmien zvonka
 commands: nks.review.open, nks.review.next, nks.review.previous
 Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.

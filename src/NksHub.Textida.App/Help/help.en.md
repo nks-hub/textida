@@ -1237,6 +1237,16 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 - Only a server started by a command can be tried. A server reached by an address is listed and can be converted, but it is not started. npx and npm are started as node with the script of the Node.js shim, because Textida does not start batch files.
 - Secrets are hidden in the list, the dialog, the output and the snippets, also where one appears inside an argument or in the error output of the program. Values shorter than 4 characters are not searched for in text.
 
+## [tools.shell] Explorer menu and file associations
+commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
+Windows only. Textida can add itself to the Explorer context menu of your user and to the Open with list. Nothing needs administrator rights, and only keys of Textida under HKEY_CURRENT_USER\Software\Classes are written. Keys of other programs, PSPad included, are not read or changed. Both commands work in the installed Textida.exe.
+1. Choose Tools, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
+2. Choose Tools, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
+3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
+4. Choose Tools, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
+- The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
+- Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
+
 ## [review.external] Review changes from outside
 commands: nks.review.open, nks.review.next, nks.review.previous
 When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.

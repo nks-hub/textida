@@ -1420,5 +1420,14 @@
   "recipeFiles.nothing.one": "{title}: in {count} Datei ist nichts zu ändern",
   "recipeFiles.nothing.other": "{title}: in {count} Dateien ist nichts zu ändern",
   "recipeFiles.skipped.one": "{title}: {count} Datei wurde ausgelassen, in den übrigen ist nichts zu ändern. {reason}",
-  "recipeFiles.skipped.other": "{title}: {count} Dateien wurden ausgelassen, in den übrigen ist nichts zu ändern. Erster Grund: {reason}"
+  "recipeFiles.skipped.other": "{title}: {count} Dateien wurden ausgelassen, in den übrigen ist nichts zu ändern. Erster Grund: {reason}",
+  "shell.menu.label": "Mit Textida öffnen",
+  "shell.menu.added": "Der Eintrag im Explorer-Menü wurde für {program} angelegt. Er steht im Kontextmenü von Dateien.",
+  "shell.removed": "Der Eintrag im Explorer-Menü und die Dateizuordnungen von Textida wurden entfernt.",
+  "shell.failed": "Die Explorer-Integration ist fehlgeschlagen: {reason}",
+  "shell.unavailable": "Die Explorer-Integration funktioniert nur in Textida.exe unter Windows.",
+  "shell.assoc.title": "Dateizuordnungen",
+  "shell.assoc.watermark": "Wählen Sie eine Endung, für die Textida zu Öffnen mit hinzugefügt oder entfernt wird",
+  "shell.assoc.on": "zugeordnet",
+  "shell.assoc.off": "nicht zugeordnet"
 }

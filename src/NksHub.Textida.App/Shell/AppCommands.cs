@@ -128,6 +128,9 @@ internal static class AppCommands
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
+        On("nks.tools.shellMenuAdd", w => w.AddShellMenu());
+        On("nks.tools.shellAssociate", w => w.ShowShellAssociations());
+        On("nks.tools.shellRemove", w => w.RemoveShellIntegration());
         On("nks.macro.record", w => w.RecordMacro());
         On("nks.macro.stop", w => w.StopMacro());
         On("nks.macro.playLast", w => w.PlayLastMacro());
