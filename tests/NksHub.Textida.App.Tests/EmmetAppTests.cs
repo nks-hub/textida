@@ -299,6 +299,38 @@ public class EmmetAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Inside_a_session_in_css_Tab_jumps_and_a_property_abbreviation_typed_at_the_stop_is_not_expanded()
+    {
+        var tab = Open("session.css", "a {\n  m");
+        await TabAsync();
+        Assert.Equal("a {\n  margin: ;", Text(tab));
+        Assert.True(tab.Editor!.InSnippet);
+        Assert.Equal("a {\n  margin: ".Length, tab.Editor.CaretOffset);
+
+        TestApp.Type(_w, "p10"); // outside a session Tab would turn it into padding
+        await TabAsync();
+
+        Assert.Equal("a {\n  margin: p10;", Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public async Task Redo_of_an_expansion_does_not_bring_the_session_back()
+    {
+        var tab = Open("redo.html", "ul>li*2");
+        await TabAsync();
+        var expanded = Text(tab);
+
+        _w.Undo();
+        Assert.False(tab.Editor!.InSnippet);
+        _w.Redo();
+
+        Assert.Equal(expanded, Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+    }
+
+    [AvaloniaFact]
     public async Task The_preview_shows_the_result_and_expands_only_when_confirmed()
     {
         var tab = Open("p.html", "ul>li*2");
