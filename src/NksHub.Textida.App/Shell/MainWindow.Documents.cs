@@ -102,6 +102,7 @@ internal sealed partial class MainWindow
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
+            surface.TextTyped += _app.Workbench.Commands.RecordText;
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }

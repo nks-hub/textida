@@ -378,5 +378,10 @@
   "cmd.review.next": "Ďalšia zmena zvonka",
   "cmd.review.previous": "Predchádzajúca zmena zvonka",
   "setting.review.autoKeep.title": "Ponechať zmeny zvonka bez kontroly",
-  "setting.review.autoKeep.description": "Zapnuté: keď iný program zmení súbor karty bez neuložených úprav, karta hneď prevezme nový obsah a kontrola sa neponúka. Vypnuté: zmeny čakajú na vašu kontrolu."
+  "setting.review.autoKeep.description": "Zapnuté: keď iný program zmení súbor karty bez neuložených úprav, karta hneď prevezme nový obsah a kontrola sa neponúka. Vypnuté: zmeny čakajú na vašu kontrolu.",
+  "cmd.macro.record": "Nahrať makro",
+  "cmd.macro.stop": "Zastaviť nahrávanie makra",
+  "cmd.macro.playLast": "Prehrať posledné makro",
+  "cmd.macro.save": "Uložiť posledné makro ako...",
+  "cmd.macro.run": "Spustiť uložené makro..."
 }

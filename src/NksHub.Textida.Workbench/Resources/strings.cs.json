@@ -378,5 +378,10 @@
   "cmd.review.next": "Další změna zvenku",
   "cmd.review.previous": "Předchozí změna zvenku",
   "setting.review.autoKeep.title": "Ponechat změny zvenku bez kontroly",
-  "setting.review.autoKeep.description": "Zapnuto: když jiný program změní soubor karty bez neuložených úprav, karta hned převezme nový obsah a kontrola se nenabízí. Vypnuto: změny čekají na vaši kontrolu."
+  "setting.review.autoKeep.description": "Zapnuto: když jiný program změní soubor karty bez neuložených úprav, karta hned převezme nový obsah a kontrola se nenabízí. Vypnuto: změny čekají na vaši kontrolu.",
+  "cmd.macro.record": "Nahrát makro",
+  "cmd.macro.stop": "Zastavit nahrávání makra",
+  "cmd.macro.playLast": "Přehrát poslední makro",
+  "cmd.macro.save": "Uložit poslední makro jako...",
+  "cmd.macro.run": "Spustit uložené makro..."
 }

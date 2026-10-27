@@ -123,7 +123,14 @@ internal static class AppCommands
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
-        registry.SetHandler("nks.edit.repeatLast", (context, token) => registry.RepeatLastAsync(context, token));
+        On("nks.macro.record", w => w.RecordMacro());
+        On("nks.macro.stop", w => w.StopMacro());
+        On("nks.macro.playLast", w => w.PlayLastMacro());
+        On("nks.macro.save", w => w.SaveMacro());
+        On("nks.macro.run", w => w.ShowMacros());
+        registry.RecordingRefused += id =>
+            app.ActiveWindow?.SetStatusMessage(Loc.Get(K.MacroRefused, ("title", registry.TryGet(id, out var refused) ? Loc.Get(refused.TitleKey) : id)));
+        registry.SetHandler("nks.edit.repeatLast",(context, token) => registry.RepeatLastAsync(context, token));
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));
         Edit("nks.edit.moveLineUp", (s, sels) => LineOperations.MoveLines(s.Document, sels, -1));

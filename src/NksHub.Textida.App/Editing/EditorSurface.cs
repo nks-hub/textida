@@ -354,8 +354,20 @@ internal sealed partial class EditorSurface : TextEditor
         finally { Core.TypingTrace.End("editor.textEntering", t); }
     }
 
+    /// <summary>Raised with the text of every character or composition typed into the editor, before it is inserted; a macro records it.</summary>
+    public event Action<string>? TextTyped;
+
+    /// <summary>Types <paramref name="text"/> at the carets the way the keyboard does: the same smart rules, one undo run, every caret.</summary>
+    public bool TypeText(string text)
+    {
+        if (IsReadOnly || text.Length == 0) return false;
+        TextArea.PerformTextInput(text);
+        return true;
+    }
+
     private void OnTextEnteringCore(TextInputEventArgs e)
     {
+        if (!IsReadOnly && e.Text is { Length: > 0 } seen) TextTyped?.Invoke(seen);
         if (e.Text is { Length: > 0 } entered && TypeAtCarets(entered))
         {
             e.Handled = true;

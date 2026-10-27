@@ -326,6 +326,16 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Letzten Befehl wiederholen führt den zuletzt ausgeführten Befehl, der Text ändert, erneut aus: Zeile löschen, Zeile duplizieren, Zeile verschieben, Zeilen verbinden, Einzug vergrößern, Einzug verkleinern, Groß-/Kleinschreibung, Kommentar umschalten, In Zeilen einfügen, Zeilen sortieren, Absatz neu umbrechen und die Ausrichtungsbefehle, Datum und Uhrzeit einfügen, GUID einfügen. Ein Befehl mit Dialog wird mit den Einstellungen des letzten Laufs ohne Nachfrage wiederholt. Im Profil PSPad ist es Alt+Q.
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
 
+## [edit.macro] Makros
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
+1. Extras, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makroaufzeichnung beenden, beendet sie.
+2. Extras, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
+3. Extras, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
+- Ein Makro merkt sich Befehle, keine Tasten: Zeile duplizieren, Groß-/Kleinschreibung, Nächstes Vorkommen hinzufügen und Ähnliches, sowie getippten Text. Mit mehreren Einfügemarken tut es dasselbe wie die Schritte von Hand.
+- Das Abspielen ist ein einziger Rückgängig-Schritt. Läuft ein Schritt nicht, hält das Makro dort an und die Statuszeile nennt den Schritt; was vorher lief, bleibt ein Rückgängig-Schritt.
+- Beim Aufzeichnen wird ein Befehl, den ein Makro nicht abspielen kann, abgelehnt und die Statuszeile sagt es: alles mit Dialog, Dateibefehle, Ausschneiden, Kopieren, Einfügen, Bewegen der Einfügemarke mit den Pfeiltasten, Suchen. Die Aufzeichnung läuft weiter.
+- Zum Abspielen ist ein bearbeitbares Textdokument nötig. Der Import von PSPad-Makros ist nicht verfügbar.
+
 ## [edit.json] JSON formatieren
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.

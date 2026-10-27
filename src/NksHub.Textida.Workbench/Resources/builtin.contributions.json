@@ -84,7 +84,8 @@
       "id": "nks.edit.selectAll",
       "title": "cmd.edit.selectAll",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.deleteLine",
@@ -93,7 +94,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.duplicateLine",
@@ -102,7 +104,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.moveLineUp",
@@ -111,7 +114,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.moveLineDown",
@@ -120,7 +124,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.indent",
@@ -129,7 +134,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.outdent",
@@ -138,7 +144,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.tab",
@@ -146,7 +153,8 @@
       "category": "cat.edit",
       "when": "editorFocus && !readOnly",
       "fallback": "nks.edit.insertIndent",
-      "undo": "transaction"
+      "undo": "transaction",
+      "macro": true
     },
     {
       "id": "nks.edit.insertIndent",
@@ -154,7 +162,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "macro": true
     },
     {
       "id": "nks.edit.upperCase",
@@ -163,7 +172,8 @@
       "when": "editorFocus",
       "enablement": "hasSelection && !readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.lowerCase",
@@ -172,7 +182,8 @@
       "when": "editorFocus",
       "enablement": "hasSelection && !readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.search.find",
@@ -381,7 +392,8 @@
       "id": "nks.edit.selectLine",
       "title": "cmd.edit.selectLine",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.toggleBlockSelect",
@@ -397,7 +409,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.toggleComment",
@@ -406,14 +419,16 @@
       "when": "editorFocus",
       "enablement": "!readOnly && !largeFileMode",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.expandSelection",
       "title": "cmd.edit.expandSelection",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!largeFileMode"
+      "enablement": "!largeFileMode",
+      "macro": true
     },
     {
       "id": "nks.edit.formatJson",
@@ -527,7 +542,8 @@
       "title": "cmd.edit.newline",
       "category": "cat.edit",
       "when": "editorFocus && !readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "macro": true
     },
     {
       "id": "nks.format.reread",
@@ -772,43 +788,50 @@
       "id": "nks.edit.addNextOccurrence",
       "title": "cmd.edit.addNextOccurrence",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.skipOccurrence",
       "title": "cmd.edit.skipOccurrence",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.selectAllOccurrences",
       "title": "cmd.edit.selectAllOccurrences",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.addCaretAbove",
       "title": "cmd.edit.addCaretAbove",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.addCaretBelow",
       "title": "cmd.edit.addCaretBelow",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.clearCarets",
       "title": "cmd.edit.clearCarets",
       "category": "cat.edit",
-      "when": "editorFocus && multipleCarets"
+      "when": "editorFocus && multipleCarets",
+      "macro": true
     },
     {
       "id": "nks.edit.selectToMark",
       "title": "cmd.edit.selectToMark",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.settings.profile.default",
@@ -985,7 +1008,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.justifyLeft",
@@ -994,7 +1018,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.justifyRight",
@@ -1003,7 +1028,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.justifyCenter",
@@ -1012,7 +1038,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.justifyBlock",
@@ -1021,7 +1048,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.insertDateTime",
@@ -1030,7 +1058,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.insertGuid",
@@ -1039,7 +1068,8 @@
       "when": "editorFocus",
       "enablement": "!readOnly",
       "undo": "transaction",
-      "repeatable": true
+      "repeatable": true,
+      "macro": true
     },
     {
       "id": "nks.edit.repeatLast",
@@ -1443,6 +1473,35 @@
       "title": "cmd.review.previous",
       "category": "cat.file",
       "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.macro.record",
+      "title": "cmd.macro.record",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.macro.stop",
+      "title": "cmd.macro.stop",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.macro.playLast",
+      "title": "cmd.macro.playLast",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.macro.save",
+      "title": "cmd.macro.save",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.macro.run",
+      "title": "cmd.macro.run",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
     }
   ],
   "menus": [
@@ -2765,6 +2824,36 @@
       "command": "nks.review.open",
       "group": "2_disk",
       "order": 75
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.record",
+      "group": "9_macro",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.stop",
+      "group": "9_macro",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.playLast",
+      "group": "9_macro",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.save",
+      "group": "9_macro",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.run",
+      "group": "9_macro",
+      "order": 50
     }
   ],
   "keybindings": [

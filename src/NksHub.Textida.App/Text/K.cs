@@ -1178,4 +1178,22 @@ public static class K
     public const string ReviewAutoKept = "review.autoKept";
     public const string ReviewSame = "review.same";
     public const string ReviewBusy = "review.busy";
+    public const string MacroRecording = "macro.recording";
+    public const string MacroStopped = "macro.stopped";
+    public const string MacroStoppedEmpty = "macro.stoppedEmpty";
+    public const string MacroRefused = "macro.refused";
+    public const string MacroNotRecording = "macro.notRecording";
+    public const string MacroBusy = "macro.busy";
+    public const string MacroNone = "macro.none";
+    public const string MacroPlayed = "macro.played";
+    public const string MacroFailed = "macro.failed";
+    public const string MacroSaveTitle = "macro.save.title";
+    public const string MacroSaveLabel = "macro.save.label";
+    public const string MacroSaved = "macro.saved";
+    public const string MacroSaveFailed = "macro.saveFailed";
+    public const string MacroWatermark = "macro.watermark";
+    public const string A11yMacros = "a11y.macros";
+    public const string MacroEmpty = "macro.empty";
+    public const string MacroDetail = "macro.detail";
+    public const string MacroDamaged = "macro.damaged";
 }

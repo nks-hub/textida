@@ -52,6 +52,9 @@ public sealed class CommandContribution
     /// <summary>"Repeat last command" may run this command again; set on commands that change the text.</summary>
     public bool Repeatable { get; set; }
 
+    /// <summary>A macro may record and replay this command: it needs no dialog and does its work before it returns. Off by default: any other command is refused while a macro is recorded.</summary>
+    public bool Macro { get; set; }
+
     /// <summary>Hidden commands are not offered in the command palette.</summary>
     public bool Hidden { get; set; }
 

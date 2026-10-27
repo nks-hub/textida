@@ -331,6 +331,16 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Opakovať posledný príkaz spustí znova posledný príkaz, ktorý menil text: Odstrániť riadok, Duplikovať riadok, Presunúť riadok, Spojiť riadky, Zväčšiť odsadenie, Zmenšiť odsadenie, zmena veľkosti písmen, Zakomentovať / odkomentovať, Vložiť do riadkov, Zoradiť riadky, Preformátovať odsek a príkazy zarovnania, Vložiť dátum a čas, Vložiť GUID. Príkaz s dialógom sa zopakuje s voľbou z posledného spustenia, bez pýtania. V profile PSPad je to Alt+Q.
 - Nefungujú v dokumente len na čítanie ani v stránkovanom režime.
 
+## [edit.macro] Makrá
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
+1. Nástroje, Nahrať makro, spustí nahrávanie. Pracujte príkazmi a písaním. Nástroje, Zastaviť nahrávanie makra, ho ukončí.
+2. Nástroje, Prehrať posledné makro, ho znova prehrá nad aktuálnymi výbermi a kurzormi.
+3. Nástroje, Uložiť posledné makro ako, ho uloží pod názvom do priečinka macros v profile. Nástroje, Spustiť uložené makro, ukáže uložené makrá a prehrá vybrané.
+- Makro si pamätá príkazy, nie klávesy: Duplikovať riadok, veľkosť písmen, Pridať ďalší výskyt a podobné, a napísaný text. Pri viacerých kurzoroch urobí to isté ako ručný postup.
+- Prehratie je jeden krok Späť. Keď krok neprebehne, makro sa tam zastaví a stavový riadok krok pomenuje; čo prebehlo predtým, zostáva jedným krokom Späť.
+- Pri nahrávaní sa príkaz, ktorý makro nemôže prehrať, odmietne a stavový riadok to povie: všetko s dialógom, príkazy so súbormi, Vystrihnúť, Kopírovať, Vložiť, pohyb kurzora šípkami, Hľadať. Nahrávanie pokračuje.
+- Prehratie potrebuje upraviteľný textový dokument. Import makier PSPadu nie je k dispozícii.
+
 ## [edit.json] Formátovanie JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Označte text JSON, alebo neoznačujte nič a naformátuje sa celý dokument.
