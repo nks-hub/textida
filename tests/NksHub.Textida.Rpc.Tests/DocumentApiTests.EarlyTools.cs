@@ -36,12 +36,17 @@ public partial class DocumentApiTests
         public readonly List<DiffRequest> Diffs = [];
         public bool DiffShown = true;
 
-        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec)
+        public readonly Dictionary<Guid, VirtualInfo> VirtualInfos = [];
+        public readonly List<Guid> VirtualClosed = [];
+
+        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec, VirtualInfo info)
         {
-            var doc = Document.CreateVirtual(name, content, PagedBackendFactory.Instance, codec);
-            lock (Virtuals) Virtuals.Add((pluginId, name, title, doc));
+            var doc = Document.CreateVirtual(name, content, PagedBackendFactory.Instance, codec, info.Editable);
+            lock (Virtuals) { Virtuals.Add((pluginId, name, title, doc)); VirtualInfos[doc.Id] = info; }
             return doc;
         }
+
+        public void CloseVirtual(Guid document) { lock (Virtuals) VirtualClosed.Add(document); }
 
         public bool OpenDiff(DiffRequest request) { lock (Diffs) Diffs.Add(request); return DiffShown; }
 

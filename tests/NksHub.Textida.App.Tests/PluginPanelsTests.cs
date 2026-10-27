@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
@@ -303,6 +305,46 @@ public class PluginPanelsTests : IDisposable
         await UntilEventAsync(DocumentEvents.AgentClosed);
         Assert.Equal("user", (await EventsAsync(DocumentEvents.AgentClosed))[0].GetProperty("payload").GetProperty("reason").GetString());
         Assert.Equal(DocumentErrorCodes.NoAgentSession, ErrorOf(await Editor(DocumentMethods.AgentUpdate, "{\"kind\":\"message\",\"text\":\"late\"}")));
+    }
+
+    [AvaloniaFact]
+    public async Task The_conversation_of_a_plugin_is_named_for_a_screen_reader_announces_its_status_and_works_from_the_keyboard()
+    {
+        await StartPluginAsync();
+        Permissions.Grant("p", DocumentPermissions.AgentPanel, GrantScope.All);
+        _w.NewDocument(); // the editor Escape returns to
+        await Editor(DocumentMethods.AgentOpen, "{\"name\":\"Plugin agent\"}");
+        Dispatcher.UIThread.RunJobs();
+
+        // the panel opens with the cursor in the message box; the reader gets a name for every part and hears the status change
+        Assert.True(_w.AgentPanelOpen);
+        Assert.True(_w.AgentInputBox.IsFocused);
+        Control[] parts = [_w.AgentPanelControl, _w.AgentTranscriptBox, _w.AgentInputBox, _w.AgentStatusControl, .. _w.AgentButtons];
+        Assert.All(parts, c => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(c)), c.GetType().Name));
+        Assert.Equal(parts.Length, parts.Select(c => AutomationProperties.GetName(c)).Distinct().Count());
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(_w.AgentStatusControl));
+        Assert.All(_w.AgentButtons, b => Assert.True(b.Focusable && b.IsTabStop && b.IsVisible));
+
+        // Enter in the box sends, and the plugin hears the message
+        _w.AgentInputBox.Text = "hello";
+        TestApp.Press(_w, Key.Enter);
+        await UntilEventAsync(DocumentEvents.AgentMessage);
+        Assert.Equal("", _w.AgentInputBox.Text);
+        Assert.Equal(Loc.Get(K.AgentStatusWorking, ("agent", "Plugin agent")), _w.AgentPanelStatus);
+
+        // Cancel turn is a button the keyboard reaches, and a command of the menu and the palette
+        Assert.Contains(_app.Workbench.Commands.Commands.Select(c => c.Id), id => id == "nks.agent.cancel");
+        Assert.True(_w.AgentCancelButton.IsEnabled);
+        _w.AgentCancelButton.Focus();
+        TestApp.Press(_w, Key.Enter);
+        await UntilEventAsync(DocumentEvents.AgentCancel);
+        await Editor(DocumentMethods.AgentUpdate, "{\"kind\":\"turnEnd\",\"reason\":\"cancelled\"}");
+        await Until(() => _w.AgentPanelStatus == Loc.Get(K.AgentStatusReady, ("agent", "Plugin agent")), "the ready status");
+
+        // Escape closes the panel from anywhere inside it
+        _w.AgentInputBox.Focus();
+        TestApp.Press(_w, Key.Escape);
+        Assert.False(_w.AgentPanelOpen);
     }
 
     [AvaloniaFact]

@@ -160,4 +160,197 @@ public partial class DocumentApiTests
         Assert.NotEqual(id, second);
         Assert.Equal(2, rig.Tools.Virtuals.Count);
     }
+
+    // ---- editable virtual documents: their own address, edits that reach the plugin, a save that goes to the plugin, closing ----
+
+    static DocumentApiOptions WithVirtualSave(DocumentApiOptions o) => o with { VirtualSaveTimeout = TimeSpan.FromSeconds(10) };
+
+    static string OpenEditableParams(string uri, string name, string text, string? key = null) =>
+        $"{{\"uri\":\"{uri}\",\"name\":\"{name}\",\"editable\":true,{(key is null ? "" : $"\"key\":\"{key}\",")}\"text\":{JsonSerializer.Serialize(text)}}}";
+
+    static async Task<Guid> OpenEditableAsync(Rig rig, string uri, string name, string text, string? key = null, string plugin = "p")
+    {
+        var r = await rig.CallAsync(DocumentMethods.VirtualOpen, OpenEditableParams(uri, name, text, key), plugin);
+        Assert.True(r.TryGetProperty("document", out _), r.GetRawText());
+        return r.GetProperty("document").GetGuid();
+    }
+
+    static async Task<List<JsonElement>> VirtualSavesAsync(Rig rig) =>
+        [.. (await rig.Host.CallAsync("p", "virtualSaves")).EnumerateArray().Select(e => e.Clone())];
+
+    [Fact]
+    public async Task AnEditableVirtualDocumentHasItsOwnAddressTakesEditsWithUndoAndTheProviderHearsThemWithoutSubscribing()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+
+        var r = await rig.CallAsync(DocumentMethods.VirtualOpen, OpenEditableParams("agent://session/7", "notes.md", "one\n"));
+        var id = r.GetProperty("document").GetGuid();
+        Assert.True(r.GetProperty("editable").GetBoolean());
+        Assert.Equal("agent://session/7", r.GetProperty("uri").GetString());
+        Assert.Equal("agent://session/7", r.GetProperty("key").GetString()); // the address is the key when the plugin names none
+        Assert.Equal(new VirtualInfo("agent://session/7", "agent://session/7", true), rig.Tools.VirtualInfos[id]);
+        var doc = rig.Tools.Virtuals.Single().Document;
+        Assert.True(doc.VirtualEditable);
+        Assert.False(doc.IsModified);
+
+        // the plugin (with its edit grant) and the user both edit it like an ordinary document
+        var revision = r.GetProperty("revision").GetInt64();
+        var apply = await rig.CallAsync(DocumentMethods.EditApply, $"{{\"document\":\"{id}\",\"revision\":{revision},\"batchId\":\"b1\",\"edits\":[{{\"start\":0,\"end\":3,\"text\":\"ONE\"}}]}}");
+        Assert.True(apply.GetProperty("applied").GetBoolean());
+        rig.Owner.Run(() => { doc.Insert(doc.ByteLength, Utf8("two\n")); return 0; });
+        Assert.True(doc.IsModified);
+        Assert.Equal("ONE\ntwo\n", VirtualText(rig, id));
+
+        rig.Owner.Run(() => doc.Undo());
+        Assert.DoesNotContain("two", VirtualText(rig, id));
+        rig.Owner.Run(() => doc.Redo());
+        Assert.Equal("ONE\ntwo\n", VirtualText(rig, id));
+
+        // the provider never subscribed, and still hears the user's edits (source null) and its own
+        await rig.WaitEventsAsync(e => e.Count(x => x.GetProperty("name").GetString() == DocumentEvents.Changed) >= 2);
+        var changed = (await rig.EventsAsync()).Where(x => x.GetProperty("name").GetString() == DocumentEvents.Changed).Select(x => x.GetProperty("payload")).ToList();
+        Assert.Contains(changed, c => c.GetProperty("source").ValueKind == JsonValueKind.Null);
+        Assert.Contains(changed, c => c.GetProperty("source").ValueKind == JsonValueKind.String);
+
+        // the provider replaces the text: unsaved edits go with it, and a base revision that is behind stops it
+        await rig.ErrorAsync(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{id}\",\"baseRevision\":{revision},\"text\":\"lost\"}}", DocumentErrorCodes.RevisionConflict);
+        Assert.Equal("ONE\ntwo\n", VirtualText(rig, id));
+        await rig.CallAsync(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{id}\",\"text\":\"fresh\\n\"}}");
+        Assert.Equal("fresh\n", VirtualText(rig, id));
+        Assert.False(doc.IsModified);
+        Assert.False(doc.CanUndo);
+    }
+
+    [Fact]
+    public async Task AVirtualAddressIsASchemeThatIsNotFileAndAnEditableDocumentNeedsTheSaveTimeout()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        await rig.ErrorAsync(DocumentMethods.VirtualOpen, "{\"uri\":\"file:///etc/hosts\",\"name\":\"a.txt\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.VirtualOpen, "{\"uri\":\"not an address\",\"name\":\"a.txt\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.VirtualOpen, "{\"name\":\"a.txt\"}", RpcErrorCodes.InvalidParams);
+        Assert.Empty(rig.Tools.Virtuals);
+
+        var first = await OpenEditableAsync(rig, "list://remote/a", "a.txt", "x");
+        var again = await rig.CallAsync(DocumentMethods.VirtualOpen, OpenEditableParams("list://remote/a", "other.txt", "ignored"));
+        Assert.False(again.GetProperty("created").GetBoolean());
+        Assert.Equal(first, again.GetProperty("document").GetGuid());
+        var keyed = await rig.CallAsync(DocumentMethods.VirtualOpen, $"{{\"key\":\"k\",\"uri\":\"list://remote/a\",\"name\":\"b.txt\",\"text\":\"y\"}}");
+        Assert.True(keyed.GetProperty("created").GetBoolean()); // a key of its own is another identity, read only unless it says otherwise
+        Assert.False(keyed.GetProperty("editable").GetBoolean());
+
+        await using var plain = await Rig.CreateAsync(Utf8("x"));
+        plain.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        await plain.ErrorAsync(DocumentMethods.VirtualOpen, OpenEditableParams("list://remote/a", "a.txt", "x"), RpcErrorCodes.MethodNotFound);
+        Assert.Empty(plain.Tools.Virtuals);
+    }
+
+    [Fact]
+    public async Task ASaveIsSentToTheProviderWithTheBytesAndNothingElseAndEveryRefusalIsNamed()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), tune: o => WithVirtualSave(o) with { MaxVirtualBytes = 64 });
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        var id = await OpenEditableAsync(rig, "agent://session/7", "notes.md", "one\n", key: "k");
+
+        await rig.Api.VirtualSaveAsync(id, Utf8("saved\n"), revision: 3);
+        var save = Assert.Single(await VirtualSavesAsync(rig));
+        Assert.Equal(id, save.GetProperty("document").GetGuid());
+        Assert.Equal(("k", "agent://session/7", 3), (save.GetProperty("key").GetString(), save.GetProperty("uri").GetString(), save.GetProperty("revision").GetInt32()));
+        Assert.Equal("saved\n", Encoding.UTF8.GetString(Convert.FromBase64String(save.GetProperty("bytes").GetString()!)));
+
+        // a plugin that refuses leaves the failure to the caller, with the plugin's own words
+        await rig.Host.CallAsync("p", "virtualMode", T.Json("{\"fail\":true}"));
+        var refused = await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(id, Utf8("again\n"), 4));
+        Assert.Equal(SourceFailure.Failed, refused.Kind);
+        Assert.Contains("cannot keep it", refused.Message);
+        await rig.Host.CallAsync("p", "virtualMode", T.Json("{\"fail\":false}"));
+
+        var (readOnly, _) = await OpenVirtualAsync(rig, "ro", "r.txt", "x");
+        Assert.Equal(SourceFailure.ReadOnly, (await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(readOnly, Utf8("x"), 1))).Kind);
+        Assert.Equal(SourceFailure.NoSource, (await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(rig.Doc.Id, Utf8("x"), 1))).Kind);
+        Assert.Equal(SourceFailure.TooLarge, (await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(id, Utf8(new string('y', 65)), 1))).Kind);
+        Assert.Equal(2, (await VirtualSavesAsync(rig)).Count); // the first save and the refused one reached the plugin, the other attempts never did
+
+        rig.Permissions.Revoke("p", DocumentPermissions.Virtual, GrantScope.All);
+        Assert.Equal(SourceFailure.Unavailable, (await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(id, Utf8("x"), 1))).Kind);
+        Assert.Equal(2, (await VirtualSavesAsync(rig)).Count);
+    }
+
+    [Fact]
+    public async Task TheProviderClosesItsDocumentOnlyAndTheKeyIsFreeAgain()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), plugins: ["p", "q"], tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        rig.Permissions.Grant("q", DocumentPermissions.Virtual, GrantScope.All);
+        var (id, _) = await OpenVirtualAsync(rig, "k", "t.txt", "one\n");
+
+        await rig.ErrorAsync(DocumentMethods.VirtualClose, $"{{\"document\":\"{id}\"}}", DocumentErrorCodes.NotProvider, plugin: "q");
+        await rig.ErrorAsync(DocumentMethods.VirtualClose, $"{{\"document\":\"{rig.Doc.Id}\"}}", DocumentErrorCodes.NotProvider);
+        Assert.Empty(rig.Tools.VirtualClosed);
+
+        var closed = await rig.CallAsync(DocumentMethods.VirtualClose, $"{{\"document\":\"{id}\"}}");
+        Assert.True(closed.GetProperty("closed").GetBoolean());
+        Assert.Equal([id], rig.Tools.VirtualClosed);
+        await rig.ErrorAsync(DocumentMethods.Info, $"{{\"document\":\"{id}\"}}", DocumentErrorCodes.UnknownDocument); // withdrawn
+        var (second, _) = await OpenVirtualAsync(rig, "k", "t.txt", "two\n");
+        Assert.NotEqual(id, second);
+
+        rig.Permissions.Revoke("p", DocumentPermissions.Virtual, GrantScope.All);
+        await rig.ErrorAsync(DocumentMethods.VirtualClose, $"{{\"document\":\"{second}\"}}", DocumentErrorCodes.PermissionDenied);
+        Assert.Equal([id], rig.Tools.VirtualClosed);
+    }
+
+    [Fact]
+    public async Task WhenAPluginEndsItsVirtualDocumentsCloseAndThoseOfOtherPluginsStay()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), plugins: ["p", "q"], tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        rig.Permissions.Grant("q", DocumentPermissions.Virtual, GrantScope.All);
+        var (readOnly, _) = await OpenVirtualAsync(rig, "a", "a.txt", "x");
+        var editable = await OpenEditableAsync(rig, "agent://session/7", "b.md", "y");
+        var (others, _) = await OpenVirtualAsync(rig, "c", "c.txt", "z", plugin: "q");
+
+        rig.Owner.Run(() => { rig.Api.PluginEnded("p"); return 0; });
+
+        Assert.Equal(new[] { readOnly, editable }.Order(), rig.Tools.VirtualClosed.Order());
+        await rig.ErrorAsync(DocumentMethods.Info, $"{{\"document\":\"{editable}\"}}", DocumentErrorCodes.UnknownDocument);
+        Assert.Equal(others.ToString(), (await rig.CallAsync(DocumentMethods.Info, $"{{\"document\":\"{others}\"}}", plugin: "q")).GetProperty("id").GetString());
+        await Assert.ThrowsAsync<SourceException>(() => rig.Api.VirtualSaveAsync(editable, Utf8("late"), 1)); // nobody is left to take a save
+        rig.Owner.Run(() => { rig.Api.PluginEnded("p"); return 0; }); // a second report changes nothing
+        Assert.Equal(2, rig.Tools.VirtualClosed.Count);
+    }
+
+    [Fact]
+    public async Task AnotherPluginEditsAnEditableVirtualDocumentOnlyWithTheEditPermissionOfThatDocument()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), plugins: ["p", "q"], tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        rig.Permissions.Revoke("q", DocumentPermissions.EditDirect, GrantScope.All);
+        rig.Permissions.Revoke("q", DocumentPermissions.EditPropose, GrantScope.All);
+        var opened = await rig.CallAsync(DocumentMethods.VirtualOpen, OpenEditableParams("agent://session/7", "notes.md", "one\n"));
+        var id = opened.GetProperty("document").GetGuid();
+        var revision = opened.GetProperty("revision").GetInt64();
+        var doc = rig.Tools.Virtuals.Single().Document;
+        string Edit(string batch) => $"{{\"document\":\"{id}\",\"revision\":{revision},\"batchId\":\"{batch}\",\"edits\":[{{\"start\":0,\"end\":3,\"text\":\"two\"}}]}}";
+
+        // without the grant the edit and the proposal are refused by name, and the document keeps its text and revision
+        var denied = await rig.ErrorAsync(DocumentMethods.EditApply, Edit("b1"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal(DocumentPermissions.EditDirect, denied.GetProperty("data").GetProperty("permission").GetString());
+        var proposal = await rig.ErrorAsync(DocumentMethods.EditPropose, Edit("b2"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal(DocumentPermissions.EditPropose, proposal.GetProperty("data").GetProperty("permission").GetString());
+        Assert.Equal("one\n", VirtualText(rig, id));
+        Assert.Equal(revision, rig.Owner.Run(() => doc.Revision));
+        Assert.Empty(rig.Proposals.Items);
+
+        // the grant for this document lets the edit through, the provider hears it, and the document it names is the only one it opens
+        rig.Permissions.Grant("q", DocumentPermissions.EditDirect, GrantScope.OfDocument(id));
+        var applied = await rig.CallAsync(DocumentMethods.EditApply, Edit("b3"), plugin: "q");
+        Assert.True(applied.GetProperty("applied").GetBoolean(), applied.GetRawText());
+        Assert.Equal("two\n", VirtualText(rig, id));
+        Assert.True(doc.IsModified);
+        await rig.WaitEventsAsync(e => e.Any(x => x.GetProperty("name").GetString() == DocumentEvents.Changed && x.GetProperty("payload").GetProperty("source").GetString() == "plugin:q"));
+        await rig.ErrorAsync(DocumentMethods.EditApply, rig.D($"\"revision\":{rig.Revision},\"batchId\":\"b4\",\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"y\"}}]"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal("x", Encoding.UTF8.GetString(rig.Owner.Run(() => rig.Doc.ReadBytes(new ByteRange(0, rig.Doc.ByteLength)))));
+    }
 }

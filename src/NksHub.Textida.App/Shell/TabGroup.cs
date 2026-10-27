@@ -110,7 +110,7 @@ internal sealed class TabGroup : DockPanel
         _syncing = false;
     }
 
-    public static string HeaderStateOf(DocTab tab) => $"{tab.Title}|{tab.Doc.HasUnsavedWork}|{tab.Doc.SizeBadge}|{tab.Doc.ReviewBadge}";
+    public static string HeaderStateOf(DocTab tab) => $"{tab.Title}|{tab.Doc.HasUnsavedWork}|{tab.Doc.SizeBadge}|{tab.Doc.ReviewBadge}|{tab.Doc.VirtualBadge}";
 
     private TabStripItem MakeItem(DocTab tab)
     {
@@ -135,6 +135,12 @@ internal sealed class TabGroup : DockPanel
         {
             var badgeText = new TextBlock { Text = badge, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
             var border = new Border { Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0), Child = badgeText };
+            border.Classes.Add("sizebadge");
+            header.Children.Add(border);
+        }
+        if (tab.Doc.VirtualBadge is { } virtualBadge)
+        {
+            var border = new Border { Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0), Child = new TextBlock { Text = virtualBadge, FontSize = 11, VerticalAlignment = VerticalAlignment.Center } };
             border.Classes.Add("sizebadge");
             header.Children.Add(border);
         }

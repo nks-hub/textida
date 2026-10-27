@@ -149,6 +149,129 @@ public class PluginDiffVirtualTests : IDisposable
         Assert.True(again.GetProperty("created").GetBoolean());
     }
 
+    private static string EditableParams(string uri, string name, string text, string title) =>
+        $"{{\"uri\":\"{uri}\",\"name\":\"{name}\",\"title\":\"{title}\",\"editable\":true,\"text\":{JsonSerializer.Serialize(text)}}}";
+
+    private async Task<List<JsonElement>> SavesAsync() =>
+        [.. (await Pump(Host.CallAsync("p", "virtualSaves"))).EnumerateArray().Select(e => e.Clone())];
+
+    private static string SavedText(JsonElement save) => Encoding.UTF8.GetString(Convert.FromBase64String(save.GetProperty("bytes").GetString()!));
+
+    private async Task<List<JsonElement>> ChangedEventsAsync() =>
+        [.. (await Pump(Host.CallAsync("p", "events"))).EnumerateArray().Where(e => e.GetProperty("name").GetString() == DocumentEvents.Changed).Select(e => e.Clone())];
+
+    [AvaloniaFact]
+    public async Task An_editable_virtual_tab_has_a_badge_and_a_bar_takes_typing_with_undo_and_saves_to_the_plugin_never_to_disk()
+    {
+        await StartPluginAsync();
+        var opened = await Editor(DocumentMethods.VirtualOpen, EditableParams("agent://session/7", "notes.md", "# One\n", "Notes"));
+        var tab = VirtualTab(opened);
+
+        Assert.Equal("Notes", tab.Title);
+        Assert.Equal(Loc.Get(K.VirtualBadgeEditable), tab.Doc.VirtualBadge);
+        Assert.Contains(tab.Doc.VirtualBadge!, TabGroup.HeaderStateOf(tab));
+        Assert.Equal(Loc.Get(K.VirtualBarEditable, ("name", "p"), ("address", "agent://session/7")), (tab.Bar as InfoBar)?.Message);
+        Assert.True(tab.Doc.IsVirtual);
+        Assert.False(tab.Doc.ReadOnly);
+        Assert.False(tab.Editor!.IsReadOnly);
+        Assert.False(tab.Doc.HasUnsavedWork);
+
+        // typing, undo and redo work as in any tab; the plugin hears the edits without having subscribed
+        _w.SelectTab(tab);
+        tab.Editor.Document.Insert(tab.Editor.Document.TextLength, "## Two\n");
+        Assert.True(tab.Doc.HasUnsavedWork);
+        _w.Undo();
+        Assert.Equal("# One\n", tab.Editor.Document.Text);
+        Assert.False(tab.Doc.HasUnsavedWork);
+        _w.Redo();
+        Assert.Equal("# One\n## Two\n", tab.Editor.Document.Text);
+        Assert.True(tab.Doc.HasUnsavedWork);
+        var sw = Stopwatch.StartNew();
+        while ((await ChangedEventsAsync()).Count < 2)
+        {
+            Assert.True(sw.ElapsedMilliseconds < 30_000, "The plugin heard no edit.");
+            await Task.Delay(20);
+        }
+
+        // the editor searches it as it does any tab
+        var found = await SearchOpenDocuments("Two");
+        Assert.Equal(tab.Doc.Doc.Id, Assert.Single(found.Rows.OfType<SearchResultsView.HitRow>()).Hit.Source.DocumentId);
+
+        // Save sends the text to the plugin and leaves the tab saved; no dialog, no file
+        Assert.True(await Pump(_w.SaveAsync(tab)));
+        var saved = Assert.Single(await SavesAsync());
+        Assert.Equal("# One\n## Two\n", SavedText(saved));
+        Assert.Equal("agent://session/7", saved.GetProperty("uri").GetString());
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.False(tab.Doc.HasUnsavedWork);
+        Assert.Null(tab.Path);
+        Assert.Equal(Loc.Get(K.VirtualSaved, ("title", "Notes"), ("name", "p")), _w.StatusMessageText);
+        Assert.Empty(_dialogs.Asked);
+
+        // a plugin that refuses keeps the tab unsaved and the status bar names the reason; Save As to a file is not offered
+        await Pump(Host.CallAsync("p", "virtualMode", Encoding.UTF8.GetBytes("{\"fail\":true}")));
+        tab.Editor.Document.Insert(tab.Editor.Document.TextLength, "## Three\n");
+        Assert.False(await Pump(_w.SaveAsync(tab)));
+        Assert.True(tab.Doc.HasUnsavedWork);
+        Assert.Contains("cannot keep it", _w.StatusMessageText);
+        Assert.Equal(2, (await SavesAsync()).Count);
+        Assert.False(await Pump(_w.SaveAsAsync(tab)));
+        Assert.Equal(Loc.Get(K.VirtualSaveAsRefused), _w.StatusMessageText);
+        Assert.Empty(_dialogs.Asked);
+        Assert.Null(tab.Path);
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_an_editable_tab_with_unsaved_text_asks_and_Save_sends_it_to_the_plugin()
+    {
+        await StartPluginAsync();
+        var tab = VirtualTab(await Editor(DocumentMethods.VirtualOpen, EditableParams("agent://session/8", "b.txt", "x\n", "B")));
+        tab.Editor!.Document.Insert(0, "typed ");
+
+        _dialogs.Answers.Enqueue(0); // Save
+        Assert.True(await Pump(_w.CloseTabAsync(tab)));
+
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Equal(Loc.Get(K.DialogUnsavedTitle), asked.Title);
+        Assert.DoesNotContain(Loc.Get(K.DialogKeepInJournal), asked.Buttons.Select(b => b.Label)); // the journal keeps no virtual tab
+        Assert.Equal("typed x\n", SavedText(Assert.Single(await SavesAsync())));
+        Assert.DoesNotContain(tab, _w.Tabs);
+    }
+
+    [AvaloniaFact]
+    public async Task A_tab_closes_without_asking_when_its_plugin_closes_it_or_stops()
+    {
+        await StartPluginAsync();
+        var readOnly = VirtualTab(await Editor(DocumentMethods.VirtualOpen, OpenParams("a", "a.txt", "x\n")));
+        var editable = VirtualTab(await Editor(DocumentMethods.VirtualOpen, EditableParams("agent://session/9", "b.txt", "y\n", "Editable")));
+        editable.Editor!.Document.Insert(0, "unsaved ");
+
+        var closed = await Editor(DocumentMethods.VirtualClose, $"{{\"document\":\"{readOnly.Doc.Doc.Id}\"}}");
+        Assert.True(closed.GetProperty("closed").GetBoolean());
+        Assert.DoesNotContain(readOnly, _w.Tabs);
+        Assert.Contains(editable, _w.Tabs);
+        Assert.Empty(_dialogs.Asked);
+
+        try { await Pump(Host.CallAsync("p", "crash", Encoding.UTF8.GetBytes("{\"code\":3}"))); }
+        catch (PluginCrashedException) { }
+        await Until(() => !_w.Tabs.Contains(editable), "the tab of the stopped plugin to close");
+        Assert.Equal(Loc.Get(K.VirtualClosedUnsaved, ("title", "Editable")), _w.StatusMessageText);
+        Assert.Empty(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
+    public async Task The_outline_of_a_virtual_markdown_tab_lists_its_headings()
+    {
+        await StartPluginAsync();
+        var tab = VirtualTab(await Editor(DocumentMethods.VirtualOpen, OpenParams("m", "notes.md", "# Title\n## Part\ntext\n")));
+
+        Assert.True(await Pump(_app.Plugins.IndexSymbolsAsync(_w, tab, reveal: false)));
+
+        var names = _app.Plugins.TabSymbols(tab, out bool current).Select(s => s.Name).ToArray();
+        Assert.True(current);
+        Assert.Equal(["Title", "Part"], names);
+    }
+
     [AvaloniaFact]
     public async Task Find_in_files_covers_a_virtual_document_and_shows_no_hidden_value()
     {

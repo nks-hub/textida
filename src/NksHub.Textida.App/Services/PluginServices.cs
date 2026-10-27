@@ -122,7 +122,12 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         app.Workbench.SettingChanged += OnSettingChanged;
         _host.StateChanged += (id, state) =>
         {
-            if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
+            if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    UiApi.PluginEnded(id);
+                    Documents.PluginEnded(id); // its virtual tabs close: nobody is left to save them
+                });
             if (id == CodeExplorerPluginId && state == PluginState.Running) Dispatcher.UIThread.Post(RefreshOutlines); // a restarted process has lost the symbols it published
         };
         _host.Crashed += info => Dispatcher.UIThread.Post(() => ReportCrash(info));
@@ -802,7 +807,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (Busy()) return default;
         // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
         bool reveal = !keepHidden && SecretValues.IsSecretFile(document.SecretsPath);
-        if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.FilePath)!))))) return default;
+        if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.SecretsPath)!))))) return default;
         if (Busy()) return default;
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _running[document.Id] = new Run(window, tab, background, done);
@@ -914,13 +919,22 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (TabOf(document) is { } found) found.Window.WriteClipboard(text, html);
     }
 
-    public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec)
+    public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec, VirtualInfo info)
     {
         var window = _app.ActiveWindow ?? throw new InvalidOperationException("There is no window to show the document in.");
-        var document = Document.CreateVirtual(name, content, AvaloniaEditBackendFactory.Instance, codec);
-        window.OpenVirtualDocument(document, title);
+        var document = Document.CreateVirtual(name, content, AvaloniaEditBackendFactory.Instance, codec, info.Editable);
+        window.OpenVirtualDocument(document, title, new VirtualBinding(pluginId, PluginName(pluginId), info));
         return document;
     }
+
+    public void CloseVirtual(Guid document)
+    {
+        if (TabOf(document) is { } found) found.Window.CloseVirtualDocument(found.Tab.Doc);
+    }
+
+    /// <summary>The name a plugin goes by for the user: the one of a built-in plugin or of an installed one, else its id.</summary>
+    internal string PluginName(string pluginId) =>
+        BuiltIns.FirstOrDefault(b => b.Id == pluginId).Name ?? Manager.Installed().FirstOrDefault(p => p.Id == pluginId)?.Name ?? pluginId;
 
     public bool OpenDiff(DiffRequest request)
     {

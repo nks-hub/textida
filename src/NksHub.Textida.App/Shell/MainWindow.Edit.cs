@@ -112,7 +112,7 @@ internal sealed partial class MainWindow
             paged.UndoRedo(redo);
             return;
         }
-        if (Active is not { Surface: { } surface } tab || tab.Doc.IsVirtual) return;
+        if (Active is not { Surface: { } surface } tab || (tab.Doc.IsVirtual && tab.Doc.ReadOnly)) return;
         surface.EndSnippet(); // the step undone may be the snippet itself, and then Tab must expand its abbreviation again
         var doc = tab.Doc.Doc;
         var changes = new List<ChangeSet>();

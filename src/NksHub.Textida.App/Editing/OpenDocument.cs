@@ -119,11 +119,13 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null && !_switchedForHex;
-    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly || UserReadOnly;
+    public bool ReadOnly => IsResults || (IsVirtual && !_doc.VirtualEditable) || LockedReadOnly || UserReadOnly;
     /// <summary>The user opened the file read only (Open Special); saving is refused until the tab is closed.</summary>
     public bool UserReadOnly { get; set; }
-    /// <summary>The document is a view of data a plugin supplies (P6.2.6): read only, never saved, never journaled and not part of the session.</summary>
+    /// <summary>The document is a view of data a plugin supplies (P6.2.6): never written to a file, never journaled and not part of the session. Read only unless the plugin made it editable, and then a save goes to the plugin.</summary>
     public bool IsVirtual => _doc.IsVirtual;
+    /// <summary>The plugin that supplies this virtual document and what it said about it; null for a virtual document the editor made itself and for every other document.</summary>
+    public Services.VirtualBinding? Virtual { get; set; }
     /// <summary>The lock this document holds on its file, or the reason the file opened read only; null for a document without a file.</summary>
     public Core.Files.FileLockResult? Lock { get; set; }
     /// <summary>Another program or another editor window holds the file, so this tab only reads it.</summary>
@@ -139,7 +141,7 @@ internal sealed class OpenDocument : IDisposable
     public string? Path => _doc.FilePath;
 
     /// <summary>Changes worth asking about: modified, and not just a new document nobody typed into.</summary>
-    public bool HasUnsavedWork => !IsResults && !IsVirtual && _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
+    public bool HasUnsavedWork => !IsResults && (!IsVirtual || _doc.VirtualEditable) && _doc.IsModified && (IsVirtual || !(Path is null && _doc.ByteLength == _doc.BomLength));
     public EolStats Eol => _eol;
 
     /// <summary>The title of a tab with a view of its own other than the search results (a comparison); read again each time the tab strip is drawn, so it follows the language.</summary>
@@ -152,6 +154,9 @@ internal sealed class OpenDocument : IDisposable
 
     /// <summary>Size badge for the tab of a large file, like "10 GiB".</summary>
     public string? SizeBadge => IsHex ? (IsLarge ? "HEX · " + FormatSize(_doc.ByteLength) : "HEX") : IsLarge ? FormatSize(_doc.ByteLength) : null;
+
+    /// <summary>Badge for the tab of a virtual document a plugin supplies: says it is a view of plugin data, and whether it can be edited.</summary>
+    public string? VirtualBadge => Virtual is null ? null : Loc.Get(_doc.VirtualEditable ? K.VirtualBadgeEditable : K.VirtualBadgeReadOnly);
 
     /// <summary>The change from outside that waits for review in this document (P6.1.1); null when there is none.</summary>
     internal NksHub.Textida.App.Services.ReviewState? Review { get; set; }

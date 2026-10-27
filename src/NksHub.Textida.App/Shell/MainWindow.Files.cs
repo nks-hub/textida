@@ -47,7 +47,7 @@ internal sealed partial class MainWindow
     {
         var buttons = new List<DialogButton> { new(Loc.Get(K.DialogSave), IsDefault: true), new(Loc.Get(K.DialogDontSave)) };
         var map = new List<UnsavedAnswer> { UnsavedAnswer.Save, UnsavedAnswer.Discard };
-        if (_app.Journal.IsActive)
+        if (_app.Journal.IsActive && !od.IsVirtual) // the journal keeps no virtual tab
         {
             buttons.Add(new DialogButton(Loc.Get(K.DialogKeepInJournal)));
             map.Add(UnsavedAnswer.KeepInJournal);
@@ -193,7 +193,7 @@ internal sealed partial class MainWindow
     public async Task<bool> SaveAsync(DocTab tab, SaveOrigin origin = SaveOrigin.Manual)
     {
         var od = tab.Doc;
-        if (od.IsVirtual) return RefuseVirtualSave();
+        if (od.IsVirtual) return await SaveVirtualAsync(tab);
         if (od.Source is not null) return await SaveSourceAsync(tab);
         if (od.Path is null) return await SaveAsAsync(tab);
         if (!await ConfirmTypedLossAsync(tab)) return false;
@@ -254,16 +254,17 @@ internal sealed partial class MainWindow
         }
     }
 
-    private bool RefuseVirtualSave()
+    /// <summary>Save As of a virtual tab: an editable one is saved by its plugin only, a read only one cannot be saved at all.</summary>
+    private bool RefuseVirtualSave(bool editable = false)
     {
-        SetStatusMessage(Loc.Get(K.VirtualReadOnly));
+        SetStatusMessage(Loc.Get(editable ? K.VirtualSaveAsRefused : K.VirtualReadOnly));
         return false;
     }
 
     public async Task<bool> SaveAsAsync(DocTab tab)
     {
         var od = tab.Doc;
-        if (od.IsVirtual) return RefuseVirtualSave();
+        if (od.IsVirtual) return RefuseVirtualSave(od.Doc.VirtualEditable);
         var doc = od.Doc;
         if (!await ConfirmTypedLossAsync(tab)) return false;
 
