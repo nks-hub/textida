@@ -12,6 +12,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -444,6 +445,25 @@ public class ClipTests : IDisposable
         Pick("File");
         Assert.Equal("x", Text(tab));
         Assert.Contains(Loc.Get(K.ClipVariablesBroken, ("reason", "")).Split(':')[0], _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public void A_variable_gives_a_tool_argument_the_value_it_gives_a_clip()
+    {
+        const string template = "${project}|${date}|${selection}|${user.name}|${ file.name }|${datetime}";
+        Install("acme", Manifest("\"clips\":[{\"id\":\"c\",\"title\":\"Clip\",\"text\":\"" + template + "\"}]"));
+        WriteVariables("{\"project\":\"My Project\",\"date\":\"my date\"}");
+        var path = _temp.File("note.txt", "part");
+        var tab = _w.OpenFile(path, null);
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.Select(0, 4);
+
+        var tool = _w.ResolveTool(new ToolSpec("t", ToolTestKit.Dotnet, [template, "${File}"]));
+        Run("nks.edit.insertClip");
+        Pick("Clip");
+
+        Assert.StartsWith("My Project|my date|part|", Text(tab));
+        Assert.Equal([Text(tab), Path.GetFullPath(path)], tool.Args);
     }
 
     [AvaloniaFact]

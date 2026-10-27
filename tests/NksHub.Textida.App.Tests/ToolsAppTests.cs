@@ -470,6 +470,17 @@ public class ToolLauncherTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_damaged_user_variables_file_stops_a_tool_before_anything_is_asked_and_names_the_reason()
+    {
+        Define([ToolTestKit.Tool("plain", "Plain", ["x"])]);
+        File.WriteAllText(Path.Combine(_app.ProfileDirectory, NksHub.Textida.Workbench.Clips.UserVariables.FileName), "{ not json");
+        Finish(Run("plain"));
+        Assert.Empty(_dialogs.Asked);
+        Assert.Contains(Loc.Get(K.ClipVariablesBroken, ("reason", "")).Split(':')[0], Assert.Single(Lines()), StringComparison.Ordinal);
+        Assert.False(_w.ToolRunningNow);
+    }
+
+    [AvaloniaFact]
     public void A_tool_from_a_folder_runs_only_after_a_yes_and_a_changed_definition_asks_again()
     {
         string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
