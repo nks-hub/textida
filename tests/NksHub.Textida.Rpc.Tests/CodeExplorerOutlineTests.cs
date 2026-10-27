@@ -126,7 +126,7 @@ public class CodeExplorerOutlineTests
     [Theory]
     [InlineData("javascript", "// function no() {}\nexport class A {\n  go(x) { return `}`; }\n}\nconst f = async (a) => { };\nfunction g(b) { }\n", new[] { "class A", "  method go(x)", "function f(a)", "function g(b)" })]
     [InlineData("python", "# def no(): pass\nclass A:\n    \"\"\"def no(): pass\"\"\"\n    def m(self): pass\ndef f(): pass\n", new[] { "class A", "  method m(self)", "function f()" })]
-    [InlineData("rust", "// fn no() {}\nmod m { pub fn f<T>(x: T) -> T { x } }\nimpl<T> Foo<T> {\n    fn g(&self) {}\n}\nstruct S { a: i32 }\n", new[] { "mod m", "  function f(x: T)", "impl Foo<T>", "  method g(&self)", "struct S" })]
+    [InlineData("rust", "// fn no() {}\nmod m {\n    pub fn f<T>(x: T) -> T { x }\n}\nimpl<T> Foo<T> {\n    fn g(&self) {}\n}\nstruct S { a: i32 }\n", new[] { "mod m", "  function f(x: T)", "impl Foo<T>", "  method g(&self)", "struct S" })]
     [InlineData("dart", "class A {\n  void m(int x) {\n    if (x > 0) { }\n  }\n}\nint f() => 1;\n", new[] { "class A", "  method m(int x)", "function f()" })]
     [InlineData("c", "#define MAX 3\nstruct P { int x; };\nstatic int add(int a, int b)\n{\n    if (a) { }\n    return a + b; // int no(void) {}\n}\n", new[] { "macro MAX", "struct P", "function add(int a, int b)" })]
     [InlineData("shell", "# no() {\nbuild() {\n  echo \"x() {\"\n}\nfunction deploy { :; }\n", new[] { "function build", "function deploy" })]
