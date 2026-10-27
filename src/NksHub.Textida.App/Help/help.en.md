@@ -382,6 +382,18 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 - Text that only looks like a colour, such as `rgb(var(--c))`, the HTML entity `&#123;` or `#12345`, is left alone.
 - A file larger than the limit of the plugin is not converted; the message says so.
 
+## [tools.markdown] Markdown preview, tables and contents
+commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc
+1. Tools, Markdown, Preview Markdown or HTML opens the preview panel under the editor with the current file. The panel follows what you type: it is drawn again a moment after the last key, and keeps its scroll position.
+2. Markdown is shown as a page: headings, lists, quotes, code, emphasis and tables with their cells (the colons in the row of dashes set the alignment of a column).
+3. An HTML file is shown as text, with its tags. Nothing in it runs, and nothing is loaded from the network.
+4. Tools, Markdown, Show Markdown Outline lists the headings of the file in the same panel, indented by level. A click, or Enter on a heading, puts the caret on its line in the editor.
+5. Tools, Markdown, Align Markdown Table rewrites the table under the caret so that every column is as wide as its widest cell. The marks `:--`, `:-:` and `--:` are kept and a short row is filled with empty cells. One undo step undoes it.
+6. Tools, Markdown, Update Markdown Table of Contents writes links to the headings between the lines `<!-- TOC -->` and `<!-- /TOC -->`. Only the text between the two lines changes. Without them the two lines are added at the caret. The anchors are lower case, spaces become hyphens, and a repeated title gets `-1`, `-2`.
+- An image is drawn only from a `data:` address of a PNG, JPEG, GIF, BMP or WebP picture. A remote picture and a picture from a local file are shown as a note with their alt text. A link to the web or to an e-mail address asks for your confirmation first; any other link is only text.
+- A file longer than the limit of the preview is not drawn; the status bar says so. Esc or Close ends the preview.
+- Only headings written with `#` are listed. The width of a table cell is counted in characters, so wide East Asian characters can look misaligned.
+
 ## [tools.keys] Key paths in YAML and JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In a YAML or JSON file the status bar shows the path of the key under the caret, for example `cs.app.title`. Items of a list are written `items[0]`, and a key that contains a dot or a bracket is written `["a.b"]`. The path is read for the revision and the caret it was asked for: if you type or move meanwhile, the answer is dropped.

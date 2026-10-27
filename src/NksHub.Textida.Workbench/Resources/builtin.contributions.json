@@ -513,6 +513,30 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.tools.markdownPreview",
+      "title": "cmd.tools.markdownPreview",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'markdown' || language == 'html')"
+    },
+    {
+      "id": "nks.tools.markdownOutline",
+      "title": "cmd.tools.markdownOutline",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+    },
+    {
+      "id": "nks.tools.markdownFormatTable",
+      "title": "cmd.tools.markdownFormatTable",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+    },
+    {
+      "id": "nks.tools.markdownUpdateToc",
+      "title": "cmd.tools.markdownUpdateToc",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+    },
+    {
       "id": "nks.tools.copyKeyPath",
       "title": "cmd.tools.copyKeyPath",
       "category": "cat.tools",
@@ -2337,6 +2361,34 @@
       "group": "1_text/01_2_calculate",
       "submenu": "text",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.markdownPreview",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.markdownOutline",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.markdownFormatTable",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.markdownUpdateToc",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 40
     },
     {
       "menu": "tools",

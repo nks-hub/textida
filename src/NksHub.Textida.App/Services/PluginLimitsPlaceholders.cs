@@ -214,6 +214,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI. OPEN: the owner has not decided it.</summary>
     public const int PreviewImageMaxBytes = 1 << 20;
 
+    /// <summary>Placeholder: quiet time after an edit before the live preview of the current file is drawn again, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const int PreviewLiveDebounceMs = 300;
+
+    /// <summary>Placeholder: longest text, in characters, that the live preview of the current file draws. OPEN: the owner has not decided it.</summary>
+    public const int PreviewLiveMaxChars = 1 << 20;
+
     /// <summary>Placeholder: longest text of one update, tool title or permission question a plugin sends to the agent panel, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int AgentUpdateMaxChars = 64 * 1024;
 

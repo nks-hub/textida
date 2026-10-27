@@ -4,9 +4,11 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Markdown;
 using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Shell;
@@ -15,7 +17,7 @@ namespace NksHub.Textida.App.Shell;
 /// Renders the text of a plugin preview (P6.2.4) into Avalonia controls under <see cref="PreviewPolicy"/> (P6.2.7): no web view, so there is no script and no network. Raw HTML stays literal text.
 /// An image is drawn only from a <c>data:</c> URI within the size limit, any other becomes a note with its alt text. A link to the web or a mail address is a button that asks the user before it
 /// opens; any other link is text followed by its target and is never followed.
-/// Markdown covers headings, paragraphs, lists, quotes, fenced code, rules, emphasis, strong text and inline code.
+/// Markdown covers headings, paragraphs, lists, pipe tables, quotes, fenced code, rules, emphasis, strong text and inline code.
 /// </summary>
 internal static partial class PreviewRenderer
 {
@@ -41,6 +43,59 @@ internal static partial class PreviewRenderer
 
     private static bool StartsBlock(string line) =>
         line.StartsWith("```", StringComparison.Ordinal) || line.StartsWith('>') || Heading().IsMatch(line) || ListItem().IsMatch(line) || Rule().IsMatch(line);
+
+    /// <summary>The headings as a list of buttons, indented by level, so the keyboard and a screen reader reach each one; a click hands the heading to <paramref name="jump"/>.</summary>
+    public static Control Outline(IReadOnlyList<MarkdownHeading> headings, Action<MarkdownHeading> jump)
+    {
+        var list = new StackPanel { Spacing = 2, Margin = new Thickness(12, 6) };
+        if (headings.Count == 0) list.Children.Add(new TextBlock { Text = Loc.Get(K.PreviewOutlineEmpty), TextWrapping = TextWrapping.Wrap });
+        int top = headings.Count == 0 ? 1 : headings.Min(h => h.Level);
+        foreach (var heading in headings)
+        {
+            var button = new Button { Content = new TextBlock { Text = heading.Title, TextWrapping = TextWrapping.Wrap }, Margin = new Thickness((heading.Level - top) * 16, 0, 0, 0) };
+            button.Classes.Add("previewoutline");
+            AutomationProperties.SetName(button, heading.Title);
+            button.Click += (_, _) => jump(heading);
+            list.Children.Add(button);
+        }
+        return list;
+    }
+
+    private static bool TableStart(string[] lines, int i) =>
+        i + 1 < lines.Length && lines[i].Contains('|') && MarkdownTools.IsSeparator(lines[i + 1]) && !MarkdownTools.IsSeparator(lines[i]);
+
+    /// <summary>A pipe table as a grid: the first row is the header, a missing cell is empty, the marks of the separator row align the columns. Cells hold inline text only.</summary>
+    private static Grid Table(string[] rows, Ctx ctx)
+    {
+        var cells = rows.Select(MarkdownTools.Cells).ToList();
+        int columns = cells.Max(r => r.Count);
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        for (int c = 0; c < columns; c++) grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        for (int r = 0; r < cells.Count; r++)
+        {
+            if (r == 1) continue;
+            int row = r == 0 ? 0 : r - 1;
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            for (int c = 0; c < columns; c++)
+            {
+                string mark = c < cells[1].Count ? cells[1][c] : "";
+                var text = new SelectableTextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = mark.StartsWith(':') && mark.EndsWith(':') ? TextAlignment.Center : mark.EndsWith(':') ? TextAlignment.Right : TextAlignment.Left,
+                    MaxWidth = 400,
+                };
+                Spans(c < cells[r].Count ? cells[r][c] : "", text.Inlines!, r == 0 ? FontWeight.SemiBold : FontWeight.Normal, FontStyle.Normal, ctx);
+                var cell = new Border { Child = text };
+                cell.Classes.Add("previewcell");
+                if (r == 0) cell.Classes.Add("previewcellhead");
+                Grid.SetRow(cell, row);
+                Grid.SetColumn(cell, c);
+                grid.Children.Add(cell);
+            }
+        }
+        return grid;
+    }
 
     private static void Blocks(string[] lines, Avalonia.Controls.Controls into, Ctx ctx)
     {
@@ -95,10 +150,17 @@ internal static partial class PreviewRenderer
                 }
                 into.Add(list);
             }
+            else if (TableStart(lines, i))
+            {
+                int end = i + 2;
+                while (end < lines.Length && lines[end].Contains('|') && lines[end].Trim().Length > 0) end++;
+                into.Add(Table(lines[i..end], ctx));
+                i = end;
+            }
             else
             {
                 var paragraph = new List<string>();
-                for (; i < lines.Length && lines[i].Trim().Length > 0 && (paragraph.Count == 0 || !StartsBlock(lines[i])); i++) paragraph.Add(lines[i].Trim());
+                for (; i < lines.Length && lines[i].Trim().Length > 0 && (paragraph.Count == 0 || !(StartsBlock(lines[i]) || TableStart(lines, i))); i++) paragraph.Add(lines[i].Trim());
                 var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
                 Spans(string.Join(' ', paragraph), text.Inlines!, FontWeight.Normal, FontStyle.Normal, ctx);
                 into.Add(text);

@@ -1285,6 +1285,14 @@ public static class K
     public const string PreviewLinkFailed = "preview.link.failed";
     public const string A11yPreviewPanel = "a11y.preview.panel";
     public const string A11yPreviewBody = "a11y.preview.body";
+    public const string PreviewLiveTitle = "preview.live.title";
+    public const string PreviewLiveHtmlTitle = "preview.live.htmlTitle";
+    public const string PreviewLiveUnsupported = "preview.live.unsupported";
+    public const string PreviewLiveTooLarge = "preview.live.tooLarge";
+    public const string PreviewOutlineTitle = "preview.outline.title";
+    public const string PreviewOutlineEmpty = "preview.outline.empty";
+    public const string PreviewOutlineUnsupported = "preview.outline.unsupported";
+    public const string MarkdownNoTable = "markdown.noTable";
     public const string McpProposal = "mcp.proposal";
     public const string McpToolListDocuments = "mcp.tool.listDocuments";
     public const string McpToolReadRange = "mcp.tool.readRange";
