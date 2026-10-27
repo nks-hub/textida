@@ -208,9 +208,18 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest file a workspace edit may create, in bytes. OPEN: the owner has not decided it.</summary>
     public const long WorkspaceEditFileBytes = 4L << 20;
 
-    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules, WorkspaceEditOptions? workspace = null) => new()
+    /// <summary>Placeholder: longest text of one preview a plugin shows, in UTF-16 units. OPEN: the owner has not decided it.</summary>
+    public const int PreviewMaxChars = 1 << 20;
+
+    /// <summary>Placeholder: longest text of one update, tool title or permission question a plugin sends to the agent panel, in UTF-16 units. OPEN: the owner has not decided it.</summary>
+    public const int AgentUpdateMaxChars = 64 * 1024;
+
+    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules, WorkspaceEditOptions? workspace = null,
+        IPreviewPanel? preview = null, IAgentPanel? agent = null) => new()
     {
         Workspace = workspace,
+        Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
+        Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
         Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,

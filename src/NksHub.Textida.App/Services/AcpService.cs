@@ -104,23 +104,104 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
             switch (u.Kind)
             {
                 case AcpUpdateKind.AgentMessage:
-                    if (_entries.Count > 0 && _entries[^1].Role == AgentRole.Agent) _entries[^1].Text.Append(u.Text);
-                    else _entries.Add(new Entry(AgentRole.Agent, u.Text ?? ""));
+                    AppendMessage(u.Text);
                     break;
                 case AcpUpdateKind.ToolCall:
                     _entries.Add(new Entry(AgentRole.Tool) { ToolId = u.ToolCallId, Title = u.Title ?? u.ToolKind ?? u.ToolCallId ?? "", Status = u.Status });
                     break;
                 case AcpUpdateKind.ToolCallUpdate:
-                    var tool = _entries.LastOrDefault(e => e.Role == AgentRole.Tool && e.ToolId == u.ToolCallId);
-                    if (tool is null) return;
-                    if (u.Title is not null) tool.Title = u.Title;
-                    if (u.Status is not null) tool.Status = u.Status;
+                    if (!UpdateTool(u.ToolCallId, u.Title, u.Status)) return;
                     break;
                 default:
                     return; // thoughts, plans and the rest are not shown yet
             }
         }
         Changed?.Invoke();
+    }
+
+    /// <summary>A chunk of the agent's message goes on the line of the message before it, unless something else came in between. Call under the lock.</summary>
+    private void AppendMessage(string? text)
+    {
+        if (_entries.Count > 0 && _entries[^1].Role == AgentRole.Agent) _entries[^1].Text.Append(text);
+        else _entries.Add(new Entry(AgentRole.Agent, text ?? ""));
+    }
+
+    private bool UpdateTool(string? id, string? title, string? status)
+    {
+        var tool = _entries.LastOrDefault(e => e.Role == AgentRole.Tool && e.ToolId == id);
+        if (tool is null) return false;
+        if (title is not null) tool.Title = title;
+        if (status is not null) tool.Status = status;
+        return true;
+    }
+
+    // ---- a conversation a plugin hosts (P6.2.5) ----
+
+    /// <summary>The plugin whose conversation the panel shows; null for an agent over ACP or none.</summary>
+    private volatile string? _hostPlugin;
+
+    public bool HasSession(string pluginId) => _hostPlugin == pluginId && IsRunning;
+
+    /// <summary>Opens the panel's conversation for a plugin: the conversation of an earlier agent is cleared. False when an agent is running or another plugin holds the panel. Call on the UI thread.</summary>
+    public bool OpenPluginSession(MainWindow window, string pluginId, string name)
+    {
+        if (IsRunning) return false;
+        lock (_gate) _entries.Clear();
+        HostWindow = window;
+        AgentName = name;
+        _adapter = null;
+        _stopping = false;
+        _hostPlugin = pluginId;
+        State = AgentState.Ready;
+        Add(AgentRole.Note, () => Loc.Get(K.AgentPluginOpened, ("agent", name)));
+        return true;
+    }
+
+    /// <summary>Takes what the plugin sent into the conversation. A turn ends with <see cref="AgentUpdateKind.TurnEnd"/>. Call on the UI thread.</summary>
+    public void UpdatePluginSession(string pluginId, AgentUpdate update)
+    {
+        if (!HasSession(pluginId)) return;
+        lock (_gate)
+        {
+            switch (update.Kind)
+            {
+                case AgentUpdateKind.Message: AppendMessage(update.Text); break;
+                case AgentUpdateKind.Tool: _entries.Add(new Entry(AgentRole.Tool) { ToolId = update.ToolId, Title = update.Text, Status = update.Status }); break;
+                case AgentUpdateKind.ToolUpdate: UpdateTool(update.ToolId, update.Text, update.Status); break;
+                case AgentUpdateKind.Note: _entries.Add(new Entry(AgentRole.Note, update.Text ?? "")); break;
+                case AgentUpdateKind.Problem: _entries.Add(new Entry(AgentRole.Problem, update.Text ?? "")); break;
+                case AgentUpdateKind.TurnEnd:
+                    EndPluginTurn();
+                    var reason = update.Text ?? "";
+                    _entries.Add(new Entry(AgentRole.Note, "", () => Loc.Get(K.AgentTurnDone, ("reason", reason))));
+                    break;
+            }
+        }
+        Changed?.Invoke();
+    }
+
+    private void EndPluginTurn()
+    {
+        _turn?.Dispose();
+        _turn = null;
+        if (State == AgentState.Working) State = AgentState.Ready;
+    }
+
+    /// <summary>The plugin leaves, or the plugin was restarted or lost its permission. Any thread.</summary>
+    public void ClosePluginSession(string pluginId)
+    {
+        if (!HasSession(pluginId)) return;
+        _hostPlugin = null; // the plugin ended it itself, so it is not told
+        if (Dispatcher.UIThread.CheckAccess()) _ = StopAsync();
+        else Dispatcher.UIThread.Post(() => _ = StopAsync());
+    }
+
+    /// <summary>The permission dialog for a question of the plugin, the one the ACP agents use. Null when the user cancelled it or the turn was cancelled.</summary>
+    public async Task<string?> AskPluginAsync(string tool, IReadOnlyList<AgentPermissionOption> options, CancellationToken cancellation)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _turn?.Token ?? CancellationToken.None);
+        var choice = await RequestPermissionAsync("", new AcpToolCallInfo(null, tool, null), [.. options.Select(o => new AcpPermissionOption(o.Id, o.Name, o.Reject ? "reject_once" : "allow_once"))], linked.Token);
+        return choice.OptionId;
     }
 
     // ---- start and stop ----
@@ -136,6 +217,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         HostWindow = window;
         AgentName = name;
         _adapter = adapter;
+        _hostPlugin = null;
         _stopping = false;
         State = AgentState.Starting;
         Changed?.Invoke();
@@ -178,6 +260,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         await DisposeClientAsync();
         bool wasRunning = IsRunning;
         State = AgentState.None;
+        if (_hostPlugin is { } host)
+        {
+            _hostPlugin = null;
+            EndPluginTurn();
+            _plugins.Documents.AgentClosed(host, HostWindow is { IsVisible: false } ? "window" : "user");
+        }
         if (wasRunning) Add(AgentRole.Note, () => Loc.Get(K.AgentStopped));
         else Changed?.Invoke();
     }
@@ -195,6 +283,14 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     /// <summary>Sends the user's message and waits for the end of the turn. False when no agent is ready for it.</summary>
     public async Task<bool> SendAsync(string text)
     {
+        if (State == AgentState.Ready && _hostPlugin is { } plugin)
+        {
+            State = AgentState.Working;
+            _turn = new CancellationTokenSource();
+            Add(AgentRole.You, text);
+            _plugins.Documents.AgentUserMessage(plugin, text);
+            return true;
+        }
         if (State != AgentState.Ready || _client is not { } client || _session is not { } session) return false;
         State = AgentState.Working;
         using var turn = _turn = new CancellationTokenSource();
@@ -232,7 +328,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     }
 
     /// <summary>Cancels the running turn: the review of a change the agent proposed is closed (nothing is written), an open permission question is answered "cancelled" and the agent is told.</summary>
-    public void CancelTurn() => _turn?.Cancel();
+    public void CancelTurn()
+    {
+        if (_turn is not { } turn) return;
+        turn.Cancel();
+        if (_hostPlugin is { } plugin) _plugins.Documents.AgentCancelled(plugin);
+    }
 
     public bool TurnRunning => _turn is not null;
 
