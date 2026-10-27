@@ -418,6 +418,9 @@ public sealed partial class Document
         return new(_revision, entry.Steps[^1].After ?? []);
     }
 
+    /// <summary>Takes the current content as the saved one without a file, for a document whose text was handed on elsewhere (a string fragment written back).</summary>
+    public void MarkClean() => MarkSaved();
+
     private void MarkSaved()
     {
         if (FilePath is { } saved && _backend.BackingPath is { } mapped && SamePath(mapped, saved)) ReleaseFillUndo();

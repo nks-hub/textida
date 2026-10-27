@@ -1012,6 +1012,16 @@ Puts the selection, the file, the open tabs or the opened folder on the clipboar
 - Left out and named: .env files (their values are never copied, also when they are shown in the editor), files and folders the ignore files exclude, hidden ones, binary files, files over the size limit of the folder walk and files that cannot be read.
 - A large file in paged mode is never copied whole: only its selection is. Without a selection it is listed as left out.
 
+## [edit.fragment] Edit a string as JSON, SQL or HTML
+commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
+A string in a PHP or JavaScript file opens in a tab of its own, in the language you pick, and goes back into the string with the escaping of its kind.
+1. Put the caret in the string and choose Edit, Edit String as JSON, Edit String as SQL or Edit String as HTML. The new tab shows the text the string stands for, without the quotes and escapes.
+2. Edit the text. Choose Edit, Write String Fragment Back: the text is escaped for the string and replaces its content. The tab stays open, so you can write again.
+- Kinds: PHP single-quoted and double-quoted strings, heredoc and nowdoc; JavaScript strings in single quotes, double quotes and templates in backticks. In a double-quoted string and in a heredoc every dollar sign gets a backslash, so no variable can appear by accident.
+- Refused with a message: a string with variables or expressions (`$name`, `{$x}`), a JavaScript template with `${...}`, an escape that is not text (a byte above 127, octal) and, when writing, a line that would end a heredoc or nowdoc.
+- The tab follows the string through edits of the file elsewhere. If the file changed inside the string after the tab was opened, nothing is overwritten without asking: the dialog offers Overwrite or Cancel.
+- When the file is closed, the fragment tab stays open as a detached text. Its title says so and Write String Fragment Back writes nothing.
+
 ## [tools.emmet] Emmet abbreviations
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with a caret inside each of them.

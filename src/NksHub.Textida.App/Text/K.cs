@@ -1265,4 +1265,23 @@ public static class K
     public const string SaveActionsToolNotApproved = "saveActions.toolNotApproved";
     public const string SaveActionsToolUnknown = "saveActions.toolUnknown";
     public const string SaveActionsToolFailed = "saveActions.toolFailed";
+    public const string FragmentTab = "fragment.tab";
+    public const string FragmentTabDetached = "fragment.tabDetached";
+    public const string FragmentLanguage = "fragment.language";
+    public const string FragmentNoLiteral = "fragment.noLiteral";
+    public const string FragmentInterpolation = "fragment.interpolation";
+    public const string FragmentTemplateExpression = "fragment.templateExpression";
+    public const string FragmentBadEscape = "fragment.badEscape";
+    public const string FragmentIndentation = "fragment.indentation";
+    public const string FragmentClosingMarker = "fragment.closingMarker";
+    public const string FragmentNotEncodable = "fragment.notEncodable";
+    public const string FragmentRangeLost = "fragment.rangeLost";
+    public const string FragmentDetached = "fragment.detached";
+    public const string FragmentParentRejected = "fragment.parentRejected";
+    public const string FragmentNotFragment = "fragment.notFragment";
+    public const string FragmentWritten = "fragment.written";
+    public const string FragmentConflictTitle = "fragment.conflictTitle";
+    public const string FragmentConflictMessage = "fragment.conflictMessage";
+    public const string FragmentConflictOverwrite = "fragment.conflictOverwrite";
+    public const string FragmentParentClosed = "fragment.parentClosed";
 }

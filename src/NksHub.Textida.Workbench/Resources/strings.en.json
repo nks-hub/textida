@@ -392,5 +392,9 @@
   "cmd.macro.run": "Run Saved Macro...",
   "cmd.tools.edit": "Edit Tool Definitions...",
   "cmd.tools.makeTargets": "Run Makefile Target...",
-  "cmd.file.saveActions": "Save Actions..."
+  "cmd.file.saveActions": "Save Actions...",
+  "cmd.edit.fragmentJson": "Edit String as JSON",
+  "cmd.edit.fragmentSql": "Edit String as SQL",
+  "cmd.edit.fragmentHtml": "Edit String as HTML",
+  "cmd.edit.fragmentWriteBack": "Write String Fragment Back"
 }

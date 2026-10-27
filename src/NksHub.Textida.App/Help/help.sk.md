@@ -1017,6 +1017,16 @@ Vloží do schránky výber, súbor, otvorené karty alebo otvorený priečinok 
 - Vynechané a pomenované: súbory .env (ich hodnoty sa nikdy nekopírujú, ani keď sú v editore zobrazené), súbory a priečinky vylúčené súbormi ignorovania, skryté, binárne súbory, súbory nad limitom veľkosti pri prechádzaní priečinka a súbory, ktoré sa nedajú prečítať.
 - Veľký súbor v stránkovanom režime sa nikdy nekopíruje celý: len jeho výber. Bez výberu je uvedený ako vynechaný.
 
+## [edit.fragment] Úprava reťazca ako JSON, SQL alebo HTML
+commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
+Reťazec v súbore PHP alebo JavaScript sa otvorí v samostatnej karte vo zvolenom jazyku a vracia sa späť do reťazca s escapovaním podľa jeho druhu.
+1. Dajte kurzor do reťazca a zvoľte Úpravy, Upraviť reťazec ako JSON, Upraviť reťazec ako SQL alebo Upraviť reťazec ako HTML. Nová karta ukáže text, ktorý reťazec predstavuje, bez úvodzoviek a escape znakov.
+2. Text upravte. Zvoľte Úpravy, Zapísať fragment späť do reťazca: text sa escapuje pre reťazec a nahradí jeho obsah. Karta zostane otvorená, takže môžete zapísať znova.
+- Druhy: reťazce PHP v jednoduchých a dvojitých úvodzovkách, heredoc a nowdoc; reťazce JavaScript v jednoduchých a dvojitých úvodzovkách a šablóny v spätných apostrofoch. V reťazci v dvojitých úvodzovkách a v heredoc dostane každý znak dolára spätnú lomku, takže sa omylom nevytvorí premenná.
+- S hlásením sa odmietne: reťazec s premennými alebo výrazmi (`$name`, `{$x}`), šablóna JavaScript s `${...}`, escape, ktorý nie je text (bajt nad 127, osmičkový zápis) a pri zápise riadok, ktorý by ukončil heredoc alebo nowdoc.
+- Karta sleduje reťazec pri úpravách súboru inde. Ak sa súbor vnútri reťazca zmenil po otvorení karty, nič sa neprepíše bez opýtania: dialóg ponúkne Prepísať alebo Zrušiť.
+- Keď sa súbor zatvorí, karta fragmentu zostane otvorená ako odpojený text. Názov to hovorí a Zapísať fragment späť do reťazca nič nezapíše.
+
 ## [tools.emmet] Skratky Emmet
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. V súbore HTML alebo CSS napíšte skratku a stlačte Tab. Z `ul>li*3` vznikne zoznam s tromi položkami a kurzorom v každej z nich.

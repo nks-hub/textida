@@ -58,6 +58,10 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>The regions marked in the hex view of the document; they follow the bytes through every edit and are kept in the session.</summary>
     public HexBookmarks HexBookmarks { get; }
     public int Number { get; }
+    /// <summary>The link to the string of another document that this document is the text of (P8.9.1); null for every other document.</summary>
+    public Core.Fragments.FragmentLink? Fragment { get; set; }
+    /// <summary>The document that holds the string of <see cref="Fragment"/>.</summary>
+    public OpenDocument? FragmentParent { get; set; }
     public LanguageMode Language { get; private set; }
     /// <summary>The user picked the language; the file name no longer decides it, also after a reload or a save under another name.</summary>
     public bool LanguageChosen { get; private set; }
