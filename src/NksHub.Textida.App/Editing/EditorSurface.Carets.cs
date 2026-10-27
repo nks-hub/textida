@@ -97,6 +97,8 @@ internal sealed partial class EditorSurface
         }
         if (_hooked is not null) _hooked.Changed -= OnCoreChanged;
         _hooked = null;
+        Doc.Changed -= OnSecretStateMaybeChanged;
+        Doc.LanguageChanged -= OnColorLanguageChanged;
         _blink?.Stop();
         _probe?.Dispose();
         _probe = null;

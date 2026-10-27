@@ -214,6 +214,24 @@ commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.conv
 - Text v označení, ktorý nie je číslo, sa preskočí a spočíta. Prevod čísel funguje pre hodnoty od -9223372036854775808 do 18446744073709551615.
 - Mocnina berie len kladný základ. Výpočet používa čísla s dvojitou presnosťou.
 
+## [tools.colors] Farby
+commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.tools.colorToHsl, nks.tools.colorToOklch
+1. V súboroch CSS, HTML, XML, JavaScript, TypeScript, PHP, Razor a Latte má každá hodnota farby (`#ff8800`, `rgb()`, `hsl()`, `oklch()`) pred sebou malú vzorku svojej farby. Vzorka nezaberá žiadny znak dokumentu.
+2. Kliknite na vzorku, alebo dajte kurzor na hodnotu a zvoľte Nástroje, Vybrať farbu pri kurzore. Otvorí sa výber: posuvníky pre odtieň, sýtosť, svetlosť a krytie a pole s hodnotou, ktoré prijme aj farbu v inom zápise. Kliknutie mimo výberu zapíše farbu cez hodnotu v zápise, aký mala, ako jeden krok späť; Esc výber zavrie bez zmeny.
+3. Nástroje, Previesť farbu na HEX, RGB, HSL alebo oklch prepíše hodnotu farby pri kurzore, alebo všetky v označení, do zvoleného zápisu. Farba zostane rovnaká osembitová farba; oklch sa píše na päť desatinných miest pri svetlosti a sýtosti a na dve pri odtieni.
+- Farba mimo rozsahu sRGB sa do neho orezá. Krytie sa zachová, ako `/ alfa` alebo ako posledné dve hexadecimálne číslice.
+- Text, ktorý len vyzerá ako farba, napríklad `rgb(var(--c))`, entita HTML `&#123;` alebo `#12345`, sa nechá byť.
+- Súbor väčší než limit pluginu sa neprevádza; správa to povie.
+
+## [tools.keys] Cesty kľúčov v YAML a JSON
+commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
+1. V súbore YAML alebo JSON ukazuje stavový riadok cestu kľúča pod kurzorom, napríklad `cs.app.title`. Položky zoznamu sa píšu `items[0]` a kľúč s bodkou alebo zátvorkou sa píše `["a.b"]`. Cesta sa číta pre revíziu a kurzor, pre ktoré sa pýtalo: keď medzitým píšete alebo kurzor presuniete, odpoveď sa zahodí.
+2. Nástroje, Kopírovať cestu kľúča dá cestu do schránky.
+3. Nástroje, Prejsť na kľúč (alebo `@` v Prejsť na čokoľvek) vypíše kľúče súboru podľa cesty; Enter označí kľúč tak, ako je napísaný. Zobraziť osnovu kľúčov vypíše tie isté kľúče v paneli pluginu a kliknutie tam označí rovnaké bajty.
+4. Nástroje, Porovnať kľúče s iným súborom sa opýta na ďalší otvorený súbor YAML alebo JSON a do okna výstupu vypíše kľúče s hodnotou, ktoré každému súboru chýbajú.
+- YAML v blokovom zápise sa číta: vnorené kľúče, zoznamy, kľúče v úvodzovkách a blokové skaláry. Hodnota v zložených alebo hranatých zátvorkách sa počíta za jednu hodnotu. JSON smie mať komentáre a čiarku na konci.
+- Chyba syntaxe zastaví čítanie na tom mieste; kľúče pred ňou zostanú a správa uvedie riadok.
+
 ## [edit.carets] Viac kurzorov
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Vyberte slovo; Ctrl+D pridá ďalší jeho výskyt do výberu. Opakujte pre ďalšie výskyty.
@@ -306,7 +324,8 @@ commands: nks.search.gotoAnything
 3. Enter súbor otvorí. Ak napíšete :120, kurzor skočí na riadok 120 aktívneho dokumentu.
 - Bez otvoreného priečinka sa vypíšu len otvorené a nedávne súbory.
 - Súbor, ktorý už neexistuje, je označený ako chýba.
-- Pod zoznamom je náhľad zvýrazneného súboru; binárny súbor sa nezobrazí.
+- Pod zoznamom je náhľad zvýrazneného súboru; binárny súbor sa nezobrazí. Hodnoty súboru `.env` sa v náhľade ukazujú ako `••••`.
+- V súbore YAML alebo JSON vypíše `@` s časťou cesty kľúča všetky kľúče súboru (téma Cesty kľúčov v YAML a JSON).
 
 ## [search.jump] Miesta úprav a skoky
 commands: nks.search.recentEdits, nks.search.jumpBack, nks.search.jumpForward

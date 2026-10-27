@@ -115,6 +115,20 @@ internal static class AppCommands
         Fire("nks.tools.calculateBlock", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.calculate"));
         Fire("nks.tools.evaluateExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression"));
         Fire("nks.tools.convertBase", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.bases"));
+        On("nks.tools.pickColor", w =>
+        {
+            if (w.ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
+            if (!surface.PickColorAtCaret()) w.SetStatusMessage(Loc.Get(K.ColorNoneAtCaret));
+            return CommandOutcome.Handled;
+        });
+        Fire("nks.tools.colorToHex", (w, t) => app.Plugins.RunColorAsync(w, t, "hex"));
+        Fire("nks.tools.colorToRgb", (w, t) => app.Plugins.RunColorAsync(w, t, "rgb"));
+        Fire("nks.tools.colorToHsl", (w, t) => app.Plugins.RunColorAsync(w, t, "hsl"));
+        Fire("nks.tools.colorToOklch", (w, t) => app.Plugins.RunColorAsync(w, t, "oklch"));
+        Fire("nks.tools.copyKeyPath", (w, t) => app.Plugins.CopyKeyPathAsync(w, t));
+        Fire("nks.tools.showKeys", (w, t) => app.Plugins.IndexKeysAsync(w, t, reveal: true));
+        Do("nks.tools.goToKey", w => w.ShowQuickOpen("@"));
+        Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
 
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));

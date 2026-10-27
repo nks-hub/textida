@@ -187,6 +187,22 @@ internal sealed partial class MainWindow
         return answer.Task;
     }
 
+    /// <summary>Asks which of the other open YAML or JSON files to compare the keys of <paramref name="tab"/> with, and writes the keys each lacks to the output window.</summary>
+    internal async Task CompareKeysAsync(DocTab tab)
+    {
+        var candidates = Tabs.Where(t => t.Surface is not null && !ReferenceEquals(t.Doc, tab.Doc) && PluginServices.KeySyntax(t.Doc.Language.Id) is not null)
+            .GroupBy(t => t.Doc).Select(g => g.First()).ToList();
+        if (candidates.Count == 0)
+        {
+            SetStatusMessage(Loc.Get(K.KeysCompareNoOther));
+            return;
+        }
+        var items = candidates.Select((t, i) => new PickItem(i.ToString(), t.Doc.Title, t.Path)).ToList();
+        var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.KeysComparePickTitle), Loc.Get(K.KeysComparePickWatermark), items), CancellationToken.None);
+        if (chosen is null || !int.TryParse(chosen, out int index)) return;
+        await _app.Plugins.CompareKeysAsync(this, tab, candidates[index]);
+    }
+
     internal async Task<bool> PluginConfirmAsync(ConfirmRequest request)
     {
         var buttons = new[] { new DialogButton(Loc.Get(K.DialogOk), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };

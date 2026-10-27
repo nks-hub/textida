@@ -202,6 +202,7 @@ internal sealed partial class MainWindow
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();
+            _app.Plugins.Forget(od.Doc);
             od.Dispose();
         }
         RemoveGroupIfEmpty(group);

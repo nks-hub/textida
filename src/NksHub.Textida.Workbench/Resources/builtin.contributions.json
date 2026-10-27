@@ -393,6 +393,60 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.pickColor",
+      "title": "cmd.tools.pickColor",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.tools.colorToHex",
+      "title": "cmd.tools.colorToHex",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.tools.colorToRgb",
+      "title": "cmd.tools.colorToRgb",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.tools.colorToHsl",
+      "title": "cmd.tools.colorToHsl",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.tools.colorToOklch",
+      "title": "cmd.tools.colorToOklch",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.tools.copyKeyPath",
+      "title": "cmd.tools.copyKeyPath",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+    },
+    {
+      "id": "nks.tools.showKeys",
+      "title": "cmd.tools.showKeys",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+    },
+    {
+      "id": "nks.tools.goToKey",
+      "title": "cmd.tools.goToKey",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+    },
+    {
+      "id": "nks.tools.compareKeys",
+      "title": "cmd.tools.compareKeys",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+    },
+    {
       "id": "nks.edit.newline",
       "title": "cmd.edit.newline",
       "category": "cat.edit",
@@ -1122,6 +1176,60 @@
       "command": "nks.tools.convertBase",
       "group": "2_calculate",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.pickColor",
+      "group": "3_colors",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.colorToHex",
+      "group": "3_colors",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.colorToRgb",
+      "group": "3_colors",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.colorToHsl",
+      "group": "3_colors",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.colorToOklch",
+      "group": "3_colors",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.copyKeyPath",
+      "group": "4_keys",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.goToKey",
+      "group": "4_keys",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.showKeys",
+      "group": "4_keys",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.compareKeys",
+      "group": "4_keys",
+      "order": 40
     },
     {
       "menu": "format",

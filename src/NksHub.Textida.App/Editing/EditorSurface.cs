@@ -68,6 +68,7 @@ internal sealed partial class EditorSurface : TextEditor
         InitViewOptions();
         InitCarets();
         InitSecrets();
+        InitColors();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);

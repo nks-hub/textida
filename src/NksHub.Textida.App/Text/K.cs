@@ -508,4 +508,27 @@ public static class K
     public const string PluginSymbolsOutdated = "plugin.symbols.outdated";
     public const string PluginSecretsTitle = "plugin.secrets.title";
     public const string PluginSecretsMessage = "plugin.secrets.message";
+    public const string KeyPathTip = "key.path.tip";
+    public const string KeyPathNone = "key.path.none";
+    public const string KeyPathCopied = "key.path.copied";
+    public const string KeysCompareHeader = "keys.compare.header";
+    public const string KeysCompareSyntax = "keys.compare.syntax";
+    public const string KeysCompareNoneMissing = "keys.compare.none";
+    public const string KeysCompareMissing = "keys.compare.missing";
+    public const string KeysCompareSource = "keys.compare.source";
+    public const string KeysCompareNoOther = "keys.compare.noOther";
+    public const string KeysComparePickTitle = "keys.compare.pickTitle";
+    public const string KeysComparePickWatermark = "keys.compare.pickWatermark";
+    public const string PaletteKeysReading = "palette.keys.reading";
+    public const string PaletteKeysNone = "palette.keys.none";
+    public const string PaletteCategoryKey = "palette.category.key";
+    public const string ColorSwatchTip = "color.swatch.tip";
+    public const string ColorPickerHue = "color.picker.hue";
+    public const string ColorPickerSaturation = "color.picker.saturation";
+    public const string ColorPickerLightness = "color.picker.lightness";
+    public const string ColorPickerOpacity = "color.picker.opacity";
+    public const string ColorPickerValue = "color.picker.value";
+    public const string ColorPickerHint = "color.picker.hint";
+    public const string A11yColorPicker = "a11y.color.picker";
+    public const string ColorNoneAtCaret = "color.none.status";
 }

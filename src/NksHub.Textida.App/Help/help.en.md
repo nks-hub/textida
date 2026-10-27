@@ -214,6 +214,24 @@ commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.conv
 - Text in the selection that is not a number is skipped and counted. The number conversion works for values from -9223372036854775808 to 18446744073709551615.
 - Powers take a positive base only. The calculation uses double precision numbers.
 
+## [tools.colors] Colours
+commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.tools.colorToHsl, nks.tools.colorToOklch
+1. In CSS, HTML, XML, JavaScript, TypeScript, PHP, Razor and Latte files every colour value (`#ff8800`, `rgb()`, `hsl()`, `oklch()`) has a small swatch of its colour in front of it. The swatch takes no character of the document.
+2. Click the swatch, or put the caret on the value and choose Tools, Pick Color at Caret, to open the picker: sliders for hue, saturation, lightness and opacity, and a value box that also accepts a colour in another notation. Clicking outside the picker writes the colour over the value in the notation it had, as one undo step; Esc closes the picker without a change.
+3. Tools, Convert Color to HEX, RGB, HSL or oklch rewrites the colour value at the caret, or every one inside the selections, in that notation. The colour stays the same eight-bit colour; oklch is written with five decimals for lightness and chroma and two for the hue.
+- A colour outside the sRGB range is cut to it. Opacity is kept, as `/ alpha` or as the last two hex digits.
+- Text that only looks like a colour, such as `rgb(var(--c))`, the HTML entity `&#123;` or `#12345`, is left alone.
+- A file larger than the limit of the plugin is not converted; the message says so.
+
+## [tools.keys] Key paths in YAML and JSON
+commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
+1. In a YAML or JSON file the status bar shows the path of the key under the caret, for example `cs.app.title`. Items of a list are written `items[0]`, and a key that contains a dot or a bracket is written `["a.b"]`. The path is read for the revision and the caret it was asked for: if you type or move meanwhile, the answer is dropped.
+2. Tools, Copy Key Path puts the path on the clipboard.
+3. Tools, Go to Key (or `@` in Go to Anything) lists the keys of the file by their path; Enter selects the key as it is written. Show Key Outline lists the same keys in the plugin panel, and a click there selects the same bytes.
+4. Tools, Compare Keys with Another File asks for another open YAML or JSON file and writes to the output window the keys with a value that each file lacks.
+- Block style YAML is understood: nested keys, lists, quoted keys and block scalars. A value in braces or brackets counts as one value. JSON may have comments and trailing commas.
+- A syntax error stops the reading at that place; the keys before it are kept and the message gives the line.
+
 ## [edit.carets] Multiple carets
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Select a word; Ctrl+D adds its next occurrence to the selection. Repeat for further occurrences.
@@ -306,7 +324,8 @@ commands: nks.search.gotoAnything
 3. Enter opens the file. If you type :120, the caret jumps to line 120 of the active document.
 - Without an open folder only open and recent files are listed.
 - A file that no longer exists is marked missing.
-- Below the list there is a preview of the highlighted file; a binary file is not shown.
+- Below the list there is a preview of the highlighted file; a binary file is not shown. The values of a `.env` file are shown as `••••`.
+- In a YAML or JSON file, `@` and a part of a key path list the keys of the file (topic Key paths in YAML and JSON).
 
 ## [search.jump] Edit locations and jumps
 commands: nks.search.recentEdits, nks.search.jumpBack, nks.search.jumpForward

@@ -28,14 +28,17 @@
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.WebData\NksHub.Textida.Plugins.WebData.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <Target Name="CopyJsonPlugin" AfterTargets="Build">
     <ItemGroup>
       <JsonPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Json\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <TextToolsPluginFiles Include="..\..\src\NksHub.Textida.Plugins.TextTools\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <WebDataPluginFiles Include="..\..\src\NksHub.Textida.Plugins.WebData\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(TextToolsPluginFiles)" DestinationFiles="@(TextToolsPluginFiles->'$(OutDir)plugins\texttools\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WebDataPluginFiles)" DestinationFiles="@(WebDataPluginFiles->'$(OutDir)plugins\webdata\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

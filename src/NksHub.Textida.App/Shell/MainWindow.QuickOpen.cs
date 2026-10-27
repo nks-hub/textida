@@ -1,6 +1,7 @@
 using System.Text;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Search;
@@ -76,6 +77,7 @@ internal sealed partial class MainWindow
 
     private List<QuickRow> FileRows(string query, out string highlight, out string? emptyText)
     {
+        if (query.StartsWith('@')) return KeyRows(query[1..].Trim(), out highlight, out emptyText);
         emptyText = Loc.Get(FileRootFolder is null ? K.PaletteNoFolder : K.PaletteFilesNoResults);
         string name = query.Trim();
         int? line = null;
@@ -124,6 +126,40 @@ internal sealed partial class MainWindow
             rows.Add(new QuickRow(reading, null, null, null, false, null, reading, () => { }));
         }
         return rows;
+    }
+
+    private (Guid Document, long Revision)? _keysRead;
+
+    /// <summary>
+    /// Go to Anything with <c>@</c>: the keys of the active YAML or JSON file by their path. Enter jumps to the bytes of the key, exactly as a click in the outline does.
+    /// The keys are read through the plugin the first time and again after an edit; the rows appear when it has published them.
+    /// </summary>
+    private List<QuickRow> KeyRows(string text, out string highlight, out string? emptyText)
+    {
+        highlight = text;
+        emptyText = Loc.Get(K.PaletteKeysNone);
+        if (Active is not { Surface: not null } tab || PluginServices.KeySyntax(tab.Doc.Language.Id) is null) return [];
+        var symbols = _app.Plugins.KeySymbols(tab, out bool current);
+        var version = (tab.Doc.Doc.Id, tab.Doc.Doc.Revision);
+        if ((symbols.Count == 0 || !current) && _keysRead != version)
+        {
+            _keysRead = version;
+            _ = ReadKeysAsync(tab);
+        }
+        if (symbols.Count == 0)
+        {
+            string reading = Loc.Get(K.PaletteKeysReading);
+            return [new QuickRow(reading, null, null, null, false, null, reading, () => { })];
+        }
+        string category = Loc.Get(K.PaletteCategoryKey);
+        return [.. symbols.Where(s => Matches(text, s.Name)).OrderBy(s => s.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase) ? 0 : 1).Take(60)
+            .Select(s => new QuickRow(s.Name, category, null, null, true, null, category + ": " + s.Name, () => { RecordJump(); _app.Plugins.RevealKey(tab, s.Id); }))];
+    }
+
+    private async Task ReadKeysAsync(DocTab tab)
+    {
+        await _app.Plugins.IndexKeysAsync(this, tab, reveal: false);
+        if (IsPaletteOpen && _paletteMode == PaletteMode.Files && (_paletteInput.Text ?? "").StartsWith('@')) RefreshPalette();
     }
 
     private QuickRow FileRow(Candidate c, int? line)
