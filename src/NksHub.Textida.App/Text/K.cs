@@ -1291,6 +1291,7 @@ public static class K
     public const string PluginsErrorInvalidManifest = "plugins.error.invalidManifest";
     public const string PluginsErrorIdCollision = "plugins.error.idCollision";
     public const string PluginsErrorNotNewer = "plugins.error.notNewer";
+    public const string PluginsErrorOtherPlugin = "plugins.error.otherPlugin";
     public const string PluginsErrorFailed = "plugins.error.failed";
     public const string PluginsManageMessage = "plugins.manage.message";
     public const string PluginsManagePrevious = "plugins.manage.previous";

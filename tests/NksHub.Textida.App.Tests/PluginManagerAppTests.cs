@@ -30,15 +30,15 @@ public class PluginManagerAppTests : IDisposable
         _temp.Dispose();
     }
 
-    private string Zip(string version, string[] permissions, Action<ZipArchive>? change = null)
+    private string Zip(string version, string[] permissions, Action<ZipArchive>? change = null, string id = "acme.clips")
     {
         var path = Path.Combine(_temp.Path, Guid.NewGuid().ToString("N") + ".zip");
         using (var zip = new ZipArchive(File.Create(path), ZipArchiveMode.Create))
         {
             using (var writer = new StreamWriter(zip.CreateEntry("nkspad-plugin.json").Open()))
-                writer.Write("{\"schemaVersion\":1,\"id\":\"acme.clips\",\"name\":\"Acme clips\",\"version\":\"" + version + "\",\"api\":{\"min\":1,\"max\":1}," +
+                writer.Write("{\"schemaVersion\":1,\"id\":\"" + id + "\",\"name\":\"Acme clips\",\"version\":\"" + version + "\",\"api\":{\"min\":1,\"max\":1}," +
                     "\"permissions\":[" + string.Join(",", permissions.Select(p => "\"" + p + "\"")) + "]," +
-                    "\"contributes\":{\"commands\":[{\"id\":\"acme.clips.hi\",\"title\":\"Hi\"}],\"clips\":[{\"id\":\"hi\",\"title\":\"Hi\",\"text\":\"hi\",\"command\":\"acme.clips.hi\"}]}}");
+                    "\"contributes\":{\"commands\":[{\"id\":\"" + id + ".hi\",\"title\":\"Hi\"}],\"clips\":[{\"id\":\"hi\",\"title\":\"Hi\",\"text\":\"hi\",\"command\":\"" + id + ".hi\"}]}}");
             change?.Invoke(zip);
         }
         return path;
@@ -97,6 +97,12 @@ public class PluginManagerAppTests : IDisposable
         var error = Assert.Single(_dialogs.Asked);
         Assert.Equal(Loc.Get(K.PluginsErrorTitle), error.Title);
         Assert.Equal(Loc.Get(K.PluginsErrorUnsafePath), error.Message);
+        Assert.Equal("1.1.0", Assert.Single(_app.Plugins.Manager.Installed()).Version);
+
+        _dialogs.Asked.Clear();
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(Zip("2.0.0", [], id: "other.plugin"), updateOf: "acme.clips"), expected: false);
+        Assert.Equal(Loc.Get(K.PluginsErrorOtherPlugin, ("id", "other.plugin")), Assert.Single(_dialogs.Asked).Message);
         Assert.Equal("1.1.0", Assert.Single(_app.Plugins.Manager.Installed()).Version);
     }
 

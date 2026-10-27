@@ -1310,6 +1310,7 @@
   "plugins.error.invalidManifest": "The manifest is refused:",
   "plugins.error.idCollision": "The plugin id belongs to a built-in plugin.",
   "plugins.error.notNewer": "A version of this plugin that is the same or newer is installed already.",
+  "plugins.error.otherPlugin": "This ZIP holds a different plugin ({id}), not an update of the selected one.",
   "plugins.error.failed": "The plugin could not be installed:",
   "plugins.manage.message": "{name} {version} is {state}.",
   "plugins.manage.previous": "Previous version kept: {previous}.",

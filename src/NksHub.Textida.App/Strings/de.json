@@ -1310,6 +1310,7 @@
   "plugins.error.invalidManifest": "Das Manifest wird abgelehnt:",
   "plugins.error.idCollision": "Die Plugin-ID gehört zu einem eingebauten Plugin.",
   "plugins.error.notNewer": "Eine gleiche oder neuere Version dieses Plugins ist bereits installiert.",
+  "plugins.error.otherPlugin": "Dieses ZIP enthält ein anderes Plugin ({id}), kein Update des ausgewählten.",
   "plugins.error.failed": "Das Plugin konnte nicht installiert werden:",
   "plugins.manage.message": "{name} {version} ist {state}.",
   "plugins.manage.previous": "Vorherige Version gesichert: {previous}.",

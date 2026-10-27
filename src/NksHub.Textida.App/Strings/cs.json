@@ -1340,6 +1340,7 @@
   "plugins.error.invalidManifest": "Manifest je odmítnut:",
   "plugins.error.idCollision": "ID pluginu patří vestavěnému pluginu.",
   "plugins.error.notNewer": "Stejná nebo novější verze tohoto pluginu už je nainstalovaná.",
+  "plugins.error.otherPlugin": "Tento ZIP obsahuje jiný plugin ({id}), ne aktualizaci vybraného pluginu.",
   "plugins.error.failed": "Plugin se nepodařilo nainstalovat:",
   "plugins.manage.message": "{name} {version} je {state}.",
   "plugins.manage.previous": "Předchozí verze je uložená: {previous}.",

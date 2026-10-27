@@ -75,9 +75,9 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// Unpacks and checks a ZIP, shows the permissions it asks for and installs it when the user agrees. <paramref name="zip"/> is asked for when it is null.
-    /// Returns whether the plugin was installed or updated.
+    /// Returns whether the plugin was installed or updated. With <paramref name="updateOf"/> the ZIP has to hold that plugin.
     /// </summary>
-    internal async Task<bool> InstallPluginAsync(string? zip = null)
+    internal async Task<bool> InstallPluginAsync(string? zip = null, string? updateOf = null)
     {
         var manager = _app.Plugins.Manager;
         zip ??= (await _app.Dialogs.PickFilesAsync(this)).FirstOrDefault();
@@ -87,6 +87,12 @@ internal sealed partial class MainWindow
         catch (Exception e) when (IsInstallFailure(e))
         {
             await ShowPluginErrorAsync(e);
+            return false;
+        }
+        if (updateOf is not null && package.Id != updateOf)
+        {
+            manager.Discard(package);
+            await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.PluginsErrorTitle), Loc.Get(K.PluginsErrorOtherPlugin, ("id", package.Id)), [new DialogButton(Loc.Get(K.DialogOk), IsDefault: true)]));
             return false;
         }
 
@@ -121,7 +127,7 @@ internal sealed partial class MainWindow
         var actions = new List<(string Label, Func<Task> Run)>
         {
             plugin.Enabled ? (Loc.Get(K.PluginsManageDisable), () => SetPluginEnabledAsync(plugin, false)) : (Loc.Get(K.PluginsManageEnable), () => SetPluginEnabledAsync(plugin, true)),
-            (Loc.Get(K.PluginsManageUpdate), () => InstallPluginAsync()),
+            (Loc.Get(K.PluginsManageUpdate), () => InstallPluginAsync(updateOf: id)),
         };
         if (plugin.PreviousVersion is { } previous) actions.Add((Loc.Get(K.PluginsManageRollback, ("version", previous)), () => RollBackPluginAsync(plugin)));
         actions.Add((Loc.Get(K.PluginsManagePermissions), () => { ShowPluginPermissions(id); return Task.CompletedTask; }));
