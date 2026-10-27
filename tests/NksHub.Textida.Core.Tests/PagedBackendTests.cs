@@ -45,9 +45,10 @@ public class PagedBackendTests
         using var tmp = new TempFile(bytes);
         using var gate = new ManualResetEventSlim();
         MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == tmp.Path && block >= 4) gate.Wait(); };
+        Doc? d = null;
         try
         {
-            using var d = Doc.Open(tmp.Path, new PagedBackendFactory(indexBlockSize: 64), new DocumentOptions { Format = TestFormat.Utf8.Format });
+            d = Doc.Open(tmp.Path, new PagedBackendFactory(indexBlockSize: 64), new DocumentOptions { Format = TestFormat.Utf8.Format });
             var paged = ((PagedBackend)d.Backend).Paged;
             for (int i = 0; i < 1000 && paged.IndexedBytes < 256; i++) Thread.Sleep(5);
             Assert.Equal(256, paged.IndexedBytes);
@@ -75,8 +76,9 @@ public class PagedBackendTests
         }
         finally
         {
-            gate.Set();
+            gate.Set(); // the index must run on before the document is disposed
             MappedFileSource.IndexBlockHook = null;
+            d?.Dispose();
         }
     }
 
