@@ -143,7 +143,7 @@ public class PagedLongLineTests : IDisposable
     [AvaloniaFact]
     public async Task A_far_window_of_a_long_line_gets_the_colors_of_its_grammar()
     {
-        string line = "[" + string.Concat(Enumerable.Repeat("\"ab\",1,", 30_000)) + "0]"; // 210 003 characters
+        string line = "[" + string.Concat(Enumerable.Repeat("\"ab\",1,", 160_000)) + "0]"; // 1 120 003 characters, above the 1 MiB threshold of the paged mode
         var tab = OpenBytes(Encoding.UTF8.GetBytes(line + "\n[2]\n"), "long.json");
         var paged = tab.Paged!;
         Assert.True(paged.Syntax.Active);
