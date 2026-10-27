@@ -6,7 +6,7 @@ using NksHub.Textida.Core.Encodings;
 namespace NksHub.Textida.App.Services;
 
 /// <summary>
-/// One side of a comparison: an open document (read at its current revision and the target of a transfer), a file on disk, or a text
+/// One side of a comparison: an open document (read at its current revision and the target of a transfer), a revision of a document, a file on disk, or a text
 /// (the clipboard, a selection, or text the user pasted). Only a document can receive a block from the other side.
 /// </summary>
 internal sealed class CompareSide
@@ -15,6 +15,9 @@ internal sealed class CompareSide
     public string Title { get; set; } = "";
     public OpenDocument? Document { get; init; }
     public string? FilePath { get; init; }
+    /// <summary>A revision of a document a plugin asked to compare; it stays as it was asked for (<see cref="SnapshotBom"/> bytes at its start are the byte order mark).</summary>
+    public DocumentSnapshot? Snapshot { get; init; }
+    public int SnapshotBom { get; init; }
     public TextCodec? FileCodec { get; init; }
     public string Text { get; set; } = "";
     /// <summary>The user fills this side by pasting; the view offers a button for it.</summary>
@@ -25,6 +28,7 @@ internal sealed class CompareSide
     /// <summary>A snapshot of the side as it is now. Dispose it with <see cref="DiffSource.Release"/>.</summary>
     internal DiffSource Open() =>
         Document is { } od ? DiffSource.Of(od.Doc)
+        : Snapshot is { } snapshot ? new DiffSource(snapshot, snapshot.Codec, SnapshotBom)
         : FilePath is { } path ? DiffSource.OfFile(path, FileCodec)
         : DiffSource.OfText(Text);
 }

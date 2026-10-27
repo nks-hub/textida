@@ -123,7 +123,10 @@ internal sealed partial class MainWindow
         InvalidateWorkspaceIndex();
     }
 
-    private void TrackEdits(OpenDocument od) => _edits.Attach(od.Doc);
+    private void TrackEdits(OpenDocument od)
+    {
+        if (!od.IsVirtual) _edits.Attach(od.Doc); // the owner's updates are not edits of the user
+    }
 
     /// <summary>The last view of a document closes: its places become file positions that survive in the lists.</summary>
     private void ForgetDocument(OpenDocument od)

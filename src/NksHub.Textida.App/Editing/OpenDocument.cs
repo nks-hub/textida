@@ -98,7 +98,9 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null && !_switchedForHex;
-    public bool ReadOnly => IsResults || LockedReadOnly;
+    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly;
+    /// <summary>The document is a view of data a plugin supplies (P6.2.6): read only, never saved, never journaled and not part of the session.</summary>
+    public bool IsVirtual => _doc.IsVirtual;
     /// <summary>The lock this document holds on its file, or the reason the file opened read only; null for a document without a file.</summary>
     public Core.Files.FileLockResult? Lock { get; set; }
     /// <summary>Another program or another editor window holds the file, so this tab only reads it.</summary>
@@ -112,7 +114,7 @@ internal sealed class OpenDocument : IDisposable
     public string? Path => _doc.FilePath;
 
     /// <summary>Changes worth asking about: modified, and not just a new document nobody typed into.</summary>
-    public bool HasUnsavedWork => !IsResults && _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
+    public bool HasUnsavedWork => !IsResults && !IsVirtual && _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
     public EolStats Eol => _eol;
 
     /// <summary>The title of a tab with a view of its own other than the search results (a comparison); read again each time the tab strip is drawn, so it follows the language.</summary>
@@ -200,6 +202,9 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>An empty document that stands behind a tab with a view of its own (the search results).</summary>
     public static OpenDocument NewResults() =>
         new(Document.FromBytes(ReadOnlyMemory<byte>.Empty, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 }), 0, null, LanguageModes.Plain) { IsResults = true };
+
+    /// <summary>Wraps a virtual document (see <see cref="Document.CreateVirtual"/>); its name decides the language mode.</summary>
+    public static OpenDocument NewVirtual(Document doc) => new(doc, 0, null, LanguageModes.ForPath(doc.VirtualName));
 
     /// <summary>Reads the <c>.editorconfig</c> files that apply to the path of the document again; call it when the document is activated or saved.</summary>
     public void RefreshEditorConfig()

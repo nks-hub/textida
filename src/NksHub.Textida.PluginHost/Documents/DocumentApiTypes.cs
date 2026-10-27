@@ -1,5 +1,6 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Permissions;
 
@@ -43,6 +44,16 @@ public static class DocumentMethods
     public const string FindLog = "document/findLog";
     /// <summary>The symbols plugins published for a document.</summary>
     public const string SymbolsList = "symbols/list";
+    /// <summary>The line diff of two revisions (documents at their current revision or snapshots): hunks as lines and byte ranges.</summary>
+    public const string DiffCompute = "diff/compute";
+    /// <summary>Shows the diff of two revisions in a comparison tab.</summary>
+    public const string DiffOpen = "diff/open";
+    /// <summary>Takes one hunk of a diff into a virtual document the plugin provides (the index of a repository), unless that document moved on.</summary>
+    public const string DiffStage = "diff/stage";
+    /// <summary>Opens a read only document the plugin supplies as a view of its data, or returns the one already open under the same key.</summary>
+    public const string VirtualOpen = "virtual/open";
+    /// <summary>Gives a virtual document new content (a new revision), optionally only if it is still at the revision the plugin last saw.</summary>
+    public const string VirtualUpdate = "virtual/update";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -74,6 +85,8 @@ public static class DocumentPermissions
     public const string SecretsReveal = "document.secrets.reveal";
     /// <summary>Replaces the clipboard content. What a plugin writes is its own text; a hidden value of a secrets file only reaches it when <see cref="SecretsReveal"/> was granted.</summary>
     public const string ClipboardWrite = "clipboard.write";
+    /// <summary>Provides documents of its own (read only tabs) and changes their content and revision. It never reaches a document it did not provide.</summary>
+    public const string Virtual = "document.virtual";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -95,6 +108,11 @@ public static class DocumentErrorCodes
     public const int NoTextView = -32029;
     /// <summary>The document is not shown as a table, so there are no selected cells.</summary>
     public const int NoTableView = -32030;
+    /// <summary>The document is a virtual document: it takes no edit from a plugin or an assistant (data: <c>reason</c> = <c>Virtual</c>).</summary>
+    public const int ReadOnlyDocument = -32031;
+    /// <summary>The document is not one this plugin provided, so it cannot update it or stage into it.</summary>
+    public const int NotProvider = -32032;
+    public const int VirtualQuotaExceeded = -32033;
 }
 
 /// <summary>
@@ -135,6 +153,10 @@ public sealed record DocumentApiOptions
     public required long MaxScanBytes { get; init; }
     /// <summary>Log level rules of a document; null (or a null answer) means the default rules.</summary>
     public Func<Guid, LogLevelRules?>? LogRules { get; init; }
+    /// <summary>Virtual documents one plugin may keep open at the same time.</summary>
+    public required int MaxVirtualDocumentsPerPlugin { get; init; }
+    /// <summary>Largest content of a virtual document, in bytes; also the largest an update may make it.</summary>
+    public required long MaxVirtualBytes { get; init; }
 }
 
 /// <summary>One cell of the table selection: its value as the table shows it and the bytes it occupies in the document (empty at the end of a short row).</summary>
@@ -175,7 +197,17 @@ public interface IEditorTools
     TableSelectionData? TableSelection(Guid document);
     /// <summary>Replaces the clipboard: <paramref name="text"/> and, when given, <paramref name="html"/> as the rich form of it.</summary>
     void SetClipboard(Guid document, string text, string? html);
+    /// <summary>Opens a tab for a new virtual document and returns it. <paramref name="title"/> is the text of the tab; the name decides the language and the hiding of secrets.</summary>
+    Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec);
+    /// <summary>Shows the comparison of two revisions in a tab of the editor; false when it could not be shown.</summary>
+    bool OpenDiff(DiffRequest request);
 }
+
+/// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
+public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title);
+
+/// <summary>The comparison of two revisions the editor shows as a tab. <paramref name="Title"/> is null when the editor names it after its sides.</summary>
+public sealed record DiffRequest(string? Title, DiffInput Left, DiffInput Right);
 
 /// <summary>Sends a request to a plugin and waits for its answer (<see cref="PluginHost.CallAsync"/> with the timeout).</summary>
 public delegate Task<JsonElement> PluginRequestSender(string pluginId, string method, ReadOnlyMemory<byte> paramsJson, TimeSpan timeout, CancellationToken cancellation);

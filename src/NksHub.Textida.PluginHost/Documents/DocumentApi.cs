@@ -30,7 +30,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
-            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1)
+            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
+            || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
@@ -66,7 +67,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
 
     /// <summary>The secrets of a revision of a secrets file (found on first use), or null for any other document. Call on the thread that owns the document.</summary>
     private Lazy<IReadOnlyList<ByteRange>>? SecretsOf(Document d, DocumentSnapshot snap, int bom) =>
-        SecretValues.IsSecretFile(d.FilePath)
+        SecretValues.IsSecretFile(d.SecretsPath)
             ? new(() => snap.ByteLength > _options.MaxSecretScanBytes ? [new ByteRange(bom, snap.ByteLength)] : SecretValues.ByteRanges(snap, bom))
             : null;
 
@@ -96,6 +97,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             subscribers = [.. e.Subscribers];
         }
         document.Changed -= e.Handler;
+        ForgetVirtual(document.Id);
         ClearSymbols(key => key.Document == document.Id);
         var payload = Obj(w => w.WriteString("document", document.Id));
         foreach (var plugin in subscribers) Enqueue(plugin, document.Id, DocumentEvents.Withdrawn, payload);
@@ -108,6 +110,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         DocumentMethods.EditApply or DocumentMethods.SnippetInsert => DocumentPermissions.EditDirect,
         DocumentMethods.EditPropose => DocumentPermissions.EditPropose,
         DocumentMethods.ClipboardWrite => DocumentPermissions.ClipboardWrite,
+        DocumentMethods.VirtualOpen or DocumentMethods.VirtualUpdate => DocumentPermissions.Virtual,
         _ => DocumentPermissions.Read,
     };
 
@@ -176,6 +179,11 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.FindBytes: return await FindBytesAsync(pluginId, p, cancellation);
             case DocumentMethods.FindLog: return await FindLogAsync(pluginId, p, cancellation);
             case DocumentMethods.SymbolsList: return await SymbolsListAsync(p);
+            case DocumentMethods.DiffCompute: return await DiffComputeAsync(pluginId, p, cancellation);
+            case DocumentMethods.DiffOpen: return await DiffOpenAsync(pluginId, p, cancellation);
+            case DocumentMethods.DiffStage: return await DiffStageAsync(pluginId, p, cancellation);
+            case DocumentMethods.VirtualOpen: return await VirtualOpenAsync(pluginId, p);
+            case DocumentMethods.VirtualUpdate: return await VirtualUpdateAsync(pluginId, p);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
@@ -225,6 +233,15 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         {
             return _exposed.TryGetValue(id, out var e) ? e : throw Fail(DocumentErrorCodes.UnknownDocument, "The document is not open or not available to plugins.");
         }
+    }
+
+    /// <summary>A document an edit may reach: a virtual document is a view of a plugin's data and takes no edit, from a plugin or from an assistant.</summary>
+    private Exposed FindWritable(Guid id)
+    {
+        var e = Find(id);
+        if (e.Doc.IsVirtual)
+            throw Fail(DocumentErrorCodes.ReadOnlyDocument, "The document is a virtual document and is read only.", w => w.WriteString("reason", "Virtual"));
+        return e;
     }
 
     private static void CheckCurrent(Document d, long revision)

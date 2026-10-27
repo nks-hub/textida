@@ -57,13 +57,13 @@ internal sealed class JournalService : IDisposable
     /// <summary>Starts journaling a new or freshly opened document; a recovered one is already tracked.</summary>
     public void Track(OpenDocument doc)
     {
-        if (doc.JournalId is not null || doc.IsResults) return;
+        if (doc.JournalId is not null || doc.IsResults || doc.IsVirtual) return;
         doc.JournalId = Session.Track(doc.Doc);
     }
 
     public void Untrack(OpenDocument doc)
     {
-        if (doc.IsResults) return;
+        if (doc.IsResults || doc.IsVirtual) return;
         Session.Untrack(doc.Doc);
         doc.JournalId = null;
     }

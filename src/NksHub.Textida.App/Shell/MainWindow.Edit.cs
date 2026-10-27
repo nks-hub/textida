@@ -108,7 +108,7 @@ internal sealed partial class MainWindow
             paged.UndoRedo(redo);
             return;
         }
-        if (Active is not { Surface: { } surface } tab) return;
+        if (Active is not { Surface: { } surface } tab || tab.Doc.IsVirtual) return;
         var doc = tab.Doc.Doc;
         var changes = new List<ChangeSet>();
         void Capture(object? s, NksHub.Textida.Core.Documents.DocumentChangedEventArgs e) => changes.Add(e.Change);

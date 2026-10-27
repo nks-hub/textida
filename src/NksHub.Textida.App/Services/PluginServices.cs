@@ -5,7 +5,9 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
@@ -449,7 +451,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             while (Blocking() is { Background: true } asking) await asking.Done.Task;
         if (Busy()) return default;
         // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
-        bool reveal = !keepHidden && SecretValues.IsSecretFile(document.FilePath);
+        bool reveal = !keepHidden && SecretValues.IsSecretFile(document.SecretsPath);
         if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.FilePath)!))))) return default;
         if (Busy()) return default;
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -557,6 +559,21 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     public void SetClipboard(Guid document, string text, string? html)
     {
         if (TabOf(document) is { } found) found.Window.WriteClipboard(text, html);
+    }
+
+    public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec)
+    {
+        var window = _app.ActiveWindow ?? throw new InvalidOperationException("There is no window to show the document in.");
+        var document = Document.CreateVirtual(name, content, AvaloniaEditBackendFactory.Instance, codec);
+        window.OpenVirtualDocument(document, title);
+        return document;
+    }
+
+    public bool OpenDiff(DiffRequest request)
+    {
+        if (_app.ActiveWindow is not { } window) return false;
+        window.OpenDiffRequest(request);
+        return true;
     }
 
     public string NewLine(Guid document) =>

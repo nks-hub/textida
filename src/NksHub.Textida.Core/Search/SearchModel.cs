@@ -49,11 +49,11 @@ public sealed record SearchSettings
 }
 
 /// <summary>An open document searched in its current revision, including changes that are not saved.</summary>
-public sealed record LiveBuffer(DocumentSnapshot Snapshot, string? Path, string Title)
+public sealed record LiveBuffer(DocumentSnapshot Snapshot, string? Path, string Title, string? VirtualName = null)
 {
     /// <summary>Takes the snapshot; call it on the thread that owns <paramref name="doc"/>.</summary>
     public static LiveBuffer Of(Document doc, string? title = null) =>
-        new(doc.GetSnapshot(), doc.FilePath, title ?? (doc.FilePath is { } p ? System.IO.Path.GetFileName(p) : "Untitled"));
+        new(doc.GetSnapshot(), doc.FilePath, title ?? (doc.FilePath is { } p ? System.IO.Path.GetFileName(p) : "Untitled"), doc.VirtualName);
 }
 
 /// <summary>Folders to walk and open buffers; a buffer replaces the file of the same path on disk.</summary>

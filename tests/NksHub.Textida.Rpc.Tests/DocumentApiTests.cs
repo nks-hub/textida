@@ -86,7 +86,7 @@ public partial class DocumentApiTests
                 TabTimeout = TimeSpan.FromMilliseconds(500),
                 MaxSecretScanBytes = 1 << 20,
                 MaxClipboardChars = 1000,
-                MaxScanBytes = 1 << 22,
+                MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
             };
             if (tune is not null) options = tune(options);
             var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
