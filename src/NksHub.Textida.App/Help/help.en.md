@@ -466,6 +466,7 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - When the search reaches the end, it continues from the start and the status bar says so.
 - An invalid pattern is shown next to the match count. A pattern that is too slow is stopped by the search.
 - Finding works in paged mode too; replacing does not.
+- In a large file the bar shows the progress in percent and the Cancel button stops the search. List puts the matches in the Search Results tab; when there are more matches than it lists, the tab says so.
 - When you turn on the regular expression, a Try button appears (topic Regular expression tester).
 
 ## [search.replace] Replacing

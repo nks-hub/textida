@@ -471,6 +471,7 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Když hledání dojde na konec, pokračuje od začátku a stavový řádek to ohlásí.
 - Neplatný výraz je vidět u počtu shod. Příliš pomalý výraz hledání zastaví.
 - Hledání funguje i ve stránkovaném režimu; nahrazování tam ne.
+- Ve velkém souboru ukazuje lišta průběh v procentech a tlačítko Zrušit hledání zastaví. Vypsat dá shody do karty Výsledky hledání; je-li shod víc, než se vypíše, karta to napíše.
 - Zapnete-li regulární výraz, objeví se tlačítko Zkusit (téma Zkouška regulárního výrazu).
 
 ## [search.replace] Nahrazení

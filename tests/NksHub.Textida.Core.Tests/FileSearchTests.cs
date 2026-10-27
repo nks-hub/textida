@@ -283,6 +283,76 @@ public class FileSearchTests
     }
 
     [Fact]
+    public async Task APagedDocumentGivesTheOrderedMultibyteMatchesOfItsCurrentRevisionAcrossBlocksChunksAndEdits()
+    {
+        var lines = Enumerable.Range(0, 40_000).Select(i => i % 5 == 0 ? $"řádek {i} žluťoučký kň {Smile}\n" : $"řádek {i} kůň ✓\n").ToList();
+        var starts = new long[lines.Count];
+        for (int i = 1; i < lines.Count; i++) starts[i] = starts[i - 1] + Encoding.UTF8.GetByteCount(lines[i - 1]);
+        using var file = new TempFile(Encoding.UTF8.GetBytes(string.Concat(lines)));
+        using var doc = Doc.Open(file.Path, new PagedBackendFactory(indexBlockSize: 4096), new DocumentOptions { Format = TestFormat.Utf8.Format });
+        // "ů" typed between "k" and "ň" makes a match that spans the original file and the inserted bytes; from the end, so the offsets before stay valid
+        for (int i = (lines.Count - 1) / 15 * 15; i >= 0; i -= 15)
+        {
+            int at = lines[i].IndexOf("kň", StringComparison.Ordinal) + 1;
+            doc.Insert(starts[i] + Encoding.UTF8.GetByteCount(lines[i][..at]), "ů"u8.ToArray());
+            lines[i] = lines[i].Insert(at, "ů");
+        }
+        string text = string.Concat(lines);
+
+        var cases = new (SearchPattern Pattern, Func<string, IEnumerable<(int, int)>> Find)[]
+        {
+            (new SearchPattern("kůň"), t => Literal(t, "kůň")),
+            (new SearchPattern("KŮŇ", CaseSensitive: false), t => Regex.Matches(t, "kůň", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Select(m => (m.Index, m.Length))),
+        };
+        foreach (var (pattern, find) in cases)
+        {
+            var (hits, summary) = await SearchWorker.CollectAsync(pattern, new SearchScope([], [LiveBuffer.Of(doc)]), Small);
+            var expected = new List<Expect>();
+            int line = 1, lineStart = 0, counted = 0, before = 0;
+            long bytes = 0;
+            foreach (var (index, length) in find(text))
+            {
+                for (; counted < index; counted++) if (text[counted] == '\n') (line, lineStart) = (line + 1, counted + 1);
+                bytes += Encoding.UTF8.GetByteCount(text.AsSpan(before, index - before));
+                before = index;
+                expected.Add(new(bytes, Encoding.UTF8.GetByteCount(text.AsSpan(index, length)), line, index - lineStart));
+            }
+            Assert.True(expected.Count > 32_000);
+            Assert.Equal(expected.Count, summary.TotalMatches);
+            Assert.Equal(expected, hits.Select(h => new Expect(h.Range.Start, (int)h.Range.Length, h.Line, h.Column)));
+            Assert.All(hits, h => Assert.Equal(doc.Revision, h.Source.Revision));
+        }
+    }
+
+    [Fact]
+    public async Task CancellingTheSearchOfALargeOpenDocumentEndsTheWorkerWithinASecondWithoutReadingTheRest()
+    {
+        byte[] line = "2026-10-26 12:00:00 INFO request handled path=/api/items/42\n"u8.ToArray();
+        var bytes = new byte[(ContentScannerLimit + (8 << 20)) / line.Length * line.Length];
+        for (int at = 0; at < bytes.Length; at += line.Length) line.CopyTo(bytes, at);
+        using var file = new TempFile(bytes);
+        using var doc = Doc.Open(file.Path, new PagedBackendFactory(), new DocumentOptions { Format = TestFormat.Utf8.Format });
+        using var cts = new CancellationTokenSource();
+        long cancelledAt = 0;
+        // cancelled from the first progress report, so the search is surely in the middle of the parallel ranges
+        var settings = new SearchSettings
+        {
+            MaxResults = 1000, StopAtLimit = false, ChunkBytes = 1 << 20, Parallelism = 4,
+            Progress = _ => { if (Interlocked.CompareExchange(ref cancelledAt, Stopwatch.GetTimestamp(), 0) == 0) cts.Cancel(); },
+        };
+
+        var run = SearchWorker.Start(new SearchPattern("ITEMS/4", CaseSensitive: false), new SearchScope([], [LiveBuffer.Of(doc)]), settings, cts.Token);
+        await foreach (var _ in run.Batches.ReadAllAsync()) { }
+        var summary = await run.Completion;
+        double ms = Stopwatch.GetElapsedTime(Interlocked.Read(ref cancelledAt)).TotalMilliseconds;
+
+        Assert.Equal(SearchEnd.Cancelled, summary.End);
+        Assert.True(ms <= 1000, $"the worker took {ms:0} ms to end after the cancel");
+        Assert.True(run.Progress.Done < run.Progress.Total, $"read {run.Progress.Done} of {run.Progress.Total} bytes");
+        Assert.Equal(0, summary.TotalMatches);
+    }
+
+    [Fact]
     public async Task AnEditAfterTheSearchNeverLeavesAHitWithAnInvalidOffset()
     {
         using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 200).Select(i => $"line {i} needle\n"))), ReferenceBackendFactory.Instance);

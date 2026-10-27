@@ -466,6 +466,7 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Erreicht die Suche das Ende, geht sie am Anfang weiter, und die Statusleiste meldet es.
 - Ein ungültiger Ausdruck wird bei der Trefferzahl angezeigt. Ein zu langsamer Ausdruck wird von der Suche abgebrochen.
 - Die Suche funktioniert auch im Seitenmodus; das Ersetzen dort nicht.
+- In einer großen Datei zeigt die Leiste den Fortschritt in Prozent, und Abbrechen hält die Suche an. Auflisten zeigt die Treffer im Tab Suchergebnisse; gibt es mehr Treffer, als aufgelistet werden, sagt der Tab das.
 - Schalten Sie den regulären Ausdruck ein, erscheint die Schaltfläche Testen (Thema Regex-Tester).
 
 ## [search.replace] Ersetzen

@@ -219,6 +219,8 @@ internal sealed partial class MainWindow
         {
             ForgetDocument(od);
             RememberClosed(od);
+
+            FindDocumentClosed(od.Doc);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();
