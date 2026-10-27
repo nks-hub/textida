@@ -132,6 +132,7 @@ public class ConfigBackupTests : IDisposable
         Assert.Contains("newer", Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(Zip(("textida-backup.json", """{ "format": 99 }"""), ("user-settings.json", "{}")))).Message);
         Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(Zip(("readme.txt", "hello"))));
         Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(Zip(("textida-backup.json", """{ "format": "one" }"""))));
+        Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(Zip(("textida-backup.json", """[ 1 ]"""))));
         string notZip = Path.Combine(_out.Path, "not.zip");
         File.WriteAllText(notZip, "plain text");
         Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(notZip));

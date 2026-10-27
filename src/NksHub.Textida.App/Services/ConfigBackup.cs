@@ -201,7 +201,7 @@ internal static partial class ConfigBackup
             JsonNode? m;
             try { using var s = manifest.Open(); m = JsonNode.Parse(s); }
             catch (JsonException e) { throw new ConfigBackupException($"The description of the backup '{name}' is damaged: {e.Message}"); }
-            if (m?["format"] is not JsonValue v || v.GetValueKind() != JsonValueKind.Number || !v.TryGetValue<int>(out int format) || format < 1)
+            if ((m as JsonObject)?["format"] is not JsonValue v || v.GetValueKind() != JsonValueKind.Number || !v.TryGetValue<int>(out int format) || format < 1)
                 throw new ConfigBackupException($"'{name}' has no valid format version.");
             if (format > FormatVersion) throw new ConfigBackupException($"'{name}' was written by a newer editor (format {format}).");
             long size = zip.Entries.Where(e => Belongs(e.FullName)).Sum(e => e.Length);
