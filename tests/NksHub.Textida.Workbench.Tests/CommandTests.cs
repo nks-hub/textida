@@ -327,6 +327,33 @@ public class RegistryTests
     }
 
     [Fact]
+    public async Task A_macro_step_keeps_the_argument_its_command_recorded_and_gets_it_back_when_played()
+    {
+        var registry = Host.Commands;
+        var seen = new List<string?>();
+        registry.SetHandler("nks.search.findNext", (_, _) =>
+        {
+            seen.Add(registry.StepArgument);
+            registry.RecordArgument("{\"text\":\"foo\"}");
+            return ValueTask.FromResult(CommandOutcome.Handled);
+        });
+        registry.SetHandler("nks.edit.selectAll", (_, _) => ValueTask.FromResult(CommandOutcome.Handled));
+        var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false);
+
+        Assert.True(registry.StartRecording());
+        await registry.ExecuteAsync("nks.search.findNext", ctx);
+        await registry.ExecuteAsync("nks.edit.selectAll", ctx);
+        var steps = registry.StopRecording();
+        Assert.Equal([new MacroStep("nks.search.findNext", null, "{\"text\":\"foo\"}"), new MacroStep("nks.edit.selectAll", null)], steps);
+
+        // outside a recording the argument goes nowhere and is not left over for the next recorded step
+        await registry.ExecuteAsync("nks.search.findNext", ctx);
+        Assert.Equal(new MacroResult(2, CommandOutcome.Handled), await registry.PlayAsync(steps, ctx, _ => true));
+        Assert.Equal([null, null, "{\"text\":\"foo\"}"], seen);
+        Assert.Null(registry.StepArgument);
+    }
+
+    [Fact]
     public async Task Fallback_chains_are_bounded()
     {
         var host = Host;
