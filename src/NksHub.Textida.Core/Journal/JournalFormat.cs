@@ -59,11 +59,12 @@ internal static class Crc32
 /// File header: magic "NKSJRNL\0", u16 version, u16 flags, u32 CRC of the first 12 bytes.
 /// Record: u32 payload length, u32 CRC, u8 type, u64 sequence, [i64 timestamp, version 2+], payload.
 /// Version 3 differs from 2 only in the payload layout of edit records (a large inserted block may be a reference to a payload file).
+/// Version 4 differs from 3 only in that layout again (the edits of a change set with very many edits may be a list in a payload file).
 /// The CRC covers every record byte except the CRC field itself.
 /// </summary>
 public static class JournalFormat
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
     public const int OldestReadableVersion = 1;
     public const int FileHeaderSize = 16;
     private static readonly byte[] Magic = "NKSJRNL\0"u8.ToArray();

@@ -274,7 +274,7 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Bei mehreren Cursorn werden die markierten Texte zeilenweise kopiert, und beim Einfügen bekommt jeder Cursor sein Stück.
 - In einer Blockauswahl geht eine Zeile der Zwischenablage in jede Zeile des Blocks.
 - Beim Einfügen in eine Zeichenkette einer Programmiersprache werden Anführungszeichen und Backslashes maskiert (Einstellung Beim Einfügen in Zeichenketten maskieren).
-- Ausschneiden und Einfügen gehen nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus (Thema Große Dateien).
+- Ausschneiden und Einfügen gehen nicht in einem schreibgeschützten Dokument. Im Seitenmodus gehen alle drei (Thema Große Dateien); eine Auswahl über dem dortigen Kopierlimit (256 MiB, vorläufiger Wert) wird nicht kopiert, und die Statusleiste sagt es.
 
 ## [edit.select] Auswählen
 commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
@@ -1084,6 +1084,12 @@ Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens z
 - Lässt sich das Journal in keinen Ordner schreiben, sagt die Leiste: Die Wiederherstellung nach Absturz ist aus. Ungespeicherter Text bleibt dann nur in den Tabs; speichern Sie von Hand. Hört es im Betrieb auf zu funktionieren: Das Journal funktioniert nicht mehr, die Wiederherstellung nach Absturz gilt nicht mehr, speichern Sie von Hand.
 - Wird der Ersatzordner verwendet, nennt die Leiste, welcher.
 - Ein unterbrochener Stapel von Dateiänderungen (Ersetzungen in Dateien sowie die Dateien, die eine Arbeitsbereichsänderung eines Plugins anlegt, umbenennt oder löscht) wird nach dem Start angeboten: Abschließen oder Zurücksetzen. Eine Datei, die inzwischen jemand anderes geändert hat, bleibt unverändert.
+### Große Änderungen
+- Sind die ungespeicherten Änderungen eines Dokuments größer als das Wiederherstellungslimit (64 MiB, vorläufiger Wert), zum Beispiel ein Alles ersetzen oder ein großes Einfügen in einer großen Datei, kommt sein Tab nicht von selbst zurück. Eine Leiste nennt die Datei, die Größe der Änderungen und wann sie entstanden, und bietet Änderungen wiederherstellen und Änderungen verwerfen an. Bis Sie wählen, wird nichts aus dem Journal gelesen, und die Datei bleibt unberührt.
+- Änderungen wiederherstellen liest das Journal im Hintergrund, das Programm arbeitet also weiter, und öffnet dann den Tab mit den ungespeicherten Änderungen wie nach jeder anderen Wiederherstellung. Gelingt das nicht (die Datei hat sich inzwischen geändert, ein Teil des Journals fehlt oder ist beschädigt, der Speicher reicht nicht), sagt die Leiste warum, und die Änderungen bleiben im Journal.
+- Änderungen verwerfen fragt noch einmal nach, weil nichts die Änderungen zurückbringt; dann werden sie aus dem Journal gelöscht. Die Datei auf dem Datenträger ändert keine der beiden Wahlen.
+- Das Schließen der Leiste entscheidet nichts: Die Leiste kommt beim nächsten Start wieder.
+- Ein Alles ersetzen mit sehr vielen Treffern wird als Liste in einer eigenen Datei ins Journal geschrieben, nie als ein riesiger Eintrag, das Journal funktioniert also bei jeder Zahl von Treffern. Eine beschädigte oder fehlende Liste hält nur dieses Dokument vom Zurückkehren ab, mit dem Grund.
 
 ## [paged] Große Dateien (Seitenmodus)
 Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Um eine Datei ohne diese Einschränkungen byteweise zu durchsuchen und zu bearbeiten, öffnen Sie sie in Hex (Thema Hex: Öffnen und Bewegen). Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht. Bereits gelesene Teile der Datei, etwa beim Nummerieren der Zeilen, gibt es an das System zurück, deshalb wächst der belegte Speicher nicht mit der Größe der Datei.
@@ -1092,9 +1098,11 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
 - Suchen (Strg+F). In Dateien suchen.
+- Auswählen (Umschalt mit den Pfeilen, Maus, Strg+A), Kopieren, Ausschneiden und Einfügen. Eine Auswahl über dem Kopierlimit (256 MiB, vorläufiger Wert) wird nicht kopiert, und die Statusleiste sagt es. Eine lange Auswahl wird im Hintergrund gelesen, und Ausschneiden löscht nur, wenn sich der Text inzwischen nicht geändert hat.
 - Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
+- Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen.
 ### Was nicht geht
-- Auswahl, Zwischenablage (Ausschneiden, Kopieren, Einfügen), Blockauswahl, mehrere Cursor.
+- Blockauswahl, mehrere Cursor.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
 - Zur passenden Klammer springen, Zeilenumbruch.
 - Konvertieren und erneutes Lesen der Codierung, Vereinheitlichen der Zeilenenden, Normalisierung.
@@ -1102,6 +1110,8 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Meldungen
 - Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich: Warten Sie, bis die Datei durchgelesen ist.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
+- Die Auswahl ist größer als das Kopierlimit: Wählen Sie weniger aus; die Zwischenablage blieb, wie sie war.
+- Die Änderung ist zu groß, um rückgängig gemacht zu werden: Entfernen oder fügen Sie weniger Text auf einmal ein; das Dokument wurde nicht verändert.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Das Speichern einer großen Datei hält das Fenster auf.
 

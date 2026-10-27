@@ -15,9 +15,9 @@ All integers are little endian.
 
 The CRC covers every record byte except the CRC field. Sequence numbers start at 1 and rise by 1.
 
-Version 3 is current. It has the record layout of version 2; what is new is payload layout 6 (large edits, below), which a reader
-of version 2 would not understand, so it must refuse the file. Versions 1 and 2 are only read: `JournalReader` accepts them, and recovery copies
-the records into a version 3 journal when it adopts the file (tested migration). Version 1 has no timestamp field. A newer version or a damaged header makes the file
+Version 4 is current. It has the record layout of version 2. Version 3 added payload layout 6 (large edits, below) and version 4 added payload layout 7 (edit lists,
+below); a reader of an older version would not understand them, so it must refuse the file. Versions 1 to 3 are only read: `JournalReader` accepts them, and recovery copies
+the records into a version 4 journal when it adopts the file (tested migration). Version 1 has no timestamp field. A newer version or a damaged header makes the file
 unreadable; it is reported and left untouched.
 
 ## Torn writes
@@ -34,7 +34,7 @@ a `DocSaveIntent` and syncs at once, before the new file replaces the old one.
 
 ## Records
 
-Payloads start with a layout byte followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes). Layout 6 is current (layout 5 plus a reference to the inserted bytes of an edit); layout 5 added the hex bookmarks of a session tab; layout 4 added a repeat length per edit of `DocEdit`. Layout 1 stored the encoding as kind, BOM length and
+Payloads start with a layout byte followed by the fields below (`BinaryWriter` encoding, GUIDs as 16 bytes). Layout 7 is current (layout 6 plus a reference to the list of the edits of a record); layout 6 added a reference to the inserted bytes of an edit; layout 5 added the hex bookmarks of a session tab; layout 4 added a repeat length per edit of `DocEdit`. Layout 1 stored the encoding as kind, BOM length and
 code page and had no codec field in `DocEdit`, `DocSave` and `DocSaveIntent`; it is still read (the codec is derived from the old fields, or the
 opening codec is kept). The codec is always stored by its stable `TextCodec.Name` and resolved with `TextCodec.ByName`; an unknown name fails
 that document, not the journal.
@@ -44,7 +44,7 @@ that document, not the journal.
 | 1 SessionState | active group, groups: active document, tabs (document id, title, revision, selections as byte ranges, bookmarks as byte offsets of line starts; layout 3; and from layout 5 the hex bookmarks: name, colour, comment and type as optional strings, start and end byte offset of the region, which a recovery maps through the changes since the session was written) |
 | 2 DocOpen | document id, path and fingerprint (named) or none, codec name, backend name, base revision, seed length |
 | 3 DocSeed | document id, offset, bytes: initial content of an unnamed document, in chunks |
-| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes, and from layout 4 a repeat length: when it is not 0 the inserted bytes are a pattern and the edit inserts that many bytes of it repeated, a fill; and from layout 6 an external flag: when it is set the inserted bytes are empty and a payload reference follows, see Large edits) in the coordinates of the previous revision, codec name after the change (a different codec means a conversion, replayed as one undo step) |
+| 4 DocEdit | document id, revision, kind, source, "starts a new undo step", edits (start, deleted length, inserted bytes, and from layout 4 a repeat length: when it is not 0 the inserted bytes are a pattern and the edit inserts that many bytes of it repeated, a fill; and from layout 6 an external flag: when it is set the inserted bytes are empty and a payload reference follows, see Large edits) in the coordinates of the previous revision, codec name after the change (a different codec means a conversion, replayed as one undo step), and from layout 7 an edit list flag: when it is set the edits are not in the record but in a payload file, see Edit lists |
 | 5 DocUndo, 6 DocRedo | document id, revision; replayed by calling `Undo()`/`Redo()` |
 | 7 DocSave | document id, revision, path, new fingerprint, codec name |
 | 8 DocClose | document id |
@@ -62,6 +62,9 @@ An edit whose inserted bytes exceed `JournalPlaceholders.MaxInlineEditBytes` (1 
 record. The record carries a payload reference instead: file name, offset, length, and CRC-32 of the first and of the last 4 KiB. The file lives in the
 `payload` directory next to the journals and is named `<session>-<document>-<kind>.payload`.
 
+The same happens to an edit of more than `SmallEditBytes` (4 KiB, a placeholder) once the records of the document hold more than `MaxInlineDocumentBytes` (32 MiB, a placeholder) of inline text since its last save,
+so what a recovery has to keep in memory of a document is bounded; typing stays inline whatever the budget.
+
 - `add-N`: the spill file of the add buffer of a paged document. The document makes it a durable file (not delete-on-close) once the journal tracks it
   (`IByteBackend.UseDurableSpill`); the block is already there, so nothing is copied. A document whose add buffer was on disk before tracking has a scratch file
   that dies with the process, so its large edits take the next route.
@@ -76,6 +79,17 @@ checksums do not cover the middle of a block: a bit flip there is not detected.
 
 Payload files are removed when the document is closed (`Untrack`), after a save for everything that no newer record needs (the file the backend writes to is kept),
 at compaction, and at start for documents nobody knows, except files of a session whose journal still exists.
+
+## Edit lists
+
+A change set with more than `JournalPlaceholders.MaxInlineEditCount` edits (Replace All over a large file), or with more than `MaxInlineRecordBytes` of inline text, is not written into
+its record: a record of hundreds of megabytes would have to be built whole in memory and could not pass 2 GiB. The record carries an edit list reference instead
+(file name, offset, length, number of edits, inserted and removed bytes, and a CRC-32 of the whole list) and no edits of its own. The list lives in the `blob-N` file of the document, written
+in 1 MiB steps straight from the document, and is synced before the record reaches the disk. An entry is the start, the removed length and the inserted length as three
+little endian 64 bit integers, then the inserted bytes (also when one is larger than `MaxInlineEditBytes`; fills never go into a list).
+
+Recovery checks the checksum of the whole list before it builds anything, so a bit flip anywhere in it makes the document `Failed` with the reason, and then reads the entries once;
+equal short inserted blocks in a row share one array. A list of more than `MaxRecoveredEdits` edits is reported as not restorable and stays in the journal.
 
 ## Recovery
 
@@ -95,6 +109,10 @@ at compaction, and at start for documents nobody knows, except files of a sessio
 4. `JournalSession.Start` adopts journals whose lock file is free: it copies the surviving records into the new journal, syncs it,
    and only then deletes the old file. Selections of the session are mapped to the recovered revision through the change log; a
    selection that cannot be mapped is dropped.
+5. With `RecoveryOptions.DeferAboveBytes` a document whose changes weigh more than that (bytes inserted and removed, counted from the records and the lengths named by payload
+   references and lists; a fill counts nothing) is not replayed. Its result is `Pending` with the weight in `PendingBytes`: the document is not opened, nothing is read from the payload files,
+   and its records are adopted into the new journal like those of a conflict. `JournalSession.RecoverPending` replays it later (the same replay as above, off the thread
+   that asks), `DiscardPending` appends a `DocClose`, syncs it, and deletes the payload files of the document. The file of the document is not touched by either.
 
 ## Compaction
 

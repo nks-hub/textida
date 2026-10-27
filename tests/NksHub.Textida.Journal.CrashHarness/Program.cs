@@ -123,6 +123,6 @@ internal static class JournalRecordsView
     {
         var m = typeof(JournalFormat).Assembly.GetType("NksHub.Textida.Core.Journal.JournalRecords")!.GetMethod("DecodeEdit")!;
         var e = (EditRecord)m.Invoke(null, [payload])!;
-        return $"doc {e.DocId.ToString()[..4]} rev {e.Revision} {e.Kind} new={e.NewUndoEntry} codec={e.Codec} edits={e.Edits.Count}";
+        return $"doc {e.DocId.ToString()[..4]} rev {e.Revision} {e.Kind} new={e.NewUndoEntry} codec={e.Codec} edits={e.Edits.Count}{(e.List is { } list ? $" list={list.Count} edits in {list.File}" : "")}";
     }
 }

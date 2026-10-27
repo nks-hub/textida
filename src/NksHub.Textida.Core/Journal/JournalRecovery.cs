@@ -16,6 +16,18 @@ public enum RecoveryStatus
     Missing,
     /// <summary>The records of the document could not be replayed; see <see cref="RecoveredDocument.Error"/>.</summary>
     Failed,
+    /// <summary>
+    /// The changes are larger than <see cref="RecoveryOptions.DeferAboveBytes"/>, so they were not replayed: nothing is opened or read, the records stay in the journal
+    /// and <see cref="JournalSession.RecoverPending"/> or <see cref="JournalSession.DiscardPending"/> settles them. <see cref="RecoveredDocument.PendingBytes"/> says how large they are.
+    /// </summary>
+    Pending,
+}
+
+/// <summary>Choices of a recovery that are not about one journal.</summary>
+public sealed class RecoveryOptions
+{
+    /// <summary>Changes of one document (bytes inserted and removed, copied from the journal or its payload files) above which the document is left as <see cref="RecoveryStatus.Pending"/>; 0 replays everything.</summary>
+    public long DeferAboveBytes { get; init; }
 }
 
 public sealed class RecoveredDocument
@@ -24,6 +36,10 @@ public sealed class RecoveredDocument
     public RecoveryStatus Status { get; init; }
     /// <summary>The rebuilt document for <see cref="RecoveryStatus.Restored"/> and <see cref="RecoveryStatus.Clean"/>; the caller owns it.</summary>
     public Document? Document { get; internal set; }
+    /// <summary>Bytes of changes that wait for a decision; only set for <see cref="RecoveryStatus.Pending"/>.</summary>
+    public long PendingBytes { get; init; }
+    /// <summary>Name of the backend the document was journaled with. A backend bound to the thread that creates it (a text control) must be replayed on the thread that uses it.</summary>
+    public string Backend { get; init; } = "";
     public string? Path { get; init; }
     public string? Title { get; init; }
     /// <summary>Revision of the journaled history that revision 0 of <see cref="Document"/> corresponds to.</summary>
@@ -59,8 +75,9 @@ public sealed class RecoveryResult
 /// </summary>
 public static class JournalRecovery
 {
-    public static RecoveryResult Recover(string journalPath, Func<string, IBackendFactory?> backends)
+    public static RecoveryResult Recover(string journalPath, Func<string, IBackendFactory?> backends, RecoveryOptions? options = null)
     {
+        options ??= new();
         var result = new RecoveryResult { SourcePath = journalPath };
         var records = new List<JournalRecord>();
         try
@@ -83,7 +100,7 @@ public static class JournalRecovery
 
         var plan = JournalCompactor.Plan(records, verifyIntent: VerifyIntent);
         string payloads = JournalPayloads.DirectoryOf(Path.GetDirectoryName(Path.GetFullPath(journalPath))!);
-        foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends, payloads));
+        foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends, payloads, options));
         result.SessionRecord = plan.Session;
         if (plan.Session is { } s)
         {
@@ -108,21 +125,45 @@ public static class JournalRecovery
         return FileFingerprint.TryReadQuick(intent.Path) is { } quick ? quick with { Sha256 = InPlaceIntent.Matches(intent.Path, intent.Sha256) ? intent.Sha256 : "" } : null;
     }
 
-    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads, bool retried = false)
+    /// <summary>Replays one document whatever its changes weigh; this is what settles a <see cref="RecoveryStatus.Pending"/> document once the user chose to restore it.</summary>
+    internal static RecoveredDocument ReplayDocument(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads) =>
+        Replay(log, backends, payloads, new RecoveryOptions());
+
+    /// <summary>Bytes a replay of these records has to copy out of the journal and its payload files, and bytes it removes; a fill costs nothing, whatever its length.</summary>
+    private static long ChangeWeight(List<JournalRecord> records)
+    {
+        long total = 0;
+        foreach (var rec in records)
+        {
+            if (rec.Type != RecordType.DocEdit) continue;
+            var e = JournalRecords.DecodeEdit(rec.Payload);
+            if (e.List is { } list)
+            {
+                total += list.InsertedBytes + list.DeletedBytes;
+                continue;
+            }
+            foreach (var x in e.Edits) total += x.Deleted + (x.Repeat > 0 ? 0 : x.External?.Length ?? x.Inserted.Length);
+        }
+        return total;
+    }
+
+    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads, RecoveryOptions recovery, bool retried = false)
     {
         var open = JournalRecords.DecodeOpen(log.Open.Payload);
         var edits = log.Rest.Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo or RecordType.DocCodec).ToList();
         long lastMs = log.Rest.Count > 0 ? log.Rest[^1].TimestampMs : log.Open.TimestampMs;
 
-        RecoveredDocument Make(RecoveryStatus status, Document? doc = null, ExternalChange? conflict = null, string? error = null, long lastRevision = 0) => new()
+        RecoveredDocument Make(RecoveryStatus status, Document? doc = null, ExternalChange? conflict = null, string? error = null, long lastRevision = 0, long pendingBytes = 0) => new()
         {
             DocId = open.DocId,
             Status = status,
             Document = doc,
+            Backend = open.Backend,
             Path = open.Path,
             BaseRevision = open.BaseRevision,
             LastRevision = lastRevision,
             PendingRecords = edits.Count,
+            PendingBytes = pendingBytes,
             LastChange = lastMs == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(lastMs),
             Conflict = conflict,
             Error = error,
@@ -137,6 +178,8 @@ public static class JournalRecovery
         Document? document = null;
         try
         {
+            if (recovery.DeferAboveBytes > 0 && ChangeWeight(edits) is var weight && weight > recovery.DeferAboveBytes)
+                return Make(RecoveryStatus.Pending, pendingBytes: weight);
             if (open.Path is { } path)
             {
                 try { document = Document.Open(path, factory, options); }
@@ -162,12 +205,12 @@ public static class JournalRecovery
             document = null;
             return Make(open.Path is null || edits.Count > 0 ? RecoveryStatus.Restored : RecoveryStatus.Clean, doc, lastRevision: last);
         }
-        catch (Exception e) when (e is JournalFormatException or InvalidDataException or EndOfStreamException or NotSupportedException or IOException or ArgumentException)
+        catch (Exception e) when (e is JournalFormatException or InvalidDataException or EndOfStreamException or NotSupportedException or IOException or UnauthorizedAccessException or ArgumentException or OutOfMemoryException)
         {
             // byte edits of the hex view can split characters, which only the byte backend can hold
             if (!retried && e is ArgumentException or InvalidDataException && open.Backend != "paged" && backends("paged") is { } paged)
-                return Replay(log, name => name == open.Backend ? paged : backends(name), payloads, retried: true);
-            return Make(RecoveryStatus.Failed, error: e.Message);
+                return Replay(log, name => name == open.Backend ? paged : backends(name), payloads, recovery, retried: true);
+            return Make(RecoveryStatus.Failed, error: e is OutOfMemoryException ? "There is not enough memory to restore this change." : e.Message);
         }
         finally
         {
@@ -208,7 +251,9 @@ public static class JournalRecovery
                         throw new InvalidDataException($"Replay of revision {e.Revision} ended at {baseRevision + doc.Revision} ({filled.Conflict}).");
                     continue;
                 }
-                var byteEdits = e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.External is { } external ? JournalPayloads.Load(payloads, external) : x.Inserted)).ToList();
+                var byteEdits = e.List is { } list
+                    ? JournalPayloads.LoadList(payloads, list)
+                    : e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.External is { } external ? JournalPayloads.Load(payloads, external) : x.Inserted)).ToList();
                 var target = e.Codec is null ? null : TextCodec.ByName(e.Codec) ?? throw new InvalidDataException($"Codec '{e.Codec}' is not known.");
                 var result = target is not null && target != doc.Codec
                     ? doc.ApplyConversion(byteEdits, target, e.Source)

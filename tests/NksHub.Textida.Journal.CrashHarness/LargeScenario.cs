@@ -101,6 +101,39 @@ public sealed class LargeModel
         Length += insertLength - deleteLength;
     }
 
+    /// <summary>
+    /// A Replace All: edits in ascending order and in the coordinates of the content before any of them, each inside one piece, in one pass over the pieces
+    /// (one <see cref="Replace"/> per edit would copy the list of pieces for every one of them).
+    /// </summary>
+    public void ReplaceAscending(IReadOnlyList<(long Offset, long Delete, long Seed, long InsertLength)> edits)
+    {
+        var next = new List<(long Seed, long Start, long Length)>(_segments.Count + 2 * edits.Count);
+        int e = 0;
+        long pos = 0;
+        foreach (var (seed, start, length) in _segments)
+        {
+            long end = pos + length, taken = 0;
+            while (e < edits.Count && edits[e].Offset < end)
+            {
+                var (offset, delete, editSeed, insert) = edits[e++];
+                if (offset + delete > end) throw new InvalidOperationException("an edit of a Replace All crosses two pieces of the model");
+                long before = offset - (pos + taken);
+                if (before > 0) next.Add((seed, start + taken, before));
+                if (insert > 0) next.Add((editSeed, 0, insert));
+                taken = offset + delete - pos;
+            }
+            if (taken < length) next.Add((seed, start + taken, length - taken));
+            pos = end;
+        }
+        for (; e < edits.Count; e++)
+        {
+            if (edits[e].Offset != pos || edits[e].Delete != 0) throw new InvalidOperationException("an edit of a Replace All is past the end of the model");
+            if (edits[e].InsertLength > 0) next.Add((edits[e].Seed, 0, edits[e].InsertLength));
+        }
+        Length += edits.Sum(x => x.InsertLength - x.Delete);
+        _segments = next;
+    }
+
     public string Sha256()
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -117,14 +150,36 @@ public sealed class LargeModel
     }
 }
 
-/// <summary>One edit of the scripts, placed by thousandths of the length at the time it is made.</summary>
+/// <summary>
+/// One edit of the scripts, placed by thousandths of the length at the time it is made. The op named <c>bulk</c> is a Replace All: <see cref="InsertLength"/> edits in
+/// one change set, edit number k replaces the byte at column 12 of line k (the space after the line number) by 1 to 3 bytes of the text number <see cref="Seed"/> + k.
+/// </summary>
 public sealed record LargeOp(string Name, int Permille, long Delete, long InsertLength, long Seed)
 {
+    public bool IsBulk => Name == "bulk";
+
     public (long Offset, long Delete, long Insert) Resolve(long length)
     {
         long offset = length / 1000 * Permille + length % 1000 * Permille / 1000;
         return (offset, Math.Min(Delete, length - offset), InsertLength);
     }
+
+    /// <summary>The edits of a bulk op, ascending, as offsets in the document before the op and the bytes that replace one byte each.</summary>
+    public List<(long Offset, byte[] Bytes)> BulkEdits()
+    {
+        var edits = new List<(long, byte[])>((int)InsertLength);
+        for (long k = 0; k < InsertLength; k++)
+        {
+            var bytes = new byte[1 + k % 3];
+            LargeText.Fill(Seed + k, 0, bytes);
+            edits.Add((k * LargeText.LineBytes + 12, bytes));
+        }
+        return edits;
+    }
+
+    /// <summary>Applies the op to the model.</summary>
+    public void ApplyBulk(LargeModel model) =>
+        model.ReplaceAscending([.. BulkEdits().Select((e, k) => (e.Offset, 1L, Seed + k, (long)e.Bytes.Length))]);
 }
 
 /// <summary>
@@ -136,6 +191,8 @@ public static class LargeScenario
 {
     public const long SpillBudget = 256 << 10;
     public const int DefaultBig = 3 << 20;
+    /// <summary>Edits of the Replace All of the script: more than <see cref="JournalPlaceholders.MaxInlineEditCount"/>, so the journal writes them as a list.</summary>
+    public const int BulkEdits = 6000;
 
     public static readonly string[] Points = ["spill-written", "journal-flushed", "temp-written", "before-swap", "mid-swap", "after-swap", "saved", "post-save", "cancel"];
 
@@ -144,6 +201,7 @@ public static class LargeScenario
         var rng = new Random(77);
         var before = new List<LargeOp> { new("small", 100, 0, 100, 1001), new("delete", 300, 50, 0, 0) };
         for (int i = 0; i < burst; i++) before.Add(new("tick", rng.Next(0, 1000), 0, 1, 2000 + i));
+        before.Add(new("bulk", 0, 0, BulkEdits, 3000)); // a Replace All: its edits go to the journal as a list in a payload file
         before.Add(new("big-1", 500, 0, big, 1003));
         before.Add(new("replace", 700, 20, 30, 1004));
         before.Add(new("big-2", 50, 0, big * 2L / 3, 1005));
@@ -176,6 +234,13 @@ public static class LargeScenario
 
         void Do(LargeOp op)
         {
+            if (op.IsBulk)
+            {
+                var edits = op.BulkEdits().Select(e => new ByteEdit(new ByteRange(e.Offset, e.Offset + 1), e.Bytes)).ToList();
+                if (!doc.Apply(edits).Applied) throw new InvalidOperationException($"{op.Name} was refused");
+                Pause();
+                return;
+            }
             var (offset, delete, insert) = op.Resolve(doc.ByteLength);
             var bytes = new byte[insert];
             LargeText.Fill(op.Seed, 0, bytes);
@@ -295,8 +360,12 @@ public static class LargeScenario
         foreach (var op in script)
         {
             var next = states[^1].Clone();
-            var (offset, delete, insert) = op.Resolve(next.Length);
-            next.Replace(offset, delete, op.Seed, insert);
+            if (op.IsBulk) op.ApplyBulk(next);
+            else
+            {
+                var (offset, delete, insert) = op.Resolve(next.Length);
+                next.Replace(offset, delete, op.Seed, insert);
+            }
             states.Add(next);
         }
         var hashes = new Dictionary<int, string>();
@@ -319,6 +388,7 @@ public static class LargeScenario
         if (point == "journal-flushed")
         {
             if (Directory.GetFiles(Path.Combine(journal, "payload"), "*-add-*.payload").Length == 0) return "the large inserts did not reach the journal as references to a spill file";
+            if (Directory.GetFiles(Path.Combine(journal, "payload"), "*-blob-*.payload").Length == 0) return "the Replace All did not reach the journal as a list in a payload file";
             if (burst >= 2500 && File.ReadAllText(Path.Combine(dir, "spills.txt")) == "0") return "the undo history did not spill in the child";
         }
         var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: SpillBudget, spillDirectory: spill);

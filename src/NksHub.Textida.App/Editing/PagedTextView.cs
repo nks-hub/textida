@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
@@ -154,8 +155,20 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Lines a Page Up or Page Down moves.</summary>
     internal int PageLines => Math.Max(1, _canvas.VisibleLines - 1);
 
-    /// <summary>The selected text exactly as the bytes of the current revision decode, line breaks included.</summary>
-    public string SelectedText() => HasSelection ? Doc.Codec.WithBom(false).Decode(Doc.ReadBytes(SelectionRange)).Text : "";
+    /// <summary>
+    /// Bytes of selection that Copy and Cut take to the clipboard; a larger one is refused with a message. Placeholder, OPEN:
+    /// <see cref="PluginLimitsPlaceholders.PagedCopyMaxBytes"/>. A test lowers it.
+    /// </summary>
+    internal long CopyLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedCopyMaxBytes;
+
+    /// <summary>A selection up to this size is decoded on the UI thread, a longer one on the pool.</summary>
+    private const long InlineCopyBytes = 1 << 20;
+
+    /// <summary>
+    /// The selected text exactly as the bytes of the current revision decode, line breaks included; empty when nothing is selected or the selection is
+    /// larger than <see cref="CopyLimitBytes"/>. It is decoded straight to a string, without the table of byte offsets that a line on screen needs.
+    /// </summary>
+    public string SelectedText() => HasSelection && SelectionRange.Length <= CopyLimitBytes ? Doc.Codec.GetString(Doc.ReadBytes(SelectionRange)) : "";
 
     /// <summary>When the last draw that showed a new revision, caret or first line ended (a <see cref="System.Diagnostics.Stopwatch"/> timestamp); the measurement mode reads it.</summary>
     internal long RenderedAt { get; private set; }
@@ -999,6 +1012,11 @@ internal sealed partial class PagedTextView : Grid
         EditResult result = default;
         long tApply = TypingTrace.Begin();
         try { result = Doc.Apply([new ByteEdit(new ByteRange(at, at + deleted), insert)], options); }
+        catch (Exception e) when (e is NotSupportedException or OutOfMemoryException)
+        {
+            // the bytes it removes must be kept for Undo in memory or in the scratch file, and one array holds at most 2 GiB; Apply fails before it changes anything
+            Refused?.Invoke(Loc.Get(K.PagedEditTooLarge));
+        }
         finally
         {
             _own = false;
@@ -1052,14 +1070,35 @@ internal sealed partial class PagedTextView : Grid
 
     // ---- clipboard ----
 
-    /// <summary>Copies the selected text; with <paramref name="cut"/> also deletes it as one undo step.</summary>
+    /// <summary>
+    /// Copies the selected text; with <paramref name="cut"/> also deletes it as one undo step. A selection longer than <see cref="InlineCopyBytes"/> is read and decoded
+    /// from a snapshot on the pool, so the window keeps answering; a cut deletes only when the document and the selection are still the ones that were copied.
+    /// </summary>
     public async Task CopyAsync(bool cut)
     {
         if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _)) return;
-        string text = SelectedText();
+        var range = SelectionRange;
+        if (range.Length > CopyLimitBytes)
+        {
+            Refused?.Invoke(Loc.Get(K.PagedCopyTooLarge, ("size", OpenDocument.FormatSize(range.Length)), ("limit", OpenDocument.FormatSize(CopyLimitBytes))));
+            return;
+        }
+        long revision = Doc.Revision;
+        string text;
+        if (range.Length <= InlineCopyBytes) text = SelectedText();
+        else
+        {
+            var snapshot = Doc.GetSnapshot();
+            try { text = await Task.Run(() => snapshot.ReadText(range)); }
+            catch (IOException e)
+            {
+                Refused?.Invoke(e.Message); // the file changed under the snapshot
+                return;
+            }
+        }
         await clipboard.SetTextAsync(text);
         Copied?.Invoke(text);
-        if (cut) DeleteSelection();
+        if (cut && Doc.Revision == revision && HasSelection && SelectionRange == range) DeleteSelection();
     }
 
     /// <summary>Pastes the clipboard text over the selection as one undo step, with the line breaks of the document.</summary>

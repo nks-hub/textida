@@ -274,7 +274,7 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - With several carets the selected texts are copied one per line, and on paste every caret gets its own piece.
 - In a block selection one clipboard line goes to each row of the block.
 - Pasting into a string in a programming language escapes quotes and backslashes (setting Escape on paste into a string).
-- Cut and Paste do not work in a read-only document or in paged mode (topic Large files).
+- Cut and Paste do not work in a read-only document. In paged mode all three work (topic Large files); a selection larger than the copy limit there (256 MiB, a provisional value) is not copied and the status bar says so.
 
 ## [edit.select] Selecting
 commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
@@ -1084,6 +1084,12 @@ The program continuously writes unsaved text to a journal, within two seconds of
 - If the journal cannot be written to any folder, the bar says: Crash recovery is off. Unsaved text then stays only in the tabs; save by hand. If it stops working during use: The journal stopped working, crash recovery no longer applies, save by hand.
 - If the fallback folder is used, the bar says which one.
 - An interrupted batch of file changes (replacements in files, and the files a plugin's workspace edit creates, renames or deletes) is offered after the start: Finish or Roll back. A file that someone else changed meanwhile is left as it is.
+### Large changes
+- When the unsaved changes of one document are larger than the recovery limit (64 MiB, a provisional value), for example a Replace All or a big paste in a large file, its tab does not come back by itself. A bar names the file, the size of the changes and when they were made, and offers Restore changes and Discard changes. Until you choose, nothing is read from the journal and the file is not touched.
+- Restore changes reads the journal in the background, so the program keeps working, and then opens the tab with the unsaved changes as after any other recovery. If that fails (the file changed meanwhile, a part of the journal is missing or damaged, there is not enough memory), the bar says why and the changes stay in the journal.
+- Discard changes asks once more, because nothing brings the changes back; then they are deleted from the journal. The file on disk is not changed by either choice.
+- Closing the bar decides nothing: the bar comes back at the next start.
+- A Replace All with very many matches is written to the journal as a list in a file of its own, never as one huge record, so the journal keeps working however many matches there are. A damaged or missing list stops only that document from coming back, with the reason.
 
 ## [paged] Large files (paged mode)
 A file larger than the large file threshold (setting Large file threshold, 6 MiB by default) opens in paged mode. To browse and edit a file byte by byte without these limits, open it in hex (topic Hex: opening and moving). The program reads only the lines on the screen, so the file opens quickly and does not fill the memory. Parts of the file it has already read, for example while numbering the lines, it gives back to the system, so the memory in use does not grow with the size of the file.
@@ -1092,9 +1098,11 @@ The status bar then shows Large file, its size and the revision.
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
 - Find (Ctrl+F). Find in Files.
+- Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
+- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves.
 ### What does not work
-- Selection, clipboard (Cut, Copy, Paste), block selection, multiple carets.
+- Block selection, multiple carets.
 - Commands for lines, indentation, letter case, replacing.
 - Go to Matching Bracket, word wrap.
 - Converting and rereading the encoding, unifying line endings, normalization.
@@ -1102,6 +1110,8 @@ The status bar then shows Large file, its size and the revision.
 ### Messages
 - Line numbering is still running, editing starts in a moment: wait until the file has been read through.
 - The character cannot be written in the file encoding: type another character.
+- The selection is larger than the copy limit: select less; the clipboard stays as it was.
+- The edit is too large to be undone: remove or insert less text at once; the document does not change.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - Saving a large file holds up the window.
 

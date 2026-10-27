@@ -21,6 +21,12 @@ internal sealed class JournalService : IDisposable
         Directory = directory;
     }
 
+    /// <summary>
+    /// Changes of one document above which start does not replay it but asks (bytes inserted and removed); read when the next run starts, so a test lowers it before
+    /// <see cref="Start"/>. Placeholder, OPEN: <see cref="JournalPlaceholders.AskBeforeRecoverBytes"/>.
+    /// </summary>
+    internal static long AskBeforeRecoverBytes { get; set; } = JournalPlaceholders.AskBeforeRecoverBytes;
+
     public JournalSession Session { get; }
     public JournalLocationResult Location { get; }
     public string? Directory { get; }
@@ -30,6 +36,21 @@ internal sealed class JournalService : IDisposable
 
     /// <summary>True when the last run left unsaved or open work behind without having ended normally.</summary>
     public bool CrashedLastTime => !PreviousRunEndedCleanly && Recovery.Documents.Count > 0;
+
+    /// <summary>Documents whose large changes wait for the choice to restore or discard them.</summary>
+    public IReadOnlyList<RecoveredDocument> Pending => Session.Pending;
+
+    /// <summary>
+    /// Replays the large changes of a pending document on a thread of the pool; the document is tracked by the journal when this ends. A document of the text
+    /// control belongs to the thread that creates it, so only a paged one is replayed off the UI thread; the others (small ones) are replayed on the calling thread.
+    /// </summary>
+    public Task<RecoveredDocument> RecoverPendingAsync(RecoveredDocument pending) =>
+        pending.Backend == PagedBackendFactory.Instance.Capabilities.Name
+            ? Task.Run(() => Session.RecoverPending(pending.DocId))
+            : Task.FromResult(Session.RecoverPending(pending.DocId));
+
+    /// <summary>Throws the large changes of a pending document away; the file of the document stays as it is.</summary>
+    public Task<bool> DiscardPendingAsync(Guid docId) => Task.Run(() => Session.DiscardPending(docId));
 
     public static IBackendFactory? BackendByName(string name) => name switch
     {
@@ -50,7 +71,7 @@ internal sealed class JournalService : IDisposable
             try { File.Delete(flag); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { clean = false; }
         }
-        var session = JournalSession.Start(location.Directory, BackendByName);
+        var session = JournalSession.Start(location.Directory, BackendByName, recovery: new RecoveryOptions { DeferAboveBytes = AskBeforeRecoverBytes });
         return new JournalService(session, location, clean, location.Directory);
     }
 
