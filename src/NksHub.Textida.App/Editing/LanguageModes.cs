@@ -12,6 +12,7 @@ internal sealed record LanguageMode(string Id, string Name, string[] Extensions,
 internal static class LanguageModes
 {
     public const string PlainId = "plaintext";
+    public const string LogId = "log";
 
     private static readonly CommentStyle Slash = new("//", true);
     private static readonly CommentStyle Hash = new("#", false);
@@ -41,7 +42,7 @@ internal static class LanguageModes
         new("shell", "Shell", [".sh", ".bash", ".zsh"], Hash),
         new("powershell", "PowerShell", [".ps1", ".psm1"], Hash),
         new("batch", "Batch", [".bat", ".cmd"], CommentStyle.None),
-        new("log", "Log", [".log"], CommentStyle.None),
+        new(LogId, "Log", [".log"], CommentStyle.None),
     ];
 
     public static LanguageMode Plain => All[0];

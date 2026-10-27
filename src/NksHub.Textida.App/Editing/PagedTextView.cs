@@ -100,6 +100,8 @@ internal sealed partial class PagedTextView : Grid
         };
     }
 
+    private void RepaintLog() => _canvas.InvalidateVisual();
+
     /// <summary>Raised when the first line on screen, the caret or the index state changed.</summary>
     public event Action? ViewChanged;
     private void RaiseViewChanged()
@@ -181,6 +183,8 @@ internal sealed partial class PagedTextView : Grid
         Doc.Changed += OnDocChanged;
         _doc.Bookmarks.Changed += RepaintBookmarks;
         Doc.Saved += OnSaved;
+        _doc.LanguageChanged += RepaintLog;
+        _doc.LogLevelsChanged += RepaintLog;
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
@@ -191,6 +195,8 @@ internal sealed partial class PagedTextView : Grid
         Doc.Changed -= OnDocChanged;
         _doc.Bookmarks.Changed -= RepaintBookmarks;
         Doc.Saved -= OnSaved;
+        _doc.LanguageChanged -= RepaintLog;
+        _doc.LogLevelsChanged -= RepaintLog;
         if (_watched is not null) _watched.IndexProgress -= OnIndexProgress;
         _watched = null;
         _indexTimer.Stop();
@@ -1228,6 +1234,7 @@ internal sealed partial class PagedTextView : Grid
             var current = Brush("CurrentLine", Brushes.Transparent);
             var palette = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
             var options = owner._options;
+            var levels = owner._doc.IsLog ? owner._doc.LogLevels : null;
             var selection = Brush("SelectionBg", Brushes.LightBlue);
             var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);
             context.FillRectangle(back, new Rect(Bounds.Size));
@@ -1278,6 +1285,7 @@ internal sealed partial class PagedTextView : Grid
                         shown = shown.Insert(insertAt, owner._preedit);
                     }
                     var text = Format(shown, fore);
+                    if (levels?.Classify(view.Map.Text) is { } level && palette.GetBrush(LogLevelKinds.Of(level)) is { } levelBrush) text.SetForegroundBrush(levelBrush);
                     if (owner._tokens.TryGetValue(line, out var tokens))
                         foreach (var token in tokens)
                         {

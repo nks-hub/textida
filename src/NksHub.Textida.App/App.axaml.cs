@@ -12,6 +12,7 @@ using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
@@ -32,6 +33,8 @@ public sealed partial class App : Application
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
+    internal ToolCatalog Tools { get; private set; } = null!;
+    internal ToolApprovals ToolApprovals { get; private set; } = null!;
     /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
     internal LastParameters LastParameters { get; private set; } = new();
@@ -116,6 +119,8 @@ public sealed partial class App : Application
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
         LastParameters = new LastParameters();
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
+        Tools = new ToolCatalog(ProfileDirectory);
+        ToolApprovals = new ToolApprovals(Path.Combine(ProfileDirectory, "tool-approvals.txt"));
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });

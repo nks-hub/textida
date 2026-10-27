@@ -606,6 +606,33 @@ commands: nks.hex.checksum
 - Každý variant CRC má pevný polynóm a parametre (šírka, začiatočná hodnota, zrkadlenie vstupu a výsledku, koncové xor) podľa katalógu algoritmov CRC.
 - CRC s vlastným polynómom vezme šírku v bitoch a hex polynóm (nepárny), začiatočnú hodnotu, dva príznaky zrkadlenia (0 alebo 1) a koncové xor.
 
+## [tools.run] Nástroje: spustenie externého programu
+commands: nks.tools.run, nks.tools.stop
+1. Nástroje, Spustiť nástroj ponúkne nástroje zapísané v súbore tools.json v priečinku profilu. Posledný riadok ten súbor otvorí; prvýkrát do neho zapíše prázdny, ktorý doplníte.
+2. Nástroj má id, title, executable a args (zoznam: jedna položka je jeden argument). Voliteľné sú cwd (adresár, kde pobeží; bez neho priečinok aktuálneho súboru), timeoutSeconds (bez neho nie je žiadny časový limit) a logPattern (pozri Vzor LOGu). Príklad: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
+3. V executable, args a cwd zastupujú premenné ${File} (úplná cesta), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} a ${Column} aktuálny dokument; $$ je znak dolára. Argument zostane jedným argumentom, nech hodnota obsahuje čokoľvek, aj medzery a úvodzovky: žiadny shell sa nepoužíva. Neznáma premenná alebo ${File} pri dokumente bez súboru zastaví spustenie skôr, než sa čokoľvek začne.
+4. Nástroj, ktorého príkaz a adresár ešte nebežali, sa ukáže s oboma a spustí sa až po vašom potvrdení. Potvrdenie platí, kým sa nezmení definícia alebo program, na ktorý vedie.
+5. Výstup ide riadok po riadku na kartu Úlohy v okne výstupu, nakoniec s kódom ukončenia a časom. Tlačidlo Zastaviť v tom okne alebo príkaz Zastaviť bežiaci nástroj ukončí program aj všetko, čo spustil; to isté urobí časový limit.
+- Dávkové súbory (.bat, .cmd) sa vo Windows odmietnu, pretože by príkazový interpret argumenty znova rozdelil a rozvinul. Uveďte program, ktorý dávka spúšťa.
+- Názov programu bez cesty sa hľadá len v PATH, nikdy v pracovnom adresári.
+- Výstup sa číta ako UTF-8. Beží vždy len jeden nástroj.
+
+## [tools.logPattern] Vzor LOGu: kliknutie na chybu vo výstupe
+commands: nks.tools.logPattern
+1. Vzor LOGu pre výstup otvorí skúšku vzoru s posledným výstupom nástrojov ako ukážkou. Každý riadok ukážky ukáže súbor, riadok a stĺpec, ktoré v ňom vzor našiel, alebo že nenašiel nič.
+2. Maska sa porovnáva zľava a bez ohľadu na veľkosť písmen. * preskočí ľubovoľný text až po ďalšiu pevnú časť masky. %F je názov súboru, až po ďalšiu pevnú časť. %D je disk (C: nasledované lomkou) pred ním. %L je riadok a %C stĺpec (číslice). %S preskočí medzery a tabulátory. %E ukončí masku. Maska potrebuje %L; bez %F mieri na súbor, ktorý bol otvorený. Príklady: %F:%L:%C:* pre main.c:12:5: error, *] %F(%L) pre [Error] a.pas(346): text.
+3. Druhý jazyk je regulárny výraz so skupinami line (povinná), file a column.
+4. Použiť pre výstup zariadi, že vzor platí pre riadky v okne výstupu: kliknutie na riadok alebo Enter otvorí súbor na tom riadku. Relatívny názov súboru sa hľadá v adresári, kde nástroj bežal, potom v priečinku súboru, ktorý bol otvorený pri spustení, potom medzi otvorenými dokumentmi podľa názvu.
+- Nástroj môže mať vzor vlastný: v tools.json "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] a v nástroji "logPattern": "gcc". Bez "syntax" je vzor regulárny výraz.
+
+## [log.mode] Režim logu: úrovne a ďalšia chyba
+commands: nks.log.nextError, nks.log.previousError, nks.log.levels
+1. Dokument v jazyku Log (súbory .log, alebo Formát, Jazyk) zafarbí každý riadok podľa jeho úrovne: chyba, varovanie, informácia alebo ladenie. Rozhoduje najzávažnejšia úroveň nájdená v riadku.
+2. Log: ďalšia chyba a Log: predchádzajúca chyba skočia od kurzora na ďalší alebo predchádzajúci riadok úrovne chyba. Súbor sa číta po blokoch a hľadanie skončí pri prvom náleze, takže funguje v súbore akejkoľvek veľkosti; stavový riadok ukazuje priebeh a Esc hľadanie zruší.
+3. Log: úrovne vyberie pravidlá pre dokument. Predvolené pravidlá hľadajú veľkými písmenami napísané slová ERROR, ERR, FATAL, CRITICAL, SEVERE, WARN, WARNING, INFO, DEBUG a TRACE ako celé slová. Vlastné pravidlá prídu z tools.json: "logPatterns": [{"id": "mine", "title": "Môj log", "levels": {"error": "\\|E\\|", "warning": "\\|W\\|"}}]. Kľúče sú error, warning, info a debug; každá hodnota je regulárny výraz. Príkaz tiež zapne režim logu pre dokument.
+- Pravidlá platia, kým je dokument otvorený, a neukladajú sa.
+- Riadok dlhší ako 8192 znakov sa v editore posudzuje podľa prvých 8192 znakov.
+
 ## [view.options] Zobrazenie editora
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Príkazy sú v ponuke Zobraziť a v palete. Každý prepína jedno nastavenie; dajú sa zmeniť aj v nastaveniach.

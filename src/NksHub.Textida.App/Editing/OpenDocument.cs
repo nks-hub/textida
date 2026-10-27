@@ -6,6 +6,7 @@ using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Editing;
@@ -48,6 +49,22 @@ internal sealed class OpenDocument : IDisposable
     public bool LanguageChosen { get; private set; }
     /// <summary>Raised when <see cref="Language"/> changed, so the views choose another grammar.</summary>
     public event Action? LanguageChanged;
+    /// <summary>The rules that give the lines of this document their level while its language is log; the defaults until the user picks others.</summary>
+    public LogLevelRules LogLevels { get; private set; } = LogLevelRules.Default;
+    /// <summary>The name of the level rules in use, shown in the confirmation when the user picked them.</summary>
+    public string LogLevelsName { get; private set; } = "";
+    /// <summary>Raised when <see cref="LogLevels"/> changed, so the views color the lines again.</summary>
+    public event Action? LogLevelsChanged;
+    /// <summary>The document is shown in log mode: lines are colored by level and the log commands apply.</summary>
+    public bool IsLog => Language.Id == LanguageModes.LogId;
+
+    public void SetLogLevels(LogLevelRules rules, string name)
+    {
+        LogLevels = rules;
+        LogLevelsName = name;
+        LogLevelsChanged?.Invoke();
+    }
+
     /// <summary>How the encoding was chosen when the file was read; null for new documents and after an explicit choice.</summary>
     public EncodingGuess? Guess { get; private set; }
     public Guid? JournalId { get; set; }

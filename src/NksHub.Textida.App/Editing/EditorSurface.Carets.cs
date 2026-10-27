@@ -90,6 +90,8 @@ internal sealed partial class EditorSurface
     /// <summary>Releases what the surface holds on the document; called when its tab closes.</summary>
     public void Detach()
     {
+        Doc.LanguageChanged -= ApplyLogLevels;
+        Doc.LogLevelsChanged -= ApplyLogLevels;
         foreach (var margin in TextArea.LeftMargins.OfType<BookmarkMargin>().ToList())
         {
             margin.Release();

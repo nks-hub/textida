@@ -65,7 +65,7 @@ public sealed class LogPattern
             else if (c == '%')
             {
                 if (i + 1 >= pattern.Length || char.ToUpperInvariant(pattern[i + 1]) is not ('F' or 'L' or 'C' or 'S' or 'E' or 'D'))
-                    throw new LogPatternException($"Unknown '%' code at position {i + 1}: use %F %L %C %S %E or %D.");
+                    throw new LogPatternException($"Unknown code '%{(i + 1 < pattern.Length ? pattern[i + 1] : "")}' at position {i + 1}: use %F %L %C %S %E or %D.");
                 Flush();
                 parts.Add(new Part(char.ToUpperInvariant(pattern[++i]) switch
                 {

@@ -606,6 +606,33 @@ commands: nks.hex.checksum
 - Every CRC variant has a fixed polynomial and parameters (width, start value, reflected input and result, final xor), the same as in the catalogue of CRC algorithms.
 - A CRC with your own polynomial takes the width in bits and, in hex, the polynomial (odd), the start value, the two reflection flags (0 or 1) and the final xor.
 
+## [tools.run] Tools: run an external program
+commands: nks.tools.run, nks.tools.stop
+1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
+2. A tool has an id, a title, an executable and args (a list: one entry is one argument). Optional are cwd (the directory it runs in; the folder of the current file when missing), timeoutSeconds (without it there is no time limit) and logPattern (see LOG pattern). Example: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
+3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or ${File} for a document that has no file, stops the run before anything starts.
+4. A tool whose command and directory have not run before is shown with both and starts only after you confirm. The confirmation is remembered until the definition, or the program it leads to, changes.
+5. The output goes line by line to the Tasks tab of the output window, followed by the exit code and the time. Stop in that window, or Stop Running Tool, ends the program and everything it started; so does the time limit.
+- Batch files (.bat, .cmd) are refused on Windows, because the command interpreter would split and expand the arguments again. Name the program the batch file runs.
+- A program name without a path is looked for in PATH only, never in the working directory.
+- Output is read as UTF-8. One tool runs at a time.
+
+## [tools.logPattern] LOG pattern: click an error in the output
+commands: nks.tools.logPattern
+1. LOG Pattern for the Output opens a tester with the latest output of the tools as the sample. Each line of the sample shows the file, line and column the pattern found in it, or that it found nothing.
+2. The mask is matched from the left and without regard to case. * skips any text up to the next literal part of the mask. %F is the file name, up to the next literal part. %D is a drive (C: followed by a slash) in front of it. %L is the line and %C the column (digits). %S skips spaces and tabs. %E ends the mask. A mask needs %L; without %F it points to the file that was open. Examples: %F:%L:%C:* for main.c:12:5: error, *] %F(%L) for [Error] a.pas(346): text.
+3. The other language is a regular expression with the groups line (needed), file and column.
+4. Use for the output makes the pattern work for the lines in the output window: a click on a line, or Enter, opens the file at that line. A relative file name is looked for in the directory the tool ran in, then in the folder of the file that was open when it started, then among the open documents by name.
+- A tool can bring its own pattern: "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] in tools.json and "logPattern": "gcc" in the tool. Without "syntax" the pattern is a regular expression.
+
+## [log.mode] Log mode: levels and the next error
+commands: nks.log.nextError, nks.log.previousError, nks.log.levels
+1. A document in the language Log (files ending in .log, or Format, Language) colors each line by its level: error, warning, info or debug. The most severe level found in a line decides.
+2. Log: Next Error and Log: Previous Error jump from the caret to the next or previous line of level error. The file is read in blocks and the search stops at the first hit, so it works in a file of any size; the status line shows the progress and Esc cancels.
+3. Log: Levels chooses the rules for the document. The default rules look for the upper-case words ERROR, ERR, FATAL, CRITICAL, SEVERE, WARN, WARNING, INFO, DEBUG and TRACE as whole words. Your own rules come from tools.json: "logPatterns": [{"id": "mine", "title": "My log", "levels": {"error": "\\|E\\|", "warning": "\\|W\\|"}}]. The keys are error, warning, info and debug; each value is a regular expression. The command also turns log mode on for the document.
+- The rules are kept while the document is open and are not saved.
+- A line longer than 8192 characters is judged by its first 8192 characters in the editor.
+
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 The commands are in the View menu and in the palette. Each toggles one setting; the settings can also be changed in the settings.

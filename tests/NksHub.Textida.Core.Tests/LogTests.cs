@@ -43,9 +43,9 @@ public class LogPatternTests
     public void A_line_the_mask_does_not_fit_gives_no_place(string mask, string line) => Assert.Null(Mask(mask, line));
 
     [Theory]
-    [InlineData("%F:%X", "Unknown '%' code")]
+    [InlineData("%F:%X", "Unknown code '%X'")]
     [InlineData("%F:", "needs %L")]
-    [InlineData("100%", "Unknown '%' code")]
+    [InlineData("100%", "Unknown code '%'")]
     public void An_invalid_mask_is_refused_with_the_reason(string mask, string expected) =>
         Assert.Contains(expected, Assert.Throws<LogPatternException>(() => LogPattern.Compile(mask)).Message);
 
