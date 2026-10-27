@@ -537,6 +537,33 @@
       "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
     },
     {
+      "id": "nks.tools.markdownRepairTable",
+      "title": "cmd.tools.markdownRepairTable",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+    },
+    {
+      "id": "nks.markdown.nextCell",
+      "title": "cmd.markdown.nextCell",
+      "category": "cat.tools",
+      "when": "editorFocus && !readOnly && inMarkdownTable",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.markdown.previousCell",
+      "title": "cmd.markdown.previousCell",
+      "category": "cat.tools",
+      "when": "editorFocus && !readOnly && inMarkdownTable",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.markdown.newRow",
+      "title": "cmd.markdown.newRow",
+      "category": "cat.tools",
+      "when": "editorFocus && !readOnly && inMarkdownTable",
+      "undo": "transaction"
+    },
+    {
       "id": "nks.tools.copyKeyPath",
       "title": "cmd.tools.copyKeyPath",
       "category": "cat.tools",
@@ -2417,6 +2444,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.markdownRepairTable",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 35
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.pickColor",
       "group": "1_text/02_3_colors",
       "submenu": "colors",
@@ -3759,12 +3793,27 @@
     {
       "key": "shift+tab",
       "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly"
+      "when": "editorFocus && !readOnly && !inMarkdownTable"
     },
     {
       "key": "tab",
       "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly"
+      "when": "editorFocus && !readOnly && !inMarkdownTable"
+    },
+    {
+      "key": "tab",
+      "command": "nks.markdown.nextCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.markdown.previousCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable"
+    },
+    {
+      "key": "shift+enter",
+      "command": "nks.markdown.newRow",
+      "when": "editorFocus && !readOnly && inMarkdownTable"
     },
     {
       "key": "mod+k mod+u",

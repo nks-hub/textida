@@ -198,6 +198,10 @@ internal static class AppCommands
         On("nks.tools.markdownOutline", w => w.ShowLivePreview(outline: true));
         On("nks.tools.markdownFormatTable", w => w.FormatMarkdownTable());
         On("nks.tools.markdownUpdateToc", w => w.UpdateMarkdownToc());
+        On("nks.tools.markdownRepairTable", w => w.RepairMarkdownTable());
+        On("nks.markdown.nextCell", w => w.MoveTableCell(forward: true));
+        On("nks.markdown.previousCell", w => w.MoveTableCell(forward: false));
+        On("nks.markdown.newRow", w => w.AddTableRow());
         Fire("nks.tools.showOutline", (w, t) => app.Plugins.IndexSymbolsAsync(w, t, reveal: true));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
         Fire("nks.tools.emmetPreview", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.preview"));

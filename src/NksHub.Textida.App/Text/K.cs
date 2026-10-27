@@ -1321,6 +1321,7 @@ public static class K
     public const string PreviewOutlineEmpty = "preview.outline.empty";
     public const string PreviewOutlineUnsupported = "preview.outline.unsupported";
     public const string MarkdownNoTable = "markdown.noTable";
+    public const string MarkdownNoTableBlock = "markdown.noTableBlock";
     public const string McpProposal = "mcp.proposal";
     public const string McpToolListDocuments = "mcp.tool.listDocuments";
     public const string McpToolReadRange = "mcp.tool.readRange";

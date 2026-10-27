@@ -154,4 +154,88 @@ public class LivePreviewTests : IDisposable
         _w.UpdateMarkdownToc();
         Assert.Equal(again, tab.Editor.Document.Text);
     }
+
+    private static string Selected(DocTab tab) => tab.Editor!.SelectedText;
+
+    private void Press(Avalonia.Input.Key key, Avalonia.Input.RawInputModifiers mods = Avalonia.Input.RawInputModifiers.None)
+    {
+        Dispatcher.UIThread.RunJobs();
+        TestApp.Press(_w, key, mods);
+    }
+
+    [AvaloniaFact]
+    public void Tab_in_a_table_selects_the_next_cell_aligns_and_adds_a_row_after_the_last_cell()
+    {
+        var tab = Open("name|qty\n:--|--:\napple|3\n", "markdown");
+        tab.Editor!.CaretOffset = 0;
+        Press(Avalonia.Input.Key.Tab);
+        Assert.Equal("| name  | qty |\n| :---- | --: |\n| apple |   3 |\n", tab.Editor.Document.Text);
+        Assert.Equal("qty", Selected(tab));
+        Press(Avalonia.Input.Key.Tab);
+        Assert.Equal("apple", Selected(tab));
+        Press(Avalonia.Input.Key.Tab);
+        Assert.Equal("3", Selected(tab));
+        Press(Avalonia.Input.Key.Tab);
+        Assert.Equal("| name  | qty |\n| :---- | --: |\n| apple |   3 |\n|       |     |\n", tab.Editor.Document.Text);
+        Assert.Equal(4, tab.Editor.Document.GetLineByOffset(tab.Editor.CaretOffset).LineNumber);
+        Press(Avalonia.Input.Key.Tab, Avalonia.Input.RawInputModifiers.Shift);
+        Assert.Equal("3", Selected(tab));
+        Press(Avalonia.Input.Key.Tab, Avalonia.Input.RawInputModifiers.Shift);
+        Assert.Equal("apple", Selected(tab));
+    }
+
+    [AvaloniaFact]
+    public void Each_table_key_is_one_undo_step()
+    {
+        const string original = "name|qty\n:--|--:\napple|3\n";
+        var tab = Open(original, "markdown");
+        tab.Editor!.CaretOffset = 0;
+        Press(Avalonia.Input.Key.Tab);
+        _w.Undo();
+        Assert.Equal(original, tab.Editor.Document.Text);
+
+        tab.Editor.CaretOffset = tab.Editor.Document.GetLineByNumber(3).Offset;
+        Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Shift);
+        Assert.Equal("| name  | qty |\n| :---- | --: |\n| apple |   3 |\n|       |     |\n", tab.Editor.Document.Text);
+        _w.Undo();
+        Assert.Equal(original, tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public void Shift_enter_in_a_table_adds_an_empty_row_with_the_right_number_of_cells_below_the_caret_row()
+    {
+        var tab = Open("| a | b | c |\n|---|---|---|\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n", "markdown");
+        tab.Editor!.CaretOffset = tab.Editor.Document.GetLineByNumber(3).Offset + 2;
+        Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Shift);
+        Assert.Equal("| a   | b   | c   |\n| --- | --- | --- |\n| 1   | 2   | 3   |\n|     |     |     |\n| 4   | 5   | 6   |\n", tab.Editor.Document.Text);
+        Assert.Equal(4, tab.Editor.Document.GetLineByOffset(tab.Editor.CaretOffset).LineNumber);
+    }
+
+    [AvaloniaFact]
+    public void Tab_outside_a_table_indents_as_before()
+    {
+        const string text = "one | two\nthree\n";
+        var plain = Open(text, "markdown");
+        plain.Editor!.CaretOffset = 0;
+        Assert.Equal("false", new ShellContext(_w, forMenu: false).Get("inMarkdownTable"));
+        Press(Avalonia.Input.Key.Tab);
+        int indent = plain.Editor.Document.Text.Length - text.Length;
+        Assert.True(indent > 0);
+        Assert.Equal(text, plain.Editor.Document.Text[indent..]);
+
+        var table = Open("a|b\n-|-\n1|2\n", "markdown");
+        table.Editor!.CaretOffset = 0;
+        Assert.Equal("true", new ShellContext(_w, forMenu: false).Get("inMarkdownTable"));
+    }
+
+    [AvaloniaFact]
+    public void The_repair_command_fixes_a_table_without_dashes_as_one_undo_step()
+    {
+        var tab = Open("x\n\na|b\n1\n", "markdown");
+        tab.Editor!.CaretOffset = tab.Editor.Document.GetLineByNumber(3).Offset;
+        _w.RepairMarkdownTable();
+        Assert.Equal("x\n\n| a   | b   |\n| --- | --- |\n| 1   |     |\n", tab.Editor.Document.Text);
+        _w.Undo();
+        Assert.Equal("x\n\na|b\n1\n", tab.Editor.Document.Text);
+    }
 }

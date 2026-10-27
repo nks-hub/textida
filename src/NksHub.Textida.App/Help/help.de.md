@@ -383,16 +383,18 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 - Eine Datei, die größer als das Limit des Plugins ist, wird nicht umgewandelt; die Meldung sagt es.
 
 ## [tools.markdown] Markdown-Vorschau, Tabellen und Inhaltsverzeichnis
-commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc
+commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
 1. Extras, Markdown, Vorschau für Markdown oder HTML öffnet unter dem Editor den Vorschaubereich mit der aktuellen Datei. Der Bereich folgt dem Tippen: Er wird kurz nach der letzten Taste neu gezeichnet und behält die Scrollposition.
 2. Markdown erscheint als Seite: Überschriften, Listen, Zitate, Code, Hervorhebungen und Tabellen mit ihren Zellen (die Doppelpunkte in der Strichzeile bestimmen die Ausrichtung einer Spalte).
 3. Eine HTML-Datei erscheint als Text, samt Tags. Nichts darin wird ausgeführt und nichts aus dem Netz geladen.
 4. Extras, Markdown, Markdown-Gliederung anzeigen listet im selben Bereich die Überschriften der Datei, nach Ebene eingerückt. Ein Klick oder Enter auf eine Überschrift setzt den Cursor im Editor in ihre Zeile.
 5. Extras, Markdown, Markdown-Tabelle ausrichten schreibt die Tabelle unter dem Cursor so um, dass jede Spalte so breit ist wie ihre breiteste Zelle. Die Zeichen `:--`, `:-:` und `--:` bleiben, eine kürzere Zeile wird mit leeren Zellen aufgefüllt. Ein Rückgängig-Schritt macht es rückgängig.
 6. Extras, Markdown, Markdown-Inhaltsverzeichnis aktualisieren schreibt Links zu den Überschriften zwischen die Zeilen `<!-- TOC -->` und `<!-- /TOC -->`. Nur der Text dazwischen ändert sich. Fehlen die Zeilen, werden sie am Cursor eingefügt. Die Anker sind klein geschrieben, Leerzeichen werden zu Bindestrichen, ein wiederholter Titel bekommt `-1`, `-2`.
+7. In einer Tabelle wählt Tab die nächste Zelle und Umschalt+Tab die vorherige; dabei werden die Spalten ausgerichtet. Tab in der letzten Zelle fügt eine Zeile an. Außerhalb einer Tabelle wirken beide Tasten wie bisher. Jeder Sprung ist ein Rückgängig-Schritt.
+8. In einer Tabelle fügt Umschalt+Eingabe unter der Cursorzeile eine leere Zeile mit der richtigen Zellenzahl ein. Extras, Markdown, Markdown-Tabelle reparieren behebt eine kaputte Tabelle: Sie ergänzt eine fehlende Strichzeile, füllt kurze Zeilen auf, behält die Doppelpunkte und richtet die Spalten aus.
 - Ein Bild wird nur aus einer `data:`-Adresse mit PNG, JPEG, GIF, BMP oder WebP gezeichnet. Ein Bild aus dem Netz oder aus einer lokalen Datei erscheint als Hinweis mit seinem Alternativtext. Ein Link ins Web oder zu einer E-Mail-Adresse fragt zuerst nach Ihrer Bestätigung; jeder andere Link ist nur Text.
 - Eine Datei über dem Limit der Vorschau wird nicht gezeichnet; die Statusleiste sagt es. Esc oder Schließen beendet die Vorschau.
-- Aufgelistet werden nur mit `#` geschriebene Überschriften. Die Breite einer Tabellenzelle wird in Zeichen gezählt, breite ostasiatische Zeichen können daher schief wirken.
+- Aufgelistet werden nur mit `#` geschriebene Überschriften. Die Breite einer Tabellenzelle ist ihre Anzeigebreite: breite ostasiatische Zeichen zählen als zwei Spalten. Ein senkrechter Strich in einer Zelle wird als `\|` geschrieben oder steht in einem Code-Ausschnitt.
 
 ## [tools.keys] Schlüsselpfade in YAML und JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
