@@ -538,6 +538,29 @@ public class McpServerTests
         rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
     }
 
+    [Fact]
+    [Trait("Category", "Large")]
+    public async Task Withdrawing_access_stops_a_scan_of_a_ten_gibibyte_log_that_is_running()
+    {
+        const long length = 10L << 30;
+        using var file = new TempSparse(length);
+        file.Write(length - 64, "\n2026-01-01 ERROR last failure\n");
+        await using var rig = Rig.Create(maxScanBytes: 100L << 30);
+        var doc = Document.Open(file.Path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
+        rig.Share(doc);
+
+        var query = rig.ToolAsync("editor_log_query", rig.Args(doc, "\"level\":\"error\",\"maxLines\":1"));
+        await Task.Delay(1500);
+        Assert.False(query.IsCompleted, "the scan was expected to take longer than this");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        rig.Permissions.Revoke(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(doc.Id));
+        var reply = await query.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.True(reply.IsError);
+        Assert.Contains("withdrew", reply.Text);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), watch.Elapsed.ToString());
+        rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
+    }
+
     sealed class TempSparse : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(T.TempDir(), "big.log");

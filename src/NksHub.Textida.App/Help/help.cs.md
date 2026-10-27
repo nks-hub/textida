@@ -1039,3 +1039,16 @@ Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává pro
 2. Zvolte Zobrazit a potom Synchronizovat posouvání. Aktivní karta a aktivní karta další skupiny se sledují. Dalším zvolením příkazu to vypnete.
 - Řádky se přiřazují porovnáním z tématu Porovnání textů: druhý soubor se posune na odpovídající řádek, i přes vložené nebo odebrané bloky. Než se porovnání dopočítá, platí stejné číslo řádku.
 - Skončí, když se zavře jedna ze dvou karet. Hexadecimální a tabulkový pohled se neúčastní.
+
+## [tools.mcp] Editor jako server MCP
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+Asistent s umělou inteligencí, kterého na tomto počítači spustíte (například programovací agent), může Textidu používat přes Model Context Protocol. Vidí jen karty, které mu sdílíte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
+1. Zvolte Nástroje, Server MCP. Dialog vypíše, co asistent dostane. Zapnutím se server spustí; dalším zvolením příkazu se vypne a všechny karty se odvolají.
+2. Asistenta nastavte tak, aby spouštěl program textida-mcp.exe ze složky mcp vedle editoru (celou cestu ukáže stavový řádek). S editorem mluví přes místní rouru, žádný síťový port se neotevírá.
+3. Otevřete kartu a zvolte Nástroje, Sdílet kartu s MCP. Stejným příkazem kartu odvoláte. Karta, která není sdílená, není ani vypsaná.
+4. Volbou Nástroje, Nástroje MCP zapnete nebo vypnete jednotlivé nástroje. Výběr nástroje v seznamu změní jeho stav, Escape seznam zavře.
+- Asistent čte text tak, jak je v editoru, i neuložený, hledá v něm, žádá osnovu, kódování a konce řádků, hledá řádky dané úrovně v logu libovolné velikosti a čte nebo hledá bajty (nejvýš 64 KiB najednou).
+- Změna je návrh pro jednu revizi textu. Když se text mezitím změnil, návrh se odmítne a asistent si musí text přečíst znovu. Návrh uvidíte jako jiné změny celého dokumentu a zvolíte, jestli ho použít; asistent se může zeptat, jak dopadl.
+- Hodnoty v souborech .env vidí asistent jako *. Při sdílení takové karty se zeptáme, jestli smí vidět skutečné hodnoty; odpověď platí jen pro tu kartu.
+- Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží. Odvolá ji i znovunačtení souboru.
+- Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.

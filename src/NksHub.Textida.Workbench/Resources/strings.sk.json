@@ -355,5 +355,8 @@
   "cmd.compare.copyToRight": "Skopírovať rozdiel doprava",
   "cmd.compare.copyToLeft": "Skopírovať rozdiel doľava",
   "cmd.view.syncScroll": "Synchronizovať posúvanie",
-  "menu.editor.context": "Kontextová ponuka editora"
+  "menu.editor.context": "Kontextová ponuka editora",
+  "cmd.tools.mcpServer": "Server MCP: zapnúť alebo vypnúť...",
+  "cmd.tools.mcpShareTab": "Zdieľať kartu s MCP",
+  "cmd.tools.mcpTools": "Nástroje MCP..."
 }

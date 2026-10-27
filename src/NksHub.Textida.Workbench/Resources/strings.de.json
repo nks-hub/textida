@@ -355,5 +355,8 @@
   "cmd.compare.copyToRight": "Unterschied nach rechts kopieren",
   "cmd.compare.copyToLeft": "Unterschied nach links kopieren",
   "cmd.view.syncScroll": "Scrollen synchronisieren",
-  "menu.editor.context": "Kontextmenü des Editors"
+  "menu.editor.context": "Kontextmenü des Editors",
+  "cmd.tools.mcpServer": "MCP-Server: ein- oder ausschalten...",
+  "cmd.tools.mcpShareTab": "Tab mit MCP teilen",
+  "cmd.tools.mcpTools": "MCP-Werkzeuge..."
 }

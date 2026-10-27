@@ -1,5 +1,7 @@
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Rpc;
@@ -105,8 +107,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: how long Tab waits for a plugin before it indents as without one. Settable so tests on a loaded machine do not race it.</summary>
     internal static TimeSpan TabTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
-    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog) => new()
+    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules) => new()
     {
+        LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,
         MaxSymbolTextLength = SymbolTextLength,
         MaxSnippetLength = SnippetLength,
@@ -125,6 +128,40 @@ internal static class PluginLimitsPlaceholders
         Permissions = permissions,
         CallLog = callLog,
         Proposals = proposals,
+    };
+
+    /// <summary>Placeholder: proposals of the MCP assistant the editor remembers the outcome of.</summary>
+    public const int McpTrackedProposals = 100;
+
+    /// <summary>Placeholder: longest text one MCP tool result holds, in UTF-16 units.</summary>
+    public const int McpMaxResultChars = 256 * 1024;
+
+    /// <summary>Placeholder: most bytes of text one MCP read returns.</summary>
+    public const int McpMaxRangeBytes = 64 * 1024;
+
+    /// <summary>Placeholder: most matches, log lines or symbols one MCP tool call returns.</summary>
+    public const int McpMaxItems = 200;
+
+    /// <summary>Placeholder: bytes of text around a match in an MCP search result.</summary>
+    public const int McpSnippetBytes = 160;
+
+    /// <summary>Placeholder: longest log line an MCP result carries, in UTF-16 units.</summary>
+    public const int McpMaxLineChars = 2000;
+
+    public static McpServerOptions Mcp(DocumentApi documents, ProposalLedger ledger, Func<Guid, string?> titleOf, Func<Guid, CancellationToken, Task> ensureOutline) => new()
+    {
+        Documents = documents,
+        Proposals = ledger,
+        Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
+        ServerName = "textida",
+        ServerVersion = typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0",
+        MaxResultChars = McpMaxResultChars,
+        MaxRangeBytes = McpMaxRangeBytes,
+        MaxItems = McpMaxItems,
+        SnippetBytes = McpSnippetBytes,
+        MaxLineChars = McpMaxLineChars,
+        TitleOf = titleOf,
+        EnsureOutline = ensureOutline,
     };
 
     public static UiApiOptions Ui() => new()

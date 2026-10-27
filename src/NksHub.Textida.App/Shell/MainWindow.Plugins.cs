@@ -13,6 +13,7 @@ using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Ui;
 
 namespace NksHub.Textida.App.Shell;
@@ -274,14 +275,24 @@ internal sealed partial class MainWindow
         return await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(request.Title, request.Message, buttons)) == 0;
     }
 
-    /// <summary>Shows what a plugin proposes in the preview of the other whole-document actions and applies it when the user agrees.</summary>
-    internal async Task ReviewPluginProposalAsync(EditProposal proposal, DocTab tab)
+    /// <summary>
+    /// Shows what a plugin (or the MCP assistant) proposes in the preview of the other whole-document actions and applies it when the user agrees. The outcome is what became of the
+    /// proposal: rejected by the user, stale when the text it touched changed before the user decided, or applied.
+    /// </summary>
+    internal async Task<ProposalOutcome> ReviewPluginProposalAsync(EditProposal proposal, DocTab tab)
     {
-        var report = tab.Doc.Doc.InspectEdits(proposal.Edits, "plugin:" + proposal.PluginId, proposal.Revision);
-        if (report is null) { SetStatusMessage(Loc.Get(K.StatusChangeConflict)); return; }
-        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, Loc.Get(K.PluginProposal, ("title", proposal.Title ?? proposal.PluginId), ("changes", proposal.Edits.Count)), Loc.Get(K.PreviewApply));
-        if (answer != LossAnswer.Replace) return;
+        var source = "plugin:" + proposal.PluginId;
+        var report = tab.Doc.Doc.InspectEdits(proposal.Edits, source, proposal.Revision, proposal.RawBytes);
+        if (report is null) { SetStatusMessage(Loc.Get(K.StatusChangeConflict)); return new ProposalOutcome(ProposalStatus.Stale); }
+        var headline = proposal.PluginId == McpServer.ClientId
+            ? Loc.Get(K.McpProposal, ("title", proposal.Title ?? Loc.Get(K.McpToolsTitle)), ("changes", proposal.Edits.Count))
+            : Loc.Get(K.PluginProposal, ("title", proposal.Title ?? proposal.PluginId), ("changes", proposal.Edits.Count));
+        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, headline, Loc.Get(K.PreviewApply));
+        if (answer != LossAnswer.Replace) return new ProposalOutcome(ProposalStatus.Rejected);
         report.Confirm();
-        if (!tab.Doc.Doc.Apply(report).Applied) SetStatusMessage(Loc.Get(K.StatusChangeConflict));
+        var result = tab.Doc.Doc.Apply(report);
+        if (result.Applied) return new ProposalOutcome(ProposalStatus.Applied, result.Revision);
+        SetStatusMessage(Loc.Get(K.StatusChangeConflict));
+        return new ProposalOutcome(ProposalStatus.Stale);
     }
 }

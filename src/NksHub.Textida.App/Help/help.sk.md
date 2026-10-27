@@ -1039,3 +1039,16 @@ Dve karty sa posúvajú spolu, takže rovnaký text dvoch súborov zostáva opro
 2. Zvoľte Zobraziť a potom Synchronizovať posúvanie. Aktívna karta a aktívna karta ďalšej skupiny sa sledujú. Ďalším zvolením príkazu to vypnete.
 - Riadky sa priraďujú porovnaním z témy Porovnanie textov: druhý súbor sa posunie na zodpovedajúci riadok, aj cez vložené alebo odobraté bloky. Kým sa porovnanie dopočíta, platí rovnaké číslo riadka.
 - Skončí, keď sa zavrie jedna z dvoch kariet. Hexadecimálny a tabuľkový pohľad sa nezúčastňujú.
+
+## [tools.mcp] Editor ako server MCP
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (napríklad programovací agent), môže Textidu používať cez Model Context Protocol. Vidí len karty, ktoré mu zdieľate, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
+1. Zvoľte Nástroje, Server MCP. Dialóg vypíše, čo asistent dostane. Zapnutím sa server spustí; ďalším zvolením príkazu sa vypne a všetky karty sa odvolajú.
+2. Asistenta nastavte tak, aby spúšťal program textida-mcp.exe z priečinka mcp vedľa editora (celú cestu ukáže stavový riadok). S editorom komunikuje cez miestnu rúru, žiadny sieťový port sa neotvára.
+3. Otvorte kartu a zvoľte Nástroje, Zdieľať kartu s MCP. Rovnakým príkazom kartu odvoláte. Karta, ktorá nie je zdieľaná, nie je ani vypísaná.
+4. Voľbou Nástroje, Nástroje MCP zapnete alebo vypnete jednotlivé nástroje. Výber nástroja v zozname zmení jeho stav, Escape zoznam zavrie.
+- Asistent číta text tak, ako je v editore, aj neuložený, hľadá v ňom, žiada osnovu, kódovanie a konce riadkov, hľadá riadky danej úrovne v logu ľubovoľnej veľkosti a číta alebo hľadá bajty (najviac 64 KiB naraz).
+- Zmena je návrh pre jednu revíziu textu. Ak sa text medzitým zmenil, návrh sa odmietne a asistent si musí text prečítať znova. Návrh uvidíte ako iné zmeny celého dokumentu a zvolíte, či ho použiť; asistent sa môže opýtať, ako dopadol.
+- Hodnoty v súboroch .env vidí asistent ako *. Pri zdieľaní takej karty sa opýtame, či smie vidieť skutočné hodnoty; odpoveď platí len pre tú kartu.
+- Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia. Odvolá ju aj opätovné načítanie súboru.
+- Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.

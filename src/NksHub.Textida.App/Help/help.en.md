@@ -1034,3 +1034,16 @@ Two tabs scroll together, so equal text of two files stays side by side.
 2. Choose View and then Synchronize Scrolling. The active tab and the active tab of the next group follow each other. Choose the command again to stop.
 - The lines are matched with the comparison of Comparing texts: the other file scrolls to the line that corresponds, also across inserted or removed blocks. While that comparison is being made, the same line number is used.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
+
+## [tools.mcp] The editor as an MCP server
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
+1. Choose Tools, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
+2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
+3. Open a tab and choose Tools, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
+4. Choose Tools, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+- The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
+- A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
+- Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
+- Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
+- The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.

@@ -53,6 +53,9 @@ public static class IpcEndpoint
         return dir;
     }
 
+    /// <summary>The channel an MCP client (the <c>textida-mcp</c> program) reaches the editor on; separate from the channel of the second launch, so it is off until the user switches it on.</summary>
+    public static string McpChannel(string mainChannel) => mainChannel + "-mcp";
+
     internal static string PipeName(string channel) => $"textida-{Sanitize(Environment.UserName)}-{Sanitize(channel)}";
 
     internal static string SocketPath(string channel)
@@ -151,15 +154,20 @@ public static class IpcClient
 public sealed class IpcServer : IAsyncDisposable
 {
     private readonly string _channel;
-    private readonly Func<IpcRequest, Task> _handler;
+    private readonly Func<Stream, CancellationToken, Task> _serve;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _loop;
     private Socket? _listener;
 
-    public IpcServer(string channel, Func<IpcRequest, Task> handler)
+    public IpcServer(string channel, Func<IpcRequest, Task> handler) : this(channel, (stream, ct) => ServeRequestAsync(stream, handler, ct), true) { }
+
+    /// <summary>Listens on a channel and hands every connection to <paramref name="serve"/> as a duplex stream, for protocols that keep it open (MCP).</summary>
+    public static IpcServer ForStreams(string channel, Func<Stream, CancellationToken, Task> serve) => new(channel, serve, true);
+
+    private IpcServer(string channel, Func<Stream, CancellationToken, Task> serve, bool streams)
     {
         _channel = channel;
-        _handler = handler;
+        _serve = serve;
         if (!OperatingSystem.IsWindows())
         {
             var path = IpcEndpoint.SocketPath(channel);
@@ -209,20 +217,26 @@ public sealed class IpcServer : IAsyncDisposable
     {
         await using (stream)
         {
-            var reply = new IpcResponse { Ok = true };
-            try
-            {
-                var line = await IpcEndpoint.ReadLineAsync(stream, ct);
-                if (line is null) return;
-                var request = System.Text.Json.JsonSerializer.Deserialize(line, IpcJson.Default.IpcRequest) ?? throw new InvalidDataException("empty request");
-                await _handler(request);
-            }
-            catch (OperationCanceledException) { reply = new IpcResponse { Ok = false, Error = "the instance is shutting down" }; }
-            catch (Exception e) when (e is not OutOfMemoryException) { reply = new IpcResponse { Ok = false, Error = e.Message }; }
-
-            try { await IpcEndpoint.WriteLineAsync(stream, System.Text.Json.JsonSerializer.Serialize(reply, IpcJson.Default.IpcResponse), CancellationToken.None); }
-            catch (IOException) { /* the client went away */ }
+            try { await _serve(stream, ct); }
+            catch (Exception e) when (e is OperationCanceledException or IOException or ObjectDisposedException) { /* the client went away or the instance stops */ }
         }
+    }
+
+    private static async Task ServeRequestAsync(Stream stream, Func<IpcRequest, Task> handler, CancellationToken ct)
+    {
+        var reply = new IpcResponse { Ok = true };
+        try
+        {
+            var line = await IpcEndpoint.ReadLineAsync(stream, ct);
+            if (line is null) return;
+            var request = System.Text.Json.JsonSerializer.Deserialize(line, IpcJson.Default.IpcRequest) ?? throw new InvalidDataException("empty request");
+            await handler(request);
+        }
+        catch (OperationCanceledException) { reply = new IpcResponse { Ok = false, Error = "the instance is shutting down" }; }
+        catch (Exception e) when (e is not OutOfMemoryException) { reply = new IpcResponse { Ok = false, Error = e.Message }; }
+
+        try { await IpcEndpoint.WriteLineAsync(stream, System.Text.Json.JsonSerializer.Serialize(reply, IpcJson.Default.IpcResponse), CancellationToken.None); }
+        catch (IOException) { /* the client went away */ }
     }
 
     public async ValueTask DisposeAsync()

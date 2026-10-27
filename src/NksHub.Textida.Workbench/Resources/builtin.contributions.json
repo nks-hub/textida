@@ -1085,6 +1085,22 @@
       "category": "cat.edit"
     },
     {
+      "id": "nks.tools.mcpServer",
+      "title": "cmd.tools.mcpServer",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.mcpShareTab",
+      "title": "cmd.tools.mcpShareTab",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.tools.mcpTools",
+      "title": "cmd.tools.mcpTools",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.emmetPreview",
       "title": "cmd.tools.emmetPreview",
       "category": "cat.tools",
@@ -2278,6 +2294,24 @@
       "command": "nks.edit.copyAiContext",
       "group": "2_clip",
       "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpServer",
+      "group": "8_mcp",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpShareTab",
+      "group": "8_mcp",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpTools",
+      "group": "8_mcp",
+      "order": 30
     },
     {
       "menu": "tools",
