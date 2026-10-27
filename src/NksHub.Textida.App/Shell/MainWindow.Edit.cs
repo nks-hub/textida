@@ -326,10 +326,14 @@ internal sealed partial class MainWindow
 
     internal void ZoomReset() => _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
 
+    /// <summary>Switches to the opposite of what the menu shows; when a giant line holds the wrap back, the setting stays on and the status bar says why.</summary>
     internal void ToggleWordWrap()
     {
-        _app.Workbench.Set("editor.wordWrap", Options.WordWrap ? "off" : "on");
-        if (Active?.Surface is { WrapSuppressed: true }) SetStatusMessage(Loc.Get(K.ViewWrapSuppressed, ("limit", EditorSurface.WrapLineLimit)));
+        var surface = Active?.Surface;
+        bool wanted = !(surface?.WordWrap ?? Options.WordWrap);
+        if (wanted != Options.WordWrap) _app.Workbench.Set("editor.wordWrap", wanted ? "on" : "off");
+        else surface?.RefreshWrap();
+        if (wanted && surface is { WrapSuppressed: true }) SetStatusMessage(Loc.Get(K.ViewWrapSuppressed, ("limit", EditorSurface.WrapLineLimit)));
     }
 
     internal void CycleTab(int step)

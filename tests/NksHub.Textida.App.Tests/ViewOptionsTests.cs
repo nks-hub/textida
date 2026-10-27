@@ -297,6 +297,73 @@ public class ViewOptionsTests : IDisposable
         Assert.Equal(0, Differences(plain, Capture(), band));
     }
 
+    [AvaloniaFact]
+    public void Line_endings_on_the_paged_surface_are_drawn_as_marks()
+    {
+        var tab = Open("pe.txt", "ab\r\ncd\n" + CodeLines(45_000), paged: true);
+        var plain = Capture();
+        Set("editor.renderLineEndings", JsonValue.Create(true));
+        Assert.True(Differences(plain, Capture(), PagedBand(tab)) > 10, "no CRLF mark after the first line");
+        Assert.Equal(("CRLF", "CR", "LF"), (LineEndingRenderer.Label("\r\n"), LineEndingRenderer.Label("\r"), LineEndingRenderer.Label("\n")));
+    }
+
+    /// <summary>Captures once the window of the long first line at the current sideways position has been read.</summary>
+    private Shot CaptureWindow(DocTab tab)
+    {
+        var paged = tab.Paged!;
+        var clock = Stopwatch.StartNew();
+        do Capture();
+        while ((paged.WindowsPending || paged.CachedWindow(0) is null) && clock.Elapsed.TotalSeconds < 10);
+        Assert.NotNull(paged.CachedWindow(0));
+        return Capture();
+    }
+
+    /// <summary>Opens a paged document whose first line is longer than the decoded part, so its far columns are drawn from windows.</summary>
+    private DocTab OpenLong(string name, string content)
+    {
+        var tab = Open(name, content, paged: true);
+        Capture();
+        Settle(); // the first draw posts the range of the sideways bar
+        return tab;
+    }
+
+    [AvaloniaFact]
+    public void Hidden_characters_are_drawn_in_the_far_part_of_a_long_line()
+    {
+        var tab = OpenLong("wide.txt", string.Concat(Enumerable.Repeat("ab  c\t\td ", 6000)) + "\r\nnext\n" + CodeLines(45_000));
+        long revision = tab.Doc.Doc.Revision;
+        tab.Paged!.ScrollToColumn(40_000);
+        var plain = CaptureWindow(tab);
+        var band = PagedBand(tab);
+
+        _w.ToggleHiddenCharacters();
+        var shown = CaptureWindow(tab);
+
+        Assert.True(Differences(plain, shown, band) > 40, "spaces and tabs beyond the decoded part were not drawn");
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.False(tab.Doc.HasUnsavedWork);
+        _w.ToggleHiddenCharacters();
+        Assert.Equal(0, Differences(plain, CaptureWindow(tab), band));
+    }
+
+    [AvaloniaFact]
+    public void The_line_end_of_a_long_line_is_drawn_after_its_last_column()
+    {
+        Set("editor.renderLineEndings", JsonValue.Create(true));
+        Shot AtEnd(string name, string content)
+        {
+            var tab = OpenLong(name, content);
+            tab.Paged!.ScrollToColumn(double.MaxValue);
+            return CaptureWindow(tab);
+        }
+        string line = new('x', 1_100_000); // above the 1 MiB threshold on its own, so the file opens paged with the long line last
+        var ended = AtEnd("ended.txt", line + "\r\n");
+        var last = AtEnd("last.txt", line); // the last line has no line end, so nothing is drawn after it
+        var lines = _w.Active!.Paged!.Children[0]; // the lines surface without the bars: at the end of the range the mark sits at its right edge
+        var row = InWindow(lines, new Rect(0, 0, lines.Bounds.Width, 17));
+        Assert.True(Differences(ended, last, row) > 10, "no CRLF mark at the end of the long line");
+    }
+
     // ---- line numbers, current line, margin, links ----
 
     [AvaloniaFact]
@@ -400,6 +467,30 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Toggling_wrap_over_a_giant_line_keeps_the_setting_and_says_why()
+    {
+        Set("editor.wordWrap", "on");
+        var editor = Open("gw.txt", new string('y', EditorSurface.WrapLineLimit + 1) + "\nshort\n").Editor!;
+        string WrapSetting() => _app.Workbench.Settings.GetString("editor.wordWrap");
+        Assert.True(editor.WrapSuppressed);
+
+        _w.ToggleWordWrap(); // the menu shows wrap off, so the click asks for wrap
+        Assert.Equal("on", WrapSetting());
+        Assert.False(editor.WordWrap);
+        Assert.Equal(Loc.Get(K.ViewWrapSuppressed, ("limit", EditorSurface.WrapLineLimit)), _w.StatusMessageText);
+
+        editor.Document.Remove(0, EditorSurface.WrapLineLimit);
+        _w.ToggleWordWrap();
+        Assert.True(editor.WordWrap);
+        Assert.False(editor.WrapSuppressed);
+        Assert.Equal("on", WrapSetting());
+
+        _w.ToggleWordWrap();
+        Assert.False(editor.WordWrap);
+        Assert.Equal("off", WrapSetting());
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Large")]
     public void A_line_of_100_MiB_opens_unwrapped_on_the_paged_surface_and_draws_its_first_part()
     {
@@ -451,6 +542,36 @@ public class ViewOptionsTests : IDisposable
 
         Set("editor.fallbackFontFamily", "Noto Sans CJK SC");
         Assert.EndsWith("Noto Sans CJK SC", string.Join(", ", tab.Editor.FontFamily.FamilyNames));
+    }
+
+    [AvaloniaFact]
+    public void A_character_the_main_font_lacks_is_drawn_on_both_surfaces_and_not_as_the_missing_glyph_box()
+    {
+        const string noFontHasIt = "\U0010FFFD"; // private use: drawn as the missing glyph box of the main font
+        foreach (bool paged in new[] { false, true })
+        {
+            string rest = "\n" + CodeLines(paged ? 45_000 : 2);
+            var han = Open($"han-{paged}.txt", "漢" + rest, paged);
+            var band = paged ? InWindow(han.Paged!, new Rect(0, 0, 200, 17)) : EditorBand(han, 0);
+            var drawn = Capture();
+            Open($"box-{paged}.txt", noFontHasIt + rest, paged);
+            Assert.True(Differences(drawn, Capture(), band) > 20, $"漢 looks like the missing glyph box (paged: {paged})");
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_character_the_main_font_lacks_comes_from_the_first_listed_font_that_has_it()
+    {
+        var family = Open("u.txt", "漢 ☃\n").Editor!.FontFamily;
+        static bool Has(string name, char c) =>
+            FontManager.Current.TryGetGlyphTypeface(new Typeface(name), out var g) && g.FamilyName == name && g.CharacterToGlyphMap.ContainsGlyph(c);
+        foreach (char c in "漢☃")
+        {
+            Assert.True(FontManager.Current.TryMatchCharacter(c, FontStyle.Normal, FontWeight.Normal, FontStretch.Normal, family, null, out var typeface), c.ToString());
+            Assert.True(typeface.GlyphTypeface.CharacterToGlyphMap.ContainsGlyph(c), typeface.GlyphTypeface.FamilyName);
+            // a machine without any of the listed fonts falls back to the system; with one installed, the list decides
+            if (family.FamilyNames.FirstOrDefault(n => Has(n, c)) is { } listed) Assert.Equal(listed, typeface.GlyphTypeface.FamilyName);
+        }
     }
 
     // ---- commands and settings ----
