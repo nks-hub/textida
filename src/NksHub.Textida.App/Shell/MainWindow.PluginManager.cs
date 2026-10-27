@@ -43,6 +43,7 @@ internal sealed partial class MainWindow
         DocumentPermissions.Source => K.PluginsPermDocumentSource,
         DocumentPermissions.Preview => K.PluginsPermDocumentPreview,
         DocumentPermissions.AgentPanel => K.PluginsPermAgentPanel,
+        DocumentPermissions.LanguageServer => K.PluginsPermLanguageServer,
         _ => K.PluginsPermWorkspaceFiles,
     });
 

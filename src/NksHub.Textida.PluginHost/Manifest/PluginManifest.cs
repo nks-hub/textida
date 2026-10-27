@@ -69,6 +69,27 @@ public sealed class PluginContributions
     public List<LogPatternContribution> LogPatterns { get; set; } = [];
     public List<ExternalToolContribution> ExternalTools { get; set; } = [];
     public List<LanguageHelpContribution> LanguageHelp { get; set; } = [];
+
+    /// <summary>Language servers the built-in language server client may start for this plugin; needs the <c>language.server</c> permission.</summary>
+    public List<LanguageServerContribution> LanguageServers { get; set; } = [];
+}
+
+/// <summary>
+/// A language server the plugin offers. The server serves the documents whose language mode id is in <see cref="Languages"/> or whose file name matches one of <see cref="Globs"/>
+/// (<c>*</c>, <c>?</c> and <c>**</c>; a glob without <c>/</c> is matched against the file name, otherwise against the full path with <c>/</c> separators). <see cref="Locate"/>
+/// <c>path</c>: <see cref="Command"/> is a bare program name looked up in <c>PATH</c>; <c>plugin</c>: it is a relative path inside the plugin folder.
+/// </summary>
+public sealed class LanguageServerContribution
+{
+    public string Id { get; set; } = "";
+    /// <summary>Language mode ids; the first one is the language the server is started and shared for when a document matches only by glob.</summary>
+    public List<string> Languages { get; set; } = [];
+    public List<string> Globs { get; set; } = [];
+    public string Command { get; set; } = "";
+    public List<string> Args { get; set; } = [];
+    /// <summary>Sent as <c>initializationOptions</c> of the LSP <c>initialize</c> request; must be a JSON object.</summary>
+    public System.Text.Json.JsonElement? InitializationOptions { get; set; }
+    public string Locate { get; set; } = "path";
 }
 
 /// <summary>

@@ -37,6 +37,10 @@ public sealed class LspPlugin : PluginBase
         public readonly ConcurrentDictionary<Guid, Doc> Docs = new();
         public LspServer? Server;
         public State State;
+        /// <summary>The server a plugin manifest declares for the language, as the last command sent it; it wins over the catalog.</summary>
+        public ServerLaunch? Declared;
+        /// <summary>Changes when a document joins or the last one leaves, so a pending idle stop knows it is out of date.</summary>
+        public int IdleTicket;
     }
 
     private sealed class Doc(Guid id, Slot slot, string uri, string? path)
@@ -132,6 +136,7 @@ public sealed class LspPlugin : PluginBase
         var slot = _slots.GetOrAdd(r.Language, l => new Slot(l));
         try
         {
+            if (p.TryGetProperty("lspServer", out var declared) && declared.ValueKind == JsonValueKind.Object) slot.Declared = ServerCatalog.ParseLaunch(declared) with { Language = r.Language };
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
@@ -188,6 +193,7 @@ public sealed class LspPlugin : PluginBase
         await CallAsync(DocumentMethods.Subscribe, $"{{\"document\":\"{id}\"}}", ct).ConfigureAwait(false);
         _docs[guid] = doc;
         slot.Docs[guid] = doc;
+        Interlocked.Increment(ref slot.IdleTicket);
         return doc;
     }
 
@@ -335,6 +341,26 @@ public sealed class LspPlugin : PluginBase
             }
         }
         finally { d.Gate.Release(); }
+        StopWhenIdle(d.Slot);
+    }
+
+    /// <summary>Ends the server of a slot that has had no document for <see cref="LspSettings.IdleStopMs"/>; a document that joins meanwhile cancels it.</summary>
+    private void StopWhenIdle(Slot slot)
+    {
+        if (_settings.IdleStopMs <= 0 || !slot.Docs.IsEmpty) return;
+        int ticket = Interlocked.Increment(ref slot.IdleTicket);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(_settings.IdleStopMs).ConfigureAwait(false);
+            await slot.Lifecycle.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (Volatile.Read(ref slot.IdleTicket) != ticket || slot.Server is null) return;
+                await StopServerCoreAsync(slot).ConfigureAwait(false);
+                await ShowStateAsync(slot).ConfigureAwait(false);
+            }
+            finally { slot.Lifecycle.Release(); }
+        });
     }
 
     // ---- the server ----
@@ -347,7 +373,8 @@ public sealed class LspPlugin : PluginBase
         {
             if (restart) await StopServerCoreAsync(slot).ConfigureAwait(false);
             if (slot.Server is { Alive: true }) return null;
-            var launch = _catalog.Resolve(slot.Language, out bool found);
+            bool found;
+            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : _catalog.Resolve(slot.Language, out found);
             if (launch is null || !found)
             {
                 slot.State = State.NotFound;

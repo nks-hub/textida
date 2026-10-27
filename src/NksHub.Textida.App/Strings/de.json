@@ -1464,6 +1464,7 @@
   "plugins.perm.agent.panel": "führt eine Unterhaltung im Agentenfenster",
   "plugins.perm.document.source": "bedient Dateien für ein eigenes Adressschema und sieht die geöffneten Adressen samt Geheimnissen darin",
   "plugins.perm.workspace.files": "bearbeitet, erstellt, benennt um und löscht Dateien unter den Arbeitsordnern",
+  "plugins.perm.language.server": "startet die Sprachserver, die es nennt, und gibt ihnen den Text geöffneter Dokumente",
   "plugins.error.title": "Plugin nicht installiert",
   "plugins.error.notAZip": "Die Datei ist keine lesbare ZIP-Datei.",
   "plugins.error.unsafePath": "Die ZIP-Datei enthält einen Pfad, der außerhalb des Plugin-Ordners geschrieben würde.",

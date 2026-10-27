@@ -137,6 +137,8 @@ public static class DocumentPermissions
     public const string Preview = "document.preview";
     /// <summary>Hosts a conversation in the agent panel. Questions go through the permission dialog and file changes through the change review, as for any agent.</summary>
     public const string AgentPanel = "agent.panel";
+    /// <summary>Lets the language server client start the programs the plugin names in <c>languageServers</c> and hand them the text of documents it may read.</summary>
+    public const string LanguageServer = "language.server";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
