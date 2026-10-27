@@ -179,8 +179,10 @@ internal static class AppCommands
         registry.SetHandler("nks.edit.tab", (context, _) =>
         {
             if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
+            // inside a snippet session Tab walks the stops; no plugin (Emmet) gets it, whatever way this command was started
+            if (w.ActiveEditor is { InSnippet: true } session && session.NextSnippetStop()) return done(CommandOutcome.Handled);
             // plugins that registered for Tab answer first; without one the key is handled at once, as it always was
-            if (w.Active is { } tab && (app.Plugins.Documents.HasTabProviders || PluginServices.EmmetSyntax(tab.Doc.Language.Id) is not null)) return OfferTab(w, tab, context);
+            if (w.Active is { } tab && (app.Plugins.Documents.HasTabProviders || PluginServices.EmmetOnTab(tab))) return OfferTab(w, tab, context);
             return done(w.Tab(outdent: false));
         });
         On("nks.edit.newline", w => w.Newline());

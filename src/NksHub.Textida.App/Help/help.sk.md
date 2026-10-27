@@ -1247,15 +1247,16 @@ Reťazec v súbore PHP alebo JavaScript sa otvorí v samostatnej karte vo zvolen
 
 ## [tools.emmet] Skratky Emmet
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
-1. V súbore HTML alebo CSS napíšte skratku a stlačte Tab. Z `ul>li*3` vznikne zoznam s tromi položkami a kurzorom v každej z nich.
+1. V súbore HTML alebo CSS napíšte skratku a stlačte Tab. Z `ul>li*3` vznikne zoznam s tromi položkami a kurzorom v prvej z nich; každý ďalší Tab skočí na ďalšiu položku.
 2. Tab odsadzuje ako predtým, keď pred kurzorom nie je žiadna skratka, keď je niečo označené, keď je kurzor vo vnútri otvorenej značky alebo keď skratka nie je platná.
-3. Nástroje, Štruktúra a jazyk, Náhľad skratky Emmet ukáže, čím by skratka pred kurzorom bola (`|` označuje kurzory), a po potvrdení ju rozbalí.
+3. Nástroje, Štruktúra a jazyk, Náhľad skratky Emmet ukáže, čím by skratka pred kurzorom bola (`|` označuje miesta, kam Tab skáče), a po potvrdení ju rozbalí.
 4. Nástroje, Štruktúra a jazyk, Obaliť skratkou Emmet (len HTML) sa opýta na skratku a obalí ňou každý výber. Text príde do najvnútornejšieho posledného prvku; holá `*` na tom prvku (`ul>li*`) urobí jeden prvok na riadok.
 5. Každé rozbalenie ide do všetkých kurzorov naraz a je jeden krok Späť.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` potomok, `+` súrodenec, `^` o úroveň vyššie, `( )` skupina; v názvoch, triedach a texte je `$` číslo opakovania (`$$` doplní nuly, `$@-` počíta nadol, `$@3` začína od 3). Samotné slovo sa rozbalí, len keď je to názov značky HTML alebo krátky názov z pluginu (`bq`, `btn`, `a:link`, `input:checkbox`, `!` pre kostru stránky). Vo vnútri prvku sa chýbajúci názov doplní na `li`, `tr`, `td`, `option`, `span` alebo `div`, podľa rodiča.
 - CSS: `m10-20` je `margin: 10px 20px;`, `w100p` je `width: 100%;`, `c#f00`, `pos:a`, `dn`, koncový `!` pridá `!important`, `+` spojí viac deklarácií. Celé číslo dostane `px`, zlomok `em`; písmená `p`, `e`, `x`, `r` za číslom znamenajú `%`, `em`, `ex`, `rem`. Funguje len vo vnútri bloku `{ }`.
 - Krátke názvy sú vlastná tabuľka pluginu so bežnými vlastnosťami a značkami, nie úplná sada Emmet.
-- Kurzory stoja vo všetkých prázdnych prvkoch naraz (keď žiadny nie je, v prvej prázdnej hodnote atribútu); skok z jedného zástupného miesta na ďalšie zatiaľ nie je.
+- Rozbalenie je snippet: Tab prechádza jeho prázdne miesta postupne, najprv prázdne prvky, potom prázdne hodnoty atribútov, napríklad `href` pri `a` (v kostre stránky `!` titulok po tele). Pri viacerých kurzoroch má každé rozbalenie svoje miesta a kurzory sa posúvajú spoločne. Po poslednom mieste kurzor skočí na koniec rozbaleného textu. Kým Tab prechádza miesta, nikdy nerozbaľuje: názov značky napísaný do miesta zostane taký, aký je. Shift+Tab ide späť, Esc chodenie ukončí.
+- Nastavenie Emmet klávesom Tab vypne rozbaľovanie Tabom pre všetky jazyky alebo len pre jeden; oba príkazy fungujú ďalej.
 - Proces Emmet sa spustí prvým Tabom v súbore HTML alebo CSS.
 
 ## [tools.git] Git: stav, porovnanie a príprava úseku

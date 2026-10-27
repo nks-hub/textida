@@ -1242,15 +1242,16 @@ A string in a PHP or JavaScript file opens in a tab of its own, in the language 
 
 ## [tools.emmet] Emmet abbreviations
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
-1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with a caret inside each of them.
+1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with the caret in the first one; each further Tab jumps to the next item.
 2. Tab indents as usual when no abbreviation stands in front of the caret, when text is selected, when the caret is inside an open tag, or when the abbreviation is not valid.
-3. Tools, Structure and Language, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the carets) and expands it when you agree.
+3. Tools, Structure and Language, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the places Tab visits) and expands it when you agree.
 4. Tools, Structure and Language, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
 5. Every expansion goes into all carets at once and is one Undo step.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` child, `+` sibling, `^` one level up, `( )` group; in names, classes and text `$` is the number of the repeat (`$$` pads with zeros, `$@-` counts down, `$@3` starts at 3). A lone word expands only when it is an HTML tag name or a short name of the plugin (`bq`, `btn`, `a:link`, `input:checkbox`, `!` for a page skeleton). Inside an element the missing name is `li`, `tr`, `td`, `option`, `span` or `div`, as the parent needs.
 - CSS: `m10-20` is `margin: 10px 20px;`, `w100p` is `width: 100%;`, `c#f00`, `pos:a`, `dn`, a trailing `!` adds `!important`, `+` joins several declarations. A whole number gets `px`, a fraction `em`; the letters `p`, `e`, `x`, `r` after a number mean `%`, `em`, `ex`, `rem`. It works only inside a `{ }` block.
 - The short names are the plugin's own table of common properties and tags, not the full Emmet set.
-- The carets stand in every empty element at once (in the first empty attribute when there is none); a jump from one placeholder to the next does not exist yet.
+- The expansion is a snippet: Tab visits its empty places one after another, first the empty elements, then the empty attribute values such as `href` of `a` (in a page skeleton `!` the title after the body). With several carets every expansion has its own places and the carets move on together. After the last place the caret goes to the end of the expansion. While Tab walks through the places it never expands: a tag name typed into a place stays as typed. Shift+Tab goes back, Esc ends the walk.
+- The setting Emmet on Tab turns the expansion by Tab off for all languages or for one; the two commands keep working.
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
 ## [tools.git] Git: status, compare and stage a hunk

@@ -5902,6 +5902,22 @@
       ]
     },
     {
+      "key": "editor.emmet",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.emmet.title",
+      "description": "setting.editor.emmet.description",
+      "category": "cat.editor",
+      "scope": "language",
+      "tags": [
+        "emmet",
+        "abbreviation",
+        "html",
+        "css",
+        "tab"
+      ]
+    },
+    {
       "key": "files.binaryAsHex",
       "type": "string",
       "default": "ask",

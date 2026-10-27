@@ -11,13 +11,15 @@ namespace NksHub.Textida.Plugins.Emmet;
 /// <summary>Limits of the plugin; the editor passes them on the command line, so no number is fixed in the plugin.</summary>
 /// <param name="ContextBytes">Bytes read in front of a caret to find the abbreviation, its line and the CSS block; must not exceed what one read returns.</param>
 /// <param name="MaxChars">Longest expansion; the editor refuses a snippet longer than this.</param>
-/// <param name="MaxCarets">Most carets one expansion places; the editor refuses more.</param>
-public sealed record EmmetSettings(int ContextBytes, int MaxChars, int MaxCarets);
+/// <param name="MaxCarets">Most places Tab visits in one expansion (tab stops of the snippet session of the editor).</param>
+/// <param name="PreviewChars">Characters of the expansion the preview shows; the rest is cut off so the message fits the dialog.</param>
+public sealed record EmmetSettings(int ContextBytes, int MaxChars, int MaxCarets, int PreviewChars);
 
 /// <summary>
 /// The built-in Emmet: the abbreviation in front of the caret becomes markup (HTML) or declarations (CSS) when Tab is pressed, a preview shows the result first,
 /// and a selection can be wrapped in an abbreviation. It answers the Tab key of the editor (<c>editor/tab</c>) and says "not handled" for everything it does not
-/// understand, so the editor then indents as without it. Expansion is one snippet insertion into all carets, so it is one undo step.
+/// understand, so the editor then indents as without it. Expansion is one snippet insertion into all carets, so it is one undo step; the empty places of the
+/// expansion are the tab stops of the editor's snippet session, where Tab walks on instead of asking this plugin.
 /// The abbreviation expanders are written from the public Emmet syntax description; no code or data files of the Emmet projects are used.
 /// </summary>
 public sealed class EmmetPlugin : PluginBase
@@ -82,7 +84,7 @@ public sealed class EmmetPlugin : PluginBase
 
     // ---- expansion ----
 
-    private sealed record Item(long Start, long End, string Text, IReadOnlyList<int> Carets, string Abbreviation);
+    private sealed record Item(long Start, long End, Expansion Expansion, string Abbreviation);
 
     /// <summary>The expansion at every caret; null when any caret has no abbreviation in front of it (then nothing is expanded anywhere).</summary>
     private async Task<List<Item>?> BuildItemsAsync(Doc d, IReadOnlyList<long> carets, string syntax, string indent, CancellationToken ct)
@@ -101,15 +103,17 @@ public sealed class EmmetPlugin : PluginBase
             var options = new ExpandOptions(indent, LineIndent(line), _settings.MaxChars, _settings.MaxCarets);
             var expansion = syntax == "css" ? CssExpander.Expand(abbreviation, options) : HtmlExpander.Expand(abbreviation, options);
             if (expansion is null) return null;
-            items.Add(new Item(caret - d.Codec.WithBom(false).Encode(abbreviation).Length, caret, expansion.Text, expansion.Carets, abbreviation));
+            items.Add(new Item(caret - d.Codec.WithBom(false).Encode(abbreviation).Length, caret, expansion, abbreviation));
         }
         return items;
     }
 
+    /// <summary>Writes the expansions as snippets of one insertion: their empty places are the tab stops, walked through together for all carets.</summary>
     private async Task InsertAsync(Doc d, List<Item> items, CancellationToken ct)
     {
-        var json = string.Join(',', items.Select(i => $"{{\"start\":{i.Start},\"end\":{i.End},\"text\":\"{Quote(i.Text)}\",\"carets\":[{string.Join(',', i.Carets)}]}}"));
-        await CallAsync(DocumentMethods.SnippetInsert, $"{{\"document\":\"{d.Id}\",\"revision\":{d.Revision},\"items\":[{json}]}}", ct);
+        int count = items.Max(i => i.Expansion.Places(_settings.MaxCarets).Count);
+        var json = string.Join(',', items.Select(i => $"{{\"start\":{i.Start},\"end\":{i.End},\"text\":\"{Quote(i.Expansion.Template(_settings.MaxCarets, count))}\"}}"));
+        await CallAsync(DocumentMethods.SnippetInsert, $"{{\"document\":\"{d.Id}\",\"revision\":{d.Revision},\"format\":\"template\",\"items\":[{json}]}}", ct);
     }
 
     private static string IndentOf(JsonElement p) => p.TryGetProperty("indent", out var i) && i.ValueKind == JsonValueKind.String && i.GetString() is { Length: > 0 } text ? text : "\t";
@@ -210,8 +214,9 @@ public sealed class EmmetPlugin : PluginBase
             return Status("none");
         }
         var shown = items.FirstOrDefault(i => i.End == selections[Math.Clamp(primary, 0, selections.Count - 1)].Caret) ?? items[0];
-        string text = WithCaretMarks(shown.Text, shown.Carets);
-        if (text.Length > 3000) text = text[..3000] + "...";
+        var places = shown.Expansion.Places(_settings.MaxCarets);
+        string text = WithCaretMarks(shown.Expansion.Text, places.Count > 0 ? places : [shown.Expansion.Text.Length]);
+        if (text.Length > _settings.PreviewChars) text = text[.._settings.PreviewChars] + "...";
         var answer = await CallAsync(UiMethods.Confirm,
             $"{{\"title\":\"{Quote(Texts.Get(ui, "preview.title"))}\",\"message\":\"{Quote(Texts.Get(ui, "preview.message", ("abbreviation", shown.Abbreviation), ("text", text)))}\"}}", ct);
         if (answer.GetProperty("confirmed").ValueKind != JsonValueKind.True) return Status("cancelled");
@@ -263,7 +268,7 @@ public sealed class EmmetPlugin : PluginBase
                 await NotifyAsync(NoticeLevel.Error, Texts.Get(ui, "invalid"), ct);
                 return Status("failed");
             }
-            items.Add(new Item(from, to, expansion.Text, expansion.Carets, abbreviation));
+            items.Add(new Item(from, to, expansion, abbreviation));
         }
         if (items.Count == 0)
         {
