@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
@@ -12,7 +13,7 @@ using NksHub.Textida.Rpc;
 namespace NksHub.Textida.Plugins.Lsp;
 
 /// <summary>
-/// The built-in language server client. A server is started on the first command for a language, told about the documents the editor shows (with the revision as the
+/// The built-in language server client. A server is started on the first command for a language in a project (its root found by the marker files of the language, then by <c>.git</c> or <c>.textida</c>), told about the documents the editor shows (with the revision as the
 /// version, as ranges when the server wants them) and asked for definitions and references; what it finds wrong is published through the diagnostics API of the editor.
 /// A server that ends by itself is reported; the next command starts it again and hands it every document that is still open.
 /// It also answers the completion requests of the editor for the documents it follows, and renames a symbol: the server's workspace edit goes to the editor as one batch for the change review.
@@ -30,15 +31,17 @@ public sealed class LspPlugin : PluginBase
 
     private enum State { Stopped, Running, Crashed, NotFound }
 
-    private sealed class Slot(string language)
+    /// <summary>One server process, for the documents of one language in one project root with one server configuration.</summary>
+    private sealed class Slot(string language, string root, ServerLaunch? declared)
     {
         public readonly string Language = language;
+        public readonly string Root = root;
         public readonly SemaphoreSlim Lifecycle = new(1, 1);
         public readonly ConcurrentDictionary<Guid, Doc> Docs = new();
         public LspServer? Server;
         public State State;
-        /// <summary>The server a plugin manifest declares for the language, as the last command sent it; it wins over the catalog.</summary>
-        public ServerLaunch? Declared;
+        /// <summary>The server a plugin manifest declares for the language, as the command that made the slot sent it; it wins over the catalog.</summary>
+        public readonly ServerLaunch? Declared = declared;
         /// <summary>Changes when a document joins or the last one leaves, so a pending idle stop knows it is out of date.</summary>
         public int IdleTicket;
     }
@@ -46,7 +49,8 @@ public sealed class LspPlugin : PluginBase
     private sealed class Doc(Guid id, Slot slot, string uri, string? path)
     {
         public readonly Guid Id = id;
-        public readonly Slot Slot = slot;
+        /// <summary>The server slot the document belongs to; it changes only when a command brings another language or server configuration for the document.</summary>
+        public volatile Slot Slot = slot;
         public readonly string Uri = uri;
         public readonly string? Path = path;
         /// <summary>Held while the text, the revision or the version of this document change or are read together.</summary>
@@ -70,6 +74,7 @@ public sealed class LspPlugin : PluginBase
 
     private readonly LspSettings _settings;
     private readonly ServerCatalog _catalog;
+    // shortcut: one process per project root, even for a server that supports several workspace folders; sharing would need that proven per server, and no server of the catalog is checked for it.
     private readonly ConcurrentDictionary<string, Slot> _slots = new();
     private readonly ConcurrentDictionary<Guid, Doc> _docs = new();
     private volatile string _ui = "en";
@@ -106,14 +111,14 @@ public sealed class LspPlugin : PluginBase
         return Status(status);
     }
 
-    /// <summary>The status bar item: whether the server of the language the last command was for was not found, runs, or is off (stopped, crashed, not startable).</summary>
+    /// <summary>The status bar item: whether the server the last command was for (its language and project) was not found, runs, or is off (stopped, crashed, not startable).</summary>
     private async Task ShowStateAsync(Slot slot)
     {
         var key = slot.State switch { State.Running => "statusRunning", State.NotFound => "statusNotFound", _ => "statusStopped" };
         try
         {
             await CallAsync(UiMethods.StatusSet,
-                $"{{\"text\":\"{Quote(Texts.Get(_ui, key))}\",\"tooltip\":\"{Quote(Texts.Get(_ui, "statusTip", ("language", slot.Language)))}\"}}").ConfigureAwait(false);
+                $"{{\"text\":\"{Quote(Texts.Get(_ui, key))}\",\"tooltip\":\"{Quote(Texts.Get(_ui, "statusTip", ("language", slot.Language), ("root", slot.Root)))}\"}}").ConfigureAwait(false);
         }
         catch (Exception e) when (e is RpcException or IOException) { /* a status that cannot be shown must not break the work */ }
     }
@@ -133,19 +138,19 @@ public sealed class LspPlugin : PluginBase
         if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
-        var slot = _slots.GetOrAdd(r.Language, l => new Slot(l));
         try
         {
-            if (p.TryGetProperty("lspServer", out var declared) && declared.ValueKind == JsonValueKind.Object) slot.Declared = ServerCatalog.ParseLaunch(declared) with { Language = r.Language };
+            var declared = p.TryGetProperty("lspServer", out var launch) && launch.ValueKind == JsonValueKind.Object ? ServerCatalog.ParseLaunch(launch) with { Language = r.Language } : null;
+            var doc = await TrackAsync(r.Language, declared, r.Document, ct).ConfigureAwait(false);
+            var slot = doc.Slot;
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
                 await ShowStateAsync(slot).ConfigureAwait(false);
                 return await TellAsync("stopped", NoticeLevel.Info, "stopped", ("language", slot.Language)).ConfigureAwait(false);
             }
-            var doc = await TrackAsync(slot, r.Document, ct).ConfigureAwait(false);
             await EnsureSizeAsync(doc, ct).ConfigureAwait(false); // a file that is too large never starts a server
-            if (await EnsureServerAsync(slot, doc.Path, r.Command == RestartCommand, ct).ConfigureAwait(false) is { } failure) return Status(failure);
+            if (await EnsureServerAsync(slot, r.Command == RestartCommand, ct).ConfigureAwait(false) is { } failure) return Status(failure);
             if (slot.Server is not { } server) return Status("crashed");
             try
             {
@@ -183,18 +188,52 @@ public sealed class LspPlugin : PluginBase
 
     // ---- documents ----
 
-    private async Task<Doc> TrackAsync(Slot slot, string id, CancellationToken ct)
+    /// <summary>The slot for documents of <paramref name="language"/> at <paramref name="path"/>: one per language, project root and server configuration, so two projects never share a process.</summary>
+    private Slot SlotFor(string language, string? path, ServerLaunch? declared)
+    {
+        var folder = path is null ? null : Path.GetDirectoryName(Path.GetFullPath(path));
+        var root = ProjectRoots.Find(folder, language, _settings.RootSearchLevels) ?? folder ?? Directory.GetCurrentDirectory();
+        var key = string.Join('\0', language, OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? root.ToUpperInvariant() : root, declared?.Fingerprint ?? "");
+        return _slots.GetOrAdd(key, _ => new Slot(language, root, declared));
+    }
+
+    /// <summary>The document, followed from now on. A document that is already followed moves to the slot a command with another language or server configuration asks for.</summary>
+    private async Task<Doc> TrackAsync(string language, ServerLaunch? declared, string id, CancellationToken ct)
     {
         var guid = Guid.Parse(id);
-        if (_docs.TryGetValue(guid, out var known)) return known;
+        if (_docs.TryGetValue(guid, out var known))
+        {
+            var target = SlotFor(language, known.Path, declared);
+            if (target != known.Slot) await MoveAsync(known, target).ConfigureAwait(false);
+            return known;
+        }
         var info = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{id}\"}}", ct).ConfigureAwait(false);
         var path = info.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        var slot = SlotFor(language, path, declared);
         var doc = new Doc(guid, slot, path is null ? "untitled:" + guid.ToString("N") : PathUri.FromPath(path), path);
         await CallAsync(DocumentMethods.Subscribe, $"{{\"document\":\"{id}\"}}", ct).ConfigureAwait(false);
         _docs[guid] = doc;
         slot.Docs[guid] = doc;
         Interlocked.Increment(ref slot.IdleTicket);
         return doc;
+    }
+
+    /// <summary>Takes the document away from its server (it is closed there and its diagnostics go) and hands it to <paramref name="target"/>, which gets it with the next synchronisation.</summary>
+    private async Task MoveAsync(Doc d, Slot target)
+    {
+        var previous = d.Slot;
+        await d.Gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (previous.Server is { Alive: true } server) await CloseAsync(d, server).ConfigureAwait(false);
+            d.Open = false;
+            previous.Docs.TryRemove(d.Id, out _);
+            d.Slot = target;
+            target.Docs[d.Id] = d;
+            Interlocked.Increment(ref target.IdleTicket);
+        }
+        finally { d.Gate.Release(); }
+        StopWhenIdle(previous);
     }
 
     private async Task EnsureSizeAsync(Doc d, CancellationToken ct)
@@ -366,7 +405,7 @@ public sealed class LspPlugin : PluginBase
     // ---- the server ----
 
     /// <summary>Starts the server of the slot when none runs (or restarts it) and hands it every document of the slot. Null when it runs, otherwise the status to answer with.</summary>
-    private async Task<string?> EnsureServerAsync(Slot slot, string? path, bool restart, CancellationToken ct)
+    private async Task<string?> EnsureServerAsync(Slot slot, bool restart, CancellationToken ct)
     {
         await slot.Lifecycle.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -382,9 +421,8 @@ public sealed class LspPlugin : PluginBase
                 await NotifyAsync(NoticeLevel.Warning, launch is null ? "noLanguage" : "noServer", ("language", slot.Language), ("program", launch?.Program ?? "")).ConfigureAwait(false);
                 return launch is null ? "noLanguage" : "noServer";
             }
-            var root = path is null ? Directory.GetCurrentDirectory() : Path.GetDirectoryName(Path.GetFullPath(path)) ?? Directory.GetCurrentDirectory();
             LspServer server;
-            try { server = await LspServer.StartAsync(launch, root, _settings, (method, p) => OnServerNotificationAsync(slot, method, p), ct).ConfigureAwait(false); }
+            try { server = await LspServer.StartAsync(launch, slot.Root, _settings, (method, p) => OnServerNotificationAsync(slot, method, p), ct).ConfigureAwait(false); }
             catch (ServerStartException e)
             {
                 slot.State = State.Crashed;

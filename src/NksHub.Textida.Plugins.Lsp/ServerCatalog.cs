@@ -4,7 +4,12 @@ using NksHub.Textida.Core.Tools;
 namespace NksHub.Textida.Plugins.Lsp;
 
 /// <summary>How a language server is started: the program, its arguments one by one (no shell) extra environment variables and the raw JSON object sent as <c>initializationOptions</c>.</summary>
-public sealed record ServerLaunch(string Language, string Program, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment, string? InitializationOptions = null);
+public sealed record ServerLaunch(string Language, string Program, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment, string? InitializationOptions = null)
+{
+    /// <summary>Equal for two launches that start the same server with the same configuration (the language apart), different otherwise.</summary>
+    public string Fingerprint => string.Join('\0', Program, string.Join('\u0001', Arguments),
+        string.Join('\u0001', Environment.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => x.Key + "=" + x.Value)), InitializationOptions ?? "");
+}
 
 /// <summary>
 /// The language servers the plugin can start, by language id of the editor. Several entries for one language are fallbacks: the first whose program is found is used.

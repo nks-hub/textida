@@ -15,8 +15,9 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <param name="StderrLines">Last lines of the standard error of a server kept for the report of its end.</param>
 /// <param name="MaxMessageChars">Longest diagnostic message or list label, in UTF-16 units; a longer one is cut.</param>
 /// <param name="MaxDiagnostics">Diagnostics published per document; the rest is dropped.</param>
-/// <param name="IdleStopMs">Time a server keeps running after the last document of its language was closed; 0 keeps it until the plugin ends.</param>
-public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0);
+/// <param name="IdleStopMs">Time a server keeps running after the last document of its project was closed; 0 keeps it until the plugin ends.</param>
+/// <param name="RootSearchLevels">Folders searched upwards for the project root of a document, the folder of the file being the first; 1 takes the folder of the file.</param>
+public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0, int RootSearchLevels = 1);
 
 public sealed class ServerStartException(string message) : Exception(message);
 
@@ -32,6 +33,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     private readonly Queue<string> _stderr = new();
     private readonly Func<string, JsonElement, ValueTask> _onNotification;
     private readonly string _rootUri;
+    private readonly string? _options;
     private int _stopping;
     private int _ended;
 
@@ -46,11 +48,12 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool Rename { get; private set; }
     public bool Alive => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _stopping) == 0 && !_rpc.IsClosed;
 
-    private LspServer(Process process, Stream input, Stream output, LspSettings settings, string rootUri, Func<string, JsonElement, ValueTask> onNotification)
+    private LspServer(Process process, Stream input, Stream output, LspSettings settings, string rootUri, string? options, Func<string, JsonElement, ValueTask> onNotification)
     {
         _process = process;
         _settings = settings;
         _rootUri = rootUri;
+        _options = options;
         _onNotification = onNotification;
         // a document of the largest size, written as JSON, can be six times its text
         var limits = new RpcLimits((int)Math.Min(int.MaxValue / 2, Math.Max(4L << 20, settings.MaxBytes * 6 + (64 << 10))), 8, 16, 100_000, 64L << 20, 64L << 20);
@@ -71,7 +74,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         try { process = Process.Start(info) ?? throw new ServerStartException("The process did not start."); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { throw new ServerStartException(e.Message); }
         var rootUri = PathUri.FromPath(root);
-        var server = new LspServer(process, process.StandardOutput.BaseStream, process.StandardInput.BaseStream, settings, rootUri, onNotification);
+        var server = new LspServer(process, process.StandardOutput.BaseStream, process.StandardInput.BaseStream, settings, rootUri, launch.InitializationOptions, onNotification);
         try
         {
             await server.InitializeAsync(root, launch.InitializationOptions, ct).ConfigureAwait(false);
@@ -93,7 +96,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             .Append("\",\"workspaceFolders\":[{\"uri\":\"").Append(Encode(_rootUri)).Append("\",\"name\":\"").Append(Encode(Path.GetFileName(root.TrimEnd('/', '\\')))).Append("\"}]")
             .Append(",\"capabilities\":{\"general\":{\"positionEncodings\":[\"utf-16\"]},\"textDocument\":{\"synchronization\":{\"dynamicRegistration\":false,\"didSave\":false},")
             .Append("\"definition\":{\"linkSupport\":true},\"references\":{},\"completion\":{\"completionItem\":{\"snippetSupport\":false}},\"rename\":{\"prepareSupport\":false},")
-            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
+            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
         var answer = await RequestAsync("initialize", json.ToString(), _settings.StartTimeoutMs, ct).ConfigureAwait(false);
         if (answer.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object)
         {
@@ -134,13 +137,33 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             case "window/showMessageRequest":
                 return ValueTask.FromResult<byte[]?>(null);
             case "workspace/configuration":
-                var count = p.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array ? items.GetArrayLength() : 0;
-                return ValueTask.FromResult<byte[]?>(Encoding.UTF8.GetBytes("[" + string.Join(',', Enumerable.Repeat("null", count)) + "]"));
+                return ValueTask.FromResult<byte[]?>(Encoding.UTF8.GetBytes(Configuration(p)));
             case "workspace/workspaceFolders":
                 return ValueTask.FromResult<byte[]?>(Encoding.UTF8.GetBytes("[{\"uri\":\"" + Encode(_rootUri) + "\",\"name\":\"root\"}]"));
             default:
                 throw new RpcException(RpcErrorCodes.MethodNotFound, $"The client has no method '{method}'.");
         }
+    }
+
+    /// <summary>
+    /// The answer to <c>workspace/configuration</c>: one value per requested item, the part of the <c>initializationOptions</c> its <c>section</c> names (a dot goes one object deeper; no section: all of them),
+    /// null where the options have no such part.
+    /// </summary>
+    private string Configuration(JsonElement p)
+    {
+        if (!p.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return "[]";
+        using var options = _options is null ? null : JsonDocument.Parse(_options);
+        return "[" + string.Join(',', items.EnumerateArray().Select(item =>
+            options is null ? "null" : SectionOf(options.RootElement,
+                item.ValueKind == JsonValueKind.Object && item.TryGetProperty("section", out var section) && section.ValueKind == JsonValueKind.String ? section.GetString() : null))) + "]";
+    }
+
+    private static string SectionOf(JsonElement node, string? section)
+    {
+        if (!string.IsNullOrEmpty(section))
+            foreach (var part in section.Split('.'))
+                if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(part, out node)) return "null";
+        return node.GetRawText();
     }
 
     ValueTask IRpcHandler.HandleNotificationAsync(string method, JsonElement p) => _onNotification(method, p.Clone());
