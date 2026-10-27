@@ -84,6 +84,27 @@ public class PagedSurfaceTests : IDisposable
         return [.. lines];
     }
 
+    [AvaloniaTheory]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    [InlineData("utf-32")]
+    [InlineData("utf-32BE")]
+    public void Wide_encodings_split_lines_by_code_unit_not_by_byte(string name)
+    {
+        // č is 0D 01 / 01 0D, U+0A0D and U+0D0A hold both terminator bytes in either order
+        string text = string.Concat(Enumerable.Range(0, 20_000).Select(i => $"čč řádek {i}\r\n\u0A0D x{i}\n\u0D0A y{i}\r\u010D\u010A z{i}\n"));
+        var enc = Encoding.GetEncoding(name);
+        var tab = OpenIndexed(_temp.Bytes("wide.txt", [.. enc.GetPreamble(), .. enc.GetBytes(text)]));
+        var paged = tab.Paged!;
+        var lines = SplitKeepingTerminators(text);
+        Assert.Equal(lines.Length, paged.Index.Lines);
+
+        using var surface = new PagedTextView.TextSurface(paged);
+        int count = surface.LineCount;
+        Assert.True(count >= 12);
+        Assert.Equal(string.Concat(lines.Take(count)), surface.GetText(0, surface.Length));
+    }
+
     // ---- automation text over block boundaries ----
 
     [AvaloniaFact]

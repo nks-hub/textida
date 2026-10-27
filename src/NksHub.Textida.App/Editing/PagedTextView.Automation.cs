@@ -135,7 +135,7 @@ internal sealed partial class PagedTextView
                 if (next > end)
                 {
                     int n = Doc.Read(end, terminator.AsSpan(0, (int)Math.Min(8, next - end)));
-                    for (int i = 0; i < n; i++) text.Append((char)terminator[i]);
+                    text.Append(Doc.Codec.WithBom(false).Decode(terminator.AsMemory(0, n)).Text);
                 }
                 endByte = next;
             }
@@ -168,7 +168,7 @@ internal sealed partial class PagedTextView
             if (i < 0) i = ~i - 1;
             var view = _views[i];
             int length = view.Map.Text.Length, column;
-            if (position >= _lineEnds[i]) column = length + (int)Math.Min(position - _lineEnds[i], _starts[i + 1] - _starts[i] - length);
+            if (position >= _lineEnds[i]) column = length + (int)Math.Min((position - _lineEnds[i]) / Doc.Codec.Alignment, _starts[i + 1] - _starts[i] - length);
             else if (position >= _textEnds[i]) column = length;
             else column = view.Map.CharIndexOf(position - view.Start);
             return _starts[i] + column;
@@ -181,7 +181,7 @@ internal sealed partial class PagedTextView
             int i = Math.Min(LineOfOffset(offset), _views.Length - 1);
             var view = _views[i];
             int column = offset - _starts[i], length = view.Map.Text.Length;
-            if (column > length) return Math.Min(_lineEnds[i] + (column - length), _bytes[i + 1]);
+            if (column > length) return Math.Min(_lineEnds[i] + (column - length) * Doc.Codec.Alignment,_bytes[i + 1]);
             while (column > 0 && !view.Map.IsCharBoundary(column)) column--;
             return view.Start + view.Map.ByteOffsetOf(column);
         }
