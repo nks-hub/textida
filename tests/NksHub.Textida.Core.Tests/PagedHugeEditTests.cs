@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Document.Contract;
 using Xunit.Abstractions;
@@ -58,6 +59,18 @@ public class PagedHugeEditTests(ITestOutputHelper output)
                 run.AddRange(d);
             }
             if (run.Count > 0) yield return (start, [.. run]);
+        }
+
+        /// <summary>The bytes of a range: the islands over NUL filler.</summary>
+        public byte[] Read(long start, long end)
+        {
+            var bytes = new byte[end - start];
+            foreach (var (s, d) in Islands)
+            {
+                long from = Math.Max(s, start), to = Math.Min(s + d.Length, end);
+                if (from < to) d.AsSpan((int)(from - s), (int)(to - from)).CopyTo(bytes.AsSpan((int)(from - start)));
+            }
+            return bytes;
         }
 
         /// <summary>Line starts by CR, LF and CRLF, computed by a plain pass over the bytes.</summary>
@@ -257,6 +270,119 @@ public class PagedHugeEditTests(ITestOutputHelper output)
             Assert.True(d.TryGetPosition(h.Range.Start, out var p));
             Assert.Equal(naive, p.Line);
         }
+    }
+
+    private static void TypeDigits(HexEditor hex, string digits)
+    {
+        foreach (char c in digits) Assert.True(hex.TypeNibble(Convert.ToInt32(c.ToString(), 16)).Applied);
+    }
+
+    /// <summary>
+    /// P3.5.9: what the hex editor typed over and into a 10 GiB file is what the text reads through the line index and what the text search finds.
+    /// The edits go in ascending order, so a recorded offset is not moved by a later edit.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "Large")]
+    public async Task After_hex_overwrites_and_inserts_in_a_10_GiB_file_the_text_and_the_search_read_the_new_bytes()
+    {
+        using var dir = new TempDir();
+        string path = dir.File("huge.txt");
+        if (!HasRoom(path)) return;
+        var r = new Random(13);
+        var m = Create(path, r, 1500);
+
+        // kinds: 0 "needle" over a row start, 1 a LF typed as digits over a filler byte, 2 text inserted in the character column, 3 bytes inserted as digits
+        var targets = new SortedDictionary<long, int>();
+        foreach (var (s, data) in m.Islands.OrderBy(_ => r.Next()).Take(60))
+        {
+            int row = Enumerable.Range(1, Math.Max(0, data.Length - Needle.Length)).FirstOrDefault(i => data[i - 1] == '\n' && Ascii.IsValid(data.AsSpan(i, Needle.Length)));
+            if (row > 0) targets[s + row] = r.Next(2) * 2;
+        }
+        bool Free(long p) => !m.Islands.Any(i => i.Start - 16 < p && p < i.Start + i.Data.Length + 16) && !targets.Keys.Any(k => Math.Abs(k - p) < 16);
+        foreach (long hot in new[] { (1L << 32) + 64, (5L << 30) + 12345, Size - 4096 })
+        {
+            long p = hot;
+            while (!Free(p)) p -= 1 << 14;
+            targets[p] = 3;
+        }
+        while (targets.Count < 120)
+        {
+            long p = r.NextInt64(Size);
+            if (Free(p)) targets[p] = 1 + r.Next(3);
+        }
+
+        using var d = Doc.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TestFormat.Utf8.Format });
+        var hex = new HexEditor(d, HexCharset.Utf8);
+        const string typedText = "\nneedle hex č\n";
+        byte[] typed = Encoding.UTF8.GetBytes(typedText), digits = "\nneedle\n"u8.ToArray();
+        var written = new List<long>(); // where a needle the hex editor wrote starts in the result
+        long shift = 0;
+        foreach (var (p, kind) in targets)
+        {
+            long at = p + shift;
+            hex.Insert = kind >= 2;
+            hex.Column = kind is 0 or 2 ? HexColumn.Text : HexColumn.Hex;
+            hex.MoveTo(at);
+            switch (kind)
+            {
+                case 0:
+                    Assert.True(hex.TypeText("needle").Applied);
+                    m.Replace(at, Needle.Length, Needle);
+                    written.Add(at);
+                    break;
+                case 1:
+                    TypeDigits(hex, "0A");
+                    m.Replace(at, 1, [0x0A]);
+                    break;
+                case 2:
+                    Assert.True(hex.TypeText(typedText).Applied);
+                    m.Replace(at, 0, typed);
+                    written.Add(at + 1);
+                    shift += typed.Length;
+                    break;
+                default:
+                    TypeDigits(hex, Convert.ToHexString(digits));
+                    m.Replace(at, 0, digits);
+                    written.Add(at + 1);
+                    shift += digits.Length;
+                    break;
+            }
+        }
+        Assert.Contains(targets.Values, k => k == 0);
+        Assert.Contains(targets.Values, k => k == 1);
+
+        AssertSameBytes(d, m);
+        var starts = m.LineStarts();
+        AssertLineStarts(d, starts);
+        int LineOf(long offset) => starts.BinarySearch(offset) is var f && f < 0 ? ~f - 1 : f;
+
+        // every written needle starts a short row; its text, read through the line index, is the new bytes
+        foreach (long at in written)
+        {
+            int line = LineOf(at);
+            Assert.Equal(starts[line], at);
+            long end = line + 1 < starts.Count ? starts[line + 1] : m.Length;
+            Assert.InRange(end - at, Needle.Length, 4096);
+            Assert.True(d.TryGetOffset(new LinePosition(line, 0), out long off));
+            Assert.Equal(at, off);
+            string text = d.ReadText(new ByteRange(at, end));
+            Assert.Equal(Encoding.UTF8.GetString(m.Read(at, end)), text);
+            Assert.StartsWith("needle", text);
+        }
+
+        var expected = new List<long>();
+        foreach (var (s, data) in m.Runs())
+            for (int at = 0, i; (i = data.AsSpan(at).IndexOf(Needle)) >= 0; at += i + Needle.Length) expected.Add(s + at + i);
+        var sw = Stopwatch.StartNew();
+        var (hits, summary) = await SearchWorker.CollectAsync(new SearchPattern("needle"), new SearchScope([], [LiveBuffer.Of(d)]),
+            new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false });
+        output.WriteLine($"search over {Size >> 30} GiB after {targets.Count} hex edits: {sw.Elapsed.TotalSeconds:F1} s, {hits.Count} hits");
+        Assert.Equal(SearchEnd.Completed, summary.End);
+        Assert.Equal(expected.Count, summary.TotalMatches);
+        var found = hits.Select(h => h.Range.Start).Order().ToList();
+        Assert.Equal(expected, found);
+        Assert.All(written, at => Assert.Contains(at, found));
+        Assert.All(hits, h => Assert.Equal(LineOf(h.Range.Start) + 1, h.Line));
     }
 
     /// <summary>Edit at a random place plus the first line lookup after it, for two index block sizes. Prints p95; the block size is chosen from this, not here.</summary>
