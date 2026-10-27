@@ -182,7 +182,8 @@ public class HexTests : IDisposable
     public void After_hex_edits_of_a_paged_file_the_text_view_and_the_find_bar_read_the_edited_bytes()
     {
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
-        byte[] original = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 2000).Select(i => $"row {i} {(i % 5 == 0 ? "needle" : "hay")} č\n")));
+        // over the 1 MiB threshold, so the file opens paged
+        byte[] original = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 6000).Select(i => $"row {i} {(i % 5 == 0 ? "needle" : "hay")} č {new string('.', 200)}\n")));
         var starts = new List<int> { 0 };
         for (int i = 0; i < original.Length; i++) if (original[i] == '\n') starts.Add(i + 1);
         var opened = _w.OpenFile(_temp.Bytes("rows.txt", original), null);
