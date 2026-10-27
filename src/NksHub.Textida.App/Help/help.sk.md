@@ -1149,6 +1149,7 @@ Vloží do schránky výber, súbor, otvorené karty alebo otvorený priečinok 
 - Pri každom súbore je cesta, riadky, jazyk, kódovanie a revízia. Súbor s neuloženými zmenami je označený a text je ten, ktorý je teraz v editore.
 - Vynechané a pomenované: súbory .env (ich hodnoty sa nikdy nekopírujú, ani keď sú v editore zobrazené), súbory a priečinky vylúčené súbormi ignorovania, skryté, binárne súbory, súbory nad limitom veľkosti pri prechádzaní priečinka a súbory, ktoré sa nedajú prečítať.
 - Veľký súbor v stránkovanom režime sa nikdy nekopíruje celý: len jeho výber. Bez výberu je uvedený ako vynechaný.
+- Súbor alebo výber, ktorý sa nezmestí do zvyšku limitu veľkosti celého kontextu, sa vynechá a je uvedený aj s limitom; menší súbor za ním sa ešte môže zmestiť.
 
 ## [edit.fragment] Úprava reťazca ako JSON, SQL alebo HTML
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack

@@ -1144,6 +1144,7 @@ Puts the selection, the file, the open tabs or the opened folder on the clipboar
 - Each file has its path, the lines, the language, the encoding and the revision. A file with changes that are not saved is marked, and the text is the text in the editor now.
 - Left out and named: .env files (their values are never copied, also when they are shown in the editor), files and folders the ignore files exclude, hidden ones, binary files, files over the size limit of the folder walk and files that cannot be read.
 - A large file in paged mode is never copied whole: only its selection is. Without a selection it is listed as left out.
+- A file or selection that does not fit in what is left of the size limit of the whole context is left out and listed with the limit; a smaller file after it may still fit.
 
 ## [edit.fragment] Edit a string as JSON, SQL or HTML
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack

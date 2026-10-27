@@ -1007,6 +1007,7 @@
   "aicontext.reason.tooLarge": "larger than the file size limit of the folder walk",
   "aicontext.reason.unreadable": "could not be read",
   "aicontext.reason.paged": "large file in paged mode, only a selection is copied",
+  "aicontext.reason.totalLimit": "does not fit in the size limit of the whole context ({limit})",
   "tidy.output.source": "HTML Tidy",
   "langHelp.none": "No help source is set for {language}. A data plugin can add one (Help, Help for a language).",
   "langHelp.noWord": "Put the caret on a word to look it up.",

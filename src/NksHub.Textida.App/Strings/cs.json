@@ -1033,6 +1033,7 @@
   "aicontext.reason.tooLarge": "větší než limit velikosti souboru při procházení složky",
   "aicontext.reason.unreadable": "nešlo přečíst",
   "aicontext.reason.paged": "velký soubor ve stránkovaném režimu, kopíruje se jen výběr",
+  "aicontext.reason.totalLimit": "nevejde se do limitu velikosti celého kontextu ({limit})",
   "tidy.output.source": "HTML Tidy",
   "langHelp.none": "Pro jazyk {language} není nastaven žádný zdroj nápovědy. Přidat ho může datový plugin (Nápověda, Nápověda k jazyku).",
   "langHelp.noWord": "Umístěte kurzor na slovo, které chcete vyhledat.",

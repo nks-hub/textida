@@ -1007,6 +1007,7 @@
   "aicontext.reason.tooLarge": "größer als das Dateigrößenlimit beim Durchsuchen des Ordners",
   "aicontext.reason.unreadable": "konnte nicht gelesen werden",
   "aicontext.reason.paged": "große Datei im seitenweisen Modus, nur eine Auswahl wird kopiert",
+  "aicontext.reason.totalLimit": "passt nicht in die Größengrenze des ganzen Kontexts ({limit})",
   "tidy.output.source": "HTML Tidy",
   "langHelp.none": "Für {language} ist keine Hilfequelle festgelegt. Ein Datenplugin kann eine hinzufügen (Hilfe, Hilfe zu einer Sprache).",
   "langHelp.noWord": "Setzen Sie den Cursor auf das Wort, das Sie nachschlagen möchten.",

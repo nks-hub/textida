@@ -23,6 +23,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: size limit of one Copy as AI Context, in UTF-8 bytes of the copied text; files past it are left out and named. The owner has not decided it.</summary>
+    public const long AiContextMaxBytes = 8L << 20;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

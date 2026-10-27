@@ -20,6 +20,9 @@ internal sealed partial class MainWindow
     /// <summary>The copy the last chosen scope started; tests wait for it.</summary>
     internal Task AiContextTask { get; private set; } = Task.CompletedTask;
 
+    /// <summary>Size limit of one copy, <see cref="PluginLimitsPlaceholders.AiContextMaxBytes"/>; tests lower it.</summary>
+    internal long AiContextMaxBytes { get; set; } = PluginLimitsPlaceholders.AiContextMaxBytes;
+
     /// <summary>What a scope gathered: the sources and what was left out, or the reason it could not run.</summary>
     internal sealed record AiGathered(IReadOnlyList<AiSource> Sources, IReadOnlyList<AiOmission> Omissions);
 
@@ -31,13 +34,14 @@ internal sealed partial class MainWindow
         var rows = new List<QuickRow>();
         if (tab is not null)
         {
-            rows.Add(AiRow(K.AiScopeSelection, SelectionPieces(tab).Count > 0, K.AiNoSelection, () => Task.FromResult(new AiGathered(SelectionSources(tab), []))));
+            rows.Add(AiRow(K.AiScopeSelection, (tab.Surface?.HasSelection ?? tab.Paged?.HasSelection) == true, K.AiNoSelection, () => Task.FromResult(AiSelectionOf(tab))));
             rows.Add(AiRow(K.AiScopeFile, true, null, () => Task.FromResult(Gather([tab]))));
         }
         rows.Add(AiRow(K.AiScopeTabs, true, null, () => Task.FromResult(Gather(Tabs.DistinctBy(t => t.Doc)))));
+        long max = AiContextMaxBytes;
         rows.Add(AiRow(K.AiScopeFolder, folder is not null, K.AiNoFolder, () => Task.Run(() =>
         {
-            var read = AiContextFolder.Collect(folder!, p => LanguageModes.ForPath(p).Id);
+            var read = AiContextFolder.Collect(folder!, p => LanguageModes.ForPath(p).Id, max);
             return new AiGathered(read.Sources, read.Omissions);
         })));
         ShowChoice(Loc.Get(K.AiWatermark), Loc.Get(K.A11yAiContext), rows);
@@ -55,8 +59,8 @@ internal sealed partial class MainWindow
         AiGathered gathered;
         try { gathered = await gather(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { SetStatusMessage(Loc.Get(K.AiFailed, ("reason", e.Message))); return; }
-        var markdown = AiContextBuilder.Build(gathered.Sources, gathered.Omissions, AiContextFormat.Markdown);
-        var xml = AiContextBuilder.Build(gathered.Sources, gathered.Omissions, AiContextFormat.Xml);
+        var markdown = AiContextBuilder.Build(gathered.Sources, gathered.Omissions, AiContextFormat.Markdown, AiContextMaxBytes);
+        var xml = AiContextBuilder.Build(gathered.Sources, gathered.Omissions, AiContextFormat.Xml, AiContextMaxBytes);
 
         var details = markdown.Omissions.Select(o => o.Name is { } name
             ? Loc.Get(K.AiOmitNamed, ("name", name), ("reason", ReasonText(o.Reason)))
@@ -75,7 +79,7 @@ internal sealed partial class MainWindow
         SetStatusMessage(Loc.Get(K.AiCopied, ("files", chosen.Files), ("size", OpenDocument.FormatSize(chosen.Bytes))));
     }
 
-    private static string ReasonText(AiOmitReason reason) => Loc.Get(reason switch
+    private string ReasonText(AiOmitReason reason) => Loc.Get(reason switch
     {
         AiOmitReason.SecretFile => K.AiReasonSecrets,
         AiOmitReason.IgnoreRules => K.AiReasonIgnore,
@@ -83,8 +87,9 @@ internal sealed partial class MainWindow
         AiOmitReason.Binary => K.AiReasonBinary,
         AiOmitReason.TooLarge => K.AiReasonTooLarge,
         AiOmitReason.Unreadable => K.AiReasonUnreadable,
+        AiOmitReason.TotalLimit => K.AiReasonTotalLimit,
         _ => K.AiReasonPaged,
-    });
+    }, ("limit", OpenDocument.FormatSize(AiContextMaxBytes)));
 
     /// <summary>The selected parts of a tab: text and 1-based line range (null when a paged file's line index does not reach them).</summary>
     private static List<AiRange> SelectionPieces(DocTab tab)
@@ -112,10 +117,18 @@ internal sealed partial class MainWindow
         return pieces;
     }
 
-    private AiSource SourceOf(DocTab tab, IReadOnlyList<AiRange> ranges) =>
-        new(tab.Path is { } path ? Display(path) : tab.Title, tab.Path, tab.Doc.Language.Id, tab.Doc.Doc.Codec.Name, tab.Doc.Doc.Revision, tab.Doc.Doc.IsModified, ranges);
+    private string NameOf(DocTab tab) => tab.Path is { } path ? Display(path) : tab.Title;
 
-    private List<AiSource> SelectionSources(DocTab tab) => SelectionPieces(tab) is { Count: > 0 } pieces ? [SourceOf(tab, pieces)] : [];
+    private AiSource SourceOf(DocTab tab, IReadOnlyList<AiRange> ranges) =>
+        new(NameOf(tab), tab.Path, tab.Doc.Language.Id, tab.Doc.Doc.Codec.Name, tab.Doc.Doc.Revision, tab.Doc.Doc.IsModified, ranges);
+
+    /// <summary>The selections of a tab. A paged selection too large for the size limit is named as left out without being read, so it never sits in memory whole.</summary>
+    private AiGathered AiSelectionOf(DocTab tab)
+    {
+        if (tab.Paged is { HasSelection: true } paged && AiContextBuilder.CannotFit(paged.SelectionRange.Length, AiContextMaxBytes))
+            return new AiGathered([], [new AiOmission(AiOmitReason.TotalLimit, NameOf(tab))]);
+        return new AiGathered(SelectionPieces(tab) is { Count: > 0 } pieces ? [SourceOf(tab, pieces)] : [], []);
+    }
 
     /// <summary>
     /// Whole tabs. A text tab gives all of its text, as it is in the editor now (unsaved changes included and marked); a paged tab gives only its selection and
@@ -129,8 +142,13 @@ internal sealed partial class MainWindow
         {
             if (tab.Doc.IsResults || tab.Hex is not null || tab.Custom is not null) continue;
             if (tab.Surface is { } surface) sources.Add(SourceOf(tab, [AiRange.Whole(surface.Document.Text)]));
-            else if (SelectionSources(tab) is { Count: > 0 } selected) sources.AddRange(selected);
-            else omissions.Add(new AiOmission(AiOmitReason.Paged, tab.Path is { } path ? Display(path) : tab.Title));
+            else if (tab.Paged is { HasSelection: true })
+            {
+                var selected = AiSelectionOf(tab);
+                sources.AddRange(selected.Sources);
+                omissions.AddRange(selected.Omissions);
+            }
+            else omissions.Add(new AiOmission(AiOmitReason.Paged, NameOf(tab)));
         }
         return new AiGathered(sources, omissions);
     }
