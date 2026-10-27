@@ -223,6 +223,23 @@ public sealed class LargeRecoveryTests : IDisposable
     }
 
     [Fact]
+    public void The_weight_of_a_replace_all_is_what_it_inserts_and_removes()
+    {
+        string file = Path.Combine(_dir, "rows.txt");
+        var (_, _, edits, journalPath, _, _) = ReplaceAllAndCrash(file);
+        long weight = edits.Sum(e => (long)e.Insert.Length + e.Range.Length);
+
+        var back = Assert.Single(JournalRecovery.Recover(journalPath, Backends(Paged()), new RecoveryOptions { DeferAboveBytes = 1 }).Documents);
+        Assert.Equal(RecoveryStatus.Pending, back.Status);
+        Assert.Equal(weight, back.PendingBytes);
+        Assert.Null(back.Document);
+
+        var all = Assert.Single(JournalRecovery.Recover(journalPath, Backends(Paged()), new RecoveryOptions { DeferAboveBytes = weight }).Documents);
+        Assert.Equal(RecoveryStatus.Restored, all.Status); // exactly at the threshold is not above it
+        all.Document!.Dispose();
+    }
+
+    [Fact]
     public void Edits_past_the_inline_budget_of_a_document_go_to_a_payload_file_and_still_recover()
     {
         string file = Path.Combine(_dir, "grow.txt");

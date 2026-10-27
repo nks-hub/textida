@@ -62,6 +62,9 @@ An edit whose inserted bytes exceed `JournalPlaceholders.MaxInlineEditBytes` (1 
 record. The record carries a payload reference instead: file name, offset, length, and CRC-32 of the first and of the last 4 KiB. The file lives in the
 `payload` directory next to the journals and is named `<session>-<document>-<kind>.payload`.
 
+The same happens to an edit of more than `SmallEditBytes` (4 KiB, a placeholder) once the records of the document hold more than `MaxInlineDocumentBytes` (32 MiB, a placeholder) of inline text since its last save,
+so what a recovery has to keep in memory of a document is bounded; typing stays inline whatever the budget.
+
 - `add-N`: the spill file of the add buffer of a paged document. The document makes it a durable file (not delete-on-close) once the journal tracks it
   (`IByteBackend.UseDurableSpill`); the block is already there, so nothing is copied. A document whose add buffer was on disk before tracking has a scratch file
   that dies with the process, so its large edits take the next route.
