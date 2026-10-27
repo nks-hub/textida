@@ -372,7 +372,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     }
 
     private WorkspaceEditOptions WorkspaceEdits() => new(this,
-        () => [.. _app.Windows.Select(w => w.Files?.Root).OfType<string>()],
+        () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])],
         path => _app.Windows.SelectMany(w => w.Documents).Any(d => string.Equals(d.Path, path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)),
         PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes);
 

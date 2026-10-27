@@ -123,7 +123,7 @@ internal sealed partial class MainWindow
     internal async Task RevealActiveFileAsync()
     {
         if (Active?.Path is not { } path) return;
-        if (_fileTree is null || !PathMove.IsInside(path, _fileTree.Root)) { if (!await ShowFolderAsync(Path.GetDirectoryName(path)!)) return; }
+        if (_fileTree is null || !_fileTree.Contains(path)) { if (!await ShowFolderAsync(Path.GetDirectoryName(path)!)) return; }
         else ToggleFiles(true);
         await SelectFileAsync(path);
     }

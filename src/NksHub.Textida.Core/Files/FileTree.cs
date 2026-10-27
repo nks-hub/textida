@@ -20,13 +20,27 @@ public sealed class FileTree : IDisposable
     private readonly Dictionary<string, DirectoryEntry[]> _children = new(PathComparer);
     private readonly HashSet<string> _expanded = new(PathComparer);
     private List<FileTreeRow> _rows = [];
-    private FileSystemWatcher? _watcher;
+    private readonly List<FileSystemWatcher> _watchers = [];
     private Timer? _debounce;
     private readonly HashSet<string> _dirty = new(PathComparer);
 
-    public FileTree(string root) => Root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+    /// <param name="root">The first folder; with <paramref name="more"/> the tree shows every folder as a top row (a project of several folders).</param>
+    public FileTree(string root, IEnumerable<string>? more = null)
+    {
+        var roots = new List<string>();
+        foreach (var r in new[] { root }.Concat(more ?? []).Select(r => Path.TrimEndingDirectorySeparator(Path.GetFullPath(r))))
+            if (!roots.Contains(r, PathComparer)) roots.Add(r);
+        Roots = roots;
+    }
 
-    public string Root { get; }
+    public string Root => Roots[0];
+
+    public IReadOnlyList<string> Roots { get; }
+
+    /// <summary>True when <paramref name="path"/> is one of the folders of the tree or below one.</summary>
+    public bool Contains(string path) => RootOf(path) is not null;
+
+    private string? RootOf(string path) => Roots.FirstOrDefault(r => PathMove.IsInside(path, r));
 
     public IReadOnlyList<FileTreeRow> Rows => _rows;
 
@@ -50,8 +64,12 @@ public sealed class FileTree : IDisposable
     /// <summary>Reads the root folder; throws <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> when it cannot be read.</summary>
     public async Task LoadRootAsync(CancellationToken ct = default)
     {
-        _children[Root] = await Task.Run(() => List(Root, throwIfUnreadable: true), ct);
-        _expanded.Add(Root);
+        foreach (var root in Roots)
+        {
+            // only the first folder must be readable; a missing folder of a project shows as empty
+            _children[root] = await Task.Run(() => List(root, throwIfUnreadable: root == Root), ct);
+            _expanded.Add(root);
+        }
         Rebuild();
     }
 
@@ -64,16 +82,16 @@ public sealed class FileTree : IDisposable
 
     public void Collapse(string directory)
     {
-        if (!PathComparer.Equals(directory, Root) && _expanded.Remove(directory)) Rebuild();
+        if ((Roots.Count > 1 || !PathComparer.Equals(directory, Root)) && _expanded.Remove(directory)) Rebuild();
     }
 
     /// <summary>Opens every folder from the root down to <paramref name="path"/> so its row exists. False when the path is not below the root.</summary>
     public async Task<bool> RevealAsync(string path, CancellationToken ct = default)
     {
         path = Path.GetFullPath(path);
-        if (!PathMove.IsInside(path, Root)) return false;
-        string relative = Path.GetRelativePath(Root, path);
-        string current = Root;
+        if (RootOf(path) is not { } root) return false;
+        string relative = Path.GetRelativePath(root, path);
+        string current = root;
         var parts = relative == "." ? [] : relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         foreach (var part in parts.Take(Math.Max(0, parts.Length - 1)))
         {
@@ -108,14 +126,20 @@ public sealed class FileTree : IDisposable
         Rebuild();
     }
 
-    /// <summary>Starts watching the root for changes made by other programs.</summary>
+    /// <summary>Starts watching the folders for changes made by other programs.</summary>
     public void Watch()
     {
-        if (_watcher is not null || !Directory.Exists(Root)) return;
+        if (_watchers.Count > 0) return;
         _debounce = new Timer(_ => Flush());
+        foreach (var root in Roots.Where(Directory.Exists)) WatchFolder(root);
+    }
+
+    private void WatchFolder(string root)
+    {
+        FileSystemWatcher watcher;
         try
         {
-            _watcher = new FileSystemWatcher(Root)
+            watcher = new FileSystemWatcher(root)
             {
                 IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size,
@@ -128,14 +152,15 @@ public sealed class FileTree : IDisposable
         }
         void Poke(string? path)
         {
-            lock (_dirty) _dirty.Add(path is null ? Root : Path.GetDirectoryName(path) ?? Root);
-            _debounce.Change(200, Timeout.Infinite);
+            lock (_dirty) _dirty.Add(path is null ? root : Path.GetDirectoryName(path) ?? root);
+            _debounce!.Change(200, Timeout.Infinite);
         }
-        _watcher.Created += (_, e) => Poke(e.FullPath);
-        _watcher.Deleted += (_, e) => Poke(e.FullPath);
-        _watcher.Renamed += (_, e) => { Poke(e.OldFullPath); Poke(e.FullPath); };
-        _watcher.Error += (_, _) => Poke(null);
-        _watcher.EnableRaisingEvents = true;
+        watcher.Created += (_, e) => Poke(e.FullPath);
+        watcher.Deleted += (_, e) => Poke(e.FullPath);
+        watcher.Renamed += (_, e) => { Poke(e.OldFullPath); Poke(e.FullPath); };
+        watcher.Error += (_, _) => Poke(null);
+        watcher.EnableRaisingEvents = true;
+        _watchers.Add(watcher);
     }
 
     private void Flush()
@@ -151,15 +176,22 @@ public sealed class FileTree : IDisposable
 
     public void Dispose()
     {
-        _watcher?.Dispose();
+        foreach (var watcher in _watchers) watcher.Dispose();
+        _watchers.Clear();
         _debounce?.Dispose();
-        _watcher = null;
     }
 
     private void Rebuild()
     {
         var rows = new List<FileTreeRow>();
-        Add(Root, 0);
+        if (Roots.Count == 1) Add(Root, 0);
+        else
+            foreach (var root in Roots)
+            {
+                bool open = _expanded.Contains(root);
+                rows.Add(new FileTreeRow(new DirectoryEntry(Path.GetFileName(root) is { Length: > 0 } name ? name : root, root, true, 0), 0, open));
+                if (open) Add(root, 1);
+            }
         _rows = rows;
         Changed?.Invoke();
 

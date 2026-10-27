@@ -734,6 +734,63 @@
       "enablement": "hasFolder && hasDocument"
     },
     {
+      "id": "nks.project.save",
+      "title": "cmd.project.save",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
+      "id": "nks.project.open",
+      "title": "cmd.project.open",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.project.addFolder",
+      "title": "cmd.project.addFolder",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.project.delete",
+      "title": "cmd.project.delete",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.project.settings",
+      "title": "cmd.project.settings",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.favorite.add",
+      "title": "cmd.favorite.add",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.favorite.open",
+      "title": "cmd.favorite.open",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.favorite.remove",
+      "title": "cmd.favorite.remove",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.session.save",
+      "title": "cmd.session.save",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.session.open",
+      "title": "cmd.session.open",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.session.delete",
+      "title": "cmd.session.delete",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.window.new",
       "title": "cmd.window.new",
       "category": "cat.window"
@@ -1752,6 +1809,83 @@
       "command": "nks.app.openSettings",
       "group": "1_open",
       "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.save",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 101
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.open",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 102
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.addFolder",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 103
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.delete",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 104
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.settings",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 105
+    },
+    {
+      "menu": "file",
+      "command": "nks.favorite.add",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 106
+    },
+    {
+      "menu": "file",
+      "command": "nks.favorite.open",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 107
+    },
+    {
+      "menu": "file",
+      "command": "nks.favorite.remove",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 108
+    },
+    {
+      "menu": "file",
+      "command": "nks.session.save",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 109
+    },
+    {
+      "menu": "file",
+      "command": "nks.session.open",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 110
+    },
+    {
+      "menu": "file",
+      "command": "nks.session.delete",
+      "group": "1_new",
+      "submenu": "workspace",
+      "order": 111
     },
     {
       "menu": "file",

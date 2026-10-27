@@ -600,6 +600,30 @@ commands: nks.files.refresh, nks.files.reveal
 - Obnovit soubory (F5 v panelu) znovu načte strom podle disku.
 - Ukázat aktivní soubor v panelu otevře panel a vybere v něm soubor aktivní karty. Funguje při otevřené složce a otevřeném dokumentu.
 
+## [workspace.projects] Projekty
+commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
+Projekt je pojmenovaná sada složek se soubory, které v nich byly otevřené. Uložený je v profilu a přepíná se jako složka.
+- Přidat složku do panelu ukáže v panelu další složku vedle těch stávajících. Každá složka je horní řádek stromu.
+- Uložit projekt (Soubor, Projekty a relace) uloží pod názvem složky panelu a otevřené soubory, které v nich leží. Projekt stejného názvu se přepíše.
+- Otevřít projekt ukáže složky v panelu a otevře soubory, které projekt měl otevřené. Složka nebo soubor, který zmizel, se uvede ve stavovém řádku; ostatní se otevřou.
+- Přepnutí na jiný projekt ponechá otevřené karty. Projekt, který opouštíte, si pamatuje své soubory.
+- Smazat projekt odstraní jen záznam. Složky a soubory zůstanou.
+- Upravit nastavení projektu otevře soubor nastavení aktivního projektu (stejný formát jako uživatelské nastavení). Hodnoty platí, dokud je projekt aktivní, po novém otevření projektu. Přejít kamkoli prohledává jen první složku.
+
+## [workspace.favorites] Oblíbené
+commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+- Přidat k oblíbeným uloží vybraný řádek panelu souborů, jinak aktivní soubor, jinak složku panelu. Je i v kontextovém menu panelu.
+- Oblíbené je vypíše (i z prázdného panelu). Enter otevře složku v panelu a soubor v kartě. Cesta, která zmizela, je zobrazena ztlumeně s textem Nenalezeno.
+- Odebrat z oblíbených je vypíše a odebere vybranou položku.
+
+## [workspace.sessions] Pojmenované relace
+commands: nks.session.save, nks.session.open, nks.session.delete
+- Uložit relaci uloží otevřené karty pod názvem: skupiny, pořadí, aktivní kartu a výběr každé karty. Karta s neuloženými změnami nebo bez souboru si ponechá text. Relace stejného názvu se přepíše.
+- Otevřít relaci otevře karty vedle těch, které už jsou otevřené. Soubory se načtou z disku a neuložený text relace jejich text nahradí, takže jde vrátit zpět nebo zahodit. Soubor, který zmizel, se uvede ve stavovém řádku; jeho text, pokud ho relace měla, se otevře v nepojmenovaném dokumentu.
+- Smazat relaci se nejdřív zeptá, protože relace může obsahovat neuložený text.
+- Soubor relace, který nejde přečíst, se přeskočí a uvede v liště; ostatní relace fungují.
+- Velké soubory otevřené ve stránkovaném režimu se ukládají jen cestou.
+
 ## [format.encoding] Kódování
 commands: nks.format.reread, nks.format.convert
 Stavový řádek ukazuje kódování; klepnutím na něj se otevře stejný výběr. Je-li kódování odhad, je u něj procento jistoty.

@@ -600,6 +600,30 @@ commands: nks.files.refresh, nks.files.reveal
 - Obnoviť súbory (F5 v paneli) znova načíta strom podľa disku.
 - Ukázať aktívny súbor v paneli otvorí panel a vyberie v ňom súbor aktívnej karty. Funguje pri otvorenom priečinku a otvorenom dokumente.
 
+## [workspace.projects] Projekty
+commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
+Projekt je pomenovaná sada priečinkov so súbormi, ktoré v nich boli otvorené. Uložený je v profile a prepína sa ako priečinok.
+- Pridať priečinok do panela ukáže v paneli ďalší priečinok popri existujúcich. Každý priečinok je horný riadok stromu.
+- Uložiť projekt (Súbor, Projekty a relácie) uloží pod názvom priečinky panela a otvorené súbory, ktoré v nich ležia. Projekt rovnakého názvu sa prepíše.
+- Otvoriť projekt ukáže priečinky v paneli a otvorí súbory, ktoré projekt mal otvorené. Priečinok alebo súbor, ktorý zmizol, sa uvedie v stavovom riadku; ostatné sa otvoria.
+- Prepnutie na iný projekt ponechá otvorené karty. Projekt, ktorý opúšťate, si pamätá svoje súbory.
+- Zmazať projekt odstráni len záznam. Priečinky a súbory ostanú.
+- Upraviť nastavenia projektu otvorí súbor nastavení aktívneho projektu (rovnaký formát ako používateľské nastavenia). Hodnoty platia, kým je projekt aktívny, po novom otvorení projektu. Prejsť kamkoľvek prehľadáva len prvý priečinok.
+
+## [workspace.favorites] Obľúbené
+commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+- Pridať k obľúbeným uloží vybraný riadok panela súborov, inak aktívny súbor, inak priečinok panela. Je aj v kontextovej ponuke panela.
+- Obľúbené ich vypíše (aj z prázdneho panela). Enter otvorí priečinok v paneli a súbor v karte. Cesta, ktorá zmizla, je zobrazená stlmene s textom Nenájdené.
+- Odstrániť z obľúbených ich vypíše a odstráni vybranú položku.
+
+## [workspace.sessions] Pomenované relácie
+commands: nks.session.save, nks.session.open, nks.session.delete
+- Uložiť reláciu uloží otvorené karty pod názvom: skupiny, poradie, aktívnu kartu a výber každej karty. Karta s neuloženými zmenami alebo bez súboru si ponechá text. Relácia rovnakého názvu sa prepíše.
+- Otvoriť reláciu otvorí karty vedľa tých, ktoré už sú otvorené. Súbory sa načítajú z disku a neuložený text relácie ich text nahradí, takže ho možno vrátiť späť alebo zahodiť. Súbor, ktorý zmizol, sa uvedie v stavovom riadku; jeho text, ak ho relácia mala, sa otvorí v nepomenovanom dokumente.
+- Zmazať reláciu sa najprv opýta, pretože relácia môže obsahovať neuložený text.
+- Súbor relácie, ktorý sa nedá prečítať, sa preskočí a uvedie v lište; ostatné relácie fungujú.
+- Veľké súbory otvorené v stránkovanom režime sa ukladajú len cestou.
+
 ## [format.encoding] Kódovanie
 commands: nks.format.reread, nks.format.convert
 Stavový riadok ukazuje kódovanie; kliknutím naň sa otvorí rovnaký výber. Ak je kódovanie odhad, je pri ňom percento istoty.
