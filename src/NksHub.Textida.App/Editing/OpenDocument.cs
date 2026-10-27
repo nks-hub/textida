@@ -96,6 +96,8 @@ internal sealed class OpenDocument : IDisposable
 
     /// <summary>Raised on the UI thread after every content or state change of the document.</summary>
     public event Action? Changed;
+    /// <summary>Raised with the change of the text before <see cref="Changed"/>, so a view can bring its caches up to date before the status bar and the title read them.</summary>
+    internal event Action<ChangeSet>? Edited;
     /// <summary>Raised when the whole document was swapped (reload), so views must bind again.</summary>
     public event Action? Replaced;
 
@@ -351,6 +353,7 @@ internal sealed class OpenDocument : IDisposable
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
+        Edited?.Invoke(e.Change);
         if (e.Change.TouchesLineBreaks && !_eolTimer.IsEnabled) _eolTimer.Start();
         Changed?.Invoke();
     }

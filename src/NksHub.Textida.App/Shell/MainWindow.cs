@@ -106,6 +106,8 @@ internal sealed partial class MainWindow : Window
         {
             if (!_syncing && _docList.SelectedIndex is var i and >= 0 && i < _docListTabs.Count) SelectTab(_docListTabs[i]);
         };
+        BracketInputEvent(KeyDownEvent);
+        BracketInputEvent(TextInputEvent);
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         AddHandler(PointerWheelChangedEvent, OnWheelZoom, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         AddHandler(DragDrop.DropEvent, OnWindowDrop, Avalonia.Interactivity.RoutingStrategies.Bubble | Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);

@@ -27,14 +27,32 @@ internal sealed partial class EditorSurface : IMinimapHost
     /// <summary>Word wrap is switched on in the settings but not applied, because the document has a line longer than <see cref="WrapLineLimit"/>.</summary>
     public bool WrapSuppressed { get; private set; }
 
+    private TextBlock? _watermark;
+
+    /// <summary>The theme shows the watermark through a binding to <c>Document.Text</c>, which builds the whole text after every edit; the binding goes and the visibility follows the length of the text instead.</summary>
+    private void OnAreaTemplateApplied(object? sender, Avalonia.Controls.Primitives.TemplateAppliedEventArgs e)
+    {
+        _watermark = e.NameScope.Find<TextBlock>("PART_Watermark");
+        if (_watermark is null) return;
+        Avalonia.Data.BindingOperations.GetBindingExpressionBase(_watermark, Visual.IsVisibleProperty)?.Dispose();
+        UpdateWatermark();
+    }
+
+    private void UpdateWatermark()
+    {
+        if (_watermark is not null) _watermark.IsVisible = Document.TextLength == 0;
+    }
+
     private void InitViewOptions()
     {
         DocumentChanged += (_, _) =>
         {
             GuardWrap();
             ApplyWrap(Settings);
+            UpdateWatermark();
         };
         GuardWrap();
+        TextArea.TemplateApplied += OnAreaTemplateApplied;
         var view = TextArea.TextView;
         view.VisualLinesChanged += (_, _) => _mapChanged?.Invoke();
         view.ScrollOffsetChanged += (_, _) => _mapChanged?.Invoke();
@@ -94,6 +112,7 @@ internal sealed partial class EditorSurface : IMinimapHost
 
     private void OnTextChangedForWrap(object? sender, DocumentChangeEventArgs e)
     {
+        UpdateWatermark();
         if (!WordWrap) return;
         var line = Document.GetLineByOffset(Math.Min(e.Offset, Document.TextLength));
         for (; line is not null && line.Offset <= e.Offset + e.InsertionLength; line = line.NextLine)

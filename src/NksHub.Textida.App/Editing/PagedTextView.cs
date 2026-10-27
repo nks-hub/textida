@@ -181,6 +181,7 @@ internal sealed partial class PagedTextView : Grid
     {
         base.OnAttachedToVisualTree(e);
         Doc.Changed += OnDocChanged;
+        _doc.Edited += KeepUntouchedLines;
         _doc.Bookmarks.Changed += RepaintBookmarks;
         Doc.Saved += OnSaved;
         _doc.LanguageChanged += RepaintLog;
@@ -193,6 +194,7 @@ internal sealed partial class PagedTextView : Grid
     {
         base.OnDetachedFromVisualTree(e);
         Doc.Changed -= OnDocChanged;
+        _doc.Edited -= KeepUntouchedLines;
         _doc.Bookmarks.Changed -= RepaintBookmarks;
         Doc.Saved -= OnSaved;
         _doc.LanguageChanged -= RepaintLog;
@@ -215,27 +217,30 @@ internal sealed partial class PagedTextView : Grid
             _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
             _anchor = -1;
         }
-        KeepUntouchedLines(e.Change);
         UpdateScrollRange();
         _canvas.InvalidateVisual();
         TypingTrace.End("paged.onDocChanged", t);
     }
 
-    /// <summary>
-    /// Lines that end well before the first changed byte keep their text and map, so an edit decodes again only the lines from the edit on.
-    /// Anything else (a different kind of change, a revision that was skipped) leaves the clearing to <see cref="GetLine"/>.
-    /// </summary>
     /// <summary>True when a line ends a few bytes (room for its line break) before the first changed byte.</summary>
     internal static bool LineSurvives(long start, long byteLength, long firstChange) => start + byteLength + 4 <= firstChange;
 
+    /// <summary>
+    /// Lines that end well before the first changed byte keep their text and map. When one edit lies inside a line and adds or removes no line break,
+    /// the lines behind it keep their text too and only move, so typing decodes again just the edited line.
+    /// Anything else (a different kind of change, a revision that was skipped) leaves the clearing to <see cref="GetLine"/>.
+    /// </summary>
     private void KeepUntouchedLines(ChangeSet change)
     {
         if (change.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || change.Edits.Count == 0 || _linesRevision != change.Revision - 1) return;
-        long first = change.Edits[0].Start;
+        var edit = change.Edits[0];
+        long first = edit.Start, editEnd = edit.Start + edit.Deleted;
+        bool insideLine = change.Edits.Count == 1 && !change.TouchesLineBreaks && _lines.Values.Any(v => v.Start <= first && editEnd <= v.Start + v.ByteLength);
         foreach (var (line, view) in _lines.ToArray())
         {
             if (LineSurvives(view.Start, view.ByteLength, first)) continue;
             if (LongLineAfterEdit(view, change) is { } resized) _lines[line] = resized;
+            else if (insideLine && view.Start > editEnd) _lines[line] = view.WithStart(view.Start + edit.Inserted - edit.Deleted);
             else _lines.Remove(line);
         }
         _linesRevision = change.Revision;
@@ -550,6 +555,7 @@ internal sealed partial class PagedTextView : Grid
         var view = buffer.AsSpan(0, window);
         for (long line = first; line - first < limit; line++)
         {
+            if (line > first && _lines.ContainsKey(line)) return; // lines kept after an edit stand behind the first one that was missing
             int end = LineScanner.FindTerminator(view, pos, Doc.Codec);
             int next;
             bool last = false;
@@ -1209,9 +1215,9 @@ internal sealed partial class PagedTextView : Grid
             Display = display.ToString();
         }
 
-        private LineView(LineView other, long byteLength)
+        private LineView(LineView other, long start, long byteLength)
         {
-            Start = other.Start;
+            Start = start;
             Truncated = other.Truncated;
             ByteLength = byteLength;
             Map = other.Map;
@@ -1221,7 +1227,10 @@ internal sealed partial class PagedTextView : Grid
         }
 
         /// <summary>The same decoded part of a line whose length changed behind it.</summary>
-        public LineView WithByteLength(long byteLength) => new(this, byteLength);
+        public LineView WithByteLength(long byteLength) => new(this, Start, byteLength);
+
+        /// <summary>The same line after an edit before it moved it.</summary>
+        public LineView WithStart(long start) => new(this, start, ByteLength);
 
         public long Start { get; }
         /// <summary>Bytes of the whole line without its line break, also when only the first part was decoded.</summary>

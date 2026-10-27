@@ -51,8 +51,36 @@ internal sealed partial class MainWindow
         return grid;
     }
 
+    private bool _inputEvent, _statusStale;
+
+    /// <summary>A key or typed text changes the caret, the selection and the text one after the other; the status bar is written once, when the event has been through all handlers.</summary>
+    private void BracketInputEvent<T>(Avalonia.Interactivity.RoutedEvent<T> input) where T : Avalonia.Interactivity.RoutedEventArgs
+    {
+        AddHandler(input, (_, _) => BeginInputEvent(), Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(input, (_, _) => EndInputEvent(), Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
+    }
+
+    private void BeginInputEvent()
+    {
+        EndInputEvent();
+        _inputEvent = true;
+    }
+
+    private void EndInputEvent()
+    {
+        _inputEvent = false;
+        if (!_statusStale) return;
+        _statusStale = false;
+        UpdateStatus();
+    }
+
     private void UpdateStatus()
     {
+        if (_inputEvent)
+        {
+            _statusStale = true;
+            return;
+        }
         long t = Core.TypingTrace.Begin();
         UpdateStatusCore();
         Core.TypingTrace.End("win.updateStatus", t);
