@@ -90,6 +90,15 @@ public class HexMapAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_first_map_starts_as_soon_as_the_view_has_its_size_without_the_settle_delay()
+    {
+        var hex = OpenHex(Quarters(10_000));
+        Assert.True(hex.Minimap.Map is not null || hex.Minimap.IsBuilding, "no build started when the view got its size");
+        PumpUntil(() => hex.Minimap.Map is { IsExact: true }, "the first map did not become exact");
+        Assert.Equal(ByteClass.Text, hex.Minimap.Map!.Classes[hex.Minimap.Map.BucketOf(25_000)]);
+    }
+
+    [AvaloniaFact]
     public void The_commands_show_the_map_switch_its_mode_and_open_the_statistics()
     {
         var hex = OpenHex(Quarters(10_000));
@@ -162,6 +171,32 @@ public class HexMapAppTests : IDisposable
         PumpUntil(() => panel.Shown is { Total: 10_000 } h && h.Distinct > 250, "the noise was not counted");
         Assert.True(panel.Shown!.Entropy > 7.9);
         Assert.Contains(Loc.Get(K.HexStatsDistinct, ("n", panel.Shown.Distinct)), panel.FiguresText);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void The_map_of_a_fifty_gibibyte_file_shows_within_a_second_of_opening_it_in_hex()
+    {
+        const long length = 50L << 30;
+        string path = Path.Combine(_temp.Path, "fifty.bin");
+        File.WriteAllBytes(path, []);
+        if (OperatingSystem.IsWindows())
+        {
+            var command = new ProcessStartInfo("fsutil") { CreateNoWindow = true, UseShellExecute = false };
+            foreach (string arg in new[] { "sparse", "setflag", path }) command.ArgumentList.Add(arg);
+            using var process = Process.Start(command)!;
+            process.WaitForExit();
+        }
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write)) stream.SetLength(length);
+
+        var clock = Stopwatch.StartNew();
+        var hex = _w.OpenHex(path, null).Hex!;
+        double opened = clock.Elapsed.TotalMilliseconds;
+        _w.UpdateLayout();
+        PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(1), $"the map showed {clock.Elapsed.TotalMilliseconds:0} ms after the open started (the open took {opened:0} ms)");
+        Assert.Equal(length, hex.Document.ByteLength);
+        Assert.False(hex.Minimap.Map!.IsExact);
     }
 
     [AvaloniaFact]
