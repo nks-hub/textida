@@ -442,10 +442,10 @@ public class HexTests : IDisposable
         var hex = tab.Hex!;
         _dialogs.Prompts.Enqueue("50 4B ?? 04");
         Press(Key.F, TestApp.Mod);
-        PumpUntil(() => hex.Editor.HasSelection && _w.StatusLeftText.Contains(expected.Count.ToString()));
+        // the count comes after the selection; a bare digit would already match the caret status ("výběr 4 B")
+        PumpUntil(() => hex.Editor.HasSelection && _w.StatusLeftText.Contains($"1 z {expected.Count}"));
         Assert.Equal(expected[0], hex.Editor.Selection.Start);
         Assert.Equal(4, hex.Editor.Selection.Length);
-        Assert.Contains($"1 z {expected.Count}", _w.StatusLeftText);
         var seen = new List<long> { hex.Editor.Selection.Start };
         for (int i = 1; i < expected.Count; i++)
         {
