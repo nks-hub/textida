@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 
@@ -62,6 +63,7 @@ internal static class MenuRenderer
             case MenuSeparator: return new Separator();
             case MenuGroup g:
                 var parent = new MenuItem { Header = g.Label };
+                AutomationProperties.SetName(parent, g.Label);
                 foreach (var child in g.Items) parent.Items.Add(ToItem(child));
                 return parent;
             case MenuCommand c:

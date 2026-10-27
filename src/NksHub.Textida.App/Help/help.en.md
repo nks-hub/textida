@@ -108,7 +108,7 @@ The tab and the file on disk are shown side by side in a tab of their own. The t
 ## [remote.connections] Remote connections
 commands: nks.remote.connections
 A connection holds the server, the user and the protocol. The password is kept in the credential store of the operating system and is never written to a settings file or to a backup.
-1. Choose File and then Remote Connections. The list shows the saved connections.
+1. Choose File and then Remote Files and then Remote Connections. The list shows the saved connections.
 2. Choose New Connection and answer the questions: name, protocol, server, port, user and password. For SFTP you can give a private key file instead of a password.
 3. Choose a connection to open a file from it, or to delete it with its saved password.
 - FTPS and SFTP are the normal choices. Plain FTP sends the password and the files unencrypted and is used only after you allow it for that connection.
@@ -118,7 +118,7 @@ A connection holds the server, the user and the protocol. The password is kept i
 
 ## [remote.open] Open a remote file
 commands: nks.remote.open
-1. Choose File and then Open Remote File, and choose a connection.
+1. Choose File and then Remote Files and then Open Remote File, and choose a connection.
 2. Type the path on the server. A path to a folder shows its content: choose a folder to go in, or a file to open it.
 3. The file is copied to this computer and opens in a tab. Edit and save as usual: Save changes only the copy on this computer.
 - The bar above the text says whether the copy is the same as on the server. The editor itself works without a connection.
@@ -127,7 +127,7 @@ commands: nks.remote.open
 
 ## [remote.upload] Upload to the server
 commands: nks.remote.upload
-1. Choose File and then Upload to Server. A changed tab is saved first.
+1. Choose File and then Remote Files and then Upload to Server. A changed tab is saved first.
 2. Before it sends anything, the program looks at the file on the server. If it is still the version you opened, the new content is sent under a temporary name and then replaces the old file. A failed or interrupted upload leaves the old version on the server.
 3. If the file on the server changed meanwhile, nothing is sent. Choose Show Differences to see the server version beside yours, copy what you need into your side, save, and upload again. Upload Anyway replaces exactly the server version you were shown.
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
@@ -136,7 +136,7 @@ commands: nks.remote.upload
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
-Choose File and then Check Server Version. The bar says: same as on the server, changed here and not sent, changed on the server, changed in both places, or the file no longer exists on the server. Nothing is downloaded or changed.
+Choose File and then Remote Files and then Check Server Version. The bar says: same as on the server, changed here and not sent, changed on the server, changed in both places, or the file no longer exists on the server. Nothing is downloaded or changed.
 
 ## [remote.unsent] Unsent remote changes
 commands: nks.remote.unsent
@@ -145,7 +145,7 @@ Changes to a remote file are saved on this computer first. The list shows the re
 
 ## [source.open] Open from a plugin source
 commands: nks.source.open
-1. Choose File and then Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
+1. Choose File and then Remote Files and then Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
 2. Choose a source and type the address, starting with the scheme of the source.
 3. The text opens in a tab. The bar above it shows the source, the address with its secrets replaced by ***, and the revision the text was read at.
 - Save writes the text back only if the file at the source is still at that revision. If it changed, nothing is written and your text stays in the tab. Choose Show Differences to compare, Overwrite to replace exactly the version that was found, or Cancel.
@@ -156,14 +156,14 @@ commands: nks.source.open
 
 ## [remote.backup] Back up connections
 commands: nks.remote.exportConnections, nks.remote.importConnections
-1. Choose File and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
-2. Choose File and then Import Connections to read such a file on another computer or after a reinstall.
+1. Choose File and then Remote Files and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
+2. Choose File and then Remote Files and then Import Connections to read such a file on another computer or after a reinstall.
 - The file holds no passwords, passphrases or tokens, so it can be shared. After an import, choose a connection and Set Password.
 - A connection that you import replaces a connection with the same internal identifier.
 
 ## [remote.proxy] Network proxy
 commands: nks.remote.proxy
-1. Choose File and then Network Proxy, and choose HTTP, SOCKS4, SOCKS5 or no proxy.
+1. Choose File and then Remote Files and then Network Proxy, and choose HTTP, SOCKS4, SOCKS5 or no proxy.
 2. Enter the server and the port, and a user name and password if the proxy needs them. The password goes to the credential store.
 - The proxy is used for FTPS and SFTP. A connection that has a proxy of its own keeps it.
 - SOCKS4 works for SFTP only. For FTPS use SOCKS5 or HTTP.
@@ -178,7 +178,7 @@ A file opens read only when another program has it open and does not let others 
 ## [file.history] Local history
 commands: nks.file.history
 The program keeps a revision of a file at every save and at every change another program makes to it. It needs no project and no Git.
-1. Choose File and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
+1. Choose File and then History and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
 2. Choose a revision. Compare opens it in your comparison program (the one from Compare with Disk) on the left and the tab on the right. Restore File puts the whole revision into the tab. Restore Selection replaces only the selected lines with the matching lines of the revision. Label adds a name to the revision.
 - A restore is an edit in the tab; undo takes it back and nothing is written until you save. The text that was in the tab is kept as a revision.
 - Revisions are stored in the profile folder, so an update of the program does not remove them.
@@ -188,13 +188,13 @@ The program keeps a revision of a file at every save and at every change another
 
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
-1. Choose File and then Mark Revision and type a label, for example Before refactoring.
+1. Choose File and then History and then Mark Revision and type a label, for example Before refactoring.
 2. The current text of the tab is stored as a revision with that label. If the newest revision already holds the same text, the label goes to that revision.
 - Find the revision later in Local History by its label.
 
 ## [file.historySearch] Search in history
 commands: nks.file.historySearch
-1. Choose File and then Search in History and type the text.
+1. Choose File and then History and then Search in History and type the text.
 2. The list shows the revisions of the file that contain the text, with the number of matches and the first line. Choose one to open the actions for it, for example Compare.
 - Revisions of secrets files are not searched.
 
@@ -293,7 +293,7 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 ## [edit.insertLines] Insert into lines
 commands: nks.edit.insertIntoLines
 The command writes text, numbers or bullets into the lines of the selection, or into all lines when there is only a caret.
-1. Choose Edit, Insert into Lines. The preview shows the first lines as they will look.
+1. Choose Edit, Insert, Insert into Lines. The preview shows the first lines as they will look.
 2. Choose Text, Numbers or Bullets, and where to write: start of each line, end of each line, before a column, or at each caret.
 3. Press OK. The result is one Undo step.
 - Numbers: First number, Digits (the number is padded with zeros to that width) and Separator, which goes between the number and the text of the line (after the number at the start of a line, before it at the end). At each caret only the number is written, so three carets get 1, 2 and 3.
@@ -303,7 +303,7 @@ The command writes text, numbers or bullets into the lines of the selection, or 
 
 ## [edit.sort] Sorting lines
 commands: nks.edit.sortLines
-1. Select the lines (or put the caret anywhere to sort all lines) and choose Edit, Sort Lines.
+1. Select the lines (or put the caret anywhere to sort all lines) and choose Edit, Conversions and Recipes, Sort Lines.
 2. Choose ascending or descending, whether letter case matters, whether to remove duplicate lines, and what to compare by. The preview shows the first lines of the result.
 3. Press OK. The result is one Undo step and the sorted lines stay selected.
 - Character code orders by the code of the characters. Locale uses the rules of a language, given as a tag such as cs-CZ or a hexadecimal id such as 0405 (empty means language-neutral). Number at the start reads the number a line starts with; lines without a number come first.
@@ -339,9 +339,9 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 
 ## [edit.macro] Macros
 commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
-1. Tools, Record Macro, starts recording. Do the work with commands and typing. Tools, Stop Recording Macro, ends it.
-2. Tools, Play Last Macro, plays it again over the current selections and carets.
-3. Tools, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Run Saved Macro, lists the saved ones and plays the chosen one.
+1. Tools, Macros, Record Macro, starts recording. Do the work with commands and typing. Tools, Macros, Stop Recording Macro, ends it.
+2. Tools, Macros, Play Last Macro, plays it again over the current selections and carets.
+3. Tools, Macros, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Macros, Run Saved Macro, lists the saved ones and plays the chosen one.
 - A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, and typed text. With several carets it does the same as doing the steps by hand.
 - A playback is one Undo step. If a step cannot run, the macro stops there and the status bar names the step; what ran before stays one Undo step.
 - While recording, a command that a macro cannot replay is refused and the status bar says so: everything with a dialog, file commands, Cut, Copy, Paste, moving the caret with the arrow keys, Find. Recording goes on.
@@ -350,15 +350,15 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 ## [edit.json] Format JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Select JSON text, or select nothing to format the whole document.
-2. Edit menu, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings.
+2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings.
 3. Preview JSON Formatting shows the change as a proposal first. Apply it from the bar above the editor, or discard it.
 - A syntax error is reported with its line and column and nothing is changed. Text larger than the limit is refused with a message.
 - If the document changed after the command started, the command stops and asks you to run it again.
 
 ## [tools.stats] Document statistics and hashes
 commands: nks.tools.statistics, nks.tools.hash
-1. Tools menu, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document.
-2. Tools menu, Calculate Hash, asks for the algorithm (MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of the selected part.
+1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document.
+2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of the selected part.
 - Both read the document in blocks while you keep working, show progress and can be cancelled. Neither holds the whole file in memory, so they work on files of any size, also in paged and hex view.
 - A cancelled statistic is shown as incomplete, with how many bytes were counted. A cancelled hash gives no result.
 - The statistic and the hash are of the document as it was when the command started; if you edit meanwhile, they do not change.
@@ -376,8 +376,8 @@ commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.conv
 ## [tools.colors] Colours
 commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.tools.colorToHsl, nks.tools.colorToOklch
 1. In CSS, HTML, XML, JavaScript, TypeScript, PHP, Razor and Latte files every colour value (`#ff8800`, `rgb()`, `hsl()`, `oklch()`) has a small swatch of its colour in front of it. The swatch takes no character of the document.
-2. Click the swatch, or put the caret on the value and choose Tools, Pick Color at Caret, to open the picker: sliders for hue, saturation, lightness and opacity, and a value box that also accepts a colour in another notation. Clicking outside the picker writes the colour over the value in the notation it had, as one undo step; Esc closes the picker without a change.
-3. Tools, Convert Color to HEX, RGB, HSL or oklch rewrites the colour value at the caret, or every one inside the selections, in that notation. The colour stays the same eight-bit colour; oklch is written with five decimals for lightness and chroma and two for the hue.
+2. Click the swatch, or put the caret on the value and choose Tools, Colors, Pick Color at Caret, to open the picker: sliders for hue, saturation, lightness and opacity, and a value box that also accepts a colour in another notation. Clicking outside the picker writes the colour over the value in the notation it had, as one undo step; Esc closes the picker without a change.
+3. Tools, Colors, Convert Color to HEX, RGB, HSL or oklch rewrites the colour value at the caret, or every one inside the selections, in that notation. The colour stays the same eight-bit colour; oklch is written with five decimals for lightness and chroma and two for the hue.
 - A colour outside the sRGB range is cut to it. Opacity is kept, as `/ alpha` or as the last two hex digits.
 - Text that only looks like a colour, such as `rgb(var(--c))`, the HTML entity `&#123;` or `#12345`, is left alone.
 - A file larger than the limit of the plugin is not converted; the message says so.
@@ -385,16 +385,16 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 ## [tools.keys] Key paths in YAML and JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In a YAML or JSON file the status bar shows the path of the key under the caret, for example `cs.app.title`. Items of a list are written `items[0]`, and a key that contains a dot or a bracket is written `["a.b"]`. The path is read for the revision and the caret it was asked for: if you type or move meanwhile, the answer is dropped.
-2. Tools, Copy Key Path puts the path on the clipboard.
-3. Tools, Go to Key (or `@` in Go to Anything) lists the keys of the file by their path; Enter selects the key as it is written. Show Key Outline lists the same keys in the plugin panel, and a click there selects the same bytes.
-4. Tools, Compare Keys with Another File asks for another open YAML or JSON file and writes to the output window the keys with a value that each file lacks.
+2. Tools, Structure and Language, Copy Key Path puts the path on the clipboard.
+3. Tools, Structure and Language, Go to Key (or `@` in Go to Anything) lists the keys of the file by their path; Enter selects the key as it is written. Show Key Outline lists the same keys in the plugin panel, and a click there selects the same bytes.
+4. Tools, Structure and Language, Compare Keys with Another File asks for another open YAML or JSON file and writes to the output window the keys with a value that each file lacks.
 - Block style YAML is understood: nested keys, lists, quoted keys and block scalars. A value in braces or brackets counts as one value. JSON may have comments and trailing commas.
 - A syntax error stops the reading at that place; the keys before it are kept and the message gives the line.
 
 ## [tools.outline] Code outline and symbols
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML, PHP, CSS, C# and Markdown files, Tools, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
-2. Tools, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
+1. In HTML, PHP, CSS, C# and Markdown files, Tools, Structure and Language, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
+2. Tools, Structure and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
 3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
 4. If the plugin process stops, the outline is read again once it is back.
 - It is read with simple rules of the language, without a language server and without a project index: HTML (headings, elements with an `id`, `main`, `nav`, `section` and similar), PHP (namespaces, classes, interfaces, traits, enums, functions, methods), CSS (rules and at-rules), C# (namespaces, types, methods, constructors, properties), Markdown (`#` headings).
@@ -756,7 +756,7 @@ commands: nks.hex.inspectChanges
 
 ## [hex.copyAs] Hex: copy, paste and export as
 commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
-1. Edit and then Hex: Copy Selection As puts the selected bytes on the clipboard as text: hex string, an array for C, C#, Java, Python, Rust, Go, JavaScript or Pascal, Base64, Intel HEX, Motorola S-record or a hexdump.
+1. Edit and then Hex and then Hex: Copy Selection As puts the selected bytes on the clipboard as text: hex string, an array for C, C#, Java, Python, Rust, Go, JavaScript or Pascal, Base64, Intel HEX, Motorola S-record or a hexdump.
 2. Hex: Paste As reads the clipboard as hex text, Base64 or an array from source code and pastes the bytes like Ctrl+V does.
 3. Hex: Export Selection writes the selection to a file, as a binary file or in one of the text forms. It runs in the background and Esc cancels it.
 - Intel HEX, S-record and hexdump carry the offset of each byte in the file as its address; Intel HEX and S-record hold 32-bit addresses, so a selection beyond 4 GiB is refused.
@@ -823,7 +823,7 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
-1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
+1. Tools, then Running Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
 2. A tool has an id, a title, an executable and args (a list: one entry is one argument). Optional are cwd (the directory it runs in; the folder of the current file when missing), timeoutSeconds (without it there is no time limit) and logPattern (see LOG pattern). Example: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
 3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or ${File} for a document that has no file, stops the run before anything starts.
 4. A tool whose command and directory have not run before is shown with both and starts only after you confirm. The confirmation is remembered until the definition, or the program it leads to, changes.
@@ -842,7 +842,7 @@ commands: nks.tools.logPattern
 
 ## [tools.edit] Tools: edit definitions, typed variables, tools from a folder
 commands: nks.tools.edit
-1. Tools, Edit Tool Definitions opens one editor for the tools of the file tools.json. New, Save and Delete write the file at once. The line under the form shows the command exactly as it would start for the open file, or why it cannot run now. The editor and Run Tool use the same definition, so a tool starts with the same arguments from both.
+1. Tools, Running Tools, Edit Tool Definitions opens one editor for the tools of the file tools.json. New, Save and Delete write the file at once. The line under the form shows the command exactly as it would start for the open file, or why it cannot run now. The editor and Run Tool use the same definition, so a tool starts with the same arguments from both.
 2. A definition can declare variables, one per line: Name:text or Name:path, optionally followed by =value (the value may use other variables, for example Out:path=${FileDir}/out). Without a value the user variable or the built-in variable of that name is used. The order is: declared value, then your own variables (Edit User Variables), then the built-in ones. Use the name as ${Name} in executable, args and cwd.
 3. A text is one line. A path is one line, not empty, without the characters * ? " < > | . A value of the wrong type stops the run before anything starts and the output names the variable.
 4. The folder of the open file, or a folder above it, may hold .textida/tools.json with tools of the same shape. They are listed in Run Tool, but they run only after you confirm the command and the directory, even when the same text is in your own file. A definition that changes, including its variables, is asked again. These tools cannot be edited in the editor.
@@ -850,14 +850,14 @@ commands: nks.tools.edit
 
 ## [tools.make] Makefile: run a target
 commands: nks.tools.makeTargets
-1. With a Makefile open (Makefile, GNUmakefile, *.mk, *.mak), Tools, Run Makefile Target lists its targets, read from the text of the tab. Choose one to run make -f with that file and the target, in the folder of the file.
+1. With a Makefile open (Makefile, GNUmakefile, *.mk, *.mak), Tools, Running Tools, Run Makefile Target lists its targets, read from the text of the tab. Choose one to run make -f with that file and the target, in the folder of the file.
 2. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
 3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
 - Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml and Gemfile the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems) for names and versions. Nothing is sent until you agree: Tools, Check Package Versions shows the servers and asks once for each registry.
+1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml and Gemfile the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems) for names and versions. Nothing is sent until you agree: Tools, Packages, Check Package Versions shows the servers and asks once for each registry.
 2. After you agree, Ctrl+J in the name of an entry offers names from the registry, and in a version it offers the versions of that package, newest first. PyPI and the Go proxy have no search: a name is offered only when the typed text is the whole name.
 3. An entry that pins an exact version (1.2.3, ==1.2.3, v1.2.3) and has a newer release gets an information mark on the version. Ranges (^, ~, >=) are not marked. A pre-release is not taken as the newer version while a release exists. The check runs when you stop typing.
 4. Answers are kept in a cache until the editor closes. An offer or a mark that came from the cache says so ("cache"). Refresh Package Versions drops the cache of that registry and asks again.
@@ -867,7 +867,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 
 ## [packages.scripts] Package scripts: npm and Composer
 commands: nks.packages.script
-1. With a package.json or composer.json open, Tools, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
+1. With a package.json or composer.json open, Tools, Packages, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
 2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
 - npm or Composer has to be installed. On Windows both are batch files; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file, so a script name with a line break or ! still works. Without that standard layout the batch file is started through cmd.exe.
 
@@ -882,7 +882,7 @@ commands: nks.plugins.manage
 
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop find
 commands: nks.tools.lint
-1. Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
+1. Tools, Running Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
 2. The linter checks the file on disk, so save first: a document with unsaved changes is not checked. The findings are underlined in the text (the message shows when the pointer rests on it) and listed in the Tasks tab, one per line; a click or Enter opens the place. The next run of the same linter replaces them, so a problem you fixed is gone after it.
 3. To check after every save, switch on "Check with PHPStan" (or the other linter) in File, Save Actions, or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy and rubocop-lint.
 - The program is looked for in vendor/bin, node_modules/.bin, .venv and PATH; nothing is downloaded. The first run asks you to confirm the command.
@@ -1028,12 +1028,12 @@ This help describes only what this version can do. These things are not in it ye
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
 A clip is a piece of text with places for variables and carets. Clips come from data plugins in the folder plugins of the profile; one subfolder per plugin, with a file nkspad-plugin.json and no program.
-1. Choose Edit, Insert Clip. The list shows the clips with a preview of the text that would be inserted.
+1. Choose Edit, Insert, Insert Clip. The list shows the clips with a preview of the text that would be inserted.
 2. Pick a clip. If it has a form, fill it in: the preview follows what you type, a wrong value is marked and OK stays dimmed until every value fits its type.
 3. The text goes into every caret and replaces every selection, as one Undo step. The carets end where the clip has the mark $|.
 - Save Selection as Clip asks for a name and adds the selected text to your own library (the plugin user.clips, folder user-clips). The text is kept literally, so a dollar sign in it stays a dollar sign. The clip is in the list at once.
 - Template language: ${name} is a variable, $| marks a caret (as many as you like), $$ is a dollar sign. Line breaks become the line break of the document.
-- Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. your own variables (Edit, Edit User Variables opens the file variables.json of the profile: one JSON object of name and text), 3. the built-in ones. The same name means the same everywhere.
+- Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. your own variables (Edit, Insert, Edit User Variables opens the file variables.json of the profile: one JSON object of name and text), 3. the built-in ones. The same name means the same everywhere.
 - Built-in variables: file.path, file.dir, file.name, file.base, file.ext (an unsaved document has no file.*), date (yyyy-MM-dd), time (HH:mm:ss), datetime (the setting Date and time format), guid (a new one for each caret), selection (the text selected at that caret), user.name. A name with no value stops the insertion and the status bar names it.
 - Form fields: name, label, type, default, choices, required. Types: text, integer, number (decimal point), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (yyyy-MM-dd), file (an existing file), choice (one of choices). A default may use variables, for example ${date}.
 - In nkspad-plugin.json a clip is {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} under contributes.clips; a clip with "command" also gets a command of that name.
@@ -1049,7 +1049,7 @@ commands: nks.file.newFromTemplate
 ## [edit.convert] Convert text
 commands: nks.edit.convert
 A conversion changes the text of every selection at once, or of the whole file when nothing is selected. The new text stays selected.
-1. Choose Edit, Convert. The list shows the conversions with a preview on the selected text (on the first sample of the converter when nothing is selected).
+1. Choose Edit, Conversions and Recipes, Convert. The list shows the conversions with a preview on the selected text (on the first sample of the converter when nothing is selected).
 2. Pick one. All selections change as one Undo step. If one of them cannot be converted, nothing is changed and the status bar says why.
 - Repeat Last Command runs the conversion that ran last, without the list.
 - Converters are data: contributes.converters in nkspad-plugin.json, with id, title, rules and optionally samples and command. A rule is {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Rules run in order, each on the result of the one before. With regex on, the dialect of the search applies: replace may use $1, ${name}, $& and the case codes \U \L \E \u \l.
@@ -1060,7 +1060,7 @@ A conversion changes the text of every selection at once, or of the whole file w
 ## [edit.recipes] Edit recipes
 commands: nks.edit.runRecipe
 A recipe chooses parts of the open file, changes them and shows the result before anything is written.
-1. Choose Edit, Run Edit Recipe. The list shows each recipe with the changes it would make in this file.
+1. Choose Edit, Conversions and Recipes, Run Edit Recipe. The list shows each recipe with the changes it would make in this file.
 2. Pick one. The preview window lists every change: line, column, old text and new text. Choose Apply to write them.
 3. All changes are one Undo step; Undo brings the file back exactly as it was. The changed parts stay selected. Nothing is written when the file changed meanwhile or when the recipe cannot run (a variable without a value, a pattern that takes too long).
 - A recipe works on the selections, or on the whole file when nothing is selected. Repeat Last Command applies the last recipe without the preview.
@@ -1071,7 +1071,7 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 ## [edit.recipeFiles] Recipes over files
 commands: nks.edit.runRecipeFiles
 A saved recipe runs again over another set of files. You see every change first; nothing is written before you apply it.
-1. Choose Edit, Run Recipe on Files and pick a recipe: one from a data plugin, or a file in the folder recipes of the profile.
+1. Choose Edit, Conversions and Recipes, Run Recipe on Files and pick a recipe: one from a data plugin, or a file in the folder recipes of the profile.
 2. Pick the files: a folder with a file mask (for example *.cs;*.txt; the ignore files of the search apply), the open tabs, or the files of the search results.
 3. The Search Results tab lists the changes file by file, with the same ticks as Replace in Files. Apply writes the ticked ones. A file that was changed by someone else after the preview is not touched: it is named as a conflict and the other files are written. Open documents get one Undo step.
 - A recipe file is JSON with id, title and steps, the same fields as a recipe in nkspad-plugin.json, plus an optional version and an optional converters list (the converters its convert steps name). A file without a version is version 1, the format of the first recipes, and loads as before. A file of a newer version is refused with a message.
@@ -1090,8 +1090,8 @@ Puts the selection, the file, the open tabs or the opened folder on the clipboar
 ## [edit.fragment] Edit a string as JSON, SQL or HTML
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
 A string in a PHP or JavaScript file opens in a tab of its own, in the language you pick, and goes back into the string with the escaping of its kind.
-1. Put the caret in the string and choose Edit, Edit String as JSON, Edit String as SQL or Edit String as HTML. The new tab shows the text the string stands for, without the quotes and escapes.
-2. Edit the text. Choose Edit, Write String Fragment Back: the text is escaped for the string and replaces its content. The tab stays open, so you can write again.
+1. Put the caret in the string and choose Edit, Edit String As, Edit String as JSON, Edit String as SQL or Edit String as HTML. The new tab shows the text the string stands for, without the quotes and escapes.
+2. Edit the text. Choose Edit, Edit String As, Write String Fragment Back: the text is escaped for the string and replaces its content. The tab stays open, so you can write again.
 - Kinds: PHP single-quoted and double-quoted strings, heredoc and nowdoc; JavaScript strings in single quotes, double quotes and templates in backticks. In a double-quoted string and in a heredoc every dollar sign gets a backslash, so no variable can appear by accident.
 - Refused with a message: a string with variables or expressions (`$name`, `{$x}`), a JavaScript template with `${...}`, an escape that is not text (a byte above 127, octal) and, when writing, a line that would end a heredoc or nowdoc.
 - The tab follows the string through edits of the file elsewhere. If the file changed inside the string after the tab was opened, nothing is overwritten without asking: the dialog offers Overwrite or Cancel.
@@ -1101,8 +1101,8 @@ A string in a PHP or JavaScript file opens in a tab of its own, in the language 
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with a caret inside each of them.
 2. Tab indents as usual when no abbreviation stands in front of the caret, when text is selected, when the caret is inside an open tag, or when the abbreviation is not valid.
-3. Tools, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the carets) and expands it when you agree.
-4. Tools, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
+3. Tools, Structure and Language, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the carets) and expands it when you agree.
+4. Tools, Structure and Language, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
 5. Every expansion goes into all carets at once and is one Undo step.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` child, `+` sibling, `^` one level up, `( )` group; in names, classes and text `$` is the number of the repeat (`$$` pads with zeros, `$@-` counts down, `$@3` starts at 3). A lone word expands only when it is an HTML tag name or a short name of the plugin (`bq`, `btn`, `a:link`, `input:checkbox`, `!` for a page skeleton). Inside an element the missing name is `li`, `tr`, `td`, `option`, `span` or `div`, as the parent needs.
 - CSS: `m10-20` is `margin: 10px 20px;`, `w100p` is `width: 100%;`, `c#f00`, `pos:a`, `dn`, a trailing `!` adds `!important`, `+` joins several declarations. A whole number gets `px`, a fraction `em`; the letters `p`, `e`, `x`, `r` after a number mean `%`, `em`, `ex`, `rem`. It works only inside a `{ }` block.
@@ -1112,7 +1112,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 
 ## [tools.git] Git: status, compare and stage a hunk
 commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
-1. Open a file from a Git repository and choose Tools, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
+1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
 4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
@@ -1123,10 +1123,10 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
-1. Open a text document and choose Tools, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
+1. Open a text document and choose Tools, Language Server, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
 2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
 3. Language Server: Rename Symbol asks for the new name of the word at the caret. The server's changes in all files, with the creating, renaming and deleting of files it asks for, are shown together in the change review; what you accept is applied as one step. A file that is open in another tab must have been started with the first command too, otherwise the rename is refused as a whole.
-4. Ctrl+J (Edit, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
+4. Ctrl+J (Edit, Insert, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
 5. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down.
 - The editor does not start a server on its own: nothing runs until the first command of this group, and a server is not told about a file until then.
 - Large files shown in pages and files over the size limit never go to a server.
@@ -1136,7 +1136,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 
 ## [edit.complete] Completion of words and clips
 commands: nks.edit.complete
-1. Press Ctrl+J (Edit, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.
+1. Press Ctrl+J (Edit, Insert, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.
 2. Pick an entry. A word replaces the word in front of every caret; a clip is inserted like in the topic Clips and replaces that word. It is one Undo step.
 - The words are taken from all open text tabs. The word that is being typed is not offered, and a word is offered only when it is longer than what is typed. Words of the document being edited come first, then the more frequent ones.
 - Clips come from the library of the topic Clips. A clip with no language fits every document; a clip with a language fits only documents of that language.
@@ -1145,9 +1145,9 @@ commands: nks.edit.complete
 
 ## [edit.sql] SQL: dialect and formatting
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
-1. Edit, Format SQL lays out the selections, or the whole file when nothing is selected: a clause per line, one select item per line, sub-queries indented, keywords in one letter case. It is one undo step and nothing outside the selection changes.
-2. Edit, Preview SQL Formatting shows the same result in the change preview first.
-3. The dialect decides the colors and which words count as keywords. The first of these that is set wins: Tools, SQL Dialect (this file only); `sql_dialect = mysql` in an `.editorconfig` (every SQL file in that folder and below); the setting Default SQL dialect. With none of them the dialect is Generic, and nothing is reported as an error.
+1. Edit, Formatting, Format SQL lays out the selections, or the whole file when nothing is selected: a clause per line, one select item per line, sub-queries indented, keywords in one letter case. It is one undo step and nothing outside the selection changes.
+2. Edit, Formatting, Preview SQL Formatting shows the same result in the change preview first.
+3. The dialect decides the colors and which words count as keywords. The first of these that is set wins: Tools, Structure and Language, SQL Dialect (this file only); `sql_dialect = mysql` in an `.editorconfig` (every SQL file in that folder and below); the setting Default SQL dialect. With none of them the dialect is Generic, and nothing is reported as an error.
 - Dialects: generic, mysql, postgres, sqlite, tsql. The editor never connects to a database.
 - Strings, quoted names and comments are copied as written. Formatting a result again changes nothing.
 - A selection larger than the limit of the plugin is refused with a message.
@@ -1155,8 +1155,8 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 
 ## [edit.html] HTML: entities and HTML Tidy
 commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
-1. Edit, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
-2. Edit, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
+1. Edit, Formatting, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
+2. Edit, Formatting, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
 3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
 - Tidy is not part of this build: install it and set the path, or put it in one of those places.
 - Line numbers in the messages count from the start of the text that was sent to Tidy.
@@ -1174,8 +1174,8 @@ commands: nks.help.languageHelp
 ## [table.view] Table view for CSV and TSV
 commands: nks.view.table, nks.table.dialect
 A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
-1. Ctrl+K then Ctrl+T (View menu, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
-2. View, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header.
+1. Ctrl+K then Ctrl+T (View menu, Table, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
+2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header.
 - A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
 - Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
 - A quoted cell may hold line breaks; the table shows its first line and the mark ↵.
@@ -1184,15 +1184,15 @@ A CSV or TSV file can be shown as a table: one row of the file per row, one fiel
 ## [table.edit] Table view: editing and filtering
 commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
 1. Enter or F2 (or just typing) edits the current cell. Enter saves and moves down, Shift+Enter inserts a line break, Esc cancels. A cell that was quoted stays quoted; another value is quoted only when it holds the delimiter, a double quote or a line break.
-2. View, Insert Row adds an empty row after the current one. Insert Column asks for the name of the column and adds it after the current one. Delete Row and Delete Column remove the selected rows or columns. Each action is one Undo step.
-3. View, Filter Rows shows only the rows whose current column contains the text (upper and lower case do not matter). Clear Filter shows all rows again. A filter never changes the file, and row numbers stay those of the file.
+2. View, Table, Insert Row adds an empty row after the current one. Insert Column asks for the name of the column and adds it after the current one. Delete Row and Delete Column remove the selected rows or columns. Each action is one Undo step.
+3. View, Table, Filter Rows shows only the rows whose current column contains the text (upper and lower case do not matter). Clear Filter shows all rows again. A filter never changes the file, and row numbers stay those of the file.
 - Delete clears the selected cells. A short row gets the missing delimiters when a cell behind its end is filled in.
 - When the quote character is turned off in Table Delimiter and Header, a value with the delimiter or a line break is refused.
 - Rows cannot be added while a filter is on.
 
 ## [table.copyAs] Copying cells as Markdown, SQL, JSON or HTML
 commands: nks.table.copyAs
-Select cells in the table view and choose View, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.
+Select cells in the table view and choose View, Table, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.
 - Markdown table: a pipe table with the header (or the column letters A, B, ... when there is no header). Special characters such as the pipe, the backslash, asterisks, underscores and angle brackets get a backslash, and a line break in a cell becomes `<br>`.
 - SQL INSERT: one statement per row with the values as text in single quotes (a quote is doubled). The header gives the column names. You are asked for the table name, starting with the file name.
 - JSON: an array of objects named by the header, or an array of arrays when the header is missing, has an empty name or repeats a name. All values are text.
@@ -1202,7 +1202,7 @@ Select cells in the table view and choose View, Copy Table As, then a form. The 
 
 ## [table.region] Editing selected text as a table
 commands: nks.table.editRegion
-Select a part of a text, for example a block of comma-separated lines in a note or a log, and choose View, Edit Selection as Table.
+Select a part of a text, for example a block of comma-separated lines in a note or a log, and choose View, Table, Edit Selection as Table.
 1. The dialog asks for the delimiter (comma, semicolon, tab or vertical bar), whether a double quote encloses values and whether the first selected row is the header. The preview shows the first rows as cells.
 2. The selected text becomes the table. The rest of the file stays text: a cell edit changes the bytes of that cell only, and nothing outside the selection is read or changed.
 - Everything of the table view works in it: moving, editing, adding and deleting rows and columns, filtering, copy and paste. The status bar says that only the selected text is the table.
@@ -1243,8 +1243,8 @@ commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
 1. Choose Tools, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
-3. Open a tab and choose Tools, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
-4. Choose Tools, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+3. Open a tab and choose Tools, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
+4. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
 - The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
 - A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
@@ -1254,7 +1254,7 @@ An AI assistant that you start on this computer (for example a coding agent) can
 ## [tools.ide] The /ide bridge for Claude Code
 commands: nks.tools.ideBridge
 Claude Code that runs in a terminal on this computer can connect to Textida with its /ide command. The agent then learns where your selection is and can propose changes. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
-1. First switch on the MCP server (Tools, MCP Server) and share a tab (Tools, Share This Tab with MCP). The bridge uses the same shared tabs.
+1. First switch on the MCP server (Tools, MCP Server) and share a tab (Tools, MCP, Share This Tab with MCP). The bridge uses the same shared tabs.
 2. Choose Tools, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
 3. In the terminal run /ide in Claude Code. A program without the token from the lock file is refused.
 - The agent is told about the selection and path of a shared tab each time the selection changes. Text of .env values is hidden as in every other read. Withdrawing the tab stops this at once.
@@ -1263,7 +1263,7 @@ Claude Code that runs in a terminal on this computer can connect to Textida with
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Tools, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it.
+1. Tools, Agent, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it.
 2. The Agent Panel under the editor shows the conversation. Type a message and press Enter. Cancel Agent Turn (or the Cancel turn button) sends the cancel to the agent and answers its open permission questions with "cancelled"; Stop Agent ends the process.
 3. The agent reads only the tabs you share: Share This Tab with Agent. It then gets the text as it is in the editor, unsaved changes included; values of .env files stay hidden. Stopping the agent takes every shared tab back.
 4. When the agent writes a shared file, the change is shown as hunks in the change review (the Search Results tab) and is written only when you apply it. If you reject it, the agent gets an error. A file that is not shared, or not open, is not written through the editor.
@@ -1273,7 +1273,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.mcpAgents] MCP servers of agents
 commands: nks.tools.mcpServers
 One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.
-1. Choose Tools, MCP Servers of Agents. Each row shows the server, the agent and file it comes from, and its command or address with secrets hidden.
+1. Choose Tools, MCP, MCP Servers of Agents. Each row shows the server, the agent and file it comes from, and its command or address with secrets hidden.
 2. Choose a server, then Try. A dialog shows the exact command, the folder and the variables with their values hidden (***). Nothing starts until you press Start.
 3. After Start, Textida runs the program, asks it for its tools (MCP versions 2026-07-28 and 2025-11-25) and ends it. The result says how many tools it offers, or gives the error and the last lines the program wrote to its standard error. The same lines are in the Tasks output.
 4. Choose Convert the entry to another agent to get the entry in the format of that agent in a new tab. The snippet is checked against that format first. Values of variables and headers are replaced by ***, so fill them in before you paste the snippet into the file of that agent.
@@ -1284,10 +1284,10 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 ## [tools.shell] Explorer menu and file associations
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Windows only. Textida can add itself to the Explorer context menu of your user and to the Open with list. Nothing needs administrator rights, and only keys of Textida under HKEY_CURRENT_USER\Software\Classes are written. Keys of other programs, PSPad included, are not read or changed. Both commands work in the installed Textida.exe.
-1. Choose Tools, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
-2. Choose Tools, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
+1. Choose Tools, System Integration, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
+2. Choose Tools, System Integration, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
-4. Choose Tools, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
+4. Choose Tools, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
 
