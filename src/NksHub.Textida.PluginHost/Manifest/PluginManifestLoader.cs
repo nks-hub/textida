@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.PluginHost.Conversions;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Contributions;
@@ -147,12 +148,15 @@ public static class PluginManifestLoader
         foreach (var conv in c.Converters)
         {
             Item("converter", conv.Id, conv.Title, conv.Command);
-            if (conv.Rules.Count == 0) errors.Add($"converter '{conv.Id}' has no rules.");
-            foreach (var r in conv.Rules)
-            {
-                if (r.Find.Length == 0) errors.Add($"converter '{conv.Id}' has a rule with empty find.");
-                else if (r.Regex) CheckRegex(errors, $"converter '{conv.Id}'", r.Find);
-            }
+            foreach (var problem in TextConversion.Check(conv)) errors.Add($"converter '{conv.Id}' {problem}");
+        }
+
+        CheckUnique("recipe", c.Recipes.Select(x => x.Id), errors);
+        var converterIds = c.Converters.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var recipe in c.Recipes)
+        {
+            Item("recipe", recipe.Id, recipe.Title, recipe.Command);
+            foreach (var problem in RecipeRunner.Check(recipe, converterIds)) errors.Add($"recipe '{recipe.Id}' {problem}");
         }
 
         CheckUnique("clip", c.Clips.Select(x => x.Id), errors);
