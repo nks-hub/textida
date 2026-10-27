@@ -62,6 +62,8 @@ public sealed class ByteInspection
     public bool IsBlocked => Loss.HasLoss && Replacement is null;
 
     internal TextCodec? Target { get; init; }
+    /// <summary>The edits are byte-level (the hex view): no character boundaries are checked.</summary>
+    internal bool RawBytes { get; init; }
     internal IReadOnlyList<ByteEdit> Edits { get; init; } = [];
 
     /// <summary>The user has seen the report and agrees. A loss needs <paramref name="replacement"/> as well (the text written for each lost character).</summary>
@@ -113,9 +115,9 @@ public sealed partial class Document
 
     /// <summary>
     /// The report of explicit edits made against <paramref name="baseRevision"/>; they are mapped to the current revision first, so the ranges are those that
-    /// would change now. Null when a later change touched one of them (the proposal is stale).
+    /// would change now. Null when a later change touched one of them (the proposal is stale). <paramref name="rawBytes"/> lets the edits split characters, as in the hex view.
     /// </summary>
-    public ByteInspection? InspectEdits(IReadOnlyList<ByteEdit> edits, string source, long baseRevision)
+    public ByteInspection? InspectEdits(IReadOnlyList<ByteEdit> edits, string source, long baseRevision, bool rawBytes = false)
     {
         ThrowIfDisposed();
         var mapped = new List<ByteEdit>(edits.Count);
@@ -139,7 +141,7 @@ public sealed partial class Document
         return new(InspectedAction.Edits, source, _revision)
         {
             CodecBefore = _codec, CodecAfter = _codec, SizeBefore = ByteLength, SizeAfter = ByteLength + delta,
-            Ranges = ranges, RangeCount = mapped.Count, ChangedBytes = changed, Edits = mapped,
+            Ranges = ranges, RangeCount = mapped.Count, ChangedBytes = changed, Edits = mapped, RawBytes = rawBytes,
         };
     }
 
@@ -220,7 +222,7 @@ public sealed partial class Document
         if (inspection.Revision != _revision) return EditResult.Fail(ConflictReason.Overlap, _revision);
         if (inspection.Action == InspectedAction.Convert) return ConvertTo(inspection.Target!, inspection.Replacement);
         if (inspection.Edits.Count == 0) return new(true, _revision, ConflictReason.None);
-        return Apply(inspection.Edits, new EditOptions { BaseRevision = inspection.Revision, Source = inspection.Source });
+        return Apply(inspection.Edits, new EditOptions { BaseRevision = inspection.Revision, Source = inspection.Source, RawBytes = inspection.RawBytes });
     }
 
     private static byte[] Head(ReadOnlySpan<byte> bytes) => bytes[..Math.Min(bytes.Length, ByteInspection.HeadBytes)].ToArray();

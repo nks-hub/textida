@@ -1,11 +1,12 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.Numerics;
+using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core.Hex;
 
-public sealed class BytePattern
+public sealed class BytePattern : ByteQuery
 {
     private readonly byte[] values;
     private readonly byte[] masks;
@@ -25,6 +26,11 @@ public sealed class BytePattern
     }
 
     public int Length => values.Length;
+
+    /// <summary>The bytes of the pattern when none of them is a wildcard (a replacement can be written from it); null otherwise.</summary>
+    public byte[]? Exact => masks.All(m => m == 255) ? [.. values] : null;
+    public override int MinLength => values.Length;
+    public override int MaxLength => values.Length;
     internal int AnchorStart { get; }
     internal int AnchorLength { get; }
     internal ReadOnlySpan<byte> Anchor => values.AsSpan(AnchorStart, AnchorLength);
@@ -144,6 +150,28 @@ public sealed class BytePattern
                 if (!double.IsFinite(number)) throw new OverflowException("Expected a finite float64 value.");
                 return BitConverter.DoubleToUInt64Bits(number);
         }
+    }
+
+    /// <summary>One syntax node per byte, for building a <see cref="ByteRegex"/> out of hex text.</summary>
+    internal IEnumerable<ByteRegex.Node> ToNodes() => values.Select((v, i) => ByteRegex.SetFor(v, masks[i]));
+
+    internal override bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct)
+    {
+        for (int at = 0; at < starts; at++)
+        {
+            if ((at & 4095) == 0) ct.ThrowIfCancellationRequested();
+            if (AnchorLength > 0)
+            {
+                int found = window.Slice(at + AnchorStart, starts - at + AnchorLength - 1).IndexOf(Anchor);
+                if (found < 0) break;
+                at += found;
+                ct.ThrowIfCancellationRequested();
+            }
+            if (!Matches(window.Slice(at, Length))) continue;
+            matches.Add(new ByteRange(block + at, block + at + Length));
+            if (matches.Count == maxResults) return true;
+        }
+        return false;
     }
 
     internal bool Matches(ReadOnlySpan<byte> bytes)

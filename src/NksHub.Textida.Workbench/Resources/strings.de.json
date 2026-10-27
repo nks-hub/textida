@@ -216,6 +216,8 @@
   "setting.files.largeFileThreshold.description": "Eine Datei über dieser Größe öffnet sich im seitenweisen, schreibgeschützten Modus.",
   "setting.search.regexTimeoutMs.title": "Zeitlimit für reguläre Ausdrücke (ms)",
   "setting.search.regexTimeoutMs.description": "Ein Ausdruck mit Rückverweisen, Lookaround oder atomaren Gruppen läuft in der klassischen Engine und wird nach dieser Zeit auf einem Text angehalten. Andere Ausdrücke laufen in der Engine mit linearer Zeit und sind nicht begrenzt.",
+  "setting.hex.wildcardMaxBytes.title": "Längster Platzhalter * in der Hex-Suche (Bytes)",
+  "setting.hex.wildcardMaxBytes.description": "N, die höchste Zahl Bytes, für die der Platzhalter * und jede offene Wiederholung eines regulären Ausdrucks über Bytes (.*, +, {n,}) in der Hex-Suche stehen darf. 0 heißt, N ist noch nicht gewählt: eine Suche mit * fragt dann danach. Einen eigenen Bereich kann man immer als *{m,n} schreiben.",
   "setting.tools.diffTool.title": "Externes Vergleichsprogramm",
   "setting.tools.diffTool.description": "Pfad eines Programms, das zwei Dateien vergleicht. Leer: Mit Datenträger vergleichen meldet, was fehlt.",
   "setting.tools.diffArguments.title": "Argumente des Vergleichsprogramms",

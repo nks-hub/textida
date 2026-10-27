@@ -85,8 +85,7 @@ internal sealed partial class MainWindow
         if (Active is not { Custom: null } tab) return CommandOutcome.NotHandled;
         if (tab.Hex is { } hex)
         {
-            if (replace) return CommandOutcome.NotHandled;
-            _ = FindBytesAsync(hex);
+            _ = replace ? ReplaceBytesAsync(hex) : FindBytesAsync(hex);
             return CommandOutcome.Handled;
         }
         bool wasOpen = _find.IsVisible;

@@ -216,6 +216,8 @@
   "setting.files.largeFileThreshold.description": "Soubor nad touto velikostí se otevře ve stránkovaném režimu, který upravuje soubor, aniž by načetl celý text.",
   "setting.search.regexTimeoutMs.title": "Časový limit regulárního výrazu (ms)",
   "setting.search.regexTimeoutMs.description": "Výraz se zpětnými odkazy, lookaroundem nebo atomickými skupinami běží v klasickém enginu a po této době se na jednom textu zastaví. Ostatní výrazy běží v enginu s lineárním časem a nejsou omezeny.",
+  "setting.hex.wildcardMaxBytes.title": "Nejdelší zástupný znak * v hex hledání (bajty)",
+  "setting.hex.wildcardMaxBytes.description": "N, nejvýš kolik bajtů smí v hex hledání nahradit zástupný znak * a každé otevřené opakování v regulárním výrazu nad bajty (.*, +, {n,}). 0 znamená, že N ještě není zvoleno: hledání s * pak o něj požádá. Vlastní rozsah jde vždy napsat jako *{m,n}.",
   "setting.tools.diffTool.title": "Externí porovnávač",
   "setting.tools.diffTool.description": "Cesta k programu pro porovnání dvou souborů. Prázdné: příkaz Porovnat s diskem řekne, co chybí.",
   "setting.tools.diffArguments.title": "Argumenty porovnávače",

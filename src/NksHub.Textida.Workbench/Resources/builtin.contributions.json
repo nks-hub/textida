@@ -196,7 +196,7 @@
       "id": "nks.search.replace",
       "title": "cmd.search.replace",
       "category": "cat.search",
-      "enablement": "hasDocument && !readOnly"
+      "enablement": "hasDocument && (!readOnly || hexMode)"
     },
     {
       "id": "nks.search.findWord",
@@ -3114,6 +3114,24 @@
         "expression",
         "timeout",
         "backtracking"
+      ]
+    },
+    {
+      "key": "hex.wildcardMaxBytes",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.hex.wildcardMaxBytes.title",
+      "description": "setting.hex.wildcardMaxBytes.description",
+      "category": "cat.hex",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 1048576,
+      "tags": [
+        "hex",
+        "wildcard",
+        "regex",
+        "search",
+        "bytes"
       ]
     },
     {

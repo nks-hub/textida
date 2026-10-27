@@ -524,6 +524,17 @@ public static class K
     public const string HexFindInvalid = "hex.find.invalid";
     public const string HexFindRunning = "hex.find.running";
     public const string HexFindStale = "hex.find.stale";
+    public const string HexReplaceTitle = "hex.replace.title";
+    public const string HexReplaceWithLabel = "hex.replace.withLabel";
+    public const string HexReplacePreview = "hex.replace.preview";
+    public const string HexReplaceLength = "hex.replace.length";
+    public const string HexReplaceInSelection = "hex.replace.inSelection";
+    public const string HexReplaceApply = "hex.replace.apply";
+    public const string HexReplaceOverwrite = "hex.replace.overwrite";
+    public const string HexReplaceStale = "hex.replace.stale";
+    public const string HexReplaceInvalid = "hex.replace.invalid";
+    public const string HexReplaceExact = "hex.replace.exact";
+    public const string HexReplaced = "hex.replaced";
     public const string HexChangesTitle = "hex.changes.title";
     public const string HexChangesInPlace = "hex.changes.inPlace";
     public const string HexChangesStream = "hex.changes.stream";

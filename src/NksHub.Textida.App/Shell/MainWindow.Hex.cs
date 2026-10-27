@@ -28,8 +28,9 @@ internal sealed partial class MainWindow
     private readonly TextBlock _hexSize = new() { VerticalAlignment = VerticalAlignment.Center };
     private bool _hexItemsWired;
     private CancellationTokenSource? _hexFindCts;
-    private BytePattern? _hexPattern;
+    private ByteQuery? _hexPattern;
     private string _hexQuery = "";
+    private string _hexReplacement = "";
 
     internal HexView? ActiveHex => Active?.Hex;
 
@@ -414,20 +415,29 @@ internal sealed partial class MainWindow
 
     private static readonly Regex NumberQuery = new(@"^\S+\s+[iuf](8|16|32|64)(\s+(le|be))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    /// <summary>A hex pattern (<c>50 4B ?? 04</c>), text in quotes in the charset of the character column, or a number with a type (<c>0x1F40 i32</c>).</summary>
-    internal static BytePattern ParseHexQuery(string query, HexCharset charset)
+    /// <summary>
+    /// A hex pattern (<c>50 4B ?? 04</c>), text in quotes in the charset of the character column, a number with a type (<c>0x1F40 i32</c>),
+    /// hex with the wildcard <c>*</c> (0 to N bytes) or a regular expression over bytes between slashes (<c>/PK[-]/</c>).
+    /// <paramref name="wildcardMax"/> is N; null when the setting <c>hex.wildcardMaxBytes</c> is not chosen.
+    /// </summary>
+    internal static ByteQuery ParseHexQuery(string query, HexCharset charset, int? wildcardMax = null)
     {
         string q = query.Trim();
         if (q.Length >= 2 && q[0] == '"' && q[^1] == '"') return BytePattern.FromText(q[1..^1], charset.Codec);
+        if (q.Length >= 3 && q[0] == '/' && q[^1] == '/') return ByteRegex.Parse(q[1..^1], wildcardMax);
         if (NumberQuery.IsMatch(q)) return BytePattern.ParseNumber(q);
+        if (q.Contains('*')) return ByteRegex.ParseHexWildcard(q, wildcardMax);
         return BytePattern.ParseHex(q);
     }
+
+    /// <summary>N of the wildcard from the settings; null while it is still 0 (not chosen).</summary>
+    private int? WildcardMax => _app.Workbench.Settings.GetInt("hex.wildcardMaxBytes") is > 0 and var n ? (int)n : null;
 
     internal async Task FindBytesAsync(HexView hex)
     {
         var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexFindTitle), Loc.Get(K.HexFindLabel), _hexQuery);
         if (string.IsNullOrWhiteSpace(answer)) return;
-        try { _hexPattern = ParseHexQuery(answer, hex.Charset); }
+        try { _hexPattern = ParseHexQuery(answer, hex.Charset, WildcardMax); }
         catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
         {
             SetStatusMessage(Loc.Get(K.HexFindInvalid, ("reason", e.Message)));
@@ -435,6 +445,92 @@ internal sealed partial class MainWindow
         }
         _hexQuery = answer;
         await HexFindStepAsync(hex, forward: true, fromCaret: true);
+    }
+
+    /// <summary>
+    /// Replace bytes (Ctrl+H in hex): the pattern, the replacement, then a preview of every match with its old and new bytes. Replace All writes them as one undo step
+    /// and only while the file is at the revision the preview was made for. The selection, when there is one, limits the search.
+    /// </summary>
+    internal async Task ReplaceBytesAsync(HexView hex)
+    {
+        var findText = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexReplaceTitle), Loc.Get(K.HexFindLabel), _hexQuery);
+        if (string.IsNullOrWhiteSpace(findText)) return;
+        ByteQuery query;
+        try { query = ParseHexQuery(findText, hex.Charset, WildcardMax); }
+        catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
+        {
+            SetStatusMessage(Loc.Get(K.HexFindInvalid, ("reason", e.Message)));
+            return;
+        }
+        var withText = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexReplaceTitle), Loc.Get(K.HexReplaceWithLabel), _hexReplacement);
+        if (withText is null) return;
+        byte[] replacement;
+        try { replacement = ParseReplacement(withText, hex.Charset); }
+        catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
+        {
+            SetStatusMessage(Loc.Get(K.HexReplaceInvalid, ("reason", e.Message)));
+            return;
+        }
+        (_hexQuery, _hexPattern, _hexReplacement) = (findText, query, withText);
+
+        _hexFindCts?.Cancel();
+        var cts = _hexFindCts = new CancellationTokenSource();
+        var doc = hex.Editor.Document;
+        var snapshot = doc.GetSnapshot();
+        ByteRange? within = hex.Editor.HasSelection ? hex.Editor.Selection : null;
+        SetStatusMessage(Loc.Get(K.HexFindRunning));
+        ByteSearchResult found;
+        try { found = await Task.Run(() => ByteReplace.Search(snapshot, query, within, ct: cts.Token), CancellationToken.None); }
+        catch (OperationCanceledException) { return; }
+        catch (IOException)
+        {
+            hex.FileChangedBehind();
+            SetStatusMessage(Loc.Get(K.HexFindStale));
+            return;
+        }
+        if (cts.IsCancellationRequested) return;
+        SetStatusMessage("");
+        var plan = ByteReplace.Plan(doc, found, replacement, overwrite: !hex.Insert);
+        if (plan is null)
+        {
+            SetStatusMessage(Loc.Get(K.HexReplaceStale));
+            return;
+        }
+        if (plan.Matches == 0)
+        {
+            SetStatusMessage(Loc.Get(K.HexFindNone));
+            return;
+        }
+        if (plan.Blocked != ReplaceBlock.None)
+        {
+            SetStatusMessage(Loc.Get(K.HexReplaceOverwrite));
+            return;
+        }
+        var report = plan.Inspection;
+        string message = Loc.Plural(K.HexReplacePreview, plan.Matches);
+        if (within is not null) message += " " + Loc.Get(K.HexReplaceInSelection);
+        if (plan.ChangesLength) message += "\n" + Loc.Get(K.HexReplaceLength, ("delta", plan.LengthDelta), ("old", report.SizeBefore), ("new", report.SizeAfter));
+        var request = new ChoiceRequest(Loc.Get(K.HexReplaceTitle), message,
+            [new DialogButton(Loc.Get(K.HexReplaceApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(doc, report));
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
+        report.Confirm();
+        var result = ByteReplace.Apply(doc, plan);
+        if (!result.Applied)
+        {
+            SetStatusMessage(Loc.Get(result.Conflict == ConflictReason.Saving ? K.HexBusy : K.HexReplaceStale));
+            return;
+        }
+        hex.Select(report.Ranges[0].Start, report.Ranges[0].Start + report.Ranges[0].NewLength);
+        hex.CenterIfOutside(report.Ranges[0].Start);
+        SetStatusMessage(Loc.Plural(K.HexReplaced, plan.Matches));
+    }
+
+    /// <summary>The replacement as typed: exact hex bytes, text in quotes, or a number with a type; empty means no bytes.</summary>
+    internal static byte[] ParseReplacement(string text, HexCharset charset)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        var pattern = ParseHexQuery(text, charset) as BytePattern ?? throw new FormatException(Loc.Get(K.HexReplaceExact));
+        return pattern.Exact ?? throw new FormatException(Loc.Get(K.HexReplaceExact));
     }
 
     /// <summary>The next or previous match of the last query, wrapping around at the ends; the matches are then counted in the background.</summary>
@@ -481,7 +577,7 @@ internal sealed partial class MainWindow
         }
     }
 
-    private static ByteRange? FindFrom(DocumentSnapshot snapshot, BytePattern pattern, long from, bool forward, CancellationToken ct)
+    private static ByteRange? FindFrom(DocumentSnapshot snapshot, ByteQuery pattern, long from, bool forward, CancellationToken ct)
     {
         long length = snapshot.ByteLength;
         from = Math.Clamp(from, 0, length);
@@ -489,12 +585,12 @@ internal sealed partial class MainWindow
         {
             var tail = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = 1, Range = new ByteRange(from, length) }, ct);
             if (tail.Matches.Count > 0) return tail.Matches[0];
-            var head = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = 1, Range = new ByteRange(0, Math.Min(length, from + pattern.Length - 1)) }, ct);
+            var head = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = 1, Range = new ByteRange(0, Math.Min(length, from + pattern.MaxLength - 1)) }, ct);
             return head.Matches.Count > 0 ? head.Matches[0] : null;
         }
         // backwards: the last match that ends at or before the caret, else the last one in the file
         ByteRange? last = null;
-        var before = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = int.MaxValue, Range = new ByteRange(0, Math.Min(length, from + pattern.Length - 1)) }, ct);
+        var before = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = int.MaxValue, Range = new ByteRange(0, Math.Min(length, from + pattern.MaxLength - 1)) }, ct);
         foreach (var m in before.Matches) if (m.Start < from) last = m;
         if (last is not null) return last;
         var all = ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = int.MaxValue }, ct);

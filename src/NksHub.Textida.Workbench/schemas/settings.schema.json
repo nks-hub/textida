@@ -242,6 +242,14 @@
           "description": "Regular expression time limit (ms). A pattern with backreferences, lookaround or atomic groups runs in the backtracking engine and is stopped after this time on one text. Other patterns run in the linear-time engine and are not limited.",
           "x-scope": "application"
         },
+        "hex.wildcardMaxBytes": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1048576,
+          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: a search with * then asks for it. A range of your own can always be written as *{m,n}.",
+          "x-scope": "application"
+        },
         "tools.diffTool": {
           "type": "string",
           "default": "",
