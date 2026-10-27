@@ -12,6 +12,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Conversions;
+using NksHub.Textida.Core.History;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Clips;
@@ -32,6 +33,8 @@ public sealed partial class App : Application
     internal AppWorkbench Workbench { get; private set; } = null!;
     internal JournalService Journal { get; private set; } = null!;
     internal BackupService Backups { get; private set; } = null!;
+    /// <summary>Local history of files: a revision for every save and every change from outside.</summary>
+    internal FileHistory History { get; private set; } = null!;
     internal OutputChannels Output { get; private set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
@@ -136,6 +139,8 @@ public sealed partial class App : Application
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
+        History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());
+        OpenDocument.History = History;
     }
 
     /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>
@@ -330,10 +335,29 @@ public sealed partial class App : Application
                 Loc.SetLanguage(Settings.Language);
                 foreach (var w in _windows) w.ApplyTexts();
                 break;
+            case var k when k.StartsWith("history.", StringComparison.Ordinal):
+                History.Policy = ReadHistoryPolicy();
+                break;
             case "search.regexTimeoutMs":
                 ApplyRegexTimeout();
                 break;
         }
+    }
+
+    /// <summary>The history settings; 0 in a limit means no limit.</summary>
+    private HistoryPolicy ReadHistoryPolicy()
+    {
+        var s = Workbench.Settings;
+        long? Limit(string key, long unit = 1) => s.GetInt(key) is > 0 and var n ? n * unit : null;
+        return new HistoryPolicy
+        {
+            Enabled = s.GetBool("history.enabled"),
+            StoreSecretFiles = s.GetBool("history.storeSecretFiles"),
+            MaxRevisionsPerFile = (int?)Limit("history.maxRevisionsPerFile"),
+            MaxAge = Limit("history.maxAgeDays") is { } days ? TimeSpan.FromDays(days) : null,
+            MaxBytesPerFile = Limit("history.maxMiBPerFile", 1L << 20),
+            MaxTotalBytes = Limit("history.maxTotalMiB", 1L << 20),
+        };
     }
 
     private void ApplyRegexTimeout() => RegexTools.MatchTimeoutMs = (int)Workbench.Settings.GetInt("search.regexTimeoutMs");

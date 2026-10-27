@@ -62,6 +62,7 @@ internal sealed partial class MainWindow
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
+        od.HistoryProblem += result => SetStatusMessage(result.NoSpace ? Loc.Get(K.HistoryNoSpace) : Loc.Get(K.HistoryFailed, ("reason", result.Problem ?? "")));
         _app.Journal.Track(od);
         od.EnsureWatching();
         TrackEdits(od);

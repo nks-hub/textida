@@ -106,6 +106,29 @@ Der Befehl startet Ihr eigenes Vergleichsprogramm: links die Datei auf dem Daten
 - Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
 - Ein eigenes Vergleichsfenster hat das Programm nicht; es verwendet das von Ihnen eingestellte Programm.
 
+## [file.history] Lokaler Verlauf
+commands: nks.file.history
+Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein anderes Programm eine Revision der Datei. Es braucht weder ein Projekt noch Git.
+1. Wählen Sie Datei und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
+2. Wählen Sie eine Revision. Vergleichen öffnet sie in Ihrem Vergleichsprogramm (dem von Mit Datenträger vergleichen) links und den Tab rechts. Datei wiederherstellen setzt die ganze Revision in den Tab. Auswahl wiederherstellen ersetzt nur die ausgewählten Zeilen durch die passenden Zeilen der Revision. Bezeichnung gibt der Revision einen Namen.
+- Das Wiederherstellen ist eine Änderung im Tab; Rückgängig nimmt sie zurück, und nichts wird geschrieben, bis Sie speichern. Der Text, der im Tab stand, bleibt als Revision erhalten.
+- Die Revisionen liegen im Profilordner, ein Update des Programms löscht sie also nicht.
+- Dateien mit geheimen Werten, etwa .env, werden nicht gespeichert, solange Sie in den Einstellungen nicht Verlauf von Dateien mit geheimen Werten führen einschalten.
+- Grenzen (Revisionen pro Datei, Tage, MiB pro Datei, MiB insgesamt) stellen Sie in den Einstellungen ein; 0 heißt keine Grenze. Die neueste Revision einer Datei wird nie gelöscht.
+- Ist der Datenträger voll, meldet das die Statusleiste, und keine Revision wird beschädigt.
+
+## [file.historyMark] Revision markieren
+commands: nks.file.historyMark
+1. Wählen Sie Datei und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
+2. Der aktuelle Text des Tabs wird als Revision mit dieser Bezeichnung gespeichert. Enthält die neueste Revision schon denselben Text, erhält diese die Bezeichnung.
+- Die Revision finden Sie später im Lokalen Verlauf über die Bezeichnung.
+
+## [file.historySearch] Im Verlauf suchen
+commands: nks.file.historySearch
+1. Wählen Sie Datei und dann Im Verlauf suchen und geben Sie den Text ein.
+2. Die Liste zeigt die Revisionen der Datei, die den Text enthalten, mit der Zahl der Treffer und der ersten Zeile. Wählen Sie eine aus, dann öffnen sich die Aktionen, zum Beispiel Vergleichen.
+- Revisionen von Dateien mit geheimen Werten werden nicht durchsucht.
+
 ## [file.openPath] Pfad am Cursor öffnen
 commands: nks.file.openPathAtCaret
 1. Setzen Sie den Cursor auf einen Dateipfad im Text, zum Beispiel src/a.cs:12.

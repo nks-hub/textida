@@ -6,6 +6,7 @@ using NksHub.Textida.Core;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.History;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
@@ -23,7 +24,14 @@ internal sealed class OpenDocument : IDisposable
     private const int SampleBytes = 1 << 20;
     private const int EolBlockChars = 1 << 14;
 
+    /// <summary>Where saves and changes from outside are recorded; set once by the app, null leaves documents without history.</summary>
+    public static FileHistory? History { get; set; }
+
     private static int _untitled;
+    private HistoryRecorder? _recorder;
+
+    /// <summary>Raised on the UI thread when a revision could not be written (for example the disk is full).</summary>
+    public event Action<HistoryRecordResult>? HistoryProblem;
     private readonly DispatcherTimer _eolTimer;
     private Document _doc;
     private EolStats _eol;
@@ -272,6 +280,7 @@ internal sealed class OpenDocument : IDisposable
         doc.Changed += OnDocChanged;
         doc.Saved += OnSaved;
         doc.ExternalChangeDetected += OnExternalChange;
+        _recorder = History is { } history ? new HistoryRecorder(history, doc, (_, result) => Dispatcher.UIThread.Post(() => HistoryProblem?.Invoke(result))) : null;
     }
 
     private void Unhook(Document doc)
@@ -279,6 +288,8 @@ internal sealed class OpenDocument : IDisposable
         doc.Changed -= OnDocChanged;
         doc.Saved -= OnSaved;
         doc.ExternalChangeDetected -= OnExternalChange;
+        _recorder?.Dispose();
+        _recorder = null;
         doc.StopWatching();
         _watching = null;
     }
