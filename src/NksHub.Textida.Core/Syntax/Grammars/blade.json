@@ -1,0 +1,99 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "blade",
+  "name": "Blade",
+  "comments": {"block": ["{{--", "--}}"]},
+  "version": "1.0.0",
+  "extensions": [".blade.php"],
+  "wordPattern": "[A-Za-z_][\\w]*",
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null", "TRUE", "FALSE", "NULL"]
+    },
+    {
+      "name": "operators",
+      "token": "keyword",
+      "words": ["as", "and", "or", "xor", "instanceof", "new", "fn", "function", "use"]
+    }
+  ],
+  "repository": {
+    "expr": [
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "paren",
+        "begin": "\\(",
+        "end": "\\)",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "rules": [
+          {"include": "#expr"}
+        ]
+      },
+      {"match": "\\$[A-Za-z_]\\w*", "token": "variable"},
+      {"match": "[A-Za-z_]\\w*(?=\\()", "token": "function"},
+      {"match": "(?<![\\w.])\\d+(?:\\.\\d+)?", "token": "number"},
+      {"words": true},
+      {"match": "->|\\?->|::|=>|===|!==|==|!=|<=|>=|&&|\\|\\||\\?\\?|[-+*/%=<>?:.]|!(?!!\\})", "token": "operator"},
+      {"match": "[\\[\\],]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"name": "blade-comment", "begin": "\\{\\{--", "end": "--\\}\\}", "token": "comment", "multiline": true},
+    {
+      "name": "blade-raw-echo",
+      "begin": "\\{!!",
+      "end": "!!\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#expr"}
+      ]
+    },
+    {
+      "name": "blade-echo",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#expr"}
+      ]
+    },
+    {
+      "name": "blade-directive-args",
+      "begin": "(?<![\\w@])@[A-Za-z_]\\w*[ \\t]*\\(",
+      "end": "\\)",
+      "multiline": true,
+      "beginToken": "keyword",
+      "endToken": "punctuation",
+      "rules": [
+        {"include": "#expr"}
+      ]
+    },
+    {"match": "(?<![\\w@])@[A-Za-z_]\\w*", "token": "keyword"},
+    {"include": "html"}
+  ]
+}
