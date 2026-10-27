@@ -1,0 +1,72 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "cmake",
+  "name": "CMake",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".cmake"],
+  "fileNames": ["CMakeLists.txt"],
+  "wordPattern": "[A-Za-z_][\\w+-]*",
+  "keywords": [
+    {
+      "name": "flow",
+      "token": "keyword",
+      "words": [
+        "if", "elseif", "else", "endif", "foreach", "endforeach", "while", "endwhile", "function",
+        "endfunction", "macro", "endmacro", "return", "break", "continue", "block", "endblock"
+      ]
+    },
+    {
+      "name": "commands",
+      "token": "function",
+      "words": [
+        "add_compile_definitions", "add_compile_options", "add_custom_command", "add_custom_target",
+        "add_definitions", "add_dependencies", "add_executable", "add_library", "add_link_options",
+        "add_subdirectory", "add_test", "cmake_minimum_required", "cmake_parse_arguments", "cmake_policy",
+        "configure_file", "define_property", "enable_language", "enable_testing", "execute_process",
+        "export", "file", "find_file", "find_library", "find_package", "find_path", "find_program",
+        "get_cmake_property", "get_filename_component", "get_property", "get_target_property", "include",
+        "include_directories", "include_guard", "install", "link_directories", "link_libraries", "list",
+        "mark_as_advanced", "math", "message", "option", "project", "set", "set_property",
+        "set_target_properties", "string", "target_compile_definitions", "target_compile_features",
+        "target_compile_options", "target_include_directories", "target_link_directories",
+        "target_link_libraries", "target_link_options", "target_precompile_headers", "target_sources",
+        "try_compile", "unset", "variable_watch"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": [
+        "ON", "OFF", "TRUE", "FALSE", "YES", "NO", "Y", "N", "NOTFOUND", "AND", "OR", "NOT", "STREQUAL",
+        "EQUAL", "MATCHES", "DEFINED", "EXISTS", "PUBLIC", "PRIVATE", "INTERFACE", "REQUIRED", "QUIET",
+        "COMPONENTS", "STATIC", "SHARED", "MODULE", "OBJECT", "IMPORTED", "ALIAS", "PARENT_SCOPE", "CACHE",
+        "FORCE", "INTERNAL", "STRING", "BOOL", "PATH", "FILEPATH", "VERSION_LESS", "VERSION_GREATER",
+        "COMMAND", "TARGET", "POLICY", "IN_LIST", "LESS", "GREATER", "LESS_EQUAL", "GREATER_EQUAL"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "bracket-comment", "begin": "#\\[\\[", "end": "\\]\\]", "token": "comment", "multiline": true},
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {"name": "bracket-argument", "begin": "\\[\\[", "end": "\\]\\]", "token": "string", "multiline": true},
+    {
+      "name": "quoted-argument",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"},
+        {"match": "\\$(?:ENV)?\\{[^}\\r\\n]*\\}", "token": "variable"}
+      ]
+    },
+    {"match": "\\$(?:ENV|CACHE)?\\{[^}\\r\\n]*\\}", "token": "variable"},
+    {"match": "\\$<[^>\\r\\n]*>", "token": "variable"},
+    {"match": "(?<![\\w.])\\d+(?:\\.\\d+)*(?![\\w.])", "token": "number"},
+    {"words": true},
+    {"match": "[()]", "token": "punctuation"}
+  ]
+}

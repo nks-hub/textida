@@ -8,6 +8,8 @@ public class SyntaxGrammarFormatTests
     private static readonly string[] Expected =
     [
         "plaintext", "ini", "json", "xml", "html", "css", "javascript", "php", "php-code", "csharp", "sql", "markdown", "python", "shell", "yaml", "latte", "neon", "razor", "sln",
+        "c", "cpp", "go", "gomod", "gotmpl", "rust", "toml", "makefile", "cmake", "meson", "ruby", "erb", "haml", "slim", "rbs", "java", "kotlin", "lua", "swift",
+        "dart", "r", "powershell",
         "sql-mysql", "sql-postgres", "sql-sqlite", "sql-tsql",
     ];
 
@@ -35,6 +37,18 @@ public class SyntaxGrammarFormatTests
     [InlineData("Index.cshtml", "razor")]
     [InlineData("Counter.razor", "razor")]
     [InlineData("App.sln", "sln")]
+    [InlineData("Makefile", "makefile")]
+    [InlineData("rules.mk", "makefile")]
+    [InlineData("CMakeLists.txt", "cmake")]
+    [InlineData("meson.build", "meson")]
+    [InlineData("go.mod", "gomod")]
+    [InlineData("main.go", "go")]
+    [InlineData("page.gohtml", "gotmpl")]
+    [InlineData("Cargo.toml", "toml")]
+    [InlineData("lib.rs", "rust")]
+    [InlineData("Gemfile", "ruby")]
+    [InlineData("show.html.erb", "erb")]
+    [InlineData("Main.kt", "kotlin")]
     public void A_file_name_selects_its_grammar(string file, string id) => Assert.Equal(id, BuiltinGrammars.Registry.ForFile(file)?.Id);
 
     [Fact]

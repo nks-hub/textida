@@ -1,0 +1,109 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "powershell",
+  "name": "PowerShell",
+  "comments": {"line": "#", "block": ["<#", "#>"]},
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".ps1", ".psm1", ".psd1"],
+  "wordPattern": "[A-Za-z_][\\w-]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "begin", "break", "catch", "class", "continue", "data", "do", "dynamicparam", "else", "elseif",
+        "end", "enum", "exit", "filter", "finally", "for", "foreach", "from", "function", "hidden", "if",
+        "in", "param", "process", "return", "static", "switch", "throw", "trap", "try", "until", "using",
+        "var", "while", "workflow"
+      ]
+    }
+  ],
+  "repository": {
+    "code": [
+      {"name": "block-comment", "begin": "<#", "end": "#>", "token": "comment", "multiline": true},
+      {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+      {
+        "name": "here-dq",
+        "begin": "@\"",
+        "end": "(?<=^)\"@",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "`.", "token": "string.escape"},
+          {"match": "\\$(?:\\{[^}\\r\\n]*\\}|[A-Za-z_?^][\\w:?]*)", "token": "variable"},
+          {
+            "name": "subexpression",
+            "begin": "\\$\\(",
+            "end": "\\)",
+            "multiline": true,
+            "beginToken": "variable",
+            "endToken": "variable",
+            "rules": [
+              {"include": "#code"}
+            ]
+          }
+        ]
+      },
+      {"name": "here-sq", "begin": "@'", "end": "(?<=^)'@", "token": "string", "multiline": true},
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\"\"", "token": "string.escape"},
+          {"match": "`.", "token": "string.escape"},
+          {"match": "\\$(?:\\{[^}\\r\\n]*\\}|[A-Za-z_?^][\\w:?]*)", "token": "variable"},
+          {
+            "name": "subexpression",
+            "begin": "\\$\\(",
+            "end": "\\)",
+            "multiline": true,
+            "beginToken": "variable",
+            "endToken": "variable",
+            "rules": [
+              {"include": "#code"}
+            ]
+          }
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "''", "token": "string.escape"}
+        ]
+      },
+      {"match": "\\$(?:true|false|null)\\b", "token": "constant"},
+      {"match": "[$@](?:\\{[^}\\r\\n]*\\}|[A-Za-z_?^$][\\w:?]*)", "token": "variable"},
+      {
+        "match": "(?<![\\w-])-(?:[ic]?(?:eq|ne|gt|ge|lt|le|like|notlike|match|notmatch|contains|notcontains|replace|split)|in|notin|and|or|not|xor|is|isnot|as|join|f|band|bor|bxor|bnot|shl|shr)(?![\\w-])",
+        "token": "operator"
+      },
+      {"match": "(?<=[ \\t(])-[A-Za-z]\\w*", "token": "attribute"},
+      {"match": "(?<![\\w.-])[A-Za-z]+-[A-Za-z]\\w*(?![\\w-])", "token": "function"},
+      {"match": "\\[[A-Za-z_][\\w.,\\[\\]` ]*\\]", "token": "type"},
+      {
+        "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F]+|\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)(?:[kKmMgGtTpP][bB])?(?![\\w])",
+        "token": "number"
+      },
+      {"words": true},
+      {
+        "operators": [
+          "++", "--", "+=", "-=", "*=", "/=", "%=", "&&", "||", "::", "..", "=", "+", "-", "*", "/", "%", "!",
+          "|", ">", "<", "&"
+        ]
+      },
+      {"match": "[{}()\\[\\];,.]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"include": "#code"}
+  ]
+}

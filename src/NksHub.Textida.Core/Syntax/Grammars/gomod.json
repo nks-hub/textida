@@ -1,0 +1,40 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "gomod",
+  "name": "Go module",
+  "comments": {"line": "//"},
+  "version": "1.0.0",
+  "fileNames": ["go.mod", "go.work"],
+  "keywords": [
+    {
+      "name": "directives",
+      "token": "keyword",
+      "words": [
+        "module", "go", "toolchain", "require", "replace", "exclude", "retract", "use", "godebug", "ignore",
+        "tool"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
+    {"name": "raw-string", "begin": "`", "end": "`", "token": "string"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "match": "(?<![\\w.])v\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.\\-]+)?(?:\\+[0-9A-Za-z.\\-]+)?(?:\\+incompatible)?",
+      "token": "number"
+    },
+    {"match": "(?<![\\w.])\\d+\\.\\d+(?:\\.\\d+)?(?:rc\\d+|beta\\d+)?(?![\\w.])", "token": "number"},
+    {"words": true},
+    {"operators": ["=>"]},
+    {"match": "[()\\[\\],]", "token": "punctuation"}
+  ]
+}

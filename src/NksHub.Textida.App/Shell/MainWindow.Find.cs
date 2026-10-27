@@ -510,7 +510,10 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { } surface || Active is not { } tab) return CommandOutcome.NotHandled;
         var text = surface.Document;
         var caret = text.GetLocation(surface.CaretOffset);
-        var pair = BracketMatcher.FindPair(LinesOf(text), TokenizerOf(tab), caret.Line - 1, caret.Column - 1);
+        var lines = LinesOf(text);
+        var tokenizer = TokenizerOf(tab);
+        var pair = LanguageModes.GrammarId(tab.Doc) == "latte" ? TagPairMatcher.FindPair(lines, tokenizer, caret.Line - 1, caret.Column - 1) : null;
+        pair ??= BracketMatcher.FindPair(lines, tokenizer, caret.Line - 1, caret.Column - 1);
         if (pair is not { } at)
         {
             SetStatusMessage(Loc.Get(K.BracketNone));

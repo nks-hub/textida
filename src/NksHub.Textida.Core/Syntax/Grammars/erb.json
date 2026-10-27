@@ -1,0 +1,23 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "erb",
+  "name": "ERB",
+  "comments": {"block": ["<%#", "%>"]},
+  "version": "1.0.0",
+  "extensions": [".erb", ".html.erb", ".rhtml"],
+  "rules": [
+    {"name": "erb-comment", "begin": "<%-?#", "end": "-?%>", "token": "comment", "multiline": true},
+    {"match": "<%%|%%>", "token": "string.escape"},
+    {
+      "name": "erb-code",
+      "begin": "<%[=-]?",
+      "end": "-?%>",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "embed": "ruby"
+    },
+    {"include": "html"}
+  ]
+}

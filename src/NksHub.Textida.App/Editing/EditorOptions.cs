@@ -30,7 +30,8 @@ internal sealed record EditorOptions(
     bool Links = true,
     bool Minimap = true,
     int RightMargin = 0,
-    string FallbackFontFamily = "")
+    string FallbackFontFamily = "",
+    bool TabsOnly = false)
 {
     /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
     public string FullFontFamily => FallbackFontFamily.Length == 0 ? FontFamily : FontFamily + ", " + FallbackFontFamily;
@@ -38,8 +39,8 @@ internal sealed record EditorOptions(
     /// <summary>The smart keys for web files that are on for the language of the document.</summary>
     public SmartKeyOptions Smart => SmartKeys ?? new SmartKeyOptions();
 
-    /// <summary>The indentation found in the file replaces the configured one for that document.</summary>
-    public EditorOptions WithIndent(IndentSettings indent) => this with { InsertSpaces = indent.InsertSpaces, IndentSize = indent.IndentSize, TabSize = indent.TabSize };
+    /// <summary>The indentation found in the file replaces the configured one for that document; a language that needs tabs keeps them.</summary>
+    public EditorOptions WithIndent(IndentSettings indent) => this with { InsertSpaces = indent.InsertSpaces && !TabsOnly, IndentSize = indent.IndentSize, TabSize = indent.TabSize };
 
     public IndentSettings Indent => new(InsertSpaces, IndentSize, TabSize);
 
@@ -47,10 +48,11 @@ internal sealed record EditorOptions(
     {
         string lang = language ?? "";
         string? l = lang.Length == 0 || lang == LanguageModes.PlainId ? null : lang;
+        bool tabsOnly = lang == LanguageModes.MakefileId; // recipe lines of a makefile must start with a tab, whatever the indentation setting says
         return new EditorOptions(
             TabSize: (int)s.GetInt("editor.tabSize", l),
             IndentSize: (int)s.GetInt("editor.indentSize", l),
-            InsertSpaces: s.GetBool("editor.insertSpaces", l),
+            InsertSpaces: !tabsOnly && s.GetBool("editor.insertSpaces", l),
             WordWrap: s.GetString("editor.wordWrap", l) == "on",
             ShowWhitespace: s.GetString("editor.renderWhitespace", l) == "all",
             FontFamily: s.GetString("editor.fontFamily"),
@@ -87,6 +89,7 @@ internal sealed record EditorOptions(
             Links: s.GetBool("editor.links"),
             Minimap: s.GetBool("editor.minimap"),
             RightMargin: (int)s.GetInt("editor.rightMargin", l),
-            FallbackFontFamily: s.GetString("editor.fallbackFontFamily"));
+            FallbackFontFamily: s.GetString("editor.fallbackFontFamily"),
+            TabsOnly: tabsOnly);
     }
 }

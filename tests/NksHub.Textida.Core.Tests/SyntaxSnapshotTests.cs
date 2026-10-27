@@ -10,10 +10,12 @@ public class SyntaxSnapshotTests
 {
     internal sealed record Line(string State, string Text, params string[] Tokens);
 
+    private static IEnumerable<(string Grammar, Line[] Lines)> Every => Snapshots.All.Concat(SyntaxLanguageGroupSnapshots.All);
+
     public static TheoryData<string> Grammars()
     {
         var data = new TheoryData<string>();
-        foreach (var (grammar, _) in Snapshots.All) data.Add(grammar);
+        foreach (var (grammar, _) in Every) data.Add(grammar);
         return data;
     }
 
@@ -21,7 +23,7 @@ public class SyntaxSnapshotTests
     [MemberData(nameof(Grammars))]
     public void Tokens_and_line_states_match_the_fixture(string grammar)
     {
-        var lines = Snapshots.All.Single(s => s.Grammar == grammar).Lines;
+        var lines = Every.Single(s => s.Grammar == grammar).Lines;
         var tokenizer = BuiltinGrammars.Tokenizer(grammar);
         var state = tokenizer.InitialState;
         for (int i = 0; i < lines.Length; i++)
@@ -39,7 +41,7 @@ public class SyntaxSnapshotTests
     {
         // the dialects of SQL have their own tests in SqlDialectAndLanguageHelpTests
         string[] handWritten = ["html", "php", "json", "sql", "php-code", "sql-mysql", "sql-postgres", "sql-sqlite", "sql-tsql"];
-        var covered = Snapshots.All.Select(s => s.Grammar).Concat(handWritten).ToHashSet();
+        var covered = Every.Select(s => s.Grammar).Concat(handWritten).ToHashSet();
         Assert.All(BuiltinGrammars.Registry.All.Select(g => g.Id), id => Assert.Contains(id, covered));
     }
 

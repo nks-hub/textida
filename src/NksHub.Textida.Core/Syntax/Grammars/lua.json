@@ -1,0 +1,79 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "lua",
+  "name": "Lua",
+  "comments": {"line": "--", "block": ["--[[", "]]"]},
+  "version": "1.0.0",
+  "extensions": [".lua", ".rockspec"],
+  "fileNames": [".luacheckrc"],
+  "firstLine": "^#!.*\\blua",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "and", "break", "do", "else", "elseif", "end", "for", "function", "goto", "if", "in", "local", "not",
+        "or", "repeat", "return", "then", "until", "while"
+      ]
+    },
+    {"name": "constants", "token": "constant", "words": ["true", "false", "nil", "self"]},
+    {
+      "name": "builtins",
+      "token": "function",
+      "words": [
+        "assert", "collectgarbage", "dofile", "error", "getmetatable", "ipairs", "load", "loadfile", "next",
+        "pairs", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset", "require", "select",
+        "setmetatable", "tonumber", "tostring", "type", "unpack", "xpcall"
+      ]
+    },
+    {
+      "name": "libraries",
+      "token": "type",
+      "words": [
+        "_G", "_ENV", "_VERSION", "coroutine", "debug", "io", "math", "os", "package", "string", "table",
+        "utf8"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "block-comment-2", "begin": "--\\[==\\[", "end": "\\]==\\]", "token": "comment", "multiline": true},
+    {"name": "block-comment-1", "begin": "--\\[=\\[", "end": "\\]=\\]", "token": "comment", "multiline": true},
+    {"name": "block-comment-0", "begin": "--\\[\\[", "end": "\\]\\]", "token": "comment", "multiline": true},
+    {"name": "comment-line", "begin": "--", "end": "$", "token": "comment"},
+    {"name": "long-string-2", "begin": "\\[==\\[", "end": "\\]==\\]", "token": "string", "multiline": true},
+    {"name": "long-string-1", "begin": "\\[=\\[", "end": "\\]=\\]", "token": "string", "multiline": true},
+    {"name": "long-string-0", "begin": "\\[\\[", "end": "\\]\\]", "token": "string", "multiline": true},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F]*\\.?[0-9a-fA-F]*(?:[pP][+-]?\\d+)?|\\d+(?:\\.\\d*)?(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?)",
+      "token": "number"
+    },
+    {"match": "(?<=\\bfunction[ \\t]+(?:[A-Za-z_][\\w.]*[.:])?)[A-Za-z_]\\w*(?![\\w.:])", "token": "function"},
+    {"words": true},
+    {
+      "operators": [
+        "...", "..", "==", "~=", "<=", ">=", "//", "<<", ">>", "::", "+", "-", "*", "/", "%", "^", "#", "&",
+        "~", "|", "<", ">", "="
+      ]
+    },
+    {"match": "[{}()\\[\\];,.:]", "token": "punctuation"}
+  ]
+}

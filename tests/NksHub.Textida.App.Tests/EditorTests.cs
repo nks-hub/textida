@@ -208,6 +208,29 @@ public class EditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Tab_in_a_makefile_writes_a_tab_even_when_the_setting_says_spaces()
+    {
+        _app.Workbench.Set("editor.insertSpaces", System.Text.Json.Nodes.JsonValue.Create(true));
+        var make = _w.OpenFile(_temp.File("Makefile", "all:\n"), null);
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(LanguageModes.MakefileId, make.Doc.Language.Id);
+        Assert.Equal(["cmake", "gomod", "rust", "cpp", "c"], new[] { "src/CMakeLists.txt", "go.mod", "lib.rs", "a.hpp", "a.c" }.Select(f => LanguageModes.ForPath(f).Id));
+        make.Editor!.TextArea.Focus();
+        make.Editor.CaretOffset = make.Editor.Document.TextLength;
+        Press(Key.Tab);
+        Assert.Equal("all:\n\t", Text(make));
+
+        var other = _w.OpenFile(_temp.File("a.txt", "x"), null);
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        other.Editor!.TextArea.Focus();
+        other.Editor.CaretOffset = 0;
+        Press(Key.Tab);
+        Assert.Equal("    x", Text(other));
+    }
+
+    [AvaloniaFact]
     public void Case_commands_run_from_a_two_chord_sequence()
     {
         var tab = Open("hello world");

@@ -61,7 +61,12 @@ public static class BracketMatcher
         private LineState? _state = tokenizer?.InitialState;
 
         /// <summary>True when the character belongs to a string, comment or regex literal token.</summary>
-        public bool IsText(int line, int column)
+        public bool IsText(int line, int column) => Covers(line, column, t => t.Kind.StartsWith("string", StringComparison.Ordinal) || t.Kind.StartsWith("comment", StringComparison.Ordinal) || t.Kind == TokenKinds.Regex);
+
+        /// <summary>True when the character belongs to a comment token.</summary>
+        public bool IsComment(int line, int column) => Covers(line, column, t => t.Kind.StartsWith("comment", StringComparison.Ordinal));
+
+        private bool Covers(int line, int column, Func<Token, bool> kind)
         {
             if (tokenizer is null) return false;
             while (_done.Count <= line)
@@ -71,7 +76,7 @@ public static class BracketMatcher
                 _done.Add(tokens);
             }
             foreach (var t in _done[line])
-                if (column >= t.Start && column < t.End && (t.Kind.StartsWith("string", StringComparison.Ordinal) || t.Kind.StartsWith("comment", StringComparison.Ordinal) || t.Kind == TokenKinds.Regex))
+                if (column >= t.Start && column < t.End && kind(t))
                     return true;
             return false;
         }

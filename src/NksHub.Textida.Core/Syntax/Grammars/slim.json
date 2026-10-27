@@ -1,0 +1,55 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "slim",
+  "name": "Slim",
+  "comments": {"line": "/"},
+  "version": "1.0.0",
+  "extensions": [".slim"],
+  "rules": [
+    {"match": "(?<=^[ \\t]*)doctype\\b.*$", "token": "meta"},
+    {"name": "slim-comment", "begin": "(?<=^[ \\t]*)/", "end": "$", "token": "comment"},
+    {"name": "control-line", "begin": "(?<=^[ \\t]*)-", "end": "$", "beginToken": "operator", "embed": "ruby"},
+    {"name": "output-line", "begin": "(?<=^[ \\t]*)==?[<>']*", "end": "$", "beginToken": "operator", "embed": "ruby"},
+    {"match": "(?<=^[ \\t]*)[|'],?", "token": "punctuation"},
+    {"match": "(?<=^[ \\t]*)[a-z][\\w:-]*", "token": "tag"},
+    {"match": "(?<=^[ \\t]*(?:[a-z][\\w:-]*)?(?:[.#][\\w-]+)*)[.#][A-Za-z_][\\w-]*", "token": "type"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "match": "(?<=^[ \\t]*[a-z][\\w:-]*(?:[.#][\\w-]+)*(?:[ \\t]+[\\w:-]+=(?:\\\"[^\\\"\\r\\n]*\\\"|'[^'\\r\\n]*'))*[ \\t]+)[\\w:-]+(?==)",
+      "token": "attribute"
+    },
+    {
+      "name": "inline-ruby",
+      "begin": "(?<=^[ \\t]*[a-z][\\w:-]*(?:[.#][\\w-]+)*(?:[ \\t]+[\\w:-]+=(?:\\\"[^\\\"\\r\\n]*\\\"|'[^'\\r\\n]*'))*[ \\t]*)==?",
+      "end": "$",
+      "beginToken": "operator",
+      "embed": "ruby"
+    },
+    {
+      "name": "interpolation",
+      "begin": "#\\{",
+      "end": "\\}",
+      "beginToken": "punctuation",
+      "endToken": "punctuation",
+      "embed": "ruby"
+    }
+  ]
+}
