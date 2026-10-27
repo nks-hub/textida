@@ -187,7 +187,16 @@ internal sealed class SearchResultsView : DockPanel
         var batch = new List<Row>();
         foreach (var file in plan.Files)
         {
-            var head = new FileRow(file.Key, display(file.DisplayName), file.Hunks.Count, file);
+            var head = new FileRow(file.Key, display(file.DisplayName), file.Changes, file)
+            {
+                Status = file.Operation switch
+                {
+                    { Kind: FileOperationKind.Create } => Loc.Get(K.WorkspaceCreate),
+                    { Kind: FileOperationKind.Rename, NewPath: { } target } => Loc.Get(K.WorkspaceRename, ("name", display(target))),
+                    { Kind: FileOperationKind.Delete } => Loc.Get(K.WorkspaceDelete),
+                    _ => null,
+                },
+            };
             batch.Add(head);
             batch.AddRange(file.Hunks.Select(h => new HunkRow(head, h)));
         }

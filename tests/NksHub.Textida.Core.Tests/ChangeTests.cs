@@ -360,6 +360,75 @@ public class ChangeTests
 [Collection("Crash harness")]
 public class BatchCrashHarnessTest
 {
+    private static FileChange Operation(string path, FileOperation operation, FileFingerprint? print = null) =>
+        new(path, path, null, null, print, TextCodec.Utf8, [], operation);
+
+    [Fact]
+    public void FileOperationsAreDoneInOrderAndADeletedFileIsGoneOnlyWhenTheBatchEnds()
+    {
+        using var dir = new JournalTempDir();
+        string gone = dir.Combine("gone.txt"), old = dir.Combine("old.txt");
+        File.WriteAllText(gone, "bye");
+        File.WriteAllText(old, "content");
+        var proposal = ChangeBuilder.Proposal("ops", "test",
+            Operation(dir.Combine("new.txt"), new FileOperation(FileOperationKind.Create, Content: [1, 2, 3])),
+            Operation(old, new FileOperation(FileOperationKind.Rename, dir.Combine("renamed.txt"))),
+            Operation(gone, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(gone))) with { Atomic = true };
+
+        var report = new ChangeApplier(_ => null).Apply(proposal);
+
+        Assert.Equal(3, report.Applied);
+        Assert.Equal([1, 2, 3], File.ReadAllBytes(dir.Combine("new.txt")));
+        Assert.Equal("content", File.ReadAllText(dir.Combine("renamed.txt")));
+        Assert.Empty(Directory.GetFiles(dir.Path, "gone.txt*"));
+    }
+
+    [Fact]
+    public void AnAtomicBatchWithAStaleDeleteChangesNothing()
+    {
+        using var dir = new JournalTempDir();
+        string target = dir.Combine("target.txt"), edited = dir.Combine("edited.txt");
+        File.WriteAllText(target, "seen");
+        File.WriteAllText(edited, "one two");
+        var proposal = ChangeBuilder.Proposal("ops", "test",
+            ChangeBuilder.ForFile(edited, [new TextReplacement(new ByteRange(0, 3), "1")]),
+            Operation(dir.Combine("new.txt"), new FileOperation(FileOperationKind.Create, Content: [])),
+            Operation(target, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(target))) with { Atomic = true };
+        File.WriteAllText(target, "changed by someone else");
+
+        var report = new ChangeApplier(_ => null, dir.Combine("journal")).Apply(proposal);
+
+        Assert.Equal((0, 1), (report.Applied, report.Conflicts));
+        Assert.Equal(ChangeConflict.ExternalChange, report.Files[2].Conflict);
+        Assert.Equal("one two", File.ReadAllText(edited));
+        Assert.False(File.Exists(dir.Combine("new.txt")));
+        Assert.Equal("changed by someone else", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public void AFileOperationThatFailsUndoesTheOnesBeforeIt()
+    {
+        if (!OperatingSystem.IsWindows()) return; // relies on an open file refusing to be moved
+        using var dir = new JournalTempDir();
+        string locked = dir.Combine("locked.txt");
+        File.WriteAllText(locked, "x");
+        string old = dir.Combine("old.txt");
+        File.WriteAllText(old, "y");
+        var proposal = ChangeBuilder.Proposal("ops", "test",
+            Operation(dir.Combine("new.txt"), new FileOperation(FileOperationKind.Create, Content: [7])),
+            Operation(old, new FileOperation(FileOperationKind.Rename, dir.Combine("old2.txt"))),
+            Operation(locked, new FileOperation(FileOperationKind.Rename, dir.Combine("locked2.txt")))) with { Atomic = true };
+
+        ApplyReport report;
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None)) report = new ChangeApplier(_ => null).Apply(proposal);
+
+        Assert.Equal([ChangeStatus.Rejected, ChangeStatus.Rejected, ChangeStatus.Failed], report.Files.Select(f => f.Status));
+        Assert.False(File.Exists(dir.Combine("new.txt")));
+        Assert.True(File.Exists(old));
+        Assert.False(File.Exists(dir.Combine("old2.txt")));
+        Assert.True(File.Exists(locked));
+    }
+
     [Fact]
     public void KillingTheEditorInsideAReplaceBatchLeavesABatchThatFinishesOrRollsBackToTheExpectedFiles()
     {

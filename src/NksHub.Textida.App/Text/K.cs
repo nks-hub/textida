@@ -735,6 +735,11 @@ public static class K
     public const string A11yPluginPick = "a11y.plugin.pick";
     public const string PluginUnavailable = "plugin.unavailable";
     public const string PluginProposal = "plugin.proposal";
+    public const string WorkspaceCreate = "workspace.create";
+    public const string WorkspaceRename = "workspace.rename";
+    public const string WorkspaceDelete = "workspace.delete";
+    public const string WorkspaceDone = "workspace.done";
+    public const string WorkspaceBlocked = "workspace.blocked";
     public const string PluginSymbolsTitle = "plugin.symbols.title";
     public const string PluginSymbolsOutdated = "plugin.symbols.outdated";
     public const string ClipWatermark = "clip.watermark";

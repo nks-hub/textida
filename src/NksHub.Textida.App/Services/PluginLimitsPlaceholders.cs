@@ -146,8 +146,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: how long Tab waits for a plugin before it indents as without one. Settable so tests on a loaded machine do not race it.</summary>
     internal static TimeSpan TabTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
-    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules) => new()
+    /// <summary>Placeholder: changes (edits of a file, creates, renames, deletes) one workspace edit may hold. OPEN: the owner has not decided it.</summary>
+    public const int WorkspaceEditChanges = 200;
+
+    /// <summary>Placeholder: largest file a workspace edit may create, in bytes. OPEN: the owner has not decided it.</summary>
+    public const long WorkspaceEditFileBytes = 4L << 20;
+
+    public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules, WorkspaceEditOptions? workspace = null) => new()
     {
+        Workspace = workspace,
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,
         MaxSymbolTextLength = SymbolTextLength,

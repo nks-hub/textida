@@ -1,4 +1,5 @@
 using System.Text.Json;
+using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Tools;
@@ -58,6 +59,8 @@ public static class DocumentMethods
     public const string DiagnosticsPublish = "diagnostics/publish";
     /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
     public const string CompletionRegister = "editor/completionProvider";
+    /// <summary>One batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review and applied all or nothing.</summary>
+    public const string WorkspaceEdit = "workspace/edit";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -93,6 +96,8 @@ public static class DocumentPermissions
     public const string ClipboardWrite = "clipboard.write";
     /// <summary>Provides documents of its own (read only tabs) and changes their content and revision. It never reaches a document it did not provide.</summary>
     public const string Virtual = "document.virtual";
+    /// <summary>Edits files that are not open and creates, renames and deletes files, below the workspace folders. Only the user grants it, for all of them.</summary>
+    public const string WorkspaceFiles = "workspace.files";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -120,6 +125,7 @@ public static class DocumentErrorCodes
     public const int NotProvider = -32032;
     public const int VirtualQuotaExceeded = -32033;
     public const int DiagnosticsQuotaExceeded = -32034;
+    public const int WorkspaceQuotaExceeded = -32035;
 }
 
 /// <summary>
@@ -172,6 +178,23 @@ public sealed record DocumentApiOptions
     public required int MaxCompletionEdits { get; init; }
     /// <summary>How long the editor waits for a plugin's completion answer; a plugin that is later contributes nothing.</summary>
     public required TimeSpan CompletionTimeout { get; init; }
+    /// <summary>Workspace edits (<see cref="DocumentMethods.WorkspaceEdit"/>); null means the editor takes none.</summary>
+    public WorkspaceEditOptions? Workspace { get; init; }
+}
+
+/// <summary>
+/// What a workspace edit needs from the editor: the review that shows and applies it, the workspace folders (paths outside them are refused), whether a file is open in a tab,
+/// and the limits. <paramref name="Roots"/> and <paramref name="IsOpen"/> run on the thread that owns the documents.
+/// </summary>
+public sealed record WorkspaceEditOptions(IWorkspaceEdits Service, Func<IReadOnlyList<string>> Roots, Func<string, bool> IsOpen, int MaxChanges, long MaxFileBytes);
+
+/// <summary>A workspace edit made into one proposal of the change service: every part is checked against its revision or hash, and it is <see cref="ChangeProposal.Atomic"/>.</summary>
+public sealed record WorkspaceEditRequest(string PluginId, ChangeProposal Proposal);
+
+/// <summary>The change review for workspace edits: shows the proposal, applies what the user accepted and answers once the user has decided.</summary>
+public interface IWorkspaceEdits
+{
+    ValueTask<ProposalDecision> SubmitAsync(WorkspaceEditRequest request, CancellationToken cancellation);
 }
 
 /// <summary>One cell of the table selection: its value as the table shows it and the bytes it occupies in the document (empty at the end of a short row).</summary>

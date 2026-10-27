@@ -271,7 +271,7 @@ internal sealed partial class MainWindow
             {
                 Status = outcome.Status switch
                 {
-                    ChangeStatus.Applied => Loc.Plural(K.ResultsFileApplied, outcome.HunksApplied),
+                    ChangeStatus.Applied => change.Operation is null ? Loc.Plural(K.ResultsFileApplied, outcome.HunksApplied) : Loc.Get(K.WorkspaceDone),
                     ChangeStatus.Rejected => Loc.Get(K.ResultsFileSkipped),
                     ChangeStatus.Conflict => Loc.Get(ConflictKey(outcome.Conflict)),
                     _ => Loc.Get(K.ResultsFileFailed),
@@ -285,22 +285,22 @@ internal sealed partial class MainWindow
         view.SetApplyVisible(false, report.Conflicts > 0 && _proposal is null);
         view.SetCancelVisible(false);
         if (report.Conflicts > 0) view.AddNote(Loc.Get(K.ResultsConflictHint), warning: false);
+        if (plan.Atomic && report.Applied == 0 && report.Conflicts + report.Failed > 0) view.AddNote(Loc.Get(K.WorkspaceBlocked), warning: true);
+        if (plan.Atomic && report.Files.Any(f => f.Status == ChangeStatus.Applied && plan.Files.First(c => c.Key == f.Key).Operation is not null)) InvalidateWorkspaceIndex();
         if (report.BatchId is null && journal is null && report.Applied > 0) view.AddNote(Loc.Get(K.ResultsNoJournal), warning: false);
         view.SetHeader(view.TitleText, Loc.Get(K.ResultsApplied, ("applied", report.Applied), ("replacements", report.HunksApplied), ("skipped", report.Rejected), ("conflicts", report.Conflicts), ("failed", report.Failed)));
         _plan = null;
         SetStatusMessage(Loc.Plural(K.FindReplaced, report.HunksApplied));
-        if (_proposal is not null) ResolveProposal(ProposalOutcomeOf(report.Files[0], plan.Files[0].Hunks.Count), report.HunksApplied);
+        if (_proposal is not null) ResolveProposal(ProposalOutcomeOf(report, plan.ChangeCount), report.HunksApplied);
         DrainProposals();
         return report;
     }
 
-    private static ProposalOutcome ProposalOutcomeOf(FileOutcome outcome, int total) => outcome.Status switch
-    {
-        ChangeStatus.Applied => outcome.HunksApplied == total ? ProposalOutcome.Applied : ProposalOutcome.Partial,
-        ChangeStatus.Rejected => ProposalOutcome.Rejected,
-        ChangeStatus.Conflict when outcome.NeedsRepreview => ProposalOutcome.Stale,
-        _ => ProposalOutcome.Failed,
-    };
+    private static ProposalOutcome ProposalOutcomeOf(ApplyReport report, int total) =>
+        report.Files.Any(f => f.Status == ChangeStatus.Conflict && f.NeedsRepreview) ? ProposalOutcome.Stale
+        : report.Conflicts + report.Failed > 0 ? ProposalOutcome.Failed
+        : report.HunksApplied == 0 ? ProposalOutcome.Rejected
+        : report.HunksApplied == total ? ProposalOutcome.Applied : ProposalOutcome.Partial;
 
     // ---- a plugin proposal in the same review ----
 
@@ -317,7 +317,8 @@ internal sealed partial class MainWindow
         pending.Done.TrySetResult(new ProposalDecision(pending.Id, outcome, accepted, pending.Total));
     }
 
-    private sealed record QueuedProposal(string Id, string Title, string Origin, DocTab Tab, FileChange Change, CancellationToken Cancellation, TaskCompletionSource<ProposalDecision> Done);
+    /// <param name="Tab">The tab of a proposal for one document; null for a workspace edit, which names its documents and files itself.</param>
+    private sealed record QueuedProposal(string Id, ChangeProposal Plan, DocTab? Tab, CancellationToken Cancellation, TaskCompletionSource<ProposalDecision> Done);
 
     private readonly List<QueuedProposal> _queuedProposals = [];
 
@@ -329,9 +330,13 @@ internal sealed partial class MainWindow
     /// the ticked changes (one undo step, only when the document is still at the revision of the proposal) or rejected all of them. A review that is already open is never
     /// replaced: the proposal waits (the tab says how many do) and opens when the review ends.
     /// </summary>
-    internal Task<ProposalDecision> ShowProposalAsync(string id, string title, string origin, DocTab tab, FileChange change, CancellationToken cancellation)
+    internal Task<ProposalDecision> ShowProposalAsync(string id, string title, string origin, DocTab tab, FileChange change, CancellationToken cancellation) =>
+        ShowPlanAsync(id, ChangeBuilder.Proposal(title, origin, change), tab, cancellation);
+
+    /// <summary>The same review for a plan of several documents, files and file operations (a workspace edit).</summary>
+    private Task<ProposalDecision> ShowPlanAsync(string id, ChangeProposal plan, DocTab? tab, CancellationToken cancellation)
     {
-        var item = new QueuedProposal(id, title, origin, tab, change, cancellation, new TaskCompletionSource<ProposalDecision>(TaskCreationOptions.RunContinuationsAsynchronously));
+        var item = new QueuedProposal(id, plan, tab, cancellation, new TaskCompletionSource<ProposalDecision>(TaskCreationOptions.RunContinuationsAsynchronously));
         if (ReviewOpen)
         {
             _queuedProposals.Add(item);
@@ -350,19 +355,19 @@ internal sealed partial class MainWindow
         view.Clear();
         view.SetRunning(false);
         view.Highlight = null;
-        var plan = ChangeBuilder.Proposal(item.Title, item.Origin, item.Change);
+        var plan = item.Plan;
         _plan = plan;
         _planPattern = null;
-        _planFolder = item.Tab.Path is { } file ? System.IO.Path.GetDirectoryName(file) ?? "" : "";
-        var pending = _proposal = new PendingProposal(item.Id, item.Change.Hunks.Count, item.Done);
+        _planFolder = item.Tab is null ? FileRootFolder ?? "" : item.Tab.Path is { } file ? System.IO.Path.GetDirectoryName(file) ?? "" : "";
+        var pending = _proposal = new PendingProposal(item.Id, plan.ChangeCount, item.Done);
         item.Cancellation.Register(() => Dispatcher.UIThread.Post(() =>
         {
             if (!ReferenceEquals(_proposal, pending)) return;
             CancelFromView();
         }));
-        view.AddPlan(plan, _ => item.Tab.Title);
-        view.SetHeader(Loc.Get(K.PluginProposal, ("title", item.Title), ("changes", item.Change.Hunks.Count)), "");
-        view.SetApplyVisible(item.Change.Hunks.Count > 0, false);
+        view.AddPlan(plan, item.Tab is null ? name => PlanName(_planFolder, name) : _ => item.Tab.Title);
+        view.SetHeader(Loc.Get(K.PluginProposal, ("title", plan.Title), ("changes", plan.ChangeCount)), "");
+        view.SetApplyVisible(plan.ChangeCount > 0, false);
         view.SetCancelVisible(true);
         ShowQueueNote();
         UpdateStatus();
@@ -371,9 +376,17 @@ internal sealed partial class MainWindow
     private void DropQueued(QueuedProposal item)
     {
         if (!_queuedProposals.Remove(item)) return;
-        item.Done.TrySetResult(new ProposalDecision(item.Id, ProposalOutcome.Rejected, 0, item.Change.Hunks.Count));
+        item.Done.TrySetResult(new ProposalDecision(item.Id, ProposalOutcome.Rejected, 0, item.Plan.ChangeCount));
         ShowQueueNote();
     }
+
+    /// <summary>The name of a file of a plan: relative to the folder, or the title of the tab for a document that has no file.</summary>
+    private string PlanName(string folder, string name) =>
+        Guid.TryParse(name, out var id) && _docs.FirstOrDefault(d => d.Doc.Id == id) is { } tab ? tab.Title : DisplayPath(folder, name);
+
+    /// <summary>True when a document of the plan is gone or has moved on from the revision the plan was made for.</summary>
+    private bool IsStale(ChangeProposal plan) =>
+        plan.Files.Any(f => f.DocumentId is { } id && (FindOpenDocument(id) is not { } doc || doc.Revision != f.BaseRevision));
 
     private void RejectQueuedProposals()
     {
@@ -389,8 +402,8 @@ internal sealed partial class MainWindow
         {
             var next = _queuedProposals[0];
             _queuedProposals.RemoveAt(0);
-            if (next.Cancellation.IsCancellationRequested) next.Done.TrySetResult(new ProposalDecision(next.Id, ProposalOutcome.Rejected, 0, next.Change.Hunks.Count));
-            else if (next.Tab.Doc.Doc.Revision != next.Change.BaseRevision) next.Done.TrySetResult(new ProposalDecision(next.Id, ProposalOutcome.Stale, 0, next.Change.Hunks.Count));
+            if (next.Cancellation.IsCancellationRequested) next.Done.TrySetResult(new ProposalDecision(next.Id, ProposalOutcome.Rejected, 0, next.Plan.ChangeCount));
+            else if (IsStale(next.Plan)) next.Done.TrySetResult(new ProposalDecision(next.Id, ProposalOutcome.Stale, 0, next.Plan.ChangeCount));
             else OpenProposal(next);
         }
         ShowQueueNote();

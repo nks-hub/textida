@@ -22,7 +22,7 @@ namespace NksHub.Textida.App.Services;
 /// The plugin side of the app: the host, the document API, the UI API and the built-in plugins. Nothing starts a process until a command needs it.
 /// Limits come from <see cref="PluginLimitsPlaceholders"/> only.
 /// </summary>
-internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEditorTools, IAsyncDisposable
+internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumentOwnerThread, IEditorTools, IAsyncDisposable
 {
     public const string JsonPluginId = "textida.json";
     private const string JsonActivation = "onCommand:json";
@@ -69,7 +69,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
-        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id)), this, send, request);
+        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits()), this, send, request);
         Mcp = new McpService(this, App.Startup.Channel);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
@@ -213,6 +213,22 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             _running.TryGetValue(proposal.DocumentId, out var run)
                 ? run.Window.ReviewPluginProposalAsync(proposal, run.Tab, id, cancellation)
                 : Task.FromResult(new ProposalDecision(id, ProposalOutcome.Stale, 0, proposal.Edits.Count)));
+        return await review.ConfigureAwait(false);
+    }
+
+    private WorkspaceEditOptions WorkspaceEdits() => new(this,
+        () => [.. _app.Windows.Select(w => w.Files?.Root).OfType<string>()],
+        path => _app.Windows.SelectMany(w => w.Documents).Any(d => string.Equals(d.Path, path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)),
+        PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes);
+
+    /// <summary>The active window shows the workspace edit in the change review and the answer waits for the decision of the user; nothing is written before.</summary>
+    public async ValueTask<ProposalDecision> SubmitAsync(WorkspaceEditRequest request, CancellationToken cancellation)
+    {
+        var id = Guid.NewGuid().ToString("N");
+        var review = await Dispatcher.UIThread.InvokeAsync<Task<ProposalDecision>>(() =>
+            _app.ActiveWindow is { } window
+                ? window.ReviewWorkspaceEditAsync(request.Proposal, id, cancellation)
+                : Task.FromResult(new ProposalDecision(id, ProposalOutcome.Failed, 0, request.Proposal.ChangeCount)));
         return await review.ConfigureAwait(false);
     }
 

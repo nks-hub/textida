@@ -22,59 +22,129 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
     /// <summary>One file of a batch: what the report names it, how many hunks were chosen of how many, and the plan that is journaled and applied.</summary>
     private sealed record Job(string Key, string DisplayName, int Selected, int Total, BatchFilePlan Plan);
 
+    /// <summary>A document change checked against the open document: the document and the edits to write.</summary>
+    private sealed record PreparedDocument(FileChange File, Document Doc, List<ByteEdit> Edits, int Chosen);
+
     public ApplyReport Apply(ChangeProposal proposal, ChangeSelection? selection = null)
     {
         selection ??= new();
         var outcomes = new Dictionary<string, FileOutcome>();
+        var documents = new List<PreparedDocument>();
         var disk = new List<(FileChange File, IReadOnlyList<Hunk> Hunks)>();
+        var operations = new List<FileChange>();
         foreach (var file in proposal.Files)
         {
+            if (file.Operation is not null)
+            {
+                if (!selection.IsAccepted(file)) outcomes[file.Key] = new(file.Key, file.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, 1);
+                else operations.Add(file);
+                continue;
+            }
             var chosen = selection.Selected(file);
             if (chosen.Count == 0) outcomes[file.Key] = new(file.Key, file.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, file.Hunks.Count);
-            else if (file.IsDocument) outcomes[file.Key] = ApplyDocument(proposal, file, chosen);
-            else disk.Add((file, chosen));
+            else if (!file.IsDocument) disk.Add((file, chosen));
+            else if (PrepareDocument(file, chosen, out var prepared, out var failure)) documents.Add(prepared!);
+            else outcomes[file.Key] = failure!;
         }
-        Guid? batch = disk.Count > 0 ? ApplyDisk(proposal, disk, outcomes) : null;
-        return new ApplyReport(proposal.Id, [.. proposal.Files.Select(f => outcomes[f.Key])], batch);
+        var jobs = PrepareDisk(disk, outcomes);
+        foreach (var operation in operations)
+        {
+            if (FileOperationRun.Check(operation) is { } blocked) outcomes[operation.Key] = Conflict(operation, blocked.Reason, 1, blocked.Message);
+        }
+
+        if (proposal.Atomic && outcomes.Values.Any(o => o.Status is ChangeStatus.Conflict or ChangeStatus.Failed))
+        {
+            NotApplied(documents, jobs, operations, outcomes);
+            return Report(proposal, outcomes, null);
+        }
+
+        var run = new FileOperationRun();
+        foreach (var operation in operations.Where(o => !outcomes.ContainsKey(o.Key)))
+        {
+            try
+            {
+                run.Do(operation);
+                outcomes[operation.Key] = new(operation.Key, operation.DisplayName, ChangeStatus.Applied, ChangeConflict.None, 1, 0);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                string? undone = run.RollBack();
+                foreach (var done in operations) outcomes.Remove(done.Key);
+                NotApplied(documents, jobs, operations, outcomes);
+                outcomes[operation.Key] = Failed(operation, 1, e.Message + (undone is null ? "" : " Undoing the earlier file operations failed too: " + undone));
+                return Report(proposal, outcomes, null);
+            }
+        }
+
+        foreach (var document in documents) outcomes[document.File.Key] = ApplyDocument(proposal, document);
+        Guid? batch = jobs.Count > 0 ? RunJobs(proposal.Title, proposal.Origin, jobs, outcomes) : null;
+        run.Commit();
+        return Report(proposal, outcomes, batch);
     }
+
+    private static ApplyReport Report(ChangeProposal proposal, Dictionary<string, FileOutcome> outcomes, Guid? batch) =>
+        new(proposal.Id, [.. proposal.Files.Select(f => outcomes[f.Key])], batch);
+
+    /// <summary>An atomic proposal that cannot go through: everything that has no outcome yet is reported as left alone.</summary>
+    private static void NotApplied(List<PreparedDocument> documents, List<Job> jobs, List<FileChange> operations, Dictionary<string, FileOutcome> outcomes)
+    {
+        const string Message = "Not applied: another change of the batch is stale or cannot be done.";
+        foreach (var d in documents) outcomes.TryAdd(d.File.Key, new(d.File.Key, d.File.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, d.Chosen, Message));
+        foreach (var j in jobs) outcomes.TryAdd(j.Key, new(j.Key, j.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, j.Selected, Message));
+        foreach (var o in operations) outcomes.TryAdd(o.Key, new(o.Key, o.DisplayName, ChangeStatus.Rejected, ChangeConflict.None, 0, 1, Message));
+    }
+
+    /// <summary>Why a file operation cannot be done now (the file is gone, changed, or the name is taken), or null when it can.</summary>
+    public static (ChangeConflict Reason, string Message)? CheckOperation(FileChange change) => FileOperationRun.Check(change);
 
     private static FileOutcome Conflict(FileChange f, ChangeConflict reason, int hunks, string message) => Conflict(f.Key, f.DisplayName, reason, hunks, message);
 
     private static FileOutcome Conflict(string key, string name, ChangeConflict reason, int hunks, string message) =>
         new(key, name, ChangeStatus.Conflict, reason, 0, hunks, message);
 
-    private FileOutcome ApplyDocument(ChangeProposal proposal, FileChange file, IReadOnlyList<Hunk> chosen)
+    private bool PrepareDocument(FileChange file, IReadOnlyList<Hunk> chosen, out PreparedDocument? prepared, out FileOutcome? failure)
     {
-        if (file.DocumentId is not { } id || findDocument(id) is not { } doc) return Conflict(file, ChangeConflict.DocumentUnavailable, chosen.Count, "The document is not open any more.");
-        if (doc.Revision != file.BaseRevision) return Conflict(file, ChangeConflict.StaleRevision, chosen.Count, $"The document changed (revision {file.BaseRevision} -> {doc.Revision}); make a new preview.");
+        prepared = null;
+        failure = null;
+        if (file.DocumentId is not { } id || findDocument(id) is not { } doc) { failure = Conflict(file, ChangeConflict.DocumentUnavailable, chosen.Count, "The document is not open any more."); return false; }
+        if (doc.Revision != file.BaseRevision) { failure = Conflict(file, ChangeConflict.StaleRevision, chosen.Count, $"The document changed (revision {file.BaseRevision} -> {doc.Revision}); make a new preview."); return false; }
 
         var edits = new List<ByteEdit>(chosen.Count);
         foreach (var h in chosen)
         {
             try
             {
-                if (doc.ReadText(h.Range) != h.OldText) return Conflict(file, ChangeConflict.StaleRevision, chosen.Count, "The text at a range is not the one in the preview.");
+                if (doc.ReadText(h.Range) != h.OldText) { failure = Conflict(file, ChangeConflict.StaleRevision, chosen.Count, "The text at a range is not the one in the preview."); return false; }
                 edits.Add(new ByteEdit(h.Range, doc.Codec.Encode(h.NewText)));
             }
             catch (ArgumentException)
             {
-                return Conflict(file, ChangeConflict.InvalidRange, chosen.Count, $"Range {h.Range} is not valid in the document.");
+                failure = Conflict(file, ChangeConflict.InvalidRange, chosen.Count, $"Range {h.Range} is not valid in the document.");
+                return false;
             }
             catch (UnrepresentableCharactersException)
             {
-                return Conflict(file, ChangeConflict.EncodingLoss, chosen.Count, $"The new text cannot be written in {doc.Codec.Name}.");
+                failure = Conflict(file, ChangeConflict.EncodingLoss, chosen.Count, $"The new text cannot be written in {doc.Codec.Name}.");
+                return false;
             }
         }
+        prepared = new PreparedDocument(file, doc, edits, chosen.Count);
+        return true;
+    }
+
+    private static FileOutcome ApplyDocument(ChangeProposal proposal, PreparedDocument p)
+    {
+        var (file, doc, edits, chosen) = p;
         var result = doc.Apply(edits, new EditOptions { Source = proposal.Origin });
         if (!result.Applied)
         {
             var reason = result.Conflict is ConflictReason.FutureRevision or ConflictReason.LogTruncated or ConflictReason.Overlap ? ChangeConflict.StaleRevision : ChangeConflict.InvalidRange;
-            return Conflict(file, reason, chosen.Count, $"The document refused the edits ({result.Conflict}).");
+            return Conflict(file, reason, chosen, $"The document refused the edits ({result.Conflict}).");
         }
-        return new(file.Key, file.DisplayName, ChangeStatus.Applied, ChangeConflict.None, chosen.Count, file.Hunks.Count - chosen.Count);
+        return new(file.Key, file.DisplayName, ChangeStatus.Applied, ChangeConflict.None, chosen, file.Hunks.Count - chosen);
     }
 
-    private Guid? ApplyDisk(ChangeProposal proposal, List<(FileChange File, IReadOnlyList<Hunk> Hunks)> selected, Dictionary<string, FileOutcome> outcomes)
+    private static List<Job> PrepareDisk(List<(FileChange File, IReadOnlyList<Hunk> Hunks)> selected, Dictionary<string, FileOutcome> outcomes)
     {
         // 1. check every file against its base and encode the new texts; only intact files enter the batch
         var items = new List<Job>();
@@ -106,7 +176,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
                 outcomes[file.Key] = Conflict(file, ChangeConflict.InvalidRange, hunks.Count, e.Message);
             }
         }
-        return RunJobs(proposal.Title, proposal.Origin, items, outcomes);
+        return items;
     }
 
     /// <summary>
