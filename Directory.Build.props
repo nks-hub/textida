@@ -5,4 +5,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
+  <!-- a publish ships no symbols or XML docs (StripSymbols is set on the app); -p:PublishSymbols=true keeps the .pdb files -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true' and '$(PublishSymbols)' != 'true'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <NativeDebugSymbols>false</NativeDebugSymbols>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+  </PropertyGroup>
 </Project>

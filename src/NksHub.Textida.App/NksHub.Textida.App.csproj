@@ -49,6 +49,33 @@
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
 
+  <!-- the native libraries of the Skia and HarfBuzz packages come with their .pdb files -->
+  <Target Name="DropPackageSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSymbols)' != 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- dotnet publish -r <rid>: every built-in plugin and the MCP bridge is published for the same RID into the folder PluginServices and McpService expect -->
+  <Target Name="PublishBuiltInPrograms" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" Folder="plugins\json" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" Folder="plugins\texttools" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.WebData\NksHub.Textida.Plugins.WebData.csproj" Folder="plugins\webdata" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" Folder="plugins\codeexplorer" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.Emmet\NksHub.Textida.Plugins.Emmet.csproj" Folder="plugins\emmet" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" Folder="plugins\formatters" />
+      <BuiltInProgram Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" Folder="mcp" />
+    </ItemGroup>
+    <MSBuild Projects="%(BuiltInProgram.Identity)" Targets="Publish" BuildInParallel="false"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true;PublishDir=$([MSBuild]::EnsureTrailingSlash('$(PublishDir)'))%(BuiltInProgram.Folder)\" />
+    <!-- the referenced programs leave their runtimeconfig.json next to the app; the AOT programs have no use for it -->
+    <ItemGroup>
+      <StrayRuntimeConfig Include="$(PublishDir)NksHub.Textida.Plugins.*.runtimeconfig.json;$(PublishDir)textida-mcp.runtimeconfig.json" />
+    </ItemGroup>
+    <Delete Files="@(StrayRuntimeConfig)" />
+  </Target>
+
   <Target Name="CopyBuiltInPlugins" AfterTargets="Build">
     <ItemGroup>
       <JsonPluginFiles Include="..\NksHub.Textida.Plugins.Json\bin\$(Configuration)\$(TargetFramework)\**\*" />

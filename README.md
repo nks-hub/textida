@@ -59,6 +59,14 @@ dotnet test tests/NksHub.Textida.App.Tests --filter "Category=Perf"
 
 Tests marked `Perf` measure latency against a limit (typing p95 33 ms), so they run alone, not next to the other test assemblies. `Large` tests use a sparse 4.5 GiB file and take about a minute.
 
+A NativeAOT distribution comes from one command; it holds the editor, the built-in plugins in `plugins/<name>/` and `textida-mcp` in `mcp/`, without symbols (`-p:PublishSymbols=true` keeps the `.pdb` files). The AOT check verifies the layout and starts every program:
+
+```bash
+dotnet publish src/NksHub.Textida.App -c Release -r win-x64 -o ./dist
+dotnet publish tools/NksHub.Textida.AotCheck -c Release -r win-x64 -o ./aotcheck
+./aotcheck/NksHub.Textida.AotCheck --publish ./dist
+```
+
 Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 
 ## Contributing
