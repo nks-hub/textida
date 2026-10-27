@@ -165,7 +165,7 @@ internal sealed partial class MainWindow
         if (offer is not null)
         {
             ReportLibraryProblems();
-            rows.AddRange(offer.Words.Select(word => new QuickRow(word, Loc.Get(K.CompleteWord), null, null, true, null, word, () => InsertWord(surface, word))));
+            rows.AddRange(offer.Words.Select(word => new QuickRow(word, Loc.Get(K.CompleteWord), null, null, true, null, word, () => InsertWord(surface, WordCompletion.MatchCase(word, offer.Prefix)))));
             rows.AddRange(offer.Clips.Select(e => new QuickRow(
                 e.Clip.Title, e.Clip.Language ?? e.PluginName, FirstLines(e.Clip.Text, 1), null, true, null, $"{e.Clip.Title}, {e.PluginName}",
                 () => _ = InsertClipAsync(e, replaceWord: true), () => PreviewOf(e.Clip.Text, e.Clip.Fields))));
