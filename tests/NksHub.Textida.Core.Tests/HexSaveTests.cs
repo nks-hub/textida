@@ -7,7 +7,7 @@ using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
 
-public class HexSaveTests
+public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     private static Doc Open(string path) => Doc.Open(path, new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Cp1252 });
 
@@ -428,6 +428,21 @@ public class HexSaveTests
         Assert.Equal(original, File.ReadAllBytes(file.Path));
     }
 
+    [Fact]
+    public void The_naive_scan_of_the_10_GiB_gate_finds_matches_inside_and_across_chunk_edges()
+    {
+        using var file = new TempFile();
+        var bytes = new byte[(2 << 20) + 10];
+        long[] at = [0, 5, (1 << 20) - 6, (1 << 20) - 1, (1 << 20) + 3, (1 << 20) + 8, bytes.Length - 4];
+        foreach (long a in at) { bytes[a] = 0x50; bytes[a + 1] = 0x4B; bytes[a + 2] = 0x33; bytes[a + 3] = 0x04; }
+        File.WriteAllBytes(file.Path, bytes);
+        using var d = Open(file.Path);
+        var expected = new List<long>();
+        for (int i = 0; i + 3 < bytes.Length; i++) if (bytes[i] == 0x50 && bytes[i + 1] == 0x4B && bytes[i + 3] == 0x04) expected.Add(i);
+        Assert.True(expected.Count >= 6);
+        Assert.Equal(expected, NaiveZip(d.GetSnapshot()));
+    }
+
     // ---- the 10 GiB gate ----
 
     [Fact]
@@ -470,8 +485,10 @@ public class HexSaveTests
         }
     }
 
-    private static async Task TenGibiByteScenario(Doc d, string path, long length, long[] zips, BytePattern pattern)
+    private async Task TenGibiByteScenario(Doc d, string path, long length, long[] zips, BytePattern pattern)
     {
+        var phase = Stopwatch.StartNew();
+        void Lap(string name) { output.WriteLine($"{name}: {phase.Elapsed.TotalSeconds:F1} s"); phase.Restart(); }
         Assert.Equal(length, d.ByteLength);
 
         // jump to end-512, overwrite 4 bytes, insert 1 byte lower in the file, undo and redo
@@ -494,6 +511,7 @@ public class HexSaveTests
         Assert.True((await d.SaveAsync()).Saved);
         Assert.Equal(length + 1, new FileInfo(path).Length);
         Assert.True(d.UndoDepth >= 2);
+        Lap("streamed save");
 
         // then a 4 byte overwrite in the saved file goes in place
         long at2 = d.ByteLength - 512;
@@ -503,6 +521,7 @@ public class HexSaveTests
         Assert.Equal(SaveMode.InPlace, plan.Mode);
         Assert.Equal(4, plan.ChangedBytes);
         Assert.True((await d.SaveAsync()).Saved);
+        Lap("in-place save");
 
         // one independent pass over the file: it is the original plus exactly the edits, and its hash is the baseline of the document
         long patched = length + 1 - 512;
@@ -526,6 +545,7 @@ public class HexSaveTests
                 foreach (long z in zips) Put(z < insertAt ? z : z + 1, [0x50, 0x4B, 0x33, 0x04]);
                 Put(insertAt, inserted);
                 Put(patched, patch2);
+                if (buf.AsSpan(0, n).SequenceEqual(model.AsSpan(0, n))) { o += n; continue; } // vectorised; the byte loop only runs on a mismatch
                 for (int i = 0; i < n; i++)
                 {
                     if (buf[i] == model[i]) continue;
@@ -538,10 +558,15 @@ public class HexSaveTests
         Assert.Empty(differing);
         Assert.Equal(Convert.ToHexString(hash.GetHashAndReset()), d.Fingerprint!.Sha256);
         Assert.Null(d.CheckExternalChange());
+        Lap("independent pass");
 
         // searching the current revision finds what an independent pass finds
         var snapshot = d.GetSnapshot();
-        Assert.Equal(NaiveZip(snapshot), ByteSearch.Find(snapshot, pattern).Matches.Select(m => m.Start).ToList());
+        var naive = NaiveZip(snapshot);
+        Lap("naive scan");
+        var found = ByteSearch.Find(snapshot, pattern).Matches.Select(m => m.Start).ToList();
+        Lap("byte search");
+        Assert.Equal(naive, found);
 
         // undo after both saves gives the first revision back, and its bytes at the edited places are the original ones
         while (d.UndoDepth > 0) d.Undo();
@@ -556,16 +581,24 @@ public class HexSaveTests
     private static List<long> NaiveZip(DocumentSnapshot s)
     {
         var offsets = new List<long>();
-        var buf = new byte[1 << 20];
-        uint window = 0;
+        var buf = new byte[(1 << 20) + 3];
+        int carry = 0; // the last three bytes of the previous chunk, a match may straddle the boundary
+        long start = 0; // the offset of buf[0]
         for (long o = 0; o < s.ByteLength;)
         {
-            int n = s.Read(o, buf);
-            for (int i = 0; i < n; i++)
+            int n = s.Read(o, buf.AsSpan(carry, 1 << 20));
+            int total = carry + n;
+            for (int i = 0; i + 3 < total;)
             {
-                window = (window << 8) | buf[i];
-                if (o + i >= 3 && (window & 0xFFFF00FF) == 0x504B0004) offsets.Add(o + i - 3);
+                int hit = buf.AsSpan(i, total - 3 - i).IndexOf((byte)0x50);
+                if (hit < 0) break;
+                int p = i + hit;
+                if (buf[p + 1] == 0x4B && buf[p + 3] == 0x04) offsets.Add(start + p);
+                i = p + 1;
             }
+            carry = Math.Min(3, total);
+            buf.AsSpan(total - carry, carry).CopyTo(buf);
+            start += total - carry;
             o += n;
         }
         return offsets;

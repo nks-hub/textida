@@ -5,6 +5,7 @@ using NksHub.Textida.Core.Hex;
 namespace NksHub.Textida.Core.Tests;
 
 /// <summary>P5.6.4: the map of a file by entropy or byte class, sampled for a huge file and refined, and the histogram of a selection.</summary>
+[Collection("Latency")]
 public class ByteMapTests
 {
     private sealed class Memory(byte[] bytes) : IByteSnapshot
