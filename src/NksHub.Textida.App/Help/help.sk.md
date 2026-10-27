@@ -1186,6 +1186,16 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 - Stavový riadok ukazuje LSP: beží, LSP: nenájdený alebo LSP: vypnutý pre jazyk posledného príkazu.
 - Zatiaľ chýba: voľba priečinka projektu (použije sa priečinok prvého dokumentu) a premenovanie v súboroch, ktoré nie sú v UTF-8.
 
+## [tools.lspPlugin] Jazykové servery z pluginu
+1. Plugin uvedie svoje servery v `languageServers` v `nkspad-plugin.json` a požiada o oprávnenie `language.server`. Každý server má `id`, `languages` (id jazykových režimov, aspoň jedno), voliteľné `globs` (napríklad `*.foo` alebo `src/**/*.fx`), `command`, `args`, voliteľné `initializationOptions` (objekt, ktorý server dostane v `initialize`) a `locate`.
+2. `locate` je `path` (predvolené): `command` je holé meno programu hľadané v PATH. Pri `plugin` je `command` cesta vnútri priečinka pluginu.
+3. Pri inštalácii pluginu editor oprávnenie ukáže a čaká na vašu odpoveď. Bez neho sa server nikdy nespustí.
+4. Server používajú príkazy skupiny Jazykový server pre každý dokument, ktorého jazyk je uvedený alebo ktorého meno súboru zodpovedá maske. Server z pluginu má prednosť pred serverom dodaným s editorom.
+- Pre jeden jazyk beží jeden proces servera, spoločný všetkým otvoreným dokumentom. Dokument, ktorý zodpovedá len maskou, obsluhuje server ako prvý jazyk zo zoznamu.
+- Keď program chýba alebo sa nespustí, jedno oznámenie ho pomenuje a úpravy pokračujú. Keď skončí sám, spustite ľubovoľný príkaz skupiny a spustí sa znova.
+- Server bez otvoreného dokumentu sa po čase zastaví a ďalší príkaz ho spustí znova.
+- Manifest s chybným záznamom sa odmietne celý, aj s dôvodom.
+
 ## [edit.complete] Dopĺňanie slov a klipov
 commands: nks.edit.complete
 1. Stlačte Ctrl+J (Úpravy, Vložiť, Doplniť slovo alebo klip). Zoznam ponúkne slová, ktoré pokračujú slovo pred kurzorom, a potom klipy, ktoré sa hodia pre jazyk dokumentu.

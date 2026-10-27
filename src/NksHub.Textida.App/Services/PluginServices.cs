@@ -204,7 +204,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
-             "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString()],
+             "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
+             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString()],
             [LspActivation], lspFolder));
 
         Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,
@@ -261,8 +262,11 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             window.SetStatusMessage(Loc.Get(K.LspTextOnly));
             return false;
         }
+        var language = tab.Doc.Language.Id;
+        var declared = DeclaredServerFor(language, tab.Doc.Doc.FilePath);
         var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
-            $",\"lspLanguage\":\"{JsonEncodedText.Encode(tab.Doc.Language.Id)}\",\"offset\":{CaretOf(surface) ?? 0}", keep: true, keepOpen: true);
+            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0}"
+            + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language)), keep: true, keepOpen: true);
         if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"
             && r.TryGetProperty("revealed", out var revealed) && !revealed.GetBoolean() && r.GetProperty("locations") is { ValueKind: JsonValueKind.Array } places && places.GetArrayLength() == 1)
         {
@@ -272,6 +276,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         }
         return outcome.Started;
     }
+
+    /// <summary>The server a plugin declares for the document, among the plugins that hold the <c>language.server</c> permission; it wins over the servers that come with the editor.</summary>
+    internal DeclaredServer? DeclaredServerFor(string languageId, string? path) =>
+        LanguageServerMatcher.Find(_app.Clips.LanguageServers.Where(s => Permissions.IsGranted(s.PluginId, DocumentPermissions.LanguageServer, GrantScope.All)), languageId, path);
 
     /// <summary>A click on an item of the list of places: reads <c>line:character:endLine:endCharacter|path</c>, null for anything else.</summary>
     internal static (string Path, int Line, int Character, int EndLine, int EndCharacter)? ParsePlace(string item)

@@ -1445,6 +1445,7 @@ public static class K
     public const string PluginsPermDocumentPreview = "plugins.perm.document.preview";
     public const string PluginsPermAgentPanel = "plugins.perm.agent.panel";
     public const string PluginsPermWorkspaceFiles = "plugins.perm.workspace.files";
+    public const string PluginsPermLanguageServer = "plugins.perm.language.server";
     public const string PluginsErrorTitle = "plugins.error.title";
     public const string PluginsErrorNotAZip = "plugins.error.notAZip";
     public const string PluginsErrorUnsafePath = "plugins.error.unsafePath";

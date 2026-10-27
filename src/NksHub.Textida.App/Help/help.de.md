@@ -1181,6 +1181,16 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 - Die Statusleiste zeigt LSP: läuft, LSP: nicht gefunden oder LSP: aus für die Sprache des letzten Befehls.
 - Noch nicht vorhanden: die Wahl des Projektordners (verwendet wird der Ordner des ersten Dokuments) und das Umbenennen in Dateien, die nicht UTF-8 sind.
 
+## [tools.lspPlugin] Sprachserver aus einem Plugin
+1. Ein Plugin nennt seine Server unter `languageServers` in `nkspad-plugin.json` und verlangt die Berechtigung `language.server`. Jeder Server hat eine `id`, `languages` (IDs der Sprachmodi, mindestens eine), optional `globs` (etwa `*.foo` oder `src/**/*.fx`), `command`, `args`, optional `initializationOptions` (ein Objekt, das der Server in `initialize` erhält) und `locate`.
+2. `locate` ist `path` (Standard): `command` ist ein bloßer Programmname, der im PATH gesucht wird. Bei `plugin` ist `command` ein Pfad im Plugin-Ordner.
+3. Bei der Installation des Plugins zeigt der Editor die Berechtigung und wartet auf Ihre Antwort. Ohne sie wird der Server nie gestartet.
+4. Die Befehle der Gruppe Sprachserver nutzen den Server für jedes Dokument, dessen Sprache genannt ist oder dessen Dateiname zu einem Muster passt. Ein Server aus einem Plugin hat Vorrang vor dem mit dem Editor gelieferten.
+- Pro Sprache läuft ein Serverprozess, den alle offenen Dokumente teilen. Ein Dokument, das nur über ein Muster passt, wird für die erste Sprache des Servers bedient.
+- Fehlt das Programm oder startet es nicht, nennt eine Meldung es einmal und die Bearbeitung geht weiter. Beendet es sich selbst, starten Sie einen beliebigen Befehl der Gruppe, dann startet es neu.
+- Ein Server ohne offenes Dokument wird nach einer Zeit beendet und vom nächsten Befehl neu gestartet.
+- Ein Manifest mit fehlerhaftem Eintrag wird als Ganzes abgelehnt, mit Begründung.
+
 ## [edit.complete] Vervollständigung von Wörtern und Clips
 commands: nks.edit.complete
 1. Drücken Sie Strg+J (Bearbeiten, Einfügen, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.

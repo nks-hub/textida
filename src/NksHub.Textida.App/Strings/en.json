@@ -1464,6 +1464,7 @@
   "plugins.perm.agent.panel": "holds a conversation in the agent panel",
   "plugins.perm.document.source": "serves files for an address scheme of its own and sees the addresses you open, secrets in them included",
   "plugins.perm.workspace.files": "edits, creates, renames and deletes files below the workspace folders",
+  "plugins.perm.language.server": "starts the language servers it names and gives them the text of open documents",
   "plugins.error.title": "Plugin not installed",
   "plugins.error.notAZip": "The file is not a readable ZIP.",
   "plugins.error.unsafePath": "The ZIP has a path that would be written outside the plugin folder.",

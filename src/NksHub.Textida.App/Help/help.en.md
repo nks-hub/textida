@@ -1181,6 +1181,16 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 - The status bar shows LSP: running, LSP: not found or LSP: off for the language of the last command.
 - Not there yet: the choice of the project folder (the folder of the first document is used), and a rename in files that are not UTF-8.
 
+## [tools.lspPlugin] Language servers from a plugin
+1. A plugin lists its servers under `languageServers` in `nkspad-plugin.json` and asks for the permission `language.server`. Each server has an `id`, `languages` (language mode ids, at least one), optional `globs` (such as `*.foo` or `src/**/*.fx`), `command`, `args`, optional `initializationOptions` (an object sent to the server in `initialize`) and `locate`.
+2. `locate` is `path` (the default): `command` is a bare program name looked up on the PATH. With `plugin`, `command` is a path inside the plugin folder.
+3. When you install the plugin, the editor shows the permission and waits for your answer. Without it the server is never started.
+4. The server is used by the Language Server commands for every document whose language is listed or whose file name matches a glob. A server of a plugin is chosen before the one that comes with the editor.
+- One server process runs per language and is shared by all open documents of it. A document that matches only by glob is served for the first language of the server.
+- If the program is missing or cannot start, one notice names it and editing goes on. If it stops by itself, run any command of the group to start it again.
+- A server with no open document is stopped after a time and started again by the next command.
+- A manifest with a wrong entry is refused as a whole, with the reason.
+
 ## [edit.complete] Completion of words and clips
 commands: nks.edit.complete
 1. Press Ctrl+J (Edit, Insert, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.

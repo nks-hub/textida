@@ -1494,6 +1494,7 @@
   "plugins.perm.agent.panel": "vede konverzaci v panelu agenta",
   "plugins.perm.document.source": "obsluhuje soubory pro vlastní schéma adres a vidí adresy, které otevřete, včetně tajných částí",
   "plugins.perm.workspace.files": "upravuje, vytváří, přejmenovává a maže soubory v pracovních složkách",
+  "plugins.perm.language.server": "spouští jazykové servery, které uvádí, a posílá jim text otevřených dokumentů",
   "plugins.error.title": "Plugin se nenainstaloval",
   "plugins.error.notAZip": "Soubor není čitelný ZIP.",
   "plugins.error.unsafePath": "ZIP obsahuje cestu, která by se zapsala mimo složku pluginu.",

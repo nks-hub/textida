@@ -42,6 +42,7 @@ internal sealed class ClipLibrary
     private readonly List<ConverterEntry> _converters = [];
     private readonly List<RecipeEntry> _recipes = [];
     private readonly List<HelpEntry> _helps = [];
+    private readonly List<DeclaredServer> _servers = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<string> _problems = [];
 
@@ -60,6 +61,9 @@ internal sealed class ClipLibrary
     public IReadOnlyList<ConverterEntry> Converters => _converters;
     public IReadOnlyList<RecipeEntry> Recipes => _recipes;
     public IReadOnlyList<HelpEntry> Helps => _helps;
+
+    /// <summary>Language servers declared by installed, enabled plugins, in load order. Whether a plugin may start them is the <c>language.server</c> grant, checked where they are used.</summary>
+    public IReadOnlyList<DeclaredServer> LanguageServers => _servers;
     public IReadOnlyList<string> Problems => _problems;
 
     /// <summary>The highlighters of the data plugins, on top of the built-in grammars (which they may include and embed). Replaced by every <see cref="Load"/>.</summary>
@@ -78,6 +82,7 @@ internal sealed class ClipLibrary
         _converters.Clear();
         _recipes.Clear();
         _helps.Clear();
+        _servers.Clear();
         _targets.Clear();
         _problems.Clear();
         var grammars = Grammars = new GrammarRegistry(BuiltinGrammars.Registry);
@@ -90,6 +95,9 @@ internal sealed class ClipLibrary
             var name = installed.Contains(folder) ? Path.GetFileName(Path.GetDirectoryName(folder)) ?? folder : Path.GetFileName(folder);
             var result = PluginManifestLoader.Load(folder, PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes);
             if (result.Plugin is not { } plugin) { _problems.Add($"{name}: {string.Join("; ", result.Errors)}"); continue; }
+            // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
+            if (installed.Contains(folder))
+                foreach (var server in plugin.Manifest.Contributes.LanguageServers) _servers.Add(new DeclaredServer(plugin.Manifest.Id, plugin.Directory, server));
             if (plugin.Manifest.Main is not null)
             {
                 if (!installed.Contains(folder)) _problems.Add($"{name}: only plugins without a process are read from this folder.");

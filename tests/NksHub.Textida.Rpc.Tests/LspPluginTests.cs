@@ -60,7 +60,12 @@ public class LspPluginTests
         public required DocumentApiTests.RecordingTools Tools { get; init; }
         public List<Document> Documents => Review.Open;
 
-        public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null)
+        /// <summary>The launch description of the server a plugin manifest declares; sent with every command, as the editor does. Null: the server comes from the catalog.</summary>
+        public string? Launch { get; init; }
+
+        /// <param name="declared">The server is not in the catalog (it is empty) but sent with each command, as the editor does for a server of a plugin manifest.</param>
+        public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
+            bool declared = false, int idleStopMs = 0, string? initializationOptions = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -75,7 +80,14 @@ public class LspPluginTests
             }
             arguments.AddRange(serverArgs ?? []);
             var catalog = Path.Combine(folder, "catalog.json");
-            File.WriteAllText(catalog, JsonSerializer.Serialize(new[] { new { language = "fake", program = program ?? T.DotnetFullPath, arguments } }));
+            var entry = new { language = "fake", program = program ?? T.DotnetFullPath, arguments };
+            File.WriteAllText(catalog, declared ? "[]" : JsonSerializer.Serialize(new[] { entry }));
+            string? launch = null;
+            if (declared)
+            {
+                launch = JsonSerializer.Serialize(entry);
+                if (initializationOptions is not null) launch = launch[..^1] + ",\"initializationOptions\":" + initializationOptions + "}";
+            }
 
             var ui = new UiApiTests.RecordingUi();
             var tools = new DocumentApiTests.RecordingTools();
@@ -100,9 +112,9 @@ public class LspPluginTests
             Assert.True(File.Exists(dll), dll);
             host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost,
                 [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", "20000", "--request-timeout-ms", "10000", "--stop-timeout-ms", "3000", "--max-locations", "50",
-                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog], ["onCommand:lsp"]));
+                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString()], ["onCommand:lsp"]));
             await host.ActivateAsync("onCommand:lsp");
-            return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools };
+            return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools, Launch = launch };
         }
 
         /// <summary>Opens a file with this content and shows it to plugins.</summary>
@@ -119,7 +131,7 @@ public class LspPluginTests
 
         public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null)
         {
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}}}";
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(Launch is null ? "" : ",\"lspServer\":" + Launch)}}}";
             return (await Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
@@ -499,6 +511,97 @@ public class LspPluginTests
             Assert.Equal("noServer", (await missing.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
             await T.Until(() => Last(missing) == "LSP: not found");
         }
+    }
+
+    // ---- P8.5.2: a server a plugin manifest declares ----
+
+    static int Processes(Rig rig) => Directory.GetFiles(rig.Dump, "process-*").Length;
+
+    [Fact]
+    public async Task A_declared_server_gets_the_options_and_serves_completion_and_rename_with_no_catalog_entry()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, initializationOptions: "{\"mode\":\"strict\"}");
+        var first = rig.Add("one.fake", "é foo = foo + 1\nCon\n");
+        var second = rig.Add("two.fake", "call foo(foo)\n");
+        Assert.Equal("ok", (await rig.RunAsync(first, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+
+        Assert.Equal("{\"mode\":\"strict\"}", File.ReadAllText(Path.Combine(rig.Dump, "init-options.json")));
+
+        var answer = await CompleteAsync(rig, first, Bytes("é foo = foo + 1\nCon"));
+        Assert.Equal("Console", Assert.Single(answer.Items).Label);
+
+        rig.Ui.Input = request => request.Value == "foo" ? "baz" : null;
+        var r = await rig.RunAsync(first, LspPlugin.RenameCommand, Bytes("é f"));
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        Assert.Equal("é baz = baz + 1\nCon\n", Rig.TextOf(first));
+        Assert.Equal("call baz(baz)\n", Rig.TextOf(second));
+    }
+
+    [Fact]
+    public async Task Two_documents_of_one_language_share_one_server_process()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true);
+        var first = rig.Add("a.fake", "a\n");
+        var second = rig.Add("b.fake", "b\n");
+
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+
+        Assert.Equal(1, Processes(rig));
+        Assert.Equal("b\n", await rig.ServerTextAsync(second));
+        Assert.Equal("a\n", await rig.ServerTextAsync(first));
+    }
+
+    [Fact]
+    public async Task A_declared_server_that_is_missing_gives_one_message_and_the_plugin_goes_on()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, program: "no-such-language-server-program");
+        var doc = rig.Add("lost.fake", "x\n");
+
+        var r = await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        Assert.Equal("noServer", r.GetProperty("status").GetString());
+        var notice = Assert.Single(rig.Ui.Notices, n => n.Message.Contains("no-such-language-server-program"));
+        Assert.Contains("No language server for fake was found", notice.Message);
+        Assert.Equal("noServer", (await rig.RunAsync(doc, LspPlugin.RenameCommand, 0)).GetProperty("status").GetString()); // still answers, nothing broke
+    }
+
+    [Fact]
+    public async Task A_declared_server_that_cannot_start_is_reported_without_a_crash()
+    {
+        var notExecutable = Path.Combine(Path.GetTempPath(), "textida-not-a-server-" + Guid.NewGuid().ToString("N") + ".txt");
+        File.WriteAllText(notExecutable, "this is not a program");
+        try
+        {
+            await using var rig = await Rig.CreateAsync(declared: true, program: notExecutable);
+            var doc = rig.Add("bad.fake", "x\n");
+
+            var r = await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+            Assert.Equal("startFailed", r.GetProperty("status").GetString());
+            Assert.Contains(rig.Ui.Notices, n => n.Message.Contains("could not be started"));
+            Assert.Equal("x\n", Rig.TextOf(doc));
+        }
+        finally { File.Delete(notExecutable); }
+    }
+
+    [Fact]
+    public async Task A_server_with_no_open_document_is_stopped_after_the_idle_time_and_started_again_by_the_next_command()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, idleStopMs: 300);
+        var first = rig.Add("idle.fake", "x\n");
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        string? Last() { lock (rig.Ui.Statuses) return rig.Ui.Statuses.LastOrDefault()?.Text; }
+        await T.Until(() => Last() == "LSP: running");
+
+        await rig.Owner.InvokeAsync(() => { rig.Docs.Withdraw(first); return 0; });
+        await T.Until(() => Last() == "LSP: off");
+
+        var second = rig.Add("idle2.fake", "y\n");
+        Assert.Equal("ok", (await rig.RunAsync(second, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        Assert.Equal(2, Processes(rig));
     }
 
     // ---- the pieces without a process ----

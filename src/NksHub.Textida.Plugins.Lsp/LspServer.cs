@@ -15,7 +15,8 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <param name="StderrLines">Last lines of the standard error of a server kept for the report of its end.</param>
 /// <param name="MaxMessageChars">Longest diagnostic message or list label, in UTF-16 units; a longer one is cut.</param>
 /// <param name="MaxDiagnostics">Diagnostics published per document; the rest is dropped.</param>
-public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics);
+/// <param name="IdleStopMs">Time a server keeps running after the last document of its language was closed; 0 keeps it until the plugin ends.</param>
+public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0);
 
 public sealed class ServerStartException(string message) : Exception(message);
 
@@ -73,7 +74,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         var server = new LspServer(process, process.StandardOutput.BaseStream, process.StandardInput.BaseStream, settings, rootUri, onNotification);
         try
         {
-            await server.InitializeAsync(root, ct).ConfigureAwait(false);
+            await server.InitializeAsync(root, launch.InitializationOptions, ct).ConfigureAwait(false);
             return server;
         }
         catch (Exception e) when (e is RpcException or RpcTimeoutException or IOException)
@@ -84,9 +85,10 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         }
     }
 
-    private async Task InitializeAsync(string root, CancellationToken ct)
+    private async Task InitializeAsync(string root, string? initializationOptions, CancellationToken ct)
     {
         var json = new StringBuilder("{\"processId\":").Append(Environment.ProcessId)
+            .Append(initializationOptions is null ? "" : ",\"initializationOptions\":" + initializationOptions)
             .Append(",\"clientInfo\":{\"name\":\"Textida\"},\"rootUri\":\"").Append(Encode(_rootUri)).Append("\",\"rootPath\":\"").Append(Encode(root))
             .Append("\",\"workspaceFolders\":[{\"uri\":\"").Append(Encode(_rootUri)).Append("\",\"name\":\"").Append(Encode(Path.GetFileName(root.TrimEnd('/', '\\')))).Append("\"}]")
             .Append(",\"capabilities\":{\"general\":{\"positionEncodings\":[\"utf-16\"]},\"textDocument\":{\"synchronization\":{\"dynamicRegistration\":false,\"didSave\":false},")

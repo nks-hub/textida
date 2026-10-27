@@ -1,7 +1,7 @@
 // Stand-in for a language server in tests: JSON-RPC over stdio with Content-Length framing. It keeps its own copy of every document it is told about
 // and counts positions in UTF-16 units, as the protocol says, without sharing any code with the client it is tested against.
 // Options: --full (ask for whole texts instead of ranges), --dump DIR (after every open and change write NAME.txt with its copy, NAME.version with the version
-// and NAME.stats with "opens=N incremental=N full=N"), --external FILE (a file on disk that definitions may point into).
+// and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process and init-options.json with the initializationOptions it got), --external FILE (a file on disk that definitions may point into).
 // Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
 // a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document;
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
@@ -14,7 +14,11 @@ bool full = args.Contains("--full");
 bool fileOps = args.Contains("--fileops");
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
-if (dump is not null) Directory.CreateDirectory(dump);
+if (dump is not null)
+{
+    Directory.CreateDirectory(dump);
+    File.WriteAllText(Path.Combine(dump, $"process-{Environment.ProcessId}"), "");
+}
 
 var input = Console.OpenStandardInput();
 var output = Console.OpenStandardOutput();
@@ -226,6 +230,7 @@ while (ReadMessage() is { } body)
     switch (method)
     {
         case "initialize":
+            if (dump is not null && p.TryGetProperty("initializationOptions", out var initOptions)) File.WriteAllText(Path.Combine(dump, "init-options.json"), initOptions.GetRawText());
             Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;
         case "shutdown":

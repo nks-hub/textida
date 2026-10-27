@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.PluginHost.Conversions;
+using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Core.Tools;
@@ -78,6 +79,7 @@ public static class PluginManifestLoader
         var grammars = LoadGrammars(root, c.Grammars, maxGrammarBytes, errors);
         var data = CheckDataItems(root, m, c, errors);
         var spec = CheckMain(root, m, errors);
+        CheckLanguageServers(root, m, errors);
 
         if (m.Main is null)
         {
@@ -215,6 +217,36 @@ public static class PluginManifestLoader
         }
 
         return data;
+    }
+
+    private static void CheckLanguageServers(string root, PluginManifest m, List<string> errors)
+    {
+        var servers = m.Contributes.LanguageServers;
+        if (servers.Count == 0) return;
+        if (!m.Permissions.Contains(DocumentPermissions.LanguageServer)) errors.Add($"languageServers need the permission '{DocumentPermissions.LanguageServer}'.");
+        CheckUnique("language server", servers.Select(x => x.Id), errors);
+        foreach (var s in servers)
+        {
+            var what = $"language server '{s.Id}'";
+            if (!ItemIdPattern.IsMatch(s.Id)) errors.Add($"{what}: id must be lower case letters, digits and '-'.");
+            if (s.Languages.Count == 0) errors.Add($"{what}: languages needs at least one language mode id.");
+            foreach (var language in s.Languages)
+                if (!ItemIdPattern.IsMatch(language)) errors.Add($"{what}: language '{language}' must be a language mode id (lower case letters, digits and '-').");
+            foreach (var glob in s.Globs)
+                if (!LanguageServerMatcher.IsValidGlob(glob)) errors.Add($"{what}: glob '{glob}' must be 1 to {LanguageServerMatcher.MaxGlobLength} characters without control characters.");
+            if (s.Args.Any(a => a is null)) errors.Add($"{what}: args may not contain null.");
+            if (s.InitializationOptions is { ValueKind: not JsonValueKind.Object }) errors.Add($"{what}: initializationOptions must be an object.");
+            if (string.IsNullOrWhiteSpace(s.Command)) errors.Add($"{what}: command is empty.");
+            else if (s.Locate == "path")
+            {
+                if (s.Command.IndexOfAny(['/', '\\']) >= 0 || Path.IsPathRooted(s.Command)) errors.Add($"{what}: with locate 'path' the command is a bare program name; use locate 'plugin' for a path in the plugin folder.");
+            }
+            else if (s.Locate == "plugin")
+            {
+                if (!TryResolveInside(root, s.Command, out _, out var why)) errors.Add($"{what}: command {why}");
+            }
+            else errors.Add($"{what}: locate must be 'path' or 'plugin'.");
+        }
     }
 
     private static void CheckLanguageHelp(string root, LanguageHelpContribution h, List<string> errors, Action<string, string, string, string?> item)
