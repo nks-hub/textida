@@ -49,6 +49,7 @@ public sealed class SyntaxPalette
         Add("#9A6700", "#D29922", "log.warning");
         Add("#0451A5", "#79C0FF", "log.info");
         Add("#6E7781", "#8B949E", "log.debug");
+        Add("#FFE58F", "#5C4B00", "log.highlight"); // background of the highlight expression of a log view
         return new SyntaxPalette(colors);
     }
 }

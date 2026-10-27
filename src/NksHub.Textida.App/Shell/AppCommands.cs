@@ -229,6 +229,10 @@ internal static class AppCommands
         On("nks.tools.lint", w => w.RunLinter());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
+        On("nks.file.exportHtml", w => w.ExportHighlighted(MainWindow.ExportForm.Html));
+        On("nks.file.exportRtf", w => w.ExportHighlighted(MainWindow.ExportForm.Rtf));
+        On("nks.edit.copyFormatted", w => w.CopyHighlighted(htmlSource: false));
+        On("nks.edit.copyHtmlSource", w => w.CopyHighlighted(htmlSource: true));
         On("nks.log.levels", w => w.ChooseLogLevels());
         On("nks.log.follow", w => w.ToggleLogFollow());
         On("nks.log.saveView", w => w.SaveLogView());

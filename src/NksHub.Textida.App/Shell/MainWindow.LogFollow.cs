@@ -185,6 +185,8 @@ internal sealed partial class MainWindow
         if (string.IsNullOrEmpty(name)) return;
         string? text = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.LogViewSaveTitle), Loc.Get(K.LogViewFilterLabel), current.Text ?? "", FilterProblem))?.Trim();
         if (text is null) return;
+        string? highlight = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.LogViewSaveTitle), Loc.Get(K.LogViewHighlightLabel), session?.Highlight ?? "", FilterProblem))?.Trim();
+        if (highlight is null) return;
         string? levelText = await _app.Dialogs.PromptAsync(this, Loc.Get(K.LogViewSaveTitle), Loc.Get(K.LogViewLevelsLabel), string.Join(", ", current.Levels.Select(l => l.ToString().ToLowerInvariant())));
         if (levelText is null) return;
         var levels = new List<LogLevel>();
@@ -197,13 +199,13 @@ internal sealed partial class MainWindow
             }
             if (!levels.Contains(level)) levels.Add(level);
         }
-        if (FilterProblem(text).Length > 0)
+        if (FilterProblem(text).Length + FilterProblem(highlight).Length > 0)
         {
-            SetStatusMessage(FilterProblem(text));
+            SetStatusMessage(FilterProblem(text).Length > 0 ? FilterProblem(text) : FilterProblem(highlight));
             return;
         }
         string? rules = od.LogLevelsName.Length == 0 || od.LogLevelsName == Loc.Get(K.LogLevelsDefault) ? null : od.LogLevelsName;
-        var view = new LogView(name, new LogFilter(levels, text.Length == 0 ? null : text, TextIsRegex: true), rules, session?.Highlight, od.Path, CaptureOffsets(tab).Caret);
+        var view = new LogView(name, new LogFilter(levels, text.Length == 0 ? null : text, TextIsRegex: true), rules, highlight.Length == 0 ? null : highlight, od.Path, CaptureOffsets(tab).Caret);
         try { _app.LogViews.Save(view); }
         catch (IOException e)
         {
@@ -252,6 +254,8 @@ internal sealed partial class MainWindow
         }
         od.ChooseLanguage(LanguageModes.ById(LanguageModes.LogId));
         od.SetLogLevels(rules, rulesName);
+        try { od.SetLogHighlight(view.Highlight, TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.LogHighlightMatchTimeoutMilliseconds)); }
+        catch (ArgumentException e) { SetStatusMessage(Loc.Get(K.LogViewBadFilter, ("reason", e.Message))); }
         try { StartLogSession(od, view.Filter, view.LevelRules, view.Name, view.Highlight); }
         catch (LogPatternException e)
         {

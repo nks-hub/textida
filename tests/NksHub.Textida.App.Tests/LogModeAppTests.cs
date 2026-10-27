@@ -253,4 +253,66 @@ public class LogModeAppTests : IDisposable
         Assert.Equal((1L, 1L), tab.CaretPosition()); // no further |E| line below the first one
         Assert.Equal(Loc.Get(K.LogNoNext), _w.StatusMessageText);
     }
+
+    private static Color Highlight => ((ISolidColorBrush)SyntaxPalette.Light.GetBrush(LogHighlightColorizer.Kind)!).Color;
+
+    private void SaveViewWithHighlight(string highlight)
+    {
+        var dialogs = (ScriptedDialogs)_app.Dialogs;
+        foreach (string answer in new[] { "marked", "", highlight, "" }) dialogs.Prompts.Enqueue(answer);
+        Assert.Equal(CommandOutcome.Handled, _w.SaveLogView());
+        ToolTestKit.WaitFor(() => _w.StatusMessageText == Loc.Get(K.LogViewSaved, ("name", "marked")), "the view was not saved");
+    }
+
+    [AvaloniaFact]
+    public void The_highlight_spans_are_the_matches_of_the_expression_and_a_slow_search_ends_quietly()
+    {
+        var spans = LogHighlightColorizer.Spans(new System.Text.RegularExpressions.Regex("an+|x*"), "banana xx an");
+        Assert.Equal([(1, 2), (3, 2), (7, 2), (10, 2)], spans);
+        var slow = new System.Text.RegularExpressions.Regex("(a+)+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromMilliseconds(5));
+        Assert.Empty(LogHighlightColorizer.Spans(slow, new string('a', 40) + "b"));
+    }
+
+    [AvaloniaFact]
+    public void The_highlight_of_a_saved_view_is_drawn_in_the_editor_and_kept_in_the_file()
+    {
+        var tab = Open("h.log", Sample);
+        Assert.Equal(0, Matching(Capture(), EditorRow(tab, 0), Highlight));
+        SaveViewWithHighlight("disk|memory");
+        Assert.Equal("disk|memory", _app.LogViews.Load(out _).Single().Highlight);
+        var shot = Capture();
+        Assert.True(Matching(shot, EditorRow(tab, 0), Highlight) > 10, "line with disk");
+        Assert.True(Matching(shot, EditorRow(tab, 2), Highlight) > 10, "line with memory");
+        Assert.Equal(0, Matching(shot, EditorRow(tab, 1), Highlight));
+        Assert.Equal(0, Matching(shot, EditorRow(tab, 4), Highlight));
+        Assert.True(Matching(shot, EditorRow(tab, 0), Level(LogLevel.Error)) > 10, "the level color stays");
+    }
+
+    [AvaloniaFact]
+    public void The_highlight_of_a_saved_view_is_drawn_on_the_paged_surface()
+    {
+        var log = Open("hbig.log", BigLog(out _), paged: true);
+        Assert.Equal(0, Matching(Capture(), PagedRow(log, 1), Highlight));
+        SaveViewWithHighlight("number 1 ");
+        var shot = Capture();
+        Assert.True(Matching(shot, PagedRow(log, 1), Highlight) > 10, "line 1");
+        Assert.Equal(0, Matching(shot, PagedRow(log, 0), Highlight));
+        Assert.Equal(0, Matching(shot, PagedRow(log, 2), Highlight));
+    }
+
+    [AvaloniaFact]
+    public void Applying_a_view_without_a_highlight_removes_the_marks_and_a_broken_expression_is_refused()
+    {
+        var tab = Open("g.log", Sample);
+        SaveViewWithHighlight("disk");
+        Assert.True(Matching(Capture(), EditorRow(tab, 0), Highlight) > 10);
+        tab.Doc.SetLogHighlight(null, TimeSpan.FromMilliseconds(50));
+        Assert.Equal(0, Matching(Capture(), EditorRow(tab, 0), Highlight));
+
+        var dialogs = (ScriptedDialogs)_app.Dialogs;
+        foreach (string answer in new[] { "broken", "", "(", "" }) dialogs.Prompts.Enqueue(answer);
+        _w.SaveLogView();
+        ToolTestKit.WaitFor(() => _w.StatusMessageText.Length > 0 && _w.StatusMessageText != Loc.Get(K.LogViewSaved, ("name", "marked")), "no message");
+        Assert.DoesNotContain(_app.LogViews.Load(out _), v => v.Name == "broken");
+    }
 }

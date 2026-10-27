@@ -92,6 +92,7 @@ internal sealed partial class EditorSurface
     {
         Doc.LanguageChanged -= ApplyLogLevels;
         Doc.LogLevelsChanged -= ApplyLogLevels;
+        Doc.LogHighlightChanged -= ApplyLogLevels;
         foreach (var margin in TextArea.LeftMargins.OfType<BookmarkMargin>().ToList())
         {
             margin.Release();

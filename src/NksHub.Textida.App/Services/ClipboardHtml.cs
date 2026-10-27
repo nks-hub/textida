@@ -29,3 +29,11 @@ internal static class ClipboardHtml
         return Encoding.UTF8.GetBytes(string.Format(Header, headerLength, end, startFragment, endFragment) + Before + fragment + After);
     }
 }
+
+/// <summary>The RTF form of the clipboard: "Rich Text Format" on Windows, <c>public.rtf</c> on macOS, <c>text/rtf</c> elsewhere. RTF is ASCII, so the bytes are the text.</summary>
+internal static class ClipboardRtf
+{
+    public static DataFormat<byte[]> Format { get; } = DataFormat.CreateBytesPlatformFormat(OperatingSystem.IsWindows() ? "Rich Text Format" : OperatingSystem.IsMacOS() ? "public.rtf" : "text/rtf");
+
+    public static byte[] Encode(string rtf) => Encoding.ASCII.GetBytes(rtf);
+}

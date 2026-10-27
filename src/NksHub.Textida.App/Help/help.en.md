@@ -958,7 +958,16 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 5. If another program truncates the log, or replaces it (rotation: the file is renamed and a new one is created under the old name), the status line says so, the earlier matches are dropped, and reading starts again at the beginning of the new content. A missing file is reported once and waited for.
 - A rotation is told from the first 4096 bytes of the file and, on Windows, from its creation time. A new file that begins with the same bytes and is not shorter than the old one cannot be told apart; a replaced file of the same length with the same time and bytes is not noticed.
 - The file is looked at once per second. This and the 4096 bytes are not decided values.
-- The matches are kept in memory and have no upper limit. The highlight expression of a view is kept in the file but is not drawn yet.
+- The matches are kept in memory and have no upper limit.
+- Log: Save View also asks for a text to highlight (a regular expression; empty marks nothing). When the view is applied, the matches of the expression get a background in every line, in the editor and in paged mode. Only the first 8192 characters of a line are searched, and a line whose search takes too long (placeholder limit, not decided) is left unmarked.
+
+## [export.highlight] Export and copy with highlighting
+commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
+1. Edit, Copy As, Export as HTML and Export as RTF write the selection, or the whole document when nothing is selected, to a file you choose. The colors are those of the editor in the current light or dark theme: the same tokens of the grammar of the document, and in a log the colors of the levels. The page and text colors of the editor are included.
+2. Edit, Copy As, Copy with Formatting puts the text, HTML and RTF on the clipboard together, so pasting into a word processor or a mail keeps the colors, while pasting into an editor gives plain text. Copy as HTML Source puts the HTML itself on the clipboard as text.
+- The whole document is colored, then the selection is cut out of it, so a selection that starts inside a comment is colored as in the editor. In a large file (paged mode) and with several carets or a block selection only the selected text is taken, and it is colored from its own start.
+- A text over 8388608 characters is refused with a message; select a part of it. The limit is a placeholder, not a decided value. The work runs in the background, so the window stays usable.
+- HTML is UTF-8. RTF is ASCII: backslash, braces and every character outside ASCII (for example Czech letters) are written as escapes.
 
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

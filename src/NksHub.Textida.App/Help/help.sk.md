@@ -963,7 +963,16 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 5. Keď iný program log skráti alebo ho vymení (rotácia: súbor sa premenuje a pod starým menom vznikne nový), povie to stavový riadok, skoršie zhody sa zahodia a čítanie začne znova od začiatku nového obsahu. Chýbajúci súbor sa ohlási raz a čaká sa naň.
 - Rotácia sa pozná podľa prvých 4096 bajtov súboru a vo Windows aj podľa času vzniku. Nový súbor, ktorý začína rovnakými bajtmi a nie je kratší ako starý, sa od neho nerozlíši; vymenený súbor rovnakej dĺžky s rovnakým časom a bajtmi sa nepozná.
 - Súbor sa kontroluje raz za sekundu. Táto hodnota ani 4096 bajtov nie sú rozhodnuté hodnoty.
-- Zhody sa držia v pamäti bez hornej hranice. Výraz zvýraznenia pohľadu sa v súbore uchová, ale zatiaľ sa nevykresľuje.
+- Zhody sa držia v pamäti bez hornej hranice.
+- Log: uložiť pohľad sa pýta aj na text na zvýraznenie (regulárny výraz; prázdne nezvýrazní nič). Po použití pohľadu majú zhody výrazu v každom riadku pozadie, v editore aj v stránkovanom režime. Hľadá sa len v prvých 8192 znakoch riadku a riadok, ktorého hľadanie trvá príliš dlho (hodnota je placeholder, nie je rozhodnutá), zostane bez značky.
+
+## [export.highlight] Export a kópia so zvýraznením
+commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
+1. Úpravy, Kopírovať ako, Exportovať ako HTML a Exportovať ako RTF zapíšu výber, alebo celý dokument, keď nič nie je označené, do súboru, ktorý zvolíte. Farby sú farby editora v aktuálnej svetlej alebo tmavej téme: rovnaké tokeny gramatiky dokumentu a v logu farby úrovní. Farba stránky a textu editora je v exporte.
+2. Úpravy, Kopírovať ako, Kopírovať so zvýraznením dá do schránky text, HTML a RTF naraz. Vloženie do textového procesora alebo pošty zachová farby, vloženie do editora dá obyčajný text. Kopírovať ako zdroj HTML dá do schránky samotné HTML ako text.
+- Zafarbí sa celý dokument a výber sa z neho vyreže, takže výber začínajúci vnútri komentára je zafarbený ako v editore. Pri veľkom súbore (stránkovaný režim) a pri viacerých kurzoroch alebo bloku sa berie len označený text a farbí sa od svojho začiatku.
+- Text nad 8388608 znakov sa odmietne správou, označte jeho časť. Hranica je placeholder, nie je rozhodnutá hodnota. Práca beží na pozadí, okno zostáva použiteľné.
+- HTML je UTF-8. RTF je ASCII: spätná lomka, zložené zátvorky a každý znak mimo ASCII (napríklad české písmená) sa zapíšu ako escape.
 
 ## [view.options] Zobrazenie editora
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
