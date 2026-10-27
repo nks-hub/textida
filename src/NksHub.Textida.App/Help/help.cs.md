@@ -1033,7 +1033,7 @@ Program průběžně zapisuje neuložený text do žurnálu, nejdéle do dvou se
 - Přerušená dávka nahrazení v souborech se po startu nabídne: Dokončit, nebo Vrátit zpět.
 
 ## [paged] Velké soubory (stránkovaný režim)
-Soubor větší než hranice velkého souboru (nastavení Hranice velkého souboru, výchozí 6 MiB) se otevře ve stránkovaném režimu. Chcete-li soubor procházet a upravovat po bajtech bez těchto omezení, otevřete ho v hexu (téma Hex: otevření a pohyb). Program čte jen řádky na obrazovce, takže soubor se otevře rychle a nezabere paměť.
+Soubor větší než hranice velkého souboru (nastavení Hranice velkého souboru, výchozí 6 MiB) se otevře ve stránkovaném režimu. Chcete-li soubor procházet a upravovat po bajtech bez těchto omezení, otevřete ho v hexu (téma Hex: otevření a pohyb). Program čte jen řádky na obrazovce, takže soubor se otevře rychle a nezabere paměť. Části souboru, které už přečetl (třeba při číslování řádků), vrací systému, takže obsazená paměť neroste s velikostí souboru.
 Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Co jde
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).

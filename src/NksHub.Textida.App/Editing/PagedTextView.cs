@@ -44,6 +44,7 @@ internal sealed partial class PagedTextView : Grid
     private Dictionary<long, Token[]> _tokens = [];
     private EditorOptions _options;
     private long _linesRevision = -1;
+    private long _linesCount = -1; // lines of the document at _linesRevision; -1 while the count is not exact
     private long _caret;
     private long _anchor = -1;
     private long _dragFrom = -1;
@@ -162,6 +163,9 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>True while a horizontal window of a long line is being read off the UI thread; the draw shows a placeholder for it.</summary>
     internal bool WindowsPending => _pending.Count > 0;
 
+    /// <summary>Bytes of the mapped file read since its pages were last given back (the block cache, P3.1.9); the measurement mode logs it.</summary>
+    internal long MappedResidentBytes => Paged.Source.File.ResidentEstimate;
+
     /// <summary>Zero-based line and UTF-16 column of the caret; null while the line index is not complete.</summary>
     public (long Line, long Column)? CaretLineColumn() =>
         CaretSite() is { } c ? (c.Line, c.Column) : null;
@@ -234,25 +238,35 @@ internal sealed partial class PagedTextView : Grid
     internal static bool LineSurvives(long start, long byteLength, long firstChange) => start + byteLength + 4 <= firstChange;
 
     /// <summary>
-    /// Lines that end well before the first changed byte keep their text and map. When one edit lies inside a line and adds or removes no line break,
-    /// the lines behind it keep their text too and only move, so typing decodes again just the edited line.
-    /// Anything else (a different kind of change, a revision that was skipped) leaves the clearing to <see cref="GetLine"/>.
+    /// Lines that end well before the first changed byte keep their text and map. Lines that start behind the last edit keep them too and only move:
+    /// by the bytes the edits added or removed, and by the lines they added or removed, which the exact line counts before and after tell. Without
+    /// exact counts that holds only for one edit inside a line that adds or removes no line break. So typing, Enter and joining two lines decode again
+    /// just the lines they touched. Anything else (a different kind of change, a revision that was skipped) leaves the clearing to <see cref="GetLine"/>.
     /// </summary>
     private void KeepUntouchedLines(ChangeSet change)
     {
         if (change.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || change.Edits.Count == 0 || _linesRevision != change.Revision - 1) return;
-        var edit = change.Edits[0];
-        long first = edit.Start, editEnd = edit.Start + edit.Deleted;
-        bool insideLine = change.Edits.Count == 1 && !change.TouchesLineBreaks && _lines.Values.Any(v => v.Start <= first && editEnd <= v.Start + v.ByteLength);
-        foreach (var (line, view) in _lines.ToArray())
+        var last = change.Edits[^1];
+        long first = change.Edits[0].Start, lastEnd = last.Start + last.Deleted, moved = 0;
+        foreach (var edit in change.Edits) moved += edit.Inserted - edit.Deleted;
+        long now = ExactLineCount();
+        long? lineShift = _linesCount >= 0 && now >= 0 ? now - _linesCount
+            : change.Edits.Count == 1 && !change.TouchesLineBreaks && _lines.Values.Any(v => v.Start <= first && lastEnd <= v.Start + v.ByteLength) ? 0 : null;
+        var kept = new List<(long Line, LineView View)>(_lines.Count);
+        foreach (var (line, view) in _lines)
         {
-            if (LineSurvives(view.Start, view.ByteLength, first)) continue;
-            if (LongLineAfterEdit(view, change) is { } resized) _lines[line] = resized;
-            else if (insideLine && view.Start > editEnd) _lines[line] = view.WithStart(view.Start + edit.Inserted - edit.Deleted);
-            else _lines.Remove(line);
+            if (LineSurvives(view.Start, view.ByteLength, first)) kept.Add((line, view));
+            else if (LongLineAfterEdit(view, change) is { } resized) kept.Add((line, resized));
+            else if (lineShift is { } shift && view.Start > lastEnd) kept.Add((line + shift, view.WithStart(view.Start + moved)));
         }
+        _lines.Clear();
+        foreach (var (line, view) in kept) _lines[line] = view;
         _linesRevision = change.Revision;
+        _linesCount = now;
     }
+
+    /// <summary>Lines of the current revision when the count is exact (complete index, no detour); else -1.</summary>
+    private long ExactLineCount() => _detour is null && Doc.LineIndexState is (var lines, true) ? lines : -1;
 
     /// <summary>
     /// The view of a truncated line whose one edit lies behind the part that was decoded and stays inside the line without a line break:
@@ -270,6 +284,7 @@ internal sealed partial class PagedTextView : Grid
     private void OnSaved(object? sender, EventArgs e)
     {
         _lines.Clear();
+        _linesCount = -1;
         CancelWindows();
         _detour = null;
         WatchIndex();
@@ -552,13 +567,51 @@ internal sealed partial class PagedTextView : Grid
         {
             _lines.Clear();
             _linesRevision = Doc.Revision;
+            _linesCount = -1;
         }
+        if (_linesCount < 0) _linesCount = ExactLineCount();
         if (_lines.TryGetValue(line, out var cached)) return cached;
-        if (_lines.Count > 400) _lines.Clear();
+        TrimLines();
         FillFrom(line);
         if (_lines.TryGetValue(line, out cached)) return cached;
         if (!TryBounds(line, out long start, out long end, out _)) return null;
         return _lines[line] = Decode(start, end - start);
+    }
+
+    /// <summary>Bytes the decoded lines may hold before the lines off screen are dropped; a test lowers it.</summary>
+    internal long LineCacheBudget { get; set; } = PagedSpillPlaceholders.LineCacheBytes;
+
+    /// <summary>Bytes the decoded lines hold now (estimate).</summary>
+    internal long CachedLineBytes
+    {
+        get
+        {
+            long bytes = 0;
+            foreach (var view in _lines.Values) bytes += view.Footprint;
+            return bytes;
+        }
+    }
+
+    /// <summary>Lines decoded since the view was created; a test counts what an edit decodes again.</summary>
+    internal int DecodedLines { get; private set; }
+
+    /// <summary>
+    /// Keeps the decoded lines within <see cref="LineCacheBudget"/> before a miss decodes more. Over the budget the lines farthest from the screen go
+    /// first, down to half of it, so the next misses do not sort again. The lines on screen and the caret line stay, so a screen of long lines that alone
+    /// exceeds the budget is not decoded again on every draw. One fill reads at most 128 KiB, so the cache ends above the budget by at most what those bytes decode to.
+    /// </summary>
+    private void TrimLines()
+    {
+        long bytes = CachedLineBytes;
+        if (bytes <= LineCacheBudget) return;
+        long top = TopLine, bottom = top + _canvas.VisibleLines + 1, caret = _lineMemo.Revision == Doc.Revision ? _lineMemo.Line : -1;
+        long Distance(long line) => line < top ? top - line : line > bottom ? line - bottom : 0;
+        foreach (long line in _lines.Keys.Where(l => Distance(l) > 0 && l != caret).OrderByDescending(Distance).ToArray())
+        {
+            if (bytes <= LineCacheBudget / 2) break;
+            bytes -= _lines[line].Footprint;
+            _lines.Remove(line);
+        }
     }
 
     private LineView Decode(long start, long length)
@@ -569,6 +622,9 @@ internal sealed partial class PagedTextView : Grid
         bool truncated = length > take;
         if (truncated) take = Doc.Codec.CompleteLength(bytes);
         return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize, HideAnsi);
+
+        DecodedLines++;
+        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize);
     }
 
     /// <summary>
@@ -623,6 +679,9 @@ internal sealed partial class PagedTextView : Grid
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
             _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize, HideAnsi);
+
+            DecodedLines++;
+            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
             if (last) return;
             pos = next;
         }
@@ -1315,6 +1374,9 @@ internal sealed partial class PagedTextView : Grid
         public string Display { get; }
         /// <summary>Escape sequences are left out of <see cref="Display"/>; their characters map to the column of the text after them.</summary>
         public bool HidesAnsi { get; }
+
+        /// <summary>Approximate bytes the line holds: the decoded bytes, the text and its map of byte offsets, the display text, its columns and the marked copy.</summary>
+        public long Footprint => Map.Bytes.Length + Map.Text.Length * 6L + Display.Length * 2L + DisplayAt.Length * 4L + (_marked?.Length ?? 0) * 2L + 160;
 
         private string? _marked;
         /// <summary><see cref="Display"/> with a middle dot for every space and an arrow in the first column of every tab; the same length, so the colors of the tokens still fit.</summary>

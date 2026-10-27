@@ -74,6 +74,66 @@ public class PagedEditTests : IDisposable
     public void Only_lines_ending_before_the_first_change_keep_their_decoded_text(long start, long length, long firstChange, bool kept) =>
         Assert.Equal(kept, PagedTextView.LineSurvives(start, length, firstChange));
 
+    /// <summary>The text the screen-reader window of the view holds is the document from the start of its first line.</summary>
+    private static void AssertWindowMatchesDocument(DocTab tab)
+    {
+        using var surface = new PagedTextView.TextSurface(tab.Paged!);
+        var paged = ((PagedBackend)tab.Doc.Doc.Backend).Paged;
+        Assert.True(paged.TryGetLineStart(surface.FirstLine, out long start));
+        Assert.Equal(Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(start, start + surface.Length))), surface.GetText(0, surface.Length));
+    }
+
+    [AvaloniaFact]
+    public void Enter_joining_lines_and_undo_decode_again_only_the_lines_they_touch()
+    {
+        var tab = OpenPaged(Rows(200_000));
+        var view = tab.Paged!;
+        for (int i = 0; i < 4; i++) Press(Key.Down);
+        Press(Key.End); // end of "line 5", on screen with lines above and below it
+        _w.CaptureRenderedFrame();
+
+        int before = view.DecodedLines;
+        Press(Key.Enter);
+        _w.CaptureRenderedFrame();
+        Assert.Equal(2, view.DecodedLines - before); // "line 5" and the new empty line; the lines below only moved one line down
+        Assert.Equal((6L, 1L), tab.CaretPosition());
+        AssertWindowMatchesDocument(tab);
+
+        before = view.DecodedLines;
+        Press(Key.Back); // joins the empty line to "line 5" again
+        _w.CaptureRenderedFrame();
+        Assert.Equal(1, view.DecodedLines - before);
+        Assert.Equal((5L, 7L), tab.CaretPosition());
+        AssertWindowMatchesDocument(tab);
+
+        before = view.DecodedLines;
+        TestApp.Press(_w, Key.Z, TestApp.Mod); // undo of the join: the break comes back
+        _w.CaptureRenderedFrame();
+        Assert.InRange(view.DecodedLines - before, 1, 2);
+        AssertWindowMatchesDocument(tab);
+        Assert.Equal("line 5\n\nline 6\n", Encoding.ASCII.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(28, 28 + 15))));
+    }
+
+    [AvaloniaFact]
+    public void The_decoded_lines_stay_within_their_budget_while_paging_down()
+    {
+        var tab = OpenPaged(Rows(200_000));
+        var view = tab.Paged!;
+        view.LineCacheBudget = 32 * 1024;
+        _w.CaptureRenderedFrame();
+        long peak = 0;
+        for (int k = 1; k <= 60; k++)
+        {
+            Press(Key.PageDown);
+            _w.CaptureRenderedFrame();
+            peak = Math.Max(peak, view.CachedLineBytes);
+            Assert.True(view.CachedLineBytes <= view.LineCacheBudget + 64 * 1024, $"{view.CachedLineBytes} bytes of decoded lines after {k} pages");
+            Assert.Equal((1L + k * view.PageLines, 1L), tab.CaretPosition());
+        }
+        Assert.True(peak > view.LineCacheBudget / 2, $"the pages filled the cache ({peak} bytes), so lines were dropped on the way");
+        AssertWindowMatchesDocument(tab);
+    }
+
     [AvaloniaFact]
     public async Task Typing_moving_deleting_undo_redo_and_save_keep_the_bytes_exact()
     {

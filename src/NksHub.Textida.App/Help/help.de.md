@@ -1028,7 +1028,7 @@ Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens z
 - Ein unterbrochener Stapel von Ersetzungen in Dateien wird nach dem Start angeboten: Abschließen oder Zurücksetzen.
 
 ## [paged] Große Dateien (Seitenmodus)
-Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Um eine Datei ohne diese Einschränkungen byteweise zu durchsuchen und zu bearbeiten, öffnen Sie sie in Hex (Thema Hex: Öffnen und Bewegen). Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht.
+Eine Datei über der Grenze für große Dateien (Einstellung Grenze für große Dateien, standardmäßig 6 MiB) öffnet sich im Seitenmodus. Um eine Datei ohne diese Einschränkungen byteweise zu durchsuchen und zu bearbeiten, öffnen Sie sie in Hex (Thema Hex: Öffnen und Bewegen). Das Programm liest nur die Zeilen auf dem Bildschirm, deshalb öffnet sich die Datei schnell und füllt den Speicher nicht. Bereits gelesene Teile der Datei, etwa beim Nummerieren der Zeilen, gibt es an das System zurück, deshalb wächst der belegte Speicher nicht mit der Größe der Datei.
 Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Was geht
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
