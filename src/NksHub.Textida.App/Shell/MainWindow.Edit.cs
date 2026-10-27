@@ -113,6 +113,7 @@ internal sealed partial class MainWindow
             return;
         }
         if (Active is not { Surface: { } surface } tab || tab.Doc.IsVirtual) return;
+        surface.EndSnippet(); // the step undone may be the snippet itself, and then Tab must expand its abbreviation again
         var doc = tab.Doc.Doc;
         var changes = new List<ChangeSet>();
         void Capture(object? s, NksHub.Textida.Core.Documents.DocumentChangedEventArgs e) => changes.Add(e.Change);

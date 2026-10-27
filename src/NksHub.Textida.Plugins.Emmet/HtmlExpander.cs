@@ -5,16 +5,55 @@ namespace NksHub.Textida.Plugins.Emmet;
 /// <param name="Indent">The text one level of nesting is written as (a tab, or spaces).</param>
 /// <param name="BaseIndent">The indentation of the line the expansion starts on; every further line of the expansion begins with it.</param>
 /// <param name="MaxChars">Longest expansion; a longer one is refused.</param>
-/// <param name="MaxCarets">Most carets reported; the first ones are kept.</param>
+/// <param name="MaxCarets">Most places Tab visits in one expansion; the first ones are kept.</param>
 public sealed record ExpandOptions(string Indent, string BaseIndent, int MaxChars, int MaxCarets);
 
-/// <summary>The text an abbreviation expands to (lines separated by <c>\n</c>) and the UTF-16 offsets where the carets stand.</summary>
-public sealed record Expansion(string Text, IReadOnlyList<int> Carets);
+/// <summary>
+/// The text an abbreviation expands to (lines separated by <c>\n</c>) and the UTF-16 offsets of the places Tab visits, in this order: first the
+/// <paramref name="Carets"/> (the end of the text when there is no empty place, which is no place at all), then the <paramref name="Stops"/> (null when there are none).
+/// </summary>
+public sealed record Expansion(string Text, IReadOnlyList<int> Carets, IReadOnlyList<int>? Stops = null)
+{
+    /// <summary>The places Tab visits, at most <paramref name="max"/> of them; none when the expansion has no empty place.</summary>
+    public IReadOnlyList<int> Places(int max) => [.. Carets.Concat(Stops ?? []).Where(at => at < Text.Length).Take(max)];
+
+    /// <summary>
+    /// The expansion as a snippet template of the editor: <c>$</c> and <c>\</c> escaped, <c>${1}</c>, <c>${2}</c>... where Tab stops. An expansion with places is
+    /// padded with stops at its end up to <paramref name="count"/>, because the snippets of several carets are walked through together.
+    /// </summary>
+    public string Template(int max, int count)
+    {
+        var places = Places(max);
+        var marks = places.Select((at, i) => (At: at, Number: i + 1)).ToList();
+        if (places.Count > 0)
+            for (int n = places.Count + 1; n <= count; n++) marks.Add((Text.Length, n));
+        var sb = new StringBuilder(Text.Length + 8 * marks.Count);
+        int from = 0;
+        foreach (var (at, number) in marks.OrderBy(m => m.At).ThenBy(m => m.Number))
+        {
+            Escape(sb, from, at);
+            sb.Append("${").Append(number).Append('}');
+            from = at;
+        }
+        Escape(sb, from, Text.Length);
+        return sb.ToString();
+    }
+
+    private void Escape(StringBuilder sb, int from, int to)
+    {
+        foreach (var c in Text.AsSpan(from, to - from))
+        {
+            if (c is '$' or '\\') sb.Append('\\');
+            sb.Append(c);
+        }
+    }
+}
 
 /// <summary>
 /// Expands HTML abbreviations. Layout rule (this editor's own, close to what Emmet users expect): the top level and the children of an element that has
 /// a block-level child are written one per line, indented one level; an element whose children are all inline stays on one line with them.
-/// Carets stand inside every empty non-void element at once; when there is none, in the first empty attribute value; otherwise at the end.
+/// Tab visits the empty non-void elements first, in the order of the text; when there is none, the first empty attribute value; then the other empty
+/// attribute values. Without any empty place the caret is at the end.
 /// </summary>
 public static class HtmlExpander
 {
@@ -130,7 +169,7 @@ public static class HtmlExpander
         string text = DocumentSkeleton.Replace("{i}", o.Indent).Replace("\n", "\n" + o.BaseIndent);
         if (text.Length > o.MaxChars) throw new ExpansionTooLargeException();
         int caret = text.IndexOf("<body>", StringComparison.Ordinal) + "<body>".Length + 1 + o.BaseIndent.Length + o.Indent.Length;
-        return new Expansion(text, [caret]);
+        return new Expansion(text, [caret], [text.IndexOf("</title>", StringComparison.Ordinal)]);
     }
 
     private sealed record Wrapped(Node Target, string Content)
@@ -156,7 +195,7 @@ public static class HtmlExpander
         private readonly Wrapped? _wrap;
         private readonly StringBuilder _sb = new();
         private readonly List<int> _carets = [];
-        private int _firstEmptyAttribute = -1;
+        private readonly List<int> _emptyAttributes = [];
 
         public Renderer(ExpandOptions o, Wrapped? wrap)
         {
@@ -183,10 +222,12 @@ public static class HtmlExpander
 
         public Expansion Result()
         {
-            List<int> carets = _carets.Count > 0 ? _carets : _firstEmptyAttribute >= 0 ? [_firstEmptyAttribute] : [_sb.Length];
-            if (_wrap is not null) carets = [_sb.Length];
-            return new Expansion(_sb.ToString(), carets.Count <= _o.MaxCarets ? carets : carets.GetRange(0, _o.MaxCarets));
+            List<int> carets = _wrap is not null ? [_sb.Length] : _carets.Count > 0 ? _carets : _emptyAttributes.Count > 0 ? [_emptyAttributes[0]] : [_sb.Length];
+            List<int> stops = [.. _emptyAttributes.Where(at => !carets.Contains(at))];
+            return new Expansion(_sb.ToString(), Cap(carets), Cap(stops));
         }
+
+        private List<int> Cap(List<int> offsets) => offsets.Count <= _o.MaxCarets ? offsets : offsets.GetRange(0, _o.MaxCarets);
 
         private void NewLine(int level)
         {
@@ -332,7 +373,7 @@ public static class HtmlExpander
             foreach (var (attribute, value) in attributes)
             {
                 _sb.Append(' ').Append(attribute).Append("=\"");
-                if (value.Length == 0 && _firstEmptyAttribute < 0) _firstEmptyAttribute = _sb.Length;
+                if (value.Length == 0) _emptyAttributes.Add(_sb.Length);
                 _sb.Append(value.Replace("\"", "&quot;")).Append('"');
             }
         }

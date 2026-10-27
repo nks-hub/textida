@@ -382,6 +382,8 @@
   "setting.editor.smartKeys.selectVariable.description": "A double click on a PHP variable selects its name without the dollar sign.",
   "setting.editor.smartKeys.sqlEnd.title": "Close BEGIN with END",
   "setting.editor.smartKeys.sqlEnd.description": "Enter after BEGIN in SQL adds a matching END line.",
+  "setting.editor.emmet.title": "Emmet on Tab",
+  "setting.editor.emmet.description": "Tab expands the Emmet abbreviation in front of the caret in HTML and CSS, and the next Tab jumps to the next empty place. Off: Tab only indents; the Emmet commands of the Tools menu still work.",
   "cmd.settings.profile.default": "Behaviour Profile: Default",
   "cmd.settings.profile.pspad": "Behaviour Profile: PSPad",
   "cat.hex": "Hex",

@@ -97,7 +97,7 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest snippet or clip text, in UTF-16 code units.</summary>
     public const int SnippetLength = 64 * 1024;
 
-    /// <summary>Placeholder: carets one snippet or clip places in each selection.</summary>
+    /// <summary>Placeholder: carets one snippet or clip places in each selection, and the most places Tab visits in one Emmet expansion.</summary>
     public const int SnippetCarets = 64;
 
     /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
@@ -164,8 +164,11 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 
-    /// <summary>Placeholder: bytes Emmet reads in front of a caret to find the abbreviation, its line and the CSS block it stands in. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    /// <summary>Placeholder, OPEN: bytes Emmet reads in front of a caret to find the abbreviation, its line and the CSS block it stands in. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. The owner has not decided it.</summary>
     public const int EmmetContextBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: characters of the expansion the Emmet preview shows before it cuts the rest off. Must stay below the message length of <see cref="Ui"/>. The owner has not decided it.</summary>
+    public const int EmmetPreviewChars = 3000;
 
     /// <summary>Placeholder: most words the completion list (Ctrl+J) holds; the best ranked are kept.</summary>
     public const int CompletionMaxWords = 200;

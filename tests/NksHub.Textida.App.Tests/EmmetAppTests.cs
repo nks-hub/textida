@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -77,8 +79,17 @@ public class EmmetAppTests : IDisposable
         await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
     }
 
+    /// <summary>Where the carets of the walk through the items stand: inside every <c>&lt;li&gt;</c>.</summary>
+    private static List<int> ItemCarets(DocTab t)
+    {
+        var text = Text(t);
+        var carets = new List<int>();
+        for (int at = text.IndexOf("<li>", StringComparison.Ordinal); at >= 0; at = text.IndexOf("<li>", at + 1, StringComparison.Ordinal)) carets.Add(at + "<li>".Length);
+        return carets;
+    }
+
     [AvaloniaFact]
-    public async Task Tab_after_ul_li_times_3_makes_a_list_with_a_caret_in_every_item_and_one_undo_step()
+    public async Task Tab_after_ul_li_times_3_makes_a_list_with_a_stop_in_every_item_and_one_undo_step()
     {
         var tab = Open("a.html", "<body>\n  ul>li*3");
         var depth = tab.Doc.Doc.UndoDepth;
@@ -87,14 +98,67 @@ public class EmmetAppTests : IDisposable
         await TabAsync();
 
         Assert.Equal($"<body>\n  <ul>\n  {u}<li></li>\n  {u}<li></li>\n  {u}<li></li>\n  </ul>", Text(tab));
-        Assert.Equal(3, tab.Editor!.CaretCount);
-        Assert.All(tab.Editor.GetSelections(), s => Assert.True(Text(tab)[..s.Caret].EndsWith("<li>") && Text(tab)[s.Caret..].StartsWith("</li>")));
+        Assert.True(tab.Editor!.InSnippet);
+        Assert.Equal(1, tab.Editor.CaretCount);
+        Assert.Equal(ItemCarets(tab)[0], tab.Editor.CaretOffset);
         Assert.Equal(depth + 1, tab.Doc.Doc.UndoDepth);
         Assert.True(_app.Plugins.Documents.HasTabProviders);
         Assert.False(_app.Plugins.Documents.IsExposed(tab.Doc.Doc.Id));
 
         _w.Undo();
         Assert.Equal("<body>\n  ul>li*3", Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+    }
+
+    [AvaloniaFact]
+    public async Task After_Undo_of_an_expansion_Tab_expands_the_abbreviation_again()
+    {
+        var tab = Open("u.html", "ul>li*2");
+        await TabAsync();
+        var expanded = Text(tab);
+
+        _w.Undo();
+        Assert.Equal("ul>li*2", Text(tab));
+        await TabAsync();
+
+        Assert.Equal(expanded, Text(tab));
+        Assert.Equal(ItemCarets(tab)[0], tab.Editor!.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public async Task Tab_walks_from_item_to_item_and_after_the_last_one_to_the_end_of_the_expansion()
+    {
+        var tab = Open("walk.html", "ul>li*3");
+        await TabAsync();
+        var items = ItemCarets(tab);
+        var depth = tab.Doc.Doc.UndoDepth;
+
+        for (int i = 1; i < items.Count; i++)
+        {
+            await TabAsync();
+            Assert.Equal(items[i], tab.Editor!.CaretOffset);
+            Assert.True(tab.Editor.InSnippet);
+        }
+        await TabAsync();
+
+        Assert.False(tab.Editor!.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
+        Assert.Equal(depth, tab.Doc.Doc.UndoDepth); // walking changes no text
+    }
+
+    [AvaloniaFact]
+    public async Task Inside_the_session_the_Tab_key_jumps_and_a_tag_name_typed_at_a_stop_is_not_expanded()
+    {
+        var tab = Open("key.html", "ul>li*2");
+        await TabAsync();
+
+        TestApp.Type(_w, "p"); // a known tag name: outside a session Tab would turn it into <p></p>
+        TestApp.Press(_w, Key.Tab); // the key itself, resolved by the `when` contexts of the key bindings
+
+        Assert.Contains("<li>p</li>", Text(tab));
+        Assert.DoesNotContain("<p></p>", Text(tab));
+        Assert.Equal(ItemCarets(tab)[1], tab.Editor!.CaretOffset);
+        Assert.True(tab.Editor.InSnippet);
     }
 
     [AvaloniaFact]
@@ -109,6 +173,22 @@ public class EmmetAppTests : IDisposable
         Assert.Equal("<p></p>\n<ul>\n" + Unit(tab) + "<li></li>\n</ul>\n", Text(tab));
         Assert.Equal(2, tab.Editor.CaretCount);
         Assert.Equal(depth + 1, tab.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task Expansions_with_a_different_number_of_places_are_walked_together()
+    {
+        var tab = Open("d.html", "p\nul>li*2\n", 0);
+        tab.Editor!.SetSelections([Sel.At(1), Sel.At(9)]);
+
+        await TabAsync();
+
+        var text = Text(tab);
+        Assert.Equal("<p></p>\n<ul>\n" + Unit(tab) + "<li></li>\n" + Unit(tab) + "<li></li>\n</ul>\n", text);
+        Assert.Equal([text.IndexOf("<p>", StringComparison.Ordinal) + 3, ItemCarets(tab)[0]], tab.Editor.GetSelections().Select(s => s.Caret));
+
+        await TabAsync(); // the paragraph has one place only: its caret waits behind it
+        Assert.Equal([text.IndexOf("</p>", StringComparison.Ordinal) + 4, ItemCarets(tab)[1]], tab.Editor.GetSelections().Select(s => s.Caret));
     }
 
     [AvaloniaFact]
@@ -129,6 +209,63 @@ public class EmmetAppTests : IDisposable
             Assert.Equal(Text(reference), Text(tab));
         }
         Assert.True(_app.Plugins.Documents.HasTabProviders);
+    }
+
+    [AvaloniaFact]
+    public async Task The_next_Tab_jumps_to_the_empty_attribute_and_the_one_after_the_last_place_ends_the_session()
+    {
+        var tab = Open("j.html", "a");
+        await TabAsync();
+        Assert.Equal("<a href=\"\"></a>", Text(tab));
+        Assert.Equal("<a href=\"\">".Length, tab.Editor!.CaretOffset);
+        Assert.True(tab.Editor.InSnippet);
+
+        TestApp.Type(_w, "Home");
+        var depth = tab.Doc.Doc.UndoDepth;
+        await TabAsync();
+        Assert.Equal("<a href=\"\">Home</a>", Text(tab));
+        Assert.Equal("<a href=\"".Length, tab.Editor.CaretOffset);
+        Assert.Equal(depth, tab.Doc.Doc.UndoDepth); // the jump changes no text
+
+        TestApp.Type(_w, "x");
+        await TabAsync();
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal("<a href=\"x\">Home</a>", Text(tab));
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset); // $0, the end of the expansion
+
+        // outside a session Tab is the usual Tab again
+        await TabAsync();
+        var reference = Open("j.txt", "<a href=\"x\">Home</a>");
+        await TabAsync();
+        Assert.Equal(Text(reference), Text(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task A_caret_that_left_the_expansion_gets_the_usual_Tab()
+    {
+        var tab = Open("k.html", "a\n\nx", 1);
+        await TabAsync();
+        Assert.True(tab.Editor!.InSnippet);
+
+        tab.Editor.CaretOffset = tab.Editor.Document.TextLength;
+        Assert.False(tab.Editor.InSnippet);
+        await TabAsync();
+        var reference = Open("k.txt", "<a href=\"\"></a>\n\nx");
+        await TabAsync();
+        Assert.Equal(Text(reference), Text(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task With_Emmet_on_Tab_off_Tab_indents_in_html_and_the_plugin_is_not_started()
+    {
+        _app.Workbench.Set("editor.emmet", JsonValue.Create(false));
+        var reference = Open("off.txt", "ul>li*3");
+        await TabAsync();
+        var tab = Open("off.html", "ul>li*3");
+        await TabAsync();
+        Assert.Equal(Text(reference), Text(tab));
+        Assert.False(_app.Plugins.Documents.HasTabProviders);
+        Assert.False(tab.Editor!.InSnippet);
     }
 
     [AvaloniaFact]
@@ -159,6 +296,38 @@ public class EmmetAppTests : IDisposable
         await TabAsync();
         Assert.Equal(Text(reference), Text(outside));
         Assert.DoesNotContain("margin", Text(outside));
+    }
+
+    [AvaloniaFact]
+    public async Task Inside_a_session_in_css_Tab_jumps_and_a_property_abbreviation_typed_at_the_stop_is_not_expanded()
+    {
+        var tab = Open("session.css", "a {\n  m");
+        await TabAsync();
+        Assert.Equal("a {\n  margin: ;", Text(tab));
+        Assert.True(tab.Editor!.InSnippet);
+        Assert.Equal("a {\n  margin: ".Length, tab.Editor.CaretOffset);
+
+        TestApp.Type(_w, "p10"); // outside a session Tab would turn it into padding
+        await TabAsync();
+
+        Assert.Equal("a {\n  margin: p10;", Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public async Task Redo_of_an_expansion_does_not_bring_the_session_back()
+    {
+        var tab = Open("redo.html", "ul>li*2");
+        await TabAsync();
+        var expanded = Text(tab);
+
+        _w.Undo();
+        Assert.False(tab.Editor!.InSnippet);
+        _w.Redo();
+
+        Assert.Equal(expanded, Text(tab));
+        Assert.False(tab.Editor.InSnippet);
     }
 
     [AvaloniaFact]
@@ -204,6 +373,23 @@ public class EmmetAppTests : IDisposable
         await CommandAsync("nks.tools.emmetWrap");
         Assert.Equal("<b>ab</b> <b>cd</b>", Text(many));
         Assert.Equal(depth + 1, many.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task Wrapping_in_a_link_leaves_the_caret_in_the_empty_href_and_Tab_leaves_the_element()
+    {
+        var tab = Open("w3.html", "home");
+        tab.Editor!.SelectAll();
+        _dialogs.Prompts.Enqueue("a");
+
+        await CommandAsync("nks.tools.emmetWrap");
+
+        Assert.Equal("<a href=\"\">home</a>", Text(tab));
+        Assert.Equal("<a href=\"".Length, tab.Editor.CaretOffset);
+        Assert.True(tab.Editor.InSnippet);
+        await TabAsync();
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
     }
 
     [AvaloniaFact]

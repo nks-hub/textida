@@ -425,6 +425,12 @@
           "description": "Close BEGIN with END. Enter after BEGIN in SQL adds a matching END line.",
           "x-scope": "language"
         },
+        "editor.emmet": {
+          "type": "boolean",
+          "default": true,
+          "description": "Emmet on Tab. Tab expands the Emmet abbreviation in front of the caret in HTML and CSS, and the next Tab jumps to the next empty place. Off: Tab only indents; the Emmet commands of the Tools menu still work.",
+          "x-scope": "language"
+        },
         "files.binaryAsHex": {
           "type": "string",
           "default": "ask",

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
 
@@ -22,6 +23,8 @@ public partial class DocumentApiTests
         public void SymbolsCleared(string pluginId, Guid document) { lock (Cleared) Cleared.Add((pluginId, document)); }
         public bool Reveal(Guid document, ByteRange range) { if (HasView) Revealed.Add(range); return HasView; }
         public void PlaceSelections(Guid document, SelectionSet selections) => Placed.Add(selections);
+        public readonly List<IReadOnlyList<(long Start, ParsedSnippet Snippet)>> Sessions = [];
+        public void BeginSnippets(Guid document, IReadOnlyList<(long Start, ParsedSnippet Snippet)> snippets) => Sessions.Add(snippets);
         public string NewLine(Guid document) => Eol;
 
         public Func<TableSelectionData?>? Table;
@@ -246,6 +249,49 @@ public partial class DocumentApiTests
         Assert.Empty(rig.Tools.Placed);
     }
 
+    private static string Quoted(string text) => JsonSerializer.Serialize(text);
+
+    [Fact]
+    public async Task TemplateItemsBeginOneSessionWithTheirOwnStopsAndKeepTheirTextAsItIs()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());
+        var rev = rig.Revision;
+        var depth = rig.Owner.Run(() => rig.Doc.UndoDepth);
+
+        // \$ is a dollar sign; the second item is not re-indented, and its carets (not used for a template) are not checked
+        var items = $"[{{\"start\":0,\"end\":3,\"text\":{Quoted("<a b=\"${2}\">${1}</a>")},\"carets\":[99]}},{{\"start\":4,\"end\":7,\"text\":{Quoted("\\$x\n\t${1}${2}")}}}]";
+        var r = await rig.CallAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"items\":{items}"));
+
+        Assert.Equal("<a b=\"\"></a>\n$x\n\t\n", Text(rig));
+        Assert.Equal((rev + 1, 2), (r.GetProperty("revision").GetInt64(), r.GetProperty("carets").GetInt32()));
+        Assert.Equal(depth + 1, rig.Owner.Run(() => rig.Doc.UndoDepth));
+        var placed = Assert.Single(rig.Tools.Placed);
+        Assert.Equal([12, 17], placed.Items.Select(s => s.Caret)); // $0 is the end of each snippet
+        Assert.Equal(1, placed.Primary);
+
+        var session = Assert.Single(rig.Tools.Sessions);
+        Assert.Equal([0L, 13L], session.Select(s => s.Start));
+        Assert.Equal([8, 6], session[0].Snippet.Stops.Select(stop => stop.Spans[0].Start)); // stop 1 stands after the tag, stop 2 in the attribute
+        Assert.Equal([4, 4], session[1].Snippet.Stops.Select(stop => stop.Spans[0].Start));
+        Assert.All(session, s => Assert.Equal([1, 2], s.Snippet.Stops.Select(stop => stop.Number)));
+    }
+
+    [Fact]
+    public async Task ATemplateItemWithoutStopsBeginsNoSessionAndAnUnknownVariableIsRefused()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());
+        var rev = rig.Revision;
+
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"items\":[{{\"start\":0,\"end\":3,\"text\":\"${{name}}\"}}]"), RpcErrorCodes.InvalidParams);
+        Assert.Equal("é1\né2\n", Text(rig));
+        Assert.Empty(rig.Tools.Placed);
+
+        await rig.CallAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"items\":[{{\"start\":0,\"end\":3,\"text\":{Quoted("<br>")}}}]"));
+        Assert.Equal("<br>\né2\n", Text(rig));
+        Assert.Equal([4], Assert.Single(rig.Tools.Placed).Items.Select(s => s.Caret));
+        Assert.Empty(rig.Tools.Sessions);
+    }
+
     [Fact]
     public async Task ASnippetNeedsSelectionsToInsertInto()
     {
@@ -280,6 +326,11 @@ public partial class DocumentApiTests
 
         await SetTabAsync(rig, "{\"handled\":true}");
         Assert.True(await rig.Api.OfferTabAsync(rig.Doc.Id));
+
+        // a plugin the user turned off for the document is not asked
+        var beforeSkip = (await RequestsAsync(rig)).GetArrayLength();
+        Assert.False(await rig.Api.OfferTabAsync(rig.Doc.Id, skip: "p"));
+        Assert.Equal(beforeSkip, (await RequestsAsync(rig)).GetArrayLength());
 
         // the language mode and the indentation unit travel with the request when the editor gives them
         Assert.True(await rig.Api.OfferTabAsync(rig.Doc.Id, default, "html", "  "));
