@@ -1144,6 +1144,60 @@
       "category": "cat.app",
       "when": "editorFocus",
       "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.view.table",
+      "title": "cmd.view.table",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.table.editRegion",
+      "title": "cmd.table.editRegion",
+      "category": "cat.view",
+      "enablement": "hasSelection && !tableMode"
+    },
+    {
+      "id": "nks.table.dialect",
+      "title": "cmd.table.dialect",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.insertRow",
+      "title": "cmd.table.insertRow",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.deleteRow",
+      "title": "cmd.table.deleteRow",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.insertColumn",
+      "title": "cmd.table.insertColumn",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.deleteColumn",
+      "title": "cmd.table.deleteColumn",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.filter",
+      "title": "cmd.table.filter",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.clearFilter",
+      "title": "cmd.table.clearFilter",
+      "category": "cat.view",
+      "enablement": "tableMode"
     }
   ],
   "menus": [
@@ -2130,6 +2184,60 @@
       "command": "nks.help.languageHelp",
       "group": "0_contents",
       "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.table",
+      "group": "4_table",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.editRegion",
+      "group": "4_table",
+      "order": 15
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.dialect",
+      "group": "4_table",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertRow",
+      "group": "4_table",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteRow",
+      "group": "4_table",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertColumn",
+      "group": "4_table",
+      "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteColumn",
+      "group": "4_table",
+      "order": 60
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.filter",
+      "group": "4_table",
+      "order": 70
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.clearFilter",
+      "group": "4_table",
+      "order": 80
     }
   ],
   "keybindings": [
@@ -2486,6 +2594,10 @@
       "key": "alt+f1",
       "command": "nks.help.languageHelp",
       "when": "editorFocus"
+    },
+    {
+      "key": "mod+k mod+t",
+      "command": "nks.view.table"
     }
   ],
   "settings": [

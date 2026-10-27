@@ -17,7 +17,7 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed partial class MainWindow
 {
-    internal EditorSurface? ActiveEditor => Active?.Surface;
+    internal EditorSurface? ActiveEditor => Active is { TableShown: false } tab ? tab.Surface : null;
 
     // ---- keys ----
 
@@ -92,6 +92,11 @@ internal sealed partial class MainWindow
     /// <summary>Undo or redo through the document, so the typed run, a line command and a conversion are each one step; then the caret goes where the change happened.</summary>
     private void UndoRedo(bool redo)
     {
+        if (ActiveTable is { } table)
+        {
+            table.UndoRedo(redo);
+            return;
+        }
         if (Active?.Hex is { } hex)
         {
             hex.UndoRedo(redo);
@@ -210,9 +215,9 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    internal CommandOutcome CopyAsync() => ActiveHex is not null ? HexCopy(cut: false) : PagedCopy(cut: false) ?? CopyOrCut(cut: false);
+    internal CommandOutcome CopyAsync() => ActiveTable is { } table ? TableCopy(table, cut: false) : ActiveHex is not null ? HexCopy(cut: false) : PagedCopy(cut: false) ?? CopyOrCut(cut: false);
 
-    internal CommandOutcome CutAsync() => ActiveHex is not null ? HexCopy(cut: true) : PagedCopy(cut: true) ?? CopyOrCut(cut: true);
+    internal CommandOutcome CutAsync() => ActiveTable is { } table ? TableCopy(table, cut: true) : ActiveHex is not null ? HexCopy(cut: true) : PagedCopy(cut: true) ?? CopyOrCut(cut: true);
 
     private CommandOutcome? PagedCopy(bool cut)
     {
@@ -243,6 +248,7 @@ internal sealed partial class MainWindow
 
     internal async Task<CommandOutcome> PasteAsync()
     {
+        if (ActiveTable is { } table) return await TablePasteAsync(table);
         if (ActiveHex is not null) return HexPaste();
         if (Active?.Paged is { } paged)
         {

@@ -888,3 +888,30 @@ commands: nks.help.languageHelp
 - Quellen sind Daten. Ein Plugin ohne Programm listet sie unter `languageHelp` in `nkspad-plugin.json` auf, jede mit `id`, `title`, `language` (Sprachkennung, zum Beispiel `php`), `kind` (`url` oder `file`) und `target`. In einer Webadresse steht `${word}` für das Wort und `${language}` für die Sprachkennung. Das Ziel einer Datei ist ein Pfad im Plugin-Ordner.
 - Nur `http`- und `https`-Adressen werden angenommen; ein Plugin mit einer anderen Adresse wird beim Lesen abgelehnt.
 - Es sind noch keine Quellen enthalten. Gibt es für die Sprache keine, sagt es die Statusleiste.
+
+## [table.view] Tabellenansicht für CSV und TSV
+commands: nks.view.table, nks.table.dialect
+Eine CSV- oder TSV-Datei kann als Tabelle angezeigt werden: eine Zeile der Datei je Tabellenzeile, ein Feld je Zelle. Es ist dasselbe Dokument wie in der Textansicht, mit demselben Rückgängig-Verlauf; nichts wird umgewandelt, und das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle.
+1. Strg+K und dann Strg+T (Menü Ansicht, Tabellenansicht umschalten) wechselt zwischen Tabelle und Text. Eine .tsv- oder .tab-Datei wird an Tabulatoren geteilt, jede andere an Kommas.
+2. Ansicht, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist.
+- Eine große Datei öffnet sich sofort: Die Zeilen werden im Hintergrund gezählt, und der Bildlaufbereich wächst, während die Datei gelesen wird. Bis das Ende erreicht ist, zeigt die Statusleiste die Zeilenzahl mit einem Plus, etwa 12+.
+- Pfeiltasten, Tab, Bild auf und Bild ab, Pos1 und Ende (innerhalb der Zeile), Strg+Pos1 und Strg+Ende bewegen die aktuelle Zelle; Umschalt erweitert die Auswahl. Ein Klick auf eine Spaltenüberschrift wählt die Spalte, ein Klick auf eine Zeilennummer die Zeile.
+- Eine Zelle in Anführungszeichen kann Zeilenumbrüche enthalten; die Tabelle zeigt ihre erste Zeile und das Zeichen ↵.
+- Kopieren legt die ausgewählten Zellen als durch Tabulatoren getrennten Text in die Zwischenablage; Einfügen schreibt durch Tabulatoren getrennten Text ab der aktuellen Zelle.
+
+## [table.edit] Tabellenansicht: Bearbeiten und Filtern
+commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
+1. Eingabe oder F2 (oder einfach Tippen) bearbeitet die aktuelle Zelle. Eingabe speichert und geht nach unten, Umschalt+Eingabe fügt einen Zeilenumbruch ein, Esc bricht ab. Eine Zelle, die in Anführungszeichen stand, bleibt darin; ein anderer Wert wird nur dann in Anführungszeichen gesetzt, wenn er das Trennzeichen, ein Anführungszeichen oder einen Zeilenumbruch enthält.
+2. Ansicht, Zeile einfügen fügt hinter der aktuellen eine leere Zeile ein. Spalte einfügen fragt nach dem Namen der Spalte und fügt sie hinter der aktuellen ein. Zeile löschen und Spalte löschen entfernen die ausgewählten Zeilen oder Spalten. Jede Aktion ist ein Rückgängig-Schritt.
+3. Ansicht, Zeilen filtern zeigt nur die Zeilen, deren aktuelle Spalte den Text enthält (Groß- und Kleinschreibung spielt keine Rolle). Filter entfernen zeigt wieder alle Zeilen. Ein Filter ändert die Datei nie, und die Zeilennummern bleiben die der Datei.
+- Entf leert die ausgewählten Zellen. Eine kurze Zeile erhält die fehlenden Trennzeichen, wenn eine Zelle hinter ihrem Ende gefüllt wird.
+- Ist das Anführungszeichen in Tabellentrennzeichen und Kopfzeile ausgeschaltet, wird ein Wert mit Trennzeichen oder Zeilenumbruch abgelehnt.
+- Solange ein Filter aktiv ist, können keine Zeilen hinzugefügt werden.
+
+## [table.region] Ausgewählten Text als Tabelle bearbeiten
+commands: nks.table.editRegion
+Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen in einer Notiz oder einem Log, und wählen Sie Ansicht, Auswahl als Tabelle bearbeiten.
+1. Der Dialog fragt nach dem Trennzeichen (Komma, Semikolon, Tabulator oder senkrechter Strich), ob Anführungszeichen Werte umschließen und ob die erste ausgewählte Zeile die Kopfzeile ist. Die Vorschau zeigt die ersten Zeilen als Zellen.
+2. Der ausgewählte Text wird zur Tabelle. Der Rest der Datei bleibt Text: Das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle, und außerhalb der Auswahl wird nichts gelesen oder geändert.
+- Alles aus der Tabellenansicht funktioniert darin: Bewegen, Bearbeiten, Zeilen und Spalten hinzufügen und löschen, Filtern, Kopieren und Einfügen. Die Statusleiste sagt, dass nur der ausgewählte Text die Tabelle ist.
+- Am Ende hinzugefügte Zeilen gehören zur Auswahl. Tabellenansicht umschalten kehrt zum Text zurück; das nächste Umschalten zeigt die ganze Datei als Tabelle.

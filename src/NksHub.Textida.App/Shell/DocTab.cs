@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using NksHub.Textida.Core.Csv;
+using NksHub.Textida.Core.Documents;
 using NksHub.Textida.App.Editing;
 
 namespace NksHub.Textida.App.Shell;
@@ -42,6 +44,7 @@ internal sealed class DocTab
     /// <summary>Releases what the view holds outside the visual tree.</summary>
     public void Close()
     {
+        Table?.Dispose();
         Minimap?.Dispose();
         Syntax?.Dispose();
         _automation?.Dispose();
@@ -58,6 +61,9 @@ internal sealed class DocTab
     public HexView? Hex { get; }
     /// <summary>The AvaloniaEdit surface; null for a paged (large) view.</summary>
     public EditorSurface? Editor => Surface;
+    /// <summary>The table view of the document in this tab; null until it was shown once. It lies over the text view while <see cref="TableShown"/>.</summary>
+    public CsvView? Table { get; private set; }
+    public bool TableShown => Table is { } t && Root.Children.Contains(t);
     public Control View => (Control?)Surface ?? (Control?)Paged ?? (Control?)Hex ?? Custom!;
     /// <summary>The content of a tab that is not a text view (the search results); null for a document tab.</summary>
     public Control? Custom { get; }
@@ -70,6 +76,38 @@ internal sealed class DocTab
     public string? Path => Doc.Path;
     public string Title => Doc.Title;
     public TaskCompletionSource Closed => Doc.Closed;
+
+    /// <summary>
+    /// Shows the document as a table over the text view, or the text view again. Both read the same document, so nothing is converted and the
+    /// text view stays as it was; only one of them is on screen.
+    /// </summary>
+    public void ShowTable(bool on, EditorOptions options, ByteRange? region = null, CsvDialect? dialect = null)
+    {
+        if (on == TableShown && region is null) return;
+        if (on)
+        {
+            if (region is not null || Table?.IsRegion == true)
+            {
+                if (TableShown) Root.Children.Remove(Table!);
+                Table?.Dispose();
+                Table = new CsvView(Doc, options, region, dialect);
+            }
+            Table ??= new CsvView(Doc, options);
+            if (!TableShown) Root.Children.Add(Table);
+        }
+        else
+        {
+            Root.Children.Remove(Table!);
+            if (Table!.IsRegion)
+            {
+                Table.Dispose();
+                Table = null;
+            }
+        }
+        View.IsVisible = !on;
+        if (Minimap is { } minimap) minimap.IsVisible = !on && options.Minimap;
+        _automation?.IsVisible = !on;
+    }
 
     public void ShowBar(Control? bar) => _barSlot.Content = bar;
     public Control? Bar => _barSlot.Content as Control;

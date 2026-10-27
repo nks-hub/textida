@@ -40,9 +40,11 @@ public static class ContextKeys
     public const string MultipleCarets = "multipleCarets";
     /// <summary>The active tab shows its document in the hex view.</summary>
     public const string HexMode = "hexMode";
+    /// <summary>The active tab shows its document as a table.</summary>
+    public const string TableMode = "tableMode";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode];
 }
 
 /// <summary>

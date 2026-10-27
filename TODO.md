@@ -1645,9 +1645,10 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 
 ### P5.1 CSV
 
-- [ ] **P5.1.1** Režim CSV a TSV: model a round-trip
+- [x] **P5.1.1** Režim CSV a TSV: model a round-trip
   - **Co a proč:** CSV model, který nemění bajty mimo upravené buňky: citlivé oddělovače, uvozovky, víceřádkové buňky, bezpečný návrat do textu. Bez join a pivot. Tabulkový pohled, editace a úsek jako tabulka jsou v P5.1.4–P5.1.6.
   - **Funkce:** F160
+  - **Stav 26. 10. 2026:** hotovo: `CsvTable` a `CsvDialect` v jádru; úprava buňky nahradí jen bajty buňky jedním krokem undo; uvozovky, oddělovač v buňce, víceřádková buňka, CRLF, neúplný řádek a filtr otestované; soubor z korpusu s víceřádkovou buňkou se po úpravě jedné buňky a uložení liší na disku jen v ní.
   - **Hotovo, když:** projdou uvozovky, oddělovač v buňce, víceřádková buňka, CRLF, neúplný řádek a filtr; CSV s víceřádkovou buňkou z korpusu projde otevřením v tabulce, úpravou jedné buňky a návratem a binární rozdíl obsahuje jen tu buňku.
   - **Závisí na:** P1.3.2, P2.5.2
   - **Odhad:** F160 5–8 ČT (matice) za P5.1.1 a P5.1.3–P5.1.6
@@ -1655,20 +1656,23 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 - [ ] **P5.1.4** Tabulkový pohled CSV
   - **Co a proč:** Buňky a sloupce ve vzhledu D5, posun a výběr buněk klávesnicí, přístupný čtečce.
   - **Funkce:** F160 (částečně: tabulkový pohled)
+  - **Stav 26. 10. 2026:** částečně: `CsvView` nad textovým pohledem v kartě (bez přepínání backendu), řádky se indexují po dávkách na pozadí, buňky se nevytvářejí předem; čtečka přečte buňku, řádek a sloupec; `nks.view.table`, Ctrl+K Ctrl+T; Large test 300 MB CSV prošel. Neověřeno: vzhled D5 a přetahování v okně, výkon a paměť nad 1 GiB (Perf neměřen). Otevřené: automatická detekce oddělovače (dnes přepínač a výchozí podle přípony).
   - **Hotovo, když:** CSV nad hranicí stránkovaného režimu se posouvá bez převodu celého souboru do buněk; čtečka přečte buňku, řádek a sloupec.
   - **Závisí na:** P5.1.1
   - **Odhad:** v rámci F160 (viz P5.1.1)
   - **Umístění:** jádro
-- [ ] **P5.1.5** Editace buněk a filtr
+- [x] **P5.1.5** Editace buněk a filtr
   - **Co a proč:** Úprava buňky, přidání a smazání řádku a sloupce, filtr podle hodnoty; každá změna je krok undo.
   - **Funkce:** F160 (částečně: editace a filtr)
+  - **Stav 26. 10. 2026:** hotovo: přidat a smazat řádek či sloupec, úprava buňky a filtr podle sloupce; přidání, smazání i úprava s testem vstupu, bajtů a undo; filtr bajty nemění. Vložená editace ve skutečném okně neověřena.
   - **Hotovo, když:** úprava, přidání a smazání mají každé vstup, očekávané bajty a undo; filtr nezmění bajty souboru.
   - **Závisí na:** P5.1.4
   - **Odhad:** v rámci F160 (viz P5.1.1)
   - **Umístění:** jádro
-- [ ] **P5.1.6** Úsek jako tabulka
+- [x] **P5.1.6** Úsek jako tabulka
   - **Co a proč:** Úprava jen vybraného úseku jako tabulky (dialog oddělovače, uvozovek a záhlaví), zbytek souboru zůstane textem. Zdroj analýza konkurence ho vede v rámci F160; dřívější samostatných 0,5 ČT se nepřičítá.
   - **Funkce:** F160 (částečně: úsek jako tabulka)
+  - **Stav 26. 10. 2026:** hotovo: `nks.table.editRegion` s dialogem na oddělovač, uvozovky a záhlaví; text mimo výběr se nečte ani nemění (test).
   - **Hotovo, když:** úprava buňky v úseku změní bajty jen v té buňce a text mimo úsek zůstane beze změny.
   - **Závisí na:** P5.1.5
   - **Odhad:** v rámci F160 (viz P5.1.1)
