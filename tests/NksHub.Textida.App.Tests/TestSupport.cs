@@ -131,6 +131,22 @@ internal sealed class ScriptedDialogs : IDialogs
         return Task.FromResult(answer);
     }
 
+    public Queue<IReadOnlyDictionary<string, string>?> ClipForms { get; } = new();
+    /// <summary>What the form showed for each scripted answer: the refused fields and the preview.</summary>
+    public List<ClipFormState> ClipStates { get; } = [];
+    public List<IReadOnlyDictionary<string, string>> ClipInitial { get; } = [];
+    public int ClipFormsAsked { get; private set; }
+
+    public Task<IReadOnlyDictionary<string, string>?> ClipFormAsync(Window owner, string title, IReadOnlyList<NksHub.Textida.Workbench.Clips.ClipField> fields,
+        IReadOnlyDictionary<string, string> initial, Func<IReadOnlyDictionary<string, string>, ClipFormState> evaluate)
+    {
+        ClipFormsAsked++;
+        ClipInitial.Add(initial);
+        var answer = ClipForms.Count > 0 ? ClipForms.Dequeue() : null;
+        if (answer is not null) ClipStates.Add(evaluate(answer));
+        return Task.FromResult(answer);
+    }
+
     public Task<SortOptions?> SortLinesAsync(Window owner, SortOptions initial, Func<SortOptions, string> preview)
     {
         LineDialogsAsked++;

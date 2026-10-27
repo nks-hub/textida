@@ -921,6 +921,31 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.edit.insertClip",
+      "title": "cmd.edit.insertClip",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.clipFromSelection",
+      "title": "cmd.edit.clipFromSelection",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "hasSelection"
+    },
+    {
+      "id": "nks.clips.editVariables",
+      "title": "cmd.clips.editVariables",
+      "category": "cat.edit"
+    },
+    {
+      "id": "nks.file.newFromTemplate",
+      "title": "cmd.file.newFromTemplate",
+      "category": "cat.file"
     }
   ],
   "menus": [
@@ -1661,6 +1686,30 @@
       "command": "nks.edit.repeatLast",
       "group": "8_insert",
       "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertClip",
+      "group": "8_insert",
+      "order": 5
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clipFromSelection",
+      "group": "8_insert",
+      "order": 6
+    },
+    {
+      "menu": "edit",
+      "command": "nks.clips.editVariables",
+      "group": "8_insert",
+      "order": 7
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.newFromTemplate",
+      "group": "1_new",
+      "order": 15
     },
     {
       "menu": "search",

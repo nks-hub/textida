@@ -717,3 +717,24 @@ This help describes only what this version can do. These things are not in it ye
 - A comparison window of its own: an external diff tool is used (topic Compare with disk).
 - Editing very large files: only limited, see the topic Large files.
 - Plugins, remote files and other functions planned for version 1.0: not in this version.
+
+## [edit.clips] Clips
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+A clip is a piece of text with places for variables and carets. Clips come from data plugins in the folder plugins of the profile; one subfolder per plugin, with a file nkspad-plugin.json and no program.
+1. Choose Edit, Insert Clip. The list shows the clips with a preview of the text that would be inserted.
+2. Pick a clip. If it has a form, fill it in: the preview follows what you type, a wrong value is marked and OK stays dimmed until every value fits its type.
+3. The text goes into every caret and replaces every selection, as one Undo step. The carets end where the clip has the mark $|.
+- Save Selection as Clip asks for a name and adds the selected text to your own library (the plugin user.clips, folder user-clips). The text is kept literally, so a dollar sign in it stays a dollar sign. The clip is in the list at once.
+- Template language: ${name} is a variable, $| marks a caret (as many as you like), $$ is a dollar sign. Line breaks become the line break of the document.
+- Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. your own variables (Edit, Edit User Variables opens the file variables.json of the profile: one JSON object of name and text), 3. the built-in ones. The same name means the same everywhere.
+- Built-in variables: file.path, file.dir, file.name, file.base, file.ext (an unsaved document has no file.*), date (yyyy-MM-dd), time (HH:mm:ss), datetime (the setting Date and time format), guid (a new one for each caret), selection (the text selected at that caret), user.name. A name with no value stops the insertion and the status bar names it.
+- Form fields: name, label, type, default, choices, required. Types: text, integer, number (decimal point), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (yyyy-MM-dd), file (an existing file), choice (one of choices). A default may use variables, for example ${date}.
+- In nkspad-plugin.json a clip is {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} under contributes.clips; a clip with "command" also gets a command of that name.
+- Problems with a plugin (a damaged file, a program in a data plugin) are shown in the status bar and the plugin is skipped.
+- Clips do not work in a read-only document or in paged mode (topic Large files).
+
+## [file.templates] New file from a template
+commands: nks.file.newFromTemplate
+1. Choose File, New from Template and pick a template. A template with a form asks for its values like a clip does.
+2. A new tab opens with the text of the template and the carets at its marks $| (at the start when it has none).
+- Templates are data too: contributes.templates in nkspad-plugin.json, with id, title, text, fields and optionally command. They use the template language and the variables of the topic Clips; a new file has no file.* variables.

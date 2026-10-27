@@ -52,6 +52,30 @@ public static partial class LineOperations
         return result;
     }
 
+    /// <summary>
+    /// Replaces every selection with the text and the caret offsets (inside that text) <paramref name="pieceFor"/> gives for its index (in document order).
+    /// Every caret of every piece stays as a selection; a piece without carets leaves one after its text.
+    /// </summary>
+    public static IReadOnlyList<Sel> ReplaceSelectionsWithCarets(TextDocument d, IReadOnlyList<Sel> sels, Func<int, (string Text, IReadOnlyList<int> Carets)> pieceFor)
+    {
+        var result = new List<Sel>();
+        int shift = 0;
+        using (d.RunUpdate())
+        {
+            int index = 0;
+            foreach (var s in sels.OrderBy(s => s.Start))
+            {
+                var (text, carets) = pieceFor(index++);
+                int start = s.Start + shift;
+                d.Replace(start, s.Length, text);
+                shift += text.Length - s.Length;
+                if (carets.Count == 0) result.Add(Sel.At(start + text.Length));
+                else foreach (int c in carets) result.Add(Sel.At(start + c));
+            }
+        }
+        return result;
+    }
+
     // ---- insert into lines ----
 
     /// <summary>The lines the command works on: those of the selections, or the whole document for a single caret without a selection.</summary>
