@@ -165,9 +165,10 @@ public static partial class LineText
     /// <summary>
     /// Wraps each paragraph (lines between blank lines) at <paramref name="width"/> columns: the words are joined with single blanks and every line
     /// of the paragraph gets the indentation of its first line. A word longer than the width stays on a line of its own. Blank lines are kept.
-    /// A tab in the indentation counts as one column.
+    /// A tab in the indentation counts as one column. With <paramref name="shortLine"/> above 0 a line shorter than that (see <see cref="IsShort"/>)
+    /// also ends its paragraph.
     /// </summary>
-    public static List<string> Reformat(IReadOnlyList<string> lines, int width)
+    public static List<string> Reformat(IReadOnlyList<string> lines, int width, int shortLine = 0)
     {
         var result = new List<string>();
         var paragraph = new List<string>();
@@ -196,9 +197,16 @@ public static partial class LineText
         foreach (var line in lines)
         {
             if (line.AsSpan().Trim(" \t").Length == 0) { Flush(); result.Add(""); }
-            else paragraph.Add(line);
+            else
+            {
+                paragraph.Add(line);
+                if (IsShort(line, shortLine)) Flush();
+            }
         }
         Flush();
         return result;
     }
+
+    /// <summary>True when <paramref name="shortLine"/> is above 0 and the line without its trailing blanks has fewer characters than that.</summary>
+    public static bool IsShort(string line, int shortLine) => shortLine > 0 && line.AsSpan().TrimEnd(" \t").Length < shortLine;
 }

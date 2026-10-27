@@ -2150,6 +2150,32 @@
       "id": "nks.view.pluginPanels",
       "title": "cmd.view.pluginPanels",
       "category": "cat.view"
+    },
+    {
+      "id": "nks.edit.pasteAsHtml",
+      "title": "cmd.edit.pasteAsHtml",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertFromFile",
+      "title": "cmd.edit.insertFromFile",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.reformatShortLines",
+      "title": "cmd.edit.reformatShortLines",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
     }
   ],
   "menus": [
@@ -4339,6 +4365,26 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 140
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.pasteAsHtml",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 25
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertFromFile",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.reformatShortLines",
+      "group": "5_block",
+      "order": 15
     }
   ],
   "keybindings": [

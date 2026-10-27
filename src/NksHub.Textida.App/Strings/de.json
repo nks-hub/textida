@@ -850,6 +850,8 @@
   "lines.ranges.invalid": "Keine Liste von Zeilennummern. Schreiben Sie Zahlen und Bereiche wie 10-20, 40-50.",
   "lines.ranges.beyond": "Zeilen im Dokument: {total}.",
   "lines.reformat.noMargin": "Stellen Sie zuerst die Spalte des rechten Rands in den Einstellungen ein; der Absatz wird an dieser Spalte umbrochen.",
+  "lines.pasteHtml.none": "Die Zwischenablage enthält kein HTML. Kopieren Sie den Text aus einem Browser oder einer Textverarbeitung, die HTML in die Zwischenablage legt.",
+  "lines.insertFile.tooLarge": "{name} ist größer als {limit} Bytes und wurde nicht eingefügt.",
   "lines.dateFormat.invalid": "Das Datums- und Zeitformat ist ungültig: {reason}",
   "clips.watermark": "Clip zum Einfügen wählen",
   "a11y.clips": "Clips",

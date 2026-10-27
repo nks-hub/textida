@@ -303,6 +303,12 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 - Paste Without Moving the Caret (Edit menu) pastes the clipboard text and leaves the caret where it was, in front of the new text. In a block selection the caret returns to the top left corner.
 - Pasting does not work in a read-only document; Paste Without Moving the Caret does not work in paged mode either (topic Large files).
 
+## [edit.specialPaste] Paste as HTML and insert from a file
+commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
+- Paste as HTML (Edit, Insert) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
+- Insert from File (Edit, Insert) puts the text of the file you choose at every caret as one Undo step. The encoding of the file is detected as when it is opened, and its line endings become those of the document. A file larger than 16 MiB is not inserted.
+- Neither works in a read-only document or in paged mode (topic Large files).
+
 ## [edit.insertLines] Insert into lines
 commands: nks.edit.insertIntoLines
 The command writes text, numbers or bullets into the lines of the selection, or into all lines when there is only a caret.
@@ -334,9 +340,10 @@ commands: nks.search.selectLinesByRange
 - It does not work in paged mode.
 
 ## [format.block] Aligning and wrapping lines
-commands: nks.edit.reformatParagraph, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
+commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 These commands are in the Format menu. They act on the selected lines, or on all lines when there is only a caret (Reformat Paragraph: on the paragraph with the caret). Each is one Undo step.
 - Reformat Paragraph wraps the text at the column of the setting Right margin column, joins the lines of a paragraph and removes extra blanks. Paragraphs are separated by blank lines, and every line of a paragraph gets the indentation of its first line. When no right margin is set, the status bar says so.
+- Reformat Paragraph (Ends at a Short Line) does the same, but a paragraph also ends after a line shorter than half the right margin, so it is not joined to the next line. It suits text with no blank lines between paragraphs.
 - Align Lines Left removes the blanks at the start and end of the lines.
 - Align Lines Right and Center Lines align to the width of the longest line.
 - Justify Lines widens the gaps between words until every line is as wide as the longest one; a line of one word stays.
