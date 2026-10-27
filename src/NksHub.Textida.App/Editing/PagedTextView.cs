@@ -316,14 +316,15 @@ internal sealed partial class PagedTextView : Grid
 
     private long EstimatedLines(Detour d) => d.BaseLine + (long)((Doc.ByteLength - d.BaseStart) / d.BytesPerLine);
 
-    /// <summary>Start of the next line, or -1 when the line is the last one. Terminators are single bytes here, as in the line loader.</summary>
+    /// <summary>Start of the next line, or -1 when the line is the last one.</summary>
     private long NextLineStart(long start)
     {
         long end = Paged.Source.FindLineEnd(start);
         if (end >= Doc.ByteLength) return -1;
-        Span<byte> two = stackalloc byte[2];
-        int n = Doc.Read(end, two);
-        return end + (n == 2 && two[0] == 13 && two[1] == 10 ? 2 : 1);
+        int w = Doc.Codec.Alignment;
+        Span<byte> two = stackalloc byte[8];
+        int n = Doc.Read(end, two[..(2 * w)]);
+        return end + (n == 2 * w && LineScanner.Unit(two, 0, Doc.Codec) == 13 && LineScanner.Unit(two, w, Doc.Codec) == 10 ? 2 * w : w);
     }
 
     private long DetourStart(Detour d, long line)
@@ -469,10 +470,11 @@ internal sealed partial class PagedTextView : Grid
             end = next = Doc.ByteLength;
             return true;
         }
-        Span<byte> tail = stackalloc byte[2];
-        int n = (int)Math.Min(2, next - start);
+        int w = Doc.Codec.Alignment;
+        Span<byte> tail = stackalloc byte[8];
+        int n = (int)Math.Min(2 * w, next - start);
         Doc.Read(next - n, tail[..n]);
-        end = next - (n == 2 && tail[0] == 13 && tail[1] == 10 ? 2 : 1);
+        end = next - (n == 2 * w && LineScanner.Unit(tail, 0, Doc.Codec) == 13 && LineScanner.Unit(tail, w, Doc.Codec) == 10 ? 2 * w : w);
         return true;
     }
 
@@ -527,23 +529,26 @@ internal sealed partial class PagedTextView : Grid
     private void FillLines(long first, long origin, byte[] buffer, int window, bool toEnd)
     {
         Doc.Read(origin, buffer.AsSpan(0, window));
-        int limit = Math.Max(64, _canvas.VisibleLines + 8), pos = 0;
+        int limit = Math.Max(64, _canvas.VisibleLines + 8), pos = 0, w = Doc.Codec.Alignment;
+        var view = buffer.AsSpan(0, window);
         for (long line = first; line - first < limit; line++)
         {
-            int end = pos;
-            while (end < window && buffer[end] != 10 && buffer[end] != 13) end++;
+            int end = LineScanner.FindTerminator(view, pos, Doc.Codec);
             int next;
             bool last = false;
-            if (end == window)
+            if (end < 0)
             {
                 if (!toEnd) return; // the line is longer than the window: the caller decodes it on its own
-                next = window;
+                end = next = window;
                 last = true;
             }
-            else if (buffer[end] == 10) next = end + 1;
-            else if (end + 1 < window) next = buffer[end + 1] == 10 ? end + 2 : end + 1;
-            else if (toEnd) next = end + 1;
-            else return; // a CR at the edge of the window may start a CRLF
+            else if (end + w > window) return; // a partial unit at the edge of the window
+            else
+            {
+                next = end + w;
+                if (LineScanner.Unit(view, end, Doc.Codec) == 13 && end + w >= window && !toEnd) return; // a CR at the edge of the window may start a CRLF
+                if (LineScanner.Unit(view, end, Doc.Codec) == 10 && end >= pos + w && LineScanner.Unit(view, end - w, Doc.Codec) == 13) end -= w;
+            }
             int length = end - pos;
             int take = Math.Min(length, MaxLineBytes);
             bool truncated = length > take;

@@ -139,7 +139,7 @@ public static class LineScanner
         }
     }
 
-    internal static uint Unit(ReadOnlySpan<byte> d, int i, TextCodec c) => c.Alignment switch
+    public static uint Unit(ReadOnlySpan<byte> d, int i, TextCodec c) => c.Alignment switch
     {
         2 => c.BigEndian ? System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(d[i..]) : System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(d[i..]),
         4 => c.BigEndian ? System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(d[i..]) : System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(d[i..]),
