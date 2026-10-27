@@ -103,10 +103,19 @@ public sealed partial class DocumentApi
             while (true)
             {
                 await box.Signal.WaitAsync(_stop.Token).ConfigureAwait(false);
-                while (await NextAsync(box).ConfigureAwait(false) is { } item) await DeliverAsync(box, item).ConfigureAwait(false);
+                while (await NextAsync(box).ConfigureAwait(false) is { } item)
+                    if (!await DeliverAsync(box, item).ConfigureAwait(false)) break; // the plugin cannot take events now; the next edit or Resumed wakes the pump
             }
         }
         catch (OperationCanceledException) { }
+    }
+
+    /// <summary>The plugin runs again after a (re)start: the documents whose events it could not take meanwhile go out as one <see cref="DocumentEvents.EventsLost"/> each.</summary>
+    public void Resumed(string pluginId)
+    {
+        Outbox? box;
+        lock (_gate) _outboxes.TryGetValue(pluginId, out box);
+        box?.Signal.Release();
     }
 
     /// <summary>The queued events in order; once they are out, one <see cref="DocumentEvents.EventsLost"/> per lost document with the revision it has now.</summary>
@@ -131,17 +140,18 @@ public sealed partial class DocumentApi
         }));
     }
 
-    private async Task DeliverAsync(Outbox box, Queued item)
+    /// <summary>False when the plugin did not take the event (it is down or starting again); an event of a document then marks the document lost, so the plugin learns about the gap instead.</summary>
+    private async Task<bool> DeliverAsync(Outbox box, Queued item)
     {
-        try { await _send(box.Plugin, item.Name, item.Payload).ConfigureAwait(false); }
-        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { throw; }
-        catch (Exception) when (item.Name == DocumentEvents.Changed)
+        try
         {
-            // A failing send must not end the pump; the plugin learns about the gap instead.
-            lock (box.Gate) box.Lost.Add(item.Document);
-            box.Signal.Release();
+            if (await _send(box.Plugin, item.Name, item.Payload).ConfigureAwait(false)) return true;
         }
-        catch (Exception) { }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { throw; }
+        catch (Exception) { } // a failing send must not end the pump
+        if (item.Document != Guid.Empty)
+            lock (box.Gate) box.Lost.Add(item.Document);
+        return false;
     }
 
     public async ValueTask DisposeAsync()

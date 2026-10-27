@@ -775,6 +775,14 @@ public static class K
     public const string A11yPluginPick = "a11y.plugin.pick";
     public const string PluginUnavailable = "plugin.unavailable";
     public const string PluginProposal = "plugin.proposal";
+    public const string PluginCrashRestart = "plugin.crash.restart";
+    public const string PluginCrashDisabled = "plugin.crash.disabled";
+    public const string PluginCrashExited = "plugin.crash.exited";
+    public const string PluginCrashUnresponsive = "plugin.crash.unresponsive";
+    public const string PluginCrashProtocol = "plugin.crash.protocol";
+    public const string PluginCrashStart = "plugin.crash.start";
+    public const string PluginCrashLog = "plugin.crash.log";
+    public const string PluginLogSource = "plugin.log.source";
     public const string WorkspaceCreate = "workspace.create";
     public const string WorkspaceRename = "workspace.rename";
     public const string WorkspaceDelete = "workspace.delete";

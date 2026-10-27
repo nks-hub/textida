@@ -197,12 +197,45 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_crash_is_shown_with_the_name_of_the_plugin_and_its_last_error_output_goes_to_the_output_window()
+    {
+        await StartPluginAsync();
+        var crash = Host.CallAsync("p", "crash", Encoding.UTF8.GetBytes("{\"code\":9}"));
+        await Until(() => crash.IsCompleted, "the crash");
+        await Assert.ThrowsAsync<PluginCrashedException>(() => crash);
+
+        await Until(() => _w.Notices.Any(n => n.Message.Contains("Test plugin")), "the notice of the crash");
+        var notice = _w.Notices.Single(n => n.Message.Contains("Test plugin"));
+        Assert.Contains("warning", notice.Classes);
+        // the first crash waits the base delay of the restart placeholder, one second
+        Assert.Equal(Loc.Get(K.PluginCrashRestart, ("name", "Test plugin"), ("reason", Loc.Get(K.PluginCrashExited)), ("seconds", 1)), notice.Message);
+        Assert.Contains(_app.Output.Read(OutputChannel.Tasks), l => l.Source == "Test plugin" && l.Text.Contains("asked to crash"));
+
+        var show = ((Grid)notice.Child!).Children.OfType<StackPanel>().Single().Children.OfType<Button>().Single();
+        Assert.Equal(Loc.Get(K.PluginCrashLog), show.Content);
+        show.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.True(_w.OutputPanelOpen);
+
+        await Until(() => Host.GetState("p") == PluginState.Running, "the restart");
+    }
+
+    [AvaloniaFact]
+    public void A_frozen_plugin_and_one_turned_off_after_repeated_crashes_get_their_own_words()
+    {
+        var frozen = PluginServices.CrashMessage(new PluginCrashInfo("p", "Test plugin", PluginEndReason.Unresponsive, null, "", [], TimeSpan.FromMilliseconds(2500)));
+        Assert.Equal(Loc.Get(K.PluginCrashRestart, ("name", "Test plugin"), ("reason", Loc.Get(K.PluginCrashUnresponsive)), ("seconds", 3)), frozen);
+        var off = PluginServices.CrashMessage(new PluginCrashInfo("p", "Test plugin", PluginEndReason.Exited, 1, "", [], null));
+        Assert.Equal(Loc.Get(K.PluginCrashDisabled, ("name", "Test plugin"), ("reason", Loc.Get(K.PluginCrashExited))), off);
+    }
+
+    [AvaloniaFact]
     public void The_texts_of_the_plugin_UI_exist_in_every_language()
     {
         foreach (var tag in Loc.Languages)
         {
             Loc.SetLanguage(tag);
-            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated })
+            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated,
+                K.PluginCrashRestart, K.PluginCrashDisabled, K.PluginCrashExited, K.PluginCrashUnresponsive, K.PluginCrashProtocol, K.PluginCrashStart, K.PluginCrashLog, K.PluginLogSource })
                 Assert.NotEqual(key, Loc.Get(key));
         }
     }

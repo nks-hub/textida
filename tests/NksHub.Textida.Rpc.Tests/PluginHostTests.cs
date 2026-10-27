@@ -147,6 +147,7 @@ public class PluginHostTests
         Assert.Equal(2, again.GetProperty("lostEvents").GetInt32());
         Assert.Equal(5, again.GetProperty("state").GetProperty("documents")[0].GetProperty("revision").GetInt32());
         Assert.Equal(0, host.GetLostEvents("p"));
+        await T.Until(() => Volatile.Read(ref state.ResumedCount) == 2); // the state source hears of the first start and of the restart
     }
 
     [Fact]
@@ -192,16 +193,22 @@ public class PluginHostTests
         Assert.Equal(PluginState.Running, host.GetState("ask"));
     }
 
-    [Fact]
-    public async Task APluginWaitingForTheDecisionOnAProposalIsNotKilledEvenIfItAnswersNoPings()
+    [Theory]
+    [InlineData("edit/propose")]
+    [InlineData("workspace/edit")]
+    [InlineData("agent/permission")]
+    [InlineData("ui/quickPick")]
+    [InlineData("ui/input")]
+    [InlineData("ui/confirm")]
+    public async Task APluginWaitingForADecisionOfTheUserIsNotKilledEvenIfItAnswersNoPings(string decisionMethod)
     {
         var decision = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var crashed = 0;
-        PluginApiCallback api = (_, method, _, _) => method == "edit/propose" ? new ValueTask<byte[]?>(decision.Task) : throw new RpcException(RpcErrorCodes.MethodNotFound, method);
+        PluginApiCallback api = (_, method, _, _) => method == decisionMethod ? new ValueTask<byte[]?>(decision.Task) : throw new RpcException(RpcErrorCodes.MethodNotFound, method);
         await using var host = await Started(Options(FastPings), api, null, Spec("ask"));
         host.Crashed += _ => Interlocked.Increment(ref crashed);
         await host.CallAsync("ask", "freeze");
-        var pending = host.CallAsync("ask", "callEditor", Args("{\"method\":\"edit/propose\",\"params\":{}}"));
+        var pending = host.CallAsync("ask", "callEditor", Args($"{{\"method\":\"{decisionMethod}\",\"params\":{{}}}}"));
         await Task.Delay(3500); // far past three missed pings (150 ms interval, 500 ms timeout)
         Assert.False(pending.IsCompleted);
         Assert.Equal(0, crashed);
@@ -295,6 +302,8 @@ public class PluginHostTests
 
     sealed class FixedState(string json) : IPluginStateSource
     {
+        public int ResumedCount;
         public byte[] BuildState(string pluginId) => T.Json(json);
+        void IPluginStateSource.Resumed(string pluginId) => Interlocked.Increment(ref ResumedCount);
     }
 }

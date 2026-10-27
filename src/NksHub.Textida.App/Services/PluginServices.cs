@@ -119,6 +119,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
             if (id == CodeExplorerPluginId && state == PluginState.Running) Dispatcher.UIThread.Post(RefreshOutlines); // a restarted process has lost the symbols it published
         };
+        _host.Crashed += info => Dispatcher.UIThread.Post(() => ReportCrash(info));
+        _host.Log += line => _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.PluginLogSource), line);
 
         var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
@@ -374,6 +376,29 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     internal Host HostForTests => _host;
 
+    /// <summary>A plugin process ended or was ended for not answering: a notice names the plugin and says whether it comes back, its last error output goes to the output window.</summary>
+    private void ReportCrash(PluginCrashInfo info)
+    {
+        if (info.StderrTail.Count > 0) _app.Output.Append(OutputChannel.Tasks, info.DisplayName, string.Join('\n', info.StderrTail));
+        if (_app.ActiveWindow is not { } window) return;
+        // not the plugin's own notice key: the state change right after the crash dismisses the notices of the ended plugin
+        window.ShowNotice("plugin.crash:" + info.PluginId, CrashMessage(info), [(Loc.Get(K.PluginCrashLog), () => window.ShowOutput(OutputChannel.Tasks))], warning: true);
+    }
+
+    internal static string CrashMessage(PluginCrashInfo info)
+    {
+        var reason = Loc.Get(info.Reason switch
+        {
+            PluginEndReason.Unresponsive => K.PluginCrashUnresponsive,
+            PluginEndReason.ProtocolViolation => K.PluginCrashProtocol,
+            PluginEndReason.HandshakeFailed => K.PluginCrashStart,
+            _ => K.PluginCrashExited,
+        });
+        return info.NextRestartIn is { } delay
+            ? Loc.Get(K.PluginCrashRestart, ("name", info.DisplayName), ("reason", reason), ("seconds", (int)Math.Ceiling(delay.TotalSeconds)))
+            : Loc.Get(K.PluginCrashDisabled, ("name", info.DisplayName), ("reason", reason));
+    }
+
     /// <summary>Starts the plugins that serve file sources, so their schemes are registered before the editor looks for one. A plugin that cannot start is passed over; its scheme is then simply not offered.</summary>
     public async Task ActivateSourcesAsync()
     {
@@ -390,8 +415,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         public bool Delete(string pluginId, string name) => store.Delete(Key(pluginId, name));
     }
 
-    /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile).</summary>
-    public bool IsBusy => _running.Values.Any(r => !r.Background);
+    /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile) or waits for a background query on its document to end.</summary>
+    public bool IsBusy => _queued > 0 || _running.Values.Any(r => !r.Background);
+
+    private int _queued;
 
     /// <summary>A plugin command is running on the document, which therefore has to stay visible to plugins until it ends.</summary>
     internal bool IsRunningOn(Guid document) => _running.ContainsKey(document);
@@ -747,8 +774,12 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var otherDocument = other?.Doc.Doc;
         Run? Blocking() => _running.TryGetValue(document.Id, out var first) ? first : otherDocument is not null && _running.TryGetValue(otherDocument.Id, out var second) ? second : null;
         bool Busy() => Blocking() is not null;
-        if (!background)
-            while (Blocking() is { Background: true } asking) await asking.Done.Task;
+        if (!background && Blocking() is { Background: true })
+        {
+            _queued++;
+            try { while (Blocking() is { Background: true } asking) await asking.Done.Task; }
+            finally { _queued--; }
+        }
         if (Busy()) return default;
         // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
         bool reveal = !keepHidden && SecretValues.IsSecretFile(document.SecretsPath);
@@ -770,7 +801,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
         {
-            if (notify) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
+            // a crash has its own notice (ReportCrash), whether a command was running or not
+            if (notify && e is not PluginCrashedException) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
         }
         finally
         {
