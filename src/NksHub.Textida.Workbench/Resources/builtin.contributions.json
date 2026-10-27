@@ -524,6 +524,11 @@
       "enablement": "hasDocument && !readOnly && !largeFileMode"
     },
     {
+      "id": "nks.file.convertEncodingBatch",
+      "title": "cmd.file.convertEncodingBatch",
+      "category": "cat.format"
+    },
+    {
       "id": "nks.format.language",
       "title": "cmd.format.language",
       "category": "cat.format",
@@ -1674,6 +1679,12 @@
       "command": "nks.format.applyEditorConfig",
       "group": "1_encoding",
       "order": 30
+    },
+    {
+      "menu": "format",
+      "command": "nks.file.convertEncodingBatch",
+      "group": "1_encoding",
+      "order": 40
     },
     {
       "menu": "format",

@@ -524,6 +524,16 @@ Every action that rewrites bytes you did not edit shows what it changes first, a
 - The ranges are those of the revision you looked at; if the document changed meanwhile, the action is refused.
 - File and then Changes Before Saving shows the same list for the next save.
 
+## [format.batchEncoding] Convert the encoding of many files
+commands: nks.file.convertEncodingBatch
+1. Format and then Convert Encoding of Files in a Folder. Choose the folder, file name masks (for example *.txt;*.php, empty means every file) and the target encoding.
+2. The program reads the files and shows, before it writes anything, how many convert without loss and which files would lose characters, with the characters and their count. Files that are binary, already have these bytes, or have an encoding the program can only guess are skipped and listed with the reason.
+3. Choose Convert N files (files that would lose characters stay as they are) or Convert All and Replace Lost Characters with a Question Mark.
+4. A summary lists what was converted, what stayed and what changed after the preview.
+- The folder walk follows the ignore files and skips hidden files and files over 64 MiB, like the search in files. Open documents with unsaved changes are left out.
+- Each file is replaced as a whole or not at all, and only if it still has the content the preview was made from. The run is journaled: if the program or the computer stops in the middle, the next start offers to finish the batch or to put the old files back.
+- A file in an encoding that is only a guess (the percentage is low) is never converted; open it, choose Reopen with Encoding and convert it from there.
+
 ## [format.language] Language mode
 commands: nks.format.language
 1. Choose Format and then Language Mode, or click the language in the status bar.

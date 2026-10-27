@@ -524,6 +524,16 @@ Každá akce, která přepisuje bajty, které jste neupravili, nejdřív ukáže
 - Úseky platí pro revizi, kterou jste viděli; změní-li se dokument mezitím, akce se odmítne.
 - Soubor a potom Změny před uložením ukáže stejný výpis pro příští uložení.
 
+## [format.batchEncoding] Převod kódování více souborů
+commands: nks.file.convertEncodingBatch
+1. Formát a potom Převést kódování souborů ve složce. Zvolte složku, masky názvů souborů (například *.txt;*.php, prázdné pole znamená všechny soubory) a cílové kódování.
+2. Program soubory přečte a dřív než cokoli zapíše, ukáže, kolik jich se převede bez ztráty a které soubory by přišly o znaky, s těmito znaky a jejich počtem. Soubory, které jsou binární, už mají tyto bajty nebo mají kódování, které program jen odhaduje, se přeskočí a vypíšou se s důvodem.
+3. Zvolte Převést N souborů (soubory, které by ztratily znaky, zůstanou, jak jsou), nebo Převést vše a ztracené znaky nahradit otazníkem.
+4. Souhrn vypíše, co se převedlo, co zůstalo a co se změnilo po náhledu.
+- Procházení složky dodržuje soubory ignorování a vynechává skryté soubory a soubory nad 64 MiB, stejně jako hledání v souborech. Otevřené dokumenty s neuloženými změnami zůstanou stranou.
+- Každý soubor se nahradí celý, nebo vůbec, a jen když má pořád obsah, ze kterého vznikl náhled. Běh se zapisuje do žurnálu: když se program nebo počítač uprostřed zastaví, nabídne příští start dokončení dávky nebo vrácení starých souborů.
+- Soubor v kódování, které je jen odhad (nízké procento jistoty), se nikdy nepřevádí; otevřete ho, zvolte Znovu otevřít v kódování a převeďte ho odtud.
+
 ## [format.language] Režim jazyka
 commands: nks.format.language
 1. Zvolte Formát a Režim jazyka, nebo klepněte na jazyk ve stavovém řádku.

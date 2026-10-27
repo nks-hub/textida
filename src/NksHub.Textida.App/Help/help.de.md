@@ -517,12 +517,22 @@ Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem g
 
 ## [format.inspector] Byte-Inspektor
 commands: nks.format.applyEditorConfig
-Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Kodierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Kodierung und EditorConfig anwenden.
-- Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Kodierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
-- Kann die Zielkodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Kodierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
-- Der Befehl Kodierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
+Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Codierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Codierung und EditorConfig anwenden.
+- Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Codierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
+- Kann die Zielcodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Codierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
+- Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
 - Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
 - Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
+
+## [format.batchEncoding] Codierung vieler Dateien umwandeln
+commands: nks.file.convertEncodingBatch
+1. Format und dann Codierung von Dateien in einem Ordner umwandeln. Wählen Sie den Ordner, Dateinamenmuster (zum Beispiel *.txt;*.php, leer bedeutet alle Dateien) und die Zielcodierung.
+2. Das Programm liest die Dateien und zeigt, bevor es etwas schreibt, wie viele ohne Verlust umgewandelt werden und welche Dateien Zeichen verlieren würden, mit diesen Zeichen und ihrer Anzahl. Dateien, die binär sind, diese Bytes schon haben oder eine Codierung haben, die das Programm nur raten kann, werden übersprungen und mit dem Grund aufgelistet.
+3. Wählen Sie N Dateien umwandeln (Dateien, die Zeichen verlieren würden, bleiben unverändert) oder Alles umwandeln und verlorene Zeichen durch ein Fragezeichen ersetzen.
+4. Eine Zusammenfassung listet auf, was umgewandelt wurde, was blieb und was sich nach der Vorschau geändert hat.
+- Der Ordnerdurchlauf beachtet die Ignorierdateien und lässt versteckte Dateien und Dateien über 64 MiB aus, wie die Suche in Dateien. Offene Dokumente mit ungespeicherten Änderungen bleiben außen vor.
+- Jede Datei wird ganz ersetzt oder gar nicht, und nur wenn sie noch den Inhalt hat, aus dem die Vorschau entstand. Der Lauf wird protokolliert: Bleibt das Programm oder der Rechner mittendrin stehen, bietet der nächste Start an, den Stapel zu beenden oder die alten Dateien zurückzuholen.
+- Eine Datei in einer nur geratenen Codierung (niedrige Sicherheit) wird nie umgewandelt; öffnen Sie sie, wählen Sie Mit Codierung neu öffnen und wandeln Sie sie dort um.
 
 ## [format.language] Sprachmodus
 commands: nks.format.language
