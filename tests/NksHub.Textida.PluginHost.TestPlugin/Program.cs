@@ -47,6 +47,7 @@ sealed class Handler(int api) : IRpcHandler
     long _sinkCount, _sinkBytes;
     string _resync = "null";
     readonly List<string> _events = [];
+    volatile int _eventDelayMs;
     readonly List<string> _tabs = [];
     volatile bool _tabHandled, _tabError;
     volatile int _tabDelayMs;
@@ -73,7 +74,7 @@ sealed class Handler(int api) : IRpcHandler
         switch (method)
         {
             case PluginMethods.Initialize:
-                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin"), PluginJson.Default.InitializeResult);
+                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: true), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 _resync = p.GetRawText();
                 return null;
@@ -162,6 +163,9 @@ sealed class Handler(int api) : IRpcHandler
                 return null;
             case "events":
                 lock (_events) return Raw("[" + string.Join(",", _events) + "]");
+            case "setEventDelay":
+                _eventDelayMs = Int(p, "ms");
+                return Raw("true");
             case DocumentRequests.Tab:
                 lock (_tabs) _tabs.Add(p.GetRawText());
                 if (_tabDelayMs > 0) await Task.Delay(_tabDelayMs, ct);
@@ -232,7 +236,7 @@ sealed class Handler(int api) : IRpcHandler
         }
     }
 
-    public ValueTask HandleNotificationAsync(string method, JsonElement p)
+    public async ValueTask HandleNotificationAsync(string method, JsonElement p)
     {
         switch (method)
         {
@@ -243,12 +247,13 @@ sealed class Handler(int api) : IRpcHandler
                 break;
             case PluginMethods.Event:
                 lock (_events) _events.Add(p.GetRawText());
+                if (_eventDelayMs > 0) await Task.Delay(_eventDelayMs);
+                await Rpc.NotifyAsync(PluginMethods.EventsHandled, Raw("{\"count\":1}"));
                 break;
             case "sink":
                 Interlocked.Increment(ref _sinkCount);
                 Interlocked.Add(ref _sinkBytes, p.GetRawText().Length);
                 break;
         }
-        return ValueTask.CompletedTask;
     }
 }
