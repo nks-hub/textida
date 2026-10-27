@@ -116,12 +116,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
-            PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
-        app.Workbench.SettingChanged += OnSettingChanged;
-
         Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimitsPlaceholders.Network(), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync), ("net/", Network.HandleAsync)), Documents);
+        _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
+            PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync), ("net/", Network.HandleAsync)), Documents);
+        app.Workbench.SettingChanged += OnSettingChanged;
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
@@ -247,10 +245,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (plugin?.Spec is null || !_boundInstalled.Add(plugin.Manifest.Id)) return;
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
-        var id = plugin.Manifest.Id;
-        foreach (var problem in DeclarePlugin(plugin)) InstalledProblems.Add($"{id}: {problem}");
-
         var (id, display) = (plugin.Manifest.Id, plugin.Manifest.Name);
+        foreach (var problem in DeclarePlugin(plugin)) InstalledProblems.Add($"{id}: {problem}");
         foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))
         {
             var name = command.Id;
@@ -279,8 +275,6 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         RefreshSettings(id);
         if (_host.IsRegistered(id) && _pluginSettings.TryGetValue(id, out var values)) _ = _host.SendEventAsync(id, "settings.changed", Encoding.UTF8.GetBytes(values.GetRawText()));
     }
-
-    private async ValueTask<CommandOutcome> RunInstalledAsync(string pluginId, string command)
 
     /// <summary>
     /// Runs a command of an installed plugin. A plugin that may read or edit the document of the active tab runs it like a built-in one: the request names the document

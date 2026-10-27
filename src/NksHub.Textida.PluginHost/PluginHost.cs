@@ -518,8 +518,6 @@ public sealed class PluginHost : IAsyncDisposable
         Ui.UiMethods.QuickPick, Ui.UiMethods.Input, Ui.UiMethods.Confirm,
     ];
 
-    sealed class HostHandler(PluginHost host, Plugin plugin) : IRpcHandler
-
     sealed class HostHandler(PluginHost host, Plugin plugin, Run run) : IRpcHandler
     {
         public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation)

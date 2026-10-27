@@ -23,9 +23,6 @@ public static class PluginMethods
 /// <summary>Handshake request. A plugin must answer with the same <c>apiVersion</c> or an error.</summary>
 /// <param name="Settings">Current values of the settings the plugin declared (full key to value); absent when it declared none. Later changes arrive as the event <c>settings.changed</c>.</param>
 public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName, JsonElement? Settings = null);
-public sealed record InitializeResult(int ApiVersion, string? Name);
-
-public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName);
 
 /// <param name="EventAcks">
 /// The plugin acknowledges every handled event with <see cref="PluginMethods.EventsHandled"/>. The editor then holds document events back once
