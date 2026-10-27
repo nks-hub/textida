@@ -847,6 +847,10 @@ public static class K
     public const string TableRegionHint = "table.region.hint";
     public const string TableRegionEmpty = "table.region.empty";
     public const string TableRegionStatus = "table.region.status";
+    public const string TableCopyAsMarkdown = "table.copyAs.markdown";
+    public const string TableCopyAsSql = "table.copyAs.sql";
+    public const string TableCopyAsJson = "table.copyAs.json";
+    public const string TableCopyAsHtml = "table.copyAs.html";
     public const string A11yCompare = "a11y.compare";
     public const string CompareTab = "compare.tab";
     public const string CompareSideClipboard = "compare.side.clipboard";

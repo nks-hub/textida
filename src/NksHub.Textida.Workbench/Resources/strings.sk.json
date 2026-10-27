@@ -277,6 +277,7 @@
   "cmd.table.deleteColumn": "Zmazať stĺpec",
   "cmd.table.filter": "Filtrovať riadky...",
   "cmd.table.clearFilter": "Zrušiť filter",
+  "cmd.table.copyAs": "Kopírovať tabuľku ako...",
   "cmd.file.openAsHex": "Otvoriť v hex...",
   "cmd.hex.toggleInsert": "Prepnúť prepis a vkladanie bajtov",
   "cmd.hex.inspector": "Inspektor dát",

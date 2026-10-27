@@ -1,10 +1,13 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Input.Platform;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -157,13 +160,65 @@ internal sealed partial class MainWindow
 
     // ---- clipboard ----
 
+    /// <summary>The byte ranges of the values that are hidden in the tab (a secrets file whose values are not shown); null when nothing is hidden.</summary>
+    private static IReadOnlyList<ByteRange>? HiddenValues(DocTab tab)
+    {
+        if (tab.Surface is not { SecretsHidden: true }) return null;
+        var doc = tab.Doc.Doc;
+        return doc.ByteLength > PluginLimitsPlaceholders.SecretScanMaxBytes ? [new ByteRange(doc.BomLength, doc.ByteLength)] : SecretValues.ByteRanges(doc.GetSnapshot(), doc.BomLength);
+    }
+
+    /// <summary>Copy and cut of cells: a hidden value goes to the clipboard as the placeholder, and a cut that touches one deletes nothing.</summary>
     private CommandOutcome TableCopy(CsvView table, bool cut)
     {
-        string text = table.SelectedText();
+        string text = table.SelectedText(Active is { } tab ? HiddenValues(tab) : null, out bool masked);
         RememberCopy(text);
         if (Clipboard is { } clipboard) _ = clipboard.SetTextAsync(text);
-        if (cut) table.ClearSelection();
+        if (cut && !masked) table.ClearSelection();
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>Puts text, and HTML when given, on the clipboard in one go, and into the clipboard history.</summary>
+    internal void WriteClipboard(string text, string? html)
+    {
+        RememberCopy(text);
+        if (Clipboard is not { } clipboard) return;
+        var item = DataTransferItem.CreateText(text);
+        if (html is not null) item.Set(ClipboardHtml.Format, ClipboardHtml.Encode(html));
+        var data = new DataTransfer();
+        data.Add(item);
+        _ = clipboard.SetDataAsync(data);
+    }
+
+    // ---- copy as ----
+
+    /// <summary>The forms a selection of cells can be copied as: the command of the text tools plugin and the name in the menu.</summary>
+    internal static readonly (string Command, string Name)[] TableCopyForms =
+    [
+        ("table.copyAs.markdown", K.TableCopyAsMarkdown), ("table.copyAs.sql", K.TableCopyAsSql), ("table.copyAs.json", K.TableCopyAsJson), ("table.copyAs.html", K.TableCopyAsHtml),
+    ];
+
+    /// <summary>The command <c>nks.table.copyAs</c>: a menu of the forms the selected cells are copied as (Markdown table, SQL INSERT, JSON, HTML).</summary>
+    internal MenuFlyout? ShowTableCopyAsMenu()
+    {
+        if (ActiveTable is not { } table) return null;
+        var flyout = new MenuFlyout();
+        foreach (var (command, name) in TableCopyForms)
+        {
+            var item = new MenuItem { Header = Loc.Get(name) };
+            var run = command;
+            item.Click += (_, _) => _ = CopyTableAsAsync(run);
+            flyout.Items.Add(item);
+        }
+        flyout.ShowAt(table);
+        return flyout;
+    }
+
+    /// <summary>Copies the selected cells through the text tools plugin, which reads them with the table API and writes the clipboard. Hidden values of a secrets file reach it only as <c>*</c>.</summary>
+    internal async Task<bool> CopyTableAsAsync(string command)
+    {
+        if (ActiveTable is null || Active is not { } tab) return false;
+        return await _app.Plugins.RunTableCopyAsync(this, tab, command);
     }
 
     private async Task<CommandOutcome> TablePasteAsync(CsvView table)

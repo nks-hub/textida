@@ -277,6 +277,7 @@
   "cmd.table.deleteColumn": "Smazat sloupec",
   "cmd.table.filter": "Filtrovat řádky...",
   "cmd.table.clearFilter": "Zrušit filtr",
+  "cmd.table.copyAs": "Kopírovat tabulku jako...",
   "cmd.file.openAsHex": "Otevřít v hex...",
   "cmd.hex.toggleInsert": "Přepnout přepis a vkládání bajtů",
   "cmd.hex.inspector": "Inspektor dat",

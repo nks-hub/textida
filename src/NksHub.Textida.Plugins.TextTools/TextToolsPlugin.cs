@@ -37,6 +37,10 @@ public sealed class TextToolsPlugin : PluginBase
     public const string Calculate = "text.calculate";
     public const string Expression = "text.expression";
     public const string Bases = "text.bases";
+    public const string CopyAsMarkdown = "table.copyAs.markdown";
+    public const string CopyAsSql = "table.copyAs.sql";
+    public const string CopyAsJson = "table.copyAs.json";
+    public const string CopyAsHtml = "table.copyAs.html";
 
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _tasks = new();
 
@@ -68,12 +72,17 @@ public sealed class TextToolsPlugin : PluginBase
                 Calculate => await RunCalculateAsync(context, ct),
                 Expression => await RunExpressionAsync(context, ct),
                 Bases => await RunBasesAsync(context, ct),
+                CopyAsMarkdown or CopyAsSql or CopyAsJson or CopyAsHtml => await RunCopyTableAsync(context, command, ct),
                 _ => throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command."),
             };
         }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict)
         {
             status = await ReportAsync("stale", NoticeLevel.Warning, Texts.Get(context.Language, "stale"), ct);
+        }
+        catch (RpcException e) when (e.Code == DocumentErrorCodes.NoTableView)
+        {
+            status = await ReportAsync("failed", NoticeLevel.Warning, Texts.Get(context.Language, "table.none"), ct);
         }
         catch (RpcException e) when (e.Code is DocumentErrorCodes.SnapshotExpired or DocumentErrorCodes.UnknownDocument or DocumentErrorCodes.InvalidRange)
         {
@@ -295,5 +304,56 @@ public sealed class TextToolsPlugin : PluginBase
         static string Prefixed(BigInteger v, int radix, string prefix) => v.Sign < 0 ? "-" + prefix + BaseConverter.ToRadix(-v, radix) : prefix + BaseConverter.ToRadix(v, radix);
         return await ReportAsync("completed", NoticeLevel.Info, Texts.Get(c.Language, "base.result", ("dec", value.ToString(CultureInfo.InvariantCulture)),
             ("hex", Prefixed(value, 16, "0x")), ("oct", Prefixed(value, 8, "0o")), ("bin", Prefixed(value, 2, "0b"))), ct);
+    }
+
+    // ---- copy the selected cells as ... ----
+
+    private static IReadOnlyList<string> Values(JsonElement cells, int columns)
+    {
+        var values = new string[columns];
+        Array.Fill(values, "");
+        int i = 0;
+        foreach (var cell in cells.EnumerateArray())
+            if (i < columns) values[i++] = cell.GetProperty("value").GetString()!;
+        return values;
+    }
+
+    /// <summary>
+    /// Reads the cells selected in the table view at the revision of the command and puts them on the clipboard as Markdown, SQL INSERT, JSON or HTML (the HTML form
+    /// also as rich HTML). The SQL form needs a table name: the <c>table</c> parameter, or what the user types, starting with the name of the file.
+    /// </summary>
+    private async Task<string> RunCopyTableAsync(Context c, string command, CancellationToken ct)
+    {
+        var selection = await CallAsync(DocumentMethods.TableSelection, $"{{\"document\":\"{c.Document}\",\"revision\":{c.Revision}}}", ct);
+        int columns = selection.GetProperty("columns").GetInt32();
+        var header = selection.GetProperty("header") is { ValueKind: JsonValueKind.Array } h ? Values(h, columns) : null;
+        var rows = selection.GetProperty("rows").EnumerateArray().Select(r => Values(r.GetProperty("cells"), columns)).ToList();
+        var table = new TableData(selection.GetProperty("firstColumn").GetInt32(), columns, header, rows);
+
+        string text, form;
+        string? html = null;
+        switch (command)
+        {
+            case CopyAsMarkdown: (text, form) = (TableExport.Markdown(table), "Markdown"); break;
+            case CopyAsJson: (text, form) = (TableExport.Json(table), "JSON"); break;
+            case CopyAsHtml: (text, form) = (html = TableExport.Html(table), "HTML"); break;
+            default:
+                var name = c.Parameters.TryGetProperty("table", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : await AskTableNameAsync(c, ct);
+                if (string.IsNullOrWhiteSpace(name)) return "cancelled";
+                (text, form) = (TableExport.Sql(table, name.Trim()), "SQL INSERT");
+                break;
+        }
+        await CallAsync(DocumentMethods.ClipboardWrite, $"{{\"document\":\"{c.Document}\",\"text\":\"{Quote(text)}\"{(html is null ? "" : $",\"html\":\"{Quote(html)}\"")}}}", ct);
+        return await ReportAsync("completed", NoticeLevel.Info, Texts.Get(c.Language, "table.copied", ("format", form), ("rows", rows.Count.ToString()), ("columns", columns.ToString())), ct);
+    }
+
+    /// <summary>Asks for the table name of the INSERT statements, starting with the name of the file without its extension; null when the user dismisses the question.</summary>
+    private async Task<string?> AskTableNameAsync(Context c, CancellationToken ct)
+    {
+        var info = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{c.Document}\"}}", ct);
+        var start = info.GetProperty("path") is { ValueKind: JsonValueKind.String } path ? Path.GetFileNameWithoutExtension(path.GetString()!) : "";
+        var answer = await CallAsync(UiMethods.Input,
+            $"{{\"title\":\"{Quote(Texts.Get(c.Language, "table.sqlTitle"))}\",\"label\":\"{Quote(Texts.Get(c.Language, "table.sqlLabel"))}\",\"value\":\"{Quote(start)}\"}}", ct);
+        return answer.GetProperty("value").ValueKind == JsonValueKind.String ? answer.GetProperty("value").GetString() : null;
     }
 }

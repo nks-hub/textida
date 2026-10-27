@@ -14,7 +14,7 @@ using NksHub.Textida.Plugins.TextTools;
 namespace NksHub.Textida.Rpc.Tests;
 
 /// <summary>The text tools: the engines on their own, then a real plugin process against the real host, document API and UI API.</summary>
-public class TextToolsTests
+public partial class TextToolsTests
 {
     sealed class Owner : IDocumentOwnerThread
     {
@@ -39,6 +39,7 @@ public class TextToolsTests
         public required UiApi Ui { get; init; }
         public required Document Doc { get; init; }
         public required UiApiTests.RecordingUi Recorded { get; init; }
+        public required DocumentApiTests.RecordingTools Tools { get; init; }
 
         public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12)
         {
@@ -47,11 +48,13 @@ public class TextToolsTests
             PluginEventSender send = (plugin, name, payload) => host!.SendEventAsync(plugin, name, payload);
             var permissions = new PluginPermissions();
             permissions.Grant("tools", DocumentPermissions.Read, GrantScope.All);
+            permissions.Grant("tools", DocumentPermissions.ClipboardWrite, GrantScope.All);
+            var tools = new DocumentApiTests.RecordingTools();
             var docs = new DocumentApi(new DocumentApiOptions
             {
                 MaxReadBytes = 1 << 16, MaxFindMatches = 10, MaxSnapshotsPerPlugin = 2, SnapshotLifetime = TimeSpan.FromSeconds(10),
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
-                Tools = new DocumentApiTests.RecordingTools(), MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20,
+                Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000,
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10 }, recorded, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
@@ -62,7 +65,7 @@ public class TextToolsTests
             var doc = Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec });
             Func<SelectionSet?>? selector = selections is null ? null : () => SelectionSet.Create([.. selections.Select(s => new TextSelection(s.Anchor, s.Caret))], 0);
             docs.Expose(doc, selector);
-            return new Rig { Host = host, Docs = docs, Ui = ui, Doc = doc, Recorded = recorded };
+            return new Rig { Host = host, Docs = docs, Ui = ui, Doc = doc, Recorded = recorded, Tools = tools };
         }
 
         public async Task<string> RunAsync(string command, string language = "en", string extra = "", long? revision = null)

@@ -220,6 +220,7 @@ internal static class AppCommands
         On("nks.table.deleteColumn", w => w.TableCommand(t => t.DeleteColumns()));
         On("nks.table.filter", w => { if (w.ActiveTable is null) return CommandOutcome.NotHandled; _ = w.FilterTableAsync(); return CommandOutcome.Handled; });
         On("nks.table.clearFilter", w => w.TableCommand(t => t.ApplyFilter("", t.Column)));
+        On("nks.table.copyAs", w => { w.ShowTableCopyAsMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.toggleInsert", w => w.HexCommand(h => h.ToggleInsert()));
         On("nks.hex.inspector", w => w.ToggleInspector());
         On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });

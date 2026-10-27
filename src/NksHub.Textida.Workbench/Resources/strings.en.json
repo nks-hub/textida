@@ -277,6 +277,7 @@
   "cmd.table.deleteColumn": "Delete Column",
   "cmd.table.filter": "Filter Rows...",
   "cmd.table.clearFilter": "Clear Filter",
+  "cmd.table.copyAs": "Copy Table As...",
   "cmd.file.openAsHex": "Open in Hex...",
   "cmd.hex.toggleInsert": "Toggle Overwrite and Insert Mode",
   "cmd.hex.inspector": "Data Inspector",
