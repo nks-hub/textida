@@ -2240,6 +2240,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.5.1, P3b.2.1
   - **Odhad:** F208 0,5–1 ČT (matice)
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026 (večer):** částečně. `contributes.languageServers` v manifestu (jazyky, globy, příkaz, argumenty, init options, `locate`), oprávnění `language.server` se souhlasem, jeden proces na jazyk a workspace, zastavení po nečinnosti (placeholder 300 s), testy s FakeLsp. Chybí: automatický restart po pádu, zkouška s reálným serverem.
 - [ ] **P8.5.3** Katalog jazykových nástrojů
   - **Co a proč:** Jeden deklarativní záznam na skupinu jazyků: přípony a jména souborů, gramatika, příkaz LSP s ověřenou verzí, formátovač, linter s formátem výstupu a tabulkou závažností, konfigurační soubory, manifest. Na začátku 17 skupin z tabulky analýza konkurence. Editor nástroj jen najde (PATH, `node_modules/.bin`, `vendor/bin`, `.venv`) nebo použije cestu od uživatele; nic nestahuje. Navíc Ruff, Prettier/Biome, ShellCheck, shfmt, SQLFluff, StyLua, `dart format`.
   - **Funkce:** F213
@@ -2259,6 +2260,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.6.2, P6.2.2
   - **Odhad:** F158 3–5 ČT (matice) za P8.6.1 a P8.6.2
   - **Umístění:** vestavěný plugin
+  - **Stav 27. 10. 2026 (večer):** částečně. Vrácení úseku z indexu, konflikt: naše/jejich/obě a označit vyřešené (odmítne zbylé značky). Chybí: stage ze žlábku a z karty diffu, konflikt bez značek, UTF-16.
 - [ ] **P8.6.2** Git: stav a diff
   - **Co a proč:** Stav souborů v panelu a diff proti indexu a `HEAD` přes diff API.
   - **Funkce:** F158 (částečně: stav a diff)
@@ -2267,6 +2269,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.4.1, P6.2.2
   - **Odhad:** v rámci F158 (viz P8.6.1)
   - **Umístění:** vestavěný plugin
+  - **Stav 27. 10. 2026 (večer):** částečně. Panel stavu otevírá soubor, stavový řádek s větví a počty, obnova po příkazu Git. Chybí: obnova při změně zvenku, `autocrlf`.
 
 ### P8.7 Schémata a manifesty
 
@@ -2383,6 +2386,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.10.2
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
+  - **Stav 27. 10. 2026 (večer):** částečně. Výrazy (aritmetika, bity, porovnání, logika, `?:`, `_parent`, `_root`, `_index`, `_io`, enumy, cast), `size`, `repeat` expr/until, `if`, `switch-on`, `instances` s `pos`/`value`; nepodporované hlásí řádek; limity hloubky a práce. Chybí: float, `process`, bitové typy, vnořené enumy.
 
 ## P8b – veřejné SDK a API
 
@@ -2533,6 +2537,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026 (večer):** částečně. Export HTML a RTF dokumentu nebo výběru se stejnými tokeny a barvami motivu; Úpravy → Kopírovat jako (text + HTML + RTF do schránky, zdroj HTML). Limit 8 Mi znaků je placeholder. Chybí: ruční zkouška vložení do Wordu, výběr ve stránkovaném režimu se barví od svého začátku; TeX a PDF až později.
 - [ ] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
@@ -2540,7 +2545,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P9.3.1, P6.2.4, P3b.3.5
   - **Odhad:** F190 1–2 ČT (matice)
   - **Umístění:** vestavěný plugin (balíček Markdown a osnova)
-  - **Stav 27. 10. 2026:** částečně. Příkazy Zarovnat tabulku pod kurzorem a Aktualizovat obsah v `<!-- TOC -->` (Nástroje → Markdown, 4 jazyky, testy). Chybí: `Tab`/`Shift+Enter` v tabulce, oprava rozbité tabulky, Mermaid.
+  - **Stav 27. 10. 2026:** částečně. Příkazy Zarovnat tabulku pod kurzorem a Aktualizovat obsah v `<!-- TOC -->` (Nástroje → Markdown, 4 jazyky, testy). Večer doplněno: `Tab`/`Shift+Tab` mezi buňkami se zarovnáním, `Shift+Enter` nový řádek, oprava rozbité tabulky, šířka CJK a emoji. Chybí: Mermaid.
 
 ### P9.4 Logy
 
@@ -2575,6 +2580,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P4.3.2, P3.3.1
   - **Odhad:** v rámci F187 (matice, viz P4.3.2)
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026 (večer):** částečně. Sbalení nezajímavých řádků (jen běžný editor, ve stránkovaném se tlumí), odkazy ze stack trace (.NET, Java, Python, PHP, Node), heatmapa chyb v minimapě (vzorkování nad 256 MiB, placeholdery), barvy ANSI bez změny bajtů a přepnutí na syrové zobrazení. Chybí: styl ANSI přes konec řádku, ruční ověření v aplikaci.
 
 ### P9.5 Pracovní prostor
 
