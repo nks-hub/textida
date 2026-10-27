@@ -325,5 +325,6 @@
   "cmd.compare.previous": "Předchozí rozdíl",
   "cmd.compare.copyToRight": "Zkopírovat rozdíl doprava",
   "cmd.compare.copyToLeft": "Zkopírovat rozdíl doleva",
-  "cmd.view.syncScroll": "Synchronizovat posouvání"
+  "cmd.view.syncScroll": "Synchronizovat posouvání",
+  "menu.editor.context": "Místní nabídka editoru"
 }

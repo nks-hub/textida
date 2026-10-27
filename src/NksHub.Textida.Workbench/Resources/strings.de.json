@@ -325,5 +325,6 @@
   "cmd.compare.previous": "Vorheriger Unterschied",
   "cmd.compare.copyToRight": "Unterschied nach rechts kopieren",
   "cmd.compare.copyToLeft": "Unterschied nach links kopieren",
-  "cmd.view.syncScroll": "Scrollen synchronisieren"
+  "cmd.view.syncScroll": "Scrollen synchronisieren",
+  "menu.editor.context": "Kontextmenü des Editors"
 }
