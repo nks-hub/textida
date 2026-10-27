@@ -141,7 +141,11 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString(),
              "--registry-config", Registries.FilePath, "--registry-timeout-ms", PluginLimitsPlaceholders.RegistryTimeoutMilliseconds.ToString(),
              "--registry-max-bytes", PluginLimitsPlaceholders.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimitsPlaceholders.RegistryPageSize.ToString(),
-             "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString()],
+             "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(),
+             "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
+             "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
+             "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
+             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString()],
             [JsonActivation], folder));
 
         // the text tools read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text; only inserting an expression result writes
@@ -1008,14 +1012,29 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         return Documents.PublishOwn(document, source, revision, diagnostics);
     }
 
-    private readonly record struct SchemaStatus(string? Name);
+    /// <summary>
+    /// What the schema check said about a file: <paramref name="State"/> is <c>ready</c>, <c>noConsent</c> (a schema from the network whose <paramref name="Host"/> the user has not allowed), <c>unavailable</c>,
+    /// <c>tooLarge</c>, <c>invalid</c> or <c>unsupported</c> (a form of YAML the reader does not know); <paramref name="Cached"/> and <paramref name="Offline"/> say that a downloaded schema came from its copy on disk.
+    /// </summary>
+    internal sealed record SchemaResult(long Revision, string? Name, string State, string? Host, bool Cached, bool Offline);
 
-    private readonly Dictionary<Guid, (long Revision, string? Name)> _schemaChecked = [];
+    private readonly Dictionary<Guid, SchemaResult> _schemaChecked = [];
     private DispatcherTimer? _schemaTimer;
     private (MainWindow Window, DocTab Tab)? _schemaWanted;
     private bool _schemaShown;
 
-    private void ShowSchema(SchemaStatus? status)
+    /// <summary>The last schema check of the file in the tab, or null when it has not been checked yet.</summary>
+    internal SchemaResult? SchemaResultOf(DocTab tab) => _schemaChecked.TryGetValue(tab.Doc.Doc.Id, out var found) ? found : null;
+
+    internal static string SchemaStatusText(SchemaResult result) => result.Name is not { } name ? Loc.Get(K.SchemaNone) : result.State switch
+    {
+        "noConsent" => Loc.Get(K.SchemaNoConsent, ("name", name)),
+        "unavailable" or "tooLarge" or "invalid" => Loc.Get(K.SchemaUnavailable, ("name", name)),
+        "unsupported" => Loc.Get(K.SchemaUnsupported, ("name", name)),
+        _ => Loc.Get(K.SchemaName, ("name", name)) + (result.Offline ? " " + Loc.Get(K.SchemaOffline) : result.Cached ? " " + Loc.Get(K.SchemaCopy) : ""),
+    };
+
+    private void ShowSchema(SchemaResult? status)
     {
         if (status is not { } shown)
         {
@@ -1025,7 +1044,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             return;
         }
         _schemaShown = true;
-        Ui.SetStatus(JsonPluginId, new StatusModel(shown.Name is null ? Loc.Get(K.SchemaNone) : Loc.Get(K.SchemaName, ("name", shown.Name)), Loc.Get(K.SchemaTip)));
+        Ui.SetStatus(JsonPluginId, new StatusModel(SchemaStatusText(shown), Loc.Get(shown.State == "noConsent" ? K.SchemaTipConsent : K.SchemaTip)));
     }
 
     /// <summary>
@@ -1041,9 +1060,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             return;
         }
         var document = tab.Doc.Doc;
+        AttachHover(tab);
         bool known = _schemaChecked.TryGetValue(document.Id, out var last);
-        ShowSchema(known && IsSchemaFile(tab) ? new SchemaStatus(last.Name) : null);
-        if (known && last.Revision == document.Revision)
+        ShowSchema(known && IsSchemaFile(tab) ? last : null);
+        if (known && last!.Revision == document.Revision)
         {
             _schemaWanted = null;
             return;
@@ -1072,9 +1092,11 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (!schema && !IsManifestFile(tab)) return;
         var document = tab.Doc.Doc;
         long revision = document.Revision;
-        string? name = null;
+        string? name = null, state = "ready", host = null;
+        bool cached = false, offline = false;
         if (schema)
         {
+            if (Registries.AllowsAnySchema()) SyncRegistryProxy(throttle: true);
             var outcome = await ExecuteAsync(window, tab, JsonPluginId, JsonActivation, "JSON", SchemaCheckCommand, notify: false, background: true, keep: true);
             if (!outcome.Started)
             {
@@ -1088,14 +1110,19 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
                 return;
             }
             name = r.GetProperty("name") is { ValueKind: JsonValueKind.String } n ? n.GetString() : null;
+            if (r.TryGetProperty("state", out var s) && s.ValueKind == JsonValueKind.String) state = s.GetString()!;
+            if (r.TryGetProperty("host", out var h) && h.ValueKind == JsonValueKind.String) host = h.GetString();
+            cached = r.TryGetProperty("cached", out var c) && c.ValueKind == JsonValueKind.True;
+            offline = r.TryGetProperty("offline", out var o) && o.ValueKind == JsonValueKind.True;
         }
         if (IsManifestFile(tab) && Registries.IsAllowed(PackageManifests.For(document.FilePath!)!.Id) && await CheckPackagesAsync(window, tab, refresh: false, background: true) is null)
         {
             if (_schemaWanted is not null) _schemaTimer?.Start(); // the document was busy: ask again when it is free
             if (!schema) return;
         }
-        _schemaChecked[document.Id] = (revision, name);
-        if (schema && ReferenceEquals(window.Active, tab)) ShowSchema(new SchemaStatus(name));
+        var result = new SchemaResult(revision, name, state, host, cached, offline);
+        _schemaChecked[document.Id] = result;
+        if (schema && ReferenceEquals(window.Active, tab)) ShowSchema(result);
         if (ReferenceEquals(tab.Doc.Doc, document) && document.Revision != revision) TrackSchema(window, tab); // typed while the plugin read
     }
 
@@ -1111,9 +1138,13 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         return outcome.Started && outcome.Result.ValueKind == JsonValueKind.Object ? outcome.Result : null;
     }
 
-    /// <summary>Writes the proxy of the network policy to the file the plugin reads its consent from.</summary>
-    private void SyncRegistryProxy()
+    private long _proxySyncedAt = long.MinValue;
+
+    /// <summary>Writes the proxy of the network policy to the file the plugin reads its consent from. With <paramref name="throttle"/> it is not done again within <see cref="PluginLimitsPlaceholders.RegistryProxySyncMilliseconds"/>.</summary>
+    internal void SyncRegistryProxy(bool throttle = false)
     {
+        if (throttle && _proxySyncedAt != long.MinValue && Environment.TickCount64 - _proxySyncedAt < PluginLimitsPlaceholders.RegistryProxySyncMilliseconds) return;
+        _proxySyncedAt = Environment.TickCount64;
         NksHub.Textida.Remote.NetworkPolicy? policy;
         try { policy = _app.Remote.Policy(); }
         catch (NksHub.Textida.Remote.RemoteException) { policy = null; }
@@ -1135,6 +1166,30 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         bool own = !Documents.IsExposed(document.Id);
         if (own) Documents.Expose(document, surface.ByteSelections);
         try { return await Documents.RequestCompletionAsync(document.Id, caret, default, tab.Doc.Language.Id); }
+        finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
+    }
+
+    /// <summary>Gives the text surface of a schema file the provider that asks the JSON plugin for the description under the pointer (once per surface; it asks again whether the tab is still such a file).</summary>
+    private void AttachHover(DocTab tab)
+    {
+        if (tab.Surface is not { HoverProvider: null } surface || !IsSchemaFile(tab)) return;
+        surface.HoverProvider = offset => RequestHoverAsync(tab, offset);
+    }
+
+    /// <summary>What plugins say about the text at a text offset of the tab, for the revision it has now; null when nothing is said or the document moved on while they answered.</summary>
+    private async Task<HoverText?> RequestHoverAsync(DocTab tab, int offset)
+    {
+        if (tab.Surface is not { } surface || !IsSchemaFile(tab) || tab.Doc.TextBackend is not { } backend || !Documents.HasHoverProviders) return null;
+        var document = tab.Doc.Doc;
+        long at = backend.ToByteOffsets([offset])[0];
+        bool own = !Documents.IsExposed(document.Id);
+        if (own) Documents.Expose(document, surface.ByteSelections);
+        try
+        {
+            var answer = await Documents.RequestHoverAsync(document.Id, at, Loc.Language);
+            if (answer is not { Stale: false, Text: { } text, Range: { } range } || answer.Revision != document.Revision) return null;
+            return backend.TryToCharOffset(range.Start, out int start) && backend.TryToCharOffset(range.End, out int end) ? new HoverText(start, end, text) : null;
+        }
         finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
     }
 

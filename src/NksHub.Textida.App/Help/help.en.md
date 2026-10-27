@@ -964,13 +964,22 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml and Gemfile the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems) for names and versions. Nothing is sent until you agree: Tools, Packages, Check Package Versions shows the servers and asks once for each registry.
+1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml, Gemfile and pubspec.yaml the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems, pub.dev) for names and versions. Nothing is sent until you agree: Tools, Packages, Check Package Versions shows the servers and asks once for each registry.
 2. After you agree, Ctrl+J in the name of an entry offers names from the registry, and in a version it offers the versions of that package, newest first. PyPI and the Go proxy have no search: a name is offered only when the typed text is the whole name.
 3. An entry that pins an exact version (1.2.3, ==1.2.3, v1.2.3) and has a newer release gets an information mark on the version. Ranges (^, ~, >=) are not marked. A pre-release is not taken as the newer version while a release exists. The check runs when you stop typing.
-4. Answers are kept in a cache until the editor closes. An offer or a mark that came from the cache says so ("cache"). Refresh Package Versions drops the cache of that registry and asks again.
-5. Forbid Package Registry Lookups takes every consent back and drops the cache. The network proxy of the Network Proxy command is used; a proxy with a user name cannot be used, and the lookups stop then.
+4. Answers are kept in a cache in memory, up to a size limit (the oldest go first) and for a limited time, and no longer than the editor runs. An offer or a mark that came from the cache says so ("cache"). Refresh Package Versions drops the cache of that registry and asks again.
+5. Forbid Registry Lookups and Schema Downloads takes every consent back and drops the cache. The network proxy of the Network Proxy command is used; a proxy with a user name cannot be used, and the lookups stop then.
 - Nothing is downloaded or installed, vulnerabilities are not looked up and go mod download is never run. Only package names, the typed text and your network address reach the registry.
-- A registry that fails gives no offers; Check Package Versions names the error in the status bar. The time limit, the size limit and the number of packages per check are provisional.
+- A registry that fails gives no offers; Check Package Versions names the error in the status bar. The time limit, the size limit, the size and life of the cache and the number of packages per check are provisional.
+
+## [tools.schema] Schemas for JSON, YAML and TOML: check, completion and descriptions
+commands: nks.schemas.allow
+1. A JSON, JSONC, TOML or YAML file is checked against the schema that fits it. The file can name its schema itself ("$schema" at the top of a JSON file, the comment "# yaml-language-server: $schema=ADDRESS" in YAML, "#:schema ADDRESS" in TOML); otherwise the file name decides (package.json, Cargo.toml, GitHub workflows, the files of Claude Code, MCP and Codex, and a short list of common configuration files). The status bar shows the name of the schema or "no schema". A finding is underlined and its tip names the place, with line and column for a syntax error.
+2. Ctrl+J offers the keys the schema allows in the object around the caret and, where a value is written, the allowed values (enum values, true and false). Resting the pointer on a key or a value shows what the schema says about it: description, type, allowed values and default.
+3. The schemas of package.json, Cargo.toml, GitHub workflows and the agent files come with the editor. The schema of any other known file, and a schema a file names by an address, is downloaded only after you agree. Until then the status bar says "download not allowed", and Tools, Packages, Allow Schema Download shows the server and asks once for each server. Forbid Registry Lookups and Schema Downloads takes every consent back. A schema a file names by a path is read from disk and needs no consent.
+4. A downloaded schema is kept on this computer up to a size limit (the oldest are deleted first) and used again without a request while it is recent. When the server does not answer, the saved copy is used and the status bar says so. The network proxy of the Network Proxy command is used; a proxy with a user name cannot be used.
+5. A syntax error in a JSON, JSONC, TOML or YAML file is underlined even when no schema applies. YAML with anchors, tags or complex keys cannot be read: such a file is not checked, and the status bar says so.
+- A subset of JSON Schema is understood: types, enum, required, properties, items, oneOf, anyOf, allOf, if/then, local $ref and pattern. References to other files or addresses inside a schema are ignored. The size limits, the life of the saved copies and the waiting times are provisional.
 
 ## [packages.scripts] Package scripts: npm and Composer
 commands: nks.packages.script
