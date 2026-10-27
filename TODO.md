@@ -1338,29 +1338,33 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.1 Klipy a šablony
 
-- [ ] **P4.1.1** Klipy jako data
+- [x] **P4.1.1** Klipy jako data
   - **Co a proč:** Klipy jsou deklarativní knihovny (`contributes.clips`), vkládací engine je v jádře. Náhled výsledku. Nastavení klipů jako běžné nastavení, ne původní layout dialogu.
+  - **Stav 27. 10. 2026:** hotovo: datové pluginy ze složky `plugins` v profilu (bez procesu; plugin s procesem se tam odmítne), Úpravy → „Vložit klip…“ se seznamem a náhledem, vložení do všech kurzorů jako jeden krok undo, klip může mít vlastní příkaz. Formát klipu je vlastní: text s `${proměnná}`, `$|` (kurzor) a `$$`. Zvláštní nastavení klipů nevzniklo, nic se nenastavuje. Gramatiky z uživatelských pluginů se zatím nenačítají. Limity délky a počtu kurzorů přebírají zástupné hodnoty z `PluginLimitsPlaceholders` (rozhodnutí majitele čeká).
   - **Funkce:** F023, F130
   - **Hotovo, když:** vlastní knihovna klipů se nainstaluje jako datový plugin bez procesu, klip se vloží s náhledem a do všech kurzorů.
   - **Závisí na:** P3b.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** data (F023), jádro (F130)
-- [ ] **P4.1.2** Interaktivní klipy a klip z bloku
+- [x] **P4.1.2** Interaktivní klipy a klip z bloku
   - **Co a proč:** Formulář klipu (barva, soubor, datum…) s typovým ověřením vstupů a atomickým vložením. Uložení výběru jako klip do vlastní knihovny.
+  - **Stav 27. 10. 2026:** hotovo: pole `fields` (text, integer, number, color, date, choice, file) s živým náhledem a označením špatné hodnoty; hodnoty se po formuláři kontrolují znovu, špatná nic nezmění. Úpravy → „Uložit výběr jako klip…“ zapíše výběr doslova do pluginu `user.clips` (složka `user-clips`) a klip je hned v seznamu; poškozenou knihovnu nepřepíše. Tlačítko Procházet u pole `file` je jen v kódu dialogu, systémový výběr souboru tu neprošel testem.
   - **Funkce:** F024, F025
   - **Hotovo, když:** klip s formulářem odmítne neplatný vstup a vloží výsledek jako jeden krok undo; výběr uložený jako klip jde hned vložit.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.1.3** Uživatelské proměnné
+- [x] **P4.1.3** Uživatelské proměnné
   - **Co a proč:** Proměnné pro klipy a nástroje s jedním významem všude a s pravidly přednosti. `%File%` znamená v klipu PSPadu něco jiného než v nástroji; tady se významy oddělí.
+  - **Stav 27. 10. 2026:** hotovo kromě odběratelů: jedno místo (`VariableScope`, `Variables.Expand`, `App.VariableContextFor`) a pořadí hodnota z formuláře, pak uživatelské proměnné (`variables.json` v profilu, Úpravy → „Upravit uživatelské proměnné“), pak vestavěné (`file.*`, `date`, `time`, `datetime`, `guid`, `selection`, `user.name`). Test pokrývá pořadí a stejný výsledek pro text klipu, náhradu receptu a argumenty nástroje. Recept (P4.11.1) ani spouštěč nástrojů (P4.3.3) ještě neexistují, takže tam zatím nic proměnné nevolá.
   - **Funkce:** F127
   - **Hotovo, když:** stejná proměnná dá v klipu, receptu i externím nástroji stejnou hodnotu; test pokrývá pořadí přednosti.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.1.4** Šablony souborů
+- [x] **P4.1.4** Šablony souborů
   - **Co a proč:** Uživatelské šablony nových souborů jako data načítaná jádrem F029.
+  - **Stav 27. 10. 2026:** hotovo: `contributes.templates` v datovém pluginu, Soubor → „Nový ze šablony…“ otevře novou kartu s obsahem a kurzory na značkách `$|` (na začátku, když žádnou nemá); šablona může mít formulář. Nový soubor nemá proměnné `file.*`.
   - **Funkce:** F022
   - **Hotovo, když:** „Nový ze šablony“ vytvoří kartu s obsahem šablony a kurzorem na značce; šablony dodá datový plugin.
   - **Závisí na:** P4.1.1

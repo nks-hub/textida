@@ -24,6 +24,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: milliseconds between two progress reports of a running text tool.</summary>
     public const int TextToolsProgressMilliseconds = 250;
 
+    /// <summary>Placeholder: longest snippet or clip text, in UTF-16 code units.</summary>
+    public const int SnippetLength = 64 * 1024;
+
+    /// <summary>Placeholder: carets one snippet or clip places in each selection.</summary>
+    public const int SnippetCarets = 64;
+
+    /// <summary>Placeholder: largest grammar file of a data plugin.</summary>
+    public const long GrammarMaxBytes = 1 << 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -47,8 +56,8 @@ internal static class PluginLimitsPlaceholders
     {
         MaxSymbolsPerDocument = 5000,
         MaxSymbolTextLength = 400,
-        MaxSnippetLength = 64 * 1024,
-        MaxSnippetCarets = 64,
+        MaxSnippetLength = SnippetLength,
+        MaxSnippetCarets = SnippetCarets,
         TabTimeout = TabTimeout,
         Tools = tools,
         MaxReadBytes = 1 << 20,

@@ -98,6 +98,10 @@ internal static class AppCommands
         On("nks.edit.justifyBlock", w => w.Justify(Justification.Block));
         On("nks.edit.insertDateTime", w => w.InsertDateTime());
         On("nks.edit.insertGuid", w => w.InsertGuid());
+        On("nks.edit.insertClip", w => w.ShowClips());
+        On("nks.edit.clipFromSelection", w => w.SaveSelectionAsClip());
+        On("nks.clips.editVariables", w => w.EditUserVariables());
+        On("nks.file.newFromTemplate", w => w.ShowTemplates());
         registry.SetHandler("nks.edit.repeatLast", (context, token) => registry.RepeatLastAsync(context, token));
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));
@@ -200,5 +204,16 @@ internal static class AppCommands
         foreach (var tag in Loc.Languages) Do(LanguageCommandPrefix + tag, _ => app.SetLanguage(tag));
         Do("nks.help.about", w => _ = app.Dialogs.ShowAboutAsync(w));
         Do("nks.help.contents", w => { var topic = w.HelpContextTopic(); w.ClosePalette(); app.OpenHelp(topic); });
+    }
+
+    /// <summary>Gives the commands that data plugins name in their clips and templates a handler that inserts the clip or opens the template.</summary>
+    public static void BindClips(App app)
+    {
+        foreach (var (command, pluginId, action) in app.Clips.CommandTargets)
+        {
+            var id = action.Id;
+            bool template = action.Kind == "template";
+            app.Workbench.Commands.SetHandler(command, (_, _) => ValueTask.FromResult(app.ActiveWindow is { } w ? w.RunClipCommand(pluginId, id, template) : CommandOutcome.NotHandled));
+        }
     }
 }

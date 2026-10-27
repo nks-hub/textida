@@ -78,6 +78,26 @@ public class PluginManifestTests
     }
 
     [Fact]
+    public void AClipWithAFormAndATemplateLoadAndTheirCommandsRunData()
+    {
+        var manifest = "{" + Header + ",\"contributes\":{\"commands\":[{\"id\":\"acme.demo.box\",\"title\":\"Box\"},{\"id\":\"acme.demo.page\",\"title\":\"Page\"}]," +
+            "\"clips\":[{\"id\":\"box\",\"title\":\"Box\",\"text\":\"<b>${c}$|</b>\",\"command\":\"acme.demo.box\",\"fields\":[{\"name\":\"c\",\"type\":\"color\",\"default\":\"#fff\"}]}]," +
+            "\"templates\":[{\"id\":\"page\",\"title\":\"Page\",\"text\":\"<p>$|</p>\",\"command\":\"acme.demo.page\"}]}}";
+        var result = Load(Plugin(manifest));
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        var plugin = result.Plugin!;
+        Assert.Null(plugin.Spec);
+        Assert.Equal("color", plugin.Manifest.Contributes.Clips[0].Fields[0].Type);
+        Assert.Equal(new DataAction("clip", "box"), plugin.CommandData["acme.demo.box"]);
+        Assert.Equal(new DataAction("template", "page"), plugin.CommandData["acme.demo.page"]);
+
+        var twice = manifest.Replace("\"templates\":[", "\"templates\":[{\"id\":\"page\",\"title\":\"Other\",\"text\":\"x\"},");
+        Assert.Contains(Load(Plugin(twice)).Errors, e => e.Contains("Duplicate template id"));
+        var badText = manifest.Replace("<p>$|</p>", "<p>${</p>");
+        Assert.Contains(Load(Plugin(badText)).Errors, e => e.Contains("template 'page'") && e.Contains("unclosed"));
+    }
+
+    [Fact]
     public void ABrokenGrammarOrOneThatClaimsABuiltInIdIsRefused()
     {
         var broken = Load(Plugin(DataManifest(), ("demo.grammar.json", "{\"formatVersion\":1,\"id\":\"demo-lang\",\"typo\":1}")));

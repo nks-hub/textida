@@ -40,6 +40,9 @@ internal interface IDialogs
     Task<LineInsertOptions?> InsertIntoLinesAsync(Window owner, LineInsertOptions initial, Func<LineInsertOptions, string> preview);
     /// <summary>The rules of "Sort Lines" with a live preview of the result. Null when cancelled.</summary>
     Task<SortOptions?> SortLinesAsync(Window owner, SortOptions initial, Func<SortOptions, string> preview);
+    /// <summary>The form of a clip or a file template: <paramref name="evaluate"/> gives the refused fields and the preview for the values typed so far. Null when cancelled.</summary>
+    Task<IReadOnlyDictionary<string, string>?> ClipFormAsync(Window owner, string title, IReadOnlyList<NksHub.Textida.Workbench.Clips.ClipField> fields,
+        IReadOnlyDictionary<string, string> initial, Func<IReadOnlyDictionary<string, string>, ClipFormState> evaluate);
 }
 
 internal sealed partial class AvaloniaDialogs : IDialogs

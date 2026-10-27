@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Contributions;
 
@@ -155,7 +156,18 @@ public static class PluginManifestLoader
         }
 
         CheckUnique("clip", c.Clips.Select(x => x.Id), errors);
-        foreach (var clip in c.Clips) Item("clip", clip.Id, clip.Title, clip.Command);
+        foreach (var clip in c.Clips)
+        {
+            Item("clip", clip.Id, clip.Title, clip.Command);
+            CheckTemplate("clip", clip.Id, clip.Text, clip.Fields, errors);
+        }
+
+        CheckUnique("template", c.Templates.Select(x => x.Id), errors);
+        foreach (var t in c.Templates)
+        {
+            Item("template", t.Id, t.Title, t.Command);
+            CheckTemplate("template", t.Id, t.Text, t.Fields, errors);
+        }
 
         CheckUnique("log pattern", c.LogPatterns.Select(x => x.Id), errors);
         foreach (var p in c.LogPatterns)
@@ -172,6 +184,12 @@ public static class PluginManifestLoader
         }
 
         return data;
+    }
+
+    private static void CheckTemplate(string kind, string id, string text, List<ClipField> fields, List<string> errors)
+    {
+        if (Variables.CheckSyntax(text) is { } why) errors.Add($"{kind} '{id}': {why}.");
+        foreach (var problem in ClipFields.Check(fields)) errors.Add($"{kind} '{id}': {problem}.");
     }
 
     private static PluginSpec? CheckMain(string root, PluginManifest m, List<string> errors)

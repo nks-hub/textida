@@ -12,6 +12,7 @@ using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
@@ -32,6 +33,8 @@ public sealed partial class App : Application
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
+    /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>
+    internal ClipLibrary Clips { get; private set; } = null!;
     /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
     internal LastParameters LastParameters { get; private set; } = new();
@@ -118,7 +121,32 @@ public sealed partial class App : Application
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
+        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);
+        ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
+    }
+
+    /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>
+    internal void ReloadClips()
+    {
+        Clips.Load();
+        AppCommands.BindClips(this);
+    }
+
+    /// <summary>
+    /// The facts every variable is resolved from (see <see cref="VariableScope"/>): the file, the selection, the clock in the date format of the settings and the
+    /// user's own variables. Clips, recipes and tools all take their variables from here. Problem: why the user variables file could not be read, or null.
+    /// </summary>
+    internal VariableContext VariableContextFor(string? path, string selection, out string? problem)
+    {
+        var (user, why) = UserVariables.Load(Path.Combine(ProfileDirectory, UserVariables.FileName));
+        problem = why;
+        return new VariableContext
+        {
+            FilePath = path, Selection = selection, Now = Clock(), User = user,
+            DateTimeFormat = Workbench.Settings.GetString("editor.dateTimeFormat"),
+            Culture = CultureInfo.GetCultureInfo(Loc.Language),
+        };
     }
 
     private string EffectiveLanguage()

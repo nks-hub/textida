@@ -717,3 +717,24 @@ Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej zatiaľ nie sú
 - Porovnanie súborov vlastným oknom: používa sa externý porovnávač (téma Porovnať s diskom).
 - Úpravy veľmi veľkých súborov: len obmedzené, pozri tému Veľké súbory.
 - Rozšírenia (pluginy), vzdialené súbory a ďalšie funkcie z plánu verzie 1.0: v tejto verzii nie sú.
+
+## [edit.clips] Klipy
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+Klip je kus textu s miestami pre premenné a kurzory. Klipy dodávajú dátové pluginy v priečinku plugins v profile; jeden podpriečinok na plugin, so súborom nkspad-plugin.json a bez programu.
+1. Zvoľte Úpravy, Vložiť klip. Zoznam ukazuje klipy s náhľadom textu, ktorý by sa vložil.
+2. Vyberte klip. Ak má formulár, vyplňte ho: náhľad sleduje, čo píšete, zlá hodnota je označená a OK zostane zošedlé, kým každá hodnota nesedí so svojím typom.
+3. Text sa vloží do každého kurzora a nahradí každý výber, ako jeden krok Späť. Kurzory skončia tam, kde má klip značku $|.
+- Uložiť výber ako klip sa opýta na názov a pridá označený text do vašej vlastnej knižnice (plugin user.clips, priečinok user-clips). Text sa uloží doslovne, takže dolár v ňom zostane dolárom. Klip je v zozname hneď.
+- Jazyk šablón: ${name} je premenná, $| značí kurzor (koľko chcete), $$ je znak dolára. Konce riadkov sa zmenia na koniec riadka dokumentu.
+- Odkiaľ premenná berie hodnotu, od najsilnejšieho: 1. hodnota napísaná vo formulári klipu, 2. vaše vlastné premenné (Úpravy, Upraviť používateľské premenné otvorí súbor variables.json v profile: jeden objekt JSON s menom a textom), 3. vstavané. Rovnaké meno znamená všade to isté.
+- Vstavané premenné: file.path, file.dir, file.name, file.base, file.ext (neuložený dokument file.* nemá), date (rrrr-MM-dd), time (HH:mm:ss), datetime (nastavenie Formát dátumu a času), guid (pre každý kurzor nový), selection (text vybraný pri tomto kurzore), user.name. Meno bez hodnoty vloženie zastaví a stavový riadok ho vypíše.
+- Polia formulára: name, label, type, default, choices, required. Typy: text, integer (celé číslo), number (desatinná bodka), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (rrrr-MM-dd), file (existujúci súbor), choice (jedna z hodnôt choices). Predvolená hodnota smie používať premenné, napríklad ${date}.
+- V nkspad-plugin.json je klip {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} v contributes.clips; klip s "command" dostane aj príkaz toho mena.
+- Problémy s pluginom (poškodený súbor, program v dátovom plugine) sa ukážu v stavovom riadku a plugin sa preskočí.
+- Klipy nefungujú v dokumente len na čítanie ani v stránkovanom režime (téma Veľké súbory).
+
+## [file.templates] Nový súbor zo šablóny
+commands: nks.file.newFromTemplate
+1. Zvoľte Súbor, Nový zo šablóny a vyberte šablónu. Šablóna s formulárom sa pýta na hodnoty rovnako ako klip.
+2. Otvorí sa nová karta s textom šablóny a kurzormi na jej značkách $| (na začiatku, keď žiadnu nemá).
+- Šablóny sú tiež dáta: contributes.templates v nkspad-plugin.json, s id, title, text, fields a voliteľne command. Používajú jazyk šablón a premenné z témy Klipy; nový súbor nemá premenné file.*.
