@@ -45,13 +45,13 @@ public class MenuPaletteTests : IDisposable
     [AvaloniaFact]
     public void Menu_bar_has_the_d5_menus_that_have_commands_and_leaves_the_others_out()
     {
-        Assert.Equal(["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nastavení", "Okno", "Nápověda"], _w.MenuHeaders);
+        Assert.Equal(["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nástroje", "Nastavení", "Okno", "Nápověda"], _w.MenuHeaders);
         var shown = MenuBuilder.Order.Select(o => o.Id).ToList();
         Assert.Equal(["file", "projects", "edit", "search", "view", "format", "tools", "html", "settings", "window", "help"], shown);
-        // projects, tools and html have no commands in the manifest, so they are not drawn
+        // projects and html have no commands in the manifest, so they are not drawn
         var withCommands = _app.Workbench.Commands.MenuContributions.Select(m => m.Menu).ToHashSet();
         Assert.DoesNotContain("projects", withCommands);
-        Assert.DoesNotContain("tools", withCommands);
+        Assert.Contains("tools", withCommands);
         Assert.DoesNotContain("html", withCommands);
     }
 
@@ -110,7 +110,7 @@ public class MenuPaletteTests : IDisposable
         Assert.True(Item("nks.settings.theme.dark").Checked);
         Assert.False(Item("nks.settings.theme.system").Checked);
         Item("nks.settings.language.en").Run();
-        Assert.Equal(["File", "Edit", "Search", "View", "Format", "Settings", "Window", "Help"], _w.MenuHeaders);
+        Assert.Equal(["File", "Edit", "Search", "View", "Format", "Tools", "Settings", "Window", "Help"], _w.MenuHeaders);
         foreach (var lang in Loc.Languages.Reverse())
         {
             Item("nks.settings.language." + lang).Run();

@@ -31,8 +31,8 @@ public partial class ShellTests : IDisposable
         _temp.Dispose();
     }
 
-    private static readonly string[] CsMenus = ["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nastavení", "Okno", "Nápověda"];
-    private static readonly string[] EnMenus = ["File", "Edit", "Search", "View", "Format", "Settings", "Window", "Help"];
+    private static readonly string[] CsMenus = ["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nástroje", "Nastavení", "Okno", "Nápověda"];
+    private static readonly string[] EnMenus = ["File", "Edit", "Search", "View", "Format", "Tools", "Settings", "Window", "Help"];
 
     [GeneratedRegex(@"^[a-z0-9]+(\.[A-Za-z0-9]+)+$")]
     private static partial Regex LooksLikeKey();
@@ -106,10 +106,10 @@ public partial class ShellTests : IDisposable
         Assert.Contains("Untitled", w.Active!.Title);
         Assert.Equal("1 result", Loc.Plural(K.SettingsResultCount, 1));
         app.SetLanguage("sk");
-        Assert.Equal(["Súbor", "Úpravy", "Hľadať", "Zobraziť", "Formát", "Nastavenia", "Okno", "Pomocník"], w.MenuHeaders);
+        Assert.Equal(["Súbor", "Úpravy", "Hľadať", "Zobraziť", "Formát", "Nástroje", "Nastavenia", "Okno", "Pomocník"], w.MenuHeaders);
         Assert.Contains("Bez názvu", w.Active!.Title);
         app.SetLanguage("de");
-        Assert.Equal(["Datei", "Bearbeiten", "Suchen", "Ansicht", "Format", "Einstellungen", "Fenster", "Hilfe"], w.MenuHeaders);
+        Assert.Equal(["Datei", "Bearbeiten", "Suchen", "Ansicht", "Format", "Extras", "Einstellungen", "Fenster", "Hilfe"], w.MenuHeaders);
         Assert.Contains("Unbenannt", w.Active!.Title);
         app.SetLanguage("cs");
         Assert.Contains("Bez názvu", w.Active!.Title);

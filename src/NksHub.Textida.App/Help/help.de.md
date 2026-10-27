@@ -196,6 +196,24 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Ein Syntaxfehler wird mit Zeile und Spalte gemeldet, und nichts wird geändert. Text über dem Limit wird mit einer Meldung abgelehnt.
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
+## [tools.stats] Dokumentstatistik und Hashes
+commands: nks.tools.statistics, nks.tools.hash
+1. Menü Extras, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments.
+2. Menü Extras, Hash berechnen, fragt nach dem Algorithmus (MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder des markierten Teils.
+- Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
+- Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
+- Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
+- Ein Wort ist eine zusammenhängende Folge von Buchstaben und Ziffern. Für mehrere markierte Bereiche gleichzeitig gibt es keinen Hash.
+
+## [tools.calculate] Blockberechnung, Ausdrücke und Zahlensysteme
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+1. Markierten Block berechnen addiert die Zahlen in der Markierung (Blockmarkierung, eine Spalte von Zahlen) und zeigt Anzahl, Summe, kleinste, größte und Durchschnitt.
+2. Ausdruck auswerten fragt nach einem Ausdruck, beginnt mit dem markierten Text und zeigt das Ergebnis. Verstanden werden + - * / ^ ( ), MOD und die Funktionen ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR und TRUNC. Zahlen werden mit Punkt geschrieben. Alles andere, etwa der Aufruf eines Systembefehls, wird abgelehnt und nichts wird ausgeführt.
+3. Zahlensystem umrechnen fragt nach einer ganzen Zahl, dezimal oder mit dem Präfix 0x, 0b oder 0o, und zeigt sie dezimal, hexadezimal, oktal und binär.
+- Das Programm erkennt, wie die Zahlen in der Markierung geschrieben sind (Tschechisch und Slowakisch: 1 234,50, Deutsch: 1.234,50, Englisch: 1,234.50). Passen mehrere Schreibweisen, etwa bei 1,234, nimmt es die der Programmsprache. Die Ergebnisse erscheinen im Format der Programmsprache. Ein Sprachwechsel ändert das Dokument nicht.
+- Text in der Markierung, der keine Zahl ist, wird übersprungen und gezählt. Die Zahlenumrechnung funktioniert für Werte von -9223372036854775808 bis 18446744073709551615.
+- Potenzen nehmen nur eine positive Basis. Die Berechnung verwendet Zahlen mit doppelter Genauigkeit.
+
 ## [edit.carets] Mehrere Cursor
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Markieren Sie ein Wort; Strg+D fügt sein nächstes Vorkommen zur Auswahl hinzu. Wiederholen Sie das für weitere Vorkommen.

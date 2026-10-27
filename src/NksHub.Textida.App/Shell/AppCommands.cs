@@ -109,6 +109,13 @@ internal static class AppCommands
         Fire("nks.edit.formatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: false));
         Fire("nks.edit.previewFormatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: true));
 
+        // tools
+        Fire("nks.tools.statistics", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.stats"));
+        Fire("nks.tools.hash", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash"));
+        Fire("nks.tools.calculateBlock", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.calculate"));
+        Fire("nks.tools.evaluateExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression"));
+        Fire("nks.tools.convertBase", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.bases"));
+
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));
         On("nks.search.replace", w => w.ShowFind(replace: true));

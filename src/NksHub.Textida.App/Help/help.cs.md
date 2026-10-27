@@ -196,6 +196,24 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Chyba syntaxe se ohlásí s řádkem a sloupcem a nic se nezmění. Text větší než limit se odmítne se zprávou.
 - Pokud se dokument po spuštění příkazu změnil, příkaz se zastaví a vyzve vás ke spuštění znovu.
 
+## [tools.stats] Statistika dokumentu a hashe
+commands: nks.tools.statistics, nks.tools.hash
+1. Nabídka Nástroje, Statistika dokumentu, spočítá bajty, znaky, slova, řádky a nejdelší řádek celého dokumentu.
+2. Nabídka Nástroje, Spočítat hash, se zeptá na algoritmus (MD5, SHA-1, SHA-256, SHA-384 nebo SHA-512) a spočítá hash surových bajtů celého souboru nebo označené části.
+- Oba příkazy čtou dokument po blocích a vy můžete dál pracovat, ukazují průběh a jdou zrušit. Žádný nedrží celý soubor v paměti, takže fungují na souborech libovolné velikosti, i ve stránkovaném a hex zobrazení.
+- Zrušená statistika se ukáže jako neúplná s počtem spočítaných bajtů. Zrušený hash výsledek nemá.
+- Statistika i hash platí pro dokument, jaký byl při spuštění příkazu; úpravy během výpočtu je nemění.
+- Slovo je souvislá řada písmen a číslic. Hash nemá výsledek pro více označených částí najednou.
+
+## [tools.calculate] Výpočet bloku, výrazy a číselné soustavy
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+1. Spočítat označený blok sečte čísla v označení (blokové označení, sloupec čísel) a ukáže počet, součet, nejmenší, největší a průměr.
+2. Vyhodnotit výraz se zeptá na výraz, předvyplní označený text a ukáže výsledek. Rozumí + - * / ^ ( ), MOD a funkcím ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR a TRUNC. Čísla se píší s tečkou. Cokoli jiného, třeba volání příkazu systému, se odmítne a nic se nespustí.
+3. Převést číselnou soustavu se zeptá na celé číslo, desítkově nebo s předponou 0x, 0b či 0o, a ukáže ho desítkově, šestnáctkově, osmičkově a dvojkově.
+- Program pozná, jak jsou čísla v označení zapsána (čeština a slovenština: 1 234,50, němčina: 1.234,50, angličtina: 1,234.50). Když vyhovuje víc zápisů, třeba 1,234, vezme ten z jazyka programu. Výsledky se ukážou ve formátu jazyka programu. Změna jazyka dokument nezmění.
+- Text v označení, který není číslo, se přeskočí a spočítá. Převod čísel funguje pro hodnoty od -9223372036854775808 do 18446744073709551615.
+- Mocnina bere jen kladný základ. Výpočet používá čísla s dvojitou přesností.
+
 ## [edit.carets] Více kurzorů
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Vyberte slovo a Ctrl+D přidá další jeho výskyt do výběru. Opakujte pro další výskyty.

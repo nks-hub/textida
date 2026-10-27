@@ -406,6 +406,87 @@ public class PluginUiTests : IDisposable
         Assert.True(_w.Notices.Any(n => n.Message.Contains("JSON") && n.Message.Contains("8:")), string.Join(" | ", _w.Notices.Select(n => n.Message)));
     }
 
+    // ---- text tools inside the app ----
+
+    private bool HasNotice(string text) => _w.Notices.Any(n => n.Message.Contains(text, StringComparison.Ordinal));
+
+    private static string Grouped(long n) => n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture).Replace(',', ' ');
+
+    private DocTab OpenPaged(string name, byte[] content)
+    {
+        _app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
+        var tab = _w.OpenFile(_temp.Bytes(name, content), null);
+        Assert.True(tab.Doc.IsLarge);
+        return tab;
+    }
+
+    [AvaloniaFact]
+    public async Task Statistics_of_a_paged_file_run_in_the_plugin_process_and_the_document_stays_as_it_was()
+    {
+        const string line = "alpha beta gamma\r\n";
+        var bytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat(line, (3 << 20) / line.Length)));
+        var tab = OpenPaged("big.txt", bytes);
+        long lines = bytes.Length / line.Length;
+
+        await RunAsync("nks.tools.statistics");
+
+        Assert.True(HasNotice($"Bajty: {Grouped(bytes.Length)}, znaky: {Grouped(bytes.Length)}, slova: {Grouped(3 * lines)}, řádky: {Grouped(lines + 1)}"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        Assert.Equal(bytes.Length, tab.Doc.Doc.ByteLength);
+        Assert.Empty(_app.Plugins.Ui.Tasks);
+    }
+
+    [AvaloniaFact]
+    public async Task A_hash_of_a_paged_file_is_picked_from_the_algorithms_and_matches_the_bytes()
+    {
+        var bytes = new byte[3 * (1 << 20) + 17];
+        new Random(5).NextBytes(bytes);
+        OpenPaged("big.bin", bytes);
+
+        var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.hash", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the algorithm pick");
+        Assert.Equal(["MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512"], _w.QuickResults.Select(r => r.Title));
+        _w.RunPaletteSelection();
+        await Until(() => run.IsCompleted, "the command");
+        await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
+
+        Assert.True(HasNotice(Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(bytes))), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+    }
+
+    [AvaloniaFact]
+    public async Task A_selected_column_adds_up_in_the_format_of_the_ui_language_and_the_document_does_not_change()
+    {
+        var tab = _w.OpenFile(_temp.File("n.txt", "1 234,50\n10,25\n-3\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.Select(0, 17);
+        var before = Utf8(tab);
+
+        await RunAsync("nks.tools.calculateBlock");
+        Assert.True(HasNotice("Počet: 3, součet: 1 241,75, nejmenší: -3, největší: 1 234,5, průměr: 413,9166666"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        _app.SetLanguage("de");
+        await RunAsync("nks.tools.calculateBlock");
+        Assert.True(HasNotice("Anzahl: 3, Summe: 1.241,75"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        Assert.Equal(before, Utf8(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task Expressions_and_number_bases_ask_in_a_dialog_and_a_system_call_is_refused()
+    {
+        _w.NewDocument();
+        _dialogs.Prompts.Enqueue("2*(3+4)");
+        await RunAsync("nks.tools.evaluateExpression");
+        Assert.True(HasNotice("2*(3+4) = 14"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        _dialogs.Prompts.Enqueue("System(\"calc\")");
+        await RunAsync("nks.tools.evaluateExpression");
+        Assert.True(HasNotice("Neznámý název 'System'"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        _dialogs.Prompts.Enqueue("0xFF");
+        await RunAsync("nks.tools.convertBase");
+        Assert.True(HasNotice("Desítkově: 255, šestnáctkově: 0xFF"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+    }
+
     [AvaloniaFact]
     public async Task Preview_shows_the_change_first_and_applies_it_only_when_the_user_agrees()
     {
