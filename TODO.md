@@ -2298,16 +2298,18 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Latte a NEON vedle Blade a Twig, párování `{if}…{/if}`. Go, `go.mod`, Go šablony, Rust, TOML, C, C++, CMake, Makefile (`Tab` vždy tabulátor), Meson, Ruby, ERB, HAML, Slim a další ze 17 skupin z tabulky analýza konkurence.
   - **Funkce:** F121
   - **Hotovo, když:** každá gramatika ze seznamu v tabulce P8.5.3 má snapshot test; v Makefile vloží `Tab` tabulátor i při odsazení mezerami.
+  - **Stav 27. 10. 2026:** částečně: párování `{if}…{/if}` a `{/}` v Latte (`TagPairMatcher`, Přejít na závorku); 22 nových vlastních gramatik (C, C++, Go, `go.mod`/`go.work`, Go šablony, Rust, TOML, Makefile, CMake, Meson, Ruby, ERB, HAML, Slim, RBS, Java, Kotlin, Lua, Swift, Dart, R, PowerShell), každá se snapshot testem; režimy podle jména souboru (`Makefile`, `CMakeLists.txt`, `go.mod`, `Gemfile`); v Makefile `Tab` vždy tabulátor (`TabsOnly`). Tabulka P8.5.3 chybí, seznam podle 17 skupin; VB a Batch chybí; Blade a Twig gramatiku v repu nemají. Ruby heredoc, vnořené komentáře Rust/Swift a ERB v HTML atributu zjednodušené.
   - **Závisí na:** P3.2.1, P4.7.1
   - **Odhad:** Latte a NEON 0,5–1 ČT, gramatiky 3. kola 1–2 ČT
   - **Umístění:** jádro (engine), gramatiky jako data
 
 ### P8.9 Vložené fragmenty
 
-- [ ] **P8.9.1** Úprava vloženého fragmentu
+- [x] **P8.9.1** Úprava vloženého fragmentu
   - **Co a proč:** Řetězec v PHP nebo JS „upravit jako JSON / SQL / HTML“ v samostatné kartě, propojené s rodičem kotvami; při zápisu zpět editor doplní escapování.
   - **Funkce:** F175
   - **Hotovo, když:** JSON s uvozovkami upravený v samostatné kartě se vrátí do PHP řetězce se správným escapováním; změna rodiče mezitím vyvolá konflikt, ne přepsání.
+  - **Stav 27. 10. 2026:** hotovo: příkazy „Upravit řetězec jako JSON / SQL / HTML“ a „Zapsat fragment zpět“ pro PHP `'…'`, `"…"`, heredoc, nowdoc a JS `'…'`, `"…"`, `` `…` ``; dvě kotvy v rodiči, změna jinde je posune; zpětné escapování (v `"…"` a heredoc `$` s lomítkem); odmítne PHP řetězec s proměnnou, JS šablonu s `${…}`, netextový escape, řádek ukončující heredoc a znak mimo kódování rodiče; změna rodiče uvnitř řetězce = dialog Přepsat / Zrušit, smazané kotvy nikdy nepřepíše; po zavření rodiče se karta odpojí. Testy jádra (18) a aplikace (4). Neověřeno: spuštěná aplikace; HTML atribut v `.php` může tokenizer nabídnout jako řetězec.
   - **Závisí na:** P1.2.5, P3.2.1
   - **Odhad:** F175 2–4 ČT (matice)
   - **Umístění:** jádro
