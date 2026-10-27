@@ -13,6 +13,10 @@ internal sealed partial class PagedTextView
 {
     private const int WindowMarginLines = 200;
     private const int WindowRebuildLines = 50;
+    private const int ExcerptMarginBytes = 16;
+
+    /// <summary>Most characters of text the window holds beyond the lines on screen; lines of 16 KiB would otherwise make it megabytes.</summary>
+    private const int WindowBudgetChars = 4 * MaxLineBytes;
 
     /// <summary>
     /// A window of whole lines around the first line on screen. A file of gigabytes has no UTF-16 offsets for all of its text, so the text
@@ -21,8 +25,10 @@ internal sealed partial class PagedTextView
     /// loader as the drawing, so blocks of the file do not matter.
     /// </summary>
     /// <remarks>
-    /// shortcut: a selection that starts or ends outside the window is clipped to it, and a line longer than <see cref="MaxLineBytes"/> shows
-    /// its first part; move the window to the caret when the selection spans more than a window (P7.1.7 for files over 10 GiB).
+    /// A line longer than <see cref="MaxLineBytes"/> shows its first part, or, while the caret is beyond that part, the characters around the
+    /// caret (the same bytes the input method sees); bytes of the line before them map to the first of those characters, bytes after them
+    /// to the last. shortcut: a selection that starts or ends outside the window, or in the hidden part of a long line other than the one holding
+    /// the caret, is clipped to the window; move the window to the selection when it spans more than a window (P7.1.7 for files over 10 GiB).
     /// </remarks>
     internal sealed class TextSurface : ITextAutomationSurface, IDisposable
     {
@@ -38,6 +44,10 @@ internal sealed partial class PagedTextView
         private long _shown = -1;
         private bool _exact = true;
         private bool _atEnd;
+        private bool _capped;
+        private int _excerptIndex = -1;
+        private long _excerptLine, _excerptColumn, _excerptStart, _excerptEnd;
+        private bool _excerptFromStart, _excerptToEnd;
         private int _version;
         private (int Version, long First) _raised = (0, 0);
         private string _raisedText = "";
@@ -106,14 +116,40 @@ internal sealed partial class PagedTextView
             int visible = Math.Max(1, Canvas.VisibleLines), count = _views.Length;
             bool stale = _version == 0 || _revision != Doc.Revision || _exact != _owner.LinesExact || _atEnd && _shown != shown
                 || top < _first || top + visible > _first + count && !_atEnd
-                || top < _first + WindowRebuildLines && _first > _owner.FirstKnownLine
-                || top + visible > _first + count - WindowRebuildLines && !_atEnd;
+                || !_capped && (top < _first + WindowRebuildLines && _first > _owner.FirstKnownLine
+                    || top + visible > _first + count - WindowRebuildLines && !_atEnd)
+                || ExcerptStale();
             if (stale) Rebuild(top, visible);
+        }
+
+        /// <summary>The caret line when its caret is beyond the decoded part of a long line.</summary>
+        private (long Line, LineView View, long Caret)? CaretInTail()
+        {
+            if (_owner.CaretLine() is not { } c || !c.View.Truncated) return null;
+            long caret = _owner.CaretOffset;
+            return caret > c.View.Start + c.View.Map.ByteOffsetOf(c.View.Map.Text.Length) ? (c.Line, c.View, caret) : null;
+        }
+
+        private bool ExcerptStale()
+        {
+            if (CaretInTail() is not { } tail) return _excerptIndex >= 0;
+            if (_excerptIndex < 0 && (tail.Line < _first || tail.Line >= _first + _views.Length)) return false; // the caret line is not in the window
+            return _excerptIndex < 0 || _excerptLine != tail.Line
+                || tail.Caret < _excerptStart + (_excerptFromStart ? 0 : ExcerptMarginBytes) || tail.Caret > _excerptEnd - (_excerptToEnd ? 0 : ExcerptMarginBytes);
         }
 
         private void Rebuild(long top, int visible)
         {
             long first = Math.Max(_owner.FirstKnownLine, top - WindowMarginLines), last = top + visible + WindowMarginLines;
+            long room = WindowBudgetChars;
+            for (long line = top - 1; line >= first; line--)
+            {
+                if (_owner.GetLine(line) is not { } before || (room -= before.Map.Text.Length) < 0) { first = line + 1; break; }
+            }
+            var tail = CaretInTail();
+            int excerpt = -1;
+            long excerptColumn = 0, excerptStart = 0, excerptEnd = 0;
+            bool fromStart = false, toEnd = false, capped = false;
             var text = new StringBuilder();
             var starts = new List<int>();
             var bytes = new List<long>();
@@ -124,8 +160,18 @@ internal sealed partial class PagedTextView
             var terminator = new byte[8];
             for (long line = first; line < last; line++)
             {
+                if (line >= top + visible && text.Length > WindowBudgetChars) { capped = true; break; }
                 if (_owner.GetLine(line) is not { } view || !_owner.TryBounds(line, out long start, out long end, out long next))
                     break;
+                if (tail is { } t && t.Line == line)
+                {
+                    var local = _owner.LocalView(view, t.Caret);
+                    excerpt = views.Count;
+                    excerptColumn = _owner.ColumnOfOffset(view, local.Start);
+                    (excerptStart, excerptEnd) = (local.Start, local.Start + local.ByteLength);
+                    (fromStart, toEnd) = (local.Start == view.Start, excerptEnd >= view.Start + view.ByteLength);
+                    view = local;
+                }
                 starts.Add(text.Length);
                 bytes.Add(start);
                 views.Add(view);
@@ -144,6 +190,8 @@ internal sealed partial class PagedTextView
             bytes.Add(endByte);
             starts.Add(text.Length);
 
+            (_excerptIndex, _excerptLine, _excerptColumn, _excerptStart, _excerptEnd) = (excerpt, tail?.Line ?? 0, excerptColumn, excerptStart, excerptEnd);
+            (_excerptFromStart, _excerptToEnd, _capped) = (fromStart, toEnd, capped);
             _first = first;
             _starts = [.. starts];
             _bytes = [.. bytes];
@@ -170,7 +218,7 @@ internal sealed partial class PagedTextView
             int length = view.Map.Text.Length, column;
             if (position >= _lineEnds[i]) column = length + (int)Math.Min((position - _lineEnds[i]) / Doc.Codec.Alignment, _starts[i + 1] - _starts[i] - length);
             else if (position >= _textEnds[i]) column = length;
-            else column = view.Map.CharIndexOf(position - view.Start);
+            else column = position < view.Start ? 0 : view.Map.CharIndexOf(position - view.Start);
             return _starts[i] + column;
         }
 
@@ -250,11 +298,24 @@ internal sealed partial class PagedTextView
                 int from = Math.Clamp(start - _starts[i], 0, text), to = Math.Clamp(end - _starts[i], 0, text);
                 while (from > 0 && !view.Map.IsCharBoundary(from)) from--;
                 while (to > 0 && !view.Map.IsCharBoundary(to)) to--;
-                double x1 = Canvas.XOf(view, from), x2 = Canvas.XOf(view, to) + (end - _starts[i] > text ? Canvas.DigitWidth : 0);
+                double x1 = XOf(i, from), x2 = XOf(i, to) + (end - _starts[i] > text ? Canvas.DigitWidth : 0);
                 var local = new Rect(Canvas.TextLeft - _owner._hScroll + x1, (fileLine - _owner.TopLine) * Canvas.LineHeight, Math.Max(1, x2 - x1), Canvas.LineHeight);
                 rects.Add(AutomationScreen.ToScreen(Canvas, local));
             }
             return rects;
+        }
+
+        /// <summary>Horizontal position of a character of a window line; the excerpt of a long line sits on the fixed grid of the windows beyond the decoded part.</summary>
+        private double XOf(int line, int index) =>
+            line == _excerptIndex ? (_excerptColumn + index) * Canvas.CharWidth : Canvas.XOf(_views[line], index);
+
+        private int IndexAt(int line, double x)
+        {
+            if (line != _excerptIndex) return Canvas.IndexAtX(_views[line], x);
+            var map = _views[line].Map;
+            int at = (int)Math.Clamp(Math.Round(x / Canvas.CharWidth) - _excerptColumn, 0, map.Text.Length);
+            while (at > 0 && !map.IsCharBoundary(at)) at--;
+            return at;
         }
 
         public int OffsetFromPoint(double x, double y)
@@ -267,7 +328,7 @@ internal sealed partial class PagedTextView
             long line = _owner.TopLine + (long)Math.Floor(local.Y / Canvas.LineHeight) - _first;
             if (line < 0 || line >= _views.Length) return -1;
             var view = _views[line];
-            return _starts[line] + Canvas.IndexAtX(view, local.X - Canvas.TextLeft + _owner._hScroll);
+            return _starts[line] + IndexAt((int)line, local.X - Canvas.TextLeft + _owner._hScroll);
         }
 
         public void ScrollIntoView(int start, int length, bool alignToTop)

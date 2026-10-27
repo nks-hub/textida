@@ -1173,8 +1173,15 @@ internal sealed partial class PagedTextView : Grid
         {
             get
             {
-                int i = owner.CaretSite() is { } c ? c.View.Map.CharIndexOf(owner._caret - c.View.Start) : 0;
-                return new Avalonia.Input.TextInput.TextSelection(i, i);
+                if (owner.CaretSite() is not { } c) return new Avalonia.Input.TextInput.TextSelection(0, 0);
+                var map = c.View.Map;
+                int caret = map.CharIndexOf(owner._caret - c.View.Start);
+                if (!owner.HasSelection) return new Avalonia.Input.TextInput.TextSelection(caret, caret);
+                // a selection that leaves the line (or the excerpt of a long line) is cut at its edge, so reconversion sees only text it can read
+                var range = owner.SelectionRange;
+                int from = range.Start <= c.View.Start ? 0 : map.CharIndexOf(Math.Min(range.Start, c.View.Start + c.View.ByteLength) - c.View.Start);
+                int to = range.End >= c.View.Start + c.View.ByteLength ? map.Text.Length : map.CharIndexOf(range.End - c.View.Start);
+                return new(from, to);
             }
             set => owner.SelectInCaretLine(value.Start, value.End);
         }
