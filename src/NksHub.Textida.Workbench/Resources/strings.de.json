@@ -403,5 +403,6 @@
   "cmd.packages.refresh": "Paketversionen aktualisieren...",
   "cmd.packages.revoke": "Paketregister-Abfragen verbieten",
   "cmd.packages.script": "Paketskript ausführen...",
-  "cmd.edit.runRecipeFiles": "Rezept auf Dateien anwenden..."
+  "cmd.edit.runRecipeFiles": "Rezept auf Dateien anwenden...",
+  "cmd.plugins.manage": "Plugin-Manager..."
 }

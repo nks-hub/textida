@@ -211,6 +211,7 @@ internal static class AppCommands
         On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
         On("nks.packages.revoke", w => w.PackageRevoke());
         On("nks.packages.script", w => w.ShowPackageScripts());
+        On("nks.plugins.manage", w => w.ShowPluginManager());
         On("nks.tools.lint", w => w.RunLinter());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
@@ -328,6 +329,7 @@ internal static class AppCommands
     {
         foreach (var (command, pluginId, action) in app.Clips.CommandTargets)
         {
+            if (app.Workbench.Commands.HasHandler(command)) continue;
             var id = action.Id;
             var kind = action.Kind;
             app.Workbench.Commands.SetHandler(command, (_, _) => ValueTask.FromResult(app.ActiveWindow is { } w ? w.RunDataCommand(pluginId, id, kind) : CommandOutcome.NotHandled));

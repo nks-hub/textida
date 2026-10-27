@@ -1625,6 +1625,11 @@
       "id": "nks.edit.runRecipeFiles",
       "title": "cmd.edit.runRecipeFiles",
       "category": "cat.edit"
+    },
+    {
+      "id": "nks.plugins.manage",
+      "title": "cmd.plugins.manage",
+      "category": "cat.tools"
     }
   ],
   "menus": [
@@ -3097,6 +3102,12 @@
       "command": "nks.edit.runRecipeFiles",
       "group": "8_insert",
       "order": 11
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.manage",
+      "group": "9_plugins",
+      "order": 10
     }
   ],
   "keybindings": [

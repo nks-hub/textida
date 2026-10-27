@@ -27,6 +27,9 @@ public sealed class PluginManifest
     public PluginMain? Main { get; set; }
 
     public PluginContributions Contributes { get; set; } = new();
+
+    /// <summary>Permissions the plugin asks for (names of <see cref="NksHub.Textida.PluginHost.Permissions.PluginPermissionNames.Declarable"/>). The user decides on each one when the plugin is installed.</summary>
+    public List<string> Permissions { get; set; } = [];
 }
 
 public sealed class ApiRange

@@ -44,6 +44,7 @@ public sealed class PluginHost : IAsyncDisposable
         /// <summary>Requests of the plugin that wait for a decision of the user (edit proposals); the plugin is idle meanwhile, not hung.</summary>
         public int Deciding;
         public string? DisabledReason;
+        public volatile bool Removed;
     }
 
     sealed class Run(Process process)
@@ -63,6 +64,23 @@ public sealed class PluginHost : IAsyncDisposable
         {
             if (!_plugins.TryAdd(spec.Id, new Plugin(spec))) throw new ArgumentException($"Plugin '{spec.Id}' is already registered.");
         }
+    }
+
+    public bool IsRegistered(string pluginId)
+    {
+        lock (_gate) return _plugins.ContainsKey(pluginId);
+    }
+
+    /// <summary>Ends the plugin process the way a shutdown does and forgets the plugin, so it can be registered again (a new version) or never started (disabled, uninstalled).</summary>
+    public async Task UnregisterAsync(string pluginId)
+    {
+        Plugin? p;
+        lock (_gate)
+        {
+            if (!_plugins.Remove(pluginId, out p)) return;
+            p.Removed = true;
+        }
+        await ShutdownOneAsync(p).ConfigureAwait(false);
     }
 
     public PluginState GetState(string pluginId) => Get(pluginId).State;
@@ -201,7 +219,7 @@ public sealed class PluginHost : IAsyncDisposable
                 first = null;
             }
             p.Current = null;
-            if (_shuttingDown)
+            if (_shuttingDown || p.Removed)
             {
                 SetState(p, PluginState.Stopped);
                 first?.TrySetCanceled();
@@ -221,6 +239,11 @@ public sealed class PluginHost : IAsyncDisposable
             SetState(p, PluginState.WaitingRestart);
             try { await Task.Delay(delay.Value, _stop.Token).ConfigureAwait(false); }
             catch (OperationCanceledException)
+            {
+                SetState(p, PluginState.Stopped);
+                return;
+            }
+            if (p.Removed)
             {
                 SetState(p, PluginState.Stopped);
                 return;

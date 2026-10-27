@@ -37,6 +37,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
     public const long SecretScanMaxBytes = 16L << 20;
 
+    /// <summary>Placeholder: largest size a plugin ZIP may unpack to, in bytes. OPEN: the owner has not decided it.</summary>
+    public const long PluginZipMaxUnpackedBytes = 256L << 20;
+
+    /// <summary>Placeholder: most entries a plugin ZIP may hold. OPEN: the owner has not decided it.</summary>
+    public const int PluginZipMaxEntries = 2000;
+
+    public static NksHub.Textida.PluginHost.Manager.PluginInstallLimits PluginZip() => new(PluginZipMaxUnpackedBytes, PluginZipMaxEntries);
+
     /// <summary>Placeholder: bytes the web data plugin (colours, key paths) reads per request. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int WebDataChunkBytes = 1 << 20;
 

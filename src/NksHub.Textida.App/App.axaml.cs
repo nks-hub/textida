@@ -153,7 +153,7 @@ public sealed partial class App : Application
         Plugins = new PluginServices(this);
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
-        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);
+        Clips =new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());

@@ -403,5 +403,6 @@
   "cmd.packages.refresh": "Obnoviť verzie balíkov...",
   "cmd.packages.revoke": "Zakázať dotazy na registre balíkov",
   "cmd.packages.script": "Spustiť skript balíka...",
-  "cmd.edit.runRecipeFiles": "Spustiť recept nad súbormi..."
+  "cmd.edit.runRecipeFiles": "Spustiť recept nad súbormi...",
+  "cmd.plugins.manage": "Správca pluginov..."
 }

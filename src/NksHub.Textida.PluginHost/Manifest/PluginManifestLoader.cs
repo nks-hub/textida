@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.PluginHost.Conversions;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
@@ -62,6 +63,13 @@ public static class PluginManifestLoader
         if (m.Api.Min < 1 || m.Api.Max < m.Api.Min) errors.Add("api needs min >= 1 and max >= min.");
         else if (hostApiVersion < m.Api.Min || hostApiVersion > m.Api.Max)
             errors.Add($"The plugin supports plugin API {m.Api.Min} to {m.Api.Max}, but this editor provides {hostApiVersion}.");
+
+        var asked = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var permission in m.Permissions)
+        {
+            if (!PluginPermissionNames.Declarable.Contains(permission)) errors.Add($"Unknown permission '{permission}'.");
+            else if (!asked.Add(permission)) errors.Add($"Permission '{permission}' is listed twice.");
+        }
 
         var c = m.Contributes;
         var contributions = new ContributionManifest { Id = m.Id, Commands = c.Commands, Menus = c.Menus, Keybindings = c.Keybindings, Settings = c.Settings };
