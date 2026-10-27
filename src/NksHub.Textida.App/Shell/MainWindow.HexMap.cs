@@ -23,6 +23,16 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>Opens the structure panel, or closes it when it already has the focus (P8.10.1).</summary>
+    internal CommandOutcome ToggleHexTemplate()
+    {
+        if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;
+        var panel = hex.Structure;
+        if (panel.IsVisible && panel.IsKeyboardFocusWithin) { panel.IsVisible = false; hex.Focus(); }
+        else panel.FocusTree();
+        return CommandOutcome.Handled;
+    }
+
     internal CommandOutcome ToggleHexStatistics()
     {
         if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;

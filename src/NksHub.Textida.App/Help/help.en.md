@@ -796,6 +796,16 @@ The map is a strip beside the scroll bar that shows the whole file at once, in a
 - The statistics of a whole file above 1 GiB are not counted at once: select a range.
 - The map and the counting run beside the window and are redone when the file changes.
 
+## [hex.template] Hex: structure template
+commands: nks.hex.template
+The structure panel reads the file through a template and shows its fields as a tree. Selecting a field selects its bytes in the grid.
+1. Hex: Structure Template (Ctrl+J) opens the panel, or closes it when it already has the focus. The template that fits the file is chosen by its magic number, then by the file extension; the list above the tree lets you pick another one, and the choice is kept for that extension until the program ends.
+2. A field with parts (a structure or a list) is read when you open it, so a large file opens at once. Each row shows the name, the value and, in grey, the offset and the length in bytes.
+3. A field that cannot be read is shown in red with the reason, for example that it runs past the end of the data or differs from the expected bytes. The fields behind it are not shown, because their place is unknown.
+- Templates are a subset of the Kaitai Struct .ksy format: integers, floats, strings, raw bytes, fixed bytes (contents), enums, nested types, size, size-eos and repeat (eos or a count). A size or a count is a number or an earlier integer field. Expressions, if, switch-on, instances and process are not supported.
+- Reading stops with a message when a template nests too deep, repeats one field too often, or reads a string or an amount of work above a fixed limit.
+- Shipped templates: BMP header and PNG chunk list. Opening your own .ksy file is not available yet.
+
 ## [hex.compare] Hex: binary comparison
 commands: nks.hex.compare.file, nks.hex.compare.saved
 Two hex grids side by side, scrolling together, with the differences tinted and listed below.

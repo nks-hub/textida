@@ -318,6 +318,7 @@
   "cmd.hex.minimap": "Hex: Dateikarte",
   "cmd.hex.minimap.mode": "Hex: Karte nach Entropie oder Art der Bytes",
   "cmd.hex.statistics": "Hex: Byte-Statistik",
+  "cmd.hex.template": "Hex: Strukturvorlage",
   "cmd.hex.compare.file": "Hex: Mit Datei vergleichen...",
   "cmd.hex.compare.saved": "Hex: Mit gespeicherter Datei vergleichen",
   "setting.files.binaryAsHex.title": "Binärdateien im Hex-Editor",

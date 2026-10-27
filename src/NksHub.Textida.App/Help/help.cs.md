@@ -801,6 +801,16 @@ Mapa je proužek vedle posuvníku, který ukazuje celý soubor najednou v buňk�
 - Statistika celého souboru nad 1 GiB se nepočítá najednou: vyberte úsek.
 - Mapa i počítání běží vedle okna a při změně souboru se dělají znovu.
 
+## [hex.template] Hex: šablona struktury
+commands: nks.hex.template
+Panel struktury čte soubor podle šablony a ukáže jeho pole jako strom. Výběr pole označí jeho bajty v mřížce.
+1. Hex: Šablona struktury (Ctrl+J) panel otevře, nebo zavře, když už má fokus. Šablona se vybere podle magického čísla, potom podle přípony souboru; seznam nad stromem dovolí zvolit jinou a volba platí pro danou příponu do konce běhu programu.
+2. Pole s částmi (struktura nebo seznam) se čte až při rozbalení, takže velký soubor se otevře hned. Řádek ukazuje jméno, hodnotu a šedě offset a délku v bajtech.
+3. Pole, které nejde přečíst, je červené s důvodem, třeba že přesahuje konec dat nebo se liší od očekávaných bajtů. Pole za ním se nezobrazí, protože jejich místo není známé.
+- Šablony jsou podmnožina formátu Kaitai Struct .ksy: celá čísla, desetinná čísla, řetězce, surové bajty, pevné bajty (contents), výčty, vnořené typy, size, size-eos a repeat (eos nebo počet). Velikost nebo počet je číslo nebo dřívější celočíselné pole. Výrazy, if, switch-on, instances a process nejsou podporovány.
+- Čtení skončí hláškou, když šablona vnořuje příliš hluboko, opakuje jedno pole příliš často nebo čte řetězec či množství práce nad pevným limitem.
+- Přibalené šablony: hlavička BMP a seznam bloků PNG. Otevření vlastního souboru .ksy zatím není.
+
 ## [hex.compare] Hex: binární porovnání
 commands: nks.hex.compare.file, nks.hex.compare.saved
 Dvě hex mřížky vedle sebe, které se posouvají společně, s rozdíly podbarvenými a vypsanými dole.

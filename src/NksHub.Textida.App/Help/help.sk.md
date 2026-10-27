@@ -801,6 +801,16 @@ Mapa je prúžok vedľa posuvníka, ktorý ukazuje celý súbor naraz v bunkách
 - Štatistika celého súboru nad 1 GiB sa nepočíta naraz: vyberte úsek.
 - Mapa aj počítanie bežia vedľa okna a pri zmene súboru sa robia znova.
 
+## [hex.template] Hex: šablóna štruktúry
+commands: nks.hex.template
+Panel štruktúry číta súbor podľa šablóny a ukáže jeho polia ako strom. Výber poľa označí jeho bajty v mriežke.
+1. Hex: Šablóna štruktúry (Ctrl+J) panel otvorí, alebo zatvorí, keď už má fokus. Šablóna sa vyberie podľa magického čísla, potom podľa prípony súboru; zoznam nad stromom dovolí zvoliť inú a voľba platí pre danú príponu do konca behu programu.
+2. Pole s časťami (štruktúra alebo zoznam) sa číta až pri rozbalení, takže veľký súbor sa otvorí hneď. Riadok ukazuje meno, hodnotu a sivo offset a dĺžku v bajtoch.
+3. Pole, ktoré sa nedá prečítať, je červené s dôvodom, napríklad že presahuje koniec údajov alebo sa líši od očakávaných bajtov. Polia za ním sa nezobrazia, lebo ich miesto nie je známe.
+- Šablóny sú podmnožina formátu Kaitai Struct .ksy: celé čísla, desatinné čísla, reťazce, surové bajty, pevné bajty (contents), výčty, vnorené typy, size, size-eos a repeat (eos alebo počet). Veľkosť alebo počet je číslo alebo skoršie celočíselné pole. Výrazy, if, switch-on, instances a process nie sú podporované.
+- Čítanie skončí hláškou, keď šablóna vnára príliš hlboko, opakuje jedno pole príliš často alebo číta reťazec či množstvo práce nad pevným limitom.
+- Pribalené šablóny: hlavička BMP a zoznam blokov PNG. Otvorenie vlastného súboru .ksy zatiaľ nie je.
+
 ## [hex.compare] Hex: binárne porovnanie
 commands: nks.hex.compare.file, nks.hex.compare.saved
 Dve hex mriežky vedľa seba, ktoré sa posúvajú spoločne, s rozdielmi podfarbenými a vypísanými dole.
