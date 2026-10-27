@@ -125,6 +125,14 @@ public sealed class SftpRemoteClient(RemoteConnection connection, string? secret
     public Task UploadAsync(string path, Stream source, CancellationToken cancellation) =>
         Guard(() => Client.UploadFileAsync(source, path, true, null!, cancellation));
 
+    public Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken cancellation) => Guard(async () =>
+    {
+        await using var file = Client.Open(path, FileMode.Open, FileAccess.Write);
+        file.Seek(offset, SeekOrigin.Begin);
+        source.Seek(offset, SeekOrigin.Begin);
+        await source.CopyToAsync(file, cancellation).ConfigureAwait(false);
+    });
+
     public Task RenameAsync(string from, string to, CancellationToken cancellation) =>
         Guard(() => Client.RenameFileAsync(from, to, cancellation));
 

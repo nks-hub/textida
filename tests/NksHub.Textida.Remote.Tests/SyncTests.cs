@@ -27,6 +27,8 @@ internal sealed class FaultyClient(IRemoteClient inner) : IRemoteClient
         throw new RemoteException(RemoteError.ConnectionLost, "cut");
     }
 
+    public Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken c) => inner.ResumeUploadAsync(path, source, offset, c);
+
     public Task RenameAsync(string from, string to, CancellationToken c) =>
         FailRename?.Invoke(from, to) == true ? throw new RemoteException(RemoteError.ConnectionLost, "cut") : inner.RenameAsync(from, to, c);
 
@@ -271,6 +273,34 @@ public class SyncTests
         Assert.Equal(new string('n', 5000), File.ReadAllText(r.ServerFile("a.txt")));
         Assert.True(await RemoteTransfer.RecoverAsync(r.Client, "/a.txt", default) is false);
         Assert.DoesNotContain(ServerFiles(r), f => f.Contains(".textida-"));
+    }
+
+    [Theory, MemberData(nameof(ServersData))]
+    public async Task UploadContinuesAVerifiedPartialFileAndDropsOneThatDiffers(RemoteProtocol protocol)
+    {
+        await using var r = await Rig.StartAsync(protocol, ("a.txt", "old version"));
+        var store = r.Store;
+        var copy = await store.OpenAsync(r.Client, "/a.txt", default);
+        File.WriteAllText(copy.LocalPath, new string('n', 5000));
+
+        var cut = new FaultyClient(r.Client) { TruncateUploadAt = 1000 };
+        await Assert.ThrowsAsync<RemoteException>(() => RemoteSync.UploadAsync(cut, store, copy, VersionCheck.Stat, null, null, default));
+        Assert.Equal(1000, new FileInfo(r.ServerFile(Assert.Single(ServerFiles(r), f => f.Contains(".textida-")))).Length); // kept for the next attempt
+
+        var log = new List<TransferEvent>();
+        var result = await RemoteSync.UploadAsync(r.Client, store, copy, VersionCheck.Stat, null, new TransferOptions { Log = log.Add }, default);
+        Assert.Equal(UploadStatus.Uploaded, result.Status);
+        Assert.Contains(log, l => l.Step == TransferStep.Resuming && l.Bytes == 1000);
+        Assert.Equal(new string('n', 5000), File.ReadAllText(r.ServerFile("a.txt")));
+
+        // A partial file whose bytes are not the start of the local file is deleted and the upload starts over.
+        File.WriteAllText(copy.LocalPath, new string('m', 3000));
+        string temp = RemoteTransfer.TempNameOf("/a.txt", await RemoteTransfer.HashOfAsync(copy.LocalPath, default));
+        File.WriteAllText(r.ServerFile(temp[1..]), new string('x', 500));
+        var again = await RemoteSync.UploadAsync(r.Client, store, result.Copy, VersionCheck.Stat, null, new TransferOptions { Log = log.Add }, default);
+        Assert.Equal(UploadStatus.Uploaded, again.Status);
+        Assert.Contains(log, l => l.Step == TransferStep.RemovingLeftover);
+        Assert.Equal(new string('m', 3000), File.ReadAllText(r.ServerFile("a.txt")));
     }
 
     [Theory, MemberData(nameof(ServersData))]

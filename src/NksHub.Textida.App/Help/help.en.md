@@ -132,7 +132,11 @@ commands: nks.remote.upload
 3. If the file on the server changed meanwhile, nothing is sent. Choose Show Differences to see the server version beside yours, copy what you need into your side, save, and upload again. Upload Anyway replaces exactly the server version you were shown.
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
 - Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
-- Nothing is repeated automatically. After a failure, choose Upload to Server again; it checks the server again first.
+- When the connection is lost during an upload, the program tries again a few times with growing pauses. Every try checks the server version again first, and a partly sent temporary file is continued where it stopped after its content was compared with your file. If the server refuses the rename that puts the file in place, the old file is set aside, the new one is moved in, and the old one is restored if that fails.
+
+## [remote.cancel] Cancel the transfer
+commands: nks.remote.cancel
+Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check

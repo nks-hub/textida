@@ -448,6 +448,7 @@
   "cmd.source.open": "Open from Source...",
   "cmd.remote.connections": "Remote Connections...",
   "cmd.remote.upload": "Upload to Server",
+  "cmd.remote.cancel": "Cancel Transfer",
   "cmd.remote.check": "Check Server Version",
   "cmd.remote.unsent": "Unsent Remote Changes...",
   "cmd.remote.proxy": "Network Proxy...",

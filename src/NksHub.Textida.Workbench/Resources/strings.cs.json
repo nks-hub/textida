@@ -448,6 +448,7 @@
   "cmd.source.open": "Otevřít ze zdroje pluginu...",
   "cmd.remote.connections": "Vzdálená připojení...",
   "cmd.remote.upload": "Nahrát na server",
+  "cmd.remote.cancel": "Zrušit přenos",
   "cmd.remote.check": "Zkontrolovat verzi na serveru",
   "cmd.remote.unsent": "Neodeslané vzdálené změny...",
   "cmd.remote.proxy": "Síťová proxy...",

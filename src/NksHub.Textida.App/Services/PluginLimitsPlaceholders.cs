@@ -20,6 +20,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
+    /// <summary>Placeholder, OPEN: how many times an upload is repeated after the connection was lost (each repeat checks the server version again and continues a partial temporary file).</summary>
+    public const int RemoteRetryCount = 3;
+
+    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload; every further repeat waits twice as long.</summary>
+    public const int RemoteRetryBaseDelayMilliseconds = 2000;
+
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
 
