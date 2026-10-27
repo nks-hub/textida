@@ -225,7 +225,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
-             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString()],
+             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString()],
             [LspActivation], lspFolder));
 
         Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,

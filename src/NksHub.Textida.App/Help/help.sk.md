@@ -1281,21 +1281,23 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Jazykový server: prejsť na definíciu skočí na definíciu slova pod kurzorom, aj do iného súboru. Jazykový server: nájsť odkazy vypíše všetky miesta v paneli vľavo; Enter alebo dvojklik na položku ju otvorí.
 3. Jazykový server: premenovať symbol sa opýta na nový názov slova pod kurzorom. Zmeny servera vo všetkých súboroch, vrátane vytvorenia, premenovania a zmazania súborov, ktoré žiada, sa ukážu spoločne v náhľade zmien; čo prijmete, sa použije ako jeden krok. Nový súbor sa ukáže prvými riadkami ako pridaný text. Karta otvoreného súboru sa pri premenovaní presunie s ním; karta zmazaného súboru sa zavrie, a ak má neuložené zmeny, editor sa opýta, či ju zavrieť, alebo nechať otvorenú. Súbor otvorený v inej karte musí byť tiež spustený prvým príkazom, inak sa premenovanie odmietne celé.
 4. Ctrl+J (Úpravy, Vložiť, Doplniť slovo alebo klip) ponúkne aj to, čo bežiaci server ponúka pri kurzore. Výber takej položky vykoná v tom istom kroku Späť aj ďalšie zmeny, ktoré server žiada, napríklad pridanie importu. Odpoveď, ktorá príde po zmene textu, sa nezobrazí.
-5. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí znova a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Jazykový server: zastaviť ho vypne.
+5. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí znova a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Jazykový server: zastaviť ho vypne. Reštart aj zastavenie platia pre server projektu, do ktorého patrí aktuálny dokument; servery iných projektov bežia ďalej.
 - Editor žiadny server sám nespúšťa: kým nezvolíte prvý príkaz tejto skupiny, nič nebeží a server o súbore nič nevie.
 - Veľké súbory zobrazené po stránkach a súbory nad limitom veľkosti sa serveru nikdy neodovzdajú.
 - Server sa hľadá podľa názvu v PATH. Keď sa nenájde, upozornenie pomenuje program, ktorý sa hľadal.
-- Stavový riadok ukazuje LSP: beží, LSP: nenájdený alebo LSP: vypnutý pre jazyk posledného príkazu.
-- Zatiaľ chýba: voľba priečinka projektu (použije sa priečinok prvého dokumentu) a premenovanie v súboroch, ktoré nie sú v UTF-8.
+- Stavový riadok ukazuje LSP: beží, LSP: nenájdený alebo LSP: vypnutý pre server posledného príkazu; popis pri položke pomenuje jeho jazyk a priečinok projektu.
+- Server beží pre jeden priečinok projektu. Je to najbližší priečinok nad súborom, v ktorom je súbor so značkou jazyka (C#: najprv riešenie `.sln` alebo `.slnx`, potom `.csproj`; Rust: `Cargo.toml`; PHP: `composer.json`; Dart: `pubspec.yaml`; JavaScript a TypeScript: `tsconfig.json` alebo `package.json`; C a C++: `compile_commands.json` alebo `CMakeLists.txt`), inak najbližší priečinok s `.git` alebo `.textida`, inak priečinok súboru. Značka nad repozitárom sa nepočíta. Nahor sa prehľadáva len obmedzený počet priečinkov. Dokumenty dvoch projektov majú dva procesy servera, dokumenty jedného projektu zdieľajú jeden.
+- Zatiaľ chýba: ručná voľba priečinka projektu a premenovanie v súboroch, ktoré nie sú v UTF-8.
 
 ## [tools.lspPlugin] Jazykové servery z pluginu
 1. Plugin uvedie svoje servery v `languageServers` v `nkspad-plugin.json` a požiada o oprávnenie `language.server`. Každý server má `id`, `languages` (id jazykových režimov, aspoň jedno), voliteľné `globs` (napríklad `*.foo` alebo `src/**/*.fx`), `command`, `args`, voliteľné `initializationOptions` (objekt, ktorý server dostane v `initialize`) a `locate`.
 2. `locate` je `path` (predvolené): `command` je holé meno programu hľadané v PATH. Pri `plugin` je `command` cesta vnútri priečinka pluginu.
 3. Pri inštalácii pluginu editor oprávnenie ukáže a čaká na vašu odpoveď. Bez neho sa server nikdy nespustí.
 4. Server používajú príkazy skupiny Jazykový server pre každý dokument, ktorého jazyk je uvedený alebo ktorého meno súboru zodpovedá maske. Server z pluginu má prednosť pred serverom dodaným s editorom.
-- Pre jeden jazyk beží jeden proces servera, spoločný všetkým otvoreným dokumentom. Dokument, ktorý zodpovedá len maskou, obsluhuje server ako prvý jazyk zo zoznamu.
+- Pre jeden jazyk, priečinok projektu a nastavenie servera (program, argumenty, prostredie a `initializationOptions`) beží jeden proces servera, spoločný všetkým otvoreným dokumentom projektu. Dokument, ktorý zodpovedá len maskou, obsluhuje server ako prvý jazyk zo zoznamu.
 - Keď program chýba alebo sa nespustí, jedno oznámenie ho pomenuje a úpravy pokračujú. Keď skončí sám, spustite ľubovoľný príkaz skupiny a spustí sa znova.
-- Server bez otvoreného dokumentu sa po čase zastaví a ďalší príkaz ho spustí znova.
+- Server bez otvoreného dokumentu svojho projektu sa po čase zastaví a ďalší príkaz ho spustí znova. Servery iných projektov bežia ďalej.
+- Keď sa server opýta na nastavenie (`workspace/configuration`), dostane tú časť `initializationOptions`, ktorú pomenúva požadovaná sekcia: `a.b` je objekt `b` vnútri `a`, dopyt bez sekcie dostane celý objekt. Na všetko ostatné sa odpovie `null`.
 - Manifest s chybným záznamom sa odmietne celý, aj s dôvodom.
 
 ## [edit.complete] Dopĺňanie slov a klipov

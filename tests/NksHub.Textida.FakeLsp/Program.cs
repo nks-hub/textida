@@ -1,7 +1,9 @@
 // Stand-in for a language server in tests: JSON-RPC over stdio with Content-Length framing. It keeps its own copy of every document it is told about
 // and counts positions in UTF-16 units, as the protocol says, without sharing any code with the client it is tested against.
 // Options: --full (ask for whole texts instead of ranges), --dump DIR (after every open and change write NAME.txt with its copy, NAME.version with the version
-// and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process and init-options.json with the initializationOptions it got), --external FILE (a file on disk that definitions may point into).
+// and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process holding "root=<rootUri>", "cwd=<working folder>" and one "open <uri>" or "close <uri>" line per document event,
+// and init-options.json with the initializationOptions it got), --external FILE (a file on disk that definitions may point into),
+// --config SECTIONS (after "initialized" ask the client for workspace/configuration with these comma separated sections, "*" for an item without one, and write the answer to config-answer.json).
 // Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
 // a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document;
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
@@ -14,10 +16,13 @@ bool full = args.Contains("--full");
 bool fileOps = args.Contains("--fileops");
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
+string? configSections = args.SkipWhile(a => a != "--config").Skip(1).FirstOrDefault();
+string? processFile = null;
 if (dump is not null)
 {
     Directory.CreateDirectory(dump);
-    File.WriteAllText(Path.Combine(dump, $"process-{Environment.ProcessId}"), "");
+    processFile = Path.Combine(dump, $"process-{Environment.ProcessId}");
+    File.WriteAllText(processFile, "");
 }
 
 var input = Console.OpenStandardInput();
@@ -39,6 +44,11 @@ void Send(string json)
 }
 
 string Quote(string s) => JsonSerializer.Serialize(s);
+
+void Note(string line)
+{
+    if (processFile is not null) lock (gate) File.AppendAllText(processFile, line + "\n");
+}
 
 byte[]? ReadMessage()
 {
@@ -223,7 +233,13 @@ while (ReadMessage() is { } body)
 {
     using var doc = JsonDocument.Parse(body);
     var root = doc.RootElement;
-    var method = root.GetProperty("method").GetString()!;
+    if (!root.TryGetProperty("method", out var methodName))
+    {
+        if (dump is not null && root.TryGetProperty("id", out var answered) && answered.ValueKind == JsonValueKind.Number && answered.GetInt32() == 7001 && root.TryGetProperty("result", out var answer))
+            File.WriteAllText(Path.Combine(dump, "config-answer.json"), answer.GetRawText());
+        continue;
+    }
+    var method = methodName.GetString()!;
     var p = root.TryGetProperty("params", out var pp) ? pp : default;
     bool isRequest = root.TryGetProperty("id", out var id);
     string Reply(string result) => $"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"result\":{result}}}";
@@ -231,7 +247,16 @@ while (ReadMessage() is { } body)
     {
         case "initialize":
             if (dump is not null && p.TryGetProperty("initializationOptions", out var initOptions)) File.WriteAllText(Path.Combine(dump, "init-options.json"), initOptions.GetRawText());
+            Note("root=" + (p.TryGetProperty("rootUri", out var rootUri) ? rootUri.GetString() : ""));
+            Note("cwd=" + Environment.CurrentDirectory);
             Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
+            break;
+        case "initialized":
+            if (configSections is not null)
+            {
+                var items = string.Join(',', configSections.Split(',').Select(section => section == "*" ? "{}" : $"{{\"section\":{Quote(section)}}}"));
+                Send($"{{\"jsonrpc\":\"2.0\",\"id\":7001,\"method\":\"workspace/configuration\",\"params\":{{\"items\":[{items}]}}}}");
+            }
             break;
         case "shutdown":
             Send(Reply("null"));
@@ -242,6 +267,7 @@ while (ReadMessage() is { } body)
         {
             var item = p.GetProperty("textDocument");
             var uri = item.GetProperty("uri").GetString()!;
+            Note("open " + uri);
             var (opens, incremental, fullCount) = stats.GetValueOrDefault(uri);
             stats[uri] = (opens + 1, incremental, fullCount);
             Changed(uri, item.GetProperty("version").GetInt64(), item.GetProperty("text").GetString()!);
@@ -272,6 +298,7 @@ while (ReadMessage() is { } body)
             break;
         }
         case "textDocument/didClose":
+            Note("close " + p.GetProperty("textDocument").GetProperty("uri").GetString()!);
             texts.Remove(p.GetProperty("textDocument").GetProperty("uri").GetString()!);
             break;
         case "textDocument/definition":

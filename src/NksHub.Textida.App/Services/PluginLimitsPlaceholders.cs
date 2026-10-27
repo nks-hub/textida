@@ -248,6 +248,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it; a crashed server is not restarted by itself, the next command starts it.</summary>
     public const int LspIdleStopMilliseconds = 300_000;
 
+    /// <summary>Placeholder: folders searched upwards for the project root of a document for a language server, the folder of the file being the first. OPEN: the owner has not decided it.</summary>
+    public const int LspRootSearchLevels = 16;
+
     /// <summary>Placeholder: time one package registry request may take. OPEN: the owner has not decided it.</summary>
     public const int RegistryTimeoutMilliseconds = 10_000;
 
