@@ -388,16 +388,18 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 - Súbor väčší než limit pluginu sa neprevádza; správa to povie.
 
 ## [tools.markdown] Náhľad Markdownu, tabuľky a obsah
-commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc
+commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
 1. Nástroje, Markdown, Náhľad Markdownu alebo HTML otvorí pod editorom panel náhľadu s aktuálnym súborom. Panel sleduje písanie: prekreslí sa chvíľu po poslednom klávese a drží polohu posuvníka.
 2. Markdown sa ukáže ako stránka: nadpisy, zoznamy, citácie, kód, zvýraznenie a tabuľky s bunkami (dvojbodky v riadku pomlčiek určujú zarovnanie stĺpca).
 3. Súbor HTML sa ukáže ako text, aj so značkami. Nič z neho sa nespúšťa a nič sa nenačítava zo siete.
 4. Nástroje, Markdown, Zobraziť osnovu Markdownu vypíše v tom istom paneli nadpisy súboru, odsadené podľa úrovne. Klik, alebo Enter na nadpise, presunie kurzor v editore na jeho riadok.
 5. Nástroje, Markdown, Zarovnať tabuľku v Markdowne prepíše tabuľku pod kurzorom tak, aby mal každý stĺpec šírku najširšej bunky. Značky `:--`, `:-:` a `--:` zostanú a kratší riadok sa doplní prázdnymi bunkami. Späť to vráti jedným krokom.
 6. Nástroje, Markdown, Aktualizovať obsah Markdownu zapíše odkazy na nadpisy medzi riadky `<!-- TOC -->` a `<!-- /TOC -->`. Mení sa iba text medzi nimi. Keď tam nie sú, pridajú sa na miesto kurzora. Kotvy sú malými písmenami, medzery sa menia na pomlčky a opakovaný nadpis dostane `-1`, `-2`.
+7. V tabuľke Tab vyberie ďalšiu bunku a Shift+Tab predchádzajúcu; stĺpce sa pri tom zarovnajú. Tab v poslednej bunke pridá riadok. Mimo tabuľky obe klávesy fungujú ako predtým. Každý presun vráti Späť jedným krokom.
+8. V tabuľke Shift+Enter pridá pod riadok s kurzorom prázdny riadok so správnym počtom buniek. Nástroje, Markdown, Opraviť tabuľku v Markdowne opraví rozbitú tabuľku: doplní chýbajúci riadok pomlčiek, doplní kratšie riadky, ponechá dvojbodky a zarovná stĺpce.
 - Obrázok sa kreslí iba z adresy `data:` s obrázkom PNG, JPEG, GIF, BMP alebo WebP. Vzdialený obrázok a obrázok z lokálneho súboru sa ukážu ako poznámka s popisom. Odkaz na web alebo e-mail sa najprv potvrdzuje; iný odkaz je iba text.
 - Súbor dlhší než limit náhľadu sa nekreslí; stavový riadok to oznámi. Esc alebo Zavrieť náhľad ukončí.
-- V osnove sú iba nadpisy písané cez `#`. Šírka bunky tabuľky sa počíta v znakoch, takže široké východoázijské znaky môžu vyzerať nezarovnane.
+- V osnove sú iba nadpisy písané cez `#`. Šírka bunky tabuľky je šírka na obrazovke: široké východoázijské znaky sa počítajú za dva stĺpce. Zvislá čiara v bunke sa píše `\|` alebo musí byť v úryvku kódu.
 
 ## [tools.keys] Cesty kľúčov v YAML a JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys

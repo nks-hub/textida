@@ -1351,6 +1351,7 @@
   "preview.outline.empty": "The file has no headings.",
   "preview.outline.unsupported": "The outline is made for Markdown files.",
   "markdown.noTable": "The caret is not in a table with a header and a row of dashes.",
+  "markdown.noTableBlock": "The caret is not in a table (lines with | characters).",
   "review.queued": "More proposals waiting: {count}",
   "review.bar": "Review changes",
   "review.title": "Changes from outside: {title}",

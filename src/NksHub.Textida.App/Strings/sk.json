@@ -1378,6 +1378,7 @@
   "preview.outline.empty": "Súbor nemá žiadne nadpisy.",
   "preview.outline.unsupported": "Osnova sa robí pre súbory Markdown.",
   "markdown.noTable": "Kurzor nie je v tabuľke s hlavičkou a riadkom pomlčiek.",
+  "markdown.noTableBlock": "Kurzor nie je v tabuľke (riadky so znakmi |).",
   "review.queued": "Ďalšie návrhy čakajú: {count}",
   "review.bar": "Skontrolovať zmeny",
   "review.title": "Zmeny zvonka: {title}",

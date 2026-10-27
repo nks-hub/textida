@@ -383,16 +383,18 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 - A file larger than the limit of the plugin is not converted; the message says so.
 
 ## [tools.markdown] Markdown preview, tables and contents
-commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc
+commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
 1. Tools, Markdown, Preview Markdown or HTML opens the preview panel under the editor with the current file. The panel follows what you type: it is drawn again a moment after the last key, and keeps its scroll position.
 2. Markdown is shown as a page: headings, lists, quotes, code, emphasis and tables with their cells (the colons in the row of dashes set the alignment of a column).
 3. An HTML file is shown as text, with its tags. Nothing in it runs, and nothing is loaded from the network.
 4. Tools, Markdown, Show Markdown Outline lists the headings of the file in the same panel, indented by level. A click, or Enter on a heading, puts the caret on its line in the editor.
 5. Tools, Markdown, Align Markdown Table rewrites the table under the caret so that every column is as wide as its widest cell. The marks `:--`, `:-:` and `--:` are kept and a short row is filled with empty cells. One undo step undoes it.
 6. Tools, Markdown, Update Markdown Table of Contents writes links to the headings between the lines `<!-- TOC -->` and `<!-- /TOC -->`. Only the text between the two lines changes. Without them the two lines are added at the caret. The anchors are lower case, spaces become hyphens, and a repeated title gets `-1`, `-2`.
+7. In a table, Tab selects the next cell and Shift+Tab the previous one; the columns are aligned on the way. Tab in the last cell adds a row. Outside a table both keys work as always. One undo step undoes each move.
+8. In a table, Shift+Enter adds an empty row below the caret row, with the right number of cells. Tools, Markdown, Repair Markdown Table fixes a broken table: it adds a missing row of dashes, fills short rows, keeps the colons and aligns the columns.
 - An image is drawn only from a `data:` address of a PNG, JPEG, GIF, BMP or WebP picture. A remote picture and a picture from a local file are shown as a note with their alt text. A link to the web or to an e-mail address asks for your confirmation first; any other link is only text.
 - A file longer than the limit of the preview is not drawn; the status bar says so. Esc or Close ends the preview.
-- Only headings written with `#` are listed. The width of a table cell is counted in characters, so wide East Asian characters can look misaligned.
+- Only headings written with `#` are listed. The width of a table cell is its display width: wide East Asian characters count as two columns. A pipe in a cell must be written `\|` or sit inside an inline code span.
 
 ## [tools.keys] Key paths in YAML and JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys

@@ -1351,6 +1351,7 @@
   "preview.outline.empty": "Die Datei hat keine Überschriften.",
   "preview.outline.unsupported": "Die Gliederung gibt es für Markdown-Dateien.",
   "markdown.noTable": "Der Cursor steht nicht in einer Tabelle mit Kopfzeile und Strichzeile.",
+  "markdown.noTableBlock": "Der Cursor steht nicht in einer Tabelle (Zeilen mit |-Zeichen).",
   "review.queued": "Weitere Vorschläge warten: {count}",
   "review.bar": "Änderungen prüfen",
   "review.title": "Änderungen von außen: {title}",

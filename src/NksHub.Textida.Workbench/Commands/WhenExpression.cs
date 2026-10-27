@@ -44,9 +44,11 @@ public static class ContextKeys
     public const string TableMode = "tableMode";
     /// <summary>The active tab is a comparison of two sides.</summary>
     public const string CompareMode = "compareMode";
+    /// <summary>The caret is in a Markdown table with a header and a row of dashes.</summary>
+    public const string InMarkdownTable = "inMarkdownTable";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable];
 }
 
 /// <summary>
