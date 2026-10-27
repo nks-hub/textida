@@ -1229,6 +1229,7 @@ public static class K
     public const string McpToolFileFacts = "mcp.tool.fileFacts";
     public const string McpToolLogQuery = "mcp.tool.logQuery";
     public const string McpToolReadBytes = "mcp.tool.readBytes";
+    public const string McpToolDiagnostics = "mcp.tool.diagnostics";
     public const string McpToolSearchBytes = "mcp.tool.searchBytes";
     public const string McpToolPrepareByteChanges = "mcp.tool.prepareByteChanges";
     public const string ReviewQueued = "review.queued";

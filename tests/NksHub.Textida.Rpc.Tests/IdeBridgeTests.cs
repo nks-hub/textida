@@ -221,8 +221,34 @@ public class IdeBridgeTests
         var tools = (await agent.RequestAsync("tools/list", "{}")).GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
         Assert.Contains("getDiagnostics", tools);
         Assert.Contains("editor_prepare_changes", tools);
-        Assert.Equal("[]", (await agent.ToolAsync("getDiagnostics")).GetRawText());
+        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics")).GetProperty("files").GetArrayLength());
         Assert.Equal(1, rig.Bridge.ConnectionCount);
+    }
+
+    [Fact]
+    public async Task Diagnostics_reach_the_agent_for_shared_tabs_only()
+    {
+        await using var rig = Rig.Create();
+        var shared = rig.Share(NewDocument("alpha\nbeta\n"));
+        var hidden = NewDocument("secret\n");
+        rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; });
+        rig.Owner.Run(() =>
+        {
+            rig.Api.PublishOwn(shared, "lint", shared.Revision, [new Diagnostic(DiagnosticSeverity.Error, "bad beta", "E1", new ByteRange(6, 10))]);
+            rig.Api.PublishOwn(hidden, "lint", hidden.Revision, [new Diagnostic(DiagnosticSeverity.Error, "bad secret", "E2", new ByteRange(0, 6))]);
+            return 0;
+        });
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var result = await agent.ToolAsync("getDiagnostics");
+        var file = Assert.Single(result.GetProperty("files").EnumerateArray());
+        Assert.StartsWith("untitled:", file.GetProperty("uri").GetString());
+        var d = Assert.Single(file.GetProperty("diagnostics").EnumerateArray());
+        Assert.Equal("bad beta", d.GetProperty("message").GetString());
+        Assert.Equal("Error", d.GetProperty("severity").GetString());
+        Assert.Equal(1, d.GetProperty("range").GetProperty("start").GetProperty("line").GetInt32());
+        Assert.DoesNotContain("bad secret", result.GetRawText());
+        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics", "{\"uri\":\"untitled:other\"}")).GetProperty("files").GetArrayLength());
     }
 
     [Fact]

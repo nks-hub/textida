@@ -188,6 +188,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.VirtualOpen: return await VirtualOpenAsync(pluginId, p);
             case DocumentMethods.VirtualUpdate: return await VirtualUpdateAsync(pluginId, p);
             case DocumentMethods.DiagnosticsPublish: return await PublishDiagnosticsAsync(pluginId, p);
+            case DocumentMethods.DiagnosticsList: return await DiagnosticsListAsync(pluginId, p);
             case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
             case DocumentMethods.WorkspaceEdit: return await WorkspaceEditAsync(pluginId, p, cancellation);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");

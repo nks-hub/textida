@@ -234,4 +234,35 @@ public sealed partial class DocumentApi
             w.WriteEndArray();
         });
     }
+
+    /// <summary>The stored diagnostics of a document at its current revision. A diagnostic whose range touches a hidden secret value is counted in <c>withheld</c> and not returned, as its message could quote the value.</summary>
+    private async Task<byte[]> DiagnosticsListAsync(string pluginId, JsonElement p)
+    {
+        var e = Find(NeedDocumentId(p));
+        var (revision, hidden, items) = await _owner.InvokeAsync(() =>
+        {
+            var snap = e.Doc.GetSnapshot();
+            return (e.Doc.Revision, Hidden(pluginId, e.Doc.Id, SecretsOf(e.Doc, snap, e.Doc.BomLength)), DiagnosticsOf(e.Doc.Id));
+        });
+        var shown = hidden is null ? items : [.. items.Where(x => !SecretValues.Overlaps(hidden, x.Range.Start, x.Range.End))];
+        return Obj(w =>
+        {
+            w.WriteNumber("revision", revision);
+            w.WriteNumber("withheld", items.Count - shown.Count);
+            w.WriteStartArray("diagnostics");
+            foreach (var x in shown)
+            {
+                w.WriteStartObject();
+                w.WriteString("plugin", x.PluginId);
+                w.WriteString("source", x.Source);
+                w.WriteString("severity", x.Severity.ToString().ToLowerInvariant());
+                w.WriteString("message", x.Message);
+                if (x.Code is not null) w.WriteString("code", x.Code);
+                w.WriteNumber("start", x.Range.Start);
+                w.WriteNumber("end", x.Range.End);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        });
+    }
 }
