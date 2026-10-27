@@ -1387,23 +1387,26 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.3 LOG parser a režim logu
 
-- [ ] **P4.3.3** Minimální spouštěč nástrojů, argumenty a proměnné
+- [x] **P4.3.3** Minimální spouštěč nástrojů, argumenty a proměnné
   - **Co a proč:** LOG parser už v P4 spouští nástroj, ale editor definic, akce při uložení a katalog nástrojů jsou až v P8 (P8.2.1). Proto tady vzniká základ jednoho spouštěče: příkaz, argumenty jako pole, pracovní adresář, proměnné z P4.1.3, časový limit a zachycení výstupu. Příkaz se ukáže předem. P8 ho rozšíří, druhý spouštěč nevznikne.
   - **Funkce:** F124 (částečně: základ spouštěče)
+  - **Stav 27. 10. 2026:** hotovo: `ToolRunner` v jádru předává argumenty jako pole bez shellu (test s mezerami, uvozovkami, `&`, `%`, `$`), proměnné `${File}`, `${FileDir}`, `${FileName}`, `${FileBase}`, `${FileExt}`, `${Line}`, `${Column}`, časový limit a Zastavit ukončí celý strom procesů, první spuštění ukáže příkaz a adresář a čeká na potvrzení (otisk definice v profilu), výstup jde po řádcích do karty Úlohy. Definice jsou v `tools.json` v profilu ve tvaru `externalTools` z manifestu pluginu. Dávkové soubory ve Windows se odmítají, holý název se hledá jen v PATH. Chybí: uživatelské proměnné z P4.1.3 (spouštěč bere jejich vyhledání, zatím dodává jen proměnné dokumentu); výchozí časový limit a kódování výstupu jsou vstupní rozhodnutí, otevřená: bez `timeoutSeconds` limit není, výstup se čte jako UTF-8.
   - **Hotovo, když:** proměnná s mezerou v cestě se předá jako jeden argument; nástroj se poprvé spustí až po potvrzení příkazu a adresáře; překročení časového limitu proces ukončí a ohlásí; výstup jde zrušit.
   - **Závisí na:** P4.1.3, P3.6.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.3.1** LOG parser kompilátoru
+- [x] **P4.3.1** LOG parser kompilátoru
   - **Co a proč:** Spustí nástroj přes spouštěč z P4.3.3, zachytí výstup, klik na chybu skočí do souboru. LOG vzory jsou data s náhledem vzoru; jazyk vzorů `* %F %L %C %S %E %D` je popsaný v rozboru PSPadu. Podtržení v textu přijde v P8.8.1.
   - **Funkce:** F125
+  - **Stav 27. 10. 2026:** hotovo: jazyk masek podle rozboru PSPadu (zleva, bez rozlišení velikosti, bez zpětného prohledávání) a regulární výraz se skupinami `file`, `line`, `column`; okno „Vzor LOGu pro výstup“ ukáže na ukázkovém výstupu soubor, řádek a sloupec každého řádku; klik nebo Enter v kartě Úlohy otevře místo (relativní cesta: adresář nástroje, složka otevřeného souboru, otevřené dokumenty podle názvu). Vzory jsou data v `tools.json`; manifest pluginu má u vzoru `syntax` a `levels`, u nástroje `timeoutSeconds` a `logPattern`. Chybí: načítání pluginů z disku do aplikace (P3b.2.1), takže vzory pluginů se zatím jen ověřují; podtržení v textu (P8.8.1); předvolby kompilátorů jako hotová nabídka.
   - **Hotovo, když:** vlastní vzor s náhledem nad ukázkovým výstupem najde soubor, řádek a sloupec; klik v okně výstupu otevře místo.
   - **Závisí na:** P3b.2.1, P3.6.3, P4.3.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro, vzory jako data
-- [ ] **P4.3.2** Režim logu: základ
+- [x] **P4.3.2** Režim logu: základ
   - **Co a proč:** Úrovně podle vlastního vzoru, další a předchozí chyba, i ve stránkovaném režimu. Sbalení řádků, odkazy ze stack trace, heatmapa a ANSI barvy jsou v P9.4.2.
   - **Funkce:** F187
+  - **Stav 27. 10. 2026:** hotovo: jazyk Log barví řádky podle úrovně (chyba, varování, informace, ladění) v editoru i ve stránkovaném zobrazení (test vykreslení); Log: další a předchozí chyba čte soubor po blocích po 1 MiB a končí u prvního nálezu, Esc ruší; test Large na vygenerovaných 10 GiB a na skutečném 10GiB řídkém souboru (25 s, paměť pod 256 MiB), v UTF-8, UTF-16 a jednobajtovém kódování s CR, LF i CRLF proti ručnímu průchodu. Úrovně dává výraz na úroveň z `levels` vzoru v `tools.json`. Neověřeno: 10GiB soubor přes celé okno aplikace na stránkovaném povrchu. Vstupní rozhodnutí otevřené: výchozí slova úrovní (ERROR, WARN, INFO, DEBUG a příbuzná velkými písmeny) jsou jen výchozí volba, řádek delší než 8192 znaků se v editoru posuzuje podle začátku, volba pravidel se neukládá do relace.
   - **Hotovo, když:** v 10GiB logu skok na další ERROR funguje bez načtení celého souboru a řádky jsou obarvené podle úrovně.
   - **Závisí na:** P3.1.4, P4.3.1
   - **Odhad:** F187 2–3 ČT za základ i plný režim (matice)
