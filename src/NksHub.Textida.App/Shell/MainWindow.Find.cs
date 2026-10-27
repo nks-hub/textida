@@ -27,11 +27,12 @@ internal sealed partial class MainWindow
     private readonly DispatcherTimer _findDebounce = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly DispatcherTimer _findProgress = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private SearchRun? _findRun;
+    private Task _findCollect = Task.CompletedTask;
     private int _findGeneration;
     private List<SearchHit> _hits = [];
-    private long _hitsRevision = -1, _hitsTotal;
+    private long _hitsRevision = -1, _hitsTotal, _findRunRevision = -1;
     private Guid _hitsDocument;
-    private bool _findRunning, _findSeeding;
+    private bool _findBusy, _findSeeding;
     private int _findOrigin;
     private Anchor? _scopeStart, _scopeEnd;
     private OpenDocument? _findSubscribed;
@@ -39,8 +40,24 @@ internal sealed partial class MainWindow
 
     internal FindBar FindBar => _find;
     internal IReadOnlyList<SearchHit> FindHits => _hits;
-    internal bool FindIsRunning => _findRunning;
+    internal bool FindIsRunning => FindBusy;
     internal SearchRun? FindRun => _findRun;
+
+    /// <summary>A search of the active document runs: the bar shows its progress and the Cancel button meanwhile.</summary>
+    private bool FindBusy
+    {
+        get => _findBusy;
+        set
+        {
+            _findBusy = value;
+            if (value) _findProgress.Start();
+            else _findProgress.Stop();
+            _find.SetRunning(value);
+        }
+    }
+
+    /// <summary>The matches of the document's current text are known, or the running search collects them.</summary>
+    private bool FindCoversText(Document doc) => _hitsDocument == doc.Id && (FindBusy ? _findRunRevision : _hitsRevision) == doc.Revision;
 
     private Control BuildFindBar()
     {
@@ -53,15 +70,16 @@ internal sealed partial class MainWindow
         _find.GoRequested += () => _ = RunFilesSearchAsync();
         _find.TryRequested += ShowRegexTester;
         _find.ListRequested += () => _ = ListFindResultsAsync();
+        _find.StopRequested += StopFind;
         _findProgress.Tick += (_, _) =>
         {
-            if (_findRun is { Progress: { Total: > 0 } p } && _findRunning) _find.ShowCount(Loc.Get(K.FindProgress, ("percent", p.Done * 100 / p.Total)));
+            if (_findRun is { Progress: { Total: > 0 } p } && FindBusy) _find.ShowCount(Loc.Get(K.FindProgress, ("percent", p.Done * 100 / p.Total)));
         };
         _find.BrowseRequested += () => _ = BrowseFolderAsync();
         _findDebounce.Tick += (_, _) =>
         {
             _findDebounce.Stop();
-            if (_find.IsVisible && !_find.FilesMode && Active is { Custom: null } tab && (_hitsRevision != tab.Doc.Doc.Revision || _hitsDocument != tab.Doc.Doc.Id)) _ = StartFindSearch(jump: false);
+            if (_find.IsVisible && !_find.FilesMode && Active is { Custom: null } tab && !FindCoversText(tab.Doc.Doc)) _ = StartFindSearch(jump: false);
         };
         return _find;
     }
@@ -122,10 +140,7 @@ internal sealed partial class MainWindow
     internal void HideFind()
     {
         if (!_find.IsVisible) return;
-        _findGeneration++;
-        _findRun?.Cancel();
-        _findRunning = false;
-        _findProgress.Stop();
+        CancelFind();
         ShowFindMarks(null, null);
         DropScope();
         _find.Close();
@@ -141,7 +156,31 @@ internal sealed partial class MainWindow
         _findSubscribed = od;
         if (od is not null) od.Changed += OnFindDocChanged;
         DropScope();
-        if (_find.IsVisible && !_find.FilesMode) _ = StartFindSearch(jump: false);
+        // the results tab keeps the search of the document it lists, so coming back does not search a large file again
+        if (_find.IsVisible && !_find.FilesMode && Active?.Doc is not { IsResults: true } && (od is null || !FindCoversText(od.Doc))) _ = StartFindSearch(jump: false);
+    }
+
+    private void CancelFind()
+    {
+        _findGeneration++;
+        _findRun?.Cancel();
+        FindBusy = false;
+    }
+
+    /// <summary>Cancel on the bar: the count says so at once and the worker stops in the background; the next step or listing searches again.</summary>
+    private void StopFind()
+    {
+        if (!FindBusy) return;
+        CancelFind();
+        _find.ShowCount(Loc.Get(K.ResultsCancelled));
+    }
+
+    /// <summary>The last view of a document closed: a search of it that still runs has no one to report to.</summary>
+    private void FindDocumentClosed(Document doc)
+    {
+        if (!FindBusy || doc.Id != _hitsDocument) return;
+        CancelFind();
+        _find.ShowCount("");
     }
 
     private void OnFindDocChanged()
@@ -199,7 +238,7 @@ internal sealed partial class MainWindow
         _hitsRevision = -1;
         _hitsTotal = 0;
         _findIndex = -1;
-        _findRunning = false;
+        FindBusy = false;
         ShowFindMarks(null, null);
         var pattern = FindPattern();
         if (string.IsNullOrEmpty(pattern.Text) || Active is not { Custom: null } tab)
@@ -216,12 +255,12 @@ internal sealed partial class MainWindow
         var doc = tab.Doc.Doc;
         var buffer = LiveBuffer.Of(doc);
         _hitsDocument = doc.Id;
+        _findRunRevision = buffer.Snapshot.Revision;
         var run = SearchWorker.Start(pattern, new SearchScope([], [buffer]), new SearchSettings { MaxResults = FindMaxHits, StopAtLimit = false, Parallelism = Math.Min(4, Environment.ProcessorCount) });
         _findRun = run;
-        _findRunning = true;
+        FindBusy = true;
         _find.ShowCount(Loc.Get(K.FindSearching));
-        _findProgress.Start();
-        return CollectFindAsync(run, generation, tab, buffer.Snapshot.Revision, jump);
+        return _findCollect = CollectFindAsync(run, generation, tab, buffer.Snapshot.Revision, jump);
     }
 
     private async Task CollectFindAsync(SearchRun run, int generation, DocTab tab, long revision, bool jump)
@@ -237,8 +276,7 @@ internal sealed partial class MainWindow
         }
         var summary = await run.Completion;
         if (generation != _findGeneration) return;
-        _findRunning = false;
-        _findProgress.Stop();
+        FindBusy = false;
         _hits = hits;
         _hitsRevision = revision;
         _hitsTotal = _scopeStart is null ? summary.TotalMatches : hits.Count;
@@ -252,28 +290,31 @@ internal sealed partial class MainWindow
         if (tooSlow) { _find.ShowCount(Loc.Get(K.FindTooSlow), error: true); return; }
         if (string.IsNullOrEmpty(_find.FindBox.Text)) { _find.ShowCount(""); return; }
         long total = Math.Max(_hitsTotal, _hits.Count);
-        if (!_findRunning && total > _hits.Count) { _find.ShowCount(Loc.Get(K.FindLimit, ("total", total), ("listed", _hits.Count))); return; }
+        if (!FindBusy && total > _hits.Count) { _find.ShowCount(Loc.Get(K.FindLimit, ("total", total), ("listed", _hits.Count))); return; }
         _find.ShowCount(total == 0 ? Loc.Get(K.FindNone) : _findIndex >= 0 ? Loc.Get(K.FindCount, ("current", _findIndex + 1), ("total", total)) : Loc.Get(K.FindTotal, ("total", total)));
     }
 
     private int _findIndex = -1;
 
-    /// <summary>Lists the matches of the active document in the Search Results tab (searching again first when the listed ones are not of its current text).</summary>
+    /// <summary>
+    /// Lists the matches of the active document in the Search Results tab. A search of its current text that still runs is awaited, not started again
+    /// (in a large file that would begin from the first byte); otherwise the document is searched first when the known matches are not of its current text.
+    /// </summary>
     private async Task ListFindResultsAsync()
     {
         if (Active is not { Custom: null } tab || string.IsNullOrEmpty(_find.FindBox.Text)) return;
         var doc = tab.Doc.Doc;
-        if (_findRunning || _hitsRevision != doc.Revision || _hitsDocument != doc.Id) await StartFindSearch(jump: false);
-        if (_findRunning || Active != tab || _hitsRevision != doc.Revision || _hits.Count == 0) return;
-        var pattern = FindPattern();
+        await (FindCoversText(doc) ? _findCollect : StartFindSearch(jump: false));
+        if (FindBusy || Active != tab || _hitsRevision != doc.Revision || _hitsDocument != doc.Id || _hits.Count == 0) return;
+        var (hits, total, pattern) = (_hits, _hitsTotal, FindPattern());
         var (_, view) = EnsureResultsTab();
         view.Clear();
         view.Highlight = RegexTools.Create(pattern);
         string title = Loc.Get(K.ResultsTitleSearch, ("query", pattern.Text));
-        view.AddHits(_hits, path => path);
-        if (_hitsTotal > _hits.Count) view.SetLimit(Loc.Get(K.ResultsListLimit, ("shown", _hits.Count), ("total", _hitsTotal)));
+        view.AddHits(hits, path => path);
+        if (total > hits.Count) view.SetLimit(Loc.Get(K.ResultsListLimit, ("shown", hits.Count), ("total", total)));
         view.SetHeader(title, "");
-        FinishResults(view, Loc.Plural(K.ResultsMatches, _hitsTotal));
+        FinishResults(view, Loc.Plural(K.ResultsMatches, total));
     }
 
     // ---- stepping ----
@@ -293,8 +334,15 @@ internal sealed partial class MainWindow
             return;
         }
         var doc = tab.Doc.Doc;
-        if (_findRunning || _hitsRevision != doc.Revision || _hitsDocument != doc.Id) await StartFindSearch(jump: false);
-        if (_findRunning || Active != tab || _hitsRevision != doc.Revision) return;
+        if (!FindCoversText(doc)) await StartFindSearch(jump: false);
+        else if (FindBusy)
+        {
+            // waiting for the running search instead of starting over matters in a large file; when it selects its first match meanwhile, that is the step asked for
+            bool selected = _findIndex >= 0;
+            await _findCollect;
+            if (!selected && _findIndex >= 0) return;
+        }
+        if (FindBusy || Active != tab || _hitsRevision != doc.Revision) return;
         _findOrigin = SelectionTextStart(tab);
         if (!StepFrom(tab, _hits, forward, TextStepOrigin(tab, forward), wrap: true)) ShowFindCount();
     }
@@ -346,9 +394,24 @@ internal sealed partial class MainWindow
             int a = ToTextOffset(doc, text, hit.Range.Start), b = ToTextOffset(doc, text, hit.Range.End);
             if (a >= 0 && b >= a) s.SetSelections([new Sel(a, b)]);
         }
+        else if (tab.Paged is { } paged) ShowPagedHit(tab, paged, hit);
         else tab.GoToLine(hit.Line);
-        if (_hitsRevision == tab.Doc.Doc.Revision || !_findRunning) ShowFindCount();
+        if (_hitsRevision == tab.Doc.Doc.Revision || !FindBusy) ShowFindCount();
         else _find.ShowCount(Loc.Get(K.FindCount, ("current", index + 1), ("total", Math.Max(_hitsTotal, _hits.Count))));
+    }
+
+    /// <summary>
+    /// Selects a match in a paged view by its bytes mapped to the current revision, so that a match beyond the indexed part is reached too;
+    /// by its line number when the range no longer maps.
+    /// </summary>
+    private static void ShowPagedHit(DocTab tab, PagedTextView paged, SearchHit hit)
+    {
+        if (hit.Source.DocumentId == tab.Doc.Doc.Id && hit.Source.Revision is { } revision && tab.Doc.Doc.MapRange(hit.Range, revision) is { Ok: true, Range: var range })
+        {
+            paged.GoToOffset(range.Start);
+            paged.SelectBytes(range.Start, range.End);
+        }
+        else tab.GoToLine(hit.Line);
     }
 
     /// <summary>Ctrl+F3: finds the next occurrence of the word under the caret or of the selection.</summary>

@@ -231,7 +231,8 @@ internal sealed partial class MainWindow
             if (at.Doc is { } id && _docs.FirstOrDefault(d => d.Doc.Id == id)?.Views.FirstOrDefault() is { } live) tab = SelectTab(live);
             else if (at.Path is { } path) tab = OpenFile(path, null);
             if (tab is null) return;
-            tab.GoToLine(at.Line);
+            if (tab.Paged is { } paged && row is SearchResultsView.HitRow hit) ShowPagedHit(tab, paged, hit.Hit);
+            else tab.GoToLine(at.Line);
             if (tab.Surface is { } s && at.Length > 0 && at.Line <= s.Document.LineCount)
             {
                 var line = s.Document.GetLineByNumber(at.Line);

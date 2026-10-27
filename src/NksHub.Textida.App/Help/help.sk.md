@@ -456,6 +456,7 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Keď hľadanie dôjde na koniec, pokračuje od začiatku a stavový riadok to ohlási.
 - Neplatný výraz je vidieť pri počte zhôd. Príliš pomalý výraz hľadanie zastaví.
 - Hľadanie funguje aj v stránkovanom režime; nahrádzanie tam nie.
+- Vo veľkom súbore ukazuje lišta priebeh v percentách a tlačidlo Zrušiť hľadanie zastaví. Vypísať dá zhody do karty Výsledky hľadania; keď je zhôd viac, než sa vypíše, karta to napíše.
 - Keď zapnete regulárny výraz, objaví sa tlačidlo Skúsiť (téma Skúška regulárneho výrazu).
 
 ## [search.replace] Nahradenie
