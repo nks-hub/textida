@@ -830,6 +830,22 @@ commands: nks.tools.makeTargets
 3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
 - Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
 
+## [packages.registry] Package manifests: names, versions and newer-version marks
+commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
+1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml and Gemfile the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems) for names and versions. Nothing is sent until you agree: Tools, Check Package Versions shows the servers and asks once for each registry.
+2. After you agree, Ctrl+J in the name of an entry offers names from the registry, and in a version it offers the versions of that package, newest first. PyPI and the Go proxy have no search: a name is offered only when the typed text is the whole name.
+3. An entry that pins an exact version (1.2.3, ==1.2.3, v1.2.3) and has a newer release gets an information mark on the version. Ranges (^, ~, >=) are not marked. A pre-release is not taken as the newer version while a release exists. The check runs when you stop typing.
+4. Answers are kept in a cache until the editor closes. An offer or a mark that came from the cache says so ("cache"). Refresh Package Versions drops the cache of that registry and asks again.
+5. Forbid Package Registry Lookups takes every consent back and drops the cache. The network proxy of the Network Proxy command is used; a proxy with a user name cannot be used, and the lookups stop then.
+- Nothing is downloaded or installed, vulnerabilities are not looked up and go mod download is never run. Only package names, the typed text and your network address reach the registry.
+- A registry that fails gives no offers; Check Package Versions names the error in the status bar. The time limit, the size limit and the number of packages per check are provisional.
+
+## [packages.scripts] Package scripts: npm and Composer
+commands: nks.packages.script
+1. With a package.json or composer.json open, Tools, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
+2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
+- npm or Composer has to be installed. On Windows both are batch files, which the runner refuses; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file instead.
+
 ## [file.saveActions] Save actions: format, run a tool, upload
 commands: nks.file.saveActions
 1. File, Save Actions lists what runs around a save: format, run a tool, upload to the server. A row switches the action on or off; the row under it switches "only on manual save". A formatter (gofmt, rustfmt, clang-format, RuboCop) is offered only when its configuration file (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) is in the folder of the file or above it, and it is off until you switch it on.

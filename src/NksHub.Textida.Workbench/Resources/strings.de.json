@@ -392,5 +392,9 @@
   "cmd.macro.run": "Gespeichertes Makro ausführen...",
   "cmd.tools.edit": "Werkzeugdefinitionen bearbeiten...",
   "cmd.tools.makeTargets": "Makefile-Ziel ausführen...",
+  "cmd.packages.lookup": "Paketversionen prüfen...",
+  "cmd.packages.refresh": "Paketversionen aktualisieren...",
+  "cmd.packages.revoke": "Paketregister-Abfragen verbieten",
+  "cmd.packages.script": "Paketskript ausführen...",
   "cmd.file.saveActions": "Aktionen beim Speichern..."
 }

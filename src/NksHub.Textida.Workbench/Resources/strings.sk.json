@@ -392,5 +392,9 @@
   "cmd.macro.run": "Spustiť uložené makro...",
   "cmd.tools.edit": "Upraviť definície nástrojov...",
   "cmd.tools.makeTargets": "Spustiť cieľ Makefile...",
+  "cmd.packages.lookup": "Skontrolovať verzie balíkov...",
+  "cmd.packages.refresh": "Obnoviť verzie balíkov...",
+  "cmd.packages.revoke": "Zakázať dotazy na registre balíkov",
+  "cmd.packages.script": "Spustiť skript balíka...",
   "cmd.file.saveActions": "Akcie pri uložení..."
 }

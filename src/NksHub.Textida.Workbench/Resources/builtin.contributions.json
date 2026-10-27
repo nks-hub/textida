@@ -1154,6 +1154,29 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.packages.lookup",
+      "title": "cmd.packages.lookup",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.packages.refresh",
+      "title": "cmd.packages.refresh",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.packages.revoke",
+      "title": "cmd.packages.revoke",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.packages.script",
+      "title": "cmd.packages.script",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.log.nextError",
       "title": "cmd.log.nextError",
       "category": "cat.log"
@@ -2541,6 +2564,30 @@
       "command": "nks.tools.makeTargets",
       "group": "5_run",
       "order": 15
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.lookup",
+      "group": "6_packages",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.refresh",
+      "group": "6_packages",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.revoke",
+      "group": "6_packages",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.script",
+      "group": "6_packages",
+      "order": 40
     },
     {
       "menu": "tools",

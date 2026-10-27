@@ -9,6 +9,7 @@ using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Mcp;
@@ -27,6 +28,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public const string JsonPluginId = "textida.json";
     private const string JsonActivation = "onCommand:json";
     private const string SchemaCheckCommand = "schema.check";
+    private const string PackageCheckCommand = "packages.check";
     public const string TextToolsPluginId = "textida.texttools";
     private const string TextToolsActivation = "onCommand:texttools";
     public const string WebDataPluginId = "textida.webdata";
@@ -61,11 +63,15 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public UiApi UiApi { get; }
     internal PluginPermissions Permissions { get; } = new();
 
+    /// <summary>The package registries the user allowed (P8.7.3); the JSON plugin reads the same file.</summary>
+    internal PackageRegistryConsent Registries { get; }
+
     /// <param name="app">The app whose window shows the plugin UI.</param>
     /// <param name="pluginDirectory">Folder with the built-in plugin programs; by default <c>plugins</c> next to the app.</param>
     public PluginServices(App app, string? pluginDirectory = null)
     {
         _app = app;
+        Registries = new PackageRegistryConsent(Path.Combine(app.ProfileDirectory, "package-registries.json"));
         Ui = new PluginUiHost(app);
         PluginEventSender send = (plugin, name, payload) => _host!.SendEventAsync(plugin, name, payload);
         PluginRequestSender request = (plugin, method, payload, timeout, cancellation) => _host!.CallAsync(plugin, method, payload, timeout, cancellation);
@@ -89,7 +95,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
             ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
              "--schema-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(), "--schema-depth", PluginLimitsPlaceholders.SchemaMaxDepth.ToString(),
-             "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString()],
+             "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString(),
+             "--registry-config", Registries.FilePath, "--registry-timeout-ms", PluginLimitsPlaceholders.RegistryTimeoutMilliseconds.ToString(),
+             "--registry-max-bytes", PluginLimitsPlaceholders.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimitsPlaceholders.RegistryPageSize.ToString(),
+             "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString()],
             [JsonActivation], folder));
 
         // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
@@ -686,6 +695,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     internal static bool IsSchemaFile(DocTab tab) =>
         tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && IsSchemaPath(path);
 
+    /// <summary>A text tab of a package manifest (<c>package.json</c>, <c>composer.json</c>, <c>requirements.txt</c>, <c>*.csproj</c>, <c>go.mod</c>, <c>Cargo.toml</c>, <c>Gemfile</c>) that the JSON plugin can ask a registry about.</summary>
+    internal static bool IsManifestFile(DocTab tab) =>
+        tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && PackageManifests.For(path) is not null;
+
     /// <summary>Markdown is only checked where the plugin has a frontmatter profile: <c>SKILL.md</c>, <c>agents/*.md</c>, <c>rules/*.md</c>, <c>.claude/rules</c> and <c>.mdc</c>.</summary>
     internal static bool IsSchemaPath(string path)
     {
@@ -733,7 +746,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// </summary>
     public void TrackSchema(MainWindow window, DocTab? tab)
     {
-        if (tab is null || !IsSchemaFile(tab))
+        if (tab is null || !(IsSchemaFile(tab) || IsManifestFile(tab)))
         {
             _schemaWanted = null;
             ShowSchema(null);
@@ -741,7 +754,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         }
         var document = tab.Doc.Doc;
         bool known = _schemaChecked.TryGetValue(document.Id, out var last);
-        ShowSchema(known ? new SchemaStatus(last.Name) : null);
+        ShowSchema(known && IsSchemaFile(tab) ? new SchemaStatus(last.Name) : null);
         if (known && last.Revision == document.Revision)
         {
             _schemaWanted = null;
@@ -767,29 +780,60 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// </summary>
     internal async Task CheckSchemaAsync(MainWindow window, DocTab tab)
     {
-        if (!IsSchemaFile(tab)) return;
+        bool schema = IsSchemaFile(tab);
+        if (!schema && !IsManifestFile(tab)) return;
         var document = tab.Doc.Doc;
         long revision = document.Revision;
-        var outcome = await ExecuteAsync(window, tab, JsonPluginId, JsonActivation, "JSON", SchemaCheckCommand, notify: false, background: true, keep: true);
-        if (!outcome.Started)
+        string? name = null;
+        if (schema)
         {
-            if (_schemaWanted is not null) _schemaTimer?.Start(); // a command was using the document: ask again when it is free
-            return;
+            var outcome = await ExecuteAsync(window, tab, JsonPluginId, JsonActivation, "JSON", SchemaCheckCommand, notify: false, background: true, keep: true);
+            if (!outcome.Started)
+            {
+                if (_schemaWanted is not null) _schemaTimer?.Start(); // a command was using the document: ask again when it is free
+                return;
+            }
+            var r = outcome.Result;
+            if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() == "stale")
+            {
+                if (r.ValueKind == JsonValueKind.Object && _schemaWanted is not null) _schemaTimer?.Start();
+                return;
+            }
+            name = r.GetProperty("name") is { ValueKind: JsonValueKind.String } n ? n.GetString() : null;
         }
-        var r = outcome.Result;
-        if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() == "stale")
+        if (IsManifestFile(tab) && Registries.IsAllowed(PackageManifests.For(document.FilePath!)!.Id) && await CheckPackagesAsync(window, tab, refresh: false, background: true) is null)
         {
-            if (r.ValueKind == JsonValueKind.Object && _schemaWanted is not null) _schemaTimer?.Start();
-            return;
+            if (_schemaWanted is not null) _schemaTimer?.Start(); // the document was busy: ask again when it is free
+            if (!schema) return;
         }
-        string? name = r.GetProperty("name") is { ValueKind: JsonValueKind.String } n ? n.GetString() : null;
         _schemaChecked[document.Id] = (revision, name);
-        if (ReferenceEquals(window.Active, tab)) ShowSchema(new SchemaStatus(name));
+        if (schema && ReferenceEquals(window.Active, tab)) ShowSchema(new SchemaStatus(name));
         if (ReferenceEquals(tab.Doc.Doc, document) && document.Revision != revision) TrackSchema(window, tab); // typed while the plugin read
     }
 
+    /// <summary>
+    /// Has the JSON plugin ask the registry of the manifest whether a pinned version has a newer release; the marks come back through the diagnostics API. Nothing is sent, and the plugin is not
+    /// even started for this, unless the user allowed the registry. Null when it did not run (no consent, busy, not a manifest), else the answer of the plugin.
+    /// </summary>
+    internal async Task<JsonElement?> CheckPackagesAsync(MainWindow window, DocTab tab, bool refresh, bool background, bool force = false)
+    {
+        if (tab.Doc.Doc.FilePath is not { } path || PackageManifests.For(path) is not { } registry || !force && !Registries.IsAllowed(registry.Id)) return null;
+        SyncRegistryProxy();
+        var outcome = await ExecuteAsync(window, tab, JsonPluginId, JsonActivation, "JSON", PackageCheckCommand, extra: refresh ? ",\"refresh\":true" : "", notify: !background, background: background, keep: true);
+        return outcome.Started && outcome.Result.ValueKind == JsonValueKind.Object ? outcome.Result : null;
+    }
+
+    /// <summary>Writes the proxy of the network policy to the file the plugin reads its consent from.</summary>
+    private void SyncRegistryProxy()
+    {
+        NksHub.Textida.Remote.NetworkPolicy? policy;
+        try { policy = _app.Remote.Policy(); }
+        catch (NksHub.Textida.Remote.RemoteException) { policy = null; }
+        Registries.Sync(policy);
+    }
+
     /// <summary>Whether Ctrl+J should ask plugins: the tab has a text surface (a paged tab never does) and a plugin answers, or the JSON plugin can be started for the file.</summary>
-    public bool AsksPluginsForCompletion(DocTab tab) => tab.Surface is not null && (IsSchemaFile(tab) || Documents.HasCompletionProviders);
+    public bool AsksPluginsForCompletion(DocTab tab) => tab.Surface is not null && (IsSchemaFile(tab) || IsManifestFile(tab) || Documents.HasCompletionProviders);
 
     /// <summary>
     /// The offers of the plugins at the caret of the tab, for the revision it has now (null when no plugin answers). The document is visible to plugins only while they answer.
@@ -797,7 +841,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public async Task<CompletionAnswer?> RequestCompletionAsync(DocTab tab)
     {
         if (tab.Surface is not { } surface) return null;
-        if (IsSchemaFile(tab)) await EnsureAsync(JsonActivation);
+        if (IsSchemaFile(tab) || IsManifestFile(tab) && Registries.IsAllowed(PackageManifests.For(tab.Doc.Doc.FilePath!)!.Id)) await EnsureAsync(JsonActivation);
         if (!Documents.HasCompletionProviders || CaretOf(surface) is not { } caret) return null;
         var document = tab.Doc.Doc;
         bool own = !Documents.IsExposed(document.Id);
