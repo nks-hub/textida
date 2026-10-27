@@ -254,6 +254,20 @@ internal static class PluginLimitsPlaceholders
         EnsureOutline = ensureOutline,
     };
 
+    /// <summary>Placeholder: longest time a connection to the IDE bridge gets to send its upgrade request, in seconds.</summary>
+    public const int IdeHandshakeSeconds = 5;
+
+    /// <summary>Placeholder: largest upgrade request the IDE bridge reads, in bytes.</summary>
+    public const int IdeMaxHeaderBytes = 8 * 1024;
+
+    public static IdeBridgeOptions Ide(McpServer server, string lockDirectory) => new()
+    {
+        Server = server,
+        LockDirectory = lockDirectory,
+        HandshakeTimeout = TimeSpan.FromSeconds(IdeHandshakeSeconds),
+        MaxHeaderBytes = IdeMaxHeaderBytes,
+    };
+
     /// <summary>Placeholder: longest wait for a server tried from the list of agent servers, for its handshake and for its list of tools.</summary>
     public const int McpClientTimeoutSeconds = 30;
 

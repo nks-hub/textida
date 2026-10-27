@@ -1231,6 +1231,16 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 - Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží. Odvolá ji i znovunačtení souboru.
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
 
+## [tools.ide] Most /ide pro Claude Code
+commands: nks.tools.ideBridge
+Claude Code běžící v terminálu na tomto počítači se k Textidě připojí příkazem /ide. Agent pak ví, kde máte výběr, a může navrhovat změny. Vidí jen karty, které zpřístupníte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
+1. Nejdřív zapněte server MCP (Nástroje, Server MCP) a zpřístupněte kartu (Nástroje, Sdílet tuto kartu s MCP). Most používá stejné zpřístupněné karty.
+2. Zvolte Nástroje, Most /ide. Dialog řekne, co agent dostane. Teprve po potvrzení Textida otevře port, jen na tomto počítači (127.0.0.1), a zapíše soubor zámku s tokenem do ~/.claude/ide (nebo do složky ide v CLAUDE_CONFIG_DIR). Opětovná volba příkazu port zavře a soubor smaže.
+3. V terminálu spusťte v Claude Code příkaz /ide. Program bez tokenu ze souboru zámku se odmítne.
+- Agent se při každé změně výběru dozví výběr a cestu zpřístupněné karty. Hodnoty z .env jsou skryté jako u každého jiného čtení. Odvolání karty to okamžitě zastaví.
+- Změny agenta přijdou jako návrhy stejným náhledem změn jako u MCP.
+- Nedokončeno: pole souboru zámku, podprotokol WebSocketu, zprávu o výběru a volání rozdílu Claude Code veřejná dokumentace nepopisuje, takže zatím není potvrzena žádná verze Claude Code, se kterou most funguje. Diagnostika je prázdný seznam, dokud nejsou připojené jazykové servery.
+
 ## [tools.agent] Agent přes ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
 1. Nástroje, Spustit agenta... spustí programovacího agenta, který mluví Agent Client Protocolem (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot nebo OpenCode. Dialog ukáže přesný příkaz a složku, ve které poběží; bez potvrzení se nespustí nic. Agent musí být nainstalován a nalezen v PATH. Program, který existuje jen jako dávkový soubor (.cmd, .bat), se nespouští.

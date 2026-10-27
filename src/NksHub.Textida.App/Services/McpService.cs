@@ -57,9 +57,50 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     {
         var endpoint = _endpoint;
         _endpoint = null;
+        await DisableIdeAsync();
         Server.CloseAll();
         foreach (var id in SharedIds()) Unshare(id);
         if (endpoint is not null) await endpoint.DisposeAsync();
+    }
+
+    // ---- the /ide bridge ----
+
+    private IdeBridge? _ide;
+
+    public bool IdeEnabled => _ide is not null;
+
+    public IdeBridge? Ide => _ide;
+
+    /// <summary>Where the lock file of the bridge goes; tests point it at a folder of their own.</summary>
+    public string IdeLockDirectory { get; set; } = IdeBridge.DefaultLockDirectory();
+
+    /// <summary>Opens the port of the bridge and writes the lock file. It serves the tabs shared with MCP, so the MCP server must be on. Throws <see cref="IOException"/> when it cannot start.</summary>
+    public void EnableIde()
+    {
+        if (_ide is not null) return;
+        if (!Enabled) throw new InvalidOperationException("The MCP server is off.");
+        _ide = new IdeBridge(PluginLimitsPlaceholders.Ide(Server, IdeLockDirectory));
+    }
+
+    public async Task DisableIdeAsync()
+    {
+        var ide = _ide;
+        _ide = null;
+        if (ide is not null) await ide.DisposeAsync();
+    }
+
+    /// <summary>The selection of a tab moved; a connected agent hears about it only when the tab is shared. Call on the UI thread.</summary>
+    public void SelectionChanged(DocTab tab)
+    {
+        if (_ide is not { } ide || !IsShared(tab) || tab.Surface?.ByteSelections() is not { } selections) return;
+        var selection = selections.PrimarySelection;
+        _ = PublishSelectionAsync(ide, tab.Doc.Doc.Id, selection.Start, selection.End);
+    }
+
+    private static async Task PublishSelectionAsync(IdeBridge ide, Guid document, long start, long end)
+    {
+        try { await ide.PublishSelectionAsync(document, start, end); }
+        catch (Exception e) when (e is IOException or ObjectDisposedException or OperationCanceledException) { /* the bridge was switched off meanwhile */ }
     }
 
     // ---- sharing ----

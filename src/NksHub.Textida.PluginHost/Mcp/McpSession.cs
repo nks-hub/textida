@@ -8,7 +8,7 @@ namespace NksHub.Textida.PluginHost.Mcp;
 /// One connection of one client. A request that carries <c>_meta["io.modelcontextprotocol/protocolVersion"]</c> is served statelessly by the current revision; a client that opens with
 /// <c>initialize</c> is served by the 2025-11-25 rules for the rest of the connection. The two eras never share state.
 /// </summary>
-internal sealed class McpSession(McpServer server) : IRpcHandler
+internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcHandler
 {
     public const int UnsupportedProtocolVersion = -32022;
     private const string VersionKey = "io.modelcontextprotocol/protocolVersion";
@@ -27,6 +27,16 @@ internal sealed class McpSession(McpServer server) : IRpcHandler
     public void Attach(JsonRpcDispatcher rpc) => _rpc = rpc;
 
     public void Close() => _ = _rpc?.DisposeAsync().AsTask();
+
+    /// <summary>True once the client has opened with <c>initialize</c>; a notification sent earlier would reach a client that has not asked for the server yet.</summary>
+    public bool IsInitialized => _legacy;
+
+    public async Task SendNotificationAsync(string method, byte[] payload)
+    {
+        if (_rpc is not { IsClosed: false } rpc) return;
+        try { await rpc.NotifyAsync(method, payload).ConfigureAwait(false); }
+        catch (Exception e) when (e is IOException or OperationCanceledException) { /* the client is gone */ }
+    }
 
     public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement p, CancellationToken cancellation)
     {
@@ -145,7 +155,7 @@ internal sealed class McpSession(McpServer server) : IRpcHandler
         return Result(modern, true, w =>
         {
             w.WriteStartArray("tools");
-            foreach (var tool in server.EnabledTools())
+            foreach (var tool in server.EnabledTools().Concat(peer?.ExtraTools ?? []))
             {
                 w.WriteStartObject();
                 w.WriteString("name", tool.Name);
@@ -170,7 +180,7 @@ internal sealed class McpSession(McpServer server) : IRpcHandler
         bool modern = IsModern(p);
         if (!p.TryGetProperty("name", out var n) || n.ValueKind != JsonValueKind.String) throw InvalidParams("Parameter 'name' must be a string.");
         var name = n.GetString()!;
-        var tool = server.FindEnabled(name) ?? throw InvalidParams("Unknown tool: " + name);
+        var tool = server.FindEnabled(name) ?? peer?.ExtraTools.FirstOrDefault(t => t.Name == name) ?? throw InvalidParams("Unknown tool: " + name);
         var args = EmptyObject;
         if (p.TryGetProperty("arguments", out var a) && a.ValueKind != JsonValueKind.Null)
             args = a.ValueKind == JsonValueKind.Object ? a : throw InvalidParams("Parameter 'arguments' must be an object.");

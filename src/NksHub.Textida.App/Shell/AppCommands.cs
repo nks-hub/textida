@@ -127,6 +127,7 @@ internal static class AppCommands
         On("nks.tools.mcpServer", w => w.ToggleMcpServer());
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
+        On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
         On("nks.agent.start", w => w.StartAgent());
         On("nks.agent.panel", w => w.ToggleAgentPanelCommand());

@@ -1231,6 +1231,16 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia. Odvolá ju aj opätovné načítanie súboru.
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
+## [tools.ide] Most /ide pre Claude Code
+commands: nks.tools.ideBridge
+Claude Code bežiaci v termináli na tomto počítači sa k Textide pripojí príkazom /ide. Agent potom vie, kde máte výber, a môže navrhovať zmeny. Vidí len karty, ktoré sprístupníte, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
+1. Najprv zapnite server MCP (Nástroje, Server MCP) a sprístupnite kartu (Nástroje, Zdieľať túto kartu s MCP). Most používa tie isté sprístupnené karty.
+2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
+3. V termináli spustite v Claude Code príkaz /ide. Program bez tokenu zo súboru zámku sa odmietne.
+- Agent sa pri každej zmene výberu dozvie výber a cestu sprístupnenej karty. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
+- Zmeny agenta prídu ako návrhy tým istým náhľadom zmien ako pri MCP.
+- Nedokončené: polia súboru zámku, podprotokol WebSocketu, správu o výbere a volanie rozdielu Claude Code verejná dokumentácia neopisuje, takže zatiaľ nie je potvrdená žiadna verzia Claude Code, s ktorou most funguje. Diagnostika je prázdny zoznam, kým nie sú pripojené jazykové servery.
+
 ## [tools.agent] Agent cez ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
 1. Nástroje, Spustiť agenta... spustí programovacieho agenta, ktorý komunikuje Agent Client Protocolom (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot alebo OpenCode. Dialóg ukáže presný príkaz a priečinok, v ktorom pobeží; bez potvrdenia sa nespustí nič. Agent musí byť nainštalovaný a nájdený v PATH. Program, ktorý existuje len ako dávkový súbor (.cmd, .bat), sa nespúšťa.

@@ -91,9 +91,13 @@ public sealed class McpServer
     }
 
     /// <summary>Serves one client until it closes the stream, <paramref name="cancellation"/> fires or <see cref="CloseAll"/> is called.</summary>
-    public async Task ServeAsync(Stream input, Stream output, CancellationToken cancellation = default)
+    public Task ServeAsync(Stream input, Stream output, CancellationToken cancellation = default) => ServeAsync(input, output, null, cancellation);
+
+    /// <summary>As above for a client with a <paramref name="peer"/>: tools of its own and notifications the editor sends it.</summary>
+    internal async Task ServeAsync(Stream input, Stream output, McpPeer? peer, CancellationToken cancellation)
     {
-        var session = new McpSession(this);
+        var session = new McpSession(this, peer);
+        peer?.Attach(session);
         await using var rpc = new JsonRpcDispatcher(input, output, RpcProtocols.Mcp, Options.Limits, session);
         session.Attach(rpc);
         lock (_gate) _sessions.Add(session);

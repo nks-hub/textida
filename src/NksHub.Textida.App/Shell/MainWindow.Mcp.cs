@@ -44,6 +44,39 @@ internal sealed partial class MainWindow
         SetStatusMessage(Loc.Get(K.McpOnStatus, ("program", McpService.BridgeProgram)));
     }
 
+    internal CommandOutcome ToggleIdeBridge()
+    {
+        McpTask = ToggleIdeBridgeAsync();
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Opens the port of the /ide bridge only after the user has been told what the agent gets; the same command closes it.</summary>
+    private async Task ToggleIdeBridgeAsync()
+    {
+        var mcp = _app.Plugins.Mcp;
+        if (mcp.IdeEnabled)
+        {
+            await mcp.DisableIdeAsync();
+            SetStatusMessage(Loc.Get(K.IdeOffStatus));
+            return;
+        }
+        if (!mcp.Enabled)
+        {
+            SetStatusMessage(Loc.Get(K.McpShareNeedServer));
+            return;
+        }
+        var buttons = new[] { new DialogButton(Loc.Get(K.IdeOnConfirm), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.IdeOnTitle), Loc.Get(K.IdeOnMessage, ("folder", mcp.IdeLockDirectory)), buttons));
+        if (answer != 0 || !mcp.Enabled || mcp.IdeEnabled) return;
+        try { mcp.EnableIde(); }
+        catch (IOException e)
+        {
+            SetStatusMessage(Loc.Get(K.IdeFailed, ("reason", e.Message)));
+            return;
+        }
+        SetStatusMessage(Loc.Get(K.IdeOnStatus, ("port", mcp.Ide!.Port)));
+    }
+
     internal CommandOutcome ShareTabWithMcp()
     {
         if (Active is not { } tab) return CommandOutcome.NotHandled;

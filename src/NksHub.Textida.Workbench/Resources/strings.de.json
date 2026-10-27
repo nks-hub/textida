@@ -378,6 +378,7 @@
   "cmd.remote.importConnections": "Verbindungen importieren...",
   "cmd.tools.mcpServer": "MCP-Server: ein- oder ausschalten...",
   "cmd.tools.mcpShareTab": "Tab mit MCP teilen",
+  "cmd.tools.ideBridge": "/ide-Brücke: ein- oder ausschalten...",
   "cmd.tools.mcpTools": "MCP-Werkzeuge...",
   "cmd.tools.mcpServers": "MCP-Server der Agenten...",
   "cmd.agent.start": "Agent starten...",

@@ -1226,6 +1226,16 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen. Auch das erneute Laden einer Datei entzieht sie.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
 
+## [tools.ide] Die /ide-Brücke für Claude Code
+commands: nks.tools.ideBridge
+Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mit dem Befehl /ide mit Textida. Der Agent weiß dann, wo Ihre Auswahl liegt, und kann Änderungen vorschlagen. Er sieht nur Tabs, die Sie freigeben, und schreibt nie: Jeden Vorschlag sehen Sie als Änderungsvorschau, und Sie entscheiden.
+1. Schalten Sie zuerst den MCP-Server ein (Werkzeuge, MCP-Server) und geben Sie einen Tab frei (Werkzeuge, Diesen Tab mit MCP teilen). Die Brücke nutzt dieselben freigegebenen Tabs.
+2. Wählen Sie Werkzeuge, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
+3. Führen Sie im Terminal in Claude Code den Befehl /ide aus. Ein Programm ohne das Token aus der Sperrdatei wird abgewiesen.
+- Der Agent erfährt bei jeder Änderung der Auswahl Auswahl und Pfad eines freigegebenen Tabs. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
+- Änderungen des Agenten kommen als Vorschläge über dieselbe Änderungsvorschau wie bei MCP.
+- Nicht fertig: Die Felder der Sperrdatei, das WebSocket-Subprotokoll, die Auswahlnachricht und der Diff-Aufruf von Claude Code sind in dessen öffentlicher Dokumentation nicht beschrieben, daher ist noch keine Claude-Code-Version bestätigt, mit der die Brücke funktioniert. Die Diagnose ist eine leere Liste, bis Sprachserver angebunden sind.
+
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
 1. Werkzeuge, Agent starten... startet einen Coding-Agenten, der das Agent Client Protocol (ACP) spricht: Gemini CLI, Codex, Claude, Junie, GitHub Copilot oder OpenCode. Der Dialog zeigt den genauen Befehl und den Ordner, in dem er läuft; ohne Bestätigung startet nichts. Der Agent muss installiert und im PATH zu finden sein. Ein Programm, das nur als Stapeldatei (.cmd, .bat) vorliegt, wird nicht gestartet.

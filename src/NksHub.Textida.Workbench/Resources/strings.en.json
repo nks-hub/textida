@@ -378,6 +378,7 @@
   "cmd.remote.importConnections": "Import Connections...",
   "cmd.tools.mcpServer": "MCP Server: Switch On or Off...",
   "cmd.tools.mcpShareTab": "Share This Tab with MCP",
+  "cmd.tools.ideBridge": "IDE Bridge /ide: Switch On or Off...",
   "cmd.tools.mcpTools": "MCP Tools...",
   "cmd.tools.mcpServers": "MCP Servers of Agents...",
   "cmd.agent.start": "Start Agent...",
