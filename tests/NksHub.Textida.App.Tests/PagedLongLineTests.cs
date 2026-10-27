@@ -215,7 +215,8 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
 
         var first = new List<double>();
         var complete = new List<double>();
-        for (int i = 0; i < 20; i++)
+        // 100 jumps: with 20 the p95 is simply the worst sample
+        for (int i = 0; i < 100; i++)
         {
             source.Columns.Clear();
             long t0 = Stopwatch.GetTimestamp();
