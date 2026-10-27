@@ -367,6 +367,20 @@ public class CompareTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task An_open_comparison_follows_a_change_of_the_editor_font()
+    {
+        var tab = NewWith("a\n");
+        var view = await OpenWithClipboard(tab, "b\n");
+        double size = view.Options.FontSize + 7;
+
+        Assert.Null(_app.Workbench.Set("editor.fontSize", JsonValue.Create(size)));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(size, view.Options.FontSize);
+        Assert.Equal(size, tab.Editor!.FontSize);
+    }
+
+    [AvaloniaFact]
     public async Task The_screen_reader_hears_the_current_difference_with_its_lines_and_the_first_line_of_each_side()
     {
         var tab = NewWith("a\n  old one\nold two\nc\n");
