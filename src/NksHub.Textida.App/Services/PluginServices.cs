@@ -20,6 +20,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 {
     public const string JsonPluginId = "textida.json";
     private const string JsonActivation = "onCommand:json";
+    public const string TextToolsPluginId = "textida.texttools";
+    private const string TextToolsActivation = "onCommand:texttools";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -59,6 +61,14 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
             ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString()],
             [JsonActivation], folder));
+
+        // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
+        permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
+        var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
+        var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
+            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString()],
+            [TextToolsActivation], toolsFolder));
     }
 
     internal Host HostForTests => _host;
@@ -82,22 +92,31 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// Runs "Format JSON" (or its preview) on the text tab through the JSON plugin process. The document is visible to plugins only while the
     /// command runs. Returns false when nothing was started (no text editor, or the command is already running on this document).
     /// </summary>
-    public async Task<bool> RunJsonAsync(MainWindow window, DocTab tab, bool preview)
+    public Task<bool> RunJsonAsync(MainWindow window, DocTab tab, bool preview) =>
+        tab.Surface is null ? Task.FromResult(false) : RunCommandAsync(window, tab, JsonPluginId, JsonActivation, "JSON", preview ? "json.preview" : "json.format");
+
+    /// <summary>
+    /// Runs one of the text tools (<c>text.stats</c>, <c>text.hash</c>, <c>text.calculate</c>, <c>text.expression</c>, <c>text.bases</c>) on the tab through the text tools plugin
+    /// process. They work on text, hex and paged tabs alike and read from a snapshot, so a large file is never held in memory. Returns false when nothing was started.
+    /// </summary>
+    public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command) =>
+        tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command);
+
+    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command)
     {
-        if (tab.Surface is not { } surface) return false;
         var document = tab.Doc.Doc;
         if (_running.ContainsKey(document.Id)) return false;
         _running[document.Id] = new Run(window, tab);
-        Documents.Expose(document, surface.ByteSelections);
+        Documents.Expose(document, tab.Surface is { } surface ? surface.ByteSelections : null);
         try
         {
-            await _host.ActivateAsync(JsonActivation);
-            var request = $"{{\"command\":\"{(preview ? "json.preview" : "json.format")}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"}}";
-            await _host.CallAsync(JsonPluginId, "command/execute", Encoding.UTF8.GetBytes(request));
+            await _host.ActivateAsync(activation);
+            var request = $"{{\"command\":\"{command}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"}}";
+            await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes(request));
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
         {
-            window.ShowNotice("plugin:" + JsonPluginId, Loc.Get(K.PluginUnavailable, ("name", "JSON"), ("reason", e.Message)), [], warning: true);
+            window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
         }
         finally
         {

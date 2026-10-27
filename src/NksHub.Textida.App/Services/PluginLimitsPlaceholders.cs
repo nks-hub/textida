@@ -18,6 +18,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: spaces per level of the built-in formatter.</summary>
     public const int JsonFormatterIndent = 2;
 
+    /// <summary>Placeholder: bytes the text tools (statistics, hashes) read per request; the one chunk is their working memory. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int TextToolsChunkBytes = 1 << 20;
+
+    /// <summary>Placeholder: milliseconds between two progress reports of a running text tool.</summary>
+    public const int TextToolsProgressMilliseconds = 250;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

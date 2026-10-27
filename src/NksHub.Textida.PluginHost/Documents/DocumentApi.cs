@@ -279,7 +279,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             lock (_gate)
             {
                 PurgeExpired(pluginId);
-                if (_snapshots.TryGetValue(pluginId, out var list) && list.Find(x => x.Id == id) is { } pin) return new Target(pin.Snap, pin.Bom);
+                // the lifetime counts from the last read, so a long scan of one snapshot keeps it alive while a forgotten one still expires
+                if (_snapshots.TryGetValue(pluginId, out var list) && list.FindIndex(x => x.Id == id) is var at and >= 0)
+                {
+                    var pin = list[at] = list[at] with { Expires = _time.GetUtcNow() + _options.SnapshotLifetime };
+                    return new Target(pin.Snap, pin.Bom);
+                }
             }
             throw Fail(DocumentErrorCodes.SnapshotExpired, "The snapshot has expired or was released.");
         }

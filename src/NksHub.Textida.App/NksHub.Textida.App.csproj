@@ -36,6 +36,7 @@
     <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
     <!-- the built-in JSON formatter runs as its own process; it is built first and copied next to the app -->
     <ProjectReference Include="..\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Document.AvaloniaEdit\NksHub.Textida.Document.AvaloniaEdit.csproj" />
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
@@ -43,7 +44,9 @@
   <Target Name="CopyBuiltInPlugins" AfterTargets="Build">
     <ItemGroup>
       <JsonPluginFiles Include="..\NksHub.Textida.Plugins.Json\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <TextToolsPluginFiles Include="..\NksHub.Textida.Plugins.TextTools\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(TextToolsPluginFiles)" DestinationFiles="@(TextToolsPluginFiles->'$(OutDir)plugins\texttools\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>
