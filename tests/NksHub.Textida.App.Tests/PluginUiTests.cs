@@ -305,6 +305,27 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task After_repeated_crashes_the_bar_says_the_plugin_is_turned_off_and_the_host_log_is_in_the_output_window()
+    {
+        await StartPluginAsync();
+        for (int i = 0; i < 3; i++)
+        {
+            await Until(() => Host.GetState("p") == PluginState.Running, "the plugin running again");
+            var crash = Host.CallAsync("p", "crash", Encoding.UTF8.GetBytes("{\"code\":9}"));
+            await Until(() => crash.IsCompleted, "the crash");
+            await Assert.ThrowsAsync<PluginCrashedException>(() => crash);
+        }
+        await Until(() => Host.GetState("p") == PluginState.Disabled, "the plugin turned off");
+
+        string off = Loc.Get(K.PluginCrashDisabled, ("name", "Test plugin"), ("reason", Loc.Get(K.PluginCrashExited)));
+        await Until(() => _w.Notices.Any(n => n.Message == off), "the notice that the plugin is turned off");
+        var log = _app.Output.Read(OutputChannel.Tasks).Where(l => l.Source == Loc.Get(K.PluginLogSource)).Select(l => l.Text).ToList();
+        Assert.Equal(2, log.Count(l => l.Contains("Restart in")));
+        Assert.Single(log, l => l.Contains("Disabled."));
+        Assert.All(log, l => Assert.Contains("'p' crashed", l));
+    }
+
+    [AvaloniaFact]
     public void The_texts_of_the_plugin_UI_exist_in_every_language()
     {
         foreach (var tag in Loc.Languages)
