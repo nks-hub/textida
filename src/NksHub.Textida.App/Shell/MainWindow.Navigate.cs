@@ -125,7 +125,7 @@ internal sealed partial class MainWindow
 
     private void TrackEdits(OpenDocument od)
     {
-        if (!od.IsVirtual) _edits.Attach(od.Doc); // the owner's updates are not edits of the user
+        if (!od.IsVirtual || od.Doc.VirtualEditable) _edits.Attach(od.Doc); // the owner's updates to a read only view are not edits of the user
     }
 
     /// <summary>The last view of a document closes: its places become file positions that survive in the lists.</summary>

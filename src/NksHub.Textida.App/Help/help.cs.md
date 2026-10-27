@@ -167,6 +167,16 @@ commands: nks.source.open
 - Adresy s heslem, tokenem nebo klíčem se na liště, v nedávných souborech a v logu ukazují s ***. Nedávné soubory drží jen zamaskovanou adresu, takže zdroj, který tajnou část v adrese potřebuje, si ji vyžádá znovu.
 - Omezení: tajná část uvnitř cesty adresy se nepozná a zůstane vidět. Uložit jako zapíše kopii na disk a ukončí vazbu na zdroj.
 
+## [plugins.virtual] Karty, které dodá plugin
+Plugin může otevřít vlastní kartu s daty, která si drží: přepis konverzace, vygenerovaný soubor, výpis nebo rozdíl. Taková karta nemá soubor. Nese štítek („virtuální · jen čtení“ nebo „virtuální · upravitelná“) a lištu, která jmenuje plugin a adresu, kterou mu dal (adresa s heslem nebo tokenem ukazuje na jejich místě ***).
+1. V kartě jen pro čtení jde hledat, vybírat a kopírovat a má osnovu jako každý soubor svého jazyka, ale nejde do ní psát ani ji uložit. Uložit i Uložit jako to řeknou ve stavovém řádku.
+2. Do upravitelné karty jde psát, včetně Zpět a Znovu. Plugin se o každé úpravě dozví sám. Uložit (i když kartu zavřete a zvolíte Uložit) pošle text pluginu, nikdy do souboru; když plugin odmítne nebo neodpoví včas, karta zůstane neuložená a stavový řádek uvede důvod. Uložit jako není k dispozici.
+3. Plugin může text své karty nahradit. Nahradí tím i to, co jste napsali a neuložili, a skončí tím historie zpět karty; plugin, který tomu chce předejít, uvede revizi, kterou viděl naposledy, a změna, kterou jste mezitím udělali, pak nahrazení zastaví.
+4. Když plugin svou kartu zavře, skončí nebo je vypnut, karta se zavře bez ptaní a stavový řádek to řekne. Neuložený text je ztracen.
+- Karta pluginu se neukládá do relace, do žurnálu ani do nedávných souborů.
+- Hodnoty v kartě .env jsou skryté jako v souboru. Plugin na jejich místě vidí hvězdičky, pokud jste mu to nepovolili.
+- Počet takových karet na plugin, jejich velikost a čekání na uložení jsou zatím provizorní.
+
 ## [remote.backup] Záloha připojení
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Zvolte Soubor a pak Vzdálené soubory a pak Exportovat připojení a pojmenujte soubor. Obsahuje seznam připojení: název, protokol, server, port, uživatele a důvěryhodnou identitu serveru.
@@ -1440,6 +1450,8 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 5. Když agent žádá o oprávnění, dialog ukáže volby, které agent nabízí. Zrušení nebo zavření dialogu odpoví „zrušeno“.
 - Kde záruka končí: editor řídí jen to, co jde přes něj. Vlastní nástroje agenta mohou měnit soubory, spouštět programy a používat síť bez editoru a editor žádnému agentovi nenastavuje režim oprávnění (každý si ponechá vlastní výchozí). Co smí agent dělat, nastavte v nastavení samotného agenta.
 - Každý agent je v seznamu jako „neověřeno“: žádný běh se skutečným programem zatím neprošel zkušebními scénáři. Tah, ve kterém agent příliš dlouho nic neřekne ani nezeptá, skončí jako vypršelý. Časové limity a velikost souboru předaného agentovi jsou zatím provizorní.
+- Plugin může ve stejném panelu vést vlastní konverzaci (oprávnění agent.panel). Panel jde ovládat klávesnicí: otevře se s kurzorem v poli zprávy, Enter odešle, Tab prochází tlačítka Odeslat, Zrušit tah, Zastavit agenta a Zavřít, mezerník nebo Enter tlačítko stiskne a Esc panel zavře a vrátí do editoru. Zrušit tah agenta a Zastavit agenta jsou i příkazy v nabídce a v paletě. Čtečka obrazovky dostane jméno panelu, konverzace, pole zprávy, stavu a každého tlačítka a změna stavu (startuje, připraven, pracuje, skončil) se ohlásí. Ověřeno stromem přístupnosti programu, zatím ne skutečnou čtečkou obrazovky.
+
 ## [tools.mcpAgents] Servery MCP agentů
 commands: nks.tools.mcpServers
 Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agenti. Textida čte Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Soubory projektu hledá ve složce aktivního souboru a v nadřazených složkách. Soubory jen čte, nikdy do nich nezapisuje.

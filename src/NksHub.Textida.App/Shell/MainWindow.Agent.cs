@@ -38,6 +38,9 @@ internal sealed partial class MainWindow
     internal string AgentPanelText => _agentText.Text ?? "";
     internal string AgentPanelStatus => _agentStatus.Text ?? "";
     internal Control AgentPanelControl => _agentPanel;
+    internal TextBlock AgentStatusControl => _agentStatus;
+    internal TextBox AgentTranscriptBox => _agentText;
+    internal IReadOnlyList<Button> AgentButtons => [_agentSend, _agentCancel, _agentStop, _agentClose];
     internal TextBox AgentInputBox => _agentInput;
     internal Button AgentSendButton => _agentSend;
     internal Button AgentCancelButton => _agentCancel;
@@ -93,6 +96,8 @@ internal sealed partial class MainWindow
         _agentText.PlaceholderText = Loc.Get(K.AgentEmpty);
         AutomationProperties.SetName(_agentPanel, Loc.Get(K.A11yAgentPanel));
         AutomationProperties.SetName(_agentText, Loc.Get(K.A11yAgentTranscript));
+        AutomationProperties.SetName(_agentStatus, Loc.Get(K.A11yAgentStatus));
+        AutomationProperties.SetLiveSetting(_agentStatus, AutomationLiveSetting.Polite); // a screen reader announces "working" and "ready" as the turn goes on
         AutomationProperties.SetName(_agentInput, Loc.Get(K.A11yAgentInput));
         AutomationProperties.SetName(_agentSend, Loc.Get(K.AgentSend));
         AutomationProperties.SetName(_agentCancel, Loc.Get(K.AgentCancel));

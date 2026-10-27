@@ -62,6 +62,8 @@ sealed class Handler(int api, string? onCommand) : IRpcHandler
     readonly Dictionary<string, (byte[] Content, int Revision)> _files = [];
     volatile bool _sourceOffline;
     volatile bool _sourceAtomic = true;
+    readonly List<string> _virtualSaves = [];
+    volatile bool _virtualSaveFails;
 
     void SourceReachable()
     {
@@ -250,6 +252,15 @@ sealed class Handler(int api, string? onCommand) : IRpcHandler
             case "sourceMode":
                 _sourceOffline = p.TryGetProperty("offline", out var off) && off.GetBoolean();
                 _sourceAtomic = !p.TryGetProperty("atomic", out var atomic) || atomic.GetBoolean();
+                return Raw("true");
+            case DocumentRequests.VirtualSave:
+                lock (_virtualSaves) _virtualSaves.Add(p.GetRawText());
+                if (_virtualSaveFails) throw new RpcException(RpcErrorCodes.InternalError, "test plugin: cannot keep it");
+                return Raw("{\"kept\":true}");
+            case "virtualSaves":
+                lock (_virtualSaves) return Raw("[" + string.Join(",", _virtualSaves) + "]");
+            case "virtualMode":
+                _virtualSaveFails = p.TryGetProperty("fail", out var fail) && fail.GetBoolean();
                 return Raw("true");
             case "tabRequests":
                 lock (_tabs) return Raw("[" + string.Join(",", _tabs) + "]");

@@ -12,22 +12,26 @@ public sealed partial class Document
 
     public bool IsVirtual => VirtualName is not null;
 
+    /// <summary>The user may edit this virtual document; a save goes to the plugin that supplies it, never to a file. False for a view that is read only.</summary>
+    public bool VirtualEditable { get; private set; }
+
     /// <summary>The path that decides whether the values of this document are hidden: its file, or the name of a virtual document.</summary>
     public string? SecretsPath => FilePath ?? VirtualName;
 
-    /// <summary>Creates a virtual document: content in <paramref name="codec"/>, never saved, never counted as modified.</summary>
-    public static Document CreateVirtual(string name, ReadOnlyMemory<byte> bytes, IBackendFactory factory, TextCodec codec)
+    /// <summary>Creates a virtual document: content in <paramref name="codec"/>, never written to a file, not modified when it is created. An <paramref name="editable"/> one takes the edits of the user, with undo.</summary>
+    public static Document CreateVirtual(string name, ReadOnlyMemory<byte> bytes, IBackendFactory factory, TextCodec codec, bool editable = false)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("A virtual document needs a name.", nameof(name));
         var doc = FromBytes(bytes, factory, new DocumentOptions { Format = codec });
         doc.VirtualName = name;
+        doc.VirtualEditable = editable;
         doc.ForgetHistory();
         return doc;
     }
 
     /// <summary>
     /// Applies the edits the owner of a virtual document makes (a new version of its data). The document keeps no undo history and stays unmodified,
-    /// so the user cannot undo the owner's data away or be asked to save it. Ranges refer to <paramref name="baseRevision"/>, or to the current one.
+    /// so the user cannot undo the owner's data away or be asked to save it; edits of the user that were not saved yet are replaced. Ranges refer to <paramref name="baseRevision"/>, or to the current one.
     /// </summary>
     public EditResult ApplyVirtual(IReadOnlyList<ByteEdit> edits, long? baseRevision, string? source)
     {

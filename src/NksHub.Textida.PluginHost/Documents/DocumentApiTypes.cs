@@ -51,10 +51,16 @@ public static class DocumentMethods
     public const string DiffOpen = "diff/open";
     /// <summary>Takes one hunk of a diff into a virtual document the plugin provides (the index of a repository), unless that document moved on.</summary>
     public const string DiffStage = "diff/stage";
-    /// <summary>Opens a read only document the plugin supplies as a view of its data, or returns the one already open under the same key.</summary>
+    /// <summary>
+    /// Opens a document the plugin supplies as a view of its data, or returns the one already open under the same key. It is read only unless the plugin says <c>editable</c>:
+    /// the user then edits it (with undo), the plugin hears the edits as <see cref="DocumentEvents.Changed"/> and a save is sent to the plugin as <see cref="DocumentRequests.VirtualSave"/>.
+    /// The optional <c>uri</c> (<c>scheme://...</c>, not <c>file</c>) is the address the tab shows; without a <c>key</c> it is the key.
+    /// </summary>
     public const string VirtualOpen = "virtual/open";
-    /// <summary>Gives a virtual document new content (a new revision), optionally only if it is still at the revision the plugin last saw.</summary>
+    /// <summary>Gives a virtual document new content (a new revision), optionally only if it is still at the revision the plugin last saw. It replaces the edits of the user that were not saved yet.</summary>
     public const string VirtualUpdate = "virtual/update";
+    /// <summary>The plugin closes a virtual document it provided; the tab closes without asking and the key is free again.</summary>
+    public const string VirtualClose = "virtual/close";
     /// <summary>The plugin publishes the diagnostics of one source for one revision of a document; an empty list takes that source's diagnostics away.</summary>
     public const string DiagnosticsPublish = "diagnostics/publish";
     /// <summary>The diagnostics stored for a document (plugins and the editor's own linter), with ranges in the current revision; those touching a hidden value are left out.</summary>
@@ -97,6 +103,11 @@ public static class DocumentRequests
     /// A source that declared <c>atomicWrite</c> writes only if the file is still at the expected revision, in one step, and otherwise answers <see cref="DocumentErrorCodes.SourceConflict"/>.
     /// </summary>
     public const string SourceWrite = "source/write";
+    /// <summary>
+    /// Virtual document: the user saved an editable one. Params <c>document</c>, <c>key</c>, <c>uri</c> (null when it has none), <c>revision</c> and the content as <c>bytes</c> (base64).
+    /// An answer is a save; an error leaves the document unsaved and the user sees its message. Nothing is written to a file.
+    /// </summary>
+    public const string VirtualSave = "virtual/save";
 }
 
 /// <summary>Names of the events (<c>$/event</c> payloads) the editor sends for subscribed documents. They carry ranges and revisions, never text.</summary>
@@ -127,7 +138,7 @@ public static class DocumentPermissions
     public const string SecretsReveal = "document.secrets.reveal";
     /// <summary>Replaces the clipboard content. What a plugin writes is its own text; a hidden value of a secrets file only reaches it when <see cref="SecretsReveal"/> was granted.</summary>
     public const string ClipboardWrite = "clipboard.write";
-    /// <summary>Provides documents of its own (read only tabs) and changes their content and revision. It never reaches a document it did not provide.</summary>
+    /// <summary>Provides documents of its own (read only tabs, or tabs the user edits and saves to the plugin), changes their content and revision and closes them. It never reaches a document it did not provide.</summary>
     public const string Virtual = "document.virtual";
     /// <summary>Edits files that are not open and creates, renames and deletes files, below the workspace folders. Only the user grants it, for all of them.</summary>
     public const string WorkspaceFiles = "workspace.files";
@@ -160,7 +171,7 @@ public static class DocumentErrorCodes
     public const int NoTextView = -32029;
     /// <summary>The document is not shown as a table, so there are no selected cells.</summary>
     public const int NoTableView = -32030;
-    /// <summary>The document is a virtual document: it takes no edit from a plugin or an assistant (data: <c>reason</c> = <c>Virtual</c>).</summary>
+    /// <summary>The document is a virtual document that is read only: it takes no edit from a plugin or an assistant (data: <c>reason</c> = <c>Virtual</c>).</summary>
     public const int ReadOnlyDocument = -32031;
     /// <summary>The document is not one this plugin provided, so it cannot update it or stage into it.</summary>
     public const int NotProvider = -32032;
@@ -222,8 +233,10 @@ public sealed record DocumentApiOptions
     public Func<Guid, LogLevelRules?>? LogRules { get; init; }
     /// <summary>Virtual documents one plugin may keep open at the same time.</summary>
     public required int MaxVirtualDocumentsPerPlugin { get; init; }
-    /// <summary>Largest content of a virtual document, in bytes; also the largest an update may make it.</summary>
+    /// <summary>Largest content of a virtual document, in bytes; also the largest an update may make it and the largest a save sends to the plugin.</summary>
     public required long MaxVirtualBytes { get; init; }
+    /// <summary>How long the editor waits for a plugin to take the save of an editable virtual document; null means the editor takes no editable virtual documents.</summary>
+    public TimeSpan? VirtualSaveTimeout { get; init; }
     /// <summary>Diagnostics one plugin may publish for one source of one document.</summary>
     public required int MaxDiagnosticsPerDocument { get; init; }
     /// <summary>Completion items taken from one plugin's answer; the rest is dropped.</summary>
@@ -380,7 +393,9 @@ public interface IEditorTools
     /// <summary>Replaces the clipboard: <paramref name="text"/> and, when given, <paramref name="html"/> as the rich form of it.</summary>
     void SetClipboard(Guid document, string text, string? html);
     /// <summary>Opens a tab for a new virtual document and returns it. <paramref name="title"/> is the text of the tab; the name decides the language and the hiding of secrets.</summary>
-    Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec);
+    Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec, VirtualInfo info);
+    /// <summary>Closes the tab of a virtual document without asking (the plugin closed it or ended). Closing the tab withdraws the document. Called on the thread that owns the documents.</summary>
+    void CloseVirtual(Guid document) { }
     /// <summary>Shows the comparison of two revisions in a tab of the editor; false when it could not be shown.</summary>
     bool OpenDiff(DiffRequest request);
     /// <summary>
@@ -389,6 +404,9 @@ public interface IEditorTools
     /// </summary>
     void DiagnosticsChanged(Guid document);
 }
+
+/// <summary>What <see cref="DocumentMethods.VirtualOpen"/> says about a virtual document besides its content: the <paramref name="Key"/> the plugin chose, its <paramref name="Uri"/> (null when it gave none) and whether the user may edit it.</summary>
+public sealed record VirtualInfo(string Key, string? Uri, bool Editable);
 
 /// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
 public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title);

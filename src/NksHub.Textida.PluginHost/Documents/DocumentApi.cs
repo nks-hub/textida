@@ -31,7 +31,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
             || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
-            || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1
+            || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1 || options.VirtualSaveTimeout is { Ticks: <= 0 }
             || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero
             || options.Workspace is { MaxChanges: < 1 } or { MaxFileBytes: < 1 } || options.Preview is { MaxChars: < 1 } || options.Agent is { MaxUpdateChars: < 1 }
             || options.Sources is { Timeout.Ticks: <= 0 } or { MaxBytes: < 1 } or { MaxEntries: < 1 } or { MaxSchemesPerPlugin: < 1 } or { CacheEntries: < 1 } or { CacheBytes: < 1 })
@@ -118,7 +118,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         DocumentMethods.EditApply or DocumentMethods.SnippetInsert => DocumentPermissions.EditDirect,
         DocumentMethods.EditPropose or DocumentMethods.WorkspaceEdit => DocumentPermissions.EditPropose,
         DocumentMethods.ClipboardWrite => DocumentPermissions.ClipboardWrite,
-        DocumentMethods.VirtualOpen or DocumentMethods.VirtualUpdate => DocumentPermissions.Virtual,
+        DocumentMethods.VirtualOpen or DocumentMethods.VirtualUpdate or DocumentMethods.VirtualClose => DocumentPermissions.Virtual,
         DocumentMethods.SourceRegister => DocumentPermissions.Source,
         DocumentMethods.PreviewShow or DocumentMethods.PreviewClose => DocumentPermissions.Preview,
         DocumentMethods.AgentOpen or DocumentMethods.AgentUpdate or DocumentMethods.AgentPermission or DocumentMethods.AgentClose => DocumentPermissions.AgentPanel,
@@ -195,6 +195,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.DiffStage: return await DiffStageAsync(pluginId, p, cancellation);
             case DocumentMethods.VirtualOpen: return await VirtualOpenAsync(pluginId, p);
             case DocumentMethods.VirtualUpdate: return await VirtualUpdateAsync(pluginId, p);
+            case DocumentMethods.VirtualClose: return await VirtualCloseAsync(pluginId, p);
             case DocumentMethods.DiagnosticsPublish: return await PublishDiagnosticsAsync(pluginId, p);
             case DocumentMethods.DiagnosticsList: return await DiagnosticsListAsync(pluginId, p);
             case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
@@ -257,11 +258,11 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         }
     }
 
-    /// <summary>A document an edit may reach: a virtual document is a view of a plugin's data and takes no edit, from a plugin or from an assistant.</summary>
+    /// <summary>A document an edit may reach: a virtual document that is read only is a view of a plugin's data and takes no edit, from a plugin or from an assistant. An editable one is edited like any other.</summary>
     private Exposed FindWritable(Guid id)
     {
         var e = Find(id);
-        if (e.Doc.IsVirtual)
+        if (e.Doc.IsVirtual && !e.Doc.VirtualEditable)
             throw Fail(DocumentErrorCodes.ReadOnlyDocument, "The document is a virtual document and is read only.", w => w.WriteString("reason", "Virtual"));
         return e;
     }

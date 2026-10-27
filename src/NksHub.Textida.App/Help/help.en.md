@@ -166,6 +166,16 @@ commands: nks.source.open
 - Addresses with a password, a token or a key in them are shown with *** in the bar, the recent files and the logs. The recent files keep only the masked address, so a source that needs the secret in the address asks for it again.
 - Limit: a secret inside the path of an address cannot be recognised and stays visible. Save As writes a copy to disk and ends the link to the source.
 
+## [plugins.virtual] Tabs that a plugin supplies
+A plugin can open a tab of its own with data it keeps: a transcript, a generated file, a listing, a diff. Such a tab has no file. It carries a badge ("virtual · read only" or "virtual · editable") and a bar that names the plugin and the address the plugin gave it (an address with a password or token shows *** in its place).
+1. A read only tab can be searched, selected and copied, and it has an outline like any file of its language, but it cannot be typed into or saved. Save and Save As say so in the status bar.
+2. An editable tab can be typed into, with Undo and Redo. The plugin is told about every edit without asking for it. Save (also when you close the tab and choose Save) sends the text to the plugin, never to a file; if the plugin refuses or does not answer in time, the tab stays unsaved and the status bar gives the reason. Save As is not available.
+3. The plugin may replace the text of its tab. That also replaces what you typed and did not save, and ends the undo history of the tab; a plugin that wants to avoid this names the revision it last saw, and then a change you made in between stops the replacement.
+4. When the plugin closes its tab, stops or is turned off, the tab closes without asking and the status bar says so. Text that was not saved is lost.
+- A tab of a plugin is not kept in the session, the journal or the list of recent files.
+- Values of a .env tab are hidden as in a file. The plugin sees stars in their place unless you allowed it.
+- The number of such tabs per plugin, their size and the wait for a save are provisional.
+
 ## [remote.backup] Back up connections
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Choose File and then Remote Files and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
@@ -1435,6 +1445,8 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 5. When the agent asks for permission, a dialog shows the choices the agent offers. Cancel or closing the dialog answers "cancelled".
 - Where the guarantee ends: the editor controls only what goes through it. The agent's own tools can change files, run programs and use the network without the editor, and the editor does not set the permission mode of any agent (each keeps its own default). Set what the agent may do in the agent's own settings.
 - Every agent is listed as "not verified": no run against the real program has passed the test scenarios yet. A turn in which the agent neither says nor asks anything for too long ends as timed out. The time limits and the size of a file handed to the agent are provisional.
+- A plugin can host its own conversation in the same panel (permission agent.panel). The panel works from the keyboard: it opens with the cursor in the message box, Enter sends, Tab moves through Send, Cancel turn, Stop agent and Close, Space or Enter presses the button, and Escape closes the panel and returns to the editor. Cancel Agent Turn and Stop Agent are also commands in the menu and the palette. A screen reader gets a name for the panel, the conversation, the message box, the status and every button, and the status (starting, ready, working, ended) is announced when it changes. This is tested with the accessibility tree of the program, not yet with a real screen reader.
+
 ## [tools.mcpAgents] MCP servers of agents
 commands: nks.tools.mcpServers
 One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.

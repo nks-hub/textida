@@ -166,6 +166,16 @@ commands: nks.source.open
 - Adressen mit Passwort, Token oder Schlüssel werden in der Leiste, in den zuletzt geöffneten Dateien und in den Protokollen mit *** gezeigt. Die zuletzt geöffneten Dateien behalten nur die maskierte Adresse; eine Quelle, die das Geheimnis in der Adresse braucht, fragt erneut danach.
 - Grenze: Ein Geheimnis im Pfad einer Adresse wird nicht erkannt und bleibt sichtbar. Speichern unter schreibt eine Kopie auf die Festplatte und beendet die Verbindung zur Quelle.
 
+## [plugins.virtual] Tabs, die ein Plugin liefert
+Ein Plugin kann einen eigenen Tab mit Daten öffnen, die es selbst hält: ein Gesprächsprotokoll, eine erzeugte Datei, eine Auflistung oder einen Vergleich. Ein solcher Tab hat keine Datei. Er trägt ein Kennzeichen („virtuell · schreibgeschützt“ oder „virtuell · bearbeitbar“) und eine Leiste, die das Plugin und die Adresse nennt, die es ihm gegeben hat (bei einer Adresse mit Passwort oder Token stehen an deren Stelle ***).
+1. In einem schreibgeschützten Tab kann man suchen, markieren und kopieren, und er hat eine Gliederung wie jede Datei seiner Sprache, aber man kann weder hineinschreiben noch ihn speichern. Speichern und Speichern unter sagen das in der Statusleiste.
+2. In einen bearbeitbaren Tab kann man schreiben, mit Rückgängig und Wiederholen. Das Plugin erfährt jede Änderung von selbst. Speichern (auch wenn Sie den Tab schließen und Speichern wählen) schickt den Text an das Plugin, nie in eine Datei; lehnt das Plugin ab oder antwortet nicht rechtzeitig, bleibt der Tab ungespeichert und die Statusleiste nennt den Grund. Speichern unter ist nicht verfügbar.
+3. Das Plugin kann den Text seines Tabs ersetzen. Dabei geht auch verloren, was Sie geschrieben und nicht gespeichert haben, und der Rückgängig-Verlauf des Tabs endet; ein Plugin, das das vermeiden will, nennt die Revision, die es zuletzt gesehen hat, und eine Änderung von Ihnen dazwischen stoppt dann das Ersetzen.
+4. Schließt das Plugin seinen Tab, endet es oder wird es abgeschaltet, schließt sich der Tab ohne Rückfrage und die Statusleiste sagt es. Nicht gespeicherter Text geht verloren.
+- Ein Tab eines Plugins kommt nicht in die Sitzung, ins Journal oder in die zuletzt geöffneten Dateien.
+- Werte in einem .env-Tab sind wie in einer Datei verborgen. Das Plugin sieht an ihrer Stelle Sterne, außer Sie haben es erlaubt.
+- Die Zahl solcher Tabs pro Plugin, ihre Größe und die Wartezeit beim Speichern sind vorläufig.
+
 ## [remote.backup] Verbindungen sichern
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Wählen Sie Datei und dann Remotedateien und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
@@ -1435,6 +1445,8 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 5. Bittet der Agent um Erlaubnis, zeigt ein Dialog die Möglichkeiten, die der Agent anbietet. Abbrechen oder Schließen des Dialogs antwortet „abgebrochen“.
 - Wo die Garantie endet: Der Editor steuert nur, was über ihn läuft. Die eigenen Werkzeuge des Agenten können Dateien ändern, Programme starten und das Netzwerk nutzen, ohne den Editor, und der Editor stellt bei keinem Agenten den Berechtigungsmodus ein (jeder behält seinen eigenen Standard). Was der Agent darf, stellen Sie in den Einstellungen des Agenten selbst ein.
 - Jeder Agent steht als „nicht überprüft“ in der Liste: Noch kein Lauf mit dem echten Programm hat die Testszenarien bestanden. Ein Zug, in dem der Agent zu lange weder etwas sagt noch fragt, endet als Zeitüberschreitung. Die Zeitlimits und die Größe einer an den Agenten übergebenen Datei sind vorläufig.
+- Ein Plugin kann im selben Bereich eine eigene Unterhaltung führen (Berechtigung agent.panel). Der Bereich lässt sich mit der Tastatur bedienen: Er öffnet sich mit dem Cursor im Nachrichtenfeld, Enter sendet, Tab geht durch Senden, Zug abbrechen, Agent stoppen und Schließen, Leertaste oder Enter drückt die Schaltfläche, und Esc schließt den Bereich und kehrt zum Editor zurück. Agent-Zug abbrechen und Agent stoppen sind auch Befehle im Menü und in der Palette. Ein Screenreader bekommt einen Namen für den Bereich, die Unterhaltung, das Nachrichtenfeld, den Status und jede Schaltfläche, und eine Änderung des Status (startet, bereit, arbeitet, beendet) wird angesagt. Geprüft am Zugänglichkeitsbaum des Programms, noch nicht mit einem echten Screenreader.
+
 ## [tools.mcpAgents] MCP-Server der Agenten
 commands: nks.tools.mcpServers
 Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Textida liest Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) und OpenCode (opencode.json, opencode.jsonc). Projektdateien werden im Ordner der aktiven Datei und in den übergeordneten Ordnern gesucht. Textida liest diese Dateien nur und schreibt nie hinein.

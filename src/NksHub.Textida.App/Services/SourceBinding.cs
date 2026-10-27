@@ -17,3 +17,11 @@ internal sealed class SourceBinding(string uri, FileSource source, string? revis
     public DateTimeOffset? CachedAt { get; set; } = cachedAt;
     public string MaskedUri => UriMask.Mask(Uri);
 }
+
+/// <summary>
+/// Which plugin supplies the text of a virtual tab (P6.2.6) and the address it gave it (<see cref="VirtualInfo.Uri"/>, else its key). What is shown or logged uses <see cref="Address"/>, masked.
+/// </summary>
+internal sealed record VirtualBinding(string PluginId, string PluginName, VirtualInfo Info)
+{
+    public string Address => UriMask.Mask(Info.Uri ?? Info.Key);
+}
