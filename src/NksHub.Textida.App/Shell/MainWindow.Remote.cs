@@ -239,6 +239,77 @@ internal sealed partial class MainWindow
         SetStatusMessage(Loc.Get(K.RemoteImported, ("path", picked[0])));
     }
 
+    // ---- backup of the whole configuration ----
+
+    /// <summary>The passwords the credential store keeps for the connections and the proxy; the backup leaves out any value that holds one.</summary>
+    private List<string> KnownSecrets()
+    {
+        var secrets = new List<string>();
+        var store = _app.Remote.Secrets;
+        try
+        {
+            foreach (var c in _app.Remote.Connections.Load()) secrets.AddRange(new[] { store.Get(c.SecretKey), store.Get(c.ProxySecretKey) }.OfType<string>());
+            if (store.Get(NetworkPolicy.SecretKey) is { } proxy) secrets.Add(proxy);
+        }
+        catch (CredentialStoreUnavailableException) { /* no store: no password was saved anywhere */ }
+        return secrets;
+    }
+
+    internal CommandOutcome BackupConfiguration()
+    {
+        _ = BackupConfigurationAsync();
+        return CommandOutcome.Handled;
+    }
+
+    private async Task BackupConfigurationAsync()
+    {
+        string? path = await _app.Dialogs.PickSaveFileAsync(this, Loc.Get(K.ConfigBackupTitle), ConfigBackup.SuggestedName(_app.Clock()));
+        if (path is null) return;
+        try
+        {
+            var result = ConfigBackup.Export(_app.ProfileDirectory, path, KnownSecrets());
+            SetStatusMessage(Loc.Get(result.LeftOut > 0 ? K.ConfigBackupDoneLeftOut : K.ConfigBackupDone, ("files", result.Files), ("leftOut", result.LeftOut), ("path", path)));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { SetStatusMessage(Loc.Get(K.ConfigBackupFailed, ("reason", e.Message))); }
+    }
+
+    internal CommandOutcome RestoreConfiguration()
+    {
+        _ = RestoreConfigurationAsync();
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Checks the backup and stages it; the files come back at the next start, so nothing running writes its old state over them.</summary>
+    private async Task RestoreConfigurationAsync()
+    {
+        var picked = await _app.Dialogs.PickFilesAsync(this);
+        if (picked.Count == 0) return;
+        int files;
+        try { files = ConfigBackup.Inspect(picked[0]); }
+        catch (Exception e) when (e is ConfigBackupException or IOException or UnauthorizedAccessException) { SetStatusMessage(Loc.Get(K.ConfigRestoreFailed, ("reason", e.Message))); return; }
+
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.ConfigRestoreTitle), Loc.Get(K.ConfigRestoreMessage, ("files", files)),
+            [new DialogButton(Loc.Get(K.ConfigRestoreQuit), IsDefault: true), new DialogButton(Loc.Get(K.ConfigRestoreLater)), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)]));
+        if (answer is not (0 or 1)) return;
+        try { ConfigBackup.Stage(_app.ProfileDirectory, picked[0]); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { SetStatusMessage(Loc.Get(K.ConfigRestoreFailed, ("reason", e.Message))); return; }
+        SetStatusMessage(Loc.Get(K.ConfigRestoreStaged));
+        if (answer == 0) _app.Exit();
+    }
+
+    /// <summary>After a start that put a staged backup back: how many files came back and where the configuration from before is kept, or why it failed.</summary>
+    internal void ShowConfigRestore()
+    {
+        if (_app.ConfigRestore is not { } r) return;
+        string text = (r.Problem, r.SavedBefore) switch
+        {
+            (null, _) => Loc.Get(K.ConfigRestoreApplied, ("files", r.Files), ("path", r.SavedBefore ?? "")),
+            (_, null) => Loc.Get(K.ConfigRestoreApplyFailed, ("reason", r.Problem)),
+            _ => Loc.Get(K.ConfigRestoreApplyPartial, ("reason", r.Problem), ("path", r.SavedBefore ?? "")),
+        };
+        ShowNotice("configRestore", text, warning: r.Problem is not null);
+    }
+
     // ---- opening ----
 
     internal CommandOutcome OpenRemote()
@@ -494,17 +565,63 @@ internal sealed partial class MainWindow
         var connections = _app.Remote.Connections.Load();
         var rows = unsent.Select(c => new QuickRow(Path.GetFileName(c.RemotePath), null,
             (connections.FirstOrDefault(x => x.Id == c.ConnectionId)?.Name ?? Loc.Get(K.RemoteConnectionGone)) + " · " + c.RemotePath, null, true, null, c.RemotePath,
-            () => OpenUnsent(c))).ToList();
+            () => OpenCopy(c))).ToList();
         ShowChoice(Loc.Get(K.RemoteUnsentWatermark), Loc.Get(K.RemoteUnsentA11y), rows, emptyText: Loc.Get(K.RemoteUnsentEmpty));
         return CommandOutcome.Handled;
     }
 
-    private void OpenUnsent(WorkingCopy copy)
+    private DocTab? OpenCopy(WorkingCopy copy)
     {
-        if (!File.Exists(copy.LocalPath)) { SetStatusMessage(Loc.Get(K.RemoteCopyMissing, ("path", copy.RemotePath))); return; }
+        if (!File.Exists(copy.LocalPath)) { SetStatusMessage(Loc.Get(K.RemoteCopyMissing, ("path", copy.RemotePath))); return null; }
         var tab = OpenFile(copy.LocalPath, null);
         tab.Doc.RemoteCopy ??= copy;
         ShowRemoteBarOffline(tab);
+        return tab;
+    }
+
+    // ---- the cache paired with the server ----
+
+    internal CommandOutcome PairCache()
+    {
+        _ = PairCacheAsync();
+        return CommandOutcome.Handled;
+    }
+
+    private static string StateOf(CopyStatus s) => (s.Local, s.Server) switch
+    {
+        (LocalState.Missing, _) => Loc.Get(K.RemoteCopyMissing, ("path", s.Copy.RemotePath)),
+        (_, ServerState.Missing) => Loc.Get(K.RemoteBarServerMissing),
+        (LocalState.Unsent, ServerState.Changed) => Loc.Get(K.RemoteBarBoth),
+        (_, ServerState.Changed) => Loc.Get(K.RemoteBarServerChanged),
+        (LocalState.Unsent, _) => Loc.Get(K.RemoteBarUnsent),
+        _ => Loc.Get(K.RemoteBarInSync),
+    };
+
+    /// <summary>
+    /// After a restart: pairs every local copy of one connection with the server by the revision stored with it and lists each with its state. Nothing is
+    /// downloaded or overwritten; a row opens the copy and checks it once more.
+    /// </summary>
+    private async Task PairCacheAsync()
+    {
+        var cached = _app.Remote.Copies.All().Select(c => c.ConnectionId).ToHashSet();
+        var list = _app.Remote.Connections.Load().Where(c => cached.Contains(c.Id)).ToList();
+        if (list.Count == 0) { SetStatusMessage(Loc.Get(K.RemoteCacheEmpty)); return; }
+        var pick = await PickAsync(Loc.Get(K.RemoteConnectionsWatermark), Loc.Get(K.RemoteConnectionsA11y), [.. list.Select(c => (c.Name, (string?)DescribeConnection(c), c))]);
+        if (!pick.Chosen) return;
+        var connection = pick.Value!;
+        IReadOnlyList<CopyStatus> paired;
+        await using (var client = await ConnectAsync(connection))
+        {
+            if (client is null) return;
+            try { paired = await _app.Remote.Copies.PairAsync(client, CancellationToken.None); }
+            catch (RemoteException e) { SetStatusMessage(Loc.Get(K.RemoteCheckFailed, ("reason", e.Message))); return; }
+        }
+        var rows = paired.OrderBy(s => s.Copy.RemotePath, StringComparer.Ordinal).Select(s =>
+        {
+            string name = Path.GetFileName(s.Copy.RemotePath), state = StateOf(s);
+            return new QuickRow(name, null, state + " · " + s.Copy.RemotePath, null, true, null, name + ", " + state, () => { if (OpenCopy(s.Copy) is { } tab) _ = CheckRemoteAsync(tab); });
+        }).ToList();
+        ShowChoice(Loc.Get(K.RemoteCacheWatermark, ("name", connection.Name)), Loc.Get(K.RemoteCacheA11y), rows, emptyText: Loc.Get(K.RemoteCacheEmpty));
     }
 
     // ---- proxy ----

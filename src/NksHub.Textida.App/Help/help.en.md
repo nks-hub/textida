@@ -143,6 +143,14 @@ commands: nks.remote.unsent
 Changes to a remote file are saved on this computer first. The list shows the remote files whose copy was changed and not sent, also after the program was closed or crashed. Choose one to open the copy; the bar offers Upload.
 - Editing needs no connection. Unsent changes stay until you upload them.
 
+## [remote.cache] Compare the cache with the server
+commands: nks.remote.pairCache
+The copies of remote files stay on this computer with the server version they were made from, also after the program was closed.
+1. Choose File and then Remote Files and then Compare Cache with Server, and choose a connection.
+2. The program connects and compares every copy of that connection with the server by the stored version. The list says for each file: same as on the server, changed here and not sent, changed on the server, changed in both places, or no longer on the server.
+3. Choose a file to open its copy. The bar checks it once more and offers Upload, Show Differences or Reload from Server.
+- Nothing is downloaded or overwritten. The list offers only connections that have copies.
+
 ## [source.open] Open from a plugin source
 commands: nks.source.open
 1. Choose File and then Remote Files and then Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
@@ -160,6 +168,7 @@ commands: nks.remote.exportConnections, nks.remote.importConnections
 2. Choose File and then Remote Files and then Import Connections to read such a file on another computer or after a reinstall.
 - The file holds no passwords, passphrases or tokens, so it can be shared. After an import, choose a connection and Set Password.
 - A connection that you import replaces a connection with the same internal identifier.
+- To move the whole configuration, connections included, choose Settings and then Back Up Configuration (topic Back up the configuration).
 
 ## [remote.proxy] Network proxy
 commands: nks.remote.proxy
@@ -718,6 +727,15 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 1. Choose Settings and then Behaviour Profile: Default or Behaviour Profile: PSPad.
 - The PSPad profile changes: Home and End jump between the first character and the edge of the line, Backspace in indentation deletes back to the tab stop, Alt+drag makes a block selection, paired characters are completed the PSPad way, and a few shortcuts (Delete Line Ctrl+Y, Undo Alt+Backspace, Word wrap Ctrl+W, F8 mark, Ctrl+Shift+C block selection, indentation Ctrl+Shift+I and U).
 - Your own shortcuts in the settings take precedence over the profile.
+
+## [settings.backup] Back up the configuration
+commands: nks.settings.backup, nks.settings.restore
+1. Choose Settings and then Back Up Configuration and name the file. The ZIP file has the date in its name. It holds the settings, keyboard shortcuts, user variables, external tools, save actions, log views, macros, recipes, clips and data plugins, workspaces, remote connections and the proxy.
+2. On another computer or after a reinstall, choose Settings and then Restore Configuration and choose the file. The files come back at the next start: choose Quit and Restore, or At Next Start.
+- A backup holds no passwords or tokens. Passwords stay in the credential store of the operating system. A value in the files that holds a saved password, or whose name says it is a password, token or key, is left out, and the status bar says how many. After a restore, enter the passwords again (Remote Connections and then Set Password).
+- A restore replaces only the files that are in the backup. The configuration from before is saved first in the folder config-backups of the profile.
+- Not in a backup: the journal, the local history, the backups of files, the copies of remote files, sessions, logs and installed plugins.
+- A backup written by a newer version of the program is refused.
 
 ## [view.output] Output window
 commands: nks.view.toggleOutput

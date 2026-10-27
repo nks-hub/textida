@@ -67,6 +67,7 @@ internal static class AppCommands
         On("nks.remote.upload", w => w.UploadRemote());
         On("nks.remote.check", w => w.CheckRemote());
         On("nks.remote.unsent", w => w.ShowUnsent());
+        On("nks.remote.pairCache", w => w.PairCache());
         On("nks.source.open", w => w.OpenFromSource());
         On("nks.remote.proxy", w => w.SetNetworkProxy());
         On("nks.remote.exportConnections", w => w.ExportConnections());
@@ -74,6 +75,8 @@ internal static class AppCommands
         On("nks.file.historyMark", w => w.MarkRevision());
         On("nks.file.historySearch", w => w.SearchHistory());
         Do("nks.app.openSettings", _ => app.OpenSettings());
+        On("nks.settings.backup", w => w.BackupConfiguration());
+        On("nks.settings.restore", w => w.RestoreConfiguration());
         Do("nks.app.quit", _ => app.Exit());
 
         // edit
