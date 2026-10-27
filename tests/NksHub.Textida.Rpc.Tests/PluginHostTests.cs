@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using NksHub.Textida.PluginHost;
+using NksHub.Textida.PluginSdk;
 
 namespace NksHub.Textida.Rpc.Tests;
 
@@ -148,6 +149,57 @@ public class PluginHostTests
         Assert.Equal(5, again.GetProperty("state").GetProperty("documents")[0].GetProperty("revision").GetInt32());
         Assert.Equal(0, host.GetLostEvents("p"));
         await T.Until(() => Volatile.Read(ref state.ResumedCount) == 2); // the state source hears of the first start and of the restart
+    }
+
+    [Fact]
+    public async Task APacedEventWaitsWhileThePluginHasTheWindowUnhandledAndGivesUpWhenItEnds()
+    {
+        await using var host = await Started(Options(o => o with { EventWindow = 1 }), null, null, Spec("p"));
+        await host.CallAsync("p", "setEventDelay", Args("{\"ms\":60000}"));
+        Assert.True(await host.SendEventAsync("p", "first", Args("{}"), paced: true));
+        var held = host.SendEventAsync("p", "second", Args("{}"), paced: true);
+        Assert.True(await host.SendEventAsync("p", "notice", Args("{}"))); // not paced: a cancelled task must not wait behind document events
+        await Task.Delay(300);
+        Assert.False(held.IsCompleted);
+
+        await Assert.ThrowsAsync<PluginCrashedException>(() => host.CallAsync("p", "crash", Args("{\"code\":3}")));
+        Assert.False(await held.WaitAsync(TimeSpan.FromSeconds(30)));
+    }
+
+    sealed class FailingEvents() : PluginBase("failing-events", 1)
+    {
+        public int Seen;
+
+        protected override ValueTask OnEventAsync(JsonElement eventPayload)
+        {
+            Interlocked.Increment(ref Seen);
+            throw new InvalidOperationException("test: the event handler failed");
+        }
+    }
+
+    [Fact]
+    public async Task AnSdkPluginDeclaresEventAcksAndAcknowledgesEveryEventAlsoAFailedOne()
+    {
+        var toPlugin = new MemoryPipe();
+        var toEditor = new MemoryPipe();
+        var plugin = new FailingEvents();
+        var run = PluginRunner.RunAsync(plugin, T.Roomy, toPlugin, toEditor);
+        var acks = 0;
+        await using var editor = new JsonRpcDispatcher(toEditor, toPlugin, RpcProtocols.Plugin, T.Roomy, new DelegateHandler(onNotification: (method, p) =>
+        {
+            if (method == PluginMethods.EventsHandled) Interlocked.Add(ref acks, p.GetProperty("count").GetInt32());
+            return ValueTask.CompletedTask;
+        }));
+
+        var init = await editor.RequestAsync(PluginMethods.Initialize, Args("{\"apiVersion\":1,\"restarted\":false,\"hostName\":\"test\"}"));
+        Assert.True(init.GetProperty("eventAcks").GetBoolean());
+        await editor.NotifyAsync(PluginMethods.Event, Args("{\"name\":\"a\",\"payload\":null}"));
+        await editor.NotifyAsync(PluginMethods.Event, Args("{\"name\":\"b\",\"payload\":null}"));
+        await T.Until(() => Volatile.Read(ref acks) == 2);
+        Assert.Equal(2, Volatile.Read(ref plugin.Seen));
+
+        await editor.NotifyAsync(PluginMethods.Exit);
+        await run.WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     [Fact]

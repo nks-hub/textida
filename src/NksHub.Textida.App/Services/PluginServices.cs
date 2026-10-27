@@ -100,12 +100,14 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         Registries = new PackageRegistryConsent(Path.Combine(app.ProfileDirectory, "package-registries.json"));
         Ui = new PluginUiHost(app);
         PluginEventSender send = (plugin, name, payload) => _host!.SendEventAsync(plugin, name, payload);
+        // document events wait for a slow plugin, so its backlog stays in the bounded queue of the document API; UI events (a cancelled task) do not wait
+        PluginEventSender paced = (plugin, name, payload) => _host!.SendEventAsync(plugin, name, payload, paced: true);
         PluginRequestSender request = (plugin, method, payload, timeout, cancellation) => _host!.CallAsync(plugin, method, payload, timeout, cancellation);
         // the built-in formatter is trusted: it reads the selection and writes it back
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
-        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, send, request);
+        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
         Mcp = new McpService(this, App.Startup.Channel);
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);

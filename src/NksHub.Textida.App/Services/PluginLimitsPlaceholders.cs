@@ -245,8 +245,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
     public const int RegistryMaxLookups = 50;
 
+    /// <summary>Placeholder: document events that wait for one plugin; beyond it the rest of a document's events become one <c>document/eventsLost</c>. OPEN: the owner has not decided it.</summary>
+    public const int EventQueueCapacity = 256;
+
+    /// <summary>Placeholder: events a plugin may have sent to it and not handled yet before the editor holds its document events back. OPEN: the owner has not decided it.</summary>
+    public const int EventWindow = 32;
+
     public static PluginHostOptions Host() => new()
     {
+        EventWindow = EventWindow,
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
         Restart = new RestartPolicy(MaxCrashes: 3, Window: TimeSpan.FromMinutes(5), BaseDelay: TimeSpan.FromSeconds(1), MaxDelay: TimeSpan.FromSeconds(30)),
         ApiVersion = 1,
@@ -312,7 +319,7 @@ internal static class PluginLimitsPlaceholders
         MaxFindMatches = 1000,
         MaxSnapshotsPerPlugin = 4,
         SnapshotLifetime = TimeSpan.FromSeconds(30),
-        EventQueueCapacity = 256,
+        EventQueueCapacity = EventQueueCapacity,
         MaxRememberedBatches = 64,
         Permissions = permissions,
         CallLog = callLog,

@@ -16,12 +16,22 @@ public static class PluginMethods
     public const string Event = "$/event";
     /// <summary>Plugin to host: the plugin waits for a user decision, so the watchdog must not count missed pings.</summary>
     public const string AwaitingUser = "$/awaitingUser";
+    /// <summary>Plugin to host: <c>{"count"}</c> more <see cref="Event"/> notifications were handled. Only a plugin that declared <see cref="InitializeResult.EventAcks"/> sends it.</summary>
+    public const string EventsHandled = "$/eventsHandled";
 }
 
 /// <summary>Handshake request. A plugin must answer with the same <c>apiVersion</c> or an error.</summary>
 /// <param name="Settings">Current values of the settings the plugin declared (full key to value); absent when it declared none. Later changes arrive as the event <c>settings.changed</c>.</param>
 public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName, JsonElement? Settings = null);
 public sealed record InitializeResult(int ApiVersion, string? Name);
+
+public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName);
+
+/// <param name="EventAcks">
+/// The plugin acknowledges every handled event with <see cref="PluginMethods.EventsHandled"/>. The editor then holds document events back once
+/// <see cref="PluginHostOptions.EventWindow"/> are unhandled, so a slow plugin gets <c>document/eventsLost</c> instead of a backlog in its own memory.
+/// </param>
+public sealed record InitializeResult(int ApiVersion, string? Name, bool EventAcks = false);
 public sealed record AwaitingUserParams(bool Awaiting);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
@@ -56,6 +66,9 @@ public sealed record PluginHostOptions
     public TimeSpan? DefaultCallTimeout { get; init; }
     /// <summary>The settings of a plugin as a JSON object for its handshake; null for none.</summary>
     public Func<string, JsonElement?>? SettingsOf { get; init; }
+
+    /// <summary>Events a plugin with <see cref="InitializeResult.EventAcks"/> may have unhandled before a paced <see cref="PluginHost.SendEventAsync"/> waits. Null never waits.</summary>
+    public int? EventWindow { get; init; }
 }
 
 public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped }

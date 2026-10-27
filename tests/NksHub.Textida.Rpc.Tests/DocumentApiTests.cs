@@ -56,7 +56,7 @@ public partial class DocumentApiTests
         public static async Task<Rig> CreateAsync(byte[] content, Func<DocumentApiOptions, DocumentApiOptions>? tune = null, bool canEdit = true,
             TimeProvider? time = null, bool gated = false, IBackendFactory? factory = null, string[]? plugins = null, NksHub.Textida.Core.Encodings.TextCodec? codec = null,
             Func<Func<PluginHost.PluginHost>, DocumentApi, PluginPermissions, PluginCallLog, PluginApiCallback>? route = null,
-            Func<SelectionSet?>? selections = null)
+            Func<SelectionSet?>? selections = null, Func<PluginHostOptions, PluginHostOptions>? hostTune = null)
         {
             var proposals = new RecordingProposals();
             var tools = new RecordingTools();
@@ -105,8 +105,10 @@ public partial class DocumentApiTests
                     return false;
                 }
                 return await host!.SendEventAsync(plugin, name, payload);
+
+                return await host!.SendEventAsync(plugin, name, payload, paced: true);
             }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
+            host = new PluginHost.PluginHost(PluginHostTests.Options(hostTune), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
             var doc = Document.FromBytes(content, factory ?? PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
             api.Expose(doc, selections ?? (() => SelectionSet.Single(new TextSelection(1, 3))));
             foreach (var id in plugins ?? ["p"])
@@ -431,6 +433,58 @@ public partial class DocumentApiTests
 
         rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("c")));
         await rig.WaitEventsAsync(e => e.Count == 2 && e[1].GetProperty("name").GetString() == DocumentEvents.Changed);
+
+    public async Task APluginThatHandlesEventsSlowlyGetsEventsLostWithTheCurrentRevisionInsteadOfABacklog()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), o => o with { EventQueueCapacity = 2 }, hostTune: o => o with { EventWindow = 1 });
+        await rig.CallAsync(DocumentMethods.Subscribe, rig.D());
+        await rig.Host.CallAsync("p", "setEventDelay", T.Json("{\"ms\":300}"));
+        var first = rig.Revision + 1;
+        for (var i = 0; i < 10; i++) rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("a")));
+        var current = rig.Revision;
+
+        await rig.WaitEventsAsync(e => e.Any(x => x.GetProperty("name").GetString() == DocumentEvents.EventsLost));
+        var events = await rig.EventsAsync();
+        var lost = Assert.Single(events, e => e.GetProperty("name").GetString() == DocumentEvents.EventsLost);
+        Assert.Equal(current, lost.GetProperty("payload").GetProperty("revision").GetInt64());
+        Assert.Equal(DocumentEvents.EventsLost, events[^1].GetProperty("name").GetString());
+        var delivered = events.Where(e => e.GetProperty("name").GetString() == DocumentEvents.Changed).Select(e => e.GetProperty("payload").GetProperty("revision").GetInt64()).ToList();
+        // one with the plugin, one waiting for the window, two in the queue; the other six never left the editor
+        Assert.InRange(delivered.Count, 1, 4);
+        Assert.Equal(Enumerable.Range(0, delivered.Count).Select(i => first + i), delivered);
+    }
+
+    [Fact]
+    public async Task ARestartedPluginLearnsTheRevisionOfEveryDocumentItMayReadAndWhichItStillFollows()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("hello"));
+        var other = Document.FromBytes(Utf8("other"), PagedBackendFactory.Instance);
+        var hidden = Document.FromBytes(Utf8("hidden"), PagedBackendFactory.Instance);
+        rig.Owner.Run(() => { rig.Api.Expose(other); rig.Api.Expose(hidden); return 0; });
+        try
+        {
+            rig.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.OfDocument(rig.Doc.Id));
+            rig.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.OfDocument(other.Id));
+            rig.Permissions.Revoke("p", DocumentPermissions.Read, GrantScope.All);
+            await rig.CallAsync(DocumentMethods.Subscribe, rig.D());
+            await Assert.ThrowsAsync<PluginCrashedException>(() => rig.Host.CallAsync("p", "crash", T.Json("{\"code\":3}")));
+            await T.Until(() => rig.Host.GetState("p") == PluginState.WaitingRestart);
+            rig.Owner.Run(() => other.Insert(0, Utf8("a")));
+            await T.Until(() => rig.Host.GetState("p") == PluginState.Running);
+
+            var docs = (await rig.Host.CallAsync("p", "getResync")).GetProperty("state").GetProperty("documents").EnumerateArray()
+                .ToDictionary(d => d.GetProperty("id").GetString()!, d => (d.GetProperty("revision").GetInt64(), d.GetProperty("subscribed").GetBoolean()));
+            Assert.Equal(2, docs.Count);
+            Assert.Equal((rig.Revision, true), docs[rig.Doc.Id.ToString()]);
+            Assert.Equal((rig.Owner.Run(() => other.Revision), false), docs[other.Id.ToString()]);
+            Assert.False(docs.ContainsKey(hidden.Id.ToString()));
+        }
+        finally
+        {
+            rig.Owner.Run(() => { rig.Api.Withdraw(other); rig.Api.Withdraw(hidden); return 0; });
+            other.Dispose();
+            hidden.Dispose();
+        }
     }
 
     [Fact]

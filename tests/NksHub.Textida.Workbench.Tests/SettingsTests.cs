@@ -569,5 +569,8 @@ public class SettingsSearchTests
 
         // the user Tab overrides all three default Tab bindings: indent, the next Markdown table cell and the next snippet tab stop
         Assert.Contains(rows, h => h.Id == "nks.edit.indent" && h.Shortcut == "Tab" && h.Conflicts.Count == 3);
+
+        // the user Tab overrides both default Tab bindings: indent outside a Markdown table and the next cell inside one
+        Assert.Contains(rows, h => h.Id == "nks.edit.indent" && h.Shortcut == "Tab" && h.Conflicts.Count == 2);
     }
 }
