@@ -7,10 +7,14 @@ using NksHub.Textida.Rpc;
 // Test double for a real plugin: a separate process speaking the plugin protocol on stdin/stdout.
 // Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake.
 // The request "deaf" {ms} stops reading standard input for that long while the process lives on.
+
+// Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake,
+// --on-command JSON ({"method","params"} the plugin sends to the editor on command/execute; $document and $revision are filled in from the command).
 var api = 1;
 var crashOnStart = -1;
 var stderrFlood = 0;
 var sleepBeforeRead = 0;
+string? onCommand = null;
 for (var i = 0; i < args.Length - 1; i++)
 {
     switch (args[i])
@@ -19,6 +23,7 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--crash-on-start": crashOnStart = int.Parse(args[i + 1]); break;
         case "--stderr-flood": stderrFlood = int.Parse(args[i + 1]); break;
         case "--sleep-before-read": sleepBeforeRead = int.Parse(args[i + 1]); break;
+        case "--on-command": onCommand = args[i + 1]; break;
     }
 }
 
@@ -34,20 +39,21 @@ if (crashOnStart >= 0)
 }
 if (sleepBeforeRead > 0) Thread.Sleep(sleepBeforeRead);
 
-var handler = new Handler(api);
+var handler = new Handler(api, onCommand);
 var limits = new RpcLimits(4 * 1024 * 1024, 64, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024);
 await using var rpc = new JsonRpcDispatcher(new DeafInput(Console.OpenStandardInput()), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
 handler.Rpc = rpc;
 await rpc.Completion;
 return 0;
 
-sealed class Handler(int api) : IRpcHandler
+sealed class Handler(int api, string? onCommand) : IRpcHandler
 {
     public JsonRpcDispatcher Rpc = null!;
     volatile bool _frozen;
     long _sinkCount, _sinkBytes;
     string _resync = "null";
     readonly List<string> _events = [];
+    readonly List<string> _commands = [];
     readonly List<string> _tabs = [];
     volatile bool _tabHandled, _tabError;
     volatile int _tabDelayMs;
@@ -84,7 +90,19 @@ sealed class Handler(int api) : IRpcHandler
             case PluginMethods.Shutdown:
                 return Raw("true");
             case "command/execute":
-                return Raw("true");
+                {
+                    string answer = "null";
+                    if (onCommand is not null && p.TryGetProperty("document", out var document))
+                    {
+                        using var call = JsonDocument.Parse(onCommand.Replace("$document", document.GetString()).Replace("$revision", p.GetProperty("revision").GetInt64().ToString()));
+                        try { answer = (await Rpc.RequestAsync(Str(call.RootElement, "method"), Raw(call.RootElement.GetProperty("params").GetRawText()))).GetRawText(); }
+                        catch (RpcException e) { answer = $"{{\"error\":{e.Code}}}"; }
+                    }
+                    lock (_commands) _commands.Add($"{{\"params\":{p.GetRawText()},\"answer\":{answer}}}");
+                    return Raw("true");
+                }
+            case "commands":
+                lock (_commands) return Raw("[" + string.Join(",", _commands) + "]");
             case "getResync":
                 return Raw(_resync);
             case "echo":

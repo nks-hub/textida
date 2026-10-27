@@ -11,5 +11,8 @@ The plugin starts at the first run of `example.python-hello.greet` (activation e
 the command list). It answers `initialize`, `$/resync`, `$/ping`, `shutdown` and `command/execute`, and leaves on `exit`
 or when stdin closes. Anything written to stderr is kept as the plugin log.
 
+A plugin that holds `document.read`, `document.edit.propose` or `document.edit.direct` also gets the `document` id of the active tab
+and its `revision` in `command/execute`; it can read that document, propose edits (`edit/propose`) or apply them (`edit/apply`) until it answers.
+
 `PluginManifestTests.APythonPluginRunsThroughTheHost` copies this folder, fills in the interpreter found on the test machine
 and runs the command through the plugin host.
