@@ -1003,7 +1003,7 @@ The program continuously writes unsaved text to a journal, within two seconds of
 - An interrupted batch of replacements in files is offered after the start: Finish or Roll back.
 
 ## [paged] Large files (paged mode)
-A file larger than the large file threshold (setting Large file threshold, 6 MiB by default) opens in paged mode. To browse and edit a file byte by byte without these limits, open it in hex (topic Hex: opening and moving). The program reads only the lines on the screen, so the file opens quickly and does not fill the memory.
+A file larger than the large file threshold (setting Large file threshold, 6 MiB by default) opens in paged mode. To browse and edit a file byte by byte without these limits, open it in hex (topic Hex: opening and moving). The program reads only the lines on the screen, so the file opens quickly and does not fill the memory. Parts of the file it has already read, for example while numbering the lines, it gives back to the system, so the memory in use does not grow with the size of the file.
 The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).

@@ -52,12 +52,32 @@ internal sealed class PagedMeasure(App app, MainWindow window, IClassicDesktopSt
             double openCall = Ms(t0);
             Snapshot("opened");
             if (_tab.Paged is { } pv)
-                while (!pv.Index.Complete) await Task.Delay(5);
+            {
+                long sampled = Stopwatch.GetTimestamp();
+                while (!pv.Index.Complete)
+                {
+                    await Task.Delay(5);
+                    if (Ms(sampled) < 2000) continue;
+                    Memory("indexing", "none"); // private commit and working set while the index is built (P3.1.9)
+                    sampled = Stopwatch.GetTimestamp();
+                }
+            }
             double indexed = Ms(t0);
             await Frames(2);
             double shown = Ms(t0);
             Log("open", ("backend", _backend), ("openCallMs", openCall), ("indexedMs", indexed), ("firstFrameMs", shown), ("lines", _tab.Paged?.Index.Lines ?? _tab.Editor!.Document.LineCount));
             Snapshot("opened+indexed");
+
+            if (_tab.Paged is { } through)
+            {
+                // a fast pass over the whole file: what the block cache keeps afterwards (P3.1.9)
+                long length = _tab.Doc.Doc.ByteLength;
+                int step = 0;
+                await Series("jumpThrough", 200, () => through.GoToOffset(length * ++step / 200));
+                through.GoToOffset(0);
+                await Frames(2);
+                Snapshot("jumped");
+            }
 
             _tab.View.Focus();
             await Frames(2);
@@ -268,7 +288,8 @@ internal sealed class PagedMeasure(App app, MainWindow window, IClassicDesktopSt
         Log("mem", ("moment", moment), ("gc", gc), ("backend", _backend), ("indexing", pv is null ? "n/a" : pv.Index.Complete ? "complete" : "running"),
             ("privateMiB", Mib(OperatingSystem.IsMacOS() ? footprint : p.PrivateMemorySize64)), ("workingSetMiB", Mib(p.WorkingSet64)),
             ("peakWorkingSetMiB", Mib(p.PeakWorkingSet64)), ("peakCommitMiB", Mib(OperatingSystem.IsMacOS() ? peakFootprint : p.PeakPagedMemorySize64)),
-            ("gcHeapMiB", Mib(GC.GetTotalMemory(false))), ("gcCommittedMiB", Mib(GC.GetGCMemoryInfo().TotalCommittedBytes)));
+            ("gcHeapMiB", Mib(GC.GetTotalMemory(false))), ("gcCommittedMiB", Mib(GC.GetGCMemoryInfo().TotalCommittedBytes)),
+            ("mappedMiB", Mib(pv?.MappedResidentBytes ?? 0)));
     }
 
     // ---- log ----
