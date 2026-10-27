@@ -494,12 +494,17 @@ internal sealed unsafe class Minimap : Control, IDisposable
         using var _ = context.PushTransform(Matrix.CreateScale(1 / scale, 1 / scale));
         int width = PixelWidth, height = PixelHeight;
         if (_shown is not null) context.DrawImage(_shown, new Rect(_shown.Size), new Rect(_shown.Size));
-        context.DrawLine(new Pen(new ImmutableSolidColorBrush(plain, 0.15), 1), new Point(0.5, 0), new Point(0.5, height));
+        context.DrawLine(new Pen(new ImmutableSolidColorBrush(Resource("Border", plain)), 1), new Point(0.5, 0), new Point(0.5, height));
         if (Wanted() is not { } wanted) return;
         var layout = wanted.Layout;
         var thumb = new Rect(0, layout.ThumbTop, width, layout.ThumbHeight);
-        context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.12), thumb);
-        context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.4), new Rect(width - 2, thumb.Y, 2, thumb.Height));
+        // a file that fits on the screen has nothing to scroll to, so a viewport rectangle there is only a box beside the text
+        bool scrolls = layout.Sampled || _host.LineCount > _host.Visible.Count;
+        if (scrolls)
+        {
+            context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.12), thumb);
+            context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.4), new Rect(width - 2, thumb.Y, 2, thumb.Height));
+        }
         if (layout.Sampled) // the viewport of a large file is too small for a rectangle: a thin pointer shows where it is
             context.FillRectangle(new ImmutableSolidColorBrush(Resource("Accent", Color.Parse("#3B82F6"))), new Rect(0, thumb.Y, width, Math.Max(2, Math.Round(2 * scale))));
         DrawLane(context, layout, width, height, plain);

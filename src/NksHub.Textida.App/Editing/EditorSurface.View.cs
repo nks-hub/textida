@@ -70,7 +70,11 @@ internal sealed partial class EditorSurface : IMinimapHost
 
     private void ApplyViewOptions(EditorOptions o)
     {
-        ShowLineNumbers = o.LineNumbers;
+        if (ShowLineNumbers != o.LineNumbers)
+        {
+            ShowLineNumbers = o.LineNumbers;
+            TuneGutter();
+        }
         Options.HighlightCurrentLine = o.CurrentLine;
         Options.EnableHyperlinks = o.Links;
         Options.EnableEmailHyperlinks = false;
