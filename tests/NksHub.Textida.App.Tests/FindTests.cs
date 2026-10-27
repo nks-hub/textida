@@ -292,6 +292,33 @@ public class FindTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_bracket_at_the_caret_and_its_partner_are_highlighted_outside_strings_and_comments()
+    {
+        var tab = _w.OpenFile(_temp.File("h.js", "f(\"a)\", /* ) */ b);\nx;\n"), null);
+        var editor = tab.Editor!;
+        editor.CaretOffset = 1;
+        Assert.Equal((1, 17), editor.MatchingBrackets());
+        editor.CaretOffset = 18; // behind the closing bracket
+        Assert.Equal((17, 1), editor.MatchingBrackets());
+        editor.CaretOffset = 5; // behind the bracket in the string
+        Assert.Null(editor.MatchingBrackets());
+        editor.CaretOffset = 21;
+        Assert.Null(editor.MatchingBrackets());
+
+        editor.CaretOffset = 18;
+        editor.Document.Insert(0, "(");
+        Assert.Equal(19, editor.CaretOffset);
+        Assert.Equal((18, 2), editor.MatchingBrackets()); // the text changed: the pair is looked for again
+
+        editor.SetSelections([new Sel(1, 3)]);
+        Assert.Null(editor.MatchingBrackets());
+        _app.Workbench.Set("editor.matchBrackets", System.Text.Json.Nodes.JsonValue.Create(false));
+        Dispatcher.UIThread.RunJobs();
+        editor.SetSelections([Sel.At(2)]);
+        Assert.Null(editor.MatchingBrackets());
+    }
+
+    [AvaloniaFact]
     public void Ctrl_slash_comments_two_selections_with_the_markers_of_html_and_its_script_as_one_undo_step()
     {
         string original = "<p>a</p>\n<script>\n  var x;\n</script>\n";

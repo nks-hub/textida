@@ -457,6 +457,9 @@ public class PagedSurfaceTests : IDisposable
             Assert.Equal((99L, 0L), paged.CaretLineColumn());
             Assert.Contains("100", _w.StatusLeftText);
             Assert.DoesNotContain("≈", _w.StatusLeftText);
+            _w.GoTo("100:4");
+            Assert.Equal(RowStart(99) + 3, paged.CaretOffset);
+            Assert.Equal((99L, 3L), paged.CaretLineColumn());
 
             // a jump to an offset inside the prefix is exact, in the middle of a line too
             long inside = RowStart(5000) + 2;
@@ -470,6 +473,13 @@ public class PagedSurfaceTests : IDisposable
             Assert.Equal(inside, paged.CaretOffset);
             _w.GoTo((farRow + 1).ToString());
             Assert.Equal(Loc.Get(K.GoToNotIndexed), _w.StatusMessageText);
+
+            // a percentage beyond the prefix lands on that share of the bytes at once
+            long length = new FileInfo(path).Length;
+            _w.GoTo("90%");
+            Assert.True(length * 90 / 100 > prefix);
+            Assert.Equal(length * 90 / 100, paged.CaretOffset);
+            Assert.False(paged.LinesExact);
 
             // a jump beyond the prefix lands on the right bytes; the line number is an estimate marked with "≈"
             long far = RowStart(farRow) + 3;
@@ -528,6 +538,23 @@ public class PagedSurfaceTests : IDisposable
     public void Jumps_to_an_offset_and_a_line_work_while_the_index_is_being_built()
     {
         JumpsWhileTheIndexIsBeingBuilt(rows: 700_000, gateBlock: 3, farRow: 500_000);
+    }
+
+    [AvaloniaFact]
+    public void Go_to_a_line_and_column_counts_the_column_in_characters_of_the_line()
+    {
+        const string head = "první\nžluťoučký kůň\n😀ab\n";
+        var tab = OpenIndexed(_temp.Bytes("columns.txt", Encoding.UTF8.GetBytes(head + string.Concat(Enumerable.Repeat("x\n", 600_000)))));
+        var paged = tab.Paged!;
+        _w.GoTo("2:5");
+        Assert.Equal(Encoding.UTF8.GetByteCount("první\nžluť"), paged.CaretOffset);
+        Assert.Equal((1L, 4L), paged.CaretLineColumn());
+        _w.GoTo("2:99"); // past the end of the line: its end
+        Assert.Equal(Encoding.UTF8.GetByteCount("první\nžluťoučký kůň"), paged.CaretOffset);
+        _w.GoTo("3:2"); // inside the surrogate pair: in front of the emoji
+        Assert.Equal(Encoding.UTF8.GetByteCount("první\nžluťoučký kůň\n"), paged.CaretOffset);
+        _w.GoTo("3:4");
+        Assert.Equal(Encoding.UTF8.GetByteCount("první\nžluťoučký kůň\n😀a"), paged.CaretOffset);
     }
 
     [AvaloniaFact]

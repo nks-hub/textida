@@ -163,6 +163,34 @@ public class BracketMatcherTests
         Assert.Equal(new TextPosition(3, 0), BracketMatcher.FindPair(lines, js, 0, 1));
     }
 
+    [Fact]
+    public void Match_gives_both_brackets_and_looks_no_farther_than_the_line_limit()
+    {
+        var lines = Lines("a(\n\n\n)");
+        Assert.Equal((new TextPosition(0, 1), new TextPosition(3, 0)), BracketMatcher.Match(lines, null, 0, 1, 3));
+        Assert.Equal((new TextPosition(3, 0), new TextPosition(0, 1)), BracketMatcher.Match(lines, null, 3, 1, 3));
+        Assert.Null(BracketMatcher.Match(lines, null, 0, 1, 2));
+        Assert.Null(BracketMatcher.Match(lines, null, 3, 0, 2));
+    }
+
+    [Fact]
+    public void Match_takes_the_tokens_of_a_line_once_from_a_token_source()
+    {
+        var js = BuiltinGrammars.Tokenizer("javascript");
+        var lines = Lines("f(\"a)\",\n /* ) */ b)");
+        var tokens = new List<IReadOnlyList<Token>>();
+        var state = js.InitialState;
+        foreach (var line in lines)
+        {
+            var t = new List<Token>();
+            state = js.TokenizeLine(line, state, t);
+            tokens.Add(t);
+        }
+        int asked = 0;
+        Assert.Equal((new TextPosition(0, 1), new TextPosition(1, 10)), BracketMatcher.Match(lines, l => { asked++; return tokens[l]; }, 0, 1, 10));
+        Assert.Equal(2, asked);
+    }
+
     [Theory]
     [InlineData("12", GoToKind.Line, 12, 1)]
     [InlineData(" 12:5 ", GoToKind.Line, 12, 5)]
