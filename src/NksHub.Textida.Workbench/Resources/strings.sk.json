@@ -146,6 +146,7 @@
   "cmd.lsp.start": "Jazykový server: spustiť pre tento dokument",
   "cmd.lsp.goToDefinition": "Jazykový server: prejsť na definíciu",
   "cmd.lsp.findReferences": "Jazykový server: nájsť odkazy",
+  "cmd.lsp.rename": "Jazykový server: premenovať symbol",
   "cmd.lsp.restart": "Jazykový server: reštartovať",
   "cmd.lsp.stop": "Jazykový server: zastaviť",
   "cmd.edit.complete": "Doplniť slovo alebo klip...",

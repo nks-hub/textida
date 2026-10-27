@@ -1237,6 +1237,13 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.lsp.rename",
+      "title": "cmd.lsp.rename",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -2618,6 +2625,12 @@
       "command": "nks.lsp.findReferences",
       "group": "9_lsp",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.rename",
+      "group": "9_lsp",
+      "order": 35
     },
     {
       "menu": "tools",

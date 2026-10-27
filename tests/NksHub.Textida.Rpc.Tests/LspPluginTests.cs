@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost;
@@ -32,8 +33,24 @@ public class LspPluginTests
         public ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation) => throw new NotSupportedException();
     }
 
+    /// <summary>The change review of the editor, reduced to what the tests look at: it keeps what it was shown and applies all of it, as the user accepting every change does.</summary>
+    sealed class Review(Owner owner) : IWorkspaceEdits
+    {
+        public readonly List<Document> Open = [];
+        public readonly List<WorkspaceEditRequest> Shown = [];
+
+        public async ValueTask<ProposalDecision> SubmitAsync(WorkspaceEditRequest request, CancellationToken cancellation)
+        {
+            lock (Shown) Shown.Add(request);
+            var report = await owner.InvokeAsync(() => new ChangeApplier(id => Open.FirstOrDefault(d => d.Id == id)).Apply(request.Proposal));
+            int applied = report.Files.Count(f => f.Status == ChangeStatus.Applied);
+            return new ProposalDecision("review" + Shown.Count, applied == report.Files.Count ? ProposalOutcome.Applied : ProposalOutcome.Failed, applied, report.Files.Count);
+        }
+    }
+
     sealed class Rig : IAsyncDisposable
     {
+        public required Review Review { get; init; }
         public required PluginHost.PluginHost Host { get; init; }
         public required DocumentApi Docs { get; init; }
         public required string Folder { get; init; }
@@ -41,9 +58,9 @@ public class LspPluginTests
         public required Owner Owner { get; init; }
         public required UiApiTests.RecordingUi Ui { get; init; }
         public required DocumentApiTests.RecordingTools Tools { get; init; }
-        public readonly List<Document> Documents = [];
+        public List<Document> Documents => Review.Open;
 
-        public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null)
+        public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -58,15 +75,16 @@ public class LspPluginTests
             }
             arguments.AddRange(serverArgs ?? []);
             var catalog = Path.Combine(folder, "catalog.json");
-            File.WriteAllText(catalog, JsonSerializer.Serialize(new[] { new { language = "fake", program = T.DotnetFullPath, arguments } }));
+            File.WriteAllText(catalog, JsonSerializer.Serialize(new[] { new { language = "fake", program = program ?? T.DotnetFullPath, arguments } }));
 
             var ui = new UiApiTests.RecordingUi();
             var tools = new DocumentApiTests.RecordingTools();
             var owner = new Owner();
+            var review = new Review(owner);
             PluginHost.PluginHost? host = null;
             PluginEventSender send = (plugin, name, payload) => host!.SendEventAsync(plugin, name, payload);
             var permissions = new PluginPermissions();
-            permissions.Grant("lsp", DocumentPermissions.Read, GrantScope.All);
+            foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.WorkspaceFiles }) permissions.Grant("lsp", permission, GrantScope.All);
             var docs = new DocumentApi(new DocumentApiOptions
             {
                 MaxReadBytes = 1 << 16, MaxFindMatches = 10, MaxSnapshotsPerPlugin = 2, SnapshotLifetime = TimeSpan.FromSeconds(10),
@@ -74,6 +92,7 @@ public class LspPluginTests
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 400, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1),
                 MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
                 MaxDiagnosticsPerDocument = 100, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
+                Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20),
             }, owner, send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 100, MaxTreeDepth = 3, MaxTextLength = 2000, MaxTasksPerPlugin = 2, MaxPickItems = 10 }, ui, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
@@ -83,7 +102,7 @@ public class LspPluginTests
                 [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", "20000", "--request-timeout-ms", "10000", "--stop-timeout-ms", "3000", "--max-locations", "50",
                  "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog], ["onCommand:lsp"]));
             await host.ActivateAsync("onCommand:lsp");
-            return new Rig { Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools };
+            return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools };
         }
 
         /// <summary>Opens a file with this content and shows it to plugins.</summary>
@@ -330,6 +349,156 @@ public class LspPluginTests
         var small = rig.Add("small.fake", "x");
         var json = $"{{\"command\":\"lsp.start\",\"document\":\"{small.Id}\",\"revision\":{small.Revision},\"language\":\"en\",\"lspLanguage\":\"nothing\"}}";
         Assert.Equal("noLanguage", (await rig.Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString());
+    }
+
+    // ---- P8.5.1: completion, rename and the status bar ----
+
+    static async Task<CompletionAnswer> CompleteAsync(Rig rig, Document doc, long offset)
+    {
+        await T.Until(() => rig.Docs.HasCompletionProviders);
+        return await rig.Docs.RequestCompletionAsync(doc.Id, offset);
+    }
+
+    [Fact]
+    public async Task A_completion_with_an_additional_edit_is_written_as_one_undo_step()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var text = "é€😀 Con\n";
+        var doc = rig.Add("complete.fake", text);
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        var depth = doc.UndoDepth;
+
+        var answer = await CompleteAsync(rig, doc, Bytes("é€😀 Con"));
+
+        Assert.False(answer.Stale);
+        var item = Assert.Single(answer.Items);
+        Assert.Equal(("Console", "class", "class System.Console"), (item.Label, item.Kind, item.Detail));
+        Assert.Equal(new ByteRange(Bytes("é€😀 "), Bytes("é€😀 Con")), item.Range);
+        var extra = Assert.Single(item.AdditionalEdits);
+        Assert.Equal((new ByteRange(0, 0), "using System;\n"), (extra.Range, extra.Text));
+
+        await rig.Owner.InvokeAsync(() => rig.Docs.ApplyCompletion(item));
+
+        Assert.Equal("using System;\né€😀 Console\n", Rig.TextOf(doc));
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        await rig.Owner.InvokeAsync(() => doc.Undo());
+        Assert.Equal(text, Rig.TextOf(doc));
+        Assert.Equal(depth, doc.UndoDepth);
+    }
+
+    [Fact]
+    public async Task A_completion_answered_for_a_text_the_document_has_left_is_dropped()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var doc = rig.Add("slow.fake", "SLOW Con\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        await T.Until(() => rig.Docs.HasCompletionProviders);
+
+        var pending = rig.Docs.RequestCompletionAsync(doc.Id, Bytes("SLOW Con")); // the fake server needs a second for this one
+        await Task.Delay(300);
+        await rig.Edit(doc, 0, 0, "x");
+        var answer = await pending;
+
+        Assert.Empty(answer.Items);
+        var fresh = await CompleteAsync(rig, doc, Bytes("xSLOW Con"));
+        Assert.Single(fresh.Items);
+    }
+
+    [Fact]
+    public async Task A_document_the_plugin_does_not_follow_gets_no_completion_and_no_server_is_started_for_it()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var followed = rig.Add("followed.fake", "x\n");
+        await rig.RunAsync(followed, LspPlugin.StartCommand);
+        var other = rig.Add("other.fake", "Con\n");
+
+        var answer = await CompleteAsync(rig, other, Bytes("Con"));
+
+        Assert.Empty(answer.Items);
+        Assert.False(File.Exists(Path.Combine(rig.Dump, "other.fake.txt")));
+    }
+
+    [Fact]
+    public async Task A_rename_across_two_files_shows_both_in_one_review_and_applies_them_together()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var first = rig.Add("one.fake", "é foo = foo + 1\n");
+        var second = rig.Add("two.fake", "😀 call foo(foo)\nfoobar\n");
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+        rig.Ui.Input = request => request.Value == "foo" ? "baz" : null;
+
+        var r = await rig.RunAsync(first, LspPlugin.RenameCommand, Bytes("é f"));
+
+        Assert.Equal(("ok", "applied", 2, 2), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString(), r.GetProperty("accepted").GetInt32(), r.GetProperty("total").GetInt32()));
+        var shown = Assert.Single(rig.Review.Shown);
+        Assert.True(shown.Proposal.Atomic);
+        Assert.Equal("Rename foo to baz", shown.Proposal.Title);
+        Assert.Equal(new[] { first.Id, second.Id }.Order(), shown.Proposal.Files.Select(f => f.DocumentId!.Value).Order());
+        Assert.Equal([2, 2], shown.Proposal.Files.Select(f => f.Hunks.Count));
+        Assert.Equal("é baz = baz + 1\n", Rig.TextOf(first));
+        Assert.Equal("😀 call baz(baz)\nfoobar\n", Rig.TextOf(second));
+        Assert.Equal(1, first.UndoDepth);
+        Assert.Equal(1, second.UndoDepth);
+    }
+
+    [Fact]
+    public async Task A_rename_that_creates_renames_and_deletes_files_and_edits_one_on_disk_goes_through_the_same_review()
+    {
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo on disk\n");
+        var doc = rig.Add("main.fake", "foo\n");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var files = Assert.Single(rig.Review.Shown).Proposal.Files;
+        Assert.Equal(5, files.Count);
+        Assert.Equal([FileOperationKind.Create, FileOperationKind.Delete, FileOperationKind.Rename], files.Where(f => f.Operation is not null).Select(f => f.Operation!.Kind));
+        Assert.Equal("bar\n", Rig.TextOf(doc));
+        Assert.Equal("é bar on disk\n", File.ReadAllText(Path.Combine(rig.Folder, "disk.fake"), new UTF8Encoding(false)));
+        Assert.True(File.Exists(Path.Combine(rig.Folder, "created.fake")));
+        Assert.False(File.Exists(Path.Combine(rig.Folder, "doomed.fake")));
+        Assert.False(File.Exists(Path.Combine(rig.Folder, "moveme.fake")));
+        Assert.Equal("move", File.ReadAllText(Path.Combine(rig.Folder, "moved.fake")));
+    }
+
+    [Fact]
+    public async Task A_rename_the_user_does_not_confirm_changes_nothing()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var doc = rig.Add("keep.fake", "foo foo\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1); // the input answers nothing
+
+        Assert.Equal("cancelled", r.GetProperty("status").GetString());
+        Assert.Empty(rig.Review.Shown);
+        Assert.Equal("foo foo\n", Rig.TextOf(doc));
+    }
+
+    [Fact]
+    public async Task The_status_bar_says_when_the_server_runs_when_it_was_not_found_and_when_it_is_off()
+    {
+        string? Last(Rig rig) { lock (rig.Ui.Statuses) return rig.Ui.Statuses.LastOrDefault()?.Text; }
+
+        await using (var rig = await Rig.CreateAsync())
+        {
+            var doc = rig.Add("status.fake", "x\n");
+            await rig.RunAsync(doc, LspPlugin.StartCommand);
+            await T.Until(() => Last(rig) == "LSP: running");
+            await rig.RunAsync(doc, LspPlugin.StopCommand);
+            await T.Until(() => Last(rig) == "LSP: off");
+        }
+        await using (var missing = await Rig.CreateAsync(program: "no-such-language-server-program"))
+        {
+            var doc = missing.Add("lost.fake", "x\n");
+            Assert.Equal("noServer", (await missing.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+            await T.Until(() => Last(missing) == "LSP: not found");
+        }
     }
 
     // ---- the pieces without a process ----

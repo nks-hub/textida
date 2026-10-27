@@ -152,8 +152,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
             [GitActivation], gitFolder));
 
-        // the language server client reads the documents it follows and publishes diagnostics; it never writes a document
-        permissions.Grant(LspPluginId, DocumentPermissions.Read, GrantScope.All);
+        // the language server client reads the documents it follows and publishes diagnostics; it writes only what a rename proposes, in the change review, and may then touch files below the workspace.
+        // OPEN: who grants the workspace files permission (the TODO leaves it open); the built-in client holds it for now.
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.WorkspaceFiles })
+            permissions.Grant(LspPluginId, permission, GrantScope.All);
         var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "lsp");
         var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
@@ -164,10 +166,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             [LspActivation], lspFolder));
     }
 
-    // ---- language servers: definition, references, diagnostics ----
+    // ---- language servers: definition, references, rename, diagnostics, completion ----
 
     /// <summary>
-    /// Runs a language server command (<c>lsp.start</c>, <c>lsp.definition</c>, <c>lsp.references</c>, <c>lsp.restart</c>, <c>lsp.stop</c>) for the tab. The server starts with the first command and follows the
+    /// Runs a language server command (<c>lsp.start</c>, <c>lsp.definition</c>, <c>lsp.references</c>, <c>lsp.rename</c>, <c>lsp.restart</c>, <c>lsp.stop</c>) for the tab. The server starts with the first command and follows the
     /// document until its tab closes. A tab without a text surface (a large file shown in pages) never reaches the plugin. A definition in another file opens that file. False when nothing was started.
     /// </summary>
     public async Task<bool> RunLspAsync(MainWindow window, DocTab tab, string command)

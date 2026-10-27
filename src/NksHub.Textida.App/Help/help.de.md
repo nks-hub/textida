@@ -1036,15 +1036,18 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 - Noch nicht vorhanden: Abschnitt zurücknehmen, Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
 - Der Git-Prozess startet mit dem ersten Befehl. Das Programm `git` muss im PATH liegen.
 
-## [tools.lsp] Sprachserver: Definition, Verweise und Diagnose
-commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.restart, nks.lsp.stop
+## [tools.lsp] Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose
+commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
 1. Öffnen Sie ein Textdokument und wählen Sie Extras, Sprachserver: für dieses Dokument starten. Der Server für die Sprache des Dokuments startet und erhält den Text. Von da an bekommt er jede Änderung, und was er als Fehler meldet, wird unterstrichen.
 2. Sprachserver: Zur Definition springen springt zur Definition des Worts am Cursor, auch in eine andere Datei. Sprachserver: Verweise suchen listet alle Stellen im Panel links auf; Enter oder ein Doppelklick auf einen Eintrag öffnet ihn.
-3. Beendet sich der Server von selbst, meldet das ein Hinweis, und die Unterstreichungen, die er gezeichnet hat, verschwinden. Sprachserver: Neu starten (oder ein anderer Befehl dieser Gruppe) startet ihn erneut und übergibt ihm alle offenen Dokumente so, wie sie jetzt sind. Sprachserver: Beenden fährt ihn herunter.
+3. Sprachserver: Symbol umbenennen fragt nach dem neuen Namen des Worts am Cursor. Die Änderungen des Servers in allen Dateien, samt dem Anlegen, Umbenennen und Löschen von Dateien, das er verlangt, erscheinen gemeinsam in der Änderungsvorschau; was Sie annehmen, wird als ein Schritt angewendet. Eine Datei, die in einem anderen Tab offen ist, muss ebenfalls mit dem ersten Befehl gestartet worden sein, sonst wird das Umbenennen als Ganzes abgelehnt.
+4. Strg+J (Bearbeiten, Wort oder Clip vervollständigen) listet auch auf, was der laufende Server am Cursor anbietet. Die Wahl eines solchen Eintrags führt im selben Rückgängig-Schritt auch die weiteren Änderungen aus, die der Server verlangt, etwa das Hinzufügen eines Imports. Eine Antwort, die nach einer Textänderung eintrifft, wird nicht angezeigt.
+5. Beendet sich der Server von selbst, meldet das ein Hinweis, und die Unterstreichungen, die er gezeichnet hat, verschwinden. Sprachserver: Neu starten (oder ein anderer Befehl dieser Gruppe) startet ihn erneut und übergibt ihm alle offenen Dokumente so, wie sie jetzt sind. Sprachserver: Beenden fährt ihn herunter.
 - Der Editor startet von sich aus keinen Server: Solange Sie keinen Befehl dieser Gruppe wählen, läuft nichts, und der Server weiß nichts von der Datei.
 - Große Dateien, die seitenweise angezeigt werden, und Dateien über dem Größenlimit gehen nie an einen Server.
 - Der Server wird über seinen Namen im PATH gesucht. Wird er nicht gefunden, nennt ein Hinweis das gesuchte Programm.
-- Noch nicht vorhanden: Vervollständigung und Umbenennen über den Server, ein Eintrag in der Statusleiste und die Wahl des Projektordners (verwendet wird der Ordner des ersten Dokuments).
+- Die Statusleiste zeigt LSP: läuft, LSP: nicht gefunden oder LSP: aus für die Sprache des letzten Befehls.
+- Noch nicht vorhanden: die Wahl des Projektordners (verwendet wird der Ordner des ersten Dokuments) und das Umbenennen in Dateien, die nicht UTF-8 sind.
 
 ## [edit.complete] Vervollständigung von Wörtern und Clips
 commands: nks.edit.complete
@@ -1053,7 +1056,7 @@ commands: nks.edit.complete
 - Die Wörter stammen aus allen offenen Text-Tabs. Das Wort, das gerade getippt wird, wird nicht angeboten, und ein Wort wird nur angeboten, wenn es länger ist als das Getippte. Zuerst kommen Wörter des bearbeiteten Dokuments, dann die häufigeren.
 - Clips stammen aus der Bibliothek des Themas Clips. Ein Clip ohne Sprache passt zu jedem Dokument; ein Clip mit Sprache nur zu Dokumenten dieser Sprache.
 - Die Werte einer Geheimnisdatei (`.env`) werden nie angeboten, solange sie verborgen sind. Sie werden nur in der Datei selbst und nur angezeigt angeboten.
-- Die Liste hält eine begrenzte Zahl von Wörtern; Sie engen sie durch Tippen im Feld ein. Vervollständigung über LSP gehört nicht zu dieser Version.
+- Die Liste hält eine begrenzte Zahl von Wörtern; Sie engen sie durch Tippen im Feld ein. Einträge eines laufenden Sprachservers kommen dazu, siehe das Thema Sprachserver.
 
 ## [edit.sql] SQL: Dialekt und Formatierung
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect

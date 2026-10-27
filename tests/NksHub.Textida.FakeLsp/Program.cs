@@ -3,11 +3,15 @@
 // Options: --full (ask for whole texts instead of ranges), --dump DIR (after every open and change write NAME.txt with its copy, NAME.version with the version
 // and NAME.stats with "opens=N incremental=N full=N"), --external FILE (a file on disk that definitions may point into).
 // Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
-// a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document.
+// a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document;
+// completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
+// rename of a word changes its whole-word occurrences in every open document (documentChanges with the version the server holds); with --fileops it also creates
+// created.fake, deletes doomed.fake, renames moveme.fake to moved.fake (all next to the first open document) and edits the external file on disk.
 using System.Text;
 using System.Text.Json;
 
 bool full = args.Contains("--full");
+bool fileOps = args.Contains("--fileops");
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
 if (dump is not null) Directory.CreateDirectory(dump);
@@ -17,6 +21,7 @@ var output = Console.OpenStandardOutput();
 var gate = new object();
 var texts = new Dictionary<string, string>();
 var stats = new Dictionary<string, (int Opens, int Incremental, int Full)>();
+var versions = new Dictionary<string, long>();
 
 void Send(string json)
 {
@@ -107,6 +112,7 @@ string DumpName(string uri) => string.Concat(Uri.UnescapeDataString(uri[(uri.Las
 void Changed(string uri, long version, string text)
 {
     texts[uri] = text;
+    versions[uri] = version;
     if (dump is not null)
     {
         var name = DumpName(uri);
@@ -156,6 +162,57 @@ string References(JsonElement p)
     return "[" + string.Join(',', found) + "]";
 }
 
+string Completion(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    int caret = Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32());
+    if (text.Contains("SLOW")) Thread.Sleep(1000);
+    int start = caret;
+    while (start > 0 && IsWord(text[start - 1])) start--;
+    var prefix = text[start..caret];
+    if (prefix.Length == 0 || !"Console".StartsWith(prefix, StringComparison.Ordinal)) return "{\"isIncomplete\":false,\"items\":[]}";
+    return "{\"isIncomplete\":false,\"items\":[{\"label\":\"Console\",\"kind\":7,\"detail\":\"class System.Console\",\"textEdit\":{\"range\":" + Range(text, start, caret)
+        + ",\"newText\":\"Console\"},\"additionalTextEdits\":[{\"range\":" + Range(text, 0, 0) + ",\"newText\":\"using System;\\n\"}]}]}";
+}
+
+string? Rename(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var newName = p.GetProperty("newName").GetString()!;
+    var word = WordAt(texts[uri], Offset(texts[uri], pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32()));
+    if (word.Length == 0) return null;
+    var changes = new List<string>();
+    foreach (var (otherUri, text) in texts)
+    {
+        var edits = new List<string>();
+        for (int at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
+            if ((at == 0 || !IsWord(text[at - 1])) && (at + word.Length == text.Length || !IsWord(text[at + word.Length])))
+                edits.Add($"{{\"range\":{Range(text, at, at + word.Length)},\"newText\":{Quote(newName)}}}");
+        if (edits.Count > 0)
+            changes.Add($"{{\"textDocument\":{{\"uri\":{Quote(otherUri)},\"version\":{versions[otherUri]}}},\"edits\":[{string.Join(',', edits)}]}}");
+    }
+    if (fileOps)
+    {
+        var folder = uri[..(uri.LastIndexOf('/') + 1)];
+        changes.Add($"{{\"kind\":\"create\",\"uri\":{Quote(folder + "created.fake")}}}");
+        changes.Add($"{{\"kind\":\"delete\",\"uri\":{Quote(folder + "doomed.fake")}}}");
+        changes.Add($"{{\"kind\":\"rename\",\"oldUri\":{Quote(folder + "moveme.fake")},\"newUri\":{Quote(folder + "moved.fake")}}}");
+        if (external is not null && File.Exists(external))
+        {
+            var disk = File.ReadAllText(external, new UTF8Encoding(false));
+            var edits = new List<string>();
+            for (int at = disk.IndexOf(word, StringComparison.Ordinal); at >= 0; at = disk.IndexOf(word, at + 1, StringComparison.Ordinal))
+                edits.Add($"{{\"range\":{Range(disk, at, at + word.Length)},\"newText\":{Quote(newName)}}}");
+            if (edits.Count > 0)
+                changes.Add($"{{\"textDocument\":{{\"uri\":{Quote(new Uri(Path.GetFullPath(external)).AbsoluteUri)},\"version\":null}},\"edits\":[{string.Join(',', edits)}]}}");
+        }
+    }
+    return $"{{\"documentChanges\":[{string.Join(',', changes)}]}}";
+}
+
 // ---- the loop ----
 
 while (ReadMessage() is { } body)
@@ -169,7 +226,7 @@ while (ReadMessage() is { } body)
     switch (method)
     {
         case "initialize":
-            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
+            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;
         case "shutdown":
             Send(Reply("null"));
@@ -217,6 +274,12 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/references":
             Send(Reply(References(p)));
+            break;
+        case "textDocument/completion":
+            Send(Reply(Completion(p)));
+            break;
+        case "textDocument/rename":
+            Send(Reply(Rename(p) ?? "null"));
             break;
         default:
             if (isRequest) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32601,\"message\":\"unknown\"}}}}");

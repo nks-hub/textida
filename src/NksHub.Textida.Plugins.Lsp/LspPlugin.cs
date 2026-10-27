@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Encodings;
@@ -14,6 +15,7 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// The built-in language server client. A server is started on the first command for a language, told about the documents the editor shows (with the revision as the
 /// version, as ranges when the server wants them) and asked for definitions and references; what it finds wrong is published through the diagnostics API of the editor.
 /// A server that ends by itself is reported; the next command starts it again and hands it every document that is still open.
+/// It also answers the completion requests of the editor for the documents it follows, and renames a symbol: the server's workspace edit goes to the editor as one batch for the change review.
 /// </summary>
 public sealed class LspPlugin : PluginBase
 {
@@ -22,6 +24,7 @@ public sealed class LspPlugin : PluginBase
     public const string ReferencesCommand = "lsp.references";
     public const string RestartCommand = "lsp.restart";
     public const string StopCommand = "lsp.stop";
+    public const string RenameCommand = "lsp.rename";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -72,6 +75,14 @@ public sealed class LspPlugin : PluginBase
         _settings = settings;
         _catalog = catalog;
         On("command/execute", ExecuteAsync);
+        On(DocumentRequests.Completion, CompleteAsync);
+    }
+
+    /// <summary>Offers the editor to ask this plugin for completion; sent on every start, so a restarted process answers again.</summary>
+    protected override async ValueTask OnResyncAsync(JsonElement state)
+    {
+        try { await CallAsync(DocumentMethods.CompletionRegister, "{\"enabled\":true}").ConfigureAwait(false); }
+        catch (Exception e) when (e is RpcException or IOException) { /* the editor refused: the plugin still navigates */ }
     }
 
     private async Task<JsonElement> CallAsync(string method, string paramsJson, CancellationToken ct = default) =>
@@ -91,6 +102,18 @@ public sealed class LspPlugin : PluginBase
         return Status(status);
     }
 
+    /// <summary>The status bar item: whether the server of the language the last command was for was not found, runs, or is off (stopped, crashed, not startable).</summary>
+    private async Task ShowStateAsync(Slot slot)
+    {
+        var key = slot.State switch { State.Running => "statusRunning", State.NotFound => "statusNotFound", _ => "statusStopped" };
+        try
+        {
+            await CallAsync(UiMethods.StatusSet,
+                $"{{\"text\":\"{Quote(Texts.Get(_ui, key))}\",\"tooltip\":\"{Quote(Texts.Get(_ui, "statusTip", ("language", slot.Language)))}\"}}").ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is RpcException or IOException) { /* a status that cannot be shown must not break the work */ }
+    }
+
     private static byte[] Status(string status) => Encoding.UTF8.GetBytes($"{{\"status\":\"{status}\"}}");
 
     private static string? Text(JsonElement p, string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
@@ -103,7 +126,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         var slot = _slots.GetOrAdd(r.Language, l => new Slot(l));
@@ -112,6 +135,7 @@ public sealed class LspPlugin : PluginBase
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
+                await ShowStateAsync(slot).ConfigureAwait(false);
                 return await TellAsync("stopped", NoticeLevel.Info, "stopped", ("language", slot.Language)).ConfigureAwait(false);
             }
             var doc = await TrackAsync(slot, r.Document, ct).ConfigureAwait(false);
@@ -128,15 +152,19 @@ public sealed class LspPlugin : PluginBase
             {
                 DefinitionCommand => await NavigateAsync(slot, server, doc, r, references: false, ct).ConfigureAwait(false),
                 ReferencesCommand => await NavigateAsync(slot, server, doc, r, references: true, ct).ConfigureAwait(false),
+                RenameCommand => await RenameAsync(server, doc, r, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
         }
         catch (Withheld w)
         {
-            return w.Message == "tooLarge"
-                ? await TellAsync("tooLarge", NoticeLevel.Warning, "tooLarge", ("max", _settings.MaxBytes.ToString())).ConfigureAwait(false)
-                : await TellAsync("invalidBytes", NoticeLevel.Warning, "invalidBytes").ConfigureAwait(false);
+            return w.Message switch
+            {
+                "tooLarge" => await TellAsync("tooLarge", NoticeLevel.Warning, "tooLarge", ("max", _settings.MaxBytes.ToString())).ConfigureAwait(false),
+                "unreadable" => await TellAsync("unreadable", NoticeLevel.Warning, "unreadable").ConfigureAwait(false),
+                _ => await TellAsync("invalidBytes", NoticeLevel.Warning, "invalidBytes").ConfigureAwait(false),
+            };
         }
         catch (Exception e) when (e is ServerGone or RpcConnectionClosedException) { return Status("crashed"); } // the end of the server is reported by its own handler
         catch (RpcTimeoutException) { return await TellAsync("timeout", NoticeLevel.Warning, "timeout").ConfigureAwait(false); }
@@ -323,6 +351,7 @@ public sealed class LspPlugin : PluginBase
             if (launch is null || !found)
             {
                 slot.State = State.NotFound;
+                await ShowStateAsync(slot).ConfigureAwait(false);
                 await NotifyAsync(NoticeLevel.Warning, launch is null ? "noLanguage" : "noServer", ("language", slot.Language), ("program", launch?.Program ?? "")).ConfigureAwait(false);
                 return launch is null ? "noLanguage" : "noServer";
             }
@@ -332,11 +361,13 @@ public sealed class LspPlugin : PluginBase
             catch (ServerStartException e)
             {
                 slot.State = State.Crashed;
+                await ShowStateAsync(slot).ConfigureAwait(false);
                 await NotifyAsync(NoticeLevel.Error, "startFailed", ("language", slot.Language), ("reason", e.Message)).ConfigureAwait(false);
                 return "startFailed";
             }
             slot.Server = server;
             slot.State = State.Running;
+            await ShowStateAsync(slot).ConfigureAwait(false);
             server.Ended += detail => _ = OnEndedAsync(slot, server, detail);
             if (!server.Alive) return "crashed";
             // a server that was not there when the documents changed must get all of them again, as they are now
@@ -384,6 +415,7 @@ public sealed class LspPlugin : PluginBase
     {
         if (Interlocked.CompareExchange(ref slot.Server, null, server) != server) return;
         slot.State = State.Crashed;
+        await ShowStateAsync(slot).ConfigureAwait(false);
         foreach (var d in slot.Docs.Values)
         {
             d.Open = false;
@@ -456,7 +488,7 @@ public sealed class LspPlugin : PluginBase
 
     private sealed record Place(string Path, int Line, int Character, int EndLine, int EndCharacter, long Start, long End, bool InDocument, string LineText);
 
-    private sealed record Loaded(string Text, LineMap Map, TextCodec Codec, int Bom);
+    private sealed record Loaded(string Text, LineMap Map, TextCodec Codec, int Bom, string? Sha = null);
 
     /// <summary>The places of a <c>Location</c>, <c>Location[]</c> or <c>LocationLink[]</c> answer as (uri, start line, start column, end line, end column).</summary>
     private static List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> Locations(JsonElement answer)
@@ -487,8 +519,8 @@ public sealed class LspPlugin : PluginBase
         return list;
     }
 
-    /// <summary>The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk read as UTF-8; null when it cannot be read or is larger than the limit.</summary>
-    private Loaded? Load(string path)
+    /// <summary>The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk read as UTF-8 (<paramref name="strict"/>: null for bytes that are not valid UTF-8); null when it cannot be read or is larger than the limit.</summary>
+    private Loaded? Load(string path, bool strict = false)
     {
         foreach (var d in _docs.Values)
             if (d.Path is not null && PathUri.SamePath(d.Path, path) && d.Open) return new Loaded(d.Text, new LineMap(d.Text), d.Codec, d.Bom);
@@ -498,10 +530,10 @@ public sealed class LspPlugin : PluginBase
             if (!info.Exists || info.Length > _settings.MaxBytes) return null;
             var bytes = File.ReadAllBytes(path);
             int bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-            var text = new UTF8Encoding(false).GetString(bytes, bom, bytes.Length - bom);
-            return new Loaded(text, new LineMap(text), TextCodec.Utf8, bom);
+            var text = new UTF8Encoding(false, strict).GetString(bytes, bom, bytes.Length - bom);
+            return new Loaded(text, new LineMap(text), TextCodec.Utf8, bom, Convert.ToHexString(SHA256.HashData(bytes)));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException) { return null; }
     }
 
     private List<Place> Resolve(Doc current, List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> raw)
@@ -533,12 +565,19 @@ public sealed class LspPlugin : PluginBase
         return places;
     }
 
+    /// <summary>The LSP <c>textDocument</c> and <c>position</c> members for a byte offset of <paramref name="revision"/>, and the character offset in the text the server holds.</summary>
+    private async Task<(string Json, int Caret)> PositionAtAsync(Doc d, long revision, long offset, CancellationToken ct)
+    {
+        var before = await CallAsync(DocumentMethods.ReadText, $"{{\"document\":\"{d.Id}\",\"revision\":{revision},\"start\":{d.Bom},\"end\":{Math.Max(offset, d.Bom)}}}", ct).ConfigureAwait(false);
+        int caret = before.GetProperty("text").GetString()!.Length;
+        var (line, character) = new LineMap(d.Text).PositionOf(caret);
+        return ($"\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"position\":{{\"line\":{line},\"character\":{character}}}", caret);
+    }
+
     private async Task<byte[]> NavigateAsync(Slot slot, LspServer server, Doc d, Request r, bool references, CancellationToken ct)
     {
         if (!(references ? server.References : server.Definition)) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
-        var before = await CallAsync(DocumentMethods.ReadText, $"{{\"document\":\"{d.Id}\",\"revision\":{r.Revision},\"start\":{d.Bom},\"end\":{Math.Max(r.Offset, d.Bom)}}}", ct).ConfigureAwait(false);
-        var (line, character) = new LineMap(d.Text).PositionOf(before.GetProperty("text").GetString()!.Length);
-        var position = $"\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"position\":{{\"line\":{line},\"character\":{character}}}";
+        var (position, _) = await PositionAtAsync(d, r.Revision, r.Offset, ct).ConfigureAwait(false);
         var answer = await server.RequestAsync(references ? "textDocument/references" : "textDocument/definition",
             references ? $"{{{position},\"context\":{{\"includeDeclaration\":true}}}}" : $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
         var raw = Locations(answer);
@@ -569,5 +608,223 @@ public sealed class LspPlugin : PluginBase
         var locations = string.Join(',', places.Select(x =>
             $"{{\"path\":\"{Quote(x.Path)}\",\"line\":{x.Line},\"character\":{x.Character},\"endLine\":{x.EndLine},\"endCharacter\":{x.EndCharacter},\"start\":{x.Start},\"end\":{x.End},\"inDocument\":{(x.InDocument ? "true" : "false")}}}"));
         return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"count\":{raw.Count},\"shown\":{places.Count},\"revealed\":{(revealed ? "true" : "false")},\"locations\":[{locations}]}}");
+    }
+
+    // ---- completion ----
+
+    private static readonly string[] KindNames =
+    [
+        "", "text", "method", "function", "constructor", "field", "variable", "class", "interface", "module", "property", "unit", "value", "enum", "keyword", "snippet",
+        "color", "file", "reference", "folder", "enumMember", "constant", "struct", "event", "operator", "typeParameter",
+    ];
+
+    private static bool IsWord(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+    private static (int Start, int End) WordAround(string text, int offset)
+    {
+        offset = Math.Clamp(offset, 0, text.Length);
+        int start = offset, end = offset;
+        while (start > 0 && IsWord(text[start - 1])) start--;
+        while (end < text.Length && IsWord(text[end])) end++;
+        return (start, end);
+    }
+
+    private static (int Start, int End)? CharRange(LineMap map, JsonElement range) =>
+        range.ValueKind == JsonValueKind.Object && range.TryGetProperty("start", out var s) && range.TryGetProperty("end", out var e)
+            ? (map.OffsetOf(s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32()), map.OffsetOf(e.GetProperty("line").GetInt32(), e.GetProperty("character").GetInt32()))
+            : null;
+
+    /// <summary>
+    /// Answers <c>completion/request</c>: the items of the server for the caret, in bytes of the revision they were asked for. A document the plugin does not follow, a server that is not running
+    /// or offers no completion, an error, or a document that moved on while the server worked give no items; the editor does not start a server for completion.
+    /// </summary>
+    private async ValueTask<byte[]?> CompleteAsync(JsonElement p, CancellationToken ct)
+    {
+        long asked = p.GetProperty("revision").GetInt64();
+        byte[] Nothing(long revision) => Encoding.UTF8.GetBytes($"{{\"revision\":{revision},\"items\":[]}}");
+        if (!Guid.TryParse(Text(p, "document"), out var id) || !_docs.TryGetValue(id, out var d) || d.Slot.Server is not { Alive: true, Completion: true } server) return Nothing(asked);
+        try
+        {
+            await SyncAsync(d, ct).ConfigureAwait(false);
+            string text;
+            long revision;
+            TextCodec codec;
+            int bom;
+            await d.Gate.WaitAsync(ct).ConfigureAwait(false);
+            try { (text, revision, codec, bom) = (d.Text, d.Revision, d.Codec, d.Bom); }
+            finally { d.Gate.Release(); }
+            if (revision != asked) return Nothing(revision);
+            var (position, caret) = await PositionAtAsync(d, asked, p.GetProperty("offset").GetInt64(), ct).ConfigureAwait(false);
+            var answer = await server.RequestAsync("textDocument/completion", $"{{{position},\"context\":{{\"triggerKind\":1}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+            var list = answer.ValueKind == JsonValueKind.Array ? answer : answer.ValueKind == JsonValueKind.Object && answer.TryGetProperty("items", out var items) ? items : default;
+            if (list.ValueKind != JsonValueKind.Array) return Nothing(asked);
+            var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+            if (now.GetProperty("revision").GetInt64() != asked) return Nothing(asked); // the answer is for a text that is gone
+
+            var map = new LineMap(text);
+            var (prefix, _) = WordAround(text, caret);
+            var parsed = new List<(string Label, string? Detail, string? Kind, (int Start, int End) Range, string Text, List<((int Start, int End) Range, string Text)> Extra)>();
+            foreach (var item in list.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object || Text(item, "label") is not { Length: > 0 } label) continue;
+                (int Start, int End) range = (prefix, caret);
+                string insert = Text(item, "insertText") ?? label;
+                if (item.TryGetProperty("textEdit", out var edit) && edit.ValueKind == JsonValueKind.Object)
+                {
+                    var r = CharRange(map, edit.TryGetProperty("range", out var plain) ? plain : edit.TryGetProperty("insert", out var inserted) ? inserted : default);
+                    if (r is null) continue;
+                    range = r.Value;
+                    insert = Text(edit, "newText") ?? "";
+                }
+                var extra = new List<((int, int) Range, string Text)>();
+                if (item.TryGetProperty("additionalTextEdits", out var more) && more.ValueKind == JsonValueKind.Array)
+                    foreach (var e in more.EnumerateArray())
+                        if (CharRange(map, e.TryGetProperty("range", out var er) ? er : default) is { } extraRange) extra.Add((extraRange, Text(e, "newText") ?? ""));
+                string? kind = item.TryGetProperty("kind", out var k) && k.ValueKind == JsonValueKind.Number && k.GetInt32() is > 0 and var n && n < KindNames.Length ? KindNames[n] : null;
+                parsed.Add((Limited(label), Text(item, "detail") is { Length: > 0 } detail ? Limited(detail) : null, kind, range, insert, extra));
+            }
+            var bytes = ByteMap.ToBytes(codec, bom, text, parsed.SelectMany(i => new[] { i.Range.Start, i.Range.End }.Concat(i.Extra.SelectMany(x => new[] { x.Range.Start, x.Range.End }))));
+            var json = new StringBuilder($"{{\"revision\":{asked},\"items\":[");
+            for (int i = 0; i < parsed.Count; i++)
+            {
+                var item = parsed[i];
+                if (i > 0) json.Append(',');
+                json.Append($"{{\"label\":\"{Quote(item.Label)}\",\"start\":{bytes[item.Range.Start]},\"end\":{bytes[item.Range.End]},\"text\":\"{Quote(item.Text)}\"");
+                if (item.Detail is not null) json.Append($",\"detail\":\"{Quote(item.Detail)}\"");
+                if (item.Kind is not null) json.Append($",\"kind\":\"{item.Kind}\"");
+                json.Append(",\"edits\":[").AppendJoin(',', item.Extra.Select(x => $"{{\"start\":{bytes[x.Range.Start]},\"end\":{bytes[x.Range.End]},\"text\":\"{Quote(x.Text)}\"}}")).Append("]}");
+            }
+            return Encoding.UTF8.GetBytes(json.Append("]}").ToString());
+        }
+        catch (Exception e) when (e is RpcException or RpcTimeoutException or ServerGone or Withheld or IOException or KeyNotFoundException or InvalidOperationException) { return Nothing(asked); }
+    }
+
+    // ---- rename ----
+
+    private sealed class FileEdits(string uri)
+    {
+        public readonly string Uri = uri;
+        public readonly List<((int Line, int Character, int EndLine, int EndCharacter) Range, string Text)> Edits = [];
+    }
+
+    private static string PathOf(string uri) => PathUri.ToPath(uri) ?? throw new Withheld("unreadable");
+
+    /// <summary>
+    /// Asks the user for the new name, has the server rename and sends everything it answers (edits of open documents by revision, of other files by their hash, and the creating, renaming
+    /// and deleting of files) to the editor as one workspace edit. The editor shows all of it in the change review and applies what the user accepts as one step.
+    /// </summary>
+    private async Task<byte[]> RenameAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    {
+        if (!server.Rename) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var (position, caret) = await PositionAtAsync(d, r.Revision, r.Offset, ct).ConfigureAwait(false);
+        var (wordStart, wordEnd) = WordAround(d.Text, caret);
+        var current = d.Text[wordStart..wordEnd];
+        var asked = await CallAsync(UiMethods.Input,
+            $"{{\"title\":\"{Quote(Texts.Get(_ui, "renameTitle"))}\",\"label\":\"{Quote(Texts.Get(_ui, "renameLabel"))}\",\"value\":\"{Quote(current)}\"}}", ct).ConfigureAwait(false);
+        if (asked.GetProperty("value").ValueKind != JsonValueKind.String || asked.GetProperty("value").GetString()!.Trim() is not { Length: > 0 } name || name == current) return Status("cancelled");
+
+        var answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        if (answer.ValueKind != JsonValueKind.Object) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
+        var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+        if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+
+        var changes = await ChangesOfAsync(d, answer, ct).ConfigureAwait(false);
+        if (changes.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
+        var title = Texts.Get(_ui, "renameBatch", ("old", current), ("new", name));
+        var decision = await CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"title\":\"{Quote(title)}\",\"changes\":[{string.Join(',', changes)}]}}", ct).ConfigureAwait(false);
+        var outcome = decision.GetProperty("decision").GetString()!;
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"{(outcome is "applied" or "partial" ? "ok" : outcome)}\",\"decision\":\"{outcome}\",\"accepted\":{decision.GetProperty("accepted").GetInt32()},\"total\":{decision.GetProperty("total").GetInt32()}}}");
+    }
+
+    /// <summary>The <c>changes</c> of the workspace edit API for a server's <c>WorkspaceEdit</c> (<c>documentChanges</c> or <c>changes</c>), one entry per file or file operation, in the order the server gave them.</summary>
+    private async Task<List<string>> ChangesOfAsync(Doc current, JsonElement edit, CancellationToken ct)
+    {
+        var order = new List<object>();
+        var byUri = new Dictionary<string, FileEdits>();
+        void Add(string uri, JsonElement edits)
+        {
+            if (!byUri.TryGetValue(uri, out var file))
+            {
+                byUri[uri] = file = new FileEdits(uri);
+                order.Add(file);
+            }
+            foreach (var e in edits.EnumerateArray())
+            {
+                var range = e.GetProperty("range");
+                var s = range.GetProperty("start");
+                var en = range.GetProperty("end");
+                file.Edits.Add(((s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32(), en.GetProperty("line").GetInt32(), en.GetProperty("character").GetInt32()), Text(e, "newText") ?? ""));
+            }
+        }
+        if (edit.TryGetProperty("documentChanges", out var documentChanges) && documentChanges.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in documentChanges.EnumerateArray())
+            {
+                switch (Text(item, "kind"))
+                {
+                    case "create":
+                        order.Add($"{{\"kind\":\"create\",\"path\":\"{Quote(PathOf(Text(item, "uri") ?? ""))}\",\"text\":\"\"}}");
+                        break;
+                    case "rename":
+                        order.Add($"{{\"kind\":\"rename\",\"path\":\"{Quote(PathOf(Text(item, "oldUri") ?? ""))}\",\"to\":\"{Quote(PathOf(Text(item, "newUri") ?? ""))}\"}}");
+                        break;
+                    case "delete":
+                    {
+                        var path = PathOf(Text(item, "uri") ?? "");
+                        order.Add($"{{\"kind\":\"delete\",\"path\":\"{Quote(path)}\",\"sha256\":\"{Load(path)?.Sha ?? throw new Withheld("unreadable")}\"}}");
+                        break;
+                    }
+                    default:
+                    {
+                        var document = item.GetProperty("textDocument");
+                        var uri = Text(document, "uri") ?? throw new Withheld("unreadable");
+                        // a version other than the one the server was told means the text it renamed in is not the text of the editor
+                        var followed = _docs.Values.FirstOrDefault(x => x.Open && x.Uri == uri);
+                        if (followed is not null && document.TryGetProperty("version", out var version) && version.ValueKind == JsonValueKind.Number && version.GetInt64() != followed.Version)
+                            throw new RpcException(DocumentErrorCodes.RevisionConflict, "stale");
+                        Add(uri, item.GetProperty("edits"));
+                        break;
+                    }
+                }
+            }
+        }
+        else if (edit.TryGetProperty("changes", out var plain) && plain.ValueKind == JsonValueKind.Object)
+            foreach (var file in plain.EnumerateObject()) Add(file.Name, file.Value);
+
+        var result = new List<string>();
+        foreach (var item in order)
+            result.Add(item is FileEdits file ? await RenderEditsAsync(current, file, ct).ConfigureAwait(false) : (string)item);
+        return result;
+    }
+
+    private async Task<string> RenderEditsAsync(Doc current, FileEdits file, CancellationToken ct)
+    {
+        var path = PathUri.ToPath(file.Uri) ?? (file.Uri == current.Uri ? current.Path : null);
+        var open = _docs.Values.FirstOrDefault(x => x.Open && (x.Uri == file.Uri || (path is not null && x.Path is not null && PathUri.SamePath(path, x.Path))));
+        string text, target;
+        TextCodec codec;
+        int bom;
+        if (open is not null)
+        {
+            await SyncAsync(open, ct).ConfigureAwait(false);
+            await open.Gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                (text, codec, bom) = (open.Text, open.Codec, open.Bom);
+                target = $"\"kind\":\"edit\",\"document\":\"{open.Id}\",\"revision\":{open.Revision}";
+            }
+            finally { open.Gate.Release(); }
+        }
+        else
+        {
+            if (path is null || Load(path, strict: true) is not { } loaded) throw new Withheld("unreadable");
+            (text, codec, bom) = (loaded.Text, loaded.Codec, loaded.Bom);
+            target = $"\"kind\":\"edit\",\"path\":\"{Quote(path)}\",\"sha256\":\"{loaded.Sha}\"";
+        }
+        var map = new LineMap(text);
+        var ranges = file.Edits.Select(e => (Start: map.OffsetOf(e.Range.Line, e.Range.Character), End: map.OffsetOf(e.Range.EndLine, e.Range.EndCharacter))).ToList();
+        var bytes = ByteMap.ToBytes(codec, bom, text, ranges.SelectMany(x => new[] { x.Start, x.End }));
+        var edits = string.Join(',', file.Edits.Select((e, i) => $"{{\"start\":{bytes[ranges[i].Start]},\"end\":{bytes[Math.Max(ranges[i].Start, ranges[i].End)]},\"text\":\"{Quote(e.Text)}\"}}"));
+        return $"{{{target},\"edits\":[{edits}]}}";
     }
 }
