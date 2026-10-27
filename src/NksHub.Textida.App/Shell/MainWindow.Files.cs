@@ -165,6 +165,7 @@ internal sealed partial class MainWindow
             if (outcome.Save.Saved)
             {
                 od.NotifyChanged();
+                if (od.Path is not null && System.IO.Path.GetFileName(od.Path) == ".editorconfig") ApplyLanguageOptions(); // the SQL dialect of its folder may have changed
                 tab.ShowBar(null);
                 SetStatusMessage(outcome.Backup.Status == BackupStatus.Failed ? Loc.Get(K.StatusSavedNoBackup, ("reason", outcome.Backup.Problem ?? "")) : Loc.Get(K.StatusSaved));
                 _app.SessionChanged();

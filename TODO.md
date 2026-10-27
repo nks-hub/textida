@@ -1517,9 +1517,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3.2.1
   - **Odhad:** F184 0,5–1 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P4.6.3** SQL bez připojení
+- [x] **P4.6.3** SQL bez připojení
   - **Co a proč:** Dialekt pro soubor, složku a globálně, výchozí Generic bez hlášení chyb; formátování s velikostí klíčových slov a odsazením podle dialektu. K databázi se nepřipojuje.
   - **Funkce:** F185
+  - **Stav 26. 10. 2026:** hotovo: dialekty generic, mysql, postgres, sqlite, tsql; volba pro soubor příkazem „Dialekt SQL…“, pro složku `sql_dialect` v `.editorconfig`, globálně `sql.dialect` (soubor › složka › globální); změna `.editorconfig` přebarví SQL soubory složky (test); formátování jako jeden krok undo bez změny bajtů mimo výběr (test). Otevřené: seznam dialektů, velikost klíčových slov a odsazení (dnes velká písmena a 4 mezery, zástupné hodnoty). Změna `.editorconfig` mimo editor se projeví až při další změně nastavení nebo aktivaci karty.
   - **Hotovo, když:** změna dialektu složky změní zvýraznění všech SQL souborů v ní; formátování vrátí jeden krok undo a nezmění bajty mimo formátovaný rozsah.
   - **Závisí na:** P3b.5.3
   - **Odhad:** F185 1–3 ČT (matice)
@@ -1535,6 +1536,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.6.5** HTML nástroje a HTML Tidy
   - **Co a proč:** Nejčastější HTML a textové převody; HTML Tidy jako externí formátovač s diagnostikou. Revize navrhla Tidy jako volitelný plugin, majitel rozhodl vše přibalit a zapnout.
   - **Funkce:** F100, F101
+  - **Stav 26. 10. 2026:** částečně: převod výběru na entity a zpět bezeztrátově (test na 20 000 náhodných textech); Tidy bez binárky vypíše, kde ji hledal, se skutečným `tidy.exe` 5.8.0 vrátí výsledek jako návrh a hlášení jdou do okna výstupu; plugin prošel testy i jako NativeAOT. Tidy není přibalený (pro macOS vydává projekt jen instalátor, ne samostatnou binárku; licence právně neověřena). Otevřené: argumenty Tidy, převod znaků mimo ASCII na entity.
   - **Hotovo, když:** převod výběru na entity a zpět je bezeztrátový; Tidy bez nalezené binárky ohlásí, kde ji hledal; s binárkou vrátí výsledek jako návrh s diagnostikou v okně výstupu.
   - **Závisí na:** P3b.5.3, P4.3.1
   - **Odhad:** bez odhadu
@@ -1550,9 +1552,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3.2.1, P3b.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** data (F115, F128), jádro (F122)
-- [ ] **P4.7.2** Nápověda k jazyku
+- [x] **P4.7.2** Nápověda k jazyku
   - **Co a proč:** Alt+F1 otevře kontextovou nápovědu podle jazyka a slova pod kurzorem. Mapování jazyka na dokument nebo URL jsou data, resolver je v jádře.
   - **Funkce:** F123
+  - **Stav 26. 10. 2026:** hotovo: Alt+F1 – zdroje nápovědy k jazyku jsou data (`languageHelp` v manifestu pluginu), soubor z pluginu se otevře v editoru, URL až po potvrzení; test na funkci PHP. Otevřené: které zdroje se budou dodávat (dnes žádný).
   - **Hotovo, když:** Alt+F1 nad funkcí PHP otevře nastavený zdroj; URL se otevře až po potvrzení.
   - **Závisí na:** P3b.2.1
   - **Odhad:** bez odhadu

@@ -37,7 +37,8 @@ public class SyntaxSnapshotTests
     [Fact]
     public void Every_builtin_grammar_has_a_fixture_or_a_hand_written_test()
     {
-        string[] handWritten = ["html", "php", "json", "sql", "php-code"];
+        // the dialects of SQL have their own tests in SqlDialectAndLanguageHelpTests
+        string[] handWritten = ["html", "php", "json", "sql", "php-code", "sql-mysql", "sql-postgres", "sql-sqlite", "sql-tsql"];
         var covered = Snapshots.All.Select(s => s.Grammar).Concat(handWritten).ToHashSet();
         Assert.All(BuiltinGrammars.Registry.All.Select(g => g.Id), id => Assert.Contains(id, covered));
     }

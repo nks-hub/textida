@@ -775,4 +775,17 @@ public static class K
     public const string AiReasonTooLarge = "aicontext.reason.tooLarge";
     public const string AiReasonUnreadable = "aicontext.reason.unreadable";
     public const string AiReasonPaged = "aicontext.reason.paged";
+    public const string TidyOutputSource = "tidy.output.source";
+    public const string LangHelpNone = "langHelp.none";
+    public const string LangHelpNoWord = "langHelp.noWord";
+    public const string LangHelpPickTitle = "langHelp.pick.title";
+    public const string LangHelpPickWatermark = "langHelp.pick.watermark";
+    public const string LangHelpOpenTitle = "langHelp.open.title";
+    public const string LangHelpOpenMessage = "langHelp.open.message";
+    public const string LangHelpOpenFailed = "langHelp.open.failed";
+    public const string SqlDialectPickTitle = "sql.dialect.pick.title";
+    public const string SqlDialectPickWatermark = "sql.dialect.pick.watermark";
+    public const string SqlDialectInherit = "sql.dialect.inherit";
+    public const string SqlDialectSet = "sql.dialect.set";
+    public const string SqlDialectInherited = "sql.dialect.inherited";
 }

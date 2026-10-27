@@ -56,6 +56,21 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols.</summary>
     public const int CodeExplorerMaxBytes = 4 << 20;
 
+    /// <summary>Placeholder: largest range the formatters (SQL layout, HTML entities, HTML Tidy) work on; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const long FormattersMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder: spaces per level of the SQL formatter.</summary>
+    public const int SqlIndent = 4;
+
+    /// <summary>Placeholder: letter case of SQL keywords after formatting (<c>upper</c>, <c>lower</c> or <c>preserve</c>).</summary>
+    public const string SqlKeywordCase = "upper";
+
+    /// <summary>Placeholder: time after which a Tidy run that has not finished is ended.</summary>
+    public const int TidyTimeoutMilliseconds = 10_000;
+
+    /// <summary>Placeholder: the arguments HTML Tidy is started with. The text goes to its standard input.</summary>
+    public static readonly string[] TidyArguments = ["-quiet", "-utf8", "--tidy-mark", "no"];
+
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 

@@ -68,7 +68,7 @@ public static class PluginManifestLoader
         errors.AddRange(ManifestLoader.Validate(contributions, ManifestTrust.Plugin));
 
         var grammars = LoadGrammars(root, c.Grammars, maxGrammarBytes, errors);
-        var data = CheckDataItems(m, c, errors);
+        var data = CheckDataItems(root, m, c, errors);
         var spec = CheckMain(root, m, errors);
 
         if (m.Main is null)
@@ -142,7 +142,7 @@ public static class PluginManifestLoader
         return result;
     }
 
-    private static Dictionary<string, DataAction> CheckDataItems(PluginManifest m, PluginContributions c, List<string> errors)
+    private static Dictionary<string, DataAction> CheckDataItems(string root, PluginManifest m, PluginContributions c, List<string> errors)
     {
         var data = new Dictionary<string, DataAction>(StringComparer.Ordinal);
         var commandIds = c.Commands.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
@@ -192,6 +192,9 @@ public static class PluginManifestLoader
             CheckLogPattern(errors, p);
         }
 
+        CheckUnique("language help", c.LanguageHelp.Select(x => x.Id), errors);
+        foreach (var h in c.LanguageHelp) CheckLanguageHelp(root, h, errors, Item);
+
         CheckUnique("external tool", c.ExternalTools.Select(x => x.Id), errors);
         foreach (var t in c.ExternalTools)
         {
@@ -202,6 +205,26 @@ public static class PluginManifestLoader
         }
 
         return data;
+    }
+
+    private static void CheckLanguageHelp(string root, LanguageHelpContribution h, List<string> errors, Action<string, string, string, string?> item)
+    {
+        item("language help", h.Id, h.Title, null);
+        var what = $"language help '{h.Id}'";
+        if (!ItemIdPattern.IsMatch(h.Language)) errors.Add($"{what}: language '{h.Language}' must be a language mode id (lower case letters, digits and '-').");
+        switch (h.Kind)
+        {
+            case "url":
+                if (LanguageHelp.UrlFor(new HelpSource(h.Id, h.Title, h.Language, HelpKind.Url, h.Target), "word") is null) errors.Add($"{what}: target must be an http or https address.");
+                break;
+            case "file":
+                if (!TryResolveInside(root, h.Target, out var full, out var why)) errors.Add($"{what}: target {why}");
+                else if (!File.Exists(full)) errors.Add($"{what}: the file '{h.Target}' does not exist.");
+                break;
+            default:
+                errors.Add($"{what}: kind must be 'url' or 'file'.");
+                break;
+        }
     }
 
     private static void CheckTemplate(string kind, string id, string text, List<ClipField> fields, List<string> errors)

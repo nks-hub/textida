@@ -297,5 +297,16 @@
   "setting.editor.clipboardHistorySize.title": "Veľkosť histórie schránky",
   "setting.editor.clipboardHistorySize.description": "Koľko skopírovaných textov si história schránky pamätá. Je len v pamäti a po zatvorení programu sa zabudne.",
   "setting.editor.dateTimeFormat.title": "Formát dátumu a času",
-  "setting.editor.dateTimeFormat.description": "Vlastný formát .NET, napríklad yyyy-MM-dd HH:mm. Používa ho Vložiť dátum a čas; názvy mesiacov a dní podľa jazyka rozhrania."
+  "setting.editor.dateTimeFormat.description": "Vlastný formát .NET, napríklad yyyy-MM-dd HH:mm. Používa ho Vložiť dátum a čas; názvy mesiacov a dní podľa jazyka rozhrania.",
+  "cmd.edit.formatSql": "Formátovať SQL",
+  "cmd.edit.previewFormatSql": "Náhľad formátovania SQL",
+  "cmd.edit.htmlEncode": "Previesť na entity HTML",
+  "cmd.edit.htmlDecode": "Previesť z entít HTML",
+  "cmd.edit.htmlTidy": "Formátovať pomocou HTML Tidy",
+  "cmd.tools.sqlDialect": "Dialekt SQL...",
+  "cmd.help.languageHelp": "Pomocník k jazyku",
+  "setting.sql.dialect.title": "Predvolený dialekt SQL",
+  "setting.sql.dialect.description": "Dialekt súborov SQL, pre ktoré ho nenastavil súbor ani priečinok. Priečinok: sql_dialect v .editorconfig.",
+  "setting.html.tidyPath.title": "Program HTML Tidy",
+  "setting.html.tidyPath.description": "Úplná cesta k programu HTML Tidy. Prázdne: editor hľadá vedľa pluginu formátovačov, v priečinku tools/tidy a v PATH."
 }

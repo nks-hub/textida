@@ -8,6 +8,7 @@ public class SyntaxGrammarFormatTests
     private static readonly string[] Expected =
     [
         "plaintext", "ini", "json", "xml", "html", "css", "javascript", "php", "php-code", "csharp", "sql", "markdown", "python", "shell", "yaml", "latte", "neon", "razor", "sln",
+        "sql-mysql", "sql-postgres", "sql-sqlite", "sql-tsql",
     ];
 
     [Fact]
@@ -69,7 +70,7 @@ public class SyntaxGrammarFormatTests
             foreach (var p in AllRules(doc.RootElement).SelectMany(r => r.EnumerateObject()))
                 Assert.True(rule.TryGetProperty(p.Name, out _), $"{name}: rule property '{p.Name}' is not in the schema");
         }
-        Assert.Equal(Expected.Length, files);
+        Assert.Equal(Expected.Length - (SqlDialects.All.Count - 1), files); // a dialect of SQL is made from the generic file
     }
 
     private static IEnumerable<JsonElement> AllRules(JsonElement container)

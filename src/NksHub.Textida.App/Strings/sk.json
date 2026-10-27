@@ -804,5 +804,18 @@
   "aicontext.reason.binary": "binárny súbor",
   "aicontext.reason.tooLarge": "väčší ako limit veľkosti súboru pri prechádzaní priečinka",
   "aicontext.reason.unreadable": "nedalo sa prečítať",
-  "aicontext.reason.paged": "veľký súbor v stránkovanom režime, kopíruje sa len výber"
+  "aicontext.reason.paged": "veľký súbor v stránkovanom režime, kopíruje sa len výber",
+  "tidy.output.source": "HTML Tidy",
+  "langHelp.none": "Pre jazyk {language} nie je nastavený žiadny zdroj pomocníka. Môže ho pridať dátový plugin (Pomocník, Pomocník k jazyku).",
+  "langHelp.noWord": "Umiestnite kurzor na slovo, ktoré chcete vyhľadať.",
+  "langHelp.pick.title": "Pomocník k „{word}“",
+  "langHelp.pick.watermark": "Vyberte zdroj pomocníka",
+  "langHelp.open.title": "Otvoriť pomocníka v prehliadači?",
+  "langHelp.open.message": "Zdroj pomocníka „{source}“ otvorí v prehliadači túto adresu: {url}",
+  "langHelp.open.failed": "Adresu sa nepodarilo otvoriť: {url}",
+  "sql.dialect.pick.title": "Dialekt SQL",
+  "sql.dialect.pick.watermark": "Vyberte dialekt tohto súboru",
+  "sql.dialect.inherit": "Podľa priečinka a globálneho nastavenia",
+  "sql.dialect.set": "Dialekt SQL tohto súboru: {dialect}",
+  "sql.dialect.inherited": "Dialekt SQL tohto súboru sa riadi priečinkom a globálnym nastavením: {dialect}"
 }

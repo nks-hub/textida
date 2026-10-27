@@ -6,6 +6,7 @@ using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
@@ -162,8 +163,44 @@ internal sealed class OpenDocument : IDisposable
         new(Document.FromBytes(ReadOnlyMemory<byte>.Empty, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 }), 0, null, LanguageModes.Plain) { IsResults = true };
 
     /// <summary>Reads the <c>.editorconfig</c> files that apply to the path of the document again; call it when the document is activated or saved.</summary>
-    public void RefreshEditorConfig() =>
+    public void RefreshEditorConfig()
+    {
         EditorConfig = Path is { } p ? EditorConfigResolver.Resolve(System.IO.Path.GetFullPath(p), new DiskEditorConfigFiles()) : EditorConfigResult.Empty;
+        UpdateSqlDialect();
+    }
+
+    // ---- SQL dialect ----
+
+    private string? _sqlChosen;
+    private string? _sqlGlobal;
+
+    /// <summary>The dialect that colors and formats this document when it is SQL: the one chosen for the file, else the one of its folder (<c>sql_dialect</c> in <c>.editorconfig</c>), else the global setting.</summary>
+    public string SqlDialect { get; private set; } = SqlDialects.Generic;
+
+    /// <summary>The dialect chosen for this file alone; null when none was.</summary>
+    public string? SqlDialectChosen => _sqlChosen;
+
+    /// <summary>Chooses the dialect of this file (null takes it back); the views color the file again when the result changes.</summary>
+    public void ChooseSqlDialect(string? id)
+    {
+        _sqlChosen = id;
+        UpdateSqlDialect();
+    }
+
+    /// <summary>The global dialect (the <c>sql.dialect</c> setting) changed or is read for the first time.</summary>
+    public void SetGlobalSqlDialect(string? id)
+    {
+        _sqlGlobal = id;
+        UpdateSqlDialect();
+    }
+
+    private void UpdateSqlDialect()
+    {
+        var next = SqlDialects.Resolve(_sqlChosen, EditorConfig.Get(SqlDialects.FolderProperty), _sqlGlobal);
+        if (next == SqlDialect) return;
+        SqlDialect = next;
+        if (Language.Id == "sql") LanguageChanged?.Invoke();
+    }
 
     /// <summary>Opens a file; above <paramref name="largeFileBytes"/> (the <c>files.largeFileThreshold</c> setting) it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
     public static OpenDocument Open(string path, long largeFileBytes)

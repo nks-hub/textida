@@ -860,3 +860,31 @@ commands: nks.edit.complete
 - Klipy sú z knižnice z témy Klipy. Klip bez jazyka sa hodí do každého dokumentu; klip s jazykom len do dokumentov toho jazyka.
 - Hodnoty tajného súboru (`.env`) sa neponúkajú, kým sú skryté. Ponúkajú sa len v tom istom súbore a len keď sú zobrazené.
 - Zoznam drží obmedzený počet slov; zúžite ho písaním do poľa. Dopĺňanie cez LSP v tejto verzii nie je.
+
+## [edit.sql] SQL: dialekt a formátovanie
+commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
+1. Úpravy, Formátovať SQL usporiada výbery, alebo celý súbor, keď nie je nič vybrané: klauzula na samostatnom riadku, každá položka výberu na riadku, poddotazy odsadené, kľúčové slová jedným typom písma. Je to jeden krok späť a nič mimo výberu sa nezmení.
+2. Úpravy, Náhľad formátovania SQL ukáže rovnaký výsledok najprv v náhľade zmien.
+3. Dialekt určuje farby a to, ktoré slová sú kľúčové. Platí prvý nastavený z týchto: Nástroje, Dialekt SQL (len tento súbor); `sql_dialect = mysql` v súbore `.editorconfig` (každý súbor SQL v tom priečinku a pod ním); nastavenie Predvolený dialekt SQL. Bez nich je dialekt Generic a nič sa nehlási ako chyba.
+- Dialekty: generic, mysql, postgres, sqlite, tsql. Editor sa k žiadnej databáze nepripája.
+- Reťazce, ohraničené názvy a komentáre sa prepíšu bez zmeny. Ďalšie formátovanie výsledku nič nezmení.
+- Výber väčší ako limit pluginu sa odmietne so správou.
+- Odsadenie (4 medzery) a veľkosť kľúčových slov (veľké) sú zatiaľ pevné; nastavenie to ešte nie je.
+
+## [edit.html] HTML: entity a HTML Tidy
+commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+1. Úpravy, Previesť na entity HTML nahradí v označených častiach (v celom súbore, keď nie je nič vybrané) znaky & < > " ' entitami. Previesť z entít HTML prečíta pomenované, desiatkové aj šestnástkové entity späť. Zakódovaný text prevedený späť dá pôvodný text. Každé je jeden krok späť.
+2. Úpravy, Formátovať pomocou HTML Tidy pošle HTML programu HTML Tidy a výsledok ukáže v náhľade zmien. Správy Tidy idú do okna výstupu.
+3. Tidy je samostatný program. Editor ho hľadá na ceste z nastavenia Program HTML Tidy, v priečinku `tidy` vedľa pluginu formátovačov, v priečinku `tools/tidy` aplikácie a v priečinkoch z PATH. Keď ho nenájde, správa vypíše všetky miesta.
+- Tidy nie je súčasťou tohto zostavenia: nainštalujte ho a nastavte cestu, alebo ho dajte na niektoré z tých miest.
+- Čísla riadkov v správach sa počítajú od začiatku textu, ktorý sa Tidy poslal.
+- Písmená mimo ASCII sa ako entity nepíšu; drží ich kódovanie súboru.
+
+## [help.language] Pomocník k jazyku
+commands: nks.help.languageHelp
+1. Dajte kurzor na slovo, napríklad názov funkcie, a stlačte Alt+F1.
+2. Editor slovo vyhľadá v zdrojoch pomocníka nastavených pre jazyk súboru. Súbor pluginu sa otvorí v editore. Webová adresa sa najprv ukáže a v prehliadači sa otvorí až po potvrdení.
+3. Keď je pre jazyk viac zdrojov, vyberiete jeden.
+- Zdroje sú dáta. Plugin bez programu ich vypíše v `languageHelp` v `nkspad-plugin.json`, každý s `id`, `title`, `language` (id jazyka, napríklad `php`), `kind` (`url` alebo `file`) a `target`. Vo webovej adrese `${word}` znamená slovo a `${language}` id jazyka. Cieľ súboru je cesta vnútri priečinka pluginu.
+- Prijímajú sa len adresy `http` a `https`; plugin s inou adresou sa pri načítaní odmietne.
+- Žiadne zdroje zatiaľ nie sú pribalené. Keď pre jazyk žiadny nie je, stavový riadok to povie.

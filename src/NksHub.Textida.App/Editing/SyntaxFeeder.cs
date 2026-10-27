@@ -121,7 +121,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _doneRevision = -1;
         _known = [];
         _tokenizer = null;
-        if (LanguageModes.GrammarId(_doc.Language) is not { } id) return;
+        if (LanguageModes.GrammarId(_doc) is not { } id) return;
         _bound = _doc.Doc;
         _tokenizer = LanguageModes.Tokenizer(id);
         try { _session = new CheckpointSyntaxSession(_bound, _tokenizer); }

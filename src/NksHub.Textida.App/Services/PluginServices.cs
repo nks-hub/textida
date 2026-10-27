@@ -31,6 +31,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string CodeExplorerActivation = "onCommand:codeexplorer";
     public const string EmmetPluginId = "textida.emmet";
     private const string EmmetActivation = "onCommand:emmet";
+    public const string FormattersPluginId = "textida.formatters";
+    private const string FormattersActivation = "onCommand:formatters";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -112,6 +114,54 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             ["--context-bytes", PluginLimitsPlaceholders.EmmetContextBytes.ToString(), "--max-chars", PluginLimitsPlaceholders.SnippetLength.ToString(),
              "--max-carets", PluginLimitsPlaceholders.SnippetCarets.ToString()],
             [EmmetActivation], emmetFolder));
+        // the formatters read the selection and write it back (or propose it)
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
+            permissions.Grant(FormattersPluginId, permission, GrantScope.All);
+        var formattersFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "formatters");
+        var formattersProgram = Path.Combine(formattersFolder, "NksHub.Textida.Plugins.Formatters" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        var formattersArguments = new List<string>
+        {
+            "--max-bytes", PluginLimitsPlaceholders.FormattersMaxBytes.ToString(), "--sql-indent", PluginLimitsPlaceholders.SqlIndent.ToString(),
+            "--sql-case", PluginLimitsPlaceholders.SqlKeywordCase, "--tidy-timeout-ms", PluginLimitsPlaceholders.TidyTimeoutMilliseconds.ToString(),
+        };
+        foreach (var argument in PluginLimitsPlaceholders.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
+        _host.Register(new PluginSpec(FormattersPluginId, "Formatters", formattersProgram, formattersArguments, [FormattersActivation], formattersFolder));
+    }
+
+    // ---- formatters: SQL, HTML entities, HTML Tidy ----
+
+    /// <summary>Formats the SQL of the tab (or its selections) in the dialect of the document, as one undo step or, with <paramref name="preview"/>, as a proposal. False when nothing was started.</summary>
+    public async Task<bool> RunSqlAsync(MainWindow window, DocTab tab, bool preview)
+    {
+        if (tab.Surface is null || tab.Doc.Language.Id != "sql") return false;
+        return (await RunFormatterAsync(window, tab, preview ? "sql.preview" : "sql.format", $",\"dialect\":\"{tab.Doc.SqlDialect}\"")).Started;
+    }
+
+    /// <summary>Converts the selections (the whole text when nothing is selected) to HTML entities or back, as one undo step. False when nothing was started.</summary>
+    public async Task<bool> RunHtmlEntitiesAsync(MainWindow window, DocTab tab, bool encode) =>
+        tab.Surface is not null && (await RunFormatterAsync(window, tab, encode ? "html.encode" : "html.decode", "")).Started;
+
+    /// <summary>
+    /// Formats the HTML of the tab with HTML Tidy and proposes the result in the change preview; the messages of Tidy go to the output window.
+    /// Without a Tidy program the plugin says where it looked. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunTidyAsync(MainWindow window, DocTab tab)
+    {
+        if (tab.Surface is null) return false;
+        var path = JsonEncodedText.Encode(_app.Workbench.Settings.GetString("html.tidyPath"));
+        var outcome = await RunFormatterAsync(window, tab, "html.tidy", $",\"tidyPath\":\"{path}\"");
+        return outcome.Started;
+    }
+
+    private async Task<Outcome> RunFormatterAsync(MainWindow window, DocTab tab, string command, string extra)
+    {
+        var outcome = await ExecuteAsync(window, tab, FormattersPluginId, FormattersActivation, "Formatters", command, extra);
+        if (outcome.Started && outcome.Result.ValueKind == JsonValueKind.Object && outcome.Result.TryGetProperty("diagnostics", out var diagnostics) && diagnostics.GetArrayLength() > 0)
+        {
+            _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.TidyOutputSource), string.Join('\n', diagnostics.EnumerateArray().Select(d => d.GetString()!)));
+            window.ShowOutput(OutputChannel.Tasks);
+        }
+        return outcome;
     }
 
     internal Host HostForTests => _host;

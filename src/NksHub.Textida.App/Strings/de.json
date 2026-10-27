@@ -784,5 +784,18 @@
   "aicontext.reason.binary": "Binärdatei",
   "aicontext.reason.tooLarge": "größer als das Dateigrößenlimit beim Durchsuchen des Ordners",
   "aicontext.reason.unreadable": "konnte nicht gelesen werden",
-  "aicontext.reason.paged": "große Datei im seitenweisen Modus, nur eine Auswahl wird kopiert"
+  "aicontext.reason.paged": "große Datei im seitenweisen Modus, nur eine Auswahl wird kopiert",
+  "tidy.output.source": "HTML Tidy",
+  "langHelp.none": "Für {language} ist keine Hilfequelle festgelegt. Ein Datenplugin kann eine hinzufügen (Hilfe, Hilfe zu einer Sprache).",
+  "langHelp.noWord": "Setzen Sie den Cursor auf das Wort, das Sie nachschlagen möchten.",
+  "langHelp.pick.title": "Hilfe zu „{word}“",
+  "langHelp.pick.watermark": "Hilfequelle wählen",
+  "langHelp.open.title": "Hilfe im Browser öffnen?",
+  "langHelp.open.message": "Die Hilfequelle „{source}“ öffnet diese Adresse im Browser: {url}",
+  "langHelp.open.failed": "Die Adresse konnte nicht geöffnet werden: {url}",
+  "sql.dialect.pick.title": "SQL-Dialekt",
+  "sql.dialect.pick.watermark": "Dialekt dieser Datei wählen",
+  "sql.dialect.inherit": "Nach Ordner und globaler Einstellung",
+  "sql.dialect.set": "SQL-Dialekt dieser Datei: {dialect}",
+  "sql.dialect.inherited": "Der SQL-Dialekt dieser Datei folgt Ordner und globaler Einstellung: {dialect}"
 }

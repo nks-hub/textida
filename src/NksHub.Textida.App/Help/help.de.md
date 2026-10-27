@@ -860,3 +860,31 @@ commands: nks.edit.complete
 - Clips stammen aus der Bibliothek des Themas Clips. Ein Clip ohne Sprache passt zu jedem Dokument; ein Clip mit Sprache nur zu Dokumenten dieser Sprache.
 - Die Werte einer Geheimnisdatei (`.env`) werden nie angeboten, solange sie verborgen sind. Sie werden nur in der Datei selbst und nur angezeigt angeboten.
 - Die Liste hält eine begrenzte Zahl von Wörtern; Sie engen sie durch Tippen im Feld ein. Vervollständigung über LSP gehört nicht zu dieser Version.
+
+## [edit.sql] SQL: Dialekt und Formatierung
+commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
+1. Bearbeiten, SQL formatieren ordnet die Auswahlen an, oder die ganze Datei, wenn nichts markiert ist: eine Klausel pro Zeile, ein Select-Element pro Zeile, Unterabfragen eingerückt, Schlüsselwörter in einheitlicher Schreibung. Es ist ein Rückgängig-Schritt, und außerhalb der Auswahl ändert sich nichts.
+2. Bearbeiten, Vorschau der SQL-Formatierung zeigt dasselbe Ergebnis zuerst in der Änderungsvorschau.
+3. Der Dialekt bestimmt die Farben und welche Wörter Schlüsselwörter sind. Es gilt das erste gesetzte von diesen: Extras, SQL-Dialekt (nur diese Datei); `sql_dialect = mysql` in einer `.editorconfig` (jede SQL-Datei in diesem Ordner und darunter); die Einstellung Standard-SQL-Dialekt. Ohne sie ist der Dialekt Generic, und nichts wird als Fehler gemeldet.
+- Dialekte: generic, mysql, postgres, sqlite, tsql. Der Editor verbindet sich nie mit einer Datenbank.
+- Zeichenfolgen, in Anführungszeichen gesetzte Namen und Kommentare werden unverändert übernommen. Erneutes Formatieren des Ergebnisses ändert nichts.
+- Eine Auswahl über dem Limit des Plugins wird mit einer Meldung abgelehnt.
+- Einrückung (4 Leerzeichen) und Schreibung der Schlüsselwörter (Großbuchstaben) sind vorerst fest; es sind noch keine Einstellungen.
+
+## [edit.html] HTML: Entitäten und HTML Tidy
+commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+1. Bearbeiten, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
+2. Bearbeiten, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
+3. Tidy ist ein eigenes Programm. Der Editor sucht es am Pfad der Einstellung HTML-Tidy-Programm, im Ordner `tidy` neben dem Formatierer-Plugin, in `tools/tidy` des Programmordners und in den Ordnern von PATH. Wird es nicht gefunden, nennt die Meldung alle Orte.
+- Tidy gehört nicht zu diesem Build: Installieren Sie es und setzen Sie den Pfad, oder legen Sie es an einen dieser Orte.
+- Zeilennummern in den Meldungen zählen ab dem Anfang des Textes, der an Tidy geschickt wurde.
+- Buchstaben außerhalb von ASCII werden nicht als Entitäten geschrieben; die Kodierung der Datei trägt sie.
+
+## [help.language] Hilfe zu einer Sprache
+commands: nks.help.languageHelp
+1. Setzen Sie den Cursor auf ein Wort, zum Beispiel einen Funktionsnamen, und drücken Sie Alt+F1.
+2. Der Editor schlägt das Wort in den Hilfequellen nach, die für die Sprache der Datei festgelegt sind. Eine Datei des Plugins öffnet sich im Editor. Eine Webadresse wird zuerst angezeigt und im Browser erst nach Ihrer Bestätigung geöffnet.
+3. Gibt es für die Sprache mehrere Quellen, wählen Sie eine.
+- Quellen sind Daten. Ein Plugin ohne Programm listet sie unter `languageHelp` in `nkspad-plugin.json` auf, jede mit `id`, `title`, `language` (Sprachkennung, zum Beispiel `php`), `kind` (`url` oder `file`) und `target`. In einer Webadresse steht `${word}` für das Wort und `${language}` für die Sprachkennung. Das Ziel einer Datei ist ein Pfad im Plugin-Ordner.
+- Nur `http`- und `https`-Adressen werden angenommen; ein Plugin mit einer anderen Adresse wird beim Lesen abgelehnt.
+- Es sind noch keine Quellen enthalten. Gibt es für die Sprache keine, sagt es die Statusleiste.
