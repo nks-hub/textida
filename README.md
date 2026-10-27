@@ -67,6 +67,14 @@ dotnet publish tools/NksHub.Textida.AotCheck -c Release -r win-x64 -o ./aotcheck
 ./aotcheck/NksHub.Textida.AotCheck --publish ./dist
 ```
 
+The Windows package is one ZIP built from that output. It is the portable form (unpack, start `Textida.exe`) and the per-user installer: `Install.cmd` runs `Setup.ps1`, which copies the files to `%LOCALAPPDATA%\Programs\Textida`, adds a Start menu shortcut and an Apps & features entry, needs no administrator rights and does not touch PSPad. `Setup.ps1 -Uninstall` removes all of it and keeps the settings in `%APPDATA%\Textida`. The build runs the AOT check on the publish output and on the ZIP, and prints the SHA-256 of the ZIP:
+
+```bash
+dotnet run tools/BuildWindowsPackage.cs -- --version <version> --output ./artifacts
+```
+
+The Explorer menu entry "Open with Textida" and the optional file associations are written by the program itself under `HKCU\Software\Classes` (Tools menu: Add Textida to the Explorer Menu, File Associations, Remove Textida from Explorer). The uninstaller removes them through `Textida.exe --unregister-shell`. There is no macOS package yet.
+
 Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 
 ## Contributing
