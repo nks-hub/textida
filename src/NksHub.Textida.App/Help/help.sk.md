@@ -1353,14 +1353,14 @@ Vyberte časť textu, napríklad blok riadkov oddelených čiarkami v poznámke 
 - Riadky pridané na koniec patria do výberu. Prepnúť tabuľku a text vráti text; ďalšie Prepnúť tabuľku a text ukáže ako tabuľku celý súbor.
 
 ## [compare.text] Porovnanie textov
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
 Dva texty sa porovnajú po riadkoch v samostatnej karte. Rovnaké riadky stoja oproti sebe, zmenený blok je na oboch stranách podfarbený a označený v strednom pruhu a lišta hore hovorí, koľko je rozdielov.
 1. Porovnať so schránkou (ponuka Nástroje alebo kontextová ponuka editora) porovná kartu s textom v schránke. Ak je v editore vybraný text, porovná sa len výber.
 2. Porovnať so súborom sa opýta na súbor a porovná s ním kartu. Porovnať s diskom je v ponuke Súbor a porovná kartu s jej súborom.
 3. Porovnať dva texty otvorí dve prázdne strany. Tlačidlá Vložiť ľavý text a Vložiť pravý text vložia do strany obsah schránky.
 - Z príkazového riadka otvorí textida --diff ľavý pravý porovnanie dvoch súborov: ľavý súbor sa otvorí v karte a môže prijímať bloky z pravého, ktorý je len na čítanie.
 - Strana s kartou je samotný dokument: keď sa zmení, porovná sa znova po krátkej pauze. Schránka, výber a súbor na disku sú strany len na čítanie.
-- Iný koniec riadku (CR, LF, CRLF) riadok nezmení. Medzery a veľkosť písmen áno.
+- Iný koniec riadku (CR, LF, CRLF) riadok nezmení. Medzery a veľkosť písmen áno, kým v ponuke Nástroje a Porovnanie nezapnete Nerozlišovať medzery alebo Nerozlišovať veľkosť písmen. Potom sú rovnaké riadky, ktoré sa líšia len medzerami a tabulátormi (kdekoľvek v riadku), alebo len veľkosťou písmen. Voľba platí pre všetky porovnania, otvorené sa hneď porovnajú znova a lišta hore ju pripomenie. Rovnaké riadky sa potom nepodfarbia, aj keď sa v medzerách líšia, a kopírovanie doľava aj doprava prenáša riadky tak, ako sú.
 - Veľký súbor v stránkovanom režime sa porovnáva bez načítania: čítajú sa len riadky na obrazovke.
 - Každá strana môže mať medzi spoločným začiatkom a spoločným koncom až 16 miliónov riadkov; viac je jeden zmenený blok. Až 10 000 zmenených riadkov sa nájde presne; pri väčšom počte lišta napíše, že výsledok nie je minimálny, a zmenené riadky sa zlúčia do väčších blokov. Výsledok je stále správny.
 

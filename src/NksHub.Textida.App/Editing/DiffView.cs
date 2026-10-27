@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -34,7 +35,7 @@ internal sealed partial class DiffView : DockPanel
     private EditorOptions _options;
     private long _top;
     private int _current = -1;
-    private bool _syncingBar;
+    private bool _syncingBar, _shown;
 
     public DiffView(CompareSession session, EditorOptions options)
     {
@@ -121,6 +122,14 @@ internal sealed partial class DiffView : DockPanel
         _surface.InvalidateVisual();
     }
 
+    /// <summary>Compares again when what the diff ignores changed; a view that is not shown compares when it is shown again (see <see cref="CompareSession.IsCurrent"/>).</summary>
+    public void SetIgnore(DiffIgnore ignore)
+    {
+        if (_session.Ignore == ignore) return;
+        _session.Ignore = ignore;
+        if (_shown) _ = _session.RefreshAsync();
+    }
+
     public void ApplyTexts()
     {
         _previous.Content = Loc.Get(K.ComparePrevious);
@@ -141,6 +150,7 @@ internal sealed partial class DiffView : DockPanel
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        _shown = true;
         _session.Updated += OnUpdated;
         Watch(_session.Left, subscribe: true);
         Watch(_session.Right, subscribe: true);
@@ -151,6 +161,7 @@ internal sealed partial class DiffView : DockPanel
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _shown = false;
         _session.Updated -= OnUpdated;
         Watch(_session.Left, subscribe: false);
         Watch(_session.Right, subscribe: false);
@@ -205,12 +216,38 @@ internal sealed partial class DiffView : DockPanel
             : count == 0 ? Loc.Get(K.CompareIdentical)
             : Loc.Plural(K.CompareDifferences, count);
         if (diff is { Exact: false }) text += " · " + Loc.Get(K.CompareApproximate);
+        if (diff is not null && diff.Ignore.HasFlag(DiffIgnore.Whitespace)) text += " · " + Loc.Get(K.CompareIgnoresWhitespace);
+        if (diff is not null && diff.Ignore.HasFlag(DiffIgnore.Case)) text += " · " + Loc.Get(K.CompareIgnoresCase);
         _summary.Text = text;
         _previous.IsEnabled = _next.IsEnabled = count > 0;
         _toRight.IsEnabled = _current >= 0 && _session.Right.CanReceive;
         _toLeft.IsEnabled = _current >= 0 && _session.Left.CanReceive;
         _toRight.IsVisible = _session.Right.CanReceive;
         _toLeft.IsVisible = _session.Left.CanReceive;
+        (ControlAutomationPeer.FromElement(this) as DiffAutomationPeer)?.Changed();
+    }
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new DiffAutomationPeer(this);
+
+    /// <summary>
+    /// The sentence a screen reader says for the view: the current difference with the lines it covers on each side and the first line of each side,
+    /// or the summary when no difference is current.
+    /// </summary>
+    internal string Describe()
+    {
+        if (_session.Diff is not { } diff || _current < 0 || _current >= diff.Hunks.Count) return SummaryText;
+        var h = diff.Hunks[_current];
+        string text = Loc.Get(K.CompareA11yHunk, ("index", _current + 1), ("total", diff.Hunks.Count), ("left", Lines(h.AStart, h.ACount)), ("right", Lines(h.BStart, h.BCount)));
+        if (h.ACount > 0) text += ". " + Loc.Get(K.CompareA11yLeft, ("text", Head(diff.A, h.AStart)));
+        if (h.BCount > 0) text += ". " + Loc.Get(K.CompareA11yRight, ("text", Head(diff.B, h.BStart)));
+        return text;
+
+        static string Lines(long start, long count) =>
+            count == 0 ? Loc.Get(K.CompareA11yNoLines)
+            : count == 1 ? Loc.Get(K.CompareA11yLine, ("line", start + 1))
+            : Loc.Get(K.CompareA11yLines, ("first", start + 1), ("last", start + count));
+
+        static string Head(LineIndex index, long line) => index.ReadLines(line, 1) is [var first] ? first.Trim() : "";
     }
 
     // ---- moving ----

@@ -315,6 +315,18 @@
           "description": "Diff tool arguments. Argument template; {left} is the file on disk, {right} the content of the tab.",
           "x-scope": "application"
         },
+        "compare.ignoreWhitespace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ignore whitespace when comparing. Lines that differ only in spaces or tabs (anywhere in the line) count as equal when texts are compared.",
+          "x-scope": "application"
+        },
+        "compare.ignoreCase": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ignore case when comparing. Lines that differ only in letter case count as equal when texts are compared.",
+          "x-scope": "application"
+        },
         "editor.profile": {
           "type": "string",
           "default": "default",

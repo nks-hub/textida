@@ -311,6 +311,8 @@ internal static class AppCommands
         On("nks.compare.previous", w => w.CompareStep(next: false));
         On("nks.compare.copyToRight", w => w.CompareCopy(Core.Compare.DiffSide.B));
         On("nks.compare.copyToLeft", w => w.CompareCopy(Core.Compare.DiffSide.A));
+        Do("nks.compare.ignoreWhitespace", w => w.ToggleCompareIgnoreWhitespace());
+        Do("nks.compare.ignoreCase", w => w.ToggleCompareIgnoreCase());
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());
         On("nks.view.table", w => w.ToggleTable());
         On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });

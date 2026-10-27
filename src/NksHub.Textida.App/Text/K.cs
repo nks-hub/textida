@@ -1118,6 +1118,14 @@ public static class K
     public const string CompareSyncOn = "compare.sync.on";
     public const string CompareSyncOff = "compare.sync.off";
     public const string CompareSyncNeed = "compare.sync.need";
+    public const string CompareIgnoresWhitespace = "compare.ignoresWhitespace";
+    public const string CompareIgnoresCase = "compare.ignoresCase";
+    public const string CompareA11yHunk = "compare.a11y.hunk";
+    public const string CompareA11yLine = "compare.a11y.line";
+    public const string CompareA11yLines = "compare.a11y.lines";
+    public const string CompareA11yNoLines = "compare.a11y.noLines";
+    public const string CompareA11yLeft = "compare.a11y.left";
+    public const string CompareA11yRight = "compare.a11y.right";
     public const string PanelOutputRemote = "panel.output.remote";
     public const string A11yOutputRemote = "a11y.output.remote";
     public const string LockSystem = "lock.system";

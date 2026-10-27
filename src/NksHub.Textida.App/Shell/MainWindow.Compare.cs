@@ -52,7 +52,7 @@ internal sealed partial class MainWindow
     /// <summary>Opens a compare tab for two sides and starts the comparison.</summary>
     internal DocTab OpenCompare(CompareSide left, CompareSide right, string? title = null)
     {
-        var session = new CompareSession(left, right);
+        var session = new CompareSession(left, right) { Ignore = CompareIgnore };
         var view = new DiffView(session, Options) { ReadClipboard = async () => Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null };
         view.Refused += SetStatusMessage;
         view.ViewChanged += () => { if (ActiveCompare == view) UpdateStatus(); };
@@ -138,6 +138,15 @@ internal sealed partial class MainWindow
 
     internal CommandOutcome CompareCopy(Core.Compare.DiffSide target) =>
         ActiveCompare is not { CurrentHunk: >= 0 } view ? CommandOutcome.NotHandled : view.CopyCurrent(target) ? CommandOutcome.Handled : CommandOutcome.NotHandled;
+
+    /// <summary>What compares do not tell apart, from the settings; a change of them reaches the open compare tabs through <see cref="ApplyLanguageOptions"/>.</summary>
+    internal DiffIgnore CompareIgnore =>
+        (_app.Workbench.Settings.GetBool("compare.ignoreWhitespace") ? DiffIgnore.Whitespace : DiffIgnore.None)
+        | (_app.Workbench.Settings.GetBool("compare.ignoreCase") ? DiffIgnore.Case : DiffIgnore.None);
+
+    internal void ToggleCompareIgnoreWhitespace() => ToggleSetting("compare.ignoreWhitespace");
+
+    internal void ToggleCompareIgnoreCase() => ToggleSetting("compare.ignoreCase");
 
     // ---- synchronized scrolling ----
 

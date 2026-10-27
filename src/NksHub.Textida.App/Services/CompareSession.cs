@@ -65,9 +65,11 @@ internal sealed class CompareSession(CompareSide left, CompareSide right, DiffLi
     /// <summary>Why the last refresh could not read a side; null when it could.</summary>
     public string? Problem { get; private set; }
     public bool Busy { get; private set; }
+    /// <summary>What the next refresh does not tell apart (the <c>compare.ignore*</c> settings).</summary>
+    public DiffIgnore Ignore { get; set; }
 
-    /// <summary>False when a document side changed since the diff was made, so the diff shows an older text.</summary>
-    public bool IsCurrent => Diff is not null && (Left.Document is not { } a || a.Doc.Revision == _leftRevision) && (Right.Document is not { } b || b.Doc.Revision == _rightRevision);
+    /// <summary>False when a document side changed since the diff was made, so the diff shows an older text, or the diff ignores other differences than <see cref="Ignore"/>.</summary>
+    public bool IsCurrent => Diff is not null && Diff.Ignore == Ignore && (Left.Document is not { } a || a.Doc.Revision == _leftRevision) && (Right.Document is not { } b || b.Doc.Revision == _rightRevision);
 
     /// <summary>Raised on the thread that called <see cref="RefreshAsync"/> when a refresh ended.</summary>
     public event Action? Updated;
@@ -81,11 +83,12 @@ internal sealed class CompareSession(CompareSide left, CompareSide right, DiffLi
         Busy = true;
         DiffSource? l = null, r = null;
         long lr = Left.Document?.Doc.Revision ?? -1, rr = Right.Document?.Doc.Revision ?? -1;
+        var ignore = Ignore;
         try
         {
             l = Left.Open();
             r = Right.Open();
-            var diff = await Task.Run(() => LineDiff.Compute(l, r, limits, cts.Token), cts.Token);
+            var diff = await Task.Run(() => LineDiff.Compute(l, r, limits, cts.Token, ignore), cts.Token);
             if (generation != _generation || _disposed) throw new OperationCanceledException();
             _leftSource?.Release();
             _rightSource?.Release();

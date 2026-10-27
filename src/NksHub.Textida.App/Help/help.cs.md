@@ -1353,14 +1353,14 @@ Vyberte část textu, například blok řádků oddělených čárkami v poznám
 - Řádky přidané na konec patří do výběru. Přepnout tabulku a text vrátí text; další Přepnout tabulku a text ukáže jako tabulku celý soubor.
 
 ## [compare.text] Porovnání textů
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
 Dva texty se porovnají po řádcích v samostatné kartě. Stejné řádky stojí proti sobě, změněný blok je na obou stranách podbarvený a označený ve střední liště a lišta nahoře říká, kolik je rozdílů.
 1. Porovnat se schránkou (menu Nástroje nebo místní nabídka editoru) porovná kartu s textem ve schránce. Je-li v editoru vybraný text, porovná se jen výběr.
 2. Porovnat se souborem se zeptá na soubor a porovná s ním kartu. Porovnat s diskem je v menu Soubor a porovná kartu s jejím souborem.
 3. Porovnat dva texty otevře dvě prázdné strany. Tlačítka Vložit levý text a Vložit pravý text vloží do strany obsah schránky.
 - Z příkazového řádku otevře textida --diff levý pravý porovnání dvou souborů: levý soubor se otevře v kartě a může přijímat bloky z pravého, který je jen pro čtení.
 - Strana s kartou je samotný dokument: když se změní, porovná se znovu po krátké pauze. Schránka, výběr a soubor na disku jsou strany jen pro čtení.
-- Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano.
+- Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano, dokud v menu Nástroje a Porovnání nezapnete Nerozlišovat mezery nebo Nerozlišovat velikost písmen. Pak jsou stejné řádky, které se liší jen mezerami a tabulátory (kdekoli v řádku), nebo jen velikostí písmen. Volba platí pro všechna porovnání, otevřená se hned porovnají znovu a lišta nahoře ji připomene. Stejné řádky se pak nepodbarví, i když se v mezerách liší, a Kopírovat doleva i doprava přenáší řádky tak, jak jsou.
 - Velký soubor ve stránkovaném režimu se porovnává bez načtení: čtou se jen řádky na obrazovce.
 - Každá strana může mít mezi společným začátkem a společným koncem až 16 milionů řádků; víc je jeden změněný blok. Až 10 000 změněných řádků se najde přesně; při větším počtu lišta napíše, že výsledek není minimální, a změněné řádky se sloučí do větších bloků. Výsledek je pořád správný.
 

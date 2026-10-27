@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -333,6 +334,61 @@ public class CompareTests : IDisposable
         Assert.Equal(0, view.CurrentHunk);
         await _app.Workbench.Commands.ExecuteAsync("nks.compare.copyToLeft", new ShellContext(_w, forMenu: false));
         Assert.Equal("a\nc\n", tab.Editor!.Document.Text);
+    }
+
+    private static IEnumerable<MenuCommand> FlattenCommands(IEnumerable<MenuNode> nodes) => nodes.SelectMany(n => n switch
+    {
+        MenuCommand c => [c],
+        MenuGroup g => FlattenCommands(g.Items),
+        _ => [],
+    });
+
+    [AvaloniaFact]
+    public async Task Ignoring_whitespace_and_case_compares_the_open_tab_again_and_the_bar_says_so()
+    {
+        var tab = NewWith("Alpha\n  beta\ngamma\n");
+        var view = await OpenWithClipboard(tab, "alpha\nbeta\nGAMMA\n");
+        Assert.Equal([new DiffHunk(0, 3, 0, 3)], view.Session.Diff!.Hunks);
+        MenuCommand Item(string id) => FlattenCommands(_w.MenuModel).Single(c => c.CommandId == id);
+        bool Checked(string id) => Item(id).CheckedNow?.Invoke() ?? Item(id).Checked ?? false;
+        Assert.False(Checked("nks.compare.ignoreWhitespace"));
+
+        Item("nks.compare.ignoreWhitespace").Run();
+        Assert.True(Checked("nks.compare.ignoreWhitespace"));
+        Assert.True(_app.Workbench.Settings.GetBool("compare.ignoreWhitespace"));
+        Assert.Equal(DiffIgnore.Whitespace, view.Session.Ignore);
+        await view.Session.RefreshAsync();
+        Assert.Equal([new DiffHunk(0, 1, 0, 1), new DiffHunk(2, 1, 2, 1)], view.Session.Diff!.Hunks);
+        Assert.Equal("2 rozdíly · mezery se nerozlišují", view.SummaryText);
+
+        Item("nks.compare.ignoreCase").Run();
+        await view.Session.RefreshAsync();
+        Assert.True(view.Session.Diff!.IsIdentical);
+        Assert.Equal("Žádné rozdíly · mezery se nerozlišují · velikost písmen se nerozlišuje", view.SummaryText);
+
+        var next = (DiffView)_w.OpenTextCompare().Custom!;
+        Assert.Equal(DiffIgnore.Whitespace | DiffIgnore.Case, next.Session.Ignore);
+    }
+
+    [AvaloniaFact]
+    public async Task The_screen_reader_hears_the_current_difference_with_its_lines_and_the_first_line_of_each_side()
+    {
+        var tab = NewWith("a\n  old one\nold two\nc\n");
+        var view = await OpenWithClipboard(tab, "a\nnew\nc\n");
+        var peer = Assert.IsType<DiffAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(view));
+        Assert.Equal("1 rozdíl", peer.Value);
+        Assert.True(peer.IsReadOnly);
+        Assert.Equal(AutomationControlType.Edit, peer.GetAutomationControlType());
+        Assert.Equal("Porovnání", peer.GetName());
+
+        view.SelectHunk(0);
+        Assert.Equal("Rozdíl 1 z 1, vlevo řádky 2 až 3, vpravo řádek 2. Vlevo: old one. Vpravo: new", peer.Value);
+
+        var inserted = await OpenWithClipboard(NewWith("a\nc\n"), "a\nb\nc\n");
+        var other = (DiffAutomationPeer)ControlAutomationPeer.CreatePeerForElement(inserted);
+        inserted.NextDifference();
+        Loc.SetLanguage("en");
+        Assert.Equal("Difference 1 of 1, left no lines, right line 2. Right: b", other.Value);
     }
 
     // ---- synchronized scrolling of two tabs ----

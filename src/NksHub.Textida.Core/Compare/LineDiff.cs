@@ -16,21 +16,36 @@ public readonly record struct DiffHunk(long AStart, long ACount, long BStart, lo
 /// </summary>
 public sealed record DiffLimits(long MaxMiddleLines = 16_000_000, int MaxEditDistance = 10_000, long MaxSteps = 2_000_000_000);
 
+/// <summary>What the line diff does not tell apart: with <see cref="Whitespace"/> lines that differ only in whitespace (anywhere in the line) are equal, with <see cref="Case"/> lines that differ only in letter case.</summary>
+[Flags]
+public enum DiffIgnore
+{
+    None = 0,
+    Whitespace = 1,
+    Case = 2,
+}
+
 /// <summary>The line diff of two sources and the indexes to read their lines.</summary>
-public sealed class TextDiff(IReadOnlyList<DiffHunk> hunks, LineIndex a, LineIndex b, bool exact)
+public sealed class TextDiff(IReadOnlyList<DiffHunk> hunks, LineIndex a, LineIndex b, bool exact, DiffIgnore ignore = DiffIgnore.None)
 {
     public IReadOnlyList<DiffHunk> Hunks => hunks;
     public LineIndex A => a;
     public LineIndex B => b;
     /// <summary>False when a bound of <see cref="DiffLimits"/> made at least one block coarser than a minimal diff.</summary>
     public bool Exact => exact;
+    /// <summary>The differences this diff was made without; lines in its equal rows may still differ in them.</summary>
+    public DiffIgnore Ignore => ignore;
     public bool IsIdentical => hunks.Count == 0;
     public DiffLayout Layout => field ??= new DiffLayout(hunks, a.LineCount, b.LineCount);
 }
 
 public static class LineDiff
 {
-    public static TextDiff Compute(DiffSource a, DiffSource b, DiffLimits? limits = null, CancellationToken ct = default)
+    /// <summary>
+    /// The diff of the lines of <paramref name="a"/> and <paramref name="b"/>. Lines equal byte for byte at the start and the end are found on the bytes;
+    /// they are equal under any <paramref name="ignore"/> too, which only changes how the lines between them are compared.
+    /// </summary>
+    public static TextDiff Compute(DiffSource a, DiffSource b, DiffLimits? limits = null, CancellationToken ct = default, DiffIgnore ignore = DiffIgnore.None)
     {
         limits ??= new DiffLimits();
         var ia = LineIndex.Build(a, ct);
@@ -40,7 +55,7 @@ public static class LineDiff
         if (bytewise && a.Codec.Alignment == 1)
         {
             long common = CommonPrefix(a, b, ct);
-            if (common == a.Length - a.Start && common == b.Length - b.Start) return new TextDiff([], ia, ib, true);
+            if (common == a.Length - a.Start && common == b.Length - b.Start) return new TextDiff([], ia, ib, true, ignore);
             prefix = common == 0 ? 0 : ia.LineOf(a.Start + common - 1);
             long room = Math.Min(a.Length - ia.OffsetOf(prefix), b.Length - ib.OffsetOf(prefix));
             long tail = CommonSuffix(a, b, room, ct);
@@ -60,13 +75,13 @@ public static class LineDiff
         }
         else
         {
-            var ha = Hash(ia, prefix, (int)na, bytewise, ct);
-            var hb = Hash(ib, prefix, (int)nb, bytewise, ct);
+            var ha = Hash(ia, prefix, (int)na, bytewise, ignore, ct);
+            var hb = Hash(ib, prefix, (int)nb, bytewise, ignore, ct);
             var myers = new Myers(ha, hb, prefix, hunks, limits, ct);
             myers.Run(0, ha.Length, 0, hb.Length);
             exact = myers.Exact;
         }
-        return new TextDiff(hunks, ia, ib, exact);
+        return new TextDiff(hunks, ia, ib, exact, ignore);
     }
 
     private static bool SameBytes(TextCodec x, TextCodec y) => x.SameBytesAs(y);
@@ -118,7 +133,7 @@ public static class LineDiff
         return done;
     }
 
-    private static long[] Hash(LineIndex index, long firstLine, int count, bool bytewise, CancellationToken ct)
+    private static long[] Hash(LineIndex index, long firstLine, int count, bool bytewise, DiffIgnore ignore, CancellationToken ct)
     {
         var hashes = new long[count];
         if (count == 0) return hashes;
@@ -126,10 +141,29 @@ public static class LineDiff
         var codec = index.Source.Codec;
         LineScan.Run(index.Source, index.OffsetOf(firstLine), (_, content, _) =>
         {
-            hashes[i++] = bytewise ? Hash64(content) : Hash64(MemoryMarshal.AsBytes(codec.GetString(content).AsSpan()));
+            hashes[i++] = bytewise && ignore == DiffIgnore.None ? Hash64(content) : HashText(codec.GetString(content), ignore);
             return i < count;
         }, ct: ct);
         return hashes;
+    }
+
+    /// <summary>The hash of the UTF-16 text of a line without what <paramref name="ignore"/> drops; with nothing to ignore it is the hash of the whole text.</summary>
+    internal static long HashText(string text, DiffIgnore ignore)
+    {
+        if (ignore == DiffIgnore.None) return Hash64(MemoryMarshal.AsBytes(text.AsSpan()));
+        bool whitespace = ignore.HasFlag(DiffIgnore.Whitespace), fold = ignore.HasFlag(DiffIgnore.Case);
+        var kept = ArrayPool<char>.Shared.Rent(Math.Max(1, text.Length));
+        try
+        {
+            int n = 0;
+            foreach (char c in text)
+                if (!whitespace || !char.IsWhiteSpace(c)) kept[n++] = fold ? char.ToLowerInvariant(c) : c;
+            return Hash64(MemoryMarshal.AsBytes(kept.AsSpan(0, n)));
+        }
+        finally
+        {
+            ArrayPool<char>.Shared.Return(kept);
+        }
     }
 
     internal static long Hash64(ReadOnlySpan<byte> data)
