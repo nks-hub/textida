@@ -467,6 +467,16 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.hashCopy",
+      "title": "cmd.tools.hashCopy",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.hashCompare",
+      "title": "cmd.tools.hashCompare",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.calculateBlock",
       "title": "cmd.tools.calculateBlock",
       "category": "cat.tools",
@@ -476,6 +486,12 @@
       "id": "nks.tools.evaluateExpression",
       "title": "cmd.tools.evaluateExpression",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.insertExpression",
+      "title": "cmd.tools.insertExpression",
+      "category": "cat.tools",
+      "enablement": "!readOnly && !largeFileMode"
     },
     {
       "id": "nks.tools.convertBase",
@@ -2514,6 +2530,20 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.hashCopy",
+      "group": "1_text/01_1_text",
+      "submenu": "text",
+      "order": 21
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.hashCompare",
+      "group": "1_text/01_1_text",
+      "submenu": "text",
+      "order": 22
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.calculateBlock",
       "group": "1_text/01_2_calculate",
       "submenu": "text",
@@ -2525,6 +2555,13 @@
       "group": "1_text/01_2_calculate",
       "submenu": "text",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.insertExpression",
+      "group": "1_text/01_2_calculate",
+      "submenu": "text",
+      "order": 25
     },
     {
       "menu": "tools",

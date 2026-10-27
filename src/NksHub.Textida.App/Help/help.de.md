@@ -364,19 +364,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
 ## [tools.stats] Dokumentstatistik und Hashes
-commands: nks.tools.statistics, nks.tools.hash
-1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments.
-2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder des markierten Teils.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments oder der markierten Teile zusammen und listet die häufigsten Zeichen und Wörter auf.
+2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash, erkennt den Algorithmus an der Länge und sagt, ob er übereinstimmt.
 - Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
 - Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
 - Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
-- Ein Wort ist eine zusammenhängende Folge von Buchstaben und Ziffern. Für mehrere markierte Bereiche gleichzeitig gibt es keinen Hash.
+- Ein Wort ist eine zusammenhängende Folge von Buchstaben und Ziffern; Wörter werden in Kleinbuchstaben gezählt. Die Wortliste hält nur eine begrenzte Zahl verschiedener Wörter und sagt, wenn sie voll ist. Mehrere markierte Teile werden als ein Text gezählt.
 
 ## [tools.calculate] Blockberechnung, Ausdrücke und Zahlensysteme
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Markierten Block berechnen addiert die Zahlen in der Markierung (Blockmarkierung, eine Spalte von Zahlen) und zeigt Anzahl, Summe, kleinste, größte und Durchschnitt.
-2. Ausdruck auswerten fragt nach einem Ausdruck, beginnt mit dem markierten Text und zeigt das Ergebnis. Verstanden werden + - * / ^ ( ), MOD und die Funktionen ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR und TRUNC. Zahlen werden mit Punkt geschrieben. Alles andere, etwa der Aufruf eines Systembefehls, wird abgelehnt und nichts wird ausgeführt.
-3. Zahlensystem umrechnen fragt nach einer ganzen Zahl, dezimal oder mit dem Präfix 0x, 0b oder 0o, und zeigt sie dezimal, hexadezimal, oktal und binär.
+2. Ausdruck auswerten fragt nach einem Ausdruck, beginnt mit dem markierten Text oder der Zeile des Cursors und zeigt das Ergebnis. Ausdrucksergebnis einfügen schreibt " = Ergebnis" hinter die Markierung oder die Zeile, als einen Rückgängig-Schritt, mit Punkt als Dezimalzeichen in jeder Sprache. Verstanden werden + - * / ^ ( ), MOD und die Funktionen ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR und TRUNC. Zahlen werden mit Punkt geschrieben. Alles andere, etwa der Aufruf eines Systembefehls, wird abgelehnt und nichts wird ausgeführt.
+3. Zahlensystem umrechnen fragt nach einer ganzen Zahl, dezimal, mit dem Präfix 0x, 0b oder 0o, oder römisch, und zeigt sie dezimal, hexadezimal, oktal, binär, als römische Zahl (1 bis 3999) und als das Datum, das sie als Unix-Millisekunden ergibt.
 - Das Programm erkennt, wie die Zahlen in der Markierung geschrieben sind (Tschechisch und Slowakisch: 1 234,50, Deutsch: 1.234,50, Englisch: 1,234.50). Passen mehrere Schreibweisen, etwa bei 1,234, nimmt es die der Programmsprache. Die Ergebnisse erscheinen im Format der Programmsprache. Ein Sprachwechsel ändert das Dokument nicht.
 - Text in der Markierung, der keine Zahl ist, wird übersprungen und gezählt. Die Zahlenumrechnung funktioniert für Werte von -9223372036854775808 bis 18446744073709551615.
 - Potenzen nehmen nur eine positive Basis. Die Berechnung verwendet Zahlen mit doppelter Genauigkeit.

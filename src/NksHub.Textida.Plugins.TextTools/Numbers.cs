@@ -185,6 +185,34 @@ public static class BaseConverter
         return value >= Lowest && value <= Highest;
     }
 
+    private static readonly (int Value, string Symbol)[] RomanSymbols =
+        [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")];
+
+    /// <summary>Roman numeral of 1 to 3999 in the usual subtractive form; null outside that range.</summary>
+    public static string? ToRoman(BigInteger value)
+    {
+        if (value < 1 || value > 3999) return null;
+        int rest = (int)value;
+        var sb = new StringBuilder();
+        foreach (var (v, symbol) in RomanSymbols)
+            for (; rest >= v; rest -= v) sb.Append(symbol);
+        return sb.ToString();
+    }
+
+    /// <summary>Reads a Roman numeral; only the canonical spelling is accepted (IIII and VX are not numerals).</summary>
+    public static bool TryParseRoman(string text, out BigInteger value)
+    {
+        value = 0;
+        var s = text.Trim().ToUpperInvariant();
+        if (s.Length == 0 || s.Any(c => "IVXLCDM".IndexOf(c) < 0)) return false;
+        int total = 0, i = 0;
+        foreach (var (v, symbol) in RomanSymbols)
+            while (string.CompareOrdinal(s, i, symbol, 0, symbol.Length) == 0 && i + symbol.Length <= s.Length) { total += v; i += symbol.Length; }
+        if (i != s.Length || ToRoman(total) != s) return false;
+        value = total;
+        return true;
+    }
+
     public static string ToRadix(BigInteger value, int radix)
     {
         if (radix is < 2 or > 16) throw new ArgumentOutOfRangeException(nameof(radix));
