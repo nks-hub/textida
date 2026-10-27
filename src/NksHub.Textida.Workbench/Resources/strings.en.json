@@ -294,7 +294,7 @@
   "setting.search.regexTimeoutMs.title": "Regular expression time limit (ms)",
   "setting.search.regexTimeoutMs.description": "A pattern with backreferences, lookaround or atomic groups runs in the backtracking engine and is stopped after this time on one text. Other patterns run in the linear-time engine and are not limited.",
   "setting.hex.wildcardMaxBytes.title": "Longest wildcard * in hex search (bytes)",
-  "setting.hex.wildcardMaxBytes.description": "N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: a search with * then asks for it. A range of your own can always be written as *{m,n}.",
+  "setting.hex.wildcardMaxBytes.description": "N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
   "setting.tools.diffTool.title": "External diff tool",
   "setting.tools.diffTool.description": "Path of a program that compares two files. Empty: Compare with Disk opens the built-in comparison.",
   "setting.tools.diffArguments.title": "Diff tool arguments",

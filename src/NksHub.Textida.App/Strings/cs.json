@@ -571,6 +571,7 @@
   "hex.find.count": "Shoda {index} z {total}",
   "hex.find.limit": "Aspoň {n} shod (hledání skončilo na limitu)",
   "hex.find.invalid": "Neplatný vzor: {reason}",
+  "hex.find.preview": "Shoda má {min} až {max} bajtů.",
   "hex.find.running": "Hledám…",
   "hex.find.stale": "Soubor se mezitím změnil na disku, výsledek hledání se zahodil.",
   "hex.replace.title": "Nahradit bajty",

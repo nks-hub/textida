@@ -553,6 +553,7 @@
   "hex.find.count": "Match {index} of {total}",
   "hex.find.limit": "At least {n} matches (the search stopped at its limit)",
   "hex.find.invalid": "Invalid pattern: {reason}",
+  "hex.find.preview": "A match is {min} to {max} bytes long.",
   "hex.find.running": "Searching…",
   "hex.find.stale": "The file changed on disk meanwhile; the search result was dropped.",
   "hex.replace.title": "Replace Bytes",
