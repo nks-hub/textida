@@ -12,6 +12,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Schema\schemas\package.schema.json" LogicalName="schemas/package.schema.json" />
+    <EmbeddedResource Include="Schema\schemas\cargo.schema.json" LogicalName="schemas/cargo.schema.json" />
+    <EmbeddedResource Include="..\NksHub.Textida.Workbench\schemas\settings.schema.json" LogicalName="schemas/textida-settings.schema.json" />
+    <EmbeddedResource Include="..\NksHub.Textida.Workbench\schemas\keymap.schema.json" LogicalName="schemas/textida-keymap.schema.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
   </ItemGroup>
 

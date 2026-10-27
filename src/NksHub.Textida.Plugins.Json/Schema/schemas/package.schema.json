@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "package.json",
+  "type": "object",
+  "definitions": {
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "person": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": { "name": { "type": "string" }, "email": { "type": "string" }, "url": { "type": "string" } },
+          "required": ["name"]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "name": { "type": "string", "maxLength": 214, "pattern": "^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$", "description": "Package name." },
+    "version": { "type": "string", "description": "Package version (semver)." },
+    "description": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "homepage": { "type": "string" },
+    "bugs": { "type": ["string", "object"] },
+    "license": { "type": "string" },
+    "author": { "$ref": "#/definitions/person" },
+    "contributors": { "type": "array", "items": { "$ref": "#/definitions/person" } },
+    "main": { "type": "string" },
+    "module": { "type": "string" },
+    "types": { "type": "string" },
+    "type": { "enum": ["commonjs", "module"], "description": "Module system of .js files." },
+    "bin": { "type": ["string", "object"], "additionalProperties": { "type": "string" } },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "exports": { "type": ["string", "object", "array", "null"] },
+    "repository": { "type": ["string", "object"] },
+    "scripts": { "$ref": "#/definitions/stringMap", "description": "Commands run by npm run." },
+    "dependencies": { "$ref": "#/definitions/stringMap" },
+    "devDependencies": { "$ref": "#/definitions/stringMap" },
+    "peerDependencies": { "$ref": "#/definitions/stringMap" },
+    "optionalDependencies": { "$ref": "#/definitions/stringMap" },
+    "engines": { "$ref": "#/definitions/stringMap" },
+    "os": { "type": "array", "items": { "type": "string" } },
+    "cpu": { "type": "array", "items": { "type": "string" } },
+    "private": { "type": "boolean" },
+    "workspaces": { "type": ["array", "object"] },
+    "publishConfig": { "type": "object" }
+  }
+}
