@@ -96,7 +96,7 @@ public class McpAgentsAppTests : IDisposable
         await WaitForChoiceAsync("the list", 3);
         _dialogs.Answers.Enqueue(1); // Cancel
         _w.RunPaletteSelection(); // fake
-        await WaitForChoiceAsync("the actions", 4);
+        await WaitForChoiceAsync("the actions", 5);
         Assert.Equal(Loc.Get(K.McpAgentsTry), _w.QuickResults[0].Title);
         _w.RunPaletteSelection(); // Try
         await Until(() => _dialogs.Asked.Count == 1, "the question");
@@ -122,7 +122,7 @@ public class McpAgentsAppTests : IDisposable
         _dialogs.Answers.Enqueue(0); // Start
         _dialogs.Answers.Enqueue(0); // Close
         _w.RunPaletteSelection();
-        await WaitForChoiceAsync("the actions", 4);
+        await WaitForChoiceAsync("the actions", 5);
         _w.RunPaletteSelection();
         await Until(() => _dialogs.Asked.Count == 2, "the result");
         await WaitForChoiceAsync("the list again", 3);
@@ -147,7 +147,7 @@ public class McpAgentsAppTests : IDisposable
         _dialogs.Answers.Enqueue(0);
         _w.MovePalette(1); // broken
         _w.RunPaletteSelection();
-        await WaitForChoiceAsync("the actions", 4);
+        await WaitForChoiceAsync("the actions", 5);
         _w.RunPaletteSelection();
         await Until(() => _dialogs.Asked.Count == 2, "the result");
 
@@ -162,17 +162,24 @@ public class McpAgentsAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task A_server_reached_by_an_address_is_listed_but_not_started()
+    public async Task A_server_reached_by_an_address_is_shown_with_its_address_hidden_and_not_contacted_without_a_yes()
     {
         await OpenListAsync();
         await WaitForChoiceAsync("the list", 3);
+        _dialogs.Answers.Enqueue(1); // Cancel
         _w.MovePalette(2); // remote
         _w.RunPaletteSelection();
-        await WaitForChoiceAsync("the actions", 4);
-        _w.RunPaletteSelection();
+        await WaitForChoiceAsync("the actions", 5);
+        _w.RunPaletteSelection(); // Try
+        await Until(() => _dialogs.Asked.Count == 1, "the question");
         await WaitForChoiceAsync("the list again", 3);
-        Assert.Equal(Loc.Get(K.McpAgentsRemote, ("name", "remote")), _w.StatusMessageText);
-        Assert.Empty(_dialogs.Asked);
+
+        var asked = _dialogs.Asked.Single();
+        Assert.Equal(Loc.Get(K.McpClientConnectTitle, ("name", "remote")), asked.Title);
+        Assert.Equal(Loc.Get(K.McpClientConnectMessage), asked.Message);
+        Assert.Equal([Loc.Get(K.McpClientDetailUrl, ("url", "https://example.com/mcp?key=***"))], asked.Details);
+        Assert.DoesNotContain(Secret, asked.Title + asked.Message + string.Join(' ', asked.Details!));
+        Assert.Empty(_app.Output.Read(OutputChannel.Tasks)); // nothing was sent, so nothing was logged
         _w.ClosePalette();
         await Until(() => _w.McpTask.IsCompleted, "the list to end");
     }
@@ -185,9 +192,9 @@ public class McpAgentsAppTests : IDisposable
         await OpenListAsync();
         await WaitForChoiceAsync("the list", 3);
         _w.RunPaletteSelection(); // fake
-        await WaitForChoiceAsync("the actions", 4);
-        Assert.Equal(Loc.Get(K.McpAgentsConvert, ("agent", "Codex")), _w.QuickResults[2].Title);
-        _w.MovePalette(2);
+        await WaitForChoiceAsync("the actions", 5);
+        Assert.Equal(Loc.Get(K.McpAgentsConvert, ("agent", "Codex")), _w.QuickResults[3].Title);
+        _w.MovePalette(3);
         _w.RunPaletteSelection(); // Convert to Codex
         await Until(() => _w.McpTask.IsCompleted, "the conversion");
 
@@ -218,7 +225,7 @@ public class McpAgentsAppTests : IDisposable
         _dialogs.Answers.Enqueue(0);
         _dialogs.Answers.Enqueue(0);
         _w.RunPaletteSelection();
-        await WaitForChoiceAsync("the actions", 4);
+        await WaitForChoiceAsync("the actions", 5);
         _w.RunPaletteSelection();
         await Until(() => _dialogs.Asked.Count == 2, "the result");
         Assert.Contains("TEST_SECRET=***", _dialogs.Asked[0].Details!); // the value came from the store and is shown hidden, as the start will use it

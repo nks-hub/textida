@@ -250,6 +250,16 @@ sealed class Handler(int api, string? onCommand, int resyncDelay) : IRpcHandler
                     var folder = Str(p, "uri");
                     return Raw("{\"entries\":[" + string.Join(",", _files.Where(f => f.Key.StartsWith(folder, StringComparison.Ordinal)).Select(f => $"{{\"uri\":{Q(f.Key)},\"size\":{f.Value.Content.Length}}}")) + "]}");
                 }
+            case DocumentRequests.SourceSearch:
+                lock (_files)
+                {
+                    SourceReachable();
+                    var root = Str(p, "uri");
+                    var query = Str(p, "query");
+                    return Raw("{\"entries\":[" + string.Join(",", _files
+                        .Where(f => f.Key.StartsWith(root, StringComparison.Ordinal) && Encoding.UTF8.GetString(f.Value.Content).Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .Select(f => $"{{\"uri\":{Q(f.Key)},\"name\":{Q(f.Key[(f.Key.LastIndexOf('/') + 1)..])}}}")) + "]}");
+                }
             case DocumentRequests.SourceWrite:
                 lock (_files)
                 {

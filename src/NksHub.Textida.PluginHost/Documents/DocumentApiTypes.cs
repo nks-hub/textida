@@ -71,7 +71,10 @@ public static class DocumentMethods
     public const string HoverRegister = "editor/hoverProvider";
     /// <summary>One batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review and applied all or nothing.</summary>
     public const string WorkspaceEdit = "workspace/edit";
-    /// <summary>The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>).</summary>
+    /// <summary>
+    /// The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>), and search when it declares <c>search</c>.
+    /// Optional <c>adapterVersion</c> and <c>serviceVersion</c> (texts of at most <see cref="FileSourceOptions.MaxVersionChars"/> characters) say which adapter and which service the user is talking to.
+    /// </summary>
     public const string SourceRegister = "source/register";
     /// <summary>Shows a controlled preview (text or Markdown the plugin supplies) of one revision of a document in the editor's preview panel. HTML is not rendered yet.</summary>
     public const string PreviewShow = "preview/show";
@@ -101,6 +104,8 @@ public static class DocumentRequests
     public const string Hover = "hover/request";
     /// <summary>File source: params <c>uri</c> of a folder; the answer is <c>{"entries":[{"uri","name","isDirectory","size"?}]}</c>.</summary>
     public const string SourceList = "source/list";
+    /// <summary>File source that declared <c>search</c>: params <c>uri</c> (the root of the scheme) and <c>query</c> (words); the answer has the shape of <see cref="SourceList"/>.</summary>
+    public const string SourceSearch = "source/search";
     /// <summary>File source: params <c>uri</c>; the answer holds the <c>revision</c> (an opaque non-empty string) and the content as <c>text</c> (UTF-8) or <c>bytes</c> (base64).</summary>
     public const string SourceRead = "source/read";
     /// <summary>File source: params <c>uri</c>; the answer is <c>{"exists":false}</c> or <c>{"revision","size"}</c>.</summary>

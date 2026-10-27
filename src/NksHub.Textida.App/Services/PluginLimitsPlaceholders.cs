@@ -209,6 +209,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes of the source cache. OPEN: the owner has not decided it.</summary>
     public const long SourceCacheBytes = 64L << 20;
 
+    /// <summary>Placeholder, OPEN: longest version text a source may state about its adapter and about its service. The owner has not decided it.</summary>
+    public const int SourceVersionMaxChars = 64;
+
+    /// <summary>Placeholder, OPEN: most characters of the words a search in a source may send. The owner has not decided it.</summary>
+    public const int SourceQueryMaxChars = 200;
+
     /// <summary>Placeholder: diagnostics one checker (source) of a plugin may publish for one document.</summary>
     public const int DiagnosticsPerDocument = 2000;
 
@@ -375,7 +381,7 @@ internal static class PluginLimitsPlaceholders
         Workspace = workspace,
         Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
-        Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes),
+        Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes, SourceVersionMaxChars, SourceQueryMaxChars),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,
         MaxSymbolTextLength = SymbolTextLength,
@@ -469,10 +475,17 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a server's standard error kept for the report of its end.</summary>
     public const int McpClientStderrLines = 20;
 
+    /// <summary>Placeholder, OPEN: longest wait for the answer to a list, a tool call or the read of a resource of a connected MCP server; a slower server is told to stop and the call ends with a message. The owner has not decided it.</summary>
+    public const int McpClientCallTimeoutSeconds = 120;
+
+    /// <summary>Placeholder, OPEN: most characters of the answer of an MCP tool or resource that are shown; the rest is cut off and the message says how long the answer was. The owner has not decided it.</summary>
+    public const int McpClientMaxResultChars = 256 * 1024;
+
     public static NksHub.Textida.McpClient.McpClientOptions McpClient() => new(
         new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
         TimeSpan.FromSeconds(McpClientTimeoutSeconds), TimeSpan.FromSeconds(McpClientExitGraceSeconds), McpClientStderrLines,
-        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
+        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0",
+        TimeSpan.FromSeconds(McpClientCallTimeoutSeconds), McpClientMaxResultChars);
 
     /// <summary>Placeholder: time an agent has to answer <c>initialize</c> and <c>session/new</c>. OPEN: the owner has not decided it.</summary>
     public const int AcpStartTimeoutSeconds = 30;

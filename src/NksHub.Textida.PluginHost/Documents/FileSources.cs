@@ -1,10 +1,13 @@
 namespace NksHub.Textida.PluginHost.Documents;
 
-/// <summary>What a file source can do. Reading and stat are always there. <paramref name="AtomicWrite"/> (which implies <paramref name="Write"/>): the source writes only if the file is still at the expected revision, in one step.</summary>
-public sealed record SourceCapabilities(bool List, bool Write, bool AtomicWrite);
+/// <summary>
+/// What a file source can do. Reading and stat are always there. <paramref name="AtomicWrite"/> (which implies <paramref name="Write"/>): the source writes only if the file is still at the expected revision, in one step.
+/// <paramref name="Search"/>: the source finds files by words (<see cref="DocumentRequests.SourceSearch"/>).
+/// </summary>
+public sealed record SourceCapabilities(bool List, bool Write, bool AtomicWrite, bool Search = false);
 
-/// <summary>A plugin that serves the files of a URI scheme.</summary>
-public sealed record FileSource(string PluginId, string Scheme, string Name, SourceCapabilities Capabilities);
+/// <summary>A plugin that serves the files of a URI scheme. The versions are what the plugin states about itself (<paramref name="AdapterVersion"/>) and about the service behind it (<paramref name="ServiceVersion"/>); they appear in the log.</summary>
+public sealed record FileSource(string PluginId, string Scheme, string Name, SourceCapabilities Capabilities, string? AdapterVersion = null, string? ServiceVersion = null);
 
 /// <summary>The revision (an opaque string the source chose) and size of a file.</summary>
 public sealed record SourceStat(string Revision, long Size);
@@ -37,9 +40,10 @@ public sealed class SourceException(SourceFailure kind, string message, string? 
 
 /// <summary>
 /// Limits of the file sources. They are owner decisions, so there are no defaults. <paramref name="CacheEntries"/> and <paramref name="CacheBytes"/> bound the cache of
-/// the files last read or written (memory only), least recently used out first.
+/// the files last read or written (memory only), least recently used out first. <paramref name="MaxVersionChars"/> bounds the version texts a source states about itself and
+/// its service; <paramref name="MaxQueryChars"/> bounds the words a search sends to a source.
 /// </summary>
-public sealed record FileSourceOptions(TimeSpan Timeout, long MaxBytes, int MaxEntries, int MaxSchemesPerPlugin, int CacheEntries, long CacheBytes);
+public sealed record FileSourceOptions(TimeSpan Timeout, long MaxBytes, int MaxEntries, int MaxSchemesPerPlugin, int CacheEntries, long CacheBytes, int MaxVersionChars, int MaxQueryChars);
 
 /// <summary>The copies of files last read from or written to a source, kept so a tab can open without a connection. Bounded by count and by bytes; the least recently used go first.</summary>
 public sealed class SourceCache(int maxEntries, long maxBytes)

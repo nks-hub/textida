@@ -130,9 +130,11 @@ public sealed class WikiPluginTests : IAsyncDisposable
                 const string root = "/wiki-api/api/v1/wiki";
                 if (path == root && request.HttpMethod == "GET")
                 {
-                    // the search is a text search; the adapter filters the slugs by prefix itself
+                    // the search is a text search over slug, title and content; the adapter filters the slugs by prefix itself
                     int number = int.Parse(request.QueryString["page"]!), limit = int.Parse(request.QueryString["limit"]!);
-                    var all = Pages.Keys.Order().ToArray();
+                    var words = request.QueryString["search"];
+                    var all = Pages.Where(p => string.IsNullOrEmpty(words) || p.Key.Contains(words, StringComparison.OrdinalIgnoreCase) || p.Value.Text.Contains(words, StringComparison.OrdinalIgnoreCase))
+                        .Select(p => p.Key).Order().ToArray();
                     var items = all.Skip((number - 1) * PageSize).Take(Math.Min(limit, PageSize)).Select(k => PageJson(k, false));
                     Reply(c, 200, $"{{\"items\":[{string.Join(",", items)}],\"total\":{all.Length},\"page\":{number},\"limit\":{limit},\"pages\":{Math.Max(1, (all.Length + PageSize - 1) / PageSize)}}}");
                     return;
@@ -203,6 +205,30 @@ public sealed class WikiPluginTests : IAsyncDisposable
         Assert.True(registered.GetProperty("write").GetBoolean());
         Assert.False(registered.GetProperty("atomicWrite").GetBoolean()); // the atomic check of the wiki is not verified (P6.4.4)
         Assert.False(WikiPlugin.AtomicWriteVerified);
+        // the log of the editor names the adapter and the service it talked to
+        Assert.True(registered.GetProperty("search").GetBoolean());
+        Assert.Equal(WikiPlugin.AdapterVersion, registered.GetProperty("adapterVersion").GetString());
+        Assert.Equal("NKS IS API v1", registered.GetProperty("serviceVersion").GetString());
+        Assert.Matches(@"^\d+\.\d+\.\d+$", WikiPlugin.AdapterVersion);
+    }
+
+    [Fact]
+    public async Task Pages_are_searched_by_words_and_come_back_as_addresses_to_open()
+    {
+        _secrets.Values[WikiPlugin.TokenSecret] = Token;
+        _wiki.Pages["docs/page-a"] = ("alpha text about deployment\n", 1);
+        _wiki.Pages["docs/page-b"] = ("beta\n", 1);
+        _wiki.Pages["misc/notes"] = ("more DEPLOYMENT notes\n", 1);
+
+        var found = await CallAsync(DocumentRequests.SourceSearch, new { uri = "nksis://", query = "  deployment " });
+
+        Assert.Equal(["nksis://wiki/docs/page-a", "nksis://wiki/misc/notes"], found.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("uri").GetString()).Order());
+        Assert.Contains(_wiki.Requests, r => r.Contains("search=deployment&") || r.EndsWith("search=deployment", StringComparison.Ordinal));
+        // the page that was found opens like any other
+        Assert.Equal("alpha text about deployment\n", (await ReadAsync("nksis://wiki/docs/page-a")).GetProperty("text").GetString());
+        var empty = await Assert.ThrowsAsync<RpcException>(() => CallAsync(DocumentRequests.SourceSearch, new { uri = "nksis://", query = "   " }));
+        Assert.Equal(RpcErrorCodes.InvalidParams, empty.Code);
+        Assert.Empty((await CallAsync(DocumentRequests.SourceSearch, new { uri = "nksis://", query = "nothing like this" })).GetProperty("entries").EnumerateArray());
     }
 
     [Fact]
@@ -314,7 +340,22 @@ public sealed class WikiPluginTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task A_token_the_wiki_refuses_is_dropped_so_the_next_attempt_asks_again()
+    public async Task A_key_the_wiki_refuses_is_dropped_and_the_user_is_asked_for_a_new_one_in_the_same_call()
+    {
+        _secrets.Values[WikiPlugin.TokenSecret] = "revoked-key";
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+
+        var read = await ReadAsync(Page);
+
+        Assert.Equal("one\n", read.GetProperty("text").GetString());
+        Assert.Equal(["NKS IS wiki: API key [hidden]"], _editor.Asked); // hidden typing, asked once
+        Assert.Equal(Token, _secrets.Values[WikiPlugin.TokenSecret]); // the new key replaced the refused one
+        Assert.Equal(2, _wiki.Requests.Count); // the refused attempt, then the new key
+        Assert.Contains(_log.Entries(), l => l.Method == "secret/delete");
+    }
+
+    [Fact]
+    public async Task A_key_that_is_refused_again_ends_the_call_with_a_clear_message_and_nothing_stays_stored()
     {
         _secrets.Values[WikiPlugin.TokenSecret] = Token;
         _wiki.Pages["docs/page-a"] = ("one\n", 1);
@@ -324,9 +365,25 @@ public sealed class WikiPluginTests : IAsyncDisposable
 
         Assert.Contains("missing or invalid", e.Message);
         Assert.False(_secrets.Values.ContainsKey(WikiPlugin.TokenSecret));
+        Assert.Single(_editor.Asked); // asked once in that call, not in a loop
+        Assert.Equal(2, _wiki.Requests.Count);
         _wiki.RejectToken = false;
         Assert.Equal("one\n", (await ReadAsync(Page)).GetProperty("text").GetString());
-        Assert.Single(_editor.Asked);
+        Assert.Equal(2, _editor.Asked.Count); // and the next call asks again
+    }
+
+    [Fact]
+    public async Task When_the_user_gives_no_new_key_after_a_refusal_nothing_more_is_sent()
+    {
+        _secrets.Values[WikiPlugin.TokenSecret] = "revoked-key";
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+        _tokenAnswer = null;
+
+        var e = await Assert.ThrowsAsync<RpcException>(() => ReadAsync(Page));
+
+        Assert.Contains("No API key", e.Message);
+        Assert.Single(_wiki.Requests); // only the refused attempt
+        Assert.False(_secrets.Values.ContainsKey(WikiPlugin.TokenSecret));
     }
 
     [Fact]
