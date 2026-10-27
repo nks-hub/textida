@@ -17,6 +17,8 @@ public sealed class MappedFileSourceOptions
     public long SpillBudgetBytes { get; init; } = PagedSpillPlaceholders.MemoryBudgetBytes;
     /// <summary>Where spill files go; null for a folder under the temp directory.</summary>
     public string? SpillDirectory { get; init; }
+    /// <summary>Bytes of mapped pages the file may keep in the working set, see <see cref="MappedFile.ResidentBudget"/>; 0 keeps them all. Placeholder: see <see cref="PagedSpillPlaceholders"/>.</summary>
+    public long ResidentBudgetBytes { get; init; } = PagedSpillPlaceholders.MappedResidentBytes;
 }
 
 /// <summary>
@@ -52,6 +54,7 @@ public sealed class MappedFileSource : IPagedTextSource
     {
         _file = file;
         _options = options;
+        file.ResidentBudget = options.ResidentBudgetBytes;
         bool whole = file.Length <= 1 << 20;
         var codec = options.Codec ?? EncodingGuesser.Guess(file.GetSpanClamped(0, 1 << 20), whole).Codec;
         Codec = codec;

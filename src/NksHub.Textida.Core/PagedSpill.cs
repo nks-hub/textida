@@ -6,13 +6,19 @@ using NksHub.Textida.Core.Documents;
 namespace NksHub.Textida.Core;
 
 /// <summary>
-/// OPEN DECISION (P7.1.2): the owner has not decided how much memory the add buffer and the undo history of one paged document may hold
-/// before they move to disk. The value below is a placeholder, not a decided number.
+/// OPEN DECISIONS (P7.1.2, P3.1.9): the owner has not decided how much memory the add buffer and the undo history of one paged document may hold
+/// before they move to disk, nor the caps of the block cache and of the decoded lines of the paged view. The values below are placeholders, not decided numbers.
 /// </summary>
 public static class PagedSpillPlaceholders
 {
     /// <summary>Placeholder: bytes of inserted text, and separately of undo records, a paged document keeps in memory before spilling to disk.</summary>
     public const long MemoryBudgetBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN (P3.1.9): bytes of mapped file pages (the block cache) one paged document keeps in the working set before it gives them back to the system.</summary>
+    public const long MappedResidentBytes = 256L << 20;
+
+    /// <summary>Placeholder, OPEN (P3.1.9): bytes of decoded lines the paged text view keeps; past it the lines off screen are dropped.</summary>
+    public const long LineCacheBytes = 8L << 20;
 }
 
 /// <summary>
