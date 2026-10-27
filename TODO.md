@@ -1677,9 +1677,10 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Závisí na:** P5.1.5
   - **Odhad:** v rámci F160 (viz P5.1.1)
   - **Umístění:** jádro
-- [ ] **P5.1.3** API výběru buněk a schránkové formáty
+- [x] **P5.1.3** API výběru buněk a schránkové formáty
   - **Co a proč:** Export CSV jako plugin potřebuje model vybraných buněk, ne textový rozsah. API dá pluginu strukturovaný výběr (buňky, záhlaví, revize) a zápis do schránky ve více formátech (text, HTML).
   - **Funkce:** žádná (infrastruktura API)
+  - **Stav 26. 10. 2026:** hotovo: `table/selection` vrací hodnoty, záhlaví vybraných sloupců, čísla řádků, bajty buněk a revizi (stará nebo budoucí revize = konflikt, bez tabulky `NoTableView`); `clipboard/write` zapisuje text i HTML pod oprávněním `clipboard.write`; skrytá hodnota `.env` jde pluginu jako `*`; test přes skutečný proces pluginu. HTML na skutečné systémové schránce a vložení do jiné aplikace neověřeno (CF_HTML jen na offsety).
   - **Hotovo, když:** testovací plugin dostane výběr tří sloupců s hodnotami a revizí a zapíše do schránky text i HTML; výběr nad starší revizí vrátí konflikt.
   - **Závisí na:** P5.1.4, P3b.3.1
   - **Odhad:** bez odhadu
@@ -1687,6 +1688,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 - [ ] **P5.1.2** Kopírovat tabulku jako…
   - **Co a proč:** Z CSV nebo výběru SQL INSERT, Markdown, JSON, HTML přes API z P5.1.3; vlastní exportér jako převodník F095.
   - **Funkce:** F186
+  - **Stav 26. 10. 2026:** částečně: `nks.table.copyAs` – Markdown, SQL INSERT, JSON, HTML v pluginu textových nástrojů; test escapování (apostrof, uvozovky, `|`, `<`, nový řádek, `&`, `\`) se zpětným načtením; Ctrl+A v nedočtené tabulce teď načte zbytek řádků (test). Otevřené: dialekt SQL (dnes dvojité uvozovky), typy hodnot (vše text, bez NULL), limit zápisu do schránky (zástupná hodnota 1 048 576 znaků); vlastní exportér jako převodník chybí.
   - **Hotovo, když:** výběr tří sloupců CSV se zkopíruje jako platná Markdown tabulka, SQL INSERT, JSON i HTML; každý formát má test escapování (apostrof, uvozovky, `|`, `<`, nový řádek v buňce).
   - **Závisí na:** P5.1.3, P4.2.1
   - **Odhad:** F186 1 ČT (matice)
