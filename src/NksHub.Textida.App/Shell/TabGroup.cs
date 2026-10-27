@@ -27,7 +27,7 @@ internal sealed class TabGroup : DockPanel
     public TabGroup()
     {
         Strip = new TabStrip { Background = Brushes.Transparent, ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal }), ClipToBounds = true };
-        StripHost = new Border { Padding = new Thickness(8, 2, 8, 0), Child = Strip };
+        StripHost = new Border { Padding = new Thickness(8, 5, 8, 0), Child = Strip };
         StripHost.Classes.Add("tabrow");
         SetDock(StripHost, Dock.Top);
         Children.Add(StripHost);
