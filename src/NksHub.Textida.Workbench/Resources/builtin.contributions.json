@@ -2110,6 +2110,12 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.schemas.allow",
+      "title": "cmd.schemas.allow",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.packages.script",
       "title": "cmd.packages.script",
       "category": "cat.tools",
@@ -4530,6 +4536,13 @@
       "group": "2_run/06_6_packages",
       "submenu": "packages",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.schemas.allow",
+      "group": "2_run/06_6_packages",
+      "submenu": "packages",
+      "order": 35
     },
     {
       "menu": "tools",

@@ -207,6 +207,11 @@ public class PackageRegistryTests
             "/api/v1/search.json", """[{"name":"rails","version":"7.1.3","downloads":500000000,"info":"Ruby on Rails is a full-stack web framework."},{"name":"railties","version":"7.1.3","downloads":400000000}]""", ["rails", "railties"],
             "'1.10", "/api/v1/versions/nokogiri.json", """[{"number":"1.16.2","prerelease":false,"platform":"ruby"},{"number":"1.16.0.rc1","prerelease":true,"platform":"ruby"},{"number":"1.10.10","prerelease":false,"platform":"ruby"},{"number":"1.10.0","prerelease":false,"platform":"ruby"}]""", ["1.10.10", "1.10.0"],
             "1.10.0", "1.16.2")];
+        yield return [new Case("pub", "pubspec.yaml",
+            "name: demo\ndependencies:\n  flutter:\n    sdk: flutter\n  htt\n  collection: 1.17.0\n", "\n  htt",
+            "/api/search", """{"packages":[{"package":"http"},{"package":"http_parser"}],"next":"https://pub.dev/api/search?q=htt&page=2"}""", ["http", "http_parser"],
+            "collection: 1.1", "/api/packages/collection", """{"name":"collection","latest":{"version":"1.18.0","pubspec":{"name":"collection","version":"1.18.0"}},"versions":[{"version":"1.15.0"},{"version":"1.16.0"},{"version":"1.17.0"},{"version":"1.18.0"},{"version":"1.19.0","retracted":true}]}""", ["1.18.0", "1.17.0", "1.16.0", "1.15.0"],
+            "1.17.0", "1.18.0")];
     }
 
     [Theory]

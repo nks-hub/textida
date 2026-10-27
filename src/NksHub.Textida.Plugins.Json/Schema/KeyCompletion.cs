@@ -29,11 +29,23 @@ public static class KeyCompletion
 
     private static bool IsWordChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '-';
 
-    /// <summary>The offer at <paramref name="caret"/>, or null when the caret is not where a key can be written or the file cannot be read.</summary>
-    public static KeyOffer? Offer(SchemaEntry schema, DataDialect dialect, string text, int caret, SchemaOptions options)
+    /// <summary>Whether the <c>]</c> at <paramref name="at"/> closes a table header: its line starts with <c>[</c>.</summary>
+    private static bool EndsHeader(string text, int at)
+    {
+        int lineStart = at;
+        while (lineStart > 0 && text[lineStart - 1] is not ('\n' or '\r')) lineStart--;
+        var line = text.AsSpan(lineStart, at - lineStart).TrimStart();
+        return line.Length > 0 && line[0] == '[';
+    }
+
+    /// <summary>The offer at <paramref name="caret"/> for a schema the plugin carries, or null when the caret is not where a key can be written or the file cannot be read.</summary>
+    public static KeyOffer? Offer(SchemaEntry schema, DataDialect dialect, string text, int caret, SchemaOptions options) =>
+        SchemaCatalog.TryParse(SchemaCatalog.LoadSchemaText(schema), DataDialect.Json, options.MaxDepth, out var schemaRoot, out _) ? Offer(schemaRoot!, dialect, text, caret, options) : null;
+
+    /// <summary>The offer at <paramref name="caret"/> from a parsed schema, or null when the caret is not where a key can be written or the file cannot be read.</summary>
+    public static KeyOffer? Offer(DataNode schemaRoot, DataDialect dialect, string text, int caret, SchemaOptions options)
     {
         caret = Math.Clamp(caret, 0, text.Length);
-        if (!SchemaCatalog.TryParse(SchemaCatalog.LoadSchemaText(schema), DataDialect.Json, options.MaxDepth, out var schemaRoot, out _)) return null;
         string repaired;
         int start, end, at;
         string typed;
@@ -48,6 +60,12 @@ public static class KeyCompletion
             at = start;
             while (at > 0 && char.IsWhiteSpace(repaired[at - 1])) at--;
             at = Math.Max(at - 1, 0);
+            if (repaired.Length > 0 && repaired[at] == ']' && EndsHeader(repaired, at))
+            {
+                // a table with nothing in it ends with its header, so a key of ours is put in to give the table a body the caret stands in
+                repaired = text[..start] + Placeholder + " = 0" + text[caret..];
+                at = start;
+            }
         }
         else if (dialect is DataDialect.Yaml or DataDialect.Markdown)
         {
@@ -106,7 +124,7 @@ public static class KeyCompletion
             }
         }
         if (!SchemaCatalog.TryParse(repaired, dialect, options.MaxDepth, out var data, out _)) return null;
-        var keys = SchemaCatalog.CompleteKeys(schemaRoot!, data!, at, options)
+        var keys = SchemaCatalog.CompleteKeys(schemaRoot, data!, at, options)
             .Where(k => k.StartsWith(typed, StringComparison.OrdinalIgnoreCase) && !string.Equals(k, typed, StringComparison.Ordinal))
             .ToList();
         int next = end;

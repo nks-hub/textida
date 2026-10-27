@@ -909,6 +909,16 @@ public static class K
     public const string SchemaNone = "schema.none";
     public const string SchemaName = "schema.name";
     public const string SchemaTip = "schema.tip";
+    public const string SchemaNoConsent = "schema.noConsent";
+    public const string SchemaUnavailable = "schema.unavailable";
+    public const string SchemaUnsupported = "schema.unsupported";
+    public const string SchemaOffline = "schema.offline";
+    public const string SchemaCopy = "schema.copy";
+    public const string SchemaTipConsent = "schema.tipConsent";
+    public const string SchemaNotFile = "schema.notFile";
+    public const string SchemaNothingToAllow = "schema.nothingToAllow";
+    public const string SchemaConsentTitle = "schema.consent.title";
+    public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";
     public const string KeysCompareHeader = "keys.compare.header";
     public const string KeysCompareSyntax = "keys.compare.syntax";

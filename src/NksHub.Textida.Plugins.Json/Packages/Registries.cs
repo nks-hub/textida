@@ -51,7 +51,7 @@ public abstract partial class RegistryAdapter(string id, string searchBase, stri
     protected static string Text(JsonElement item, string property) =>
         item.ValueKind == JsonValueKind.Object && item.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : throw new RegistryException($"The registry answer has no '{property}' text.");
 
-    public static IReadOnlyList<RegistryAdapter> CreateAll() => [new NpmAdapter(), new PackagistAdapter(), new PypiAdapter(), new NuGetAdapter(), new GoAdapter(), new CratesAdapter(), new RubyGemsAdapter()];
+    public static IReadOnlyList<RegistryAdapter> CreateAll() => [new NpmAdapter(), new PackagistAdapter(), new PypiAdapter(), new NuGetAdapter(), new GoAdapter(), new CratesAdapter(), new RubyGemsAdapter(), new PubAdapter()];
 
     [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.CultureInvariant)]
     protected static partial Regex SimpleName();
@@ -184,6 +184,27 @@ public sealed class CratesAdapter() : RegistryAdapter("crates", "https://crates.
     {
         using var doc = Parse(body);
         return [.. Items(doc.RootElement, "versions").Where(v => !(v.TryGetProperty("yanked", out var y) && y.ValueKind == JsonValueKind.True)).Select(v => Text(v, "num"))];
+    }
+}
+
+/// <summary>pub.dev for Dart and Flutter: the package search lists names, the package document lists every version (a retracted one is left out).</summary>
+public sealed class PubAdapter() : RegistryAdapter("pub", "https://pub.dev", "https://pub.dev")
+{
+    public override IReadOnlyList<Dependency> Dependencies(string text) => Manifests.ReadPubspec(text);
+    public override Uri? NamesUrl(string prefix, int pageSize) => new($"{SearchBase}/api/search?q={Q(prefix)}");
+
+    public override IReadOnlyList<string> Names(string body, string prefix)
+    {
+        using var doc = Parse(body);
+        return [.. Items(doc.RootElement, "packages").Select(p => Text(p, "package"))];
+    }
+
+    public override Uri VersionsUrl(string name) => new($"{MetaBase}/api/packages/{Q(name)}");
+
+    public override IReadOnlyList<string> VersionList(string body, string name)
+    {
+        using var doc = Parse(body);
+        return [.. Items(doc.RootElement, "versions").Where(v => !(v.TryGetProperty("retracted", out var r) && r.ValueKind == JsonValueKind.True)).Select(v => Text(v, "version"))];
     }
 }
 

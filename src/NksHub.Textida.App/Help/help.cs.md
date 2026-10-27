@@ -969,13 +969,22 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 
 ## [packages.registry] Manifesty balíčků: názvy, verze a značka novější verze
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. V souborech package.json, composer.json, requirements.txt, .csproj, go.mod, Cargo.toml a Gemfile se editor umí zeptat registru balíčků (npm, Packagist, PyPI, NuGet, proxy Go, crates.io, RubyGems) na názvy a verze. Bez vašeho souhlasu se nic neposílá: Nástroje, Balíčky, Zkontrolovat verze balíčků ukáže servery a zeptá se jednou pro každý registr.
+1. V souborech package.json, composer.json, requirements.txt, .csproj, go.mod, Cargo.toml, Gemfile a pubspec.yaml se editor umí zeptat registru balíčků (npm, Packagist, PyPI, NuGet, proxy Go, crates.io, RubyGems, pub.dev) na názvy a verze. Bez vašeho souhlasu se nic neposílá: Nástroje, Balíčky, Zkontrolovat verze balíčků ukáže servery a zeptá se jednou pro každý registr.
 2. Po souhlasu nabídne Ctrl+J v názvu položky názvy z registru a ve verzi verze toho balíčku, od nejnovější. PyPI a proxy Go nemají vyhledávání: název se nabídne jen tehdy, když napsaný text je celý název.
 3. Položka s přesně zadanou verzí (1.2.3, ==1.2.3, v1.2.3), pro kterou existuje novější vydání, dostane informační značku na verzi. Rozsahy (^, ~, >=) se neznačí. Předběžná verze se za novější nebere, dokud existuje vydání. Kontrola běží, když přestanete psát.
-4. Odpovědi se drží v cache do zavření editoru. Nabídka nebo značka z cache to říká („cache“). Obnovit verze balíčků zahodí cache toho registru a zeptá se znovu.
-5. Zakázat dotazy na registry balíčků vezme zpět všechny souhlasy a zahodí cache. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde a dotazy se pak zastaví.
+4. Odpovědi se drží v cache v paměti, nejvýše do limitu velikosti (nejstarší odpadnou první), jen omezenou dobu a nejdéle do zavření editoru. Nabídka nebo značka z cache to říká („cache“). Obnovit verze balíčků zahodí cache toho registru a zeptá se znovu.
+5. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy a zahodí cache. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde a dotazy se pak zastaví.
 - Nic se nestahuje ani neinstaluje, nehledají se zranitelnosti a go mod download se nikdy nespouští. K registru se dostanou jen názvy balíčků, napsaný text a vaše síťová adresa.
-- Registr, který selže, nenabídne nic; Zkontrolovat verze balíčků napíše chybu do stavového řádku. Časový limit, limit velikosti a počet balíčků na jednu kontrolu jsou prozatímní.
+- Registr, který selže, nenabídne nic; Zkontrolovat verze balíčků napíše chybu do stavového řádku. Časový limit, limit velikosti, velikost a doba života cache a počet balíčků na jednu kontrolu jsou prozatímní.
+
+## [tools.schema] Schémata pro JSON, YAML a TOML: kontrola, doplňování a popisy
+commands: nks.schemas.allow
+1. Soubor JSON, JSONC, TOML nebo YAML se kontroluje podle schématu, které mu patří. Soubor může schéma pojmenovat sám („$schema“ na začátku souboru JSON, komentář „# yaml-language-server: $schema=ADRESA“ v YAML, „#:schema ADRESA“ v TOML); jinak rozhoduje název souboru (package.json, Cargo.toml, workflow GitHubu, soubory Claude Code, MCP a Codexu a krátký seznam běžných konfiguračních souborů). Stavový řádek ukáže název schématu, nebo „bez schématu“. Nález je podtržený a jeho bublina říká místo, u syntaktické chyby i řádek a sloupec.
+2. Ctrl+J nabídne klíče, které schéma v objektu kolem kurzoru dovoluje, a tam, kde se píše hodnota, i povolené hodnoty (hodnoty enum, true a false). Když myš chvíli stojí na klíči nebo hodnotě, ukáže se, co o ní schéma říká: popis, typ, povolené hodnoty a výchozí hodnota.
+3. Schémata package.json, Cargo.toml, workflow GitHubu a souborů agentů jsou součástí editoru. Schéma jiného známého souboru a schéma, které soubor pojmenuje adresou, se stáhne až po vašem souhlasu. Do té doby stavový řádek říká „stažení není povoleno“ a Nástroje, Balíčky, Povolit stažení schématu ukáže server a zeptá se jednou pro každý server. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy. Schéma, které soubor pojmenuje cestou, se čte z disku a souhlas nepotřebuje.
+4. Stažené schéma se ukládá do tohoto počítače, nejvýše do limitu velikosti (nejstarší se mažou první), a dokud je čerstvé, použije se bez dotazu. Když server neodpoví, použije se uložená kopie a stavový řádek to říká. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde.
+5. Syntaktická chyba v souboru JSON, JSONC, TOML nebo YAML se podtrhne i tehdy, když žádné schéma neplatí. YAML s kotvami, tagy nebo složitými klíči se číst nedá: takový soubor se nekontroluje a stavový řádek to říká.
+- Rozumí se podmnožině JSON Schema: typy, enum, required, properties, items, oneOf, anyOf, allOf, if/then, místní $ref a pattern. Odkazy na jiné soubory nebo adresy uvnitř schématu se přeskakují. Limity velikosti, doba života uložených kopií a čekací doby jsou prozatímní.
 
 ## [packages.scripts] Skripty balíčku: npm a Composer
 commands: nks.packages.script

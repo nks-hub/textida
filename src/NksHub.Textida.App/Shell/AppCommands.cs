@@ -270,6 +270,7 @@ internal static class AppCommands
         On("nks.packages.lookup", w => w.PackageLookup(refresh: false));
         On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
         On("nks.packages.revoke", w => w.PackageRevoke());
+        On("nks.schemas.allow", w => w.SchemaAllowDownload());
         On("nks.packages.script", w => w.ShowPackageScripts());
         On("nks.plugins.manage", w => w.ShowPluginManager());
         On("nks.tools.lint", w => w.RunLinter());

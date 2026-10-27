@@ -266,8 +266,35 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: names asked of a registry for one name completion. OPEN: the owner has not decided it.</summary>
     public const int RegistryPageSize = 20;
 
-    /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
+    /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it.</summary>
     public const int RegistryMaxLookups = 50;
+
+    /// <summary>Placeholder, OPEN: bytes of registry answers the cache of the JSON plugin holds; the oldest answers go first and one larger than this is not kept. The owner has not decided it.</summary>
+    public const long RegistryCacheMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: seconds a cached registry answer is used; an older one is asked for again (Refresh Package Versions drops the cache at any time). The owner has not decided it.</summary>
+    public const int RegistryCacheLifetimeSeconds = 3600;
+
+    /// <summary>Placeholder, OPEN: milliseconds the proxy of the network policy is not copied again to the consent file the JSON plugin reads while schemas are checked. The owner has not decided it.</summary>
+    public const int RegistryProxySyncMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: bytes the copies of downloaded schemas take on disk together; the oldest copies are deleted to make room. The owner has not decided it.</summary>
+    public const long SchemaCacheMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: largest schema that is downloaded and kept; a larger answer is refused. The owner has not decided it.</summary>
+    public const long SchemaDownloadMaxBytes = 4L << 20;
+
+    /// <summary>Placeholder, OPEN: seconds a downloaded schema is used without asking its host again; after that the host is asked, and the copy is used only if the host does not answer. The owner has not decided it.</summary>
+    public const int SchemaCacheMaxAgeSeconds = 7 * 24 * 3600;
+
+    /// <summary>Placeholder, OPEN: seconds a host that did not answer for a schema is left alone before it is asked again. The owner has not decided it.</summary>
+    public const int SchemaRetrySeconds = 60;
+
+    /// <summary>Placeholder, OPEN: milliseconds the pointer rests on text before the hover description is asked for. The owner has not decided it.</summary>
+    public const int HoverDelayMilliseconds = 400;
+
+    /// <summary>Placeholder, OPEN: longest hover description taken from a plugin, in UTF-16 units; a longer one is cut. The owner has not decided it.</summary>
+    public const int HoverMaxChars = 2000;
 
     /// <summary>Placeholder: document events that wait for one plugin; beyond it the rest of a document's events become one <c>document/eventsLost</c>. OPEN: the owner has not decided it.</summary>
     public const int EventQueueCapacity = 256;
@@ -365,6 +392,7 @@ internal static class PluginLimitsPlaceholders
         MaxCompletionItems = CompletionItemsPerPlugin,
         MaxCompletionEdits = CompletionEditsPerItem,
         CompletionTimeout = TimeSpan.FromMilliseconds(CompletionTimeoutMilliseconds),
+        MaxHoverChars = HoverMaxChars,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

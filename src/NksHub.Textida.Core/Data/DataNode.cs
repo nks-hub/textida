@@ -54,4 +54,7 @@ public sealed class DataSyntaxException(string detail, int start, int end) : Exc
 {
     public int Start { get; } = start;
     public int End { get; } = end;
+
+    /// <summary>True when the text uses a form the reader does not implement; the text may be valid, so it is not an error in the file.</summary>
+    public bool Unsupported { get; init; }
 }

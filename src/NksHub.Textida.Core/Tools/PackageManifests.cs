@@ -20,6 +20,7 @@ public static class PackageManifests
         new("go", "Go proxy", "proxy.golang.org"),
         new("crates", "crates.io", "crates.io"),
         new("rubygems", "RubyGems", "rubygems.org"),
+        new("pub", "pub.dev", "pub.dev"),
     ];
 
     /// <summary>The registry whose manifest <paramref name="path"/> is, by file name; null for any other file.</summary>
@@ -30,7 +31,7 @@ public static class PackageManifests
         var name = fileName.ToLowerInvariant();
         if (name.StartsWith("requirements", StringComparison.Ordinal) && name.EndsWith(".txt", StringComparison.Ordinal)) return "pypi";
         if (name.EndsWith(".csproj", StringComparison.Ordinal)) return "nuget";
-        return name switch { "package.json" => "npm", "composer.json" => "packagist", "go.mod" => "go", "cargo.toml" => "crates", "gemfile" => "rubygems", _ => null };
+        return name switch { "package.json" => "npm", "composer.json" => "packagist", "go.mod" => "go", "cargo.toml" => "crates", "gemfile" => "rubygems", "pubspec.yaml" => "pub", _ => null };
     }
 
     /// <summary>

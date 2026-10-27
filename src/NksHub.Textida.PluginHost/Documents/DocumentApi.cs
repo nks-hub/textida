@@ -32,7 +32,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
             || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
             || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1 || options.VirtualSaveTimeout is { Ticks: <= 0 }
-            || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero
+            || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero || options.MaxHoverChars < 0
             || options.Workspace is { MaxChanges: < 1 } or { MaxFileBytes: < 1 } || options.Preview is { MaxChars: < 1 } || options.Agent is { MaxUpdateChars: < 1 }
             || options.Sources is { Timeout.Ticks: <= 0 } or { MaxBytes: < 1 } or { MaxEntries: < 1 } or { MaxSchemesPerPlugin: < 1 } or { CacheEntries: < 1 } or { CacheBytes: < 1 })
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
@@ -199,6 +199,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.DiagnosticsPublish: return await PublishDiagnosticsAsync(pluginId, p);
             case DocumentMethods.DiagnosticsList: return await DiagnosticsListAsync(pluginId, p);
             case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
+            case DocumentMethods.HoverRegister: return RegisterHover(pluginId, p);
             case DocumentMethods.WorkspaceEdit: return await WorkspaceEditAsync(pluginId, p, cancellation);
             case DocumentMethods.SourceRegister: return RegisterSource(pluginId, p);
             case DocumentMethods.PreviewShow: return await PreviewShowAsync(pluginId, p);
@@ -669,6 +670,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             _snapshots.Remove(pluginId);
             _tabProviders.Remove(pluginId);
             _completionProviders.Remove(pluginId);
+            _hoverProviders.Remove(pluginId);
             var buffer = new ArrayBufferWriter<byte>();
             using (var w = new Utf8JsonWriter(buffer))
             {

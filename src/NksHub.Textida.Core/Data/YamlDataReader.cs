@@ -102,6 +102,8 @@ public static class YamlDataReader
 
         private DataSyntaxException Fail(string what, int length = 1) => new(what, Math.Min(_i, _n), Math.Min(_i + length, _n));
 
+        private DataSyntaxException Unsupported(string what, int length = 1) => new(what, Math.Min(_i, _n), Math.Min(_i + length, _n)) { Unsupported = true };
+
         private bool BlankOrEol(int j) => j >= _n || s[j] is ' ' or '\t' or '\n' or '\r';
 
         private int Column(int j)
@@ -159,14 +161,14 @@ public static class YamlDataReader
         public DataNode ParseStream()
         {
             for (int k = _begin; k < _n; k++)
-                if (s[k] == '\r' && (k + 1 >= _n || s[k + 1] != '\n')) throw new DataSyntaxException("A line break that is a lone CR is not supported.", k, k + 1);
+                if (s[k] == '\r' && (k + 1 >= _n || s[k + 1] != '\n')) throw new DataSyntaxException("A line break that is a lone CR is not supported.", k, k + 1) { Unsupported = true };
             if (!End && Cur == '﻿') { _i++; _begin++; } // the byte order mark is not a column
             var docs = new List<DataNode>();
             while (true)
             {
                 SkipTrivia();
                 if (End) break;
-                if (Cur == '%' && Column(_i) == 0) throw Fail("YAML directives are not supported.", LineLength());
+                if (Cur == '%' && Column(_i) == 0) throw Unsupported("YAML directives are not supported.", LineLength());
                 DataNode doc;
                 if (AtDocMarker(_i))
                 {
@@ -211,7 +213,7 @@ public static class YamlDataReader
             int col = Column(_i);
             char c = Cur;
             if (c == '-' && BlankOrEol(_i + 1)) return ParseSeq(col, depth);
-            if (c == '?' && BlankOrEol(_i + 1)) throw Fail("Complex mapping keys ('? ') are not supported.");
+            if (c == '?' && BlankOrEol(_i + 1)) throw Unsupported("Complex mapping keys ('? ') are not supported.");
             RejectIndicator(c);
             if (c is '|' or '>') return ParseBlockScalar(parentIndent);
             if (LooksLikeKey()) return ParseMap(col, depth);
@@ -220,8 +222,8 @@ public static class YamlDataReader
 
         private void RejectIndicator(char c)
         {
-            if (c is '&' or '*') throw Fail("Anchors and aliases are not supported.", TokenLength());
-            if (c == '!') throw Fail("Tags are not supported.", TokenLength());
+            if (c is '&' or '*') throw Unsupported("Anchors and aliases are not supported.", TokenLength());
+            if (c == '!') throw Unsupported("Tags are not supported.", TokenLength());
             if (c is '%' or '@' or '`') throw Fail($"The character '{c}' cannot start a value.");
             if (c is ',' or ']' or '}') throw Fail($"Unexpected '{c}'.");
         }
@@ -687,7 +689,7 @@ public static class YamlDataReader
                 if (Cur == ']') { _i++; node.End = _i; return node; }
                 var item = ParseFlowValue(depth + 1);
                 SkipTrivia(true);
-                if (!End && Cur == ':' && BlankOrFlow(_i + 1)) throw Fail("A single-pair mapping in a flow sequence is not supported.");
+                if (!End && Cur == ':' && BlankOrFlow(_i + 1)) throw Unsupported("A single-pair mapping in a flow sequence is not supported.");
                 node.Items.Add(item);
                 if (!End && Cur == ',') _i++;
                 else if (End || Cur != ']') throw Fail("',' or ']' is expected.");
@@ -708,8 +710,8 @@ public static class YamlDataReader
                 bool quoted = Cur is '"' or '\'';
                 if (Cur == '"') name = ReadDouble();
                 else if (Cur == '\'') name = ReadSingle();
-                else if (Cur is '[' or '{') throw Fail("Complex mapping keys are not supported.");
-                else if (Cur == '?' && BlankOrEol(_i + 1)) throw Fail("Complex mapping keys ('? ') are not supported.");
+                else if (Cur is '[' or '{') throw Unsupported("Complex mapping keys are not supported.");
+                else if (Cur == '?' && BlankOrEol(_i + 1)) throw Unsupported("Complex mapping keys ('? ') are not supported.");
                 else
                 {
                     RejectIndicator(Cur);
