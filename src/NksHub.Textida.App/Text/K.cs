@@ -1450,4 +1450,13 @@ public static class K
     public const string RecipeFilesPlanning = "recipeFiles.planning";
     public const string RecipeFilesNothing = "recipeFiles.nothing";
     public const string RecipeFilesSkipped = "recipeFiles.skipped";
+    public const string ShellMenuLabel = "shell.menu.label";
+    public const string ShellMenuAdded = "shell.menu.added";
+    public const string ShellRemoved = "shell.removed";
+    public const string ShellFailed = "shell.failed";
+    public const string ShellUnavailable = "shell.unavailable";
+    public const string ShellAssocTitle = "shell.assoc.title";
+    public const string ShellAssocWatermark = "shell.assoc.watermark";
+    public const string ShellAssocOn = "shell.assoc.on";
+    public const string ShellAssocOff = "shell.assoc.off";
 }

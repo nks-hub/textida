@@ -1656,6 +1656,24 @@
       "id": "nks.plugins.manage",
       "title": "cmd.plugins.manage",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.shellMenuAdd",
+      "title": "cmd.tools.shellMenuAdd",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.tools.shellAssociate",
+      "title": "cmd.tools.shellAssociate",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.tools.shellRemove",
+      "title": "cmd.tools.shellRemove",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
     }
   ],
   "menus": [
@@ -3164,6 +3182,24 @@
       "command": "nks.plugins.manage",
       "group": "9_plugins",
       "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellMenuAdd",
+      "group": "9_shell",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellAssociate",
+      "group": "9_shell",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellRemove",
+      "group": "9_shell",
+      "order": 30
     }
   ],
   "keybindings": [

@@ -1251,6 +1251,16 @@ Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agent
 - Vyzkoušet jde jen server spouštěný příkazem. Server s adresou se v seznamu ukáže a jde převést, ale nespouští se. npx a npm se spouštějí jako node se skriptem zástupce Node.js, protože Textida nespouští dávkové soubory.
 - Tajné hodnoty jsou skryté v seznamu, v okně, ve výstupu i v úryvcích, také když se objeví uvnitř argumentu nebo v chybovém výstupu programu. Hodnoty kratší než 4 znaky se v textu nehledají.
 
+## [tools.shell] Nabídka Průzkumníka a asociace souborů
+commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
+Jen Windows. Textida se umí přidat do místní nabídky Průzkumníka vašeho uživatele a do seznamu Otevřít v programu. Nic nevyžaduje práva správce a zapisují se jen klíče Textidy pod HKEY_CURRENT_USER\Software\Classes. Klíče jiných programů, včetně PSPadu, se nečtou ani nemění. Oba příkazy fungují v nainstalované Textida.exe.
+1. Zvolte Nástroje, Přidat Textidu do nabídky Průzkumníka. Soubory dostanou položku Otevřít v Textidě; spustí Textidu se souborem, nebo soubor předá už běžící Textidě. Ve Windows 11 je položka pod Zobrazit další možnosti.
+2. Zvolte Nástroje, Asociace souborů a vyberte přípony. Volba přípony v seznamu přidá nebo odebere Textidu v jejím seznamu Otevřít v programu; Escape seznam zavře. Dokud příponu nevyberete, žádná asociace se nevytvoří.
+3. Aby byla Textida výchozím programem přípony, použijte v Průzkumníku Otevřít v programu, Vybrat jinou aplikaci. Tuto volbu si Windows drží sám.
+4. Zvolte Nástroje, Odebrat Textidu z Průzkumníka: smaže položku nabídky a všechny asociace, které Textida přidala. Totéž udělá odinstalátor.
+- Text položky nabídky je v jazyce Textidy v okamžiku přidání. Po změně jazyka ji přidejte znovu.
+- Přesunutí Textida.exe do jiné složky nechá v položkách starou cestu. Přidejte položku znovu, nebo ji nejdřív odeberte.
+
 ## [review.external] Kontrola změn zvenku
 commands: nks.review.open, nks.review.next, nks.review.previous
 Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.

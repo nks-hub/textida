@@ -1,7 +1,7 @@
 using System.Diagnostics;
 
 /// <summary>
-/// Checks a publish output of the app (<c>--publish DIR</c>): every built-in plugin and <c>textida-mcp</c> sits where <c>PluginServices</c> and <c>McpService</c> look for it,
+/// Checks a publish output of the app (<c>--publish DIR</c>) or a Windows package built from it (<c>--package ZIP</c>, unpacked first):every built-in plugin and <c>textida-mcp</c> sits where <c>PluginServices</c> and <c>McpService</c> look for it,
 /// starts, and reaches its own <c>Main</c> (each exits with 2 when started without its options); no runtimeconfig.json, and no .pdb or .xml unless <c>--symbols</c> is given.
 /// </summary>
 internal static class PublishChecks
@@ -19,8 +19,26 @@ internal static class PublishChecks
         ("mcp", "textida-mcp"),
     ];
 
+    /// <summary>Files the Windows package adds to the publish output (tools/Build-WindowsPackage.ps1).</summary>
+    private static readonly string[] PackageFiles = ["Setup.ps1", "Install.cmd", "version.txt"];
+
     public static void Run(string[] args, Action<bool, string> check)
     {
+        int package = Array.IndexOf(args, "--package");
+        if (package >= 0)
+        {
+            var temp = Path.Combine(Path.GetTempPath(), "textida-package-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                System.IO.Compression.ZipFile.ExtractToDirectory(args[package + 1], temp);
+                foreach (var file in PackageFiles) check(File.Exists(Path.Combine(temp, file)), "package: missing " + file);
+                // the package holds the layout of a publish, so the same checks run on the unpacked files
+                Run(["--publish", temp, .. args.Where(a => a == "--symbols")], check);
+            }
+            finally { Directory.Delete(temp, recursive: true); }
+            return;
+        }
+
         int at = Array.IndexOf(args, "--publish");
         if (at < 0) return;
         var root = args[at + 1];

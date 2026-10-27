@@ -1505,5 +1505,14 @@
   "recipeFiles.nothing.other": "{title}: v {count} souborech není co měnit",
   "recipeFiles.skipped.one": "{title}: {count} soubor se vynechal, v ostatních není co měnit. {reason}",
   "recipeFiles.skipped.few": "{title}: {count} soubory se vynechaly, v ostatních není co měnit. První: {reason}",
-  "recipeFiles.skipped.other": "{title}: {count} souborů se vynechalo, v ostatních není co měnit. První: {reason}"
+  "recipeFiles.skipped.other": "{title}: {count} souborů se vynechalo, v ostatních není co měnit. První: {reason}",
+  "shell.menu.label": "Otevřít v Textidě",
+  "shell.menu.added": "Položka v nabídce Průzkumníka je přidána pro {program}. Najdete ji v místní nabídce souborů.",
+  "shell.removed": "Položka v nabídce Průzkumníka a asociace souborů Textidy jsou odstraněny.",
+  "shell.failed": "Integrace do Průzkumníka se nezdařila: {reason}",
+  "shell.unavailable": "Integrace do Průzkumníka funguje jen v Textida.exe na Windows.",
+  "shell.assoc.title": "Asociace souborů",
+  "shell.assoc.watermark": "Vyberte příponu, u které se Textida přidá do Otevřít v, nebo odebere",
+  "shell.assoc.on": "přiřazeno",
+  "shell.assoc.off": "nepřiřazeno"
 }

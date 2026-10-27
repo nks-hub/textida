@@ -133,6 +133,9 @@ internal static class AppCommands
         On("nks.agent.shareTab", w => w.ShareTabWithAgent());
         On("nks.agent.cancel", w => w.CancelAgentTurn());
         On("nks.agent.stop", w => w.StopAgent());
+        On("nks.tools.shellMenuAdd", w => w.AddShellMenu());
+        On("nks.tools.shellAssociate", w => w.ShowShellAssociations());
+        On("nks.tools.shellRemove", w => w.RemoveShellIntegration());
         On("nks.macro.record", w => w.RecordMacro());
         On("nks.macro.stop", w => w.StopMacro());
         On("nks.macro.playLast", w => w.PlayLastMacro());
