@@ -25,6 +25,8 @@ internal interface IDialogs
 {
     /// <summary>Index of the pressed button; -1 when the window was closed without an answer.</summary>
     Task<int> ChooseAsync(Window owner, ChoiceRequest request);
+    /// <summary>The same question, closed without an answer (-1) when <paramref name="cancellation"/> fires; a dialog that cannot be closed from outside stays until the user answers.</summary>
+    Task<int> ChooseAsync(Window owner, ChoiceRequest request, CancellationToken cancellation) => ChooseAsync(owner, request);
     Task<SaveAsChoice?> SaveAsAsync(Window owner, SaveAsRequest request);
     Task<IReadOnlyList<string>> PickFilesAsync(Window owner);
     /// <summary>The folder the user chose, or null when the dialog was cancelled.</summary>
@@ -67,7 +69,9 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         return button;
     }
 
-    public async Task<int> ChooseAsync(Window owner, ChoiceRequest request)
+    public Task<int> ChooseAsync(Window owner, ChoiceRequest request) => ChooseAsync(owner, request, CancellationToken.None);
+
+    public async Task<int> ChooseAsync(Window owner, ChoiceRequest request, CancellationToken cancellation)
     {
         var panel = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
         panel.Children.Add(new TextBlock { Text = request.Message, TextWrapping = TextWrapping.Wrap });
@@ -77,6 +81,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         panel.Children.Add(row);
         var dialog = Frame(request.Title, panel, request.Details is null ? 460 : 560);
         for (int i = 0; i < request.Buttons.Count; i++) row.Children.Add(MakeButton(request.Buttons[i], dialog, i));
+        using var closer = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close(null)));
         var result = await dialog.ShowDialog<int?>(owner);
         return result ?? -1;
     }

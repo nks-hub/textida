@@ -160,7 +160,7 @@ internal sealed partial class MainWindow : Window
         _body.Children.Add(panel);
         _body.Children.Add(editorArea);
 
-        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
+        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
         Grid.SetRow(content, 1);
         root.Children.Add(content);
@@ -334,6 +334,7 @@ internal sealed partial class MainWindow : Window
         ApplyTableTexts();
         ApplyCompareTexts();
         ApplyOutputTexts();
+        ApplyAgentTexts();
         RefreshPluginUi();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
@@ -371,6 +372,7 @@ internal sealed partial class MainWindow : Window
         _app.Workbench.SettingChanged -= OnSettingChanged;
         ReleaseNavigation();
         ReleaseOutput();
+        ReleaseAgent();
         ReleasePlugins();
         bool others = _app.Windows.Count > 1;
         foreach (var doc in _docs.ToList())

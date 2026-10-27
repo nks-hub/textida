@@ -74,6 +74,11 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         lock (_gate) return _shared.ContainsKey(tab.Doc.Doc.Id);
     }
 
+    public bool IsSharedDocument(Guid document)
+    {
+        lock (_gate) return _shared.ContainsKey(document);
+    }
+
     /// <summary>Shows the tab to the assistant: it can read it and propose changes. <paramref name="revealSecrets"/> also lets it see the values of a secrets file. Call on the UI thread.</summary>
     public void Share(MainWindow window, DocTab tab, bool revealSecrets)
     {
@@ -102,7 +107,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         var scope = GrantScope.OfDocument(document);
         foreach (var permission in new[] { DocumentPermissions.SecretsReveal, DocumentPermissions.EditPropose, DocumentPermissions.Read })
             _plugins.Permissions.Revoke(McpServer.ClientId, permission, scope);
-        if (shared.ExposedByUs && _plugins.Documents.IsExposed(document) && !_plugins.IsRunningOn(document)) _plugins.Documents.Withdraw(shared.Document);
+        if (shared.ExposedByUs && _plugins.Documents.IsExposed(document) && !_plugins.IsRunningOn(document) && !_plugins.Acp.IsSharedDocument(document)) _plugins.Documents.Withdraw(shared.Document);
         return true;
     }
 

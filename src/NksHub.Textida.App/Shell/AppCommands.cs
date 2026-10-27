@@ -128,6 +128,11 @@ internal static class AppCommands
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
+        On("nks.agent.start", w => w.StartAgent());
+        On("nks.agent.panel", w => w.ToggleAgentPanelCommand());
+        On("nks.agent.shareTab", w => w.ShareTabWithAgent());
+        On("nks.agent.cancel", w => w.CancelAgentTurn());
+        On("nks.agent.stop", w => w.StopAgent());
         On("nks.macro.record", w => w.RecordMacro());
         On("nks.macro.stop", w => w.StopMacro());
         On("nks.macro.playLast", w => w.PlayLastMacro());
