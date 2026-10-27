@@ -815,6 +815,21 @@ commands: nks.tools.logPattern
 4. Use for the output makes the pattern work for the lines in the output window: a click on a line, or Enter, opens the file at that line. A relative file name is looked for in the directory the tool ran in, then in the folder of the file that was open when it started, then among the open documents by name.
 - A tool can bring its own pattern: "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] in tools.json and "logPattern": "gcc" in the tool. Without "syntax" the pattern is a regular expression.
 
+## [tools.edit] Tools: edit definitions, typed variables, tools from a folder
+commands: nks.tools.edit
+1. Tools, Edit Tool Definitions opens one editor for the tools of the file tools.json. New, Save and Delete write the file at once. The line under the form shows the command exactly as it would start for the open file, or why it cannot run now. The editor and Run Tool use the same definition, so a tool starts with the same arguments from both.
+2. A definition can declare variables, one per line: Name:text or Name:path, optionally followed by =value (the value may use other variables, for example Out:path=${FileDir}/out). Without a value the user variable or the built-in variable of that name is used. The order is: declared value, then your own variables (Edit User Variables), then the built-in ones. Use the name as ${Name} in executable, args and cwd.
+3. A text is one line. A path is one line, not empty, without the characters * ? " < > | . A value of the wrong type stops the run before anything starts and the output names the variable.
+4. The folder of the open file, or a folder above it, may hold .textida/tools.json with tools of the same shape. They are listed in Run Tool, but they run only after you confirm the command and the directory, even when the same text is in your own file. A definition that changes, including its variables, is asked again. These tools cannot be edited in the editor.
+- An empty argument cannot be written in the editor. Saving drops comments in tools.json.
+
+## [tools.make] Makefile: run a target
+commands: nks.tools.makeTargets
+1. With a Makefile open (Makefile, GNUmakefile, *.mk, *.mak), Tools, Run Makefile Target lists its targets, read from the text of the tab. Choose one to run make -f with that file and the target, in the folder of the file.
+2. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
+3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
+- Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
+
 ## [log.mode] Log mode: levels and the next error
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. A document in the language Log (files ending in .log, or Format, Language) colors each line by its level: error, warning, info or debug. The most severe level found in a line decides.

@@ -383,5 +383,7 @@
   "cmd.macro.stop": "Stop Recording Macro",
   "cmd.macro.playLast": "Play Last Macro",
   "cmd.macro.save": "Save Last Macro As...",
-  "cmd.macro.run": "Run Saved Macro..."
+  "cmd.macro.run": "Run Saved Macro...",
+  "cmd.tools.edit": "Edit Tool Definitions...",
+  "cmd.tools.makeTargets": "Run Makefile Target..."
 }

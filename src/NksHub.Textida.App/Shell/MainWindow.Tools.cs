@@ -9,6 +9,8 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Tools;
+using NksHub.Textida.PluginHost.Manifest;
+using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -44,8 +46,8 @@ internal sealed partial class MainWindow
     /// <summary>Lists the defined tools; the chosen one is started. A definition file with errors still offers the tools that are valid.</summary>
     internal CommandOutcome ShowToolMenu()
     {
-        var catalog = _app.Tools.Load();
-        var rows = catalog.Tools.Select(tool => new QuickRow(tool.Title, null, tool.Spec.Executable, null, true, null, tool.Title, () => _ = RunToolAsync(tool))).ToList();
+        var catalog = _app.Tools.Load(ActiveDirectory());
+        var rows = catalog.Tools.Select(tool => new QuickRow(tool.Title, null, tool.Foreign ? tool.Source : tool.Spec.Executable, null, true, null, tool.Title, () => _ = RunToolAsync(tool))).ToList();
         foreach (var error in catalog.Errors)
             rows.Add(new QuickRow(error, null, null, null, false, Loc.Get(K.ToolsInvalid), error, () => { }));
         string definitions = Loc.Get(K.ToolsOpenDefinitions);
@@ -83,11 +85,9 @@ internal sealed partial class MainWindow
             return;
         }
         var tab = Active is { Custom: null } active ? active : null;
-        var (line, column) = tab?.CaretPosition() ?? (1, 1);
-        string defaultDirectory = tab?.Path is { } path ? Path.GetDirectoryName(Path.GetFullPath(path)) ?? Environment.CurrentDirectory : Environment.CurrentDirectory;
         string source = entry.Spec.Id;
         ToolInvocation tool;
-        try { tool = ToolRunner.Resolve(entry.Spec, ToolVariables.ForDocument(tab?.Path, line, column), defaultDirectory); }
+        try { tool = ResolveTool(entry.Spec); }
         catch (ToolException e)
         {
             ReportToolFailure(entry, e.Message);
@@ -96,9 +96,10 @@ internal sealed partial class MainWindow
 
         if (!_app.ToolApprovals.IsApproved(tool))
         {
-            var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(K.ToolConfirmMessage, ("title", entry.Title)),
-                [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
-                [Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory))]);
+            var details = new List<string> { Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory)) };
+            if (entry.Source is { } origin) details.Add(Loc.Get(K.ToolConfirmSource, ("source", origin)));
+            var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(entry.Foreign ? K.ToolConfirmForeign : K.ToolConfirmMessage, ("title", entry.Title)),
+                [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], details);
             if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
             _app.ToolApprovals.Approve(tool);
         }
@@ -111,8 +112,7 @@ internal sealed partial class MainWindow
         var cts = _toolJob = new CancellationTokenSource();
         _toolRunning = entry.Title;
         _outputStop.IsVisible = true;
-        if (entry.LogPatternId is { } patternId && _app.Tools.Load().Patterns.FirstOrDefault(p => p.Definition.Id == patternId)?.Place is { } place)
-            _outputLogs[source] = new OutputLog(place, tool.WorkingDirectory, tab?.Path);
+        if (entry.Place is { } place) _outputLogs[source] = new OutputLog(place, tool.WorkingDirectory, tab?.Path);
         else _outputLogs.Remove(source);
 
         _app.Output.Append(OutputChannel.Tasks, source, "> " + tool.CommandLine);
@@ -142,6 +142,98 @@ internal sealed partial class MainWindow
             cts.Dispose();
             _outputStop.IsVisible = false;
         }
+    }
+
+    /// <summary>The folder of the open file, or null; the project tools of tools.json files in a folder are looked for from here.</summary>
+    private string? ActiveDirectory() =>
+        Active is { Custom: null } tab && tab.Path is { } path ? Path.GetDirectoryName(Path.GetFullPath(path)) : null;
+
+    /// <summary>
+    /// The one place that turns a tool definition into the program, the arguments and the directory: the variables of the open document and the user's own variables
+    /// come in here. The launcher and the definition editor both call it, so the editor shows what the menu starts.
+    /// </summary>
+    internal ToolInvocation ResolveTool(ToolSpec spec)
+    {
+        var tab = Active is { Custom: null } active ? active : null;
+        var (line, column) = tab?.CaretPosition() ?? (1, 1);
+        var (user, _) = UserVariables.Load(Path.Combine(_app.ProfileDirectory, UserVariables.FileName));
+        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, user), ActiveDirectory() ?? Environment.CurrentDirectory);
+    }
+
+    // ---- editor of the definitions ----
+
+    private ToolEditorWindow? _toolEditor;
+
+    /// <summary>Opens the editor of the tool definitions of the profile.</summary>
+    internal void ShowToolEditor()
+    {
+        if (_toolEditor is { } open)
+        {
+            open.Activate();
+            return;
+        }
+        var window = _toolEditor = new ToolEditorWindow(_app.Tools, PreviewTool);
+        window.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.F1) { _app.OpenHelp("tools.edit"); e.Handled = true; } };
+        window.Closed += (_, _) => _toolEditor = null;
+        window.Show(this);
+    }
+
+    /// <summary>The line the editor shows for a definition: the command as it would start now, or why it cannot.</summary>
+    internal string PreviewTool(ExternalToolContribution definition)
+    {
+        var variables = ToolCatalog.Declarations(definition);
+        if (variables is null) return "";
+        try { return Loc.Get(K.ToolEditPreview, ("command", ResolveTool(ToolCatalog.ToSpec(definition, variables)).CommandLine)); }
+        catch (ToolException e) { return Loc.Get(K.ToolEditPreviewFailed, ("reason", e.Message)); }
+    }
+
+    // ---- Makefile targets ----
+
+    private static readonly Lazy<LogPattern> MakeErrors = new(() => LogPattern.Compile(MakefileTargets.ErrorPattern, LogPatternSyntax.Regex));
+
+    /// <summary>Lists the targets of the open Makefile; the chosen one is run by make through the tool runner.</summary>
+    internal CommandOutcome ShowMakeTargets()
+    {
+        if (Active is not { Custom: null, Hex: null } tab || tab.Path is not { } path || !MakefileTargets.IsMakefileName(Path.GetFileName(path)))
+        {
+            SetStatusMessage(Loc.Get(K.MakeNotMakefile));
+            return CommandOutcome.Handled;
+        }
+        string text;
+        try { text = tab.Surface is { } surface ? surface.Document.GetText(0, surface.Document.TextLength) : File.ReadAllText(path); }
+        catch (IOException e)
+        {
+            SetStatusMessage(e.Message);
+            return CommandOutcome.Handled;
+        }
+        var targets = MakefileTargets.Parse(text);
+        if (targets.Count == 0)
+        {
+            SetStatusMessage(Loc.Get(K.MakeNoTargets, ("file", Path.GetFileName(path))));
+            return CommandOutcome.Handled;
+        }
+        var rows = targets.Select(t => new QuickRow(t.Name, null, Loc.Get(K.MakeDetail, ("line", t.Line)), null, true, null, t.Name, () => _ = RunMakeTargetAsync(path, t.Name))).ToList();
+        ShowChoice(Loc.Get(K.MakeWatermark), Loc.Get(K.A11yMake), rows);
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Runs <c>make -f file target</c> in the folder of the Makefile as a tool: the command is confirmed the first time, the output goes to the Tasks channel and a line
+    /// that names a file and a line opens it. <paramref name="program"/> and <paramref name="programArgs"/> (put before the arguments of make) exist so a test can stand in for make.
+    /// </summary>
+    internal Task RunMakeTargetAsync(string makefile, string target, string program = MakefileTargets.DefaultProgram, IReadOnlyList<string>? programArgs = null)
+    {
+        string full = Path.GetFullPath(makefile);
+        static string Literal(string text) => text.Replace("$", "$$", StringComparison.Ordinal);
+        var definition = new ExternalToolContribution
+        {
+            Id = "make:" + target,
+            Title = Loc.Get(K.MakeTitle, ("target", target)),
+            Executable = Literal(program),
+            Args = [.. (programArgs ?? []).Select(Literal), "-f", Literal(Path.GetFileName(full)), Literal(target)],
+            Cwd = Literal(Path.GetDirectoryName(full)!),
+        };
+        return RunToolAsync(new ToolEntry(definition, ToolCatalog.ToSpec(definition, [], full), null, MakeErrors.Value));
     }
 
     private void ReportToolFailure(ToolEntry entry, string reason)

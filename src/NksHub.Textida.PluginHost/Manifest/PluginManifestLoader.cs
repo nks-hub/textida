@@ -202,6 +202,8 @@ public static class PluginManifestLoader
             if (string.IsNullOrWhiteSpace(t.Executable)) errors.Add($"external tool '{t.Id}' needs an executable.");
             if (t.TimeoutSeconds is <= 0) errors.Add($"external tool '{t.Id}' has a time limit that is not positive.");
             if (t.LogPattern is { } pattern && !c.LogPatterns.Any(x => x.Id == pattern)) errors.Add($"external tool '{t.Id}' names the unknown log pattern '{pattern}'.");
+            foreach (var v in t.Variables ?? [])
+                if (v.Type is not ("text" or "path")) errors.Add($"external tool '{t.Id}': variable '{v.Name}' has the type '{v.Type}'; use text or path.");
         }
 
         return data;

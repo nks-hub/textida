@@ -171,4 +171,90 @@ public sealed class ToolTests : IDisposable
         Assert.False(approvals.IsApproved(Resolve(spec with { Cwd = Directory.CreateDirectory(Path.Combine(_dir, "other")).FullName })));
         Assert.False(approvals.IsApproved(Resolve(spec with { Id = "renamed" })));
     }
+
+    [Theory]
+    [InlineData(ToolVariableType.Path, "a\nb")]
+    [InlineData(ToolVariableType.Path, "out*.txt")]
+    [InlineData(ToolVariableType.Path, "   ")]
+    [InlineData(ToolVariableType.Text, "one\ntwo")]
+    public void A_variable_of_the_wrong_type_is_refused_before_anything_starts(ToolVariableType type, string value)
+    {
+        string marker = Path.Combine(_dir, "ran.txt");
+        var spec = Echo(["${Target}", "--exit", "0"]) with { Variables = [new ToolVariableDecl("Target", type, value)] };
+        var e = Assert.Throws<ToolException>(() => Resolve(spec));
+        Assert.Contains("${Target}", e.Message, StringComparison.Ordinal);
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task A_typed_variable_takes_a_value_from_the_lookup_or_from_its_declaration_and_runs_as_one_argument()
+    {
+        var declared = new[] { new ToolVariableDecl("Out", ToolVariableType.Path, "${FileDir}/my out"), new ToolVariableDecl("Note", ToolVariableType.Text) };
+        string file = Path.Combine(_dir, "a.txt");
+        var lookup = ToolVariables.ForDocument(file, user: new Dictionary<string, string> { ["Note"] = "hello \"world\"", ["FileBase"] = "own" });
+        var tool = Resolve(Echo(["${Out}", "${Note}", "${FileBase}"]) with { Variables = declared }, lookup);
+        var (_, lines) = await Run(tool);
+        Assert.Equal([$"[{_dir}/my out]", "[hello \"world\"]", "[own]"], lines);
+
+        // declared without a value and without one anywhere: unavailable, like any unknown variable
+        Assert.Throws<ToolException>(() => Resolve(Echo(["${Missing}"]) with { Variables = [new ToolVariableDecl("Missing", ToolVariableType.Text)] }));
+        Assert.Throws<ToolException>(() => Resolve(Echo([]) with { Variables = [new ToolVariableDecl("X", ToolVariableType.Text, "a"), new ToolVariableDecl("X", ToolVariableType.Text, "b")] }));
+    }
+
+    [Fact]
+    public void Declared_variables_and_the_origin_belong_to_what_an_approval_is_tied_to()
+    {
+        var approvals = new ToolApprovals(Path.Combine(_dir, "approvals2.txt"));
+        var spec = Echo(["${V}"]) with { Variables = [new ToolVariableDecl("V", ToolVariableType.Text, "one")] };
+        approvals.Approve(Resolve(spec));
+        Assert.True(approvals.IsApproved(Resolve(spec)));
+        Assert.False(approvals.IsApproved(Resolve(spec with { Variables = [new ToolVariableDecl("V", ToolVariableType.Text, "two")] })));
+        Assert.False(approvals.IsApproved(Resolve(spec with { Variables = [new ToolVariableDecl("V", ToolVariableType.Path, "one")] })));
+        var foreign = spec with { Origin = Path.Combine(_dir, "project", ".textida", "tools.json") };
+        Assert.False(approvals.IsApproved(Resolve(foreign)));
+        approvals.Approve(Resolve(foreign));
+        Assert.True(approvals.IsApproved(Resolve(foreign)));
+        var elsewhere = Directory.CreateDirectory(Path.Combine(_dir, "elsewhere")).FullName;
+        Assert.False(approvals.IsApproved(ToolRunner.Resolve(foreign, _ => null, elsewhere)));
+    }
+
+    [Fact]
+    public void Makefile_targets_are_read_without_make()
+    {
+        const string text = """
+            CC := gcc
+            OBJS = a.o b.o
+            .PHONY: all clean
+            all: app docs
+            app: $(OBJS)
+            	$(CC) -o $@ $^
+            %.o: %.c
+            	$(CC) -c $<
+            $(OBJS): config.h
+            clean docs::
+            	rm -f app
+            define RULE
+            fake: nothing
+            endef
+            export FLAG: yes
+            lines = one \
+                two: three
+            target-specific: CFLAGS = -O2
+            ifeq ($(X),1)
+            test: app
+            endif
+            all: again
+            """;
+        var targets = MakefileTargets.Parse(text);
+        Assert.Equal(["all", "app", "clean", "docs", "target-specific", "test"], targets.Select(t => t.Name));
+        Assert.Equal(4, targets[0].Line);
+        Assert.True(MakefileTargets.IsMakefileName("GNUmakefile"));
+        Assert.True(MakefileTargets.IsMakefileName("rules.MK"));
+        Assert.False(MakefileTargets.IsMakefileName("notes.txt"));
+        var errors = LogPattern.Compile(MakefileTargets.ErrorPattern, LogPatternSyntax.Regex);
+        Assert.Equal(new LogLocation("main.c", 12, 5), errors.Match("main.c:12:5: error: x"));
+        Assert.Equal(new LogLocation("Makefile", 7, null), errors.Match("make: *** [Makefile:7: all] Error 1"));
+        Assert.Equal(new LogLocation(@"C:\src\a.c", 3, 1), errors.Match(@"C:\src\a.c:3:1: warning"));
+        Assert.Null(errors.Match("nothing here"));
+    }
 }
