@@ -143,6 +143,17 @@ commands: nks.remote.unsent
 Änderungen an einer Remote-Datei werden zuerst auf diesem Computer gespeichert. Die Liste zeigt die Remote-Dateien, deren Kopie geändert und nicht gesendet wurde, auch nach dem Schließen oder einem Absturz des Programms. Wählen Sie eine aus, dann öffnet sich die Kopie; die Leiste bietet Hochladen an.
 - Das Bearbeiten braucht keine Verbindung. Nicht gesendete Änderungen bleiben, bis Sie sie hochladen.
 
+## [source.open] Aus einer Plugin-Quelle öffnen
+commands: nks.source.open
+1. Wählen Sie Datei und dann Aus Quelle öffnen. Die Liste zeigt die Quellen, die Plugins anbieten, und was jede kann: ob sie schreibt, ob eine geänderte Datei geschützt ist und ob sie Ordner auflistet.
+2. Wählen Sie eine Quelle und geben Sie die Adresse ein, die mit dem Schema der Quelle beginnt.
+3. Der Text öffnet sich in einem Tab. Die Leiste darüber zeigt die Quelle, die Adresse mit durch *** ersetzten Geheimnissen und die Revision, in der der Text gelesen wurde.
+- Speichern schreibt den Text nur zurück, wenn die Datei an der Quelle noch in dieser Revision ist. Wurde sie geändert, wird nichts geschrieben und Ihr Text bleibt im Tab. Unterschiede zeigen vergleicht, Überschreiben ersetzt genau die gefundene Version, Abbrechen lässt alles, wie es ist.
+- Eine Quelle, die die Revision nicht in einem Schritt prüfen kann, sagt das, und das Programm warnt vor jedem Speichern: Es prüft zuerst die Revision und schreibt dann, eine Änderung dazwischen wird ohne Hinweis überschrieben.
+- Ist die Quelle nicht erreichbar, öffnet sich der Tab aus der Kopie, die das Programm im Speicher hält, und zeigt Offline. Aus Quelle neu laden versucht es erneut und ersetzt nie ungespeicherte Änderungen.
+- Adressen mit Passwort, Token oder Schlüssel werden in der Leiste, in den zuletzt geöffneten Dateien und in den Protokollen mit *** gezeigt. Die zuletzt geöffneten Dateien behalten nur die maskierte Adresse; eine Quelle, die das Geheimnis in der Adresse braucht, fragt erneut danach.
+- Grenze: Ein Geheimnis im Pfad einer Adresse wird nicht erkannt und bleibt sichtbar. Speichern unter schreibt eine Kopie auf die Festplatte und beendet die Verbindung zur Quelle.
+
 ## [remote.backup] Verbindungen sichern
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Wählen Sie Datei und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.

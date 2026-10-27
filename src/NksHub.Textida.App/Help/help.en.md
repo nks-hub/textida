@@ -143,6 +143,17 @@ commands: nks.remote.unsent
 Changes to a remote file are saved on this computer first. The list shows the remote files whose copy was changed and not sent, also after the program was closed or crashed. Choose one to open the copy; the bar offers Upload.
 - Editing needs no connection. Unsent changes stay until you upload them.
 
+## [source.open] Open from a plugin source
+commands: nks.source.open
+1. Choose File and then Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
+2. Choose a source and type the address, starting with the scheme of the source.
+3. The text opens in a tab. The bar above it shows the source, the address with its secrets replaced by ***, and the revision the text was read at.
+- Save writes the text back only if the file at the source is still at that revision. If it changed, nothing is written and your text stays in the tab. Choose Show Differences to compare, Overwrite to replace exactly the version that was found, or Cancel.
+- A source that cannot check the revision in one step says so, and the program warns you before each save: it checks the revision first and then writes, so a change made in between is overwritten without notice.
+- If the source cannot be reached, the tab opens from the copy the program keeps in memory and says Offline. Reload from source tries again and never replaces unsaved changes.
+- Addresses with a password, a token or a key in them are shown with *** in the bar, the recent files and the logs. The recent files keep only the masked address, so a source that needs the secret in the address asks for it again.
+- Limit: a secret inside the path of an address cannot be recognised and stays visible. Save As writes a copy to disk and ends the link to the source.
+
 ## [remote.backup] Back up connections
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Choose File and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.

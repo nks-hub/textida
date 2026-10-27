@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Services;
 
@@ -37,7 +38,7 @@ internal sealed class OutputChannels
 
     public string PathOf(OutputChannel channel) => Path.Combine(_directory, channel.ToString().ToLowerInvariant() + ".log");
 
-    /// <summary>Stores the text, one stored line per text line. Failure to write never reaches the caller: output must not break the work that produced it.</summary>
+    /// <summary>Stores the text, one stored line per text line, with the secrets of any URI in it masked. Failure to write never reaches the caller: output must not break the work that produced it.</summary>
     public void Append(OutputChannel channel, string source, string text)
     {
         var now = DateTime.Now;

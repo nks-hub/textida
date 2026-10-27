@@ -40,6 +40,7 @@ internal sealed partial class MainWindow
         DocumentPermissions.EditDirect => K.PluginsPermDocumentEditDirect,
         DocumentPermissions.ClipboardWrite => K.PluginsPermClipboardWrite,
         DocumentPermissions.Virtual => K.PluginsPermDocumentVirtual,
+        DocumentPermissions.Source => K.PluginsPermDocumentSource,
         _ => K.PluginsPermWorkspaceFiles,
     });
 

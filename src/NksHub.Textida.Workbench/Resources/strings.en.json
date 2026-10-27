@@ -367,6 +367,7 @@
   "cmd.view.syncScroll": "Synchronize Scrolling",
   "menu.editor.context": "Editor Context Menu",
   "cmd.remote.open": "Open Remote File...",
+  "cmd.source.open": "Open from Source...",
   "cmd.remote.connections": "Remote Connections...",
   "cmd.remote.upload": "Upload to Server",
   "cmd.remote.check": "Check Server Version",

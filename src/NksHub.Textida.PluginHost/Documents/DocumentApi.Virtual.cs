@@ -25,7 +25,7 @@ public sealed partial class DocumentApi
     }
 
     /// <summary>The content of a request: <c>text</c> written in the codec (with its byte order mark) or <c>bytes</c> (base64) as they are; neither is an empty document.</summary>
-    private byte[] ReadContent(JsonElement p, TextCodec codec)
+    private byte[] ReadContent(JsonElement p, TextCodec codec, long? limit = null)
     {
         bool hasText = p.TryGetProperty("text", out var text), hasBytes = p.TryGetProperty("bytes", out var bytes);
         if (hasText && hasBytes) throw Invalid("The content is either 'text' or 'bytes', not both.");
@@ -37,8 +37,9 @@ public sealed partial class DocumentApi
         }
         catch (UnrepresentableCharactersException) { throw Invalid("The text cannot be written in the encoding of the document."); }
         catch (FormatException) { throw Invalid("'bytes' is not valid base64."); }
-        if (content.LongLength > _options.MaxVirtualBytes)
-            throw new RpcException(RpcErrorCodes.MessageTooLarge, $"A virtual document holds at most {_options.MaxVirtualBytes} bytes; got {content.LongLength}.");
+        long max = limit ?? _options.MaxVirtualBytes;
+        if (content.LongLength > max)
+            throw new RpcException(RpcErrorCodes.MessageTooLarge, $"The content holds at most {max} bytes; got {content.LongLength}.");
         return content;
     }
 

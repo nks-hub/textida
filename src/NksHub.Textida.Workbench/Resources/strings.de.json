@@ -367,6 +367,7 @@
   "cmd.view.syncScroll": "Scrollen synchronisieren",
   "menu.editor.context": "Kontextmenü des Editors",
   "cmd.remote.open": "Remote-Datei öffnen...",
+  "cmd.source.open": "Aus Plugin-Quelle öffnen...",
   "cmd.remote.connections": "Remote-Verbindungen...",
   "cmd.remote.upload": "Auf Server hochladen",
   "cmd.remote.check": "Serverversion prüfen",

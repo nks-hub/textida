@@ -367,6 +367,7 @@
   "cmd.view.syncScroll": "Synchronizovať posúvanie",
   "menu.editor.context": "Kontextová ponuka editora",
   "cmd.remote.open": "Otvoriť vzdialený súbor...",
+  "cmd.source.open": "Otvoriť zo zdroja pluginu...",
   "cmd.remote.connections": "Vzdialené pripojenia...",
   "cmd.remote.upload": "Nahrať na server",
   "cmd.remote.check": "Skontrolovať verziu na serveri",
