@@ -378,5 +378,10 @@
   "cmd.review.next": "Next Change from Outside",
   "cmd.review.previous": "Previous Change from Outside",
   "setting.review.autoKeep.title": "Keep changes from outside without review",
-  "setting.review.autoKeep.description": "On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review."
+  "setting.review.autoKeep.description": "On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review.",
+  "cmd.macro.record": "Record Macro",
+  "cmd.macro.stop": "Stop Recording Macro",
+  "cmd.macro.playLast": "Play Last Macro",
+  "cmd.macro.save": "Save Last Macro As...",
+  "cmd.macro.run": "Run Saved Macro..."
 }

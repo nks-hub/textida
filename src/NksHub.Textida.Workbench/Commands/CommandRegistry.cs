@@ -18,6 +18,7 @@ public sealed class CommandDescriptor
         Undo = c.Undo == "transaction" ? UndoMode.Transaction : UndoMode.None;
         Cancellable = c.Cancellable;
         Repeatable = c.Repeatable;
+        Macro = c.Macro;
         Hidden = c.Hidden;
         Aliases = c.Aliases.ToArray();
         Source = source;
@@ -40,6 +41,9 @@ public sealed class CommandDescriptor
     public bool Cancellable { get; }
 
     public bool Repeatable { get; }
+
+    /// <summary>A macro may record and replay the command.</summary>
+    public bool Macro { get; }
 
     public bool Hidden { get; }
 
@@ -64,7 +68,16 @@ public enum CommandOutcome
     Disabled,
     Unknown,
     NoHandler,
+
+    /// <summary>A macro is being recorded and the command is not one a macro can replay; it did not run.</summary>
+    NotRecordable,
 }
+
+/// <summary>One step of a macro: a command of the registry, or text typed at the carets. Exactly one of the two is set.</summary>
+public sealed record MacroStep(string? Command, string? Text);
+
+/// <summary>How far <see cref="CommandRegistry.PlayAsync"/> got: <see cref="Done"/> steps ran; <see cref="Outcome"/> is <see cref="CommandOutcome.Handled"/> when all of them did.</summary>
+public sealed record MacroResult(int Done, CommandOutcome Outcome);
 
 public delegate ValueTask<CommandOutcome> CommandHandler(IWhenContext context, CancellationToken cancellationToken);
 
@@ -173,6 +186,73 @@ public sealed class CommandRegistry
 
     public bool HasHandler(string commandId) => _handlers.ContainsKey(commandId);
 
+    /// <summary>Prefix of the commands that control macros; they are never recorded and never refused.</summary>
+    public const string MacroCommandPrefix = "nks.macro.";
+
+    private List<MacroStep>? _recording;
+    private int _depth;
+
+    public bool IsRecording => _recording is not null;
+
+    public bool IsPlaying { get; private set; }
+
+    /// <summary>The last macro that was recorded and not empty.</summary>
+    public IReadOnlyList<MacroStep> LastMacro { get; private set; } = [];
+
+    /// <summary>Raised with the command id when a command is refused because it is not recorded in a macro.</summary>
+    public event Action<string>? RecordingRefused;
+
+    /// <summary>Starts recording the commands that run from now on; false while a macro is already recorded or played.</summary>
+    public bool StartRecording()
+    {
+        if (_recording is not null || IsPlaying) return false;
+        _recording = [];
+        return true;
+    }
+
+    /// <summary>Ends the recording; the macro becomes <see cref="LastMacro"/> unless it is empty.</summary>
+    public IReadOnlyList<MacroStep> StopRecording()
+    {
+        var steps = _recording ?? [];
+        _recording = null;
+        if (steps.Count > 0) LastMacro = steps;
+        return steps;
+    }
+
+    /// <summary>Records text typed at the carets (typed or composed, not pasted); consecutive text joins into one step.</summary>
+    public void RecordText(string text)
+    {
+        if (_recording is not { } steps || IsPlaying || text.Length == 0) return;
+        if (steps.Count > 0 && steps[^1].Text is { } before) steps[^1] = new MacroStep(null, before + text);
+        else steps.Add(new MacroStep(null, text));
+    }
+
+    /// <summary>
+    /// Runs the steps in order through <see cref="ExecuteAsync"/>, the text steps through <paramref name="typeText"/>, and stops at the first step that is not handled.
+    /// The caller groups the call into one undo step.
+    /// </summary>
+    public async ValueTask<MacroResult> PlayAsync(IReadOnlyList<MacroStep> steps, IWhenContext context, Func<string, bool> typeText, CancellationToken cancellationToken = default)
+    {
+        if (_recording is not null || IsPlaying) return new MacroResult(0, CommandOutcome.NotHandled);
+        IsPlaying = true;
+        try
+        {
+            for (int i = 0; i < steps.Count; i++)
+            {
+                var step = steps[i];
+                var outcome = step.Command is { } id
+                    ? await ExecuteAsync(id, context, cancellationToken).ConfigureAwait(true)
+                    : typeText(step.Text ?? "") ? CommandOutcome.Handled : CommandOutcome.NotHandled;
+                if (outcome != CommandOutcome.Handled) return new MacroResult(i, outcome);
+            }
+            return new MacroResult(steps.Count, CommandOutcome.Handled);
+        }
+        finally
+        {
+            IsPlaying = false;
+        }
+    }
+
     /// <summary>Id of the last repeatable command that ran and was handled; null before the first one.</summary>
     public string? LastRepeatable { get; private set; }
 
@@ -204,6 +284,26 @@ public sealed class CommandRegistry
     /// </summary>
     public async ValueTask<CommandOutcome> ExecuteAsync(string idOrAlias, IWhenContext context, CancellationToken cancellationToken = default)
     {
+        bool outermost = _depth == 0;
+        if (outermost && _recording is not null && TryGet(idOrAlias, out var asked) && !asked.Macro && !asked.Id.StartsWith(MacroCommandPrefix, StringComparison.Ordinal))
+        {
+            RecordingRefused?.Invoke(asked.Id);
+            return CommandOutcome.NotRecordable;
+        }
+
+        _depth++;
+        try
+        {
+            return await ExecuteCoreAsync(idOrAlias, context, outermost, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            _depth--;
+        }
+    }
+
+    private async ValueTask<CommandOutcome> ExecuteCoreAsync(string idOrAlias, IWhenContext context, bool outermost, CancellationToken cancellationToken)
+    {
         var outcome = CommandOutcome.Unknown;
         var name = idOrAlias;
         for (var depth = 0; depth < MaxFallbackDepth; depth++)
@@ -229,6 +329,12 @@ public sealed class CommandRegistry
             if (outcome == CommandOutcome.Handled && command.Repeatable)
             {
                 LastRepeatable = command.Id;
+            }
+
+            // only the outermost call is recorded: what a command runs inside itself (a fallback) is part of it
+            if (outcome == CommandOutcome.Handled && outermost && command.Macro && _recording is { } steps && !IsPlaying)
+            {
+                steps.Add(new MacroStep(command.Id, null));
             }
 
             if (outcome == CommandOutcome.Handled || command.FallbackId is null)

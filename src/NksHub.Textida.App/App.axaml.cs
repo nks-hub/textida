@@ -50,6 +50,9 @@ public sealed partial class App : Application
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
     /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>
     internal ClipLibrary Clips { get; private set; } = null!;
+
+    /// <summary>The macros the user saved, in the <c>macros</c> folder of the profile.</summary>
+    internal MacroStore Macros { get; private set; } = null!;
     /// <summary>The special conversions the conversion list offers next to the converters of data plugins; tests replace the list.</summary>
     internal IReadOnlyList<SpecialConversion> SpecialConversions { get; set; } = NksHub.Textida.Core.Conversions.SpecialConversions.All;
     internal ToolCatalog Tools { get; private set; } = null!;
@@ -145,6 +148,7 @@ public sealed partial class App : Application
         ToolApprovals = new ToolApprovals(Path.Combine(ProfileDirectory, "tool-approvals.txt"));
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
+        Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });

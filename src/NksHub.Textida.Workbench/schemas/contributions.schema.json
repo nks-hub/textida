@@ -57,6 +57,9 @@
           "repeatable": {
             "type": "boolean"
           },
+          "macro": {
+            "type": "boolean"
+          },
           "hidden": {
             "type": "boolean"
           },

@@ -326,6 +326,16 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Repeat Last Command runs the last text-changing command again: Delete Line, Duplicate Line, Move Line, Join Lines, Indent, Outdent, letter case, Toggle Comment, Insert into Lines, Sort Lines, Reformat Paragraph and the alignment commands, Insert Date and Time, Insert GUID. A command with a dialog repeats with the choices of its last run, without asking. In the PSPad profile it is Alt+Q.
 - They do not work in a read-only document or in paged mode.
 
+## [edit.macro] Macros
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
+1. Tools, Record Macro, starts recording. Do the work with commands and typing. Tools, Stop Recording Macro, ends it.
+2. Tools, Play Last Macro, plays it again over the current selections and carets.
+3. Tools, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Run Saved Macro, lists the saved ones and plays the chosen one.
+- A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, and typed text. With several carets it does the same as doing the steps by hand.
+- A playback is one Undo step. If a step cannot run, the macro stops there and the status bar names the step; what ran before stays one Undo step.
+- While recording, a command that a macro cannot replay is refused and the status bar says so: everything with a dialog, file commands, Cut, Copy, Paste, moving the caret with the arrow keys, Find. Recording goes on.
+- Playing needs an editable text document. Import of PSPad macros is not available.
+
 ## [edit.json] Format JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Select JSON text, or select nothing to format the whole document.
