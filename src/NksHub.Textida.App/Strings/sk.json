@@ -415,8 +415,6 @@
   "results.conflictHint": "Súbory s konfliktom ostali bez zmeny. „Nový náhľad“ vytvorí náhľad znova.",
   "results.noJournal": "Žurnál obnovy nie je k dispozícii, pád uprostred dávky by sa nedal dokončiť ani vrátiť.",
   "status.searchResults": "Hľadanie",
-  "status.editorConfig": ".editorconfig",
-  "status.editorConfig.tip": "Nastavenia zo súboru {file}: {properties}. Kliknutím súbor otvoríte.",
   "status.indent.fromConfig": "Odsadenie zo súboru {file}",
   "status.trimSkipped": "Orezanie medzier pri ukladaní sa nepodarilo: história zmien je príliš krátka alebo je súbor príliš veľký",
   "goToLine.notIndexed": "Index riadkov na túto pozíciu ešte nesiaha, skúste to o chvíľu",
@@ -1333,5 +1331,13 @@
   "fragment.conflictTitle": "Reťazec sa zmenil",
   "fragment.conflictMessage": "Súbor {title} sa vnútri reťazca zmenil po otvorení tohto fragmentu. Zápis teraz tieto zmeny prepíše.",
   "fragment.conflictOverwrite": "Prepísať",
-  "fragment.parentClosed": "Súbor fragmentu reťazca bol zatvorený. Fragment je odpojený a nič nezapisuje."
+  "fragment.parentClosed": "Súbor fragmentu reťazca bol zatvorený. Fragment je odpojený a nič nezapisuje.",
+  "configFiles.watermark": "Konfiguračné súbory",
+  "a11y.configFiles": "Konfiguračné súbory tohto súboru",
+  "configFiles.create": "Vytvoriť {name}",
+  "configFiles.createDetail": "zo šablóny, v priečinku {folder}",
+  "configFiles.empty": "Pre tento súbor neplatí žiadna konfigurácia.",
+  "configFiles.created": "Vytvorené {file}",
+  "configFiles.failed": "{name} sa nepodarilo vytvoriť: {reason}",
+  "status.configFiles.tip": "Konfigurácia platná pre tento súbor. Kliknutím ju otvoríte alebo založíte."
 }

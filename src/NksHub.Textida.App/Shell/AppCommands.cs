@@ -204,6 +204,7 @@ internal static class AppCommands
         Do("nks.tools.logPattern", w => w.ShowLogPatternTester());
         Do("nks.tools.edit", w => w.ShowToolEditor());
         On("nks.file.saveActions", w => w.ShowSaveActions());
+        On("nks.file.configFiles", w => w.ShowConfigFiles());
         On("nks.tools.makeTargets", w => w.ShowMakeTargets());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));

@@ -46,7 +46,7 @@ internal sealed partial class MainWindow
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);
         _eolItem.Click += (_, _) => ShowEolMenu();
         _languageItem.Click += (_, _) => ShowLanguageMenu();
-        _configItem.Click += (_, _) => OpenEditorConfigFile();
+        _configItem.Click += (_, _) => ShowConfigFiles();
         _configItem.IsVisible = false;
         return grid;
     }
@@ -108,12 +108,13 @@ internal sealed partial class MainWindow
         _encodingItem.Content = codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : "");
         _eolItem.Content = EolLabel(od);
         _languageItem.Content = od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name;
-        _configItem.Content = Loc.Get(K.StatusEditorConfig);
-        _configItem.IsVisible = od.EditorConfig.Properties.Count > 0;
+        var configs = ConfigHitsOf(od).Where(h => h.Path is not null).ToList();
+        _configItem.Content = ConfigLabel(configs);
+        _configItem.IsVisible = configs.Count > 0;
 
         ToolTip.SetTip(_encodingItem, od.EncodingUncertain ? Loc.Get(K.StatusEncodingGuess, ("percent", (int)Math.Round(od.Guess!.Confidence * 100))) : Loc.Get(K.StatusEncodingTip));
         ToolTip.SetTip(_indentItem, IndentSourceFile() is { } indentFile ? Loc.Get(K.StatusIndentFromConfig, ("file", indentFile)) : Loc.Get(K.StatusIndentTip));
-        if (od.EditorConfig.Files.Count > 0) ToolTip.SetTip(_configItem, Loc.Get(K.StatusEditorConfigTip, ("file", od.EditorConfig.Files[0]), ("properties", string.Join(", ", od.EditorConfig.Properties.Keys))));
+        if (configs.Count > 0) ToolTip.SetTip(_configItem, Loc.Get(K.StatusConfigFilesTip) + "\n" + string.Join("\n", configs.Select(h => h.Path)));
         ToolTip.SetTip(_eolItem, Loc.Get(K.StatusEolTip));
         ToolTip.SetTip(_languageItem, Loc.Get(K.StatusLanguageTip));
         AutomationProperties.SetName(_encodingItem, Loc.Get(K.StatusEncodingA11y, ("value", (string)_encodingItem.Content)));

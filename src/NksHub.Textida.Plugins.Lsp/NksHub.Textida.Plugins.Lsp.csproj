@@ -15,4 +15,10 @@
     <ProjectReference Include="..\NksHub.Textida.PluginSdk\NksHub.Textida.PluginSdk.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- the same table as the editor, so the launch lines cannot drift between the two -->
+    <Compile Include="..\NksHub.Textida.Core\Tools\LanguageCatalog.cs" Link="LanguageCatalog.cs" />
+    <Compile Include="..\NksHub.Textida.Core\Tools\ToolLocator.cs" Link="ToolLocator.cs" />
+  </ItemGroup>
+
 </Project>

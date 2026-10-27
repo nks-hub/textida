@@ -402,8 +402,6 @@
   "results.conflictHint": "Files with a conflict were left unchanged. “New preview” makes the preview again.",
   "results.noJournal": "The recovery journal is not available; a crash in the middle of a batch could not be finished or rolled back.",
   "status.searchResults": "Search",
-  "status.editorConfig": ".editorconfig",
-  "status.editorConfig.tip": "Settings from {file}: {properties}. Click to open the file.",
   "status.indent.fromConfig": "Indentation from {file}",
   "status.trimSkipped": "Trailing blanks were not trimmed on save: the change history is too short or the file is too large",
   "goToLine.notIndexed": "The line index does not reach that position yet; try again in a moment",
@@ -1303,5 +1301,13 @@
   "fragment.conflictTitle": "The string changed",
   "fragment.conflictMessage": "{title} was changed inside the string after this fragment was opened. Writing now replaces those changes.",
   "fragment.conflictOverwrite": "Overwrite",
-  "fragment.parentClosed": "The file of a string fragment was closed. The fragment is detached and writes nothing."
+  "fragment.parentClosed": "The file of a string fragment was closed. The fragment is detached and writes nothing.",
+  "configFiles.watermark": "Configuration files",
+  "a11y.configFiles": "Configuration files of this file",
+  "configFiles.create": "Create {name}",
+  "configFiles.createDetail": "from a template, in {folder}",
+  "configFiles.empty": "No configuration file applies to this file.",
+  "configFiles.created": "Created {file}",
+  "configFiles.failed": "{name} was not created: {reason}",
+  "status.configFiles.tip": "Configuration that applies to this file. Click to open or create one."
 }

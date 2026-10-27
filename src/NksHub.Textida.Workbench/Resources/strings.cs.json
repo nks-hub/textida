@@ -396,5 +396,6 @@
   "cmd.edit.fragmentJson": "Upravit řetězec jako JSON",
   "cmd.edit.fragmentSql": "Upravit řetězec jako SQL",
   "cmd.edit.fragmentHtml": "Upravit řetězec jako HTML",
-  "cmd.edit.fragmentWriteBack": "Zapsat fragment zpět do řetězce"
+  "cmd.edit.fragmentWriteBack": "Zapsat fragment zpět do řetězce",
+  "cmd.file.configFiles": "Konfigurační soubory tohoto souboru..."
 }

@@ -19,7 +19,7 @@ public sealed class GofmtFactAttribute : FactAttribute
 
 /// <summary>
 /// P8.3.1: the order of a save with actions, with the test program of ToolEcho as the formatter (success, a syntax error, a missing program, a timeout).
-/// The formatters of the catalog (gofmt, rustfmt, clang-format, RuboCop) are not started here; the P8.5.3 table that fixes the final list does not exist yet.
+/// The formatters of the catalog (gofmt, rustfmt, clang-format, RuboCop) are not started here except gofmt; the table is in <see cref="LanguageCatalog"/>.
 /// </summary>
 public sealed class SaveActionsTests : IDisposable
 {

@@ -1585,6 +1585,12 @@
       "category": "cat.tools",
       "when": "editorFocus",
       "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.file.configFiles",
+      "title": "cmd.file.configFiles",
+      "category": "cat.file",
+      "enablement": "hasDocument"
     }
   ],
   "menus": [
@@ -3015,6 +3021,12 @@
       "command": "nks.macro.run",
       "group": "9_macro",
       "order": 50
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.configFiles",
+      "group": "2_save",
+      "order": 36
     }
   ],
   "keybindings": [

@@ -840,6 +840,11 @@ commands: nks.file.saveActions
 - No time limit is preset: while formatTimeoutSeconds is missing, a formatter does not run and the status bar says so. The value in the example is only an example.
 - After an autosave nobody can answer: a tool that was never confirmed does not start, and a newer version on the server shows on the bar of the tab instead of a dialog.
 - Switching an action in the list rewrites saveActions.json of the profile and drops comments in it. Actions from a project are listed but changed in the project file.
+## [file.configFiles] Configuration files of the file
+commands: nks.file.configFiles
+1. The status bar names the configuration files that apply to the open file: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml and the configuration files of the language (for example ruff.toml, stylua.toml, .shellcheckrc). Each one is the nearest in the folder of the file or above it. Click the item, or use File, Configuration Files of This File.
+2. The list opens a file you choose. A configuration that is missing can be created from a minimal template; it is written to the nearest parent folder that holds .git, otherwise to the folder of the file, and an existing file is never replaced.
+- Only folders are looked at: no tool is started, so the list shows what is on disk, not what a tool would use. The list is read again when the file is opened, saved or renamed, so a file created outside the editor shows after the next save.
 ## [log.mode] Log mode: levels and the next error
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. A document in the language Log (files ending in .log, or Format, Language) colors each line by its level: error, warning, info or debug. The most severe level found in a line decides.

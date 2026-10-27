@@ -1,4 +1,5 @@
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.Plugins.Lsp;
 
@@ -13,14 +14,10 @@ public sealed class ServerCatalog(IReadOnlyList<ServerLaunch> entries)
     private static readonly IReadOnlyDictionary<string, string> NoEnvironment = new Dictionary<string, string>();
 
     /// <summary>
-    /// The servers that come with the editor. OPEN: the version of the Roslyn server to pin is not decided, so the entry names the program and leaves the version to the
+    /// The servers that come with the editor, from <c>LanguageCatalog</c> (the entries marked as shipped). OPEN: the version of the Roslyn server to pin is not decided, so the entry names the program and leaves the version to the
     /// installation; the launch line (<c>--stdio</c>, <c>--telemetryLevel off</c>) is data here and has not been run against a real Roslyn or csharp-ls server.
     /// </summary>
-    public static ServerCatalog BuiltIn { get; } = new(
-    [
-        new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"], NoEnvironment),
-        new("csharp", "csharp-ls", [], NoEnvironment),
-    ]);
+    public static ServerCatalog BuiltIn { get; } = new([.. LanguageCatalog.Lsp.Where(x => x.Shipped).Select(x => new ServerLaunch(x.Language, x.Program, x.Arguments, NoEnvironment))]);
 
     /// <summary>Reads <c>[{"language":"x","program":"p","arguments":["a"],"environment":{"K":"V"}}]</c>.</summary>
     public static ServerCatalog FromJson(string json)
@@ -53,18 +50,5 @@ public sealed class ServerCatalog(IReadOnlyList<ServerLaunch> entries)
     }
 
     /// <summary>The full path of a program: the name itself when it is a path to a file, otherwise the first match in <c>PATH</c> (with the extensions of <c>PATHEXT</c> on Windows).</summary>
-    public static string? Find(string program)
-    {
-        if (program.Contains(Path.DirectorySeparatorChar) || program.Contains(Path.AltDirectorySeparatorChar)) return File.Exists(program) ? Path.GetFullPath(program) : null;
-        var extensions = OperatingSystem.IsWindows()
-            ? (System.Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE").Split(';', StringSplitOptions.RemoveEmptyEntries).Prepend("").ToArray()
-            : [""];
-        foreach (var folder in (System.Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            foreach (var extension in extensions)
-            {
-                var candidate = Path.Combine(folder, program + extension);
-                if (File.Exists(candidate)) return candidate;
-            }
-        return null;
-    }
+    public static string? Find(string program) => ToolLocator.Find(program);
 }

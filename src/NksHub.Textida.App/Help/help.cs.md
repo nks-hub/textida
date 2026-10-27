@@ -845,6 +845,11 @@ commands: nks.file.saveActions
 - Časový limit není předvolený: dokud chybí formatTimeoutSeconds, formátovač neběží a stavový řádek to řekne. Hodnota v příkladu je jen příklad.
 - Po autosave nemá kdo odpovědět: nástroj, který nebyl nikdy potvrzen, se nespustí, a novější verze na serveru se ukáže v liště karty místo dialogu.
 - Přepnutí akce v seznamu přepíše saveActions.json v profilu a zahodí v něm komentáře. Akce z projektu se vypíšou, ale mění se v souboru projektu.
+## [file.configFiles] Konfigurační soubory souboru
+commands: nks.file.configFiles
+1. Stavový řádek ukazuje konfigurační soubory, které platí pro otevřený soubor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurace jazyka (například ruff.toml, stylua.toml, .shellcheckrc). U každé je to nejbližší soubor ve složce souboru nebo nad ní. Klepněte na položku, nebo použijte Soubor, Konfigurační soubory tohoto souboru.
+2. Ze seznamu otevřete vybraný soubor. Chybějící konfiguraci lze vytvořit z minimální šablony; zapíše se do nejbližší nadřazené složky s .git, jinak do složky souboru, a existující soubor se nikdy nepřepíše.
+- Prochází se jen složky: žádný nástroj se nespouští, seznam tedy ukazuje, co je na disku, ne co by nástroj použil. Seznam se načte znovu při otevření, uložení a přejmenování souboru, takže soubor vytvořený mimo editor se ukáže po dalším uložení.
 ## [log.mode] Režim logu: úrovně a další chyba
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. Dokument v jazyce Log (soubory .log, nebo Formát, Jazyk) obarví každý řádek podle jeho úrovně: chyba, varování, informace nebo ladění. Rozhoduje nejzávažnější úroveň nalezená v řádku.
