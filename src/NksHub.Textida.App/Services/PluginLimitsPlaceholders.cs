@@ -172,6 +172,20 @@ internal static class PluginLimitsPlaceholders
         EnsureOutline = ensureOutline,
     };
 
+    /// <summary>Placeholder: longest wait for a server tried from the list of agent servers, for its handshake and for its list of tools.</summary>
+    public const int McpClientTimeoutSeconds = 30;
+
+    /// <summary>Placeholder: time a server tried from the list gets to leave after its input is closed, before it is killed.</summary>
+    public const int McpClientExitGraceSeconds = 5;
+
+    /// <summary>Placeholder: last lines of a server's standard error kept for the report of its end.</summary>
+    public const int McpClientStderrLines = 20;
+
+    public static NksHub.Textida.McpClient.McpClientOptions McpClient() => new(
+        new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
+        TimeSpan.FromSeconds(McpClientTimeoutSeconds), TimeSpan.FromSeconds(McpClientExitGraceSeconds), McpClientStderrLines,
+        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
+
     public static UiApiOptions Ui() => new()
     {
         MaxPanelsPerPlugin = 4,

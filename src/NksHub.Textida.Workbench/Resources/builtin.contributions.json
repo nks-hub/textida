@@ -1394,6 +1394,11 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.mcpServers",
+      "title": "cmd.tools.mcpServers",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.review.open",
       "title": "cmd.review.open",
       "category": "cat.file",
@@ -2696,6 +2701,12 @@
       "command": "nks.tools.mcpTools",
       "group": "8_mcp",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpServers",
+      "group": "8_mcp",
+      "order": 40
     },
     {
       "menu": "file",

@@ -369,6 +369,7 @@
   "cmd.tools.mcpServer": "MCP Server: Switch On or Off...",
   "cmd.tools.mcpShareTab": "Share This Tab with MCP",
   "cmd.tools.mcpTools": "MCP Tools...",
+  "cmd.tools.mcpServers": "MCP Servers of Agents...",
   "cmd.review.open": "Review Changes from Outside",
   "cmd.review.next": "Next Change from Outside",
   "cmd.review.previous": "Previous Change from Outside",

@@ -355,7 +355,7 @@ internal sealed partial class MainWindow
         }
     }
 
-    private void MovePalette(int step)
+    internal void MovePalette(int step)
     {
         if (_quickRows.Count == 0) return;
         _paletteList.SelectedIndex = Math.Clamp(_paletteList.SelectedIndex + step, 0, _quickRows.Count - 1);

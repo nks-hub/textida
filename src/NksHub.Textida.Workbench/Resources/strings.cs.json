@@ -369,6 +369,7 @@
   "cmd.tools.mcpServer": "Server MCP: zapnout nebo vypnout...",
   "cmd.tools.mcpShareTab": "Sdílet kartu s MCP",
   "cmd.tools.mcpTools": "Nástroje MCP...",
+  "cmd.tools.mcpServers": "Servery MCP agentů...",
   "cmd.review.open": "Zkontrolovat změny zvenku",
   "cmd.review.next": "Další změna zvenku",
   "cmd.review.previous": "Předchozí změna zvenku",

@@ -40,6 +40,8 @@ public sealed partial class App : Application
     /// <summary>The editor locks of the files open in this run; a file another instance holds opens read only.</summary>
     internal NksHub.Textida.Core.Files.FileLocks Locks { get; private set; } = null!;
     /// <summary>Where passwords live: the credential store of the operating system. Tests replace it.</summary>
+    /// <summary>The folder whose dot files hold the MCP server lists of the agents; tests point it at a fixture.</summary>
+    internal string AgentConfigHome { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     internal NksHub.Textida.Core.Secrets.ICredentialStore Credentials { get; set; } = NksHub.Textida.Core.Secrets.CredentialStores.ForCurrentPlatform();
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;

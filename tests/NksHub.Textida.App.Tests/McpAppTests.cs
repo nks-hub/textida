@@ -8,7 +8,10 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.McpClient;
+using TextidaMcpClient = NksHub.Textida.McpClient.McpClient;
 using NksHub.Textida.PluginHost.Mcp;
+using NksHub.Textida.Rpc;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
@@ -386,6 +389,54 @@ public class McpAppTests : IDisposable
         await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the list again");
         _w.ClosePalette();
         await Until(() => _w.McpTask.IsCompleted, "the picker to end");
+    }
+
+    // ---- the editor's own client (P6.4.3) against the real textida-mcp program and the running editor ----
+
+    private static readonly McpClientOptions ClientOptions = new(
+        new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
+        HandshakeTimeout: TimeSpan.FromSeconds(60), ExitGrace: TimeSpan.FromSeconds(10), StderrTailLines: 20, ClientName: "textida-test", ClientVersion: "0.0.1");
+
+    private static McpLaunch BridgeLaunch() => new(
+        Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet", [BridgeDll], AppContext.BaseDirectory,
+        new Dictionary<string, string> { ["TEXTIDA_CHANNEL"] = App.Startup.Channel }, []);
+
+    [AvaloniaFact]
+    public async Task The_editors_own_client_reads_a_shared_tab_through_the_real_server_and_reports_the_server_going_away()
+    {
+        await SwitchOnAsync();
+        var tab = Open("client.txt", "on disk\n");
+        tab.Editor!.Document.Text = "unsaved for the client\n";
+        Settle();
+        await ShareAsync(tab);
+
+        var client = await Pump(TextidaMcpClient.StartAsync(BridgeLaunch(), ClientOptions), "the client to connect");
+        await using var _ = client;
+        Assert.Equal(TextidaMcpClient.ModernVersion, client.ProtocolVersion);
+        Assert.Equal("textida", client.ServerName);
+
+        var tools = await Pump(client.ListToolsAsync(), "tools/list");
+        Assert.Equal(McpServer.AllTools.Select(t => t.Name), tools.Select(t => t.Name));
+        var listed = JsonDocument.Parse((await Pump(client.CallToolAsync("editor_list_documents"), "list")).Text).RootElement;
+        var id = Assert.Single(listed.GetProperty("documents").EnumerateArray()).GetProperty("id").GetString();
+        var read = await Pump(client.CallToolAsync("editor_read_range", $"{{\"document\":\"{id}\"}}"), "read");
+        Assert.False(read.IsError);
+        Assert.Contains("unsaved for the client", read.Text);
+
+        var ended = new TaskCompletionSource<McpServerExit>();
+        client.ServerExited += e => ended.TrySetResult(e);
+        await _app.Plugins.Mcp.DisableAsync(); // the user switches the server off: the program ends and the client says so
+        var exit = await Pump(ended.Task, "the client to notice the end");
+        Assert.NotNull(exit.ExitCode);
+        await Assert.ThrowsAsync<McpServerExitedException>(() => Pump(client.ListToolsAsync(), "a call after the end"));
+    }
+
+    [AvaloniaFact]
+    public async Task The_editors_own_client_reports_the_stderr_of_the_program_when_the_server_is_off()
+    {
+        var e = await Assert.ThrowsAsync<McpServerExitedException>(() => Pump(TextidaMcpClient.StartAsync(BridgeLaunch(), ClientOptions), "the failed connect"));
+        Assert.Equal(1, e.Exit.ExitCode);
+        Assert.Contains("not running or its MCP server is switched off", e.Exit.StderrTail);
     }
 
     // ---- a client written by someone else ----

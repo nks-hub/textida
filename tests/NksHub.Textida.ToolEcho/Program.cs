@@ -1,8 +1,12 @@
 // Stand-in for an external tool in tests: prints the arguments it received, one per line in brackets.
 // --sleep: prints "started" and then waits a minute. --both: writes one line to each output stream. A trailing "--exit N" sets the exit code.
+// --mcp modern|legacy|old: a small MCP server on standard input and output. modern answers server/discover, legacy only initialize (2025-11-25), old answers initialize with an
+// older version. Tools: echo, slow (never answers; a cancel is reported on stderr), crash (exits with 7), env (value of a variable), secret (writes the variable named TEST_SECRET to stderr), page2 (second page of the list).
 using System.Text;
+using System.Text.Json;
 
 Console.OutputEncoding = new UTF8Encoding(false);
+if (args is ["--mcp", var mode]) return RunMcp(mode);
 if (args is ["--sleep", ..])
 {
     Console.WriteLine("started");
@@ -19,3 +23,69 @@ int code = 0;
 if (args is [.., "--exit", var number] && int.TryParse(number, out code)) args = args[..^2];
 foreach (var arg in args) Console.WriteLine("[" + arg + "]");
 return code;
+
+static int RunMcp(string mode)
+{
+    if (Environment.GetEnvironmentVariable("TEST_MARKER") is { Length: > 0 } marker) File.WriteAllText(marker, "started");
+    var stdin = new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false));
+    var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
+    var gate = new object();
+    void Send(string json) { lock (gate) stdout.WriteLine(json); }
+    static string Quote(string s) => JsonSerializer.Serialize(s);
+    static string Result(JsonElement id, string result) => "{\"jsonrpc\":\"2.0\",\"id\":" + id.GetRawText() + ",\"result\":" + result + "}";
+    static string Error(JsonElement id, int code, string message) => "{\"jsonrpc\":\"2.0\",\"id\":" + id.GetRawText() + ",\"error\":{\"code\":" + code + ",\"message\":" + Quote(message) + "}}";
+    static string Tools(bool second) => second
+        ? "{\"tools\":[{\"name\":\"crash\",\"inputSchema\":{\"type\":\"object\"}},{\"name\":\"env\",\"inputSchema\":{\"type\":\"object\"}},{\"name\":\"secret\",\"inputSchema\":{\"type\":\"object\"}}]}"
+        : "{\"tools\":[{\"name\":\"echo\",\"title\":\"Echo\",\"description\":\"Returns text\",\"inputSchema\":{\"type\":\"object\"},\"annotations\":{\"readOnlyHint\":true}},{\"name\":\"slow\",\"inputSchema\":{\"type\":\"object\"}}],\"nextCursor\":\"page2\"}";
+    static string Text(string text) => "{\"content\":[{\"type\":\"text\",\"text\":" + Quote(text) + "}],\"isError\":false}";
+
+    while (stdin.ReadLine() is { } line)
+    {
+        if (line.Length == 0) continue;
+        using var doc = JsonDocument.Parse(line);
+        var root = doc.RootElement;
+        var method = root.GetProperty("method").GetString()!;
+        var p = root.TryGetProperty("params", out var pp) ? pp : default;
+        if (!root.TryGetProperty("id", out var id))
+        {
+            if (method == "notifications/cancelled") Console.Error.WriteLine("cancelled:" + p.GetProperty("requestId").GetRawText());
+            else Console.Error.WriteLine("notified:" + method);
+            continue;
+        }
+        switch (method)
+        {
+            case "server/discover" when mode == "modern":
+                Send(Result(id, "{\"resultType\":\"complete\",\"supportedVersions\":[\"2026-07-28\",\"2025-11-25\"],\"capabilities\":{\"tools\":{}},\"_meta\":{\"io.modelcontextprotocol/serverInfo\":{\"name\":\"fake\",\"version\":\"2\"}}}"));
+                break;
+            case "server/discover":
+                Send(Error(id, -32601, "Method not found"));
+                break;
+            case "initialize":
+                Send(Result(id, "{\"protocolVersion\":\"" + (mode == "old" ? "2024-11-05" : "2025-11-25") + "\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"fake\",\"version\":\"1\"},\"instructions\":\"fake instructions\"}"));
+                break;
+            case "tools/list":
+                Console.Error.WriteLine("era:" + (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("_meta", out _) ? "modern" : "legacy"));
+                Send(Result(id, Tools(p.ValueKind == JsonValueKind.Object && p.TryGetProperty("cursor", out _))));
+                break;
+            case "tools/call":
+                var arguments = p.TryGetProperty("arguments", out var a) ? a : default;
+                switch (p.GetProperty("name").GetString())
+                {
+                    case "echo": Send(Result(id, Text(arguments.GetProperty("text").GetString()!))); break;
+                    case "slow": Console.Error.WriteLine("slow-started:" + id.GetRawText()); break;
+                    case "crash": Console.Error.WriteLine("boom"); return 7;
+                    case "env": Send(Result(id, Text(Environment.GetEnvironmentVariable(arguments.GetProperty("name").GetString()!) ?? "(unset)"))); break;
+                    case "secret": Console.Error.WriteLine("token is " + Environment.GetEnvironmentVariable("TEST_SECRET")); Send(Result(id, Text("ok"))); break;
+                    default: Send(Error(id, -32602, "Unknown tool")); break;
+                }
+                break;
+            case "ping":
+                Send(Result(id, "{}"));
+                break;
+            default:
+                Send(Error(id, -32601, "Method not found"));
+                break;
+        }
+    }
+    return 0;
+}
