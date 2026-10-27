@@ -338,7 +338,7 @@ public class RegistryTests
             return ValueTask.FromResult(CommandOutcome.Handled);
         });
         registry.SetHandler("nks.edit.selectAll", (_, _) => ValueTask.FromResult(CommandOutcome.Handled));
-        var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false);
+        var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false).Set(ContextKeys.HasDocument, true);
 
         Assert.True(registry.StartRecording());
         await registry.ExecuteAsync("nks.search.findNext", ctx);
