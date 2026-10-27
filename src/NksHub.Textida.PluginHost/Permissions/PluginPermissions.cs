@@ -35,7 +35,7 @@ public static class PluginPermissionNames
     public static IReadOnlyList<string> Declarable { get; } =
     [
         DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
-        DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles,
+        DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles, DocumentPermissions.Source,
     ];
 }
 

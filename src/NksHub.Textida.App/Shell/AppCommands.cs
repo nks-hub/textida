@@ -67,6 +67,7 @@ internal static class AppCommands
         On("nks.remote.upload", w => w.UploadRemote());
         On("nks.remote.check", w => w.CheckRemote());
         On("nks.remote.unsent", w => w.ShowUnsent());
+        On("nks.source.open", w => w.OpenFromSource());
         On("nks.remote.proxy", w => w.SetNetworkProxy());
         On("nks.remote.exportConnections", w => w.ExportConnections());
         On("nks.remote.importConnections", w => w.ImportConnections());

@@ -191,6 +191,7 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         if (od.IsVirtual) return RefuseVirtualSave();
+        if (od.Source is not null) return await SaveSourceAsync(tab);
         if (od.Path is null) return await SaveAsAsync(tab);
         if (!await ConfirmTypedLossAsync(tab)) return false;
         return await SaveCoreAsync(tab, overwrite: false, origin);
@@ -303,6 +304,13 @@ internal sealed partial class MainWindow
             }
             if (result.Saved)
             {
+                if (od.Source is not null)
+                {
+                    // a copy on disk is a file of its own; the tab no longer belongs to the source
+                    od.Source = null;
+                    od.TitleOverride = null;
+                    tab.ShowBar(null);
+                }
                 if (codec != od.Guess?.Codec) od.SetEncodingChosen();
                 od.NotifyChanged();
                 AcquireLock(od);

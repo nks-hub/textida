@@ -53,6 +53,16 @@ sealed class Handler(int api) : IRpcHandler
     readonly List<string> _completions = [];
     volatile string _completionAnswer = "{\"revision\":0,\"items\":[]}";
     volatile int _completionDelayMs;
+    readonly Dictionary<string, (byte[] Content, int Revision)> _files = [];
+    volatile bool _sourceOffline;
+    volatile bool _sourceAtomic = true;
+
+    void SourceReachable()
+    {
+        if (_sourceOffline) throw new RpcException(DocumentErrorCodes.SourceUnavailable, "test plugin: offline");
+    }
+
+    static string Q(string s) => "\"" + System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(s) + "\"";
 
     static byte[] Raw(string json) => Encoding.UTF8.GetBytes(json);
     static string Str(JsonElement p, string name) => p.GetProperty(name).GetString()!;
@@ -172,6 +182,49 @@ sealed class Handler(int api) : IRpcHandler
                 return Raw("true");
             case "completionRequests":
                 lock (_completions) return Raw("[" + string.Join(",", _completions) + "]");
+            case DocumentRequests.SourceRead:
+                lock (_files)
+                {
+                    SourceReachable();
+                    if (!_files.TryGetValue(Str(p, "uri"), out var file)) throw new RpcException(DocumentErrorCodes.SourceNotFound, "test plugin: no such file");
+                    return Raw($"{{\"revision\":\"r{file.Revision}\",\"text\":{Q(Encoding.UTF8.GetString(file.Content))}}}");
+                }
+            case DocumentRequests.SourceStat:
+                lock (_files)
+                {
+                    SourceReachable();
+                    return Raw(_files.TryGetValue(Str(p, "uri"), out var stat) ? $"{{\"revision\":\"r{stat.Revision}\",\"size\":{stat.Content.Length}}}" : "{\"exists\":false}");
+                }
+            case DocumentRequests.SourceList:
+                lock (_files)
+                {
+                    SourceReachable();
+                    var folder = Str(p, "uri");
+                    return Raw("{\"entries\":[" + string.Join(",", _files.Where(f => f.Key.StartsWith(folder, StringComparison.Ordinal)).Select(f => $"{{\"uri\":{Q(f.Key)},\"size\":{f.Value.Content.Length}}}")) + "]}");
+                }
+            case DocumentRequests.SourceWrite:
+                lock (_files)
+                {
+                    SourceReachable();
+                    var uri = Str(p, "uri");
+                    var expected = p.GetProperty("expectedRevision").GetString();
+                    var current = _files.TryGetValue(uri, out var existing) ? "r" + existing.Revision : null;
+                    // a source that declared atomicWrite decides in one step; the other one writes whatever it is told
+                    if (_sourceAtomic && expected != current)
+                        throw new RpcException(DocumentErrorCodes.SourceConflict, "test plugin: not at the expected revision") { DataJson = $"{{\"currentRevision\":{(current is null ? "null" : "\"" + current + "\"")}}}" };
+                    var revision = existing.Revision + 1;
+                    _files[uri] = (Convert.FromBase64String(Str(p, "bytes")), revision);
+                    return Raw($"{{\"revision\":\"r{revision}\"}}");
+                }
+            case "sourcePut":
+                lock (_files) _files[Str(p, "uri")] = (Encoding.UTF8.GetBytes(Str(p, "text")), (_files.TryGetValue(Str(p, "uri"), out var put) ? put.Revision : 0) + 1);
+                return Raw("true");
+            case "sourceGet":
+                lock (_files) return Raw(_files.TryGetValue(Str(p, "uri"), out var got) ? $"{{\"revision\":\"r{got.Revision}\",\"text\":{Q(Encoding.UTF8.GetString(got.Content))}}}" : "null");
+            case "sourceMode":
+                _sourceOffline = p.TryGetProperty("offline", out var off) && off.GetBoolean();
+                _sourceAtomic = !p.TryGetProperty("atomic", out var atomic) || atomic.GetBoolean();
+                return Raw("true");
             case "tabRequests":
                 lock (_tabs) return Raw("[" + string.Join(",", _tabs) + "]");
             default:

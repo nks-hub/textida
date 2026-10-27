@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Services;
 
@@ -49,7 +50,8 @@ internal sealed class RecentFiles
 
     public void Add(string path)
     {
-        path = System.IO.Path.GetFullPath(path);
+        // a URI of a file source is listed masked: the list is written to disk and shown, and the secrets of a URI belong to neither
+        path = UriMask.IsUri(path) ? UriMask.Mask(path) : System.IO.Path.GetFullPath(path);
         _data.Files.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
         _data.Files.Insert(0, path);
         if (_data.Files.Count > Capacity) _data.Files.RemoveRange(Capacity, _data.Files.Count - Capacity);

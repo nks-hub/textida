@@ -111,6 +111,8 @@ internal sealed class OpenDocument : IDisposable
     public bool LockedReadOnly => Lock is { IsReadOnly: true };
     /// <summary>Set when this document is the local copy of a remote file; the copy knows the server revision it was made from.</summary>
     public Remote.WorkingCopy? RemoteCopy { get; set; }
+    /// <summary>Set when this document is a file served by a plugin source (P6.2.1): where it came from and the revision it was read at, which a save is conditional on.</summary>
+    public Services.SourceBinding? Source { get; set; }
     /// <summary>The document behind the "Search Results" tab: it has no text of its own, is never saved and never journaled.</summary>
     public bool IsResults { get; private init; }
     /// <summary>The <c>.editorconfig</c> properties of the file; empty for a document without a path. Refreshed by <see cref="RefreshEditorConfig"/>.</summary>
@@ -209,6 +211,14 @@ internal sealed class OpenDocument : IDisposable
 
     /// <summary>Wraps a virtual document (see <see cref="Document.CreateVirtual"/>); its name decides the language mode.</summary>
     public static OpenDocument NewVirtual(Document doc) => new(doc, 0, null, LanguageModes.ForPath(doc.VirtualName));
+
+    /// <summary>A document made of the bytes a file source served (P6.2.1): no file of its own; <paramref name="name"/> decides the language mode.</summary>
+    public static OpenDocument FromSource(byte[] bytes, string name)
+    {
+        var guess = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, SampleBytes)), bytes.Length <= SampleBytes);
+        var doc = Document.FromBytes(bytes, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = guess.Codec });
+        return new OpenDocument(doc, 0, guess, LanguageModes.ForPath(name));
+    }
 
     /// <summary>Reads the <c>.editorconfig</c> files that apply to the path of the document again; call it when the document is activated or saved.</summary>
     public void RefreshEditorConfig()

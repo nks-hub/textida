@@ -144,6 +144,17 @@ commands: nks.remote.unsent
 Zmeny vzdialeného súboru sa najprv uložia v tomto počítači. Zoznam ukáže vzdialené súbory, ktorých kópia je zmenená a neodoslaná, aj po zatvorení programu alebo po páde. Vyberte jeden a otvorí sa kópia; lišta ponúkne Nahrať.
 - Úpravy nepotrebujú pripojenie. Neodoslané zmeny zostanú, kým ich nenahráte.
 
+## [source.open] Otvoriť zo zdroja pluginu
+commands: nks.source.open
+1. Zvoľte Súbor a potom Otvoriť zo zdroja. Zoznam ukazuje zdroje, ktoré pluginy ponúkajú, a čo každý vie: či zapisuje, či chráni zmenený súbor a či vypisuje priečinky.
+2. Vyberte zdroj a napíšte adresu, ktorá začína schémou zdroja.
+3. Text sa otvorí v karte. Lišta nad ním ukazuje zdroj, adresu s tajnými časťami nahradenými *** a revíziu, v ktorej bol text načítaný.
+- Uložiť zapíše text späť len vtedy, keď je súbor v zdroji stále v tej revízii. Ak sa zmenil, nič sa nezapíše a váš text zostane v karte. Zobraziť rozdiely ich porovná, Prepísať nahradí presne nájdenú verziu, Zrušiť nechá všetko tak, ako je.
+- Zdroj, ktorý nevie skontrolovať revíziu v jednom kroku, to hovorí, a program pred každým uložením varuje: najprv skontroluje revíziu a potom zapíše, takže zmena vykonaná medzitým sa prepíše bez upozornenia.
+- Keď zdroj nie je dostupný, karta sa otvorí z kópie, ktorú program drží v pamäti, a uvádza Offline. Načítať znova zo zdroja to skúsi znova a nikdy nenahradí neuložené zmeny.
+- Adresy s heslom, tokenom alebo kľúčom sa na lište, v nedávnych súboroch a v logu ukazujú s ***. Nedávne súbory držia len zamaskovanú adresu, takže zdroj, ktorý tajnú časť v adrese potrebuje, si ju vyžiada znova.
+- Obmedzenie: tajná časť vnútri cesty adresy sa nepozná a zostane viditeľná. Uložiť ako zapíše kópiu na disk a ukončí väzbu na zdroj.
+
 ## [remote.backup] Záloha pripojení
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Zvoľte Súbor a potom Exportovať pripojenia a pomenujte súbor. Obsahuje zoznam pripojení: názov, protokol, server, port, používateľa a dôveryhodnú identitu servera.

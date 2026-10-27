@@ -170,9 +170,10 @@ internal sealed partial class MainWindow
     private QuickRow FileRow(Candidate c, int? line)
     {
         string display = c.Display;
-        string file = c.Tab is { Path: null } ? display : Path.GetFileName(display);
-        string? directory = c.Tab is { Path: null } || Path.GetDirectoryName(display) is not { Length: > 0 } d ? null : d.Replace('\\', '/');
-        bool missing = c.Path is not null && c.Tab is null && !File.Exists(c.Path);
+        bool source = c.Tab is null && c.Path is not null && UriMask.IsUri(c.Path); // a file of a plugin source, listed masked
+        string file = source ? UriMask.DisplayName(c.Path!) : c.Tab is { Path: null } ? display : Path.GetFileName(display);
+        string? directory = source ? c.Path : c.Tab is { Path: null } || Path.GetDirectoryName(display) is not { Length: > 0 } d ? null : d.Replace('\\', '/');
+        bool missing = !source && c.Path is not null && c.Tab is null && !File.Exists(c.Path);
         string category = c.Kind switch { 0 => Loc.Get(K.PaletteCategoryOpen), 1 => Loc.Get(K.PaletteCategoryRecent), _ => "" };
         string reason = Loc.Get(K.PaletteFileMissing);
         string title = line is { } l ? $"{file}:{l}" : file;
@@ -187,9 +188,9 @@ internal sealed partial class MainWindow
                 if (line is { } n) MoveCaret(tab, n - 1, 0);
                 FocusView(tab);
             }
-            else if (c.Path is { } path) JumpToFile(path, line);
+            else if (c.Path is { } path) { if (source) _ = OpenSourceAsync(path); else JumpToFile(path, line); }
         };
-        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(HideSecrets(c.Tab.Doc.Doc.SecretsPath, surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096)))) : c.Path is { } p && !missing ? () => ReadPreview(p) : null;
+        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(HideSecrets(c.Tab.Doc.Doc.SecretsPath, surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096)))) : c.Path is { } p && !missing && !source ? () => ReadPreview(p) : null;
         return new QuickRow(title, category.Length > 0 ? category : null, directory, null, !missing, missing ? reason : null, a11y, run, preview);
     }
 
