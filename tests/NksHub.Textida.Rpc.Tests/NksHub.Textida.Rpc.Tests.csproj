@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Emmet\NksHub.Textida.Plugins.Emmet.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" />
   </ItemGroup>
 
 </Project>

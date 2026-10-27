@@ -43,6 +43,7 @@
     <ProjectReference Include="..\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.Emmet\NksHub.Textida.Plugins.Emmet.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" ReferenceOutputAssembly="false" />
     <!-- the program an MCP client starts; it is built first and copied next to the app -->
     <ProjectReference Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Document.AvaloniaEdit\NksHub.Textida.Document.AvaloniaEdit.csproj" />

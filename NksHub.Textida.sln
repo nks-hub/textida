@@ -83,6 +83,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NksHub.Textida.McpClient", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NksHub.Textida.McpClient.Tests", "tests\NksHub.Textida.McpClient.Tests\NksHub.Textida.McpClient.Tests.csproj", "{47A525AE-BA01-43C3-A73A-70BD7CEEEDDD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NksHub.Textida.Plugins.Git", "src\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj", "{FDE5F2AE-9196-4484-8414-E48771FD0C1F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -501,6 +503,18 @@ Global
 		{47A525AE-BA01-43C3-A73A-70BD7CEEEDDD}.Release|x64.Build.0 = Release|Any CPU
 		{47A525AE-BA01-43C3-A73A-70BD7CEEEDDD}.Release|x86.ActiveCfg = Release|Any CPU
 		{47A525AE-BA01-43C3-A73A-70BD7CEEEDDD}.Release|x86.Build.0 = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|x64.Build.0 = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Debug|x86.Build.0 = Debug|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|x64.ActiveCfg = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|x64.Build.0 = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|x86.ActiveCfg = Release|Any CPU
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -541,5 +555,6 @@ Global
 		{1B823ED6-235B-43FC-9A39-4CA27A5941E0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FA3E592C-0EE6-480D-9351-D244552C888C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{47A525AE-BA01-43C3-A73A-70BD7CEEEDDD} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{FDE5F2AE-9196-4484-8414-E48771FD0C1F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

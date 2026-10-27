@@ -990,6 +990,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - The carets stand in every empty element at once (in the first empty attribute when there is none); a jump from one placeholder to the next does not exist yet.
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
+## [tools.git] Git: status, compare and stage a hunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+1. Open a file from a Git repository and choose Tools, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
+2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
+3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
+4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
+- The plugin writes to the repository only on Git: Stage Hunk at Caret. Status and compare only read and do not even refresh the index file.
+- The text open in the editor is staged, saved or not. A file with an unresolved merge conflict is not staged.
+- Not there yet: unstage a hunk, commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
+- The Git process starts with the first command. The `git` program must be on the PATH.
+
 ## [edit.complete] Completion of words and clips
 commands: nks.edit.complete
 1. Press Ctrl+J (Edit, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.

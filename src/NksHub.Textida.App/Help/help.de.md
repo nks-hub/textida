@@ -990,6 +990,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Die Cursor stehen in allen leeren Elementen gleichzeitig (gibt es keines, im ersten leeren Attributwert); ein Sprung von einem Platzhalter zum nächsten fehlt noch.
 - Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
 
+## [tools.git] Git: Status, Vergleich und Abschnitt vormerken
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Führen Sie den Befehl erneut aus, wenn sich das Repository von außen ändert.
+2. Git: Mit Index vergleichen und Git: Mit HEAD vergleichen öffnen einen Vergleichs-Tab des offenen Textes mit seiner Version im Index oder in HEAD. Die Abschnitte sind dieselben wie in `git diff`.
+3. Git: Abschnitt am Cursor vormerken schreibt nur die Änderung in den Index, in der der Cursor steht. Die übrigen Änderungen der Datei bleiben nur im Arbeitsbaum. Die Datei auf der Festplatte wird nicht verändert.
+4. Hat ein anderes Programm den Index inzwischen geändert, wird nichts geschrieben. Das Plugin liest den Index neu und meldet einen Konflikt; prüfen Sie die Änderungen und wiederholen Sie den Befehl.
+- Das Plugin schreibt nur bei Git: Abschnitt am Cursor vormerken in das Repository. Status und Vergleich lesen nur und erneuern nicht einmal die Indexdatei.
+- Vorgemerkt wird der im Editor offene Text, gespeichert oder nicht. Eine Datei mit ungelöstem Merge-Konflikt wird nicht vorgemerkt.
+- Noch nicht vorhanden: Abschnitt zurücknehmen, Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
+- Der Git-Prozess startet mit dem ersten Befehl. Das Programm `git` muss im PATH liegen.
+
 ## [edit.complete] Vervollständigung von Wörtern und Clips
 commands: nks.edit.complete
 1. Drücken Sie Strg+J (Bearbeiten, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.
