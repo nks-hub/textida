@@ -83,6 +83,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest text (and HTML) one plugin write puts on the clipboard, in UTF-16 units; the same provisional bound the clipboard history uses.</summary>
     public const int ClipboardMaxChars = ClipboardHistory.MaxItemLength;
 
+    /// <summary>Placeholder: bytes one inspection call (file facts, log query) reads before it stops and says where to go on.</summary>
+    public const long InspectionMaxScanBytes = 256L << 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -111,6 +114,7 @@ internal static class PluginLimitsPlaceholders
         TabTimeout = TabTimeout,
         MaxSecretScanBytes = SecretScanMaxBytes,
         MaxClipboardChars = ClipboardMaxChars,
+        MaxScanBytes = InspectionMaxScanBytes,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

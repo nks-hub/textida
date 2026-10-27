@@ -68,6 +68,18 @@ public sealed record RpcLimits(
     }
 }
 
+/// <summary>The id of the request a handler is serving, for handlers that must name it in what they send back (an MCP subscription is identified by the id of its request).</summary>
+public static class RpcRequestContext
+{
+    private static readonly AsyncLocal<RpcId?> Current = new();
+
+    public static RpcId? CurrentId
+    {
+        get => Current.Value;
+        internal set => Current.Value = value;
+    }
+}
+
 /// <summary>Receiver of what the peer sends. Requests run concurrently, notifications one after another in arrival order.</summary>
 public interface IRpcHandler
 {

@@ -255,6 +255,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         byte[]? response = null;
         try
         {
+            RpcRequestContext.CurrentId = id;
             var result = await _handler.HandleRequestAsync(msg.Method!, msg.Params, cts.Token).ConfigureAwait(false);
             cts.Token.ThrowIfCancellationRequested();
             response = RpcWire.Result(id, result, _limits.MaxResultItems);

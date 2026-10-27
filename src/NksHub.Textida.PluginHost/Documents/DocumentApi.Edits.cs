@@ -105,14 +105,15 @@ public sealed partial class DocumentApi
         long revision = NeedLong(p, "revision");
         var editsJson = Need(p, "edits");
         var title = p.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
+        var raw = p.TryGetProperty("rawBytes", out var r) && r.ValueKind == JsonValueKind.True;
         var proposal = await _owner.InvokeAsync(() =>
         {
             var d = e.Doc;
             CheckCurrent(d, revision);
             var edits = ParseEdits(editsJson, d.Codec);
-            Validate(d, edits);
+            Validate(d, edits, raw);
             GuardSecrets(pluginId, d, edits);
-            return new EditProposal(pluginId, d.Id, revision, edits, title);
+            return new EditProposal(pluginId, d.Id, revision, edits, title, raw);
         });
         var id = await _options.Proposals.SubmitAsync(proposal, ct);
         return Obj(w =>
@@ -134,10 +135,10 @@ public sealed partial class DocumentApi
             throw PluginPermissions.Denied(DocumentPermissions.SecretsReveal, "Secret", "The edit touches a hidden value of a secrets file; the plugin has not been allowed to see it.");
     }
 
-    private static void Validate(Document d, List<ByteEdit> edits)
+    private static void Validate(Document d, List<ByteEdit> edits, bool raw = false)
     {
         foreach (var edit in edits)
-            if (edit.Range.End > d.ByteLength || !d.IsCharBoundary(edit.Range.Start) || !d.IsCharBoundary(edit.Range.End))
+            if (edit.Range.End > d.ByteLength || (!raw && (!d.IsCharBoundary(edit.Range.Start) || !d.IsCharBoundary(edit.Range.End))))
                 throw EditFailure(ConflictReason.InvalidRange, d.Revision);
         var sorted = edits.OrderBy(x => x.Range.Start).ThenBy(x => x.Range.IsEmpty ? 0 : 1).ToList();
         for (int i = 1; i < sorted.Count; i++)
