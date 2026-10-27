@@ -173,6 +173,13 @@ internal static class AppCommands
         Fire("nks.edit.previewFormatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: true));
         Fire("nks.edit.htmlEncode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true));
         Fire("nks.edit.htmlDecode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: false));
+        Fire("nks.edit.htmlEncodeAll", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true, nonAscii: true));
+        On("nks.edit.htmlCloseTag", w => w.HtmlCloseTag());
+        On("nks.edit.htmlMatchTag", w => w.HtmlMatchTag());
+        On("nks.edit.htmlSelectElement", w => w.HtmlSelectElement());
+        On("nks.edit.htmlRemoveTag", w => w.HtmlRemoveTag());
+        On("nks.edit.htmlStripTags", w => w.HtmlStripTags());
+        Do("nks.edit.htmlWrapTag", w => _ = w.HtmlWrapTagAsync());
         Fire("nks.edit.htmlTidy", (w, t) => app.Plugins.RunTidyAsync(w, t));
 
         // tools

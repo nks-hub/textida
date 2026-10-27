@@ -1246,13 +1246,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Indentation (4 spaces) and keyword case (upper) are fixed for now; they are not settings yet.
 
 ## [edit.html] HTML: entities and HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Edit, Formatting, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
 2. Edit, Formatting, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
 3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
 - Tidy is not part of this build: install it and set the path, or put it in one of those places.
 - Line numbers in the messages count from the start of the text that was sent to Tidy.
-- Letters outside ASCII are not written as entities; the encoding of the file holds them.
+- Convert to HTML Entities Including Non-ASCII also writes every character outside ASCII as a numeric entity (`&#233;`); converting back gives the text again.
+4. Tag tools (HTML, XML and PHP files): Edit, Formatting, Close Open Tag writes the end tag of the nearest tag that is still open at the caret. Go to Matching Tag moves the caret to the partner of the tag at the caret. Select Element selects the element around the selection; repeat it to select the next one out. Remove Tag deletes the start and end tag of the element at the caret and keeps its content. Wrap in Tag asks for a name and wraps each selection in it. Strip Tags removes all tags and comments from the selections (the whole file when nothing is selected).
+- Tags are paired by nesting. Comments and the content of `script` and `style` hold no tags. The optional end tags of HTML (`li`, `p`) are not inferred, so such a tag counts as open.
+- Inserting an image or link with its size is not available.
 
 ## [help.language] Help for a language
 commands: nks.help.languageHelp

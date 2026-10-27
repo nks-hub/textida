@@ -1586,6 +1586,58 @@
       "enablement": "!readOnly && !largeFileMode && language == 'html'"
     },
     {
+      "id": "nks.edit.htmlEncodeAll",
+      "title": "cmd.edit.htmlEncodeAll",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode"
+    },
+    {
+      "id": "nks.edit.htmlCloseTag",
+      "title": "cmd.edit.htmlCloseTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlMatchTag",
+      "title": "cmd.edit.htmlMatchTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlSelectElement",
+      "title": "cmd.edit.htmlSelectElement",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlRemoveTag",
+      "title": "cmd.edit.htmlRemoveTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlWrapTag",
+      "title": "cmd.edit.htmlWrapTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlStripTags",
+      "title": "cmd.edit.htmlStripTags",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
+    },
+    {
       "id": "nks.tools.sqlDialect",
       "title": "cmd.tools.sqlDialect",
       "category": "cat.tools",
@@ -3537,6 +3589,55 @@
       "group": "3_text/5_format",
       "submenu": "format",
       "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlEncodeAll",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlCloseTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlMatchTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlSelectElement",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlRemoveTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 100
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlWrapTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 110
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlStripTags",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 120
     },
     {
       "menu": "tools",
