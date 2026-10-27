@@ -1117,7 +1117,7 @@ A conversion changes the text of every selection at once, or of the whole file w
 
 ## [edit.specialConversion] Special conversions
 commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
-Conversions the editor has itself. Each is a command in the palette and in the menu Edit, Special Conversions, and is in the Convert list too. It changes the text of every selection at once as one Undo step, or of the whole file when nothing is selected. The new text stays selected.
+Conversions the editor has itself. Each is a command in the palette and in the menu Edit, Conversions and Recipes, and is in the Convert list too. It changes the text of every selection at once as one Undo step, or of the whole file when nothing is selected. The new text stays selected.
 - Decimal to Hexadecimal and back: the selection must be one whole number from 0 to 18446744073709551615 (FFFFFFFFFFFFFFFF); a hexadecimal one may start with 0x. Spaces and line ends around the number stay. 255 gives FF, ACE gives 2766.
 - Text to URL Encoding writes everything except the letters A to Z, digits and - _ . ~ as %XX of the UTF-8 bytes, a space as %20 and a line end as %0D%0A, or %0A in a file with LF line ends. URL Encoding to Text reads %XX back; a % without two hexadecimal digits stays as it is.
 - Text to Quoted-Printable keeps printable ASCII and spaces and writes every other UTF-8 byte, line ends and = included, as =XX. Quoted-Printable to Text reads =XX and drops = at a line end; any other = refuses the text.

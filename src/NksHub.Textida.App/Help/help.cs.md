@@ -1122,7 +1122,7 @@ Převod změní text všech výběrů najednou, nebo celého souboru, když nic 
 
 ## [edit.specialConversion] Speciální převody
 commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
-Převody, které má editor sám. Každý je příkaz v paletě i v nabídce Úpravy, Speciální převody a je také v seznamu Převést. Změní text všech výběrů najednou jedním krokem Zpět, nebo celého souboru, když nic není označeno. Nový text zůstane označený.
+Převody, které má editor sám. Každý je příkaz v paletě i v nabídce Úpravy, Převody a recepty a je také v seznamu Převést. Změní text všech výběrů najednou jedním krokem Zpět, nebo celého souboru, když nic není označeno. Nový text zůstane označený.
 - Desítkové číslo na šestnáctkové a zpět: výběr musí být jedno celé číslo od 0 do 18446744073709551615 (FFFFFFFFFFFFFFFF), šestnáctkové smí začínat 0x. Mezery a konce řádků kolem čísla zůstanou. 255 dá FF, ACE dá 2766.
 - Text na URL kódování zapíše všechno kromě písmen A až Z, číslic a znaků - _ . ~ jako %XX bajtů UTF-8, mezeru jako %20 a konec řádku jako %0D%0A, nebo %0A v souboru s konci řádků LF. URL kódování na text čte %XX zpět; % bez dvou šestnáctkových číslic zůstane, jak je.
 - Text na quoted-printable nechá tisknutelné znaky ASCII a mezery, ostatní bajty UTF-8 včetně konců řádků a znaku = zapíše jako =XX. Quoted-printable na text čte =XX a vynechá = na konci řádku; jiné = převod odmítne.

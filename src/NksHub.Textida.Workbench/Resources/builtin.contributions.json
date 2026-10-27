@@ -3078,70 +3078,70 @@
       "menu": "edit",
       "command": "nks.edit.convert.decToHex",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 10
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.hexToDec",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 20
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.urlEncode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 30
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.urlDecode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 40
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.quotedPrintableEncode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 50
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.quotedPrintableDecode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 60
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.base64Encode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 70
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.base64Decode",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 80
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.removeAccents",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 90
     },
     {
       "menu": "edit",
       "command": "nks.edit.convert.tabsToSpaces",
       "group": "4_more/8_special",
-      "submenu": "specialConversion",
+      "submenu": "convert",
       "order": 100
     },
     {
