@@ -1197,6 +1197,15 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
+## [tools.agent] Agent over ACP
+commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
+1. Tools, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A program that exists only as a batch file (.cmd, .bat) is not started.
+2. The Agent Panel under the editor shows the conversation. Type a message and press Enter. Cancel Agent Turn (or the Cancel turn button) sends the cancel to the agent and answers its open permission questions with "cancelled"; Stop Agent ends the process.
+3. The agent reads only the tabs you share: Share This Tab with Agent. It then gets the text as it is in the editor, unsaved changes included; values of .env files stay hidden. Stopping the agent takes every shared tab back.
+4. When the agent writes a shared file, the change is shown as hunks in the change review (the Search Results tab) and is written only when you apply it. If you reject it, the agent gets an error. A file that is not shared, or not open, is not written through the editor.
+5. When the agent asks for permission, a dialog shows the choices the agent offers. Cancel or closing the dialog answers "cancelled".
+- Where the guarantee ends: the editor controls only what goes through it. The agent's own tools can change files, run programs and use the network without the editor, and the editor does not set the permission mode of any agent (each keeps its own default). Set what the agent may do in the agent's own settings.
+- Every agent is listed as "not verified": no run against the real program has passed the test scenarios yet. A turn in which the agent neither says nor asks anything for too long ends as timed out. The time limits and the size of a file handed to the agent are provisional.
 ## [tools.mcpAgents] MCP servers of agents
 commands: nks.tools.mcpServers
 One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.

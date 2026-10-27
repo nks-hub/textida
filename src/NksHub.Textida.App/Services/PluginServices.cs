@@ -60,6 +60,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public PluginUiHost Ui { get; }
     public DocumentApi Documents { get; }
     public McpService Mcp { get; }
+    public AcpService Acp { get; }
     public UiApi UiApi { get; }
     internal PluginPermissions Permissions { get; } = new();
 
@@ -81,6 +82,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
         Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits()), this, send, request);
         Mcp = new McpService(this, App.Startup.Channel);
+        Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync)), Documents);
@@ -611,6 +613,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public void Forget(Document document)
     {
         Mcp.Closed(document);
+        Acp.Closed(document);
         _outlineWanted.Remove(document.Id);
         _schemaChecked.Remove(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
@@ -914,6 +917,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     public async ValueTask DisposeAsync()
     {
+        await Acp.DisposeAsync();
         await Mcp.DisposeAsync();
         await _host.DisposeAsync();
         await Documents.DisposeAsync();

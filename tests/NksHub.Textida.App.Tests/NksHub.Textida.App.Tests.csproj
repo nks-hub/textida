@@ -42,6 +42,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Lsp\NksHub.Textida.Plugins.Lsp.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.FakeLsp\NksHub.Textida.FakeLsp.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.FakeAcp\NksHub.Textida.FakeAcp.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

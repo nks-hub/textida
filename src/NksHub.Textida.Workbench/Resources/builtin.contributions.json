@@ -1540,6 +1540,32 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.agent.start",
+      "title": "cmd.agent.start",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.panel",
+      "title": "cmd.agent.panel",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.shareTab",
+      "title": "cmd.agent.shareTab",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.agent.cancel",
+      "title": "cmd.agent.cancel",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.stop",
+      "title": "cmd.agent.stop",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.review.open",
       "title": "cmd.review.open",
       "category": "cat.file",
@@ -3008,6 +3034,36 @@
       "command": "nks.tools.mcpServers",
       "group": "8_mcp",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.start",
+      "group": "9_agent",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.panel",
+      "group": "9_agent",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.shareTab",
+      "group": "9_agent",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.cancel",
+      "group": "9_agent",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.stop",
+      "group": "9_agent",
+      "order": 50
     },
     {
       "menu": "file",

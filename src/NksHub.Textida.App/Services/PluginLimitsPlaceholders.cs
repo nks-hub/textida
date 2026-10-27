@@ -260,6 +260,26 @@ internal static class PluginLimitsPlaceholders
         TimeSpan.FromSeconds(McpClientTimeoutSeconds), TimeSpan.FromSeconds(McpClientExitGraceSeconds), McpClientStderrLines,
         "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
 
+    /// <summary>Placeholder: time an agent has to answer <c>initialize</c> and <c>session/new</c>. OPEN: the owner has not decided it.</summary>
+    public const int AcpStartTimeoutSeconds = 30;
+
+    /// <summary>Placeholder: a turn in which the agent says and asks nothing for this long ends as timed out; waiting for the user does not count. OPEN: the owner has not decided it.</summary>
+    public const int AcpIdleTimeoutSeconds = 300;
+
+    /// <summary>Placeholder: time an agent gets to leave after its input is closed, and to answer a cancelled turn, before it is killed or given up on. OPEN: the owner has not decided it.</summary>
+    public const int AcpExitGraceSeconds = 5;
+
+    /// <summary>Placeholder: last lines of an agent's standard error kept for the report of its end.</summary>
+    public const int AcpStderrLines = 20;
+
+    /// <summary>Placeholder: largest text file (bytes of the content) handed to an agent in one <c>fs/read_text_file</c>. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
+    public const int AcpMaxReadBytes = 1 << 20;
+
+    public static NksHub.Textida.Acp.AcpOptions Acp() => new(
+        new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
+        TimeSpan.FromSeconds(AcpStartTimeoutSeconds), TimeSpan.FromSeconds(AcpIdleTimeoutSeconds), TimeSpan.FromSeconds(AcpExitGraceSeconds), AcpStderrLines,
+        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
+
     public static UiApiOptions Ui() => new()
     {
         MaxPanelsPerPlugin = 4,

@@ -1202,6 +1202,15 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia. Odvolá ju aj opätovné načítanie súboru.
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
+## [tools.agent] Agent cez ACP
+commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
+1. Nástroje, Spustiť agenta... spustí programovacieho agenta, ktorý komunikuje Agent Client Protocolom (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot alebo OpenCode. Dialóg ukáže presný príkaz a priečinok, v ktorom pobeží; bez potvrdenia sa nespustí nič. Agent musí byť nainštalovaný a nájdený v PATH. Program, ktorý existuje len ako dávkový súbor (.cmd, .bat), sa nespúšťa.
+2. Panel agenta pod editorom ukazuje konverzáciu. Napíšte správu a stlačte Enter. Zrušiť ťah agenta (alebo tlačidlo Zrušiť ťah) pošle agentovi zrušenie a jeho otvorené otázky na oprávnenie zodpovie „zrušené“; Zastaviť agenta ukončí proces.
+3. Agent číta iba karty, ktoré zdieľate: Zdieľať kartu s agentom. Dostane text tak, ako je v editore, vrátane neuložených zmien; hodnoty súborov .env zostanú skryté. Zastavením agenta sa všetky zdieľané karty vezmú späť.
+4. Keď agent zapíše do zdieľaného súboru, zmena sa zobrazí po úsekoch v kontrole zmien (karta Výsledky hľadania) a zapíše sa, až ju použijete. Ak ju odmietnete, agent dostane chybu. Súbor, ktorý nie je zdieľaný alebo otvorený, sa cez editor nezapisuje.
+5. Keď agent žiada o oprávnenie, dialóg ukáže voľby, ktoré agent ponúka. Zrušenie alebo zatvorenie dialógu odpovie „zrušené“.
+- Kde záruka končí: editor riadi len to, čo ide cez neho. Vlastné nástroje agenta môžu meniť súbory, spúšťať programy a používať sieť bez editora a editor žiadnemu agentovi nenastavuje režim oprávnení (každý si ponechá vlastný predvolený). Čo smie agent robiť, nastavte v nastaveniach samotného agenta.
+- Každý agent je v zozname ako „neoverené“: žiadny beh so skutočným programom zatiaľ neprešiel skúšobnými scenármi. Ťah, v ktorom agent príliš dlho nič nepovie ani sa nespýta, skončí ako vypršaný. Časové limity a veľkosť súboru odovzdaného agentovi sú zatiaľ provizórne.
 ## [tools.mcpAgents] Servery MCP agentov
 commands: nks.tools.mcpServers
 Jeden zoznam serverov MCP, s ktorými sú nastavení vaši programovací agenti. Textida číta Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Súbory projektu hľadá v priečinku aktívneho súboru a v nadradených priečinkoch. Súbory iba číta, nikdy do nich nezapisuje.
