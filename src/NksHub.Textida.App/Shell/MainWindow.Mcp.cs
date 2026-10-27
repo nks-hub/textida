@@ -1,5 +1,7 @@
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Ui;
@@ -8,8 +10,9 @@ using NksHub.Textida.Workbench.Commands;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// Tools, MCP Server / Share This Tab with MCP / MCP Tools: the editor as an MCP server for the assistant of the user. The server is off until the user has read what the assistant gets
-/// and switched it on; it sees only the tabs shared one by one, and the values of a secrets file only when the user allows them for that tab (<see cref="McpService"/>).
+/// Tools, MCP Server / Share This Tab with MCP / Share Selection with MCP / MCP Tools: the editor as an MCP server for the assistant of the user. The server is off until the user has read
+/// what the assistant gets and switched it on; it sees only the tabs shared one by one, or the text of a selection as a read-only excerpt, and the values of a secrets file only when
+/// the user allows them for that tab (<see cref="McpService"/>).
 /// </summary>
 internal sealed partial class MainWindow
 {
@@ -103,18 +106,67 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.McpShareOff, ("name", tab.Title)));
             return;
         }
-        bool reveal = false;
-        if (SecretValues.IsSecretFile(tab.Doc.Doc.SecretsPath))
-        {
-            var buttons = new[] { new DialogButton(Loc.Get(K.McpSecretsKeep), IsDefault: true), new DialogButton(Loc.Get(K.McpSecretsShow)), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
-            int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpSecretsTitle), Loc.Get(K.McpSecretsMessage, ("file", tab.Title)), buttons));
-            if (answer is not (0 or 1)) return;
-            reveal = answer == 1;
-        }
+        if (await AskRevealSecretsAsync(tab) is not { } reveal) return;
         if (!mcp.Enabled || mcp.IsShared(tab)) return; // the server was switched off, or the tab shared, while the question was open
         mcp.Share(this, tab, reveal);
         SetStatusMessage(Loc.Get(K.McpShareOn, ("name", tab.Title)));
     }
+
+    /// <summary>Asks whether the assistant may see the real values of a secrets file; null when the user cancelled. Any other file needs no question.</summary>
+    private async Task<bool?> AskRevealSecretsAsync(DocTab tab)
+    {
+        if (!SecretValues.IsSecretFile(tab.Doc.Doc.SecretsPath)) return false;
+        var buttons = new[] { new DialogButton(Loc.Get(K.McpSecretsKeep), IsDefault: true), new DialogButton(Loc.Get(K.McpSecretsShow)), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpSecretsTitle), Loc.Get(K.McpSecretsMessage, ("file", tab.Title)), buttons));
+        return answer is 0 or 1 ? answer == 1 : null;
+    }
+
+    internal CommandOutcome ShareSelectionWithMcp()
+    {
+        if (Active is not { } tab) return CommandOutcome.NotHandled;
+        McpTask = ShareSelectionWithMcpAsync(tab);
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Gives the assistant the selected text (the primary selection) as a read-only excerpt in a tab of its own, so the rest of the tab stays hidden from it. The excerpt is a copy:
+    /// it does not follow the tab, and the assistant cannot propose changes to it. The excerpt carries the file name of its source, so the values of a secrets file stay hidden in it.
+    /// </summary>
+    private async Task ShareSelectionWithMcpAsync(DocTab tab)
+    {
+        var mcp = _app.Plugins.Mcp;
+        if (!mcp.Enabled)
+        {
+            SetStatusMessage(Loc.Get(K.McpShareNeedServer));
+            return;
+        }
+        if (tab.Custom is not null || tab.Doc.IsResults || PrimarySelectionOf(tab) is not { } first)
+        {
+            SetStatusMessage(Loc.Get(K.McpShareUnavailable));
+            return;
+        }
+        if (first.IsEmpty)
+        {
+            SetStatusMessage(Loc.Get(K.McpShareSelectionEmpty));
+            return;
+        }
+        if (await AskRevealSecretsAsync(tab) is not { } reveal) return;
+        var selection = PrimarySelectionOf(tab) ?? first; // read again: the question may have been open for a while
+        if (!mcp.Enabled || selection.IsEmpty) return;
+        if (selection.Length > PluginLimitsPlaceholders.McpMaxSelectionShareBytes)
+        {
+            SetStatusMessage(Loc.Get(K.McpShareSelectionTooLarge, ("limit", PluginLimitsPlaceholders.McpMaxSelectionShareBytes)));
+            return;
+        }
+        var source = tab.Doc.Doc;
+        var name = source.SecretsPath is { } path ? System.IO.Path.GetFileName(path) : tab.Title;
+        var excerpt = Document.CreateVirtual(name, source.ReadBytes(selection.ToRange()), AvaloniaEditBackendFactory.Instance, source.Codec.WithBom(false));
+        var opened = OpenVirtualDocument(excerpt, Loc.Get(K.McpSelectionTab, ("name", tab.Title)));
+        mcp.Share(this, opened, reveal);
+        SetStatusMessage(Loc.Get(K.McpShareSelectionOn, ("name", tab.Title), ("bytes", selection.Length)));
+    }
+
+    private static TextSelection? PrimarySelectionOf(DocTab tab) => tab.Surface?.ByteSelections()?.PrimarySelection;
 
     internal CommandOutcome ShowMcpTools()
     {
@@ -140,6 +192,7 @@ internal sealed partial class MainWindow
         "editor_list_documents" => K.McpToolListDocuments,
         "editor_read_range" => K.McpToolReadRange,
         "editor_search" => K.McpToolSearch,
+        "editor_get_selection" => K.McpToolGetSelection,
         "editor_prepare_changes" => K.McpToolPrepareChanges,
         "editor_get_change_status" => K.McpToolChangeStatus,
         "editor_outline" => K.McpToolOutline,

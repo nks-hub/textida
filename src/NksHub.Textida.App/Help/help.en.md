@@ -1338,16 +1338,18 @@ Two tabs scroll together, so equal text of two files stays side by side.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
 
 ## [tools.mcp] The editor as an MCP server
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
 1. Choose Tools, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
 3. Open a tab and choose Tools, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
-4. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
-- The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
+4. To give the assistant only a part of a tab, select the text and choose Tools, MCP, Share Selection with MCP. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
+5. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+- The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks where your cursor and selection are, reads the errors and warnings of plugins and the linter, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
 - A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
-- Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
+- Withdrawing a tab or switching the server off stops the requests that are running, and a proposal that still waits for your decision is withdrawn and counts as rejected. A reload of a file also withdraws it.
+- Only a limited number of proposals can wait for your decision at once (the limit is provisional); a further one is refused until you have decided. A result larger than the size limit is refused, and the assistant is told to ask for less.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
 ## [tools.ide] The /ide bridge for Claude Code
@@ -1358,7 +1360,7 @@ Claude Code that runs in a terminal on this computer can connect to Textida with
 3. In the terminal run /ide in Claude Code. A program without the token from the lock file is refused.
 - The agent is told about the selection and path of a shared tab each time the selection changes. Text of .env values is hidden as in every other read. Withdrawing the tab stops this at once.
 - The agent's changes arrive as proposals through the same change review as for MCP.
-- Not finished: the lock file fields, the WebSocket subprotocol, the selection message and the diff call of Claude Code are not described in its public documentation, so no Claude Code version is confirmed to work with the bridge yet. Diagnostics are an empty list until language servers are connected.
+- Not finished: the lock file fields, the WebSocket subprotocol, the selection message and the diff call of Claude Code are not described in its public documentation, so no Claude Code version is confirmed to work with the bridge yet. The result of getDiagnostics (the errors and warnings of the shared tabs) has a provisional shape.
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

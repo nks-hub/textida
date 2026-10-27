@@ -48,6 +48,12 @@ public sealed class ProposalLedger(int capacity)
     {
         lock (_gate) return _entries.GetValueOrDefault(id);
     }
+
+    /// <summary>Proposals the user has not decided on yet.</summary>
+    public int PendingCount
+    {
+        get { lock (_gate) return _entries.Values.Count(e => e.Status == ProposalStatus.Pending); }
+    }
 }
 
 /// <summary>

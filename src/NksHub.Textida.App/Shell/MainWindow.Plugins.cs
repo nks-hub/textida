@@ -320,6 +320,7 @@ internal sealed partial class MainWindow
         var doc = tab.Doc.Doc;
         int total = proposal.Edits.Count;
         string title = proposal.Title ?? proposal.PluginId;
+        if (cancellation.IsCancellationRequested) return new ProposalDecision(id, ProposalOutcome.Rejected, 0, total); // withdrawn before it was shown
         if (doc.Revision != proposal.Revision)
         {
             SetStatusMessage(Loc.Get(K.StatusChangeConflict));
