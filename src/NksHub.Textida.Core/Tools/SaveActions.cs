@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace NksHub.Textida.Core.Tools;
 
-/// <summary>What an action does around a save: <c>Format</c> before it, <c>Tool</c> and <c>Upload</c> after it.</summary>
-public enum SaveActionKind { Format, Tool, Upload }
+/// <summary>What an action does around a save: <c>Format</c> before it, <c>Tool</c>, <c>Upload</c> and <c>Lint</c> (a linter of the catalog that underlines its findings) after it.</summary>
+public enum SaveActionKind { Format, Tool, Upload, Lint }
 
 /// <summary>Where a save comes from. Only a manual save runs every action; an autosave leaves out the actions marked "only on manual save"; a save made by a plugin runs none, so a plugin that saves in answer to a save cannot start a loop.</summary>
 public enum SaveOrigin { Manual, Autosave, Plugin }
@@ -12,7 +12,7 @@ public enum SaveOrigin { Manual, Autosave, Plugin }
 /// <summary>Where an action is written down: the profile of the user or the <c>.textida</c> folder of a project.</summary>
 public enum SaveActionSource { Profile, Project }
 
-/// <param name="Id">The formatter (<see cref="ConfigFormatters"/>) or the tool of the catalog; empty for an upload.</param>
+/// <param name="Id">The formatter (<see cref="ConfigFormatters"/>), the linter of <see cref="LanguageCatalog"/> or the tool; empty for an upload.</param>
 /// <param name="OnlyManual">The action does not run after an autosave.</param>
 public sealed record SaveAction(SaveActionKind Kind, string Id, bool OnlyManual, bool Enabled, SaveActionSource Source = SaveActionSource.Profile)
 {
@@ -20,9 +20,10 @@ public sealed record SaveAction(SaveActionKind Kind, string Id, bool OnlyManual,
 }
 
 /// <param name="FormatTimeout">The time a formatter has before the file is saved unformatted; null while nobody has set it (the product has not decided a value), and then a formatter does not run.</param>
-public sealed record SaveActionSet(IReadOnlyList<SaveAction> Actions, TimeSpan? FormatTimeout, IReadOnlyList<string> Errors);
+/// <param name="LintTimeout">The same for a linter: the time before its run is stopped and reported; null while it is not set, and then a linter does not run.</param>
+public sealed record SaveActionSet(IReadOnlyList<SaveAction> Actions, TimeSpan? FormatTimeout, IReadOnlyList<string> Errors, TimeSpan? LintTimeout = null);
 
-/// <summary>One entry of <c>saveActions.json</c>; <see cref="Kind"/> is <c>format</c>, <c>tool</c> or <c>upload</c>.</summary>
+/// <summary>One entry of <c>saveActions.json</c>; <see cref="Kind"/> is <c>format</c>, <c>tool</c>, <c>upload</c> or <c>lint</c>.</summary>
 public sealed class SaveActionEntry
 {
     public string Kind { get; set; } = "";
@@ -34,6 +35,7 @@ public sealed class SaveActionEntry
 public sealed class SaveActionsFile
 {
     public int? FormatTimeoutSeconds { get; set; }
+    public int? LintTimeoutSeconds { get; set; }
     public List<SaveActionEntry> Actions { get; set; } = [];
 }
 
@@ -94,7 +96,7 @@ public static class SaveActionConfig
     {
         var errors = new List<string>();
         var actions = new List<SaveAction>();
-        TimeSpan? timeout = null;
+        TimeSpan? timeout = null, lintTimeout = null;
         foreach (var (path, source) in new (string? Location, SaveActionSource Source)[] { (profileFile, SaveActionSource.Profile), (projectFile, SaveActionSource.Project) })
         {
             if (path is null || (source == SaveActionSource.Project && string.Equals(Path.GetFullPath(path), Path.GetFullPath(profileFile), StringComparison.OrdinalIgnoreCase))) continue;
@@ -107,9 +109,10 @@ public static class SaveActionConfig
             }
             // the user's own limit wins over the limit a project file brings
             if (timeout is null && file.FormatTimeoutSeconds is > 0) timeout = TimeSpan.FromSeconds(file.FormatTimeoutSeconds.Value);
+            if (lintTimeout is null && file.LintTimeoutSeconds is > 0) lintTimeout = TimeSpan.FromSeconds(file.LintTimeoutSeconds.Value);
             foreach (var entry in file.Actions)
             {
-                if (!Enum.TryParse<SaveActionKind>(entry.Kind, ignoreCase: true, out var kind) || !Enum.IsDefined(kind)) { errors.Add($"{entry.Kind}: the kind must be format, tool or upload."); continue; }
+                if (!Enum.TryParse<SaveActionKind>(entry.Kind, ignoreCase: true, out var kind) || !Enum.IsDefined(kind)) { errors.Add($"{entry.Kind}: the kind must be format, tool, upload or lint."); continue; }
                 string id = entry.Id?.Trim() ?? "";
                 if (kind != SaveActionKind.Upload && id.Length == 0) { errors.Add($"{entry.Kind}: the id is needed."); continue; }
                 var action = new SaveAction(kind, kind == SaveActionKind.Upload ? "" : id, entry.OnlyManual, entry.Enabled, source);
@@ -118,6 +121,6 @@ public static class SaveActionConfig
                 else actions.Add(action);
             }
         }
-        return new SaveActionSet(actions, timeout, errors);
+        return new SaveActionSet(actions, timeout, errors, lintTimeout);
     }
 }

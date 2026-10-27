@@ -1154,6 +1154,12 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.tools.lint",
+      "title": "cmd.tools.lint",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.log.nextError",
       "title": "cmd.log.nextError",
       "category": "cat.log"
@@ -2571,6 +2577,12 @@
       "command": "nks.tools.makeTargets",
       "group": "5_run",
       "order": 15
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.lint",
+      "group": "5_run",
+      "order": 16
     },
     {
       "menu": "tools",

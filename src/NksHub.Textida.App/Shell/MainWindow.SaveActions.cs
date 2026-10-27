@@ -46,6 +46,13 @@ internal sealed partial class MainWindow
             if (tab.Doc.RemoteCopy is null) return Loc.Get(K.SaveActionsUploadNoServer);
             return await UploadRemoteAsync(tab, saveFirst: false, interactive) ? null : Loc.Get(K.SaveActionsUploadNotDone);
         }
+        if (action.Kind == SaveActionKind.Lint)
+        {
+            if (Linters.Find(action.Id) is not { } linter) return Loc.Get(K.SaveActionsToolUnknown, ("id", action.Id));
+            // the run is not awaited: a slow linter must not hold the save, and it reports for itself
+            if (tab.Path is { } path && linter.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)) _ = RunLinterAsync(tab, linter, interactive, manual: false);
+            return null;
+        }
         var entry = _app.Tools.Load(tab.Path is null ? null : Path.GetDirectoryName(Path.GetFullPath(tab.Path))).Tools.FirstOrDefault(t => t.Spec.Id == action.Id);
         if (entry is null) return Loc.Get(K.SaveActionsToolUnknown, ("id", action.Id));
         return await RunToolAsync(entry, tab, interactive) ? null : Loc.Get(K.SaveActionsToolFailed, ("title", entry.Title));
@@ -77,6 +84,7 @@ internal sealed partial class MainWindow
     private string ActionName(SaveAction action) => action.Kind switch
     {
         SaveActionKind.Format => Loc.Get(K.SaveActionsFormat, ("name", ConfigFormatters.Find(action.Id)?.Title ?? action.Id)),
+        SaveActionKind.Lint => Loc.Get(K.SaveActionsLint, ("name", Linters.Find(action.Id)?.Title ?? action.Id)),
         SaveActionKind.Tool => Loc.Get(K.SaveActionsTool, ("name", _app.Tools.Load().Tools.FirstOrDefault(t => t.Spec.Id == action.Id)?.Title ?? action.Id)),
         _ => Loc.Get(K.SaveActionsUpload),
     };
@@ -111,6 +119,13 @@ internal sealed partial class MainWindow
                 string detail = Loc.Get(K.SaveActionsOffered, ("file", Path.GetFileName(ConfigFormatters.ConfigFor(formatter, path)!)));
                 rows.Add(new QuickRow(name, null, detail, null, true, null, name + ", " + detail,
                     () => SwitchSaveAction(new SaveAction(SaveActionKind.Format, formatter.Id, false, false), e => e.Enabled = true, name, true)));
+            }
+        if (tab?.Path is { } linted)
+            foreach (var linter in Linters.For(linted).Where(l => !set.Actions.Any(a => a.Kind == SaveActionKind.Lint && a.Id == l.Id)))
+            {
+                string name = Loc.Get(K.SaveActionsLint, ("name", linter.Title)), detail = Loc.Get(K.SaveActionsOfferedLint);
+                rows.Add(new QuickRow(name, null, detail, null, true, null, name + ", " + detail,
+                    () => SwitchSaveAction(new SaveAction(SaveActionKind.Lint, linter.Id, false, false), e => e.Enabled = true, name, true)));
             }
         if (tab?.Doc.RemoteCopy is not null && !set.Actions.Any(a => a.Kind == SaveActionKind.Upload))
         {

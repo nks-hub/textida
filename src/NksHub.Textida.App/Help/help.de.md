@@ -830,6 +830,14 @@ commands: nks.tools.makeTargets
 3. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter.
 - Make muss installiert und im PATH sein. Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
 
+## [tools.lint] Linter: Funde von PHPStan, Psalm, golangci-lint, Clippy, clang-tidy und RuboCop unterstreichen
+commands: nks.tools.lint
+1. Werkzeuge, Datei mit Linter prüfen startet den Linter, der zur geöffneten Datei passt: PHPStan oder Psalm für PHP, golangci-lint für Go, Clippy für Rust (braucht eine Cargo.toml im Ordner der Datei oder darüber), clang-tidy für C und C++, RuboCop für Ruby. Verarbeiten zwei Linter die Datei, gilt der erste, dessen Konfigurationsdatei (phpstan.neon, psalm.xml) gefunden wird, sonst der erste installierte.
+2. Der Linter prüft die Datei auf dem Datenträger, also zuerst speichern: Ein Dokument mit ungespeicherten Änderungen wird nicht geprüft. Die Funde werden im Text unterstrichen (die Meldung erscheint, wenn der Zeiger darauf ruht) und auf dem Tab Aufgaben aufgelistet, einer pro Zeile; Klick oder Eingabe öffnet die Stelle. Der nächste Lauf desselben Linters ersetzt sie, ein behobenes Problem verschwindet danach.
+3. Um nach jedem Speichern zu prüfen, schalten Sie unter Datei, Aktionen beim Speichern „Mit PHPStan prüfen“ (oder den anderen Linter) ein oder schreiben {"kind": "lint", "id": "phpstan"} in saveActions.json. Ein Linter läuft nie bei einer Änderung. Die Kennungen sind phpstan, psalm, golangci-lint, clippy, clang-tidy und rubocop-lint.
+- Das Programm wird in vendor/bin, node_modules/.bin, .venv und PATH gesucht; es wird nichts heruntergeladen. Beim ersten Lauf müssen Sie den Befehl bestätigen.
+- Es ist kein Zeitlimit voreingestellt: Fehlt lintTimeoutSeconds in saveActions.json, läuft kein Linter und die Statuszeile sagt es. Ein Linter, der das Limit überschreitet, wird gestoppt und gemeldet; der Editor bleibt dabei bedienbar.
+- PHPStan meldet eine Zeile und keine Spalte, daher wird der Text der ganzen Zeile unterstrichen. Ein Programm, das eine Batchdatei ist (phpstan.bat), wird wie bei jedem Werkzeug abgelehnt.
 ## [file.saveActions] Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen
 commands: nks.file.saveActions
 1. Datei, Aktionen beim Speichern listet auf, was rund um das Speichern läuft: Formatieren, ein Werkzeug, Hochladen auf den Server. Eine Zeile schaltet die Aktion ein oder aus; die Zeile darunter schaltet „nur beim manuellen Speichern“ um. Ein Formatierer (gofmt, rustfmt, clang-format, RuboCop) wird nur angeboten, wenn seine Konfigurationsdatei (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) im Ordner der Datei oder darüber liegt, und er bleibt aus, bis Sie ihn einschalten.
@@ -840,6 +848,7 @@ commands: nks.file.saveActions
 - Ein Zeitlimit ist nicht voreingestellt: Solange formatTimeoutSeconds fehlt, läuft kein Formatierer, und die Statuszeile sagt es. Der Wert im Beispiel ist nur ein Beispiel.
 - Nach einem automatischen Speichern kann niemand antworten: Ein nie bestätigtes Werkzeug startet nicht, und eine neuere Version auf dem Server erscheint in der Leiste der Registerkarte statt in einem Dialog.
 - Das Umschalten einer Aktion in der Liste schreibt saveActions.json im Profil neu und verwirft darin Kommentare. Aktionen aus einem Projekt werden aufgelistet, aber in der Projektdatei geändert.
+- Aktionen beim Speichern bietet auch „Mit ... prüfen“ für die Linter an, die die Datei verarbeiten; sie ist aus, bis Sie sie einschalten. Die Prüfung läuft nach dem Speichern und hält es nicht auf; ihr Zeitlimit ist lintTimeoutSeconds.
 ## [file.configFiles] Konfigurationsdateien der Datei
 commands: nks.file.configFiles
 1. Die Statusleiste nennt die Konfigurationsdateien, die für die geöffnete Datei gelten: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml und die Konfigurationen der Sprache (zum Beispiel ruff.toml, stylua.toml, .shellcheckrc). Es ist jeweils die nächstgelegene Datei im Ordner der Datei oder darüber. Klicken Sie auf den Eintrag oder wählen Sie Datei, Konfigurationsdateien dieser Datei.

@@ -206,6 +206,7 @@ internal static class AppCommands
         On("nks.file.saveActions", w => w.ShowSaveActions());
         On("nks.file.configFiles", w => w.ShowConfigFiles());
         On("nks.tools.makeTargets", w => w.ShowMakeTargets());
+        On("nks.tools.lint", w => w.RunLinter());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.log.levels", w => w.ChooseLogLevels());

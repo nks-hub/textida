@@ -86,6 +86,45 @@ public sealed partial class DocumentApi
         });
     }
 
+    /// <summary>The name under which the editor itself publishes diagnostics (a linter run), next to the ones plugins publish.</summary>
+    public const string OwnSourceOwner = "textida";
+
+    /// <summary>
+    /// Stores diagnostics that the editor found itself, with no plugin: the same store, the same move through the change log and the same drawing as <c>diagnostics/publish</c>.
+    /// The document has to be exposed. Ranges are bytes of <paramref name="revision"/>; one the text has changed since is moved or dropped. An empty list takes that source's diagnostics away.
+    /// Call on the thread that owns the document. Returns how many were kept; no more than the limit of a source are taken.
+    /// </summary>
+    public int PublishOwn(Document d, string source, long revision, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        lock (_gate)
+        {
+            if (!_exposed.ContainsKey(d.Id)) throw new InvalidOperationException("The document is not exposed.");
+        }
+        List<Diagnostic> kept = [];
+        bool reachable = revision == d.Revision || (revision < d.Revision && revision >= d.OldestMappableRevision);
+        foreach (var x in diagnostics.Take(_options.MaxDiagnosticsPerDocument))
+        {
+            var range = x.Range;
+            if (revision != d.Revision)
+            {
+                if (!reachable) break;
+                var mapped = d.MapRange(range, revision);
+                if (!mapped.Ok) continue;
+                range = mapped.Range;
+            }
+            if (range.End > d.ByteLength || !d.IsCharBoundary(range.Start) || !d.IsCharBoundary(range.End)) continue;
+            kept.Add(x with { Range = range });
+        }
+        var key = (OwnSourceOwner, d.Id, source);
+        lock (_gate)
+        {
+            if (kept.Count == 0) _diagnostics.Remove(key);
+            else _diagnostics[key] = new DiagnosticSet(OwnSourceOwner, d.Id, source, d.Revision, kept);
+        }
+        _options.Tools.DiagnosticsChanged(d.Id);
+        return kept.Count;
+    }
+
     /// <summary>The diagnostics of all plugins for a document, with their ranges in the current revision. Call on the thread that owns the documents.</summary>
     public IReadOnlyList<PlacedDiagnostic> DiagnosticsOf(Guid document)
     {

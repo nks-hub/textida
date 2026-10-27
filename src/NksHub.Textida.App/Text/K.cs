@@ -1264,6 +1264,15 @@ public static class K
     public const string SaveActionsToolNotApproved = "saveActions.toolNotApproved";
     public const string SaveActionsToolUnknown = "saveActions.toolUnknown";
     public const string SaveActionsToolFailed = "saveActions.toolFailed";
+    public const string SaveActionsLint = "saveActions.lint";
+    public const string SaveActionsOfferedLint = "saveActions.offeredLint";
+    public const string LintNone = "lint.none";
+    public const string LintNoLimit = "lint.noLimit";
+    public const string LintFailed = "lint.failed";
+    public const string LintTimedOut = "lint.timedOut";
+    public const string LintClean = "lint.clean";
+    public const string LintFound = "lint.found";
+    public const string LintDropped = "lint.dropped";
     public const string FragmentTab = "fragment.tab";
     public const string FragmentTabDetached = "fragment.tabDetached";
     public const string FragmentLanguage = "fragment.language";

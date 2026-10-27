@@ -1,0 +1,173 @@
+using System.Diagnostics;
+using System.Text;
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using NksHub.Textida.App.Services;
+using NksHub.Textida.App.Shell;
+using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Tools;
+using NksHub.Textida.PluginHost.Documents;
+
+namespace NksHub.Textida.App.Tests;
+
+/// <summary>
+/// P8.8.1 in the window: PHPStan after a save, with a copy of ToolEcho named phpstan in vendor/bin that prints a recorded sample. The underline, its removal after a fix, the line in the Tasks tab, a missing
+/// program, a missing time limit and a run over the limit. The real PHPStan is not installed here, so its command line and output are not verified.
+/// </summary>
+[Collection("LocState")]
+public class LintAppTests : IDisposable
+{
+    private readonly TempDir _temp = new();
+    private readonly ScriptedDialogs _dialogs = new();
+    private readonly App _app;
+    private readonly MainWindow _w;
+    private readonly string _project;
+    private readonly string _php;
+    private readonly string _tool;
+
+    private const string Found = """{"totals":{"errors":0,"file_errors":1},"files":{"{FILEJSON}":{"errors":1,"messages":[{"message":"Function foo not found.","line":3,"ignorable":true,"identifier":"function.notFound"}]}},"errors":[]}""";
+    private const string Clean = """{"totals":{"errors":0,"file_errors":0},"files":[],"errors":[]}""";
+
+    public LintAppTests()
+    {
+        _app = TestApp.Prepare(_temp, _dialogs);
+        _w = _app.CreateWindow(null);
+        _project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        File.WriteAllText(Path.Combine(_project, "composer.json"), "{}");
+        _php = Path.Combine(_project, "a.php");
+        File.WriteAllText(_php, "<?php\n\nfoo($x);\n", new UTF8Encoding(false));
+        string folder = Directory.CreateDirectory(Path.Combine(_project, "vendor", "bin")).FullName;
+        foreach (var extension in new[] { ".dll", ".runtimeconfig.json", ".deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.ToolEcho" + extension), Path.Combine(folder, "NksHub.Textida.ToolEcho" + extension), overwrite: true);
+        string exe = OperatingSystem.IsWindows() ? "NksHub.Textida.ToolEcho.exe" : "NksHub.Textida.ToolEcho";
+        _tool = Path.Combine(folder, OperatingSystem.IsWindows() ? "phpstan.exe" : "phpstan");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, exe), _tool, overwrite: true);
+    }
+
+    public void Dispose()
+    {
+        TestApp.Cleanup(_app);
+        Loc.SetLanguage(Loc.DefaultLanguage);
+        _temp.Dispose();
+    }
+
+    private string ActionsFile => Path.Combine(_app.ProfileDirectory, SaveActionConfig.FileName);
+
+    private void Configure(int? lintTimeoutSeconds, bool lint = true) =>
+        SaveActionConfig.Write(ActionsFile, new SaveActionsFile { LintTimeoutSeconds = lintTimeoutSeconds, Actions = lint ? [new SaveActionEntry { Kind = "lint", Id = "phpstan" }] : [] });
+
+    private void Say(string sample) =>
+        File.WriteAllText(_tool + ".sample", sample.Replace("{FILEJSON}", System.Text.Json.JsonSerializer.Serialize(_php)[1..^1]), new UTF8Encoding(false));
+
+    /// <summary>The program asks for a yes before its first run, as every tool; here it has been given.</summary>
+    private void Approve() => _app.ToolApprovals.Approve(Linters.Prepare(Linters.Find("phpstan")!, _php, TimeSpan.FromSeconds(5)));
+
+    private static async Task Until(Func<bool> condition, string what, int timeoutMs = 30_000)
+    {
+        for (var sw = Stopwatch.StartNew(); !condition(); await Task.Delay(10))
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (sw.ElapsedMilliseconds > timeoutMs) throw new TimeoutException("Waited for " + what);
+        }
+    }
+
+    private async Task SaveEditedAsync(DocTab tab, string insert)
+    {
+        tab.Editor!.Document.Insert(tab.Editor!.Document.TextLength, insert);
+        var task = _w.SaveAsync(tab, SaveOrigin.Manual);
+        await Until(() => task.IsCompleted, "the save");
+        Assert.True(await task);
+    }
+
+    private List<string> TaskLines() => [.. _app.Output.Read(OutputChannel.Tasks).Select(l => l.Text)];
+
+    [AvaloniaFact]
+    public async Task A_PHPStan_error_is_underlined_after_a_save_and_gone_after_the_fix_and_the_next_save()
+    {
+        Configure(60);
+        Say(Found);
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+
+        var mark = tab.Surface!.Diagnostics[0];
+        string text = tab.Editor!.Document.Text;
+        Assert.Equal("foo($x);", text[mark.Start..mark.End]); // PHPStan names a line and no column: the text of the line
+        Assert.Equal(DiagnosticSeverity.Error, mark.Severity);
+        Assert.Contains("Function foo not found.", mark.Message);
+        string line = $"{Path.GetFullPath(_php)}:3:1: error: Function foo not found. [function.notFound]";
+        Assert.Contains(line, TaskLines());
+        Assert.NotNull(LogPattern.Compile(MakefileTargets.ErrorPattern, LogPatternSyntax.Regex).Match(line)); // a click on the line opens that place
+
+        // a line typed above moves the underline with the text
+        tab.Editor!.Document.Insert(0, "<?php // x\n");
+        Assert.Equal("foo($x);", tab.Editor!.Document.Text[tab.Surface!.Diagnostics[0].Start..tab.Surface!.Diagnostics[0].End]);
+
+        Say(Clean);
+        await SaveEditedAsync(tab, "");
+        await Until(() => tab.Surface!.Diagnostics.Count == 0, "the underline to go after the fix");
+        Assert.Contains(Loc.Get(K.LintClean, ("name", "PHPStan")), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public async Task Without_a_time_limit_no_linter_runs_and_the_status_bar_says_so()
+    {
+        Configure(null);
+        Say(Found);
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+
+        Assert.Equal(Loc.Get(K.LintNoLimit, ("name", "PHPStan")), _w.StatusMessageText);
+        Assert.Empty(tab.Surface!.Diagnostics);
+    }
+
+    [AvaloniaFact]
+    public async Task A_missing_program_is_reported_and_the_save_is_not_held_up()
+    {
+        Configure(60);
+        File.Delete(_tool);
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+
+        Assert.Contains("phpstan", _w.StatusMessageText);
+        Assert.Contains(Loc.Get(K.LintFailed, ("name", "PHPStan"), ("reason", "")).Split('\u0001')[0].TrimEnd(), _w.StatusMessageText);
+        Assert.Empty(tab.Surface!.Diagnostics);
+    }
+
+    [AvaloniaFact]
+    public async Task A_linter_over_its_time_limit_is_reported_while_the_window_keeps_working()
+    {
+        Configure(1);
+        Say("#sleep");
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        tab.Editor!.Document.Insert(0, "typing while it runs "); // the editor accepts input meanwhile
+        await Until(() => _w.StatusMessageText == Loc.Get(K.LintTimedOut, ("name", "PHPStan"), ("seconds", "1")), "the report of the time-out");
+
+        Assert.Empty(tab.Surface!.Diagnostics);
+    }
+
+    [AvaloniaFact]
+    public async Task A_linter_is_offered_in_the_save_actions_and_off_until_switched_on()
+    {
+        var tab = _w.OpenFile(_php, null);
+
+        _w.ShowSaveActions();
+        var offered = Assert.Single(_w.QuickResults, r => r.Title == Loc.Get(K.SaveActionsLint, ("name", "PHPStan")));
+        Assert.Contains(Loc.Get(K.SaveActionsOfferedLint), offered.Detail!);
+        Assert.False(File.Exists(ActionsFile));
+
+        offered.Run();
+        var action = Assert.Single(SaveActionConfig.Load(ActionsFile, null).Actions);
+        Assert.Equal((SaveActionKind.Lint, "phpstan", true), (action.Kind, action.Id, action.Enabled));
+        _w.CloseTab(tab);
+        await Task.CompletedTask;
+    }
+}

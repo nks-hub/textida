@@ -835,6 +835,14 @@ commands: nks.tools.makeTargets
 3. Riadok výstupu, ktorý menuje súbor a riadok (main.c:12:5: error, Makefile:7:), otvorí to miesto klikom alebo Enterom.
 - Make musí byť nainštalovaný a v PATH. Zvláštne ciele (.PHONY), vzorové pravidlá a názvy s premennou alebo zástupným znakom sa nevypisujú. Potvrdenie sa viaže na príkaz, nie na obsah Makefile, pretože spustiť Makefile znamená spustiť, čo hovorí.
 
+## [tools.lint] Lintery: podčiarknutie nálezov PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy a RuboCopu
+commands: nks.tools.lint
+1. Nástroje, Skontrolovať súbor linterom spustí linter, ktorý sa na otvorený súbor hodí: PHPStan alebo Psalm pre PHP, golangci-lint pre Go, Clippy pre Rust (potrebuje Cargo.toml v priečinku súboru alebo nad ním), clang-tidy pre C a C++, RuboCop pre Ruby. Keď súbor spracúvajú dva lintery, použije sa prvý, ktorého konfiguračný súbor (phpstan.neon, psalm.xml) sa nájde, inak prvý nainštalovaný.
+2. Linter kontroluje súbor na disku, takže najprv uložte: dokument s neuloženými zmenami sa nekontroluje. Nálezy sú v texte podčiarknuté (hlásenie sa ukáže po nabehnutí) a vypísané na karte Úlohy, jeden na riadok; klik alebo Enter otvorí miesto. Ďalší beh toho istého linteru ich nahradí, takže opravený problém po ňom zmizne.
+3. Ak chcete kontrolovať po každom uložení, zapnite v Súbor, Akcie pri uložení položku „Skontrolovať nástrojom PHPStan“ (alebo iného linteru), alebo napíšte do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter sa nikdy nespúšťa pri zmene. Identifikátory sú phpstan, psalm, golangci-lint, clippy, clang-tidy a rubocop-lint.
+- Program sa hľadá vo vendor/bin, node_modules/.bin, .venv a v PATH; nič sa nesťahuje. Prvé spustenie vás požiada o potvrdenie príkazu.
+- Žiadny časový limit nie je predvolený: kým v saveActions.json chýba lintTimeoutSeconds, žiadny linter nebeží a stavový riadok to povie. Linter, ktorý limit prekročí, sa zastaví a ohlási; editor medzitým zostáva použiteľný.
+- PHPStan hlási riadok a žiadny stĺpec, preto sa podčiarkne text celého riadku. Program, ktorý je dávkový súbor (phpstan.bat), sa odmietne, rovnako ako pri každom nástroji.
 ## [file.saveActions] Akcie pri uložení: formátovať, spustiť nástroj, nahrať
 commands: nks.file.saveActions
 1. Súbor, Akcie pri uložení vypíše, čo beží okolo uloženia: formátovanie, nástroj, nahratie na server. Riadok akciu zapne alebo vypne; riadok pod ním prepína „len pri ručnom uložení“. Formátovač (gofmt, rustfmt, clang-format, RuboCop) sa ponúkne len vtedy, keď jeho konfigurácia (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) leží v priečinku súboru alebo vyššie, a je vypnutý, kým ho nezapnete.
@@ -845,6 +853,7 @@ commands: nks.file.saveActions
 - Časový limit nie je predvolený: kým chýba formatTimeoutSeconds, formátovač nebeží a stavový riadok to povie. Hodnota v príklade je len príklad.
 - Po autosave nemá kto odpovedať: nástroj, ktorý nebol nikdy potvrdený, sa nespustí, a novšia verzia na serveri sa ukáže v lište karty namiesto dialógu.
 - Prepnutie akcie v zozname prepíše saveActions.json v profile a zahodí v ňom komentáre. Akcie z projektu sa vypíšu, ale menia sa v súbore projektu.
+- Akcie pri uložení ponúkajú aj „Skontrolovať nástrojom ...“ pre lintery, ktoré súbor spracúvajú; je vypnutá, kým ju nezapnete. Kontrola beží po uložení a neblokuje ho; jej časový limit je lintTimeoutSeconds.
 ## [file.configFiles] Konfiguračné súbory súboru
 commands: nks.file.configFiles
 1. Stavový riadok ukazuje konfiguračné súbory, ktoré platia pre otvorený súbor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurácie jazyka (napríklad ruff.toml, stylua.toml, .shellcheckrc). Pri každej je to najbližší súbor v priečinku súboru alebo nad ním. Kliknite na položku, alebo použite Súbor, Konfiguračné súbory tohto súboru.
