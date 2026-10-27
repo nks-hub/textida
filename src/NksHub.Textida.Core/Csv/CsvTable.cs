@@ -270,10 +270,9 @@ public sealed class CsvTable : IDisposable
     /// <summary>Names of the columns, or null when the dialect has no header or the text no row.</summary>
     public string[]? Header() => Dialect.HasHeader && EnsureRows(1) ? Row(0) : null;
 
-    /// <summary>Indexes of the data rows (not the header) that match; scans the whole text.</summary>
-    public List<int> Filter(CsvFilter filter, CancellationToken cancel = default)
+    /// <summary>Indexes of the data rows (not the header) that match, found lazily one by one so a caller can stop or work in slices. A change of the document ends the walk with wrong rows: ask again.</summary>
+    public IEnumerable<int> Matches(CsvFilter filter, CancellationToken cancel = default)
     {
-        var result = new List<int>();
         var comparison = filter.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         var fields = new List<CsvField>();
         for (int row = Dialect.HasHeader ? 1 : 0; EnsureRows(row + 1); row++)
@@ -283,9 +282,21 @@ public sealed class CsvTable : IDisposable
             bool hit = filter.Text.Length == 0;
             for (int c = 0; !hit && c < fields.Count; c++)
                 hit = (filter.Column is null || filter.Column == c) && Text(fields[c]).Contains(filter.Text, comparison);
-            if (hit) result.Add(row);
+            if (hit) yield return row;
         }
-        return result;
+    }
+
+    /// <summary>All matches of <see cref="Matches"/>; scans the whole text.</summary>
+    public List<int> Filter(CsvFilter filter, CancellationToken cancel = default) => [.. Matches(filter, cancel)];
+
+    /// <summary>The start of a cell for display: the whole value, or about <paramref name="maxBytes"/> of a longer one followed by an ellipsis.</summary>
+    public string Preview(CsvField field, int maxBytes = 2048)
+    {
+        if (field.End - field.Start <= maxBytes) return Text(field);
+        long end = field.Start + maxBytes;
+        while (end > field.Start && !_doc.IsCharBoundary(end)) end--;
+        string head = ReadText(field.Quoted ? field.Start + _unit : field.Start, end);
+        return (field.Quoted ? head.Replace(Dialect.Quote.ToString() + Dialect.Quote, Dialect.Quote.ToString()) : head) + "…";
     }
 
     // ---- editing: every method below is one transaction, so one undo step ----
@@ -326,12 +337,24 @@ public sealed class CsvTable : IDisposable
     }
 
     /// <summary>Deletes a row with its line ending; the last row without one takes the line ending before it along, so the text still ends without one.</summary>
-    public EditResult DeleteRow(int row)
+    public EditResult DeleteRow(int row) => DeleteRows([row]);
+
+    /// <summary>Deletes rows as one transaction.</summary>
+    public EditResult DeleteRows(IEnumerable<int> rows)
     {
-        var info = Locate(row, null);
-        long from = info.Start;
-        if (info.TermEnd == info.ContentEnd && row > 0) from = Locate(row - 1, null).ContentEnd;
-        return Run([ByteEdit.Delete(new ByteRange(from, info.TermEnd))]);
+        var ranges = new List<(long From, long To)>();
+        int runStart = -1, previous = -2;
+        foreach (int row in rows.Distinct().Order())
+        {
+            var info = Locate(row, null);
+            if (row != previous + 1) runStart = row;
+            previous = row;
+            long from = info.Start;
+            if (info.TermEnd == info.ContentEnd && runStart > 0) from = Locate(runStart - 1, null).ContentEnd;
+            if (ranges.Count > 0 && ranges[^1].To >= info.Start) ranges[^1] = (Math.Min(ranges[^1].From, from), info.TermEnd);
+            else ranges.Add((from, info.TermEnd));
+        }
+        return Run([.. ranges.Select(r => ByteEdit.Delete(new ByteRange(r.From, r.To)))]);
     }
 
     /// <summary>Inserts a column before <paramref name="at"/> in every row; the header row gets <paramref name="header"/>, the others an empty cell. Rows shorter than <paramref name="at"/> stay as they are.</summary>
@@ -358,7 +381,10 @@ public sealed class CsvTable : IDisposable
     }
 
     /// <summary>Deletes a column from every row that has it, with one delimiter each.</summary>
-    public EditResult DeleteColumn(int column)
+    public EditResult DeleteColumn(int column) => DeleteColumns(column, 1);
+
+    /// <summary>Deletes <paramref name="count"/> neighbouring columns as one transaction; a row that stops inside the span loses what it has of it.</summary>
+    public EditResult DeleteColumns(int first, int count)
     {
         EnsureAll();
         var edits = new List<ByteEdit>();
@@ -366,10 +392,11 @@ public sealed class CsvTable : IDisposable
         for (int row = 0; row < _rows; row++)
         {
             Locate(row, fields);
-            if (column >= fields.Count) continue;
-            long from = fields[column].Start, to = fields[column].End;
-            if (column + 1 < fields.Count) to = fields[column + 1].Start;
-            else if (column > 0) from = fields[column - 1].End;
+            if (first >= fields.Count) continue;
+            int last = Math.Min(fields.Count, first + count) - 1;
+            long from = fields[first].Start, to = fields[last].End;
+            if (last + 1 < fields.Count) to = fields[last + 1].Start;
+            else if (first > 0) from = fields[first - 1].End;
             edits.Add(ByteEdit.Delete(new ByteRange(from, to)));
         }
         return Run(edits);

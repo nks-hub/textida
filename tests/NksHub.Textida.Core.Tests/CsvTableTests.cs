@@ -299,4 +299,83 @@ public class CsvTableTests
         Assert.Equal(new CsvDialect('\t'), CsvDialect.ForPath("x.TSV"));
         Assert.Equal(CsvDialect.Csv, CsvDialect.ForPath("x.csv"));
     }
+
+    [Fact]
+    public void Several_rows_and_columns_go_in_one_undo_step()
+    {
+        const string original = "a,b,c,d\n1,2,3,4\n5,6,7,8\n9,10,11,12";
+        using var d = Make(original);
+        using var t = new CsvTable(d, CsvDialect.Csv);
+
+        t.DeleteRows([1, 3]);
+        Assert.Equal("a,b,c,d\n5,6,7,8", Text(d));
+        d.Undo();
+        t.DeleteRows([2, 3]);
+        Assert.Equal("a,b,c,d\n1,2,3,4", Text(d));
+        d.Undo();
+        t.DeleteColumns(1, 2);
+        Assert.Equal("a,d\n1,4\n5,8\n9,12", Text(d));
+        d.Undo();
+        t.DeleteColumns(2, 5);
+        Assert.Equal("a,b\n1,2\n5,6\n9,10", Text(d));
+        d.Undo();
+        Assert.Equal(original, Text(d));
+        Assert.False(d.CanUndo);
+    }
+
+    [Fact]
+    public void Preview_cuts_a_long_cell_on_a_character_boundary()
+    {
+        using var d = Make("a,\"" + new string('ě', 3000) + "\"\n");
+        using var t = new CsvTable(d, CsvDialect.Csv);
+        var f = t.Fields(0)[1];
+        string preview = t.Preview(f, 101);
+        Assert.EndsWith("…", preview);
+        Assert.All(preview[..^1], c => Assert.Equal('ě', c));
+        Assert.Equal(new string('ě', 3000), t.Text(f));
+    }
+}
+
+[Trait("Category", "Large")]
+public class CsvTableLargeTests
+{
+    private const int Rows = 2_000_000;
+
+    [Fact]
+    public void A_file_in_the_paged_backend_is_scrolled_and_edited_without_building_cells()
+    {
+        using var temp = new TempFile();
+        using (var w = new StreamWriter(temp.Path, false, new UTF8Encoding(false), 1 << 16))
+        {
+            w.Write("id,name,note\r\n");
+            for (int i = 0; i < Rows; i++)
+                w.Write(i % 7 == 0 ? $"{i},name {i},\"line one\r\nline \"\"two\"\", {i}\"\r\n" : $"{i},name {i},plain note number {i}\r\n");
+        }
+        using var d = Doc.Open(temp.Path, PagedBackendFactory.Instance);
+        long length = d.ByteLength;
+        Assert.True(length > 50_000_000);
+        using var t = new CsvTable(d, CsvDialect.Csv);
+
+        Assert.True(t.EnsureRows(1000));
+        Assert.False(t.IsComplete);
+        Assert.True(t.RowCount < 1100);
+        Assert.Equal(["7", "name 7", "line one\r\nline \"two\", 7"], t.Row(7 + 1));
+
+        const int target = 1_400_000 + 1;
+        Assert.Equal("name 1400000", t.Cell(target, 1));
+        var cell = t.CellRange(target, 1);
+        byte[] around = d.ReadBytes(new ByteRange(cell.Start - 50, cell.End + 50));
+        Assert.True(t.SetCell(target, 1, "renamed").Applied);
+        Assert.Equal(length - cell.Length + 7, d.ByteLength);
+        Assert.Equal("renamed", t.Cell(target, 1));
+        Assert.Equal(around[..50], d.ReadBytes(new ByteRange(cell.Start - 50, cell.Start)));
+        Assert.Equal(around[^50..], d.ReadBytes(new ByteRange(cell.Start + 7, cell.Start + 57)));
+
+        t.EnsureAll();
+        Assert.Equal(Rows + 1, t.RowCount);
+        Assert.Equal($"{Rows - 1}", t.Cell(Rows, 0));
+        d.Undo();
+        Assert.Equal(length, d.ByteLength);
+        Assert.Equal("name 1400000", t.Cell(target, 1));
+    }
 }
