@@ -75,6 +75,8 @@ internal sealed partial class MainWindow
         "nks.view.toggleMinimap" => (Options.Minimap, false),
         "nks.view.toggleSecrets" => (Active?.Surface?.SecretsRevealed ?? false, false),
         "nks.view.syncScroll" => (SyncScrollOn, false),
+        "nks.compare.ignoreWhitespace" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Whitespace), false),
+        "nks.compare.ignoreCase" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Case), false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),

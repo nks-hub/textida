@@ -306,6 +306,11 @@ internal sealed partial class MainWindow : Window
             tab.Paged?.ApplyOptions(options);
             tab.Hex?.ApplyOptions(options);
             tab.Table?.ApplyOptions(options);
+            if (tab.Custom is DiffView compare)
+            {
+                compare.ApplyOptions(options);
+                compare.SetIgnore(CompareIgnore);
+            }
             if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap && !tab.TableShown;
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);

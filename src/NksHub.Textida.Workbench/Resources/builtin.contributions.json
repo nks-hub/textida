@@ -1616,6 +1616,16 @@
       "enablement": "compareMode"
     },
     {
+      "id": "nks.compare.ignoreWhitespace",
+      "title": "cmd.compare.ignoreWhitespace",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.compare.ignoreCase",
+      "title": "cmd.compare.ignoreCase",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.view.syncScroll",
       "title": "cmd.view.syncScroll",
       "category": "cat.view",
@@ -3428,6 +3438,20 @@
       "order": 70
     },
     {
+      "menu": "tools",
+      "command": "nks.compare.ignoreWhitespace",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.ignoreCase",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 90
+    },
+    {
       "menu": "view",
       "command": "nks.view.syncScroll",
       "group": "3_panels/5_compare",
@@ -4797,6 +4821,35 @@
         "diff",
         "compare",
         "arguments"
+      ]
+    },
+    {
+      "key": "compare.ignoreWhitespace",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.compare.ignoreWhitespace.title",
+      "description": "setting.compare.ignoreWhitespace.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "diff",
+        "compare",
+        "whitespace",
+        "spaces"
+      ]
+    },
+    {
+      "key": "compare.ignoreCase",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.compare.ignoreCase.title",
+      "description": "setting.compare.ignoreCase.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "diff",
+        "compare",
+        "case"
       ]
     },
     {
