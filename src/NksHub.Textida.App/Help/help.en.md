@@ -825,3 +825,25 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 - Recipes are data: contributes.recipes in nkspad-plugin.json, with id, title, steps and optionally command. Steps that choose come first. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} keeps the matches inside the current parts. {"kind": "columns", "from": 3, "to": 5} keeps columns 3 to 5 of every line (counted in characters from 1; to 0 or left out means up to the end of the line; a shorter line gives nothing).
 - Steps that change: {"kind": "convert", "converter": "id"} (a converter of the same plugin), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} and {"kind": "set", "text": "..."}, which replaces the part with a text in the template language of clips. In it ${selection} is the part itself, and the variables have the same values as in a clip (topic Clips); carets $| are ignored.
 - A recipe with no steps, an unknown kind, a bad pattern, an unknown converter, a choosing step after a changing one or no changing step is refused when the plugin is read.
+
+## [tools.emmet] Emmet abbreviations
+commands: nks.tools.emmetPreview, nks.tools.emmetWrap
+1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with a caret inside each of them.
+2. Tab indents as usual when no abbreviation stands in front of the caret, when text is selected, when the caret is inside an open tag, or when the abbreviation is not valid.
+3. Tools, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the carets) and expands it when you agree.
+4. Tools, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
+5. Every expansion goes into all carets at once and is one Undo step.
+- HTML: `name#id.class[attr=value]{text}*3`; `>` child, `+` sibling, `^` one level up, `( )` group; in names, classes and text `$` is the number of the repeat (`$$` pads with zeros, `$@-` counts down, `$@3` starts at 3). A lone word expands only when it is an HTML tag name or a short name of the plugin (`bq`, `btn`, `a:link`, `input:checkbox`, `!` for a page skeleton). Inside an element the missing name is `li`, `tr`, `td`, `option`, `span` or `div`, as the parent needs.
+- CSS: `m10-20` is `margin: 10px 20px;`, `w100p` is `width: 100%;`, `c#f00`, `pos:a`, `dn`, a trailing `!` adds `!important`, `+` joins several declarations. A whole number gets `px`, a fraction `em`; the letters `p`, `e`, `x`, `r` after a number mean `%`, `em`, `ex`, `rem`. It works only inside a `{ }` block.
+- The short names are the plugin's own table of common properties and tags, not the full Emmet set.
+- The carets stand in every empty element at once (in the first empty attribute when there is none); a jump from one placeholder to the next does not exist yet.
+- The Emmet process starts with the first Tab in an HTML or CSS file.
+
+## [edit.complete] Completion of words and clips
+commands: nks.edit.complete
+1. Press Ctrl+J (Edit, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.
+2. Pick an entry. A word replaces the word in front of every caret; a clip is inserted like in the topic Clips and replaces that word. It is one Undo step.
+- The words are taken from all open text tabs. The word that is being typed is not offered, and a word is offered only when it is longer than what is typed. Words of the document being edited come first, then the more frequent ones.
+- Clips come from the library of the topic Clips. A clip with no language fits every document; a clip with a language fits only documents of that language.
+- The values of a secrets file (`.env`) are never offered while they are hidden. They are offered only in the file itself and only while shown.
+- The list holds a limited number of words; type in the box to narrow it. LSP completion is not part of this version.

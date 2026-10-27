@@ -451,6 +451,28 @@
       "enablement": "hasDocument && !largeFileMode && (language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown')"
     },
     {
+      "id": "nks.tools.emmetPreview",
+      "title": "cmd.tools.emmetPreview",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly && (language == 'html' || language == 'css')"
+    },
+    {
+      "id": "nks.tools.emmetWrap",
+      "title": "cmd.tools.emmetWrap",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly && language == 'html'"
+    },
+    {
+      "id": "nks.edit.complete",
+      "title": "cmd.edit.complete",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
       "id": "nks.tools.goToSymbol",
       "title": "cmd.tools.goToSymbol",
       "category": "cat.tools",
@@ -1520,6 +1542,24 @@
       "order": 40
     },
     {
+      "menu": "tools",
+      "command": "nks.tools.emmetPreview",
+      "group": "4_emmet",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.emmetWrap",
+      "group": "4_emmet",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.complete",
+      "group": "8_insert",
+      "order": 4
+    },
+    {
       "menu": "format",
       "command": "nks.format.reread",
       "group": "1_encoding",
@@ -1989,6 +2029,11 @@
     }
   ],
   "keybindings": [
+    {
+      "key": "ctrl+j",
+      "command": "nks.edit.complete",
+      "when": "editorFocus"
+    },
     {
       "key": "mod+n",
       "command": "nks.file.new"

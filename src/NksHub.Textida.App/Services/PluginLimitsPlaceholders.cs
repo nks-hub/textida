@@ -59,6 +59,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 
+    /// <summary>Placeholder: bytes Emmet reads in front of a caret to find the abbreviation, its line and the CSS block it stands in. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int EmmetContextBytes = 64 * 1024;
+
+    /// <summary>Placeholder: most words the completion list (Ctrl+J) holds; the best ranked are kept.</summary>
+    public const int CompletionMaxWords = 200;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

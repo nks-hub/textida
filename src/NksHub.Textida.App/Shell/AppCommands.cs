@@ -1,6 +1,7 @@
 using System.Text;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
@@ -99,6 +100,7 @@ internal static class AppCommands
         On("nks.edit.insertDateTime", w => w.InsertDateTime());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
+        On("nks.edit.complete", w => w.ShowCompletion());
         On("nks.edit.clipFromSelection", w => w.SaveSelectionAsClip());
         On("nks.clips.editVariables", w => w.EditUserVariables());
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
@@ -119,7 +121,7 @@ internal static class AppCommands
         {
             if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
             // plugins that registered for Tab answer first; without one the key is handled at once, as it always was
-            if (w.Active is { } tab && app.Plugins.Documents.HasTabProviders) return OfferTab(w, tab, context);
+            if (w.Active is { } tab && (app.Plugins.Documents.HasTabProviders || PluginServices.EmmetSyntax(tab.Doc.Language.Id) is not null)) return OfferTab(w, tab, context);
             return done(w.Tab(outdent: false));
         });
         On("nks.edit.newline", w => w.Newline());
@@ -150,6 +152,8 @@ internal static class AppCommands
         Do("nks.tools.goToSymbol", w => w.ShowQuickOpen("@"));
         Fire("nks.tools.showOutline", (w, t) => app.Plugins.IndexSymbolsAsync(w, t, reveal: true));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
+        Fire("nks.tools.emmetPreview", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.preview"));
+        Fire("nks.tools.emmetWrap", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.wrap"));
 
         On("nks.tools.run", w => w.ShowToolMenu());
         On("nks.tools.stop", w => w.StopTool());

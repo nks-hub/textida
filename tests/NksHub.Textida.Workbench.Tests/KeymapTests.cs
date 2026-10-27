@@ -285,10 +285,10 @@ public class KeymapTests
         var dispatcher = new KeyDispatcher(host.BuildKeymap(Platform.Windows), host.Commands);
         var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false).Set(ContextKeys.HasSelection, false);
 
-        Assert.Equal(KeyDispatchKind.Unbound, (await dispatcher.HandleAsync(Chord("ctrl+j"), ctx)).Kind);
+        Assert.Equal(KeyDispatchKind.Unbound, (await dispatcher.HandleAsync(Chord("ctrl+alt+j"), ctx)).Kind);
         Assert.Equal(KeyDispatchKind.Pending, (await dispatcher.HandleAsync(Chord("ctrl+k"), ctx)).Kind);
         Assert.Equal(KeyDispatchKind.Cancelled, (await dispatcher.HandleAsync(Chord("ctrl+x"), ctx)).Kind);
-        Assert.Equal(KeyDispatchKind.Unbound, (await dispatcher.HandleAsync(Chord("ctrl+j"), ctx)).Kind);
+        Assert.Equal(KeyDispatchKind.Unbound, (await dispatcher.HandleAsync(Chord("ctrl+alt+j"), ctx)).Kind);
 
         Assert.Equal(KeyDispatchKind.NotHandled, (await dispatcher.HandleAsync(Chord("tab"), ctx)).Kind);
 
