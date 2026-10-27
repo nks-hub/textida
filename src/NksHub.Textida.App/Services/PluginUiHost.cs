@@ -95,7 +95,7 @@ internal sealed class PluginUiHost(App app) : IPluginUi
         OnWindowAsync<string?>(w => w.PluginPickAsync(request, cancellation), null, cancellation);
 
     public Task<string?> InputAsync(string pluginId, InputRequest request, CancellationToken cancellation) =>
-        OnWindowAsync<string?>(w => app.Dialogs.PromptAsync(w, request.Title, request.Label, request.Value), null, cancellation);
+        OnWindowAsync<string?>(w => request.Secret ? app.Dialogs.PromptSecretAsync(w, request.Title, request.Label) : app.Dialogs.PromptAsync(w, request.Title, request.Label, request.Value), null, cancellation);
 
     public Task<bool> ConfirmAsync(string pluginId, ConfirmRequest request, CancellationToken cancellation) =>
         OnWindowAsync(w => w.PluginConfirmAsync(request), false, cancellation);

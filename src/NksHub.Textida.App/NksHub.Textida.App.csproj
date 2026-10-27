@@ -46,6 +46,7 @@
     <ProjectReference Include="..\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.Lsp\NksHub.Textida.Plugins.Lsp.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\NksHub.Textida.Plugins.Wiki\NksHub.Textida.Plugins.Wiki.csproj" ReferenceOutputAssembly="false" />
     <!-- the program an MCP client starts; it is built first and copied next to the app -->
     <ProjectReference Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Document.AvaloniaEdit\NksHub.Textida.Document.AvaloniaEdit.csproj" />
@@ -70,6 +71,7 @@
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" Folder="plugins\formatters" />
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" Folder="plugins\git" />
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Lsp\NksHub.Textida.Plugins.Lsp.csproj" Folder="plugins\lsp" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.Wiki\NksHub.Textida.Plugins.Wiki.csproj" Folder="plugins\wiki" />
       <BuiltInProgram Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" Folder="mcp" />
     </ItemGroup>
     <MSBuild Projects="%(BuiltInProgram.Identity)" Targets="Publish" BuildInParallel="false"
@@ -91,6 +93,7 @@
       <FormattersPluginFiles Include="..\NksHub.Textida.Plugins.Formatters\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <GitPluginFiles Include="..\NksHub.Textida.Plugins.Git\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <LspPluginFiles Include="..\NksHub.Textida.Plugins.Lsp\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <WikiPluginFiles Include="..\NksHub.Textida.Plugins.Wiki\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <McpBridgeFiles Include="..\NksHub.Textida.Mcp\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
@@ -101,6 +104,7 @@
     <Copy SourceFiles="@(FormattersPluginFiles)" DestinationFiles="@(FormattersPluginFiles->'$(OutDir)plugins\formatters\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(GitPluginFiles)" DestinationFiles="@(GitPluginFiles->'$(OutDir)plugins\git\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(LspPluginFiles)" DestinationFiles="@(LspPluginFiles->'$(OutDir)plugins\lsp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(WikiPluginFiles)" DestinationFiles="@(WikiPluginFiles->'$(OutDir)plugins\wiki\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(McpBridgeFiles)" DestinationFiles="@(McpBridgeFiles->'$(OutDir)mcp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

@@ -56,7 +56,8 @@ public sealed class UiApi
             case UiMethods.QuickPick: return await PickAsync(pluginId, p, cancellation);
             case UiMethods.Input:
             {
-                var answer = await _ui.InputAsync(pluginId, new InputRequest(Text(p, "title"), Text(p, "label"), OptionalText(p, "value") ?? ""), cancellation);
+                var answer = await _ui.InputAsync(pluginId, new InputRequest(Text(p, "title"), Text(p, "label"), OptionalText(p, "value") ?? "",
+                    p.TryGetProperty("secret", out var secret) && secret.ValueKind == JsonValueKind.True), cancellation);
                 return DocumentApi.Obj(w => { if (answer is null) w.WriteNull("value"); else w.WriteString("value", answer); });
             }
             case UiMethods.Confirm:

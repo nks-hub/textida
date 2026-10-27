@@ -218,7 +218,7 @@ public class PluginSourceAppTests : IDisposable
 
         _w.OpenFromSource();
         await Until(() => _w.QuickResults.Count > 0, "the list of sources");
-        var row = _w.QuickResults.Single();
+        var row = _w.QuickResults.Single(r => r.Title == "Fake wiki"); // the built-in wiki source may be listed beside it
         Assert.Equal("Fake wiki", row.Title);
         Assert.Contains(Loc.Get(K.SourceWritePlain), row.Detail);
         row.Run();
