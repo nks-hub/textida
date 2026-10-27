@@ -98,7 +98,7 @@ public sealed partial class Document
         var before = _codec;
         var removed = Execute(work, validate: false, captureRemoved: true, out _);
         SetCodec(target);
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
+        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
         Commit(ChangeKind.Edit, "convert", work, step, null);
         return new(true, _revision, ConflictReason.None);
     }
@@ -136,7 +136,7 @@ public sealed partial class Document
         var before = _codec;
         var removed = Execute(work, validate: false, captureRemoved: true, out _);
         SetCodec(target);
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
+        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
         Commit(ChangeKind.Edit, source, work, step, null);
         return new(true, _revision, ConflictReason.None);
     }

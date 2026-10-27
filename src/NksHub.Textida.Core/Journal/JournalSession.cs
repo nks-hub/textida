@@ -371,7 +371,7 @@ public sealed class JournalSession : IDisposable
                     case ChangeKind.Undo:
                         if (undoNow < _undo)
                         {
-                            _decision = !_diverged && undoNow >= _floor;
+                            _decision = !_diverged && undoNow >= _floor && !doc.EditsDuringSave; // a replay starts from the saved file, whose history this undo may reach below
                             _redoOk.Add(_decision);
                             _diverged |= !_decision;
                         }
@@ -382,7 +382,7 @@ public sealed class JournalSession : IDisposable
                         {
                             bool listed = _redoOk.Count > 0 && _redoOk[^1];
                             if (_redoOk.Count > 0) _redoOk.RemoveAt(_redoOk.Count - 1);
-                            _decision = !_diverged && listed;
+                            _decision = !_diverged && listed && !doc.EditsDuringSave;
                             _diverged |= !_decision;
                         }
                         Replayable(RecordType.DocRedo, c, revision);

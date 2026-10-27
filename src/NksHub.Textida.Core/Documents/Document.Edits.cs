@@ -5,7 +5,43 @@ namespace NksHub.Textida.Core.Documents;
 public sealed partial class Document
 {
     private readonly record struct Pending(long Start, long Deleted, ReadOnlyMemory<byte> Insert);
-    private readonly record struct AppliedEdit(long Offset, byte[] Removed, byte[] Inserted);
+    private readonly record struct AppliedEdit(long Offset, UndoBytes Removed, UndoBytes Inserted);
+
+    /// <summary>Bytes of an undo step: in memory, or in the document's scratch file once the history holds more than the backend's budget (<see cref="IByteBackend.UndoMemoryBudget"/>).</summary>
+    private readonly record struct UndoBytes(byte[]? Memory, SpillFile? File, long At, int Length, bool HasLineBreak)
+    {
+        public ReadOnlyMemory<byte> Read()
+        {
+            if (Memory is not null) return Memory;
+            var bytes = new byte[Length];
+            File!.ReadExactly(At, bytes);
+            return bytes;
+        }
+    }
+
+    private SpillFile? _undoSpill;
+    private long _undoSpillEnd, _undoHeld;
+
+    private UndoBytes Keep(byte[] bytes)
+    {
+        bool lineBreak = HasLineBreakByte(bytes);
+        if (bytes.Length > 0 && _undoHeld + bytes.Length > _backend.UndoMemoryBudget)
+        {
+            try
+            {
+                _undoSpill ??= SpillFile.Create(_backend.SpillDirectory, "undo");
+                _undoSpill.Write(_undoSpillEnd, bytes);
+                var kept = new UndoBytes(null, _undoSpill, _undoSpillEnd, bytes.Length, lineBreak);
+                _undoSpillEnd += bytes.Length;
+                return kept;
+            }
+            catch (IOException) { } // a full disk must not lose an edit that is already applied: the step stays in memory
+        }
+        _undoHeld += bytes.Length;
+        return new(bytes, null, 0, bytes.Length, lineBreak);
+    }
+
+    private AppliedEdit Applied(long offset, byte[] removed, byte[] inserted) => new(offset, Keep(removed), Keep(inserted));
     private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
@@ -29,6 +65,8 @@ public sealed partial class Document
     private UndoEntry? _saved;
     /// <summary>The newest undo step when a save took its snapshot: edits made while it runs must not join it, or it would no longer be the saved state.</summary>
     private UndoEntry? _joinBarrier;
+    /// <summary>True when the step the running save writes (<see cref="_joinBarrier"/>) was undone and then dropped from the redo list by a new edit, so the saved state can no longer be reached.</summary>
+    private bool _barrierLost;
     private bool _savedUnreachable;
     private int _groupDepth;
     private UndoEntry? _groupEntry;
@@ -38,6 +76,18 @@ public sealed partial class Document
     /// <summary>Number of undo steps; a journal uses it to tell a new undo step from an edit merged into the previous one.</summary>
     public int UndoDepth => _undo.Count;
     public int RedoDepth => _redo.Count;
+
+    /// <summary>
+    /// True when <see cref="Undo"/> would do nothing now because a save runs. A save that keeps edits (<see cref="EditsDuringSave"/>) lets undo move the
+    /// live revision only, since it writes an immutable snapshot; it still waits for a step that refers to the file being replaced (a large fill)
+    /// or that changes the encoding.
+    /// </summary>
+    public bool UndoBlockedBySave => BlockedBySave(_undo);
+    /// <summary>The same for <see cref="Redo"/>.</summary>
+    public bool RedoBlockedBySave => BlockedBySave(_redo);
+
+    private bool BlockedBySave(List<UndoEntry> stack) =>
+        _saving && (!_editsDuringSave || (stack.Count > 0 && stack[^1].Steps.Any(s => s.Fill is not null || s.CodecBefore is not null || s.CodecAfter is not null)));
     /// <summary>Coalesce key of the newest undo step; a journal replay joins edits to that step through it.</summary>
     internal string? TopUndoKey => _undo.Count > 0 ? _undo[^1].Key : null;
 
@@ -88,7 +138,7 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
+        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -223,7 +273,7 @@ public sealed partial class Document
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => HasLineBreakByte(e.Removed) || HasLineBreakByte(e.Inserted)) };
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => e.Removed.HasLineBreak || e.Inserted.HasLineBreak) };
         if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
@@ -273,7 +323,7 @@ public sealed partial class Document
     private void OnBackendEdit(BackendEdit e)
     {
         var key = TypingKey(e);
-        var step = new Step([new AppliedEdit(e.Offset, e.Removed, e.Inserted)], null, null);
+        var step = new Step([Applied(e.Offset, e.Removed, e.Inserted)], null, null);
         Commit(ChangeKind.Backend, "backend", [new ChangeSet.Span(e.Offset, e.Removed.Length, e.Inserted.Length)], step, key);
     }
 
@@ -382,6 +432,7 @@ public sealed partial class Document
         if (_redo.Count > 0)
         {
             if (_saved is not null && _redo.Contains(_saved)) _savedUnreachable = true;
+            if (_joinBarrier is not null && _redo.Contains(_joinBarrier)) _barrierLost = true;
             _redo.Clear();
         }
         UndoEntry? top = _undo.Count > 0 ? _undo[^1] : null;
@@ -407,7 +458,7 @@ public sealed partial class Document
     public UndoResult? Undo()
     {
         ThrowIfDisposed();
-        if (_saving || _undo.Count == 0) return null;
+        if (UndoBlockedBySave || _undo.Count == 0) return null;
         var entry = _undo[^1];
         _undo.RemoveAt(_undo.Count - 1);
         _redo.Add(entry);
@@ -424,7 +475,7 @@ public sealed partial class Document
             var work = new List<Pending>();
             foreach (var e in entry.Steps[s].Edits)
             {
-                work.Add(new(e.Offset + shift, e.Inserted.Length, e.Removed));
+                work.Add(new(e.Offset + shift, e.Inserted.Length, e.Removed.Read()));
                 shift += e.Inserted.Length - e.Removed.Length;
             }
             Execute(work, validate: false, captureRemoved: false, out _);
@@ -438,7 +489,7 @@ public sealed partial class Document
     public UndoResult? Redo()
     {
         ThrowIfDisposed();
-        if (_saving || _redo.Count == 0) return null;
+        if (RedoBlockedBySave || _redo.Count == 0) return null;
         var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
         _undo.Add(entry);
@@ -450,7 +501,7 @@ public sealed partial class Document
                 Commit(ChangeKind.Redo, null, [new ChangeSet.Span(fill.Offset, fill.Deleted, fill.Length) { Pattern = fill.Pattern }], null, null);
                 continue;
             }
-            var work = step.Edits.Select(e => new Pending(e.Offset, e.Removed.Length, e.Inserted)).ToList();
+            var work = step.Edits.Select(e => new Pending(e.Offset, e.Removed.Length, e.Inserted.Read())).ToList();
             Execute(work, validate: false, captureRemoved: false, out _);
             if (step.CodecAfter is { } after) SetCodec(after);
             Commit(ChangeKind.Redo, null, work, null, null);
@@ -465,14 +516,19 @@ public sealed partial class Document
     {
         if (FilePath is { } saved && _backend.BackingPath is { } mapped && SamePath(mapped, saved)) ReleaseFillUndo();
         var top = mark is { } m ? m.Top : _undo.Count > 0 ? _undo[^1] : null;
-        // a step that fill-undo release removed is below everything left, so the empty history is the saved state
-        _saved = top is not null && _undo.Contains(top) ? top : null;
-        _savedUnreachable = false;
+        // a step that fill-undo release removed is below everything left, so the empty history is the saved state;
+        // a step undone while the save ran waits in the redo list and is still the saved state
+        _saved = top is not null && (_undo.Contains(top) || _redo.Contains(top)) ? top : null;
+        _savedUnreachable = _barrierLost;
         SavedRevision = mark?.Revision ?? _revision;
     }
 
     /// <summary>Undo steps that were there at the last save (all of them when nothing changed since).</summary>
-    internal int SavedUndoDepth => _saved is null ? 0 : _undo.IndexOf(_saved) + 1;
+    internal int SavedUndoDepth =>
+        _savedUnreachable ? int.MaxValue
+        : _saved is null ? 0
+        : _undo.IndexOf(_saved) is var at and >= 0 ? at + 1
+        : _undo.Count + _redo.Count - _redo.IndexOf(_saved);
 
     /// <summary>Revision of the last save; the revision the document was created or opened at (0) until then.</summary>
     public long SavedRevision { get; private set; }

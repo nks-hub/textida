@@ -207,6 +207,7 @@ public sealed partial class Document : IDisposable
         StopWatching();
         _backend.EditedByBackend -= OnBackendEdit;
         _backend.Dispose();
+        _undoSpill?.Dispose();
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

@@ -23,7 +23,7 @@ public sealed partial class Document
     /// <summary>Test seam of the in-place write.</summary>
     internal PatchHooks? InPlaceHooks;
 
-    /// <summary>Test seam of the streamed save: called with the step (<c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
+    /// <summary>Test seam of the streamed save: called with the step (<c>temp-writing</c> on the worker before the first byte, <c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
     internal Action<string, string>? StreamSaveStep;
 
     /// <summary>The state a save writes: what the document was when its snapshot was taken, which may be older than the document is when the save ends.</summary>
@@ -242,7 +242,7 @@ public sealed partial class Document
                 string tempPath = temp;
                 try
                 {
-                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct), CancellationToken.None);
+                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep), CancellationToken.None);
                     StreamSaveStep?.Invoke("temp-written", tempPath);
                 }
                 catch (SnapshotInvalidatedException) when (guard)
@@ -269,6 +269,7 @@ public sealed partial class Document
             if (streaming) _backend.EndStreamingSave();
             _editsDuringSave = false;
             _joinBarrier = null;
+            _barrierLost = false;
             _saving = false;
             _saveCancel?.Dispose();
             _saveCancel = null;
@@ -277,7 +278,7 @@ public sealed partial class Document
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/>; the new baseline is taken from the bytes written, not from the target afterwards.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step)
     {
         using var fs = new FileStream(temp, new FileStreamOptions
         {
@@ -287,6 +288,7 @@ public sealed partial class Document
             PreallocationSize = snapshot.ByteLength,
             BufferSize = 0,
         });
+        step?.Invoke("temp-writing", temp);
         var blocks = new OriginalBlockHashes();
         var hashing = new HashingStream(fs, blocks);
         var buf = new byte[1 << 20];

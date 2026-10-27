@@ -102,6 +102,8 @@ public sealed class PagedBackend : IByteBackend
 
     public IInPlaceWriteScope? BeginInPlaceWrite() => _doc.Source.File.BeginInPlaceWrite();
 
+    public long UndoMemoryBudget => _options.SpillBudgetBytes;
+    public string? SpillDirectory => _options.SpillDirectory;
     public bool EditsDuringStreamingSave => true;
     public IByteSnapshot BeginStreamingSave() => _doc.BeginStreamingSave();
     public void EndStreamingSave() => _doc.EndStreamingSave();

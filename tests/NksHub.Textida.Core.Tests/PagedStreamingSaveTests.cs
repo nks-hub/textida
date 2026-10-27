@@ -235,6 +235,111 @@ public sealed class PagedStreamingSaveTests : IDisposable
     }
 
     [Fact]
+    public async Task Undo_and_redo_during_a_streaming_save_move_the_editor_only_and_the_saved_state_stays_reachable()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        var original = model.Clone();
+        Edit(doc, model, 100, 0, 51, 1 << 20);
+        var snapshot = model.Clone();
+
+        var gate = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "temp-written") gate.Wait();
+        };
+        var task = doc.SaveAsync();
+        Assert.False(doc.UndoBlockedBySave);
+        Assert.NotNull(doc.Undo()); // the step the save writes
+        Assert.Equal(original.Sha256(), HashOf(doc));
+        Assert.NotNull(doc.Redo());
+        Assert.NotNull(doc.Undo());
+        gate.Set();
+
+        Assert.True((await task).Saved);
+        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        Assert.Equal(original.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+        Assert.NotNull(doc.Redo());
+        Assert.False(doc.IsModified); // redo is back at the saved revision
+        Assert.Equal(snapshot.Sha256(), HashOf(doc));
+        Assert.NotNull(doc.Undo());
+        Assert.Equal(original.Sha256(), HashOf(doc));
+    }
+
+    [Fact]
+    public async Task A_new_edit_after_undoing_the_saved_step_during_a_save_leaves_the_document_unsaved_for_good()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 100, 0, 61, 1 << 20);
+        var snapshot = model.Clone();
+
+        var gate = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "temp-written") gate.Wait();
+        };
+        var task = doc.SaveAsync();
+        Assert.NotNull(doc.Undo());
+        Edit(doc, model, 0, 0, 62, 10); // drops the undone step from the redo list: the saved revision cannot be reached again
+        gate.Set();
+
+        Assert.True((await task).Saved);
+        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        Assert.True(doc.IsModified);
+        while (doc.CanUndo) doc.Undo();
+        Assert.True(doc.IsModified);
+    }
+
+    [Fact]
+    public async Task Fill_and_the_undo_of_a_fill_wait_for_the_end_of_a_streaming_save()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory());
+        Assert.True(doc.Fill(new ByteRange(0, 8), new byte[] { 7 }, InPlacePatch.MaxPatchBytes + 1).Applied);
+
+        var gate = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "temp-written") gate.Wait();
+        };
+        var task = doc.SaveAsync();
+        Assert.Equal(ConflictReason.Saving, doc.Fill(new ByteRange(0, 1), new byte[] { 1 }, 1).Conflict);
+        Assert.True(doc.UndoBlockedBySave);
+        Assert.Null(doc.Undo());
+        gate.Set();
+        Assert.True((await task).Saved);
+        Assert.False(doc.UndoBlockedBySave);
+    }
+
+    [Fact]
+    public async Task Undo_steps_beyond_the_memory_budget_live_in_a_scratch_file_and_still_undo_after_a_streaming_save()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory(budget: 4 << 10));
+        var model = new LargeModel(size);
+        var original = model.Clone();
+        for (int i = 0; i < 6; i++) Edit(doc, model, 1000 * (i + 1), 200, 70 + i, 50_000);
+        Edit(doc, model, 5, 300_000, 80, 20);
+        var snapshot = model.Clone();
+
+        Assert.True((await doc.SaveAsync()).Saved);
+        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        while (doc.CanUndo) Assert.NotNull(doc.Undo());
+        Assert.Equal(original.Sha256(), HashOf(doc));
+        while (doc.CanRedo) Assert.NotNull(doc.Redo());
+        Assert.Equal(snapshot.Sha256(), HashOf(doc));
+        Assert.False(doc.IsModified);
+    }
+
+    [Fact]
     [Trait("Category", "Large")]
     public async Task A_multi_GiB_file_is_edited_during_a_streaming_save_and_the_file_equals_the_snapshot()
     {

@@ -68,6 +68,10 @@ public interface IByteBackend : IDisposable
     /// <paramref name="directory"/> that survive a crash, so a journal can refer to them (<see cref="TryGetDurableBytes"/>). Affects files made later.
     /// </summary>
     void UseDurableSpill(string directory, string namePrefix) { }
+    /// <summary>Bytes of undo steps a document keeps in memory before it moves the rest to a scratch file in <see cref="SpillDirectory"/>.</summary>
+    long UndoMemoryBudget => long.MaxValue;
+    /// <summary>Directory of that scratch file; null for the default one.</summary>
+    string? SpillDirectory => null;
     /// <summary>True when the bytes at <paramref name="offset"/> are exactly one inserted block that lives in a durable file.</summary>
     bool TryGetDurableBytes(long offset, long length, out DurableBytes bytes)
     {
