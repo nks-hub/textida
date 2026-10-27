@@ -327,7 +327,7 @@ public class WebDataAppTests : IDisposable
 
         tab.Editor.TextArea.ClearSelection();
         tab.Editor.CaretOffset = 0;
-        var symbols = _app.Plugins.KeySymbols(tab, out bool current);
+        var symbols = _app.Plugins.TabSymbols(tab, out bool current);
         Assert.True(current);
         Assert.Contains(symbols, s => s.Name == "list[1]");
         string id = symbols.Single(s => s.Name == path).Id;
@@ -348,13 +348,13 @@ public class WebDataAppTests : IDisposable
         var tab = Open("cs.yml", Cs);
         Assert.True(await Pump(_app.Plugins.IndexKeysAsync(_w, tab, reveal: false)));
         tab.Editor!.Document.Insert(0, "# c\n");
-        var symbols = _app.Plugins.KeySymbols(tab, out bool current);
+        var symbols = _app.Plugins.TabSymbols(tab, out bool current);
         Assert.False(current);
         string id = symbols.Single(s => s.Name == "app.save").Id;
-        Assert.True(_app.Plugins.RevealKey(tab, id));
+        Assert.True(_app.Plugins.RevealTabSymbol(tab, id));
         Assert.Equal("save", tab.Editor.SelectedText); // the change log carries the range over the inserted comment
 
         tab.Editor.Document.Replace(tab.Editor.Document.Text.IndexOf("save", StringComparison.Ordinal), 4, "SAVE");
-        Assert.False(_app.Plugins.RevealKey(tab, id));
+        Assert.False(_app.Plugins.RevealTabSymbol(tab, id));
     }
 }

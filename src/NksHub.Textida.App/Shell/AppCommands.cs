@@ -145,6 +145,8 @@ internal static class AppCommands
         Fire("nks.tools.copyKeyPath", (w, t) => app.Plugins.CopyKeyPathAsync(w, t));
         Fire("nks.tools.showKeys", (w, t) => app.Plugins.IndexKeysAsync(w, t, reveal: true));
         Do("nks.tools.goToKey", w => w.ShowQuickOpen("@"));
+        Do("nks.tools.goToSymbol", w => w.ShowQuickOpen("@"));
+        Fire("nks.tools.showOutline", (w, t) => app.Plugins.IndexSymbolsAsync(w, t, reveal: true));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
 
         // search

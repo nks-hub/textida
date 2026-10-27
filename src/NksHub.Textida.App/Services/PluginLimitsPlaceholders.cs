@@ -50,6 +50,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: how long the caret rests before the status bar asks for the key path under it.</summary>
     public const int KeyPathDebounceMilliseconds = 150;
 
+    /// <summary>Placeholder: bytes the Code Explorer reads per request. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int CodeExplorerChunkBytes = 1 << 20;
+
+    /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols.</summary>
+    public const int CodeExplorerMaxBytes = 4 << 20;
+
+    /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
+    public const int OutlineRefreshMilliseconds = 400;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

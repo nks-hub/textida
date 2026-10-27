@@ -445,6 +445,18 @@
       "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
     },
     {
+      "id": "nks.tools.showOutline",
+      "title": "cmd.tools.showOutline",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown')"
+    },
+    {
+      "id": "nks.tools.goToSymbol",
+      "title": "cmd.tools.goToSymbol",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && (language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown')"
+    },
+    {
       "id": "nks.tools.goToKey",
       "title": "cmd.tools.goToKey",
       "category": "cat.tools",
@@ -1422,6 +1434,18 @@
       "command": "nks.tools.colorToOklch",
       "group": "3_colors",
       "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.goToSymbol",
+      "group": "4_outline",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.showOutline",
+      "group": "4_outline",
+      "order": 20
     },
     {
       "menu": "tools",

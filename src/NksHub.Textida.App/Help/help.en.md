@@ -288,6 +288,16 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 - Block style YAML is understood: nested keys, lists, quoted keys and block scalars. A value in braces or brackets counts as one value. JSON may have comments and trailing commas.
 - A syntax error stops the reading at that place; the keys before it are kept and the message gives the line.
 
+## [tools.outline] Code outline and symbols
+commands: nks.tools.showOutline, nks.tools.goToSymbol
+1. In HTML, PHP, CSS, C# and Markdown files, Tools, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
+2. Tools, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
+3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
+4. If the plugin process stops, the outline is read again once it is back.
+- It is read with simple rules of the language, without a language server and without a project index: HTML (headings, elements with an `id`, `main`, `nav`, `section` and similar), PHP (namespaces, classes, interfaces, traits, enums, functions, methods), CSS (rules and at-rules), C# (namespaces, types, methods, constructors, properties), Markdown (`#` headings).
+- Comments and strings are not read. What the rules do not recognise is skipped.
+- A file larger than the limit of the plugin, or with more symbols than the outline holds, is shown cut short and the message says so.
+
 ## [edit.carets] Multiple carets
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Select a word; Ctrl+D adds its next occurrence to the selection. Repeat for further occurrences.

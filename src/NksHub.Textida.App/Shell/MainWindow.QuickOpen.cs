@@ -131,15 +131,20 @@ internal sealed partial class MainWindow
     private (Guid Document, long Revision)? _keysRead;
 
     /// <summary>
-    /// Go to Anything with <c>@</c>: the keys of the active YAML or JSON file by their path. Enter jumps to the bytes of the key, exactly as a click in the outline does.
-    /// The keys are read through the plugin the first time and again after an edit; the rows appear when it has published them.
+    /// Go to Anything with <c>@</c>: the keys of the active YAML or JSON file by their path, or the symbols of a code or markup file by name. Enter jumps to the bytes of the
+    /// symbol, exactly as a click in the outline does. They are read through the plugin the first time and again after an edit; the rows appear when it has published them.
     /// </summary>
     private List<QuickRow> KeyRows(string text, out string highlight, out string? emptyText)
     {
         highlight = text;
-        emptyText = Loc.Get(K.PaletteKeysNone);
-        if (Active is not { Surface: not null } tab || PluginServices.KeySyntax(tab.Doc.Language.Id) is null) return [];
-        var symbols = _app.Plugins.KeySymbols(tab, out bool current);
+        if (Active is not { Surface: not null } tab || PluginServices.SymbolPlugin(tab.Doc.Language.Id) is not { } plugin)
+        {
+            emptyText = Loc.Get(K.PaletteKeysNone);
+            return [];
+        }
+        bool keys = plugin == PluginServices.WebDataPluginId;
+        emptyText = Loc.Get(keys ? K.PaletteKeysNone : K.PaletteSymbolsNone);
+        var symbols = _app.Plugins.TabSymbols(tab, out bool current);
         var version = (tab.Doc.Doc.Id, tab.Doc.Doc.Revision);
         if ((symbols.Count == 0 || !current) && _keysRead != version)
         {
@@ -148,17 +153,17 @@ internal sealed partial class MainWindow
         }
         if (symbols.Count == 0)
         {
-            string reading = Loc.Get(K.PaletteKeysReading);
+            string reading = Loc.Get(keys ? K.PaletteKeysReading : K.PaletteSymbolsReading);
             return [new QuickRow(reading, null, null, null, false, null, reading, () => { })];
         }
-        string category = Loc.Get(K.PaletteCategoryKey);
+        string category = Loc.Get(keys ? K.PaletteCategoryKey : K.PaletteCategorySymbol);
         return [.. symbols.Where(s => Matches(text, s.Name)).OrderBy(s => s.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase) ? 0 : 1).Take(60)
-            .Select(s => new QuickRow(s.Name, category, null, null, true, null, category + ": " + s.Name, () => { RecordJump(); _app.Plugins.RevealKey(tab, s.Id); }))];
+            .Select(s => new QuickRow(s.Name, category, null, null, true, null, category + ": " + s.Name, () => { RecordJump(); _app.Plugins.RevealTabSymbol(tab, s.Id); }))];
     }
 
     private async Task ReadKeysAsync(DocTab tab)
     {
-        await _app.Plugins.IndexKeysAsync(this, tab, reveal: false);
+        await _app.Plugins.IndexSymbolsAsync(this, tab, reveal: false);
         if (IsPaletteOpen && _paletteMode == PaletteMode.Files && (_paletteInput.Text ?? "").StartsWith('@')) RefreshPalette();
     }
 

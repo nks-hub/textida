@@ -132,6 +132,8 @@
   "cmd.tools.copyKeyPath": "Copy Key Path",
   "cmd.tools.showKeys": "Show Key Outline",
   "cmd.tools.goToKey": "Go to Key...",
+  "cmd.tools.showOutline": "Show Code Outline",
+  "cmd.tools.goToSymbol": "Go to Symbol...",
   "cmd.tools.compareKeys": "Compare Keys with Another File...",
   "menu.tools": "Tools",
   "cmd.edit.newline": "New Line",

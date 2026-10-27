@@ -41,13 +41,6 @@ public sealed class WebDataPlugin : PluginBase
 
     private sealed record Context(string Document, long Revision, string Language, JsonElement Parameters);
 
-    private sealed record Loaded(string Text, DecodedText Decoded, int Bom, long Length);
-
-    private sealed class TooLarge(long size) : Exception
-    {
-        public long Size { get; } = size;
-    }
-
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
         var command = p.GetProperty("command").GetString();
@@ -77,7 +70,7 @@ public sealed class WebDataPlugin : PluginBase
         {
             result = await ReportAsync("failed", NoticeLevel.Error, e.Message, quiet, ct);
         }
-        catch (TooLarge e)
+        catch (DocumentTooLargeException e)
         {
             var text = Texts.Get(context.Language, "tooLarge", ("size", e.Size.ToString()), ("max", _settings.MaxBytes.ToString()));
             result = await ReportAsync("tooLarge", NoticeLevel.Error, text, quiet, ct);
@@ -101,26 +94,8 @@ public sealed class WebDataPlugin : PluginBase
         return Status(status);
     }
 
-    private async Task<Loaded> LoadAsync(string document, long revision, CancellationToken ct)
-    {
-        var info = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{document}\"}}", ct);
-        if (info.GetProperty("revision").GetInt64() != revision) throw new RpcException(DocumentErrorCodes.RevisionConflict, "Stale.");
-        long length = info.GetProperty("byteLength").GetInt64();
-        int bom = (int)info.GetProperty("bomLength").GetInt64();
-        var codec = TextCodec.ByName(info.GetProperty("codec").GetString()!) ?? TextCodec.Utf8;
-        long size = length - bom;
-        if (size > _settings.MaxBytes) throw new TooLarge(size);
-        var bytes = new byte[size];
-        for (long at = 0; at < size;)
-        {
-            int count = (int)Math.Min(_settings.ChunkBytes, size - at);
-            var read = await CallAsync(DocumentMethods.ReadBytes, $"{{\"document\":\"{document}\",\"revision\":{revision},\"start\":{bom + at},\"end\":{bom + at + count}}}", ct);
-            read.GetProperty("bytes").GetBytesFromBase64().CopyTo(bytes.AsSpan((int)at));
-            at += count;
-        }
-        var decoded = codec.WithBom(false).Decode(bytes);
-        return new Loaded(decoded.Text, decoded, bom, length);
-    }
+    private Task<LoadedText> LoadAsync(string document, long revision, CancellationToken ct) =>
+        DocumentText.LoadAsync(Rpc, document, revision, _settings.ChunkBytes, _settings.MaxBytes, ct);
 
     // ---- colours ----
 
