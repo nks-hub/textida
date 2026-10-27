@@ -438,6 +438,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 5. Typing changes all places at once. Esc keeps a single caret.
 - The status bar shows the number of carets.
 - Alt+drag with the mouse creates a caret on every line or a block selection, depending on the setting Alt+drag.
+- With an input method (Japanese, Chinese, Korean) the text being composed is shown underlined at every caret. When you confirm it, it is written at all of them as one Undo step; Esc cancels it and keeps the carets.
 
 ## [edit.mark] Mark and select to mark
 commands: nks.edit.selectToMark
