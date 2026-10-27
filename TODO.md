@@ -1913,6 +1913,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.2.2** Diff a stage v API
   - **Co a proč:** Veřejné akce diffu vázané na revizi. Revize pracovního stromu i indexu Gitu a operace stage jednoho úseku s konfliktem, aby Git (P8.6.1) byl vestavěný plugin. Odhad z revize stage zahrnuje, proto ho musí ověřit i kritérium.
   - **Funkce:** žádná (infrastruktura API)
+  - **Stav 26. 10. 2026:** částečně: `diff/compute` (hunky po řádcích i bajtech, strana = dokument v revizi nebo snapshot, stávající `LineDiff`), `diff/open` (stejná karta porovnání), `diff/stage` (hunk do virtuálního dokumentu pluginu, při změně indexu `RevisionConflict` bez zápisu); nesdílený dokument nebo bez práva čtení = chyba, `.env` jen s `document.secrets.reveal`; testy se skutečným procesem pluginu a headless. Skutečný index Gitu neověřen (plugin Git P8.6.1 není).
   - **Hotovo, když:** testovací plugin otevře diff dvou revizí; testovací plugin předvede stage jediného úseku a při změně indexu mezitím dostane konflikt; nedostane nic mimo zpřístupněné dokumenty.
   - **Závisí na:** P3b.2.2, P6.1.1
   - **Odhad:** 3–6 ČT za P6.2.2, P6.2.4 a P6.2.5
@@ -1945,6 +1946,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.2.6** Virtuální dokumenty v API
   - **Co a proč:** Dokument, který plugin dodá jako pohled na data (přepisy agentů F257, výsledky), jen pro čtení, s identitou a revizí, nad bajtovým API P3b.3.1. Maskování tajemství (P4.6.2) platí i tady.
   - **Funkce:** žádná (infrastruktura API)
+  - **Stav 26. 10. 2026:** částečně: `virtual/open` (klíč pluginu, stejný klíč vrátí otevřený dokument) a `virtual/update` (volitelně proti očekávané revizi) s právem `document.virtual`; karta jen pro čtení (zápis, návrh i snippet = `ReadOnlyDocument`, i pro MCP), neukládá se, nejde do žurnálu ani relace, hledání funguje, `.env` maskované; MCP ji vidí jen po sdílení. Limity (8 na plugin, 4 MiB) zástupné; `virtual/close` chybí.
   - **Hotovo, když:** testovací plugin otevře virtuální dokument, editor v něm hledá a vykreslí ho; pokus o zápis vrátí chybu; maskovaná hodnota se neukáže ani ve výsledcích hledání.
   - **Závisí na:** P3b.3.1, P4.6.2
   - **Odhad:** bez odhadu
@@ -1982,6 +1984,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.4.3** MCP klient
   - **Co a proč:** Společný klient MCP nad JSON-RPC vrstvou P3b.1.1 a poskytovatelem souborů P6.2.1: spuštění serveru, `initialize`, výpis a volání nástrojů, zrušení. Nečeká na wiki ani na změnu mimo repozitář.
   - **Funkce:** F171 (částečně: klient MCP)
+  - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.McpClient` (2026-07-28 přes `server/discover`, jinak `initialize` 2025-11-25); připojení, nástroje, volání, zrušení přes `notifications/cancelled` a pád serveru otestované proti testovacímu serveru, skutečnému `textida-mcp` a oficiálnímu `@modelcontextprotocol/server-everything` 2.0.1. Knihovna v aplikaci, ne plugin v procesu; vzdálené servery (URL) se nespouštějí; limity zástupné; AOT publish neověřen.
   - **Hotovo, když:** klient se připojí k testovacímu MCP serveru, vypíše nástroje, zavolá nástroj, zruší rozpracované volání přes `notifications/cancelled` a pád serveru ohlásí bez pádu editoru.
   - **Závisí na:** P6.2.1, P3b.1.1
   - **Odhad:** v rámci F171 (viz P6.4.1)
@@ -2000,9 +2003,10 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** PR.8.4
   - **Odhad:** bez odhadu (mimo rozpočet tohoto plánu)
   - **Umístění:** mimo editor
-- [ ] **P6.4.2** MCP servery napříč agenty
+- [x] **P6.4.2** MCP servery napříč agenty
   - **Co a proč:** Jeden seznam MCP serverů z `.mcp.json`, `~/.claude.json`, `.cursor/mcp.json`, `~/.codex/config.toml` a `opencode.json(c)`. „Vyzkoušet“ ukáže přesný příkaz s maskovanými proměnnými a po potvrzení spustí `initialize` a `tools/list`. Převod záznamu mezi agenty.
   - **Funkce:** F252
+  - **Stav 26. 10. 2026:** hotovo: „Servery MCP agentů…“ čte `.mcp.json`, `~/.claude.json`, `.cursor/mcp.json`, `~/.codex/config.toml` a `opencode.json(c)` a nikdy do nich nezapisuje (test na atribut, hash i čas); „Vyzkoušet“ ukáže příkaz s maskovanými proměnnými a bez potvrzení nic nespustí; převod záznamu do formátu jiného agenta v nové kartě, ověřeno pro všechny dvojice; TOML s CRLF ve víceřádkových řetězcích opraveno. Otevřené: zda nabízet převod s plnými hodnotami.
   - **Hotovo, když:** test MCP serveru ukáže počet nástrojů nebo chybu ze `stderr` a bez potvrzení nic nespustí; převedený záznam projde kontrolou cílového formátu.
   - **Závisí na:** P6.4.3
   - **Odhad:** F252 1,5–2,5 ČT (matice)
@@ -2057,9 +2061,10 @@ Odhad etapy 16–24 ČT, **neúplný**: části F154 do 100 MiB převzalo po spi
 
 Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (50 GiB: první obraz ≤ 2 s warm / 5 s cold, ≤ 1 GiB private commit, editace a uložení).
 
-- [ ] **P7.1.1** Čísla řádků po úpravě
+- [x] **P7.1.1** Čísla řádků po úpravě
   - **Co a proč:** Počty řádků v každém úseku, včetně CRLF přes hranici úseků, umí jádro od commitu `f7defd7` a v MVP je přijímá P1.2.8. Tady zůstává ověření nad 10 GiB a velikost bloku indexu: úprava na náhodném místě dočítá část bloku 1 MiB a na referenční Windows VM trvala p95 0,35 ms proti 0,003 ms na jednom místě (spike kap. 5). Menší blok by to podle spiku zkrátil, změřené to není.
   - **Funkce:** F154
+  - **Stav 26. 10. 2026:** hotovo: po 1 000 náhodných úpravách 10GiB řídkého souboru (vložení, mazání, přepis, rozříznuté CRLF i samotné CR) sedí začátky řádků s naivním modelem i po undo všech úprav; hledání i index teď číslují řádky jedním pravidlem (LF, CRLF i samotné CR, CRLF na hranici bloku jednou). Velikost bloku indexu (1 MiB) čeká na Perf měření.
   - **Hotovo, když:** po 1 000 náhodných úpravách 10GiB souboru dává index stejné začátky řádků jako naivní výpočet nad výsledkem; velikost bloku indexu je vybraná měřením úprav na náhodném místě aspoň u dvou velikostí a zapsaná se zdrojem.
   - **Závisí na:** P3.1.1, P1.2.8
   - **Odhad:** F154 10–16 ČT (matice) za P7.1.1–P7.1.4, P7.1.6 a P7.1.7; podíl, který převzalo MVP (P3.5.5 a P3.5.9, po spiku 100 MiB i P1.2.8, P3.1.5 a P3.1.11–P3.1.13), a díly položek P7 určí PR.8.1 a PR.8.2 (podíl MVP před zahájením P1 a P3, díly P7 před zahájením P7)
@@ -2087,9 +2092,10 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Hotovo, když:** psaní uprostřed řádku 100 MiB má vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms a paměť nepřibude o velikost řádku.
   - **Závisí na:** P3.1.3, P7.1.1
   - **Odhad:** v rámci F155 (matice, viz P3.1.3)
-- [ ] **P7.1.6** Hledání nad upraveným stránkovaným dokumentem při textové editaci
+- [x] **P7.1.6** Hledání nad upraveným stránkovaným dokumentem při textové editaci
   - **Co a proč:** Čtecí adaptér a hledání nad aktuální revizí vznikají už v P3.5.9, pro hex úpravy i pro textovou editaci do 100 MiB včetně čísel řádků shod. Tady se ověří nad 10 GiB, kde index řádků po úpravě ladí P7.1.1.
   - **Funkce:** F154
+  - **Stav 26. 10. 2026:** hotovo: po úpravách a vložení textu uprostřed 10GiB souboru hledání najde všechny shody (7 984) na offsetech jako naivní průchod a s čísly řádků podle indexu po úpravě; testy čísel řádků shod pro LF, CRLF, CR a smíšené konce v UTF-8 i UTF-16, literál i regex, soubor, referenční i stránkovaný dokument, CRLF na hranici 64KiB bloku.
   - **Hotovo, když:** po vložení textu do 10GiB souboru hledání najde i vložený text, uspořádané offsety sedí s naivním průchodem výsledku a čísla řádků shod odpovídají indexu z P7.1.1.
   - **Závisí na:** P7.1.1, P3.5.9
   - **Odhad:** v rámci F154
