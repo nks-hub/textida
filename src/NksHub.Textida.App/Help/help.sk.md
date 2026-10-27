@@ -279,7 +279,7 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - Pri viacerých kurzoroch sa vybrané texty skopírujú po jednom na riadok a pri vložení dostane každý kurzor svoj kus.
 - V blokovom výbere sa vkladá po jednom riadku schránky na každý riadok bloku.
 - Vloženie do reťazca v programovacom jazyku escapuje úvodzovky a spätné lomky (nastavenie Escapovať pri vložení do reťazca).
-- Vystrihnúť a Vložiť nejdú pri dokumente len na čítanie a v stránkovanom režime (téma Veľké súbory).
+- Vystrihnúť a Vložiť nejdú pri dokumente len na čítanie. V stránkovanom režime fungujú všetky tri (téma Veľké súbory); výber väčší ako tamojší limit kopírovania (256 MiB, zatiaľ provizórna hodnota) sa neskopíruje a stavový riadok to povie.
 
 ## [edit.select] Výber
 commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
@@ -1089,6 +1089,12 @@ Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch s
 - Ak sa žurnál nedá zapisovať do žiadneho priečinka, lišta povie: Obnova po páde je vypnutá. Neuložený text potom zostáva len v kartách; ukladajte ručne. Keď prestane fungovať za prevádzky: Žurnál prestal fungovať, obnova už neplatí, ukladajte ručne.
 - Ak sa použije náhradný priečinok, lišta napíše, ktorý.
 - Prerušená dávka zmien v súboroch (nahradenia v súboroch aj súbory, ktoré úprava pluginu naprieč pracovným priestorom vytvára, premenúva alebo maže) sa po štarte ponúkne: Dokončiť, alebo Vrátiť späť. Súbor, ktorý medzitým zmenil niekto iný, zostane, ako je.
+### Veľké zmeny
+- Keď sú neuložené zmeny jedného dokumentu väčšie ako limit obnovy (64 MiB, zatiaľ provizórna hodnota), napríklad Nahradiť všetko alebo veľké vloženie vo veľkom súbore, jeho karta sa sama nevráti. Lišta napíše súbor, veľkosť zmien a kedy vznikli a ponúkne Obnoviť zmeny a Zahodiť zmeny. Kým nevyberiete, z žurnálu sa nečíta nič a súbor sa nedotkne.
+- Obnoviť zmeny číta žurnál na pozadí, takže program ďalej pracuje, a potom otvorí kartu s neuloženými zmenami ako po každej inej obnove. Ak sa to nepodarí (súbor sa medzitým zmenil, časť žurnálu chýba alebo je poškodená, nestačí pamäť), lišta povie prečo a zmeny zostanú v žurnále.
+- Zahodiť zmeny sa ešte raz opýta, pretože zmeny už nič nevráti; potom sa zmažú zo žurnálu. Súbor na disku sa žiadnou z volieb nemení.
+- Zatvorenie lišty nič nerozhoduje: lišta sa vráti pri ďalšom spustení.
+- Nahradiť všetko s veľmi mnohými zhodami sa do žurnálu zapíše ako zoznam v samostatnom súbore, nikdy ako jeden obrovský záznam, takže žurnál funguje, koľko zhôd je. Poškodený alebo chýbajúci zoznam zastaví len návrat toho dokumentu, s dôvodom.
 
 ## [paged] Veľké súbory (stránkovaný režim)
 Súbor väčší ako hranica veľkého súboru (nastavenie Hranica veľkého súboru, predvolene 6 MiB) sa otvorí v stránkovanom režime. Ak chcete súbor prechádzať a upravovať po bajtoch bez týchto obmedzení, otvorte ho v hexe (téma Hex: otvorenie a pohyb). Program číta len riadky na obrazovke, takže súbor sa otvorí rýchlo a nezaberie pamäť. Časti súboru, ktoré už prečítal (napríklad pri číslovaní riadkov), vracia systému, takže obsadená pamäť nerastie s veľkosťou súboru.
@@ -1097,9 +1103,11 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
 - Písať, mazať (Backspace a Delete), Enter a Tab na mieste kurzora. Späť a Znova. Uložiť.
 - Hľadať (Ctrl+F). Hľadanie v súboroch.
+- Výber (Shift so šípkami, myš, Ctrl+A), Kopírovať, Vystrihnúť a Vložiť. Výber väčší ako limit kopírovania (256 MiB, zatiaľ provizórna hodnota) sa neskopíruje a stavový riadok to povie. Dlhý výber sa číta na pozadí a vystrihnutie zmaže len vtedy, keď sa text medzitým nezmenil.
 - Riadok dlhší ako 16 KiB posuniete do strán posuvníkom pod textom. Vzdialená časť riadku sa na chvíľu ukáže ako …, kým sa nenačíta. Farby v nej pribudnú, keď program prečíta riadok až po ňu.
+- Riadok s desiatkami či stovkami MiB sa upravuje na mieste: písanie, Backspace, Delete, Enter, Tab, vloženie, výber aj Späť čítajú len text okolo kurzora, nikdy celý riadok, takže pamäť nerastie s dĺžkou riadku. Prvý presun kurzora do vzdialenej časti takého riadku musí napočítať znaky až po ňu, čo chvíľu trvá; počet si program pamätá pre ďalšie presuny.
 ### Čo nejde
-- Výber, schránka (Vystrihnúť, Kopírovať, Vložiť), blokový výber, viac kurzorov.
+- Blokový výber, viac kurzorov.
 - Príkazy nad riadkami, odsadením, veľkosťou písmen, nahradenie.
 - Prejsť na párovú zátvorku, zalamovanie riadkov.
 - Prevod a opätovné čítanie kódovania, zjednotenie koncov riadkov, normalizácia.
@@ -1107,6 +1115,8 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 ### Hlásenia
 - Číslovanie riadkov ešte beží, úpravy pôjdu o chvíľu: počkajte, kým sa súbor dočíta.
 - Znak sa nedá zapísať v kódovaní súboru: napíšte iný znak.
+- Výber je väčší ako limit kopírovania: vyberte menej; schránka zostala, ako bola.
+- Úprava je príliš veľká na to, aby sa dala vrátiť späť: odoberte alebo vložte naraz menej textu; dokument sa nezmenil.
 - Veľký súbor v kódovaní ... sa zatiaľ nedá otvoriť: súbor sa neotvorí; iné kódovanie vo veľkom súbore program zatiaľ neprečíta.
 - Ukladanie veľkého súboru zdrží okno.
 

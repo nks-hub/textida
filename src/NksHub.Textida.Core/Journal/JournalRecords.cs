@@ -16,7 +16,8 @@ public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted, long 
 
 /// <summary>A change in the coordinates of the previous revision. <see cref="NewUndoEntry"/> is false when the edit joined the previous undo step.</summary>
 /// <param name="Codec">Name of the codec after the change; null in version 1 records. A different codec means the edit was a conversion.</param>
-public sealed record EditRecord(Guid DocId, long Revision, ChangeKind Kind, string? Source, bool NewUndoEntry, IReadOnlyList<ChangeEdit> Edits, string? Codec = null);
+/// <param name="List">When set, <paramref name="Edits"/> is empty and the edits are the entries of this list in a payload file.</param>
+public sealed record EditRecord(Guid DocId, long Revision, ChangeKind Kind, string? Source, bool NewUndoEntry, IReadOnlyList<ChangeEdit> Edits, string? Codec = null, EditListRef? List = null);
 
 /// <summary>"Re-read as": the document shows the same bytes through another codec.</summary>
 public sealed record CodecRecord(Guid DocId, long Revision, string Codec);
@@ -50,8 +51,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab, 6 lets an edit refer to its inserted bytes in a payload file.</summary>
-    private const int PayloadLayout = 6;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab, 6 lets an edit refer to its inserted bytes in a payload file, 7 lets a record refer to the list of its edits in a payload file.</summary>
+    private const int PayloadLayout = 7;
 
     // ---- primitives ----
 
@@ -172,6 +173,17 @@ internal static class JournalRecords
             }
         }
         PutString(w, e.Codec);
+        w.Write(e.List is not null);
+        if (e.List is { } list)
+        {
+            w.Write(list.File);
+            w.Write(list.Offset);
+            w.Write(list.Length);
+            w.Write(list.Count);
+            w.Write(list.InsertedBytes);
+            w.Write(list.DeletedBytes);
+            w.Write(list.Crc);
+        }
     });
 
     public static EditRecord DecodeEdit(byte[] p) => Parse(p, (r, layout) =>
@@ -190,7 +202,9 @@ internal static class JournalRecords
             PayloadRef? external = layout >= 6 && r.ReadBoolean() ? new(r.ReadString(), r.ReadInt64(), r.ReadInt64(), r.ReadUInt32(), r.ReadUInt32()) : null;
             edits[i] = new(start, deleted, inserted, repeat, external);
         }
-        return new EditRecord(id, rev, kind, source, isNew, edits, layout >= 2 ? GetString(r) : null);
+        string? codec = layout >= 2 ? GetString(r) : null;
+        EditListRef? list = layout >= 7 && r.ReadBoolean() ? new(r.ReadString(), r.ReadInt64(), r.ReadInt64(), r.ReadInt64(), r.ReadInt64(), r.ReadInt64(), r.ReadUInt32()) : null;
+        return new EditRecord(id, rev, kind, source, isNew, edits, codec, list);
     });
 
     public static byte[] Encode(CodecRecord c) => Build(w =>

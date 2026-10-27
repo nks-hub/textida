@@ -58,6 +58,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
     public const long HistoryRevisionMaxBytes = 32L << 20;
 
+    /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
+    public const long PagedCopyMaxBytes = 256L << 20;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 

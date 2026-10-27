@@ -1,3 +1,4 @@
+using System.Buffers;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 
@@ -162,32 +163,40 @@ public sealed class PagedDocument : IPagedTextSource
         else
         {
             n = 0;
-            foreach (var (_, buffer, length) in PieceChunks(p)) n += LineScanner.CountTerminators(buffer, length, Codec);
+            foreach (var (_, buffer, length) in PieceChunks(p)) n += LineScanner.CountTerminators(buffer.AsSpan(0, length), length, Codec);
         }
         return new LineStats(n, firstLf, lastCr);
     }
 
     /// <summary>
     /// A repeated or inserted piece in blocks for the line scanner. A block never ends between a CR and an LF, so the terminators of the blocks add up
-    /// to those of the piece; the buffer is reused between blocks.
+    /// to those of the piece; the buffer is reused between blocks and comes from the pool, so the split of a piece the size of a paste (one per edit inside it)
+    /// does not leave a megabyte of garbage on the large object heap each time. The buffer may be longer than the block: the length says how much of it is.
     /// </summary>
     private IEnumerable<(long At, byte[] Buffer, int Length)> PieceChunks(Piece p)
     {
         int w = Codec.Alignment;
         int chunk = (1 << 20) - (1 << 20) % w;
-        var buffer = new byte[(int)Math.Min(chunk, p.Length)]; // a keystroke makes a piece of a few bytes: a fixed 1 MiB array per edit would land on the large object heap
-        var pair = new byte[2 * w];
-        for (long at = 0; at < p.Length;)
+        var buffer = ArrayPool<byte>.Shared.Rent((int)Math.Min(chunk, p.Length)); // a keystroke makes a piece of a few bytes: a fixed 1 MiB array per edit would be wasteful
+        try
         {
-            int n = (int)Math.Min(chunk, p.Length - at);
-            if (at + n < p.Length)
+            var pair = new byte[2 * w];
+            for (long at = 0; at < p.Length;)
             {
-                CopyPiece(p, at + n - w, pair);
-                if (LineScanner.Unit(pair, 0, Codec) == 13 && LineScanner.Unit(pair, w, Codec) == 10) n -= w;
+                int n = (int)Math.Min(chunk, p.Length - at);
+                if (at + n < p.Length)
+                {
+                    CopyPiece(p, at + n - w, pair);
+                    if (LineScanner.Unit(pair, 0, Codec) == 13 && LineScanner.Unit(pair, w, Codec) == 10) n -= w;
+                }
+                CopyPiece(p, at, buffer.AsSpan(0, n));
+                yield return (at, buffer, n);
+                at += n;
             }
-            CopyPiece(p, at, buffer.AsSpan(0, n));
-            yield return (at, buffer, n);
-            at += n;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -204,8 +213,9 @@ public sealed class PagedDocument : IPagedTextSource
         {
             foreach (var (at, buffer, length) in PieceChunks(p))
             {
-                long here = LineScanner.CountTerminators(buffer, length, Codec);
-                if (k <= here) return at + LineScanner.FindNthTerminator(buffer, length, k, Codec) + Codec.Alignment;
+                var block = buffer.AsSpan(0, length);
+                long here = LineScanner.CountTerminators(block, length, Codec);
+                if (k <= here) return at + LineScanner.FindNthTerminator(block, length, k, Codec) + Codec.Alignment;
                 k -= here;
             }
             return p.Length;
