@@ -9,17 +9,18 @@ using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P6.1: a plugin proposal in the change review: accept or reject per hunk, a stale revision, one undo step, the bytes outside the accepted hunks.</summary>
+/// <summary>P6.1: a plugin proposal in the change review: accept or reject per hunk, a stale revision, one undo step, the bytes outside the accepted hunks, a plugin that goes away meanwhile.</summary>
 [Collection("LocState")]
 public class ChangeReviewTests : IDisposable
 {
     private readonly TempDir _temp = new();
+    private readonly ScriptedDialogs _dialogs = new();
     private readonly App _app;
     private readonly MainWindow _w;
 
     public ChangeReviewTests()
     {
-        _app = TestApp.Prepare(_temp);
+        _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
     }
 
@@ -256,5 +257,43 @@ public class ChangeReviewTests : IDisposable
 
         Assert.Equal(ProposalOutcome.Stale, (await reviewB).Outcome);
         Assert.StartsWith(">", Text(second));
+    }
+
+    // ---- P3b.3.2: the plugin goes away (crash, restart, revoked permission) while the user decides ----
+
+    [AvaloniaFact]
+    public async Task A_proposal_whose_plugin_went_away_while_the_review_was_open_writes_nothing()
+    {
+        var tab = Open();
+        int steps = Steps(tab);
+        using var gone = new CancellationTokenSource();
+        var review = _w.ReviewPluginProposalAsync(Proposal(tab), tab, "p1", gone.Token);
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the review");
+
+        gone.Cancel();
+        await Until(() => review.IsCompleted, "the answer");
+
+        Assert.Equal((ProposalOutcome.Rejected, 0, 3), Pair(await review));
+        Assert.Null(_w.ApplyPlan()); // a late click on Apply finds nothing to write
+        Assert.Equal(Original, Text(tab));
+        Assert.Equal(steps, Steps(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task A_byte_proposal_whose_plugin_went_away_while_the_inspector_asked_writes_nothing_even_when_applied()
+    {
+        var tab = Open();
+        var doc = tab.Doc.Doc;
+        int steps = Steps(tab);
+        using var gone = new CancellationTokenSource();
+        _dialogs.WhileAsking = gone.Cancel;
+        _dialogs.Answers.Enqueue(0); // Apply, pressed as the plugin ends
+
+        var decision = await _w.ReviewPluginProposalAsync(new EditProposal("test", doc.Id, doc.Revision, [new ByteEdit(new ByteRange(0, 1), new byte[] { 0x41 })], "Bytes", RawBytes: true), tab, "p1", gone.Token);
+
+        Assert.Single(_dialogs.Asked);
+        Assert.Equal(ProposalOutcome.Rejected, decision.Outcome);
+        Assert.Equal(Original, Text(tab));
+        Assert.Equal(steps, Steps(tab));
     }
 }

@@ -1,14 +1,19 @@
 using System.IO.Compression;
+using System.Text.Json;
 using Avalonia.Headless.XUnit;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
+using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P3b.4.1 and P3b.4.2 in the app: the consent screen, what an install changes, and the actions of the manager. The unpacking rules and the process are tested with the manager itself.</summary>
+/// <summary>
+/// P3b.4.1 and P3b.4.2 in the app: the consent screen, what an install changes, and the actions of the manager. The unpacking rules and the process are tested with the manager itself.
+/// P3b.3.2: a command of an installed plugin with a process edits the active tab within the permissions the user gave it.
+/// </summary>
 [Collection("LocState")]
 public class PluginManagerAppTests : IDisposable
 {
@@ -135,6 +140,95 @@ public class PluginManagerAppTests : IDisposable
         Assert.Empty(_app.Plugins.Manager.Installed());
         Assert.Empty(_app.Clips.Clips);
         Assert.False(Directory.Exists(Path.Combine(_app.Plugins.Manager.Root, "acme.clips")));
+    }
+
+    // ---- P3b.3.2: a command of an installed plugin edits the active tab ----
+
+    private const string EditPlugin = "acme.edit";
+
+    private const string ApplyH = """{"method":"edit/apply","params":{"document":"$document","revision":$revision,"batchId":"b1","edits":[{"start":0,"end":1,"text":"H"}]}}""";
+
+    /// <summary>Installs the test plugin as a plugin with a process; its command sends <paramref name="onCommand"/> to the editor. Returns a new tab with "hello", which is then the active one.</summary>
+    private DocTab InstallEditor(string[] permissions, string onCommand)
+    {
+        var host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+        var executable = host ?? Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        List<string> args = host is null ? [] : [Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin.dll")];
+        args.AddRange(["--on-command", onCommand]);
+        static string List(IEnumerable<string> items) => "[" + string.Join(",", items.Select(i => JsonSerializer.Serialize(i))) + "]";
+
+        var path = Path.Combine(_temp.Path, Guid.NewGuid().ToString("N") + ".zip");
+        using (var zip = new ZipArchive(File.Create(path), ZipArchiveMode.Create))
+        using (var writer = new StreamWriter(zip.CreateEntry("nkspad-plugin.json").Open()))
+            writer.Write("{\"schemaVersion\":1,\"id\":\"" + EditPlugin + "\",\"name\":\"Acme edit\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"permissions\":" + List(permissions) +
+                ",\"main\":{\"executable\":" + JsonSerializer.Serialize(executable) + ",\"args\":" + List(args) + "},\"contributes\":{\"commands\":[{\"id\":\"" + EditPlugin + ".run\",\"title\":\"Run\"}]}}");
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(path), expected: true);
+
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = "hello";
+        return tab;
+    }
+
+    private Task<CommandOutcome> RunEditCommand() => _app.Workbench.Commands.ExecuteAsync(EditPlugin + ".run", new ShellContext(_w, forMenu: false)).AsTask();
+
+    /// <summary>The one command the plugin ran: the request it got and what the editor answered to its call.</summary>
+    private JsonElement RanCommand()
+    {
+        var task = _app.Plugins.HostForTests.CallAsync(EditPlugin, "commands");
+        Finish(task);
+        return Assert.Single(task.Result.Clone().EnumerateArray());
+    }
+
+    [AvaloniaFact]
+    public void A_command_of_an_installed_plugin_with_direct_edit_writes_the_active_tab_as_one_undo_step()
+    {
+        var tab = InstallEditor([DocumentPermissions.Read, DocumentPermissions.EditDirect], ApplyH);
+        var doc = tab.Doc.Doc;
+        long revision = doc.Revision;
+        int depth = doc.UndoDepth;
+
+        var run = RunEditCommand();
+        Finish(run);
+
+        Assert.Equal(CommandOutcome.Handled, run.Result);
+        Assert.Equal("Hello", tab.Editor!.Document.Text);
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        var command = RanCommand();
+        Assert.Equal(doc.Id.ToString(), command.GetProperty("params").GetProperty("document").GetString());
+        Assert.Equal(revision, command.GetProperty("params").GetProperty("revision").GetInt64());
+        Assert.True(command.GetProperty("answer").GetProperty("applied").GetBoolean());
+        Assert.False(_app.Plugins.Documents.IsExposed(doc.Id)); // seen only while the command ran
+    }
+
+    [AvaloniaFact]
+    public void A_proposal_of_an_installed_plugin_waits_in_the_change_review_and_the_plugin_hears_the_decision()
+    {
+        var tab = InstallEditor([DocumentPermissions.Read, DocumentPermissions.EditPropose],
+            """{"method":"edit/propose","params":{"document":"$document","revision":$revision,"title":"Shout","edits":[{"start":0,"end":5,"text":"HELLO"}]}}""");
+
+        var run = RunEditCommand();
+        ToolTestKit.WaitFor(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the review");
+        Assert.False(run.IsCompleted);
+        Assert.Equal("hello", tab.Editor!.Document.Text);
+
+        _w.ApplyPlan();
+        Finish(run);
+
+        Assert.Equal("HELLO", tab.Editor.Document.Text);
+        Assert.Equal("applied", RanCommand().GetProperty("answer").GetProperty("decision").GetString());
+    }
+
+    [AvaloniaFact]
+    public void A_direct_edit_of_an_installed_plugin_without_the_permission_is_an_error_and_writes_nothing()
+    {
+        var tab = InstallEditor([DocumentPermissions.Read], ApplyH);
+
+        var run = RunEditCommand();
+        Finish(run);
+
+        Assert.Equal("hello", tab.Editor!.Document.Text);
+        Assert.Equal(DocumentErrorCodes.PermissionDenied, RanCommand().GetProperty("answer").GetProperty("error").GetInt32());
     }
 
     [AvaloniaFact]
