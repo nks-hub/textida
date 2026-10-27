@@ -281,7 +281,14 @@ public class WorkspaceEditTests : IDisposable
             _w.UpdateLayout();
             return _w.ResultsView!.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == more);
         }, "the note about the lines that are not shown");
-        Assert.Contains(_w.ResultsView!.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == Loc.Get(K.WorkspacePreviewBinary, ("bytes", 3L)));
+        // the list is virtualized: the second preview is built only once it is scrolled into view
+        string binary = Loc.Get(K.WorkspacePreviewBinary, ("bytes", 3L));
+        await Until(() =>
+        {
+            _w.ResultsView!.List.ScrollIntoView(previews[1]);
+            _w.UpdateLayout();
+            return _w.ResultsView.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == binary);
+        }, "the note about the binary content");
 
         _w.ResultsView.CancelButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(ProposalOutcome.Rejected, (await review).Outcome);
