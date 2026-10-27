@@ -44,6 +44,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     private const string FormattersActivation = "onCommand:formatters";
     public const string GitPluginId = "textida.git";
     private const string GitActivation = "onCommand:git";
+    public const string WikiPluginId = "textida.wiki";
+    /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
+    public const string SourceActivation = "onSource";
     public const string LspPluginId = "textida.lsp";
     private const string LspActivation = "onCommand:lsp";
     /// <summary>The panel the language server plugin lists several places in; its items are <c>line:character:endLine:endCharacter|path</c>.</summary>
@@ -71,7 +74,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     internal static IReadOnlyList<(string Id, string Name)> BuiltIns { get; } =
     [
         (JsonPluginId, "JSON"), (TextToolsPluginId, "Text tools"), (WebDataPluginId, "Web data"), (CodeExplorerPluginId, "Code Explorer"),
-        (EmmetPluginId, "Emmet"), (FormattersPluginId, "Formatters"), (GitPluginId, "Git"), (LspPluginId, "Language server"),
+        (EmmetPluginId, "Emmet"), (FormattersPluginId, "Formatters"), (GitPluginId, "Git"), (LspPluginId, "Language server"), (WikiPluginId, "NKS IS wiki"),
     ];
 
     /// <summary>Third-party plugins installed from a ZIP (P3b.4.2): install, consent, update, rollback, enable, uninstall.</summary>
@@ -103,7 +106,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
-        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync)), Documents);
+        var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
+        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
@@ -180,6 +184,15 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
             [GitActivation], gitFolder));
+
+        // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get
+        permissions.Grant(WikiPluginId, DocumentPermissions.Source, GrantScope.All);
+        var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "wiki");
+        var wikiProgram = Path.Combine(wikiFolder, "NksHub.Textida.Plugins.Wiki" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(WikiPluginId, "NKS IS wiki", wikiProgram,
+            ["--timeout-ms", PluginLimitsPlaceholders.SourceTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.SourceMaxBytes.ToString(),
+             "--max-entries", PluginLimitsPlaceholders.SourceMaxEntries.ToString(), "--language", Loc.Language],
+            [SourceActivation], wikiFolder));
 
         // the language server client reads the documents it follows and publishes diagnostics; it writes only what a rename proposes, in the change review, and may then touch files below the workspace.
         // The shipped client holds workspace.files from the start; any other plugin gets it only from the user, on the consent screen of the plugin manager.
@@ -318,6 +331,22 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     }
 
     internal Host HostForTests => _host;
+
+    /// <summary>Starts the plugins that serve file sources, so their schemes are registered before the editor looks for one. A plugin that cannot start is passed over; its scheme is then simply not offered.</summary>
+    public async Task ActivateSourcesAsync()
+    {
+        try { await _host.ActivateAsync(SourceActivation).ConfigureAwait(false); }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException) { }
+    }
+
+    /// <summary>The secret storage of the plugins over the credential store of the system: one entry per plugin and name, never in a settings file.</summary>
+    private sealed class CredentialSecretBackend(ICredentialStore store) : ISecretBackend
+    {
+        private static string Key(string pluginId, string name) => $"textida:plugin:{pluginId}:{name}";
+        public string? Get(string pluginId, string name) => store.Get(Key(pluginId, name));
+        public void Set(string pluginId, string name, string value) => store.Set(Key(pluginId, name), value);
+        public bool Delete(string pluginId, string name) => store.Delete(Key(pluginId, name));
+    }
 
     /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile).</summary>
     public bool IsBusy => _running.Values.Any(r => !r.Background);

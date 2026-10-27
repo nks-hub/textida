@@ -48,7 +48,8 @@ public sealed record PickItem(string Id, string Label, string? Detail);
 
 public sealed record QuickPickRequest(string Title, string? Placeholder, IReadOnlyList<PickItem> Items);
 
-public sealed record InputRequest(string Title, string Label, string Value);
+/// <param name="Secret">The editor hides what the user types (a token or a password); <paramref name="Value"/> is then ignored.</param>
+public sealed record InputRequest(string Title, string Label, string Value, bool Secret = false);
 
 public sealed record ConfirmRequest(string Title, string Message);
 

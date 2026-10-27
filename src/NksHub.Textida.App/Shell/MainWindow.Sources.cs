@@ -38,6 +38,7 @@ internal sealed partial class MainWindow
 
     private async Task OpenFromSourceAsync()
     {
+        await _app.Plugins.ActivateSourcesAsync();
         var sources = SourceApi.Sources;
         if (sources.Count == 0) { SetStatusMessage(Loc.Get(K.SourceNone)); return; }
         var pick = await PickAsync(Loc.Get(K.SourceWatermark), Loc.Get(K.SourceA11y), [.. sources.Select(s => (s.Name, (string?)DescribeSource(s), s))]);
@@ -56,6 +57,7 @@ internal sealed partial class MainWindow
             FocusView(open);
             return open;
         }
+        if (SourceApi.SourceFor(uri) is null) await _app.Plugins.ActivateSourcesAsync(); // a recent file may name a scheme whose plugin has not started yet
         if (SourceApi.SourceFor(uri) is not { } source)
         {
             SetStatusMessage(Loc.Get(K.SourceNoPlugin, ("uri", masked)));
