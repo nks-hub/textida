@@ -5,6 +5,11 @@ using NksHub.Textida.Core.Completion;
 namespace NksHub.Textida.Core.Tests;
 
 /// <summary>P4.5.5: the words offered from the text of open documents.</summary>
+/// <summary>Classes with a millisecond gate run alone, after the parallel ones, so a 10 GiB test on the same CPU cannot decide them.</summary>
+[CollectionDefinition("Latency", DisableParallelization = true)]
+public class LatencyCollection;
+
+[Collection("Latency")]
 public class WordCompletionTests
 {
     private static List<string> Words(string prefix, params CompletionSource[] sources) => WordCompletion.Words(sources, prefix, 100);

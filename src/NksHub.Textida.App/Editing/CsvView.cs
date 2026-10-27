@@ -458,7 +458,7 @@ internal sealed partial class CsvView : Grid, IDisposable
     public void BeginEdit(string? initial = null)
     {
         if (_editing) return;
-        if (Doc.IsSaving) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
+        if (Doc.IsSaving && !Doc.EditsDuringSave) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         _anchorRow = _row;
         _anchorCol = _col;
         _editing = true;
@@ -559,7 +559,7 @@ internal sealed partial class CsvView : Grid, IDisposable
 
     private bool Run(Func<EditResult> change)
     {
-        if (Doc.IsSaving)
+        if (Doc.IsSaving && !Doc.EditsDuringSave)
         {
             Refused?.Invoke(Loc.Get(K.HexBusy));
             return false;
@@ -582,7 +582,7 @@ internal sealed partial class CsvView : Grid, IDisposable
 
     public void UndoRedo(bool redo)
     {
-        if (Doc.IsSaving) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
+        if (redo ? Doc.RedoBlockedBySave : Doc.UndoBlockedBySave) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         _ = redo ? Doc.Redo() : Doc.Undo();
     }
 

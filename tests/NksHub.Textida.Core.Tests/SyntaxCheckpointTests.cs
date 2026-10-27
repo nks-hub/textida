@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 
 namespace NksHub.Textida.Core.Tests;
 
+[Collection("Latency")]
 public class SyntaxCheckpointTests(ITestOutputHelper output)
 {
     private static Doc Create(string text, TextCodec? codec = null)

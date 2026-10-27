@@ -82,7 +82,8 @@ public static class JournalRecovery
         if (records.Count > 0) result.LastRecord = DateTimeOffset.FromUnixTimeMilliseconds(records[^1].TimestampMs);
 
         var plan = JournalCompactor.Plan(records, verifyIntent: VerifyIntent);
-        foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends));
+        string payloads = JournalPayloads.DirectoryOf(Path.GetDirectoryName(Path.GetFullPath(journalPath))!);
+        foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends, payloads));
         result.SessionRecord = plan.Session;
         if (plan.Session is { } s)
         {
@@ -93,19 +94,21 @@ public static class JournalRecovery
     }
 
     /// <summary>
-    /// The file a save intent names, as the intent can vouch for it: whole file for a streamed save; for an in-place save the size and the written
-    /// ranges (after an unfinished write of the patch journal is completed or undone, which opening the file would do anyway). The hash of an in-place
-    /// intent is returned as written when the ranges match and empty when they do not.
+    /// The file a save intent names, as the intent can vouch for it. The length is read first: hashing a file of tens of GiB to learn that it is not the
+    /// saved one would take minutes. A streamed save is checked by the whole file; an in-place save by the written ranges (after an unfinished write of
+    /// the patch journal is completed or undone, which opening the file would do anyway): the hash of an in-place intent is returned as written when
+    /// the ranges match and empty when they do not.
     /// </summary>
     private static FileFingerprint? VerifyIntent(SaveIntentRecord intent)
     {
-        if (!InPlaceIntent.IsInPlace(intent.Sha256)) return FileFingerprint.TryRead(intent.Path);
-        if (!File.Exists(intent.Path)) return null;
-        InPlacePatch.Recover(intent.Path);
+        bool inPlace = InPlaceIntent.IsInPlace(intent.Sha256);
+        if (inPlace && File.Exists(intent.Path)) InPlacePatch.Recover(intent.Path);
+        if (new FileInfo(intent.Path) is not { Exists: true } info || info.Length != intent.Size) return null;
+        if (!inPlace) return FileFingerprint.TryRead(intent.Path);
         return FileFingerprint.TryReadQuick(intent.Path) is { } quick ? quick with { Sha256 = InPlaceIntent.Matches(intent.Path, intent.Sha256) ? intent.Sha256 : "" } : null;
     }
 
-    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, bool retried = false)
+    private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads, bool retried = false)
     {
         var open = JournalRecords.DecodeOpen(log.Open.Payload);
         var edits = log.Rest.Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo or RecordType.DocCodec).ToList();
@@ -154,7 +157,7 @@ public static class JournalRecovery
                 document = Document.FromBytes(bytes, factory, options);
             }
 
-            long last = ReplayRecords(document, edits, open.BaseRevision);
+            long last = ReplayRecords(document, edits, open.BaseRevision, payloads);
             var doc = document;
             document = null;
             return Make(open.Path is null || edits.Count > 0 ? RecoveryStatus.Restored : RecoveryStatus.Clean, doc, lastRevision: last);
@@ -163,7 +166,7 @@ public static class JournalRecovery
         {
             // byte edits of the hex view can split characters, which only the byte backend can hold
             if (!retried && e is ArgumentException or InvalidDataException && open.Backend != "paged" && backends("paged") is { } paged)
-                return Replay(log, name => name == open.Backend ? paged : backends(name), retried: true);
+                return Replay(log, name => name == open.Backend ? paged : backends(name), payloads, retried: true);
             return Make(RecoveryStatus.Failed, error: e.Message);
         }
         finally
@@ -189,7 +192,7 @@ public static class JournalRecovery
     }
 
     /// <returns>Journal revision after the last record.</returns>
-    private static long ReplayRecords(Document doc, List<JournalRecord> records, long baseRevision)
+    private static long ReplayRecords(Document doc, List<JournalRecord> records, long baseRevision, string payloads)
     {
         int keyCounter = 0;
         foreach (var rec in records)
@@ -205,7 +208,7 @@ public static class JournalRecovery
                         throw new InvalidDataException($"Replay of revision {e.Revision} ended at {baseRevision + doc.Revision} ({filled.Conflict}).");
                     continue;
                 }
-                var byteEdits = e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.Inserted)).ToList();
+                var byteEdits = e.Edits.Select(x => new ByteEdit(new ByteRange(x.Start, x.Start + x.Deleted), x.External is { } external ? JournalPayloads.Load(payloads, external) : x.Inserted)).ToList();
                 var target = e.Codec is null ? null : TextCodec.ByName(e.Codec) ?? throw new InvalidDataException($"Codec '{e.Codec}' is not known.");
                 var result = target is not null && target != doc.Codec
                     ? doc.ApplyConversion(byteEdits, target, e.Source)
@@ -337,10 +340,12 @@ internal static class JournalCompactor
             }
             if (point is not null)
             {
+                // a save that streams while the user keeps typing: edits of later revisions can stand before its record, and they are not in the saved file
+                var ahead = log.Rest.Take(save).Where(r => r.Type is RecordType.DocEdit or RecordType.DocUndo or RecordType.DocRedo or RecordType.DocCodec && JournalRecords.RevisionOf(r) > point.Revision).ToList();
                 var o = JournalRecords.DecodeOpen(log.Open.Payload);
                 var open = o with { Path = point.Path, Fingerprint = point.Fingerprint, BaseRevision = point.Revision, SeedLength = 0, Codec = point.Codec ?? o.Codec };
                 log.Open = new JournalRecord(0, log.Rest[save].TimestampMs, RecordType.DocOpen, JournalRecords.Encode(open));
-                log.Rest = log.Rest.GetRange(save + 1, log.Rest.Count - save - 1);
+                log.Rest = [.. ahead, .. log.Rest.GetRange(save + 1, log.Rest.Count - save - 1)];
             }
             int moved = log.Rest.FindLastIndex(r => r.Type == RecordType.DocMove);
             if (moved >= 0 && JournalRecords.DecodeOpen(log.Open.Payload) is { Path: not null } current)

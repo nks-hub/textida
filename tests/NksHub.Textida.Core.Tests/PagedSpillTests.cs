@@ -5,6 +5,7 @@ using System.Text;
 namespace NksHub.Textida.Core.Tests;
 
 /// <summary>P7.1.2: inserted text and undo history of a paged document spill to disk, so memory stays at the budget however much is inserted.</summary>
+[Collection("Process memory")]
 public sealed class PagedSpillTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-spill-test-").FullName;

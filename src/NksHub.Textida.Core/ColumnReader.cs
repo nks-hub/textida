@@ -41,6 +41,91 @@ internal sealed class ColumnIndex
         }
     }
 
+    /// <summary>Known point at the largest position not above <paramref name="position"/> on the line starting at <paramref name="lineStart"/>.</summary>
+    public bool TryNearestAtPosition(long lineStart, long position, out long foundColumn, out long foundPosition)
+    {
+        lock (_gate)
+        {
+            (foundColumn, foundPosition) = (-1, 0);
+            if (_last.Line == lineStart && _last.Position <= position) (foundColumn, foundPosition) = (_last.Column, _last.Position);
+            if (_lines.TryGetValue(lineStart, out var points))
+            {
+                int lo = 0, hi = points.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) >>> 1;
+                    if (points[mid].Position <= position) lo = mid + 1; else hi = mid;
+                }
+                if (lo > 0 && points[lo - 1].Column > foundColumn) (foundColumn, foundPosition) = points[lo - 1];
+                Touch(lineStart);
+            }
+            return foundColumn >= 0;
+        }
+    }
+
+    /// <summary>
+    /// Forgets what an edit at <paramref name="offset"/> can have changed: the points of lines that start at or after it and the points of
+    /// earlier lines beyond it. Points at or before the offset describe bytes that did not move and stay.
+    /// </summary>
+    public void DropFrom(long offset)
+    {
+        lock (_gate)
+        {
+            _lengths.Clear();
+            if (_last.Line >= offset || _last.Position > offset) _last = (-1, 0, 0);
+            if (_lines.Count == 0) return;
+            foreach (long key in _lines.Keys.ToArray())
+            {
+                var points = _lines[key];
+                if (key >= offset)
+                {
+                    _points -= points.Count;
+                    _lines.Remove(key);
+                    _recent.Remove(key);
+                    continue;
+                }
+                int lo = 0, hi = points.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) >>> 1;
+                    if (points[mid].Position <= offset) lo = mid + 1; else hi = mid;
+                }
+                _points -= points.Count - lo;
+                points.RemoveRange(lo, points.Count - lo);
+            }
+        }
+    }
+
+    /// <summary>Replaces this index by the points of <paramref name="other"/> that lie at or before <paramref name="offset"/> on lines that start before it.</summary>
+    public void CopyBefore(ColumnIndex other, long offset)
+    {
+        var copied = new List<(long Line, List<(long Column, long Position)> Points)>();
+        (long Line, long Column, long Position) last;
+        lock (other._gate)
+        {
+            foreach (long key in other._recent)
+            {
+                if (key >= offset || !other._lines.TryGetValue(key, out var points)) continue;
+                copied.Add((key, points.Where(p => p.Position <= offset).ToList()));
+            }
+            last = other._last;
+        }
+        lock (_gate)
+        {
+            _lines.Clear();
+            _recent.Clear();
+            _lengths.Clear();
+            _points = 0;
+            foreach (var (line, points) in copied)
+            {
+                _lines[line] = points;
+                _recent.Add(line);
+                _points += points.Count;
+            }
+            _last = last.Line >= 0 && last.Line < offset && last.Position <= offset ? last : (-1, 0, 0);
+        }
+    }
+
     public void Add(long lineStart, long column, long position)
     {
         lock (_gate)
@@ -116,8 +201,71 @@ internal static class ColumnReader
     public static string Read(WindowReader window, long length, TextCodec codec, int bomLength, ColumnIndex index,
         long lineStart, long startColumn, int maxColumns, CancellationToken ct)
     {
+        if (!Skip(window, length, codec, bomLength, index, lineStart, startColumn, ct, out long pos, out long reachedColumn)) return "";
+        if (startColumn > 0) index.SetLast(lineStart, reachedColumn, pos);
+
+        var read = window(pos, (long)maxColumns * 4 + 4);
+        int stop = LineScanner.FindTerminator(read, 0, codec);
+        if (stop >= 0) read = read[..stop];
+        if (!(stop >= 0 || pos + read.Length >= length)) read = read[..codec.CompleteLength(read)];
+        var text = codec.GetString(read);
+        return text.Length <= maxColumns ? text : text[..maxColumns];
+    }
+
+    /// <summary>
+    /// Byte position of the UTF-16 column <paramref name="column"/> of the line that starts at <paramref name="lineStart"/>; a column inside a
+    /// supplementary character gives the position after it and a column past the end of the line the end of the line.
+    /// </summary>
+    public static long OffsetOf(WindowReader window, long length, TextCodec codec, int bomLength, ColumnIndex index,
+        long lineStart, long column, CancellationToken ct)
+    {
+        bool reached = Skip(window, length, codec, bomLength, index, lineStart, column, ct, out long pos, out long reachedColumn);
+        if (reached && column > 0) index.SetLast(lineStart, reachedColumn, pos);
+        return pos;
+    }
+
+    /// <summary>
+    /// UTF-16 columns between the start of the line that starts at <paramref name="lineStart"/> and the character boundary
+    /// <paramref name="offset"/> of that line. The count resumes from the nearest noted point and notes the offset it reaches.
+    /// </summary>
+    public static long ColumnOf(WindowReader window, long length, TextCodec codec, int bomLength, ColumnIndex index,
+        long lineStart, long offset, CancellationToken ct)
+    {
+        long pos = lineStart == 0 ? Math.Min(bomLength, length) : lineStart, column = 0, lastMark = 0;
+        if (offset <= pos) return 0;
+        if (index.TryNearestAtPosition(lineStart, offset, out long known, out long at)) (pos, column, lastMark) = (at, known, known);
+        while (pos < offset)
+        {
+            ct.ThrowIfCancellationRequested();
+            var data = window(pos, Math.Min(1 << 20, offset - pos));
+            if (data.IsEmpty) break;
+            int t = LineScanner.FindTerminator(data, 0, codec);
+            var seg = t < 0 ? data : data[..t];
+            if (t < 0 && pos + seg.Length < offset) seg = seg[..codec.CompleteLength(seg)];
+            if (seg.IsEmpty) break;
+            column += codec.CountChars(seg);
+            pos += seg.Length;
+            if (t >= 0) break;
+            if (column - lastMark >= ColumnIndex.Spacing)
+            {
+                index.Add(lineStart, column, pos);
+                lastMark = column;
+            }
+        }
+        index.SetLast(lineStart, column, pos);
+        return column;
+    }
+
+    /// <summary>
+    /// Moves over <paramref name="startColumn"/> columns of the line, noting points in <paramref name="index"/>. False when the line ends first;
+    /// <paramref name="pos"/> is where the move stopped.
+    /// </summary>
+    private static bool Skip(WindowReader window, long length, TextCodec codec, int bomLength, ColumnIndex index,
+        long lineStart, long startColumn, CancellationToken ct, out long pos, out long reachedColumn)
+    {
+        reachedColumn = 0;
         bool utf8 = codec.Kind == CodecKind.Utf8;
-        long pos = lineStart == 0 ? Math.Min(bomLength, length) : lineStart;
+        pos = lineStart == 0 ? Math.Min(bomLength, length) : lineStart;
         long skip = startColumn;
         long lastMark = 0;
         if (skip > 0 && index.TryNearest(lineStart, startColumn, out long known, out long at))
@@ -143,30 +291,25 @@ internal static class ColumnReader
                 if (units <= skip) { step = whole.Length; skip -= units; }
                 else step = utf8 ? SkipUtf8Units(whole, ref skip) : SkipUnits(codec, whole, ref skip);
             }
-            if (step == 0) return "";
-            if (t >= 0 && step == seg.Length && skip > 0) return EndOfLine(index, lineStart, startColumn - skip);
+            if (step == 0) return false;
             pos += step;
+            if (t >= 0 && step == seg.Length && skip > 0) return EndOfLine(index, lineStart, startColumn - skip);
             long column = startColumn - skip;
+            reachedColumn = column;
             if (column - lastMark >= ColumnIndex.Spacing)
             {
                 index.Add(lineStart, column, pos);
                 lastMark = column;
             }
         }
-        if (startColumn > 0) index.SetLast(lineStart, startColumn - skip, pos);
-
-        var read = window(pos, (long)maxColumns * 4 + 4);
-        int stop = LineScanner.FindTerminator(read, 0, codec);
-        if (stop >= 0) read = read[..stop];
-        if (!(stop >= 0 || pos + read.Length >= length)) read = read[..codec.CompleteLength(read)];
-        var text = codec.GetString(read);
-        return text.Length <= maxColumns ? text : text[..maxColumns];
+        reachedColumn = startColumn - skip;
+        return true;
     }
 
-    private static string EndOfLine(ColumnIndex index, long lineStart, long columns)
+    private static bool EndOfLine(ColumnIndex index, long lineStart, long columns)
     {
         index.SetLength(lineStart, columns);
-        return "";
+        return false;
     }
 
     private static int SkipUnits(TextCodec codec, ReadOnlySpan<byte> seg, ref long skip)

@@ -144,6 +144,17 @@ commands: nks.remote.unsent
 Změny vzdáleného souboru se nejdřív uloží v tomto počítači. Seznam ukáže vzdálené soubory, jejichž kopie je změněná a neodeslaná, i po zavření programu nebo po pádu. Vyberte jeden a otevře se kopie; lišta nabídne Nahrát.
 - Úpravy nepotřebují připojení. Neodeslané změny zůstanou, dokud je nenahrajete.
 
+## [source.open] Otevřít ze zdroje pluginu
+commands: nks.source.open
+1. Zvolte Soubor a potom Otevřít ze zdroje. Seznam ukazuje zdroje, které pluginy nabízejí, a co každý umí: zda zapisuje, zda chrání změněný soubor a zda vypisuje složky.
+2. Vyberte zdroj a napište adresu, která začíná schématem zdroje.
+3. Text se otevře v kartě. Lišta nad ním ukazuje zdroj, adresu s tajnými částmi nahrazenými ***, a revizi, ve které byl text načten.
+- Uložit zapíše text zpět jen tehdy, když je soubor ve zdroji stále v té revizi. Pokud se změnil, nic se nezapíše a váš text zůstane v kartě. Zobrazit rozdíly je porovná, Přepsat nahradí přesně nalezenou verzi, Zrušit nechá vše jak je.
+- Zdroj, který neumí zkontrolovat revizi v jednom kroku, to říká, a program před každým uložením varuje: nejdřív zkontroluje revizi a potom zapíše, takže změna provedená mezitím se přepíše bez upozornění.
+- Když zdroj není dostupný, karta se otevře z kopie, kterou program drží v paměti, a uvádí Offline. Načíst znovu ze zdroje to zkusí znovu a nikdy nenahradí neuložené změny.
+- Adresy s heslem, tokenem nebo klíčem se na liště, v nedávných souborech a v logu ukazují s ***. Nedávné soubory drží jen zamaskovanou adresu, takže zdroj, který tajnou část v adrese potřebuje, si ji vyžádá znovu.
+- Omezení: tajná část uvnitř cesty adresy se nepozná a zůstane vidět. Uložit jako zapíše kopii na disk a ukončí vazbu na zdroj.
+
 ## [remote.backup] Záloha připojení
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Zvolte Soubor a pak Exportovat připojení a pojmenujte soubor. Obsahuje seznam připojení: název, protokol, server, port, uživatele a důvěryhodnou identitu serveru.

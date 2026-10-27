@@ -997,6 +997,10 @@ public class BackupAndAutosaveTests
 [CollectionDefinition("Crash harness", DisableParallelization = true)]
 public class CrashHarnessCollection;
 
+/// <summary>Runs alone: GC.GetTotalMemory and the private memory size count every thread of the process, so parallel tests would show up as growth.</summary>
+[CollectionDefinition("Process memory", DisableParallelization = true)]
+public class ProcessMemoryCollection;
+
 [Collection("Crash harness")]
 public class CrashHarnessSmokeTest
 {

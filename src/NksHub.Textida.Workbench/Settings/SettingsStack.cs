@@ -49,16 +49,19 @@ public sealed class SettingsStack(SettingsRegistry registry)
     }
 
     /// <summary>Resolves a key for an optional language. Returns null for keys that are not defined.</summary>
-    public ResolvedSetting? Resolve(string key, string? language = null)
+    public ResolvedSetting? Resolve(string key, string? language = null) => Resolve(key, language, clone: true);
+
+    /// <summary>The typed getters only read the value, so they skip the copy that protects the layers from a caller that edits the result.</summary>
+    private ResolvedSetting? Resolve(string key, string? language, bool clone)
     {
         if (!registry.TryGet(key, out var definition))
         {
             return null;
         }
 
-        var skipped = new List<SkippedValue>();
+        List<SkippedValue>? skipped = null;
         var lang = language?.ToLowerInvariant();
-        foreach (var source in Enum.GetValues<SettingSource>().OrderDescending())
+        foreach (var source in SourcesByPrecedence)
         {
             if (source == SettingSource.Default)
             {
@@ -78,26 +81,28 @@ public sealed class SettingsStack(SettingsRegistry registry)
 
             if (!SettingRules.IsAllowedAt(definition, source))
             {
-                skipped.Add(new SkippedValue(source, $"Setting '{key}' cannot be set in this layer (scope '{definition.Scope}')."));
+                (skipped ??= []).Add(new SkippedValue(source, $"Setting '{key}' cannot be set in this layer (scope '{definition.Scope}')."));
             }
             else if (SettingRules.Validate(definition, value) is { } reason)
             {
-                skipped.Add(new SkippedValue(source, reason));
+                (skipped ??= []).Add(new SkippedValue(source, reason));
             }
             else
             {
-                return new ResolvedSetting(key, value!.DeepClone(), source, isLanguage ? lang : null, layer.Name, skipped);
+                return new ResolvedSetting(key, clone ? value!.DeepClone() : value!, source, isLanguage ? lang : null, layer.Name, (IReadOnlyList<SkippedValue>?)skipped ?? []);
             }
         }
 
-        return new ResolvedSetting(key, definition.Default!.DeepClone(), SettingSource.Default, null, null, skipped);
+        return new ResolvedSetting(key, clone ? definition.Default!.DeepClone() : definition.Default!, SettingSource.Default, null, null, (IReadOnlyList<SkippedValue>?)skipped ?? []);
     }
 
-    public bool GetBool(string key, string? language = null) => Resolve(key, language)!.Value.GetValue<bool>();
+    private static readonly SettingSource[] SourcesByPrecedence = [.. Enum.GetValues<SettingSource>().OrderDescending()];
 
-    public long GetInt(string key, string? language = null) => (long)SettingRules.ToNumber(Resolve(key, language)!.Value)!.Value;
+    public bool GetBool(string key, string? language = null) => Resolve(key, language, clone: false)!.Value.GetValue<bool>();
 
-    public double GetNumber(string key, string? language = null) => SettingRules.ToNumber(Resolve(key, language)!.Value)!.Value;
+    public long GetInt(string key, string? language = null) => (long)SettingRules.ToNumber(Resolve(key, language, clone: false)!.Value)!.Value;
 
-    public string GetString(string key, string? language = null) => Resolve(key, language)!.Value.GetValue<string>();
+    public double GetNumber(string key, string? language = null) => SettingRules.ToNumber(Resolve(key, language, clone: false)!.Value)!.Value;
+
+    public string GetString(string key, string? language = null) => Resolve(key, language, clone: false)!.Value.GetValue<string>();
 }

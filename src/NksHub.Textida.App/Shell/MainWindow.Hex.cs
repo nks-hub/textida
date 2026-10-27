@@ -632,7 +632,7 @@ internal sealed partial class MainWindow
             {
                 od.NotifyChanged();
                 tab.ShowBar(null);
-                SetStatusMessage(path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("bytes", plan.ChangedBytes)) : Loc.Get(K.StatusSaved));
+                SetStatusMessage(doc.IsModified ? Loc.Get(K.HexSavedEditsPending) : path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("bytes", plan.ChangedBytes)) : Loc.Get(K.StatusSaved));
                 _app.SessionChanged();
                 return true;
             }

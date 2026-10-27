@@ -58,6 +58,7 @@ public sealed partial class Document
     public void ReinterpretAs(TextCodec codec)
     {
         ThrowIfDisposed();
+        if (_saving) throw new InvalidOperationException("The document cannot change its encoding while it is being saved.");
         if (codec == _codec) return;
         RequireSupported(codec);
         SetCodec(codec);
@@ -83,6 +84,7 @@ public sealed partial class Document
     public EditResult ConvertTo(TextCodec target, string? replacement = null)
     {
         ThrowIfDisposed();
+        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
         if (target == _codec) return new(true, _revision, ConflictReason.None);
         RequireSupported(target);
         var plan = ByteFidelity.PlanConvert(DecodeAll(), target, replacement);
@@ -96,7 +98,7 @@ public sealed partial class Document
         var before = _codec;
         var removed = Execute(work, validate: false, captureRemoved: true, out _);
         SetCodec(target);
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
+        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
         Commit(ChangeKind.Edit, "convert", work, step, null);
         return new(true, _revision, ConflictReason.None);
     }
@@ -134,7 +136,7 @@ public sealed partial class Document
         var before = _codec;
         var removed = Execute(work, validate: false, captureRemoved: true, out _);
         SetCodec(target);
-        var step = new Step([.. work.Select((w, k) => new AppliedEdit(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
+        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.ToArray()))], null, null, before, target);
         Commit(ChangeKind.Edit, source, work, step, null);
         return new(true, _revision, ConflictReason.None);
     }

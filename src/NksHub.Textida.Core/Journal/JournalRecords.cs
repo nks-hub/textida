@@ -11,7 +11,8 @@ public sealed record OpenRecord(Guid DocId, string? Path, FileFingerprint? Finge
 public sealed record SeedRecord(Guid DocId, long Offset, byte[] Bytes);
 
 /// <param name="Repeat">When not 0, <paramref name="Inserted"/> is a pattern and the edit inserts this many bytes of it repeated (a fill).</param>
-public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted, long Repeat = 0);
+/// <param name="External">When set, the inserted bytes are not in the record: <paramref name="Inserted"/> is empty and they are read from a payload file.</param>
+public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted, long Repeat = 0, PayloadRef? External = null);
 
 /// <summary>A change in the coordinates of the previous revision. <see cref="NewUndoEntry"/> is false when the edit joined the previous undo step.</summary>
 /// <param name="Codec">Name of the codec after the change; null in version 1 records. A different codec means the edit was a conversion.</param>
@@ -49,8 +50,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab.</summary>
-    private const int PayloadLayout = 5;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab, 6 lets an edit refer to its inserted bytes in a payload file.</summary>
+    private const int PayloadLayout = 6;
 
     // ---- primitives ----
 
@@ -160,6 +161,15 @@ internal static class JournalRecords
             w.Write(x.Inserted.Length);
             w.Write(x.Inserted);
             w.Write(x.Repeat);
+            w.Write(x.External is not null);
+            if (x.External is { } p)
+            {
+                w.Write(p.File);
+                w.Write(p.Offset);
+                w.Write(p.Length);
+                w.Write(p.HeadCrc);
+                w.Write(p.TailCrc);
+            }
         }
         PutString(w, e.Codec);
     });
@@ -176,7 +186,9 @@ internal static class JournalRecords
         {
             long start = r.ReadInt64(), deleted = r.ReadInt64();
             var inserted = r.ReadBytes(r.ReadInt32());
-            edits[i] = new(start, deleted, inserted, layout >= 4 ? r.ReadInt64() : 0);
+            long repeat = layout >= 4 ? r.ReadInt64() : 0;
+            PayloadRef? external = layout >= 6 && r.ReadBoolean() ? new(r.ReadString(), r.ReadInt64(), r.ReadInt64(), r.ReadUInt32(), r.ReadUInt32()) : null;
+            edits[i] = new(start, deleted, inserted, repeat, external);
         }
         return new EditRecord(id, rev, kind, source, isNew, edits, layout >= 2 ? GetString(r) : null);
     });
@@ -293,6 +305,9 @@ internal static class JournalRecords
         }
         return new SessionModel(groups, active);
     });
+
+    /// <summary>Revision of an edit, undo, redo or codec record (the field right after the document id).</summary>
+    public static long RevisionOf(JournalRecord rec) => System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(rec.Payload.AsSpan(17));
 
     /// <summary>Document a record belongs to; null for the session state.</summary>
     public static Guid? DocOf(JournalRecord rec)

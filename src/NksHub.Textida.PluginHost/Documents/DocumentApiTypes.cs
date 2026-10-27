@@ -57,10 +57,14 @@ public static class DocumentMethods
     public const string VirtualUpdate = "virtual/update";
     /// <summary>The plugin publishes the diagnostics of one source for one revision of a document; an empty list takes that source's diagnostics away.</summary>
     public const string DiagnosticsPublish = "diagnostics/publish";
+    /// <summary>The diagnostics stored for a document (plugins and the editor's own linter), with ranges in the current revision; those touching a hidden value are left out.</summary>
+    public const string DiagnosticsList = "diagnostics/list";
     /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
     public const string CompletionRegister = "editor/completionProvider";
     /// <summary>One batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review and applied all or nothing.</summary>
     public const string WorkspaceEdit = "workspace/edit";
+    /// <summary>The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>).</summary>
+    public const string SourceRegister = "source/register";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -70,6 +74,17 @@ public static class DocumentRequests
     public const string Tab = "editor/tab";
     /// <summary>Completion at a caret: params <c>document</c>, <c>revision</c>, <c>offset</c> (byte), optional <c>language</c>; the answer holds the <c>revision</c> it was computed for and the <c>items</c>.</summary>
     public const string Completion = "completion/request";
+    /// <summary>File source: params <c>uri</c> of a folder; the answer is <c>{"entries":[{"uri","name","isDirectory","size"?}]}</c>.</summary>
+    public const string SourceList = "source/list";
+    /// <summary>File source: params <c>uri</c>; the answer holds the <c>revision</c> (an opaque non-empty string) and the content as <c>text</c> (UTF-8) or <c>bytes</c> (base64).</summary>
+    public const string SourceRead = "source/read";
+    /// <summary>File source: params <c>uri</c>; the answer is <c>{"exists":false}</c> or <c>{"revision","size"}</c>.</summary>
+    public const string SourceStat = "source/stat";
+    /// <summary>
+    /// File source: params <c>uri</c>, <c>expectedRevision</c> (a string, or null to create a file that must not exist yet) and the content as <c>bytes</c> (base64); the answer holds the new <c>revision</c>.
+    /// A source that declared <c>atomicWrite</c> writes only if the file is still at the expected revision, in one step, and otherwise answers <see cref="DocumentErrorCodes.SourceConflict"/>.
+    /// </summary>
+    public const string SourceWrite = "source/write";
 }
 
 /// <summary>Names of the events (<c>$/event</c> payloads) the editor sends for subscribed documents. They carry ranges and revisions, never text.</summary>
@@ -98,6 +113,8 @@ public static class DocumentPermissions
     public const string Virtual = "document.virtual";
     /// <summary>Edits files that are not open and creates, renames and deletes files, below the workspace folders. Only the user grants it, for all of them.</summary>
     public const string WorkspaceFiles = "workspace.files";
+    /// <summary>Serves files of a URI scheme the user opens in tabs; the editor sends it the URIs, with their secrets, and takes the content it answers.</summary>
+    public const string Source = "document.source";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -126,6 +143,13 @@ public static class DocumentErrorCodes
     public const int VirtualQuotaExceeded = -32033;
     public const int DiagnosticsQuotaExceeded = -32034;
     public const int WorkspaceQuotaExceeded = -32035;
+    /// <summary>A source refused a write because the file is not at the expected revision (data: <c>currentRevision</c>, a string, or null when the file is gone).</summary>
+    public const int SourceConflict = -32036;
+    /// <summary>A source cannot reach its data now (no connection); the editor may serve the cached copy.</summary>
+    public const int SourceUnavailable = -32037;
+    public const int SourceNotFound = -32038;
+    /// <summary>The scheme is already served by another plugin.</summary>
+    public const int SourceSchemeTaken = -32039;
 }
 
 /// <summary>
@@ -180,6 +204,8 @@ public sealed record DocumentApiOptions
     public required TimeSpan CompletionTimeout { get; init; }
     /// <summary>Workspace edits (<see cref="DocumentMethods.WorkspaceEdit"/>); null means the editor takes none.</summary>
     public WorkspaceEditOptions? Workspace { get; init; }
+    /// <summary>File sources for URI schemes (<see cref="DocumentMethods.SourceRegister"/>); null means the editor takes none.</summary>
+    public FileSourceOptions? Sources { get; init; }
 }
 
 /// <summary>

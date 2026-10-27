@@ -111,6 +111,24 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest content of a virtual document, in bytes.</summary>
     public const long VirtualDocumentMaxBytes = 4L << 20;
 
+    /// <summary>Placeholder: how long the editor waits for a file source (list, read, stat, write) before it counts the source as not reachable. OPEN: the owner has not decided it.</summary>
+    public const int SourceTimeoutMilliseconds = 15_000;
+
+    /// <summary>Placeholder: largest file a source serves or takes, in bytes. OPEN: the owner has not decided it.</summary>
+    public const long SourceMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder: entries of one folder listing taken from a source. OPEN: the owner has not decided it.</summary>
+    public const int SourceMaxEntries = 5000;
+
+    /// <summary>Placeholder: URI schemes one plugin may serve. OPEN: the owner has not decided it.</summary>
+    public const int SourceSchemesPerPlugin = 4;
+
+    /// <summary>Placeholder: files of the source cache (memory only, least recently used out first). OPEN: the owner has not decided it.</summary>
+    public const int SourceCacheEntries = 32;
+
+    /// <summary>Placeholder: bytes of the source cache. OPEN: the owner has not decided it.</summary>
+    public const long SourceCacheBytes = 64L << 20;
+
     /// <summary>Placeholder: diagnostics one checker (source) of a plugin may publish for one document.</summary>
     public const int DiagnosticsPerDocument = 2000;
 
@@ -193,6 +211,7 @@ internal static class PluginLimitsPlaceholders
     public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog, Func<Guid, LogLevelRules?> logRules, WorkspaceEditOptions? workspace = null) => new()
     {
         Workspace = workspace,
+        Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,
         MaxSymbolTextLength = SymbolTextLength,

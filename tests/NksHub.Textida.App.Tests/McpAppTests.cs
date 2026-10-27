@@ -235,7 +235,7 @@ public class McpAppTests : IDisposable
         var discover = await Pump(client.RequestAsync("server/discover", $"{{{Meta}}}"), "server/discover");
         Assert.Equal("complete", discover.GetProperty("result").GetProperty("resultType").GetString());
         var tools = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "tools/list");
-        Assert.Equal(12, tools.GetProperty("result").GetProperty("tools").GetArrayLength());
+        Assert.Equal(13, tools.GetProperty("result").GetProperty("tools").GetArrayLength());
 
         var listed = JsonDocument.Parse((await Pump(client.ToolAsync("editor_list_documents"), "list")).Text).RootElement;
         var only = Assert.Single(listed.GetProperty("documents").EnumerateArray());
@@ -365,7 +365,7 @@ public class McpAppTests : IDisposable
         await SwitchOnAsync();
         var client = NewClient();
         var before = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "list");
-        Assert.Equal(12, before.GetProperty("result").GetProperty("tools").GetArrayLength());
+        Assert.Equal(13, before.GetProperty("result").GetProperty("tools").GetArrayLength());
         _app.Plugins.Mcp.Server.SetEnabled("editor_read_bytes", false);
         var after = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "list again");
         Assert.DoesNotContain("editor_read_bytes", after.GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()));

@@ -3,13 +3,13 @@ using NksHub.Textida.Core.Encodings;
 namespace NksHub.Textida.Core.Documents;
 
 /// <summary>Creates <see cref="PagedBackend"/> instances.</summary>
-public sealed class PagedBackendFactory(bool startIndexing = true, int indexBlockSize = 1 << 20) : IBackendFactory
+public sealed class PagedBackendFactory(bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null) : IBackendFactory
 {
     public static PagedBackendFactory Instance { get; } = new();
     public BackendCapabilities Capabilities => PagedBackend.Caps;
     public bool MapsFiles => true;
-    public IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec) => PagedBackend.FromMemory(bytes.Span, codec, startIndexing, indexBlockSize);
-    public IByteBackend OpenFile(string path, TextCodec codec) => PagedBackend.FromFile(path, codec, startIndexing, indexBlockSize);
+    public IByteBackend Create(ReadOnlyMemory<byte> bytes, TextCodec codec) => PagedBackend.FromMemory(bytes.Span, codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
+    public IByteBackend OpenFile(string path, TextCodec codec) => PagedBackend.FromFile(path, codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
 }
 
 /// <summary>
@@ -19,7 +19,6 @@ public sealed class PagedBackendFactory(bool startIndexing = true, int indexBloc
 public sealed class PagedBackend : IByteBackend
 {
     internal static readonly BackendCapabilities Caps = new("paged", long.MaxValue, SupportsUtf16: true, PositionsMayBeUnknown: true, MaterializesText: false);
-    private const int Chunk = 1 << 16;
 
     private readonly MappedFileSourceOptions _options;
     private PagedDocument _doc;
@@ -41,21 +40,21 @@ public sealed class PagedBackend : IByteBackend
         return head;
     }
 
-    public static PagedBackend FromFile(string path, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20)
+    public static PagedBackend FromFile(string path, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null)
     {
-        var options = OptionsFor(codec, startIndexing, indexBlockSize);
+        var options = OptionsFor(codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
         return new(PagedDocument.Open(path, options), Path.GetFullPath(path), options);
     }
 
-    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20)
+    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null)
     {
-        var options = OptionsFor(codec, startIndexing, indexBlockSize);
+        var options = OptionsFor(codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
         return new(PagedDocument.OpenMemory(bytes, options), null, options);
     }
 
-    private static MappedFileSourceOptions OptionsFor(TextCodec codec, bool startIndexing, int indexBlockSize)
+    private static MappedFileSourceOptions OptionsFor(TextCodec codec, bool startIndexing, int indexBlockSize, long spillBudgetBytes, string? spillDirectory)
     {
-        return new() { Codec = codec, StartIndexing = startIndexing, IndexBlockSize = indexBlockSize };
+        return new() { Codec = codec, StartIndexing = startIndexing, IndexBlockSize = indexBlockSize, SpillBudgetBytes = spillBudgetBytes, SpillDirectory = spillDirectory };
     }
 
     /// <summary>Forbidden: a paged document has no whole text.</summary>
@@ -102,8 +101,23 @@ public sealed class PagedBackend : IByteBackend
 
     public IInPlaceWriteScope? BeginInPlaceWrite() => _doc.Source.File.BeginInPlaceWrite();
 
+    public long UndoMemoryBudget => _options.SpillBudgetBytes;
+    public string? SpillDirectory => _options.SpillDirectory;
+    public bool EditsDuringStreamingSave => true;
+    public IByteSnapshot BeginStreamingSave() => _doc.BeginStreamingSave();
+    public void EndStreamingSave() => _doc.EndStreamingSave();
+    public void UseDurableSpill(string directory, string namePrefix) => _doc.UseDurableSpill(directory, namePrefix);
+    public bool TryGetDurableBytes(long offset, long length, out DurableBytes bytes) => _doc.TryGetDurableBytes(offset, length, out bytes);
+    public string? DurableFile => _doc.DurableFile;
+
     public void ReplaceBackingFile(string tempPath, string targetPath)
     {
+        if (_doc.InStreamingSave)
+        {
+            _doc.CommitStreamingSave(tempPath, targetPath);
+            _path = Path.GetFullPath(targetPath);
+            return;
+        }
         _doc.Dispose();
         try
         {
@@ -143,7 +157,7 @@ public sealed class PagedBackend : IByteBackend
         }
         long lineStart = LineStartOf(lo);
         if (lineStart < 0) return false;
-        position = new(lo, CountChars(lineStart, offset));
+        position = new(lo, _doc.ColumnOf(lineStart, offset));
         return true;
     }
 
@@ -166,60 +180,9 @@ public sealed class PagedBackend : IByteBackend
             bool crlf = n == 2 * w && LineScanner.Unit(tail, 0, Codec) == 13 && LineScanner.Unit(tail, w, Codec) == 10;
             end = next - (crlf ? 2 * w : w);
         }
-        return WalkColumns(start, end, position.Column, out offset);
-    }
-
-    private byte[] ReadWindow(long from, long to)
-    {
-        var buf = new byte[Math.Min(ByteLength, to + 4) - from];
-        _doc.Read(from, buf);
-        return buf;
-    }
-
-    /// <summary>UTF-16 units between two boundaries, read in chunks that end on a boundary.</summary>
-    private long CountChars(long start, long end)
-    {
-        long total = 0;
-        for (long pos = start; pos < end;)
-        {
-            long stop = Math.Min(end, pos + Chunk);
-            var buf = ReadWindow(pos, stop);
-            int cut = (int)(stop - pos);
-            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
-            total += Codec.CountChars(buf.AsSpan(0, cut));
-            pos += cut;
-        }
-        return total;
-    }
-
-    /// <summary>Walks units from <paramref name="start"/> until <paramref name="column"/> chars are passed; false when the column is past the line or splits a surrogate pair.</summary>
-    private bool WalkColumns(long start, long end, long column, out long offset)
-    {
-        offset = start;
-        long remaining = column;
-        while (offset < end && remaining > 0)
-        {
-            long stop = Math.Min(end, offset + Chunk);
-            var buf = ReadWindow(offset, stop);
-            int cut = (int)(stop - offset);
-            while (stop < end && cut > 0 && !Codec.IsBoundary(buf, cut)) cut--;
-            var span = buf.AsSpan(0, cut);
-            if (Codec.CountChars(span) <= remaining)
-            {
-                remaining -= Codec.CountChars(span);
-                offset += cut;
-                continue;
-            }
-            int i = 0;
-            while (i < cut && remaining > 0)
-            {
-                i += Codec.ReadUnit(span[i..], out int chars);
-                remaining -= chars;
-            }
-            if (remaining < 0) return false;
-            offset += i;
-        }
-        return remaining == 0;
+        // the column index resumes from a noted point, so a long line is not walked from its start
+        offset = _doc.OffsetOfColumn(start, position.Column);
+        return offset <= end && _doc.ColumnOf(start, offset) == position.Column;
     }
 
     public void Dispose()

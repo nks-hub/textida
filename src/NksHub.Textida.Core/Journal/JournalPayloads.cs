@@ -1,0 +1,138 @@
+using Microsoft.Win32.SafeHandles;
+
+namespace NksHub.Textida.Core.Journal;
+
+/// <summary>
+/// OPEN DECISION (P7.1.4): the owner has not decided from which size on an edit is recorded as a reference instead of inline bytes.
+/// The value below is a placeholder (one flush batch), not a decided number.
+/// </summary>
+public static class JournalPlaceholders
+{
+    /// <summary>Placeholder: inserted bytes of one edit above which the journal records a reference to a payload file.</summary>
+    public const int MaxInlineEditBytes = 1 << 20;
+}
+
+/// <summary>
+/// Where the bytes of a large edit live: <paramref name="Length"/> bytes at <paramref name="Offset"/> in the file <paramref name="File"/> of the
+/// payload directory. The checksums cover the first and the last 4 KiB; they and the length catch a missing, short or swapped file, not a bit flip in the middle.
+/// </summary>
+public sealed record PayloadRef(string File, long Offset, long Length, uint HeadCrc, uint TailCrc);
+
+/// <summary>
+/// Payload files next to the journals (<c>payload</c> directory): append-only files that hold the inserted text of large edits. They are
+/// named <c>&lt;session&gt;-&lt;document&gt;-&lt;kind&gt;.payload</c>, so a file belongs to a document and is deleted with it.
+/// </summary>
+internal static class JournalPayloads
+{
+    public const string DirectoryName = "payload";
+    public const int SampleBytes = 4096;
+
+    public static string DirectoryOf(string journalDirectory) => Path.Combine(journalDirectory, DirectoryName);
+
+    public static string Prefix(string sessionId, Guid docId) => $"{sessionId}-{docId:N}";
+
+    public static uint SampleCrc(ReadOnlySpan<byte> sample) => Crc32.Finish(Crc32.Update(Crc32.Initial, sample));
+
+    /// <summary>Reads a referenced block and checks it against the reference; an <see cref="InvalidDataException"/> says why it cannot be used.</summary>
+    public static byte[] Load(string payloadDirectory, PayloadRef r)
+    {
+        if (r.File.Length == 0 || r.File != Path.GetFileName(r.File) || r.Offset < 0 || r.Length < 0)
+            throw new InvalidDataException("A large change refers to an invalid payload file.");
+        if (r.Length > Array.MaxLength) throw new NotSupportedException("A large change over 2 GiB cannot be restored.");
+        string path = Path.Combine(payloadDirectory, r.File);
+        SafeFileHandle handle;
+        try { handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess); }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            throw new InvalidDataException($"The data of a large change is missing ({r.File}).");
+        }
+        using (handle)
+        {
+            if (RandomAccess.GetLength(handle) < r.Offset + r.Length) throw new InvalidDataException($"The data of a large change is incomplete ({r.File} is shorter than the journal says).");
+            var bytes = new byte[r.Length];
+            for (long done = 0; done < bytes.Length;)
+            {
+                int n = RandomAccess.Read(handle, bytes.AsSpan((int)done), r.Offset + done);
+                if (n <= 0) throw new InvalidDataException($"The data of a large change is incomplete ({r.File}).");
+                done += n;
+            }
+            int sample = (int)Math.Min(SampleBytes, bytes.Length);
+            if (SampleCrc(bytes.AsSpan(0, sample)) != r.HeadCrc || SampleCrc(bytes.AsSpan(bytes.Length - sample)) != r.TailCrc)
+                throw new InvalidDataException($"The data of a large change differs from what the journal recorded ({r.File}).");
+            return bytes;
+        }
+    }
+
+    /// <summary>Deletes the payload files of documents that are no longer alive, except those of a session whose journal still exists (it decides for itself).</summary>
+    public static void Sweep(string journalDirectory, string ownSession, IReadOnlySet<Guid> aliveDocs)
+    {
+        string dir = DirectoryOf(journalDirectory);
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.EnumerateFiles(dir, "*.payload"))
+        {
+            if (!TryParse(Path.GetFileName(file), out string session, out var doc) || aliveDocs.Contains(doc)) continue;
+            if (session != ownSession && File.Exists(Path.Combine(journalDirectory, $"session-{session}.njl"))) continue;
+            TryDelete(file);
+        }
+    }
+
+    /// <summary>Deletes the files of one document that <paramref name="session"/> made, except the named ones.</summary>
+    public static void DeleteOf(string journalDirectory, string session, Guid doc, IReadOnlySet<string>? keep = null)
+    {
+        string dir = DirectoryOf(journalDirectory);
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.EnumerateFiles(dir, $"{session}-{doc:N}-*.payload"))
+            if (keep is null || !keep.Contains(Path.GetFileName(file))) TryDelete(file);
+    }
+
+    /// <summary>Deletes the files of a document from every session (the document was closed).</summary>
+    public static void DeleteAllOf(string journalDirectory, Guid doc)
+    {
+        string dir = DirectoryOf(journalDirectory);
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.EnumerateFiles(dir, $"*-{doc:N}-*.payload")) TryDelete(file);
+    }
+
+    private static bool TryParse(string name, out string session, out Guid doc)
+    {
+        session = "";
+        doc = default;
+        var parts = name.Split('-');
+        if (parts.Length < 3 || parts[0].Length != 32) return false;
+        session = parts[0];
+        return Guid.TryParseExact(parts[1], "N", out doc);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+}
+
+/// <summary>An append-only payload file for blocks that no backend keeps on disk itself; the journal copies them here.</summary>
+internal sealed class PayloadBlob : IDisposable
+{
+    private readonly SafeFileHandle _handle;
+
+    public PayloadBlob(string directory, string name)
+    {
+        Directory.CreateDirectory(directory);
+        Name = name;
+        _handle = File.OpenHandle(Path.Combine(directory, name), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
+    }
+
+    public string Name { get; }
+    public long Length { get; private set; }
+
+    public void Append(ReadOnlySpan<byte> bytes)
+    {
+        RandomAccess.Write(_handle, bytes, Length);
+        Length += bytes.Length;
+    }
+
+    public void Sync() => RandomAccess.FlushToDisk(_handle);
+
+    public void Dispose() => _handle.Dispose();
+}

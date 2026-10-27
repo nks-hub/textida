@@ -358,6 +358,11 @@
       "category": "cat.file"
     },
     {
+      "id": "nks.source.open",
+      "title": "cmd.source.open",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.remote.connections",
       "title": "cmd.remote.connections",
       "category": "cat.file"
@@ -2035,6 +2040,12 @@
       "command": "nks.remote.open",
       "group": "4_remote",
       "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.source.open",
+      "group": "4_remote",
+      "order": 15
     },
     {
       "menu": "file",

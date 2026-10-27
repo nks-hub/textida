@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Lsp\NksHub.Textida.Plugins.Lsp.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Wiki\NksHub.Textida.Plugins.Wiki.csproj" />
     <ProjectReference Include="..\NksHub.Textida.FakeLsp\NksHub.Textida.FakeLsp.csproj" />
     <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
   </ItemGroup>

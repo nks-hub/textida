@@ -197,7 +197,8 @@ public class HexMapAppTests : IDisposable
         }
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)], p99 = times[(int)(times.Count * 0.99)];
-        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
-        Assert.True(p99 <= 80, $"p99 {p99:0.0} ms");
+        string figures = $"p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms over {times.Count} scrolls";
+        Assert.True(p95 <= 33, figures);
+        Assert.True(p99 <= 80, figures);
     }
 }
