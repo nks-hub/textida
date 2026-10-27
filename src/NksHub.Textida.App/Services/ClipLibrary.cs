@@ -45,10 +45,14 @@ internal sealed class ClipLibrary
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<string> _problems = [];
 
-    public ClipLibrary(string pluginsDirectory, CommandRegistry commands)
+    private readonly Func<IEnumerable<string>>? _installedFolders;
+
+    /// <param name="installedFolders">Folders of the enabled plugins the plugin manager installed; the data plugins among them are read like the ones in <paramref name="pluginsDirectory"/>.</param>
+    public ClipLibrary(string pluginsDirectory, CommandRegistry commands, Func<IEnumerable<string>>? installedFolders = null)
     {
         _directory = pluginsDirectory;
         _commands = commands;
+        _installedFolders = installedFolders;
     }
 
     public IReadOnlyList<ClipEntry> Clips => _clips;
@@ -77,15 +81,20 @@ internal sealed class ClipLibrary
         _targets.Clear();
         _problems.Clear();
         var grammars = Grammars = new GrammarRegistry(BuiltinGrammars.Registry);
-        if (!Directory.Exists(_directory)) return;
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var folder in Directory.EnumerateDirectories(_directory).Order(StringComparer.OrdinalIgnoreCase))
+        IEnumerable<string> own = Directory.Exists(_directory) ? Directory.EnumerateDirectories(_directory).Order(StringComparer.OrdinalIgnoreCase) : [];
+        var installed = (_installedFolders?.Invoke() ?? []).ToHashSet();
+        foreach (var folder in own.Concat(installed))
         {
             if (!File.Exists(Path.Combine(folder, PluginManifest.FileName))) continue;
-            var name = Path.GetFileName(folder);
+            var name = installed.Contains(folder) ? Path.GetFileName(Path.GetDirectoryName(folder)) ?? folder : Path.GetFileName(folder);
             var result = PluginManifestLoader.Load(folder, PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes);
             if (result.Plugin is not { } plugin) { _problems.Add($"{name}: {string.Join("; ", result.Errors)}"); continue; }
-            if (plugin.Manifest.Main is not null) { _problems.Add($"{name}: only plugins without a process are read from this folder."); continue; }
+            if (plugin.Manifest.Main is not null)
+            {
+                if (!installed.Contains(folder)) _problems.Add($"{name}: only plugins without a process are read from this folder.");
+                continue;
+            }
             if (!seen.Add(plugin.Manifest.Id)) { _problems.Add($"{name}: the plugin id '{plugin.Manifest.Id}' is already used by another folder."); continue; }
             if (plugin.GrammarJson.Select(json => Grammar.Parse(json, grammars).Id).FirstOrDefault(g => grammars.All.Any(x => string.Equals(x.Id, g, StringComparison.OrdinalIgnoreCase))) is { } taken)
             {

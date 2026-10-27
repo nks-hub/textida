@@ -402,5 +402,6 @@
   "cmd.packages.lookup": "Zkontrolovat verze balíčků...",
   "cmd.packages.refresh": "Obnovit verze balíčků...",
   "cmd.packages.revoke": "Zakázat dotazy na registry balíčků",
+  "cmd.plugins.manage": "Správce pluginů...",
   "cmd.packages.script": "Spustit skript balíčku..."
 }

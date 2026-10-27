@@ -12,9 +12,12 @@ using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Manager;
+using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.PluginHost.Ui;
+using NksHub.Textida.Workbench.Commands;
 using Host = NksHub.Textida.PluginHost.PluginHost;
 
 namespace NksHub.Textida.App.Services;
@@ -62,6 +65,21 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public McpService Mcp { get; }
     public UiApi UiApi { get; }
     internal PluginPermissions Permissions { get; } = new();
+
+    /// <summary>The plugins that come with the editor: id and name.</summary>
+    internal static IReadOnlyList<(string Id, string Name)> BuiltIns { get; } =
+    [
+        (JsonPluginId, "JSON"), (TextToolsPluginId, "Text tools"), (WebDataPluginId, "Web data"), (CodeExplorerPluginId, "Code Explorer"),
+        (EmmetPluginId, "Emmet"), (FormattersPluginId, "Formatters"), (GitPluginId, "Git"), (LspPluginId, "Language server"),
+    ];
+
+    /// <summary>Third-party plugins installed from a ZIP (P3b.4.2): install, consent, update, rollback, enable, uninstall.</summary>
+    internal PluginManager Manager { get; }
+
+    /// <summary>Installed plugins that could not be read at start; each entry names the plugin and the reason.</summary>
+    internal IReadOnlyList<string> InstalledProblems { get; }
+
+    private readonly HashSet<string> _boundInstalled = [];
 
     /// <summary>The package registries the user allowed (P8.7.3); the JSON plugin reads the same file.</summary>
     internal PackageRegistryConsent Registries { get; }
@@ -162,7 +180,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             [GitActivation], gitFolder));
 
         // the language server client reads the documents it follows and publishes diagnostics; it writes only what a rename proposes, in the change review, and may then touch files below the workspace.
-        // OPEN: who grants the workspace files permission (the TODO leaves it open); the built-in client holds it for now.
+        // The shipped client holds workspace.files from the start; any other plugin gets it only from the user, on the consent screen of the plugin manager.
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.WorkspaceFiles })
             permissions.Grant(LspPluginId, permission, GrantScope.All);
         var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "lsp");
@@ -173,6 +191,46 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString()],
             [LspActivation], lspFolder));
+
+        Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,
+            PluginLimitsPlaceholders.PluginZip(), BuiltIns.Select(b => b.Id).ToHashSet(StringComparer.Ordinal), permissions, _host);
+        // nothing awaits a process here: registering the enabled plugins completes at once
+        var (installed, problems) = Manager.StartAsync().GetAwaiter().GetResult();
+        InstalledProblems = problems;
+        foreach (var plugin in installed) BindInstalled(plugin);
+    }
+
+    /// <summary>
+    /// Gives the commands of an installed plugin with a process a handler that starts the plugin at its first use and sends it <c>command/execute</c>; a data plugin is read by the clip library instead.
+    /// The commands of a plugin are registered once per run: a new version that adds commands shows them after a restart.
+    /// </summary>
+    internal void BindInstalled(LoadedPlugin? plugin)
+    {
+        if (plugin?.Spec is null || !_boundInstalled.Add(plugin.Manifest.Id)) return;
+        var commands = _app.Workbench.Commands;
+        if (commands.AddManifest(plugin.Contributions).Count > 0) return;
+        var id = plugin.Manifest.Id;
+        foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))
+        {
+            var name = command.Id;
+            commands.SetHandler(name, async (_, _) => await RunInstalledAsync(id, name));
+        }
+    }
+
+    private async ValueTask<CommandOutcome> RunInstalledAsync(string pluginId, string command)
+    {
+        if (!_host.IsRegistered(pluginId)) return CommandOutcome.NotHandled;
+        try
+        {
+            await _host.ActivateAsync("onCommand:" + command).ConfigureAwait(false);
+            var result = await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes($"{{\"command\":\"{JsonEncodedText.Encode(command)}\"}}")).ConfigureAwait(false);
+            return result.ValueKind == JsonValueKind.False ? CommandOutcome.NotHandled : CommandOutcome.Handled;
+        }
+        catch (Exception e) when (e is PluginHandshakeException or PluginCrashedException or PluginUnavailableException)
+        {
+            Dispatcher.UIThread.Post(() => _app.ActiveWindow?.SetStatusMessage(e.Message));
+            return CommandOutcome.Handled;
+        }
     }
 
     // ---- language servers: definition, references, rename, diagnostics, completion ----

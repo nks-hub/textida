@@ -851,6 +851,15 @@ commands: nks.packages.script
 2. Ide to cez spúšťač nástrojov ako nástroj z projektového priečinka: príkaz, priečinok a súbor, z ktorého skript pochádza, sa ukážu a treba ich potvrdiť. Potvrdenie je viazané na text skriptu, takže zmenený skript sa opýta znova. Výstup ide do karty Úlohy; Zastaviť ho ukončí.
 - npm alebo Composer musí byť nainštalovaný. Na Windows sú obidva dávkové súbory, ktoré spúšťač odmieta; editor namiesto toho spustí Node s npm-cli.js, alebo PHP s composer.phar, z priečinka dávkového súboru.
 
+## [plugins.manager] Správca pluginov: inštalácia, aktualizácia, návrat a odobratie pluginov
+commands: nks.plugins.manage
+1. Nástroje, Správca pluginov vypíše pluginy dodávané s editorom aj tie, ktoré ste nainštalovali, a oprávnenia každého z nich. Príkazom Nainštalovať plugin zo ZIP sa pridá ďalší.
+2. ZIP sa rozbalí do prípravného priečinka a skontroluje skôr, než čokoľvek z neho beží: každá cesta musí zostať v priečinku pluginu, odkazy sa odmietajú, veľkosť aj počet súborov sú obmedzené, manifest nkspad-plugin.json musí ležať v koreni ZIP a byť platný a ID nesmie patriť vstavanému pluginu. Každý problém má vlastné hlásenie a nič sa neinštaluje.
+3. Potom editor ukáže oprávnenia, o ktoré plugin žiada, a čaká na vašu odpoveď. Kým nepovolíte, nič z pluginu nebeží. Oprávnenie upravovať a vytvárať súbory v pracovných priečinkoch (workspace.files) udeľuje tu používateľ, rovnako ako každé iné. Ak bol ZIP stiahnutý (na Windows značka Mark of the Web), dialóg to povie.
+4. Po výbere nainštalovaného pluginu ho môžete zapnúť alebo vypnúť, aktualizovať z novšieho ZIP, vrátiť na predchádzajúcu verziu, zmeniť jeho oprávnenia alebo odinštalovať. Nová verzia sa rozbalí vedľa starej a aktívna je, až keď sa načíta; stará zostane pre návrat. Aktualizácia sa pýta len na oprávnenia, na ktoré ste sa ešte nepýtali; skoršie odpovede platia ďalej.
+5. Odobraté oprávnenie hneď zastaví nové požiadavky pluginu a zruší tie, ktoré čakajú. Plugin bez oprávnenia dostane chybu, nie prázdny výsledok. Vypnutie ukončí proces; odinštalácia zmaže len priečinok daného pluginu.
+- Oprávnenia sú záznam toho, čo ste povolili, nie izolácia: plugin je program, ktorý beží s právami vášho používateľa. Inštalujte len pluginy, ktorým dôverujete. Podpisy sa zatiaľ nekontrolujú. Limity veľkosti a počtu súborov v ZIP sú provizórne. Nové príkazy aktualizovaného pluginu sa objavia po reštarte.
+
 ## [tools.lint] Lintery: podčiarknutie nálezov PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy a RuboCopu
 commands: nks.tools.lint
 1. Nástroje, Skontrolovať súbor linterom spustí linter, ktorý sa na otvorený súbor hodí: PHPStan alebo Psalm pre PHP, golangci-lint pre Go, Clippy pre Rust (potrebuje Cargo.toml v priečinku súboru alebo nad ním), clang-tidy pre C a C++, RuboCop pre Ruby. Keď súbor spracúvajú dva lintery, použije sa prvý, ktorého konfiguračný súbor (phpstan.neon, psalm.xml) sa nájde, inak prvý nainštalovaný.

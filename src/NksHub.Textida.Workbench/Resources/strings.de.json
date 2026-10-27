@@ -402,5 +402,6 @@
   "cmd.packages.lookup": "Paketversionen prüfen...",
   "cmd.packages.refresh": "Paketversionen aktualisieren...",
   "cmd.packages.revoke": "Paketregister-Abfragen verbieten",
+  "cmd.plugins.manage": "Plugin-Manager...",
   "cmd.packages.script": "Paketskript ausführen..."
 }

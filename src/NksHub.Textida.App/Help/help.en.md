@@ -846,6 +846,15 @@ commands: nks.packages.script
 2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
 - npm or Composer has to be installed. On Windows both are batch files, which the runner refuses; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file instead.
 
+## [plugins.manager] Plugin manager: install, update, roll back and remove plugins
+commands: nks.plugins.manage
+1. Tools, Plugin Manager lists the plugins that come with the editor and the ones you installed, with the permissions each holds. Choose Install plugin from ZIP to add one.
+2. The ZIP is unpacked into a staging folder and checked before anything of it runs: every path has to stay inside the plugin folder, links are refused, size and file count are limited, the manifest nkspad-plugin.json has to sit in the root of the ZIP and be valid, and the id may not belong to a built-in plugin. A problem is named in its own message and nothing is installed.
+3. Then the editor shows the permissions the plugin asks for and waits for your answer. Nothing of the plugin runs before you allow it. The permission to edit and create files below the workspace folders (workspace.files) is granted here, by you, like every other one. If the ZIP was downloaded (Mark of the Web on Windows) the dialog says so.
+4. Choose an installed plugin to enable or disable it, update it from a newer ZIP, roll back to the previous version, change its permissions or uninstall it. A new version is unpacked beside the old one and becomes active only when it loads; the old one stays for the roll back. An update asks only about permissions you were never asked about; your earlier answers stay.
+5. A permission you take back stops new requests of the plugin at once and cancels the ones waiting. A plugin without a permission gets an error, not an empty result. Disabling stops the process; uninstalling deletes only the folder of that plugin.
+- Permissions are a record of what you allowed, not a sandbox: a plugin is a program that runs with your user rights. Install only plugins you trust. Signatures are not checked yet. The size and file count limits for a ZIP are provisional. New commands of an updated plugin appear after a restart.
+
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop find
 commands: nks.tools.lint
 1. Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.

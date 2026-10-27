@@ -149,7 +149,7 @@ public sealed partial class App : Application
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
-        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);
+        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());

@@ -402,5 +402,6 @@
   "cmd.packages.lookup": "Skontrolovať verzie balíkov...",
   "cmd.packages.refresh": "Obnoviť verzie balíkov...",
   "cmd.packages.revoke": "Zakázať dotazy na registre balíkov",
+  "cmd.plugins.manage": "Správca pluginov...",
   "cmd.packages.script": "Spustiť skript balíka..."
 }

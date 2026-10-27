@@ -1620,6 +1620,11 @@
       "title": "cmd.tools.lint",
       "category": "cat.tools",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.plugins.manage",
+      "title": "cmd.plugins.manage",
+      "category": "cat.tools"
     }
   ],
   "menus": [
@@ -3086,6 +3091,12 @@
       "command": "nks.tools.lint",
       "group": "5_run",
       "order": 16
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.manage",
+      "group": "9_plugins",
+      "order": 10
     }
   ],
   "keybindings": [

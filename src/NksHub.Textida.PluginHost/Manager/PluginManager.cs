@@ -295,6 +295,10 @@ public sealed class PluginManager
         return (plugins, problems);
     }
 
+    /// <summary>Folders of the active versions of the enabled plugins that have no process (data plugins), for the app to read their clips, converters and grammars.</summary>
+    public IEnumerable<string> DataFolders() =>
+        ReadState().Plugins.Where(p => p.Value.Enabled && Loaded(p.Key) is { Spec: null }).Select(p => VersionFolder(p.Key, p.Value.Current));
+
     /// <summary>The plugin as loaded, for the app to register its commands; null when it is not installed or cannot be read.</summary>
     public LoadedPlugin? Loaded(string id)
     {
