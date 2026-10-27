@@ -270,6 +270,24 @@ commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.conv
 - Text v označení, který není číslo, se přeskočí a spočítá. Převod čísel funguje pro hodnoty od -9223372036854775808 do 18446744073709551615.
 - Mocnina bere jen kladný základ. Výpočet používá čísla s dvojitou přesností.
 
+## [tools.colors] Barvy
+commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.tools.colorToHsl, nks.tools.colorToOklch
+1. V souborech CSS, HTML, XML, JavaScript, TypeScript, PHP, Razor a Latte má každá hodnota barvy (`#ff8800`, `rgb()`, `hsl()`, `oklch()`) před sebou malý vzorek své barvy. Vzorek nezabírá žádný znak dokumentu.
+2. Klikněte na vzorek, nebo dejte kurzor na hodnotu a zvolte Nástroje, Vybrat barvu u kurzoru. Otevře se výběr: posuvníky pro odstín, sytost, světlost a krytí a pole s hodnotou, které přijme i barvu v jiném zápisu. Kliknutí mimo výběr zapíše barvu přes hodnotu v zápisu, jaký měla, jako jeden krok zpět; Esc výběr zavře beze změny.
+3. Nástroje, Převést barvu na HEX, RGB, HSL nebo oklch přepíše hodnotu barvy u kurzoru, nebo všechny v označení, do zvoleného zápisu. Barva zůstane stejná osmibitová barva; oklch se píše na pět desetinných míst u světlosti a sytosti a na dvě u odstínu.
+- Barva mimo rozsah sRGB se do něj ořízne. Krytí se zachová, jako `/ alfa` nebo jako poslední dvě hexadecimální číslice.
+- Text, který jen vypadá jako barva, třeba `rgb(var(--c))`, entita HTML `&#123;` nebo `#12345`, se nechá být.
+- Soubor větší než limit pluginu se nepřevádí; zpráva to řekne.
+
+## [tools.keys] Cesty klíčů v YAML a JSON
+commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
+1. V souboru YAML nebo JSON ukazuje stavový řádek cestu klíče pod kurzorem, například `cs.app.title`. Položky seznamu se píšou `items[0]` a klíč s tečkou nebo závorkou se píše `["a.b"]`. Cesta se čte pro revizi a kurzor, pro které se zeptalo: když mezitím píšete nebo kurzor přesunete, odpověď se zahodí.
+2. Nástroje, Kopírovat cestu klíče dá cestu do schránky.
+3. Nástroje, Přejít na klíč (nebo `@` v Přejít na cokoli) vypíše klíče souboru podle cesty; Enter označí klíč tak, jak je napsán. Zobrazit osnovu klíčů vypíše tytéž klíče v panelu pluginu a kliknutí tam označí stejné bajty.
+4. Nástroje, Porovnat klíče s jiným souborem se zeptá na další otevřený soubor YAML nebo JSON a do okna výstupu vypíše klíče s hodnotou, které každému souboru chybí.
+- YAML v blokovém zápisu se čte: vnořené klíče, seznamy, klíče v uvozovkách a blokové skaláry. Hodnota ve složených nebo hranatých závorkách se počítá za jednu hodnotu. JSON smí mít komentáře a čárku na konci.
+- Chyba syntaxe zastaví čtení na tom místě; klíče před ní zůstanou a zpráva uvede řádek.
+
 ## [edit.carets] Více kurzorů
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Vyberte slovo a Ctrl+D přidá další jeho výskyt do výběru. Opakujte pro další výskyty.
@@ -362,7 +380,8 @@ commands: nks.search.gotoAnything
 3. Enter soubor otevře. Napíšete-li :120, kurzor skočí na řádek 120 aktivního dokumentu. 
 - Bez otevřené složky se vypíšou jen otevřené a nedávné soubory.
 - Soubor, který už neexistuje, je označen jako chybí.
-- Pod seznamem je náhled zvýrazněného souboru; binární soubor se nezobrazí.
+- Pod seznamem je náhled zvýrazněného souboru; binární soubor se nezobrazí. Hodnoty souboru `.env` se v náhledu ukazují jako `••••`.
+- V souboru YAML nebo JSON vypíše `@` s částí cesty klíče všechny klíče souboru (téma Cesty klíčů v YAML a JSON).
 
 ## [search.jump] Místa úprav a skoky
 commands: nks.search.recentEdits, nks.search.jumpBack, nks.search.jumpForward
@@ -410,6 +429,15 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 - Řádek delší než 50 000 znaků se nikdy nezalomí: Přepnout zalamování to řekne ve stavovém řádku. Stránkovaný režim nezalamuje nikdy.
 - Znaky, které hlavní písmo nemá, se vykreslí písmy z nastavení Náhradní písma.
 - Ctrl a kolečko myši mění velikost písma jako příkazy zvětšení.
+
+## [view.secrets] Skryté hodnoty v souborech .env
+commands: nks.view.toggleSecrets
+1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`. Zobrazit a Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
+- Když na hodnotu najedete ukazatelem myši, ukáže se jen ta jedna.
+- Text souboru se nemění: uložení zapíše stejné bajty.
+- Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav a ve výsledcích hledání. Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
+- Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
+- Stránkovaný režim a hexadecimální zobrazení ukazují bajty tak, jak jsou.
 
 ## [view.tabs] Přepínání karet
 commands: nks.view.nextTab, nks.view.previousTab

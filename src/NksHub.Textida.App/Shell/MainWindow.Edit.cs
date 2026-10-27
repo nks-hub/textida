@@ -72,6 +72,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleRightMargin" => (Options.RightMargin > 0, false),
         "nks.view.toggleLinks" => (Options.Links, false),
         "nks.view.toggleMinimap" => (Options.Minimap, false),
+        "nks.view.toggleSecrets" => (Active?.Surface?.SecretsRevealed ?? false, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
@@ -223,6 +224,7 @@ internal sealed partial class MainWindow
     private CommandOutcome CopyOrCut(bool cut)
     {
         if (ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
+        if (surface.CopyHidden(cut)) return CommandOutcome.Handled;
         if (!surface.IsMulti)
         {
             RememberCopy(surface.SelectedText);

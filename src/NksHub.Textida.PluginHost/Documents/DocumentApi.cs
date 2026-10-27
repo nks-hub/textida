@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Rpc;
 
@@ -29,7 +30,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
-            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero)
+            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
@@ -58,8 +59,19 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         public EventHandler<DocumentChangedEventArgs>? Handler;
     }
 
-    private sealed record Pinned(string Id, DocumentSnapshot Snap, int Bom, DateTimeOffset Expires);
-    private sealed record Target(DocumentSnapshot Snap, int Bom);
+    private sealed record Pinned(string Id, DocumentSnapshot Snap, int Bom, DateTimeOffset Expires, Lazy<IReadOnlyList<ByteRange>>? Secrets);
+
+    /// <param name="Secrets">The byte ranges to hide from this plugin; null when the document has none or the plugin may see them.</param>
+    private sealed record Target(DocumentSnapshot Snap, int Bom, IReadOnlyList<ByteRange>? Secrets);
+
+    /// <summary>The secrets of a revision of a secrets file (found on first use), or null for any other document. Call on the thread that owns the document.</summary>
+    private Lazy<IReadOnlyList<ByteRange>>? SecretsOf(Document d, DocumentSnapshot snap, int bom) =>
+        SecretValues.IsSecretFile(d.FilePath)
+            ? new(() => snap.ByteLength > _options.MaxSecretScanBytes ? [new ByteRange(bom, snap.ByteLength)] : SecretValues.ByteRanges(snap, bom))
+            : null;
+
+    private IReadOnlyList<ByteRange>? Hidden(string pluginId, Guid document, Lazy<IReadOnlyList<ByteRange>>? secrets) =>
+        secrets is null || _options.Permissions.IsGranted(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(document)) ? null : secrets.Value;
 
     /// <summary>Makes a document visible to plugins. Call on the thread that owns the document.</summary>
     public void Expose(Document document, Func<SelectionSet?>? selections = null)
@@ -283,7 +295,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
                 if (_snapshots.TryGetValue(pluginId, out var list) && list.FindIndex(x => x.Id == id) is var at and >= 0)
                 {
                     var pin = list[at] = list[at] with { Expires = _time.GetUtcNow() + _options.SnapshotLifetime };
-                    return new Target(pin.Snap, pin.Bom);
+                    return new Target(pin.Snap, pin.Bom, Hidden(pluginId, pin.Snap.DocumentId, pin.Secrets));
                 }
             }
             throw Fail(DocumentErrorCodes.SnapshotExpired, "The snapshot has expired or was released.");
@@ -293,7 +305,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         return await _owner.InvokeAsync(() =>
         {
             CheckCurrent(e.Doc, revision);
-            return new Target(e.Doc.GetSnapshot(), e.Doc.BomLength);
+            var snap = e.Doc.GetSnapshot();
+            return new Target(snap, e.Doc.BomLength, Hidden(pluginId, e.Doc.Id, SecretsOf(e.Doc, snap, e.Doc.BomLength)));
         });
     }
 
@@ -317,6 +330,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         var t = await ResolveAsync(pluginId, p);
         var range = ReadRange(t, p, limit: true);
         var bytes = Guarded(t.Snap, () => t.Snap.ReadBytes(range));
+        if (t.Secrets is not null) SecretValues.MaskBytes(bytes, range.Start, t.Secrets, t.Snap.Codec);
         return Obj(w =>
         {
             w.WriteNumber("revision", t.Snap.Revision);
@@ -353,6 +367,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             if (!IsBoundary(t, range.Start) || !IsBoundary(t, range.End)) throw Fail(DocumentErrorCodes.InvalidRange, $"The range {range} does not fall on character boundaries.");
             return t.Snap.ReadBytes(range);
         });
+        if (t.Secrets is not null) SecretValues.MaskBytes(bytes, range.Start, t.Secrets, t.Snap.Codec);
         var decoded = t.Snap.Codec.WithBom(false).Decode(bytes);
         return Obj(w =>
         {
@@ -403,6 +418,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
                     long absolute = pos + at + i;
                     at += i + 1;
                     if (absolute < t.Bom || (absolute - t.Bom) % alignment != 0) continue;
+                    if (t.Secrets is not null && SecretValues.Overlaps(t.Secrets, absolute, absolute + needle.Length)) continue; // a match that touches a hidden value would tell what it is
                     if (matches.Count == _options.MaxFindMatches) { truncated = true; break; }
                     matches.Add(absolute);
                 }
@@ -548,8 +564,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     private async Task<byte[]> SnapshotCreateAsync(string pluginId, JsonElement p)
     {
         var e = Find(NeedDocumentId(p));
-        var (snap, bom) = await _owner.InvokeAsync(() => (e.Doc.GetSnapshot(), e.Doc.BomLength));
-        var pin = new Pinned(Guid.NewGuid().ToString("N"), snap, bom, _time.GetUtcNow() + _options.SnapshotLifetime);
+        var (snap, bom, secrets) = await _owner.InvokeAsync(() =>
+        {
+            var s = e.Doc.GetSnapshot();
+            return (s, e.Doc.BomLength, SecretsOf(e.Doc, s, e.Doc.BomLength));
+        });
+        var pin = new Pinned(Guid.NewGuid().ToString("N"), snap, bom, _time.GetUtcNow() + _options.SnapshotLifetime, secrets);
         lock (_gate)
         {
             PurgeExpired(pluginId);

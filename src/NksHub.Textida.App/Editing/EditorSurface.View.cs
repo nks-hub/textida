@@ -6,6 +6,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 using System.Globalization;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -118,7 +119,8 @@ internal sealed partial class EditorSurface : IMinimapHost
     {
         if (line < 0 || line >= Document.LineCount) return null;
         var textLine = Document.GetLineByNumber((int)line + 1);
-        return Document.GetText(textLine.Offset, Math.Min(textLine.Length, Minimap.MaxChars));
+        var text = Document.GetText(textLine.Offset, Math.Min(textLine.Length, Minimap.MaxChars));
+        return SecretsHidden ? SecretValues.Mask(text, Secrets(), textLine.Offset) : text;
     }
 
     (long First, long Count) IMinimapHost.Visible

@@ -1,9 +1,12 @@
 using System.Text;
+using System.Text.Json;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
@@ -22,11 +25,14 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string JsonActivation = "onCommand:json";
     public const string TextToolsPluginId = "textida.texttools";
     private const string TextToolsActivation = "onCommand:texttools";
+    public const string WebDataPluginId = "textida.webdata";
+    private const string WebDataActivation = "onCommand:webdata";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
 
-    private readonly record struct Run(MainWindow Window, DocTab Tab);
+    /// <summary>A command running on a document. A <paramref name="Background"/> one is the status bar asking for the key path: a command of the user waits for it instead of being refused.</summary>
+    private sealed record Run(MainWindow Window, DocTab Tab, bool Background, TaskCompletionSource Done);
 
     private readonly App _app;
     private readonly Host _host;
@@ -69,12 +75,22 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString()],
             [TextToolsActivation], toolsFolder));
+
+        // colours and key paths read the text; the colour conversion writes the converted values back
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
+            permissions.Grant(WebDataPluginId, permission, GrantScope.All);
+        var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "webdata");
+        var webProgram = Path.Combine(webFolder, "NksHub.Textida.Plugins.WebData" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(WebDataPluginId, "Web data", webProgram,
+            ["--chunk-bytes", PluginLimitsPlaceholders.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.WebDataMaxBytes.ToString(),
+             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
+            [WebDataActivation], webFolder));
     }
 
     internal Host HostForTests => _host;
 
     /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile).</summary>
-    public bool IsBusy => _running.Count > 0;
+    public bool IsBusy => _running.Values.Any(r => !r.Background);
 
     public Task<T> InvokeAsync<T>(Func<T> work) => Dispatcher.UIThread.InvokeAsync(work).GetTask();
 
@@ -102,28 +118,233 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command) =>
         tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command);
 
-    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command)
+    // ---- web data: colours and key paths ----
+
+    /// <summary>The syntax a key path is read in for a language mode (<c>yaml</c> or <c>json</c>); null for any other mode.</summary>
+    internal static string? KeySyntax(string languageId) => languageId is "yaml" or "json" ? languageId : null;
+
+    /// <summary>
+    /// Converts the colour values in the selections, or the one at the caret, to a notation (<c>hex</c>, <c>rgb</c>, <c>hsl</c> or <c>oklch</c>) through the web data plugin,
+    /// as one undo step. Returns false when nothing was started.
+    /// </summary>
+    public Task<bool> RunColorAsync(MainWindow window, DocTab tab, string format) =>
+        tab.Surface is null ? Task.FromResult(false) : RunCommandAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "color." + format);
+
+    /// <summary>The key under the caret as the plugin read it: the revision and the caret it belongs to, the dotted path and the bytes of the key.</summary>
+    internal sealed record KeyPathAnswer(long Revision, long Caret, string Path, ByteRange Key);
+
+    private DispatcherTimer? _keyPathTimer;
+    private (MainWindow Window, DocTab Tab)? _keyPathWanted;
+    private bool _keyPathShown;
+
+    private static long? CaretOf(EditorSurface surface) =>
+        surface.ByteSelections() is { Count: > 0 } selections ? selections.Items[selections.Primary].Caret : null;
+
+    /// <summary>The status bar is drawn for this tab: once the caret has rested, asks for the key path under it, when the tab is a YAML or JSON text. Any other tab clears it.</summary>
+    public void TrackKeyPath(MainWindow window, DocTab? tab)
+    {
+        if (tab is not { Surface: not null } || KeySyntax(tab.Doc.Language.Id) is null)
+        {
+            _keyPathWanted = null;
+            ShowKeyPath(null);
+            return;
+        }
+        _keyPathWanted = (window, tab);
+        if (_keyPathTimer is null)
+        {
+            _keyPathTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.KeyPathDebounceMilliseconds) };
+            _keyPathTimer.Tick += (_, _) =>
+            {
+                _keyPathTimer.Stop();
+                if (_keyPathWanted is { } wanted) _ = QueryKeyPathAsync(wanted.Window, wanted.Tab, background: true);
+            };
+        }
+        _keyPathTimer.Stop();
+        _keyPathTimer.Start();
+    }
+
+    private void ShowKeyPath(KeyPathAnswer? answer)
+    {
+        if (answer is null)
+        {
+            if (!_keyPathShown) return;
+            _keyPathShown = false;
+            Ui.SetStatus(WebDataPluginId, null);
+            return;
+        }
+        _keyPathShown = true;
+        Ui.SetStatus(WebDataPluginId, new StatusModel(answer.Path, Loc.Get(K.KeyPathTip)));
+    }
+
+    /// <summary>
+    /// Asks the web data plugin for the key under the caret of a YAML or JSON tab and shows it in the status bar. The answer belongs to the revision and the caret it was asked for:
+    /// when the document or the caret has moved by the time it arrives, it is dropped and the status bar keeps what is true. Null then, and when there is no key.
+    /// </summary>
+    internal async Task<KeyPathAnswer?> QueryKeyPathAsync(MainWindow window, DocTab tab, bool background = false)
+    {
+        if (tab.Surface is not { } surface || KeySyntax(tab.Doc.Language.Id) is not { } syntax || CaretOf(surface) is not { } caret) return null;
+        var document = tab.Doc.Doc;
+        long revision = document.Revision;
+        var outcome = await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.at", $",\"offset\":{caret},\"syntax\":\"{syntax}\"", notify: false, background: background);
+        if (!outcome.Started)
+        {
+            if (_keyPathWanted is not null) _keyPathTimer?.Start(); // a command was using the document: ask again when it is free
+            return null;
+        }
+        var r = outcome.Result;
+        if (r.ValueKind != JsonValueKind.Object || !r.TryGetProperty("revision", out var answered) || answered.GetInt64() != revision) return null;
+        if (!ReferenceEquals(tab.Doc.Doc, document) || document.Revision != revision || CaretOf(surface) != caret) return null;
+        KeyPathAnswer? answer = null;
+        if (r.GetProperty("status").GetString() == "ok")
+            answer = new KeyPathAnswer(revision, caret, r.GetProperty("path").GetString()!, new ByteRange(r.GetProperty("start").GetInt64(), r.GetProperty("end").GetInt64()));
+        ShowKeyPath(ReferenceEquals(window.Active, tab) ? answer : null);
+        return answer;
+    }
+
+    /// <summary>Puts the key path under the caret on the clipboard.</summary>
+    public async Task<bool> CopyKeyPathAsync(MainWindow window, DocTab tab)
+    {
+        var answer = await QueryKeyPathAsync(window, tab);
+        if (answer is null)
+        {
+            window.SetStatusMessage(Loc.Get(K.KeyPathNone));
+            return false;
+        }
+        if (window.Clipboard is { } clipboard) await clipboard.SetTextAsync(answer.Path);
+        window.SetStatusMessage(Loc.Get(K.KeyPathCopied, ("path", answer.Path)));
+        return true;
+    }
+
+    private bool _revealOutline = true;
+
+    /// <summary>
+    /// Reads the keys of a YAML or JSON tab through the web data plugin and publishes them as the symbols of the document: the outline lists them and Go to Anything
+    /// (<c>@</c>) jumps to them, both to the same bytes of the key. The document stays visible to plugins until its tab closes. <paramref name="reveal"/> opens the outline.
+    /// </summary>
+    public async Task<bool> IndexKeysAsync(MainWindow window, DocTab tab, bool reveal)
+    {
+        if (tab.Surface is null || KeySyntax(tab.Doc.Language.Id) is not { } syntax) return false;
+        _revealOutline = reveal;
+        try { return (await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.index", $",\"syntax\":\"{syntax}\"", keep: true)).Started; }
+        finally { _revealOutline = true; }
+    }
+
+    /// <summary>The keys published for the tab, and whether they are those of the revision the tab has now.</summary>
+    internal IReadOnlyList<SymbolInfo> KeySymbols(DocTab tab, out bool current) => Documents.SymbolsOf(WebDataPluginId, tab.Doc.Doc.Id, out current);
+
+    /// <summary>Jumps to a published key exactly as a click in the outline does. False when the key is gone or the text it stood on was changed.</summary>
+    public bool RevealKey(DocTab tab, string symbolId) => RevealSymbol(WebDataPluginId, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
+
+    /// <summary>
+    /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the
+    /// command started on; if either changed meanwhile the plugin says so and nothing is written.
+    /// </summary>
+    public async Task<bool> CompareKeysAsync(MainWindow window, DocTab tab, DocTab other)
+    {
+        if (tab.Surface is null || other.Surface is null || ReferenceEquals(tab.Doc, other.Doc)
+            || KeySyntax(tab.Doc.Language.Id) is not { } syntax || KeySyntax(other.Doc.Language.Id) is not { } otherSyntax) return false;
+        var outcome = await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.compare",
+            $",\"other\":\"{other.Doc.Doc.Id}\",\"otherRevision\":{other.Doc.Doc.Revision},\"syntax\":\"{syntax}\",\"otherSyntax\":\"{otherSyntax}\"", other);
+        if (!outcome.Started) return false;
+        var r = outcome.Result;
+        if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() != "compared") return true;
+
+        string nameA = tab.Doc.Title, nameB = other.Doc.Title;
+        var lines = new List<string> { Loc.Get(K.KeysCompareHeader, ("a", nameA), ("b", nameB)) };
+        if (r.GetProperty("errorLine").GetInt32() is > 0 and var errorA) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameA), ("line", errorA)));
+        if (r.GetProperty("otherErrorLine").GetInt32() is > 0 and var errorB) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameB), ("line", errorB)));
+        void Section(string property, string file)
+        {
+            var keys = r.GetProperty(property).EnumerateArray().Select(k => k.GetString()!).ToList();
+            lines.Add(keys.Count == 0 ? Loc.Get(K.KeysCompareNoneMissing, ("file", file)) : Loc.Plural(K.KeysCompareMissing, keys.Count, ("file", file)));
+            lines.AddRange(keys.Select(k => "    " + k));
+        }
+        Section("missingInOther", nameB);
+        Section("missingInDocument", nameA);
+        _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.KeysCompareSource), string.Join('\n', lines));
+        window.ShowOutput(OutputChannel.Tasks);
+        return true;
+    }
+
+    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command) =>
+        (await ExecuteAsync(window, tab, pluginId, activation, name, command)).Started;
+
+    /// <summary>The answer of a plugin command: whether it was started at all (not when it is already running on the document or the user refused), and what the plugin said.</summary>
+    private readonly record struct Outcome(bool Started, JsonElement Result);
+
+    /// <summary>
+    /// Runs one plugin command on the tab. The document (and <paramref name="other"/>, when a command compares two) is visible to plugins only meanwhile, unless
+    /// <paramref name="keep"/> asks to leave a document with published symbols exposed: the outline stays valid, and the document goes when its tab closes (<see cref="Forget"/>).
+    /// <paramref name="extra"/> is more members of the request object, already written as JSON (starting with a comma). Without <paramref name="notify"/> a plugin that cannot run is passed over silently.
+    /// </summary>
+    private async Task<Outcome> ExecuteAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command,
+        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false)
     {
         var document = tab.Doc.Doc;
-        if (_running.ContainsKey(document.Id)) return false;
-        _running[document.Id] = new Run(window, tab);
-        Documents.Expose(document, tab.Surface is { } surface ? surface.ByteSelections : null);
+        var otherDocument = other?.Doc.Doc;
+        Run? Blocking() => _running.TryGetValue(document.Id, out var first) ? first : otherDocument is not null && _running.TryGetValue(otherDocument.Id, out var second) ? second : null;
+        bool Busy() => Blocking() is not null;
+        if (!background)
+            while (Blocking() is { Background: true } asking) await asking.Done.Task;
+        if (Busy()) return default;
+        // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
+        bool reveal = SecretValues.IsSecretFile(document.FilePath);
+        if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.FilePath)!))))) return default;
+        if (Busy()) return default;
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _running[document.Id] = new Run(window, tab, background, done);
+        if (other is not null) _running[otherDocument!.Id] = new Run(window, other, background, done);
+        if (reveal) Permissions.Grant(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(document.Id));
+        bool own = !Documents.IsExposed(document.Id), ownOther = otherDocument is not null && !Documents.IsExposed(otherDocument.Id);
+        if (own) Documents.Expose(document, tab.Surface is { } surface ? surface.ByteSelections : null);
+        if (ownOther) Documents.Expose(otherDocument!, other!.Surface is { } otherSurface ? otherSurface.ByteSelections : null);
+        JsonElement result = default;
         try
         {
             await _host.ActivateAsync(activation);
-            var request = $"{{\"command\":\"{command}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"}}";
-            await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes(request));
+            var request = $"{{\"command\":\"{command}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"{extra}}}";
+            result = (await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes(request))).Clone();
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
         {
-            window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
+            if (notify) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
         }
         finally
         {
-            Documents.Withdraw(document);
+            if (own && keep && Documents.HasSymbols(document.Id)) Keep(tab.Doc, document);
+            else if (own) Documents.Withdraw(document);
+            if (ownOther) Documents.Withdraw(otherDocument!);
             _running.Remove(document.Id);
+            if (otherDocument is not null) _running.Remove(otherDocument.Id);
+            done.TrySetResult();
+            if (reveal) Permissions.Revoke(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(document.Id));
         }
-        return true;
+        return new Outcome(true, result);
+    }
+
+    // ---- documents that stay exposed for their outline ----
+
+    private readonly Dictionary<Guid, (OpenDocument Open, Document Document)> _kept = [];
+
+    private void Keep(OpenDocument open, Document document)
+    {
+        if (_kept.ContainsKey(document.Id)) return;
+        _kept[document.Id] = (open, document);
+        open.Replaced += () => ForgetReplaced(open);
+    }
+
+    /// <summary>The document was swapped (reload): the old one is not shown to plugins any more.</summary>
+    private void ForgetReplaced(OpenDocument open)
+    {
+        foreach (var kept in _kept.Values.ToArray())
+            if (ReferenceEquals(kept.Open, open) && !ReferenceEquals(kept.Document, open.Doc)) Forget(kept.Document);
+    }
+
+    /// <summary>The document is going away (its last tab closed): plugins stop seeing it and its symbols go. Call on the UI thread, before the document is disposed.</summary>
+    public void Forget(Document document)
+    {
+        if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
+        if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
     }
 
     // ---- early tools: outline, reveal, snippets, Tab ----
@@ -151,7 +372,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             ? [.. list.Select(s => new PanelItem(s.Id, s.Name, s.Kind.Length == 0 ? null : s.Kind, Level(s.Id)))]
             : [];
         var title = Loc.Get(current ? K.PluginSymbolsTitle : K.PluginSymbolsOutdated);
-        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: first));
+        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: first && _revealOutline));
     });
 
     public void SymbolsCleared(string pluginId, Guid document) => OnUi(() =>

@@ -109,6 +109,30 @@ public sealed partial class DocumentApi
         return mapped.Ok ? mapped.Range : null;
     }
 
+    /// <summary>
+    /// The symbols a plugin published for a document, and whether they belong to the current revision (otherwise they are outdated and a jump maps them
+    /// through the change log, see <see cref="ResolveSymbol"/>). Empty when the plugin published none.
+    /// </summary>
+    public IReadOnlyList<SymbolInfo> SymbolsOf(string pluginId, Guid document, out bool current)
+    {
+        lock (_gate)
+        {
+            if (_symbols.TryGetValue((pluginId, document), out var published))
+            {
+                current = published.Current;
+                return published.Set.Symbols;
+            }
+        }
+        current = false;
+        return [];
+    }
+
+    /// <summary>Whether any plugin has symbols published for the document, so withdrawing it would take them away.</summary>
+    public bool HasSymbols(Guid document)
+    {
+        lock (_gate) return _symbols.Keys.Any(key => key.Document == document);
+    }
+
     /// <summary>Marks the sets of this document as outdated; called on the owner thread when it changed.</summary>
     private void MarkSymbolsOutdated(Document d, long revision)
     {

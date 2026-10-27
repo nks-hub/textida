@@ -54,7 +54,9 @@ internal sealed class PluginUiHost(App app) : IPluginUi
 
     public void SetStatus(string pluginId, StatusModel? status) => OnUi(() =>
     {
-        if (status is null) _status.Remove(pluginId); else _status[pluginId] = status;
+        // the same text again redraws nothing: a status that follows the caret must not rebuild an open panel
+        if (status is null ? !_status.Remove(pluginId) : _status.TryGetValue(pluginId, out var known) && known == status) return;
+        if (status is not null) _status[pluginId] = status;
         Changed?.Invoke();
     });
 

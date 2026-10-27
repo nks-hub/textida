@@ -61,6 +61,7 @@ internal sealed partial class MainWindow
     private void UpdateStatusCore()
     {
         CheckJournalHealth();
+        _app.Plugins.TrackKeyPath(this, Active);
         if (Active is not { Custom: null, Hex: null }) _statusRight.Children.Clear(); // a text tab keeps its items and swaps them only when they differ
         if (Active is not { } tab)
         {

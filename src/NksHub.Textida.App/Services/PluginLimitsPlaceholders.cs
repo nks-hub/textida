@@ -32,6 +32,23 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder: largest grammar file of a data plugin.</summary>
     public const long GrammarMaxBytes = 1 << 20;
+    /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
+    public const long SecretScanMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder: bytes the web data plugin (colours, key paths) reads per request. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int WebDataChunkBytes = 1 << 20;
+
+    /// <summary>Placeholder: largest file the web data plugin reads whole to find colours or keys.</summary>
+    public const int WebDataMaxBytes = 4 << 20;
+
+    /// <summary>Placeholder: keys of one file published as symbols (outline, Go to Anything).</summary>
+    public const int SymbolsPerDocument = 5000;
+
+    /// <summary>Placeholder: longest symbol id, name or kind, in UTF-16 units.</summary>
+    public const int SymbolTextLength = 400;
+
+    /// <summary>Placeholder: how long the caret rests before the status bar asks for the key path under it.</summary>
+    public const int KeyPathDebounceMilliseconds = 150;
 
     public static PluginHostOptions Host() => new()
     {
@@ -54,11 +71,12 @@ internal static class PluginLimitsPlaceholders
 
     public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog) => new()
     {
-        MaxSymbolsPerDocument = 5000,
-        MaxSymbolTextLength = 400,
+        MaxSymbolsPerDocument = SymbolsPerDocument,
+        MaxSymbolTextLength = SymbolTextLength,
         MaxSnippetLength = SnippetLength,
         MaxSnippetCarets = SnippetCarets,
         TabTimeout = TabTimeout,
+        MaxSecretScanBytes = SecretScanMaxBytes,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,
