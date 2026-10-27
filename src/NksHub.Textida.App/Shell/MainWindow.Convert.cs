@@ -2,13 +2,14 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Conversions;
 using NksHub.Textida.PluginHost.Conversions;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>One entry of the list of conversions: the special conversions of the editor and the converters of the data plugins. <paramref name="Key"/> finds it again for "repeat last command".</summary>
-internal sealed record ConversionChoice(string Key, string Title, string Origin, Func<string, ConversionResult> Convert, string? Sample);
+internal sealed record ConversionChoice(string Key, string Title, string Origin, Func<string, ConversionContext, ConversionResult> Convert, string? Sample);
 
 /// <summary>
 /// Conversions and edit recipes over the open file. A conversion changes the text of every selection (the whole file when nothing is selected) and leaves
@@ -25,33 +26,43 @@ internal sealed partial class MainWindow
     private List<ConversionChoice> ConversionChoices()
     {
         var list = new List<ConversionChoice>();
-        foreach (var s in _app.SpecialConversions)
-            list.Add(new ConversionChoice("special/" + s.Id, Loc.Get(s.TitleKey), Loc.Get(K.ConvertOriginBuiltin), t => new ConversionResult(s.Convert(t), null), null));
+        foreach (var s in _app.SpecialConversions) list.Add(SpecialChoice(s));
         foreach (var e in _app.Clips.Converters) list.Add(ConverterChoice(e));
         return list;
     }
 
+    private ConversionChoice SpecialChoice(SpecialConversion s) =>
+        new("special/" + s.Id, _app.Workbench.Strings.Get(s.TitleKey), Loc.Get(K.ConvertOriginBuiltin),
+            (t, at) => s.Convert(t, at) is { } converted ? new ConversionResult(converted, null) : new ConversionResult(null, Loc.Get(K.ConvertSpecialRefused)), s.Sample);
+
     private static ConversionChoice ConverterChoice(ConverterEntry e) =>
-        new($"{e.PluginId}/{e.Converter.Id}", e.Converter.Title, e.PluginName, t => TextConversion.Apply(e.Converter, t), e.Converter.Samples.FirstOrDefault()?.Input);
+        new($"{e.PluginId}/{e.Converter.Id}", e.Converter.Title, e.PluginName, (t, _) => TextConversion.Apply(e.Converter, t), e.Converter.Samples.FirstOrDefault()?.Input);
+
+    /// <summary>The command of one special conversion: converts every selection at once, without the list.</summary>
+    internal CommandOutcome ConvertSpecial(SpecialConversion conversion) => ConvertSelections(SpecialChoice(conversion));
 
     /// <summary>Edit, Convert: the list of conversions with a preview on the selected text (or the first sample of the converter); the chosen one runs. While repeating, the last one runs at once.</summary>
     internal CommandOutcome ShowConversions(bool repeat)
     {
-        if (ActiveEditor is not { IsReadOnly: false }) return CommandOutcome.NotHandled;
+        if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         ReportLibraryProblems();
         var choices = ConversionChoices();
         if (repeat && choices.FirstOrDefault(c => c.Key == _app.LastParameters.Conversion) is { } last) return ConvertSelections(last);
 
         var selected = SelectionTexts().FirstOrDefault(t => t.Length > 0);
+        // shortcut: the preview counts tab stops from column 0, so Tabs to Spaces on a selection that starts inside a line may preview other widths than it writes
+        var at = new ConversionContext(TabSizeOf(surface), 0);
         var rows = choices.Select(c => new QuickRow(c.Title, c.Origin, null, null, true, null, $"{c.Title}, {c.Origin}",
-            () => ConvertSelections(c), () => ConversionPreview(c, selected ?? c.Sample ?? ""))).ToList();
+            () => ConvertSelections(c), () => ConversionPreview(c, selected ?? c.Sample ?? "", at))).ToList();
         ShowChoice(Loc.Get(K.ConvertWatermark), Loc.Get(K.A11yConvert), rows, emptyText: Loc.Get(K.ConvertEmpty));
         return CommandOutcome.Handled;
     }
 
-    private static string ConversionPreview(ConversionChoice choice, string text)
+    private static int TabSizeOf(EditorSurface surface) => Math.Max(1, surface.Settings.TabSize);
+
+    private static string ConversionPreview(ConversionChoice choice, string text, ConversionContext at)
     {
-        var result = choice.Convert(text);
+        var result = choice.Convert(text, at);
         return result.Problem is { } why ? Loc.Get(K.ConvertFailed, ("title", choice.Title), ("reason", why)) : FirstLines(result.Text!);
     }
 
@@ -68,10 +79,16 @@ internal sealed partial class MainWindow
 
         var results = new List<string>(targets.Count);
         bool changed = false;
+        int tabSize = TabSizeOf(surface), lineStart = -1, scanned = 0, column = 0;
         foreach (var target in targets)
         {
+            // the visual column of each start, counted on from the previous selection of the same line so many carets on one long line stay linear
+            var line = document.GetLineByOffset(target.Start);
+            if (line.Offset != lineStart) (lineStart, scanned, column) = (line.Offset, line.Offset, 0);
+            for (; scanned < target.Start; scanned++) column = document.GetCharAt(scanned) == '\t' ? column + tabSize - column % tabSize : column + 1;
+
             var original = document.GetText(target.Start, target.Length);
-            var result = choice.Convert(original);
+            var result = choice.Convert(original, new ConversionContext(tabSize, column));
             if (result.Problem is { } why)
             {
                 SetStatusMessage(Loc.Get(K.ConvertFailed, ("title", choice.Title), ("reason", why)));

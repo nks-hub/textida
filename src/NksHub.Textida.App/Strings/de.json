@@ -891,6 +891,7 @@
   "convert.empty": "Noch keine Umwandlungen. Ein Datenplugin mit Konvertern in den Ordner plugins des Profils legen.",
   "convert.failed": "Die Umwandlung {title} lief nicht: {reason}. Nichts wurde geändert.",
   "convert.origin.builtin": "Eingebaut",
+  "convert.special.refused": "der Text hat nicht die Form, die diese Umwandlung liest",
   "recipes.watermark": "Bearbeitungsrezept wählen",
   "a11y.recipes": "Bearbeitungsrezepte",
   "recipes.empty": "Noch keine Bearbeitungsrezepte. Ein Datenplugin mit Rezepten in den Ordner plugins des Profils legen.",

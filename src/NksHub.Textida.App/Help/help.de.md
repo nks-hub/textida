@@ -1113,7 +1113,18 @@ Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Dat
 - Konverter sind Daten: contributes.converters in nkspad-plugin.json, mit id, title, rules und optional samples und command. Eine Regel ist {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Die Regeln laufen der Reihe nach, jede auf dem Ergebnis der vorigen. Mit regex gilt der Dialekt der Suche: replace darf $1, ${name}, $& und die Groß-/Kleinschreibungs-Codes \U \L \E \u \l nutzen.
 - Ein Beispiel ist {"input": "...", "expected": "..."}. Beim Lesen des Plugins wird jedes Beispiel umgewandelt. Ein Konverter, dessen Beispiel einen anderen Text ergibt, der keine Regeln hat, ein leeres find oder einen falschen regulären Ausdruck, wird abgelehnt und das Plugin mit dem Grund in der Statuszeile übersprungen.
 - Ein Konverter mit "command" bekommt auch einen Befehl dieses Namens, der sofort umwandelt, ohne Liste.
-- Die speziellen Umwandlungen des Editors selbst stehen in derselben Liste. Diese Version hat noch keine.
+- Die speziellen Umwandlungen des Editors selbst stehen in derselben Liste (Thema Spezielle Umwandlungen).
+
+## [edit.specialConversion] Spezielle Umwandlungen
+commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
+Umwandlungen, die der Editor selbst hat. Jede ist ein Befehl in der Befehlspalette und im Menü Bearbeiten, Spezielle Umwandlungen, und steht auch in der Liste Umwandeln. Sie ändert den Text aller Auswahlen auf einmal als ein Rückgängig-Schritt, oder die ganze Datei, wenn nichts markiert ist. Der neue Text bleibt markiert.
+- Dezimal nach Hexadezimal und zurück: Die Auswahl muss eine ganze Zahl von 0 bis 18446744073709551615 (FFFFFFFFFFFFFFFF) sein, eine hexadezimale darf mit 0x beginnen. Leerzeichen und Zeilenenden um die Zahl bleiben. 255 ergibt FF, ACE ergibt 2766.
+- Text in URL-Kodierung schreibt alles außer den Buchstaben A bis Z, Ziffern und - _ . ~ als %XX der UTF-8-Bytes, ein Leerzeichen als %20 und ein Zeilenende als %0D%0A, oder %0A in einer Datei mit LF-Zeilenenden. URL-Kodierung in Text liest %XX zurück; ein % ohne zwei Hexadezimalziffern bleibt, wie es ist.
+- Text in Quoted-Printable behält druckbares ASCII und Leerzeichen und schreibt jedes andere UTF-8-Byte, Zeilenenden und = eingeschlossen, als =XX. Quoted-Printable in Text liest =XX und lässt = am Zeilenende weg; jedes andere = lehnt den Text ab.
+- Text in Base64 kodiert die UTF-8-Bytes. Base64 in Text überspringt Leerzeichen und Zeilenenden darin und lehnt Text ab, der kein Base64 ist oder dessen Bytes kein UTF-8 sind.
+- Akzente entfernen nimmt Akut, Hatschek, Kringel und Umlautpunkte von den Buchstaben (č zu c, ü zu u). Buchstaben ohne Zerlegung (ł, ø, ß) und die Zeichen anderer Schriften bleiben.
+- Tabulatoren in Leerzeichen ersetzt jeden Tabulator durch Leerzeichen bis zum nächsten Tabstopp nach der Tabulatorgröße des Dokuments, gezählt ab der Spalte, in der die Auswahl beginnt.
+- Wenn die Umwandlung eine Auswahl nicht lesen kann, ändert sich nichts und die Statusleiste sagt es. Letzten Befehl wiederholen führt dieselbe Umwandlung erneut aus.
 
 ## [edit.recipes] Bearbeitungsrezepte
 commands: nks.edit.runRecipe

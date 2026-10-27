@@ -915,6 +915,7 @@
   "convert.empty": "Zatiaľ nie sú žiadne prevody. Dajte do priečinka plugins v profile dátový plugin s prevodníkmi.",
   "convert.failed": "Prevod {title} nebehol: {reason}. Nič sa nezmenilo.",
   "convert.origin.builtin": "Vstavaný",
+  "convert.special.refused": "text nemá tvar, ktorý tento prevod číta",
   "recipes.watermark": "Vyberte recept úprav",
   "a11y.recipes": "Recepty úprav",
   "recipes.empty": "Zatiaľ nie sú žiadne recepty úprav. Dajte do priečinka plugins v profile dátový plugin s receptami.",

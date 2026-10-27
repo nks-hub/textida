@@ -878,6 +878,7 @@ public static class K
     public const string ConvertEmpty = "convert.empty";
     public const string ConvertFailed = "convert.failed";
     public const string ConvertOriginBuiltin = "convert.origin.builtin";
+    public const string ConvertSpecialRefused = "convert.special.refused";
     public const string RecipesWatermark = "recipes.watermark";
     public const string A11yRecipes = "a11y.recipes";
     public const string RecipesEmpty = "recipes.empty";

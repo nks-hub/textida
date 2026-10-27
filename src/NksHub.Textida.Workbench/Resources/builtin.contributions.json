@@ -1241,6 +1241,106 @@
       "repeatable": true
     },
     {
+      "id": "nks.edit.convert.decToHex",
+      "title": "cmd.edit.convert.decToHex",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.hexToDec",
+      "title": "cmd.edit.convert.hexToDec",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.urlEncode",
+      "title": "cmd.edit.convert.urlEncode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.urlDecode",
+      "title": "cmd.edit.convert.urlDecode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.quotedPrintableEncode",
+      "title": "cmd.edit.convert.quotedPrintableEncode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.quotedPrintableDecode",
+      "title": "cmd.edit.convert.quotedPrintableDecode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.base64Encode",
+      "title": "cmd.edit.convert.base64Encode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.base64Decode",
+      "title": "cmd.edit.convert.base64Decode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.removeAccents",
+      "title": "cmd.edit.convert.removeAccents",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.convert.tabsToSpaces",
+      "title": "cmd.edit.convert.tabsToSpaces",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
       "id": "nks.tools.run",
       "title": "cmd.tools.run",
       "category": "cat.tools"
@@ -2973,6 +3073,76 @@
       "group": "4_more/8_insert",
       "submenu": "convert",
       "order": 9
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.decToHex",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.hexToDec",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.urlEncode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.urlDecode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.quotedPrintableEncode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.quotedPrintableDecode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.base64Encode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.base64Decode",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.removeAccents",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.tabsToSpaces",
+      "group": "4_more/8_special",
+      "submenu": "specialConversion",
+      "order": 100
     },
     {
       "menu": "file",

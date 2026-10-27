@@ -891,6 +891,7 @@
   "convert.empty": "No conversions yet. Put a data plugin with converters into the plugins folder of the profile.",
   "convert.failed": "The conversion {title} did not run: {reason}. Nothing was changed.",
   "convert.origin.builtin": "Built in",
+  "convert.special.refused": "the text is not in the form this conversion reads",
   "recipes.watermark": "Choose an edit recipe",
   "a11y.recipes": "Edit recipes",
   "recipes.empty": "No edit recipes yet. Put a data plugin with recipes into the plugins folder of the profile.",
