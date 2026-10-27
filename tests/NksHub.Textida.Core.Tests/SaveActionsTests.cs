@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Tools;
@@ -6,20 +7,19 @@ using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
 
-/// <summary>A test that needs the real gofmt; it is skipped where the program is not on PATH.</summary>
-public sealed class GofmtFactAttribute : FactAttribute
+/// <summary>A test that needs a real program; it is skipped where the program is not on PATH.</summary>
+public sealed class InstalledFactAttribute : FactAttribute
 {
-    public GofmtFactAttribute()
+    public InstalledFactAttribute(string program)
     {
-        bool installed = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-            .Any(d => d.Length > 0 && (File.Exists(Path.Combine(d, "gofmt")) || File.Exists(Path.Combine(d, "gofmt.exe"))));
-        if (!installed) Skip = "gofmt is not installed here.";
+        if (ToolLocator.Find(program) is null) Skip = program + " is not installed here.";
     }
 }
 
 /// <summary>
 /// P8.3.1: the order of a save with actions, with the test program of ToolEcho as the formatter (success, a syntax error, a missing program, a timeout).
-/// The formatters of the catalog (gofmt, rustfmt, clang-format, RuboCop) are not started here except gofmt; the table is in <see cref="LanguageCatalog"/>.
+/// Every formatter of <see cref="LanguageCatalog"/> goes through the same four cases with a copy of ToolEcho named like it, which gets the arguments of the catalog.
+/// gofmt, clang-format and dart format also have a test with the real program, which runs where it is on PATH.
 /// </summary>
 public sealed class SaveActionsTests : IDisposable
 {
@@ -129,7 +129,7 @@ public sealed class SaveActionsTests : IDisposable
         Assert.Equal("AB", Encoding.UTF8.GetString(all));
     }
 
-    [GofmtFact]
+    [InstalledFact("gofmt")]
     public async Task The_gofmt_of_the_catalog_formats_a_go_file_when_it_is_installed()
     {
         File.WriteAllText(Path.Combine(_dir, "go.mod"), "module x\n");
@@ -143,6 +143,205 @@ public sealed class SaveActionsTests : IDisposable
         Assert.Equal(FormatResult.Formatted, outcome.Result);
         Assert.Contains("func main() {}", Text(doc));
         Assert.DoesNotContain(Directory.GetFiles(_dir), f => f.Contains(".textida-fmt-", StringComparison.Ordinal));
+    }
+
+    [InstalledFact("clang-format")]
+    public async Task The_real_clang_format_formats_code_that_does_not_parse_and_fails_only_on_a_broken_configuration()
+    {
+        File.WriteAllText(Path.Combine(_dir, ".clang-format"), "BasedOnStyle: LLVM\n");
+        using var good = OpenModified("int  main( ){return 0;}\n", "a.cpp");
+        Assert.Equal(FormatResult.Formatted, (await ConfigFormatters.FormatAsync(good, ConfigFormatters.Find("clang-format")!, TimeSpan.FromSeconds(60))).Result);
+        Assert.Equal("xint main() { return 0; }\n", Text(good));
+
+        using var broken = OpenModified("int main( { return 0;\n", "b.cpp");
+        Assert.Equal(FormatResult.Formatted, (await ConfigFormatters.FormatAsync(broken, ConfigFormatters.Find("clang-format")!, TimeSpan.FromSeconds(60))).Result);
+
+        File.WriteAllText(Path.Combine(_dir, ".clang-format"), "BasedOnStyle: NoSuchStyle\n");
+        using var config = OpenModified("int  main( ){return 0;}\n", "c.cpp");
+        var outcome = await ConfigFormatters.FormatAsync(config, ConfigFormatters.Find("clang-format")!, TimeSpan.FromSeconds(60));
+        Assert.Equal(FormatResult.Failed, outcome.Result);
+        Assert.Contains("code 1", outcome.Reason);
+        Assert.Equal("xint  main( ){return 0;}\n", Text(config));
+    }
+
+    [InstalledFact("dart")]
+    public async Task The_real_dart_format_formats_a_file_and_ends_with_code_65_on_code_it_cannot_read()
+    {
+        File.WriteAllText(Path.Combine(_dir, "analysis_options.yaml"), "formatter:\n  page_width: 80\n");
+        using var good = OpenModified("void main( ){print(1);}\n", "a.dart");
+        Assert.Equal(FormatResult.Formatted, (await ConfigFormatters.FormatAsync(good, ConfigFormatters.Find("dart-format")!, TimeSpan.FromSeconds(120))).Result);
+        Assert.Equal("xvoid main() {\n  print(1);\n}\n", Text(good));
+
+        using var broken = OpenModified("void main( { print(1);\n", "b.dart");
+        var outcome = await ConfigFormatters.FormatAsync(broken, ConfigFormatters.Find("dart-format")!, TimeSpan.FromSeconds(120));
+        Assert.Equal(FormatResult.Failed, outcome.Result);
+        Assert.Contains("code 65", outcome.Reason);
+        Assert.Equal("xvoid main( { print(1);\n", Text(broken));
+    }
+
+    // ---- every formatter of the catalog, through a copy of ToolEcho named like it ----
+
+    /// <param name="File">The file to format, relative to the project.</param>
+    /// <param name="Syntax">What the program prints when the text does not parse (written here after the documented behaviour of the tool; clang-format formats such text and fails on a broken configuration instead), and its exit code.</param>
+    private sealed record FormatterCase(string Id, string File, string Text, string Syntax, int SyntaxCode);
+
+    private static readonly FormatterCase[] FormatterCases =
+    [
+        new("gofmt", "main.go", "package main\n\nfunc  main( ){}\n", "main.go:3:1: expected declaration, found x", 2),
+        new("rustfmt", "src/lib.rs", "pub fn f( )->i32{1}\n", "error: expected item, found `x`", 1),
+        new("clang-format", "src/a.cpp", "int  main( ){return 0;}\n", ".clang-format:1:1: error: Unknown value for BasedOnStyle: NoSuchStyle", 1),
+        new("rubocop", "lib/a.rb", "x =  1\n", "a.rb:2:1: F: Lint/Syntax: unexpected token $end", 1),
+        new("prettier", "src/a.js", "let  x=1\n", "[error] a.js: SyntaxError: Unexpected token (2:1)", 2),
+        new("biome", "src/a.ts", "let  x=1\n", "a.ts:2:1 parse: expected a statement but found the end of the file", 1),
+        new("sqlfluff-fix", "q.sql", "select  1\n", "q.sql: unparsable section at line 1, nothing was fixed", 1),
+        new("ruff-format", "pkg/a.py", "x =  1\n", "error: Failed to parse a.py:2:1: Expected an expression", 2),
+        new("shfmt", "run.sh", "echo  hi\n", "run.sh:2:1: reached EOF without closing quote '", 1),
+        new("stylua", "a.lua", "local  x=1\n", "error: could not format file a.lua: failed to parse", 1),
+        new("dart-format", "lib/a.dart", "void main( ){}\n", "line 1, column 13 of a.dart: Expected to find '}'.", 65),
+    ];
+
+    public static TheoryData<string> FormatterIds
+    {
+        get
+        {
+            var data = new TheoryData<string>();
+            foreach (var c in FormatterCases) data.Add(c.Id);
+            return data;
+        }
+    }
+
+    private static string ExeName(string name) => OperatingSystem.IsWindows() ? name + ".exe" : name;
+
+    private sealed record FormatterSetup(FormatterCase Case, FormatterDef Def, string Path, string Tool, Doc Doc)
+    {
+        public string Unchanged => Case.Text + "\n";
+        public bool NoCopyLeft => !Directory.GetFiles(System.IO.Path.GetDirectoryName(Path)!).Any(f => f.Contains(".textida-fmt-", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A project with the first configuration file of the formatter and the file with one unsaved change, and a copy of ToolEcho named like the program in a folder of its own.
+    /// The definition is the one of the catalog with the full path of that copy, so the arguments are exactly those of the catalog.
+    /// </summary>
+    private FormatterSetup PrepareFormatter(string id, string sample)
+    {
+        var c = FormatterCases.First(f => f.Id == id);
+        var def = ConfigFormatters.Find(id)!;
+        string project = Path.Combine(_dir, id);
+        Directory.CreateDirectory(project);
+        File.WriteAllText(Path.Combine(project, def.ConfigFiles[0]), "");
+        string path = Path.Combine(project, c.File.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, c.Text, new UTF8Encoding(false));
+
+        string folder = Path.Combine(_dir, "bin-" + id);
+        Directory.CreateDirectory(folder);
+        foreach (var extension in new[] { ".dll", ".runtimeconfig.json", ".deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.ToolEcho" + extension), Path.Combine(folder, "NksHub.Textida.ToolEcho" + extension), overwrite: true);
+        string tool = Path.Combine(folder, ExeName(def.Executable));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, ExeName("NksHub.Textida.ToolEcho")), tool, overwrite: true);
+        File.WriteAllText(tool + ".sample", sample, new UTF8Encoding(false));
+
+        var doc = Doc.Open(path, ReferenceBackendFactory.Instance);
+        doc.Insert(doc.ByteLength, "\n"u8.ToArray());
+        return new FormatterSetup(c, def with { Executable = tool }, path, tool, doc);
+    }
+
+    [Fact]
+    public void The_cases_cover_every_formatter_of_the_catalog_and_each_formatter_names_a_configuration_file()
+    {
+        Assert.Equal(LanguageCatalog.Formatters.Select(f => f.Id).Order(), FormatterCases.Select(c => c.Id).Order());
+        Assert.Equal(LanguageCatalog.Formatters.Select(f => f.Id), ConfigFormatters.All.Select(f => f.Id));
+        Assert.All(ConfigFormatters.All, f => Assert.NotEmpty(f.ConfigFiles));
+    }
+
+    [Theory]
+    [MemberData(nameof(FormatterIds))]
+    public async Task Each_formatter_is_offered_by_its_configuration_gets_the_arguments_of_the_catalog_and_formats_as_one_undo_step(string id)
+    {
+        var s = PrepareFormatter(id, "#format");
+        using var doc = s.Doc;
+        Assert.Contains(id, ConfigFormatters.Offered(s.Path).Select(f => f.Id));
+
+        var outcome = await ConfigFormatters.FormatAsync(doc, s.Def, TimeSpan.FromSeconds(60));
+
+        Assert.Equal(FormatResult.Formatted, outcome.Result);
+        Assert.Equal(s.Unchanged.ToUpperInvariant(), Text(doc));
+        var args = File.ReadAllLines(s.Tool + ".args");
+        int file = s.Def.Args.ToList().IndexOf("${File}");
+        Assert.Equal(s.Def.Args.Count, args.Length);
+        Assert.Equal(s.Def.Args.Where((_, i) => i != file), args.Where((_, i) => i != file));
+        // the program rewrote a copy next to the file, with its extension, so it found the configuration of the project
+        Assert.Equal(Path.GetDirectoryName(s.Path), Path.GetDirectoryName(args[file]), ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(Path.GetExtension(s.Path), Path.GetExtension(args[file]));
+        Assert.True(s.NoCopyLeft);
+        Assert.NotNull(doc.Undo());
+        Assert.Equal(s.Unchanged, Text(doc));
+    }
+
+    [Theory]
+    [MemberData(nameof(FormatterIds))]
+    public async Task A_syntax_error_of_each_formatter_leaves_the_document_and_names_the_exit_code_and_the_message(string id)
+    {
+        var c = FormatterCases.First(f => f.Id == id);
+        var s = PrepareFormatter(id, $"#exit {c.SyntaxCode}\n{c.Syntax}");
+        using var doc = s.Doc;
+
+        var outcome = await ConfigFormatters.FormatAsync(doc, s.Def, TimeSpan.FromSeconds(60));
+
+        Assert.Equal(FormatResult.Failed, outcome.Result);
+        Assert.Contains($"code {c.SyntaxCode}", outcome.Reason);
+        Assert.Contains(c.Syntax, outcome.Reason);
+        Assert.Equal(s.Unchanged, Text(doc));
+        Assert.True(s.NoCopyLeft);
+    }
+
+    [Theory]
+    [MemberData(nameof(FormatterIds))]
+    public async Task A_missing_program_of_each_formatter_is_reported_and_the_document_stays(string id)
+    {
+        var s = PrepareFormatter(id, "#format");
+        using var doc = s.Doc;
+
+        var outcome = await ConfigFormatters.FormatAsync(doc, s.Def with { Executable = "textida-no-such-" + Guid.NewGuid().ToString("N")[..8] }, TimeSpan.FromSeconds(60));
+
+        Assert.Equal(FormatResult.Missing, outcome.Result);
+        Assert.Contains("was not found", outcome.Reason);
+        Assert.Equal(s.Unchanged, Text(doc));
+        Assert.True(s.NoCopyLeft);
+    }
+
+    [Theory]
+    [MemberData(nameof(FormatterIds))]
+    public async Task Each_formatter_over_its_time_limit_is_stopped_and_the_document_stays(string id)
+    {
+        var s = PrepareFormatter(id, "#sleep");
+        using var doc = s.Doc;
+        var watch = Stopwatch.StartNew();
+
+        var outcome = await ConfigFormatters.FormatAsync(doc, s.Def, TimeSpan.FromSeconds(1));
+
+        Assert.Equal(FormatResult.TimedOut, outcome.Result);
+        Assert.Contains("did not finish in 1 s", outcome.Reason);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(30));
+        Assert.Equal(s.Unchanged, Text(doc));
+        Assert.True(s.NoCopyLeft);
+    }
+
+    [Fact]
+    public async Task A_save_as_formats_for_the_file_it_writes_even_when_the_document_has_no_name_yet()
+    {
+        string target = Path.Combine(_dir, "new.txt");
+        using var doc = Doc.FromBytes("fresh\n"u8.ToArray(), ReferenceBackendFactory.Instance);
+        Assert.True(doc.IsModified);
+        var runner = new SaveActionRunner(_ => Fake("--format"));
+
+        var report = await runner.RunAsync(doc, Set(TimeSpan.FromSeconds(60), Act(SaveActionKind.Format)), SaveOrigin.Manual,
+            () => Task.FromResult(doc.SaveAs(target, doc.Codec).Saved), _ => Task.FromResult<string?>(null), path: target);
+
+        Assert.True(report.Saved);
+        Assert.Equal(SaveActionState.Done, Assert.Single(report.Notes).State);
+        Assert.Equal("FRESH\n", File.ReadAllText(target));
+        Assert.Equal([target], Directory.GetFiles(_dir));
     }
 
     // ---- which formatter is offered ----
@@ -328,6 +527,80 @@ public sealed class SaveActionsTests : IDisposable
         Assert.False(format.OnlyManual);
         Assert.Equal(SaveActionSource.Project, format.Source);
         Assert.Contains(set.Actions, a => a.Kind == SaveActionKind.Upload);
+    }
+
+    [Fact]
+    public void Switching_an_action_changes_only_its_value_and_keeps_the_comments_of_the_file()
+    {
+        string profile = Path.Combine(_dir, "saveActions.json");
+        File.WriteAllText(profile, """
+            {
+              // my limit
+              "formatTimeoutSeconds": 7,
+              "actions": [
+                { "kind": "format", "id": "gofmt", "enabled": false }, /* keep this */
+                { "kind": "tool", "id": "lint" },
+              ]
+            }
+            """);
+
+        SaveActionConfig.Edit(profile, SaveActionKind.Format, "gofmt", e => e.Enabled = true);
+        SaveActionConfig.Edit(profile, SaveActionKind.Tool, "lint", e => e.OnlyManual = true);
+        SaveActionConfig.Edit(profile, SaveActionKind.Lint, "phpstan", e => e.Enabled = true);
+
+        string text = File.ReadAllText(profile);
+        Assert.Contains("// my limit", text);
+        Assert.Contains("/* keep this */", text);
+        Assert.Contains("\"enabled\": true }", text);
+        var set = SaveActionConfig.Load(profile, null);
+        Assert.Empty(set.Errors);
+        Assert.Equal(TimeSpan.FromSeconds(7), set.FormatTimeout);
+        Assert.Equal([("format", "gofmt", true, false), ("tool", "lint", true, true), ("lint", "phpstan", true, false)],
+            set.Actions.Select(a => (a.Kind.ToString().ToLowerInvariant(), a.Id, a.Enabled, a.OnlyManual)));
+    }
+
+    [Fact]
+    public void An_action_is_added_to_a_file_without_a_list_and_a_new_file_is_written()
+    {
+        string withoutList = Path.Combine(_dir, "a.json");
+        File.WriteAllText(withoutList, "{ /* only the limit */ \"formatTimeoutSeconds\": 3 }");
+        SaveActionConfig.Edit(withoutList, SaveActionKind.Format, "gofmt", e => e.Enabled = true);
+        Assert.Contains("/* only the limit */", File.ReadAllText(withoutList));
+        var added = Assert.Single(SaveActionConfig.Load(withoutList, null).Actions);
+        Assert.Equal((SaveActionKind.Format, "gofmt", true), (added.Kind, added.Id, added.Enabled));
+
+        string missing = Path.Combine(_dir, "sub", "b.json");
+        SaveActionConfig.Edit(missing, SaveActionKind.Upload, "", e => e.Enabled = true);
+        var upload = Assert.Single(SaveActionConfig.Load(missing, null).Actions);
+        Assert.Equal((SaveActionKind.Upload, true), (upload.Kind, upload.Enabled));
+    }
+
+    [Fact]
+    public void A_project_names_its_default_server_and_a_file_maps_to_the_same_relative_path_below_the_server_folder()
+    {
+        string profile = Path.Combine(_dir, "saveActions.json");
+        string projectFolder = Path.Combine(_dir, "site");
+        string project = Path.Combine(projectFolder, ".textida", "saveActions.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(project)!);
+        File.WriteAllText(profile, """{ "actions": [ { "kind": "upload", "server": "Web", "remoteFolder": "/www" } ] }""");
+        File.WriteAllText(project, """{ "actions": [ { "kind": "upload", "server": "Web", "remoteFolder": "/var/www/site/" } ] }""");
+
+        var set = SaveActionConfig.Load(profile, project);
+
+        Assert.Contains(set.Errors, e => e.Contains("not in the profile"));
+        var server = Assert.Single(set.Actions).Server!;
+        Assert.Equal(("Web", "/var/www/site/", projectFolder), (server.Connection, server.RemoteFolder, server.ProjectFolder));
+        Assert.Equal("/var/www/site/src/a b.php", server.RemotePathOf(Path.Combine(projectFolder, "src", "a b.php")));
+        Assert.Equal("/var/www/site/index.php", server.RemotePathOf(Path.Combine(projectFolder, "index.php")));
+        Assert.Null(server.RemotePathOf(Path.Combine(projectFolder, ".textida", "saveActions.json")));
+        Assert.Null(server.RemotePathOf(Path.Combine(_dir, "elsewhere.php")));
+        Assert.Null(server.RemotePathOf(Path.Combine(_dir, "site-other", "a.php")));
+        Assert.NotEqual(server.ApprovalKey("one"), server.ApprovalKey("two"));
+
+        File.WriteAllText(project, """{ "actions": [ { "kind": "upload", "server": "Web", "remoteFolder": "www" } ] }""");
+        var relative = SaveActionConfig.Load(profile, project);
+        Assert.Contains(relative.Errors, e => e.Contains("remoteFolder"));
+        Assert.DoesNotContain(relative.Actions, a => a.Server is not null);
     }
 
     [Fact]
