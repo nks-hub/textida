@@ -149,13 +149,16 @@ public sealed class PluginHost : IAsyncDisposable
         }
     }
 
-    /// <summary>Sends an event to every running plugin; plugins that are down count it as lost and hear about it in their next resync.</summary>
+    /// <summary>
+    /// Sends an event to every running plugin at once, so a plugin that does not read holds back only its own copy; plugins that are down
+    /// count it as lost and hear about it in their next resync.
+    /// </summary>
     public async Task PublishEventAsync(string name, ReadOnlyMemory<byte> payloadJson)
     {
         var payload = EventPayload(name, payloadJson);
         List<Plugin> all;
         lock (_gate) all = [.. _plugins.Values];
-        foreach (var p in all) await SendAsync(p, payload).ConfigureAwait(false);
+        await Task.WhenAll(all.Select(p => SendAsync(p, payload))).ConfigureAwait(false);
     }
 
     /// <summary>Sends an event to one plugin. False when it could not be delivered (the plugin is down); it then counts as lost.</summary>

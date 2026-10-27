@@ -23,8 +23,8 @@ internal sealed class ByteBudget(long max)
         try { await waiter.Task.WaitAsync(ct).ConfigureAwait(false); }
         catch (OperationCanceledException)
         {
-            // Granted in the same instant as the cancellation: hand the bytes back.
-            if (!waiter.TrySetCanceled()) Release(bytes);
+            // Granted in the same instant as the cancellation: hand the bytes back. Failed by a close: nothing was granted.
+            if (!waiter.TrySetCanceled() && waiter.Task.IsCompletedSuccessfully) Release(bytes);
             throw;
         }
     }

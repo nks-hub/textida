@@ -48,10 +48,13 @@ public sealed class RpcTimeoutException(string method, TimeSpan? timeout)
 /// </summary>
 /// <param name="MaxMessageBytes">Largest single message in either direction.</param>
 /// <param name="MaxConcurrentIncoming">Requests from the peer handled at the same time; more are answered with <see cref="RpcErrorCodes.TooManyRequests"/>.</param>
-/// <param name="MaxPendingOutgoing">Our requests awaiting an answer; further callers wait (back-pressure).</param>
+/// <param name="MaxPendingOutgoing">Our requests awaiting an answer; further callers wait (back-pressure) until their timeout.</param>
 /// <param name="MaxResultItems">Largest array in a result.</param>
 /// <param name="MaxSessionBytes">Bytes of peer messages being processed at the same time.</param>
-/// <param name="MaxOutgoingQueueBytes">Bytes queued for writing; further senders wait (back-pressure).</param>
+/// <param name="MaxOutgoingQueueBytes">
+/// Bytes queued for writing; further senders, and answers to the peer, wait (back-pressure). Errors and cancels owed to the peer do not wait;
+/// when those alone exceed it, the peer sends without reading and the connection ends with <see cref="RpcErrorCodes.SessionMemoryExceeded"/>.
+/// </param>
 public sealed record RpcLimits(
     int MaxMessageBytes,
     int MaxConcurrentIncoming,
