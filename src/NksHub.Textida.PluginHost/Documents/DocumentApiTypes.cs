@@ -54,6 +54,11 @@ public static class DocumentPermissions
     public const string Read = "document.read";
     public const string EditPropose = "document.edit.propose";
     public const string EditDirect = "document.edit.direct";
+    /// <summary>
+    /// Plain values of a secrets file (<c>.env</c>). Without it reads return <c>*</c> in place of every value, a search skips matches that touch a value and an
+    /// edit that touches a value is refused. Only the user grants it, for one document.
+    /// </summary>
+    public const string SecretsReveal = "document.secrets.reveal";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -105,6 +110,8 @@ public sealed record DocumentApiOptions
     public required int MaxSnippetCarets { get; init; }
     /// <summary>How long a plugin has to answer the Tab key before the editor indents as without it.</summary>
     public required TimeSpan TabTimeout { get; init; }
+    /// <summary>Largest secrets file whose values are looked for; a larger one is hidden whole, because looking would mean holding it in memory.</summary>
+    public required long MaxSecretScanBytes { get; init; }
 }
 
 /// <summary>One symbol of an outline: a named range of one revision. <paramref name="ParentId"/> names an earlier symbol or is null.</summary>

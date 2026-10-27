@@ -84,6 +84,7 @@ public partial class DocumentApiTests
                 MaxSnippetLength = 200,
                 MaxSnippetCarets = 4,
                 TabTimeout = TimeSpan.FromMilliseconds(500),
+                MaxSecretScanBytes = 1 << 20,
             };
             if (tune is not null) options = tune(options);
             var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

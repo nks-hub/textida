@@ -24,6 +24,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: milliseconds between two progress reports of a running text tool.</summary>
     public const int TextToolsProgressMilliseconds = 250;
 
+    /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
+    public const long SecretScanMaxBytes = 16L << 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -47,6 +50,7 @@ internal static class PluginLimitsPlaceholders
         MaxSnippetLength = 64 * 1024,
         MaxSnippetCarets = 64,
         TabTimeout = TimeSpan.FromMilliseconds(500),
+        MaxSecretScanBytes = SecretScanMaxBytes,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

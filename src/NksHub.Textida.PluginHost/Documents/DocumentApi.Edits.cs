@@ -1,6 +1,7 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Rpc;
 
@@ -69,7 +70,9 @@ public sealed partial class DocumentApi
             lease.Token.ThrowIfCancellationRequested();
             var d = e.Doc;
             CheckCurrent(d, revision);
-            var result = d.Apply(ParseEdits(editsJson, d.Codec), new EditOptions { BaseRevision = revision, Source = "plugin:" + pluginId });
+            var parsed = ParseEdits(editsJson, d.Codec);
+            GuardSecrets(pluginId, d, parsed);
+            var result = d.Apply(parsed, new EditOptions { BaseRevision = revision, Source = "plugin:" + pluginId });
             if (!result.Applied) throw EditFailure(result.Conflict, result.Revision);
             lock (_gate)
             {
@@ -108,6 +111,7 @@ public sealed partial class DocumentApi
             CheckCurrent(d, revision);
             var edits = ParseEdits(editsJson, d.Codec);
             Validate(d, edits);
+            GuardSecrets(pluginId, d, edits);
             return new EditProposal(pluginId, d.Id, revision, edits, title);
         });
         var id = await _options.Proposals.SubmitAsync(proposal, ct);
@@ -116,6 +120,18 @@ public sealed partial class DocumentApi
             w.WriteString("proposal", id);
             w.WriteNumber("revision", revision);
         });
+    }
+
+    /// <summary>
+    /// A plugin that was not allowed to see the values of a secrets file read stars in their place, so an edit that touches a value would write the stars into the file.
+    /// Such an edit is refused. Call on the thread that owns the document.
+    /// </summary>
+    private void GuardSecrets(string pluginId, Document d, IReadOnlyList<ByteEdit> edits)
+    {
+        if (!SecretValues.IsSecretFile(d.FilePath) || _options.Permissions.IsGranted(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(d.Id))) return;
+        var hidden = SecretsOf(d, d.GetSnapshot(), d.BomLength)!.Value;
+        if (edits.Any(edit => SecretValues.Overlaps(hidden, edit.Range.Start, edit.Range.End)))
+            throw PluginPermissions.Denied(DocumentPermissions.SecretsReveal, "Secret", "The edit touches a hidden value of a secrets file; the plugin has not been allowed to see it.");
     }
 
     private static void Validate(Document d, List<ByteEdit> edits)

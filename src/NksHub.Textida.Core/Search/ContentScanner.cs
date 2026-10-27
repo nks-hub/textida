@@ -4,6 +4,7 @@ using System.Text.Unicode;
 using Microsoft.Win32.SafeHandles;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.Core.Search;
 
@@ -48,9 +49,11 @@ internal static class ContentScanner
     private const int SampleSize = 1 << 20;
     private const int NulProbe = 8000;
 
-    private sealed class State(int keep)
+    private sealed class State(int keep, bool maskSecrets)
     {
         public readonly int Keep = keep;
+        /// <summary>The source is a secrets file: the preview of a hit shows <see cref="SecretValues.Placeholder"/> in place of every value.</summary>
+        public readonly bool MaskSecrets = maskSecrets;
         public long Count;
         public long LinesBefore;
         public readonly List<RawHit> Hits = [];
@@ -75,10 +78,10 @@ internal static class ContentScanner
     /// Like <see cref="Scan"/>, but a large source in a byte-oriented encoding is cut at line starts into ranges scanned by several threads,
     /// the way the paged search does; the hits come back as if the source had been scanned in one go (offsets, line numbers, order).
     /// </summary>
-    public static ScanOutcome ScanLarge(IChunkSource source, CompiledPattern pattern, SearchSettings settings, TextCodec? forcedCodec, int keep, CancellationToken ct)
+    public static ScanOutcome ScanLarge(IChunkSource source, CompiledPattern pattern, SearchSettings settings, TextCodec? forcedCodec, int keep, CancellationToken ct, bool maskSecrets = false)
     {
         long length = source.Length;
-        if (length < LargeSource || settings.Parallelism < 2) return Scan(source, pattern, settings, forcedCodec, keep, ct);
+        if (length < LargeSource || settings.Parallelism < 2) return Scan(source, pattern, settings, forcedCodec, keep, ct, maskSecrets);
 
         var codec = forcedCodec;
         if (codec is null)
@@ -88,7 +91,7 @@ internal static class ContentScanner
             codec = Detect(head.AsSpan(0, n), length);
             if (codec is null) return new ScanOutcome { Binary = true };
         }
-        if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) return Scan(source, pattern, settings, codec, keep, ct);
+        if (codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) return Scan(source, pattern, settings, codec, keep, ct, maskSecrets);
 
         int parts = (int)Math.Clamp(length / (16L << 20), 2, settings.Parallelism * 4);
         var bounds = new long[parts + 1];
@@ -98,7 +101,7 @@ internal static class ContentScanner
         var outcomes = new ScanOutcome[parts];
         Parallel.For(0, parts, new ParallelOptions { CancellationToken = ct, MaxDegreeOfParallelism = settings.Parallelism }, k =>
         {
-            outcomes[k] = Scan(new RangeSource(source, bounds[k], bounds[k + 1]), pattern, settings, k == 0 ? codec : codec.WithBom(false), keep, ct);
+            outcomes[k] = Scan(new RangeSource(source, bounds[k], bounds[k + 1]), pattern, settings, k == 0 ? codec : codec.WithBom(false), keep, ct, maskSecrets);
         });
 
         var merged = new ScanOutcome { Codec = codec };
@@ -132,14 +135,14 @@ internal static class ContentScanner
 
     /// <param name="forcedCodec">The codec of an open document; null detects it from the content and skips binary files.</param>
     /// <param name="keep">Number of hits to describe (offset, line, preview); further matches are only counted.</param>
-    public static ScanOutcome Scan(IChunkSource source, CompiledPattern pattern, SearchSettings settings, TextCodec? forcedCodec, int keep, CancellationToken ct)
+    public static ScanOutcome Scan(IChunkSource source, CompiledPattern pattern, SearchSettings settings, TextCodec? forcedCodec, int keep, CancellationToken ct, bool maskSecrets = false)
     {
         long length = source.Length;
         int cap = (int)Math.Min(length, Math.Max(settings.ChunkBytes, 1 << 16));
         var outcome = new ScanOutcome();
         if (cap == 0) { outcome.Codec = forcedCodec ?? TextCodec.Utf8; return outcome; }
 
-        var state = new State(Math.Max(0, keep));
+        var state = new State(Math.Max(0, keep), maskSecrets);
         byte[] buf = ArrayPool<byte>.Shared.Rent(cap);
         try
         {
@@ -218,7 +221,7 @@ internal static class ContentScanner
         var data = buf.AsSpan(0, length);
         int skip = first ? codec.BomLengthIn(data) : 0;
 
-        if (q.Utf8Literal is { } lit && codec.Kind == CodecKind.Utf8)
+        if (q.Utf8Literal is { } lit && codec.Kind == CodecKind.Utf8 && !st.MaskSecrets) // the byte search cannot tell where a value is
         {
             ScanUtf8Literal(data, skip, baseOffset, lit, s, st, ct);
             st.LinesBefore += data.Count((byte)'\n');
@@ -283,6 +286,7 @@ internal static class ContentScanner
         int lastChar = 0, cursor = 0;
         long lastByte = baseOffset + skip, lines = st.LinesBefore;
         long seen = 0;
+        var secrets = st.MaskSecrets ? SecretValues.Find(text) : null;
         foreach (var m in q.Regex.EnumerateMatches(text))
         {
             if ((m.Length == 0 && !s.IncludeEmpty) || SplitsPair(text, m.Index) || SplitsPair(text, m.Index + m.Length)) continue;
@@ -310,7 +314,8 @@ internal static class ContentScanner
             int lineEnd = lf < 0 ? text.Length : m.Index + lf;
             if (lineEnd > lineStart && text[lineEnd - 1] == '\r') lineEnd--;
             var line = text[lineStart..Math.Max(lineStart, lineEnd)];
-            st.Hits.Add(new(start, (int)(end - start), (int)lines + 1, m.Index - lineStart, Clip(line, s.PreviewChars)));
+            string preview = secrets is null ? Clip(line, s.PreviewChars) : Clip(SecretValues.Mask(line.ToString(), secrets, lineStart), s.PreviewChars);
+            st.Hits.Add(new(start, (int)(end - start), (int)lines + 1, m.Index - lineStart, preview));
         }
     }
 

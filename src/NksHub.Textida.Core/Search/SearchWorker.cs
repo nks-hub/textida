@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.Core.Search;
 
@@ -165,7 +166,7 @@ public static class SearchWorker
                 {
                     ct.ThrowIfCancellationRequested();
                     var snap = b.Snapshot;
-                    var outcome = Run(new SnapshotChunkSource(snap), snap.Codec, b.Title, ct);
+                    var outcome = Run(new SnapshotChunkSource(snap), snap.Codec, b.Title, b.Path, ct);
                     if (outcome is null) continue;
                     Deliver(new SearchSource(b.Path, snap.DocumentId, snap.Revision, b.Title, snap.Codec, snap.ByteLength, null), outcome);
                 }
@@ -184,7 +185,7 @@ public static class SearchWorker
                     _walk.AddTooLarge();
                     return;
                 }
-                var outcome = Run(new FileChunkSource(handle, length), null, entry.Path, ct);
+                var outcome = Run(new FileChunkSource(handle, length), null, entry.Path, entry.Path, ct);
                 if (outcome is null) return;
                 if (outcome.Binary)
                 {
@@ -199,12 +200,12 @@ public static class SearchWorker
             }
         }
 
-        private ScanOutcome? Run(IChunkSource source, TextCodec? codec, string name, CancellationToken ct)
+        private ScanOutcome? Run(IChunkSource source, TextCodec? codec, string name, string? path, CancellationToken ct)
         {
             int keep = (int)Math.Max(0, Math.Min(int.MaxValue, _s.MaxResults - Interlocked.Read(ref _delivered)));
             try
             {
-                return ContentScanner.ScanLarge(source, _pattern, _s, codec, keep, ct);
+                return ContentScanner.ScanLarge(source, _pattern, _s, codec, keep, ct, SecretValues.IsSecretFile(path));
             }
             catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
             {
