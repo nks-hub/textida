@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Input.TextInput;
 using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.Editing;
@@ -95,6 +96,23 @@ public class MultiCaretEditorTests : IDisposable
     {
         _w.MouseDown(p, MouseButton.Left, mods);
         _w.MouseUp(p, MouseButton.Left, mods);
+    }
+
+    /// <summary>The client the platform input method gets from the focused editor.</summary>
+    private static TextInputMethodClient ImeClient(DocTab t)
+    {
+        var args = new TextInputMethodClientRequestedEventArgs { RoutedEvent = InputElement.TextInputMethodClientRequestedEvent };
+        t.Editor!.TextArea.RaiseEvent(args);
+        return Assert.IsAssignableFrom<TextInputMethodClient>(args.Client);
+    }
+
+    /// <summary>The compositions drawn in the visible lines, as their offsets in the document.</summary>
+    private IEnumerable<int> Drawn(DocTab t)
+    {
+        _w.UpdateLayout();
+        var view = t.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        return [.. view.VisualLines.SelectMany(l => l.Elements.OfType<EditorSurface.PreeditElement>().Select(e => l.FirstDocumentLine.Offset + e.RelativeTextOffset))];
     }
 
     // ---- adding: occurrences, above and below ----
@@ -383,6 +401,108 @@ public class MultiCaretEditorTests : IDisposable
         Mod(Key.Z);
         Assert.Equal("a b c", Text(tab));
         Assert.Equal(["1:1", "3:3", "5:5"], Carets(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_composition_is_drawn_at_every_caret_and_the_document_changes_only_with_the_commit()
+    {
+        var tab = Open("a b\nc");
+        PlaceCarets(tab, 1, 3, 5);
+        var client = ImeClient(tab);
+        Assert.True(client.SupportsPreedit);
+        long revision = tab.Doc.Doc.Revision;
+
+        client.SetPreeditText("に");
+        client.SetPreeditText("にほ");
+        Assert.Equal([1, 3, 5], Drawn(tab));
+        Assert.Equal("a b\nc", Text(tab));
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.Equal(3, tab.Editor!.CaretCount);
+
+        client.SetPreeditText(null); // what the platform does before it delivers the finished text
+        _w.KeyTextInput("日本");
+        Assert.Empty(Drawn(tab));
+        Assert.Equal("a日本 b日本\nc日本", Bytes(tab));
+        Assert.Equal(1, Steps(tab));
+        Mod(Key.Z);
+        Assert.Equal("a b\nc", Text(tab));
+        Assert.Equal(["1:1", "3:3", "5:5"], Carets(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_commit_that_arrives_while_the_composition_is_drawn_lands_once_at_every_caret()
+    {
+        var tab = Open("a b");
+        PlaceCarets(tab, 1, 3);
+        var client = ImeClient(tab);
+        client.SetPreeditText("にほ");
+        _w.KeyTextInput("日本");
+        Assert.Empty(Drawn(tab));
+        Assert.Equal("", tab.Editor!.Composition);
+        Assert.Equal("a日本 b日本", Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public void Escape_during_a_composition_belongs_to_the_input_method_and_a_cancelled_composition_leaves_text_and_carets()
+    {
+        var tab = Open("a b c");
+        PlaceCarets(tab, 1, 3, 5);
+        var client = ImeClient(tab);
+        client.SetPreeditText("ni");
+        Press(Key.Escape);
+        Assert.Equal(3, tab.Editor!.CaretCount);
+        client.SetPreeditText(null); // cancelled
+        Assert.Empty(Drawn(tab));
+        Assert.Equal("a b c", Text(tab));
+        Assert.Equal(0, Steps(tab));
+
+        Press(Key.Escape);
+        Assert.False(tab.Editor.IsMulti);
+    }
+
+    [AvaloniaFact]
+    public void A_composition_ends_when_the_caret_moves_or_another_tab_takes_the_focus_and_writes_nothing()
+    {
+        var tab = Open("abc\nabc");
+        tab.Editor!.CaretOffset = 1;
+        var client = ImeClient(tab);
+        client.SetPreeditText("ka");
+        Assert.Equal([1], Drawn(tab));
+        tab.Editor.CaretOffset = 5;
+        Assert.Empty(Drawn(tab));
+
+        client.SetPreeditText("ka");
+        Assert.Equal([5], Drawn(tab));
+        var other = _w.NewDocument();
+        Dispatcher.UIThread.RunJobs();
+        other.Editor!.TextArea.Focus();
+        Assert.Equal("", tab.Editor.Composition);
+        Assert.Equal("abc\nabc", Text(tab));
+        Assert.Equal(0, Steps(tab));
+    }
+
+    [AvaloniaFact]
+    public void The_candidate_window_of_the_input_method_opens_after_the_composition()
+    {
+        var tab = Open("abc");
+        tab.Editor!.CaretOffset = 1;
+        _w.UpdateLayout();
+        var client = ImeClient(tab);
+        var start = client.CursorRectangle;
+        int moved = 0;
+        client.CursorRectangleChanged += (_, _) => moved++;
+
+        client.SetPreeditText("にほ");
+        var narrow = client.CursorRectangle;
+        client.SetPreeditText("にほんご");
+        var wide = client.CursorRectangle;
+        Assert.True(narrow.X > start.X);
+        Assert.True(wide.X > narrow.X);
+        Assert.Equal(start.Y, wide.Y);
+        Assert.True(moved >= 2);
+
+        client.SetPreeditText(null);
+        Assert.Equal(start, client.CursorRectangle);
     }
 
     [AvaloniaFact]
