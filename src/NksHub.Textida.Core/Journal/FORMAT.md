@@ -48,7 +48,7 @@ that document, not the journal.
 | 5 DocUndo, 6 DocRedo | document id, revision; replayed by calling `Undo()`/`Redo()` |
 | 7 DocSave | document id, revision, path, new fingerprint, codec name |
 | 8 DocClose | document id |
-| 9 DocSaveIntent | document id, revision (the one the file holds, which can be older than the document, see Recovery), path, size and SHA-256 of the file about to be moved into place, codec name |
+| 9 DocSaveIntent | document id, revision (the one the file holds, which can be older than the document, see Recovery), path, size and SHA-256 of the file about to be moved into place, codec name. For an in-place save (no whole-file hash is computed) the hash field holds `inplace:START-END,...;HEX` instead: the written byte ranges and one SHA-256 over their new bytes. No layout change, so the version stays 3; an older reader sees a hash that never matches |
 | 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
 | 17 DocMove | document id, new path: the file was renamed or moved on disk, the unsaved work follows it; recovery opens the new path |
 | 11-16 Batch* | Replace in Files batch, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
@@ -83,6 +83,8 @@ at compaction, and at start for documents nobody knows, except files of a sessio
    the saved file (base revision = revision of the save, codec = codec at the save). A save that streams a new file while the user keeps editing
    records its edits with revisions above the saved one before the save record (and the intent); those edits are not in the saved file and are kept. A `DocSaveIntent` after the last save counts as a save when the file on
    disk has the intended size and hash (the process died after the swap, before the save record; the size is compared first, so a file of tens of GiB is not hashed for nothing).
+   For an in-place intent the unfinished write of the patch journal is completed or undone first, then the file counts as saved when its size is the intended one and
+   the named ranges hold the intended bytes; the recorded fingerprint of such a save has an empty hash (size and write time only), and is compared by size.
    A temporary file of a save that died, and a target parked by an interrupted swap, are cleaned up by `FileSwap.RecoverAbandoned` when the document is opened.
 2. A `DocMove` after the last save changes the path of the start record to the new one. A named document is opened from its file. If the file no longer matches the fingerprint and there are edits, the result is
    `Conflict` (or `Missing`): nothing is applied and the records are kept. Otherwise the edits are replayed through

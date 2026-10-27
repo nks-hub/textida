@@ -71,34 +71,42 @@ public sealed partial class Document
         return [.. merged.Select(r => new ByteRange(r.Start, r.End))];
     }
 
-    private static string HashSnapshot(IByteSnapshot snapshot, CancellationToken ct)
+    /// <summary>Test seam: opens the file for the reads of an in-place save (block checks, read-back).</summary>
+    internal Func<string, Stream>? FileReader;
+
+    private Stream OpenForRead(string path) =>
+        FileReader?.Invoke(path) ?? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
+
+    /// <summary>
+    /// The external-change check of an in-place save: size, write time and file identity against the fingerprint, no content read. The content
+    /// of the blocks the patch overwrites is checked right after against the baseline (<see cref="CheckOriginalBlocks"/>); a change elsewhere in the
+    /// file that keeps size, time and identity is not seen on this path.
+    /// </summary>
+    private ExternalChange? CheckFileQuick(string target)
     {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buf = new byte[1 << 20];
-        for (long at = 0; at < snapshot.ByteLength;)
+        var actual = FileFingerprint.TryReadQuick(target);
+        var expected = Fingerprint!;
+        if (actual is not null && actual.Size == expected.Size && (_fileId is null || FileIdentity.TryGet(target) is not { } id || id == _fileId))
         {
-            ct.ThrowIfCancellationRequested();
-            int n = snapshot.Read(at, buf);
-            if (n == 0) throw new EndOfStreamException("The snapshot ended before its declared length.");
-            hash.AppendData(buf, 0, n);
-            at += n;
+            if (actual.LastWriteUtc == expected.LastWriteUtc) return null;
+            // only the time moved (a touch, or the rollback of an aborted save): the content decides, as for any idle check; costs a pass over the file in this rare case
+            if (expected.HasHash) return CheckExternalChange();
         }
-        return Convert.ToHexString(hash.GetHashAndReset());
+        return ReportChange(target, actual, expected.Sha256);
     }
 
     /// <summary>The first <c>Save</c> branch: an in-place write on the calling thread.</summary>
     private SaveResult SaveInPlace(string target, SavePlan plan, bool guard)
     {
         var snapshot = _backend.CreateSnapshot();
-        string hash = HashSnapshot(snapshot, CancellationToken.None);
-        if (guard && CheckExternalChange() is { } late) return new(false, late);
+        if (guard && CheckFileQuick(target) is { } late) return new(false, late);
         BeforeSaveCommit?.Invoke();
         var (digests, blockConflict) = CheckOriginalBlocks(target, plan, snapshot, guard, CancellationToken.None);
         if (blockConflict is not null) return new(false, blockConflict);
-        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
+        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, InPlaceIntent.Encode(plan.Ranges, snapshot), _revision));
         InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks, _backend.BeginInPlaceWrite());
-        if (VerifyWritten(target, hash) is { } differs) return new(false, differs);
-        CompleteSave(target, hash, AcceptDigests(digests));
+        if (VerifyWritten(target, plan, snapshot, digests) is { } differs) return new(false, differs);
+        CompleteSave(target, "", AcceptDigests(digests));
         return new(true, null);
     }
 
@@ -113,7 +121,7 @@ public sealed partial class Document
         var baseline = _baseline!;
         var digests = new Dictionary<long, byte[]>();
         var block = new byte[OriginalBlockHashes.BlockSize];
-        using var file = new FileStream(target, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
+        using var file = OpenForRead(target);
         bool differs = file.Length != ByteLength;
         foreach (var range in plan.Ranges)
             for (long start = range.Start / block.Length * block.Length; !differs && start < range.End; start += block.Length)
@@ -137,7 +145,7 @@ public sealed partial class Document
                 digests[start] = SHA256.HashData(block.AsSpan(0, n));
             }
         if (!differs) return (digests, null);
-        return (null, guard ? ReportChange(target, FileFingerprint.TryRead(target), Fingerprint!.Sha256) : null);
+        return (null, guard ? ReportChange(target, FileFingerprint.TryReadQuick(target), Fingerprint!.Sha256) : null);
     }
 
     /// <summary>The baseline after a verified in-place write: the old one with the patched blocks replaced, or none when the old one could not be trusted.</summary>
@@ -149,14 +157,53 @@ public sealed partial class Document
     }
 
     /// <summary>
-    /// After an in-place write the file on disk is read once more: it must hash to what the revision is. A part of the file nobody wrote to can differ
-    /// from what the document believes only when something else changed it behind the document; then nothing is recorded as saved, and the difference is reported.
+    /// After an in-place write (flushed) only what was written is read back: each block the patch touched must hash to the digest derived before the
+    /// write, or, when no digests exist (the user chose to overwrite a changed file), the written ranges must equal the snapshot. Something else changing
+    /// those blocks behind the document, or a write that did not land, is reported and nothing is recorded as saved. The rest of the file is not read.
     /// </summary>
-    private ExternalChange? VerifyWritten(string target, string hash)
+    private ExternalChange? VerifyWritten(string target, SavePlan plan, IByteSnapshot snapshot, Dictionary<long, byte[]>? digests)
     {
-        var actual = FileFingerprint.TryRead(target);
-        if (actual is not null && actual.Size == ByteLength && actual.Sha256 == hash) return null;
-        return ReportChange(target, actual, hash);
+        bool ok;
+        try
+        {
+            using var file = OpenForRead(target);
+            ok = file.Length == ByteLength;
+            var block = new byte[OriginalBlockHashes.BlockSize];
+            var want = new byte[OriginalBlockHashes.BlockSize];
+            if (ok && digests is not null)
+            {
+                foreach (var (start, digest) in digests)
+                {
+                    int n = (int)Math.Min(block.Length, ByteLength - start);
+                    file.Position = start;
+                    file.ReadExactly(block.AsSpan(0, n));
+                    if (!SHA256.HashData(block.AsSpan(0, n)).AsSpan().SequenceEqual(digest)) { ok = false; break; }
+                }
+            }
+            else if (ok)
+            {
+                foreach (var range in plan.Ranges)
+                    for (long at = range.Start; ok && at < range.End;)
+                    {
+                        int n = (int)Math.Min(block.Length, range.End - at);
+                        file.Position = at;
+                        file.ReadExactly(block.AsSpan(0, n));
+                        for (int done = 0; done < n;)
+                        {
+                            int got = snapshot.Read(at + done, want.AsSpan(done, n - done));
+                            if (got == 0) throw new EndOfStreamException("The snapshot ended before its declared length.");
+                            done += got;
+                        }
+                        ok = block.AsSpan(0, n).SequenceEqual(want.AsSpan(0, n));
+                        at += n;
+                    }
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ok = false;
+        }
+        return ok ? null : ReportChange(target, FileFingerprint.TryReadQuick(target), Fingerprint?.Sha256 ?? "");
     }
 
     private ExternalChange ReportChange(string target, FileFingerprint? actual, string hash)
@@ -173,10 +220,31 @@ public sealed partial class Document
         _baseline = baseline;
         _snapshot = null; // the cached snapshot predates the write; dropping it lets the preserved old bytes go
         FilePath = target;
-        Fingerprint = new FileFingerprint(mark?.Length ?? ByteLength, File.GetLastWriteTimeUtc(target), hash);
+        _hashCancel?.Cancel();
+        _fileId = FileIdentity.TryGet(target);
+        var print = Fingerprint = new FileFingerprint(mark?.Length ?? ByteLength, File.GetLastWriteTimeUtc(target), hash);
         _lastReported = null;
         MarkSaved(mark);
         Saved?.Invoke(this, EventArgs.Empty);
+        if (!print.HasHash) HashInBackground(target, print);
+    }
+
+    /// <summary>
+    /// Fills in the hash of a fingerprint taken after an in-place save. Runs on the thread pool, stops when another save, a dispose or a change of the
+    /// fingerprint comes first, and discards its result when the file's write time moved while it was read.
+    /// </summary>
+    private void HashInBackground(string target, FileFingerprint pending)
+    {
+        var cts = _hashCancel = new CancellationTokenSource();
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (FileFingerprint.TryRead(target, cts.Token) is { } full && full.Size == pending.Size && full.LastWriteUtc == pending.LastWriteUtc)
+                    Interlocked.CompareExchange(ref _fingerprint, pending with { Sha256 = full.Sha256 }, pending);
+            }
+            catch (OperationCanceledException) { }
+        });
     }
 
     /// <summary>
@@ -208,7 +276,7 @@ public sealed partial class Document
                 _joinBarrier = mark.Top;
                 _editsDuringSave = true;
             }
-            // an in-place save checks the file once, after the hash; a new file checks before and after it is written
+            // an in-place save checks the file once, cheaply, before the blocks it overwrites; a new file checks before and after it is written
             if (guard && plan.Mode == SaveMode.Stream && await Task.Run(CheckExternalChange, CancellationToken.None) is { } early) return new(false, early);
             ct.ThrowIfCancellationRequested();
 
@@ -218,15 +286,15 @@ public sealed partial class Document
             {
                 try
                 {
-                    hash = await Task.Run(() => HashSnapshot(snapshot!, ct), CancellationToken.None);
-                    if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
+                    hash = "";
+                    if (guard && await Task.Run(() => CheckFileQuick(target), CancellationToken.None) is { } late) return new(false, late);
                     ct.ThrowIfCancellationRequested();
                     BeforeSaveCommit?.Invoke();
                     var (digests, blockConflict) = await Task.Run(() => CheckOriginalBlocks(target, plan, snapshot!, guard, ct), CancellationToken.None);
                     if (blockConflict is not null) return new(false, blockConflict);
-                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
+                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, InPlaceIntent.Encode(plan.Ranges, snapshot!), _revision));
                     await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
-                    if (await Task.Run(() => VerifyWritten(target, hash), CancellationToken.None) is { } differs) return new(false, differs);
+                    if (await Task.Run(() => VerifyWritten(target, plan, snapshot!, digests), CancellationToken.None) is { } differs) return new(false, differs);
                     baseline = AcceptDigests(digests);
                 }
                 catch (SnapshotInvalidatedException) when (guard)

@@ -81,8 +81,7 @@ public static class JournalRecovery
         result.Records = records.Count;
         if (records.Count > 0) result.LastRecord = DateTimeOffset.FromUnixTimeMilliseconds(records[^1].TimestampMs);
 
-        // the length is read first: hashing a file of tens of GiB to learn that it is not the saved one would take minutes
-        var plan = JournalCompactor.Plan(records, verifyIntent: intent => new FileInfo(intent.Path) is { Exists: true } info && info.Length == intent.Size ? FileFingerprint.TryRead(intent.Path) : null);
+        var plan = JournalCompactor.Plan(records, verifyIntent: VerifyIntent);
         string payloads = JournalPayloads.DirectoryOf(Path.GetDirectoryName(Path.GetFullPath(journalPath))!);
         foreach (var doc in plan.Docs) result.Documents.Add(Replay(doc, backends, payloads));
         result.SessionRecord = plan.Session;
@@ -92,6 +91,21 @@ public static class JournalRecovery
             catch (Exception e) when (e is JournalFormatException or EndOfStreamException) { result.Notes.Add("The session state could not be read."); }
         }
         return result;
+    }
+
+    /// <summary>
+    /// The file a save intent names, as the intent can vouch for it. The length is read first: hashing a file of tens of GiB to learn that it is not the
+    /// saved one would take minutes. A streamed save is checked by the whole file; an in-place save by the written ranges (after an unfinished write of
+    /// the patch journal is completed or undone, which opening the file would do anyway): the hash of an in-place intent is returned as written when
+    /// the ranges match and empty when they do not.
+    /// </summary>
+    private static FileFingerprint? VerifyIntent(SaveIntentRecord intent)
+    {
+        bool inPlace = InPlaceIntent.IsInPlace(intent.Sha256);
+        if (inPlace && File.Exists(intent.Path)) InPlacePatch.Recover(intent.Path);
+        if (new FileInfo(intent.Path) is not { Exists: true } info || info.Length != intent.Size) return null;
+        if (!inPlace) return FileFingerprint.TryRead(intent.Path);
+        return FileFingerprint.TryReadQuick(intent.Path) is { } quick ? quick with { Sha256 = InPlaceIntent.Matches(intent.Path, intent.Sha256) ? intent.Sha256 : "" } : null;
     }
 
     private static RecoveredDocument Replay(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads, bool retried = false)
@@ -320,7 +334,8 @@ internal static class JournalCompactor
                 if (verifyIntent!(intent) is { } actual && actual.Size == intent.Size && actual.Sha256 == intent.Sha256)
                 {
                     save = intentAt;
-                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, actual, intent.Codec);
+                    // an in-place save has no whole-file hash to record; the document will have none until it is read again
+                    point = new SaveRecord(intent.DocId, intent.Revision, intent.Path, InPlaceIntent.IsInPlace(intent.Sha256) ? actual with { Sha256 = "" } : actual, intent.Codec);
                 }
             }
             if (point is not null)

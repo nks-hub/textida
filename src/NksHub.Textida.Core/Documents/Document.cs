@@ -65,7 +65,7 @@ public sealed partial class Document : IDisposable
         {
             var blocks = new OriginalBlockHashes();
             var print = new FileFingerprint(backend.ByteLength, time, HashBackend(backend, blocks));
-            return new Document(backend, options, path, print, unsaved: false) { _baseline = blocks };
+            return new Document(backend, options, path, print, unsaved: false) { _baseline = blocks, _fileId = FileIdentity.TryGet(path) };
         }
         catch
         {
@@ -205,6 +205,7 @@ public sealed partial class Document : IDisposable
         if (_disposed) return;
         _disposed = true;
         StopWatching();
+        _hashCancel?.Cancel();
         _backend.EditedByBackend -= OnBackendEdit;
         _backend.Dispose();
         _undoSpill?.Dispose();

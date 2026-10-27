@@ -74,6 +74,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         Assert.Equal(inode, new FileInfo(file.Path).Length);
         Assert.False(File.Exists(InPlacePatch.JournalPathOf(file.Path)));
         Assert.False(d.IsModified);
+        InPlaceSaveCostTests.AwaitHash(d);
         Assert.Equal(Convert.ToHexString(SHA256.HashData(expected)), d.Fingerprint!.Sha256);
 
         Assert.NotNull(d.Undo());
@@ -214,6 +215,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         Assert.Equal("aXc", System.Text.Encoding.ASCII.GetString(s2.ReadBytes(new(0, 3))));
         Assert.Null(d.CheckExternalChange());
         Assert.False(d.IsModified);
+        InPlaceSaveCostTests.AwaitHash(d);
         Assert.Equal(Convert.ToHexString(SHA256.HashData("aXc"u8)), d.Fingerprint!.Sha256);
         Assert.Equal(File.GetLastWriteTimeUtc(file.Path), d.Fingerprint.LastWriteUtc);
     }
@@ -282,8 +284,8 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
                 var time = File.GetLastWriteTimeUtc(file.Path);
                 using (var fs = new FileStream(file.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
                 {
-                    fs.Position = 1_500_000;
-                    fs.WriteByte((byte)(original[1_500_000] ^ 0xFF));
+                    fs.Position = 20; // beside the patch, in its block: that block is read back after the write, the rest of the file is not
+                    fs.WriteByte((byte)(original[20] ^ 0xFF));
                 }
                 File.SetLastWriteTimeUtc(file.Path, time);
             },
@@ -307,6 +309,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         int events = 0;
         d.ExternalChangeDetected += (_, _) => events++;
         Assert.True((await d.SaveAsync()).Saved);
+        InPlaceSaveCostTests.AwaitHash(d);
         var disk = FileFingerprint.TryRead(file.Path)!;
         Assert.Equal(disk.Sha256, d.Fingerprint!.Sha256);
         Assert.Equal(disk.Size, d.Fingerprint.Size);
@@ -556,6 +559,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
             }
         }
         Assert.Empty(differing);
+        InPlaceSaveCostTests.AwaitHash(d);
         Assert.Equal(Convert.ToHexString(hash.GetHashAndReset()), d.Fingerprint!.Sha256);
         Assert.Null(d.CheckExternalChange());
         Lap("independent pass");

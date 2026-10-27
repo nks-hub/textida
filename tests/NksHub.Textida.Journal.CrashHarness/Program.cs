@@ -9,6 +9,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Length >= 3 && args[0] == "child") return Child(args[1], int.Parse(args[2]));
+        if (args.Length >= 3 && args[0] == "inplace-child") return InPlaceChild(args[1], args[2]);
         if (args.Length >= 4 && args[0] == "batch-child") return BatchScenario.Child(args[1], int.Parse(args[2]), args[3]);
         if (args.Length >= 6 && args[0] == "large-child") return LargeScenario.Child(args[1], int.Parse(args[2]), args[3], long.Parse(args[4]), int.Parse(args[5]));
         if (args.Length == 2 && args[0] == "dump")
@@ -46,6 +47,34 @@ public static class Program
             return 2;
         }
         return Verifier.RunAll(iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "textida-crash-" + Guid.NewGuid().ToString("N")[..8]));
+    }
+
+    /// <summary>
+    /// Overwrites bytes of DIR/data.bin (overlapping and distant ranges), saves in place and waits to be killed at <paramref name="point"/>:
+    /// <c>saving</c> (intent durable, nothing written), <c>saved-unflushed</c> (file patched, save record only in memory) or <c>saved-flushed</c>.
+    /// Prints the point name when it is reached.
+    /// </summary>
+    private static int InPlaceChild(string dir, string point)
+    {
+        using var doc = Document.Open(Path.Combine(dir, "data.bin"), PagedBackendFactory.Instance);
+        using var session = JournalSession.Start(Path.Combine(dir, "journal"), Scene.Resolve, new JournalOptions { Fsync = FsyncPolicy.Manual });
+        session.Track(doc);
+        session.Flush();
+        var raw = new EditOptions { RawBytes = true };
+        doc.Replace(new ByteRange(100, 108), new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, raw);
+        doc.Replace(new ByteRange(104, 112), new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 }, raw); // overlaps the first: replaying twice must not change the result
+        doc.Replace(new ByteRange(3_000_000, 3_000_004), new byte[] { 0xA, 0xB, 0xC, 0xD }, raw);
+        session.Flush();
+        void Hold()
+        {
+            var stdout = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+            stdout.WriteLine(point);
+            Thread.Sleep(Timeout.Infinite);
+        }
+        if (point == "saving") doc.Saving += (_, _) => Hold();
+        else doc.Saved += (_, _) => { if (point == "saved-flushed") session.Flush(); Hold(); };
+        doc.Save();
+        return 0;
     }
 
     /// <summary>Edits three documents with a journal until the parent kills the process. Prints "ready T" and then "OP T" after every operation.</summary>
