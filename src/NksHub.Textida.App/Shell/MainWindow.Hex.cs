@@ -100,7 +100,7 @@ internal sealed partial class MainWindow
             }
             surface.SetSelections([new Sel(Char(anchor), Char(caret))]);
         }
-        else if (tab.Paged is { } paged && tab.Doc.Doc.TryGetPosition(caret, out var position)) paged.GoToLine(position.Line + 1);
+        else if (tab.Paged is { } paged) paged.GoToOffset(caret);
     }
 
     /// <summary>

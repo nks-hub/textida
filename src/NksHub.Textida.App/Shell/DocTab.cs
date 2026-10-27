@@ -19,9 +19,9 @@ internal sealed class DocTab
         else if (custom is null && doc.IsLarge) Paged = new PagedTextView(doc, options);
         else if (custom is null) Surface = new EditorSurface(doc, options);
         Root = new DockPanel { Children = { _barSlot } };
-        if (Surface is { } surface && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+        if ((Surface is not null || Paged is not null) && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
         {
-            _automation = surface.CreateAutomationHost();
+            _automation = Surface?.CreateAutomationHost() ?? Paged!.CreateAutomationHost();
             _automation[DockPanel.DockProperty] = Dock.Top;
             Root.Children.Add(_automation);
         }
@@ -82,9 +82,11 @@ internal sealed class DocTab
         return Paged is { } p ? (p.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (p.TopLine + 1, 1)) : (1, 1);
     }
 
-    public void GoToLine(int line)
+    /// <summary>False when a paged view cannot find the line yet because its index does not reach it.</summary>
+    public bool GoToLine(int line)
     {
         if (Surface is { } s) s.GoToLine(line);
-        else Paged?.GoToLine(line);
+        else if (Paged is { } p) return p.GoToLine(line);
+        return true;
     }
 }

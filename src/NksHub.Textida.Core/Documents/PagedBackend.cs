@@ -128,7 +128,7 @@ public sealed class PagedBackend : IByteBackend
     {
         position = default;
         var (lines, complete) = _doc.LineIndexState;
-        if (!complete || offset < _bom || offset > ByteLength) return false;
+        if (offset < _bom || offset > ByteLength || !complete && offset >= _doc.IndexedBytes) return false; // an offset inside the indexed prefix has its line
         long lo = 0, hi = lines - 1;
         while (lo < hi)
         {
@@ -147,7 +147,7 @@ public sealed class PagedBackend : IByteBackend
     {
         offset = 0;
         var (lines, complete) = _doc.LineIndexState;
-        if (!complete || position.Line < 0 || position.Column < 0 || position.Line >= lines) return false;
+        if (position.Line < 0 || position.Column < 0 || position.Line >= lines || !complete && (position.Line + 1 >= lines || _doc.IndexedBytes == 0)) return false;
         long start = LineStartOf(position.Line);
         if (start < 0) return false;
         long end = ByteLength;

@@ -271,7 +271,7 @@ commands: nks.search.gotoLine
 3. Potvrďte Enter. Kurzor skočí na místo.
 - Číslo větší než počet řádků skočí na poslední řádek.
 - Neplatný zápis napíše „...“ není číslo řádku.
-- Ve velkém souboru, jehož řádky se ještě číslují, ukáže stavový řádek: Na tuto pozici ještě nevede index řádků, zkuste to za chvíli.
+- Ve velkém souboru, jehož řádky se ještě číslují, ukáže stavový řádek: Na tuto pozici ještě nevede index řádků, zkuste to za chvíli. Bajtový offset (@4096) nebo procenta fungují hned; dokud číslování nedoběhne, je číslo řádku po takovém skoku označeno ≈.
 
 ## [search.gotoBracket] Přejít na párovou závorku
 commands: nks.search.gotoBracket

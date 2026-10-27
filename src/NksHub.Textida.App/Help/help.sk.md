@@ -271,7 +271,7 @@ commands: nks.search.gotoLine
 3. Potvrďte Enter. Kurzor skočí na miesto.
 - Číslo väčšie ako počet riadkov skočí na posledný riadok.
 - Neplatný zápis napíše „...“ nie je číslo riadka.
-- Vo veľkom súbore, ktorého riadky sa ešte číslujú, ukáže stavový riadok: Index riadkov na túto pozíciu ešte nesiaha, skúste to o chvíľu.
+- Vo veľkom súbore, ktorého riadky sa ešte číslujú, ukáže stavový riadok: Index riadkov na túto pozíciu ešte nesiaha, skúste to o chvíľu. Bajtový offset (@4096) alebo percentá fungujú hneď; kým číslovanie nedobehne, je číslo riadka po takom skoku označené ≈.
 
 ## [search.gotoBracket] Prejsť na párovú zátvorku
 commands: nks.search.gotoBracket
