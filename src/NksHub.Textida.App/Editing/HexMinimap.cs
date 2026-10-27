@@ -79,7 +79,7 @@ internal sealed class HexMinimap : Control
         base.OnAttachedToVisualTree(e);
         Loc.Changed += ApplyTexts;
         _owner.DocumentChanged += OnDocumentChanged;
-        Schedule();
+        BuildOrSchedule();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -102,10 +102,17 @@ internal sealed class HexMinimap : Control
     protected override void OnSizeChanged(SizeChangedEventArgs e)
     {
         base.OnSizeChanged(e);
-        if (Buckets() != _builtBuckets) Schedule();
+        if (Buckets() != _builtBuckets) BuildOrSchedule();
     }
 
     private int Buckets() => (int)Math.Max(16, Math.Floor(Bounds.Height / CellPx));
+
+    /// <summary>The first map of a freshly shown view starts at once; the settle delay is only there so that typing or a resize drag does not restart the build at every step.</summary>
+    private void BuildOrSchedule()
+    {
+        if (_build is null) Rebuild();
+        else Schedule();
+    }
 
     private void Schedule()
     {
@@ -125,6 +132,7 @@ internal sealed class HexMinimap : Control
     public void Rebuild()
     {
         if (!IsVisible || Bounds.Height < 20) return;
+        _timer.Stop();
         CancelBuild();
         var doc = _owner.Document;
         if (doc.ByteLength == 0)
