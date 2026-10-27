@@ -147,6 +147,37 @@ public class LineDiffTests
     }
 
     [Fact]
+    public void Ignoring_whitespace_makes_lines_equal_that_differ_only_in_spaces_and_tabs_anywhere()
+    {
+        var a = Src("int x = 1;\n  if (x)\nreturn;\nend\n");
+        var b = Src("int  x=1;\n\tif (x) \nreturn 0;\nend\n");
+
+        Assert.Equal([new DiffHunk(0, 3, 0, 3)], LineDiff.Compute(a, b).Hunks);
+        var d = LineDiff.Compute(a, b, ignore: DiffIgnore.Whitespace);
+        Assert.Equal([new DiffHunk(2, 1, 2, 1)], d.Hunks);
+        Assert.Equal(DiffIgnore.Whitespace, d.Ignore);
+        Assert.False(LineDiff.Compute(Src("a b\n"), Src("A b\n"), ignore: DiffIgnore.Whitespace).IsIdentical);
+    }
+
+    [Fact]
+    public void Ignoring_case_makes_lines_equal_that_differ_only_in_letter_case_also_across_codecs()
+    {
+        Assert.True(LineDiff.Compute(Src("Žluťoučký KŮŇ\nb\n"), Src("žluťoučký kůň\nB\n"), ignore: DiffIgnore.Case).IsIdentical);
+        Assert.True(LineDiff.Compute(Src("Kůň\n", TextCodec.Utf8), Src("KŮŇ\n", TextCodec.Cp1250), ignore: DiffIgnore.Case).IsIdentical);
+        Assert.Equal([new DiffHunk(0, 1, 0, 1)], LineDiff.Compute(Src("a b\n"), Src("A  b\n"), ignore: DiffIgnore.Case).Hunks);
+        Assert.True(LineDiff.Compute(Src("a b\n"), Src("A  b\n"), ignore: DiffIgnore.Case | DiffIgnore.Whitespace).IsIdentical);
+    }
+
+    [Fact]
+    public void A_transfer_under_ignore_still_copies_the_other_side_byte_for_byte()
+    {
+        var d = LineDiff.Compute(Src("Head\nold\n tail\n"), Src("head\nnew\ntail\n"), ignore: DiffIgnore.Whitespace | DiffIgnore.Case);
+        Assert.Equal([new DiffHunk(1, 1, 1, 1)], d.Hunks);
+        var edit = DiffTransfer.Plan(d, 0, DiffSide.A);
+        Assert.Equal("new\n", Encoding.UTF8.GetString(edit.Bytes));
+    }
+
+    [Fact]
     public void Transfer_to_a_codec_that_cannot_hold_the_text_is_reported_as_lossy()
     {
         var d = LineDiff.Compute(Src("a\nb\n", TextCodec.Cp1250), Src("a\n€ 中\n", TextCodec.Utf8));
