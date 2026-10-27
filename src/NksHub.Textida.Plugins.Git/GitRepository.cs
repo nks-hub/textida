@@ -45,6 +45,7 @@ public sealed class GitRepository
         string git;
         try { git = ToolRunner.Resolve(new ToolSpec("git", "git", []), _ => null, folder).Executable; }
         catch (ToolException e) { throw new GitException(e.Message); }
+        if (ToolRunner.IsBatch(git)) throw new GitException($"{git} is a batch file; git has to be found as a program.");
         var probe = new GitRepository(git, folder, "", timeoutMs, maxBytes);
         var (code, output, _) = await probe.RunAsync(folder, ["rev-parse", "--show-toplevel", "--show-prefix"], null, readOnly: true, ct);
         if (code != 0) return null;

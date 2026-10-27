@@ -60,6 +60,9 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     /// <summary>Starts the program and performs the <c>initialize</c> handshake. The process is ended when the handshake fails.</summary>
     public static async Task<LspServer> StartAsync(ServerLaunch launch, string root, LspSettings settings, Func<string, JsonElement, ValueTask> onNotification, CancellationToken ct)
     {
+        // a batch file started directly gets no cmd.exe quoting of its arguments (CVE-2024-24576)
+        if (OperatingSystem.IsWindows() && Path.GetExtension(launch.Program) is var ext
+            && (ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase))) throw new ServerStartException($"{launch.Program} is a batch file; a language server has to be started as a program.");
         var info = new ProcessStartInfo(launch.Program)
         {
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = root,

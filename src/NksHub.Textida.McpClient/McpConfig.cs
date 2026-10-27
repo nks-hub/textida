@@ -436,6 +436,8 @@ public static class McpConfig
             string Literal(string s) => s.Replace("$", "$$", StringComparison.Ordinal);
             var cwd = entry.Cwd is { Length: > 0 } c ? Literal(Expand(c, variables)) : null;
             var tool = ToolRunner.Resolve(new ToolSpec("mcp:" + entry.Name, Literal(command), [.. args.Select(Literal)], cwd), _ => null, defaultDirectory);
+            if (ToolRunner.IsBatch(tool.Executable))
+                throw new McpClientException($"{tool.Executable} is a batch file; an MCP server has to be started as a program, not through cmd.exe.");
             return new McpLaunch(tool.Executable, [.. args], tool.WorkingDirectory, env, [.. env.Values.Where(v => v.Length > 0)]);
         }
         catch (ToolException e) { throw new McpClientException(e.Message); }

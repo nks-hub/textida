@@ -91,7 +91,8 @@ public static class ToolRunner
         return found;
     }
 
-    private static bool IsBatch(string exe) => OperatingSystem.IsWindows() && BatchCommandLine.IsBatchFile(exe);
+    /// <summary>A Windows batch file; code that starts a resolved program itself instead of through <see cref="ToolRunner"/> must refuse it, it lacks the cmd.exe quoting (CVE-2024-24576).</summary>
+    public static bool IsBatch(string exe) => OperatingSystem.IsWindows() && BatchCommandLine.IsBatchFile(exe);
 
     private static string? ExistingFile(string path)
     {
