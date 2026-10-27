@@ -83,6 +83,8 @@
   "setting.editor.lineNumbers.description": "Zobrazí stĺpec s číslami riadkov.",
   "setting.editor.highlightCurrentLine.title": "Zvýrazniť aktuálny riadok",
   "setting.editor.highlightCurrentLine.description": "Podfarbí riadok, na ktorom je kurzor.",
+  "setting.editor.matchBrackets.title": "Zvýrazniť párové zátvorky",
+  "setting.editor.matchBrackets.description": "Podfarbí zátvorku pri kurzore a jej náprotivok. Zátvorky v reťazcoch a komentároch sa nepočítajú.",
   "setting.editor.links.title": "Klikacie odkazy",
   "setting.editor.links.description": "Webové adresy sa otvoria kliknutím so stlačeným Ctrl.",
   "setting.editor.rightMargin.title": "Stĺpec pravého okraja",

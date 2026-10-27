@@ -97,6 +97,12 @@
           "description": "Highlight current line. Colors the line that holds the caret.",
           "x-scope": "application"
         },
+        "editor.matchBrackets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight matching brackets. Colors the bracket next to the caret and its partner. Brackets in strings and comments do not count.",
+          "x-scope": "application"
+        },
         "editor.links": {
           "type": "boolean",
           "default": true,

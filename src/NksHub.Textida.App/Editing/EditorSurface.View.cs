@@ -5,8 +5,11 @@ using Avalonia.Media.Immutable;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
+using System.Collections;
 using System.Globalization;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -18,6 +21,10 @@ internal sealed partial class EditorSurface : IMinimapHost
 
     private LineEndingRenderer? _lineEndings;
     private RightMarginRenderer? _margin;
+    private BracketRenderer? _brackets;
+    private (ITextSourceVersion? Version, int Caret, string? Grammar) _bracketKey;
+    private (int Bracket, int Partner)? _bracketPair;
+    private SyntaxProbe? _bracketProbe;
     private TextDocument? _guarded;
     private ITextSourceVersion? _giantVersion;
     private bool _giant;
@@ -56,6 +63,9 @@ internal sealed partial class EditorSurface : IMinimapHost
         var view = TextArea.TextView;
         view.VisualLinesChanged += (_, _) => _mapChanged?.Invoke();
         view.ScrollOffsetChanged += (_, _) => _mapChanged?.Invoke();
+        TextArea.Caret.PositionChanged += (_, _) => InvalidateBrackets();
+        TextArea.SelectionChanged += (_, _) => InvalidateBrackets();
+        CaretsChanged += InvalidateBrackets;
     }
 
     private void ApplyViewOptions(EditorOptions o)
@@ -66,6 +76,7 @@ internal sealed partial class EditorSurface : IMinimapHost
         Options.EnableEmailHyperlinks = false;
         _lineEndings ??= AddRenderer(new LineEndingRenderer(this));
         _margin ??= AddRenderer(new RightMarginRenderer(this));
+        _brackets ??= AddRenderer(new BracketRenderer(this));
         _lineEndings.Enabled = o.ShowLineEndings;
         _margin.Column = o.RightMargin;
         TextArea.TextView.InvalidateLayer(KnownLayer.Text);
@@ -122,6 +133,97 @@ internal sealed partial class EditorSurface : IMinimapHost
             WordWrap = false;
             return;
         }
+    }
+
+    // ---- matching brackets ----
+
+    /// <summary>Background of the bracket at the caret and of its partner; set with the theme.</summary>
+    internal IBrush? BracketBrush { get; private set; }
+
+    /// <summary>
+    /// Offsets of the bracket at the caret (or just before it) and of its partner while the highlight is on, there is one caret and nothing is
+    /// selected; null otherwise. Brackets in strings and comments do not count when the language has a grammar. Kept until the text, the caret
+    /// or the grammar changes.
+    /// </summary>
+    internal (int Bracket, int Partner)? MatchingBrackets()
+    {
+        if (!Settings.MatchBrackets || IsMulti || !TextArea.Selection.IsEmpty || !NextToBracket())
+        {
+            _bracketKey = default;
+            return _bracketPair = null;
+        }
+        (ITextSourceVersion? Version, int Caret, string? Grammar) key = (Document.Version, CaretOffset, LanguageModes.GrammarId(Doc));
+        if (_bracketKey.Version is { } known && key.Version is { } now && now.BelongsToSameDocumentAs(known) && now.CompareAge(known) == 0
+            && _bracketKey.Caret == key.Caret && _bracketKey.Grammar == key.Grammar) return _bracketPair;
+        _bracketKey = key;
+        return _bracketPair = FindBrackets(key.Grammar);
+    }
+
+    private (int Bracket, int Partner)? FindBrackets(string? grammar)
+    {
+        var line = Document.GetLineByOffset(CaretOffset);
+        if (line.Length > WrapLineLimit) return null; // shortcut: a giant caret line is not scanned at every caret move; Go to Matching Bracket still works there
+        Func<int, IReadOnlyList<Token>>? tokensOf = null;
+        if (grammar is not null)
+        {
+            if (_bracketProbe?.Language != grammar)
+            {
+                _bracketProbe?.Dispose();
+                _bracketProbe = SyntaxProbe.TryCreate(Doc.Doc, grammar);
+            }
+            if (_bracketProbe is not { } probe) return null; // without tokens a bracket in a string would count
+            tokensOf = l => probe.TokensOfLine(l + 1);
+        }
+        try
+        {
+            var match = BracketMatcher.Match(new DocumentLines(Document), tokensOf, line.LineNumber - 1, CaretOffset - line.Offset, PluginLimitsPlaceholders.BracketHighlightMaxLines);
+            return match is { } m ? (OffsetOf(m.Bracket), OffsetOf(m.Partner)) : null;
+        }
+        catch (ArgumentOutOfRangeException) { return null; } // the line breaks of the decoded text and of the tokenizer disagree
+        int OffsetOf(TextPosition p) => Document.GetLineByNumber(p.Line + 1).Offset + p.Column;
+    }
+
+    private bool NextToBracket()
+    {
+        int caret = CaretOffset;
+        return IsBracketAt(caret) || IsBracketAt(caret - 1);
+        bool IsBracketAt(int at) => at >= 0 && at < Document.TextLength && Document.GetCharAt(at) is '(' or ')' or '[' or ']' or '{' or '}';
+    }
+
+    /// <summary>The caret or the selection changed: the background is drawn again when a pair is shown or the caret may stand at a bracket.</summary>
+    private void InvalidateBrackets()
+    {
+        if (_bracketPair is not null || (Settings.MatchBrackets && NextToBracket())) TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+    }
+
+    private void ReleaseBrackets()
+    {
+        _bracketProbe?.Dispose();
+        _bracketProbe = null;
+        _bracketKey = default;
+        _bracketPair = null;
+    }
+
+    /// <summary>The lines of a text document as strings, each built when it is read.</summary>
+    private sealed class DocumentLines(TextDocument document) : IReadOnlyList<string>
+    {
+        public int Count => document.LineCount;
+
+        public string this[int index]
+        {
+            get
+            {
+                var line = document.GetLineByNumber(index + 1);
+                return document.GetText(line.Offset, line.Length);
+            }
+        }
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            for (int i = 0; i < Count; i++) yield return this[i];
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     // ---- minimap ----
@@ -190,6 +292,26 @@ internal sealed class LineEndingRenderer(TextEditor owner) : IBackgroundRenderer
             var text = new FormattedText(name, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, size, dim);
             drawingContext.DrawText(text, new Point(x + textView.WideSpaceWidth * 0.5, y + Math.Max(0, (textLine.Height - text.Height) / 2)));
         }
+    }
+}
+
+/// <summary>Colors the bracket at the caret and its partner (<see cref="EditorSurface.MatchingBrackets"/>).</summary>
+internal sealed class BracketRenderer(EditorSurface owner) : IBackgroundRenderer
+{
+    public KnownLayer Layer => KnownLayer.Background;
+
+    public void Draw(TextView textView, DrawingContext drawingContext)
+    {
+        long trace = NksHub.Textida.Core.TypingTrace.Begin();
+        try
+        {
+            if (owner.BracketBrush is not { } brush || !textView.VisualLinesValid || owner.MatchingBrackets() is not { } pair) return;
+            var builder = new BackgroundGeometryBuilder { AlignToWholePixels = true, CornerRadius = 2 };
+            builder.AddSegment(textView, new TextSegment { StartOffset = pair.Bracket, Length = 1 });
+            builder.AddSegment(textView, new TextSegment { StartOffset = pair.Partner, Length = 1 });
+            if (builder.CreateGeometry() is { } geometry) drawingContext.DrawGeometry(brush, null, geometry);
+        }
+        finally { NksHub.Textida.Core.TypingTrace.End("editor.drawBrackets", trace); }
     }
 }
 

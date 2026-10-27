@@ -5662,6 +5662,21 @@
         "delay",
         "seconds"
       ]
+    },
+    {
+      "key": "editor.matchBrackets",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.matchBrackets.title",
+      "description": "setting.editor.matchBrackets.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "bracket",
+        "pair",
+        "match",
+        "highlight"
+      ]
     }
   ]
 }

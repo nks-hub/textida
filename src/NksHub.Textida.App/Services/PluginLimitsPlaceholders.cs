@@ -55,6 +55,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
     public const long HistoryRevisionMaxBytes = 32L << 20;
 
+    /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
+    public const int BracketHighlightMaxLines = 5000;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

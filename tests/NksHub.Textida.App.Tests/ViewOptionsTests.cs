@@ -320,6 +320,17 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Matching_brackets_are_colored_until_the_highlight_is_switched_off()
+    {
+        var tab = Open("b.js", "x = f(a, b);\n");
+        tab.Editor!.CaretOffset = 5;
+        var band = EditorBand(tab, 2);
+        var marked = Capture();
+        Set("editor.matchBrackets", JsonValue.Create(false));
+        Assert.True(Differences(Capture(), marked, band) > 10, "the brackets were not colored");
+    }
+
+    [AvaloniaFact]
     public void Links_are_clickable_in_the_editor_until_they_are_switched_off()
     {
         var tab = Open("l.txt", "see https://example.org/page for details\n");

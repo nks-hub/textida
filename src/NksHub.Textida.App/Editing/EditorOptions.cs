@@ -37,6 +37,8 @@ internal sealed record EditorOptions(
     bool HideMouseWhileTyping = true,
     bool LinkNeedsCtrl = true,
     int WrapIndent = 0)
+
+    bool MatchBrackets = true)
 {
     /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
     public string FullFontFamily => FallbackFontFamily.Length == 0 ? FontFamily : FontFamily + ", " + FallbackFontFamily;
@@ -101,5 +103,7 @@ internal sealed record EditorOptions(
             HideMouseWhileTyping: s.GetBool("advanced.hideMouseWhileTyping"),
             LinkNeedsCtrl: s.GetBool("advanced.linkNeedsCtrl"),
             WrapIndent: (int)s.GetInt("advanced.wrapIndent"));
+
+            MatchBrackets: s.GetBool("editor.matchBrackets"));
     }
 }

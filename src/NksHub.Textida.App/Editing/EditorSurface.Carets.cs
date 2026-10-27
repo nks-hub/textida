@@ -107,6 +107,7 @@ internal sealed partial class EditorSurface
         _blink?.Stop();
         _probe?.Dispose();
         _probe = null;
+        ReleaseBrackets();
     }
 
     private void RebindCarets()
@@ -115,6 +116,7 @@ internal sealed partial class EditorSurface
         DropOthers();
         _probe?.Dispose();
         _probe = null;
+        ReleaseBrackets();
         HookCoreDocument();
     }
 

@@ -275,10 +275,6 @@ internal sealed partial class PagedTextView : Grid
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
 
-    /// <summary>
-    /// Goes to a one-based line. While the index is being built a line inside the indexed part is exact; a later one cannot be found yet and
-    /// the call returns false. With a complete index a number past the end goes to the last line.
-    /// </summary>
     /// <summary>The index reports from its own thread; the view catches up on the UI thread, so a detour ends as soon as the index reaches it.</summary>
     private void WatchIndex()
     {
@@ -298,7 +294,11 @@ internal sealed partial class PagedTextView : Grid
         RaiseViewChanged();
     });
 
-    public bool GoToLine(long line)
+    /// <summary>
+    /// Goes to a one-based line and UTF-16 column; a column past the end of the line goes to its end. While the index is being built a line inside
+    /// the indexed part is exact; a later one cannot be found yet and the call returns false. With a complete index a number past the end goes to the last line.
+    /// </summary>
+    public bool GoToLine(long line, long column = 1)
     {
         long target = Math.Max(0, line - 1);
         if (Indexed) target = Math.Min(target, Math.Max(0, LineCount - 1));
@@ -307,8 +307,18 @@ internal sealed partial class PagedTextView : Grid
         LeaveDetour(target);
         UpdateScrollRange();
         _bar.Value = Math.Clamp(target, 0, _bar.Maximum);
-        MoveTo(start, target);
+        MoveTo(OffsetInLine(target, start, column - 1), target);
         return true;
+    }
+
+    /// <summary>Byte offset of a zero-based UTF-16 column of a line, at most its end; the line start while the end of the line is not known yet.</summary>
+    private long OffsetInLine(long line, long start, long column)
+    {
+        if (column <= 0 || GetLine(line) is not { } view) return start;
+        if (view.Truncated) return OffsetOfColumn(view, column);
+        int i = (int)Math.Min(column, view.Map.Text.Length);
+        if (!view.Map.IsCharBoundary(i)) i--; // between the halves of a surrogate pair
+        return view.Start + view.Map.ByteOffsetOf(i);
     }
 
     /// <summary>

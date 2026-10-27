@@ -518,6 +518,7 @@ commands: nks.search.gotoBracket
 2. Stiskněte Ctrl+Shift+zpětné lomítko, nebo zvolte Hledat a Přejít na párovou závorku.
 3. Kurzor skočí na protější závorku.
 - Nemá-li závorka protějšek, stavový řádek napíše Závorka nemá protějšek.
+- Když kurzor stojí u závorky a nic není vybrané, podbarví se závorka i její protějšek. Závorky v řetězcích a komentářích se nepočítají. Vypne to volba Zvýraznit párové závorky v nastavení.
 - Ve velkém souboru ve stránkovaném režimu příkaz není.
 
 ## [search.gotoAnything] Přejít na cokoli

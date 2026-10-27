@@ -471,7 +471,7 @@ internal sealed partial class MainWindow
                     break;
                 }
             case GoToKind.Line:
-                if (!tab.GoToLine((int)Math.Min(target.Value, int.MaxValue))) SetStatusMessage(Loc.Get(K.GoToNotIndexed));
+                if (!tab.GoToLine((int)Math.Min(target.Value, int.MaxValue), target.Column)) SetStatusMessage(Loc.Get(K.GoToNotIndexed));
                 break;
             default:
                 GoToByte(tab, target.Kind == GoToKind.Percent ? (long)(doc.ByteLength * (decimal)target.Value / 100m) : target.Value);
