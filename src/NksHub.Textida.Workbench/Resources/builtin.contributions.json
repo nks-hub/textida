@@ -4356,12 +4356,6 @@
     },
     {
       "menu": "view",
-      "command": "nks.hex.template",
-      "group": "3_hex",
-      "order": 140
-    },
-    {
-      "menu": "view",
       "command": "nks.hex.minimap.mode",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -4587,26 +4581,6 @@
       "group": "2_run/05_6_log",
       "submenu": "log",
       "order": 120
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openPathAtCaret",
-      "group": "1_new",
-      "order": 40
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportHtml",
-      "group": "2_disk",
-      "submenu": "export",
-      "order": 90
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportRtf",
-      "group": "2_disk",
-      "submenu": "export",
-      "order": 100
     },
     {
       "menu": "view",
@@ -5065,26 +5039,6 @@
       "key": "shift+tab",
       "command": "nks.markdown.previousCell",
       "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.markdown.nextCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.markdown.previousCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
     }
   ],
   "settings": [
