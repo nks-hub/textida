@@ -13,6 +13,10 @@ public sealed class MappedFileSourceOptions
     public bool StartIndexing { get; init; } = true;
     /// <summary>Overrides detection. Reinterpreting a document updates it, but only to an encoding that shares the line index (see <c>MappedFileSource.SharesLineIndex</c>).</summary>
     public TextCodec? Codec { get; set; }
+    /// <summary>Bytes of inserted text, and separately of undo records, an edited document keeps in memory before it spills them to disk. Placeholder: see <see cref="PagedSpillPlaceholders"/>.</summary>
+    public long SpillBudgetBytes { get; init; } = PagedSpillPlaceholders.MemoryBudgetBytes;
+    /// <summary>Where spill files go; null for a folder under the temp directory.</summary>
+    public string? SpillDirectory { get; init; }
 }
 
 /// <summary>

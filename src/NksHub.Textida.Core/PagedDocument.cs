@@ -14,15 +14,12 @@ namespace NksHub.Textida.Core;
 /// </remarks>
 public sealed class PagedDocument : IPagedTextSource
 {
-    private sealed record Edit(long Offset, Piece[] Removed, Piece[] Inserted);
-
     private readonly PieceTree _tree = new();
-    private readonly List<Edit> _undo = [];
-    private readonly List<Edit> _redo = [];
+    private readonly EditStack _undo;
+    private readonly EditStack _redo;
     private readonly MappedFileSourceOptions _options;
     private MappedFileSource _source;
-    private byte[] _add = new byte[4096];
-    private int _addLength;
+    private AddBuffer _add;
     private bool _saving;
     private readonly ColumnIndex _editedColumns = new();
 
@@ -30,6 +27,9 @@ public sealed class PagedDocument : IPagedTextSource
     {
         _source = source;
         _options = options;
+        _add = NewAddBuffer();
+        _undo = new EditStack(options.SpillBudgetBytes, options.SpillDirectory);
+        _redo = new EditStack(options.SpillBudgetBytes, options.SpillDirectory);
         _source.IndexProgress += OnSourceProgress;
         _tree.Reset(new Piece(true, 0, source.ByteLength));
     }
@@ -50,6 +50,8 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>Forbidden: the paged document never materializes its whole text. Read ranges instead.</summary>
     [Obsolete("PagedDocument has no Text: read a byte range or lines (PLAN 5.1).", error: true)]
     public string Text => throw new NotSupportedException();
+
+    private AddBuffer NewAddBuffer() => new(_options.SpillBudgetBytes, _options.SpillDirectory);
 
     /// <summary>Immutable view of the current content; cheap (pieces only) and safe to read from other threads.</summary>
     public PagedSnapshot CreateSnapshot() => new([.. _tree.EnumerateRange(0, ByteLength)], _add, _source.File);
@@ -114,12 +116,7 @@ public sealed class PagedDocument : IPagedTextSource
         bool firstLf = whole && LineScanner.Unit(PieceBytes(p with { Length = w }), 0, Codec) == 10;
         bool lastCr = whole && LineScanner.Unit(PieceBytes(p with { Start = p.Start + p.Length - w, Length = w }), 0, Codec) == 13;
         long n;
-        if (p.Repeated)
-        {
-            n = 0;
-            if (p.Pattern.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0)
-                foreach (var (_, buffer, length) in RepeatedChunks(p)) n += LineScanner.CountTerminators(buffer, length, Codec);
-        }
+        if (p.Repeated && p.Pattern.AsSpan().IndexOfAny((byte)10, (byte)13) < 0) n = 0;
         else if (p.Original)
         {
             long end = p.Start + p.Length;
@@ -129,18 +126,17 @@ public sealed class PagedDocument : IPagedTextSource
         }
         else
         {
-            // shortcut: rescans the whole inserted block, fine for typing; pastes of hundreds of MiB need per-block counts (P7.1.2)
-            var bytes = PieceBytes(p);
-            n = LineScanner.CountTerminators(bytes, bytes.Length, Codec);
+            n = 0;
+            foreach (var (_, buffer, length) in PieceChunks(p)) n += LineScanner.CountTerminators(buffer, length, Codec);
         }
         return new LineStats(n, firstLf, lastCr);
     }
 
     /// <summary>
-    /// A repeated piece in blocks for the line scanner. A block never ends between a CR and an LF, so the terminators of the blocks add up
+    /// A repeated or inserted piece in blocks for the line scanner. A block never ends between a CR and an LF, so the terminators of the blocks add up
     /// to those of the piece; the buffer is reused between blocks.
     /// </summary>
-    private IEnumerable<(long At, byte[] Buffer, int Length)> RepeatedChunks(Piece p)
+    private IEnumerable<(long At, byte[] Buffer, int Length)> PieceChunks(Piece p)
     {
         int w = Codec.Alignment;
         int chunk = (1 << 20) - (1 << 20) % w;
@@ -151,31 +147,33 @@ public sealed class PagedDocument : IPagedTextSource
             int n = (int)Math.Min(chunk, p.Length - at);
             if (at + n < p.Length)
             {
-                p.CopyRepeated(at + n - w, pair);
+                CopyPiece(p, at + n - w, pair);
                 if (LineScanner.Unit(pair, 0, Codec) == 13 && LineScanner.Unit(pair, w, Codec) == 10) n -= w;
             }
-            p.CopyRepeated(at, buffer.AsSpan(0, n));
+            CopyPiece(p, at, buffer.AsSpan(0, n));
             yield return (at, buffer, n);
             at += n;
         }
     }
 
+    /// <summary>Copies bytes from <paramref name="skip"/> into a repeated or inserted piece, whatever its length.</summary>
+    private void CopyPiece(Piece p, long skip, Span<byte> destination)
+    {
+        if (p.Repeated) p.CopyRepeated(skip, destination);
+        else _add.Read(p.Start + skip, destination);
+    }
+
     private long AfterNthTerminator(Piece p, long k)
     {
-        if (p.Repeated)
+        if (!p.Original)
         {
-            foreach (var (at, buffer, length) in RepeatedChunks(p))
+            foreach (var (at, buffer, length) in PieceChunks(p))
             {
                 long here = LineScanner.CountTerminators(buffer, length, Codec);
                 if (k <= here) return at + LineScanner.FindNthTerminator(buffer, length, k, Codec) + Codec.Alignment;
                 k -= here;
             }
             return p.Length;
-        }
-        if (!p.Original)
-        {
-            var bytes = PieceBytes(p);
-            return LineScanner.FindNthTerminator(bytes, bytes.Length, k, Codec) + Codec.Alignment;
         }
         long g = _source.CountTerminatorsBefore(p.Start) + k;
         if (_source.TryGetLineStart(g, out long start) && start <= p.Start + p.Length) return start - p.Start;
@@ -193,9 +191,9 @@ public sealed class PagedDocument : IPagedTextSource
         EnsureNotSaving();
         if (offset < 0 || deleteLength < 0 || offset + deleteLength > ByteLength) throw new ArgumentOutOfRangeException(nameof(offset));
         if (deleteLength == 0 && insert.IsEmpty) return;
-        Piece[] inserted = insert.IsEmpty ? [] : [AppendToAddBuffer(insert)];
+        Piece[] inserted = insert.IsEmpty ? [] : [new Piece(false, _add.Append(insert), insert.Length)];
         var removed = Apply(offset, deleteLength, inserted);
-        _undo.Add(new Edit(offset, removed, inserted));
+        _undo.Push(new PieceEdit(offset, removed, inserted));
         _redo.Clear();
     }
 
@@ -203,10 +201,9 @@ public sealed class PagedDocument : IPagedTextSource
     {
         EnsureNotSaving();
         if (_undo.Count == 0) return false;
-        var e = _undo[^1];
-        _undo.RemoveAt(_undo.Count - 1);
+        var e = _undo.Pop();
         Apply(e.Offset, e.Inserted.Sum(p => p.Length), e.Removed);
-        _redo.Add(e);
+        _redo.Push(e);
         return true;
     }
 
@@ -214,10 +211,9 @@ public sealed class PagedDocument : IPagedTextSource
     {
         EnsureNotSaving();
         if (_redo.Count == 0) return false;
-        var e = _redo[^1];
-        _redo.RemoveAt(_redo.Count - 1);
+        var e = _redo.Pop();
         Apply(e.Offset, e.Removed.Sum(p => p.Length), e.Inserted);
-        _undo.Add(e);
+        _undo.Push(e);
         return true;
     }
 
@@ -227,17 +223,6 @@ public sealed class PagedDocument : IPagedTextSource
         var removed = _tree.Remove(offset, removeLength);
         _tree.Insert(offset, insert);
         return removed;
-    }
-
-    private Piece AppendToAddBuffer(ReadOnlySpan<byte> bytes)
-    {
-        long need = (long)_addLength + bytes.Length;
-        if (need > Array.MaxLength) throw new InvalidOperationException("Add buffer limit (2 GiB of inserted text) reached.");
-        if (need > _add.Length) Array.Resize(ref _add, (int)Math.Min(Array.MaxLength, Math.Max(need, _add.Length * 2L)));
-        bytes.CopyTo(_add.AsSpan(_addLength));
-        var piece = new Piece(false, _addLength, bytes.Length);
-        _addLength += bytes.Length;
-        return piece;
     }
 
     private void EnsureNotSaving()
@@ -278,7 +263,7 @@ public sealed class PagedDocument : IPagedTextSource
         if (pattern.IsEmpty || length < 0) throw new ArgumentException("A pattern needs at least one byte and a length of zero or more.");
         Piece[] inserted = length == 0 ? [] : [new Piece(false, 0, length, pattern.ToArray())];
         var removed = Apply(offset, deleteLength, inserted);
-        _undo.Add(new Edit(offset, removed, inserted));
+        _undo.Push(new PieceEdit(offset, removed, inserted));
         _redo.Clear();
         return removed;
     }
@@ -289,20 +274,19 @@ public sealed class PagedDocument : IPagedTextSource
         EnsureNotSaving();
         var pieces = (Piece[])removed;
         var gone = Apply(offset, insertedLength, pieces);
-        _undo.Add(new Edit(offset, gone, pieces));
+        _undo.Push(new PieceEdit(offset, gone, pieces));
         _redo.Clear();
     }
 
     /// <summary>The bytes of a piece; a repeated piece is expanded into a new array, so ask only for short ones.</summary>
     private ReadOnlySpan<byte> PieceBytes(Piece p)
     {
-        if (p.Repeated)
-        {
-            var copy = new byte[checked((int)p.Length)];
-            p.CopyRepeated(0, copy);
-            return copy;
-        }
-        return p.Original ? _source.File.GetSpan(p.Start, checked((int)p.Length)) : _add.AsSpan((int)p.Start, (int)p.Length);
+        int length = checked((int)p.Length);
+        if (p.Original) return _source.File.GetSpan(p.Start, length);
+        if (!p.Repeated && _add.TryGetSpan(p.Start, length, out var span)) return span;
+        var copy = new byte[length];
+        CopyPiece(p, 0, copy);
+        return copy;
     }
 
     public ValueTask<IReadOnlyList<string>> ReadLinesAtAsync(long byteOffset, int maxLines, CancellationToken ct = default)
@@ -415,8 +399,7 @@ public sealed class PagedDocument : IPagedTextSource
             _tree.Reset(new Piece(true, 0, _source.ByteLength));
             _undo.Clear();
             _redo.Clear();
-            _add = new byte[4096];
-            _addLength = 0;
+            _add = NewAddBuffer(); // snapshots keep the old buffer; its spill file goes with the last reference
         }
         finally
         {
@@ -453,20 +436,22 @@ public sealed class PagedDocument : IPagedTextSource
         }
 
         long written = 0;
-        byte[]? repeated = null;
+        byte[]? scratch = null;
         for (int i = 0; i < slices.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
             for (int k = i; k <= i + ahead; k++) Prefetch(k);
             var (piece, start, len) = slices[i];
             ReadOnlySpan<byte> span;
-            if (piece.Repeated)
+            if (piece.Original) span = _source.File.GetSpan(start, len);
+            else if (!piece.Repeated && _add.TryGetSpan(start, len, out var inMemory)) span = inMemory;
+            else
             {
-                repeated ??= new byte[slice];
-                piece.CopyRepeated(start - piece.Start, repeated.AsSpan(0, len));
-                span = repeated.AsSpan(0, len);
+                scratch ??= new byte[slice];
+                if (piece.Repeated) piece.CopyRepeated(start - piece.Start, scratch.AsSpan(0, len));
+                else _add.Read(start, scratch.AsSpan(0, len));
+                span = scratch.AsSpan(0, len);
             }
-            else span = piece.Original ? _source.File.GetSpan(start, len) : _add.AsSpan((int)start, len);
             stream.Write(span);
             written += len;
             if (i + 1 == slices.Count || slices[i + 1].Piece != piece) progress?.Report(written);
@@ -478,5 +463,7 @@ public sealed class PagedDocument : IPagedTextSource
     {
         _source.IndexProgress -= OnSourceProgress;
         _source.Dispose();
+        _undo.Dispose();
+        _redo.Dispose();
     }
 }
