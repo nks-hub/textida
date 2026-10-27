@@ -316,6 +316,17 @@ internal sealed partial class MainWindow
         return new ProposalDecision(id, ProposalOutcome.Stale, 0, total);
     }
 
+    /// <summary>
+    /// Shows a workspace edit (text edits in several documents and files, file operations) in the same change review, one tick per change, and answers when the user has decided.
+    /// A document that moved on since the plan was made makes the plan stale at once; nothing is written then.
+    /// </summary>
+    internal Task<ProposalDecision> ReviewWorkspaceEditAsync(ChangeProposal plan, string id, CancellationToken cancellation)
+    {
+        if (!IsStale(plan)) return ShowPlanAsync(id, plan, null, cancellation);
+        SetStatusMessage(Loc.Get(K.StatusChangeConflict));
+        return Task.FromResult(new ProposalDecision(id, ProposalOutcome.Stale, 0, plan.ChangeCount));
+    }
+
     /// <summary>The edits as text of the document, or null when one of them is bytes that do not decode to text the codec writes back unchanged.</summary>
     private static List<TextReplacement>? TextReplacements(Document doc, IReadOnlyList<ByteEdit> edits)
     {

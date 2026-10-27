@@ -13,13 +13,24 @@ public sealed record Hunk(int Id, ByteRange Range, string OldText, string NewTex
     public bool CanApply => Problem is null;
 }
 
+public enum FileOperationKind { Create, Rename, Delete }
+
+/// <summary>
+/// A change of the file system instead of the text of a file. The <see cref="FileChange"/> that carries it names the file (the new file of a create, the old file of a
+/// rename or a delete). <paramref name="NewPath"/> is the target of a rename; <paramref name="Content"/> is what a create writes.
+/// </summary>
+public sealed record FileOperation(FileOperationKind Kind, string? NewPath = null, byte[]? Content = null);
+
 /// <summary>
 /// The changes proposed for one target. A document target names the revision the ranges refer to; a file target names the
-/// fingerprint (size and SHA-256) of the content they refer to. Anything else than that exact base is stale.
+/// fingerprint (size and SHA-256) of the content they refer to. Anything else than that exact base is stale. A change with an <paramref name="Operation"/>
+/// has no hunks: it is accepted or rejected as one change (a rename or delete is based on the fingerprint when it has one).
 /// </summary>
-public sealed record FileChange(string Key, string? Path, Guid? DocumentId, long? BaseRevision, FileFingerprint? BaseFingerprint, TextCodec Codec, IReadOnlyList<Hunk> Hunks)
+public sealed record FileChange(string Key, string? Path, Guid? DocumentId, long? BaseRevision, FileFingerprint? BaseFingerprint, TextCodec Codec, IReadOnlyList<Hunk> Hunks, FileOperation? Operation = null)
 {
     public bool IsDocument => DocumentId is not null;
+    /// <summary>What the user can accept: the hunks, or one for a file operation.</summary>
+    public int Changes => Operation is null ? Hunks.Count : 1;
     public string DisplayName => Path ?? Key;
 }
 
@@ -31,6 +42,13 @@ public sealed record FileChange(string Key, string? Path, Guid? DocumentId, long
 public sealed record ChangeProposal(Guid Id, string Title, string Origin, IReadOnlyList<FileChange> Files)
 {
     public int HunkCount => Files.Sum(f => f.Hunks.Count);
+    /// <summary>Hunks and file operations together.</summary>
+    public int ChangeCount => Files.Sum(f => f.Changes);
+    /// <summary>
+    /// All or nothing: when any accepted change is stale or cannot be done, nothing of the proposal is applied. File operations are undone if one of them fails.
+    /// Without it each target stands alone (Replace in Files).
+    /// </summary>
+    public bool Atomic { get; init; }
 }
 
 /// <summary>What the user decided in the preview. Everything is accepted until rejected.</summary>
