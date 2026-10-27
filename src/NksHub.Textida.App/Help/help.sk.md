@@ -1041,6 +1041,16 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 - Zatiaľ chýba: vrátenie úseku z indexu, commit a vetvy. Súbor s prevodom koncov riadkov (`autocrlf`) sa môže s indexom líšiť v každom riadku.
 - Proces Git sa spustí prvým príkazom. Program `git` musí byť v PATH.
 
+## [tools.lsp] Jazykový server: definícia, odkazy a diagnostika
+commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.restart, nks.lsp.stop
+1. Otvorte textový dokument a zvoľte Nástroje, Jazykový server: spustiť pre tento dokument. Spustí sa server pre jazyk dokumentu a dostane jeho text. Odvtedy mu ide každá úprava a to, čo server označí za chybu, sa podčiarkne.
+2. Jazykový server: prejsť na definíciu skočí na definíciu slova pod kurzorom, aj do iného súboru. Jazykový server: nájsť odkazy vypíše všetky miesta v paneli vľavo; Enter alebo dvojklik na položku ju otvorí.
+3. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí znova a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Jazykový server: zastaviť ho vypne.
+- Editor žiadny server sám nespúšťa: kým nezvolíte prvý príkaz tejto skupiny, nič nebeží a server o súbore nič nevie.
+- Veľké súbory zobrazené po stránkach a súbory nad limitom veľkosti sa serveru nikdy neodovzdajú.
+- Server sa hľadá podľa názvu v PATH. Keď sa nenájde, upozornenie pomenuje program, ktorý sa hľadal.
+- Zatiaľ chýba: dopĺňanie a premenovanie cez server, položka v stavovom riadku a voľba priečinka projektu (použije sa priečinok prvého dokumentu).
+
 ## [edit.complete] Dopĺňanie slov a klipov
 commands: nks.edit.complete
 1. Stlačte Ctrl+J (Úpravy, Doplniť slovo alebo klip). Zoznam ponúkne slová, ktoré pokračujú slovo pred kurzorom, a potom klipy, ktoré sa hodia pre jazyk dokumentu.

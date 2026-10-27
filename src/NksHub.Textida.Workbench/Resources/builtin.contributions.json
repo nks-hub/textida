@@ -1216,6 +1216,41 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.lsp.start",
+      "title": "cmd.lsp.start",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.goToDefinition",
+      "title": "cmd.lsp.goToDefinition",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.findReferences",
+      "title": "cmd.lsp.findReferences",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.restart",
+      "title": "cmd.lsp.restart",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.stop",
+      "title": "cmd.lsp.stop",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.edit.complete",
       "title": "cmd.edit.complete",
       "category": "cat.edit",
@@ -2565,6 +2600,36 @@
       "command": "nks.git.stageHunk",
       "group": "9_git",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.start",
+      "group": "9_lsp",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.goToDefinition",
+      "group": "9_lsp",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.findReferences",
+      "group": "9_lsp",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.restart",
+      "group": "9_lsp",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.stop",
+      "group": "9_lsp",
+      "order": 50
     },
     {
       "menu": "edit",

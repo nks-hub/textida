@@ -15,6 +15,7 @@ internal static class PublishChecks
         ("plugins/emmet", "NksHub.Textida.Plugins.Emmet"),
         ("plugins/formatters", "NksHub.Textida.Plugins.Formatters"),
         ("plugins/git", "NksHub.Textida.Plugins.Git"),
+        ("plugins/lsp", "NksHub.Textida.Plugins.Lsp"),
         ("mcp", "textida-mcp"),
     ];
 

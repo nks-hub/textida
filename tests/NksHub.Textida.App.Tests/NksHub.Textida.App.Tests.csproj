@@ -40,6 +40,8 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Emmet\NksHub.Textida.Plugins.Emmet.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Lsp\NksHub.Textida.Plugins.Lsp.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\NksHub.Textida.FakeLsp\NksHub.Textida.FakeLsp.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
@@ -52,6 +54,7 @@
       <EmmetPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Emmet\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <FormattersPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Formatters\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <GitPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Git\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <LspPluginFiles Include="..\..\src\NksHub.Textida.Plugins.Lsp\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <McpBridgeFiles Include="..\..\src\NksHub.Textida.Mcp\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
@@ -61,6 +64,7 @@
     <Copy SourceFiles="@(EmmetPluginFiles)" DestinationFiles="@(EmmetPluginFiles->'$(OutDir)plugins\emmet\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(FormattersPluginFiles)" DestinationFiles="@(FormattersPluginFiles->'$(OutDir)plugins\formatters\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(GitPluginFiles)" DestinationFiles="@(GitPluginFiles->'$(OutDir)plugins\git\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(LspPluginFiles)" DestinationFiles="@(LspPluginFiles->'$(OutDir)plugins\lsp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(McpBridgeFiles)" DestinationFiles="@(McpBridgeFiles->'$(OutDir)mcp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>
