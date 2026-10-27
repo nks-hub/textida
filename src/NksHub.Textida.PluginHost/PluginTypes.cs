@@ -19,7 +19,8 @@ public static class PluginMethods
 }
 
 /// <summary>Handshake request. A plugin must answer with the same <c>apiVersion</c> or an error.</summary>
-public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName);
+/// <param name="Settings">Current values of the settings the plugin declared (full key to value); absent when it declared none. Later changes arrive as the event <c>settings.changed</c>.</param>
+public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName, JsonElement? Settings = null);
 public sealed record InitializeResult(int ApiVersion, string? Name);
 public sealed record AwaitingUserParams(bool Awaiting);
 
@@ -53,6 +54,8 @@ public sealed record PluginHostOptions
     public required int StderrTailLines { get; init; }
     /// <summary>Bound for a <see cref="PluginHost.CallAsync"/> that names no timeout. Null keeps such a call open until the plugin answers or ends.</summary>
     public TimeSpan? DefaultCallTimeout { get; init; }
+    /// <summary>The settings of a plugin as a JSON object for its handshake; null for none.</summary>
+    public Func<string, JsonElement?>? SettingsOf { get; init; }
 }
 
 public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped }

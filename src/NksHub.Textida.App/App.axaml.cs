@@ -162,7 +162,7 @@ public sealed partial class App : Application
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
         LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
-        Clips =new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders);
+        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders, Plugins.DeclarePlugin);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());

@@ -322,7 +322,7 @@ public sealed class PluginHost : IAsyncDisposable
 
     async Task HandshakeAsync(Plugin p, Run run, bool restarted)
     {
-        var request = JsonSerializer.SerializeToUtf8Bytes(new InitializeParams(_options.ApiVersion, restarted, "Textida"), PluginJson.Default.InitializeParams);
+        var request = JsonSerializer.SerializeToUtf8Bytes(new InitializeParams(_options.ApiVersion, restarted, "Textida", _options.SettingsOf?.Invoke(p.Spec.Id)), PluginJson.Default.InitializeParams);
         InitializeResult? result;
         try
         {

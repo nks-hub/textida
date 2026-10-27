@@ -71,7 +71,6 @@ internal sealed class ToolCatalog(string directory)
 
     private static ToolCatalogContent Read(string path, string? source)
     {
-        var errors = new List<string>();
         PluginContributions contributions;
         string name = source is null ? FileName : source;
         try
@@ -84,6 +83,13 @@ internal sealed class ToolCatalog(string directory)
             return new([], [], [$"{name}: {e.Message}"]);
         }
 
+        return FromContributions(contributions, source);
+    }
+
+    /// <summary>Compiles the log patterns and tools of a manifest or tools file; an entry that is not valid is left out and named in the errors.</summary>
+    internal static ToolCatalogContent FromContributions(PluginContributions contributions, string? source)
+    {
+        var errors = new List<string>();
         var patterns = new List<LogPatternEntry>();
         foreach (var p in contributions.LogPatterns)
         {

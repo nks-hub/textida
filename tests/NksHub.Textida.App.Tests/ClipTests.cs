@@ -119,6 +119,24 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_data_plugin_brings_a_setting_under_its_name_a_key_that_loses_to_a_builtin_one_and_a_tool_command()
+    {
+        Install("acme", Manifest("\"commands\":[{\"id\":\"acme.clips.run\",\"title\":\"Run\"}]," +
+            "\"keybindings\":[{\"key\":\"mod+s\",\"command\":\"acme.clips.run\"}]," +
+            "\"settings\":[{\"key\":\"acme.clips.width\",\"type\":\"integer\",\"default\":7,\"title\":\"Width\"}]," +
+            "\"externalTools\":[{\"id\":\"echo\",\"title\":\"Echo\",\"executable\":\"echo\",\"command\":\"acme.clips.run\"}]"));
+        Assert.Empty(_app.Clips.Problems);
+
+        var wb = _app.Workbench;
+        Assert.Equal(7, wb.Settings.GetInt("acme.clips.width"));
+        Assert.Contains(wb.SearchIndex.Search("Acme clips", wb.Settings, wb.Commands, wb.Keymap), h => h.Id == "acme.clips.width" && h.Category == "Acme clips");
+        var conflict = Assert.Single(wb.KeyConflictsOf("acme.clips"));
+        Assert.Equal("nks.file.save", conflict.Winner.CommandId);
+        Assert.NotNull(_app.Clips.FindTool("acme.clips", "echo"));
+        Assert.True(wb.Commands.HasHandler("acme.clips.run"));
+    }
+
+    [AvaloniaFact]
     public void The_command_a_clip_names_inserts_it_and_a_selection_is_replaced()
     {
         Install("acme", Manifest(Box));
