@@ -397,5 +397,6 @@
   "cmd.edit.fragmentSql": "Zeichenkette als SQL bearbeiten",
   "cmd.edit.fragmentHtml": "Zeichenkette als HTML bearbeiten",
   "cmd.edit.fragmentWriteBack": "Fragment in die Zeichenkette zurückschreiben",
-  "cmd.file.configFiles": "Konfigurationsdateien dieser Datei..."
+  "cmd.file.configFiles": "Konfigurationsdateien dieser Datei...",
+  "cmd.edit.runRecipeFiles": "Rezept auf Dateien anwenden..."
 }

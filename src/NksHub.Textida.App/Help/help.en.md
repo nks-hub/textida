@@ -1008,6 +1008,16 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 - Steps that change: {"kind": "convert", "converter": "id"} (a converter of the same plugin), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} and {"kind": "set", "text": "..."}, which replaces the part with a text in the template language of clips. In it ${selection} is the part itself, and the variables have the same values as in a clip (topic Clips); carets $| are ignored.
 - A recipe with no steps, an unknown kind, a bad pattern, an unknown converter, a choosing step after a changing one or no changing step is refused when the plugin is read.
 
+## [edit.recipeFiles] Recipes over files
+commands: nks.edit.runRecipeFiles
+A saved recipe runs again over another set of files. You see every change first; nothing is written before you apply it.
+1. Choose Edit, Run Recipe on Files and pick a recipe: one from a data plugin, or a file in the folder recipes of the profile.
+2. Pick the files: a folder with a file mask (for example *.cs;*.txt; the ignore files of the search apply), the open tabs, or the files of the search results.
+3. The Search Results tab lists the changes file by file, with the same ticks as Replace in Files. Apply writes the ticked ones. A file that was changed by someone else after the preview is not touched: it is named as a conflict and the other files are written. Open documents get one Undo step.
+- A recipe file is JSON with id, title and steps, the same fields as a recipe in nkspad-plugin.json, plus an optional version and an optional converters list (the converters its convert steps name). A file without a version is version 1, the format of the first recipes, and loads as before. A file of a newer version is refused with a message.
+- Steps: matches, columns, convert, replace and set work as in Edit Recipes (each file is its own whole text). A step {"kind": "format", "formatter": "id"} runs a formatter of Save Actions over the result of the steps before it; it must come last, it needs the time limit formatTimeoutSeconds of saveActions.json, and it works on named files of the type that formatter handles. A file where a step cannot run is left out and named with the reason.
+- Every file keeps its encoding and its line endings; a new character the encoding cannot hold is shown as a change that cannot be applied. Format steps do not run on a single file in Run Edit Recipe.
+
 ## [edit.aiContext] Copy as AI context
 commands: nks.edit.copyAiContext
 Puts the selection, the file, the open tabs or the opened folder on the clipboard as one block of Markdown or XML, to paste into an AI assistant. Nothing is sent anywhere.

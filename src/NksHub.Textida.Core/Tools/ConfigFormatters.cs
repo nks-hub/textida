@@ -52,6 +52,22 @@ public static class ConfigFormatters
         if (doc.ByteLength > SaveTransforms.MaxBytes) return new(FormatResult.Skipped, "The document is too large to format on save.");
         long revision = doc.Revision;
         byte[] before = doc.ReadBytes(new ByteRange(0, doc.ByteLength));
+        var (outcome, after) = await FormatBytesAsync(path, before, def, timeout, ct);
+        if (after is null) return outcome;
+        if (doc.Revision != revision) return new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
+        int bom = doc.BomLength;
+        if (after.Length < bom || !after.AsSpan(0, bom).SequenceEqual(before.AsSpan(0, bom))) return new(FormatResult.Failed, $"{def.Title} changed the byte order mark.");
+        var (range, insert) = Narrow(before, after, bom, lineSafe: doc.Codec.Encode("\n") is [0x0A]);
+        var result = doc.Replace(range, insert, new EditOptions { Source = "format-on-save" });
+        return result.Applied ? new(FormatResult.Formatted) : new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
+    }
+
+    /// <summary>
+    /// The program half of <see cref="FormatAsync"/> for content that is not an open document (a recipe over many files): <paramref name="before"/> goes to a temporary copy next to
+    /// <paramref name="path"/>, the program runs with <paramref name="timeout"/> and the copy is removed. <c>After</c> is the formatted content, or null when nothing changed or the program failed (the outcome says which).
+    /// </summary>
+    public static async Task<(FormatOutcome Outcome, byte[]? After)> FormatBytesAsync(string path, byte[] before, FormatterDef def, TimeSpan timeout, CancellationToken ct = default)
+    {
         string dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
         string temp = Path.Combine(dir, Path.GetFileNameWithoutExtension(path) + ".textida-fmt-" + Guid.NewGuid().ToString("N")[..8] + Path.GetExtension(path));
         try
@@ -62,27 +78,21 @@ public static class ConfigFormatters
                 await File.WriteAllBytesAsync(temp, before, ct);
                 tool = ToolRunner.Resolve(new ToolSpec("format:" + def.Id, def.Executable, def.Args, null, timeout), name => name == "File" ? temp : null, dir);
             }
-            catch (ToolException e) { return new(FormatResult.Missing, e.Message); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return new(FormatResult.Failed, e.Message); }
+            catch (ToolException e) { return (new(FormatResult.Missing, e.Message), null); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (new(FormatResult.Failed, e.Message), null); }
 
             var output = new List<string>();
             ToolResult run;
             try { run = await ToolRunner.RunAsync(tool, output.Add, ct); }
-            catch (ToolException e) { return new(FormatResult.Missing, e.Message); }
-            if (run.End == ToolEnd.TimedOut) return new(FormatResult.TimedOut, $"{def.Title} did not finish in {timeout.TotalSeconds:0.##} s.");
-            if (run.End == ToolEnd.Cancelled) return new(FormatResult.Skipped, "The format was cancelled.");
-            if (run.ExitCode != 0) return new(FormatResult.Failed, Reason(def, run.ExitCode, output));
+            catch (ToolException e) { return (new(FormatResult.Missing, e.Message), null); }
+            if (run.End == ToolEnd.TimedOut) return (new(FormatResult.TimedOut, $"{def.Title} did not finish in {timeout.TotalSeconds:0.##} s."), null);
+            if (run.End == ToolEnd.Cancelled) return (new(FormatResult.Skipped, "The format was cancelled."), null);
+            if (run.ExitCode != 0) return (new(FormatResult.Failed, Reason(def, run.ExitCode, output)), null);
 
             byte[] after;
             try { after = await File.ReadAllBytesAsync(temp, ct); }
-            catch (IOException e) { return new(FormatResult.Failed, e.Message); }
-            if (after.AsSpan().SequenceEqual(before)) return new(FormatResult.Unchanged);
-            if (doc.Revision != revision) return new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
-            int bom = doc.BomLength;
-            if (after.Length < bom || !after.AsSpan(0, bom).SequenceEqual(before.AsSpan(0, bom))) return new(FormatResult.Failed, $"{def.Title} changed the byte order mark.");
-            var (range, insert) = Narrow(before, after, bom, lineSafe: doc.Codec.Encode("\n") is [0x0A]);
-            var result = doc.Replace(range, insert, new EditOptions { Source = "format-on-save" });
-            return result.Applied ? new(FormatResult.Formatted) : new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
+            catch (IOException e) { return (new(FormatResult.Failed, e.Message), null); }
+            return after.AsSpan().SequenceEqual(before) ? (new(FormatResult.Unchanged), null) : (new(FormatResult.Formatted), after);
         }
         finally
         {

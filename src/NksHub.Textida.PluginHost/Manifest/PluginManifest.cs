@@ -1,3 +1,4 @@
+using NksHub.Textida.PluginHost.Conversions;
 using System.Text.Json.Serialization;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Contributions;
@@ -117,7 +118,8 @@ public sealed class ConverterSample
 /// <c>matches</c> (keep the matches of <c>find</c> inside the current parts), <c>columns</c> (keep columns <c>from</c> to <c>to</c> of every line, counted in
 /// characters from 1; <c>to</c> 0 or missing means the end of the line); changing ones: <c>convert</c> (the converter of the same plugin named in
 /// <c>converter</c>), <c>replace</c> (find and replace like a converter rule), <c>set</c> (the part becomes <c>text</c> in the template language of clips,
-/// where <c>${selection}</c> is the part itself). Without a selection the recipe works on the whole file.
+/// where <c>${selection}</c> is the part itself), <c>format</c> (the formatter named in <c>formatter</c> runs over the whole result; only over a set of files, and last).
+/// Without a selection the recipe works on the whole file.
 /// </summary>
 public sealed class RecipeContribution
 {
@@ -129,7 +131,7 @@ public sealed class RecipeContribution
 
 public sealed class RecipeStep
 {
-    public const string Matches = "matches", Columns = "columns", Convert = "convert", Replace = "replace", Set = "set";
+    public const string Matches = "matches", Columns = "columns", Convert = "convert", Replace = "replace", Set = "set", Format = "format";
 
     public string Kind { get; set; } = "";
     public string Find { get; set; } = "";
@@ -141,6 +143,7 @@ public sealed class RecipeStep
     public int To { get; set; }
     public string Converter { get; set; } = "";
     public string Text { get; set; } = "";
+    public string Formatter { get; set; } = "";
 
     public bool Selects => Kind is Matches or Columns;
 }
@@ -217,4 +220,5 @@ public sealed class ToolVariableContribution
     WriteIndented = true)]
 [JsonSerializable(typeof(PluginManifest))]
 [JsonSerializable(typeof(PluginContributions))]
+[JsonSerializable(typeof(RecipeFile))]
 public sealed partial class PluginManifestJson : JsonSerializerContext;

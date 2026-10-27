@@ -1128,6 +1128,11 @@
       "repeatable": true
     },
     {
+      "id": "nks.edit.runRecipeFiles",
+      "title": "cmd.edit.runRecipeFiles",
+      "category": "cat.edit"
+    },
+    {
       "id": "nks.tools.run",
       "title": "cmd.tools.run",
       "category": "cat.tools"
@@ -2505,6 +2510,12 @@
       "command": "nks.edit.runRecipe",
       "group": "8_insert",
       "order": 9
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.runRecipeFiles",
+      "group": "8_insert",
+      "order": 11
     },
     {
       "menu": "file",
