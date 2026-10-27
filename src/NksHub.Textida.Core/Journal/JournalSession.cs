@@ -376,6 +376,12 @@ public sealed class JournalSession : IDisposable
             for (int i = 0; i < edits.Length; i++)
             {
                 var s = c.Edits[i];
+                if (s.Pattern is { } pattern)
+                {
+                    edits[i] = new(s.Start, s.Deleted, pattern, s.Inserted);
+                    shift += s.Inserted - s.Deleted;
+                    continue;
+                }
                 var inserted = new byte[checked((int)s.Inserted)];
                 if (inserted.Length > 0) doc.Read(s.Start + shift, inserted);
                 shift += s.Inserted - s.Deleted;
@@ -400,6 +406,7 @@ public sealed class JournalSession : IDisposable
             if (doc.FilePath is not { } path || doc.Fingerprint is not { } print) return;
             owner.Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.Revision + baseRevision, path, print, doc.Codec.Name)));
             _floor = doc.UndoDepth;
+            _undo = doc.UndoDepth; // a save over the mapped file drops the undo steps of fills
             _diverged = false;
             _redoOk.Clear();
             _redoOk.AddRange(Enumerable.Repeat(false, doc.RedoDepth));

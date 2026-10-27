@@ -9,7 +9,8 @@ public sealed record OpenRecord(Guid DocId, string? Path, FileFingerprint? Finge
 
 public sealed record SeedRecord(Guid DocId, long Offset, byte[] Bytes);
 
-public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted);
+/// <param name="Repeat">When not 0, <paramref name="Inserted"/> is a pattern and the edit inserts this many bytes of it repeated (a fill).</param>
+public sealed record ChangeEdit(long Start, long Deleted, byte[] Inserted, long Repeat = 0);
 
 /// <summary>A change in the coordinates of the previous revision. <see cref="NewUndoEntry"/> is false when the edit joined the previous undo step.</summary>
 /// <param name="Codec">Name of the codec after the change; null in version 1 records. A different codec means the edit was a conversion.</param>
@@ -47,8 +48,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab.</summary>
-    private const int PayloadLayout = 3;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit.</summary>
+    private const int PayloadLayout = 4;
 
     // ---- primitives ----
 
@@ -157,6 +158,7 @@ internal static class JournalRecords
             w.Write(x.Deleted);
             w.Write(x.Inserted.Length);
             w.Write(x.Inserted);
+            w.Write(x.Repeat);
         }
         PutString(w, e.Codec);
     });
@@ -172,7 +174,8 @@ internal static class JournalRecords
         for (int i = 0; i < edits.Length; i++)
         {
             long start = r.ReadInt64(), deleted = r.ReadInt64();
-            edits[i] = new(start, deleted, r.ReadBytes(r.ReadInt32()));
+            var inserted = r.ReadBytes(r.ReadInt32());
+            edits[i] = new(start, deleted, inserted, layout >= 4 ? r.ReadInt64() : 0);
         }
         return new EditRecord(id, rev, kind, source, isNew, edits, layout >= 2 ? GetString(r) : null);
     });

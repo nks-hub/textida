@@ -525,6 +525,31 @@ commands: nks.hex.inspectChanges
 - Ak sa mení dĺžka, uloží sa nový súbor, ktorý sa atomicky vymení.
 - Pred prepísaním menšieho súboru vznikne záloha; ak sa nepodarí, súbor zostane bez zmeny.
 
+## [hex.copyAs] Hex: kopírovanie, vkladanie a export ako
+commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
+1. Úpravy a Hex: Kopírovať výber ako dá vybrané bajty do schránky ako text: hex reťazec, pole pre C, C#, Javu, Python, Rust, Go, JavaScript alebo Pascal, Base64, Intel HEX, Motorola S-record alebo hexdump.
+2. Hex: Vložiť ako prečíta schránku ako hex text, Base64 alebo pole zo zdrojového kódu a vloží bajty rovnako ako Ctrl+V.
+3. Hex: Exportovať výber zapíše výber do súboru, binárne alebo v jednej z textových podôb. Beží na pozadí a Esc ho zruší.
+- Intel HEX, S-record a hexdump nesú ako adresu offset každého bajtu v súbore; Intel HEX a S-record majú 32-bitové adresy, takže výber za 4 GiB sa odmietne.
+- Výber, ktorého text by sa do schránky nezmestil, sa odmietne s radou ho exportovať.
+- Pole vložené zo zdrojového kódu môže obsahovať čísla desiatkovo, hex v tvare 0x aj $ a binárne v tvare 0b; číslo mimo -128 až 255 vloženie zastaví.
+
+## [hex.fill] Hex: vyplnenie a operácie nad výberom
+commands: nks.hex.fill, nks.hex.operate
+1. Hex: Vyplniť výber vyplní výber vzorom z hex bajtov alebo textu, zopakuje výber za sebou, zapíše náhodné bajty alebo čísla s krokom. Bez výberu vyplní vzor s * a počtom toľko bajtov pri kurzore (v režime vkladania ich vloží).
+2. Hex: Operácie nad výberom vykonajú XOR, AND, OR, NOT, pripočítanie, posun alebo rotáciu o 1 až 7 bitov (pri každom bajte) alebo prehodenie poradia bajtov po 2, 4 alebo 8. Operandy sa opakujú po celom výbere.
+3. Dialóg pred potvrdením ukáže, koľko bajtov sa zmení. Každé vyplnenie aj operácia je jeden krok späť a vyplnené bajty zostanú vybrané.
+- Vyplnenie väčšie než 256 MiB sa drží ako vzor a dĺžka, nie ako bajty, takže ani 5 GiB nestojí pamäť ani čas; uloženie ho zapíše ako nový súbor. Vrátenie takého vyplnenia aj krokov pred ním trvá do uloženia cez súbor.
+- Náhodné bajty, čísla s krokom a operácie držia výber v pamäti a odmietnu viac než 2 GiB.
+
+## [hex.checksum] Hex: kontrolné súčty a hashe
+commands: nks.hex.checksum
+1. Hex: Kontrolné súčty a hashe počíta nad výberom, alebo nad celým súborom, keď nie je nič vybrané: CRC-16, CRC-32, CRC-64 vo viacerých variantoch, CRC s vlastným polynómom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 a SHA-512.
+2. Výpočet beží na pozadí a postup ukazuje stavový riadok; Esc ho zruší.
+3. Výsledok sa dá skopírovať alebo porovnať s vloženou hodnotou; na medzerách, dvojbodkách, 0x a veľkosti písmen nezáleží.
+- Každý variant CRC má pevný polynóm a parametre (šírka, začiatočná hodnota, zrkadlenie vstupu a výsledku, koncové xor) podľa katalógu algoritmov CRC.
+- CRC s vlastným polynómom vezme šírku v bitoch a hex polynóm (nepárny), začiatočnú hodnotu, dva príznaky zrkadlenia (0 alebo 1) a koncové xor.
+
 ## [view.options] Zobrazenie editora
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Príkazy sú v ponuke Zobraziť a v palete. Každý prepína jedno nastavenie; dajú sa zmeniť aj v nastaveniach.

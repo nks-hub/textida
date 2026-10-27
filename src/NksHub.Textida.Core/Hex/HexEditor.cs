@@ -19,6 +19,8 @@ public enum HexIssue
     Rejected,
     /// <summary>Overwrite mode: the caller must say what the key does (zero or remove, extend or truncate).</summary>
     NeedsChoice,
+    /// <summary>The operation holds the bytes in memory and the selection is more than an array can hold (2 GiB).</summary>
+    TooLarge,
 }
 
 public readonly record struct HexResult(bool Applied, HexIssue Issue = HexIssue.None)
@@ -206,6 +208,95 @@ public sealed class HexEditor(Document doc, HexCharset charset)
         var result = Do(range.Start, range.End, bytes, range.Start, 0, typing: false);
         if (result.Applied) (Caret, Anchor) = (Math.Min(caret, doc.ByteLength), Math.Min(anchor, doc.ByteLength));
         return result;
+    }
+
+    // ---- fill and operations over the selection ----
+
+    /// <summary>Where a fill goes: the selection, or without one <paramref name="count"/> bytes at the caret (new bytes in insert mode, the following bytes otherwise).</summary>
+    private HexResult? FillTarget(long count, out ByteRange range)
+    {
+        range = default;
+        if (HasSelection) range = Selection;
+        else if (count <= 0) return HexResult.Done;
+        else if (Insert) range = new ByteRange(Caret, Caret);
+        else if (Caret + count > doc.ByteLength) return HexResult.Refused(HexIssue.EndOfFile);
+        else range = new ByteRange(Caret, Caret + count);
+        return null;
+    }
+
+    private HexResult Finish(EditResult result, long start, long length)
+    {
+        if (!result.Applied) return HexResult.Refused(result.Conflict == ConflictReason.Saving ? HexIssue.Busy : HexIssue.Rejected);
+        Select(start, start + length);
+        return HexResult.Done;
+    }
+
+    private EditOptions FillOptions(long start, long length) => new()
+    {
+        RawBytes = true,
+        Source = "hex",
+        SelectionsBefore = [new ByteRange(Caret, Caret)],
+        SelectionsAfter = [new ByteRange(start, start + length)],
+    };
+
+    /// <summary>
+    /// Fills the selection with <paramref name="pattern"/> repeated from its first byte, or without a selection <paramref name="count"/> bytes at the caret.
+    /// One undo step; a fill larger than a patch costs no memory (<see cref="Document.Fill"/>). Afterwards the filled bytes are selected.
+    /// </summary>
+    public HexResult Fill(byte[] pattern, long count = 0)
+    {
+        if (pattern.Length == 0) return HexResult.Done;
+        if (FillTarget(count, out var range) is { } stop) return stop;
+        long length = HasSelection ? range.Length : count;
+        _key = null;
+        try { return Finish(doc.Fill(range, pattern, length, FillOptions(range.Start, length)), range.Start, length); }
+        catch (NotSupportedException) { return HexResult.Refused(HexIssue.TooLarge); }
+    }
+
+    /// <summary>Puts <paramref name="copies"/> more copies of the selected bytes right behind the selection and selects the whole run.</summary>
+    public HexResult RepeatSelection(int copies)
+    {
+        if (!HasSelection || copies < 1) return HexResult.Done;
+        var sel = Selection;
+        if (sel.Length > Array.MaxLength) return HexResult.Refused(HexIssue.TooLarge);
+        _key = null;
+        try
+        {
+            var result = doc.Fill(new ByteRange(sel.End, sel.End), doc.ReadBytes(sel), sel.Length * copies, FillOptions(sel.Start, sel.Length * (copies + 1)));
+            return Finish(result, sel.Start, sel.Length * (copies + 1));
+        }
+        catch (NotSupportedException) { return HexResult.Refused(HexIssue.TooLarge); }
+    }
+
+    /// <summary>Replaces the target of a fill by bytes made by <paramref name="make"/> from the buffer it must fill (random bytes, a number sequence).</summary>
+    private HexResult FillWith(long count, Action<Span<byte>> make)
+    {
+        if (FillTarget(count, out var range) is { } stop) return stop;
+        long length = HasSelection ? range.Length : count;
+        if (length > Array.MaxLength) return HexResult.Refused(HexIssue.TooLarge);
+        var bytes = new byte[length];
+        make(bytes);
+        _key = null;
+        return Finish(doc.Apply([new ByteEdit(range, bytes)], FillOptions(range.Start, length)), range.Start, length);
+    }
+
+    /// <summary>Fills the selection (or <paramref name="count"/> bytes at the caret) with random bytes from the system generator.</summary>
+    public HexResult FillRandom(long count = 0) => FillWith(count, System.Security.Cryptography.RandomNumberGenerator.Fill);
+
+    /// <summary>Fills with the numbers <paramref name="start"/>, <paramref name="start"/> + <paramref name="step"/>, ... as words of <paramref name="width"/> bytes.</summary>
+    public HexResult FillSequence(long start, long step, int width, bool bigEndian, long count = 0) =>
+        FillWith(count, data => HexOperations.Sequence(data, start, step, width, bigEndian));
+
+    /// <summary>Applies <paramref name="operation"/> to the selected bytes as one undo step (see <see cref="HexOperations.Apply"/>); the selection stays.</summary>
+    public HexResult Operate(HexOperation operation, byte[]? operand = null, int amount = 0)
+    {
+        if (!HasSelection) return HexResult.Done;
+        var range = Selection;
+        if (range.Length > Array.MaxLength) return HexResult.Refused(HexIssue.TooLarge);
+        var bytes = doc.ReadBytes(range);
+        HexOperations.Apply(operation, bytes, operand, amount);
+        _key = null;
+        return Finish(doc.Apply([new ByteEdit(range, bytes)], FillOptions(range.Start, range.Length)), range.Start, range.Length);
     }
 
     // ---- undo ----

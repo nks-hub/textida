@@ -1,7 +1,38 @@
 namespace NksHub.Textida.Core;
 
-/// <summary>A byte range of either the original (mapped) buffer or the append-only add buffer.</summary>
-internal readonly record struct Piece(bool Original, long Start, long Length);
+/// <summary>
+/// A byte range of the original (mapped) buffer, of the append-only add buffer, or, when <see cref="Pattern"/> is set, a pattern repeated
+/// to <see cref="Length"/> bytes. A repeated piece costs the same few bytes at any length; its <see cref="Start"/> is the position in the
+/// pattern of its first byte.
+/// </summary>
+internal readonly record struct Piece(bool Original, long Start, long Length, byte[]? Pattern = null)
+{
+    public bool Repeated => Pattern is not null;
+
+    /// <summary>The part of this piece that begins <paramref name="skip"/> bytes in and runs <paramref name="take"/> bytes.</summary>
+    public Piece Slice(long skip, long take) =>
+        Pattern is null ? this with { Start = Start + skip, Length = take } : this with { Start = (Start + skip) % Pattern.Length, Length = take };
+
+    /// <summary>Copies the bytes from <paramref name="skip"/> into the piece to <paramref name="destination"/>, which must not run past the end.</summary>
+    public void CopyRepeated(long skip, Span<byte> destination)
+    {
+        var pattern = Pattern!;
+        if (pattern.Length == 1)
+        {
+            destination.Fill(pattern[0]);
+            return;
+        }
+        int at = (int)((Start + skip) % pattern.Length);
+        int done = 0;
+        while (done < destination.Length)
+        {
+            int n = Math.Min(pattern.Length - at, destination.Length - done);
+            pattern.AsSpan(at, n).CopyTo(destination[done..]);
+            done += n;
+            at = 0;
+        }
+    }
+}
 
 /// <summary>
 /// Line terminators of a byte run read on its own (a trailing CR counts), plus the edge bytes needed
@@ -149,7 +180,7 @@ internal sealed class PieceTree
         else
         {
             long cut = pos - ls;
-            var rightPiece = new Piece(t.Piece.Original, t.Piece.Start + cut, t.Piece.Length - cut);
+            var rightPiece = t.Piece.Slice(cut, t.Piece.Length - cut);
             var rightNode = NewNode(rightPiece);
             var oldRight = t.Right;
             t.Right = null;
@@ -216,7 +247,7 @@ internal sealed class PieceTree
         {
             var n = stack.Pop();
             long take = Math.Min(n.Piece.Length - inner, remaining);
-            yield return new Piece(n.Piece.Original, n.Piece.Start + inner, take);
+            yield return n.Piece.Slice(inner, take);
             remaining -= take;
             inner = 0;
             for (var m = n.Right; m is not null; m = m.Left) stack.Push(m);

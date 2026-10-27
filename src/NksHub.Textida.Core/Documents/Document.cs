@@ -216,7 +216,7 @@ public sealed partial class Document : IDisposable
 /// Content of one revision, unchanged by document edits and saves; reads are safe from any thread.
 /// See <see cref="IByteSnapshot"/> for external-file invalidation and its detection limits.
 /// </summary>
-public sealed class DocumentSnapshot
+public sealed class DocumentSnapshot : IByteSnapshot
 {
     private readonly IByteSnapshot _bytes;
     private readonly TextCodec _codec;

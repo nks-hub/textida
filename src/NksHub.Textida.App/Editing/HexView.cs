@@ -79,6 +79,9 @@ internal sealed partial class HexView : Grid
     /// <summary>Raised with a localised sentence when an edit was refused or something else needs saying.</summary>
     public event Action<string>? Refused;
 
+    /// <summary>The background run (checksum, export) that Esc cancels; null when none runs.</summary>
+    internal CancellationTokenSource? Job { get; set; }
+
     /// <summary>Asks the user to pick one of the buttons (the last one cancels); set by the window. Returns the index or -1.</summary>
     public Func<string, string, IReadOnlyList<string>, Task<int>>? Choose { get; set; }
 
@@ -320,6 +323,7 @@ internal sealed partial class HexView : Grid
             case HexIssue.NotEncodable: Refused?.Invoke(Loc.Get(K.HexNotEncodable, ("encoding", Editor.Charset.Name))); break;
             case HexIssue.Busy: Refused?.Invoke(Loc.Get(K.HexBusy)); break;
             case HexIssue.Rejected: Refused?.Invoke(Loc.Get(K.HexRejected)); break;
+            case HexIssue.TooLarge: Refused?.Invoke(Loc.Get(K.HexTooLarge)); break;
         }
     }
 
@@ -395,6 +399,12 @@ internal sealed partial class HexView : Grid
                 catch (NksHub.Textida.Core.Encodings.UnrepresentableCharactersException) { Refused?.Invoke(Loc.Get(K.HexNotEncodable, ("encoding", Editor.Charset.Name))); return; }
             }
         }
+        await PasteBytesAsync(bytes);
+    }
+
+    /// <summary>Pastes bytes already made from the clipboard (or from a form of it); a block longer than the rest of the file asks what to do.</summary>
+    public async Task PasteBytesAsync(byte[] bytes)
+    {
         var result = Editor.Paste(bytes);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
@@ -491,6 +501,7 @@ internal sealed partial class HexView : Grid
             case Key.Delete when !command: _ = DeleteAsync(backspace: false); break;
             case Key.Escape:
                 if (Doc.IsSaving) Doc.CancelSave();
+                else if (Job is { } job) job.Cancel();
                 else if (Editor.HasSelection) MoveTo(Editor.Caret);
                 else return;
                 break;

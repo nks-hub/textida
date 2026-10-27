@@ -1551,8 +1551,9 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 Hotovo celku podle analýzy konkurence, upřesněné podle revize: výběr 1 GiB, SHA-256 se shoduje s externím SHA nástrojem a CRC-32 se známým vektorem a druhou implementací; „kopírovat jako C#“ vložené do kódu se zkompiluje a obsahuje stejné bajty; vyplnění 5 GiB nulami trvá do 1 s, přírůstek paměti ≤ 16 MiB, uložení je bajtově správné.
 
-- [ ] **P4.10.1** Kopírovat a vložit jako
+- [x] **P4.10.1** Kopírovat a vložit jako
   - **Co a proč:** Hex řetězec, pole pro C, C#, Java, Python, Rust, Go, JavaScript, Pascal, Base64, Intel HEX, S-record, hexdump. Vložit jako hex text, Base64, pole C. Export výběru do souboru. Formáty jdou rozšířit jako převodník F095.
+  - **Stav 27. 10. 2026:** hotovo: Úpravy → „Kopírovat výběr jako…“ (14 podob), „Vložit jako…“ (hex text, Base64, pole ze zdrojového kódu) a „Exportovat výběr…“ (binárně nebo v textové podobě, na pozadí, Esc zruší). Test přeloží zkopírované pole C# Roslynem a porovná bajty; Base64 a pole všech jazyků vrací tam a zpět stejné bajty. Rozšíření o převodník F095 chybí, protože převodníky F095 ještě neexistují.
   - **Funkce:** F240
   - **Hotovo, když:** „kopírovat jako C#“ vložené do programu se zkompiluje a obsahuje stejné bajty; Base64 tam a zpět vrátí stejné bajty.
   - **Závisí na:** P3.5.4, P4.2.1
@@ -1560,13 +1561,15 @@ Hotovo celku podle analýzy konkurence, upřesněné podle revize: výběr 1 GiB
   - **Umístění:** jádro (hex, kap. 5.5)
 - [ ] **P4.10.2** Vyplnit a operace nad výběrem
   - **Co a proč:** Vzor, opakování výběru, náhodně, čísla s krokem; XOR, AND, OR, NOT, posun, rotace, prohození endianity. Velké vyplnění přes nový druh úseku „opakovaný vzor“ ve stromu úseků, ne přes add buffer.
+  - **Stav 27. 10. 2026:** hotovo kromě měření času: strom úseků má úsek „opakovaný vzor“ (vzor a délka, bez paměti navíc), `Document.Fill` a Úpravy → „Vyplnit výběr…“ a „Operace nad výběrem…“; vyplnění 5 GiB alokuje ≤ 16 MiB a uložený soubor se shoduje s nezávislým výpočtem bajtů i SHA-256 (test Large). Čas do 1 s měří test kategorie Perf (`HexFillLargeTests`) na referenčním VM, tady neměřeno. Meze: vyplnění nad 256 MiB (`InPlacePatch.MaxPatchBytes`) drží undo jako odkaz do mapování, takže uložení přes soubor jeho undo i kroky před ním uvolní (diskové undo je P7.1.2); menší vyplnění se chovají jako běžné úpravy. Náhodné bajty, čísla s krokem a operace drží výběr v paměti, nejvýše 2 GiB. Otevřené: od jaké velikosti vyplnění ztrácí undo po uložení (dnes 256 MiB).
   - **Funkce:** F241
   - **Hotovo, když:** vyplnění 5 GiB opakovaným vzorem trvá do 1 s, přírůstek paměti ≤ 16 MiB a následné uložení se porovná nezávislým výpočtem bajtů.
   - **Závisí na:** P3.5.4
   - **Odhad:** F241 1,5–2 ČT (matice)
   - **Umístění:** jádro (hex, kap. 5.5)
-- [ ] **P4.10.3** Kontrolní součty a hashe
+- [x] **P4.10.3** Kontrolní součty a hashe
   - **Co a proč:** CRC-32, CRC-64, xxHash, CRC-16 a vlastní polynom, Adler-32, součty, MD5, SHA-1, SHA-256/384/512 nad výběrem i souborem; porovnání s vloženou hodnotou. Společný dialog s F090.
+  - **Stav 27. 10. 2026:** hotovo: Úpravy → „Kontrolní součty a hashe…“ nad výběrem, bez výběru nad celým souborem; na pozadí s průběhem ve stavovém řádku, Esc zruší; výsledek jde zkopírovat nebo porovnat s vloženou hodnotou. 13 variant CRC s polynomem a parametry (CRC-16, CRC-32, CRC-64) a CRC s vlastním polynomem šířky 1 až 64 bitů, vlastní kód bez balíčku; každá varianta projde publikovaným vektorem a bitovou definicí, CRC-32 a Adler-32 i trailerem gzip a zlib. SHA-256 a CRC-32 výběru 1 GiB se shodují s výpočtem, který čte soubor sám (test Large). xxHash je XXH32 a XXH64, XXH3 chybí. Společný dialog s F090 čeká na P4.8.2, dialog je zatím jen hexový.
   - **Funkce:** F242
   - **Hotovo, když:** SHA-256 výběru 1 GiB se shoduje s externím SHA nástrojem (`certutil`, `shasum`); každá CRC varianta má určený polynom a parametry a projde známým ověřovacím vektorem i porovnáním s druhou implementací; výpočet jde zrušit.
   - **Závisí na:** P3.5.2, P4.8.2

@@ -28,6 +28,8 @@ internal interface IDialogs
     Task<IReadOnlyList<string>> PickFilesAsync(Window owner);
     /// <summary>The folder the user chose, or null when the dialog was cancelled.</summary>
     Task<string?> PickFolderAsync(Window owner);
+    /// <summary>The path of the file to write that the user chose (the dialog asks before replacing one), or null when cancelled.</summary>
+    Task<string?> PickSaveFileAsync(Window owner, string title, string suggestedName);
     /// <param name="preview">Text shown under the input and refreshed on every edit, so the user sees what the answer would do before confirming.</param>
     Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null);
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
@@ -75,6 +77,12 @@ internal sealed class AvaloniaDialogs : IDialogs
     {
         var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = Loc.Get(K.DialogOpenFolderTitle), AllowMultiple = false });
         return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+    }
+
+    public async Task<string?> PickSaveFileAsync(Window owner, string title, string suggestedName)
+    {
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { Title = title, SuggestedFileName = suggestedName, ShowOverwritePrompt = true });
+        return file?.TryGetLocalPath();
     }
 
     public async Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected)
