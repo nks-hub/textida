@@ -95,9 +95,10 @@ public class MenuPaletteTests : IDisposable
         foreach (var g in _w.MenuModel)
         {
             int commands = g.Items.Count(n => n is not MenuSeparator);
-            Assert.True(commands <= 30, $"{g.Label} has {commands} items at the top level");
+            Assert.True(commands <= 20, $"{g.Label} has {commands} items at the top level");
+            Assert.True(g.Items.Count <= 25, $"{g.Label} has {g.Items.Count} rows at the top level");
         }
-        Assert.All(_w.MenuModel.Where(g => g.Label is "Nástroje" or "Zobrazit" or "Soubor"), g => Assert.True(g.Items.Count(n => n is not MenuSeparator) <= 20, g.Label));
+        Assert.Equal(3, Menu("Nástroje").Items.Count(n => n is MenuSeparator));
     }
 
     [AvaloniaFact]

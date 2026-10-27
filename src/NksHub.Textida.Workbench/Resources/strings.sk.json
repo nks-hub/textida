@@ -182,6 +182,8 @@
   "submenu.table": "Tabuľka",
   "submenu.remote": "Vzdialené súbory",
   "submenu.history": "História",
+  "submenu.select": "Výber",
+  "submenu.lines": "Riadky",
   "cmd.edit.newline": "Nový riadok",
   "cmd.format.reread": "Znova prečítať ako...",
   "cmd.format.convert": "Previesť na...",

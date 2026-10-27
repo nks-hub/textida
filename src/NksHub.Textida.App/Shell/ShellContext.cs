@@ -68,7 +68,7 @@ internal static class MenuBuilder
         {
             var existing = item.Submenu is null ? -1 : entries.FindIndex(e => e.Submenu == item.Submenu);
             if (existing >= 0) entries[existing].Items.Add(item);
-            else entries.Add((item.Group, item.Submenu, [item]));
+            else entries.Add((TopGroup(item.Group), item.Submenu, [item]));
         }
         var nodes = new List<MenuNode>();
         string? group = null;
@@ -82,6 +82,9 @@ internal static class MenuBuilder
         }
         return nodes;
     }
+
+    /// <summary>A group may be written <c>outer/inner</c>: the outer part separates the items of the menu, the inner part the items of a submenu.</summary>
+    private static string TopGroup(string group) => group.Split('/')[0];
 
     private static List<MenuNode> WithSeparators(List<MenuItemModel> members, Func<MenuItemModel, MenuNode> toNode)
     {

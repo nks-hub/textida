@@ -182,6 +182,8 @@
   "submenu.table": "Tabulka",
   "submenu.remote": "Vzdálené soubory",
   "submenu.history": "Historie",
+  "submenu.select": "Výběr",
+  "submenu.lines": "Řádky",
   "cmd.edit.newline": "Nový řádek",
   "cmd.format.reread": "Znovu přečíst jako...",
   "cmd.format.convert": "Převést na...",
