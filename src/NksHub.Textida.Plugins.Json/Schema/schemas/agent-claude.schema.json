@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claude Code subagent",
+  "description": "Frontmatter fields of https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields.",
+  "type": "object",
+  "required": [
+    "name",
+    "description"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[^:]+$",
+      "description": "At most 256 characters, no ':'."
+    },
+    "description": {
+      "type": "string"
+    },
+    "tools": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "disallowedTools": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "model": {
+      "type": "string"
+    },
+    "permissionMode": {
+      "enum": [
+        "default",
+        "acceptEdits",
+        "auto",
+        "dontAsk",
+        "bypassPermissions",
+        "plan",
+        "manual"
+      ]
+    },
+    "maxTurns": {
+      "type": "integer"
+    },
+    "autoCompactWindow": {
+      "type": "integer",
+      "minimum": 100000,
+      "maximum": 1000000
+    },
+    "skills": {
+      "type": "array"
+    },
+    "mcpServers": {
+      "type": "array"
+    },
+    "hooks": {
+      "type": "object"
+    },
+    "memory": {
+      "enum": [
+        "user",
+        "project",
+        "local"
+      ]
+    },
+    "background": {
+      "type": "boolean"
+    },
+    "omitClaudeMd": {
+      "type": "boolean"
+    },
+    "effort": {
+      "type": "string"
+    },
+    "isolation": {
+      "enum": [
+        "worktree"
+      ]
+    },
+    "color": {
+      "enum": [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+        "orange",
+        "pink",
+        "cyan"
+      ]
+    },
+    "initialPrompt": {
+      "type": "string"
+    },
+    "experimental": {
+      "type": "object"
+    }
+  }
+}

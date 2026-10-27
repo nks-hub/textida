@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Codex config.toml",
+  "description": "Top-level keys of the Codex configuration (https://developers.openai.com/codex/config-schema.json) whose type is stated there.",
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string"
+    },
+    "model_provider": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "mcp_servers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      }
+    }
+  }
+}

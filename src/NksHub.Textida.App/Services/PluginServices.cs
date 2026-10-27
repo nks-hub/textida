@@ -680,9 +680,19 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     // ---- language services: diagnostics and completion from plugins, the schema check of the JSON plugin ----
 
-    /// <summary>A text tab of a JSON, JSONC or TOML file, which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
+    /// <summary>A text tab of a JSON, JSONC, TOML or YAML file, or of a Markdown file with frontmatter that has a profile, which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
     internal static bool IsSchemaFile(DocTab tab) =>
-        tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && Path.GetExtension(path).ToLowerInvariant() is ".json" or ".jsonc" or ".toml";
+        tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && IsSchemaPath(path);
+
+    /// <summary>Markdown is only checked where the plugin has a frontmatter profile: <c>SKILL.md</c>, <c>agents/*.md</c>, <c>rules/*.md</c>, <c>.claude/rules</c> and <c>.mdc</c>.</summary>
+    internal static bool IsSchemaPath(string path)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        if (extension is ".json" or ".jsonc" or ".toml" or ".yaml" or ".yml" or ".mdc") return true;
+        if (extension != ".md") return false;
+        var folder = Path.GetFileName(Path.GetDirectoryName(path));
+        return Path.GetFileName(path) == "SKILL.md" || folder is "agents" or "rules" || path.Replace('\\', '/').Contains("/.claude/rules/", StringComparison.Ordinal);
+    }
 
     /// <summary>Draws the diagnostics of a document again: byte ranges of the current revision become the underlined text offsets of its tab.</summary>
     public void DiagnosticsChanged(Guid document) => OnUi(() =>

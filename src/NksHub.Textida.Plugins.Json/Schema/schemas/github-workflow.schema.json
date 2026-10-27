@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GitHub Actions workflow",
+  "description": "Hand-written from https://docs.github.com/actions/reference/workflows-and-actions/workflow-syntax. Only the top level rejects unknown keys.",
+  "type": "object",
+  "required": [
+    "on",
+    "jobs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "run-name": {
+      "type": "string"
+    },
+    "on": {
+      "type": [
+        "string",
+        "array",
+        "object"
+      ]
+    },
+    "permissions": {
+      "type": [
+        "string",
+        "object"
+      ]
+    },
+    "env": {
+      "type": [
+        "object",
+        "string"
+      ]
+    },
+    "defaults": {
+      "type": "object"
+    },
+    "concurrency": {
+      "type": [
+        "string",
+        "object"
+      ]
+    },
+    "cache-mode": {},
+    "jobs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/job"
+      }
+    }
+  },
+  "definitions": {
+    "job": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "needs": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "runs-on": {
+          "type": [
+            "string",
+            "array",
+            "object"
+          ]
+        },
+        "timeout-minutes": {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "continue-on-error": {
+          "type": [
+            "boolean",
+            "string"
+          ]
+        },
+        "strategy": {
+          "type": "object"
+        },
+        "container": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "services": {
+          "type": "object"
+        },
+        "environment": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "outputs": {
+          "type": "object"
+        },
+        "env": {
+          "type": [
+            "object",
+            "string"
+          ]
+        },
+        "defaults": {
+          "type": "object"
+        },
+        "permissions": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "concurrency": {
+          "type": [
+            "string",
+            "object"
+          ]
+        },
+        "uses": {
+          "type": "string"
+        },
+        "with": {
+          "type": "object"
+        },
+        "secrets": {
+          "type": [
+            "object",
+            "string"
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "runs-on"
+          ]
+        },
+        {
+          "required": [
+            "uses"
+          ]
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "uses": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string"
+        },
+        "working-directory": {
+          "type": "string"
+        },
+        "shell": {
+          "type": "string"
+        },
+        "with": {
+          "type": "object"
+        },
+        "env": {
+          "type": [
+            "object",
+            "string"
+          ]
+        },
+        "continue-on-error": {
+          "type": [
+            "boolean",
+            "string"
+          ]
+        },
+        "timeout-minutes": {
+          "type": [
+            "number",
+            "string"
+          ]
+        }
+      }
+    }
+  }
+}

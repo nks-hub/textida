@@ -6,9 +6,14 @@ namespace NksHub.Textida.Plugins.Json.Schema;
 /// </summary>
 public sealed record KeyOffer(IReadOnlyList<string> Keys, int Start, int End, DataDialect Dialect, bool ColonFollows)
 {
-    public string Insert(string key) => Dialect == DataDialect.Toml
-        ? (IsBare(key) ? key : "\"" + key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"") + " = "
-        : "\"" + key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"" + (ColonFollows ? "" : ": ");
+    public string Insert(string key) => Dialect switch
+    {
+        DataDialect.Toml => (IsBare(key) ? key : Quote(key)) + " = ",
+        DataDialect.Yaml or DataDialect.Markdown => (IsBare(key) ? key : Quote(key)) + (ColonFollows ? "" : ": "),
+        _ => Quote(key) + (ColonFollows ? "" : ": "),
+    };
+
+    private static string Quote(string key) => "\"" + key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
     private static bool IsBare(string key) => key.Length > 0 && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-');
 }
@@ -19,6 +24,8 @@ public sealed record KeyOffer(IReadOnlyList<string> Keys, int Start, int End, Da
 /// </summary>
 public static class KeyCompletion
 {
+    private const string Placeholder = "textida-key-placeholder";
+
     private static bool IsWordChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '-';
 
     /// <summary>The offer at <paramref name="caret"/>, or null when the caret is not where a key can be written or the file cannot be read.</summary>
@@ -40,6 +47,24 @@ public static class KeyCompletion
             at = start;
             while (at > 0 && char.IsWhiteSpace(repaired[at - 1])) at--;
             at = Math.Max(at - 1, 0);
+        }
+        else if (dialect is DataDialect.Yaml or DataDialect.Markdown)
+        {
+            if (dialect == DataDialect.Markdown && (!YamlDataReader.TryFrontmatterBody(text, out int bodyStart, out int bodyEnd) || caret < bodyStart || caret >= bodyEnd)) return null;
+            start = caret;
+            while (start > 0 && IsWordChar(text[start - 1])) start--;
+            end = caret;
+            while (end < text.Length && IsWordChar(text[end])) end++;
+            typed = text[start..caret];
+            int lineStart = start;
+            while (lineStart > 0 && text[lineStart - 1] is not ('\n' or '\r')) lineStart--;
+            if (text.AsSpan(lineStart, start - lineStart).ContainsAnyExcept(' ', '-')) return null; // after a key, a ':' or other text the caret is not at a key
+            int after = end;
+            while (after < text.Length && text[after] is ' ' or '\t') after++;
+            bool hasValue = after < text.Length && text[after] == ':' && (after + 1 >= text.Length || text[after + 1] is ' ' or '\t' or '\r' or '\n');
+            // the word becomes a key that the schema does not know, so that the line reads as a key of the mapping the caret is in
+            repaired = text[..start] + Placeholder + (hasValue ? "" : ": null") + text[end..];
+            at = start;
         }
         else
         {
