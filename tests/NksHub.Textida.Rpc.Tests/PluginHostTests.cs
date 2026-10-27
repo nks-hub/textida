@@ -189,6 +189,15 @@ public class PluginHostTests
         Assert.False(await held.WaitAsync(TimeSpan.FromSeconds(30)));
     }
 
+    [Fact]
+    public async Task APluginThatDoesNotDeclareEventAcksIsNeverHeldBackByTheWindow()
+    {
+        await using var host = await Started(Options(o => o with { EventWindow = 1 }), null, null, Spec("p", "--no-event-acks"));
+        // nobody acknowledges anything, so a plugin held to the window of 1 would stop the second event for good
+        for (var i = 0; i < 5; i++)
+            Assert.True(await host.SendEventAsync("p", "e" + i, Args("{}"), paced: true).WaitAsync(TimeSpan.FromSeconds(10)));
+    }
+
     sealed class FailingEvents() : PluginBase("failing-events", 1)
     {
         public int Seen;

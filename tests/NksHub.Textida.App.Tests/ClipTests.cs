@@ -467,6 +467,23 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_tool_argument_with_a_variable_that_has_no_value_stops_the_tool_like_a_clip_and_a_user_variable_gives_it_one()
+    {
+        var unsaved = Open("x");
+        var spec = new ToolSpec("t", ToolTestKit.Dotnet, ["${file.dir}|${author}"]);
+        WriteVariables("{\"author\":\"Ann\"}");
+        var refused = Assert.Throws<ToolException>(() => _w.ResolveTool(spec, unsaved));
+        Assert.Contains("file.dir", refused.Message, StringComparison.Ordinal);
+
+        var path = _temp.File("note.txt", "x");
+        var saved = _w.OpenFile(path, null);
+        Assert.Equal([Path.GetDirectoryName(Path.GetFullPath(path)) + "|Ann"], _w.ResolveTool(spec, saved).Args);
+
+        WriteVariables("{\"author\":\"Ann\",\"file.dir\":\"mine\"}");
+        Assert.Equal(["mine|Ann"], _w.ResolveTool(spec, unsaved).Args);
+    }
+
+    [AvaloniaFact]
     public void The_variables_command_creates_the_file_and_opens_it_in_the_editor()
     {
         var path = Path.Combine(_app.ProfileDirectory, UserVariables.FileName);

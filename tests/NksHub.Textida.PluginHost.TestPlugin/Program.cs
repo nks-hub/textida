@@ -13,6 +13,7 @@ var crashOnStart = -1;
 var stderrFlood = 0;
 var sleepBeforeRead = 0;
 var resyncDelay = 0;
+var eventAcks = !args.Contains("--no-event-acks");
 string? onCommand = null;
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -39,14 +40,14 @@ if (crashOnStart >= 0)
 }
 if (sleepBeforeRead > 0) Thread.Sleep(sleepBeforeRead);
 
-var handler = new Handler(api, onCommand, resyncDelay);
+var handler = new Handler(api, onCommand, resyncDelay, eventAcks);
 var limits = new RpcLimits(4 * 1024 * 1024, 64, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024);
 await using var rpc = new JsonRpcDispatcher(new DeafInput(Console.OpenStandardInput()), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
 handler.Rpc = rpc;
 await rpc.Completion;
 return 0;
 
-sealed class Handler(int api, string? onCommand, int resyncDelay) : IRpcHandler
+sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks) : IRpcHandler
 {
     public JsonRpcDispatcher Rpc = null!;
     volatile bool _frozen;
@@ -83,7 +84,7 @@ sealed class Handler(int api, string? onCommand, int resyncDelay) : IRpcHandler
         switch (method)
         {
             case PluginMethods.Initialize:
-                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: true), PluginJson.Default.InitializeResult);
+                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: eventAcks), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 _resync = p.GetRawText();
                 if (resyncDelay > 0)
@@ -288,7 +289,7 @@ sealed class Handler(int api, string? onCommand, int resyncDelay) : IRpcHandler
             case PluginMethods.Event:
                 lock (_events) _events.Add(p.GetRawText());
                 if (_eventDelayMs > 0) await Task.Delay(_eventDelayMs);
-                await Rpc.NotifyAsync(PluginMethods.EventsHandled, Raw("{\"count\":1}"));
+                if (eventAcks) await Rpc.NotifyAsync(PluginMethods.EventsHandled, Raw("{\"count\":1}"));
                 break;
             case "sink":
                 Interlocked.Increment(ref _sinkCount);
