@@ -335,7 +335,8 @@ internal sealed partial class MainWindow
             return;
         }
         var doc = tab.Doc.Doc;
-        if (!FindCoversText(doc)) await StartFindSearch(jump: false);
+        // a search put into the bar without a search of its own (a macro step) is not what the listed matches are of
+        if (!FindCoversText(doc) || FindSignature() != _findSignature) await StartFindSearch(jump: false);
         else if (FindBusy)
         {
             // waiting for the running search instead of starting over matters in a large file; when it selects its first match meanwhile, that is the step asked for
@@ -344,10 +345,6 @@ internal sealed partial class MainWindow
             if (!selected && _findIndex >= 0) return;
         }
         if (FindBusy || Active != tab || _hitsRevision != doc.Revision) return;
-
-        // a search put into the bar without a search of its own (a macro step) is not what the listed matches are of
-        if (_findRunning || _hitsRevision != doc.Revision || _hitsDocument != doc.Id || FindSignature() != _findSignature) await StartFindSearch(jump: false);
-        if (_findRunning || Active != tab || _hitsRevision != doc.Revision) return;
         _findOrigin = SelectionTextStart(tab);
         if (!StepFrom(tab, _hits, forward, TextStepOrigin(tab, forward), wrap: true)) ShowFindCount();
     }
