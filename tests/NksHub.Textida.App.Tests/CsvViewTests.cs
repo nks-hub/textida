@@ -363,6 +363,41 @@ public class CsvViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_corpus_csv_edited_in_the_table_and_saved_differs_on_disk_only_in_that_cell()
+    {
+        var sb = new StringBuilder("id,name,description,amount,created\r\n");
+        for (int i = 0; i < 300; i++)
+            sb.Append(i).Append(",n").Append(i).Append(i % 3 == 0 ? ",\"řádek 1\r\n(řádek 2 buňky)\n\"\"citát\"\", a čárka, v buňce\"" : ",plain").Append(",1.50,2026-10-01\r\n");
+        string path = _temp.File("corpus.csv", sb.ToString());
+        byte[] disk0 = File.ReadAllBytes(path);
+        var tab = _w.OpenFile(path, null);
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+
+        var view = ShowTable(tab);
+        const int row = 150;
+        Assert.Contains("citát", view.CellText(row, 2));
+        var cell = view.Table.CellRange(row + 1, 2);
+        string newValue = "nový, \"text\"\nna dva řádky";
+        Assert.True(view.SetCell(row, 2, newValue));
+        Run("nks.view.table");
+        Assert.False(tab.TableShown);
+        Assert.True(await _w.SaveAsync(tab));
+
+        byte[] disk1 = File.ReadAllBytes(path);
+        int prefix = 0;
+        while (prefix < disk0.Length && prefix < disk1.Length && disk0[prefix] == disk1[prefix]) prefix++;
+        int suffix = 0;
+        while (suffix < disk0.Length - prefix && suffix < disk1.Length - prefix && disk0[^(suffix + 1)] == disk1[^(suffix + 1)]) suffix++;
+        string oldCell = "\"řádek 1\r\n(řádek 2 buňky)\n\"\"citát\"\", a čárka, v buňce\"";
+        string newCell = "\"nový, \"\"text\"\"\nna dva řádky\"";
+        Assert.Equal(oldCell, Encoding.UTF8.GetString(disk0, (int)cell.Start, (int)cell.Length));
+        Assert.True(prefix >= cell.Start && disk0.Length - suffix <= cell.End, "the files differ outside the edited cell");
+        Assert.Equal(newCell, Encoding.UTF8.GetString(disk1, (int)cell.Start, Encoding.UTF8.GetByteCount(newCell)));
+        Assert.Equal(disk0.Length - Encoding.UTF8.GetByteCount(oldCell) + Encoding.UTF8.GetByteCount(newCell), disk1.Length);
+    }
+
+    [AvaloniaFact]
     public void A_file_above_the_paged_threshold_scrolls_without_reading_it_all_and_edits_one_cell()
     {
         var tab = OpenLargeCsv(8 << 20, out int rows);
