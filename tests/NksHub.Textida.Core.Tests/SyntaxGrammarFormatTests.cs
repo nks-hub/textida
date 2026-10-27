@@ -7,7 +7,7 @@ public class SyntaxGrammarFormatTests
 {
     private static readonly string[] Expected =
     [
-        "plaintext", "ini", "json", "xml", "html", "css", "javascript", "php", "php-code", "csharp", "sql", "markdown", "python", "shell", "yaml", "latte", "neon",
+        "plaintext", "ini", "json", "xml", "html", "css", "javascript", "php", "php-code", "csharp", "sql", "markdown", "python", "shell", "yaml", "latte", "neon", "razor", "sln",
     ];
 
     [Fact]
@@ -31,6 +31,9 @@ public class SyntaxGrammarFormatTests
     [InlineData("services.neon", "neon")]
     [InlineData(".bashrc", "shell")]
     [InlineData("notes.txt", "plaintext")]
+    [InlineData("Index.cshtml", "razor")]
+    [InlineData("Counter.razor", "razor")]
+    [InlineData("App.sln", "sln")]
     public void A_file_name_selects_its_grammar(string file, string id) => Assert.Equal(id, BuiltinGrammars.Registry.ForFile(file)?.Id);
 
     [Fact]

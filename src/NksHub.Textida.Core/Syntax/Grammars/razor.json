@@ -1,0 +1,84 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "razor",
+  "name": "Razor",
+  "comments": {"block": ["@*", "*@"]},
+  "version": "1.0.0",
+  "extensions": [".cshtml", ".razor"],
+  "caseSensitive": false,
+  "repository": {
+    "cs-braces": [
+      {
+        "name": "cs-braces",
+        "begin": "\\{",
+        "end": "\\}",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "embed": "csharp",
+        "rules": [
+          {"include": "#cs-braces"}
+        ]
+      }
+    ],
+    "cs-parens": [
+      {
+        "name": "cs-parens",
+        "begin": "\\(",
+        "end": "\\)",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "embed": "csharp",
+        "rules": [
+          {"include": "#cs-parens"}
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {"name": "razor-comment", "begin": "@\\*", "end": "\\*@", "token": "comment", "multiline": true},
+    {"match": "@@"},
+    {
+      "name": "razor-code",
+      "begin": "@(?:code|functions)?\\s*\\{",
+      "end": "\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "embed": "csharp",
+      "rules": [
+        {"include": "#cs-braces"}
+      ]
+    },
+    {
+      "name": "razor-condition",
+      "begin": "@(?:if|foreach|for|while|switch|using|lock)\\s*\\(",
+      "end": "\\)",
+      "multiline": true,
+      "beginToken": "keyword",
+      "endToken": "keyword",
+      "embed": "csharp",
+      "rules": [
+        {"include": "#cs-parens"}
+      ]
+    },
+    {
+      "name": "razor-expression",
+      "begin": "@\\(",
+      "end": "\\)",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "embed": "csharp",
+      "rules": [
+        {"include": "#cs-parens"}
+      ]
+    },
+    {"match": "(?<=^[ \\t]*)@(?:page|model|using|inject|inherits|namespace|attribute|layout|implements|addTagHelper|removeTagHelper|tagHelperPrefix|section|rendermode|typeparam|preservewhitespace)\\b", "token": "keyword"},
+    {"match": "(?<![\\w@])@(?:else|try|catch|finally|do)\\b", "token": "keyword"},
+    {"match": "(?<![\\w@])@[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*|\\([^()\\r\\n]*\\)|\\[[^\\]\\r\\n]*\\])*", "token": "variable"},
+    {"include": "html"}
+  ]
+}

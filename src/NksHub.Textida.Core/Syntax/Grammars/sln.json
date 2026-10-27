@@ -1,0 +1,44 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "sln",
+  "name": "Visual Studio Solution",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".sln"],
+  "keywords": [
+    {
+      "name": "sections",
+      "words": [
+        "Project", "EndProject", "ProjectSection", "EndProjectSection", "Global", "EndGlobal", "GlobalSection", "EndGlobalSection",
+        "preSolution", "postSolution", "preProject", "postProject"
+      ]
+    }
+  ],
+  "repository": {
+    "guid": [
+      {"match": "\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}", "token": "constant"}
+    ]
+  },
+  "rules": [
+    {"name": "comment-line", "begin": "(?<=^[ \\t]*)#", "end": "$", "token": "comment"},
+    {"match": "^\\uFEFF?Microsoft Visual Studio Solution File.*$", "token": "meta"},
+    {"match": "(?<=^[ \\t]*)(?:Minimum)?VisualStudioVersion\\b", "token": "meta"},
+    {"include": "#guid"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"include": "#guid"}
+      ]
+    },
+    {"match": "(?<![\\w.])\\d+(?:\\.\\d+)*(?![\\w.])", "token": "number"},
+    {"words": true},
+    {"match": "[(),]", "token": "punctuation"},
+    {
+      "operators": ["=", "|"]
+    }
+  ]
+}

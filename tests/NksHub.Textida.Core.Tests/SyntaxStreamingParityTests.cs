@@ -21,7 +21,7 @@ public class SyntaxStreamingParityTests
         "ini-key", "ini-string", "yaml-key", "yaml-string", "neon-key",
         "markdown-link", "markdown-code", "php-comment-close", "php-code-comment",
         "plaintext-url", "python-name", "shell-variable", "sql-quoted-name",
-        "xml-entity", "latte-variable",
+        "xml-entity", "latte-variable", "razor-expression", "sln-string",
     };
 
     [Theory]
@@ -161,6 +161,8 @@ public class SyntaxStreamingParityTests
             "sql-quoted-name" => InRun("sql", "SELECT `", "`;", "variable", "SELECT 2;"),
             "xml-entity" => InRun("xml", "<a>&", ";</a>", "string.escape", "<next/>"),
             "latte-variable" => InRun("latte", "{$", "}", "variable", "{if true}next{/if}"),
+            "razor-expression" => InRun("razor", "@(\"", "\")", "string", "<p>@next</p>"),
+            "sln-string" => InRun("sln", "Project(\"", "\")", "string", "EndProject"),
             _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
         };
     }

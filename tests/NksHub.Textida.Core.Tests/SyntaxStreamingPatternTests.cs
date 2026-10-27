@@ -66,13 +66,13 @@ public class SyntaxStreamingPatternTests
     }
 
     [Fact]
-    public void Every_regex_in_all_seventeen_builtin_grammars_preserves_its_meaning()
+    public void Every_regex_in_all_builtin_grammars_preserves_its_meaning()
     {
         var assembly = typeof(Grammar).Assembly;
         string[] resources = assembly.GetManifestResourceNames()
             .Where(n => n.StartsWith("Grammars/", StringComparison.Ordinal) && !n.EndsWith("schema.json", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal).ToArray();
-        Assert.Equal(17, resources.Length);
+        Assert.Equal(BuiltinGrammars.Registry.All.Count(), resources.Length);
         foreach (string name in resources)
         {
             using var input = assembly.GetManifestResourceStream(name)!;
