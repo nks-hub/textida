@@ -19,6 +19,9 @@
                     <SolidColorBrush x:Key="LineNumbers">#8A9099</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#1B1D21</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#EEF0F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabRowBg">#E3E7EC</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabBg">#ECEFF2</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabHoverBg">#F5F7F9</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSoft">#D8EDE9</SolidColorBrush>
                     <SolidColorBrush x:Key="Scrim">#26000000</SolidColorBrush>
                     <SolidColorBrush x:Key="Highlight">#99FFD866</SolidColorBrush>
@@ -44,6 +47,9 @@
                     <SolidColorBrush x:Key="LineNumbers">#6F7681</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#D4D7DC</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#202225</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabRowBg">#2A2C31</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabBg">#33363B</SolidColorBrush>
+                    <SolidColorBrush x:Key="TabHoverBg">#3B3E44</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentSoft">#1F4A43</SolidColorBrush>
                     <SolidColorBrush x:Key="Scrim">#4D000000</SolidColorBrush>
                     <SolidColorBrush x:Key="Highlight">#80B38A00</SolidColorBrush>
@@ -92,21 +98,31 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,0,1,0" />
+            <Setter Property="Margin" Value="0,0,2,0" />
             <Setter Property="CornerRadius" Value="7,7,0,0" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
         </Style>
+        <!-- The active tab takes the editor colour and an accent line, so it reads as the top of the content below -->
+        <Style Selector="TabStripItem">
+            <Setter Property="Background" Value="{DynamicResource TabBg}" />
+            <Setter Property="BorderThickness" Value="0,2,0,0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
         <Style Selector="TabStripItem:selected">
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
         </Style>
         <Style Selector="TabStripItem:selected /template/ Border#PART_SelectedPipe">
             <Setter Property="IsVisible" Value="False" />
         </Style>
-        <Style Selector="TabStripItem:selected /template/ Border#PART_LayoutRoot">
+        <Style Selector="TabStripItem:selected /template/ Border#PART_LayoutRoot, TabStripItem:selected:pointerover /template/ Border#PART_LayoutRoot">
             <Setter Property="Background" Value="{DynamicResource BgEditor}" />
         </Style>
         <Style Selector="TabStripItem:pointerover:not(:selected) /template/ Border#PART_LayoutRoot">
-            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+            <Setter Property="Background" Value="{DynamicResource TabHoverBg}" />
+        </Style>
+        <Style Selector="TabStripItem:not(:selected):not(:pointerover) Button.tabclose">
+            <Setter Property="Opacity" Value="0" />
         </Style>
 
         <!-- Avalonia draws the title text and a full-screen button in the window decorations; D5 keeps only the system buttons -->
@@ -225,7 +241,7 @@
         </Style>
 
         <Style Selector="Border.tabrow">
-            <Setter Property="Background" Value="{DynamicResource ChromeBg}" />
+            <Setter Property="Background" Value="{DynamicResource TabRowBg}" />
         </Style>
         <Style Selector="Grid.titlestrip">
             <Setter Property="Background" Value="{DynamicResource ChromeBg}" />
