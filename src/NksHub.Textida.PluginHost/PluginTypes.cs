@@ -84,6 +84,9 @@ public sealed class PluginUnavailableException(string pluginId, PluginState stat
 public interface IPluginStateSource
 {
     byte[] BuildState(string pluginId);
+
+    /// <summary>The plugin took the state and runs again; what it missed while it was starting can be sent now.</summary>
+    void Resumed(string pluginId) { }
 }
 
 /// <summary>Editor API reached by plugin requests. Throw <see cref="RpcException"/> for a protocol error such as a missing permission.</summary>

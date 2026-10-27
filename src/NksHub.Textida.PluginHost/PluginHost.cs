@@ -41,7 +41,7 @@ public sealed class PluginHost : IAsyncDisposable
         public readonly Queue<string> Stderr = new();
         public long LostEvents;
         public volatile bool Awaiting;
-        /// <summary>Requests of the plugin that wait for a decision of the user (edit proposals); the plugin is idle meanwhile, not hung.</summary>
+        /// <summary>Requests of the plugin that wait for a decision of the user (<see cref="UserDecisions"/>); the plugin is idle meanwhile, not hung.</summary>
         public int Deciding;
         public string? DisabledReason;
         public volatile bool Removed;
@@ -200,6 +200,7 @@ public sealed class PluginHost : IAsyncDisposable
             {
                 var run = await LaunchAsync(p, restarted).ConfigureAwait(false);
                 SetState(p, PluginState.Running);
+                _stateSource?.Resumed(p.Spec.Id);
                 first?.TrySetResult();
                 first = null;
                 info = await run.Ended.Task.ConfigureAwait(false);
@@ -341,13 +342,15 @@ public sealed class PluginHost : IAsyncDisposable
             throw new PluginHandshakeException(p.Spec.Id, $"Plugin '{p.Spec.DisplayName}' implements plugin API version {result?.ApiVersion.ToString() ?? "(none)"}, but this editor provides version {_options.ApiVersion}.");
 
         await run.Rpc.NotifyAsync(PluginMethods.Initialized).ConfigureAwait(false);
-        var resync = ResyncPayload(p, restarted);
+        var lost = Interlocked.Read(ref p.LostEvents);
+        var resync = ResyncPayload(p, restarted, lost);
         try { await run.Rpc.RequestAsync(PluginMethods.Resync, resync, _options.HandshakeTimeout).ConfigureAwait(false); }
         catch (RpcException e) { throw new PluginHandshakeException(p.Spec.Id, $"Plugin '{p.Spec.DisplayName}' failed the state resync: {e.Message}"); }
-        Interlocked.Exchange(ref p.LostEvents, 0);
+        // events that failed while the resync was on its way were not in it: they stay counted
+        Interlocked.Add(ref p.LostEvents, -lost);
     }
 
-    byte[] ResyncPayload(Plugin p, bool restarted)
+    byte[] ResyncPayload(Plugin p, bool restarted, long lostEvents)
     {
         var state = _stateSource?.BuildState(p.Spec.Id);
         var buffer = new ArrayBufferWriter<byte>();
@@ -355,7 +358,7 @@ public sealed class PluginHost : IAsyncDisposable
         {
             w.WriteStartObject();
             w.WriteBoolean("restarted", restarted);
-            w.WriteNumber("lostEvents", Interlocked.Read(ref p.LostEvents));
+            w.WriteNumber("lostEvents", lostEvents);
             w.WritePropertyName("state");
             if (state is null || state.Length == 0) w.WriteNullValue();
             else { using var d = JsonDocument.Parse(state); d.RootElement.WriteTo(w); }
@@ -481,12 +484,19 @@ public sealed class PluginHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync() => await ShutdownAsync().ConfigureAwait(false);
 
+    /// <summary>Editor methods that answer only when the user has decided (a change review, a dialog). While one is open the watchdog does not count missed pings.</summary>
+    internal static readonly HashSet<string> UserDecisions =
+    [
+        Documents.DocumentMethods.EditPropose, Documents.DocumentMethods.WorkspaceEdit, Documents.DocumentMethods.AgentPermission,
+        Ui.UiMethods.QuickPick, Ui.UiMethods.Input, Ui.UiMethods.Confirm,
+    ];
+
     sealed class HostHandler(PluginHost host, Plugin plugin) : IRpcHandler
     {
         public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation)
         {
             if (host._api is null) throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
-            if (method != Documents.DocumentMethods.EditPropose) return await host._api(plugin.Spec.Id, method, parameters, cancellation).ConfigureAwait(false);
+            if (!UserDecisions.Contains(method)) return await host._api(plugin.Spec.Id, method, parameters, cancellation).ConfigureAwait(false);
             Interlocked.Increment(ref plugin.Deciding);
             try { return await host._api(plugin.Spec.Id, method, parameters, cancellation).ConfigureAwait(false); }
             finally { Interlocked.Decrement(ref plugin.Deciding); }
