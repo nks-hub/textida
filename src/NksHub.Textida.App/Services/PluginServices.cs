@@ -4,6 +4,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
@@ -106,7 +107,12 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     {
         var document = tab.Doc.Doc;
         if (_running.ContainsKey(document.Id)) return false;
+        // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
+        bool reveal = SecretValues.IsSecretFile(document.FilePath);
+        if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.FilePath)!))))) return false;
+        if (_running.ContainsKey(document.Id)) return false;
         _running[document.Id] = new Run(window, tab);
+        if (reveal) Permissions.Grant(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(document.Id));
         Documents.Expose(document, tab.Surface is { } surface ? surface.ByteSelections : null);
         try
         {
@@ -122,6 +128,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         {
             Documents.Withdraw(document);
             _running.Remove(document.Id);
+            if (reveal) Permissions.Revoke(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(document.Id));
         }
         return true;
     }

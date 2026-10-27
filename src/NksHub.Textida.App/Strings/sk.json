@@ -527,5 +527,7 @@
   "plugin.unavailable": "Zásuvný modul {name} sa nepodarilo spustiť: {reason}",
   "plugin.proposal": "{title}: navrhnuté zmeny ({changes}).",
   "plugin.symbols.title": "Osnova",
-  "plugin.symbols.outdated": "Osnova (zastaraná)"
+  "plugin.symbols.outdated": "Osnova (zastaraná)",
+  "plugin.secrets.title": "Skryté hodnoty",
+  "plugin.secrets.message": "{name} si pri behu prečíta skryté hodnoty súboru {file}. Povoliť?"
 }

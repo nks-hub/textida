@@ -111,6 +111,18 @@ public static class SecretValues
         return sb is null ? text : sb.Append(text, copied, text.Length - copied).ToString();
     }
 
+    /// <summary>
+    /// A single line of a secrets file seen without the text around it (a list of recent edits): the value of a variable is hidden, a comment and a blank line stay,
+    /// and a line without <c>=</c> may be the rest of a value that spans lines, so it is hidden whole.
+    /// </summary>
+    public static string MaskLine(string line)
+    {
+        var trimmed = line.AsSpan().TrimStart();
+        if (trimmed.IsEmpty || trimmed[0] == '#') return line;
+        var spans = Find(line);
+        return spans.Count > 0 ? Mask(line, spans) : line.Contains('=') ? line : Placeholder;
+    }
+
     /// <summary>The first span that contains <paramref name="offset"/>, or null.</summary>
     public static SecretSpan? SpanAt(IReadOnlyList<SecretSpan> spans, int offset)
     {

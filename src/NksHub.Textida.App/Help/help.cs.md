@@ -355,6 +355,15 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 - Znaky, které hlavní písmo nemá, se vykreslí písmy z nastavení Náhradní písma.
 - Ctrl a kolečko myši mění velikost písma jako příkazy zvětšení.
 
+## [view.secrets] Skryté hodnoty v souborech .env
+commands: nks.view.toggleSecrets
+1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`. Zobrazit a Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
+- Když na hodnotu najedete ukazatelem myši, ukáže se jen ta jedna.
+- Text souboru se nemění: uložení zapíše stejné bajty.
+- Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav a ve výsledcích hledání. Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
+- Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
+- Stránkovaný režim a hexadecimální zobrazení ukazují bajty tak, jak jsou.
+
 ## [view.tabs] Přepínání karet
 commands: nks.view.nextTab, nks.view.previousTab
 1. Ctrl+Tab přepne na další kartu skupiny, Ctrl+Shift+Tab na předchozí.

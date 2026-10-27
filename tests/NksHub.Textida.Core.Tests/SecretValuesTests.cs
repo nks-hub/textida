@@ -51,6 +51,17 @@ public class SecretValuesTests
     }
 
     [Fact]
+    public void A_line_seen_alone_hides_values_and_what_may_be_the_rest_of_one()
+    {
+        Assert.Equal("K=••••", SecretValues.MaskLine("K=secret"));
+        Assert.Equal("export K=••••", SecretValues.MaskLine("export K=\"a b\""));
+        Assert.Equal("# note", SecretValues.MaskLine("# note"));
+        Assert.Equal("EMPTY=", SecretValues.MaskLine("EMPTY="));
+        Assert.Equal("", SecretValues.MaskLine(""));
+        Assert.Equal("••••", SecretValues.MaskLine("lines hunter2\""));
+    }
+
+    [Fact]
     public void Overlap_counts_a_touch_but_not_the_boundary_of_a_value()
     {
         var spans = SecretValues.Find("K=value\n");

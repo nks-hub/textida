@@ -56,6 +56,7 @@
   "cmd.view.toggleRightMargin": "Rechten Rand anzeigen",
   "cmd.view.toggleLinks": "Anklickbare Links",
   "cmd.view.toggleMinimap": "Minimap anzeigen",
+  "cmd.view.toggleSecrets": "Verborgene Werte anzeigen",
   "cmd.view.nextTab": "Nächster Tab",
   "cmd.view.previousTab": "Vorheriger Tab",
   "setting.editor.tabSize.title": "Tabulatorgröße",

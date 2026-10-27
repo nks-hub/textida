@@ -32,6 +32,9 @@ internal interface IMinimapHost
 
     /// <summary>Raised when the first line on screen, the number of lines shown or the line count changed.</summary>
     event Action? MapChanged;
+
+    /// <summary>Raised when <see cref="LineText"/> answers differently without an edit (hidden values were shown or hidden).</summary>
+    event Action? ContentChanged;
 }
 
 internal enum MinimapMarkKind : byte
@@ -181,6 +184,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (_attached || _disposed) return;
         _attached = true;
         _host.MapChanged += OnMapChanged;
+        _host.ContentChanged += Invalidate;
         _doc.Doc.Changed += OnDocumentChanged;
         _doc.Replaced += Invalidate;
         ActualThemeVariantChanged += OnThemeChanged;
@@ -199,6 +203,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (!_attached) return;
         _attached = false;
         _host.MapChanged -= OnMapChanged;
+        _host.ContentChanged -= Invalidate;
         _doc.Doc.Changed -= OnDocumentChanged;
         _doc.Replaced -= Invalidate;
         ActualThemeVariantChanged -= OnThemeChanged;

@@ -355,6 +355,15 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 - Zeichen, die die Hauptschrift nicht hat, werden mit den Schriften der Einstellung Ersatzschriften gezeichnet.
 - Strg und das Mausrad ändern die Schriftgröße wie die Zoom-Befehle.
 
+## [view.secrets] Verborgene Werte in .env-Dateien
+commands: nks.view.toggleSecrets
+1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`. Ansicht, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
+- Ruht der Mauszeiger auf einem Wert, wird nur dieser eine gezeigt.
+- Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
+- Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten und in den Suchergebnissen verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
+- Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
+- Der seitenweise Modus und die Hex-Ansicht zeigen die Bytes, wie sie sind.
+
 ## [view.tabs] Tabs wechseln
 commands: nks.view.nextTab, nks.view.previousTab
 1. Strg+Tab wechselt zum nächsten Tab der Gruppe, Strg+Umschalt+Tab zum vorherigen.

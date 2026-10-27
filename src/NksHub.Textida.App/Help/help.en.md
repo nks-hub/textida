@@ -355,6 +355,15 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 - Characters the main font lacks are drawn with the fonts of the setting Fallback fonts.
 - Ctrl and the mouse wheel change the font size like the zoom commands.
 
+## [view.secrets] Hidden values in .env files
+commands: nks.view.toggleSecrets
+1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`. View, Show Hidden Values shows them in the current tab, and using it again hides them.
+- Resting the pointer on a value shows just that one.
+- The text of the file is not changed: saving writes the same bytes.
+- Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, and in search results. Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
+- A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
+- Paged mode and the hex view show the bytes as they are.
+
 ## [view.tabs] Switching tabs
 commands: nks.view.nextTab, nks.view.previousTab
 1. Ctrl+Tab switches to the next tab of the group, Ctrl+Shift+Tab to the previous one.

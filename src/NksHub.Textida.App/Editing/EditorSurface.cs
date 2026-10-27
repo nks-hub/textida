@@ -67,6 +67,7 @@ internal sealed partial class EditorSurface : TextEditor
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
         InitViewOptions();
         InitCarets();
+        InitSecrets();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -188,7 +189,7 @@ internal sealed partial class EditorSurface : TextEditor
         Options.ConvertTabsToSpaces = o.InsertSpaces;
         Options.ShowSpaces = o.ShowWhitespace;
         Options.ShowTabs = o.ShowWhitespace;
-        Options.EnableTextDragDrop = true;
+        Options.EnableTextDragDrop = !SecretsHidden;
         Options.AcceptsTab = false;
         ApplyViewOptions(o);
     }
@@ -311,6 +312,11 @@ internal sealed partial class EditorSurface : TextEditor
 
     private void OnKeyDownTunnel(object? sender, KeyEventArgs e)
     {
+        if (HiddenCopyKey(e))
+        {
+            e.Handled = true;
+            return;
+        }
         if (HandleCaretKey(e)) return;
         if (BlockMode && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home)
         {

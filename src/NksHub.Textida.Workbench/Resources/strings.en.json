@@ -56,6 +56,7 @@
   "cmd.view.toggleRightMargin": "Show Right Margin",
   "cmd.view.toggleLinks": "Clickable Links",
   "cmd.view.toggleMinimap": "Show Minimap",
+  "cmd.view.toggleSecrets": "Show Hidden Values",
   "cmd.view.nextTab": "Next Tab",
   "cmd.view.previousTab": "Previous Tab",
   "setting.editor.tabSize.title": "Tab size",

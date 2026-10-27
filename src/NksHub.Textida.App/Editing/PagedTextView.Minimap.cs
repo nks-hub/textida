@@ -22,6 +22,12 @@ internal sealed partial class PagedTextView : IMinimapHost
         remove => _mapChanged -= value;
     }
 
+    event Action? IMinimapHost.ContentChanged
+    {
+        add { }
+        remove { }
+    }
+
     long IMinimapHost.LineCount => LineCount;
 
     (long First, long Count) IMinimapHost.Visible => (TopLine, Math.Max(1, _canvas.VisibleLines));

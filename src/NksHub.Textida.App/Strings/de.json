@@ -511,5 +511,7 @@
   "plugin.unavailable": "Das Plugin {name} konnte nicht ausgeführt werden: {reason}",
   "plugin.proposal": "{title}: {changes} vorgeschlagene Änderungen.",
   "plugin.symbols.title": "Gliederung",
-  "plugin.symbols.outdated": "Gliederung (veraltet)"
+  "plugin.symbols.outdated": "Gliederung (veraltet)",
+  "plugin.secrets.title": "Verborgene Werte",
+  "plugin.secrets.message": "{name} liest während der Ausführung die verborgenen Werte von {file}. Zulassen?"
 }

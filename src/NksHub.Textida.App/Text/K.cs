@@ -506,4 +506,6 @@ public static class K
     public const string PluginProposal = "plugin.proposal";
     public const string PluginSymbolsTitle = "plugin.symbols.title";
     public const string PluginSymbolsOutdated = "plugin.symbols.outdated";
+    public const string PluginSecretsTitle = "plugin.secrets.title";
+    public const string PluginSecretsMessage = "plugin.secrets.message";
 }

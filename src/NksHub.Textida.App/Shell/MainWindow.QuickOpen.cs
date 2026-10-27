@@ -4,6 +4,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Workbench.Matching;
 
 namespace NksHub.Textida.App.Shell;
@@ -147,7 +148,7 @@ internal sealed partial class MainWindow
             }
             else if (c.Path is { } path) JumpToFile(path, line);
         };
-        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096))) : c.Path is { } p && !missing ? () => ReadPreview(p) : null;
+        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(HideSecrets(c.Tab.Path, surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096)))) : c.Path is { } p && !missing ? () => ReadPreview(p) : null;
         return new QuickRow(title, category.Length > 0 ? category : null, directory, null, !missing, missing ? reason : null, a11y, run, preview);
     }
 
@@ -159,6 +160,9 @@ internal sealed partial class MainWindow
         _palettePreviewHost.IsVisible = show;
         _palettePreview.Text = show ? _quickRows[_paletteList.SelectedIndex].Preview!() : "";
     }
+
+    /// <summary>A preview or a list shows the values of a secrets file as the placeholder, whatever the tab does; the palette is no place to show them.</summary>
+    private static string HideSecrets(string? path, string text) => SecretValues.IsSecretFile(path) ? SecretValues.Mask(text, SecretValues.Find(text)) : text;
 
     private static string FirstLines(string text)
     {
@@ -175,9 +179,9 @@ internal sealed partial class MainWindow
             int n = fs.Read(buffer);
             var span = buffer.AsSpan(0, n);
             if (span.Length >= 2 && ((span[0] == 0xFF && span[1] == 0xFE) || (span[0] == 0xFE && span[1] == 0xFF)))
-                return FirstLines((span[0] == 0xFF ? Encoding.Unicode : Encoding.BigEndianUnicode).GetString(span[2..]));
+                return FirstLines(HideSecrets(path, (span[0] == 0xFF ? Encoding.Unicode : Encoding.BigEndianUnicode).GetString(span[2..])));
             if (span.Contains((byte)0)) return Loc.Get(K.PalettePreviewBinary);
-            return FirstLines(Encoding.UTF8.GetString(span));
+            return FirstLines(HideSecrets(path, Encoding.UTF8.GetString(span)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -198,6 +202,7 @@ internal sealed partial class MainWindow
             string file = place.Path is { } p ? Path.GetFileName(p) : TitleOf(place.Document);
             string where = $"{file}:{place.Line + 1}";
             string snippet = string.IsNullOrWhiteSpace(place.Snippet) ? "…" : place.Snippet.Trim();
+            if (SecretValues.IsSecretFile(place.Path)) snippet = SecretValues.MaskLine(snippet);
             if (!Matches(query, snippet + " " + where)) continue;
             var target = place;
             rows.Add(new QuickRow(snippet, where, null, null, true, null, $"{where}: {snippet}", () => { RecordJump(); GoToPlace(target); }));

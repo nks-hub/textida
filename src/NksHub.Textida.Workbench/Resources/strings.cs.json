@@ -56,6 +56,7 @@
   "cmd.view.toggleRightMargin": "Zobrazit pravý okraj",
   "cmd.view.toggleLinks": "Klikací odkazy",
   "cmd.view.toggleMinimap": "Zobrazit minimapu",
+  "cmd.view.toggleSecrets": "Zobrazit skryté hodnoty",
   "cmd.view.nextTab": "Další karta",
   "cmd.view.previousTab": "Předchozí karta",
   "setting.editor.tabSize.title": "Velikost tabulátoru",

@@ -286,6 +286,12 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.view.toggleSecrets",
+      "title": "cmd.view.toggleSecrets",
+      "category": "cat.view",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.view.nextTab",
       "title": "cmd.view.nextTab",
       "category": "cat.view",
@@ -1026,6 +1032,12 @@
       "command": "nks.view.toggleMinimap",
       "group": "3_display",
       "order": 60
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleSecrets",
+      "group": "3_display",
+      "order": 70
     },
     {
       "menu": "file",
