@@ -1009,16 +1009,15 @@ The status bar then shows Large file, its size and the revision.
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
 - Find (Ctrl+F). Find in Files.
+- A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
 ### What does not work
 - Selection, clipboard (Cut, Copy, Paste), block selection, multiple carets.
 - Commands for lines, indentation, letter case, replacing.
 - Go to Matching Bracket, word wrap.
 - Converting and rereading the encoding, unifying line endings, normalization.
 - Save As only in the same encoding.
-- A line longer than 16 KiB is shown only in part and cannot be edited.
 ### Messages
 - Line numbering is still running, editing starts in a moment: wait until the file has been read through.
-- The line is longer than 16 KiB and cannot be edited in the paged mode: edit the line in another program.
 - The character cannot be written in the file encoding: type another character.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - Saving a large file holds up the window.

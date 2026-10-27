@@ -1014,16 +1014,15 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
 - Písať, mazať (Backspace a Delete), Enter a Tab na mieste kurzora. Späť a Znova. Uložiť.
 - Hľadať (Ctrl+F). Hľadanie v súboroch.
+- Riadok dlhší ako 16 KiB posuniete do strán posuvníkom pod textom. Vzdialená časť riadku sa na chvíľu ukáže ako …, kým sa nenačíta. Farby v nej pribudnú, keď program prečíta riadok až po ňu.
 ### Čo nejde
 - Výber, schránka (Vystrihnúť, Kopírovať, Vložiť), blokový výber, viac kurzorov.
 - Príkazy nad riadkami, odsadením, veľkosťou písmen, nahradenie.
 - Prejsť na párovú zátvorku, zalamovanie riadkov.
 - Prevod a opätovné čítanie kódovania, zjednotenie koncov riadkov, normalizácia.
 - Uložiť ako len v rovnakom kódovaní.
-- Riadok dlhší ako 16 KiB sa ukáže len sčasti a upraviť sa nedá.
 ### Hlásenia
 - Číslovanie riadkov ešte beží, úpravy pôjdu o chvíľu: počkajte, kým sa súbor dočíta.
-- Riadok je dlhší ako 16 KiB, v stránkovanom režime sa nedá upraviť: riadok upravte iným programom.
 - Znak sa nedá zapísať v kódovaní súboru: napíšte iný znak.
 - Veľký súbor v kódovaní ... sa zatiaľ nedá otvoriť: súbor sa neotvorí; iné kódovanie vo veľkom súbore program zatiaľ neprečíta.
 - Ukladanie veľkého súboru zdrží okno.
