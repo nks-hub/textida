@@ -195,6 +195,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
     public const int RegistryMaxLookups = 50;
 
+    /// <summary>Placeholder, OPEN: time one <c>net/request</c> of a plugin may take, answer included. The owner has not decided it.</summary>
+    public const int NetworkTimeoutMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: largest answer body of one <c>net/request</c>. It travels base64 encoded, so it stays well under the 4 MiB message limit of <see cref="Host"/>. The owner has not decided it.</summary>
+    public const int NetworkMaxResponseBytes = 2 << 20;
+
+    public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

@@ -178,6 +178,8 @@ public static class DocumentErrorCodes
     public const int AgentPanelBusy = -32040;
     /// <summary>The plugin has no conversation in the agent panel (never opened, or the user or the editor ended it).</summary>
     public const int NoAgentSession = -32041;
+    /// <summary>A <c>net/request</c> did not get an answer: no connection, the proxy refused it, a timeout, an answer over the limit, or a network policy the editor cannot read.</summary>
+    public const int NetworkUnavailable = -32042;
 }
 
 /// <summary>

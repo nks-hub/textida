@@ -2,6 +2,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Manager;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -44,6 +45,7 @@ internal sealed partial class MainWindow
         DocumentPermissions.Preview => K.PluginsPermDocumentPreview,
         DocumentPermissions.AgentPanel => K.PluginsPermAgentPanel,
         DocumentPermissions.LanguageServer => K.PluginsPermLanguageServer,
+        PluginPermissionNames.Network => K.PluginsPermNetwork,
         _ => K.PluginsPermWorkspaceFiles,
     });
 

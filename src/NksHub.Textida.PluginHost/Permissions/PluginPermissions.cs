@@ -28,6 +28,9 @@ public static class PluginPermissionNames
     /// <summary>Run a command of another plugin. The scope is the target plugin.</summary>
     public const string CommandExecute = "command.execute";
 
+    /// <summary>Send HTTP requests through the editor (<c>net/request</c>), which applies its network policy and proxy. The scope is all.</summary>
+    public const string Network = "network";
+
     /// <summary>
     /// What a manifest may ask for; the user grants each one to the plugin in the plugin manager, for all documents. <see cref="DocumentPermissions.SecretsReveal"/> (one document)
     /// and <see cref="CommandExecute"/> (one target plugin) have a narrower scope and are granted when needed, not declared.
@@ -37,7 +40,7 @@ public static class PluginPermissionNames
         DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
         DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles, DocumentPermissions.Source,
         DocumentPermissions.Preview, DocumentPermissions.AgentPanel,
-        DocumentPermissions.LanguageServer,
+        DocumentPermissions.LanguageServer, Network,
     ];
 }
 

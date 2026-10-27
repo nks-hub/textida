@@ -24,6 +24,7 @@ public interface IWikiEditor
 /// The NKS IS wiki as a file source for the scheme <c>nksis</c> (P6.4.1): <c>nksis://wiki/&lt;page&gt;</c> is a page; the authority is only a label. The base URL of the wiki and the
 /// API key are asked from the user once and kept in the secret storage of the editor under the names <see cref="BaseUrlSecret"/> and <see cref="TokenSecret"/>;
 /// no host is built in, and the key is never part of an address, a log line or a message. Without a base URL or a key nothing is sent.
+/// Every request goes through the editor (<c>net/request</c>, permission <c>network</c>), so the proxy of its network policy applies.
 /// The write is declared non-atomic (<see cref="AtomicWriteVerified"/>): the wiki API has no conditional write (P6.4.4), so the editor compares the revision token with a read
 /// before it writes and warns the user that a save in between is not noticed.
 /// </summary>
@@ -46,14 +47,15 @@ public sealed class WikiPlugin : PluginBase
     {
         _settings = settings;
         _editor = editor ?? (() => new RpcEditor(Rpc));
-        _connect = connect ?? ((baseUrl, token) => new NksIsWikiHttp(Shared, baseUrl, token, settings.Timeout));
+        _connect = connect ?? ((baseUrl, token) => new NksIsWikiHttp(_http ??= new HttpClient(new EditorHttpHandler(Rpc)), baseUrl, token, settings.Timeout));
         On(DocumentRequests.SourceList, (p, ct) => Guard(() => ListAsync(p, ct), ct));
         On(DocumentRequests.SourceRead, (p, ct) => Guard(() => ReadAsync(p, ct), ct));
         On(DocumentRequests.SourceStat, (p, ct) => Guard(() => StatAsync(p, ct), ct));
         On(DocumentRequests.SourceWrite, (p, ct) => Guard(() => WriteAsync(p, ct), ct));
     }
 
-    private static readonly HttpClient Shared = new();
+    /// <summary>Requests go through the editor (<c>net/request</c>), so its network policy and proxy apply.</summary>
+    private HttpClient? _http;
 
     protected override async ValueTask OnResyncAsync(JsonElement state)
     {
