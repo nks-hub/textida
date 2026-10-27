@@ -1018,5 +1018,18 @@
   "compare.noDocument": "Open a text document first.",
   "compare.sync.on": "Scrolling follows {title}.",
   "compare.sync.off": "Synchronized scrolling is off.",
-  "compare.sync.need": "Show two text files side by side first: move one tab to the other group."
+  "compare.sync.need": "Show two text files side by side first: move one tab to the other group.",
+  "review.queued": "More proposals waiting: {count}",
+  "review.bar": "Review changes",
+  "review.title": "Changes from outside: {title}",
+  "review.hint": "Ticked changes stay. Unticked ones go back to the content from before the change when you apply.",
+  "review.badge": "± {count}",
+  "review.none": "No change from outside waits for review in this tab",
+  "review.noBase": "The earlier content could not be kept in the local history, so the changes cannot be reviewed. Use Reload.",
+  "review.done": "Review finished: {kept} kept, {reverted} reverted",
+  "review.stale": "The text changed during the review; the changes are shown again",
+  "review.notSaved": "Reverted in the tab, but not saved: {reason}",
+  "review.autoKept": "Change from outside taken over: {title}",
+  "review.same": "The file has the same content as before; nothing to review",
+  "review.busy": "Another review is open. Finish it first, then choose Review Changes from Outside."
 }

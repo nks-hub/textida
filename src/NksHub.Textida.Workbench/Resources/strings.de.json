@@ -355,5 +355,10 @@
   "cmd.compare.copyToRight": "Unterschied nach rechts kopieren",
   "cmd.compare.copyToLeft": "Unterschied nach links kopieren",
   "cmd.view.syncScroll": "Scrollen synchronisieren",
-  "menu.editor.context": "Kontextmenü des Editors"
+  "menu.editor.context": "Kontextmenü des Editors",
+  "cmd.review.open": "Änderungen von außen prüfen",
+  "cmd.review.next": "Nächste Änderung von außen",
+  "cmd.review.previous": "Vorherige Änderung von außen",
+  "setting.review.autoKeep.title": "Änderungen von außen ohne Prüfung behalten",
+  "setting.review.autoKeep.description": "Ein: Ändert ein anderes Programm die Datei eines Tabs ohne ungespeicherte Änderungen, übernimmt der Tab den neuen Inhalt sofort und es wird keine Prüfung angeboten. Aus: Die Änderungen warten auf Ihre Prüfung."
 }

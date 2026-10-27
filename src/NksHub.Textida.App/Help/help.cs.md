@@ -1039,3 +1039,15 @@ Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává pro
 2. Zvolte Zobrazit a potom Synchronizovat posouvání. Aktivní karta a aktivní karta další skupiny se sledují. Dalším zvolením příkazu to vypnete.
 - Řádky se přiřazují porovnáním z tématu Porovnání textů: druhý soubor se posune na odpovídající řádek, i přes vložené nebo odebrané bloky. Než se porovnání dopočítá, platí stejné číslo řádku.
 - Skončí, když se zavře jedna ze dvou karet. Hexadecimální a tabulkový pohled se neúčastní.
+
+## [review.external] Kontrola změn zvenku
+commands: nks.review.open, nks.review.next, nks.review.previous
+Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.
+1. Zvolte Zkontrolovat změny. Karta převezme nový obsah, dřívější obsah zůstane v místní historii a po dobu kontroly se nesmaže a karta Výsledky hledání vypíše změny po řádcích.
+2. Zaškrtněte změny, které chcete ponechat. Nezaškrtnuté, nebo celý soubor s nezaškrtnutým polem, se po volbě Použít vrátí na dřívější obsah.
+3. Použít zapíše vrácený text do karty jako jeden krok zpět a soubor uloží; bajty mimo vrácené změny zůstanou beze změny.
+- Karta ukazuje štítek s počtem čekajících změn. Volbou Soubor a Zkontrolovat změny zvenku seznam otevřete znovu; vrátí se i po restartu.
+- Alt+F7 a Alt+Shift+F7 skočí na další a předchozí změnu zvenku.
+- Pokud během kontroly v kartě píšete, změny se ukážou znovu z nového textu.
+- Soubory s tajnými hodnotami (.env) a soubory s neuloženými úpravami zůstávají u staršího panelu: Znovu načíst, Ponechat moje, Porovnat.
+- S volbou Ponechat změny zvenku bez kontroly v nastavení karta převezme nový obsah hned. Ve výchozím stavu je vypnuta.

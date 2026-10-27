@@ -206,6 +206,9 @@ internal static class AppCommands
         On("nks.compare.clipboard", w => { _ = w.CompareWithClipboardAsync(); return CommandOutcome.Handled; });
         On("nks.compare.file", w => { _ = w.CompareWithFileAsync(); return CommandOutcome.Handled; });
         Do("nks.compare.texts", w => w.OpenTextCompare());
+        On("nks.review.open", w => w.OpenReview());
+        On("nks.review.next", w => w.ReviewStep(next: true));
+        On("nks.review.previous", w => w.ReviewStep(next: false));
         On("nks.compare.next", w => w.CompareStep(next: true));
         On("nks.compare.previous", w => w.CompareStep(next: false));
         On("nks.compare.copyToRight", w => w.CompareCopy(Core.Compare.DiffSide.B));

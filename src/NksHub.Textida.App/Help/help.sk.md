@@ -1039,3 +1039,15 @@ Dve karty sa posúvajú spolu, takže rovnaký text dvoch súborov zostáva opro
 2. Zvoľte Zobraziť a potom Synchronizovať posúvanie. Aktívna karta a aktívna karta ďalšej skupiny sa sledujú. Ďalším zvolením príkazu to vypnete.
 - Riadky sa priraďujú porovnaním z témy Porovnanie textov: druhý súbor sa posunie na zodpovedajúci riadok, aj cez vložené alebo odobraté bloky. Kým sa porovnanie dopočíta, platí rovnaké číslo riadka.
 - Skončí, keď sa zavrie jedna z dvoch kariet. Hexadecimálny a tabuľkový pohľad sa nezúčastňujú.
+
+## [review.external] Kontrola zmien zvonka
+commands: nks.review.open, nks.review.next, nks.review.previous
+Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.
+1. Zvoľte Skontrolovať zmeny. Karta prevezme nový obsah, skorší obsah zostane v miestnej histórii a po dobu kontroly sa nezmaže a karta Výsledky hľadania vypíše zmeny po riadkoch.
+2. Zaškrtnite zmeny, ktoré chcete ponechať. Nezaškrtnuté, alebo celý súbor s nezaškrtnutým poľom, sa po voľbe Použiť vrátia na skorší obsah.
+3. Použiť zapíše vrátený text do karty ako jeden krok späť a súbor uloží; bajty mimo vrátených zmien zostanú bez zmeny.
+- Karta ukazuje štítok s počtom čakajúcich zmien. Voľbou Súbor a Skontrolovať zmeny zvonka zoznam otvoríte znova; vráti sa aj po reštarte.
+- Alt+F7 a Alt+Shift+F7 skočia na ďalšiu a predchádzajúcu zmenu zvonka.
+- Ak počas kontroly v karte píšete, zmeny sa ukážu znova z nového textu.
+- Súbory s tajnými hodnotami (.env) a súbory s neuloženými úpravami zostávajú pri staršom paneli: Načítať znova, Ponechať moje, Porovnať.
+- S voľbou Ponechať zmeny zvonka bez kontroly v nastaveniach karta prevezme nový obsah hneď. V predvolenom stave je vypnutá.

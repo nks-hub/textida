@@ -35,6 +35,7 @@ public sealed partial class App : Application
     internal BackupService Backups { get; private set; } = null!;
     /// <summary>Local history of files: a revision for every save and every change from outside.</summary>
     internal FileHistory History { get; private set; } = null!;
+    internal ReviewStore Reviews { get; private set; } = null!;
     internal OutputChannels Output { get; private set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
@@ -141,6 +142,7 @@ public sealed partial class App : Application
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());
         OpenDocument.History = History;
+        Reviews = new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
     }
 
     /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>

@@ -110,7 +110,7 @@ internal sealed class TabGroup : DockPanel
         _syncing = false;
     }
 
-    public static string HeaderStateOf(DocTab tab) => $"{tab.Title}|{tab.Doc.HasUnsavedWork}|{tab.Doc.SizeBadge}";
+    public static string HeaderStateOf(DocTab tab) => $"{tab.Title}|{tab.Doc.HasUnsavedWork}|{tab.Doc.SizeBadge}|{tab.Doc.ReviewBadge}";
 
     private TabStripItem MakeItem(DocTab tab)
     {
@@ -136,6 +136,14 @@ internal sealed class TabGroup : DockPanel
             var badgeText = new TextBlock { Text = badge, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
             var border = new Border { Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0), Child = badgeText };
             border.Classes.Add("sizebadge");
+            header.Children.Add(border);
+        }
+        if (tab.Doc.ReviewBadge is { } review)
+        {
+            var reviewText = new TextBlock { Text = review, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+            var border = new Border { Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0), Child = reviewText };
+            border.Classes.Add("sizebadge");
+            AutomationProperties.SetName(border, Loc.Get(K.ReviewBar));
             header.Children.Add(border);
         }
         header.Children.Add(slot);

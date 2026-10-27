@@ -355,5 +355,10 @@
   "cmd.compare.copyToRight": "Zkopírovat rozdíl doprava",
   "cmd.compare.copyToLeft": "Zkopírovat rozdíl doleva",
   "cmd.view.syncScroll": "Synchronizovat posouvání",
-  "menu.editor.context": "Místní nabídka editoru"
+  "menu.editor.context": "Místní nabídka editoru",
+  "cmd.review.open": "Zkontrolovat změny zvenku",
+  "cmd.review.next": "Další změna zvenku",
+  "cmd.review.previous": "Předchozí změna zvenku",
+  "setting.review.autoKeep.title": "Ponechat změny zvenku bez kontroly",
+  "setting.review.autoKeep.description": "Zapnuto: když jiný program změní soubor karty bez neuložených úprav, karta hned převezme nový obsah a kontrola se nenabízí. Vypnuto: změny čekají na vaši kontrolu."
 }

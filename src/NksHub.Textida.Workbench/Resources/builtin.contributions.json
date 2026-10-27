@@ -1235,6 +1235,24 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.review.open",
+      "title": "cmd.review.open",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.review.next",
+      "title": "cmd.review.next",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.review.previous",
+      "title": "cmd.review.previous",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.compare.next",
       "title": "cmd.compare.next",
       "category": "cat.tools",
@@ -1654,6 +1672,12 @@
       "command": "nks.file.history",
       "group": "2_disk",
       "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.open",
+      "group": "2_disk",
+      "order": 75
     },
     {
       "menu": "file",
@@ -2916,6 +2940,16 @@
       "command": "nks.view.table"
     },
     {
+      "key": "alt+f7",
+      "command": "nks.review.next",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+shift+f7",
+      "command": "nks.review.previous",
+      "when": "editorFocus"
+    },
+    {
       "key": "f7",
       "command": "nks.compare.next",
       "when": "compareMode"
@@ -3379,6 +3413,20 @@
         "history",
         "revisions",
         "backup"
+      ]
+    },
+    {
+      "key": "review.autoKeep",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.review.autoKeep.title",
+      "description": "setting.review.autoKeep.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "review",
+        "external",
+        "reload"
       ]
     },
     {

@@ -1034,3 +1034,15 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 2. Wählen Sie Ansicht und dann Scrollen synchronisieren. Der aktive Tab und der aktive Tab der nächsten Gruppe folgen einander. Wählen Sie den Befehl noch einmal, um es zu beenden.
 - Die Zeilen werden mit dem Vergleich aus dem Thema Texte vergleichen zugeordnet: Die andere Datei scrollt zur entsprechenden Zeile, auch über eingefügte oder entfernte Blöcke hinweg. Solange der Vergleich berechnet wird, gilt dieselbe Zeilennummer.
 - Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.
+
+## [review.external] Änderungen von außen prüfen
+commands: nks.review.open, nks.review.next, nks.review.previous
+Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.
+1. Wählen Sie Änderungen prüfen. Der Tab übernimmt den neuen Inhalt, der frühere Inhalt bleibt im lokalen Verlauf und wird während der Prüfung nicht gelöscht, und der Tab Suchergebnisse listet die Änderungen zeilenweise auf.
+2. Haken Sie die Änderungen an, die bleiben sollen. Nicht angehakte, oder die ganze Datei bei nicht angehaktem Feld, gehen mit Anwenden auf den früheren Inhalt zurück.
+3. Anwenden schreibt den zurückgesetzten Text als einen Rückgängig-Schritt in den Tab und speichert die Datei; Bytes außerhalb der zurückgesetzten Änderungen bleiben unverändert.
+- Der Tab zeigt eine Marke mit der Zahl der wartenden Änderungen. Über Datei und Änderungen von außen prüfen öffnen Sie die Liste erneut; sie kehrt auch nach einem Neustart zurück.
+- Alt+F7 und Alt+Umschalt+F7 springen zur nächsten und vorherigen Änderung von außen.
+- Tippen Sie während der Prüfung im Tab, werden die Änderungen aus dem neuen Text erneut angezeigt.
+- Dateien mit geheimen Werten (.env) und Dateien mit ungespeicherten Änderungen behalten die ältere Leiste: Neu laden, Meine behalten, Vergleichen.
+- Mit Änderungen von außen ohne Prüfung behalten in den Einstellungen übernimmt der Tab den neuen Inhalt sofort. Standardmäßig ist es aus.

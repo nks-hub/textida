@@ -1045,5 +1045,18 @@
   "compare.noDocument": "Najprv otvorte textový dokument.",
   "compare.sync.on": "Posúvanie sleduje kartu {title}.",
   "compare.sync.off": "Synchronizované posúvanie je vypnuté.",
-  "compare.sync.need": "Najprv zobrazte dva textové súbory vedľa seba: jednu kartu presuňte do druhej skupiny."
+  "compare.sync.need": "Najprv zobrazte dva textové súbory vedľa seba: jednu kartu presuňte do druhej skupiny.",
+  "review.queued": "Ďalšie návrhy čakajú: {count}",
+  "review.bar": "Skontrolovať zmeny",
+  "review.title": "Zmeny zvonka: {title}",
+  "review.hint": "Zaškrtnuté zmeny zostanú. Nezaškrtnuté sa po použití vrátia na obsah spred zmeny.",
+  "review.badge": "± {count}",
+  "review.none": "V tejto karte nečaká na kontrolu žiadna zmena zvonka",
+  "review.noBase": "Skorší obsah sa nepodarilo uložiť do miestnej histórie, zmeny preto nejde skontrolovať. Použite Načítať znova.",
+  "review.done": "Kontrola hotová: ponechané {kept}, vrátené {reverted}",
+  "review.stale": "Text sa počas kontroly zmenil, zmeny sa ukazujú znova",
+  "review.notSaved": "V karte vrátené, ale neuložené: {reason}",
+  "review.autoKept": "Zmena zvonka prevzatá: {title}",
+  "review.same": "Súbor má rovnaký obsah ako predtým, nie je čo kontrolovať",
+  "review.busy": "Iná kontrola je otvorená. Najprv ju dokončite, potom zvoľte Skontrolovať zmeny zvonka."
 }

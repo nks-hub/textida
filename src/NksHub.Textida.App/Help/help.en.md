@@ -1034,3 +1034,15 @@ Two tabs scroll together, so equal text of two files stays side by side.
 2. Choose View and then Synchronize Scrolling. The active tab and the active tab of the next group follow each other. Choose the command again to stop.
 - The lines are matched with the comparison of Comparing texts: the other file scrolls to the line that corresponds, also across inserted or removed blocks. While that comparison is being made, the same line number is used.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
+
+## [review.external] Review changes from outside
+commands: nks.review.open, nks.review.next, nks.review.previous
+When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.
+1. Choose Review changes. The tab takes the new content, the earlier content is kept in the local history and cannot be deleted while the review waits, and the Search Results tab lists the changes line by line.
+2. Tick the changes you want to keep. Unticked ones, or the whole file when its box is unticked, go back to the earlier content when you choose Apply.
+3. Apply writes the reverted text into the tab as one undo step and saves the file; bytes outside the reverted changes stay as they are.
+- The tab shows a badge with the number of waiting changes. Choose File and then Review Changes from Outside to open the list again; it also comes back after a restart.
+- Alt+F7 and Alt+Shift+F7 jump to the next and previous change from outside.
+- If you type in the tab during the review, the changes are shown again from the new text.
+- Files that hold secret values (.env) and files with unsaved edits keep the older bar: Reload, Keep Mine, Compare.
+- With Keep changes from outside without review in the settings, such a tab takes the new content at once. It is off by default.

@@ -170,4 +170,91 @@ public class ChangeReviewTests : IDisposable
         Assert.Equal(1, report!.Conflicts);
         Assert.Equal(typed, Text(tab));
     }
+
+    private DocTab OpenSecond()
+    {
+        var tab = _w.OpenFile(_temp.File("second.txt", Original), null);
+        _w.UpdateLayout();
+        Settle();
+        return tab;
+    }
+
+    [AvaloniaFact]
+    public async Task A_proposal_that_arrives_while_a_review_is_open_waits_and_the_open_review_keeps_its_ticks_and_content()
+    {
+        var first = Open();
+        var second = OpenSecond();
+        var reviewA = Review(first, Proposal(first));
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Count() == 3, "the first review");
+        var rows = _w.ResultsView!.Rows.OfType<SearchResultsView.HunkRow>().ToList();
+        rows[1].Selected = false;
+        var title = _w.ResultsView.TitleText;
+
+        var reviewB = _w.ReviewPluginProposalAsync(Proposal(second), second, "p2", CancellationToken.None);
+        Settle();
+
+        Assert.False(reviewB.IsCompleted);
+        Assert.Equal(title, _w.ResultsView.TitleText);
+        Assert.Equal(rows, _w.ResultsView.Rows.OfType<SearchResultsView.HunkRow>().ToList());
+        Assert.False(rows[1].Selected);
+        Assert.Contains("1", _w.ResultsView.LimitText);
+
+        _w.ApplyPlan();
+        Assert.Equal((ProposalOutcome.Partial, 2, 3), Pair(await reviewA));
+        // the next one opens by itself, with nothing waiting behind it
+        await Until(() => _w.ResultsView!.Rows.OfType<SearchResultsView.HunkRow>().Any(h => h.File.Change?.DocumentId == second.Doc.Doc.Id), "the waiting proposal");
+        Assert.Equal("", _w.ResultsView!.LimitText);
+        Assert.Equal(Original, Text(second));
+        _w.ApplyPlan();
+        Assert.Equal((ProposalOutcome.Applied, 3, 3), Pair(await reviewB));
+        Assert.Equal("ALPHA ěšč BETA gamma DELTA\n", Text(second));
+    }
+
+    [AvaloniaFact]
+    public async Task A_replace_in_files_preview_is_not_replaced_by_a_proposal_either()
+    {
+        var dir = Path.Combine(_temp.Path, "tree");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "x.txt"), "needle one\nneedle two\n");
+        _w.ShowFindInFiles(true);
+        _w.FindBar.FolderBox.Text = dir;
+        _w.FindBar.FindBox.Text = "needle";
+        _w.FindBar.ReplaceBox.Text = "pin";
+        await _w.RunFilesSearchAsync();
+        await Until(() => !_w.ResultsView!.IsRunning && _w.ResultsView.Rows.OfType<SearchResultsView.HunkRow>().Count() == 2, "the replace preview");
+        var rows = _w.ResultsView!.Rows.ToList();
+        rows.OfType<SearchResultsView.HunkRow>().First().Selected = false;
+
+        var tab = Open();
+        var review = Review(tab, Proposal(tab));
+        Settle();
+
+        Assert.False(review.IsCompleted);
+        Assert.Equal(rows, _w.ResultsView.Rows.ToList());
+        Assert.False(rows.OfType<SearchResultsView.HunkRow>().First().Selected);
+
+        _w.ApplyPlan();
+        Assert.Equal("needle one\npin two\n", File.ReadAllText(Path.Combine(dir, "x.txt")));
+        await Until(() => _w.ResultsView!.Rows.OfType<SearchResultsView.HunkRow>().Count() == 3, "the proposal after the preview");
+        _w.ResultsView!.CancelButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.Equal(ProposalOutcome.Rejected, (await review).Outcome);
+    }
+
+    [AvaloniaFact]
+    public async Task A_waiting_proposal_whose_document_moved_on_is_answered_as_stale()
+    {
+        var first = Open();
+        var second = OpenSecond();
+        var reviewA = Review(first, Proposal(first));
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the first review");
+        var reviewB = Review(second, Proposal(second));
+        second.Editor!.Document.Insert(0, ">");
+        Settle();
+
+        _w.ApplyPlan();
+        await reviewA;
+
+        Assert.Equal(ProposalOutcome.Stale, (await reviewB).Outcome);
+        Assert.StartsWith(">", Text(second));
+    }
 }

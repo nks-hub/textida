@@ -220,6 +220,12 @@
           "description": "Keep local history. Keeps a revision of a file at every save and at every change made outside the editor.",
           "x-scope": "application"
         },
+        "review.autoKeep": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep changes from outside without review. On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review.",
+          "x-scope": "application"
+        },
         "history.storeSecretFiles": {
           "type": "boolean",
           "default": false,

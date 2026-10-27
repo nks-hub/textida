@@ -1002,4 +1002,17 @@ public static class K
     public const string CompareSyncOn = "compare.sync.on";
     public const string CompareSyncOff = "compare.sync.off";
     public const string CompareSyncNeed = "compare.sync.need";
+    public const string ReviewQueued = "review.queued";
+    public const string ReviewBar = "review.bar";
+    public const string ReviewTitle = "review.title";
+    public const string ReviewHint = "review.hint";
+    public const string ReviewBadge = "review.badge";
+    public const string ReviewNone = "review.none";
+    public const string ReviewNoBase = "review.noBase";
+    public const string ReviewDone = "review.done";
+    public const string ReviewStale = "review.stale";
+    public const string ReviewNotSaved = "review.notSaved";
+    public const string ReviewAutoKept = "review.autoKept";
+    public const string ReviewSame = "review.same";
+    public const string ReviewBusy = "review.busy";
 }
