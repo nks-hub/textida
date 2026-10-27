@@ -262,7 +262,8 @@ public class PluginHostTests
         var crashed = 0;
         await using var host = await Started(Options(FastPings), null, null, Spec("ask"));
         host.Crashed += _ => Interlocked.Increment(ref crashed);
-        var answer = await host.CallAsync("ask", "awaitFrozen", Args("{\"ms\":2000}"));
+        // frozen for far longer than three missed pings take (150 ms interval, 500 ms timeout), so only the notice keeps it alive
+        var answer = await host.CallAsync("ask", "awaitFrozen", Args("{\"ms\":4500}"));
         Assert.Equal("decided", answer.GetString());
         Assert.Equal(0, crashed);
         Assert.Equal(PluginState.Running, host.GetState("ask"));

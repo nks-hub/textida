@@ -234,11 +234,19 @@ public class DispatcherTests
     [Fact]
     public async Task AnOutgoingMessageOverTheLimitThrowsBeforeAnythingIsSent()
     {
-        await using var pair = Pair.Create(RpcProtocols.Plugin, With(l => l with { MaxMessageBytes = 1000 }), Echo("A"), T.Roomy, Echo("B"));
+        var reached = 0;
+        var peer = new DelegateHandler((m, p, ct) =>
+        {
+            Interlocked.Increment(ref reached);
+            return new ValueTask<byte[]?>(T.Json("true"));
+        });
+        await using var pair = Pair.Create(RpcProtocols.Plugin, With(l => l with { MaxMessageBytes = 1000 }), Echo("A"), T.Roomy, peer);
         var e = await Assert.ThrowsAsync<RpcException>(() => pair.A.RequestAsync("m", T.Json("\"" + new string('x', 5000) + "\"")));
         Assert.Equal(RpcErrorCodes.MessageTooLarge, e.Code);
         Assert.Equal(0, pair.A.PendingOutgoing);
         Assert.Equal(0, pair.A.QueuedOutgoingBytes);
+        await Task.Delay(200);
+        Assert.Equal(0, Volatile.Read(ref reached)); // the peer never saw it
     }
 
     [Fact]
