@@ -20,6 +20,8 @@ public static partial class Program
         if (OperatingSystem.IsWindows()) AttachConsole(-1);
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+        if (args is ["--unregister-shell"]) return UnregisterShell();
+
         var parsed = CommandLine.Parse(args, Directory.GetCurrentDirectory());
         if (parsed.Error is { } error)
         {
@@ -38,6 +40,23 @@ public static partial class Program
         App.Startup = new StartupContext(parsed, new ProfileStore(Environment.GetEnvironmentVariable("TEXTIDA_PROFILE") is { Length: > 0 } p ? p : ProfileLocation.ResolveForThisMachine()), parsed.Smoke ? "smoke" : MainChannel, instanceLock);
         try { return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         finally { instanceLock?.Dispose(); }
+    }
+
+    /// <summary>Called by the uninstaller: removes the Explorer menu entry and the associations of this user, whether or not the user ever added them.</summary>
+    private static int UnregisterShell()
+    {
+        if (!OperatingSystem.IsWindows()) return 0;
+        try
+        {
+            using var classes = Services.ShellIntegration.OpenUserClasses();
+            new Services.ShellIntegration(classes, "").RemoveAll();
+            return 0;
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            Console.Error.WriteLine("textida: " + e.Message);
+            return 1;
+        }
     }
 
     private static int ForwardToRunningInstance(CommandLineArgs parsed)

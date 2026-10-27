@@ -1228,6 +1228,16 @@ Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Text
 - Ausprobieren lässt sich nur ein Server, der per Befehl gestartet wird. Ein Server mit Adresse wird aufgelistet und lässt sich umwandeln, wird aber nicht gestartet. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, weil Textida keine Batch-Dateien startet.
 - Geheimnisse sind in der Liste, im Dialog, in der Ausgabe und in den Ausschnitten verborgen, auch wenn eines in einem Argument oder in der Fehlerausgabe des Programms vorkommt. Werte unter 4 Zeichen werden im Text nicht gesucht.
 
+## [tools.shell] Explorer-Menü und Dateizuordnungen
+commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
+Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers und in die Liste Öffnen mit eintragen. Dafür sind keine Administratorrechte nötig, und es werden nur Schlüssel von Textida unter HKEY_CURRENT_USER\Software\Classes geschrieben. Schlüssel anderer Programme, auch von PSPad, werden weder gelesen noch geändert. Beide Befehle funktionieren in der installierten Textida.exe.
+1. Wählen Sie Extras, Textida zum Explorer-Menü hinzufügen. Dateien erhalten den Eintrag Mit Textida öffnen; er startet Textida mit der Datei oder gibt die Datei an die bereits laufende Textida weiter. Unter Windows 11 steht der Eintrag unter Weitere Optionen anzeigen.
+2. Wählen Sie Extras, Dateizuordnungen und dann Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
+3. Damit Textida das Standardprogramm einer Endung wird, nutzen Sie im Explorer Öffnen mit, Andere App auswählen. Diese Wahl verwaltet Windows selbst.
+4. Wählen Sie Extras, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
+- Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
+- Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
+
 ## [review.external] Änderungen von außen prüfen
 commands: nks.review.open, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.

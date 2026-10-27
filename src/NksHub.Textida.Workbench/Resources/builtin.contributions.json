@@ -1540,6 +1540,24 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.shellMenuAdd",
+      "title": "cmd.tools.shellMenuAdd",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.tools.shellAssociate",
+      "title": "cmd.tools.shellAssociate",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.tools.shellRemove",
+      "title": "cmd.tools.shellRemove",
+      "category": "cat.tools",
+      "enablement": "platform == 'windows'"
+    },
+    {
       "id": "nks.review.open",
       "title": "cmd.review.open",
       "category": "cat.file",
@@ -3019,6 +3037,24 @@
       "command": "nks.tools.mcpServers",
       "group": "8_mcp",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellMenuAdd",
+      "group": "9_shell",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellAssociate",
+      "group": "9_shell",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.shellRemove",
+      "group": "9_shell",
+      "order": 30
     },
     {
       "menu": "file",

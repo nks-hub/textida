@@ -1354,5 +1354,14 @@
   "recipeFiles.nothing.one": "{title}: nothing to change in {count} file",
   "recipeFiles.nothing.other": "{title}: nothing to change in {count} files",
   "recipeFiles.skipped.one": "{title}: {count} file was left out, nothing to change in the rest. {reason}",
-  "recipeFiles.skipped.other": "{title}: {count} files were left out, nothing to change in the rest. First: {reason}"
+  "recipeFiles.skipped.other": "{title}: {count} files were left out, nothing to change in the rest. First: {reason}",
+  "shell.menu.label": "Open with Textida",
+  "shell.menu.added": "Explorer menu entry added for {program}. It is in the context menu of files.",
+  "shell.removed": "Explorer menu entry and file associations of Textida removed.",
+  "shell.failed": "Explorer integration failed: {reason}",
+  "shell.unavailable": "Explorer integration works only in Textida.exe on Windows.",
+  "shell.assoc.title": "File associations",
+  "shell.assoc.watermark": "Choose an extension to add Textida to Open with, or to remove it",
+  "shell.assoc.on": "associated",
+  "shell.assoc.off": "not associated"
 }
