@@ -19,7 +19,8 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
     /// <summary>Test seam called at named points of a batch ("plan", "before-swap:N", "after-swap:N", "after-file:N", "before-end").</summary>
     public Action<string>? FaultPoint { get; init; }
 
-    private sealed record DiskItem(FileChange File, IReadOnlyList<Hunk> Hunks, BatchFilePlan Plan);
+    /// <summary>One file of a batch: what the report names it, how many hunks were chosen of how many, and the plan that is journaled and applied.</summary>
+    private sealed record Job(string Key, string DisplayName, int Selected, int Total, BatchFilePlan Plan);
 
     public ApplyReport Apply(ChangeProposal proposal, ChangeSelection? selection = null)
     {
@@ -37,8 +38,10 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
         return new ApplyReport(proposal.Id, [.. proposal.Files.Select(f => outcomes[f.Key])], batch);
     }
 
-    private static FileOutcome Conflict(FileChange f, ChangeConflict reason, int hunks, string message) =>
-        new(f.Key, f.DisplayName, ChangeStatus.Conflict, reason, 0, hunks, message);
+    private static FileOutcome Conflict(FileChange f, ChangeConflict reason, int hunks, string message) => Conflict(f.Key, f.DisplayName, reason, hunks, message);
+
+    private static FileOutcome Conflict(string key, string name, ChangeConflict reason, int hunks, string message) =>
+        new(key, name, ChangeStatus.Conflict, reason, 0, hunks, message);
 
     private FileOutcome ApplyDocument(ChangeProposal proposal, FileChange file, IReadOnlyList<Hunk> chosen)
     {
@@ -74,7 +77,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
     private Guid? ApplyDisk(ChangeProposal proposal, List<(FileChange File, IReadOnlyList<Hunk> Hunks)> selected, Dictionary<string, FileOutcome> outcomes)
     {
         // 1. check every file against its base and encode the new texts; only intact files enter the batch
-        var items = new List<DiskItem>();
+        var items = new List<Job>();
         foreach (var (file, hunks) in selected)
         {
             try
@@ -92,7 +95,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
                     continue;
                 }
                 var plan = Plan(items.Count, file, hunks, bytes);
-                items.Add(new DiskItem(file, hunks, plan));
+                items.Add(new Job(file.Key, file.DisplayName, hunks.Count, file.Hunks.Count, plan));
             }
             catch (UnrepresentableCharactersException)
             {
@@ -103,6 +106,23 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
                 outcomes[file.Key] = Conflict(file, ChangeConflict.InvalidRange, hunks.Count, e.Message);
             }
         }
+        return RunJobs(proposal.Title, proposal.Origin, items, outcomes);
+    }
+
+    /// <summary>
+    /// Applies plans that are already made (an encoding batch): the same journal, the same checks and the same swap as a proposal.
+    /// Each plan names the content it is based on; a file that no longer has it is a conflict and stays as it is.
+    /// </summary>
+    internal ApplyReport ApplyPlans(string title, string origin, IReadOnlyList<(string Key, string DisplayName, BatchFilePlan Plan)> plans)
+    {
+        var outcomes = new Dictionary<string, FileOutcome>();
+        var jobs = plans.Select((p, i) => new Job(p.Key, p.DisplayName, p.Plan.Hunks.Count, p.Plan.Hunks.Count, p.Plan with { Index = i })).ToList();
+        Guid? batch = RunJobs(title, origin, jobs, outcomes);
+        return new ApplyReport(Guid.NewGuid(), [.. plans.Select(p => outcomes[p.Key])], batch);
+    }
+
+    private Guid? RunJobs(string title, string origin, List<Job> items, Dictionary<string, FileOutcome> outcomes)
+    {
         if (items.Count == 0) return null;
 
         // 2. write the whole plan and sync it before the first file is touched
@@ -113,7 +133,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
             try
             {
                 journal = BatchJournalWriter.Create(journalDirectory, batchId);
-                journal.Begin(proposal.Title, proposal.Origin, items.Count);
+                journal.Begin(title, origin, items.Count);
                 foreach (var item in items) journal.Plan(item.Plan);
                 journal.Flush();
                 if (journal.Fault is not null) throw new IOException("The journal could not be written.", journal.Fault);
@@ -121,7 +141,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 journal?.Dispose();
-                foreach (var item in items) outcomes[item.File.Key] = Failed(item.File, item.Hunks.Count, "The recovery journal could not be written, so nothing was changed: " + e.Message);
+                foreach (var item in items) outcomes[item.Key] = Failed(item.Key, item.DisplayName, item.Selected, "The recovery journal could not be written, so nothing was changed: " + e.Message);
                 return null;
             }
         }
@@ -130,7 +150,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
         try
         {
             FaultPoint?.Invoke("plan");
-            foreach (var item in items) outcomes[item.File.Key] = ApplyFile(item, batchId, journal);
+            foreach (var item in items) outcomes[item.Key] = ApplyFile(item, batchId, journal);
             FaultPoint?.Invoke("before-end");
         }
         catch
@@ -146,7 +166,9 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
         return journalDirectory is null ? null : batchId;
     }
 
-    private static FileOutcome Failed(FileChange f, int hunks, string message) => new(f.Key, f.DisplayName, ChangeStatus.Failed, ChangeConflict.None, 0, hunks, message);
+    private static FileOutcome Failed(FileChange f, int hunks, string message) => Failed(f.Key, f.DisplayName, hunks, message);
+
+    private static FileOutcome Failed(string key, string name, int hunks, string message) => new(key, name, ChangeStatus.Failed, ChangeConflict.None, 0, hunks, message);
 
     private static BatchFilePlan Plan(int index, FileChange file, IReadOnlyList<Hunk> hunks, byte[] bytes)
     {
@@ -161,10 +183,10 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
         return new BatchFilePlan(index, file.Path!, file.Codec.Name, bytes.Length, BatchFiles.Sha(bytes), list);
     }
 
-    private FileOutcome ApplyFile(DiskItem item, Guid batchId, BatchJournalWriter? journal)
+    private FileOutcome ApplyFile(Job item, Guid batchId, BatchJournalWriter? journal)
     {
-        var (file, hunks, plan) = (item.File, item.Hunks, item.Plan);
-        string target = BatchFiles.ResolveTarget(file.Path!);
+        var plan = item.Plan;
+        string target = BatchFiles.ResolveTarget(plan.Path);
         string temp = $"{target}.textida-{batchId.ToString("N")[..8]}-{plan.Index}.tmp";
         try
         {
@@ -173,7 +195,7 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
             if (current is null || current.Length != plan.BaseSize || BatchFiles.Sha(current) != plan.BaseSha)
             {
                 journal?.Skipped(plan.Index, "changed after the plan was made");
-                return Conflict(file, current is null ? ChangeConflict.Missing : ChangeConflict.ExternalChange, hunks.Count, "The file changed while the batch ran.");
+                return Conflict(item.Key, item.DisplayName, current is null ? ChangeConflict.Missing : ChangeConflict.ExternalChange, item.Selected, "The file changed while the batch ran.");
             }
             var content = BatchFiles.Apply(current, plan.Hunks);
             journal?.Intent(new BatchIntent(plan.Index, content.Length, BatchFiles.Sha(content), temp));
@@ -191,17 +213,17 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
             FaultPoint?.Invoke($"after-swap:{plan.Index}");
             journal?.Done(plan.Index);
             FaultPoint?.Invoke($"after-file:{plan.Index}");
-            return new(file.Key, file.DisplayName, ChangeStatus.Applied, ChangeConflict.None, hunks.Count, file.Hunks.Count - hunks.Count);
+            return new(item.Key, item.DisplayName, ChangeStatus.Applied, ChangeConflict.None, item.Selected, item.Total - item.Selected);
         }
         catch (InvalidDataException)
         {
             journal?.Skipped(plan.Index, "changed during the write");
-            return Conflict(file, ChangeConflict.ExternalChange, hunks.Count, "The file changed while the batch ran.");
+            return Conflict(item.Key, item.DisplayName, ChangeConflict.ExternalChange, item.Selected, "The file changed while the batch ran.");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             journal?.Skipped(plan.Index, e.Message);
-            return Failed(file, hunks.Count, e.Message);
+            return Failed(item.Key, item.DisplayName, item.Selected, e.Message);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 
 namespace NksHub.Textida.Core.Journal;
 
@@ -31,8 +32,8 @@ public sealed record MoveRecord(Guid DocId, string Path);
 
 public sealed record SaveIntentRecord(Guid DocId, long Revision, string Path, long Size, string Sha256, string? Codec = null);
 
-/// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to. <see cref="Bookmarks"/> are byte offsets of line starts at the same revision.</summary>
-public sealed record SessionTab(Guid DocId, string? Title, long Revision, IReadOnlyList<ByteRange> Selections, IReadOnlyList<long>? Bookmarks = null)
+/// <summary>Tabs of the session. <see cref="Revision"/> is the revision of the document the selections refer to. <see cref="Bookmarks"/> are byte offsets of line starts at the same revision, <see cref="HexBookmarks"/> the regions marked in the hex view.</summary>
+public sealed record SessionTab(Guid DocId, string? Title, long Revision, IReadOnlyList<ByteRange> Selections, IReadOnlyList<long>? Bookmarks = null, IReadOnlyList<StoredHexBookmark>? HexBookmarks = null)
 {
     /// <summary>Builds a tab from anchors (start, end per selection); selections with an invalid anchor are left out, never guessed.</summary>
     public static SessionTab Capture(Guid docId, Document doc, string? title, IEnumerable<(Anchor Start, Anchor End)> selections) =>
@@ -48,8 +49,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit.</summary>
-    private const int PayloadLayout = 4;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab.</summary>
+    private const int PayloadLayout = 5;
 
     // ---- primitives ----
 
@@ -253,6 +254,16 @@ internal static class JournalRecords
                 }
                 w.Write(t.Bookmarks?.Count ?? 0);
                 foreach (var b in t.Bookmarks ?? []) w.Write(b);
+                w.Write(t.HexBookmarks?.Count ?? 0);
+                foreach (var h in t.HexBookmarks ?? [])
+                {
+                    w.Write(h.Name);
+                    PutString(w, h.Color);
+                    PutString(w, h.Comment);
+                    PutString(w, h.Type);
+                    w.Write(h.Start);
+                    w.Write(h.End);
+                }
             }
         }
     });
@@ -274,7 +285,9 @@ internal static class JournalRecords
                 for (int si = 0; si < sel.Length; si++) sel[si] = new ByteRange(r.ReadInt64(), r.ReadInt64());
                 var marks = new long[layout >= 3 ? r.ReadInt32() : 0];
                 for (int bi = 0; bi < marks.Length; bi++) marks[bi] = r.ReadInt64();
-                tabs[ti] = new(id, title, rev, sel, marks);
+                var hexMarks = new StoredHexBookmark[layout >= 5 ? r.ReadInt32() : 0];
+                for (int hi = 0; hi < hexMarks.Length; hi++) hexMarks[hi] = new(r.ReadString(), GetString(r), GetString(r), GetString(r), r.ReadInt64(), r.ReadInt64());
+                tabs[ti] = new(id, title, rev, sel, marks, hexMarks);
             }
             groups[gi] = new(tabs, activeDoc);
         }

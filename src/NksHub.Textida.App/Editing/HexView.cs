@@ -51,13 +51,22 @@ internal sealed partial class HexView : Grid
         _options = options;
         Editor = new HexEditor(doc.Doc, _lastCharset ?? HexCharset.For(doc.Doc.Codec));
         Focusable = true;
-        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto");
+        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto,Auto");
         _canvas = new HexSurface(this);
         Inspector = new HexInspectorPanel(this) { IsVisible = false };
-        SetColumn(_bar, 1);
-        SetColumn(Inspector, 2);
+        BookmarkList = new HexBookmarksPanel(this) { IsVisible = false };
+        Statistics = new HexStatsPanel(this) { IsVisible = false };
+        Minimap = new HexMinimap(this) { IsVisible = LastMinimap };
+        SetColumn(Minimap, 1);
+        SetColumn(_bar, 2);
+        SetColumn(BookmarkList, 3);
+        SetColumn(Statistics, 4);
+        SetColumn(Inspector, 5);
         Children.Add(_canvas);
+        Children.Add(Minimap);
         Children.Add(_bar);
+        Children.Add(BookmarkList);
+        Children.Add(Statistics);
         Children.Add(Inspector);
         _bar.ValueChanged += (_, _) =>
         {
@@ -71,6 +80,40 @@ internal sealed partial class HexView : Grid
 
     public HexEditor Editor { get; }
     public HexInspectorPanel Inspector { get; }
+    /// <summary>The map of the whole file beside the scroll bar.</summary>
+    internal HexMinimap Minimap { get; }
+
+    /// <summary>The view only shows: no key, paste, cut or undo changes the bytes (the grids of a comparison).</summary>
+    internal bool ReadOnly { get; set; }
+
+    /// <summary>Stretches to tint as differences from another file, ascending; empty outside a comparison.</summary>
+    internal IReadOnlyList<ByteRange> DiffMarks { get; private set; } = [];
+
+    /// <summary>The theme brush the differences are tinted with (<c>DiffRemoved</c> on the left, <c>DiffAdded</c> on the right).</summary>
+    internal string DiffBrushKey { get; private set; } = "DiffRemoved";
+
+    internal void ShowDifferences(IReadOnlyList<ByteRange> ranges, string brushKey)
+    {
+        DiffMarks = ranges;
+        DiffBrushKey = brushKey;
+        _canvas.InvalidateVisual();
+    }
+    /// <summary>The histogram and the figures of the selection.</summary>
+    internal HexStatsPanel Statistics { get; }
+    /// <summary>The map is shown in the next hex view too once it was switched on or off in one.</summary>
+    internal static bool LastMinimap { get; private set; } = true;
+
+    /// <summary>Shows or hides the map; the choice is the starting point of the next hex view.</summary>
+    internal void SetMinimapVisible(bool visible)
+    {
+        Minimap.IsVisible = LastMinimap = visible;
+        if (visible) Minimap.Rebuild();
+    }
+
+    /// <summary>The list of bookmarks beside the grid.</summary>
+    public HexBookmarksPanel BookmarkList { get; }
+    /// <summary>The regions marked in this document.</summary>
+    internal HexBookmarks Marks => _od.HexBookmarks;
     private Document Doc => _od.Doc;
 
     /// <summary>Raised when the caret, the selection, the mode or the first row changed.</summary>
@@ -97,6 +140,25 @@ internal sealed partial class HexView : Grid
     internal double RenderMs => _canvas.RenderMs;
     internal void Redraw() => _canvas.InvalidateVisual();
 
+    internal Document Document => Doc;
+
+    /// <summary>Raised after the document changed or was saved; the minimap builds its map again.</summary>
+    internal event Action? DocumentChanged;
+
+    /// <summary>Offset of the first byte in the grid and the number of bytes the grid shows.</summary>
+    internal long FirstByte => _firstRow * _bytesPerRow;
+    internal long VisibleBytes => (long)VisibleRows * _bytesPerRow;
+
+    /// <summary>Scrolls so that the row of <paramref name="offset"/> is the first one; the caret stays where it is.</summary>
+    internal void ScrollToOffset(long offset)
+    {
+        long row = Math.Max(0, offset) / _bytesPerRow;
+        _firstRow = Math.Clamp(row, 0, (long)_bar.Maximum);
+        UpdateScrollRange();
+        _canvas.InvalidateVisual();
+        RaiseViewChanged();
+    }
+
     private long TotalRows => Math.Max(1, (Doc.ByteLength + _bytesPerRow) / _bytesPerRow);
 
     protected override AutomationPeer OnCreateAutomationPeer() => new HexAutomationPeer(this);
@@ -106,6 +168,7 @@ internal sealed partial class HexView : Grid
         base.OnAttachedToVisualTree(e);
         Doc.Changed += OnDocChanged;
         Doc.Saved += OnSaved;
+        Marks.Changed += OnMarksChanged;
         _watch.Start();
         UpdateScrollRange();
     }
@@ -115,6 +178,7 @@ internal sealed partial class HexView : Grid
         base.OnDetachedFromVisualTree(e);
         Doc.Changed -= OnDocChanged;
         Doc.Saved -= OnSaved;
+        Marks.Changed -= OnMarksChanged;
         _watch.Stop();
     }
 
@@ -125,12 +189,21 @@ internal sealed partial class HexView : Grid
         _canvas.InvalidateVisual();
         Inspector.Refresh();
         RaiseViewChanged();
+        DocumentChanged?.Invoke();
+    }
+
+    private void OnMarksChanged()
+    {
+        _canvas.InvalidateVisual();
+        BookmarkList.Refresh();
+        RaiseViewChanged();
     }
 
     private void OnSaved(object? sender, EventArgs e)
     {
         _canvas.InvalidateVisual();
         RaiseViewChanged();
+        DocumentChanged?.Invoke();
     }
 
     private void RaiseViewChanged()
@@ -329,12 +402,13 @@ internal sealed partial class HexView : Grid
 
     internal void Do(HexResult result) => Report(result);
 
-    public void TypeNibble(int digit) => Report(Editor.TypeNibble(digit));
+    public void TypeNibble(int digit) { if (!ReadOnly) Report(Editor.TypeNibble(digit)); }
 
-    public void TypeText(string text) => Report(Editor.TypeText(text));
+    public void TypeText(string text) { if (!ReadOnly) Report(Editor.TypeText(text)); }
 
     public async Task DeleteAsync(bool backspace)
     {
+        if (ReadOnly) return;
         var result = backspace ? Editor.Backspace(DeleteMode.Ask) : Editor.Delete(DeleteMode.Ask);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
@@ -349,6 +423,7 @@ internal sealed partial class HexView : Grid
 
     public void UndoRedo(bool redo)
     {
+        if (ReadOnly) return;
         if (Doc.IsSaving) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         if (!(redo ? Editor.Redo() : Editor.Undo())) return;
         Reveal(Editor.Caret);
@@ -375,12 +450,13 @@ internal sealed partial class HexView : Grid
         var data = new DataTransfer();
         data.Add(item);
         await clipboard.SetDataAsync(data);
-        if (cut) await DeleteAsync(backspace: false);
+        if (cut) await DeleteAsync(backspace: false); // does nothing in a read-only view
     }
 
     /// <summary>Pastes bytes: the exact bytes of another hex view, else hex text, else (in the character column) text in the charset.</summary>
     public async Task PasteAsync()
     {
+        if (ReadOnly) return;
         if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
         byte[]? bytes = null;
         if (await clipboard.TryGetDataAsync() is { } data)
@@ -405,6 +481,7 @@ internal sealed partial class HexView : Grid
     /// <summary>Pastes bytes already made from the clipboard (or from a form of it); a block longer than the rest of the file asks what to do.</summary>
     public async Task PasteBytesAsync(byte[] bytes)
     {
+        if (ReadOnly) return;
         var result = Editor.Paste(bytes);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {

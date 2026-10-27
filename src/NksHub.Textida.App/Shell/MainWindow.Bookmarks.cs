@@ -11,6 +11,7 @@ internal sealed partial class MainWindow
     /// <summary>Sets or removes the bookmark on the line of the caret.</summary>
     internal bool ToggleBookmark()
     {
+        if (ActiveHex is { } hex) return ToggleHexBookmark(hex);
         if (TextTab is not { } tab) return false;
         long line = tab.CaretPosition().Line - 1;
         if (!tab.Doc.Bookmarks.Toggle(line, out bool added)) SetStatusMessage(Loc.Get(K.GoToNotIndexed));
@@ -25,6 +26,7 @@ internal sealed partial class MainWindow
     /// <summary>Moves the caret to the next or previous bookmark, wrapping around.</summary>
     internal bool StepBookmark(bool forward)
     {
+        if (ActiveHex is { } hex) return StepHexBookmark(hex, forward);
         if (TextTab is not { } tab) return false;
         if (tab.Doc.Bookmarks.Step(tab.CaretPosition().Line - 1, forward) is not { } line) SetStatusMessage(Loc.Get(K.BookmarkNone));
         else
@@ -37,6 +39,7 @@ internal sealed partial class MainWindow
 
     internal bool ClearBookmarks()
     {
+        if (ActiveHex is { } hex) return ClearHexBookmarks(hex);
         if (TextTab is not { } tab) return false;
         tab.Doc.Bookmarks.Clear();
         SetStatusMessage(Loc.Get(K.BookmarksCleared));

@@ -234,6 +234,15 @@ internal static class AppCommands
         On("nks.hex.fill", w => w.HexToolMenu(w.HexFillItems));
         On("nks.hex.operate", w => w.HexToolMenu(w.HexOperateItems));
         On("nks.hex.checksum", w => w.HexChecksumMenu());
+        On("nks.hex.minimap", w => w.ToggleHexMinimap());
+        On("nks.hex.minimap.mode", w => w.CycleHexMapMode());
+        On("nks.hex.statistics", w => w.ToggleHexStatistics());
+        On("nks.hex.compare.file", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.CompareHexWithFileAsync(tab); return CommandOutcome.Handled; });
+        On("nks.hex.compare.saved", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; w.CompareHexWithSaved(tab); return CommandOutcome.Handled; });
+        On("nks.hex.bookmarks.panel", w => w.ToggleHexBookmarkPanel());
+        On("nks.hex.bookmarks.edit", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.EditHexBookmarkAsync(hex); return CommandOutcome.Handled; });
+        On("nks.hex.bookmarks.export", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ExportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
+        On("nks.hex.bookmarks.import", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ImportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
         Do("nks.view.toggleOutput", w => w.ToggleOutput());
         Do("nks.view.fullScreen", w => w.ToggleFullScreen());
 
@@ -245,6 +254,8 @@ internal static class AppCommands
         Fire("nks.format.eolCr", (w, t) => w.UnifyEolAsync(t, EolStyle.Cr));
         Fire("nks.format.normalizeNfc", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormC));
         Fire("nks.format.normalizeNfd", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormD));
+        Fire("nks.format.applyEditorConfig", (w, t) => w.ApplyEditorConfigFormatAsync(t));
+        Do("nks.file.convertEncodingBatch", w => _ = w.ConvertFilesInFolderAsync());
         Do("nks.format.language", w => _ = w.ShowLanguageMenu());
 
         // window

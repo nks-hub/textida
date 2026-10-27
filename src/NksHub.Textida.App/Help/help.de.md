@@ -538,6 +538,25 @@ Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem g
 - Ließe sich nach dem Normalisieren ein Zeichen nicht in der Codierung der Datei schreiben, lehnt das Programm die Änderung ab und sagt es.
 - Gab es nichts zu ändern, meldet die Statusleiste Nichts zu ändern.
 
+## [format.inspector] Byte-Inspektor
+commands: nks.format.applyEditorConfig
+Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Codierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Codierung und EditorConfig anwenden.
+- Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Codierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
+- Kann die Zielcodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Codierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
+- Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
+- Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
+- Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
+
+## [format.batchEncoding] Codierung vieler Dateien umwandeln
+commands: nks.file.convertEncodingBatch
+1. Format und dann Codierung von Dateien in einem Ordner umwandeln. Wählen Sie den Ordner, Dateinamenmuster (zum Beispiel *.txt;*.php, leer bedeutet alle Dateien) und die Zielcodierung.
+2. Das Programm liest die Dateien und zeigt, bevor es etwas schreibt, wie viele ohne Verlust umgewandelt werden und welche Dateien Zeichen verlieren würden, mit diesen Zeichen und ihrer Anzahl. Dateien, die binär sind, diese Bytes schon haben oder eine Codierung haben, die das Programm nur raten kann, werden übersprungen und mit dem Grund aufgelistet.
+3. Wählen Sie N Dateien umwandeln (Dateien, die Zeichen verlieren würden, bleiben unverändert) oder Alles umwandeln und verlorene Zeichen durch ein Fragezeichen ersetzen.
+4. Eine Zusammenfassung listet auf, was umgewandelt wurde, was blieb und was sich nach der Vorschau geändert hat.
+- Der Ordnerdurchlauf beachtet die Ignorierdateien und lässt versteckte Dateien und Dateien über 64 MiB aus, wie die Suche in Dateien. Offene Dokumente mit ungespeicherten Änderungen bleiben außen vor.
+- Jede Datei wird ganz ersetzt oder gar nicht, und nur wenn sie noch den Inhalt hat, aus dem die Vorschau entstand. Der Lauf wird protokolliert: Bleibt das Programm oder der Rechner mittendrin stehen, bietet der nächste Start an, den Stapel zu beenden oder die alten Dateien zurückzuholen.
+- Eine Datei in einer nur geratenen Codierung (niedrige Sicherheit) wird nie umgewandelt; öffnen Sie sie, wählen Sie Mit Codierung neu öffnen und wandeln Sie sie dort um.
+
 ## [format.language] Sprachmodus
 commands: nks.format.language
 1. Wählen Sie Format und dann Sprachmodus oder klicken Sie in der Statusleiste auf die Sprache.
@@ -608,9 +627,14 @@ Hex zeigt eine Datei Byte für Byte: Offset, Bytes hexadezimal und Zeichen. Es l
 
 ## [hex.find] Hex: Suchen und Gehe zu Offset
 - Strg+F öffnet das Fenster Bytes suchen. Geben Sie Bytes hexadezimal ein (50 4B ?? 04, ?? ist ein beliebiges Byte), Text in Anführungszeichen oder eine Zahl mit Typ (0x1F40 i32).
-- F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam. Ein Ersetzen von Bytes gibt es nicht.
+- F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam.
 - Strg+G öffnet Gehe zu Offset. Schreibweise: 0x1F40, +0x100 (ab dem Cursor), end-512, 50%, 4K, sel (Beginn der Auswahl), val (der Vier-Byte-Wert am Cursor).
 - Nicht gefunden: Es gibt keinen Treffer. Ungültiges Muster oder Ungültiger Ausdruck: Korrigieren Sie die Eingabe. Der Offset liegt außerhalb der Datei: Geben Sie einen kleineren Wert ein. Die Datei hat sich inzwischen auf dem Datenträger geändert, das Suchergebnis wurde verworfen: Wiederholen Sie die Suche.
+- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), fragt die Suche danach. *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
+- Ein Muster zwischen Schrägstrichen ist ein regulärer Ausdruck über Bytes, zum Beispiel /\x50\x4B[\x01-\x08]/. Ein Byte ist ein Zeichen 0 bis 255, . ist ein beliebiges Byte (auch 0A und 0D), \xHH ist ein Byte und [...] eine Menge von Bytes. Gruppen, |, ? * + {n,m} und \n \r \t \0 \d \w \s funktionieren; ^, $, \b, Rückverweise und Lookaround nicht, weil Bytes keine Zeilen oder Wörter haben. Eine offene Wiederholung (.*, +, {n,}) reicht höchstens N Bytes weit. Ein Treffer braucht mindestens ein Byte, und Treffer dürfen sich überlappen.
+- Strg+H ersetzt Bytes: zuerst das Muster (dieselben Formen wie bei Suchen), dann der Ersatz als Hex, Text in Anführungszeichen oder Zahl; ein leerer Ersatz löscht die Treffer. Bei einer Auswahl wird nur in ihr gesucht.
+- Eine Vorschau listet jeden Treffer mit den alten und neuen Bytes auf und warnt, wenn sich die Länge der Datei ändert. Alle ersetzen schreibt alles als einen Rückgängig-Schritt. Hat sich die Datei nach der Vorschau geändert, wird nichts ersetzt. Treffer, die einen früheren überlappen, bleiben außen vor.
+- Im Überschreibmodus muss der Ersatz so lang sein wie der Treffer; schalten Sie den Einfügemodus ein (Taste Einfg), um die Länge zu ändern.
 
 ## [hex.edit] Hex: Bearbeiten
 commands: nks.hex.toggleInsert
@@ -671,6 +695,38 @@ commands: nks.hex.checksum
 - Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.
 - Ein CRC mit eigenem Polynom nimmt die Breite in Bit und hex das Polynom (ungerade), den Startwert, die zwei Spiegelungsflags (0 oder 1) und das End-XOR.
 
+## [hex.bookmarks] Hex: Lesezeichen und farbige Bereiche
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+Ein Hex-Lesezeichen markiert einen Bytebereich mit Name, Farbe, Kommentar und dem Typ, als der er im Dateninspektor gelesen wurde.
+1. Strg+F2 markiert die Auswahl (ohne Auswahl den Wert, den der Dateninspektor am Cursor zeigt, oder ein Byte) und entfernt das engste Lesezeichen unter dem Cursor, falls es eins gibt. F2 und Umschalt+F2 springen zum nächsten und vorherigen Lesezeichen.
+2. Hex: Lesezeichen-Eigenschaften öffnet Name, Farbe, Kommentar und Typ des Lesezeichens unter dem Cursor (ohne eins entsteht ein neues).
+3. Hex: Lesezeichen-Bereich (Strg+K, dann Strg+B) listet die Lesezeichen mit einem Filter, der in Name, Kommentar und Typ sucht. Eingabe oder Doppelklick wählt den Bereich aus, Entf entfernt ihn.
+4. Hex: Lesezeichen exportieren schreibt eine CSV (Name, Farbe, Kommentar, Typ, Start- und Endoffset) oder, wenn der Dateiname auf .json endet, JSON. Hex: Lesezeichen importieren liest beide Formen und fügt die Bereiche hinzu, die in die Datei passen; ein leerer Bereich, einer außerhalb der Datei oder ein vorhandener wird übersprungen, und die Statusleiste zählt sie.
+- Ein Bereich wird in seiner Farbe getönt mit einem Balken oben gezeichnet, die Farbe ist also nicht das einzige Zeichen; die Statuszeile nennt das Lesezeichen unter dem Cursor.
+- Bereiche folgen den Bytes: Bytes vor einem Bereich verschieben ihn, Bytes darin verlängern ihn, eine Änderung über seinen Rand wird aufgenommen, Rückgängig und Wiederholen bringen ihn zurück. Ein Bereich, dessen Bytes alle gelöscht wurden, entfällt.
+- Lesezeichen werden in der Sitzung gespeichert (nach einem Neustart sind sie wieder da), nie in der Datei. Lesezeichen löschen entfernt alle.
+
+## [hex.map] Hex: Dateikarte und Byte-Statistik
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+Die Karte ist ein Streifen neben der Bildlaufleiste, der die ganze Datei auf einmal zeigt, in Zellen von etwa vier Pixeln Höhe. Ein Rechteck markiert den Teil auf dem Bildschirm; ein Klick oder Ziehen scrollt das Raster dorthin.
+1. Hex: Dateikarte (Strg+K, dann Strg+G) zeigt oder verbirgt die Karte. Hex: Karte nach Entropie oder Art der Bytes schaltet um, was die Zellen zeigen: die Entropie der Bytes (hell für geordnete Daten, kräftig für komprimierte oder verschlüsselte) oder die Art Byte, die den größten Teil der Zelle ausmacht (Nullbytes, Text, Steuerbytes, hohe Bytes, FF).
+2. Ein schmaler Streifen am rechten Rand markiert die Treffer der letzten Suche, die Lesezeichen in ihren Farben und die seit dem letzten Speichern geänderten Stellen.
+3. Hex: Byte-Statistik (Strg+K, dann Strg+S) öffnet einen Bereich mit dem Histogramm der Auswahl oder, wenn nichts ausgewählt ist, der ganzen Datei: wie viele der 256 Bytewerte vorkommen, die Entropie in Bit pro Byte, die häufigsten Werte und die Anteile der Byteklassen.
+- Eine Datei bis 1 GiB wird im Hintergrund ganz gelesen. Bei einer größeren zeigt die Karte zuerst eine Stichprobe, einige Blöcke je Zelle, und wird genauer, je mehr das Programm liest, insgesamt höchstens 1 GiB; eine noch nicht gelesene Zelle ist blass.
+- Die Statistik einer ganzen Datei über 1 GiB wird nicht auf einmal gezählt: Wählen Sie einen Bereich.
+- Karte und Zählen laufen neben dem Fenster und werden bei einer Änderung der Datei neu gemacht.
+
+## [hex.compare] Hex: Binärvergleich
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Unterschieden und einer Liste darunter.
+1. Hex: Mit Datei vergleichen fragt nach einer Datei und vergleicht sie mit dem Dokument des aktiven Tabs (mit seinen ungespeicherten Änderungen). Hex: Mit gespeicherter Datei vergleichen vergleicht das Dokument mit seiner eigenen Datei auf dem Datenträger, sodass Sie genau sehen, was das nächste Speichern ändern würde.
+2. Ausgerichtet (Standard) sucht nach Bytes, die eine Datei eingefügt oder gelöscht hat, sodass ein eingefügter Block als Einfügung erscheint und die Bytes dahinter nicht als geändert gemeldet werden. Byte für Byte vergleicht jeden Offset mit demselben Offset der anderen Datei, was für Dateien mit festem Aufbau passt. Es gilt für jede Datei über 256 MiB, die der ausgerichtete Modus nicht liest.
+3. Die Liste benennt jeden Unterschied: geändert, eingefügt oder gelöscht, mit seinem Bereich in der linken und der rechten Datei. Eingabe auf einer Zeile, F8 und Umschalt+F8 (oder die Schaltflächen) springen zum nächsten und vorherigen Unterschied in beiden Rastern.
+- Das Scrollen eines Rasters scrollt das andere an dieselbe Stelle der anderen Datei; bei eingefügten Bytes ist das die entsprechende Stelle, nicht derselbe Offset.
+- Die Raster sind schreibgeschützt. Die Karte neben jedem Raster markiert die Unterschiede.
+- Die Liste endet bei 1.000.000 Unterschieden (das Fenster sagt es); zwei unabhängige Dateien würden sonst den Speicher füllen.
+- Zwei Revisionen einer Datei aus dem lokalen Verlauf werden noch nicht angeboten, weil es den lokalen Verlauf noch nicht gibt.
+
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.
@@ -716,7 +772,7 @@ Ein Lesezeichen markiert eine Zeile, zu der Sie zurückkehren wollen.
 2. F2 springt zum nächsten Lesezeichen, Umschalt+F2 zum vorherigen. Nach dem letzten geht es beim ersten weiter.
 3. Lesezeichen löschen (in der Palette) entfernt alle Lesezeichen des Dokuments; die Statusleiste meldet Lesezeichen entfernt.
 - Hat das Dokument keine Lesezeichen, meldet die Statusleiste Das Dokument hat keine Lesezeichen.
-- In Hex und in einem Tab mit Suchergebnissen gibt es keine Lesezeichen. In einer großen Datei, deren Zeilen noch nummeriert werden, meldet der Befehl, dass der Zeilenindex diese Stelle noch nicht erreicht.
+- Der Ergebnis-Tab der Suche hat keine Lesezeichen. Im Hex markieren dieselben Befehle Bytebereiche (siehe Hex: Lesezeichen). In einer großen Datei, deren Zeilen noch nummeriert werden, meldet der Befehl, dass der Zeilenindex diese Stelle noch nicht erreicht.
 
 ## [recovery] Wiederherstellung nach Absturz
 Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens zwei Sekunden nach einer Änderung. Ein ungespeichertes Dokument geht so auch nicht verloren, wenn das Programm abstürzt oder der Rechner ausgeschaltet wird.

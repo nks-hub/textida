@@ -121,6 +121,15 @@ internal sealed class ScriptedDialogs : IDialogs
 
     public Task ShowAboutAsync(Window owner) => Task.CompletedTask;
 
+    public Queue<HexBookmarkForm?> BookmarkForms { get; } = new();
+    public List<HexBookmarkForm> BookmarkAsked { get; } = [];
+
+    public Task<HexBookmarkForm?> HexBookmarkAsync(Window owner, HexBookmarkForm initial)
+    {
+        BookmarkAsked.Add(initial);
+        return Task.FromResult(BookmarkForms.Count > 0 ? BookmarkForms.Dequeue() : throw new InvalidOperationException("Unexpected bookmark dialog"));
+    }
+
     public Queue<NksHub.Textida.Core.Csv.CsvDialect?> TableRegions { get; } = new();
     /// <summary>What the preview of the table dialog showed for each scripted answer.</summary>
     public List<string> TableRegionPreviews { get; } = [];

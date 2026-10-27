@@ -48,6 +48,8 @@ public enum ConflictReason
     LossNotConfirmed,
     /// <summary>A save is running on a snapshot of the current revision; the document takes no change until it ends.</summary>
     Saving,
+    /// <summary>An inspected action was applied before the user confirmed what it changes.</summary>
+    NotConfirmed,
 }
 
 public readonly record struct EditResult(bool Applied, long Revision, ConflictReason Conflict)

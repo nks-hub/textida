@@ -260,6 +260,20 @@ public sealed partial class Document
         return new(true, new ByteRange(start, end), ConflictReason.None);
     }
 
+    /// <summary>
+    /// Maps a region of an older revision to the current one the way a marker needs it (see <see cref="ChangeMap.TryMapRegion"/>): edits that touch the region
+    /// change it instead of making it a conflict. Null when nothing of it is left or the change log no longer reaches back to <paramref name="fromRevision"/>.
+    /// </summary>
+    internal ByteRange? MapRegion(ByteRange range, long fromRevision)
+    {
+        if (fromRevision > _revision || fromRevision < 0 || fromRevision < FirstReachableRevision) return null;
+        long start = range.Start, end = range.End;
+        if (fromRevision < _revision)
+            for (int i = (int)(fromRevision + 1 - _log[0].Revision); i < _log.Count; i++)
+                if (!ChangeMap.TryMapRegion(ref start, ref end, _log[i])) return null;
+        return new ByteRange(start, end);
+    }
+
     /// <summary>Oldest revision whose ranges can still be mapped to the current one.</summary>
     public long OldestMappableRevision => FirstReachableRevision;
 

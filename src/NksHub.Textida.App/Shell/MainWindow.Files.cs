@@ -66,18 +66,59 @@ internal sealed partial class MainWindow
 
     private static string DisplayOf(int codePoint) => System.Text.Rune.IsValid(codePoint) ? new System.Text.Rune(codePoint).ToString() : $"U+{codePoint:X4}";
 
+    /// <summary>The size, ranges, encoding and line endings of an inspected action, as the lines under its headline.</summary>
+    internal static string DescribeInspection(ByteInspection report)
+    {
+        string Eol(EolStats e) => e.Style switch { EolStyle.Mixed => Loc.Get(K.StatusEolMixed), EolStyle.None => Loc.Get(K.InspectEolNone), _ => e.Label };
+        var text = Loc.Get(K.InspectSummary, ("ranges", report.RangeCount), ("bytes", report.ChangedBytes), ("before", report.SizeBefore), ("after", report.SizeAfter))
+            + "\n" + Loc.Get(K.InspectFormat, ("codecBefore", report.CodecBefore.Name), ("codecAfter", report.CodecAfter.Name), ("eolBefore", Eol(report.EolBefore)), ("eolAfter", Eol(report.EolAfter)));
+        return report.RangeCount == 0 ? text + "\n" + Loc.Get(K.InspectNoBytes) : text;
+    }
+
+    /// <summary>One line per listed range of the report: where it is, old and new length, the first old and new bytes.</summary>
+    internal static List<string> InspectionDetails(Document doc, ByteInspection report)
+    {
+        var lines = new List<string>();
+        foreach (var r in report.Ranges.Take(500))
+        {
+            string where = report.Action != InspectedAction.Save && doc.Revision == report.Revision && doc.TryGetPosition(r.Start, out var p)
+                ? Loc.Get(K.InspectAtLine, ("line", p.Line + 1), ("column", p.Column + 1))
+                : Loc.Get(K.InspectAtByte, ("start", r.Start));
+            string newHex = HexEditor.ToHexText(r.NewHead) + (r.NewLength > r.NewHead.Length ? " …" : "");
+            lines.Add(r.OldLength is { } old && r.OldHead is { } oldHead
+                ? Loc.Get(K.InspectRange, ("where", where), ("old", old), ("new", r.NewLength), ("oldHex", HexEditor.ToHexText(oldHead) + (old > oldHead.Length ? " …" : "")), ("newHex", newHex))
+                : Loc.Get(K.InspectRangeNew, ("where", where), ("new", r.NewLength), ("newHex", newHex)));
+        }
+        if (report.RangeCount > lines.Count) lines.Add(Loc.Get(K.PreviewMore, ("count", report.RangeCount - lines.Count)));
+        return lines;
+    }
+
+    /// <summary>
+    /// The byte inspector (F169) for an action that rewrites bytes the user did not edit: the headline, the size, encoding and line endings before and after,
+    /// every changed range, and the characters the target cannot hold. Without loss there are two answers, apply and cancel; with loss three: cancel (nothing is
+    /// written), change the encoding (the one picked next) or replace with "?". <see cref="LossAnswer.Replace"/> also means "applied" when nothing is lost.
+    /// </summary>
+    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmInspectionAsync(OpenDocument od, ByteInspection report, string headline, string acceptLabel)
+    {
+        if (report.HasLoss) return await ConfirmLossAsync(od, report.Loss, report.CodecAfter, acceptLabel, report, headline);
+        var request = new ChoiceRequest(Loc.Get(K.InspectTitle), headline + "\n" + DescribeInspection(report),
+            [new DialogButton(Loc.Get(K.PreviewApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(od.Doc, report));
+        return await _app.Dialogs.ChooseAsync(this, request) == 0 ? (LossAnswer.Replace, null) : (LossAnswer.Cancel, null);
+    }
+
     /// <summary>
     /// The text part of the byte inspector (F169): every character the encoding cannot hold with its line, column, byte position and the bytes written instead,
     /// the size before and after, and three answers: cancel (nothing is written), change the encoding (the one picked next) or replace with "?".
     /// </summary>
-    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmLossAsync(OpenDocument od, LossReport loss, TextCodec codec, string acceptLabel)
+    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmLossAsync(OpenDocument od, LossReport loss, TextCodec codec, string acceptLabel, ByteInspection? report = null, string? headline = null)
     {
         var doc = od.Doc;
         string replacement = HexEditor.ToHexText(codec.EncodeLossy("?"));
         var details = loss.Entries.Take(500).Select(e => Loc.Get(K.LossEntry, ("char", DisplayOf(e.CodePoint)), ("code", $"U+{e.CodePoint:X4}"), ("line", e.Line), ("column", e.Column), ("byte", e.ByteOffset), ("replacement", replacement))).ToList();
         if (loss.Truncated || loss.Entries.Count > 500) details.Add(Loc.Get(K.LossMore));
         string message = DescribeLoss(loss, codec);
-        if (!od.IsLarge)
+        if (report is not null) message = headline + "\n" + message + "\n" + DescribeInspection(report);
+        else if (!od.IsLarge)
             message += "\n" + Loc.Get(K.LossSize, ("encoding", codec.Name), ("before", doc.ByteLength), ("after", codec == doc.Codec ? doc.ByteLength : doc.PreviewConvert(codec).ByteLength));
         var request = new ChoiceRequest(Loc.Get(K.LossTitle), message + "\n" + Loc.Get(K.LossReplacement),
             [new DialogButton(acceptLabel), new DialogButton(Loc.Get(K.LossChangeEncoding)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], details);
@@ -114,16 +155,19 @@ internal sealed partial class MainWindow
         {
             var (answer, codec) = await ConfirmLossAsync(od, loss, od.Doc.Codec, acceptLabel ?? Loc.Get(K.LossSaveReplaced));
             if (answer == LossAnswer.Replace) return true;
-            if (answer == LossAnswer.Cancel || !ConvertKeepingTyped(od, codec!)) return false;
+            if (answer == LossAnswer.Cancel || !await ConvertKeepingTypedAsync(od, codec!)) return false;
         }
         return true;
     }
 
-    private bool ConvertKeepingTyped(OpenDocument od, TextCodec codec)
+    private async Task<bool> ConvertKeepingTypedAsync(OpenDocument od, TextCodec codec)
     {
         var text = od.TextBackend!.TextDocument;
         string typed = text.Text;
-        if (!od.Doc.ConvertTo(codec, "?").Applied)
+        var report = od.Doc.InspectConvert(codec);
+        if ((await ConfirmInspectionAsync(od, report, Loc.Get(K.InspectConvert, ("encoding", codec.Name)), Loc.Get(K.LossConvertReplaced))).Answer != LossAnswer.Replace) return false;
+        report.Confirm(report.HasLoss ? "?" : null);
+        if (!od.Doc.Apply(report).Applied)
         {
             SetStatusMessage(Loc.Get(K.StatusConvertFailed, ("encoding", codec.Name)));
             return false;
@@ -220,7 +264,17 @@ internal sealed partial class MainWindow
         try
         {
             var codec = choice.Codec;
-            var result = doc.SaveAs(choice.Path, codec);
+            string? replacement = null;
+            while (codec != doc.Codec && !od.IsLarge)
+            {
+                var report = doc.InspectConvert(codec);
+                var (answer, picked) = await ConfirmInspectionAsync(od, report, Loc.Get(K.InspectConvert, ("encoding", codec.Name)), Loc.Get(K.LossSaveReplaced));
+                if (answer == LossAnswer.Cancel) return false;
+                if (answer == LossAnswer.ChangeEncoding) { codec = picked!; continue; }
+                replacement = report.HasLoss ? "?" : null;
+                break;
+            }
+            var result = doc.SaveAs(choice.Path, codec, replacement);
             while (result.Loss is { HasLoss: true } loss)
             {
                 var (answer, picked) = await ConfirmLossAsync(od, loss, codec, Loc.Get(K.LossSaveReplaced));

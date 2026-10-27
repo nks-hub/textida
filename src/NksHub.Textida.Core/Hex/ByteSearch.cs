@@ -17,7 +17,7 @@ public sealed record ByteSearchResult(Guid DocumentId, long Revision, IReadOnlyL
 public static class ByteSearch
 {
     /// <summary>Reads immutable bytes in blocks; call on a worker thread. Cancellation throws OperationCanceledException.</summary>
-    public static ByteSearchResult Find(DocumentSnapshot snapshot, BytePattern pattern,
+    public static ByteSearchResult Find(DocumentSnapshot snapshot, ByteQuery pattern,
         ByteSearchOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -30,14 +30,14 @@ public static class ByteSearch
         cancellationToken.ThrowIfCancellationRequested();
         var matches = new List<ByteRange>();
         ByteSearchResult Result(bool limited) => new(snapshot.DocumentId, snapshot.Revision, matches.AsReadOnly(), limited);
-        if (range.Length < pattern.Length) return Result(false);
+        if (range.Length < pattern.MinLength) return Result(false);
 
-        long capacity = (long)options.ChunkBytes + pattern.Length - 1;
+        long capacity = (long)options.ChunkBytes + pattern.MaxLength - 1;
         if (capacity > Array.MaxLength) throw new ArgumentOutOfRangeException(nameof(options), "The chunk and pattern exceed the buffer limit.");
         var buffer = ArrayPool<byte>.Shared.Rent((int)Math.Min(capacity, range.Length));
         try
         {
-            long lastStart = range.End - pattern.Length;
+            long lastStart = range.End - pattern.MinLength;
             for (long block = range.Start; block <= lastStart;)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -51,20 +51,7 @@ public static class ByteSearch
                     filled += read;
                 }
                 int starts = (int)Math.Min(options.ChunkBytes, lastStart - block + 1);
-                for (int at = 0; at < starts; at++)
-                {
-                    if ((at & 4095) == 0) cancellationToken.ThrowIfCancellationRequested();
-                    if (pattern.AnchorLength > 0)
-                    {
-                        int found = buffer.AsSpan(at + pattern.AnchorStart, starts - at + pattern.AnchorLength - 1).IndexOf(pattern.Anchor);
-                        if (found < 0) break;
-                        at += found;
-                        cancellationToken.ThrowIfCancellationRequested();
-                    }
-                    if (!pattern.Matches(buffer.AsSpan(at, pattern.Length))) continue;
-                    matches.Add(new ByteRange(block + at, block + at + pattern.Length));
-                    if (matches.Count == options.MaxResults) return Result(true);
-                }
+                if (pattern.Scan(buffer.AsSpan(0, count), starts, block, matches, options.MaxResults, cancellationToken)) return Result(true);
                 block += starts;
             }
         }

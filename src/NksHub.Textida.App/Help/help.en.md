@@ -538,6 +538,25 @@ A character with an accent can be written as one character (NFC) or as a letter 
 - If after normalizing some character could not be written in the file encoding, the program refuses the change and says so.
 - If there was nothing to change, the status bar says Nothing to change.
 
+## [format.inspector] Byte inspector
+commands: nks.format.applyEditorConfig
+Every action that rewrites bytes you did not edit shows what it changes first, and writes nothing until you confirm: Convert to Encoding, Line Endings, Normalize Unicode, Save As with another encoding and Apply EditorConfig.
+- The window gives the number of changed ranges and bytes, the size before and after, the encoding and the line endings before and after, and one line per range: where it is, the old and the new length and the first bytes (up to 500 lines; the rest is counted).
+- When the target encoding cannot hold some characters, the same window lists each one with its line, column and byte, and offers three answers: cancel (nothing is written), change the encoding, or replace each with a question mark.
+- Apply EditorConfig Encoding and Line Endings in the Format menu converts the file to the charset and line ending its .editorconfig sets; each step opens the inspector. A property the file does not set is left alone.
+- The ranges are those of the revision you looked at; if the document changed meanwhile, the action is refused.
+- File and then Changes Before Saving shows the same list for the next save.
+
+## [format.batchEncoding] Convert the encoding of many files
+commands: nks.file.convertEncodingBatch
+1. Format and then Convert Encoding of Files in a Folder. Choose the folder, file name masks (for example *.txt;*.php, empty means every file) and the target encoding.
+2. The program reads the files and shows, before it writes anything, how many convert without loss and which files would lose characters, with the characters and their count. Files that are binary, already have these bytes, or have an encoding the program can only guess are skipped and listed with the reason.
+3. Choose Convert N files (files that would lose characters stay as they are) or Convert All and Replace Lost Characters with a Question Mark.
+4. A summary lists what was converted, what stayed and what changed after the preview.
+- The folder walk follows the ignore files and skips hidden files and files over 64 MiB, like the search in files. Open documents with unsaved changes are left out.
+- Each file is replaced as a whole or not at all, and only if it still has the content the preview was made from. The run is journaled: if the program or the computer stops in the middle, the next start offers to finish the batch or to put the old files back.
+- A file in an encoding that is only a guess (the percentage is low) is never converted; open it, choose Reopen with Encoding and convert it from there.
+
 ## [format.language] Language mode
 commands: nks.format.language
 1. Choose Format and then Language Mode, or click the language in the status bar.
@@ -608,9 +627,14 @@ Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It r
 
 ## [hex.find] Hex: finding and go to offset
 - Ctrl+F opens the Find bytes window. Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, or a number with a type (0x1F40 i32).
-- F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit. There is no replacing of bytes.
+- F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit.
 - Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
 - Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
+- The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the search asks for it. *{2,8} writes a range of your own and needs no setting.
+- A pattern between slashes is a regular expression over bytes, for example /\x50\x4B[\x01-\x08]/. A byte is a character 0 to 255, . is any one byte (also 0A and 0D), \xHH is a byte and [...] a set of bytes. Groups, |, ? * + {n,m} and \n \r \t \0 \d \w \s work; ^, $, \b, back references and look-around do not, because bytes have no lines or words. An open repeat (.*, +, {n,}) reaches at most N bytes. A match needs at least one byte, and matches may overlap.
+- Ctrl+H replaces bytes: first the pattern (the same forms as Find), then the replacement as hex, text in quotes or a number; an empty replacement deletes the matches. With a selection only the selection is searched.
+- A preview lists every match with its old and new bytes and warns when the length of the file changes. Replace All writes all of them as one undo step. If the file changed after the preview, nothing is replaced. Matches that overlap an earlier one are left out.
+- In overwrite mode the replacement must be as long as the match; switch to insert mode (the Insert key) to change the length.
 
 ## [hex.edit] Hex: editing
 commands: nks.hex.toggleInsert
@@ -671,6 +695,38 @@ commands: nks.hex.checksum
 - Every CRC variant has a fixed polynomial and parameters (width, start value, reflected input and result, final xor), the same as in the catalogue of CRC algorithms.
 - A CRC with your own polynomial takes the width in bits and, in hex, the polynomial (odd), the start value, the two reflection flags (0 or 1) and the final xor.
 
+## [hex.bookmarks] Hex: bookmarks and coloured regions
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+A hex bookmark marks a region of bytes with a name, a colour, a comment and the type it was read as in the data inspector.
+1. Ctrl+F2 marks the selection (without a selection: the value the data inspector shows at the caret, or one byte) and removes the narrowest bookmark under the caret when there is one. F2 and Shift+F2 jump to the next and previous bookmark.
+2. Hex: Bookmark Properties opens the name, colour, comment and the type of the bookmark under the caret (a new bookmark when there is none).
+3. Hex: Bookmarks Panel (Ctrl+K then Ctrl+B) lists the bookmarks with a filter that matches name, comment and type. Enter or a double click selects the region; Delete removes it.
+4. Hex: Export Bookmarks writes a CSV (name, colour, comment, type, start and end offset) or, when the file name ends in .json, JSON. Hex: Import Bookmarks reads either form and adds the regions that fit the file; a region that is empty, lies outside the file or is already there is skipped, and the status bar counts them.
+- A region is drawn tinted in its colour with a bar on top, so the colour is not the only sign; the status line names the bookmark under the caret.
+- Regions follow the bytes: bytes inserted before a region move it, bytes inserted inside make it longer, an edit over its edge is taken into it, undo and redo move it back. A region whose bytes were all deleted is dropped.
+- Bookmarks are kept in the session (they are back after a restart), never in the file. Clear Bookmarks removes all of them.
+
+## [hex.map] Hex: file map and byte statistics
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+The map is a strip beside the scroll bar that shows the whole file at once, in about four-pixel cells. A rectangle marks the part on screen; a click or a drag scrolls the grid there.
+1. Hex: File Map (Ctrl+K then Ctrl+G) shows or hides the map. Hex: Map by Entropy or Kind of Byte switches what the cells show: the entropy of the bytes (light for ordered data, strong for compressed or encrypted data), or the kind of byte that makes up most of the cell (zero bytes, text, control bytes, high bytes, FF).
+2. A narrow lane at the right edge marks the matches of the last search, the bookmarks in their colours and the places changed since the last save.
+3. Hex: Byte Statistics (Ctrl+K then Ctrl+S) opens a panel with the histogram of the selection, or of the whole file when nothing is selected: how many of the 256 byte values occur, the entropy in bits per byte, the most frequent values and the shares of the byte classes.
+- A file up to 1 GiB is read whole in the background. For a larger file the map first shows a sample, a few blocks of every cell, and gets better as the program reads more, up to 1 GiB in all; a cell that was not read yet is shown pale.
+- The statistics of a whole file above 1 GiB are not counted at once: select a range.
+- The map and the counting run beside the window and are redone when the file changes.
+
+## [hex.compare] Hex: binary comparison
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Two hex grids side by side, scrolling together, with the differences tinted and listed below.
+1. Hex: Compare with File asks for a file and compares it with the document of the active tab (with its unsaved changes). Hex: Compare with Saved File compares the document with its own file on disk, so you see exactly what the next save would change.
+2. Aligned (the default) looks for bytes that one file has inserted or deleted, so an inserted block shows as an insertion and the bytes behind it are not reported as changed. Byte by byte compares every offset with the same offset in the other file, which is what you want for files with a fixed layout. It is used for any file over 256 MiB, which the aligned mode does not read.
+3. The list names each difference: changed, inserted or deleted, with its range in the left and in the right file. Enter on a row, F8 and Shift+F8 (or the buttons) go to the next and previous difference in both grids.
+- Scrolling one grid scrolls the other to the same place in the other file; with inserted bytes that is the corresponding place, not the same offset.
+- The grids are read-only. The map beside each grid marks the differences.
+- The list stops at 1,000,000 differences (the window says so); two unrelated files would otherwise fill the memory.
+- Two revisions of a file from the local history are not offered yet, because the local history does not exist.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
@@ -716,7 +772,7 @@ A bookmark marks a line you want to return to.
 2. F2 jumps to the next bookmark, Shift+F2 to the previous one. After the last it continues with the first.
 3. Clear Bookmarks (in the palette) removes all bookmarks of the document; the status bar says Bookmarks removed.
 - If the document has no bookmarks, the status bar says The document has no bookmarks.
-- There are no bookmarks in hex or in a search results tab. In a large file whose lines are still being numbered the command says the line index does not reach that place yet.
+- A search results tab has no bookmarks. In hex the same commands mark regions of bytes (see Hex: bookmarks). In a large file whose lines are still being numbered the command says the line index does not reach that place yet.
 
 ## [recovery] Crash recovery
 The program continuously writes unsaved text to a journal, within two seconds of a change at the latest. An unsaved document is not lost even if the program crashes or the computer is switched off.

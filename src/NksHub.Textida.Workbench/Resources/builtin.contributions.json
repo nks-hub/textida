@@ -193,12 +193,6 @@
       "enablement": "hasDocument"
     },
     {
-      "id": "nks.search.replace",
-      "title": "cmd.search.replace",
-      "category": "cat.search",
-      "enablement": "hasDocument && !readOnly"
-    },
-    {
       "id": "nks.search.findWord",
       "title": "cmd.search.findWord",
       "category": "cat.search",
@@ -1269,6 +1263,77 @@
       "title": "cmd.view.syncScroll",
       "category": "cat.view",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.search.replace",
+      "title": "cmd.search.replace",
+      "category": "cat.search",
+      "enablement": "hasDocument && (!readOnly || hexMode)"
+    },
+    {
+      "id": "nks.format.applyEditorConfig",
+      "title": "cmd.format.applyEditorConfig",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly && !largeFileMode"
+    },
+    {
+      "id": "nks.file.convertEncodingBatch",
+      "title": "cmd.file.convertEncodingBatch",
+      "category": "cat.format"
+    },
+    {
+      "id": "nks.hex.bookmarks.panel",
+      "title": "cmd.hex.bookmarks.panel",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.edit",
+      "title": "cmd.hex.bookmarks.edit",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.export",
+      "title": "cmd.hex.bookmarks.export",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.import",
+      "title": "cmd.hex.bookmarks.import",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.minimap",
+      "title": "cmd.hex.minimap",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.minimap.mode",
+      "title": "cmd.hex.minimap.mode",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.statistics",
+      "title": "cmd.hex.statistics",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.compare.file",
+      "title": "cmd.hex.compare.file",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.compare.saved",
+      "title": "cmd.hex.compare.saved",
+      "category": "cat.hex",
+      "enablement": "hexMode"
     }
   ],
   "menus": [
@@ -2423,6 +2488,72 @@
       "command": "nks.compare.file",
       "group": "2_compare",
       "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.panel",
+      "group": "7_hex",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.edit",
+      "group": "7_hex",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.export",
+      "group": "7_hex",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.import",
+      "group": "7_hex",
+      "order": 100
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.compare.saved",
+      "group": "7_hex",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.compare.file",
+      "group": "7_hex",
+      "order": 120
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.applyEditorConfig",
+      "group": "1_encoding",
+      "order": 30
+    },
+    {
+      "menu": "format",
+      "command": "nks.file.convertEncodingBatch",
+      "group": "1_encoding",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.statistics",
+      "group": "3_hex",
+      "order": 130
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap.mode",
+      "group": "3_hex",
+      "order": 120
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap",
+      "group": "3_hex",
+      "order": 110
     }
   ],
   "keybindings": [
@@ -2793,6 +2924,21 @@
       "key": "shift+f7",
       "command": "nks.compare.previous",
       "when": "compareMode"
+    },
+    {
+      "key": "mod+k mod+b",
+      "command": "nks.hex.bookmarks.panel",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+s",
+      "command": "nks.hex.statistics",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+g",
+      "command": "nks.hex.minimap",
+      "when": "hexMode"
     }
   ],
   "settings": [
@@ -3680,6 +3826,24 @@
         "tidy",
         "format",
         "path"
+      ]
+    },
+    {
+      "key": "hex.wildcardMaxBytes",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.hex.wildcardMaxBytes.title",
+      "description": "setting.hex.wildcardMaxBytes.description",
+      "category": "cat.hex",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 1048576,
+      "tags": [
+        "hex",
+        "wildcard",
+        "regex",
+        "search",
+        "bytes"
       ]
     }
   ]

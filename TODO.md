@@ -1796,16 +1796,18 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 
 ### P5.5 Kódování naplno
 
-- [ ] **P5.5.1** Plný inspektor bajtů a kódování
+- [x] **P5.5.1** Plný inspektor bajtů a kódování
   - **Co a proč:** Rozšíření základu z P3.4.1 na všechny cesty uložení: převod celého souboru, sjednocení EOL, normalizace, EditorConfig `charset`, hex. Co se skutečně změní, než se to zapíše.
   - **Funkce:** F169
+  - **Stav 26. 10. 2026:** hotovo: jeden inspektor bajtů pro převod kódování, sjednocení EOL, normalizaci, Uložit jako s kódováním, charset z EditorConfig a návrhy pluginů; bez potvrzení nic nezapíše, nad změněnou revizí akci odmítne; hex „Změny před uložením“ používá stejný výpis; test hlídá, že aplikace nepřevádí mimo inspektor. Ořez mezer a koncový řádek z EditorConfig inspektorem neprocházejí (dané nastavením).
   - **Hotovo, když:** každá akce, která mění bajty mimo upravené rozsahy, projde inspektorem s výpisem změněných rozsahů a nejde ji provést bez potvrzení.
   - **Závisí na:** P3.4.1, P2.6.1
   - **Odhad:** v rámci F169 (matice, viz P3.4.1)
   - **Umístění:** jádro
-- [ ] **P5.5.2** Dávková konverze kódování
+- [x] **P5.5.2** Dávková konverze kódování
   - **Co a proč:** Převod sady souborů s náhledem, obnovou a souhrnem ztrát (`10` kap. 5).
   - **Funkce:** F016
+  - **Stav 26. 10. 2026:** hotovo: dávkový převod kódování přes `FileWalker` a žurnál dávek; náhled ukáže soubory se ztrátou před zápisem, pád uprostřed jde dokončit nebo vrátit (test ve všech bodech pádu), soubor s jen odhadnutým kódováním se nepřevádí.
   - **Hotovo, když:** dávka 100 souborů ukáže před spuštěním soubory se ztrátou; pád uprostřed dávky jde dokončit nebo vrátit.
   - **Závisí na:** P5.5.1, P2.5.3
   - **Odhad:** bez odhadu
@@ -1818,20 +1820,23 @@ Hotovo celku podle analýzy konkurence: porovnání dvou 1GiB souborů se 100 od
 - [ ] **P5.6.1** Regex nad bajty a zástupný znak `*`
   - **Co a proč:** Bajt = znak 0–255, `.` je jeden bajt, `*` = 0–N bajtů (N nastavitelné). Nad `ByteSearch`.
   - **Funkce:** F237
+  - **Stav 26. 10. 2026:** částečně: regex nad bajty a `*` jako 0–N bajtů (`/regex/` nebo `50 4B * 04`), vlastní rozsah `*{m,n}`. Otevřené: výchozí N pro `*` (nastavení `hex.wildcardMaxBytes` = 0, hledání s `*` o volbu požádá).
   - **Hotovo, když:** `\x50\x4B[\x01-\x08]` najde stejné offsety jako naivní průchod a vzor s `*` respektuje nastavené N.
   - **Závisí na:** P3.5.1
   - **Odhad:** F237 1–1,5 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P5.6.2** Nahrazení bajtů s náhledem
+- [x] **P5.6.2** Nahrazení bajtů s náhledem
   - **Co a proč:** Náhled podle F152 s původními a novými bajty, upozornění na změnu délky, jedno undo, kontrola revize; v přepisu je změna délky zakázaná.
   - **Funkce:** F238
+  - **Stav 26. 10. 2026:** hotovo: nahrazení bajtů (Ctrl+H v hexu) s náhledem, jedním krokem undo a odmítnutím nad novější revizí; v přepisu změnu délky odmítne.
   - **Hotovo, když:** nahrazení všeho jde vrátit jedním krokem a nad novější revizí se odmítne.
   - **Závisí na:** P3.5.1, P2.5.2
   - **Odhad:** F238 1–1,5 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P5.6.3** Záložky a barevné oblasti
+- [x] **P5.6.3** Záložky a barevné oblasti
   - **Co a proč:** Jméno, barva, komentář, typ z inspektoru; panel, filtr, export a import CSV a JSON. Uložené v metadatech vedle relace, ne v souboru, přepočítané přes záznam změn.
   - **Funkce:** F239
+  - **Stav 26. 10. 2026:** hotovo: záložky v hexu s barvou, komentářem a typem z inspektoru, panel, dialog, export a import CSV a JSON, uložení v relaci; Ctrl+F2, F2 a Shift+F2 fungují i v hexu.
   - **Hotovo, když:** záložky přežijí vložení bajtů před ně; export a import vrátí stejné oblasti.
   - **Závisí na:** P3.5.2, P1.2.5
   - **Odhad:** F239 1–1,5 ČT (matice)
@@ -1839,13 +1844,15 @@ Hotovo celku podle analýzy konkurence: porovnání dvou 1GiB souborů se 100 od
 - [ ] **P5.6.4** Hex minimapa a statistika
   - **Co a proč:** Mapa bajtů podle entropie nebo třídy bajtů, značky shod, záložek a změn; do ~1 GiB plný výpočet, nad tím vzorek a zpřesnění na pozadí. Histogram výběru.
   - **Funkce:** F243
+  - **Stav 26. 10. 2026:** částečně: hex minimapa podle entropie nebo třídy bajtů se značkami shod, záložek a změn, po vzorkované fázi zpřesnění na pozadí do 1 GiB; panel s histogramem výběru; Large test: mapa 50GiB zdroje se vzorkuje v rámci čtecího limitu (syntetický zdroj). Perf (mapa do 1 s, posun p95/p99) napsaný, na referenční Windows VM se teprve měří.
   - **Hotovo, když:** minimapa 50GiB souboru se ukáže do 1 s; během zpřesňování na pozadí má posun vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms.
   - **Závisí na:** P3.3.1, P3.5.2
   - **Odhad:** F243 1–1,5 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P5.6.5** Binární porovnání
+- [x] **P5.6.5** Binární porovnání
   - **Co a proč:** Dvě hex mřížky vedle sebe se synchronním posunem, bajt po bajtu (libovolná velikost) i se zarovnáním (výchozí do 256 MiB), seznam rozdílů, revize proti souboru a dvě revize z F172.
   - **Funkce:** F244
+  - **Stav 26. 10. 2026:** hotovo: binární porovnání po bajtech i se zarovnáním (výchozí do 256 MiB), okno se dvěma hex mřížkami jen pro čtení, synchronní posun a seznam rozdílů; Large test: dva 1GiB soubory se 100 změnami dají přesně 100 rozsahů, 100MiB soubor s vloženými bloky ukáže vložení. Porovnání dvou revizí z místní historie (F172) chybí.
   - **Hotovo, když:** dva 1GiB soubory se 100 deterministicky vytvořenými změnami na pevných offsetech, které se nepřekrývají ani nesousedí, dají přesně 100 rozsahů se správnými offsety, délkami a obsahem; testy zvlášť pokryjí přepis, vložení a smazání; 100MiB soubor s vloženými bloky ukáže vložení, ne posun.
   - **Závisí na:** P5.2.1, P3.5.2, P5.3.1
   - **Odhad:** F244 2–3 ČT (matice)

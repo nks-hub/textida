@@ -543,6 +543,25 @@ Znaky s diakritikou mohou být zapsány jedním znakem (NFC) nebo písmenem a sa
 - Kdyby se po normalizaci nějaký znak nedal zapsat v kódování souboru, program změnu odmítne a napíše to.
 - Nebylo-li co měnit, stavový řádek napíše Není co měnit.
 
+## [format.inspector] Inspektor bajtů
+commands: nks.format.applyEditorConfig
+Každá akce, která přepisuje bajty, které jste neupravili, nejdřív ukáže, co změní, a nic nezapíše, dokud ji nepotvrdíte: Převést do kódování, Konce řádků, Normalizovat Unicode, Uložit jako s jiným kódováním a Použít EditorConfig.
+- Okno uvádí počet změněných úseků a bajtů, velikost před a po, kódování a konce řádků před a po a jeden řádek na úsek: kde leží, původní a nová délka a první bajty (nejvýš 500 řádků, zbytek je započítán).
+- Když cílové kódování některé znaky nepojme, stejné okno vypíše každý z nich s řádkem, sloupcem a bajtem a nabídne tři odpovědi: zrušit (nic se nezapíše), změnit kódování, nebo každý znak nahradit otazníkem.
+- Příkaz Použít kódování a konce řádků z EditorConfig v nabídce Formát převede soubor na znakovou sadu a konec řádku, které nastavuje jeho .editorconfig; každý krok otevře inspektor. Vlastnost, kterou soubor nenastavuje, se nechá být.
+- Úseky platí pro revizi, kterou jste viděli; změní-li se dokument mezitím, akce se odmítne.
+- Soubor a potom Změny před uložením ukáže stejný výpis pro příští uložení.
+
+## [format.batchEncoding] Převod kódování více souborů
+commands: nks.file.convertEncodingBatch
+1. Formát a potom Převést kódování souborů ve složce. Zvolte složku, masky názvů souborů (například *.txt;*.php, prázdné pole znamená všechny soubory) a cílové kódování.
+2. Program soubory přečte a dřív než cokoli zapíše, ukáže, kolik jich se převede bez ztráty a které soubory by přišly o znaky, s těmito znaky a jejich počtem. Soubory, které jsou binární, už mají tyto bajty nebo mají kódování, které program jen odhaduje, se přeskočí a vypíšou se s důvodem.
+3. Zvolte Převést N souborů (soubory, které by ztratily znaky, zůstanou, jak jsou), nebo Převést vše a ztracené znaky nahradit otazníkem.
+4. Souhrn vypíše, co se převedlo, co zůstalo a co se změnilo po náhledu.
+- Procházení složky dodržuje soubory ignorování a vynechává skryté soubory a soubory nad 64 MiB, stejně jako hledání v souborech. Otevřené dokumenty s neuloženými změnami zůstanou stranou.
+- Každý soubor se nahradí celý, nebo vůbec, a jen když má pořád obsah, ze kterého vznikl náhled. Běh se zapisuje do žurnálu: když se program nebo počítač uprostřed zastaví, nabídne příští start dokončení dávky nebo vrácení starých souborů.
+- Soubor v kódování, které je jen odhad (nízké procento jistoty), se nikdy nepřevádí; otevřete ho, zvolte Znovu otevřít v kódování a převeďte ho odtud.
+
 ## [format.language] Režim jazyka
 commands: nks.format.language
 1. Zvolte Formát a Režim jazyka, nebo klepněte na jazyk ve stavovém řádku.
@@ -613,9 +632,14 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 
 ## [hex.find] Hex: hledání a skok na offset
 - Ctrl+F otevře okno Hledat bajty. Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, nebo číslo s typem (0x1F40 i32).
-- F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit. Nahrazování bajtů není.
+- F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
+- Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), hledání o ně požádá. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
+- Vzor mezi lomítky je regulární výraz nad bajty, například /\x50\x4B[\x01-\x08]/. Bajt je znak 0 až 255, . je jeden libovolný bajt (i 0A a 0D), \xHH je bajt a [...] množina bajtů. Skupiny, |, ? * + {n,m} a \n \r \t \0 \d \w \s fungují; ^, $, \b, zpětné odkazy a lookaround ne, protože bajty nemají řádky ani slova. Otevřené opakování (.*, +, {n,}) sahá nejvýš na N bajtů. Shoda potřebuje aspoň jeden bajt a shody se smějí překrývat.
+- Ctrl+H nahrazuje bajty: nejdřív vzor (stejné tvary jako Hledat), potom náhradu hexem, textem v uvozovkách nebo číslem; prázdná náhrada shody smaže. Je-li něco vybráno, hledá se jen ve výběru.
+- Náhled vypíše každou shodu s původními a novými bajty a upozorní, když se změní délka souboru. Nahradit vše zapíše všechno jedním krokem zpět. Změnil-li se soubor po náhledu, nenahradí se nic. Shody, které se překrývají s předchozí, se vynechají.
+- V režimu přepisu musí mít náhrada délku shody; délku změníte po zapnutí režimu vkládání (klávesa Insert).
 
 ## [hex.edit] Hex: úpravy
 commands: nks.hex.toggleInsert
@@ -676,6 +700,38 @@ commands: nks.hex.checksum
 - Každá varianta CRC má pevný polynom a parametry (šířka, počáteční hodnota, zrcadlení vstupu a výsledku, koncové xor) podle katalogu algoritmů CRC.
 - CRC s vlastním polynomem vezme šířku v bitech a hex polynom (lichý), počáteční hodnotu, dva příznaky zrcadlení (0 nebo 1) a koncové xor.
 
+## [hex.bookmarks] Hex: záložky a barevné oblasti
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+Záložka v hexu označí oblast bajtů jménem, barvou, poznámkou a typem, jak byla přečtena v inspektoru dat.
+1. Ctrl+F2 označí výběr (bez výběru hodnotu, kterou inspektor dat ukazuje u kurzoru, nebo jeden bajt) a odstraní nejužší záložku pod kurzorem, pokud nějaká je. F2 a Shift+F2 skočí na další a předchozí záložku.
+2. Hex: vlastnosti záložky otevře jméno, barvu, poznámku a typ záložky pod kurzorem (bez ní vznikne nová).
+3. Hex: panel záložek (Ctrl+K a potom Ctrl+B) vypíše záložky s filtrem, který hledá ve jménu, poznámce a typu. Enter nebo dvojklik vybere oblast, Delete ji odstraní.
+4. Hex: exportovat záložky zapíše CSV (jméno, barva, poznámka, typ, počáteční a koncový offset) nebo, když název souboru končí na .json, JSON. Hex: importovat záložky přečte obě formy a přidá oblasti, které se do souboru vejdou; prázdná oblast, oblast mimo soubor nebo už existující se přeskočí a stavový řádek je spočítá.
+- Oblast je vykreslená v barvě záložky s proužkem nahoře, takže barva není jediné znamení; stavový řádek jmenuje záložku pod kurzorem.
+- Oblasti sledují bajty: bajty vložené před oblast ji posunou, bajty vložené dovnitř ji prodlouží, úprava přes její okraj se do ní zahrne, zpět a znovu ji vrátí. Oblast, jejíž bajty byly všechny smazány, zaniká.
+- Záložky se ukládají do relace (po restartu jsou zpět), nikdy do souboru. Smazat záložky odstraní všechny.
+
+## [hex.map] Hex: mapa souboru a statistika bajtů
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+Mapa je proužek vedle posuvníku, který ukazuje celý soubor najednou v buňkách o výšce asi čtyři pixely. Obdélník označuje část na obrazovce; klik nebo tažení tam posune mřížku.
+1. Hex: mapa souboru (Ctrl+K a potom Ctrl+G) mapu ukáže nebo skryje. Hex: mapa podle entropie nebo druhu bajtů přepíná, co buňky ukazují: entropii bajtů (světlá pro uspořádaná data, výrazná pro komprimovaná nebo šifrovaná), nebo druh bajtu, který tvoří většinu buňky (nulové bajty, text, řídicí bajty, vysoké bajty, FF).
+2. Úzký pruh u pravého okraje označuje shody posledního hledání, záložky v jejich barvách a místa změněná od posledního uložení.
+3. Hex: statistika bajtů (Ctrl+K a potom Ctrl+S) otevře panel s histogramem výběru, nebo celého souboru, když není nic vybráno: kolik ze 256 hodnot bajtu se vyskytuje, entropie v bitech na bajt, nejčastější hodnoty a podíly tříd bajtů.
+- Soubor do 1 GiB se čte celý na pozadí. U většího souboru mapa nejdřív ukáže vzorek, pár bloků z každé buňky, a zpřesňuje se, jak program čte dál, celkem nejvýš 1 GiB; buňka, která se ještě nečetla, je světlá.
+- Statistika celého souboru nad 1 GiB se nepočítá najednou: vyberte úsek.
+- Mapa i počítání běží vedle okna a při změně souboru se dělají znovu.
+
+## [hex.compare] Hex: binární porovnání
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Dvě hex mřížky vedle sebe, které se posouvají společně, s rozdíly podbarvenými a vypsanými dole.
+1. Hex: porovnat se souborem se zeptá na soubor a porovná ho s dokumentem aktivní karty (i s jeho neuloženými změnami). Hex: porovnat s uloženým souborem porovná dokument s jeho vlastním souborem na disku, takže vidíte přesně, co by příští uložení změnilo.
+2. Se zarovnáním (výchozí) hledá bajty, které jeden soubor vložil nebo smazal, takže vložený blok se ukáže jako vložení a bajty za ním se nehlásí jako změněné. Bajt po bajtu porovnává každý offset se stejným offsetem v druhém souboru, což se hodí na soubory s pevným rozložením. Použije se u každého souboru nad 256 MiB, který režim se zarovnáním nečte.
+3. Seznam pojmenuje každý rozdíl: změněno, vloženo nebo smazáno, s jeho rozsahem v levém a v pravém souboru. Enter na řádku, F8 a Shift+F8 (nebo tlačítka) skočí na další a předchozí rozdíl v obou mřížkách.
+- Posun jedné mřížky posune druhou na stejné místo v druhém souboru; u vložených bajtů je to odpovídající místo, ne stejný offset.
+- Mřížky jsou jen pro čtení. Mapa vedle každé mřížky označuje rozdíly.
+- Seznam končí na 1 000 000 rozdílech (okno to řekne); dva nesouvisející soubory by jinak zaplnily paměť.
+- Dvě revize souboru z místní historie se zatím nenabízejí, protože místní historie neexistuje.
+
 ## [tools.run] Nástroje: spuštění externího programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spustit nástroj nabídne nástroje zapsané v souboru tools.json ve složce profilu. Poslední řádek ten soubor otevře; poprvé do něj zapíše prázdný, který doplníte.
@@ -721,7 +777,7 @@ Záložka označí řádek, na který se chcete vrátit.
 2. F2 skočí na další záložku, Shift+F2 na předchozí. Po poslední se pokračuje od první.
 3. Smazat záložky (v paletě) odstraní všechny záložky dokumentu; stavový řádek napíše Záložky odstraněny.
 - Nemá-li dokument žádné záložky, stavový řádek napíše Dokument nemá žádné záložky.
-- Záložky nejsou v hexu ani v kartě výsledků hledání. Ve velkém souboru, jehož řádky se ještě číslují, příkaz napíše, že index řádků ještě nesahá na to místo.
+- Karta výsledků hledání záložky nemá. V hexu tytéž příkazy označují oblasti bajtů (viz Hex: záložky). Ve velkém souboru, jehož řádky se ještě číslují, příkaz napíše, že index řádků ještě nesahá na to místo.
 
 ## [recovery] Obnova po pádu
 Program průběžně zapisuje neuložený text do žurnálu, nejdéle do dvou sekund od změny. Neuložený dokument se tak neztratí, ani když program spadne nebo vypnete počítač.
