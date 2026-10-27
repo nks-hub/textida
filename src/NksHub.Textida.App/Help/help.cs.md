@@ -1039,6 +1039,16 @@ Recept vybere části otevřeného souboru, změní je a před zápisem ukáže 
 - Kroky, které mění: {"kind": "convert", "converter": "id"} (převodník stejného pluginu), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} a {"kind": "set", "text": "..."}, který nahradí část textem v jazyce šablon klipů. V něm je ${selection} samotná část a proměnné mají stejné hodnoty jako v klipu (téma Klipy); kurzory $| se ignorují.
 - Recept bez kroků, s neznámým druhem, chybným vzorem, neznámým převodníkem, vybírajícím krokem po měnícím nebo bez měnícího kroku se při čtení pluginu odmítne.
 
+## [edit.recipeFiles] Recepty nad soubory
+commands: nks.edit.runRecipeFiles
+Uložený recept se pustí znovu nad jinou sadou souborů. Každou změnu uvidíte předem; nic se nezapíše, dokud ji nepoužijete.
+1. Zvolte Úpravy, Spustit recept nad soubory a vyberte recept: z datového pluginu, nebo soubor ve složce recipes v profilu.
+2. Vyberte soubory: složku s maskou souborů (například *.cs;*.txt; platí ignorovací soubory hledání), otevřené karty, nebo soubory z výsledků hledání.
+3. Karta Výsledky hledání ukáže změny po souborech se stejnými zaškrtávátky jako Replace in Files. Použít zapíše zaškrtnuté. Soubor, který po náhledu změnil někdo jiný, se nepřepíše: ohlásí se jako konflikt a ostatní soubory se zapíšou. Otevřené dokumenty dostanou jeden krok Zpět.
+- Soubor s receptem je JSON s id, title a steps, stejná pole jako recept v nkspad-plugin.json, a volitelně version a seznam converters (převodníky, které jmenují kroky convert). Soubor bez version je verze 1, formát prvních receptů, a načte se jako dřív. Soubor novější verze se odmítne se zprávou.
+- Kroky: matches, columns, convert, replace a set fungují jako v Receptech úprav (každý soubor je celý svým textem). Krok {"kind": "format", "formatter": "id"} pustí formátovač z Akcí při uložení nad výsledkem předchozích kroků; musí být poslední, potřebuje časový limit formatTimeoutSeconds v saveActions.json a pracuje se soubory s názvem a příponou, kterou ten formátovač zná. Soubor, kde krok nejde provést, se vynechá a ohlásí s důvodem.
+- Každý soubor si drží své kódování a konce řádků; nový znak, který kódování neunese, se ukáže jako změna, kterou nejde použít. Krok format se nad jedním souborem v Spustit recept úprav nespustí.
+
 ## [edit.aiContext] Kopírovat jako kontext pro AI
 commands: nks.edit.copyAiContext
 Vloží do schránky výběr, soubor, otevřené karty nebo otevřenou složku jako jeden blok v Markdownu nebo XML, který vložíte do AI asistenta. Nic se nikam neposílá.

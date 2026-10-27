@@ -56,9 +56,9 @@ internal sealed partial class MainWindow
         if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) _find.FolderBox.Text = path;
     }
 
-    /// <summary>The open documents the search covers: the unnamed ones and the ones under the searched folder; a file elsewhere is not part of a search of this folder.</summary>
-    private IReadOnlyList<LiveBuffer> OpenBuffers(string folder, bool editableOnly) =>
-        [.. _app.Windows.SelectMany(w => w.Documents).Where(d => !d.IsResults && (!editableOnly || !d.ReadOnly) && (d.Path is null || IsUnder(folder, d.Path))).DistinctBy(d => d.Doc.Id).Select(d => LiveBuffer.Of(d.Doc, d.Title))];
+    /// <summary>The open documents the search covers: the unnamed ones and the ones under the searched folder; a file elsewhere is not part of a search of this folder. Without a folder every open document counts.</summary>
+    private IReadOnlyList<LiveBuffer> OpenBuffers(string? folder, bool editableOnly) =>
+        [.. _app.Windows.SelectMany(w => w.Documents).Where(d => !d.IsResults && (!editableOnly || !d.ReadOnly) && (folder is null || d.Path is null || IsUnder(folder, d.Path))).DistinctBy(d => d.Doc.Id).Select(d => LiveBuffer.Of(d.Doc, d.Title))];
 
     private static bool IsUnder(string folder, string path) =>
         System.IO.Path.GetRelativePath(folder, path) is var relative && !relative.StartsWith("..", StringComparison.Ordinal) && !System.IO.Path.IsPathRooted(relative);

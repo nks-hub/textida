@@ -118,6 +118,7 @@ internal static class AppCommands
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
         On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
         On("nks.edit.runRecipe", w => w.ShowRecipes(registry.IsRepeating));
+        On("nks.edit.runRecipeFiles", w => w.ShowRecipeFiles());
         On("nks.edit.copyAiContext", w => w.ShowAiContext());
         On("nks.edit.fragmentJson", w => w.EditStringAs("json"));
         On("nks.edit.fragmentSql", w => w.EditStringAs("sql"));

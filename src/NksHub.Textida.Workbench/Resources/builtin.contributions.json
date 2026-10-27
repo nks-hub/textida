@@ -1620,6 +1620,11 @@
       "title": "cmd.tools.lint",
       "category": "cat.tools",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.runRecipeFiles",
+      "title": "cmd.edit.runRecipeFiles",
+      "category": "cat.edit"
     }
   ],
   "menus": [
@@ -3086,6 +3091,12 @@
       "command": "nks.tools.lint",
       "group": "5_run",
       "order": 16
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.runRecipeFiles",
+      "group": "8_insert",
+      "order": 11
     }
   ],
   "keybindings": [

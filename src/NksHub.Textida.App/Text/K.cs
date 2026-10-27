@@ -1316,4 +1316,20 @@ public static class K
     public const string ConfigFilesEmpty = "configFiles.empty";
     public const string ConfigFilesCreated = "configFiles.created";
     public const string ConfigFilesFailed = "configFiles.failed";
+    public const string RecipeFilesWatermark = "recipeFiles.watermark";
+    public const string A11yRecipeFiles = "a11y.recipeFiles";
+    public const string RecipeFilesEmpty = "recipeFiles.empty";
+    public const string RecipeFilesDamaged = "recipeFiles.damaged";
+    public const string RecipeFilesSetWatermark = "recipeFiles.setWatermark";
+    public const string A11yRecipeFileSet = "a11y.recipeFileSet";
+    public const string RecipeFilesSetFolder = "recipeFiles.setFolder";
+    public const string RecipeFilesSetTabs = "recipeFiles.setTabs";
+    public const string RecipeFilesSetResults = "recipeFiles.setResults";
+    public const string RecipeFilesNoResults = "recipeFiles.noResults";
+    public const string RecipeFilesFolderTitle = "recipeFiles.folderTitle";
+    public const string RecipeFilesFolderLabel = "recipeFiles.folderLabel";
+    public const string RecipeFilesMaskLabel = "recipeFiles.maskLabel";
+    public const string RecipeFilesPlanning = "recipeFiles.planning";
+    public const string RecipeFilesNothing = "recipeFiles.nothing";
+    public const string RecipeFilesSkipped = "recipeFiles.skipped";
 }

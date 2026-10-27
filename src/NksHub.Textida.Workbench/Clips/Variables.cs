@@ -25,6 +25,12 @@ public sealed class VariableContext
     /// <summary>The user's own variables (see <see cref="UserVariables"/>).</summary>
     public IReadOnlyDictionary<string, string> User { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>The same facts for another file (a recipe over many files gives each its own <c>file.*</c>).</summary>
+    public VariableContext WithFile(string? path) => new()
+    {
+        FilePath = path, Selection = Selection, Now = Now, DateTimeFormat = DateTimeFormat, Culture = Culture, UserName = UserName, User = User,
+    };
+
     /// <summary>The same facts for another selection (each caret of a clip has its own <c>selection</c>).</summary>
     public VariableContext WithSelection(string selection) => new()
     {

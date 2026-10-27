@@ -83,6 +83,7 @@ public static class RecipeRunner
                 parts = recipe.Steps[first].Kind == RecipeStep.Matches ? Matches(recipe.Steps[first], text, parts) : Columns(recipe.Steps[first], text, parts);
             var steps = recipe.Steps.Skip(first).ToList();
             if (steps.FindIndex(s => s.Selects) is >= 0 and var late) return Fail(first + late + 1, "a selecting step comes after a changing one");
+            if (steps.FindIndex(s => s.Kind == RecipeStep.Format) is >= 0 and var format) return Fail(first + format + 1, "a format step runs only over a set of files");
             foreach (var (start, end) in parts)
             {
                 string original = text.Substring(start, end - start), current = original;
@@ -172,18 +173,20 @@ public static class RecipeRunner
     public static IEnumerable<string> Check(RecipeContribution recipe, IReadOnlySet<string> converterIds)
     {
         if (recipe.Steps.Count == 0) yield return "has no steps.";
-        bool changing = false;
+        bool changing = false, formatted = false;
         int n = 0;
         foreach (var step in recipe.Steps)
         {
             n++;
-            if (step.Kind is not (RecipeStep.Matches or RecipeStep.Columns or RecipeStep.Convert or RecipeStep.Replace or RecipeStep.Set))
+            if (step.Kind is not (RecipeStep.Matches or RecipeStep.Columns or RecipeStep.Convert or RecipeStep.Replace or RecipeStep.Set or RecipeStep.Format))
             {
                 yield return $"step {n} has the unknown kind '{step.Kind}'.";
                 continue;
             }
             if (step.Selects && changing) yield return $"step {n} selects after a changing step; selecting steps come first.";
+            if (step.Kind != RecipeStep.Format && formatted) yield return $"step {n} comes after a format step; format steps come last.";
             if (!step.Selects) changing = true;
+            formatted |= step.Kind == RecipeStep.Format;
             switch (step.Kind)
             {
                 case RecipeStep.Matches or RecipeStep.Replace:
@@ -199,6 +202,9 @@ public static class RecipeRunner
                     break;
                 case RecipeStep.Set:
                     if (Variables.CheckSyntax(step.Text) is { } syntax) yield return $"step {n}: {syntax}.";
+                    break;
+                case RecipeStep.Format:
+                    if (step.Formatter.Length == 0) yield return $"step {n} names no formatter.";
                     break;
             }
         }

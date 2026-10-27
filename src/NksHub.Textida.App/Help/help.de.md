@@ -1034,6 +1034,16 @@ Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebni
 - Ändernde Schritte: {"kind": "convert", "converter": "id"} (ein Konverter desselben Plugins), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} und {"kind": "set", "text": "..."}, der den Teil durch einen Text in der Vorlagensprache der Clips ersetzt. Darin ist ${selection} der Teil selbst, und die Variablen haben dieselben Werte wie in einem Clip (Thema Clips); Einfügemarken $| werden ignoriert.
 - Ein Rezept ohne Schritte, mit unbekannter Art, falschem Muster, unbekanntem Konverter, einem wählenden Schritt nach einem ändernden oder ohne ändernden Schritt wird beim Lesen des Plugins abgelehnt.
 
+## [edit.recipeFiles] Rezepte über Dateien
+commands: nks.edit.runRecipeFiles
+Ein gespeichertes Rezept läuft erneut über eine andere Dateiauswahl. Sie sehen jede Änderung vorher; nichts wird geschrieben, bevor Sie sie anwenden.
+1. Wählen Sie Bearbeiten, Rezept auf Dateien anwenden und ein Rezept: aus einem Daten-Plugin oder eine Datei im Ordner recipes des Profils.
+2. Wählen Sie die Dateien: einen Ordner mit Dateimaske (zum Beispiel *.cs;*.txt; die Ignore-Dateien der Suche gelten), die offenen Tabs oder die Dateien der Suchergebnisse.
+3. Der Tab Suchergebnisse listet die Änderungen Datei für Datei mit denselben Häkchen wie Replace in Files. Anwenden schreibt die angehakten. Eine Datei, die nach der Vorschau von jemand anderem geändert wurde, bleibt unberührt: sie wird als Konflikt gemeldet und die übrigen Dateien werden geschrieben. Offene Dokumente erhalten einen Rückgängig-Schritt.
+- Eine Rezeptdatei ist JSON mit id, title und steps, dieselben Felder wie ein Rezept in nkspad-plugin.json, dazu optional version und eine Liste converters (die Konverter, die ihre convert-Schritte nennen). Eine Datei ohne version ist Version 1, das Format der ersten Rezepte, und lädt wie bisher. Eine Datei neuerer Version wird mit einer Meldung abgelehnt.
+- Schritte: matches, columns, convert, replace und set arbeiten wie bei den Bearbeitungsrezepten (jede Datei ist ihr ganzer Text). Ein Schritt {"kind": "format", "formatter": "id"} lässt einen Formatierer der Speicheraktionen über das Ergebnis der vorherigen Schritte laufen; er muss der letzte sein, braucht das Zeitlimit formatTimeoutSeconds in saveActions.json und arbeitet mit Dateien mit Namen und einer Endung, die dieser Formatierer kennt. Eine Datei, in der ein Schritt nicht läuft, wird ausgelassen und mit Grund gemeldet.
+- Jede Datei behält ihre Kodierung und ihre Zeilenenden; ein neues Zeichen, das die Kodierung nicht aufnehmen kann, erscheint als Änderung, die sich nicht anwenden lässt. Format-Schritte laufen bei Rezept ausführen für eine einzelne Datei nicht.
+
 ## [edit.aiContext] Als KI-Kontext kopieren
 commands: nks.edit.copyAiContext
 Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner als einen Block in Markdown oder XML in die Zwischenablage, zum Einfügen in einen KI-Assistenten. Es wird nichts gesendet.
