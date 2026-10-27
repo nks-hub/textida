@@ -10,7 +10,7 @@ internal sealed record SavedMacro(string Name, string File, IReadOnlyList<MacroS
 
 /// <summary>
 /// The saved macros: one JSON file per macro in the <c>macros</c> folder of the profile, written through a temporary file like the user's clip library.
-/// A step is <c>{"command": id}</c> or <c>{"text": typed}</c>. Saving under a name that makes the same file name replaces that macro.
+/// A step is <c>{"command": id}</c> or <c>{"text": typed}</c>; a command step may add <c>"argument"</c>. Saving under a name that makes the same file name replaces that macro.
 /// </summary>
 internal sealed class MacroStore(string directory)
 {
@@ -23,7 +23,12 @@ internal sealed class MacroStore(string directory)
     {
         detail = "";
         var array = new JsonArray();
-        foreach (var step in steps) array.Add((JsonNode)(step.Command is { } id ? new JsonObject { ["command"] = id } : new JsonObject { ["text"] = step.Text }));
+        foreach (var step in steps)
+        {
+            var o = step.Command is { } id ? new JsonObject { ["command"] = id } : new JsonObject { ["text"] = step.Text };
+            if (step.Argument is { } argument) o["argument"] = argument;
+            array.Add((JsonNode)o);
+        }
         var json = new JsonObject { ["name"] = name.Trim(), ["steps"] = array }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         var path = PathOf(name);
         try
@@ -56,9 +61,9 @@ internal sealed class MacroStore(string directory)
                 foreach (var node in root["steps"]?.AsArray() ?? throw new JsonException("no steps"))
                 {
                     var o = node?.AsObject() ?? throw new JsonException("step is not an object");
-                    string? command = o["command"]?.GetValue<string>(), text = o["text"]?.GetValue<string>();
+                    string? command = o["command"]?.GetValue<string>(), text = o["text"]?.GetValue<string>(), argument = o["argument"]?.GetValue<string>();
                     if ((command is null) == (text is null)) throw new JsonException("a step needs a command or a text");
-                    steps.Add(new MacroStep(command, text));
+                    steps.Add(new MacroStep(command, text, argument));
                 }
                 list.Add(new SavedMacro(name, Path.GetFileName(path), steps));
             }

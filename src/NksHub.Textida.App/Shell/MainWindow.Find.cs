@@ -63,8 +63,9 @@ internal sealed partial class MainWindow
     {
         _find.CloseRequested += HideFind;
         _find.QueryChanged += OnFindQueryChanged;
-        _find.NextRequested += () => _ = FindStepAsync(forward: true);
-        _find.PreviousRequested += () => _ = FindStepAsync(forward: false);
+        // through the registry, so a macro being recorded records Enter in the bar like F3
+        _find.NextRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.findNext", new ShellContext(this, forMenu: true));
+        _find.PreviousRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.findPrevious", new ShellContext(this, forMenu: true));
         _find.ReplaceOneRequested += () => _ = ReplaceAsync(all: false);
         _find.ReplaceAllRequested += () => _ = ReplaceAsync(all: true);
         _find.GoRequested += () => _ = RunFilesSearchAsync();
@@ -343,6 +344,10 @@ internal sealed partial class MainWindow
             if (!selected && _findIndex >= 0) return;
         }
         if (FindBusy || Active != tab || _hitsRevision != doc.Revision) return;
+
+        // a search put into the bar without a search of its own (a macro step) is not what the listed matches are of
+        if (_findRunning || _hitsRevision != doc.Revision || _hitsDocument != doc.Id || FindSignature() != _findSignature) await StartFindSearch(jump: false);
+        if (_findRunning || Active != tab || _hitsRevision != doc.Revision) return;
         _findOrigin = SelectionTextStart(tab);
         if (!StepFrom(tab, _hits, forward, TextStepOrigin(tab, forward), wrap: true)) ShowFindCount();
     }

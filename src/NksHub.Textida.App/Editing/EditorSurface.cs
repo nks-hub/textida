@@ -361,6 +361,12 @@ internal sealed partial class EditorSurface : TextEditor
         }
 
         if (IsComposing) return; // the keys belong to the input method; at several carets they would edit every one
+
+        if (!BlockMode && KeyCommand is { } run && StepCommandOf(e) is { } id && run(id))
+        {
+            e.Handled = true;
+            return;
+        }
         if (HandleCaretKey(e)) return;
         if (BlockMode && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home)
         {

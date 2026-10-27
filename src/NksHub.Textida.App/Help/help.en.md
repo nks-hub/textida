@@ -368,13 +368,15 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - They do not work in a read-only document or in paged mode.
 
 ## [edit.macro] Macros
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
 1. Tools, Macros, Record Macro, starts recording. Do the work with commands and typing. Tools, Macros, Stop Recording Macro, ends it.
 2. Tools, Macros, Play Last Macro, plays it again over the current selections and carets.
 3. Tools, Macros, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Macros, Run Saved Macro, lists the saved ones and plays the chosen one.
-- A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, and typed text. With several carets it does the same as doing the steps by hand.
+- A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, Cut, Copy, Paste, and typed text. With several carets it does the same as doing the steps by hand.
+- While recording, the arrow keys, Home, End, Ctrl+Home, Ctrl+End, Ctrl with the arrows (with or without Shift), Backspace and Delete are recorded as commands too. They move and delete at every caret.
+- Find Next and Find Previous (F3, Shift+F3, Enter in the find bar) keep the search of the find bar with the step, so the macro finds the same text when it plays later. Open the find bar and type the search before you start recording; without a search the step is not recorded.
 - A playback is one Undo step. If a step cannot run, the macro stops there and the status bar names the step; what ran before stays one Undo step.
-- While recording, a command that a macro cannot replay is refused and the status bar says so: everything with a dialog, file commands, Cut, Copy, Paste, moving the caret with the arrow keys, Find. Recording goes on.
+- While recording, a command that a macro cannot replay is refused and the status bar says so: everything with a dialog, file commands, opening the find bar. Recording goes on. Mouse clicks, Page Up and Page Down are not recorded.
 - Playing needs an editable text document. Import of PSPad macros is not available.
 
 ## [edit.json] Format JSON

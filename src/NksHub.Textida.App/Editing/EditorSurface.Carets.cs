@@ -458,6 +458,123 @@ internal sealed partial class EditorSurface
 
     // ---- keys ----
 
+    /// <summary>The caret and delete keys as commands of the registry, so a macro records and replays them; a move has a variant that extends the selection (Shift).</summary>
+    public static readonly (string Id, KeyStep Step, bool Extend)[] StepCommands =
+    [
+        ("nks.edit.cursorLeft", KeyStep.Left, false), ("nks.edit.cursorLeftSelect", KeyStep.Left, true),
+        ("nks.edit.cursorRight", KeyStep.Right, false), ("nks.edit.cursorRightSelect", KeyStep.Right, true),
+        ("nks.edit.cursorWordLeft", KeyStep.WordLeft, false), ("nks.edit.cursorWordLeftSelect", KeyStep.WordLeft, true),
+        ("nks.edit.cursorWordRight", KeyStep.WordRight, false), ("nks.edit.cursorWordRightSelect", KeyStep.WordRight, true),
+        ("nks.edit.cursorUp", KeyStep.Up, false), ("nks.edit.cursorUpSelect", KeyStep.Up, true),
+        ("nks.edit.cursorDown", KeyStep.Down, false), ("nks.edit.cursorDownSelect", KeyStep.Down, true),
+        ("nks.edit.cursorLineStart", KeyStep.LineStart, false), ("nks.edit.cursorLineStartSelect", KeyStep.LineStart, true),
+        ("nks.edit.cursorLineEnd", KeyStep.LineEnd, false), ("nks.edit.cursorLineEndSelect", KeyStep.LineEnd, true),
+        ("nks.edit.cursorDocumentStart", KeyStep.DocumentStart, false), ("nks.edit.cursorDocumentStartSelect", KeyStep.DocumentStart, true),
+        ("nks.edit.cursorDocumentEnd", KeyStep.DocumentEnd, false), ("nks.edit.cursorDocumentEndSelect", KeyStep.DocumentEnd, true),
+        ("nks.edit.deleteLeft", KeyStep.DeleteLeft, false), ("nks.edit.deleteRight", KeyStep.DeleteRight, false),
+        ("nks.edit.deleteWordLeft", KeyStep.DeleteWordLeft, false), ("nks.edit.deleteWordRight", KeyStep.DeleteWordRight, false),
+    ];
+
+    /// <summary>
+    /// Asked with the command of a caret or delete key (<see cref="StepCommands"/>) before the key acts; true when that command ran instead.
+    /// The window runs the command only while a macro is recorded, so the macro records the key; otherwise the key works as always.
+    /// </summary>
+    public Func<string, bool>? KeyCommand { get; set; }
+
+    /// <summary>The command of a caret or delete key: the keys of the area and of <see cref="HandleCaretKey"/> on this platform.</summary>
+    private static string? StepCommandOf(KeyEventArgs e)
+    {
+        var m = e.KeyModifiers;
+        bool shift = m.HasFlag(KeyModifiers.Shift), mac = OperatingSystem.IsMacOS();
+        bool ctrl = m.HasFlag(KeyModifiers.Control), alt = m.HasFlag(KeyModifiers.Alt), meta = m.HasFlag(KeyModifiers.Meta);
+        bool plain = !ctrl && !alt && !meta;
+        bool word = mac ? alt && !ctrl && !meta : ctrl && !alt && !meta;
+        bool command = mac && meta && !alt && !ctrl;
+        KeyStep? step = e.Key switch
+        {
+            Key.Left when plain => KeyStep.Left,
+            Key.Right when plain => KeyStep.Right,
+            Key.Left when word => KeyStep.WordLeft,
+            Key.Right when word => KeyStep.WordRight,
+            Key.Left when command => KeyStep.LineStart,
+            Key.Right when command => KeyStep.LineEnd,
+            Key.Up when plain => KeyStep.Up,
+            Key.Down when plain => KeyStep.Down,
+            Key.Up when command => KeyStep.DocumentStart,
+            Key.Down when command => KeyStep.DocumentEnd,
+            Key.Home when plain => KeyStep.LineStart,
+            Key.End when plain => KeyStep.LineEnd,
+            Key.Home when word && !mac => KeyStep.DocumentStart,
+            Key.End when word && !mac => KeyStep.DocumentEnd,
+            Key.Back when plain && !shift => KeyStep.DeleteLeft,
+            Key.Delete when plain && !shift => KeyStep.DeleteRight,
+            Key.Back when word && !shift => KeyStep.DeleteWordLeft,
+            Key.Delete when word && !shift => KeyStep.DeleteWordRight,
+            _ => null,
+        };
+        if (step is not { } s) return null;
+        bool extend = shift && s < KeyStep.DeleteLeft;
+        return Array.Find(StepCommands, c => c.Step == s && c.Extend == extend).Id;
+    }
+
+    /// <summary>
+    /// What the key of <paramref name="step"/> does, as a command: with several carets the moves and deletions of this class, with one the command of the
+    /// editor area that its key runs. False when it does not apply (block mode, a deletion in a read-only document).
+    /// </summary>
+    public bool Step(KeyStep step, bool extend)
+    {
+        if (BlockMode) return false;
+        if (step >= KeyStep.DeleteLeft)
+        {
+            if (IsReadOnly) return false;
+            bool backwards = step is KeyStep.DeleteLeft or KeyStep.DeleteWordLeft, word = step is KeyStep.DeleteWordLeft or KeyStep.DeleteWordRight;
+            if (DeleteAtCarets(backwards, word)) return true;
+            if (step == KeyStep.DeleteLeft && Settings.AutoClosePairs && !Settings.PspadPairs && !IsBlockSelection && PairedCharacters.TryBackspace(Document, GetSelections()[0], out var paired))
+            {
+                SetSelections([paired]);
+                return true;
+            }
+            return RunAreaCommand(word ? (backwards ? EditingCommands.DeletePreviousWord : EditingCommands.DeleteNextWord) : backwards ? EditingCommands.Backspace : EditingCommands.Delete);
+        }
+        if (step is KeyStep.LineStart or KeyStep.LineEnd && Settings.EnhancedHomeEnd)
+            return MoveCarets(step == KeyStep.LineStart ? CaretMove.LineStartEnhanced : CaretMove.LineEndEnhanced, extend);
+        if (IsMulti)
+        {
+            if (step is KeyStep.Up or KeyStep.Down) return MoveVertically(step == KeyStep.Up ? -1 : 1, extend);
+            return MoveCarets(step switch
+            {
+                KeyStep.Left => CaretMove.Left,
+                KeyStep.Right => CaretMove.Right,
+                KeyStep.WordLeft => CaretMove.WordLeft,
+                KeyStep.WordRight => CaretMove.WordRight,
+                KeyStep.LineStart => CaretMove.LineStart,
+                KeyStep.LineEnd => CaretMove.LineEnd,
+                KeyStep.DocumentStart => CaretMove.DocumentStart,
+                _ => CaretMove.DocumentEnd,
+            }, extend);
+        }
+        return RunAreaCommand(step switch
+        {
+            KeyStep.Left => extend ? EditingCommands.SelectLeftByCharacter : EditingCommands.MoveLeftByCharacter,
+            KeyStep.Right => extend ? EditingCommands.SelectRightByCharacter : EditingCommands.MoveRightByCharacter,
+            KeyStep.WordLeft => extend ? EditingCommands.SelectLeftByWord : EditingCommands.MoveLeftByWord,
+            KeyStep.WordRight => extend ? EditingCommands.SelectRightByWord : EditingCommands.MoveRightByWord,
+            KeyStep.Up => extend ? EditingCommands.SelectUpByLine : EditingCommands.MoveUpByLine,
+            KeyStep.Down => extend ? EditingCommands.SelectDownByLine : EditingCommands.MoveDownByLine,
+            KeyStep.LineStart => extend ? EditingCommands.SelectToLineStart : EditingCommands.MoveToLineStart,
+            KeyStep.LineEnd => extend ? EditingCommands.SelectToLineEnd : EditingCommands.MoveToLineEnd,
+            KeyStep.DocumentStart => extend ? EditingCommands.SelectToDocumentStart : EditingCommands.MoveToDocumentStart,
+            _ => extend ? EditingCommands.SelectToDocumentEnd : EditingCommands.MoveToDocumentEnd,
+        });
+    }
+
+    private bool RunAreaCommand(RoutedCommand command)
+    {
+        if (!command.CanExecute(null, TextArea)) return false;
+        command.Execute(null, TextArea);
+        return true;
+    }
+
     private bool HandleCaretKey(KeyEventArgs e)
     {
         if (BlockMode) return false;
@@ -618,3 +735,6 @@ internal sealed partial class EditorSurface
         }
     }
 }
+
+/// <summary>A caret move or a deletion of the keyboard (<see cref="EditorSurface.StepCommands"/>); the deletions come last.</summary>
+internal enum KeyStep { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, DocumentStart, DocumentEnd, DeleteLeft, DeleteRight, DeleteWordLeft, DeleteWordRight }

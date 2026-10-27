@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Commands;
@@ -74,6 +76,73 @@ internal sealed partial class MainWindow
         var step = steps[result.Done];
         var title = step.Command is { } cmd && Commands.TryGet(cmd, out var failed) ? Loc.Get(failed.TitleKey) : step.Text ?? "";
         SetStatusMessage(Loc.Get(K.MacroFailed, ("step", result.Done + 1), ("title", title)));
+    }
+
+    /// <summary>A caret or delete key of the editor: while a macro is recorded it runs as its command, so the macro records it; otherwise false and the key acts as always.</summary>
+    private bool RunKeyCommand(string id)
+    {
+        if (!Commands.IsRecording) return false;
+        var pending = Commands.ExecuteAsync(id, new ShellContext(this, forMenu: false));
+        return !pending.IsCompletedSuccessfully || pending.Result == CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Find Next and Find Previous. A macro records the search of the find bar with the step and plays the step with that search, so a saved macro
+    /// finds the same text later; without a search in the find bar the step is not recorded. The task ends when the match is selected.
+    /// </summary>
+    internal async ValueTask<CommandOutcome> FindStepCommandAsync(bool forward)
+    {
+        if (Commands.IsPlaying)
+        {
+            if (Commands.StepArgument is not { } argument || !ApplyFindArgument(argument)) return CommandOutcome.NotHandled;
+        }
+        else if (Commands.IsRecording)
+        {
+            if (FindArgument() is not { } argument)
+            {
+                SetStatusMessage(Loc.Get(K.MacroFindNoQuery));
+                return CommandOutcome.NotRecordable;
+            }
+            Commands.RecordArgument(argument);
+        }
+        await FindStepAsync(forward);
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>The search of the find bar as the argument of a macro step; null unless the bar searches the text document.</summary>
+    private string? FindArgument()
+    {
+        if (Active is not { Custom: null, Hex: null, Surface: not null } || !_find.IsVisible || _find.FilesMode || string.IsNullOrEmpty(_find.FindBox.Text)) return null;
+        return new JsonObject
+        {
+            ["text"] = _find.FindBox.Text,
+            ["regex"] = _find.RegexToggle.IsChecked == true,
+            ["case"] = _find.CaseToggle.IsChecked == true,
+            ["word"] = _find.WordToggle.IsChecked == true,
+            ["selection"] = _find.SelectionToggle.IsChecked == true,
+        }.ToJsonString();
+    }
+
+    /// <summary>Puts a recorded search into the find bar without starting a search of its own; false when the argument is not one.</summary>
+    private bool ApplyFindArgument(string argument)
+    {
+        JsonObject? o;
+        try { o = JsonNode.Parse(argument) as JsonObject; }
+        catch (JsonException) { return false; }
+        if (o?["text"] is not JsonValue value || !value.TryGetValue<string>(out var text) || text.Length == 0) return false;
+        bool Flag(string key) => o[key] is JsonValue flag && flag.TryGetValue<bool>(out bool on) && on;
+        _findSeeding = true;
+        try
+        {
+            if (!_find.IsVisible || _find.FilesMode) _find.Open(files: false, _find.ReplaceShown);
+            _find.FindBox.Text = text;
+            _find.RegexToggle.IsChecked = Flag("regex");
+            _find.CaseToggle.IsChecked = Flag("case");
+            _find.WordToggle.IsChecked = Flag("word");
+            _find.SelectionToggle.IsChecked = Flag("selection");
+        }
+        finally { _findSeeding = false; }
+        return true;
     }
 
     /// <summary>Tools, Save Last Macro As: asks for a name and writes the last recorded macro to the macro folder.</summary>

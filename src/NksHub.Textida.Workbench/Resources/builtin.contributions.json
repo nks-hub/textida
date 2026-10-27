@@ -71,20 +71,23 @@
       "title": "cmd.edit.cut",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly || largeFileMode"
+      "enablement": "!readOnly || largeFileMode",
+      "macro": true
     },
     {
       "id": "nks.edit.copy",
       "title": "cmd.edit.copy",
       "category": "cat.edit",
-      "when": "editorFocus"
+      "when": "editorFocus",
+      "macro": true
     },
     {
       "id": "nks.edit.paste",
       "title": "cmd.edit.paste",
       "category": "cat.edit",
       "when": "editorFocus",
-      "enablement": "!readOnly || largeFileMode"
+      "enablement": "!readOnly || largeFileMode",
+      "macro": true
     },
     {
       "id": "nks.edit.selectAll",
@@ -201,13 +204,15 @@
       "id": "nks.search.findNext",
       "title": "cmd.search.findNext",
       "category": "cat.search",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument",
+      "macro": true
     },
     {
       "id": "nks.search.findPrevious",
       "title": "cmd.search.findPrevious",
       "category": "cat.search",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument",
+      "macro": true
     },
     {
       "id": "nks.search.findWord",
@@ -2201,6 +2206,198 @@
       "undo": "transaction",
       "repeatable": true,
       "macro": true
+    },
+    {
+      "id": "nks.edit.cursorLeft",
+      "title": "cmd.edit.cursorLeft",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorLeftSelect",
+      "title": "cmd.edit.cursorLeftSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorRight",
+      "title": "cmd.edit.cursorRight",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorRightSelect",
+      "title": "cmd.edit.cursorRightSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorWordLeft",
+      "title": "cmd.edit.cursorWordLeft",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorWordLeftSelect",
+      "title": "cmd.edit.cursorWordLeftSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorWordRight",
+      "title": "cmd.edit.cursorWordRight",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorWordRightSelect",
+      "title": "cmd.edit.cursorWordRightSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorUp",
+      "title": "cmd.edit.cursorUp",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorUpSelect",
+      "title": "cmd.edit.cursorUpSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDown",
+      "title": "cmd.edit.cursorDown",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDownSelect",
+      "title": "cmd.edit.cursorDownSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorLineStart",
+      "title": "cmd.edit.cursorLineStart",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorLineStartSelect",
+      "title": "cmd.edit.cursorLineStartSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorLineEnd",
+      "title": "cmd.edit.cursorLineEnd",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorLineEndSelect",
+      "title": "cmd.edit.cursorLineEndSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDocumentStart",
+      "title": "cmd.edit.cursorDocumentStart",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDocumentStartSelect",
+      "title": "cmd.edit.cursorDocumentStartSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDocumentEnd",
+      "title": "cmd.edit.cursorDocumentEnd",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorDocumentEndSelect",
+      "title": "cmd.edit.cursorDocumentEndSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.deleteLeft",
+      "title": "cmd.edit.deleteLeft",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.deleteRight",
+      "title": "cmd.edit.deleteRight",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.deleteWordLeft",
+      "title": "cmd.edit.deleteWordLeft",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.deleteWordRight",
+      "title": "cmd.edit.deleteWordRight",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
     }
   ],
   "menus": [

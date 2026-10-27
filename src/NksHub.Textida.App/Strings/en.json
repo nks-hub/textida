@@ -1469,6 +1469,7 @@
   "a11y.macros": "Saved macros",
   "macro.empty": "No saved macros yet. Record one, then choose Save Last Macro As.",
   "macro.damaged": "Macro {file} could not be read: {reason}",
+  "macro.findNoQuery": "Not recorded: Find Next and Find Previous need a search in the find bar. Recording goes on.",
   "macro.stopped.one": "Macro recorded: {count} step",
   "macro.stopped.other": "Macro recorded: {count} steps",
   "macro.played.one": "Macro played: {count} step",

@@ -1496,6 +1496,7 @@
   "a11y.macros": "Uložené makrá",
   "macro.empty": "Zatiaľ nie sú uložené žiadne makrá. Nahrajte makro a zvoľte Uložiť posledné makro ako.",
   "macro.damaged": "Makro {file} sa nepodarilo prečítať: {reason}",
+  "macro.findNoQuery": "Nenahrané: Nájsť ďalšie a Nájsť predchádzajúce potrebujú hľadaný text v lište hľadania. Nahrávanie pokračuje.",
   "macro.stopped.one": "Makro nahrané: {count} krok",
   "macro.stopped.few": "Makro nahrané: {count} kroky",
   "macro.stopped.other": "Makro nahrané: {count} krokov",
