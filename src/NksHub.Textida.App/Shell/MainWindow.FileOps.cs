@@ -1,3 +1,4 @@
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
@@ -110,6 +111,31 @@ internal sealed partial class MainWindow
         {
             ReportFileError(e);
         }
+    }
+
+    /// <summary>
+    /// A file was deleted by a reviewed change: its tabs close. A tab with unsaved work asks first, because closing it drops that work; it can stay open instead
+    /// (a save then writes the file again).
+    /// </summary>
+    internal void ApplyPathDeleted(string path)
+    {
+        foreach (var od in _docs.Where(d => d.Path is { } p && PathMove.IsInside(p, path)).ToList())
+        {
+            if (od.HasUnsavedWork) _ = AskDeletedWithWorkAsync(od);
+            else CloseViews(od);
+        }
+    }
+
+    private async Task AskDeletedWithWorkAsync(OpenDocument od)
+    {
+        var ask = new ChoiceRequest(Loc.Get(K.WorkspaceDeletedTitle), Loc.Get(K.WorkspaceDeletedMessage, ("name", od.Title)),
+            [new DialogButton(Loc.Get(K.WorkspaceDeletedClose)), new DialogButton(Loc.Get(K.WorkspaceDeletedKeep), IsDefault: true, IsCancel: true)]);
+        if (await _app.Dialogs.ChooseAsync(this, ask) == 0 && _docs.Contains(od)) CloseViews(od);
+    }
+
+    private void CloseViews(OpenDocument od)
+    {
+        foreach (var view in od.Views.ToList()) RemoveTab(view, untrack: true);
     }
 
     internal async Task RefreshFilesAsync()

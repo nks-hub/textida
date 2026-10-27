@@ -780,6 +780,14 @@ public static class K
     public const string WorkspaceDelete = "workspace.delete";
     public const string WorkspaceDone = "workspace.done";
     public const string WorkspaceBlocked = "workspace.blocked";
+    public const string WorkspacePreviewEmpty = "workspace.preview.empty";
+    public const string WorkspacePreviewBinary = "workspace.preview.binary";
+    public const string WorkspacePreviewMore = "workspace.preview.more";
+    public const string WorkspacePreviewA11y = "workspace.preview.a11y";
+    public const string WorkspaceDeletedTitle = "workspace.deleted.title";
+    public const string WorkspaceDeletedMessage = "workspace.deleted.message";
+    public const string WorkspaceDeletedClose = "workspace.deleted.close";
+    public const string WorkspaceDeletedKeep = "workspace.deleted.keep";
     public const string PluginSymbolsTitle = "plugin.symbols.title";
     public const string PluginSymbolsOutdated = "plugin.symbols.outdated";
     public const string ClipWatermark = "clip.watermark";

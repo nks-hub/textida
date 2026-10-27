@@ -1027,7 +1027,7 @@ Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch s
 - Žurnál leží v priečinku profilu. Iný priečinok určuje nastavenie Priečinok žurnálu, náhradný Náhradný priečinok žurnálu.
 - Ak sa žurnál nedá zapisovať do žiadneho priečinka, lišta povie: Obnova po páde je vypnutá. Neuložený text potom zostáva len v kartách; ukladajte ručne. Keď prestane fungovať za prevádzky: Žurnál prestal fungovať, obnova už neplatí, ukladajte ručne.
 - Ak sa použije náhradný priečinok, lišta napíše, ktorý.
-- Prerušená dávka nahradení v súboroch sa po štarte ponúkne: Dokončiť, alebo Vrátiť späť.
+- Prerušená dávka zmien v súboroch (nahradenia v súboroch aj súbory, ktoré úprava pluginu naprieč pracovným priestorom vytvára, premenúva alebo maže) sa po štarte ponúkne: Dokončiť, alebo Vrátiť späť. Súbor, ktorý medzitým zmenil niekto iný, zostane, ako je.
 
 ## [paged] Veľké súbory (stránkovaný režim)
 Súbor väčší ako hranica veľkého súboru (nastavenie Hranica veľkého súboru, predvolene 6 MiB) sa otvorí v stránkovanom režime. Ak chcete súbor prechádzať a upravovať po bajtoch bez týchto obmedzení, otvorte ho v hexe (téma Hex: otvorenie a pohyb). Program číta len riadky na obrazovke, takže súbor sa otvorí rýchlo a nezaberie pamäť.
@@ -1216,7 +1216,7 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
 1. Otvorte textový dokument a zvoľte Nástroje, Jazykový server, Jazykový server: spustiť pre tento dokument. Spustí sa server pre jazyk dokumentu a dostane jeho text. Odvtedy mu ide každá úprava a to, čo server označí za chybu, sa podčiarkne.
 2. Jazykový server: prejsť na definíciu skočí na definíciu slova pod kurzorom, aj do iného súboru. Jazykový server: nájsť odkazy vypíše všetky miesta v paneli vľavo; Enter alebo dvojklik na položku ju otvorí.
-3. Jazykový server: premenovať symbol sa opýta na nový názov slova pod kurzorom. Zmeny servera vo všetkých súboroch, vrátane vytvorenia, premenovania a zmazania súborov, ktoré žiada, sa ukážu spoločne v náhľade zmien; čo prijmete, sa použije ako jeden krok. Súbor otvorený v inej karte musí byť tiež spustený prvým príkazom, inak sa premenovanie odmietne celé.
+3. Jazykový server: premenovať symbol sa opýta na nový názov slova pod kurzorom. Zmeny servera vo všetkých súboroch, vrátane vytvorenia, premenovania a zmazania súborov, ktoré žiada, sa ukážu spoločne v náhľade zmien; čo prijmete, sa použije ako jeden krok. Nový súbor sa ukáže prvými riadkami ako pridaný text. Karta otvoreného súboru sa pri premenovaní presunie s ním; karta zmazaného súboru sa zavrie, a ak má neuložené zmeny, editor sa opýta, či ju zavrieť, alebo nechať otvorenú. Súbor otvorený v inej karte musí byť tiež spustený prvým príkazom, inak sa premenovanie odmietne celé.
 4. Ctrl+J (Úpravy, Vložiť, Doplniť slovo alebo klip) ponúkne aj to, čo bežiaci server ponúka pri kurzore. Výber takej položky vykoná v tom istom kroku Späť aj ďalšie zmeny, ktoré server žiada, napríklad pridanie importu. Odpoveď, ktorá príde po zmene textu, sa nezobrazí.
 5. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí znova a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Jazykový server: zastaviť ho vypne.
 - Editor žiadny server sám nespúšťa: kým nezvolíte prvý príkaz tejto skupiny, nič nebeží a server o súbore nič nevie.

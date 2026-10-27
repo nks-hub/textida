@@ -297,8 +297,8 @@ public interface IAgentPanel
 public sealed record AgentPanelOptions(IAgentPanel Panel, int MaxUpdateChars);
 
 /// <summary>
-/// What a workspace edit needs from the editor: the review that shows and applies it, the workspace folders (paths outside them are refused), whether a file is open in a tab,
-/// and the limits. <paramref name="Roots"/> and <paramref name="IsOpen"/> run on the thread that owns the documents.
+/// What a workspace edit needs from the editor: the review that shows and applies it, the workspace folders (paths outside them are refused), whether a file is open in a tab
+/// (a text edit by path of such a file is refused; a rename or delete is not, the tab follows it), and the limits. <paramref name="Roots"/> and <paramref name="IsOpen"/> run on the thread that owns the documents.
 /// </summary>
 public sealed record WorkspaceEditOptions(IWorkspaceEdits Service, Func<IReadOnlyList<string>> Roots, Func<string, bool> IsOpen, int MaxChanges, long MaxFileBytes);
 
