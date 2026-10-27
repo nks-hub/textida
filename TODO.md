@@ -1932,6 +1932,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
     - vybrat renderer a zapsat jeho licenci, chování pod NativeAOT, minimum OS a způsob dodání a aktualizace závislostí
     - politika: skript, síť a místní soubory jsou bez schválení zakázané
     - minimální AOT prototyp s politikou na Windows 10 22H2, Windows 11 a macOS 14 (arm64 i Intel)
+  - **Stav 27. 10. 2026:** částečně, rozhodnutí: vlastní renderer bez WebView (WebView2 může na Windows 10 chybět, AOT na macOS neověřené; bez skriptu a sítě už z principu, bez nové závislosti). `PreviewPolicy`: HTML zůstává text, obrázky jen `data:image/` png/jpeg/gif/bmp/webp do limitu (placeholder 1 MiB), SVG, vzdálené a `file:` jen jako poznámka s alt textem, odkazy jen http/https/mailto po potvrzení; testy ke každému pravidlu. Chybí: síť po svolení, obrázky z dat pluginu, Mermaid, podmnožina HTML, důkazy na Windows 10/11 a macOS.
   - **Hotovo, když:** prototyp na každém z těchto systémů vykreslí text, obrázek a diagram, nespustí vložený skript, nenaváže síťové spojení a neotevře místní soubor bez schválení; jde ovládat klávesnicí a čtečkou; při WebView2 projde i stroj bez nainstalovaného WebView2 Runtime a offline instalace; jiný renderer musí mít stejné funkční důkazy; záznam uvádí verzi rendereru, OS, RID a hash buildu.
   - **Závisí na:** P1.1.6, P1.1.8
   - **Odhad:** bez odhadu; ocení PR.8.2 před zahájením P6
@@ -1940,6 +1941,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Co a proč:** Plocha náhledu ve vzhledu D5 bez obecného webview. Obsah dodá plugin jako data, editor ho vykreslí rendererem a podle bezpečnostní politiky náhledu z P6.2.7. Mermaid se vykresluje přes tento řízený vstup.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací plugin ukáže náhled s textem, obrázkem a diagramem; skript, vzdálený obrázek a odkaz na místní soubor se bez schválené politiky nenačtou.
+  - **Stav 27. 10. 2026:** částečně: `preview/show|close` (oprávnění `document.preview`), formáty text a markdown, náhled jen pro aktuální revizi, jinak „zastaralý“; obrázky z `data:` URI, odkazy po potvrzení (P6.2.7). Chybí diagramy (Mermaid) a HTML.
   - **Závisí na:** P3b.2.2, P6.2.7
   - **Odhad:** v rámci odhadu P6.2.2
   - **Umístění:** jádro
@@ -1947,6 +1949,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Co a proč:** Panel konverzace agenta ve vzhledu D5 pro ACP (P6.6) a most `/ide`.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací plugin otevře panel s konverzací, ukáže průběh a zrušení tahu a panel je ovladatelný klávesnicí a čtečkou.
+  - **Stav 27. 10. 2026:** částečně: `agent/open|update|permission|close` (oprávnění `agent.panel`) ve stávajícím panelu agenta, zprávy uživatele, zrušení a konec jako události pluginu, oprávnění přes stávající dialog, návrhy přes `edit/propose` do kontroly změn; jedna konverzace sdílená s ACP. Neověřeno čtečkou; limity délky placeholdery.
   - **Závisí na:** P3b.2.2
   - **Odhad:** v rámci odhadu P6.2.2
   - **Umístění:** jádro
@@ -2344,6 +2347,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Podmnožina Kaitai `.ksy` s vlastním interpretem v C#. Panel Struktura ↔ hex, `Ctrl+J`, automatická nabídka podle přípony a magic. Kompilátor Kaitai (GPL-3) se nepřibalí; přibalené formáty jen CC0, MIT, BSD. Přibalené šablony jsou připnuté konkrétní soubory s verzí a licencí; slíbit celou galerii podle názvu formátu nejde. Výběr šablon je v P8.10.5, parser a validace v P8.10.2, líné čtení a limity v P8.10.3, výrazy v P8.10.4. Kompatibilita dnešního návrhu se šablonami PNG, ZIP, ELF a PE je **neověřená**.
   - **Funkce:** F245
   - **Hotovo, když:** každá šablona ze seznamu P8.10.5 má validní i poškozený vstup s očekávaným rozsahem polí; klik na pole označí správné bajty; šablona s `process` vypíše „nepodporováno: process“; strom 10GiB ZIPu přidá nejvýš 100 MiB paměti.
+  - **Stav 27. 10. 2026:** částečně: panel Struktura v hex (Ctrl+J, `nks.hex.template`, Zobrazit), strom s líným čtením, klik na pole označí jeho bajty (headless test), zavřený panel skrytý celý; šablona se vybere podle magic a přípony, volba platí do konce běhu. Chybí: vlastní `.ksy` ze souboru, opačný směr (kurzor → uzel), ZIP/ELF/PE šablony a měření 10GiB ZIPu.
   - **Závisí na:** P8.10.5, P8.10.2, P8.10.3, P8.10.4, P3.5.2, P3.5.6
   - **Odhad:** F245 3–5 ČT (matice) za P8.10.1–P8.10.5; revize ho považuje za optimistický
   - **Umístění:** jádro (hex, kap. 5.5)
@@ -2351,6 +2355,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Parser nemůže stát na výběru šablon, který vznikne až při integraci. Nejdřív se vyberou skutečné soubory a z nich se odvodí podporovaná podmnožina a testovací vstupy.
   - **Funkce:** F245 (částečně: výběr šablon)
   - **Hotovo, když:** v repozitáři je seznam připnutých souborů `.ksy`, každý s verzí nebo commitem zdroje, licencí CC0, MIT nebo BSD a výčtem použitých konstrukcí; podporovaná podmnožina P8.10.2 je sjednocením těchto konstrukcí, nebo seznam říká, která šablona se kvůli nepodporované konstrukci nepřibalí; ke každé šabloně je určený platný a poškozený vstup.
+  - **Stav 27. 10. 2026:** částečně: přibalené jen vlastní šablony `bmp.ksy` a `png.ksy`; seznam připnutých souborů s licencemi a konstrukcemi chybí.
   - **Závisí na:** P3.5.2
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** data (šablony), jádro (seznam konstrukcí)
@@ -2358,6 +2363,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Podporované konstrukce: `meta`, `seq`, `types`, `enums`, čísla, `str`/`strz`, `size`, `repeat`, `if`, `switch-on`, `instances`, `contents`, upřesněné podle seznamu P8.10.5. Nepodporovaná konstrukce se ohlásí jménem.
   - **Funkce:** F245 (částečně: parser)
   - **Hotovo, když:** každá konstrukce ze seznamu P8.10.5 má test se šablonou a očekávaným stromem; neplatná šablona se odmítne s řádkem a důvodem.
+  - **Stav 27. 10. 2026:** částečně: `Core/Hex/Ksy` (meta/endian, seq, types, enums, čísla, str/strz, size, size-eos, repeat, contents) nad sdílenou čtečkou YAML (`Core/Data`), chyby s řádkem a důvodem; `process`, `if`, `switch-on`, `instances` se ohlásí jménem jako nepodporované. 27 testů.
   - **Závisí na:** P8.10.5
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
@@ -2366,6 +2372,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Funkce:** F245 (částečně: limity)
   - **Před zahájením:** hodnoty všech limitů se zapíšou jako vstupní rozhodnutí (úvod TODO).
   - **Hotovo, když:** vstup s nekonečnou rekurzí, obrovským `repeat` a rozsahem za koncem souboru skončí každý jasnou chybou v limitu a editor dál reaguje.
+  - **Stav 27. 10. 2026:** částečně: čtení přes `IByteSnapshot`, pole až při rozbalení; limity hloubky, počtu opakování, délky řetězce, práce a velikosti šablony (placeholdery); testy hlubokého vnoření, obřího `repeat` a 10GiB souboru. Časový limit chybí.
   - **Závisí na:** P8.10.2
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
@@ -2518,6 +2525,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P3.6.3, P6.2.7, P6.2.4
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. Živý náhled Markdownu a HTML v panelu (aktualizace při psaní po 300 ms, hodnota je placeholder), tabulky jako mřížka, osnova nadpisů se skokem. Chybí: synchronizace posunu, místní obrázky, ověření politiky (skript, vzdálené zdroje) na Windows 10 a macOS 14, čtečka.
 - [ ] **P9.3.2** Export se zvýrazněním
   - **Co a proč:** Základní HTML a RTF export a schránka se stejnými tokeny a barvami jako zobrazení; TeX a PDF později.
   - **Funkce:** F039
@@ -2532,6 +2540,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P9.3.1, P6.2.4, P3b.3.5
   - **Odhad:** F190 1–2 ČT (matice)
   - **Umístění:** vestavěný plugin (balíček Markdown a osnova)
+  - **Stav 27. 10. 2026:** částečně. Příkazy Zarovnat tabulku pod kurzorem a Aktualizovat obsah v `<!-- TOC -->` (Nástroje → Markdown, 4 jazyky, testy). Chybí: `Tab`/`Shift+Enter` v tabulce, oprava rozbité tabulky, Mermaid.
 
 ### P9.4 Logy
 
@@ -2575,6 +2584,7 @@ Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří 
   - **Závisí na:** P2.3.1, P1.5.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. Projekty (sada složek + otevřené karty) a oblíbené cesty v profilu, chybějící cesta je označená, testy WorkspaceAppTests. Chybí ověření uživatelským scénářem.
 - [ ] **P9.5.2** Pojmenované relace
   - **Co a proč:** Pojmenované sady souborů nad stejným úložištěm jako hot exit.
   - **Funkce:** F028
@@ -2582,6 +2592,7 @@ Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří 
   - **Závisí na:** P1.5.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. Pojmenované relace v profilu nad úložištěm hot exitu, testy WorkspaceAppTests. Chybí ověření obnovy neuloženého obsahu ve velkém souboru.
 - [ ] **P9.5.3** Zvláštní otevření
   - **Co a proč:** Zvláštní otevření PSPadu sjednocené do palety a souborového panelu.
   - **Funkce:** F031
