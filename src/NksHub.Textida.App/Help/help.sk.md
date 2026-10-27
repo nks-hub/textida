@@ -106,6 +106,29 @@ Príkaz spustí váš vlastný program na porovnanie: vľavo súbor na disku, vp
 - Ak sa program nespustí, stavový riadok napíše Porovnávač sa nespustil a dôvod.
 - Vlastný porovnávač v programe nie je; používa sa ten, ktorý nastavíte.
 
+## [file.history] Miestna história
+commands: nks.file.history
+Program uchováva revíziu súboru pri každom uložení a pri každej zmene, ktorú súbor urobí iný program. Nepotrebuje projekt ani Git.
+1. Zvoľte Súbor a potom Miestna história. Zoznam ukazuje revízie súboru z karty, najnovšie prvé, s dôvodom, veľkosťou a štítkom.
+2. Vyberte revíziu. Porovnať ju otvorí vo vašom porovnávači (rovnakom ako Porovnať s diskom) vľavo a kartu vpravo. Obnoviť súbor vloží do karty celú revíziu. Obnoviť výber nahradí len vybrané riadky zodpovedajúcimi riadkami revízie. Štítok revíziu pomenuje.
+- Obnova je úprava v karte; Späť ju vráti a nič sa nezapíše, kým neuložíte. Text, ktorý v karte bol, zostane ako revízia.
+- Revízie ležia v priečinku profilu, takže ich aktualizácia programu nezmaže.
+- Súbory s tajnými hodnotami, napríklad .env, sa neukladajú, kým v nastaveniach nezapnete Ukladať históriu súborov s tajnými hodnotami.
+- Limity (revízií na súbor, dni, MiB na súbor, MiB celkom) sa nastavujú v nastaveniach; 0 znamená bez obmedzenia. Najnovšia revízia súboru sa nikdy nezmaže.
+- Keď je disk plný, stavový riadok to oznámi a žiadna revízia sa nepoškodí.
+
+## [file.historyMark] Označiť revíziu
+commands: nks.file.historyMark
+1. Zvoľte Súbor a potom Označiť revíziu a napíšte štítok, napríklad Pred refaktorom.
+2. Súčasný text karty sa uloží ako revízia s týmto štítkom. Ak posledná revízia už obsahuje rovnaký text, štítok dostane ona.
+- Revíziu neskôr nájdete v Miestnej histórii podľa štítka.
+
+## [file.historySearch] Hľadať v histórii
+commands: nks.file.historySearch
+1. Zvoľte Súbor a potom Hľadať v histórii a napíšte text.
+2. Zoznam ukáže revízie súboru, ktoré text obsahujú, s počtom zhôd a prvým riadkom. Vyberte jednu a otvoria sa akcie, napríklad Porovnať.
+- Revízie súborov s tajnými hodnotami sa neprehľadávajú.
+
 ## [file.openPath] Otvoriť cestu pod kurzorom
 commands: nks.file.openPathAtCaret
 1. Dajte kurzor na cestu k súboru v texte, napríklad src/a.cs:12.

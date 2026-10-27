@@ -13,12 +13,13 @@ public sealed class HistoryRecorder : IDisposable
     private Task _queue = Task.CompletedTask;
 
     /// <summary>Raised on the worker when a revision could not be stored.</summary>
-    public event Action<string, string>? Failed;
+    public event Action<string, HistoryRecordResult>? Failed;
 
-    public HistoryRecorder(FileHistory history, Document doc)
+    public HistoryRecorder(FileHistory history, Document doc, Action<string, HistoryRecordResult>? onFailed = null)
     {
         _history = history;
         _doc = doc;
+        Failed = onFailed;
         doc.Saved += OnSaved;
         doc.ExternalChangeDetected += OnExternal;
         if (doc.FilePath is { } path && File.Exists(path)) Enqueue(path, HistorySource.Initial, onlyIfEmpty: true);
@@ -43,9 +44,16 @@ public sealed class HistoryRecorder : IDisposable
         {
             _queue = _queue.ContinueWith(_ =>
             {
-                if (onlyIfEmpty && _history.List(path).Count > 0) return;
-                var result = _history.RecordFile(path, source);
-                if (result.Status == HistoryStatus.Failed) Failed?.Invoke(path, result.Problem ?? "");
+                try
+                {
+                    if (onlyIfEmpty && _history.List(path).Count > 0) return;
+                    var result = _history.RecordFile(path, source);
+                    if (result.Status == HistoryStatus.Failed) Failed?.Invoke(path, result);
+                }
+                catch (HistoryFormatException e)
+                {
+                    Failed?.Invoke(path, new HistoryRecordResult(HistoryStatus.Failed, null, e.Message));
+                }
             }, TaskScheduler.Default);
         }
     }

@@ -324,6 +324,24 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.file.history",
+      "title": "cmd.file.history",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.historyMark",
+      "title": "cmd.file.historyMark",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.historySearch",
+      "title": "cmd.file.historySearch",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.edit.selectLine",
       "title": "cmd.edit.selectLine",
       "category": "cat.edit",
@@ -1512,6 +1530,24 @@
       "command": "nks.file.compareWithDisk",
       "group": "2_disk",
       "order": 50
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.history",
+      "group": "2_disk",
+      "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historyMark",
+      "group": "2_disk",
+      "order": 70
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historySearch",
+      "group": "2_disk",
+      "order": 80
     },
     {
       "menu": "edit",
@@ -3024,6 +3060,94 @@
         "recovery",
         "crash",
         "restore"
+      ]
+    },
+    {
+      "key": "history.enabled",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.history.enabled.title",
+      "description": "setting.history.enabled.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
+      ]
+    },
+    {
+      "key": "history.storeSecretFiles",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.history.storeSecretFiles.title",
+      "description": "setting.history.storeSecretFiles.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
+      ]
+    },
+    {
+      "key": "history.maxRevisionsPerFile",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.history.maxRevisionsPerFile.title",
+      "description": "setting.history.maxRevisionsPerFile.description",
+      "category": "cat.files",
+      "scope": "application",
+      "minimum": 0,
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
+      ]
+    },
+    {
+      "key": "history.maxAgeDays",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.history.maxAgeDays.title",
+      "description": "setting.history.maxAgeDays.description",
+      "category": "cat.files",
+      "scope": "application",
+      "minimum": 0,
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
+      ]
+    },
+    {
+      "key": "history.maxMiBPerFile",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.history.maxMiBPerFile.title",
+      "description": "setting.history.maxMiBPerFile.description",
+      "category": "cat.files",
+      "scope": "application",
+      "minimum": 0,
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
+      ]
+    },
+    {
+      "key": "history.maxTotalMiB",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.history.maxTotalMiB.title",
+      "description": "setting.history.maxTotalMiB.description",
+      "category": "cat.files",
+      "scope": "application",
+      "minimum": 0,
+      "tags": [
+        "history",
+        "revisions",
+        "backup"
       ]
     },
     {

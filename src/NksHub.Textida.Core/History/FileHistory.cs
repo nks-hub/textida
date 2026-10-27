@@ -76,7 +76,7 @@ public sealed partial class FileHistory
     public const int FormatVersion = 1;
 
     private readonly string _root;
-    private readonly HistoryPolicy _policy;
+    private volatile HistoryPolicy _policy;
     private readonly TimeProvider _clock;
     private readonly object _gate = new();
     private readonly HashSet<string> _swept = [];
@@ -92,7 +92,8 @@ public sealed partial class FileHistory
         _clock = clock ?? TimeProvider.System;
     }
 
-    public HistoryPolicy Policy => _policy;
+    /// <summary>The limits in force; replaced when the settings change, and applied from the next record or prune.</summary>
+    public HistoryPolicy Policy { get => _policy; set => _policy = value; }
 
     internal sealed class MetaDto
     {
@@ -323,6 +324,15 @@ public sealed partial class FileHistory
         if (bytes.Length != rev.Size || Convert.ToHexString(SHA256.HashData(bytes)) != rev.Sha256)
             throw new InvalidDataException("The stored revision " + id + " does not match its hash.");
         return bytes;
+    }
+
+    /// <summary>The first bytes of a revision, for a preview; the hash is not checked.</summary>
+    public byte[] ReadPrefix(string path, string id, int max)
+    {
+        using var fs = new FileStream(BlobOf(FolderOf(path), id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var buf = new byte[(int)Math.Min(max, fs.Length)];
+        fs.ReadExactly(buf);
+        return buf;
     }
 
     /// <summary>Copies a revision to <paramref name="destination"/> (for handing it to a compare tool).</summary>

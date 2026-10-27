@@ -106,6 +106,29 @@ The command starts your own comparison program: the file on disk on the left, th
 - If the program does not start, the status bar says The diff tool did not start and gives the reason.
 - The program has no comparison window of its own; it uses the one you set.
 
+## [file.history] Local history
+commands: nks.file.history
+The program keeps a revision of a file at every save and at every change another program makes to it. It needs no project and no Git.
+1. Choose File and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
+2. Choose a revision. Compare opens it in your comparison program (the one from Compare with Disk) on the left and the tab on the right. Restore File puts the whole revision into the tab. Restore Selection replaces only the selected lines with the matching lines of the revision. Label adds a name to the revision.
+- A restore is an edit in the tab; undo takes it back and nothing is written until you save. The text that was in the tab is kept as a revision.
+- Revisions are stored in the profile folder, so an update of the program does not remove them.
+- Files that hold secret values, such as .env, are not stored unless you turn on Keep history of secrets files in the settings.
+- Limits (revisions per file, days, MiB per file, MiB in total) are set in the settings; 0 means no limit. The newest revision of a file is never deleted.
+- If the disk is full, the status bar says so and no revision is damaged.
+
+## [file.historyMark] Mark a revision
+commands: nks.file.historyMark
+1. Choose File and then Mark Revision and type a label, for example Before refactoring.
+2. The current text of the tab is stored as a revision with that label. If the newest revision already holds the same text, the label goes to that revision.
+- Find the revision later in Local History by its label.
+
+## [file.historySearch] Search in history
+commands: nks.file.historySearch
+1. Choose File and then Search in History and type the text.
+2. The list shows the revisions of the file that contain the text, with the number of matches and the first line. Choose one to open the actions for it, for example Compare.
+- Revisions of secrets files are not searched.
+
 ## [file.openPath] Open path at caret
 commands: nks.file.openPathAtCaret
 1. Put the caret on a file path in the text, for example src/a.cs:12.

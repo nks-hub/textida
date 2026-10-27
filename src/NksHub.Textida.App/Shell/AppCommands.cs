@@ -61,6 +61,9 @@ internal static class AppCommands
         Fire("nks.file.close", (w, t) => w.CloseTabAsync(t));
         Fire("nks.file.reload", (w, t) => w.ReloadAsync(t));
         Do("nks.file.compareWithDisk", w => { if (w.Active is { } t) w.CompareWithDisk(t); });
+        On("nks.file.history", w => w.ShowHistory());
+        On("nks.file.historyMark", w => w.MarkRevision());
+        On("nks.file.historySearch", w => w.SearchHistory());
         Do("nks.app.openSettings", _ => app.OpenSettings());
         Do("nks.app.quit", _ => app.Exit());
 

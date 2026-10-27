@@ -214,6 +214,46 @@
           "description": "Journal folder. Where unsaved work is written continuously for crash recovery. Empty: the profile folder.",
           "x-scope": "application"
         },
+        "history.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep local history. Keeps a revision of a file at every save and at every change made outside the editor.",
+          "x-scope": "application"
+        },
+        "history.storeSecretFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep history of secrets files. Files such as .env hold secret values. Off: no revisions of them are stored, because the values would lie on disk as plain text.",
+          "x-scope": "application"
+        },
+        "history.maxRevisionsPerFile": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Revisions per file. The oldest revisions beyond this number are deleted; pinned ones stay. 0: no limit.",
+          "x-scope": "application"
+        },
+        "history.maxAgeDays": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "Keep revisions for (days). Older revisions are deleted; the newest and pinned ones stay. 0: no limit.",
+          "x-scope": "application"
+        },
+        "history.maxMiBPerFile": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "History size per file (MiB). The oldest revisions beyond this size are deleted; the newest and pinned ones stay. 0: no limit.",
+          "x-scope": "application"
+        },
+        "history.maxTotalMiB": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "History size in total (MiB). When exceeded, the oldest unpinned revisions are deleted first. Pinned ones stay even if the limit cannot be met. 0: no limit.",
+          "x-scope": "application"
+        },
         "files.journalFallbackDirectory": {
           "type": "string",
           "default": "",
