@@ -1,3 +1,4 @@
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.Plugins.Emmet;
 
 namespace NksHub.Textida.Rpc.Tests;
@@ -110,10 +111,69 @@ public class EmmetExpandTests
     }
 
     [Fact]
+    public void Empty_attribute_values_without_a_caret_are_the_later_tab_stops_in_text_order()
+    {
+        var link = Html("a");
+        Assert.Equal("<a href=\"\">|</a>", Marked(link));
+        Assert.Equal(["<a href=\"".Length], link.Stops!);
+
+        // the caret takes the first empty value, the others follow
+        var image = Html("img");
+        Assert.Equal("<img src=\"|\" alt=\"\">", Marked(image));
+        Assert.Equal(["<img src=\"\" alt=\"".Length], image.Stops!);
+        Assert.Empty(Html("ul>li*3").Stops!);
+        Assert.Equal(["<a href=\"".Length], HtmlExpander.Wrap("a", "x", Options())!.Stops!);
+
+        var page = Html("!");
+        Assert.EndsWith("<title>", page.Text[..page.Stops!.Single()]);
+    }
+
+    [Fact]
     public void The_carets_are_cut_to_the_limit()
     {
         var e = HtmlExpander.Expand("ul>li*5", Options(maxCarets: 2))!;
         Assert.Equal(2, e.Carets.Count);
+        Assert.Equal(2, e.Places(64).Count);
+        Assert.Single(e.Places(1));
+    }
+
+    [Fact]
+    public void The_places_are_the_carets_then_the_stops_and_the_end_of_the_text_is_no_place()
+    {
+        var link = Html("a");
+        Assert.Equal(["<a href=\"\">".Length, "<a href=\"".Length], link.Places(64));
+        Assert.Empty(Html("br").Places(64));
+        Assert.Empty(HtmlExpander.Wrap("p", "x", Options())!.Places(64));
+        Assert.Empty(CssExpander.Expand("m10", Options())!.Places(64));
+        Assert.Equal(2, CssExpander.Expand("c+m", Options())!.Places(64).Count);
+    }
+
+    [Fact]
+    public void The_template_numbers_the_places_in_the_order_Tab_visits_them()
+    {
+        Assert.Equal("<ul>\n\t<li>${1}</li>\n\t<li>${2}</li>\n\t<li>${3}</li>\n</ul>", Html("ul>li*3").Template(64, 3));
+        Assert.Equal("<a href=\"${2}\">${1}</a>", Html("a").Template(64, 2));
+        Assert.Equal("margin: ${1};", CssExpander.Expand("m", Options())!.Template(64, 1));
+    }
+
+    [Fact]
+    public void An_expansion_without_a_place_has_no_stop_and_one_with_fewer_places_than_the_others_is_padded_at_its_end()
+    {
+        Assert.Equal("<br>", Html("br").Template(64, 3));
+        Assert.Equal("<p>${1}</p>${2}${3}", Html("p").Template(64, 3));
+    }
+
+    [Fact]
+    public void A_dollar_sign_and_a_backslash_of_the_text_survive_the_trip_through_the_snippet_syntax()
+    {
+        var wrapped = HtmlExpander.Wrap("a", "cost $5 and ${name} in C:\\dir\\$1 $$", Options())!;
+        var template = wrapped.Template(64, 1);
+        Assert.Contains("\\$5", template);
+        var parsed = SnippetParser.Parse(template);
+        Assert.Empty(parsed.Missing);
+        Assert.Equal(wrapped.Text, parsed.Text);
+        Assert.Equal(wrapped.Places(64), parsed.Stops.Select(s => Assert.Single(s.Spans).Start));
+        Assert.Equal(parsed.Text.Length, parsed.FinalOffset);
     }
 
     [Fact]

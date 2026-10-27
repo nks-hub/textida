@@ -1244,15 +1244,16 @@ Eine Zeichenkette in einer PHP- oder JavaScript-Datei öffnet sich in einem eige
 
 ## [tools.emmet] Emmet-Abkürzungen
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
-1. Geben Sie in einer HTML- oder CSS-Datei eine Abkürzung ein und drücken Sie Tab. Aus `ul>li*3` wird eine Liste mit drei Einträgen und einem Cursor in jedem.
+1. Geben Sie in einer HTML- oder CSS-Datei eine Abkürzung ein und drücken Sie Tab. Aus `ul>li*3` wird eine Liste mit drei Einträgen und dem Cursor im ersten; jeder weitere Tab springt zum nächsten Eintrag.
 2. Tab rückt wie bisher ein, wenn vor dem Cursor keine Abkürzung steht, wenn Text markiert ist, wenn der Cursor in einem offenen Tag steht oder wenn die Abkürzung ungültig ist.
-3. Extras, Struktur und Sprache, Emmet-Abkürzung als Vorschau zeigt, was aus der Abkürzung vor dem Cursor würde (`|` markiert die Cursor), und erweitert sie nach Bestätigung.
+3. Extras, Struktur und Sprache, Emmet-Abkürzung als Vorschau zeigt, was aus der Abkürzung vor dem Cursor würde (`|` markiert die Stellen, die Tab besucht), und erweitert sie nach Bestätigung.
 4. Extras, Struktur und Sprache, Mit Emmet-Abkürzung umschließen (nur HTML) fragt nach einer Abkürzung und umschließt damit jede Markierung. Der Text kommt in das innerste letzte Element; ein nacktes `*` an diesem Element (`ul>li*`) erzeugt ein Element pro Zeile.
 5. Jede Erweiterung geht in alle Cursor gleichzeitig und ist ein Schritt für Rückgängig.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` Kind, `+` Geschwister, `^` eine Ebene höher, `( )` Gruppe; in Namen, Klassen und Text ist `$` die Nummer der Wiederholung (`$$` füllt mit Nullen, `$@-` zählt abwärts, `$@3` beginnt bei 3). Ein einzelnes Wort wird nur erweitert, wenn es ein HTML-Tag-Name oder ein Kurzname des Plugins ist (`bq`, `btn`, `a:link`, `input:checkbox`, `!` für ein Seitengerüst). In einem Element wird der fehlende Name je nach Eltern zu `li`, `tr`, `td`, `option`, `span` oder `div`.
 - CSS: `m10-20` ist `margin: 10px 20px;`, `w100p` ist `width: 100%;`, `c#f00`, `pos:a`, `dn`, ein `!` am Ende fügt `!important` an, `+` verbindet mehrere Deklarationen. Eine ganze Zahl bekommt `px`, ein Bruch `em`; die Buchstaben `p`, `e`, `x`, `r` nach einer Zahl bedeuten `%`, `em`, `ex`, `rem`. Es funktioniert nur innerhalb eines Blocks `{ }`.
 - Die Kurznamen sind die eigene Tabelle des Plugins mit gängigen Eigenschaften und Tags, nicht der volle Emmet-Umfang.
-- Die Cursor stehen in allen leeren Elementen gleichzeitig (gibt es keines, im ersten leeren Attributwert); ein Sprung von einem Platzhalter zum nächsten fehlt noch.
+- Die Erweiterung ist ein Snippet: Tab besucht ihre leeren Stellen nacheinander, zuerst die leeren Elemente, dann die leeren Attributwerte, etwa `href` bei `a` (im Seitengerüst `!` den Titel nach dem Body). Bei mehreren Cursorn hat jede Erweiterung ihre eigenen Stellen und die Cursor rücken gemeinsam vor. Nach der letzten Stelle springt der Cursor ans Ende des erweiterten Textes. Solange Tab durch die Stellen geht, erweitert es nie: ein in eine Stelle getippter Tag-Name bleibt, wie er ist. Umschalt+Tab geht zurück, Esc beendet den Durchgang.
+- Die Einstellung Emmet mit Tab schaltet das Erweitern mit Tab für alle Sprachen oder für eine aus; die beiden Befehle funktionieren weiter.
 - Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
 
 ## [tools.git] Git: Status, Vergleich und Abschnitt vormerken

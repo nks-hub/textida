@@ -382,6 +382,8 @@
   "setting.editor.smartKeys.selectVariable.description": "Dvojklik na premennú PHP vyberie jej názov bez znaku dolára.",
   "setting.editor.smartKeys.sqlEnd.title": "Uzavrieť BEGIN príkazom END",
   "setting.editor.smartKeys.sqlEnd.description": "Enter za BEGIN v SQL doplní riadok s príslušným END.",
+  "setting.editor.emmet.title": "Emmet klávesom Tab",
+  "setting.editor.emmet.description": "Tab rozbalí skratku Emmet pred kurzorom v HTML a CSS a ďalší Tab skočí na ďalšie prázdne miesto. Vypnuté: Tab len odsadzuje, príkazy Emmet v ponuke Nástroje fungujú ďalej.",
   "cmd.settings.profile.default": "Profil správania: predvolený",
   "cmd.settings.profile.pspad": "Profil správania: PSPad",
   "cat.hex": "Hex",

@@ -209,6 +209,9 @@ public sealed partial class DocumentApi
     /// One revision and one undo step for all of them, or nothing; undo brings the old selections back.
     /// With <c>"format": "template"</c> the <c>text</c> is a template of clips (variables, <c>$|</c> carets) or a snippet (<c>$1</c>, <c>${1:text}</c>, <c>${1|a,b|}</c>, <c>$0</c>):
     /// the lines after the first take the indentation of the line, and the tab stops of a snippet become a session in the editor (Tab walks through them).
+    /// With <c>items</c> the format 'template' makes the <c>text</c> of each item a snippet exactly as the plugin wrote it: only the tab stops are read (<c>\$</c> and <c>\\</c>
+    /// are the escapes), no variable is replaced, nothing is indented again, and the item's <c>carets</c> are not used (the caret goes to <c>$0</c> or the end).
+    /// The items with stops are one session; its stops are visited together, so every item that has stops should have as many as the others.
     /// </summary>
     private async Task<byte[]> InsertSnippetAsync(string pluginId, JsonElement p, PermissionLease lease)
     {
@@ -221,8 +224,7 @@ public sealed partial class DocumentApi
         string text = "";
         int[] carets = [];
         bool template = p.TryGetProperty("format", out var format) && format.ValueKind == JsonValueKind.String && format.GetString() == "template";
-        if (template && p.TryGetProperty("items", out var anyItems) && anyItems.ValueKind != JsonValueKind.Null) throw Invalid("The format 'template' applies to 'text', not to 'items'.");
-        if (p.TryGetProperty("items", out var itemsJson) && itemsJson.ValueKind != JsonValueKind.Null) explicitItems = ParseSnippetItems(itemsJson);
+        if (p.TryGetProperty("items", out var itemsJson) && itemsJson.ValueKind != JsonValueKind.Null) explicitItems = ParseSnippetItems(itemsJson, template);
         else
         {
             text = NeedString(p, "text");
@@ -237,7 +239,9 @@ public sealed partial class DocumentApi
             CheckCurrent(d, revision);
             var selections = e.Selections?.Invoke() ?? throw Fail(DocumentErrorCodes.NoTextView, "The document has no text view to take selections from.");
             var newLine = _options.Tools.NewLine(d.Id);
-            var items = explicitItems ?? [.. selections.Items.Select(s => template ? ExpandTemplate(d, s, text, newLine) : new SnippetItem(s.Start, s.End, text, carets))];
+            List<SnippetItem> items = explicitItems is null
+                ? [.. selections.Items.Select(s => template ? ExpandTemplate(d, s, text, newLine) : new SnippetItem(s.Start, s.End, text, carets))]
+                : template ? [.. explicitItems.Select(i => ReadItemSnippet(i, newLine))] : explicitItems;
             items = [.. items.OrderBy(i => i.Start)];
             var edits = new List<ByteEdit>(items.Count);
             var caretBytes = new long[items.Count][];
@@ -310,7 +314,16 @@ public sealed partial class DocumentApi
         return new SnippetItem(selection.Start, selection.End, snippet.Text, [snippet.FinalOffset], snippet);
     }
 
-    private List<SnippetItem> ParseSnippetItems(JsonElement array)
+    /// <summary>The text of an item of the format 'template' read as a snippet: the tab stops become the session of the item, the caret goes to <c>$0</c>; the text is otherwise taken as it is.</summary>
+    private SnippetItem ReadItemSnippet(SnippetItem item, string newLine)
+    {
+        var snippet = SnippetParser.Parse(item.Text, null, newLine);
+        if (snippet.Missing.Count > 0) throw Invalid($"No value for: {string.Join(", ", snippet.Missing)}.");
+        if (snippet.Text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
+        return item with { Text = snippet.Text, Carets = [snippet.FinalOffset], Snippet = snippet };
+    }
+
+    private List<SnippetItem> ParseSnippetItems(JsonElement array, bool template)
     {
         if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0) throw Invalid("Parameter 'items' must be a non-empty array.");
         List<SnippetItem> items = [];
@@ -320,7 +333,7 @@ public sealed partial class DocumentApi
             if (start < 0 || end < start) throw Invalid($"The range [{start}, {end}) is not valid.");
             var text = NeedString(item, "text");
             if (text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
-            items.Add(new SnippetItem(start, end, text, ParseCarets(item, text)));
+            items.Add(new SnippetItem(start, end, text, template ? [] : ParseCarets(item, text)));
         }
         return items;
     }
@@ -373,8 +386,9 @@ public sealed partial class DocumentApi
     /// False when none does, when none is there, or when asking failed or took longer than the time limit: the editor then does what Tab does without plugins.
     /// A plugin that handled it has changed the document through the other calls. Only a cancelled <paramref name="cancellation"/> throws.
     /// <paramref name="language"/> (the language mode id) and <paramref name="indent"/> (the text one indentation level is written as) go to the plugin with the request.
+    /// The plugin <paramref name="skip"/> is not asked (the user turned it off for this document).
     /// </summary>
-    public async Task<bool> OfferTabAsync(Guid document, CancellationToken cancellation = default, string? language = null, string? indent = null)
+    public async Task<bool> OfferTabAsync(Guid document, CancellationToken cancellation = default, string? language = null, string? indent = null, string? skip = null)
     {
         string[] providers;
         Exposed? e;
@@ -386,7 +400,7 @@ public sealed partial class DocumentApi
         if (providers.Length == 0 || e is null) return false;
         foreach (var plugin in providers)
         {
-            if (!_options.Permissions.IsGranted(plugin, DocumentPermissions.Read, GrantScope.OfDocument(document))) continue;
+            if (plugin == skip || !_options.Permissions.IsGranted(plugin, DocumentPermissions.Read, GrantScope.OfDocument(document))) continue;
             var (revision, set) = await _owner.InvokeAsync(() => (e.Doc.Revision, e.Selections?.Invoke()));
             var request = Obj(w =>
             {
