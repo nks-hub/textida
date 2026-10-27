@@ -6,6 +6,7 @@ using NksHub.Textida.Rpc;
 
 // Test double for a real plugin: a separate process speaking the plugin protocol on stdin/stdout.
 // Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake.
+// The request "deaf" {ms} stops reading standard input for that long while the process lives on.
 var api = 1;
 var crashOnStart = -1;
 var stderrFlood = 0;
@@ -35,7 +36,7 @@ if (sleepBeforeRead > 0) Thread.Sleep(sleepBeforeRead);
 
 var handler = new Handler(api);
 var limits = new RpcLimits(4 * 1024 * 1024, 64, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024);
-await using var rpc = new JsonRpcDispatcher(Console.OpenStandardInput(), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
+await using var rpc = new JsonRpcDispatcher(new DeafInput(Console.OpenStandardInput()), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
 handler.Rpc = rpc;
 await rpc.Completion;
 return 0;
@@ -105,6 +106,11 @@ sealed class Handler(int api) : IRpcHandler
             case "freeze":
                 _frozen = true;
                 return Raw("true");
+            case "deaf":
+                Interlocked.Exchange(ref DeafInput.Until, Environment.TickCount64 + Int(p, "ms"));
+                return Raw("true");
+            case "eventCount":
+                lock (_events) return Raw(_events.Count.ToString());
             case "awaitUser":
                 await Rpc.NotifyAsync(PluginMethods.AwaitingUser, Raw("{\"awaiting\":true}"));
                 await Task.Delay(Int(p, "ms"), ct);
@@ -250,5 +256,34 @@ sealed class Handler(int api) : IRpcHandler
                 break;
         }
         return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>Standard input that is not read until <see cref="Until"/> (milliseconds of <see cref="Environment.TickCount64"/>): the process lives on but takes nothing in, so the editor's pipe fills up.</summary>
+sealed class DeafInput(Stream inner) : Stream
+{
+    public static long Until;
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+    {
+        long wait;
+        while ((wait = Interlocked.Read(ref Until) - Environment.TickCount64) > 0) await Task.Delay((int)Math.Min(wait, 1000), ct);
+        return await inner.ReadAsync(buffer, ct);
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) inner.Dispose();
+        base.Dispose(disposing);
     }
 }

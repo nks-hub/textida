@@ -19,13 +19,14 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
     readonly Dictionary<RpcId, CancellationTokenSource> _incoming = new();
     readonly SemaphoreSlim _pendingSlots;
     readonly ByteBudget _outBudget;
-    readonly Channel<(byte[] Payload, bool Budgeted)> _writes = Channel.CreateUnbounded<(byte[], bool)>(new() { SingleReader = true });
+    readonly Channel<Outgoing> _writes = Channel.CreateUnbounded<Outgoing>(new() { SingleReader = true });
     readonly Channel<RpcMessage> _notifications = Channel.CreateUnbounded<RpcMessage>(new() { SingleReader = true });
     readonly CancellationTokenSource _lifetime = new();
     readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly Task _readLoop, _writeLoop, _notifyLoop;
     long _nextId;
     long _inboundBytes;
+    long _replyBytes;
     int _closed;
     int _lateResponses;
 
@@ -54,31 +55,45 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
     public int InFlightIncoming { get { lock (_gate) return _incoming.Count; } }
     public long QueuedOutgoingBytes => _outBudget.Used;
     public long InboundBytesInUse => Interlocked.Read(ref _inboundBytes);
+    /// <summary>Bytes of errors and cancels owed to the peer that are not written yet.</summary>
+    internal long QueuedReplyBytes => Interlocked.Read(ref _replyBytes);
     /// <summary>Responses that matched no waiting request (for example an answer arriving after the request was cancelled).</summary>
     public int LateResponses => Volatile.Read(ref _lateResponses);
 
+    /// <summary>
+    /// Sends a request and waits for its answer. The <paramref name="timeout"/> covers the whole call, the waits for a free slot and for room in the
+    /// outgoing queue included, so a peer that stops reading ends the call with <see cref="RpcTimeoutException"/> instead of holding it forever.
+    /// </summary>
     public async Task<JsonElement> RequestAsync(string method, ReadOnlyMemory<byte> paramsJson = default, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         ThrowIfClosed();
-        await _pendingSlots.WaitAsync(ct).ConfigureAwait(false);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (timeout is { } limit && limit != Timeout.InfiniteTimeSpan) deadline.CancelAfter(limit);
+        try { await _pendingSlots.WaitAsync(deadline.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw TimedOut(method, timeout, ct); }
         try
         {
             var id = RpcId.FromNumber(Interlocked.Increment(ref _nextId));
             var payload = RpcWire.Request(id, method, paramsJson);
             CheckSize(payload);
-            await _outBudget.AcquireAsync(payload.Length, ct).ConfigureAwait(false);
+            try { await _outBudget.AcquireAsync(payload.Length, deadline.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { throw TimedOut(method, timeout, ct); }
             var tcs = new TaskCompletionSource<RpcMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var request = new Outgoing(payload, budgeted: true);
             lock (_gate)
             {
                 if (IsClosed) { _outBudget.Release(payload.Length); throw new RpcConnectionClosedException(Fault); }
                 _pending.Add(id, tcs);
             }
-            if (!_writes.Writer.TryWrite((payload, true))) _outBudget.Release(payload.Length);
+            Write(request);
 
             RpcMessage msg;
-            try { msg = await tcs.Task.WaitAsync(timeout ?? Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false); }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { Abandon(id, tcs); throw; }
-            catch (TimeoutException) { Abandon(id, tcs); throw new RpcTimeoutException(method, timeout); }
+            try { msg = await tcs.Task.WaitAsync(deadline.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                Abandon(id, tcs, request);
+                throw TimedOut(method, timeout, ct);
+            }
             using (msg)
             {
                 if (msg.Kind == RpcKind.ErrorResponse)
@@ -94,9 +109,12 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         ThrowIfClosed();
         var payload = RpcWire.Notification(method, paramsJson);
         CheckSize(payload);
-        await _outBudget.AcquireAsync(payload.Length, ct).ConfigureAwait(false);
-        if (!_writes.Writer.TryWrite((payload, true))) _outBudget.Release(payload.Length);
+        await QueueAsync(payload, ct).ConfigureAwait(false);
     }
+
+    /// <summary>The caller's own cancellation stays an <see cref="OperationCanceledException"/>; the deadline running out is a timeout.</summary>
+    static Exception TimedOut(string method, TimeSpan? timeout, CancellationToken ct) =>
+        ct.IsCancellationRequested ? new OperationCanceledException(ct) : new RpcTimeoutException(method, timeout);
 
     void ThrowIfClosed()
     {
@@ -109,23 +127,70 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
             throw new RpcException(RpcErrorCodes.MessageTooLarge, $"The message is {payload.Length} bytes; the limit is {_limits.MaxMessageBytes}.");
     }
 
-    /// <summary>Forgets a request nobody waits for any more and tells the peer, so a late answer finds no owner.</summary>
-    void Abandon(RpcId id, TaskCompletionSource<RpcMessage> tcs)
+    /// <summary>
+    /// Forgets a request nobody waits for any more. One still in the outgoing queue is taken back with its bytes and never reaches the peer;
+    /// one already sent is cancelled at the peer, so a late answer finds no owner.
+    /// </summary>
+    void Abandon(RpcId id, TaskCompletionSource<RpcMessage> tcs, Outgoing request)
     {
         bool removed;
         lock (_gate) removed = _pending.Remove(id);
         if (tcs.Task.IsCompletedSuccessfully) tcs.Task.Result.Dispose();
-        if (removed) Enqueue(RpcWire.Notification(_protocol.CancelMethod, _protocol.CancelParams(id)));
+        if (request.Withdraw()) Settle(request);
+        else if (removed) Enqueue(RpcWire.Notification(_protocol.CancelMethod, _protocol.CancelParams(id)));
     }
 
-    void Enqueue(byte[] payload) => _writes.Writer.TryWrite((payload, false));
+    /// <summary>Waits for room in the outgoing queue (back-pressure), then queues the message.</summary>
+    async ValueTask QueueAsync(byte[] payload, CancellationToken ct)
+    {
+        await _outBudget.AcquireAsync(payload.Length, ct).ConfigureAwait(false);
+        Write(new Outgoing(payload, budgeted: true));
+    }
+
+    /// <summary>
+    /// Queues a reply the protocol owes the peer (an error, a cancel) without waiting, so reading never stops for it. A peer that keeps sending
+    /// while it reads none of them would grow the queue without end: once they alone exceed the outgoing limit, the connection ends.
+    /// </summary>
+    void Enqueue(byte[] payload)
+    {
+        if (Interlocked.Add(ref _replyBytes, payload.Length) > _limits.MaxOutgoingQueueBytes)
+        {
+            Interlocked.Add(ref _replyBytes, -payload.Length);
+            Close(new RpcException(RpcErrorCodes.SessionMemoryExceeded, $"Replies the peer has not read exceed {_limits.MaxOutgoingQueueBytes} bytes; it sends without reading."));
+            return;
+        }
+        Write(new Outgoing(payload, budgeted: false));
+    }
+
+    void Write(Outgoing item)
+    {
+        // A completed queue takes nothing more, and the writer will never hand these bytes back.
+        if (!_writes.Writer.TryWrite(item) && item.Withdraw()) Settle(item);
+    }
+
+    void Settle(Outgoing item)
+    {
+        if (item.Budgeted) _outBudget.Release(item.Payload.Length);
+        else Interlocked.Add(ref _replyBytes, -item.Payload.Length);
+    }
+
+    /// <summary>A message in the outgoing queue: the writer takes it, or its sender withdraws it first.</summary>
+    sealed class Outgoing(byte[] payload, bool budgeted)
+    {
+        int _state;
+
+        public byte[] Payload { get; } = payload;
+        public bool Budgeted { get; } = budgeted;
+        public bool Take() => Interlocked.CompareExchange(ref _state, 1, 0) == 0;
+        public bool Withdraw() => Interlocked.CompareExchange(ref _state, 2, 0) == 0;
+    }
 
     async Task ReadLoopAsync()
     {
         Exception? fault = null;
         try
         {
-            while (true)
+            while (!IsClosed)
             {
                 var frame = await _protocol.Framing.ReadAsync(_reader, _limits.MaxMessageBytes, _lifetime.Token).ConfigureAwait(false);
                 if (frame.Status == FrameStatus.Eof) break;
@@ -261,21 +326,33 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
             response = RpcWire.Result(id, result, _limits.MaxResultItems);
             CheckSize(response);
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
-        {
-            if (_protocol.RespondsToCancelled) response = RpcWire.Error(id, RpcErrorCodes.RequestCancelled, "The request was cancelled.");
-        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { response = Cancelled(id); }
         catch (RpcException e) { response = RpcWire.Error(id, e.Code, e.Message, e.DataJson); }
         catch (Exception e) { response = RpcWire.Error(id, RpcErrorCodes.InternalError, e.Message); }
         finally
         {
-            lock (_gate) _incoming.Remove(id);
-            cts.Dispose();
             Interlocked.Add(ref _inboundBytes, -msg.Size);
             msg.Dispose();
         }
-        if (response is not null) Enqueue(response);
+        var budgeted = false;
+        try
+        {
+            // The answer keeps its slot while it waits for room, so a peer that asks without reading the answers meets the concurrency limit.
+            if (response is not null) { await _outBudget.AcquireAsync(response.Length, cts.Token).ConfigureAwait(false); budgeted = true; }
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { response = Cancelled(id); }
+        catch (IOException) { response = null; } // the connection ended while the answer waited
+        finally
+        {
+            // Freed before the answer is queued: a peer that sends its next request as soon as it sees the answer must find the slot free.
+            lock (_gate) _incoming.Remove(id);
+            cts.Dispose();
+        }
+        if (budgeted) Write(new Outgoing(response!, budgeted: true));
+        else if (response is not null) Enqueue(response);
     }
+
+    byte[]? Cancelled(RpcId id) => _protocol.RespondsToCancelled ? RpcWire.Error(id, RpcErrorCodes.RequestCancelled, "The request was cancelled.") : null;
 
     void CancelIncoming(RpcId id)
     {
@@ -302,13 +379,14 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
     async Task WriteLoopAsync()
     {
         var broken = false;
-        await foreach (var (payload, budgeted) in _writes.Reader.ReadAllAsync().ConfigureAwait(false))
+        await foreach (var item in _writes.Reader.ReadAllAsync().ConfigureAwait(false))
         {
+            if (!item.Take()) continue; // withdrawn; its bytes went back then
             try
             {
                 if (!broken)
                 {
-                    await _output.WriteAsync(_protocol.Framing.Encode(payload)).ConfigureAwait(false);
+                    await _output.WriteAsync(_protocol.Framing.Encode(item.Payload)).ConfigureAwait(false);
                     await _output.FlushAsync().ConfigureAwait(false);
                 }
             }
@@ -319,7 +397,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
             }
             finally
             {
-                if (budgeted) _outBudget.Release(payload.Length);
+                Settle(item);
             }
         }
         // Closing our side lets the peer see the end of the connection, also after a protocol violation.
