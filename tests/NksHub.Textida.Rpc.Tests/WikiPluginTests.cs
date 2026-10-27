@@ -16,7 +16,8 @@ namespace NksHub.Textida.Rpc.Tests;
 /// <summary>
 /// P6.4.1: the wiki adapter over the plugin protocol, against a local HTTP listener that follows the OpenAPI of the service as <see cref="NksIsWikiHttp"/> maps it:
 /// <c>{base}/api/v1/wiki</c> (paged list, read with <c>content</c>, <c>PUT</c> of <c>{content}</c> without any revision check), key in <c>X-Api-Key</c>, 401 for a bad key, 429 over the limit.
-/// The test side plays the editor: it answers <c>source/register</c>, <c>secret/*</c> (through the real <see cref="PluginSecrets"/> and its call log) and <c>ui/input</c>.
+/// The test side plays the editor: it answers <c>source/register</c>, <c>secret/*</c> (through the real <see cref="PluginSecrets"/> and its call log), <c>net/request</c>
+/// (through the real <see cref="PluginNetwork"/>, here without a proxy) and <c>ui/input</c>.
 /// </summary>
 public sealed class WikiPluginTests : IAsyncDisposable
 {
@@ -33,7 +34,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
     }
 
     /// <summary>The editor side of the connection.</summary>
-    private sealed class FakeEditor(PluginSecrets secrets, Func<string, string?> answer) : IRpcHandler
+    private sealed class FakeEditor(PluginSecrets secrets, PluginNetwork network, Func<string, string?> answer) : IRpcHandler
     {
         public readonly List<string> Registered = [];
         public readonly List<string> Asked = [];
@@ -46,6 +47,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
                 return "{\"enabled\":true}"u8.ToArray();
             }
             if (method.StartsWith("secret/", StringComparison.Ordinal)) return await secrets.HandleAsync(PluginId, method, p, ct);
+            if (method.StartsWith("net/", StringComparison.Ordinal)) return await network.HandleAsync(PluginId, method, p, ct);
             if (method == "ui/input")
             {
                 var title = p.GetProperty("title").GetString()!;
@@ -152,6 +154,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
     private readonly FakeWiki _wiki = new();
     private readonly MemorySecrets _secrets = new();
     private readonly PluginCallLog _log = new(1000);
+    private readonly PluginPermissions _permissions = new();
     private readonly FakeEditor _editor;
     private readonly JsonRpcDispatcher _rpc;
     private readonly Task _pluginRun;
@@ -161,7 +164,9 @@ public sealed class WikiPluginTests : IAsyncDisposable
     public WikiPluginTests()
     {
         _secrets.Values[WikiPlugin.BaseUrlSecret] = _wiki.Url;
-        _editor = new FakeEditor(new PluginSecrets(_secrets, _log), title => title.Contains("API key", StringComparison.Ordinal) ? _tokenAnswer : null);
+        _permissions.Grant(PluginId, PluginPermissionNames.Network, GrantScope.All);
+        var network = new PluginNetwork(_permissions, () => new HttpClientHandler { UseProxy = false }, new PluginNetworkOptions(TimeSpan.FromSeconds(10), 1 << 20), _log);
+        _editor = new FakeEditor(new PluginSecrets(_secrets, _log), network, title => title.Contains("API key", StringComparison.Ordinal) ? _tokenAnswer : null);
         var pluginIn = new AnonymousPipeClientStream(PipeDirection.In, _toPlugin.ClientSafePipeHandle);
         var pluginOut = new AnonymousPipeClientStream(PipeDirection.Out, _fromPlugin.ClientSafePipeHandle);
         var plugin = new WikiPlugin(new WikiSettings(TimeSpan.FromSeconds(10), 1 << 20, 100, "en"));
@@ -322,6 +327,24 @@ public sealed class WikiPluginTests : IAsyncDisposable
         _wiki.RejectToken = false;
         Assert.Equal("one\n", (await ReadAsync(Page)).GetProperty("text").GetString());
         Assert.Single(_editor.Asked);
+    }
+
+    [Fact]
+    public async Task The_wiki_is_reached_through_the_editor_so_without_the_network_permission_nothing_is_sent()
+    {
+        _secrets.Values[WikiPlugin.TokenSecret] = Token;
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+
+        Assert.Equal("one\n", (await ReadAsync(Page)).GetProperty("text").GetString());
+        Assert.Contains(_log.Entries(), l => l.Method == PluginNetwork.Request && l.Outcome == CallOutcome.Ok);
+
+        _permissions.Revoke(PluginId, PluginPermissionNames.Network, GrantScope.All);
+        _wiki.Requests.Clear();
+        var e = await Assert.ThrowsAsync<RpcException>(() => ReadAsync(Page));
+
+        Assert.Equal(DocumentErrorCodes.SourceUnavailable, e.Code);
+        Assert.Empty(_wiki.Requests);
+        Assert.Contains(_log.Entries(), l => l.Method == PluginNetwork.Request && l.Outcome == CallOutcome.Denied);
     }
 
     [Fact]
