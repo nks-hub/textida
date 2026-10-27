@@ -66,6 +66,7 @@
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" Folder="plugins\codeexplorer" />
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Emmet\NksHub.Textida.Plugins.Emmet.csproj" Folder="plugins\emmet" />
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Formatters\NksHub.Textida.Plugins.Formatters.csproj" Folder="plugins\formatters" />
+      <BuiltInProgram Include="..\NksHub.Textida.Plugins.Git\NksHub.Textida.Plugins.Git.csproj" Folder="plugins\git" />
       <BuiltInProgram Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" Folder="mcp" />
     </ItemGroup>
     <MSBuild Projects="%(BuiltInProgram.Identity)" Targets="Publish" BuildInParallel="false"
@@ -85,6 +86,7 @@
       <CodeExplorerPluginFiles Include="..\NksHub.Textida.Plugins.CodeExplorer\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <EmmetPluginFiles Include="..\NksHub.Textida.Plugins.Emmet\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <FormattersPluginFiles Include="..\NksHub.Textida.Plugins.Formatters\bin\$(Configuration)\$(TargetFramework)\**\*" />
+      <GitPluginFiles Include="..\NksHub.Textida.Plugins.Git\bin\$(Configuration)\$(TargetFramework)\**\*" />
       <McpBridgeFiles Include="..\NksHub.Textida.Mcp\bin\$(Configuration)\$(TargetFramework)\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(JsonPluginFiles)" DestinationFiles="@(JsonPluginFiles->'$(OutDir)plugins\json\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
@@ -93,6 +95,7 @@
     <Copy SourceFiles="@(CodeExplorerPluginFiles)" DestinationFiles="@(CodeExplorerPluginFiles->'$(OutDir)plugins\codeexplorer\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(EmmetPluginFiles)" DestinationFiles="@(EmmetPluginFiles->'$(OutDir)plugins\emmet\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(FormattersPluginFiles)" DestinationFiles="@(FormattersPluginFiles->'$(OutDir)plugins\formatters\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(GitPluginFiles)" DestinationFiles="@(GitPluginFiles->'$(OutDir)plugins\git\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(McpBridgeFiles)" DestinationFiles="@(McpBridgeFiles->'$(OutDir)mcp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>
