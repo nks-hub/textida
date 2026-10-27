@@ -27,6 +27,16 @@ public static class PluginPermissionNames
 {
     /// <summary>Run a command of another plugin. The scope is the target plugin.</summary>
     public const string CommandExecute = "command.execute";
+
+    /// <summary>
+    /// What a manifest may ask for; the user grants each one to the plugin in the plugin manager, for all documents. <see cref="DocumentPermissions.SecretsReveal"/> (one document)
+    /// and <see cref="CommandExecute"/> (one target plugin) have a narrower scope and are granted when needed, not declared.
+    /// </summary>
+    public static IReadOnlyList<string> Declarable { get; } =
+    [
+        DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
+        DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles,
+    ];
 }
 
 /// <summary>
