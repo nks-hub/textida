@@ -12,7 +12,8 @@ namespace NksHub.Textida.PluginHost.Documents;
 /// <summary>
 /// The API for a workspace edit: one batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review as one
 /// proposal and applied all or nothing. The whole batch is checked before anything is shown: an entry the plugin may not touch (no grant for the document or for files, a path outside
-/// the workspace, a file that is open and so has to be named as a document) or an entry that does not match the revision or hash it names refuses the whole batch.
+/// the workspace, a text edit by path of a file that is open and so has to be named as a document) or an entry that does not match the revision or hash it names refuses the whole batch.
+/// A rename or delete of an open file is allowed: the editor moves the tab with the file, or closes it (and asks first when the tab holds unsaved work).
 /// </summary>
 public sealed partial class DocumentApi
 {
@@ -165,7 +166,6 @@ public sealed partial class DocumentApi
         var path = WorkspacePath(pluginId, item, "path", roots);
         var target = WorkspacePath(pluginId, item, "to", roots);
         if (string.Equals(path, target, StringComparison.Ordinal)) throw Invalid($"Change {index}: the new name is the old one.");
-        if (ws.IsOpen(path)) throw Invalid($"Change {index}: '{path}' is open in the editor; close it before renaming it.");
         FileFingerprint? print = null;
         if (item.TryGetProperty("sha256", out _))
         {
@@ -178,7 +178,6 @@ public sealed partial class DocumentApi
     private FileChange WorkspaceDelete(string pluginId, JsonElement item, int index, WorkspaceEditOptions ws, IReadOnlyList<string> roots)
     {
         var path = WorkspacePath(pluginId, item, "path", roots);
-        if (ws.IsOpen(path)) throw Invalid($"Change {index}: '{path}' is open in the editor; close it before deleting it.");
         var print = FileFingerprint.TryRead(path) ?? throw WorkspaceConflict(index, $"'{path}' is gone or cannot be read.");
         if (!string.Equals(print.Sha256, Sha(item), StringComparison.OrdinalIgnoreCase)) throw HashMismatch(index, path);
         return Operation(path, new FileOperation(FileOperationKind.Delete), print);

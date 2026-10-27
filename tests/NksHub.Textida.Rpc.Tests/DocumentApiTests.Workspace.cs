@@ -35,12 +35,12 @@ public partial class DocumentApiTests
 
     static string Sha(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true)
+    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true, Func<string, bool>? isOpen = null)
     {
         var service = new RecordingWorkspace();
         var root = T.TempDir();
         var outside = T.TempDir();
-        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], path => false, 10, 1 << 20) });
+        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], isOpen ?? (_ => false), 10, 1 << 20) });
         if (filesGranted) rig.Permissions.Grant("p", DocumentPermissions.WorkspaceFiles, GrantScope.All);
         return new WorkspaceRig(rig, service, root, outside);
     }
@@ -117,6 +117,25 @@ public partial class DocumentApiTests
         File.WriteAllText(secrets, "KEY=value\n");
         await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"edit\",\"path\":{J(secrets)},\"sha256\":\"{Sha(secrets)}\",\"edits\":[{{\"start\":4,\"end\":9,\"text\":\"*\"}}]}}]}}", DocumentErrorCodes.PermissionDenied);
         Assert.Empty(w.Service.Items);
+    }
+
+    [Fact]
+    public async Task AnOpenFileCanBeRenamedOrDeletedButIsEditedAsADocument()
+    {
+        await using var w = await WorkspaceAsync(isOpen: path => Path.GetFileName(path) == "open.txt");
+        var open = Path.Combine(w.Root, "open.txt");
+        File.WriteAllText(open, "text");
+
+        var renamed = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"rename\",\"path\":{J(open)},\"to\":{J(Path.Combine(w.Root, "moved.txt"))},\"sha256\":\"{Sha(open)}\"}}]}}");
+        var deleted = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"delete\",\"path\":{J(open)},\"sha256\":\"{Sha(open)}\"}}]}}");
+        Assert.Equal(("applied", "applied"), (renamed.GetProperty("decision").GetString(), deleted.GetProperty("decision").GetString()));
+        Assert.Equal([FileOperationKind.Rename, FileOperationKind.Delete], w.Service.Items.Select(i => i.Proposal.Files.Single().Operation!.Kind));
+        Assert.Equal(open, w.Service.Items[1].Proposal.Files.Single().Path);
+
+        // a text edit by path would bypass the revision of the open document
+        await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"edit\",\"path\":{J(open)},\"sha256\":\"{Sha(open)}\",\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"T\"}}]}}]}}", RpcErrorCodes.InvalidParams);
+        Assert.Equal(2, w.Service.Items.Count);
+        Assert.Equal("text", File.ReadAllText(open));
     }
 
     [Fact]

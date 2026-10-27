@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -656,6 +658,70 @@ public class PluginUiTests : IDisposable
         Assert.Equal((5, 7), (surface.Diagnostics[0].Start, surface.Diagnostics[0].End));
         Assert.True(tab.Doc.Doc.Replace(new ByteRange(7, 8), Bytes("Q")).Applied);
         Assert.Empty(surface.Diagnostics);
+    }
+
+    private sealed record Shot(byte[] Data, int Stride);
+
+    private Shot Capture()
+    {
+        _w.UpdateLayout();
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(5);
+        }
+        var frame = _w.CaptureRenderedFrame()!;
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        return new Shot(data, buffer.RowBytes);
+    }
+
+    /// <summary>The window area of one text line of the editor, over the whole width of the text.</summary>
+    private Avalonia.Rect LineBand(DocTab tab, int line)
+    {
+        var view = tab.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        var visual = view.VisualLines[line];
+        var origin = view.TranslatePoint(default, _w)!.Value;
+        return new Avalonia.Rect(origin.X, origin.Y + visual.VisualTop - view.ScrollOffset.Y, view.Bounds.Width, visual.Height);
+    }
+
+    /// <summary>Pixels that are clearly red; text, caret and background of both themes are grey. The frame is RGBA or BGRA depending on the platform: either order counts.</summary>
+    private static int Reddish(Shot shot, Avalonia.Rect area)
+    {
+        int count = 0;
+        for (int y = (int)area.Top; y < (int)area.Bottom; y++)
+            for (int x = (int)area.Left; x < (int)area.Right; x++)
+            {
+                int at = y * shot.Stride + x * 4;
+                if (at + 3 >= shot.Data.Length) continue;
+                int first = shot.Data[at], green = shot.Data[at + 1], third = shot.Data[at + 2];
+                if ((first - green >= 40 && first - third >= 40) || (third - green >= 40 && third - first >= 40)) count++;
+            }
+        return count;
+    }
+
+    [AvaloniaFact]
+    public async Task A_published_diagnostic_is_drawn_as_a_wave_under_its_text_and_the_wave_goes_with_the_text()
+    {
+        var tab = await OpenForPluginAsync("wave.txt", "alpha beta gamma\nsecond line\nthird line\n");
+        var plain = Capture();
+        var (first, second) = (LineBand(tab, 0), LineBand(tab, 1));
+        Assert.Equal(0, Reddish(plain, first));
+
+        await Pump(Editor(DocumentMethods.DiagnosticsPublish, DocParams(tab, "\"source\":\"t\",\"diagnostics\":[{\"start\":6,\"end\":10,\"severity\":\"error\",\"message\":\"bad\"}]")));
+        var drawn = Capture();
+
+        Assert.Single(tab.Editor!.Diagnostics);
+        Assert.True(Reddish(drawn, first) >= 6, "the wave under the word");
+        Assert.Equal(0, Reddish(drawn, second));
+
+        Assert.True(tab.Doc.Doc.Replace(new ByteRange(7, 8), Bytes("E")).Applied);
+        var edited = Capture();
+
+        Assert.Empty(tab.Editor.Diagnostics);
+        Assert.Equal(0, Reddish(edited, first));
     }
 
     [AvaloniaFact]

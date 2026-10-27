@@ -450,3 +450,273 @@ public class BatchCrashHarnessTest
         Assert.Contains("failures 0", output.Result);
     }
 }
+
+/// <summary>P8.4.3: the create, rename and delete of a batch are journaled with its file edits, so a crash in the middle is finished or rolled back at the next start.</summary>
+public class OperationJournalTests
+{
+    private sealed class Crash : Exception;
+
+    private static FileChange Operation(string path, FileOperation operation, FileFingerprint? print = null) =>
+        new(path, path, null, null, print, TextCodec.Utf8, [], operation);
+
+    /// <summary>One edited file, then a create, a rename and a delete; the file edit runs after the operations. The folder goes with the rig.</summary>
+    private sealed class Rig : IDisposable
+    {
+        private readonly JournalTempDir _dir = new();
+
+        public Rig()
+        {
+            Journal = _dir.Combine("journal");
+            Edited = _dir.Combine("edited.txt");
+            Old = _dir.Combine("old.txt");
+            Gone = _dir.Combine("gone.txt");
+            Created = _dir.Combine("new.txt");
+            Renamed = _dir.Combine("renamed.txt");
+            File.WriteAllText(Edited, "one two\n");
+            File.WriteAllText(Old, "content");
+            File.WriteAllText(Gone, "bye");
+            Proposal = ChangeBuilder.Proposal("ops", "test",
+                ChangeBuilder.ForFile(Edited, [new TextReplacement(new ByteRange(0, 3), "ONE")]),
+                Operation(Created, new FileOperation(FileOperationKind.Create, Content: [1, 2, 3, 4])),
+                Operation(Old, new FileOperation(FileOperationKind.Rename, Renamed), FileFingerprint.TryRead(Old)),
+                Operation(Gone, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(Gone))) with { Atomic = true };
+        }
+
+        public string Path => _dir.Path;
+        public string Journal { get; }
+        public string Edited { get; }
+        public string Old { get; }
+        public string Gone { get; }
+        public string Created { get; }
+        public string Renamed { get; }
+        public ChangeProposal Proposal { get; }
+
+        public void Dispose() => _dir.Dispose();
+    }
+
+    private static Rig Interrupted(string point)
+    {
+        var rig = new Rig();
+        var applier = new ChangeApplier(_ => null, rig.Journal) { FaultPoint = p => { if (p == point) throw new Crash(); } };
+        Assert.Throws<Crash>(() => applier.Apply(rig.Proposal));
+        return rig;
+    }
+
+    public static IEnumerable<object[]> CrashPoints()
+    {
+        yield return ["plan"];
+        foreach (int i in new[] { 1, 2, 3 })
+        {
+            yield return [$"before-op:{i}"];
+            yield return [$"after-op:{i}"];
+        }
+        yield return ["before-swap:0"];
+        yield return ["after-swap:0"];
+        yield return ["after-file:0"];
+        yield return ["before-end"];
+        yield return ["after-commit"];
+    }
+
+    private static void AssertDone(Rig r)
+    {
+        Assert.Equal("ONE two\n", File.ReadAllText(r.Edited));
+        Assert.Equal([1, 2, 3, 4], File.ReadAllBytes(r.Created));
+        Assert.False(File.Exists(r.Old));
+        Assert.Equal("content", File.ReadAllText(r.Renamed));
+        Assert.False(File.Exists(r.Gone));
+        Assert.Empty(Directory.GetFiles(r.Path, "*.tmp"));
+    }
+
+    [Theory]
+    [MemberData(nameof(CrashPoints))]
+    public void ABatchInterruptedAnywhereIsFinishedToTheWholeResult(string point)
+    {
+        using var r = Interrupted(point);
+        using (var pending = Assert.Single(BatchRecovery.Find(r.Journal)))
+        {
+            Assert.Equal(4, pending.Files.Count);
+            Assert.All(pending.Files, f => Assert.True(f.State is BatchFileState.NotStarted or BatchFileState.Applied));
+            Assert.All(pending.Finish(), o => Assert.Equal(ChangeStatus.Applied, o.Status));
+        }
+        AssertDone(r);
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+    }
+
+    [Theory]
+    [MemberData(nameof(CrashPoints))]
+    public void ABatchInterruptedAnywhereIsRolledBackToTheStartExceptADeleteThatWasMadeFinal(string point)
+    {
+        using var r = Interrupted(point);
+        using (var pending = Assert.Single(BatchRecovery.Find(r.Journal)))
+        {
+            var outcomes = pending.RollBack();
+            Assert.All(outcomes, o => Assert.NotEqual(ChangeStatus.Failed, o.Status));
+            if (point == "after-commit") Assert.Equal(ChangeStatus.Conflict, outcomes.Single(o => o.Key == r.Gone).Status);
+        }
+        Assert.Equal("one two\n", File.ReadAllText(r.Edited));
+        Assert.False(File.Exists(r.Created));
+        Assert.Equal("content", File.ReadAllText(r.Old));
+        Assert.False(File.Exists(r.Renamed));
+        // a deleted file is parked until the batch is over and moved back from there; once the delete was final the content is gone and the roll back says so
+        Assert.Equal(point != "after-commit", File.Exists(r.Gone));
+        if (File.Exists(r.Gone)) Assert.Equal("bye", File.ReadAllText(r.Gone));
+        Assert.Empty(Directory.GetFiles(r.Path, "*.tmp"));
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+    }
+
+    [Fact]
+    public void TheStateOfEveryOperationComesFromTheFilesOnDisk()
+    {
+        using var r = Interrupted("after-op:2");
+        using var pending = Assert.Single(BatchRecovery.Find(r.Journal));
+        Assert.Equal([r.Edited, r.Created, r.Old, r.Gone], pending.Files.Select(f => f.Path));
+        Assert.Equal([BatchFileState.NotStarted, BatchFileState.Applied, BatchFileState.Applied, BatchFileState.NotStarted], pending.Files.Select(f => f.State));
+        Assert.Equal([null, FileOperationKind.Create, FileOperationKind.Rename, FileOperationKind.Delete], pending.Files.Select(f => f.Operation));
+    }
+
+    [Fact]
+    public void AnOperationThatSomeoneElseChangedMeanwhileIsLeftAloneAndTheRestIsFinished()
+    {
+        using var r = Interrupted("plan");
+        File.WriteAllText(r.Gone, "edited meanwhile");
+        File.WriteAllText(r.Created, "someone else made this");
+
+        using (var pending = Assert.Single(BatchRecovery.Find(r.Journal)))
+        {
+            Assert.Equal([BatchFileState.NotStarted, BatchFileState.Diverged, BatchFileState.NotStarted, BatchFileState.Diverged], pending.Files.Select(f => f.State));
+            Assert.Equal([ChangeStatus.Applied, ChangeStatus.Conflict, ChangeStatus.Applied, ChangeStatus.Conflict], pending.Finish().Select(o => o.Status));
+        }
+        Assert.Equal("edited meanwhile", File.ReadAllText(r.Gone));
+        Assert.Equal("someone else made this", File.ReadAllText(r.Created));
+        Assert.Equal("content", File.ReadAllText(r.Renamed));
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+    }
+
+    [Fact]
+    public void ARecoveryThatFailsKeepsTheJournalAndCanBeRepeated()
+    {
+        if (!OperatingSystem.IsWindows()) return; // relies on an open file refusing to be moved
+        using var r = Interrupted("plan");
+        using (var pending = Assert.Single(BatchRecovery.Find(r.Journal)))
+        {
+            using (new FileStream(r.Old, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) // readable, but not movable
+                Assert.Equal(ChangeStatus.Failed, pending.Finish().Single(o => o.Key == r.Old).Status);
+        }
+        using (var pending = Assert.Single(BatchRecovery.Find(r.Journal)))
+        {
+            var outcomes = pending.Finish();
+            Assert.Equal(ChangeStatus.Applied, outcomes.Single(o => o.Key == r.Old).Status);
+            Assert.Equal(ChangeStatus.Applied, outcomes.Single(o => o.Key == r.Gone).Status);
+        }
+        AssertDone(r);
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+    }
+
+    [Fact]
+    public void ARenameWithoutAHashAndACaseOnlyRenameAreToldByTheirNames()
+    {
+        using var dir = new JournalTempDir();
+        string old = dir.Combine("a.txt");
+        File.WriteAllText(old, "x");
+        void CrashAfterRename(string target, string journal)
+        {
+            var plan = ChangeBuilder.Proposal("rename", "test", Operation(old, new FileOperation(FileOperationKind.Rename, target))) with { Atomic = true };
+            var applier = new ChangeApplier(_ => null, journal) { FaultPoint = p => { if (p == "after-op:0") throw new Crash(); } };
+            Assert.Throws<Crash>(() => applier.Apply(plan));
+            using var pending = Assert.Single(BatchRecovery.Find(journal));
+            Assert.Equal(BatchFileState.Applied, Assert.Single(pending.Files).State);
+            pending.RollBack();
+        }
+
+        CrashAfterRename(dir.Combine("b.txt"), dir.Combine("journal"));
+        Assert.Equal(["a.txt"], Directory.GetFiles(dir.Path, "?.txt").Select(Path.GetFileName));
+
+        if (!OperatingSystem.IsWindows()) return;
+        CrashAfterRename(dir.Combine("A.TXT"), dir.Combine("journal2"));
+        Assert.Equal(["a.txt"], Directory.GetFiles(dir.Path, "?.txt").Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void ABatchThatEndsLeavesNoJournalAndNamesItsId()
+    {
+        using var r = new Rig();
+
+        var report = new ChangeApplier(_ => null, r.Journal).Apply(r.Proposal);
+
+        Assert.Equal(4, report.Applied);
+        Assert.NotNull(report.BatchId);
+        AssertDone(r);
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+        Assert.Empty(Directory.GetFiles(r.Journal));
+    }
+
+    [Fact]
+    public void WithoutAJournalDirectoryTheBatchStillRunsAndNamesNoId()
+    {
+        using var r = new Rig();
+
+        var report = new ChangeApplier(_ => null).Apply(r.Proposal);
+
+        Assert.Equal(4, report.Applied);
+        Assert.Null(report.BatchId);
+        AssertDone(r);
+    }
+
+    [Fact]
+    public void AJournalThatCannotBeWrittenChangesNothing()
+    {
+        using var r = new Rig();
+        File.WriteAllText(r.Journal, "a file where the journal folder should be");
+
+        var report = new ChangeApplier(_ => null, r.Journal).Apply(r.Proposal);
+
+        Assert.All(report.Files, f => Assert.Equal(ChangeStatus.Failed, f.Status));
+        Assert.Null(report.BatchId);
+        Assert.Equal("one two\n", File.ReadAllText(r.Edited));
+        Assert.False(File.Exists(r.Created));
+        Assert.True(File.Exists(r.Old));
+        Assert.True(File.Exists(r.Gone));
+    }
+
+    [Fact]
+    public void AnOperationThatFailsAfterTheJournalWasWrittenIsUndoneAndLeavesNoJournal()
+    {
+        if (!OperatingSystem.IsWindows()) return; // relies on an open file refusing to be moved
+        using var r = new Rig();
+
+        ApplyReport report;
+        using (new FileStream(r.Gone, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) report = new ChangeApplier(_ => null, r.Journal).Apply(r.Proposal);
+
+        Assert.Equal([ChangeStatus.Rejected, ChangeStatus.Rejected, ChangeStatus.Rejected, ChangeStatus.Failed], report.Files.Select(f => f.Status));
+        Assert.False(File.Exists(r.Created));
+        Assert.True(File.Exists(r.Old));
+        Assert.Equal("one two\n", File.ReadAllText(r.Edited));
+        Assert.Empty(BatchRecovery.Find(r.Journal));
+        Assert.Empty(Directory.GetFiles(r.Journal));
+    }
+
+    // ---- the preview of a new file ----
+
+    private static NewFilePreview Preview(string text, int lines = 10, int chars = 100) => ChangeBuilder.PreviewOfNewFile(Encoding.UTF8.GetBytes(text), lines, chars);
+
+    [Fact]
+    public void ThePreviewOfANewFileHasItsFirstLinesAndCountsTheRest()
+    {
+        var p = Preview("a\r\nb\nc\rd\n", lines: 2);
+        Assert.Equal(["a", "b"], p.Lines);
+        Assert.Equal((4, 2, false), (p.TotalLines, p.Hidden, p.IsBinary));
+        Assert.Equal(["a"], Preview("a\n").Lines);
+        Assert.Equal([""], Preview("\n").Lines);
+        Assert.Equal(["héllo", "wörld"], Preview("﻿héllo\nwörld").Lines);
+        Assert.Equal(["abc…", "de"], Preview("abcdef\nde", chars: 3).Lines);
+    }
+
+    [Fact]
+    public void ThePreviewOfAnEmptyOrBinaryFileHasNoLines()
+    {
+        var empty = ChangeBuilder.PreviewOfNewFile([], 10, 100);
+        Assert.Equal((0, 0L, false), (empty.TotalLines, empty.Bytes, empty.IsBinary));
+        var binary = ChangeBuilder.PreviewOfNewFile([(byte)'n', 0, (byte)'e'], 10, 100);
+        Assert.Equal((true, 3L, 0), (binary.IsBinary, binary.Bytes, binary.Lines.Count));
+    }
+}

@@ -263,6 +263,7 @@ internal sealed partial class MainWindow
         string? journal = BatchJournalDirectory;
         if (journal is not null) Directory.CreateDirectory(journal);
         var report = new ChangeApplier(FindOpenDocument, journal).Apply(plan, selection);
+        FollowFileOperations(plan, report);
 
         var rows = new List<SearchResultsView.Row>();
         foreach (var outcome in report.Files)
@@ -295,6 +296,26 @@ internal sealed partial class MainWindow
         if (_proposal is not null) ResolveProposal(ProposalOutcomeOf(report, plan.ChangeCount), report.HunksApplied);
         DrainProposals();
         return report;
+    }
+
+    /// <summary>The tabs of a file that a reviewed batch renamed move with it; the tabs of a file it deleted close (a tab with unsaved work asks first).</summary>
+    private void FollowFileOperations(ChangeProposal plan, ApplyReport report)
+    {
+        foreach (var outcome in report.Files.Where(f => f.Status == ChangeStatus.Applied))
+        {
+            var change = plan.Files.First(f => f.Key == outcome.Key);
+            switch (change.Operation)
+            {
+                case { Kind: FileOperationKind.Rename, NewPath: { } to }:
+                    foreach (var window in _app.Windows.ToList()) window.ApplyPathMove(change.Path!, to);
+                    _app.Recent.Rename(change.Path!, to);
+                    break;
+                case { Kind: FileOperationKind.Delete }:
+                    foreach (var window in _app.Windows.ToList()) window.ApplyPathDeleted(change.Path!);
+                    _app.Recent.Remove(change.Path!);
+                    break;
+            }
+        }
     }
 
     private static ProposalOutcome ProposalOutcomeOf(ApplyReport report, int total) =>

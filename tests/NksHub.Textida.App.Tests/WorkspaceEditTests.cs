@@ -1,6 +1,11 @@
 using System.Diagnostics;
+using System.Text;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Changes;
@@ -10,17 +15,21 @@ using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P8.4.3: a workspace edit in the change review: text edits, create, rename and delete in one preview, one tick per change, applied all or nothing.</summary>
+/// <summary>
+/// P8.4.3: a workspace edit in the change review: text edits, create, rename and delete in one preview, one tick per change, applied all or nothing; the preview of a new file,
+/// the tabs of renamed and deleted files, and the batch a crash cut off.
+/// </summary>
 [Collection("LocState")]
 public class WorkspaceEditTests : IDisposable
 {
     private readonly TempDir _temp = new();
+    private readonly ScriptedDialogs _dialogs = new();
     private readonly App _app;
     private readonly MainWindow _w;
 
     public WorkspaceEditTests()
     {
-        _app = TestApp.Prepare(_temp);
+        _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
     }
 
@@ -152,6 +161,162 @@ public class WorkspaceEditTests : IDisposable
         Assert.True(File.Exists(s.Deleted));
         Assert.True(File.Exists(s.Created));
         Assert.True(File.Exists(s.Renamed));
+    }
+
+    private static FileChange Operation(string path, FileOperation operation, FileFingerprint? print = null) => new(path, path, null, null, print, TextCodec.Utf8, [], operation);
+
+    private Task ShownFilesAsync(int count) => Until(() => _w.ResultsView is { } v && v.Rows.OfType<SearchResultsView.FileRow>().Count() == count, $"{count} files in the review");
+
+    /// <summary>Shows the operations in the review, ticks nothing off and applies them.</summary>
+    private async Task<ProposalDecision> ReviewAndApplyAsync(params FileChange[] files)
+    {
+        var review = _w.ReviewWorkspaceEditAsync(ChangeBuilder.Proposal("Operations", "plugin:test", files) with { Atomic = true }, "w9", CancellationToken.None);
+        await ShownFilesAsync(files.Length);
+        _w.ApplyPlan();
+        return await review;
+    }
+
+    private DocTab OpenDirty(string path)
+    {
+        var tab = _w.OpenFile(path, null);
+        _w.UpdateLayout();
+        Settle();
+        tab.Editor!.Document.Insert(0, ">");
+        Settle();
+        Assert.True(tab.Doc.HasUnsavedWork);
+        return tab;
+    }
+
+    [AvaloniaFact]
+    public async Task The_tab_of_a_renamed_file_follows_it_and_keeps_its_unsaved_text()
+    {
+        string old = _temp.File("open.txt", "alpha\n"), renamed = Path.Combine(_temp.Path, "moved.txt");
+        var tab = OpenDirty(old);
+
+        var decision = await ReviewAndApplyAsync(Operation(old, new FileOperation(FileOperationKind.Rename, renamed), FileFingerprint.TryRead(old)));
+
+        Assert.Equal(ProposalOutcome.Applied, decision.Outcome);
+        Assert.Equal(renamed, tab.Path);
+        Assert.Equal("moved.txt", tab.Title);
+        Assert.Equal(">alpha\n", tab.Editor!.Document.Text);
+        Assert.True(tab.Doc.HasUnsavedWork);
+        Assert.Contains(_w.Documents, d => d.Path == renamed);
+        Assert.False(File.Exists(old));
+        Assert.Equal("alpha\n", File.ReadAllText(renamed));
+        Assert.Empty(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
+    public async Task The_tab_of_a_deleted_file_without_unsaved_work_closes_without_a_question()
+    {
+        string path = _temp.File("clean.txt", "alpha\n");
+        var tab = _w.OpenFile(path, null);
+        _w.UpdateLayout();
+        Settle();
+
+        var decision = await ReviewAndApplyAsync(Operation(path, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(path)));
+
+        Assert.Equal(ProposalOutcome.Applied, decision.Outcome);
+        Assert.False(File.Exists(path));
+        Assert.DoesNotContain(tab, _w.Tabs);
+        Assert.DoesNotContain(_w.Documents, d => d.Path == path);
+        Assert.Empty(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
+    public async Task The_tab_of_a_deleted_file_with_unsaved_work_asks_and_can_stay_open()
+    {
+        string path = _temp.File("dirty.txt", "alpha\n");
+        var tab = OpenDirty(path);
+        _dialogs.Answers.Enqueue(1);
+
+        var decision = await ReviewAndApplyAsync(Operation(path, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(path)));
+
+        Assert.Equal(ProposalOutcome.Applied, decision.Outcome);
+        Assert.Equal(Loc.Get(K.WorkspaceDeletedTitle), Assert.Single(_dialogs.Asked).Title);
+        Assert.False(File.Exists(path));
+        Assert.Contains(tab, _w.Tabs);
+        Assert.Equal(">alpha\n", tab.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task The_tab_of_a_deleted_file_with_unsaved_work_closes_when_the_user_says_so()
+    {
+        string path = _temp.File("dirty.txt", "alpha\n");
+        var tab = OpenDirty(path);
+        _dialogs.Answers.Enqueue(0);
+
+        await ReviewAndApplyAsync(Operation(path, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(path)));
+
+        Assert.Single(_dialogs.Asked);
+        Assert.False(File.Exists(path));
+        Assert.DoesNotContain(tab, _w.Tabs);
+        Assert.DoesNotContain(_w.Documents, d => d.Path == path);
+    }
+
+    [AvaloniaFact]
+    public async Task The_review_previews_the_content_of_a_new_file()
+    {
+        string many = Path.Combine(_temp.Path, "many.txt"), blob = Path.Combine(_temp.Path, "blob.bin"), empty = Path.Combine(_temp.Path, "empty.txt");
+        var plan = ChangeBuilder.Proposal("New files", "plugin:test",
+            Operation(many, new FileOperation(FileOperationKind.Create, Content: Encoding.UTF8.GetBytes(string.Join("\n", Enumerable.Range(0, 40).Select(i => "line " + i))))),
+            Operation(blob, new FileOperation(FileOperationKind.Create, Content: [(byte)'n', 0, (byte)'e'])),
+            Operation(empty, new FileOperation(FileOperationKind.Create, Content: []))) with { Atomic = true };
+
+        var review = _w.ReviewWorkspaceEditAsync(plan, "w9", CancellationToken.None);
+        await ShownFilesAsync(3);
+
+        var rows = _w.ResultsView!.Rows;
+        Assert.Equal([typeof(SearchResultsView.FileRow), typeof(SearchResultsView.PreviewRow)], rows.Take(2).Select(r => r.GetType()));
+        var previews = rows.OfType<SearchResultsView.PreviewRow>().ToList();
+        Assert.Equal(3, previews.Count);
+        Assert.Equal((PluginLimitsPlaceholders.NewFilePreviewLines, 40, "line 0"), (previews[0].Preview.Lines.Count, previews[0].Preview.TotalLines, previews[0].Preview.Lines[0]));
+        Assert.True(previews[1].Preview.IsBinary);
+        Assert.Equal(0, previews[2].Preview.TotalLines);
+        Assert.False(File.Exists(many));
+
+        string more = Loc.Get(K.WorkspacePreviewMore, ("count", 40 - PluginLimitsPlaceholders.NewFilePreviewLines));
+        await Until(() =>
+        {
+            _w.UpdateLayout();
+            return _w.ResultsView!.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == more);
+        }, "the note about the lines that are not shown");
+        Assert.Contains(_w.ResultsView!.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == Loc.Get(K.WorkspacePreviewBinary, ("bytes", 3L)));
+
+        _w.ResultsView.CancelButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(ProposalOutcome.Rejected, (await review).Outcome);
+        Assert.False(File.Exists(many));
+    }
+
+    private sealed class Crash : Exception;
+
+    [AvaloniaFact]
+    public void A_workspace_batch_cut_off_by_a_crash_is_offered_at_the_next_start_and_rolled_back()
+    {
+        string journal = Path.Combine(_app.Journal.Directory!, "batches");
+        string old = _temp.File("old.txt", "content"), renamed = Path.Combine(_temp.Path, "renamed.txt"), created = Path.Combine(_temp.Path, "created.txt"), gone = _temp.File("gone.txt", "bye");
+        var plan = ChangeBuilder.Proposal("Operations", "plugin:test",
+            Operation(created, new FileOperation(FileOperationKind.Create, Content: "new"u8.ToArray())),
+            Operation(old, new FileOperation(FileOperationKind.Rename, renamed), FileFingerprint.TryRead(old)),
+            Operation(gone, new FileOperation(FileOperationKind.Delete), FileFingerprint.TryRead(gone))) with { Atomic = true };
+        try
+        {
+            new ChangeApplier(_ => null, journal) { FaultPoint = p => { if (p == "after-op:1") throw new Crash(); } }.Apply(plan);
+        }
+        catch (Crash) { }
+        Assert.True(File.Exists(created));
+        Assert.True(File.Exists(renamed));
+
+        _w.CheckPendingBatches();
+        var notice = Assert.Single(_w.Notices, n => n.Message.Contains("dávk"));
+        notice.Buttons.Last().RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); // Roll back
+
+        Assert.False(File.Exists(created));
+        Assert.Equal("content", File.ReadAllText(old));
+        Assert.False(File.Exists(renamed));
+        Assert.Equal("bye", File.ReadAllText(gone));
+        Assert.Empty(_w.Notices);
+        Assert.Empty(BatchRecovery.Find(journal));
     }
 
     [AvaloniaFact]
