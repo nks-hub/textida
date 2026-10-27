@@ -51,6 +51,8 @@ public sealed record PluginHostOptions
     public required int MissedPingsBeforeKill { get; init; }
     public required TimeSpan ShutdownGrace { get; init; }
     public required int StderrTailLines { get; init; }
+    /// <summary>Bound for a <see cref="PluginHost.CallAsync"/> that names no timeout. Null keeps such a call open until the plugin answers or ends.</summary>
+    public TimeSpan? DefaultCallTimeout { get; init; }
 }
 
 public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped }

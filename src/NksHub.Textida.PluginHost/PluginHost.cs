@@ -140,7 +140,7 @@ public sealed class PluginHost : IAsyncDisposable
         var p = Get(pluginId);
         var run = p.Current;
         if (p.State != PluginState.Running || run is null) throw new PluginUnavailableException(pluginId, p.State);
-        try { return await run.Rpc.RequestAsync(method, paramsJson, timeout, ct).ConfigureAwait(false); }
+        try { return await run.Rpc.RequestAsync(method, paramsJson, timeout ?? _options.DefaultCallTimeout, ct).ConfigureAwait(false); }
         catch (RpcConnectionClosedException)
         {
             // Never retried: the call may already have had its effect (R10).
