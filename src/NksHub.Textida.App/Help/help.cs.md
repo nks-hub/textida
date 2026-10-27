@@ -387,6 +387,18 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 - Text, který jen vypadá jako barva, třeba `rgb(var(--c))`, entita HTML `&#123;` nebo `#12345`, se nechá být.
 - Soubor větší než limit pluginu se nepřevádí; zpráva to řekne.
 
+## [tools.markdown] Náhled Markdownu, tabulky a obsah
+commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc
+1. Nástroje, Markdown, Náhled Markdownu nebo HTML otevře pod editorem panel náhledu s aktuálním souborem. Panel sleduje psaní: překreslí se chvíli po poslední klávese a drží polohu posuvníku.
+2. Markdown se ukáže jako stránka: nadpisy, seznamy, citace, kód, zvýraznění a tabulky s buňkami (dvojtečky v řádku pomlček určují zarovnání sloupce).
+3. Soubor HTML se ukáže jako text, i se značkami. Nic z něj se nespouští a nic se nenačítá ze sítě.
+4. Nástroje, Markdown, Zobrazit osnovu Markdownu vypíše v témže panelu nadpisy souboru, odsazené podle úrovně. Klik, nebo Enter na nadpisu, přesune kurzor v editoru na jeho řádek.
+5. Nástroje, Markdown, Zarovnat tabulku v Markdowne přepíše tabulku pod kurzorem tak, aby měl každý sloupec šířku nejširší buňky. Značky `:--`, `:-:` a `--:` zůstanou a kratší řádek se doplní prázdnými buňkami. Zpět to vrátí jedním krokem.
+6. Nástroje, Markdown, Aktualizovat obsah Markdownu zapíše odkazy na nadpisy mezi řádky `<!-- TOC -->` a `<!-- /TOC -->`. Mění se jen text mezi nimi. Když tam nejsou, přidají se na místo kurzoru. Kotvy jsou malými písmeny, mezery se mění na pomlčky a opakovaný nadpis dostane `-1`, `-2`.
+- Obrázek se kreslí jen z adresy `data:` s obrázkem PNG, JPEG, GIF, BMP nebo WebP. Vzdálený obrázek a obrázek z místního souboru se ukážou jako poznámka s popisem. Odkaz na web nebo e-mail se nejdřív potvrzuje; jiný odkaz je jen text.
+- Soubor delší než limit náhledu se nekreslí; stavový řádek to oznámí. Esc nebo Zavřít náhled ukončí.
+- V osnově jsou jen nadpisy psané přes `#`. Šířka buňky tabulky se počítá ve znacích, takže široké východoasijské znaky mohou vypadat nezarovnaně.
+
 ## [tools.keys] Cesty klíčů v YAML a JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. V souboru YAML nebo JSON ukazuje stavový řádek cestu klíče pod kurzorem, například `cs.app.title`. Položky seznamu se píšou `items[0]` a klíč s tečkou nebo závorkou se píše `["a.b"]`. Cesta se čte pro revizi a kurzor, pro které se zeptalo: když mezitím píšete nebo kurzor přesunete, odpověď se zahodí.

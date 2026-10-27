@@ -6,7 +6,10 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Markdown;
+using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 
@@ -25,6 +28,10 @@ internal sealed partial class MainWindow
     private readonly ScrollViewer _previewScroll = new() { Focusable = true, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private PreviewContent? _preview;
     private long? _previewOutdatedBy;
+    private DocTab? _liveTab;
+    private bool _liveOutline;
+    private long _liveRevision;
+    private DispatcherTimer? _liveTimer;
 
     public bool PreviewPanelOpen => _previewPanel.IsVisible;
     internal PreviewContent? ShownPreview => _preview;
@@ -57,11 +64,18 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_previewClose, Loc.Get(K.PreviewPanelClose));
         AutomationProperties.SetName(_previewPanel, Loc.Get(K.A11yPreviewPanel));
         AutomationProperties.SetName(_previewScroll, Loc.Get(K.A11yPreviewBody));
-        if (_preview is not null) RenderPreview(keepScroll: true);
+        if (_liveTab is not null) RefreshLive();
+        else if (_preview is not null) RenderPreview(keepScroll: true);
     }
 
     /// <summary>Shows what a plugin supplied. The panel opens if it was closed; the scroll position stays when the same document is shown again.</summary>
     internal void ShowPreview(PreviewContent content)
+    {
+        StopLive();
+        ShowPreviewCore(content);
+    }
+
+    private void ShowPreviewCore(PreviewContent content)
     {
         bool same = _preview is { } shown && shown.PluginId == content.PluginId && shown.Document == content.Document;
         _preview = content;
@@ -75,7 +89,9 @@ internal sealed partial class MainWindow
         if (_preview is not { } content) return;
         var offset = _previewScroll.Offset;
         var mono = new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily"));
-        _previewScroll.Content = PreviewRenderer.Render(content.Format, content.Text, new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri)));
+        _previewScroll.Content = _liveOutline && _liveTab is { } outlined
+            ? PreviewRenderer.Outline(MarkdownTools.Headings(content.Text.ReplaceLineEndings("\n").Split('\n')), h => { outlined.GoToLine(h.Line + 1); FocusView(outlined); })
+            : PreviewRenderer.Render(content.Format, content.Text, new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri)));
         if (keepScroll) Dispatcher.UIThread.Post(() => _previewScroll.Offset = offset, DispatcherPriority.Background);
         var title = content.Title ?? Loc.Get(K.PreviewPanelTitle);
         _previewStatus.Text = _previewOutdatedBy is { } current
@@ -100,12 +116,75 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Closes the panel; with a plugin and document only if it shows that one.</summary>
-    internal void ClosePreview(string? pluginId = null, Guid? document = null)
+    internal void ClosePreview(string? pluginId = null, Guid? document = null, bool focus = true)
     {
         if (_preview is not { } shown || (pluginId is not null && (shown.PluginId != pluginId || shown.Document != document))) return;
+        StopLive();
         _preview = null;
         _previewScroll.Content = null;
         _previewPanel.IsVisible = false;
-        if (Active is { } tab) FocusView(tab);
+        if (focus && Active is { } tab) FocusView(tab);
+    }
+
+    // ---- live preview of the current file (P9.3.1) ----
+
+    internal DocTab? LivePreviewTab => _liveTab;
+
+    /// <summary>
+    /// Shows the current Markdown or HTML file next to the editor and keeps it level with the text: every edit restarts a short timer and the panel is drawn again when it runs out.
+    /// Markdown is rendered; HTML is shown as literal text, because the policy has no HTML subset yet. With <paramref name="outline"/> the panel lists the headings instead of the page.
+    /// </summary>
+    internal CommandOutcome ShowLivePreview(bool outline)
+    {
+        if (Active is not { Surface: not null } tab) return CommandOutcome.NotHandled;
+        string language = tab.Doc.Language.Id;
+        if (language != "markdown" && (outline || language != "html"))
+        {
+            SetStatusMessage(Loc.Get(outline ? K.PreviewOutlineUnsupported : K.PreviewLiveUnsupported));
+            return CommandOutcome.Handled;
+        }
+        StopLive();
+        (_liveTab, _liveOutline) = (tab, outline);
+        tab.Doc.Changed += OnLiveEdited;
+        tab.ViewClosed += OnLiveTabClosed;
+        _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.PreviewLiveDebounceMs) };
+        _liveTimer.Tick += (_, _) => RefreshLive();
+        RefreshLive();
+        return CommandOutcome.Handled;
+    }
+
+    private void OnLiveEdited()
+    {
+        _liveTimer?.Stop();
+        _liveTimer?.Start();
+    }
+
+    private void OnLiveTabClosed() => ClosePreview(focus: false);
+
+    private void StopLive()
+    {
+        if (_liveTab is { } tab)
+        {
+            tab.Doc.Changed -= OnLiveEdited;
+            tab.ViewClosed -= OnLiveTabClosed;
+        }
+        _liveTimer?.Stop();
+        (_liveTab, _liveTimer, _liveOutline) = (null, null, false);
+    }
+
+    /// <summary>Draws the live preview from the text as it is now.</summary>
+    internal void RefreshLive()
+    {
+        _liveTimer?.Stop();
+        if (_liveTab is not { Surface: { } surface } tab) return;
+        if (surface.Document.TextLength > PluginLimitsPlaceholders.PreviewLiveMaxChars)
+        {
+            ClosePreview();
+            SetStatusMessage(Loc.Get(K.PreviewLiveTooLarge));
+            return;
+        }
+        bool html = tab.Doc.Language.Id == "html";
+        string title = Loc.Get(_liveOutline ? K.PreviewOutlineTitle : html ? K.PreviewLiveHtmlTitle : K.PreviewLiveTitle, ("name", tab.Title));
+        ShowPreviewCore(new PreviewContent("", Guid.Empty, ++_liveRevision, html ? PreviewFormats.Text : PreviewFormats.Markdown, title, surface.Document.Text));
     }
 }

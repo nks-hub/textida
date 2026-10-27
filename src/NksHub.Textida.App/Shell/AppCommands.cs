@@ -194,6 +194,10 @@ internal static class AppCommands
         Fire("nks.tools.showKeys", (w, t) => app.Plugins.IndexKeysAsync(w, t, reveal: true));
         Do("nks.tools.goToKey", w => w.ShowQuickOpen("@"));
         Do("nks.tools.goToSymbol", w => w.ShowQuickOpen("@"));
+        On("nks.tools.markdownPreview", w => w.ShowLivePreview(outline: false));
+        On("nks.tools.markdownOutline", w => w.ShowLivePreview(outline: true));
+        On("nks.tools.markdownFormatTable", w => w.FormatMarkdownTable());
+        On("nks.tools.markdownUpdateToc", w => w.UpdateMarkdownToc());
         Fire("nks.tools.showOutline", (w, t) => app.Plugins.IndexSymbolsAsync(w, t, reveal: true));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
         Fire("nks.tools.emmetPreview", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.preview"));
