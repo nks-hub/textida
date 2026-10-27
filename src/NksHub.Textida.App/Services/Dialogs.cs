@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Services;
@@ -35,9 +36,13 @@ internal interface IDialogs
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
     Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected);
     Task ShowAboutAsync(Window owner);
+    /// <summary>The choices of "Insert into Lines"; <paramref name="preview"/> gives the text shown for the current choices. Null when cancelled.</summary>
+    Task<LineInsertOptions?> InsertIntoLinesAsync(Window owner, LineInsertOptions initial, Func<LineInsertOptions, string> preview);
+    /// <summary>The rules of "Sort Lines" with a live preview of the result. Null when cancelled.</summary>
+    Task<SortOptions?> SortLinesAsync(Window owner, SortOptions initial, Func<SortOptions, string> preview);
 }
 
-internal sealed class AvaloniaDialogs : IDialogs
+internal sealed partial class AvaloniaDialogs : IDialogs
 {
     private static Window Frame(string title, Control content, double width = 460) => new()
     {

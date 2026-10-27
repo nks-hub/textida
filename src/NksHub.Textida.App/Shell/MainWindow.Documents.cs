@@ -106,6 +106,7 @@ internal sealed partial class MainWindow
         {
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
+            tab.Paged.Copied += RememberCopy;
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };

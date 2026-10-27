@@ -49,6 +49,9 @@ public sealed class CommandContribution
 
     public bool Cancellable { get; set; }
 
+    /// <summary>"Repeat last command" may run this command again; set on commands that change the text.</summary>
+    public bool Repeatable { get; set; }
+
     /// <summary>Hidden commands are not offered in the command palette.</summary>
     public bool Hidden { get; set; }
 

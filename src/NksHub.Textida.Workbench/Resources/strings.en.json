@@ -251,5 +251,22 @@
   "cmd.hex.operate": "Hex: Operations on Selection...",
   "cmd.hex.checksum": "Hex: Checksums and Hashes...",
   "setting.files.binaryAsHex.title": "Binary files in hex",
-  "setting.files.binaryAsHex.description": "What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch."
+  "setting.files.binaryAsHex.description": "What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch.",
+  "cmd.edit.clipboardHistory": "Clipboard History...",
+  "cmd.edit.pasteKeepCaret": "Paste Without Moving the Caret",
+  "cmd.edit.insertIntoLines": "Insert into Lines...",
+  "cmd.edit.sortLines": "Sort Lines...",
+  "cmd.search.selectLinesByRange": "Select Lines by Range...",
+  "cmd.edit.reformatParagraph": "Reformat Paragraph",
+  "cmd.edit.justifyLeft": "Align Lines Left",
+  "cmd.edit.justifyRight": "Align Lines Right",
+  "cmd.edit.justifyCenter": "Center Lines",
+  "cmd.edit.justifyBlock": "Justify Lines",
+  "cmd.edit.insertDateTime": "Insert Date and Time",
+  "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.edit.repeatLast": "Repeat Last Command",
+  "setting.editor.clipboardHistorySize.title": "Clipboard history size",
+  "setting.editor.clipboardHistorySize.description": "How many copied texts the clipboard history keeps. It is kept in memory only and forgotten when the program closes.",
+  "setting.editor.dateTimeFormat.title": "Date and time format",
+  "setting.editor.dateTimeFormat.description": ".NET custom format, for example yyyy-MM-dd HH:mm. Used by Insert Date and Time; month and day names follow the interface language."
 }

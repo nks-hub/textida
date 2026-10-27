@@ -14,7 +14,7 @@ public class EditingCommandTests
 {
     private static readonly IndentSettings Spaces4 = new(true, 4, 4);
 
-    private static (string Text, List<Sel> Sels) Parse(string marked)
+    internal static (string Text, List<Sel> Sels) Parse(string marked)
     {
         var sb = new StringBuilder();
         var sels = new List<Sel>();
@@ -32,7 +32,7 @@ public class EditingCommandTests
         return (sb.ToString(), sels);
     }
 
-    private static string Mark(string text, IReadOnlyList<Sel> sels)
+    internal static string Mark(string text, IReadOnlyList<Sel> sels)
     {
         var inserts = new List<(int At, string Mark, int Order)>();
         foreach (var s in sels)
@@ -46,7 +46,7 @@ public class EditingCommandTests
     }
 
     /// <summary>Runs a command on a document that journals nothing, as the app does: inside an undo group.</summary>
-    private static string Run(string marked, Func<AvaloniaEditBackend, IReadOnlyList<Sel>, IReadOnlyList<Sel>> command, string? expectedMarked = null)
+    internal static string Run(string marked, Func<AvaloniaEditBackend, IReadOnlyList<Sel>, IReadOnlyList<Sel>> command, string? expectedMarked = null)
     {
         var (text, sels) = Parse(marked);
         var original = Encoding.UTF8.GetBytes(text);

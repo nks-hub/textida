@@ -25,7 +25,7 @@ public sealed record IndentSettings(bool InsertSpaces = true, int IndentSize = 4
 /// of a column selection) and changes the document in one <see cref="TextDocument.RunUpdate"/> block, so the caller makes one
 /// undo step of it. Everything is plain text editing; line endings stay as they are.
 /// </summary>
-public static class LineOperations
+public static partial class LineOperations
 {
     private sealed record Block(int FirstLine, int LastLine)
     {

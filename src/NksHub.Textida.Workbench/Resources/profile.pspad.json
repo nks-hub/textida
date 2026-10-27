@@ -18,6 +18,11 @@
     { "key": "alt+up", "command": "-nks.edit.moveLineUp" },
     { "key": "alt+down", "command": "-nks.edit.moveLineDown" },
     { "key": "f8", "command": "nks.edit.selectToMark", "when": "editorFocus" },
-    { "key": "mod+shift+c", "command": "nks.edit.toggleBlockSelect", "when": "editorFocus" }
+    { "key": "mod+shift+c", "command": "nks.edit.toggleBlockSelect", "when": "editorFocus" },
+    { "key": "alt+i", "command": "nks.edit.insertIntoLines", "when": "editorFocus" },
+    { "key": "alt+q", "command": "nks.edit.repeatLast", "when": "editorFocus" },
+    { "key": "alt+d", "command": "nks.edit.insertDateTime", "when": "editorFocus" },
+    { "key": "mod+alt+left", "command": "nks.edit.justifyLeft", "when": "editorFocus" },
+    { "key": "mod+alt+right", "command": "nks.edit.justifyRight", "when": "editorFocus" }
   ]
 }

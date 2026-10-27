@@ -17,6 +17,7 @@ public sealed class CommandDescriptor
         FallbackId = c.Fallback;
         Undo = c.Undo == "transaction" ? UndoMode.Transaction : UndoMode.None;
         Cancellable = c.Cancellable;
+        Repeatable = c.Repeatable;
         Hidden = c.Hidden;
         Aliases = c.Aliases.ToArray();
         Source = source;
@@ -37,6 +38,8 @@ public sealed class CommandDescriptor
     public UndoMode Undo { get; }
 
     public bool Cancellable { get; }
+
+    public bool Repeatable { get; }
 
     public bool Hidden { get; }
 
@@ -170,6 +173,31 @@ public sealed class CommandRegistry
 
     public bool HasHandler(string commandId) => _handlers.ContainsKey(commandId);
 
+    /// <summary>Id of the last repeatable command that ran and was handled; null before the first one.</summary>
+    public string? LastRepeatable { get; private set; }
+
+    /// <summary>True while <see cref="RepeatLastAsync"/> runs a command, so a command that asks the user for parameters can reuse its last ones instead.</summary>
+    public bool IsRepeating { get; private set; }
+
+    /// <summary>Runs <see cref="LastRepeatable"/> again; <see cref="CommandOutcome.NotHandled"/> when nothing was run yet.</summary>
+    public async ValueTask<CommandOutcome> RepeatLastAsync(IWhenContext context, CancellationToken cancellationToken = default)
+    {
+        if (LastRepeatable is not { } id || IsRepeating)
+        {
+            return CommandOutcome.NotHandled;
+        }
+
+        IsRepeating = true;
+        try
+        {
+            return await ExecuteAsync(id, context, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            IsRepeating = false;
+        }
+    }
+
     /// <summary>
     /// Runs a command. When it is unavailable, disabled, has no handler or reports <see cref="CommandOutcome.NotHandled"/>,
     /// its fallback command (if declared) runs instead.
@@ -196,6 +224,11 @@ public sealed class CommandRegistry
             else
             {
                 outcome = await handler(context, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (outcome == CommandOutcome.Handled && command.Repeatable)
+            {
+                LastRepeatable = command.Id;
             }
 
             if (outcome == CommandOutcome.Handled || command.FallbackId is null)

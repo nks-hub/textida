@@ -54,6 +54,9 @@
           "cancellable": {
             "type": "boolean"
           },
+          "repeatable": {
+            "type": "boolean"
+          },
           "hidden": {
             "type": "boolean"
           },
