@@ -42,13 +42,14 @@ public class UiApiTests
         public required UiApi Api { get; init; }
         public required RecordingUi Ui { get; init; }
 
-        public static async Task<Rig> CreateAsync()
+        public static async Task<Rig> CreateAsync(TimeSpan? cancelGrace = null)
         {
             var ui = new RecordingUi();
             PluginHost.PluginHost? host = null;
             var api = new UiApi(new UiApiOptions
             {
                 MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 6, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 40, MaxPickItems = 3,
+                TaskCancelGrace = cancelGrace ?? TimeSpan.FromSeconds(30),
             }, ui, (plugin, name, payload) => host!.SendEventAsync(plugin, name, payload));
             host = new PluginHost.PluginHost(PluginHostTests.Options(), api.HandleAsync);
             host.Register(new PluginSpec("p", "Plugin p", T.DotnetHost, [T.PluginDll], ["onCommand:p"]));
@@ -200,6 +201,46 @@ public class UiApiTests
         Assert.False((await rig.CallAsync(UiMethods.TaskEnd, $"{{\"task\":\"{id}\"}}")).GetProperty("ended").GetBoolean());
         Assert.Equal([id], rig.Ui.Ended);
         await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Room again\"}");
+    }
+
+    [Fact]
+    public async Task A_cancelled_task_the_plugin_does_not_end_is_ended_by_the_editor_and_frees_its_slot()
+    {
+        await using var rig = await Rig.CreateAsync(cancelGrace: TimeSpan.FromMilliseconds(200));
+        var id = (await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Stuck\",\"cancellable\":true}")).GetProperty("task").GetString()!;
+        await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Other\"}");
+        await rig.ErrorAsync(UiMethods.TaskStart, "{\"title\":\"Third\"}", UiErrorCodes.QuotaExceeded);
+
+        // the test plugin only records the cancel event and never ends the task
+        Assert.True(await rig.Api.CancelTaskAsync("p", id));
+        await rig.WaitEventAsync(UiEvents.TaskCancelled);
+        for (int i = 0; i < 500 && !rig.Ui.Ended.Contains(id); i++) await Task.Delay(10);
+
+        Assert.Equal([id], rig.Ui.Ended);
+        await rig.ErrorAsync(UiMethods.TaskProgress, $"{{\"task\":\"{id}\",\"fraction\":0.5}}", UiErrorCodes.UnknownTask);
+        Assert.False((await rig.CallAsync(UiMethods.TaskEnd, $"{{\"task\":\"{id}\"}}")).GetProperty("ended").GetBoolean());
+        await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Room again\"}");
+    }
+
+    [Fact]
+    public async Task A_task_the_plugin_ends_after_cancel_is_not_ended_a_second_time()
+    {
+        await using var rig = await Rig.CreateAsync(cancelGrace: TimeSpan.FromMilliseconds(200));
+        var id = (await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Polite\",\"cancellable\":true}")).GetProperty("task").GetString()!;
+        Assert.True(await rig.Api.CancelTaskAsync("p", id));
+        Assert.True((await rig.CallAsync(UiMethods.TaskEnd, $"{{\"task\":\"{id}\"}}")).GetProperty("ended").GetBoolean());
+        await Task.Delay(500);
+        Assert.Equal([id], rig.Ui.Ended);
+    }
+
+    [Fact]
+    public void A_cancel_grace_of_zero_is_refused()
+    {
+        var options = new UiApiOptions
+        {
+            MaxPanelsPerPlugin = 1, MaxItemsPerPanel = 1, MaxTreeDepth = 1, MaxTasksPerPlugin = 1, MaxTextLength = 1, MaxPickItems = 1, TaskCancelGrace = TimeSpan.Zero,
+        };
+        Assert.Throws<ArgumentException>(() => new UiApi(options, new RecordingUi(), (_, _, _) => Task.FromResult(true)));
     }
 
     [Fact]

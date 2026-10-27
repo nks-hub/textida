@@ -20,7 +20,7 @@ public sealed class UiApi
     public UiApi(UiApiOptions options, IPluginUi ui, PluginEventSender send)
     {
         if (options.MaxPanelsPerPlugin < 1 || options.MaxItemsPerPanel < 1 || options.MaxTreeDepth < 1 || options.MaxTasksPerPlugin < 1
-            || options.MaxTextLength < 1 || options.MaxPickItems < 1)
+            || options.MaxTextLength < 1 || options.MaxPickItems < 1 || options.TaskCancelGrace <= TimeSpan.Zero)
             throw new ArgumentException("Every UI API limit must be positive.", nameof(options));
         _options = options;
         _ui = ui;
@@ -234,15 +234,31 @@ public sealed class UiApi
         return DocumentApi.Obj(w => w.WriteBoolean("ended", ended));
     }
 
-    /// <summary>The user pressed cancel; the plugin hears about it once and decides when to end the task. False when there is nothing to cancel.</summary>
+    /// <summary>
+    /// The user pressed cancel; the plugin hears about it once and ends the task. A plugin that does not end it within <see cref="UiApiOptions.TaskCancelGrace"/>,
+    /// or could not be told, loses it: the row goes, the quota slot is free and later calls about the task get <see cref="UiErrorCodes.UnknownTask"/>.
+    /// False when there is nothing to cancel or the plugin could not be told.
+    /// </summary>
     public async Task<bool> CancelTaskAsync(string pluginId, string taskId)
     {
+        TaskEntry entry;
         lock (_gate)
         {
             if (!_plugins.TryGetValue(pluginId, out var c) || !c.Tasks.TryGetValue(taskId, out var t) || !t.Cancellable || t.CancelSent) return false;
             t.CancelSent = true;
+            entry = t;
         }
-        return await _send(pluginId, UiEvents.TaskCancelled, DocumentApi.Obj(w => w.WriteString("task", taskId)));
+        bool sent = await _send(pluginId, UiEvents.TaskCancelled, DocumentApi.Obj(w => w.WriteString("task", taskId)));
+        _ = DropAsync(pluginId, taskId, entry, sent ? _options.TaskCancelGrace : TimeSpan.Zero);
+        return sent;
+    }
+
+    private async Task DropAsync(string pluginId, string taskId, TaskEntry entry, TimeSpan after)
+    {
+        if (after > TimeSpan.Zero) await Task.Delay(after);
+        bool dropped;
+        lock (_gate) dropped = _plugins.TryGetValue(pluginId, out var c) && c.Tasks.TryGetValue(taskId, out var t) && ReferenceEquals(t, entry) && c.Tasks.Remove(taskId);
+        if (dropped) _ui.EndTask(pluginId, taskId);
     }
 
     /// <summary>The plugin stopped (exit, crash, restart): its panels, status item, tasks and notices go away.</summary>

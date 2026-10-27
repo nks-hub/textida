@@ -351,6 +351,9 @@ internal static class PluginLimitsPlaceholders
         TimeSpan.FromSeconds(AcpStartTimeoutSeconds), TimeSpan.FromSeconds(AcpIdleTimeoutSeconds), TimeSpan.FromSeconds(AcpExitGraceSeconds), AcpStderrLines,
         "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
 
+    /// <summary>Placeholder, OPEN: how long a plugin has to end a task the user cancelled before the editor ends it itself. The owner has not decided it.</summary>
+    public const int TaskCancelGraceMilliseconds = 5000;
+
     public static UiApiOptions Ui() => new()
     {
         MaxPanelsPerPlugin = 4,
@@ -359,5 +362,6 @@ internal static class PluginLimitsPlaceholders
         MaxTasksPerPlugin = 4,
         MaxTextLength = 4000,
         MaxPickItems = 500,
+        TaskCancelGrace = TimeSpan.FromMilliseconds(TaskCancelGraceMilliseconds),
     };
 }

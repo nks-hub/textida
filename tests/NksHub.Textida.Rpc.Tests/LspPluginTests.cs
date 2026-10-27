@@ -106,7 +106,7 @@ public class LspPluginTests
                 MaxDiagnosticsPerDocument = 100, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
                 Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20),
             }, owner, send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
-            var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 100, MaxTreeDepth = 3, MaxTextLength = 2000, MaxTasksPerPlugin = 2, MaxPickItems = 10 }, ui, send);
+            var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 100, MaxTreeDepth = 3, MaxTextLength = 2000, MaxTasksPerPlugin = 2, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, ui, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
             Assert.True(File.Exists(dll), dll);

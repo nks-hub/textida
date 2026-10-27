@@ -92,4 +92,6 @@ public sealed record UiApiOptions
     /// <summary>Longest text of any label, title or message, in UTF-16 code units.</summary>
     public required int MaxTextLength { get; init; }
     public required int MaxPickItems { get; init; }
+    /// <summary>How long the editor waits for <c>ui/task/end</c> after the user cancelled a task; then it ends the task itself, so its row and its quota slot go.</summary>
+    public required TimeSpan TaskCancelGrace { get; init; }
 }

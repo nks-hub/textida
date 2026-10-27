@@ -56,7 +56,7 @@ public partial class TextToolsTests
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
-            var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10 }, recorded, send);
+            var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
             Assert.True(File.Exists(dll), dll);
@@ -169,6 +169,20 @@ public partial class TextToolsTests
         Assert.StartsWith("Incomplete statistics, ", rig.LastNotice);
         Assert.Equal(NoticeLevel.Warning, rig.Recorded.Notices[^1].Level);
         Assert.Single(rig.Recorded.Ended);
+    }
+
+    [Fact]
+    public async Task Each_cancelled_statistic_gives_back_its_snapshot_and_its_task()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8(string.Concat(Enumerable.Repeat("word and more\n", 1 << 18))), TextCodec.Utf8, chunk: 1 << 10);
+        // the rig allows two snapshots and two tasks, so the third run starts only if the cancelled ones gave theirs back
+        for (int i = 0; i < 3; i++)
+        {
+            var run = rig.RunAsync(TextToolsPlugin.Statistics);
+            await CancelTaskAsync(rig, taskIndex: i);
+            Assert.Equal("incomplete", await run);
+        }
+        Assert.Equal(3, rig.Recorded.Ended.Count);
     }
 
     static async Task CancelTaskAsync(Rig rig, int taskIndex = 0)
