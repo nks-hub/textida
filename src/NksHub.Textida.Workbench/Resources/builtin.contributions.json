@@ -1141,6 +1141,34 @@
       "enablement": "hasDocument && !largeFileMode && !readOnly && language == 'html'"
     },
     {
+      "id": "nks.git.status",
+      "title": "cmd.git.status",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.diffIndex",
+      "title": "cmd.git.diffIndex",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.diffHead",
+      "title": "cmd.git.diffHead",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.stageHunk",
+      "title": "cmd.git.stageHunk",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.edit.complete",
       "title": "cmd.edit.complete",
       "category": "cat.edit",
@@ -2419,6 +2447,30 @@
       "command": "nks.tools.emmetWrap",
       "group": "4_emmet",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.status",
+      "group": "9_git",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.diffIndex",
+      "group": "9_git",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.diffHead",
+      "group": "9_git",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stageHunk",
+      "group": "9_git",
+      "order": 40
     },
     {
       "menu": "edit",

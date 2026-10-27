@@ -73,6 +73,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: the arguments HTML Tidy is started with. The text goes to its standard input.</summary>
     public static readonly string[] TidyArguments = ["-quiet", "-utf8", "--tidy-mark", "no"];
 
+    /// <summary>Placeholder: time after which a git command that has not finished is ended.</summary>
+    public const int GitTimeoutMilliseconds = 20_000;
+
+    /// <summary>Placeholder: files listed in the Git status panel; more are counted and named in a notice. Must not exceed <see cref="Ui"/> items per panel.</summary>
+    public const int GitStatusEntries = 2000;
+
+    /// <summary>Placeholder: bytes the Git plugin reads per request when it takes the staged index document back. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    public const int GitChunkBytes = 1 << 20;
+
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 

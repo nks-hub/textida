@@ -36,6 +36,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string EmmetActivation = "onCommand:emmet";
     public const string FormattersPluginId = "textida.formatters";
     private const string FormattersActivation = "onCommand:formatters";
+    public const string GitPluginId = "textida.git";
+    private const string GitActivation = "onCommand:git";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -132,6 +134,25 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         };
         foreach (var argument in PluginLimitsPlaceholders.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
         _host.Register(new PluginSpec(FormattersPluginId, "Formatters", formattersProgram, formattersArguments, [FormattersActivation], formattersFolder));
+
+        // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual })
+            permissions.Grant(GitPluginId, permission, GrantScope.All);
+        var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
+        var gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
+            ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
+             "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
+            [GitActivation], gitFolder));
+    }
+
+    // ---- Git: status, diff against the index and HEAD, stage the hunk at the caret ----
+
+    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>) for the file of the tab. False when nothing was started.</summary>
+    public async Task<bool> RunGitAsync(MainWindow window, DocTab tab, string command)
+    {
+        var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
+        return (await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", command, $",\"path\":\"{path}\"")).Started;
     }
 
     // ---- formatters: SQL, HTML entities, HTML Tidy ----

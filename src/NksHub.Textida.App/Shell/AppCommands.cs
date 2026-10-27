@@ -176,6 +176,10 @@ internal static class AppCommands
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
         Fire("nks.tools.emmetPreview", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.preview"));
         Fire("nks.tools.emmetWrap", (w, t) => app.Plugins.RunEmmetAsync(w, t, "emmet.wrap"));
+        Fire("nks.git.status", (w, t) => app.Plugins.RunGitAsync(w, t, "git.status"));
+        Fire("nks.git.diffIndex", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffIndex"));
+        Fire("nks.git.diffHead", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffHead"));
+        Fire("nks.git.stageHunk", (w, t) => app.Plugins.RunGitAsync(w, t, "git.stageHunk"));
         Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());
 
         On("nks.tools.run", w => w.ShowToolMenu());

@@ -1,0 +1,242 @@
+using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Json;
+using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Ui;
+using NksHub.Textida.PluginSdk;
+using NksHub.Textida.Rpc;
+
+namespace NksHub.Textida.Plugins.Git;
+
+/// <summary>Limits of the plugin; the editor passes them on the command line, so no number is fixed in the plugin.</summary>
+/// <param name="TimeoutMs">Time after which a git command is ended.</param>
+/// <param name="MaxBytes">Largest blob read from the repository; the editor refuses a virtual document larger than its own limit.</param>
+/// <param name="MaxEntries">Files listed in the status panel.</param>
+/// <param name="ChunkBytes">Bytes read from a document per request; must not exceed what the document API returns in one read.</param>
+public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes);
+
+/// <summary>
+/// The built-in Git: the status of the working tree in a panel, the file against the index or against <c>HEAD</c> in a comparison tab, and staging the change under the caret.
+/// The index and <c>HEAD</c> versions of a file are virtual documents the plugin provides; staging goes through <c>diff/stage</c> into the index document and is then written to the
+/// repository, but only when the index is still what the plugin last read. Otherwise nothing is written, the index document is read again and the answer is <c>conflict</c>.
+/// </summary>
+public sealed class GitPlugin : PluginBase
+{
+    public const string StatusCommand = "git.status";
+    public const string DiffIndexCommand = "git.diffIndex";
+    public const string DiffHeadCommand = "git.diffHead";
+    public const string StageHunkCommand = "git.stageHunk";
+    public const string StatusPanel = "git:status";
+
+    private readonly GitSettings _settings;
+
+    /// <summary>The blob each virtual document (by key) was filled from; empty for a path that is not in the tree of that revision.</summary>
+    private readonly ConcurrentDictionary<string, (string Document, string Sha)> _loaded = new();
+
+    public GitPlugin(GitSettings settings) : base("git", apiVersion: 1)
+    {
+        _settings = settings;
+        On("command/execute", ExecuteAsync);
+    }
+
+    private async Task<JsonElement> CallAsync(string method, string paramsJson, CancellationToken ct) =>
+        (await Rpc.RequestAsync(method, Encoding.UTF8.GetBytes(paramsJson), null, ct)).Clone();
+
+    private static string Quote(string text) => JsonEncodedText.Encode(text).ToString();
+
+    private async Task NotifyAsync(NoticeLevel level, string message, CancellationToken ct) =>
+        await CallAsync(UiMethods.Notify, $"{{\"level\":\"{level.ToString().ToLowerInvariant()}\",\"message\":\"{Quote(message)}\"}}", ct);
+
+    private static byte[] Status(string status) => Encoding.UTF8.GetBytes($"{{\"status\":\"{status}\"}}");
+
+    private sealed record Request(string Command, string Document, long Revision, string Ui, string? Path);
+
+    private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
+    {
+        var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
+            p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en",
+            p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null);
+        if (r.Command is not (StatusCommand or DiffIndexCommand or DiffHeadCommand or StageHunkCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        try
+        {
+            if (string.IsNullOrEmpty(r.Path)) return await TellAsync(r, "noFile", NoticeLevel.Warning, ct);
+            GitRepository? repo;
+            try { repo = await GitRepository.OpenAsync(r.Path, _settings.TimeoutMs, _settings.MaxBytes, ct); }
+            catch (GitException e) { return await TellAsync(r, "noGit", NoticeLevel.Error, ct, ("reason", e.Message)); }
+            if (repo is null) return await TellAsync(r, "noRepository", NoticeLevel.Warning, ct);
+            var file = Path.GetFileName(r.Path);
+            return r.Command switch
+            {
+                StatusCommand => await ShowStatusAsync(r, repo, ct),
+                StageHunkCommand => await StageHunkAsync(r, repo, file, ct),
+                _ => await OpenDiffAsync(r, repo, file, r.Command == DiffHeadCommand, ct),
+            };
+        }
+        catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict) { return await TellAsync(r, "stale", NoticeLevel.Warning, ct); }
+        catch (RpcException e) when (e.Code == DocumentErrorCodes.VirtualQuotaExceeded) { return await TellAsync(r, "quota", NoticeLevel.Error, ct); }
+        catch (RpcException e) when (e.Code is DocumentErrorCodes.UnknownDocument or DocumentErrorCodes.InvalidRange or DocumentErrorCodes.PermissionDenied or DocumentErrorCodes.NotProvider or RpcErrorCodes.InvalidParams)
+        {
+            return await TellAsync(r, "failed", NoticeLevel.Error, ct, ("reason", e.Message));
+        }
+        catch (GitException e) { return await TellAsync(r, "failed", NoticeLevel.Error, ct, ("reason", e.Message)); }
+    }
+
+    private async Task<byte[]> TellAsync(Request r, string key, NoticeLevel level, CancellationToken ct, params (string, string)[] arguments)
+    {
+        await NotifyAsync(level, Texts.Get(r.Ui, key, arguments), ct);
+        return Status(key);
+    }
+
+    // ---- status ----
+
+    private async Task<byte[]> ShowStatusAsync(Request r, GitRepository repo, CancellationToken ct)
+    {
+        var entries = await repo.StatusAsync(ct);
+        var shown = entries.Take(_settings.MaxEntries).ToList();
+        var items = string.Join(',', shown.Select(e =>
+            $"{{\"id\":\"{Quote(e.Path)}\",\"label\":\"{Quote(e.Path)}\",\"detail\":\"{Quote(Texts.Describe(r.Ui, e))}\"}}"));
+        var title = "Git: " + Path.GetFileName(repo.Root.TrimEnd('/', '\\'));
+        await CallAsync(UiMethods.PanelSet, $"{{\"panel\":\"{StatusPanel}\",\"title\":\"{Quote(title)}\",\"kind\":\"list\",\"items\":[{items}],\"reveal\":true}}", ct);
+        if (entries.Count == 0) await NotifyAsync(NoticeLevel.Info, Texts.Get(r.Ui, "clean"), ct);
+        else if (entries.Count > shown.Count) await NotifyAsync(NoticeLevel.Warning, Texts.Get(r.Ui, "truncated", ("max", _settings.MaxEntries.ToString())), ct);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"status\",\"count\":{entries.Count},\"shown\":{shown.Count}}}");
+    }
+
+    // ---- documents of the index and of HEAD ----
+
+    private sealed record Tree(string Codec, long Length);
+
+    private async Task<Tree> TreeAsync(Request r, CancellationToken ct)
+    {
+        var info = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{r.Document}\"}}", ct);
+        if (info.GetProperty("revision").GetInt64() != r.Revision) throw new RpcException(DocumentErrorCodes.RevisionConflict, "Stale.");
+        return new Tree(info.GetProperty("codec").GetString()!, info.GetProperty("byteLength").GetInt64());
+    }
+
+    /// <summary>
+    /// Opens the virtual document of <paramref name="key"/> with the content of the blob (empty without one), or, when it is open already, brings it to that content.
+    /// Opening the same key returns the open document and ignores the content, so a document filled from another blob is updated.
+    /// </summary>
+    private async Task<(string Id, long Revision)> EnsureAsync(string key, string name, string title, string codec, byte[]? content, string sha, CancellationToken ct)
+    {
+        var bytes = Convert.ToBase64String(content ?? []);
+        var open = await CallAsync(DocumentMethods.VirtualOpen, $"{{\"key\":\"{Quote(key)}\",\"name\":\"{Quote(name)}\",\"title\":\"{Quote(title)}\",\"encoding\":\"{Quote(codec)}\",\"bytes\":\"{bytes}\"}}", ct);
+        var id = open.GetProperty("document").GetString()!;
+        long revision = open.GetProperty("revision").GetInt64();
+        if (!open.GetProperty("created").GetBoolean() && !(_loaded.TryGetValue(key, out var seen) && seen.Document == id && seen.Sha == sha))
+            revision = (await CallAsync(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{id}\",\"bytes\":\"{bytes}\"}}", ct)).GetProperty("revision").GetInt64();
+        _loaded[key] = (id, sha);
+        return (id, revision);
+    }
+
+    private static string IndexKey(GitRepository repo, string path) => $"git-index:{repo.Root}:{path}";
+
+    private async Task<byte[]> ReadBlobAsync(GitRepository repo, string? sha, CancellationToken ct) =>
+        sha is null ? [] : await repo.ReadBlobAsync(sha, ct);
+
+    private async Task<byte[]> OpenDiffAsync(Request r, GitRepository repo, string file, bool head, CancellationToken ct)
+    {
+        var rel = repo.RelativePath(file);
+        var tree = await TreeAsync(r, ct);
+        string? sha = head ? await repo.HeadBlobAsync(rel, ct) : (await repo.IndexEntryAsync(rel, ct)) is { Stage: 0 } entry ? entry.Sha : null;
+        var content = await ReadBlobAsync(repo, sha, ct);
+        var key = (head ? "git-head:" : "git-index:") + $"{repo.Root}:{rel}";
+        var title = Texts.Get(r.Ui, head ? "headTitle" : "indexTitle", ("file", file));
+        var (id, revision) = await EnsureAsync(key, file, title, tree.Codec, content, sha ?? "", ct);
+        var opened = await CallAsync(DocumentMethods.DiffOpen,
+            $"{{\"left\":{{\"document\":\"{id}\",\"revision\":{revision}}},\"right\":{{\"document\":\"{r.Document}\",\"revision\":{r.Revision}}}," +
+            $"\"title\":\"{Quote(title)}\",\"leftTitle\":\"{Quote(title)}\",\"rightTitle\":\"{Quote(Texts.Get(r.Ui, "treeTitle", ("file", file)))}\"}}", ct);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"opened\",\"shown\":{(opened.GetProperty("opened").GetBoolean() ? "true" : "false")}}}");
+    }
+
+    // ---- stage one hunk ----
+
+    private async Task<long> CaretAsync(Request r, CancellationToken ct)
+    {
+        var read = await CallAsync(DocumentMethods.Selections, $"{{\"document\":\"{r.Document}\"}}", ct);
+        if (read.GetProperty("revision").GetInt64() != r.Revision) throw new RpcException(DocumentErrorCodes.RevisionConflict, "Stale.");
+        var primary = read.GetProperty("primary").GetInt32();
+        var selections = read.GetProperty("selections");
+        if (selections.GetArrayLength() == 0) throw new RpcException(DocumentErrorCodes.NoTextView, "The document has no caret.");
+        return selections[primary >= 0 && primary < selections.GetArrayLength() ? primary : 0].GetProperty("caret").GetInt64();
+    }
+
+    /// <summary>All hunks of the diff of the index document against the working tree document (index on the left), with their place on the tree side.</summary>
+    private async Task<List<HunkSpan>> ListHunksAsync(Request r, string index, long indexRevision, CancellationToken ct)
+    {
+        var hunks = new List<HunkSpan>();
+        for (long from = 0; ;)
+        {
+            var diff = await CallAsync(DocumentMethods.DiffCompute,
+                $"{{\"left\":{{\"document\":\"{index}\",\"revision\":{indexRevision}}},\"right\":{{\"document\":\"{r.Document}\",\"revision\":{r.Revision}}},\"from\":{from}}}", ct);
+            foreach (var h in diff.GetProperty("hunks").EnumerateArray())
+            {
+                var right = h.GetProperty("right");
+                hunks.Add(new HunkSpan(h.GetProperty("index").GetInt64(), right.GetProperty("start").GetInt64(), right.GetProperty("end").GetInt64()));
+            }
+            if (!diff.GetProperty("truncated").GetBoolean() || hunks.Count == 0) return hunks;
+            from = hunks[^1].Index + 1;
+        }
+    }
+
+    private async Task<byte[]> ReadWholeAsync(string document, long revision, CancellationToken ct)
+    {
+        var info = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{document}\"}}", ct);
+        if (info.GetProperty("revision").GetInt64() != revision) throw new RpcException(DocumentErrorCodes.RevisionConflict, "Stale.");
+        long length = info.GetProperty("byteLength").GetInt64();
+        if (length > _settings.MaxBytes) throw new GitException($"The file is larger than {_settings.MaxBytes} bytes.");
+        var bytes = new byte[length];
+        for (long at = 0; at < length;)
+        {
+            int count = (int)Math.Min(_settings.ChunkBytes, length - at);
+            var read = await CallAsync(DocumentMethods.ReadBytes, $"{{\"document\":\"{document}\",\"revision\":{revision},\"start\":{at},\"end\":{at + count}}}", ct);
+            read.GetProperty("bytes").GetBytesFromBase64().CopyTo(bytes.AsSpan((int)at));
+            at += count;
+        }
+        return bytes;
+    }
+
+    private async Task<byte[]> StageHunkAsync(Request r, GitRepository repo, string file, CancellationToken ct)
+    {
+        var rel = repo.RelativePath(file);
+        var tree = await TreeAsync(r, ct);
+        var entry = await repo.IndexEntryAsync(rel, ct);
+        if (entry is { Stage: not 0 }) return await TellAsync(r, "unmerged", NoticeLevel.Warning, ct);
+        var key = IndexKey(repo, rel);
+        // an index document read earlier from another blob means someone else staged in between: read it again and write nothing
+        bool moved = _loaded.TryGetValue(key, out var seen) && seen.Sha != (entry?.Sha ?? "");
+        var (index, indexRevision) = await EnsureAsync(key, file, Texts.Get(r.Ui, "indexTitle", ("file", file)), tree.Codec, await ReadBlobAsync(repo, entry?.Sha, ct), entry?.Sha ?? "", ct);
+        if (moved) return await TellAsync(r, "conflict", NoticeLevel.Warning, ct, ("file", file));
+
+        var hunk = Hunks.At(await ListHunksAsync(r, index, indexRevision, ct), await CaretAsync(r, ct), tree.Length);
+        if (hunk is null) return await TellAsync(r, "noHunk", NoticeLevel.Info, ct);
+        var staged = (await CallAsync(DocumentMethods.DiffStage,
+            $"{{\"base\":{{\"document\":\"{index}\",\"revision\":{indexRevision}}},\"source\":{{\"document\":\"{r.Document}\",\"revision\":{r.Revision}}},\"hunk\":{hunk.Index}}}", ct)).GetProperty("revision").GetInt64();
+        var content = await ReadWholeAsync(index, staged, ct);
+
+        // the last look before writing: the index must still be the blob the hunk was staged into
+        var now = await repo.IndexEntryAsync(rel, ct);
+        if ((now?.Sha ?? "") != (entry?.Sha ?? "") || now is { Stage: not 0 }) return await ConflictAsync(r, repo, rel, file, tree, ct);
+        try
+        {
+            var sha = await repo.WriteIndexBlobAsync(rel, entry?.Mode ?? GitRepository.NewFileMode, content, ct);
+            _loaded[key] = (index, sha);
+        }
+        catch (GitException)
+        {
+            await ConflictAsync(r, repo, rel, file, tree, ct, tell: false); // the document is ahead of the index: bring it back
+            throw;
+        }
+        await NotifyAsync(NoticeLevel.Info, Texts.Get(r.Ui, "staged", ("hunk", (hunk.Index + 1).ToString()), ("file", file)), ct);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"staged\",\"hunk\":{hunk.Index}}}");
+    }
+
+    /// <summary>Reads the index of the file again into its document; nothing was written.</summary>
+    private async Task<byte[]> ConflictAsync(Request r, GitRepository repo, string rel, string file, Tree tree, CancellationToken ct, bool tell = true)
+    {
+        var entry = await repo.IndexEntryAsync(rel, ct);
+        _loaded.TryRemove(IndexKey(repo, rel), out _);
+        await EnsureAsync(IndexKey(repo, rel), file, Texts.Get(r.Ui, "indexTitle", ("file", file)), tree.Codec, entry is { Stage: 0 } ? await repo.ReadBlobAsync(entry.Sha, ct) : [], entry?.Sha ?? "", ct);
+        return tell ? await TellAsync(r, "conflict", NoticeLevel.Warning, ct, ("file", file)) : Status("conflict");
+    }
+}
