@@ -683,6 +683,16 @@ Záložka v hexe označí oblasť bajtov menom, farbou, poznámkou a typom, ako 
 - Oblasti sledujú bajty: bajty vložené pred oblasť ju posunú, bajty vložené dovnútra ju predĺžia, úprava cez jej okraj sa do nej zahrnie, späť a znova ju vrátia. Oblasť, ktorej bajty boli všetky zmazané, zaniká.
 - Záložky sa ukladajú do relácie (po reštarte sú späť), nikdy do súboru. Zmazať záložky odstráni všetky.
 
+## [hex.map] Hex: mapa súboru a štatistika bajtov
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+Mapa je prúžok vedľa posuvníka, ktorý ukazuje celý súbor naraz v bunkách s výškou asi štyri pixely. Obdĺžnik označuje časť na obrazovke; klik alebo ťahanie tam posunie mriežku.
+1. Hex: mapa súboru (Ctrl+K a potom Ctrl+G) mapu ukáže alebo skryje. Hex: mapa podľa entropie alebo druhu bajtov prepína, čo bunky ukazujú: entropiu bajtov (svetlá pre usporiadané dáta, výrazná pre komprimované alebo šifrované), alebo druh bajtu, ktorý tvorí väčšinu bunky (nulové bajty, text, riadiace bajty, vysoké bajty, FF).
+2. Úzky pruh pri pravom okraji označuje zhody posledného hľadania, záložky v ich farbách a miesta zmenené od posledného uloženia.
+3. Hex: štatistika bajtov (Ctrl+K a potom Ctrl+S) otvorí panel s histogramom výberu, alebo celého súboru, keď nie je nič vybrané: koľko zo 256 hodnôt bajtu sa vyskytuje, entropia v bitoch na bajt, najčastejšie hodnoty a podiely tried bajtov.
+- Súbor do 1 GiB sa číta celý na pozadí. Pri väčšom súbore mapa najprv ukáže vzorku, pár blokov z každej bunky, a spresňuje sa, ako program číta ďalej, celkom najviac 1 GiB; bunka, ktorá sa ešte nečítala, je svetlá.
+- Štatistika celého súboru nad 1 GiB sa nepočíta naraz: vyberte úsek.
+- Mapa aj počítanie bežia vedľa okna a pri zmene súboru sa robia znova.
+
 ## [tools.run] Nástroje: spustenie externého programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spustiť nástroj ponúkne nástroje zapísané v súbore tools.json v priečinku profilu. Posledný riadok ten súbor otvorí; prvýkrát do neho zapíše prázdny, ktorý doplníte.

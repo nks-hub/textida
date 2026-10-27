@@ -921,6 +921,24 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.minimap",
+      "title": "cmd.hex.minimap",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.minimap.mode",
+      "title": "cmd.hex.minimap.mode",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.statistics",
+      "title": "cmd.hex.statistics",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.edit.clipboardHistory",
       "title": "cmd.edit.clipboardHistory",
       "category": "cat.edit",
@@ -2030,6 +2048,24 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.statistics",
+      "group": "3_hex",
+      "order": 130
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap.mode",
+      "group": "3_hex",
+      "order": 120
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap",
+      "group": "3_hex",
+      "order": 110
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.charset",
       "group": "3_hex",
       "order": 40
@@ -2654,6 +2690,16 @@
     {
       "key": "mod+k mod+b",
       "command": "nks.hex.bookmarks.panel",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+s",
+      "command": "nks.hex.statistics",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+g",
+      "command": "nks.hex.minimap",
       "when": "hexMode"
     },
     {

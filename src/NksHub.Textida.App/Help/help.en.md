@@ -683,6 +683,16 @@ A hex bookmark marks a region of bytes with a name, a colour, a comment and the 
 - Regions follow the bytes: bytes inserted before a region move it, bytes inserted inside make it longer, an edit over its edge is taken into it, undo and redo move it back. A region whose bytes were all deleted is dropped.
 - Bookmarks are kept in the session (they are back after a restart), never in the file. Clear Bookmarks removes all of them.
 
+## [hex.map] Hex: file map and byte statistics
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+The map is a strip beside the scroll bar that shows the whole file at once, in about four-pixel cells. A rectangle marks the part on screen; a click or a drag scrolls the grid there.
+1. Hex: File Map (Ctrl+K then Ctrl+G) shows or hides the map. Hex: Map by Entropy or Kind of Byte switches what the cells show: the entropy of the bytes (light for ordered data, strong for compressed or encrypted data), or the kind of byte that makes up most of the cell (zero bytes, text, control bytes, high bytes, FF).
+2. A narrow lane at the right edge marks the matches of the last search, the bookmarks in their colours and the places changed since the last save.
+3. Hex: Byte Statistics (Ctrl+K then Ctrl+S) opens a panel with the histogram of the selection, or of the whole file when nothing is selected: how many of the 256 byte values occur, the entropy in bits per byte, the most frequent values and the shares of the byte classes.
+- A file up to 1 GiB is read whole in the background. For a larger file the map first shows a sample, a few blocks of every cell, and gets better as the program reads more, up to 1 GiB in all; a cell that was not read yet is shown pale.
+- The statistics of a whole file above 1 GiB are not counted at once: select a range.
+- The map and the counting run beside the window and are redone when the file changes.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.

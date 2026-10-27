@@ -683,6 +683,16 @@ Záložka v hexu označí oblast bajtů jménem, barvou, poznámkou a typem, jak
 - Oblasti sledují bajty: bajty vložené před oblast ji posunou, bajty vložené dovnitř ji prodlouží, úprava přes její okraj se do ní zahrne, zpět a znovu ji vrátí. Oblast, jejíž bajty byly všechny smazány, zaniká.
 - Záložky se ukládají do relace (po restartu jsou zpět), nikdy do souboru. Smazat záložky odstraní všechny.
 
+## [hex.map] Hex: mapa souboru a statistika bajtů
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+Mapa je proužek vedle posuvníku, který ukazuje celý soubor najednou v buňkách o výšce asi čtyři pixely. Obdélník označuje část na obrazovce; klik nebo tažení tam posune mřížku.
+1. Hex: mapa souboru (Ctrl+K a potom Ctrl+G) mapu ukáže nebo skryje. Hex: mapa podle entropie nebo druhu bajtů přepíná, co buňky ukazují: entropii bajtů (světlá pro uspořádaná data, výrazná pro komprimovaná nebo šifrovaná), nebo druh bajtu, který tvoří většinu buňky (nulové bajty, text, řídicí bajty, vysoké bajty, FF).
+2. Úzký pruh u pravého okraje označuje shody posledního hledání, záložky v jejich barvách a místa změněná od posledního uložení.
+3. Hex: statistika bajtů (Ctrl+K a potom Ctrl+S) otevře panel s histogramem výběru, nebo celého souboru, když není nic vybráno: kolik ze 256 hodnot bajtu se vyskytuje, entropie v bitech na bajt, nejčastější hodnoty a podíly tříd bajtů.
+- Soubor do 1 GiB se čte celý na pozadí. U většího souboru mapa nejdřív ukáže vzorek, pár bloků z každé buňky, a zpřesňuje se, jak program čte dál, celkem nejvýš 1 GiB; buňka, která se ještě nečetla, je světlá.
+- Statistika celého souboru nad 1 GiB se nepočítá najednou: vyberte úsek.
+- Mapa i počítání běží vedle okna a při změně souboru se dělají znovu.
+
 ## [tools.run] Nástroje: spuštění externího programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spustit nástroj nabídne nástroje zapsané v souboru tools.json ve složce profilu. Poslední řádek ten soubor otevře; poprvé do něj zapíše prázdný, který doplníte.

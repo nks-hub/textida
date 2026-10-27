@@ -683,6 +683,16 @@ Ein Hex-Lesezeichen markiert einen Bytebereich mit Name, Farbe, Kommentar und de
 - Bereiche folgen den Bytes: Bytes vor einem Bereich verschieben ihn, Bytes darin verlängern ihn, eine Änderung über seinen Rand wird aufgenommen, Rückgängig und Wiederholen bringen ihn zurück. Ein Bereich, dessen Bytes alle gelöscht wurden, entfällt.
 - Lesezeichen werden in der Sitzung gespeichert (nach einem Neustart sind sie wieder da), nie in der Datei. Lesezeichen löschen entfernt alle.
 
+## [hex.map] Hex: Dateikarte und Byte-Statistik
+commands: nks.hex.minimap, nks.hex.minimap.mode, nks.hex.statistics
+Die Karte ist ein Streifen neben der Bildlaufleiste, der die ganze Datei auf einmal zeigt, in Zellen von etwa vier Pixeln Höhe. Ein Rechteck markiert den Teil auf dem Bildschirm; ein Klick oder Ziehen scrollt das Raster dorthin.
+1. Hex: Dateikarte (Strg+K, dann Strg+G) zeigt oder verbirgt die Karte. Hex: Karte nach Entropie oder Art der Bytes schaltet um, was die Zellen zeigen: die Entropie der Bytes (hell für geordnete Daten, kräftig für komprimierte oder verschlüsselte) oder die Art Byte, die den größten Teil der Zelle ausmacht (Nullbytes, Text, Steuerbytes, hohe Bytes, FF).
+2. Ein schmaler Streifen am rechten Rand markiert die Treffer der letzten Suche, die Lesezeichen in ihren Farben und die seit dem letzten Speichern geänderten Stellen.
+3. Hex: Byte-Statistik (Strg+K, dann Strg+S) öffnet einen Bereich mit dem Histogramm der Auswahl oder, wenn nichts ausgewählt ist, der ganzen Datei: wie viele der 256 Bytewerte vorkommen, die Entropie in Bit pro Byte, die häufigsten Werte und die Anteile der Byteklassen.
+- Eine Datei bis 1 GiB wird im Hintergrund ganz gelesen. Bei einer größeren zeigt die Karte zuerst eine Stichprobe, einige Blöcke je Zelle, und wird genauer, je mehr das Programm liest, insgesamt höchstens 1 GiB; eine noch nicht gelesene Zelle ist blass.
+- Die Statistik einer ganzen Datei über 1 GiB wird nicht auf einmal gezählt: Wählen Sie einen Bereich.
+- Karte und Zählen laufen neben dem Fenster und werden bei einer Änderung der Datei neu gemacht.
+
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.

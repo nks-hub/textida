@@ -565,6 +565,7 @@ internal sealed partial class MainWindow
             var total = await Task.Run(() => ByteSearch.Find(snapshot, pattern, new ByteSearchOptions { MaxResults = 1_000_000 }, cts.Token), CancellationToken.None);
             if (cts.IsCancellationRequested) return;
             int index = 0;
+            hex.Minimap.Matches = [.. total.Matches.Select(m => m.Start)];
             for (int i = 0; i < total.Matches.Count; i++) if (total.Matches[i].Start == found.Value.Start) { index = i + 1; break; }
             SetStatusMessage(total.LimitReached
                 ? Loc.Get(K.HexFindLimit, ("n", total.Matches.Count))
