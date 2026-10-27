@@ -197,10 +197,14 @@ public sealed partial class DocumentApi
         return sb.ToString();
     }
 
+    private sealed record SnippetItem(long Start, long End, string Text, int[] Carets);
+
     /// <summary>
     /// <c>text</c> goes into every selection of the document, replacing what is selected; <c>carets</c> (UTF-16 offsets in <c>text</c>, the first one primary,
     /// default the end) say where the carets stand afterwards, in each insertion. Line breaks in <c>text</c> become the line break of the document.
-    /// One revision and one undo step for all selections, or nothing; undo brings the old selections back.
+    /// Instead of <c>text</c> a plugin may send <c>items</c>: each has its own byte range <c>start</c>/<c>end</c> of the revision, its own <c>text</c> and <c>carets</c>
+    /// (an abbreviation in front of the caret, a selection wrapped in markup); the ranges must not overlap and must not touch a hidden secret.
+    /// One revision and one undo step for all of them, or nothing; undo brings the old selections back.
     /// </summary>
     private async Task<byte[]> InsertSnippetAsync(string pluginId, JsonElement p, PermissionLease lease)
     {
@@ -209,9 +213,16 @@ public sealed partial class DocumentApi
             { DataJson = $"{{\"permission\":\"{DocumentPermissions.EditDirect}\",\"reason\":\"Delegated\"}}" };
         var e = Find(NeedDocumentId(p));
         long revision = NeedLong(p, "revision");
-        var text = NeedString(p, "text");
-        if (text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
-        var carets = ParseCarets(p, text);
+        List<SnippetItem>? explicitItems = null;
+        string text = "";
+        int[] carets = [];
+        if (p.TryGetProperty("items", out var itemsJson) && itemsJson.ValueKind != JsonValueKind.Null) explicitItems = ParseSnippetItems(itemsJson);
+        else
+        {
+            text = NeedString(p, "text");
+            if (text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
+            carets = ParseCarets(p, text);
+        }
 
         return await _owner.InvokeAsync(() =>
         {
@@ -220,26 +231,33 @@ public sealed partial class DocumentApi
             CheckCurrent(d, revision);
             var selections = e.Selections?.Invoke() ?? throw Fail(DocumentErrorCodes.NoTextView, "The document has no text view to take selections from.");
             var newLine = _options.Tools.NewLine(d.Id);
-            byte[] insert;
-            long[] caretBytes;
+            var items = explicitItems ?? [.. selections.Items.Select(s => new SnippetItem(s.Start, s.End, text, carets))];
+            items = [.. items.OrderBy(i => i.Start)];
+            var edits = new List<ByteEdit>(items.Count);
+            var caretBytes = new long[items.Count][];
             try
             {
-                insert = d.Codec.Encode(NormalizeNewLines(text, newLine));
-                caretBytes = [.. carets.Select(c => (long)d.Codec.Encode(NormalizeNewLines(text[..c], newLine)).Length)];
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var item = items[i];
+                    edits.Add(new ByteEdit(new ByteRange(item.Start, item.End), d.Codec.Encode(NormalizeNewLines(item.Text, newLine))));
+                    caretBytes[i] = [.. item.Carets.Select(c => (long)d.Codec.Encode(NormalizeNewLines(item.Text[..c], newLine)).Length)];
+                }
             }
             catch (UnrepresentableCharactersException) { throw Invalid("The text cannot be written in the encoding of the document."); }
 
-            var edits = selections.Items.Select(s => new ByteEdit(s.ToRange(), insert)).ToList();
             Validate(d, edits);
-            List<TextSelection> placed = new(selections.Count * caretBytes.Length);
+            if (explicitItems is not null) GuardSecrets(pluginId, d, edits);
+            var main = selections.Items[selections.Primary];
+            List<TextSelection> placed = new(items.Count);
             int primary = 0;
+            bool found = false;
             long shift = 0;
-            for (int i = 0; i < selections.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
-                var s = selections.Items[i];
-                if (i == selections.Primary) primary = placed.Count;
-                foreach (var c in caretBytes) placed.Add(TextSelection.At(s.Start + shift + c));
-                shift += insert.Length - s.Length;
+                if (!found && (explicitItems is null ? i == selections.Primary : items[i].Start <= main.Caret && main.Caret <= items[i].End)) (primary, found) = (placed.Count, true);
+                foreach (var c in caretBytes[i]) placed.Add(TextSelection.At(items[i].Start + shift + c));
+                shift += edits[i].Insert.Length - (items[i].End - items[i].Start);
             }
             var after = SelectionSet.Create(placed, primary);
             var result = d.Apply(edits, new EditOptions
@@ -258,6 +276,21 @@ public sealed partial class DocumentApi
                 w.WriteNumber("carets", after.Count);
             });
         });
+    }
+
+    private List<SnippetItem> ParseSnippetItems(JsonElement array)
+    {
+        if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0) throw Invalid("Parameter 'items' must be a non-empty array.");
+        List<SnippetItem> items = [];
+        foreach (var item in array.EnumerateArray())
+        {
+            long start = NeedLong(item, "start"), end = NeedLong(item, "end");
+            if (start < 0 || end < start) throw Invalid($"The range [{start}, {end}) is not valid.");
+            var text = NeedString(item, "text");
+            if (text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
+            items.Add(new SnippetItem(start, end, text, ParseCarets(item, text)));
+        }
+        return items;
     }
 
     private int[] ParseCarets(JsonElement p, string text)
@@ -307,8 +340,9 @@ public sealed partial class DocumentApi
     /// Asks the plugins that registered for Tab, in the order they registered, whether one handles the key at this revision and these selections.
     /// False when none does, when none is there, or when asking failed or took longer than the time limit: the editor then does what Tab does without plugins.
     /// A plugin that handled it has changed the document through the other calls. Only a cancelled <paramref name="cancellation"/> throws.
+    /// <paramref name="language"/> (the language mode id) and <paramref name="indent"/> (the text one indentation level is written as) go to the plugin with the request.
     /// </summary>
-    public async Task<bool> OfferTabAsync(Guid document, CancellationToken cancellation = default)
+    public async Task<bool> OfferTabAsync(Guid document, CancellationToken cancellation = default, string? language = null, string? indent = null)
     {
         string[] providers;
         Exposed? e;
@@ -327,6 +361,8 @@ public sealed partial class DocumentApi
                 w.WriteString("document", document);
                 w.WriteNumber("revision", revision);
                 w.WriteNumber("primary", set?.Primary ?? -1);
+                if (language is not null) w.WriteString("language", language);
+                if (indent is not null) w.WriteString("indent", indent);
                 w.WriteStartArray("selections");
                 foreach (var s in set?.Items ?? [])
                 {
