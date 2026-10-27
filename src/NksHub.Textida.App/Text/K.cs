@@ -960,6 +960,13 @@ public static class K
     public const string LogViewNoNext = "log.view.noNext";
     public const string LogViewNoPrevious = "log.view.noPrevious";
     public const string LogViewFound = "log.view.found";
+    public const string LogViewHighlightLabel = "log.view.highlight";
+    public const string ExportTitle = "export.title";
+    public const string ExportDone = "export.done";
+    public const string ExportFailed = "export.failed";
+    public const string ExportNothing = "export.nothing";
+    public const string ExportTooLarge = "export.tooLarge";
+    public const string ExportCopied = "export.copied";
     public const string LogPatternFound = "log.pattern.found";
     public const string AiWatermark = "aicontext.watermark";
     public const string A11yAiContext = "a11y.aicontext";

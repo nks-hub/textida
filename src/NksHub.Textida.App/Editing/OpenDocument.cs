@@ -73,6 +73,20 @@ internal sealed class OpenDocument : IDisposable
     public string LogLevelsName { get; private set; } = "";
     /// <summary>Raised when <see cref="LogLevels"/> changed, so the views color the lines again.</summary>
     public event Action? LogLevelsChanged;
+    /// <summary>The expression of the live log view whose matches get a background; null when the view has none.</summary>
+    public System.Text.RegularExpressions.Regex? LogHighlight { get; private set; }
+    /// <summary>Raised when <see cref="LogHighlight"/> changed, so the views mark the lines again.</summary>
+    public event Action? LogHighlightChanged;
+
+    /// <summary>Sets the highlight expression of the log view; empty or null clears it. Throws <see cref="ArgumentException"/> for an expression that is not a valid regular expression.</summary>
+    public void SetLogHighlight(string? expression, TimeSpan matchTimeout)
+    {
+        LogHighlight = string.IsNullOrWhiteSpace(expression)
+            ? null
+            : new System.Text.RegularExpressions.Regex(expression, System.Text.RegularExpressions.RegexOptions.CultureInvariant, matchTimeout);
+        LogHighlightChanged?.Invoke();
+    }
+
     /// <summary>The document is shown in log mode: lines are colored by level and the log commands apply.</summary>
     public bool IsLog => Language.Id == LanguageModes.LogId;
 

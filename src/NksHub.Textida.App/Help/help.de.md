@@ -960,7 +960,16 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 5. Kürzt ein anderes Programm das Log oder ersetzt es (Rotation: die Datei wird umbenannt und unter dem alten Namen entsteht eine neue), sagt es die Statuszeile, die früheren Treffer werden verworfen und das Lesen beginnt am Anfang des neuen Inhalts. Eine fehlende Datei wird einmal gemeldet, dann wird gewartet.
 - Eine Rotation erkennt man an den ersten 4096 Bytes der Datei und unter Windows an der Erstellungszeit. Eine neue Datei, die mit denselben Bytes beginnt und nicht kürzer ist als die alte, ist davon nicht zu unterscheiden; eine ersetzte Datei gleicher Länge mit gleicher Zeit und gleichen Bytes fällt nicht auf.
 - Die Datei wird einmal pro Sekunde angesehen. Dieser Wert und die 4096 Bytes sind keine entschiedenen Werte.
-- Die Treffer liegen im Speicher ohne Obergrenze. Der Hervorhebungsausdruck einer Anzeige bleibt in der Datei, wird aber noch nicht gezeichnet.
+- Die Treffer liegen im Speicher ohne Obergrenze.
+- Log: Anzeige speichern fragt auch nach einem Text zum Hervorheben (ein regulärer Ausdruck; leer markiert nichts). Wird die Anzeige angewendet, erhalten die Treffer des Ausdrucks in jeder Zeile einen Hintergrund, im Editor und im seitenweisen Modus. Gesucht wird nur in den ersten 8192 Zeichen einer Zeile, und eine Zeile, deren Suche zu lange dauert (Platzhalterwert, nicht entschieden), bleibt unmarkiert.
+
+## [export.highlight] Export und Kopie mit Hervorhebung
+commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
+1. Bearbeiten, Kopieren als, Als HTML exportieren und Als RTF exportieren schreiben die Auswahl, oder das ganze Dokument, wenn nichts markiert ist, in eine Datei Ihrer Wahl. Die Farben sind die des Editors im aktuellen hellen oder dunklen Design: dieselben Tokens der Grammatik des Dokuments, in einem Log die Farben der Stufen. Die Seiten- und Textfarbe des Editors ist enthalten.
+2. Bearbeiten, Kopieren als, Mit Formatierung kopieren legt Text, HTML und RTF zusammen in die Zwischenablage. Das Einfügen in eine Textverarbeitung oder ein Mail behält die Farben, das Einfügen in einen Editor ergibt einfachen Text. Als HTML-Quelltext kopieren legt das HTML selbst als Text in die Zwischenablage.
+- Das ganze Dokument wird gefärbt und die Auswahl daraus geschnitten, eine Auswahl, die in einem Kommentar beginnt, ist also wie im Editor gefärbt. Bei einer großen Datei (seitenweiser Modus) und bei mehreren Cursorn oder einer Blockauswahl wird nur der markierte Text genommen und ab seinem eigenen Anfang gefärbt.
+- Ein Text über 8388608 Zeichen wird mit einer Meldung abgelehnt; markieren Sie einen Teil. Die Grenze ist ein Platzhalter, kein entschiedener Wert. Die Arbeit läuft im Hintergrund, das Fenster bleibt bedienbar.
+- HTML ist UTF-8. RTF ist ASCII: Rückwärtsschrägstrich, geschweifte Klammern und jedes Zeichen außerhalb von ASCII (zum Beispiel tschechische Buchstaben) werden als Escape geschrieben.
 
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

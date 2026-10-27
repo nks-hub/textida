@@ -1336,6 +1336,30 @@
       "category": "cat.edit"
     },
     {
+      "id": "nks.edit.copyFormatted",
+      "title": "cmd.edit.copyFormatted",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.edit.copyHtmlSource",
+      "title": "cmd.edit.copyHtmlSource",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.exportHtml",
+      "title": "cmd.file.exportHtml",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.exportRtf",
+      "title": "cmd.file.exportRtf",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.tools.emmetPreview",
       "title": "cmd.tools.emmetPreview",
       "category": "cat.tools",
@@ -3116,6 +3140,34 @@
       "command": "nks.edit.copyAiContext",
       "group": "2_clip",
       "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyFormatted",
+      "group": "2_clip",
+      "submenu": "copyas",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyHtmlSource",
+      "group": "2_clip",
+      "submenu": "copyas",
+      "order": 80
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportHtml",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 90
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportRtf",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 100
     },
     {
       "menu": "tools",

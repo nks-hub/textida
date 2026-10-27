@@ -179,12 +179,13 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Puts text, and HTML when given, on the clipboard in one go, and into the clipboard history.</summary>
-    internal void WriteClipboard(string text, string? html)
+    internal void WriteClipboard(string text, string? html, string? rtf = null)
     {
         RememberCopy(text);
         if (Clipboard is not { } clipboard) return;
         var item = DataTransferItem.CreateText(text);
         if (html is not null) item.Set(ClipboardHtml.Format, ClipboardHtml.Encode(html));
+        if (rtf is not null) item.Set(ClipboardRtf.Format, ClipboardRtf.Encode(rtf));
         var data = new DataTransfer();
         data.Add(item);
         _ = clipboard.SetDataAsync(data);

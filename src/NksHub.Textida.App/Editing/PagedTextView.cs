@@ -186,6 +186,7 @@ internal sealed partial class PagedTextView : Grid
         Doc.Saved += OnSaved;
         _doc.LanguageChanged += RepaintLog;
         _doc.LogLevelsChanged += RepaintLog;
+        _doc.LogHighlightChanged += RepaintLog;
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
     }
@@ -199,6 +200,7 @@ internal sealed partial class PagedTextView : Grid
         Doc.Saved -= OnSaved;
         _doc.LanguageChanged -= RepaintLog;
         _doc.LogLevelsChanged -= RepaintLog;
+        _doc.LogHighlightChanged -= RepaintLog;
         if (_watched is not null) _watched.IndexProgress -= OnIndexProgress;
         _watched = null;
         _indexTimer.Stop();
@@ -1454,6 +1456,15 @@ internal sealed partial class PagedTextView : Grid
                             text.SetForegroundBrush(dim, k, end - k);
                             k = end;
                         }
+                    if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
+                    {
+                        string searched = view.Map.Text.Length > LogLevelColorizer.MaxClassifiedChars ? view.Map.Text[..LogLevelColorizer.MaxClassifiedChars] : view.Map.Text;
+                        foreach (var (start, length) in LogHighlightColorizer.Spans(highlight, searched))
+                        {
+                            double left = XOf(view, start);
+                            context.FillRectangle(highlightBrush, new Rect(TextLeft - owner._hScroll + left, y, XOf(view, start + length) - left, _lineHeight));
+                        }
+                    }
                     context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
                     if (options.ShowLineEndings && !view.Truncated && owner.LineEndingOf(line) is { Length: > 0 } ending)
                     {
