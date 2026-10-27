@@ -2153,6 +2153,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Seznam akcí po uložení: nahrát na výchozí server, spustit nástroj s proměnnými, formátovat; u každé „jen při ručním uložení“. Formátování je ohraničená transakce před uložením, nahrání až po uložení s revizí uložených bajtů (R11). Formátovač (`gofmt`, `rustfmt`, `clang-format`, RuboCop…) se nabídne, jen když existuje jeho konfigurace, výchozí stav vypnuto.
   - **Funkce:** F176
   - **Hotovo, když:** autosave nespustí akci „jen při ručním uložení“; vypršení formátovače neodešle starší obsah na server; uložení z pluginu nezpůsobí smyčku; každý formátovač z tabulky P8.5.3 má test úspěchu, syntaktické chyby, chybějícího nástroje a timeoutu.
+  - **Stav 27. 10. 2026:** částečně: `saveActions.json` (uživatel) a `.textida/saveActions.json` (projekt); formátování před uložením s časovým limitem, při chybě/timeoutu uloží neformátované a řekne proč; nahrání až po uložení s přesně uloženými bajty, změna souboru mezitím = nic neodešle; autosave přeskočí „jen při ručním uložení“; uložení z pluginu a uvnitř akcí žádnou akci nespustí. Příkaz „Akce při uložení…“ nabídne formátovač jen při existující konfiguraci, výchozí vypnuto. Testy přes ToolEcho (úspěch, chyba, chybějící nástroj, timeout), nahrání proti FTPS, reálný gofmt. Otevřené: výchozí timeout (bez `formatTimeoutSeconds` formátovač neběží), „výchozí server“ pro lokální soubory (nahrání zatím jen u souborů ze serveru). rustfmt, clang-format, RuboCop neověřeny s reálnými programy (tabulka P8.5.3 chybí). Uložit jako akce nespouští; přepnutí akce zahodí komentáře v souboru.
   - **Závisí na:** P8.2.1, P5.4.2, P3b.1.2
   - **Odhad:** F176 2–3 ČT (matice); formátovače podle konfigurace 0,5–1 ČT
   - **Umístění:** jádro
@@ -2179,6 +2180,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Dávka úprav ve více souborech včetně vytvoření, přejmenování a smazání souboru, přes službu náhledu P2.5.2.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** workspace edit s úpravou, vytvořením, přejmenováním a smazáním projde náhledem a kontrolou revizí; úprava mimo povolený rozsah se odmítne celá.
+  - **Stav 27. 10. 2026:** částečně: `workspace/edit` v API v1 (úpravy otevřeného dokumentu s revizí, souboru na disku se SHA-256, create/rename/delete), celá dávka se odmítne před náhledem při cestě mimo workspace, chybějícím oprávnění `workspace.files`, souboru s tajemstvími nebo dvou změnách téhož souboru; zastaralá revize vrátí `RevisionConflict`; atomická dávka nezmění nic při konfliktu; náhled ve stejné záložce Search Results. Chybí: create/rename/delete v žurnálu (pád uprostřed se po startu neobnoví), rename/delete otevřeného souboru odmítnuty, náhled obsahu nového souboru. Limity (200 změn, 4 MiB) a kdo oprávnění uděluje jsou otevřené.
   - **Závisí na:** P8.4.1
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
