@@ -178,6 +178,63 @@ public class HexTests : IDisposable
         Assert.Equal(0x01, Bytes(_w.Active)[3]);
     }
 
+    [AvaloniaFact]
+    public void After_hex_edits_of_a_paged_file_the_text_view_and_the_find_bar_read_the_edited_bytes()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        byte[] original = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 2000).Select(i => $"row {i} {(i % 5 == 0 ? "needle" : "hay")} č\n")));
+        var starts = new List<int> { 0 };
+        for (int i = 0; i < original.Length; i++) if (original[i] == '\n') starts.Add(i + 1);
+        var opened = _w.OpenFile(_temp.Bytes("rows.txt", original), null);
+        Assert.NotNull(opened.Paged);
+
+        HexChord();
+        var hex = _w.Active!.Hex!;
+        hex.Focus();
+        Dispatcher.UIThread.RunJobs();
+        hex.MoveTo(starts[1]);
+        TestApp.Type(_w, "6E6565646C65"); // "needle" over "row 1 "
+        Press(Key.Insert);
+        hex.MoveTo(starts[3]);
+        Press(Key.Tab);
+        TestApp.Type(_w, "needle");
+        Press(Key.Tab);
+        TestApp.Type(_w, "0A");
+        byte[] want = [.. original[..starts[1]], .. "needle"u8.ToArray(), .. original[(starts[1] + 6)..starts[3]], .. "needle\n"u8.ToArray(), .. original[starts[3]..]];
+        Assert.Equal(want, Bytes(_w.Active!));
+
+        HexChord();
+        var text = _w.Active!;
+        Assert.False(text.Doc.IsHex);
+        Assert.NotNull(text.Paged);
+        var paged = text.Paged;
+        Assert.Equal(want, Bytes(text));
+        _w.UpdateLayout();
+        PumpUntil(() => paged.Index.Complete);
+        string wanted = Encoding.UTF8.GetString(want);
+        var lines = new List<string>();
+        for (int from = 0, i; from < wanted.Length; from = i + 1) lines.Add(wanted[from..((i = wanted.IndexOf('\n', from)) + 1)]);
+        Assert.Equal(lines.Count + 1, paged.Index.Lines);
+        using (var surface = new PagedTextView.TextSurface(paged))
+        {
+            long first = surface.FirstLine;
+            Assert.InRange(3L, first, first + surface.LineCount - 1);
+            Assert.Equal(string.Concat(lines.Skip((int)first).Take(surface.LineCount)), surface.GetText(0, surface.Length));
+        }
+
+        Press(Key.F, TestApp.Mod);
+        Assert.True(_w.FindBar.IsVisible);
+        _w.FindBar.FindBox.Text = "needle";
+        Dispatcher.UIThread.RunJobs();
+        PumpUntil(() => !_w.FindIsRunning);
+        var expected = new List<(long, int)>();
+        for (int at = 0, i; (i = want.AsSpan(at).IndexOf("needle"u8)) >= 0; at += i + 6)
+            expected.Add((at + i, want.AsSpan(0, at + i).Count((byte)'\n') + 1));
+        Assert.Equal(expected, _w.FindHits.OrderBy(h => h.Range.Start).Select(h => (h.Range.Start, h.Line)).ToList());
+        Assert.Contains(_w.FindHits, h => h.Range.Start == starts[1]);
+        Assert.Contains(_w.FindHits, h => h.Range.Start == starts[3]);
+    }
+
     // ---- editing by keyboard ----
 
     [AvaloniaFact]
