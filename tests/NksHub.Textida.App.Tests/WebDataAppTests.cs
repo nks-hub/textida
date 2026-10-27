@@ -327,6 +327,8 @@ public class WebDataAppTests : IDisposable
 
         tab.Editor.TextArea.ClearSelection();
         tab.Editor.CaretOffset = 0;
+        // the plugin publishes the outline for the revision on its own schedule; a busy machine may still be behind here
+        await Until(() => { _app.Plugins.TabSymbols(tab, out bool now); return now; }, "the outline of the current revision");
         var symbols = _app.Plugins.TabSymbols(tab, out bool current);
         Assert.True(current);
         Assert.Contains(symbols, s => s.Name == "list[1]");
