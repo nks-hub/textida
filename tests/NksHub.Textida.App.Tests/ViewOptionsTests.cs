@@ -620,7 +620,8 @@ public class ViewOptionsTests : IDisposable
     public void The_map_of_a_paged_utf16_file_reads_its_lines()
     {
         string path = Path.Combine(_temp.Path, "wide.cs");
-        string text = string.Concat(Enumerable.Range(0, 3000).Select(i => $"line {i} ěšč\r\n"));
+        // above the threshold of 1 MiB, so the file opens paged
+        string text = string.Concat(Enumerable.Range(0, 50_000).Select(i => $"line {i} ěšč\r\n"));
         File.WriteAllBytes(path, [.. Encoding.Unicode.GetPreamble(), .. Encoding.Unicode.GetBytes(text)]);
         Set("files.largeFileThreshold", JsonValue.Create(1));
         var tab = _w.OpenFile(path, null);
@@ -629,7 +630,7 @@ public class ViewOptionsTests : IDisposable
         var host = (IMinimapHost)tab.Paged!;
         Assert.Equal("line 0 ěšč", host.LineText(0));
         Assert.Equal("line 1234 ěšč", host.LineText(1234));
-        Assert.Equal("line 2999 ěšč", host.LineText(2999));
+        Assert.Equal("line 49999 ěšč", host.LineText(49_999));
         Assert.Equal("line 1 ěšč", host.LineText(1));
     }
 
