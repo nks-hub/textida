@@ -101,7 +101,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
-        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits()), this, send, request);
+        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, send, request);
         Mcp = new McpService(this, App.Startup.Channel);
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
@@ -364,7 +364,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var review = await Dispatcher.UIThread.InvokeAsync<Task<ProposalDecision>>(() =>
             _running.TryGetValue(proposal.DocumentId, out var run)
                 ? run.Window.ReviewPluginProposalAsync(proposal, run.Tab, id, cancellation)
-                : Task.FromResult(new ProposalDecision(id, ProposalOutcome.Stale, 0, proposal.Edits.Count)));
+                // a plugin that holds the agent panel proposes outside a command, for the tabs it was allowed to read and propose in
+                : Acp.HasSession(proposal.PluginId) && TabOf(proposal.DocumentId) is { } found
+                    ? found.Window.ReviewPluginProposalAsync(proposal, found.Tab, id, cancellation)
+                    : Task.FromResult(new ProposalDecision(id, ProposalOutcome.Stale, 0, proposal.Edits.Count)));
         return await review.ConfigureAwait(false);
     }
 

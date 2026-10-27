@@ -1255,6 +1255,15 @@ public static class K
     public const string A11yAgentPanel = "a11y.agent.panel";
     public const string A11yAgentTranscript = "a11y.agent.transcript";
     public const string A11yAgentInput = "a11y.agent.input";
+    public const string AgentPluginOpened = "agent.plugin.opened";
+    public const string PreviewPanelTitle = "preview.panel.title";
+    public const string PreviewPanelStatus = "preview.panel.status";
+    public const string PreviewPanelOutdated = "preview.panel.outdated";
+    public const string PreviewPanelClose = "preview.panel.close";
+    public const string PreviewPanelImage = "preview.panel.image";
+    public const string PreviewPanelLink = "preview.panel.link";
+    public const string A11yPreviewPanel = "a11y.preview.panel";
+    public const string A11yPreviewBody = "a11y.preview.body";
     public const string McpProposal = "mcp.proposal";
     public const string McpToolListDocuments = "mcp.tool.listDocuments";
     public const string McpToolReadRange = "mcp.tool.readRange";
@@ -1376,6 +1385,8 @@ public static class K
     public const string PluginsPermClipboardWrite = "plugins.perm.clipboard.write";
     public const string PluginsPermDocumentVirtual = "plugins.perm.document.virtual";
     public const string PluginsPermDocumentSource = "plugins.perm.document.source";
+    public const string PluginsPermDocumentPreview = "plugins.perm.document.preview";
+    public const string PluginsPermAgentPanel = "plugins.perm.agent.panel";
     public const string PluginsPermWorkspaceFiles = "plugins.perm.workspace.files";
     public const string PluginsErrorTitle = "plugins.error.title";
     public const string PluginsErrorNotAZip = "plugins.error.notAZip";

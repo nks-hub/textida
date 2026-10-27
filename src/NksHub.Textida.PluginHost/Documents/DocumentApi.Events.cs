@@ -51,6 +51,7 @@ public sealed partial class DocumentApi
     {
         MarkSymbolsOutdated(e.Doc, change.Revision);
         MoveDiagnostics(e.Doc, change.Revision);
+        MarkPreviewsOutdated(e.Doc, change.Revision);
         string[] subscribers;
         lock (_gate) subscribers = [.. e.Subscribers];
         if (subscribers.Length == 0) return;
@@ -84,6 +85,14 @@ public sealed partial class DocumentApi
             if (box.Queue.Count >= _options.EventQueueCapacity) box.Lost.Add(document);
             else box.Queue.Enqueue(new Queued(name, document, payload));
         }
+        box.Signal.Release();
+    }
+
+    /// <summary>An event of the agent panel: never dropped for being one too many (a user types slowly) and not tied to a document, so it is not part of the lost-document bookkeeping.</summary>
+    private void EnqueueAgent(string plugin, string name, byte[] payload)
+    {
+        var box = BoxFor(plugin);
+        lock (box.Gate) box.Queue.Enqueue(new Queued(name, Guid.Empty, payload));
         box.Signal.Release();
     }
 
@@ -139,6 +148,7 @@ public sealed partial class DocumentApi
     {
         _stop.Cancel();
         _options.Permissions.Revoked -= DropRevokedSubscriptions;
+        _options.Permissions.Revoked -= DropRevokedPanels;
         List<Exposed> exposed;
         List<Outbox> boxes;
         lock (_gate)

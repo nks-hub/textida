@@ -65,6 +65,18 @@ public static class DocumentMethods
     public const string WorkspaceEdit = "workspace/edit";
     /// <summary>The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>).</summary>
     public const string SourceRegister = "source/register";
+    /// <summary>Shows a controlled preview (text or Markdown the plugin supplies) of one revision of a document in the editor's preview panel. HTML is not rendered yet.</summary>
+    public const string PreviewShow = "preview/show";
+    /// <summary>Takes the preview of a document back.</summary>
+    public const string PreviewClose = "preview/close";
+    /// <summary>The plugin hosts its agent conversation in the editor's agent panel (one conversation at a time, shared with agents started over ACP).</summary>
+    public const string AgentOpen = "agent/open";
+    /// <summary>Adds to the conversation: a chunk of the agent's message, a tool and its status, a note or a problem, or the end of the turn (<see cref="AgentUpdateKind"/>).</summary>
+    public const string AgentUpdate = "agent/update";
+    /// <summary>Asks the user, in the editor's permission dialog, to choose one of the options; answers after the user has decided.</summary>
+    public const string AgentPermission = "agent/permission";
+    /// <summary>The plugin leaves the agent panel.</summary>
+    public const string AgentClose = "agent/close";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -94,6 +106,12 @@ public static class DocumentEvents
     /// <summary>Events of one document were dropped (the plugin was too slow); the payload holds the current revision to read again from.</summary>
     public const string EventsLost = "document/eventsLost";
     public const string Withdrawn = "document/withdrawn";
+    /// <summary>The user sent a message in the agent panel of this plugin: <c>{"text"}</c>. The turn lasts until the plugin sends <see cref="AgentUpdateKind.TurnEnd"/>.</summary>
+    public const string AgentMessage = "agent/message";
+    /// <summary>The user cancelled the turn; open permission questions of it were answered as cancelled. The plugin should stop and end the turn.</summary>
+    public const string AgentCancel = "agent/cancel";
+    /// <summary>The conversation ended on the editor's side (the user stopped it, the window closed): <c>{"reason"}</c>.</summary>
+    public const string AgentClosed = "agent/closed";
 }
 
 public static class DocumentPermissions
@@ -115,6 +133,10 @@ public static class DocumentPermissions
     public const string WorkspaceFiles = "workspace.files";
     /// <summary>Serves files of a URI scheme the user opens in tabs; the editor sends it the URIs, with their secrets, and takes the content it answers.</summary>
     public const string Source = "document.source";
+    /// <summary>Shows previews (text or Markdown the plugin supplies) of documents it may read. The editor renders them with no script, no network and no local file.</summary>
+    public const string Preview = "document.preview";
+    /// <summary>Hosts a conversation in the agent panel. Questions go through the permission dialog and file changes through the change review, as for any agent.</summary>
+    public const string AgentPanel = "agent.panel";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -150,6 +172,10 @@ public static class DocumentErrorCodes
     public const int SourceNotFound = -32038;
     /// <summary>The scheme is already served by another plugin.</summary>
     public const int SourceSchemeTaken = -32039;
+    /// <summary>The agent panel holds another conversation (an agent over ACP or another plugin).</summary>
+    public const int AgentPanelBusy = -32040;
+    /// <summary>The plugin has no conversation in the agent panel (never opened, or the user or the editor ended it).</summary>
+    public const int NoAgentSession = -32041;
 }
 
 /// <summary>
@@ -206,7 +232,67 @@ public sealed record DocumentApiOptions
     public WorkspaceEditOptions? Workspace { get; init; }
     /// <summary>File sources for URI schemes (<see cref="DocumentMethods.SourceRegister"/>); null means the editor takes none.</summary>
     public FileSourceOptions? Sources { get; init; }
+    /// <summary>Previews (<see cref="DocumentMethods.PreviewShow"/>); null means the editor takes none.</summary>
+    public PreviewOptions? Preview { get; init; }
+    /// <summary>The agent panel for plugins (<see cref="DocumentMethods.AgentOpen"/>); null means the editor takes none.</summary>
+    public AgentPanelOptions? Agent { get; init; }
 }
+
+/// <summary>Formats of <see cref="DocumentMethods.PreviewShow"/>. HTML is left out until the renderer and its policy (P6.2.7) are chosen.</summary>
+public static class PreviewFormats
+{
+    public const string Text = "text";
+    public const string Markdown = "markdown";
+}
+
+/// <summary>What a preview shows: the <paramref name="Text"/> a plugin supplied for <paramref name="Revision"/> of a document, as plain <see cref="PreviewFormats.Text"/> or Markdown.</summary>
+public sealed record PreviewContent(string PluginId, Guid Document, long Revision, string Format, string? Title, string Text);
+
+/// <summary>
+/// The preview panel of the editor. It owns the panel and renders the content itself; the plugin only supplies data. Calls come on the thread that owns the documents,
+/// except <see cref="Close"/>, which also comes from any thread when a plugin loses its permission or restarts.
+/// </summary>
+public interface IPreviewPanel
+{
+    /// <summary>Shows the content (it is for the current revision of its document) and opens the panel.</summary>
+    void Show(PreviewContent content);
+    /// <summary>The document moved past the shown revision: mark the preview as outdated until the plugin shows the new revision.</summary>
+    void Outdated(string pluginId, Guid document, long currentRevision);
+    /// <summary>The preview of this plugin for this document is gone; the panel closes if it shows it.</summary>
+    void Close(string pluginId, Guid document);
+}
+
+/// <param name="MaxChars">Longest preview text, in UTF-16 code units.</param>
+public sealed record PreviewOptions(IPreviewPanel Panel, int MaxChars);
+
+public enum AgentUpdateKind { Message, Tool, ToolUpdate, Note, Problem, TurnEnd }
+
+/// <summary>
+/// One change of a conversation a plugin hosts. <paramref name="Text"/> is the chunk of a message, the title of a tool, a note, a problem or the reason a turn ended;
+/// <paramref name="ToolId"/> and <paramref name="Status"/> (<c>pending</c>, <c>in_progress</c>, <c>completed</c>, <c>failed</c>, <c>cancelled</c>) belong to the tool kinds.
+/// </summary>
+public sealed record AgentUpdate(AgentUpdateKind Kind, string? Text, string? ToolId = null, string? Status = null);
+
+/// <summary>An option of a permission question; <paramref name="Reject"/> marks the one that refuses and is the default of the dialog.</summary>
+public sealed record AgentPermissionOption(string Id, string Name, bool Reject);
+
+/// <summary>
+/// The agent panel of the editor, shared with agents over ACP. Calls come on the thread that owns the documents, except <see cref="Close"/> (any thread)
+/// and <see cref="AskAsync"/> (its dialog runs on the UI thread). A message of the user or a cancelled turn reaches the plugin through <see cref="DocumentApi.AgentUserMessage"/> and the like.
+/// </summary>
+public interface IAgentPanel
+{
+    /// <summary>Opens the conversation and shows the panel; false when it holds another one.</summary>
+    bool Open(string pluginId, string name);
+    bool HasSession(string pluginId);
+    void Update(string pluginId, AgentUpdate update);
+    void Close(string pluginId);
+    /// <summary>Asks in the permission dialog; null when the user cancelled it or <paramref name="cancellation"/> was signalled (the turn was cancelled).</summary>
+    Task<string?> AskAsync(string pluginId, string tool, IReadOnlyList<AgentPermissionOption> options, CancellationToken cancellation);
+}
+
+/// <param name="MaxUpdateChars">Longest text of one update, tool title or question, in UTF-16 code units.</param>
+public sealed record AgentPanelOptions(IAgentPanel Panel, int MaxUpdateChars);
 
 /// <summary>
 /// What a workspace edit needs from the editor: the review that shows and applies it, the workspace folders (paths outside them are refused), whether a file is open in a tab,

@@ -33,7 +33,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
             || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1
             || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero
-            || options.Workspace is { MaxChanges: < 1 } or { MaxFileBytes: < 1 }
+            || options.Workspace is { MaxChanges: < 1 } or { MaxFileBytes: < 1 } || options.Preview is { MaxChars: < 1 } || options.Agent is { MaxUpdateChars: < 1 }
             || options.Sources is { Timeout.Ticks: <= 0 } or { MaxBytes: < 1 } or { MaxEntries: < 1 } or { MaxSchemesPerPlugin: < 1 } or { CacheEntries: < 1 } or { CacheBytes: < 1 })
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
@@ -43,6 +43,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         _time = time ?? TimeProvider.System;
         options.Permissions.Revoked += DropRevokedSubscriptions;
         options.Permissions.Revoked += DropRevokedSources;
+        options.Permissions.Revoked += DropRevokedPanels;
         _cache = options.Sources is { } sources ? new SourceCache(sources.CacheEntries, sources.CacheBytes) : null;
     }
 
@@ -103,6 +104,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         }
         document.Changed -= e.Handler;
         ForgetVirtual(document.Id);
+        ClearPreviews(key => key.Document == document.Id);
         ClearSymbols(key => key.Document == document.Id);
         ClearDiagnostics(key => key.Document == document.Id);
         var payload = Obj(w => w.WriteString("document", document.Id));
@@ -118,7 +120,9 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         DocumentMethods.ClipboardWrite => DocumentPermissions.ClipboardWrite,
         DocumentMethods.VirtualOpen or DocumentMethods.VirtualUpdate => DocumentPermissions.Virtual,
         DocumentMethods.SourceRegister => DocumentPermissions.Source,
-        _ => DocumentPermissions.Read,
+        DocumentMethods.PreviewShow or DocumentMethods.PreviewClose => DocumentPermissions.Preview,
+        DocumentMethods.AgentOpen or DocumentMethods.AgentUpdate or DocumentMethods.AgentPermission or DocumentMethods.AgentClose => DocumentPermissions.AgentPanel,
+        _ =>DocumentPermissions.Read,
     };
 
     /// <summary>The document a request is about: the one it names, or the one its snapshot was taken from. <see cref="GrantScope.Any"/> when there is none.</summary>
@@ -196,6 +200,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
             case DocumentMethods.WorkspaceEdit: return await WorkspaceEditAsync(pluginId, p, cancellation);
             case DocumentMethods.SourceRegister: return RegisterSource(pluginId, p);
+            case DocumentMethods.PreviewShow: return await PreviewShowAsync(pluginId, p);
+            case DocumentMethods.PreviewClose: return PreviewClose(pluginId, p);
+            case DocumentMethods.AgentOpen: return await AgentOpenAsync(pluginId, p);
+            case DocumentMethods.AgentUpdate: return await AgentUpdateAsync(pluginId, p);
+            case DocumentMethods.AgentPermission: return await AgentPermissionAsync(pluginId, p, cancellation);
+            case DocumentMethods.AgentClose: return AgentClose(pluginId);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
@@ -651,6 +661,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         ClearOutbox(pluginId);
         ClearSymbols(key => key.Plugin == pluginId);
         ClearDiagnostics(key => key.Plugin == pluginId);
+        ClearPreviews(key => key.Plugin == pluginId);
+        _options.Agent?.Panel.Close(pluginId);
         lock (_gate)
         {
             _snapshots.Remove(pluginId);
