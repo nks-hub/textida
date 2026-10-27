@@ -1108,7 +1108,7 @@
   "compare.sync.need": "Najprv zobrazte dva textové súbory vedľa seba: jednu kartu presuňte do druhej skupiny.",
   "compare.ignoresWhitespace": "medzery sa nerozlišujú",
   "compare.ignoresCase": "veľkosť písmen sa nerozlišuje",
-  "compare.a11y.hunk": "Rozdiel {index} z {count}, vľavo {left}, vpravo {right}",
+  "compare.a11y.hunk": "Rozdiel {index} z {total}, vľavo {left}, vpravo {right}",
   "compare.a11y.line": "riadok {line}",
   "compare.a11y.lines": "riadky {first} až {last}",
   "compare.a11y.noLines": "žiadny riadok",

@@ -237,7 +237,7 @@ internal sealed partial class DiffView : DockPanel
     {
         if (_session.Diff is not { } diff || _current < 0 || _current >= diff.Hunks.Count) return SummaryText;
         var h = diff.Hunks[_current];
-        string text = Loc.Get(K.CompareA11yHunk, ("index", _current + 1), ("count", diff.Hunks.Count), ("left", Lines(h.AStart, h.ACount)), ("right", Lines(h.BStart, h.BCount)));
+        string text = Loc.Get(K.CompareA11yHunk, ("index", _current + 1), ("total", diff.Hunks.Count), ("left", Lines(h.AStart, h.ACount)), ("right", Lines(h.BStart, h.BCount)));
         if (h.ACount > 0) text += ". " + Loc.Get(K.CompareA11yLeft, ("text", Head(diff.A, h.AStart)));
         if (h.BCount > 0) text += ". " + Loc.Get(K.CompareA11yRight, ("text", Head(diff.B, h.BStart)));
         return text;

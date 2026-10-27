@@ -1081,7 +1081,7 @@
   "compare.sync.need": "Show two text files side by side first: move one tab to the other group.",
   "compare.ignoresWhitespace": "whitespace ignored",
   "compare.ignoresCase": "case ignored",
-  "compare.a11y.hunk": "Difference {index} of {count}, left {left}, right {right}",
+  "compare.a11y.hunk": "Difference {index} of {total}, left {left}, right {right}",
   "compare.a11y.line": "line {line}",
   "compare.a11y.lines": "lines {first} to {last}",
   "compare.a11y.noLines": "no lines",

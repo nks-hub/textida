@@ -1081,7 +1081,7 @@
   "compare.sync.need": "Zeigen Sie zuerst zwei Textdateien nebeneinander: Verschieben Sie einen Tab in die andere Gruppe.",
   "compare.ignoresWhitespace": "Leerraum ignoriert",
   "compare.ignoresCase": "Groß-/Kleinschreibung ignoriert",
-  "compare.a11y.hunk": "Unterschied {index} von {count}, links {left}, rechts {right}",
+  "compare.a11y.hunk": "Unterschied {index} von {total}, links {left}, rechts {right}",
   "compare.a11y.line": "Zeile {line}",
   "compare.a11y.lines": "Zeilen {first} bis {last}",
   "compare.a11y.noLines": "keine Zeile",
