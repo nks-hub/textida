@@ -1280,6 +1280,9 @@ public static class K
     public const string PreviewPanelClose = "preview.panel.close";
     public const string PreviewPanelImage = "preview.panel.image";
     public const string PreviewPanelLink = "preview.panel.link";
+    public const string PreviewLinkTitle = "preview.link.title";
+    public const string PreviewLinkMessage = "preview.link.message";
+    public const string PreviewLinkFailed = "preview.link.failed";
     public const string A11yPreviewPanel = "a11y.preview.panel";
     public const string A11yPreviewBody = "a11y.preview.body";
     public const string McpProposal = "mcp.proposal";

@@ -1,17 +1,20 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// Renders the text of a plugin preview (P6.2.4) into plain text controls. There is nothing in it that could load or run anything: the result is text blocks and borders, so no script,
-/// no network and no local file. Raw HTML stays literal text, an image is shown as a note with its alt text and a link as its text followed by its target, neither is followed or fetched.
+/// Renders the text of a plugin preview (P6.2.4) into Avalonia controls under <see cref="PreviewPolicy"/> (P6.2.7): no web view, so there is no script and no network. Raw HTML stays literal text.
+/// An image is drawn only from a <c>data:</c> URI within the size limit, any other becomes a note with its alt text. A link to the web or a mail address is a button that asks the user before it
+/// opens; any other link is text followed by its target and is never followed.
 /// Markdown covers headings, paragraphs, lists, quotes, fenced code, rules, emphasis, strong text and inline code.
 /// </summary>
 internal static partial class PreviewRenderer
@@ -25,10 +28,13 @@ internal static partial class PreviewRenderer
     [GeneratedRegex(@"^\s{0,3}([-*_])(\s*\1){2,}\s*$")]
     private static partial Regex Rule();
 
-    public static Control Render(string format, string text, FontFamily mono)
+    /// <summary>What a render needs: the font of code and, for allowed links, what a click does (null: links stay text).</summary>
+    internal sealed record Ctx(FontFamily Mono, Action<Uri>? Open = null);
+
+    public static Control Render(string format, string text, Ctx ctx)
     {
         var body = new StackPanel { Spacing = 8, Margin = new Thickness(12, 6) };
-        if (format == PreviewFormats.Markdown) Blocks(text.ReplaceLineEndings("\n").Split('\n'), body.Children, mono);
+        if (format == PreviewFormats.Markdown) Blocks(text.ReplaceLineEndings("\n").Split('\n'), body.Children, ctx);
         else body.Children.Add(new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
         return body;
     }
@@ -36,7 +42,7 @@ internal static partial class PreviewRenderer
     private static bool StartsBlock(string line) =>
         line.StartsWith("```", StringComparison.Ordinal) || line.StartsWith('>') || Heading().IsMatch(line) || ListItem().IsMatch(line) || Rule().IsMatch(line);
 
-    private static void Blocks(string[] lines, Avalonia.Controls.Controls into, FontFamily mono)
+    private static void Blocks(string[] lines, Avalonia.Controls.Controls into, Ctx ctx)
     {
         for (int i = 0; i < lines.Length;)
         {
@@ -47,7 +53,7 @@ internal static partial class PreviewRenderer
                 var code = new StringBuilder();
                 for (i++; i < lines.Length && !lines[i].StartsWith("```", StringComparison.Ordinal); i++) code.Append(lines[i]).Append('\n');
                 i++;
-                var block = new Border { Child = new SelectableTextBlock { Text = code.ToString().TrimEnd('\n'), FontFamily = mono, TextWrapping = TextWrapping.Wrap } };
+                var block = new Border { Child = new SelectableTextBlock { Text = code.ToString().TrimEnd('\n'), FontFamily = ctx.Mono, TextWrapping = TextWrapping.Wrap } };
                 block.Classes.Add("previewcode");
                 into.Add(block);
             }
@@ -55,7 +61,7 @@ internal static partial class PreviewRenderer
             {
                 var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
                 text.Classes.Add("previewhead" + heading.Groups[1].Length);
-                Spans(heading.Groups[2].Value, text.Inlines!, FontWeight.Normal, FontStyle.Normal, mono);
+                Spans(heading.Groups[2].Value, text.Inlines!, FontWeight.Normal, FontStyle.Normal, ctx);
                 into.Add(text);
                 i++;
             }
@@ -71,7 +77,7 @@ internal static partial class PreviewRenderer
                 var quote = new List<string>();
                 for (; i < lines.Length && lines[i].StartsWith('>'); i++) quote.Add(lines[i][1..].TrimStart());
                 var inner = new StackPanel { Spacing = 8 };
-                Blocks([.. quote], inner.Children, mono);
+                Blocks([.. quote], inner.Children, ctx);
                 var border = new Border { Child = inner };
                 border.Classes.Add("previewquote");
                 into.Add(border);
@@ -84,7 +90,7 @@ internal static partial class PreviewRenderer
                     var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(Math.Min(item.Groups[0].Value.Length - item.Value.TrimStart().Length, 12) * 8, 0, 0, 0) };
                     var marker = item.Groups[1].Value;
                     text.Inlines!.Add(new Run((char.IsDigit(marker[0]) ? marker : "•") + " "));
-                    Spans(item.Groups[2].Value, text.Inlines, FontWeight.Normal, FontStyle.Normal, mono);
+                    Spans(item.Groups[2].Value, text.Inlines, FontWeight.Normal, FontStyle.Normal, ctx);
                     list.Children.Add(text);
                 }
                 into.Add(list);
@@ -94,7 +100,7 @@ internal static partial class PreviewRenderer
                 var paragraph = new List<string>();
                 for (; i < lines.Length && lines[i].Trim().Length > 0 && (paragraph.Count == 0 || !StartsBlock(lines[i])); i++) paragraph.Add(lines[i].Trim());
                 var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
-                Spans(string.Join(' ', paragraph), text.Inlines!, FontWeight.Normal, FontStyle.Normal, mono);
+                Spans(string.Join(' ', paragraph), text.Inlines!, FontWeight.Normal, FontStyle.Normal, ctx);
                 into.Add(text);
             }
         }
@@ -106,7 +112,7 @@ internal static partial class PreviewRenderer
     private static bool Emphasis(string s, int open, int close, int width) =>
         s[open] == '*' || ((open == 0 || !Word(s[open - 1])) && (close + width >= s.Length || !Word(s[close + width])));
 
-    private static void Spans(string s, InlineCollection into, FontWeight weight, FontStyle style, FontFamily mono)
+    private static void Spans(string s, InlineCollection into, FontWeight weight, FontStyle style, Ctx ctx)
     {
         var plain = new StringBuilder();
         void Flush()
@@ -121,25 +127,28 @@ internal static partial class PreviewRenderer
             else if (c == '`' && s.IndexOf('`', i + 1) is var codeEnd and > 0)
             {
                 Flush();
-                into.Add(new Run(s[(i + 1)..codeEnd]) { FontFamily = mono, FontWeight = weight, FontStyle = style });
+                into.Add(new Run(s[(i + 1)..codeEnd]) { FontFamily = ctx.Mono, FontWeight = weight, FontStyle = style });
                 i = codeEnd + 1;
             }
             else if (c is '*' or '_' && i + 1 < s.Length && s[i + 1] == c && s.IndexOf(new string(c, 2), i + 2, StringComparison.Ordinal) is var strongEnd and > 0 && Emphasis(s, i, strongEnd, 2))
             {
                 Flush();
-                Spans(s[(i + 2)..strongEnd], into, FontWeight.Bold, style, mono);
+                Spans(s[(i + 2)..strongEnd], into, FontWeight.Bold, style, ctx);
                 i = strongEnd + 2;
             }
             else if (c is '*' or '_' && s.IndexOf(c, i + 1) is var emEnd and > 0 && emEnd > i + 1 && Emphasis(s, i, emEnd, 1))
             {
                 Flush();
-                Spans(s[(i + 1)..emEnd], into, weight, FontStyle.Italic, mono);
+                Spans(s[(i + 1)..emEnd], into, weight, FontStyle.Italic, ctx);
                 i = emEnd + 1;
             }
             else if (Link(s, i) is var (image, label, target, length) && length > 0)
             {
                 Flush();
-                into.Add(new Run(image ? Loc.Get(K.PreviewPanelImage, ("alt", label)) : Loc.Get(K.PreviewPanelLink,("text", label), ("url", target))) { FontWeight = weight, FontStyle = style });
+                var text = image ? Loc.Get(K.PreviewPanelImage, ("alt", label)) : Loc.Get(K.PreviewPanelLink, ("text", label), ("url", target));
+                if (image && PreviewPolicy.ImageBytes(target) is { } bytes && Picture(bytes, label) is { } picture) into.Add(new InlineUIContainer(picture));
+                else if (!image && ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)));
+                else into.Add(new Run(text) { FontWeight = weight, FontStyle = style });
                 i += length;
             }
             else
@@ -149,6 +158,32 @@ internal static partial class PreviewRenderer
             }
         }
         Flush();
+    }
+
+    /// <summary>A link the policy allows: a button, so the keyboard and a screen reader reach it. It only hands the target to <paramref name="open"/>, which asks the user first.</summary>
+    private static Button LinkButton(string text, Uri uri, Action<Uri> open)
+    {
+        var button = new Button { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap } };
+        button.Classes.Add("previewlink");
+        AutomationProperties.SetName(button, text);
+        button.Click += (_, _) => open(uri);
+        return button;
+    }
+
+    /// <summary>The image of a <c>data:</c> URI the policy accepted, or null when it does not decode. Decoded at a bounded width so a small file cannot expand to a huge bitmap.</summary>
+    private static Image? Picture(byte[] bytes, string alt)
+    {
+        try
+        {
+            using var stream = new MemoryStream(bytes);
+            var image = new Image { Source = Bitmap.DecodeToWidth(stream, PreviewPolicy.MaxImageWidth), Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, MaxWidth = PreviewPolicy.MaxImageWidth };
+            AutomationProperties.SetName(image, alt);
+            return image;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return null;
+        }
     }
 
     /// <summary>A <c>[label](target)</c> or <c>![label](target)</c> at <paramref name="at"/>; Length 0 when there is none.</summary>
