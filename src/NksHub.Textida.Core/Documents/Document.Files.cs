@@ -11,8 +11,15 @@ public sealed partial class Document
 
     /// <summary>File the document was opened from or last saved to; null for an unnamed document.</summary>
     public string? FilePath { get; private set; }
-    /// <summary>What the file looked like when it was loaded or saved by this document.</summary>
-    public FileFingerprint? Fingerprint { get; private set; }
+    private FileFingerprint? _fingerprint;
+    private string? _fileId;
+    private CancellationTokenSource? _hashCancel;
+
+    /// <summary>
+    /// What the file looked like when it was loaded or saved by this document. After an in-place save the hash is empty (<see cref="FileFingerprint.HasHash"/>)
+    /// until a background pass over the file has filled it in; until then only size and write time vouch for the file.
+    /// </summary>
+    public FileFingerprint? Fingerprint { get => _fingerprint; private set => _fingerprint = value; }
 
     /// <summary>Raised (possibly on a thread-pool thread) when the file no longer matches <see cref="Fingerprint"/>; the event carries the revision.</summary>
     public event EventHandler<ExternalChange>? ExternalChangeDetected;
@@ -47,10 +54,10 @@ public sealed partial class Document
     public ExternalChange? CheckExternalChange()
     {
         if (FilePath is not { } path || Fingerprint is not { } expected) return null;
-        var actual = FileFingerprint.TryRead(path);
+        var actual = expected.HasHash ? FileFingerprint.TryRead(path) : FileFingerprint.TryReadQuick(path);
         ExternalChange? change = null;
         if (actual is null) change = new(Id, _revision, path, expected, null, ExternalChangeKind.Missing);
-        else if (!actual.SameContent(expected)) change = new(Id, _revision, path, expected, actual, ExternalChangeKind.Modified);
+        else if (!actual.SameContent(expected) || (!expected.HasHash && actual.LastWriteUtc != expected.LastWriteUtc)) change = new(Id, _revision, path, expected, actual, ExternalChangeKind.Modified);
         else if (actual.LastWriteUtc != expected.LastWriteUtc) Fingerprint = expected with { LastWriteUtc = actual.LastWriteUtc };
 
         var key = change is null ? ((ExternalChangeKind, string?)?)null : (change.Kind, change.Actual?.Sha256);
@@ -109,12 +116,12 @@ public sealed partial class Document
         string target = Path.GetFullPath(path ?? FilePath ?? throw new InvalidOperationException("An unnamed document needs a path."));
         bool inPlace = FilePath is not null && SamePath(target, FilePath);
         bool guard = inPlace && !overwriteExternalChanges;
-        if (guard && CheckExternalChange() is { } early) return new(false, early);
         if (inPlace && PlanSave() is { Mode: SaveMode.InPlace } plan)
         {
             try { return SaveInPlace(target, plan, guard); }
             catch (SnapshotInvalidatedException) { } // the file was touched (same content, new write time): the whole file is written below instead
         }
+        if (guard && CheckExternalChange() is { } early) return new(false, early);
 
         string temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
@@ -143,8 +150,10 @@ public sealed partial class Document
             if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
             else FileSwap.Replace(temp, target);
 
+            _hashCancel?.Cancel();
             FilePath = target;
             _baseline = blocks;
+            _fileId = FileIdentity.TryGet(target);
             Fingerprint = new FileFingerprint(ByteLength, File.GetLastWriteTimeUtc(target), hash);
             _lastReported = null;
             MarkSaved();

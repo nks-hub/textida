@@ -20,7 +20,50 @@ public sealed record FileFingerprint(long Size, DateTime LastWriteUtc, string Sh
         }
     }
 
-    public bool SameContent(FileFingerprint other) => Size == other.Size && Sha256 == other.Sha256;
+    /// <summary>Size and write time only; the hash is empty. Cheap at any file size.</summary>
+    public static FileFingerprint? TryReadQuick(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? new(info.Length, info.LastWriteTimeUtc, "") : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Like <see cref="TryRead(string)"/>, but cancellable; null also when the write time moved while the file was read, because then the hash
+    /// may mix two states of the file.
+    /// </summary>
+    public static FileFingerprint? TryRead(string path, CancellationToken ct)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+            var before = File.GetLastWriteTimeUtc(path);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buf = new byte[1 << 20];
+            for (int n; (n = fs.Read(buf)) > 0;)
+            {
+                ct.ThrowIfCancellationRequested();
+                hash.AppendData(buf, 0, n);
+            }
+            return File.GetLastWriteTimeUtc(path) == before ? new(fs.Length, before, Convert.ToHexString(hash.GetHashAndReset())) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>False for a fingerprint taken after an in-place save, before the background hash finished.</summary>
+    public bool HasHash => Sha256.Length > 0;
+
+    /// <summary>Equal size and, when both sides know their hash, equal hash.</summary>
+    public bool SameContent(FileFingerprint other) => Size == other.Size && (!HasHash || !other.HasHash || Sha256 == other.Sha256);
 }
 
 public enum ExternalChangeKind
