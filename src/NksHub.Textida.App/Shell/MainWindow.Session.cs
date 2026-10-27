@@ -166,7 +166,7 @@ internal sealed partial class MainWindow
         if (!askFirst)
         {
             _closeApproved = true;
-            if (_app.Windows.Count == 1) _app.SaveSession();
+            if (_app.Windows.Count == 1) { UpdateActiveProject(); _app.SaveSession(); }
             return;
         }
         e.Cancel = true;
@@ -182,7 +182,7 @@ internal sealed partial class MainWindow
             }
         }
         _closeApproved = true;
-        if (_app.Windows.Count == 1) _app.SaveSession();
+        if (_app.Windows.Count == 1) { UpdateActiveProject(); _app.SaveSession(); }
         Close();
     }
 }

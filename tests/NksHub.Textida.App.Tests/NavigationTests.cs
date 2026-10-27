@@ -462,7 +462,7 @@ public class NavigationTests : IDisposable
         Assert.Equal("Panel souborů", AutomationProperties.GetName(_w.FilePanelControl));
         var menu = _w.FileList.ContextMenu!;
         var titles = menu.Items.OfType<MenuItem>().Select(m => (string)m.Header!).ToList();
-        Assert.Equal(["Nový soubor ve složce...", "Nová složka...", "Duplikovat", "Přejmenovat...", "Přesunout...", "Smazat do koše", "Obnovit soubory"], titles);
+        Assert.Equal(["Nový soubor ve složce...", "Nová složka...", "Duplikovat", "Přejmenovat...", "Přesunout...", "Smazat do koše", "Obnovit soubory", "Přidat k oblíbeným", "Oblíbené..."], titles);
     }
 
     [AvaloniaFact]

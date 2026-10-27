@@ -595,6 +595,30 @@ commands: nks.files.refresh, nks.files.reveal
 - Dateien aktualisieren (F5 im Panel) liest den Baum erneut vom Datenträger.
 - Aktive Datei im Panel anzeigen öffnet das Panel und wählt darin die Datei des aktiven Tabs aus. Es funktioniert bei geöffnetem Ordner und geöffnetem Dokument.
 
+## [workspace.projects] Projekte
+commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
+Ein Projekt ist ein benannter Satz von Ordnern mit den Dateien, die darin geöffnet waren. Es liegt im Profil und lässt sich wie ein Ordner wechseln.
+- Ordner zum Panel hinzufügen zeigt einen weiteren Ordner neben den vorhandenen. Jeder Ordner ist eine oberste Zeile des Baums.
+- Projekt speichern (Datei, Projekte und Sitzungen) legt die Ordner des Panels und die darin liegenden offenen Dateien unter einem Namen ab. Ein Projekt gleichen Namens wird ersetzt.
+- Projekt öffnen zeigt die Ordner im Panel und öffnet die Dateien, die das Projekt offen hatte. Ein fehlender Ordner oder eine fehlende Datei wird in der Statusleiste genannt; die übrigen öffnen sich.
+- Beim Wechsel zu einem anderen Projekt bleiben die offenen Tabs. Das verlassene Projekt merkt sich seine eigenen Dateien.
+- Projekt löschen entfernt nur den Eintrag. Ordner und Dateien bleiben.
+- Projekteinstellungen bearbeiten öffnet die Einstellungsdatei des aktiven Projekts (gleiches Format wie die Benutzereinstellungen). Die Werte gelten, solange das Projekt aktiv ist, nach erneutem Öffnen des Projekts. Gehe zu Allem durchsucht nur den ersten Ordner.
+
+## [workspace.favorites] Favoriten
+commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+- Zu Favoriten hinzufügen speichert die gewählte Zeile des Dateipanels, sonst die aktive Datei, sonst den Ordner des Panels. Der Befehl steht auch im Kontextmenü des Panels.
+- Favoriten listet sie auf (auch aus dem leeren Panel). Enter öffnet einen Ordner im Panel und eine Datei in einem Tab. Ein fehlender Pfad erscheint abgeblendet mit Nicht gefunden.
+- Aus Favoriten entfernen listet sie auf und entfernt den gewählten Eintrag.
+
+## [workspace.sessions] Benannte Sitzungen
+commands: nks.session.save, nks.session.open, nks.session.delete
+- Sitzung speichern legt die offenen Tabs unter einem Namen ab: Gruppen, Reihenfolge, aktiven Tab und die Auswahl jedes Tabs. Ein Tab mit ungesicherten Änderungen oder ohne Datei behält seinen Text. Eine Sitzung gleichen Namens wird ersetzt.
+- Sitzung öffnen öffnet die Tabs neben den bereits offenen. Dateien werden von der Platte gelesen, dann ersetzt der ungesicherte Text der Sitzung ihren Text, sodass er sich rückgängig machen oder verwerfen lässt. Eine fehlende Datei wird in der Statusleiste genannt; ihr Text, falls die Sitzung ihn hatte, öffnet sich in einem unbenannten Dokument.
+- Sitzung löschen fragt zuerst nach, weil die Sitzung ungesicherten Text enthalten kann.
+- Eine Sitzungsdatei, die sich nicht lesen lässt, wird übersprungen und in einer Leiste genannt; die anderen Sitzungen funktionieren.
+- Große Dateien im seitenweisen Modus werden nur mit dem Pfad gespeichert.
+
 ## [format.encoding] Codierung
 commands: nks.format.reread, nks.format.convert
 Die Statusleiste zeigt die Codierung; ein Klick darauf öffnet dieselbe Auswahl. Ist die Codierung geschätzt, steht der Prozentwert der Sicherheit dabei.

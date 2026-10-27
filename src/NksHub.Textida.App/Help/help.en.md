@@ -595,6 +595,30 @@ commands: nks.files.refresh, nks.files.reveal
 - Refresh Files (F5 in the panel) reads the tree again from disk.
 - Show Active File in Panel opens the panel and selects the file of the active tab. It works with an open folder and an open document.
 
+## [workspace.projects] Projects
+commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
+A project is a named set of folders with the files that were open in them. It is kept in the profile and can be switched like a folder.
+- Add Folder to Panel shows one more folder next to the ones in the panel. Each folder is a top row of the tree.
+- Save Project (File, Projects and Sessions) stores the folders of the panel and the open files that lie in them under a name. A project of the same name is replaced.
+- Open Project shows the folders in the panel and opens the files the project had open. A folder or a file that is gone is named in the status bar; the others open.
+- Switching to another project keeps the tabs that are open. The project you leave remembers its own files.
+- Delete Project removes only the entry. Folders and files stay.
+- Edit Project Settings opens the settings file of the active project (same format as the user settings). Its values apply while the project is active, after the project is opened again. Go to Anything searches the first folder only.
+
+## [workspace.favorites] Favorites
+commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+- Add to Favorites stores the selected row of the file panel, else the active file, else the folder of the panel. It is also in the context menu of the panel.
+- Favorites lists them (also from the empty panel). Enter opens a folder in the panel and a file in a tab. A path that is gone is shown dimmed with Not found.
+- Remove from Favorites lists them and removes the one you choose.
+
+## [workspace.sessions] Named sessions
+commands: nks.session.save, nks.session.open, nks.session.delete
+- Save Session stores the open tabs under a name: groups, order, the active tab and the selection of each tab. A tab with unsaved changes, or without a file, keeps its text. A session of the same name is replaced.
+- Open Session opens the tabs next to the ones already open. Files are read from disk, then the unsaved text of the session replaces their text, so you can still undo or discard it. A file that is gone is named in the status bar; its text, if the session had it, opens in an unnamed document.
+- Delete Session asks first, because the session may hold unsaved text.
+- A session file that cannot be read is skipped and named in a bar; the other sessions work.
+- Large files opened in the paged mode are stored by path only.
+
 ## [format.encoding] Encoding
 commands: nks.format.reread, nks.format.convert
 The status bar shows the encoding; clicking it opens the same choice. If the encoding is a guess, the percentage of certainty is shown with it.

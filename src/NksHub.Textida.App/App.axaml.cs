@@ -47,6 +47,7 @@ public sealed partial class App : Application
     internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
+    internal WorkspaceStore Workspace { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
     /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>
     internal ClipLibrary Clips { get; private set; } = null!;
@@ -111,6 +112,7 @@ public sealed partial class App : Application
             {
                 first.RestoreFrom(Journal);
                 first.ShowJournalWarnings();
+                first.StartWorkspace();
                 first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
                 else if (first.Active is null) first.NewDocument(); // nothing to open or restore: start with an empty document, not an empty window
@@ -146,6 +148,7 @@ public sealed partial class App : Application
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
         Recent = RecentFiles.Load(ProfileDirectory);
+        Workspace = WorkspaceStore.Load(ProfileDirectory);
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
         LastParameters = new LastParameters();
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));

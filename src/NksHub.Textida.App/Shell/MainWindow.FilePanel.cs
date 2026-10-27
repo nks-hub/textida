@@ -32,6 +32,7 @@ internal sealed partial class MainWindow
     private readonly StackPanel _filesEmpty = new() { Margin = new Thickness(12, 4), Spacing = 8 };
     private readonly TextBlock _filesEmptyText = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.7 };
     private readonly Button _filesOpenButton = new();
+    private readonly Button _filesFavoritesButton = new();
     private FileTree? _fileTree;
     private Border _leftHost = null!;
 
@@ -69,7 +70,10 @@ internal sealed partial class MainWindow
         _filesOpenButton.Classes.Add("panelaction");
         _filesOpenButton.Click += (_, _) => _ = OpenFolderWithDialogAsync();
         _filesEmpty.Children.Add(_filesEmptyText);
+        _filesFavoritesButton.Classes.Add("panelaction");
+        _filesFavoritesButton.Click += (_, _) => ShowFavorites();
         _filesEmpty.Children.Add(_filesOpenButton);
+        _filesEmpty.Children.Add(_filesFavoritesButton);
         _filePanel.Children.Add(Dock(_filesTitle, Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(Dock(_filesEmpty, Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(_fileList);
@@ -84,8 +88,10 @@ internal sealed partial class MainWindow
     {
         _docFilter.PlaceholderText = Loc.Get(K.PanelDocumentsFilter);
         AutomationProperties.SetName(_docFilter, Loc.Get(K.A11yDocumentsFilter));
-        _filesTitle.Text = _fileTree is { } tree ? Path.GetFileName(tree.Root) is { Length: > 0 } n ? n : tree.Root : Loc.Get(K.PanelFilesTitle);
+        _filesTitle.Text = _fileTree is { } tree ? FilesTitle(tree) : Loc.Get(K.PanelFilesTitle);
         _filesOpenButton.Content = Loc.Get(K.PanelFilesOpen);
+        _filesFavoritesButton.Content = Loc.Get(K.PanelFilesFavorites);
+        AutomationProperties.SetName(_filesFavoritesButton, Loc.Get(K.PanelFilesFavorites));
         UpdateFilesEmpty();
         AutomationProperties.SetName(_filePanel, Loc.Get(K.A11yFilesPanel));
         AutomationProperties.SetName(_fileList, Loc.Get(K.A11yFilesTree));
@@ -98,7 +104,7 @@ internal sealed partial class MainWindow
     {
         var wb = _app.Workbench;
         var menu = new ContextMenu();
-        foreach (var id in new[] { "nks.files.newFile", "nks.files.newFolder", "nks.files.duplicate", "nks.files.rename", "nks.files.move", "nks.files.delete", "nks.files.refresh" })
+        foreach (var id in new[] { "nks.files.newFile", "nks.files.newFolder", "nks.files.duplicate", "nks.files.rename", "nks.files.move", "nks.files.delete", "nks.files.refresh", "nks.favorite.add", "nks.favorite.open" })
         {
             if (!wb.Commands.TryGet(id, out var command)) continue;
             var item = new MenuItem { Header = wb.Strings.Get(command.TitleKey) };
@@ -171,7 +177,19 @@ internal sealed partial class MainWindow
     /// <summary>Opens a folder in the panel (reading only its first level) and shows the panel. False, with a message, when the folder cannot be read.</summary>
     internal async Task<bool> ShowFolderAsync(string path)
     {
-        var tree = new FileTree(path);
+        if (!await ShowTreeAsync(path, [])) return false;
+        _app.Workspace.SetActive(null); // a single folder opened on its own is no project
+        ApplyProjectSettings(null);
+        return true;
+    }
+
+    private string FilesTitle(FileTree tree) =>
+        _app.Workspace.Active is { } project && tree.Roots.Count > 1 ? project.Name : Path.GetFileName(tree.Root) is { Length: > 0 } n ? n : tree.Root;
+
+    /// <summary>Shows the folders in the panel, the first one reading its first level before the panel opens.</summary>
+    private async Task<bool> ShowTreeAsync(string first, IEnumerable<string> more)
+    {
+        var tree = new FileTree(first, more);
         try
         {
             await tree.LoadRootAsync();
@@ -206,8 +224,11 @@ internal sealed partial class MainWindow
     /// <summary>The folder of the last run is read when the panel or Go to Anything is first used, not at startup.</summary>
     private void RestoreFolder()
     {
-        if (_fileTree is not null || _app.Recent.Folder is not { } folder || !Directory.Exists(folder)) return;
-        _ = ShowFolderAsync(folder);
+        if (_fileTree is not null) return;
+        if (_app.Workspace.Active is { } project && project.Folders.Where(Directory.Exists).ToList() is [var first, ..var more])
+            _ = ShowTreeAsync(first, more);
+        else if (_app.Recent.Folder is { } folder && Directory.Exists(folder))
+            _ = ShowFolderAsync(folder);
     }
 
     internal async Task OpenFolderWithDialogAsync()
@@ -239,7 +260,7 @@ internal sealed partial class MainWindow
         // the row that held the keyboard was replaced with the others; without this the keys would go nowhere
         if (hadFocus) Dispatcher.UIThread.Post(() => _fileList.Focus(), DispatcherPriority.Input);
         UpdateFilesEmpty();
-        _filesTitle.Text = Path.GetFileName(tree.Root) is { Length: > 0 } n ? n : tree.Root;
+        _filesTitle.Text = FilesTitle(tree);
         if (offset is { } o) Dispatcher.UIThread.Post(() => { if (_fileList.Scroll is ScrollViewer sv) sv.Offset = o; }, DispatcherPriority.Loaded);
         _menuModel = BuildMenuModel();
     }
@@ -250,6 +271,7 @@ internal sealed partial class MainWindow
         bool emptyFolder = _fileTree is { Rows.Count: 0 };
         _filesEmpty.IsVisible = noFolder || emptyFolder;
         _filesOpenButton.IsVisible = noFolder;
+        _filesFavoritesButton.IsVisible = noFolder;
         _filesEmptyText.Text = Loc.Get(noFolder ? K.PanelFilesEmpty : K.PanelFilesEmptyFolder);
         _fileList.IsVisible = !noFolder;
     }
