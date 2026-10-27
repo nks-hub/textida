@@ -213,7 +213,10 @@ internal static class ContentScanner
             if (lf >= 0) return lf + 1;
         }
         int cut = codec.CompleteLength(data);
-        return cut > 0 ? cut : data.Length;
+        if (cut <= 0) cut = data.Length;
+        int w = codec.Alignment;
+        // a CRLF is one terminator, so a chunk never ends between its CR and LF
+        return cut > w && LineScanner.Unit(data, cut - w, codec) == 13 ? cut - w : cut;
     }
 
     private static void ScanChunk(byte[] buf, int length, long baseOffset, bool first, TextCodec codec, CompiledPattern q, SearchSettings s, State st, CancellationToken ct)
@@ -224,7 +227,7 @@ internal static class ContentScanner
         if (q.Utf8Literal is { } lit && codec.Kind == CodecKind.Utf8 && !st.MaskSecrets) // the byte search cannot tell where a value is
         {
             ScanUtf8Literal(data, skip, baseOffset, lit, s, st, ct);
-            st.LinesBefore += data.Count((byte)'\n');
+            st.LinesBefore += LineScanner.CountBreaks<byte>(data, 0, data.Length);
             return;
         }
 
@@ -245,7 +248,7 @@ internal static class ContentScanner
                 text = map.Text;
             }
             ScanText(text, map, skip, baseOffset, q, s, st, ct);
-            st.LinesBefore += text.Count('\n');
+            st.LinesBefore += LineScanner.CountBreaks(text, 0, text.Length);
         }
         finally
         {
@@ -266,12 +269,10 @@ internal static class ContentScanner
             int start = pos + i;
             if (st.Hits.Count < st.Keep)
             {
-                lines += data[cursor..start].Count((byte)'\n');
+                lines += LineScanner.CountBreaks(data, cursor, start);
                 cursor = start;
-                int lineStart = Math.Max(skip, data[..start].LastIndexOf((byte)'\n') + 1);
-                int lf = data[start..].IndexOf((byte)'\n');
-                int lineEnd = lf < 0 ? data.Length : start + lf;
-                if (lineEnd > lineStart && data[lineEnd - 1] == (byte)'\r') lineEnd--;
+                int lineStart = Math.Max(skip, LineScanner.LineStartOf(data, start));
+                int lineEnd = LineScanner.LineEndOf(data, start);
                 int column = Encoding.UTF8.GetCharCount(data[lineStart..start]);
                 var line = data[lineStart..Math.Max(lineStart, lineEnd)];
                 if (line.Length > s.PreviewChars * 4) line = line[..Utf8Validator.CompleteLength(line[..(s.PreviewChars * 4)])];
@@ -307,12 +308,10 @@ internal static class ContentScanner
                 start = lastByte;
                 end = start + Encoding.UTF8.GetByteCount(text.Slice(m.Index, m.Length));
             }
-            lines += text[cursor..m.Index].Count('\n');
+            lines += LineScanner.CountBreaks(text, cursor, m.Index);
             cursor = m.Index;
-            int lineStart = text[..m.Index].LastIndexOf('\n') + 1;
-            int lf = text[m.Index..].IndexOf('\n');
-            int lineEnd = lf < 0 ? text.Length : m.Index + lf;
-            if (lineEnd > lineStart && text[lineEnd - 1] == '\r') lineEnd--;
+            int lineStart = LineScanner.LineStartOf(text, m.Index);
+            int lineEnd = LineScanner.LineEndOf(text, m.Index);
             var line = text[lineStart..Math.Max(lineStart, lineEnd)];
             string preview = secrets is null ? Clip(line, s.PreviewChars) : Clip(SecretValues.Mask(line.ToString(), secrets, lineStart), s.PreviewChars);
             st.Hits.Add(new(start, (int)(end - start), (int)lines + 1, m.Index - lineStart, preview));

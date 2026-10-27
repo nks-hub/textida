@@ -116,12 +116,12 @@ public class PagedHugeEditTests(ITestOutputHelper output)
     }
 
     /// <summary>A random edit position on a character boundary: a line start or the middle of a CRLF inside an island, or somewhere in the filler.</summary>
-    private static long PickPosition(Model m, Random r, bool splitCrLf)
+    private static long PickPosition(Model m, Random r)
     {
         if (r.Next(3) > 0)
         {
             var (s, d) = m.Islands[r.Next(m.Islands.Count)];
-            var at = Enumerable.Range(0, d.Length + 1).Where(i => i == 0 || d[i - 1] == '\n' || splitCrLf && d[i - 1] == '\r').ToArray();
+            var at = Enumerable.Range(0, d.Length + 1).Where(i => i == 0 || d[i - 1] is (byte)'\n' or (byte)'\r').ToArray();
             return s + at[r.Next(at.Length)];
         }
         while (true)
@@ -131,9 +131,9 @@ public class PagedHugeEditTests(ITestOutputHelper output)
         }
     }
 
-    private static void Edit(Doc d, Model m, Random r, byte[][] inserts, bool splitCrLf = true)
+    private static void Edit(Doc d, Model m, Random r, byte[][] inserts)
     {
-        long at = PickPosition(m, r, splitCrLf);
+        long at = PickPosition(m, r);
         int op = r.Next(10);
         if (op < 6)
         {
@@ -221,11 +221,10 @@ public class PagedHugeEditTests(ITestOutputHelper output)
         if (!HasRoom(path)) return;
         var r = new Random(9);
         var m = Create(path, r, 1500);
-        // no bare CR: the search counts LF only: no edit leaves a lone CR (a bare CR line break is counted by the index but not by the search)
-        byte[][] inserts = ["\n"u8.ToArray(), "\r\n"u8.ToArray(), "x"u8.ToArray(), "\nneedle q\r\n"u8.ToArray()];
+        byte[][] inserts = ["\r"u8.ToArray(), "\n"u8.ToArray(), "\r\n"u8.ToArray(), "x"u8.ToArray(), "a\rb\nc"u8.ToArray(), "\nneedle q\r\n"u8.ToArray()];
 
         using var d = Doc.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TestFormat.Utf8.Format });
-        for (int step = 0; step < 300; step++) Edit(d, m, r, inserts, splitCrLf: false);
+        for (int step = 0; step < 300; step++) Edit(d, m, r, inserts);
         // the search must also find text inserted into the filler far from any island
         long far = (5L << 30) + 12345;
         while (m.Islands.Any(i => i.Start < far + 64 && far - 64 < i.Start + i.Data.Length)) far += 1 << 14;
