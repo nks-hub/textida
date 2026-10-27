@@ -1,4 +1,5 @@
 using System.Text;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Tests;
 
@@ -131,6 +132,153 @@ public class LongLineColumnTests
         Assert.True(src.Columns.PointCount > 0);
         src.SetCodec(src.Codec);
         Assert.Equal(0, src.Columns.PointCount);
+    }
+
+    private static int ByteOffset(string text, int column) => Encoding.UTF8.GetByteCount(text.AsSpan(0, column));
+
+    /// <summary>A column on a character boundary near <paramref name="column"/> (never between the two halves of a surrogate pair).</summary>
+    private static int Boundary(string text, int column) => column > 0 && column < text.Length && char.IsLowSurrogate(text[column]) ? column + 1 : column;
+
+    [Fact]
+    public void ColumnAndOffsetAgreeWithTheTextAfterManyEditsOfALongLine()
+    {
+        string line = LongLine(300_000) + "😀tail";
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path);
+        var random = new Random(7);
+        string model = line;
+        string[] pieces = ["x", "ě", "中", "😀", "abc", "ěš\tč", ""];
+
+        void Check(params int[] columns)
+        {
+            foreach (int c in columns.Append(random.Next(model.Length)).Append(model.Length).Append(0))
+            {
+                int col = Boundary(model, Math.Min(c, model.Length));
+                long offset = ByteOffset(model, col);
+                Assert.Equal(col, doc.ColumnOf(0, offset));
+                Assert.Equal(offset, doc.OffsetOfColumn(0, col));
+                Assert.Equal(Expected(model, col, 12), doc.ReadColumns(0, col, 12));
+            }
+        }
+
+        Check(1_000_000, 2_500_000);
+        for (int step = 0; step < 40; step++)
+        {
+            int at = Boundary(model, random.Next(model.Length));
+            int remove = step % 3 == 0 ? Boundary(model, Math.Min(model.Length, at + random.Next(30))) - at : 0;
+            string insert = pieces[random.Next(pieces.Length)];
+            long offset = ByteOffset(model, at);
+            long removeBytes = ByteOffset(model, at + remove) - offset;
+            doc.Replace(offset, removeBytes, Encoding.UTF8.GetBytes(insert));
+            model = model.Remove(at, remove).Insert(at, insert);
+            Check(at, at + insert.Length, at - 1, 1_048_576, 2_097_152, 2_500_000 + step);
+        }
+        while (doc.Undo()) { }
+        model = line;
+        Check(1_000_000, 2_500_000);
+    }
+
+    [Fact]
+    public void ColumnAndOffsetWorkOnUtf16LinesWithABomBeforeAndAfterAnEdit()
+    {
+        string line = LongLine(150_000) + "😀";
+        byte[] bytes = [0xFF, 0xFE, .. Encoding.Unicode.GetBytes(line + "\nnext")];
+        using var f = new TempFile(bytes);
+        using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { Codec = Core.Encodings.TextCodec.Utf16LEBom });
+        for (int i = 0; i < 200 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10);
+        long Offset(int col) => 2 + 2L * col;
+
+        foreach (int col in new[] { 0, 7, 1_000_000, 1_200_001, line.Length })
+        {
+            Assert.Equal(col, doc.ColumnOf(2, Offset(col)));
+            Assert.Equal(Offset(col), doc.OffsetOfColumn(2, col));
+        }
+        doc.Replace(Offset(1_200_000), 0, Encoding.Unicode.GetBytes("ab"));
+        foreach (int col in new[] { 0, 7, 1_000_000, 1_200_000, 1_200_002, line.Length + 2 })
+        {
+            Assert.Equal(col, doc.ColumnOf(2, Offset(col)));
+            Assert.Equal(Offset(col), doc.OffsetOfColumn(2, col));
+        }
+    }
+
+    [Fact]
+    public void AnEditKeepsTheColumnPointsBeforeItAndDropsTheOnesAfter()
+    {
+        var index = new ColumnIndex();
+        index.Add(0, 1_000_000, 1_500_000);
+        index.Add(0, 2_000_000, 3_000_000);
+        index.Add(0, 3_000_000, 4_500_000);
+        index.Add(9_000_000, 1_000_000, 9_000_100);
+        index.SetLast(0, 3_000_005, 4_500_010);
+
+        index.DropFrom(3_000_000);
+
+        Assert.True(index.TryNearestAtPosition(0, 4_000_000, out long column, out long position));
+        Assert.Equal((2_000_000L, 3_000_000L), (column, position));
+        Assert.True(index.TryNearestAtPosition(0, 3_000_000, out column, out _));
+        Assert.Equal(2_000_000, column);
+        Assert.False(index.TryNearest(9_000_000, 5_000_000, out _, out _));
+        Assert.False(index.TryNearestAtPosition(0, 4_600_000, out column, out _) && column > 2_000_000);
+
+        var copy = new ColumnIndex();
+        copy.CopyBefore(index, 3_500_000);
+        Assert.Equal(2, copy.PointCount);
+        Assert.True(copy.TryNearestAtPosition(0, 2_900_000, out column, out _));
+        Assert.Equal(1_000_000, column);
+    }
+
+    [Fact]
+    public void PositionsOfAnEditedLongLineComeFromTheColumnIndex()
+    {
+        string line = LongLine(300_000) + "😀";
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var backend = PagedBackend.FromFile(f.Path, NksHub.Textida.Core.Encodings.TextCodec.Utf8);
+        for (int i = 0; i < 200 && !backend.LineIndexState.Complete; i++) Thread.Sleep(10);
+        Assert.True(backend.LineIndexState.Complete);
+
+        backend.Replace(ByteOffset(line, 2_000_000), 0, "ZZ"u8);
+        string edited = line.Insert(2_000_000, "ZZ");
+        foreach (int col in new[] { 0, 5, 1_999_999, 2_000_000, 2_000_002, edited.Length })
+        {
+            long offset = ByteOffset(edited, Boundary(edited, col));
+            Assert.True(backend.TryGetPosition(offset, out var position));
+            Assert.Equal(new LinePosition(0, Boundary(edited, col)), position);
+            Assert.True(backend.TryGetOffset(position, out long back));
+            Assert.Equal(offset, back);
+        }
+        Assert.False(backend.TryGetOffset(new LinePosition(0, edited.Length + 1), out _));
+        Assert.False(backend.TryGetOffset(new LinePosition(0, edited.Length - 1), out _)); // between the halves of the surrogate pair
+    }
+
+    [Fact]
+    [Trait("Category", "Large")]
+    public void TypingInAHundredMiBLineKeepsTheColumnsRightAndTheAllocationsSmall()
+    {
+        const int size = 100 * 1024 * 1024;
+        var bytes = new byte[size];
+        for (int i = 0; i < size; i++) bytes[i] = (byte)('a' + i * 7 % 26);
+        using var f = new TempFile(bytes);
+        using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { StartIndexing = false });
+        long caret = 50_000_000;
+        Assert.Equal(caret, doc.ColumnOf(0, caret)); // cold: counts the line once and notes points
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 300; i++)
+        {
+            doc.Replace(caret, 0, "é"u8);
+            caret += 2;
+            Assert.Equal(50_000_000 + i + 1, doc.ColumnOf(0, caret));
+            Assert.Equal(1, doc.ReadColumns(0, 50_000_000 + i, 1).Length);
+        }
+        for (int i = 0; i < 100; i++)
+        {
+            doc.Replace(caret - 2, 2, default);
+            caret -= 2;
+            Assert.Equal(50_000_000 + 299 - i, doc.ColumnOf(0, caret));
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 32 << 20, $"allocated {allocated >> 20} MiB for 400 edits");
+        Assert.Equal(size + 200 * 2, doc.ByteLength);
     }
 
     [Fact]

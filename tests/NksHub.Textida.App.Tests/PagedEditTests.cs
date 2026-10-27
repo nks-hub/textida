@@ -171,15 +171,19 @@ public class PagedEditTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_line_over_the_limit_is_shown_but_cannot_be_edited_and_the_status_says_why()
+    public void A_line_longer_than_the_decoded_part_is_edited_at_its_start_and_its_end()
     {
         var tab = OpenPaged([.. Encoding.ASCII.GetBytes(new string('x', 40_000) + "\n"), .. Rows(100_000)]);
         TestApp.Type(_w, "q");
-        Assert.False(tab.Doc.Doc.IsModified);
-        Assert.Contains("nedá upravit", _w.StatusLeftText);
+        Press(Key.End);
+        TestApp.Type(_w, "z");
+        Assert.Equal("q", Head(tab, 1));
+        Assert.Equal("xz\nline", Encoding.ASCII.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(40_000, 40_007))));
+        Assert.Equal((1L, 40_003L), tab.CaretPosition());
         Press(Key.Down);
+        Press(Key.Home);
         TestApp.Type(_w, "q");
-        Assert.Equal("q", Encoding.ASCII.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(40_001, 40_002))));
+        Assert.Equal("q", Encoding.ASCII.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(40_003, 40_004))));
     }
 
     [AvaloniaFact]

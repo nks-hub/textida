@@ -325,7 +325,6 @@ public static class K
     public const string ErrorOpenFailed = "error.open.failed";
     public const string ErrorOpenLargeEncoding = "error.open.largeEncoding";
     public const string PagedIndexing = "paged.indexing";
-    public const string PagedLongLine = "paged.longLine";
     public const string PagedNotEncodable = "paged.notEncodable";
     public const string A11yMainMenu = "a11y.menu.main";
     public const string A11yTabs = "a11y.tabs";
