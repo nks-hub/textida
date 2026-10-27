@@ -1,5 +1,6 @@
 // Stand-in for an external tool in tests: prints the arguments it received, one per line in brackets.
 // --format FILE: stand-in for a formatter, rewrites the file in upper case. --format-fail FILE: leaves the file alone, writes "syntax error" to standard error and exits with 2.
+// A file named like the program plus ".sample" next to it (a renamed copy standing in for a linter) is printed as it is, whatever the arguments; a first line "#exit N" sets the exit code, "#sleep" waits a minute instead.
 // --sleep: prints "started" and then waits a minute. --both: writes one line to each output stream. A trailing "--exit N" sets the exit code.
 // --mcp modern|legacy|old: a small MCP server on standard input and output. modern answers server/discover, legacy only initialize (2025-11-25), old answers initialize with an
 // older version. Tools: echo, slow (never answers; a cancel is reported on stderr), crash (exits with 7), env (value of a variable), secret (writes the variable named TEST_SECRET to stderr), page2 (second page of the list).
@@ -7,6 +8,19 @@ using System.Text;
 using System.Text.Json;
 
 Console.OutputEncoding = new UTF8Encoding(false);
+if (Environment.ProcessPath is { } self && File.Exists(self + ".sample"))
+{
+    var sample = File.ReadAllLines(self + ".sample");
+    if (sample.Length > 0 && sample[0] == "#sleep")
+    {
+        Thread.Sleep(TimeSpan.FromMinutes(1));
+        return 0;
+    }
+    int sampleCode = 0;
+    if (sample.Length > 0 && sample[0].StartsWith("#exit ", StringComparison.Ordinal)) int.TryParse(sample[0][6..], out sampleCode);
+    foreach (var line in sample.Where(l => !l.StartsWith('#'))) Console.WriteLine(line);
+    return sampleCode;
+}
 if (args is ["--mcp", var mode]) return RunMcp(mode);
 if (args is ["--format", var formatted])
 {

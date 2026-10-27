@@ -392,6 +392,7 @@
   "cmd.macro.run": "Spustit uložené makro...",
   "cmd.tools.edit": "Upravit definice nástrojů...",
   "cmd.tools.makeTargets": "Spustit cíl Makefile...",
+  "cmd.tools.lint": "Zkontrolovat soubor linterem",
   "cmd.file.saveActions": "Akce při uložení...",
   "cmd.edit.fragmentJson": "Upravit řetězec jako JSON",
   "cmd.edit.fragmentSql": "Upravit řetězec jako SQL",

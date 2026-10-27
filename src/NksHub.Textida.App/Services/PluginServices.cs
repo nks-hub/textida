@@ -720,6 +720,18 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         surface.SetDiagnostics(marks);
     });
 
+    /// <summary>Publishes what the editor found itself (a linter run) for a tab through the store plugins publish to; the document is exposed and stays so, as for an outline. Call on the UI thread.</summary>
+    public int PublishOwnDiagnostics(DocTab tab, string source, long revision, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        var document = tab.Doc.Doc;
+        if (!Documents.IsExposed(document.Id))
+        {
+            Documents.Expose(document, tab.Surface is { } surface ? surface.ByteSelections : null);
+            Keep(tab.Doc, document);
+        }
+        return Documents.PublishOwn(document, source, revision, diagnostics);
+    }
+
     private readonly record struct SchemaStatus(string? Name);
 
     private readonly Dictionary<Guid, (long Revision, string? Name)> _schemaChecked = [];

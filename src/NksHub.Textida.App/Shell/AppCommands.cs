@@ -210,6 +210,7 @@ internal static class AppCommands
         On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
         On("nks.packages.revoke", w => w.PackageRevoke());
         On("nks.packages.script", w => w.ShowPackageScripts());
+        On("nks.tools.lint", w => w.RunLinter());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.log.levels", w => w.ChooseLogLevels());

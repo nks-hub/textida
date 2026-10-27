@@ -846,6 +846,15 @@ commands: nks.packages.script
 2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
 - npm or Composer has to be installed. On Windows both are batch files, which the runner refuses; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file instead.
 
+## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop find
+commands: nks.tools.lint
+1. Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
+2. The linter checks the file on disk, so save first: a document with unsaved changes is not checked. The findings are underlined in the text (the message shows when the pointer rests on it) and listed in the Tasks tab, one per line; a click or Enter opens the place. The next run of the same linter replaces them, so a problem you fixed is gone after it.
+3. To check after every save, switch on "Check with PHPStan" (or the other linter) in File, Save Actions, or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy and rubocop-lint.
+- The program is looked for in vendor/bin, node_modules/.bin, .venv and PATH; nothing is downloaded. The first run asks you to confirm the command.
+- No time limit is preset: while lintTimeoutSeconds is missing in saveActions.json, no linter runs and the status bar says so. A linter that runs over the limit is stopped and reported; the editor stays usable meanwhile.
+- PHPStan reports a line and no column, so the text of that line is underlined. A program that is a batch file (phpstan.bat) is refused, as for every tool.
+
 ## [file.saveActions] Save actions: format, run a tool, upload
 commands: nks.file.saveActions
 1. File, Save Actions lists what runs around a save: format, run a tool, upload to the server. A row switches the action on or off; the row under it switches "only on manual save". A formatter (gofmt, rustfmt, clang-format, RuboCop) is offered only when its configuration file (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) is in the folder of the file or above it, and it is off until you switch it on.
@@ -856,6 +865,7 @@ commands: nks.file.saveActions
 - No time limit is preset: while formatTimeoutSeconds is missing, a formatter does not run and the status bar says so. The value in the example is only an example.
 - After an autosave nobody can answer: a tool that was never confirmed does not start, and a newer version on the server shows on the bar of the tab instead of a dialog.
 - Switching an action in the list rewrites saveActions.json of the profile and drops comments in it. Actions from a project are listed but changed in the project file.
+- Save Actions also offers "Check with ..." for the linters that handle the file; it is off until you switch it on. The check runs after the save and does not hold it; its time limit is lintTimeoutSeconds.
 ## [file.configFiles] Configuration files of the file
 commands: nks.file.configFiles
 1. The status bar names the configuration files that apply to the open file: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml and the configuration files of the language (for example ruff.toml, stylua.toml, .shellcheckrc). Each one is the nearest in the folder of the file or above it. Click the item, or use File, Configuration Files of This File.

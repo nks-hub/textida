@@ -392,6 +392,7 @@
   "cmd.macro.run": "Run Saved Macro...",
   "cmd.tools.edit": "Edit Tool Definitions...",
   "cmd.tools.makeTargets": "Run Makefile Target...",
+  "cmd.tools.lint": "Check File with Linter",
   "cmd.file.saveActions": "Save Actions...",
   "cmd.edit.fragmentJson": "Edit String as JSON",
   "cmd.edit.fragmentSql": "Edit String as SQL",

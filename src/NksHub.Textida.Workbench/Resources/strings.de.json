@@ -392,6 +392,7 @@
   "cmd.macro.run": "Gespeichertes Makro ausführen...",
   "cmd.tools.edit": "Werkzeugdefinitionen bearbeiten...",
   "cmd.tools.makeTargets": "Makefile-Ziel ausführen...",
+  "cmd.tools.lint": "Datei mit Linter prüfen",
   "cmd.file.saveActions": "Aktionen beim Speichern...",
   "cmd.edit.fragmentJson": "Zeichenkette als JSON bearbeiten",
   "cmd.edit.fragmentSql": "Zeichenkette als SQL bearbeiten",

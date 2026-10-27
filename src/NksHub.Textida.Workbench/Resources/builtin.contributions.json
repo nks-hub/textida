@@ -1614,6 +1614,12 @@
       "title": "cmd.packages.script",
       "category": "cat.tools",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.tools.lint",
+      "title": "cmd.tools.lint",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
     }
   ],
   "menus": [
@@ -3074,6 +3080,12 @@
       "command": "nks.packages.script",
       "group": "6_packages",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.lint",
+      "group": "5_run",
+      "order": 16
     }
   ],
   "keybindings": [
