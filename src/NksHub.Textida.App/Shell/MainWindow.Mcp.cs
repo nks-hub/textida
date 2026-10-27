@@ -146,6 +146,7 @@ internal sealed partial class MainWindow
         "editor_find_in_files" => K.McpToolFindInFiles,
         "editor_file_facts" => K.McpToolFileFacts,
         "editor_log_query" => K.McpToolLogQuery,
+        "editor_diagnostics" => K.McpToolDiagnostics,
         "editor_read_bytes" => K.McpToolReadBytes,
         "editor_search_bytes" => K.McpToolSearchBytes,
         "editor_prepare_byte_changes" => K.McpToolPrepareByteChanges,

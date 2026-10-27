@@ -57,6 +57,8 @@ public static class DocumentMethods
     public const string VirtualUpdate = "virtual/update";
     /// <summary>The plugin publishes the diagnostics of one source for one revision of a document; an empty list takes that source's diagnostics away.</summary>
     public const string DiagnosticsPublish = "diagnostics/publish";
+    /// <summary>The diagnostics stored for a document (plugins and the editor's own linter), with ranges in the current revision; those touching a hidden value are left out.</summary>
+    public const string DiagnosticsList = "diagnostics/list";
     /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
     public const string CompletionRegister = "editor/completionProvider";
     /// <summary>One batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review and applied all or nothing.</summary>

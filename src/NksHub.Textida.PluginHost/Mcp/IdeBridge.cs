@@ -345,11 +345,10 @@ public sealed class IdeBridge : IAsyncDisposable
 
     // ---- tools of the bridge ----
 
-    /// <summary>The tool the documentation says the model sees. There are no language servers yet, so the list is empty (P8 fills it). Result shape is provisional.</summary>
+    /// <summary>The tool the documentation says the model sees. It reads the diagnostics store of the document API (plugins and linter) for shared tabs only. Result shape is provisional.</summary>
     private static readonly McpToolDefinition DiagnosticsTool = new("getDiagnostics", "Diagnostics",
-        "Returns the errors and warnings of the language servers, for one file when 'uri' is given. Textida has no language server connected yet, so the list is empty.",
-        "{\"type\":\"object\",\"properties\":{\"uri\":{\"type\":\"string\"}},\"additionalProperties\":false}", true,
-        (_, _) => Task.FromResult("[]"));
+        "Returns the errors and warnings of the shared tabs, for one file when 'uri' is given: message, severity, source, code and range per file.",
+        "{\"type\":\"object\",\"properties\":{\"uri\":{\"type\":\"string\"}},\"additionalProperties\":false}", true, McpTools.IdeDiagnostics);
 
     // ---- selection ----
 

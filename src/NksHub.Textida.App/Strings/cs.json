@@ -1230,6 +1230,7 @@
   "mcp.tool.fileFacts": "Kódování, konce řádků a velikost sdílené karty",
   "mcp.tool.logQuery": "Najít řádky dané úrovně ve sdíleném logu",
   "mcp.tool.readBytes": "Číst bajty sdílené karty (nejvýš 64 KiB)",
+  "mcp.tool.diagnostics": "Chyby a varování sdílené karty z pluginů a kontroly kódu",
   "mcp.tool.searchBytes": "Hledat posloupnost bajtů",
   "mcp.tool.prepareByteChanges": "Navrhnout změny bajtů (rozhodnete vy)",
   "ide.on.title": "Otevřít most /ide?",

@@ -148,6 +148,9 @@ internal static class McpTools
             "Returns lines of a level (error, warning, info, debug) from a log of any size without loading it. A call scans a limited amount; 'next' is the offset to pass as 'start' to continue, null at the end.",
             Schema(DocumentProperty + ",\"level\":{\"type\":\"string\",\"enum\":[\"error\",\"warning\",\"info\",\"debug\"]},\"start\":{\"type\":\"integer\",\"minimum\":0},\"maxLines\":{\"type\":\"integer\",\"minimum\":1}", "\"document\",\"level\""),
             true, LogQuery),
+        new("editor_diagnostics", "Errors and warnings of a document",
+            "Lists the errors, warnings and hints that plugins and the editor's linter found in a shared document: source, severity, message, code, byte range and line. A diagnostic that touches a hidden .env value is not returned; 'withheld' counts them.",
+            Schema(DocumentProperty, "\"document\""), true, Diagnostics),
         new("editor_read_bytes", "Read bytes",
             $"Reads at most {McpServer.MaxReadBytes} bytes of a shared document from an offset, as hex or base64. Hidden .env values are returned as *.",
             Schema(DocumentProperty + $",\"start\":{{\"type\":\"integer\",\"minimum\":0}},\"length\":{{\"type\":\"integer\",\"minimum\":1,\"maximum\":{McpServer.MaxReadBytes}}},\"encoding\":{{\"type\":\"string\",\"enum\":[\"hex\",\"base64\"]}}," + RevisionProperty, "\"document\",\"start\",\"length\""),
@@ -553,6 +556,105 @@ internal static class McpTools
                 w.WritePropertyName("next");
                 found.GetProperty("next").WriteTo(w);
             });
+        });
+    }
+
+    // ---- P8.4.1 ----
+
+    private sealed record DiagnosticRow(JsonElement Item, (int Line, int Column)? Start, (int Line, int Column)? End);
+
+    /// <summary>The stored diagnostics of a shared document at its current revision, each with the 0-based position of its range (null when the revision moved on or the position is unknown).</summary>
+    private static async Task<(long Revision, int Withheld, List<DiagnosticRow> Rows)> DiagnosticsAsync(McpToolContext c, Guid id, int max)
+    {
+        var listed = await c.CallAsync(DocumentMethods.DiagnosticsList, id);
+        long revision = listed.GetProperty("revision").GetInt64();
+        async Task<(int, int)?> Place(long offset)
+        {
+            try
+            {
+                var r = await c.CallAsync(DocumentMethods.OffsetToPosition, id, w => { w.WriteNumber("revision", revision); w.WriteNumber("offset", offset); });
+                return (r.GetProperty("line").GetInt32(), r.GetProperty("column").GetInt32());
+            }
+            catch (RpcException e) when (e.Code is DocumentErrorCodes.PositionUnknown or DocumentErrorCodes.InvalidRange or DocumentErrorCodes.RevisionConflict) { return null; }
+        }
+        var rows = new List<DiagnosticRow>();
+        foreach (var item in listed.GetProperty("diagnostics").EnumerateArray().Take(max))
+            rows.Add(new(item, await Place(item.GetProperty("start").GetInt64()), await Place(item.GetProperty("end").GetInt64())));
+        return (revision, listed.GetProperty("withheld").GetInt32(), rows);
+    }
+
+    private static async Task<string> Diagnostics(McpToolContext c, JsonElement args)
+    {
+        var id = McpToolContext.Document(args);
+        var (revision, withheld, rows) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
+        return Json(w =>
+        {
+            WriteId(w, id);
+            w.WriteNumber("revision", revision);
+            w.WriteStartArray("diagnostics");
+            foreach (var row in rows)
+            {
+                w.WriteStartObject();
+                foreach (var property in row.Item.EnumerateObject().Where(x => x.Name != "plugin"))
+                {
+                    w.WritePropertyName(property.Name);
+                    property.Value.WriteTo(w);
+                }
+                if (row.Start is { } s) w.WriteNumber("line", s.Line + 1);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+            w.WriteNumber("withheld", withheld);
+        });
+    }
+
+    /// <summary>
+    /// <c>getDiagnostics</c> of the /ide bridge: per shared document that has diagnostics (or the one whose file URI is given), the same data as editor_diagnostics.
+    /// The result shape is provisional, as the protocol is not specified publicly.
+    /// </summary>
+    internal static async Task<string> IdeDiagnostics(McpToolContext c, JsonElement args)
+    {
+        var uri = McpToolContext.OptionalText(args, "uri");
+        var list = await c.ListSharedAsync();
+        var files = new List<(string Uri, List<DiagnosticRow> Rows)>();
+        foreach (var d in list.EnumerateArray())
+        {
+            var id = d.GetProperty("id").GetGuid();
+            var path = d.GetProperty("path").GetString();
+            var fileUri = path is null ? "untitled:" + id.ToString("N") : new Uri(path).AbsoluteUri;
+            if (uri is not null && !string.Equals(uri, fileUri, StringComparison.OrdinalIgnoreCase)) continue;
+            var (_, _, rows) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
+            if (rows.Count > 0) files.Add((fileUri, rows));
+        }
+        return Json(w =>
+        {
+            w.WriteStartArray("files");
+            foreach (var (fileUri, rows) in files)
+            {
+                w.WriteStartObject();
+                w.WriteString("uri", fileUri);
+                w.WriteStartArray("diagnostics");
+                foreach (var row in rows)
+                {
+                    var x = row.Item;
+                    w.WriteStartObject();
+                    w.WriteString("message", x.GetProperty("message").GetString());
+                    w.WriteString("severity", x.GetProperty("severity").GetString() switch { "error" => "Error", "warning" => "Warning", "hint" => "Hint", _ => "Information" });
+                    w.WriteString("source", x.GetProperty("source").GetString());
+                    if (x.TryGetProperty("code", out var code)) w.WriteString("code", code.GetString());
+                    if (row.Start is { } s && row.End is { } e)
+                    {
+                        w.WriteStartObject("range");
+                        w.WriteStartObject("start"); w.WriteNumber("line", s.Line); w.WriteNumber("character", s.Column); w.WriteEndObject();
+                        w.WriteStartObject("end"); w.WriteNumber("line", e.Line); w.WriteNumber("character", e.Column); w.WriteEndObject();
+                        w.WriteEndObject();
+                    }
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
         });
     }
 

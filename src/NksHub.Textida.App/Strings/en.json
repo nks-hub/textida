@@ -1203,6 +1203,7 @@
   "mcp.tool.fileFacts": "Encoding, line endings and size of a shared tab",
   "mcp.tool.logQuery": "Find lines of a level in a shared log",
   "mcp.tool.readBytes": "Read bytes of a shared tab (up to 64 KiB)",
+  "mcp.tool.diagnostics": "Errors and warnings of a shared tab from plugins and the linter",
   "mcp.tool.searchBytes": "Search for a byte pattern",
   "mcp.tool.prepareByteChanges": "Propose byte changes (you decide)",
   "ide.on.title": "Open the /ide bridge?",

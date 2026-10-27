@@ -223,7 +223,7 @@ public class McpServerTests
         var list = await rig.ModernAsync("tools/list");
         var tools = list.Result.GetProperty("tools").EnumerateArray().ToList();
         Assert.Equal(McpServer.AllTools.Select(t => t.Name), tools.Select(t => t.GetProperty("name").GetString()));
-        Assert.Equal(12, tools.Count);
+        Assert.Equal(13, tools.Count);
         foreach (var tool in tools)
         {
             Assert.Equal("object", tool.GetProperty("inputSchema").GetProperty("type").GetString());
@@ -266,7 +266,7 @@ public class McpServerTests
         Assert.False(init.Result.TryGetProperty("resultType", out _));
         await rig.SendAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         var list = await rig.RequestAsync("tools/list", "{}");
-        Assert.Equal(12, list.Result.GetProperty("tools").GetArrayLength());
+        Assert.Equal(13,list.Result.GetProperty("tools").GetArrayLength());
         Assert.False(list.Result.TryGetProperty("resultType", out _));
         var call = await rig.RequestAsync("tools/call", "{\"name\":\"editor_list_documents\"}");
         Assert.False(call.Result.GetProperty("isError").GetBoolean());
@@ -496,6 +496,59 @@ public class McpServerTests
 
         Assert.True(rig.Owner.Run(() => doc.Insert(0, Utf8("x")).Applied));
         Assert.False((await rig.ToolAsync("editor_outline", rig.Args(doc))).Json.GetProperty("sets")[0].GetProperty("current").GetBoolean());
+    }
+
+    // ---- P8.4.1 ----
+
+    static void Publish(Rig rig, Document doc, params (long Start, long End, string Message)[] items) =>
+        rig.Owner.Run(() => rig.Api.PublishOwn(doc, "lint", doc.Revision, [.. items.Select(x => new Diagnostic(DiagnosticSeverity.Warning, x.Message, "W1", new ByteRange(x.Start, x.End)))]));
+
+    [Fact]
+    public async Task Diagnostics_of_a_shared_tab_come_with_line_and_follow_the_text()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.NewDocument(Utf8("one\ntwo\n")));
+        Assert.Empty((await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json.GetProperty("diagnostics").EnumerateArray());
+        Publish(rig, doc, (4, 7, "suspicious"));
+        var reply = (await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json;
+        var d = Assert.Single(reply.GetProperty("diagnostics").EnumerateArray());
+        Assert.Equal("suspicious", d.GetProperty("message").GetString());
+        Assert.Equal("warning", d.GetProperty("severity").GetString());
+        Assert.Equal("lint", d.GetProperty("source").GetString());
+        Assert.Equal(2, d.GetProperty("line").GetInt32());
+        Assert.Equal(0, reply.GetProperty("withheld").GetInt32());
+
+        Assert.True(rig.Owner.Run(() => doc.Insert(0, Utf8("x")).Applied));
+        Assert.Equal(5, (await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json.GetProperty("diagnostics")[0].GetProperty("start").GetInt64());
+    }
+
+    [Fact]
+    public async Task Diagnostics_of_a_tab_that_is_not_shared_are_refused()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.NewDocument(Utf8("one\n"));
+        rig.Owner.Run(() => { rig.Api.Expose(doc); return 0; });
+        Publish(rig, doc, (0, 3, "not for the assistant"));
+        var reply = await rig.ToolAsync("editor_diagnostics", rig.Args(doc));
+        Assert.True(reply.IsError);
+        Assert.DoesNotContain("not for the assistant", reply.Text);
+    }
+
+    [Fact]
+    public async Task A_diagnostic_on_an_env_value_is_withheld_until_the_user_allows_the_values()
+    {
+        await using var rig = Rig.Create();
+        var doc = Document.CreateVirtual(".env", Utf8("API_KEY=hunter2\nname=shown\n"), PagedBackendFactory.Instance, TextCodec.Utf8);
+        rig.Share(doc);
+        Publish(rig, doc, (8, 15, "value hunter2 looks weak"), (16, 20, "name is fine"));
+        var reply = await rig.ToolAsync("editor_diagnostics", rig.Args(doc));
+        Assert.DoesNotContain("hunter2", reply.Text);
+        Assert.Equal(1, reply.Json.GetProperty("withheld").GetInt32());
+        Assert.Equal("name is fine", Assert.Single(reply.Json.GetProperty("diagnostics").EnumerateArray()).GetProperty("message").GetString());
+
+        rig.Permissions.Grant(McpServer.ClientId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(doc.Id));
+        Assert.Equal(2, (await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json.GetProperty("diagnostics").GetArrayLength());
+        rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
     }
 
     [Fact]

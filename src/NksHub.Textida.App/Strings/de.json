@@ -1203,6 +1203,7 @@
   "mcp.tool.fileFacts": "Kodierung, Zeilenenden und Größe eines freigegebenen Tabs",
   "mcp.tool.logQuery": "Zeilen einer Stufe in einem freigegebenen Log finden",
   "mcp.tool.readBytes": "Bytes eines freigegebenen Tabs lesen (bis 64 KiB)",
+  "mcp.tool.diagnostics": "Fehler und Warnungen eines freigegebenen Tabs aus Plugins und Linter",
   "mcp.tool.searchBytes": "Nach einem Bytemuster suchen",
   "mcp.tool.prepareByteChanges": "Byte-Änderungen vorschlagen (Sie entscheiden)",
   "ide.on.title": "Die /ide-Brücke öffnen?",
