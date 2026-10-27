@@ -230,6 +230,94 @@ public class LineCommandTests : IDisposable
         Assert.Equal(["3:3"], tab.Editor.GetSelections().Select(s => $"{s.Anchor}:{s.Caret}"));
     }
 
+    // ---- P4.5.3 paste as HTML ----
+
+    private async Task PutOnClipboardAsync(string text, byte[] html)
+    {
+        var item = DataTransferItem.CreateText(text);
+        item.Set(ClipboardHtml.Format, html);
+        var data = new DataTransfer();
+        data.Add(item);
+        await _w.Clipboard!.SetDataAsync(data);
+    }
+
+    [AvaloniaFact]
+    public async Task Paste_as_html_puts_the_html_of_the_clipboard_into_every_caret_as_one_step()
+    {
+        var tab = Open("a\r\nb");
+        await PutOnClipboardAsync("bold é", ClipboardHtml.CfHtml("<b>bold é</b>"));
+        PlaceCarets(tab, 1, 4);
+        int steps = Steps(tab);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.pasteAsHtml"));
+        await Eventually(() => Text(tab) == "a<b>bold é</b>\r\nb<b>bold é</b>");
+        Assert.Equal(Text(tab), Bytes(tab));
+        Assert.Equal(steps + 1, Steps(tab));
+        Mod(Key.Z);
+        Assert.Equal("a\r\nb", Text(tab));
+        Assert.Equal("a\r\nb", Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task Paste_as_html_without_html_on_the_clipboard_says_so_and_a_read_only_editor_refuses_it()
+    {
+        var tab = Open("a");
+        await _w.Clipboard!.SetTextAsync("plain");
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.pasteAsHtml"));
+        await Eventually(() => _w.StatusLeftText.Contains(Loc.Get(K.LinesPasteHtmlNone)));
+        Assert.Equal("a", Text(tab));
+
+        tab.Editor!.IsReadOnly = true;
+        Assert.Equal(CommandOutcome.NotHandled, Run("nks.edit.pasteAsHtml"));
+        Assert.Equal(CommandOutcome.NotHandled, Run("nks.edit.insertFromFile"));
+        Assert.Equal(CommandOutcome.NotHandled, Run("nks.edit.reformatShortLines"));
+    }
+
+    [AvaloniaFact]
+    public void The_html_of_the_clipboard_is_the_fragment_its_header_marks_or_else_the_whole_text()
+    {
+        Assert.Equal("<b>é</b>", ClipboardHtml.Decode(ClipboardHtml.CfHtml("<b>é</b>")));
+        Assert.Equal("<p>x</p>", ClipboardHtml.Decode([.. Encoding.UTF8.GetBytes("<p>x</p>"), 0, 0]));
+        string html = "<html><body>y</body></html>";
+        static string Header(int start, int end) => $"Version:0.9\r\nStartHTML:{start:D10}\r\nEndHTML:{end:D10}\r\nStartFragment:-1\r\nEndFragment:-1\r\n";
+        int start = Header(0, 0).Length;
+        Assert.Equal(html, ClipboardHtml.Decode(Encoding.UTF8.GetBytes(Header(start, start + html.Length) + html)));
+    }
+
+    // ---- P4.5.3 insert from file ----
+
+    [AvaloniaFact]
+    public async Task Insert_from_file_puts_the_decoded_text_into_every_caret_with_the_line_endings_of_the_document()
+    {
+        var tab = Open("a\r\nb");
+        _dialogs.Picked.Add(_temp.Bytes("part.txt", [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("ž1\n2")]));
+        PlaceCarets(tab, 1, 4);
+        int steps = Steps(tab);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.insertFromFile"));
+        await Eventually(() => Text(tab) != "a\r\nb");
+        Assert.Equal("až1\r\n2\r\nbž1\r\n2", Text(tab));
+        Assert.Equal(Text(tab), Bytes(tab));
+        Assert.Equal(steps + 1, Steps(tab));
+        Mod(Key.Z);
+        Assert.Equal("a\r\nb", Text(tab));
+        Assert.Equal("a\r\nb", Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task Insert_from_file_refuses_a_file_over_the_limit_and_does_nothing_when_no_file_is_picked()
+    {
+        var tab = Open("a");
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.insertFromFile"));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("a", Text(tab));
+
+        string big = _temp.Bytes("big.bin", []);
+        using (var stream = File.OpenWrite(big)) stream.SetLength(PluginLimitsPlaceholders.InsertFromFileMaxBytes + 1);
+        _dialogs.Picked.Add(big);
+        Run("nks.edit.insertFromFile");
+        await Eventually(() => _w.StatusLeftText.Contains("big.bin"));
+        Assert.Equal("a", Text(tab));
+    }
+
     // ---- P4.5.3 insert into lines ----
 
     [AvaloniaFact]
@@ -331,6 +419,16 @@ public class LineCommandTests : IDisposable
 
         _app.Workbench.Set("editor.rightMargin", JsonValue.Create(10));
         AssertOneStep(tab, "nks.edit.reformatParagraph", "aaa bbb\nccc ddd\neee\n\nzz", () => tab.Editor!.CaretOffset = 1);
+    }
+
+    [AvaloniaFact]
+    public void Reformat_ending_at_a_short_line_stops_after_a_line_shorter_than_half_the_margin()
+    {
+        _app.Workbench.Set("editor.rightMargin", JsonValue.Create(30));
+        var tab = Open("alpha beta gamma\r\ndelta.\r\nepsilon zeta eta\r\ntheta iota");
+        AssertOneStep(tab, "nks.edit.reformatShortLines", "alpha beta gamma delta.\r\nepsilon zeta eta\r\ntheta iota", () => tab.Editor!.CaretOffset = 1);
+        Mod(Key.Z);
+        AssertOneStep(tab, "nks.edit.reformatParagraph", "alpha beta gamma delta.\r\nepsilon zeta eta theta iota", () => tab.Editor!.CaretOffset = 1);
     }
 
     // ---- P4.5.4 date, GUID, repeat ----
@@ -494,8 +592,8 @@ public class LineCommandTests : IDisposable
         string[] ids =
         [
             "nks.edit.clipboardHistory",
-            "nks.edit.pasteKeepCaret", "nks.edit.insertIntoLines", "nks.edit.sortLines", "nks.search.selectLinesByRange",
-            "nks.edit.reformatParagraph", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.justifyCenter", "nks.edit.justifyBlock",
+            "nks.edit.pasteKeepCaret", "nks.edit.pasteAsHtml", "nks.edit.insertFromFile", "nks.edit.insertIntoLines", "nks.edit.sortLines", "nks.search.selectLinesByRange",
+            "nks.edit.reformatParagraph", "nks.edit.reformatShortLines", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.justifyCenter", "nks.edit.justifyBlock",
             "nks.edit.insertDateTime", "nks.edit.insertGuid", "nks.edit.repeatLast",
         ];
         var wb = _app.Workbench;
@@ -512,10 +610,22 @@ public class LineCommandTests : IDisposable
         [
             "nks.edit.convert", "nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.indent", "nks.edit.insertDateTime", "nks.edit.insertGuid", "nks.edit.insertIntoLines",
             "nks.edit.joinLines", "nks.edit.justifyBlock", "nks.edit.justifyCenter", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.lowerCase",
-            "nks.edit.moveLineDown", "nks.edit.moveLineUp", "nks.edit.outdent", "nks.edit.reformatParagraph", "nks.edit.runRecipe", "nks.edit.sortLines", "nks.edit.toggleComment",
-            "nks.edit.upperCase",
+            "nks.edit.moveLineDown", "nks.edit.moveLineUp", "nks.edit.outdent", "nks.edit.reformatParagraph", "nks.edit.reformatShortLines", "nks.edit.runRecipe", "nks.edit.sortLines",
+            "nks.edit.toggleComment", "nks.edit.upperCase",
         ];
         Assert.Equal(expected, repeatable);
         Assert.Equal("nks.edit.clipboardHistory", wb.Keymap.Bindings.Single(b => b.Sequence.Chords.Count == 1 && b.Sequence.Chords[0].Key == "v" && b.Sequence.Chords[0].Modifiers.HasFlag(NksHub.Textida.Workbench.Keys.KeyModifiers.Shift)).CommandId);
+    }
+
+    [AvaloniaFact]
+    public void The_options_of_the_dialog_commands_are_exactly_these()
+    {
+        static string[] Parameters(Type t) => [.. t.GetConstructors().Single().GetParameters().Select(p => p.Name!)];
+        Assert.Equal(["Mode", "Text", "Place", "Column", "SkipIndent", "SkipEmptyLines", "Start", "Width", "Separator"], Parameters(typeof(LineInsertOptions)));
+        Assert.Equal(["Text", "Numbering", "Bullets"], Enum.GetNames<LineInsertMode>());
+        Assert.Equal(["LineStart", "LineEnd", "Column", "Selections"], Enum.GetNames<LineInsertPlace>());
+        Assert.Equal(["Descending", "CaseSensitive", "RemoveDuplicates", "Method", "Locale", "ColumnFrom", "ColumnTo"], Parameters(typeof(SortOptions)));
+        Assert.Equal(["Ordinal", "Locale", "Numeric"], Enum.GetNames<SortMethod>());
+        Assert.Equal(["Left", "Right", "Center", "Block"], Enum.GetNames<Justification>());
     }
 }

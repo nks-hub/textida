@@ -132,6 +132,29 @@ public class BlockCommandTests
     public void Reformat_of_a_selection_wraps_every_paragraph_and_keeps_the_indentation_and_the_blank_lines() =>
         Wrap("«  aaa\n  bbb ccc\n\n\nlongword x\ny»", 9, "«  aaa bbb\n  ccc\n\n\nlongword\nx y»");
 
+    private static void WrapShort(string input, string expected) =>
+        Run(input, (b, s) => LineOperations.ReformatParagraphs(b.TextDocument, s, 30, shortLine: 15), expected);
+
+    [Fact]
+    public void A_short_line_ends_the_paragraph_of_the_caret_without_a_blank_line()
+    {
+        WrapShort("|alpha beta gamma\ndelta.\nepsilon zeta eta\ntheta iota", "alpha beta gamma delta.|\nepsilon zeta eta\ntheta iota");
+        WrapShort("alpha beta gamma\ndelta.\n|epsilon zeta eta\ntheta iota", "alpha beta gamma\ndelta.\nepsilon zeta eta theta iota|");
+        Wrap("|alpha beta gamma\ndelta.\nepsilon zeta eta\ntheta iota", 30, "alpha beta gamma delta.\nepsilon zeta eta theta iota|");
+    }
+
+    [Fact]
+    public void A_short_line_ends_every_paragraph_of_a_selection() =>
+        WrapShort("«alpha beta gamma\ndelta.\nepsilon zeta eta\ntheta iota»", "«alpha beta gamma delta.\nepsilon zeta eta theta iota»");
+
+    [Fact]
+    public void A_short_line_is_counted_without_its_trailing_blanks()
+    {
+        Assert.True(LineText.IsShort("ab   \t", 3));
+        Assert.False(LineText.IsShort("abc", 3));
+        Assert.False(LineText.IsShort("", 0));
+    }
+
     private static void Lines(string text, string expected, params (int From, int To)[] ranges)
     {
         var doc = new TextDocument(text);
