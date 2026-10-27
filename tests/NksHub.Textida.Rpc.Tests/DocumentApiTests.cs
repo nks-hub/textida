@@ -51,6 +51,7 @@ public partial class DocumentApiTests
         public required PluginCallLog CallLog { get; init; }
         public required TaskCompletionSource Gate { get; init; }
         public required RecordingTools Tools { get; init; }
+        public required Refusal Refuse { get; init; }
 
         public static async Task<Rig> CreateAsync(byte[] content, Func<DocumentApiOptions, DocumentApiOptions>? tune = null, bool canEdit = true,
             TimeProvider? time = null, bool gated = false, IBackendFactory? factory = null, string[]? plugins = null, NksHub.Textida.Core.Encodings.TextCodec? codec = null,
@@ -94,9 +95,15 @@ public partial class DocumentApiTests
             if (!gated) gate.SetResult();
             PluginHost.PluginHost? host = null;
             var owner = new OwnerLock();
+            var refuse = new Refusal();
             var api = new DocumentApi(options, owner, async (plugin, name, payload) =>
             {
                 await gate.Task;
+                if (refuse.On)
+                {
+                    Interlocked.Increment(ref refuse.Count);
+                    return false;
+                }
                 return await host!.SendEventAsync(plugin, name, payload);
             }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
@@ -107,7 +114,7 @@ public partial class DocumentApiTests
                 host.Register(new PluginSpec(id, "Plugin " + id, T.DotnetHost, [T.PluginDll], ["onCommand:" + id]));
                 await host.ActivateAsync("onCommand:" + id);
             }
-            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Permissions = permissions, CallLog = callLog, Gate = gate, Tools = tools };
+            return new Rig { Host = host, Api = api, Doc = doc, Owner = owner, Proposals = proposals, Permissions = permissions, CallLog = callLog, Gate = gate, Tools = tools, Refuse = refuse };
         }
 
         public string D(string rest = "") => $"{{\"document\":\"{Doc.Id}\"{(rest.Length > 0 ? "," + rest : "")}}}";
@@ -148,6 +155,13 @@ public partial class DocumentApiTests
             await Api.DisposeAsync();
             Doc.Dispose();
         }
+    }
+
+    /// <summary>While <see cref="On"/>, every event is refused as by a plugin that is starting again; <see cref="Count"/> counts the refusals.</summary>
+    sealed class Refusal
+    {
+        public volatile bool On;
+        public int Count;
     }
 
     static byte[] Utf8(string s) => Encoding.UTF8.GetBytes(s);
@@ -393,6 +407,30 @@ public partial class DocumentApiTests
         await rig.ErrorAsync(DocumentMethods.ReadBytes, $"{{\"snapshot\":\"{snapId}\",\"start\":0,\"end\":1}}", DocumentErrorCodes.SnapshotExpired);
         rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("c")));
         await rig.WaitEventsAsync(e => e.Count == 1 && e[0].GetProperty("payload").GetProperty("revision").GetInt64() == current + 1);
+    }
+
+    [Fact]
+    public async Task EditsThePluginCouldNotTakeWhileStartingBecomeOneEventsLostWhenItRuns()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"));
+        await rig.CallAsync(DocumentMethods.Subscribe, rig.D());
+        rig.Refuse.On = true;
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("a")));
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("b")));
+        await T.Until(() => Volatile.Read(ref rig.Refuse.Count) == 2); // one try per edit, then the pump waits
+
+        rig.Refuse.On = false;
+        await Task.Delay(300);
+        Assert.Empty(await rig.EventsAsync()); // nothing goes out before the host says the plugin runs again
+        Assert.Equal(2, Volatile.Read(ref rig.Refuse.Count));
+        rig.Api.Resumed("p");
+        await rig.WaitEventsAsync(e => e.Count == 1);
+        var lost = (await rig.EventsAsync()).Single();
+        Assert.Equal(DocumentEvents.EventsLost, lost.GetProperty("name").GetString());
+        Assert.Equal(rig.Revision, lost.GetProperty("payload").GetProperty("revision").GetInt64());
+
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("c")));
+        await rig.WaitEventsAsync(e => e.Count == 2 && e[1].GetProperty("name").GetString() == DocumentEvents.Changed);
     }
 
     [Fact]
