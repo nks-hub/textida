@@ -1162,7 +1162,18 @@ Prevod zmení text všetkých výberov naraz, alebo celého súboru, keď nič n
 - Prevodníky sú dáta: contributes.converters v nkspad-plugin.json, s id, title, rules a voliteľne samples a command. Pravidlo je {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Pravidlá bežia v poradí, každé nad výsledkom predchádzajúceho. So zapnutým regex platí dialekt hľadania: replace smie používať $1, ${name}, $& a kódy veľkosti písmen \U \L \E \u \l.
 - Vzorka je {"input": "...", "expected": "..."}. Pri čítaní pluginu sa každá vzorka prevedie. Prevodník, ktorého vzorka dá iný text, ktorý nemá pravidlá, má prázdne find alebo chybný regulárny výraz, sa odmietne a plugin sa preskočí s dôvodom v stavovom riadku.
 - Prevodník s "command" dostane aj príkaz toho mena, ktorý prevádza hneď, bez zoznamu.
-- Špeciálne prevody samotného editora sú v tom istom zozname. Táto verzia zatiaľ žiadne nemá.
+- Špeciálne prevody samotného editora sú v tom istom zozname (téma Špeciálne prevody).
+
+## [edit.specialConversion] Špeciálne prevody
+commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
+Prevody, ktoré má editor sám. Každý je príkaz v palete aj v ponuke Úpravy, Prevody a recepty a je aj v zozname Previesť. Zmení text všetkých výberov naraz jedným krokom Späť, alebo celého súboru, keď nič nie je označené. Nový text zostane označený.
+- Desiatkové číslo na šestnástkové a späť: výber musí byť jedno celé číslo od 0 do 18446744073709551615 (FFFFFFFFFFFFFFFF), šestnástkové smie začínať 0x. Medzery a konce riadkov okolo čísla zostanú. 255 dá FF, ACE dá 2766.
+- Text na URL kódovanie zapíše všetko okrem písmen A až Z, číslic a znakov - _ . ~ ako %XX bajtov UTF-8, medzeru ako %20 a koniec riadku ako %0D%0A, alebo %0A v súbore s koncami riadkov LF. URL kódovanie na text číta %XX späť; % bez dvoch šestnástkových číslic zostane, ako je.
+- Text na quoted-printable nechá tlačiteľné znaky ASCII a medzery, ostatné bajty UTF-8 vrátane koncov riadkov a znaku = zapíše ako =XX. Quoted-printable na text číta =XX a vynechá = na konci riadku; iné = prevod odmietne.
+- Text na Base64 kóduje bajty UTF-8. Base64 na text preskočí medzery a konce riadkov vnútri a odmietne text, ktorý nie je Base64 alebo ktorého bajty nie sú UTF-8.
+- Odstrániť diakritiku zloží z písmen dĺžne, mäkčene, krúžky a prehlásky (č na c, ô na o). Písmená bez rozkladu (ł, ø, ß) a značky iných písiem zostanú.
+- Tabulátory na medzery nahradí každý tabulátor medzerami po ďalšiu zarážku podľa veľkosti tabulátora dokumentu. Počíta sa od stĺpca, kde výber začína.
+- Keď prevod niektorý výber neprečíta, nezmení sa nič a stavový riadok to povie. Zopakovať posledný príkaz spustí ten istý prevod znova.
 
 ## [edit.recipes] Recepty úprav
 commands: nks.edit.runRecipe

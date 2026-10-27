@@ -1157,7 +1157,18 @@ A conversion changes the text of every selection at once, or of the whole file w
 - Converters are data: contributes.converters in nkspad-plugin.json, with id, title, rules and optionally samples and command. A rule is {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Rules run in order, each on the result of the one before. With regex on, the dialect of the search applies: replace may use $1, ${name}, $& and the case codes \U \L \E \u \l.
 - A sample is {"input": "...", "expected": "..."}. When the plugin is read, every sample is converted. A converter whose sample gives another text, one with no rules, with an empty find or with a wrong regular expression is refused, and the plugin is skipped with the reason in the status bar.
 - A converter with "command" also gets a command of that name that converts at once, without the list.
-- The special conversions of the editor itself are in the same list. This version has none yet.
+- The special conversions of the editor itself are in the same list (topic Special conversions).
+
+## [edit.specialConversion] Special conversions
+commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
+Conversions the editor has itself. Each is a command in the palette and in the menu Edit, Conversions and Recipes, and is in the Convert list too. It changes the text of every selection at once as one Undo step, or of the whole file when nothing is selected. The new text stays selected.
+- Decimal to Hexadecimal and back: the selection must be one whole number from 0 to 18446744073709551615 (FFFFFFFFFFFFFFFF); a hexadecimal one may start with 0x. Spaces and line ends around the number stay. 255 gives FF, ACE gives 2766.
+- Text to URL Encoding writes everything except the letters A to Z, digits and - _ . ~ as %XX of the UTF-8 bytes, a space as %20 and a line end as %0D%0A, or %0A in a file with LF line ends. URL Encoding to Text reads %XX back; a % without two hexadecimal digits stays as it is.
+- Text to Quoted-Printable keeps printable ASCII and spaces and writes every other UTF-8 byte, line ends and = included, as =XX. Quoted-Printable to Text reads =XX and drops = at a line end; any other = refuses the text.
+- Text to Base64 encodes the UTF-8 bytes. Base64 to Text skips spaces and line ends inside and refuses text that is not Base64 or whose bytes are not UTF-8.
+- Remove Accents takes acute accents, carons, rings and umlauts off the letters (č to c, ů to u). Letters without a decomposition (ł, ø, ß) and the marks of other scripts stay.
+- Tabs to Spaces replaces every tab with spaces up to the next tab stop of the tab size of the document, counted from the column where the selection starts.
+- When the conversion cannot read a selection, nothing changes and the status bar says so. Repeat Last Command runs the same conversion again.
 
 ## [edit.recipes] Edit recipes
 commands: nks.edit.runRecipe
