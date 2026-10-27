@@ -225,17 +225,27 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (plugin?.Spec is null || !_boundInstalled.Add(plugin.Manifest.Id)) return;
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
-        var id = plugin.Manifest.Id;
+        var (id, display) = (plugin.Manifest.Id, plugin.Manifest.Name);
         foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))
         {
             var name = command.Id;
-            commands.SetHandler(name, async (_, _) => await RunInstalledAsync(id, name));
+            commands.SetHandler(name, async (_, _) => await RunInstalledAsync(id, display, name));
         }
     }
 
-    private async ValueTask<CommandOutcome> RunInstalledAsync(string pluginId, string command)
+    /// <summary>
+    /// Runs a command of an installed plugin. A plugin that may read or edit the document of the active tab runs it like a built-in one: the request names the document
+    /// and its revision, the plugin sees the document only while the command runs, a proposal opens in the change review and a direct edit is one undo step.
+    /// </summary>
+    private async Task<CommandOutcome> RunInstalledAsync(string pluginId, string display, string command)
     {
         if (!_host.IsRegistered(pluginId)) return CommandOutcome.NotHandled;
+        if (_app.ActiveWindow is { Active: { Custom: null } tab } window
+            && new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect }.Any(p => Permissions.IsGranted(pluginId, p, GrantScope.OfDocument(tab.Doc.Doc.Id))))
+        {
+            var outcome = await ExecuteAsync(window, tab, pluginId, "onCommand:" + command, display, command);
+            return outcome is { Started: true, Result.ValueKind: JsonValueKind.False } ? CommandOutcome.NotHandled : CommandOutcome.Handled;
+        }
         try
         {
             await _host.ActivateAsync("onCommand:" + command).ConfigureAwait(false);
