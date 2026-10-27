@@ -17,6 +17,7 @@ internal static class LanguageModes
 {
     public const string PlainId = "plaintext";
     public const string LogId = "log";
+    public const string MakefileId = "makefile";
 
     private static readonly CommentStyle Slash = new("//", true);
     private static readonly CommentStyle Hash = new("#", false);
@@ -31,7 +32,8 @@ internal static class LanguageModes
         new("json", "JSON", [".json", ".jsonc"], CommentStyle.None),
         new("xml", "XML", [".xml", ".xsd", ".xaml", ".axaml", ".csproj", ".props", ".targets", ".svg", ".config"], CommentStyle.None),
         new("csharp", "C#", [".cs"], Slash),
-        new("cpp", "C/C++", [".c", ".h", ".cpp", ".hpp", ".cc"], Slash),
+        new("c", "C", [".c"], Slash),
+        new("cpp", "C++", [".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"], Slash),
         new("java", "Java", [".java"], Slash),
         new("php", "PHP", [".php"], Slash),
         new("razor", "Razor", [".cshtml", ".razor"], CommentStyle.None),
@@ -44,8 +46,27 @@ internal static class LanguageModes
         new("yaml", "YAML", [".yml", ".yaml"], Hash),
         new("ini", "INI", [".ini", ".cfg", ".conf"], new(";", false)),
         new("shell", "Shell", [".sh", ".bash", ".zsh"], Hash),
-        new("powershell", "PowerShell", [".ps1", ".psm1"], Hash),
+        new("powershell", "PowerShell", [".ps1", ".psm1", ".psd1"], Hash),
         new("batch", "Batch", [".bat", ".cmd"], CommentStyle.None),
+        new("go", "Go", [".go"], Slash),
+        new("gomod", "Go module", [], new("//", false)) { FileNames = ["go.mod", "go.work"] },
+        new("gotmpl", "Go template", [".gohtml", ".gotmpl"], CommentStyle.None),
+        new("rust", "Rust", [".rs"], Slash),
+        new("toml", "TOML", [".toml"], Hash) { FileNames = ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"] },
+        new("cmake", "CMake", [".cmake"], Hash) { FileNames = ["CMakeLists.txt"] },
+        new(MakefileId, "Makefile", [".mk", ".mak", ".make"], Hash) { FileNames = ["Makefile", "makefile", "GNUmakefile"] },
+        new("meson", "Meson", [], Hash) { FileNames = ["meson.build", "meson_options.txt", "meson.options"] },
+        new("ruby", "Ruby", [".rb", ".rake", ".gemspec", ".ru", ".rbw", ".thor", ".jbuilder", ".podspec"], Hash)
+            { FileNames = ["Gemfile", "Rakefile", "Guardfile", "Capfile", "Vagrantfile", "Podfile", "Brewfile", "Berksfile", "Fastfile", "Appfile"] },
+        new("erb", "ERB", [".erb", ".rhtml"], CommentStyle.None),
+        new("haml", "HAML", [".haml"], new("-#", false)),
+        new("slim", "Slim", [".slim"], new("/", false)),
+        new("rbs", "RBS", [".rbs"], Hash),
+        new("kotlin", "Kotlin", [".kt", ".kts"], Slash),
+        new("lua", "Lua", [".lua", ".rockspec"], new("--", false)),
+        new("swift", "Swift", [".swift"], Slash),
+        new("dart", "Dart", [".dart"], Slash),
+        new("r", "R", [".r"], Hash) { FileNames = [".Rprofile"] },
         new(LogId, "Log", [".log"], CommentStyle.None),
     ];
 
@@ -72,7 +93,7 @@ internal static class LanguageModes
     public static Tokenizer Tokenizer(string grammarId) =>
         new(_grammars.Find(grammarId) ?? throw new KeyNotFoundException($"No grammar '{grammarId}'."));
 
-    /// <summary>Id of the built-in grammar that colours the mode; null where none exists yet (plain text and the languages of P8.8.2).</summary>
+    /// <summary>Id of the built-in grammar that colours the mode; null where none exists (plain text and the modes without a grammar).</summary>
     public static string? GrammarId(LanguageMode mode)
     {
         string id = mode.Id == "typescript" ? "javascript" : mode.Id;
@@ -91,6 +112,8 @@ internal static class LanguageModes
             && _user.FirstOrDefault(m => m.FileNames.Contains(name, StringComparer.OrdinalIgnoreCase) || m.Extensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase))) is { } custom)
             return custom;
         var ext = path is null ? "" : Path.GetExtension(path);
-        return Builtin.FirstOrDefault(l => l.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase)) ?? Plain;
+        var file = path is null ? "" : Path.GetFileName(path);
+        return Builtin.FirstOrDefault(l => l.FileNames.Contains(file, StringComparer.OrdinalIgnoreCase))
+            ?? Builtin.FirstOrDefault(l => l.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase)) ?? Plain;
     }
 }

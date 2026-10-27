@@ -1,0 +1,98 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "swift",
+  "name": "Swift",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
+  "version": "1.0.0",
+  "extensions": [".swift"],
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "actor", "any", "as", "associatedtype", "async", "await", "break", "case", "catch", "class",
+        "continue", "default", "defer", "deinit", "do", "else", "enum", "extension", "fallthrough",
+        "fileprivate", "for", "func", "guard", "if", "import", "in", "indirect", "init", "inout", "internal",
+        "is", "let", "macro", "open", "operator", "precedencegroup", "private", "protocol", "public",
+        "repeat", "rethrows", "return", "self", "Self", "some", "static", "struct", "subscript", "super",
+        "switch", "throw", "throws", "try", "typealias", "var", "where", "while", "willSet", "didSet", "get",
+        "set", "lazy", "weak", "unowned", "override", "final", "convenience", "required", "mutating",
+        "nonmutating"
+      ]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "Int", "UInt", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "Double",
+        "Float", "Bool", "String", "Character", "Array", "Dictionary", "Set", "Optional", "Result", "Void",
+        "Never", "Any", "AnyObject", "Data", "Date", "URL"
+      ]
+    },
+    {"name": "constants", "token": "constant", "words": ["true", "false", "nil"]}
+  ],
+  "repository": {
+    "code": [
+      {"name": "doc-block-comment", "begin": "/\\*\\*(?!/)", "end": "\\*/", "token": "comment.doc", "multiline": true},
+      {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+      {"name": "doc-line-comment", "begin": "///", "end": "$", "token": "comment.doc"},
+      {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
+      {"name": "raw-string", "begin": "#\"", "end": "\"#", "token": "string", "multiline": true},
+      {
+        "name": "multiline-string",
+        "begin": "\"\"\"",
+        "end": "\"\"\"",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"include": "#interp"},
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"include": "#interp"},
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "@[A-Za-z_]\\w*", "token": "meta"},
+      {"match": "(?<=^[ \\t]*)#[A-Za-z]+", "token": "preprocessor"},
+      {
+        "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+(?:\\.[0-9a-fA-F_]+)?(?:[pP][+-]?\\d+)?|0[bB][01_]+|0[oO][0-7_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)",
+        "token": "number"
+      },
+      {"match": "(?<=\\bfunc[ \\t]+)[A-Za-z_]\\w*", "token": "function"},
+      {"match": "(?<=\\b(?:class|struct|enum|protocol|extension|actor|typealias)[ \\t]+)[A-Za-z_]\\w*", "token": "type"},
+      {"words": true},
+      {
+        "operators": [
+          "===", "!==", "...", "..<", "<<=", ">>=", "->", "??", "&&", "||", "==", "!=", "<=", ">=", "+=", "-=",
+          "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "+", "-", "*", "/", "%", "=", "<", ">", "!", "~",
+          "&", "|", "^", "?", ":"
+        ]
+      },
+      {"match": "[{}()\\[\\];,.]", "token": "punctuation"}
+    ],
+    "interp": [
+      {
+        "name": "interpolation",
+        "begin": "\\\\\\(",
+        "end": "\\)",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "rules": [
+          {"include": "#code"}
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {"include": "#code"}
+  ]
+}

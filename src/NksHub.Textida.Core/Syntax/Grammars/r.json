@@ -1,0 +1,65 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "r",
+  "name": "R",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".r", ".R", ".rprofile"],
+  "fileNames": [".Rprofile"],
+  "firstLine": "^#!.*\\bRscript",
+  "wordPattern": "[A-Za-z.][\\w.]*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": ["if", "else", "repeat", "while", "function", "for", "next", "break", "in", "return"]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": [
+        "TRUE", "FALSE", "NULL", "NA", "NA_integer_", "NA_real_", "NA_character_", "NA_complex_", "Inf",
+        "NaN"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"match": "`[^`\\r\\n]*`", "token": "variable"},
+    {"match": "(?<![\\w.])(?:0[xX][0-9a-fA-F]+L?|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?[Li]?)", "token": "number"},
+    {"match": "%[^%\\r\\n]*%", "token": "operator"},
+    {
+      "match": "(?<![\\w.])(?!(?:if|for|while|function|repeat|return|in)\\b)[A-Za-z.][\\w.]*(?=\\()",
+      "token": "function"
+    },
+    {"words": true},
+    {
+      "operators": [
+        "<<-", "->>", "<-", "->", "|>", ":::", "::", "==", "!=", "<=", ">=", "&&", "||", "+", "-", "*", "/",
+        "^", "<", ">", "=", "!", "&", "|", "~", "?", ":", "$", "@"
+      ]
+    },
+    {"match": "[{}()\\[\\];,]", "token": "punctuation"}
+  ]
+}

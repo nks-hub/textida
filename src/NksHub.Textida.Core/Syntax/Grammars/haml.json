@@ -1,0 +1,76 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "haml",
+  "name": "HAML",
+  "comments": {"line": "-#"},
+  "version": "1.0.0",
+  "extensions": [".haml"],
+  "rules": [
+    {"name": "haml-comment", "begin": "(?<=^[ \\t]*)-#", "end": "$", "token": "comment"},
+    {"name": "html-comment", "begin": "(?<=^[ \\t]*)/", "end": "$", "token": "comment"},
+    {"match": "(?<=^[ \\t]*)!!!.*$", "token": "meta"},
+    {"match": "(?<=^[ \\t]*):[A-Za-z]\\w*", "token": "meta"},
+    {
+      "name": "ruby-line",
+      "begin": "(?<=^[ \\t]*)(?:!=|&=|==|[-=~])",
+      "end": "$",
+      "beginToken": "operator",
+      "embed": "ruby"
+    },
+    {"match": "(?<=^[ \\t]*)%[A-Za-z][\\w:-]*", "token": "tag"},
+    {"match": "(?<=^[ \\t]*(?:%[\\w:-]+)?(?:[.#][\\w-]+)*)[.#][A-Za-z_][\\w-]*", "token": "type"},
+    {
+      "name": "hash-attributes",
+      "begin": "(?<=^[ \\t]*(?:%[\\w:-]+)?(?:[.#][\\w-]+)*)\\{",
+      "end": "\\}",
+      "beginToken": "punctuation",
+      "endToken": "punctuation",
+      "embed": "ruby"
+    },
+    {
+      "name": "html-attributes",
+      "begin": "(?<=^[ \\t]*(?:%[\\w:-]+)?(?:[.#][\\w-]+)*)\\(",
+      "end": "\\)",
+      "beginToken": "punctuation",
+      "endToken": "punctuation",
+      "rules": [
+        {
+          "name": "dq-string",
+          "begin": "\"",
+          "end": "\"",
+          "token": "string",
+          "rules": [
+            {"match": "\\\\.", "token": "string.escape"}
+          ]
+        },
+        {
+          "name": "sq-string",
+          "begin": "'",
+          "end": "'",
+          "token": "string",
+          "rules": [
+            {"match": "\\\\.", "token": "string.escape"}
+          ]
+        },
+        {"match": "[A-Za-z_:@][\\w:.@-]*(?==)", "token": "attribute"},
+        {"match": "=", "token": "operator"}
+      ]
+    },
+    {
+      "name": "inline-ruby",
+      "begin": "(?<=^[ \\t]*(?:%[\\w:-]+)?(?:[.#][\\w-]+)*(?:\\{[^}\\r\\n]*\\}|\\([^)\\r\\n]*\\))?[<>/]*)(?:!=|&=|==|=|~)",
+      "end": "$",
+      "beginToken": "operator",
+      "embed": "ruby"
+    },
+    {
+      "name": "interpolation",
+      "begin": "#\\{",
+      "end": "\\}",
+      "beginToken": "punctuation",
+      "endToken": "punctuation",
+      "embed": "ruby"
+    }
+  ]
+}

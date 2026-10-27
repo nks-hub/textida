@@ -1,0 +1,67 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "gotmpl",
+  "name": "Go template",
+  "comments": {"block": ["{{/*", "*/}}"]},
+  "version": "1.0.0",
+  "extensions": [".gohtml", ".gotmpl"],
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": ["if", "else", "end", "range", "with", "define", "template", "block", "break", "continue"]
+    },
+    {"name": "constants", "token": "constant", "words": ["true", "false", "nil"]},
+    {
+      "name": "functions",
+      "token": "function",
+      "words": [
+        "and", "or", "not", "len", "index", "slice", "print", "printf", "println", "html", "js", "urlquery",
+        "call", "eq", "ne", "lt", "le", "gt", "ge"
+      ]
+    }
+  ],
+  "repository": {
+    "action": [
+      {"name": "raw-string", "begin": "`", "end": "`", "token": "string", "multiline": true},
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "'(?:[^'\\\\\\r\\n]|\\\\.)'", "token": "string"},
+      {"match": "\\$[A-Za-z_]\\w*|\\$(?![\\w])", "token": "variable"},
+      {"match": "\\.[A-Za-z_]\\w*", "token": "property"},
+      {"match": "(?<![\\w.$])\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?", "token": "number"},
+      {"words": true},
+      {"operators": [":=", "|", "="]},
+      {"match": "[()\\[\\],.]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {
+      "name": "template-comment",
+      "begin": "\\{\\{-?[ \\t]*/\\*",
+      "end": "\\*/[ \\t]*-?\\}\\}",
+      "token": "comment",
+      "multiline": true
+    },
+    {
+      "name": "action",
+      "begin": "\\{\\{-?",
+      "end": "-?\\}\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#action"}
+      ]
+    },
+    {"include": "html"}
+  ]
+}

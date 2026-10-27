@@ -1,0 +1,128 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "ruby",
+  "name": "Ruby",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".rb", ".rake", ".gemspec", ".ru", ".rbw", ".thor", ".jbuilder", ".podspec", ".irbrc"],
+  "fileNames": [
+    "Gemfile", "Rakefile", "Guardfile", "Capfile", "Vagrantfile", "Podfile", "Brewfile", "Berksfile",
+    "Fastfile", "Appfile"
+  ],
+  "firstLine": "^#!.*\\bruby",
+  "wordPattern": "[A-Za-z_]\\w*(?:[?!](?!=))?",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "BEGIN", "END", "alias", "and", "begin", "break", "case", "class", "def", "defined?", "do", "else",
+        "elsif", "end", "ensure", "for", "if", "in", "module", "next", "not", "or", "redo", "rescue",
+        "retry", "return", "then", "undef", "unless", "until", "when", "while", "yield", "__FILE__",
+        "__LINE__", "__method__"
+      ]
+    },
+    {"name": "constants", "token": "constant", "words": ["nil", "true", "false", "self", "super"]},
+    {
+      "name": "builtins",
+      "token": "function",
+      "words": [
+        "puts", "print", "p", "pp", "require", "require_relative", "load", "include", "extend", "prepend",
+        "attr_accessor", "attr_reader", "attr_writer", "private", "public", "protected", "module_function",
+        "raise", "lambda", "proc", "loop", "format", "sprintf", "printf", "gets", "block_given?", "catch",
+        "throw", "freeze"
+      ]
+    }
+  ],
+  "repository": {
+    "code": [
+      {
+        "name": "block-comment",
+        "begin": "(?<=^)=begin\\b",
+        "end": "(?<=^)=end\\b.*$",
+        "token": "comment",
+        "multiline": true
+      },
+      {"name": "comment-line", "begin": "#(?!\\{)", "end": "$", "token": "comment"},
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"},
+          {"include": "#interp"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\\\\['\\\\]", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "backtick",
+        "begin": "`",
+        "end": "`",
+        "token": "string",
+        "multiline": true,
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"},
+          {"include": "#interp"}
+        ]
+      },
+      {"match": "<<[~-]?(?:[A-Z_]\\w*|'[A-Z_]\\w*'|\\\"[A-Z_]\\w*\\\")", "token": "string"},
+      {
+        "match": "(?<=^|[=(,\\[{:\\s])%[wWiIqQrsx]?(?:\\[[^\\]\\r\\n]*\\]|\\([^)\\r\\n]*\\)|\\{[^}\\r\\n]*\\}|<[^>\\r\\n]*>)",
+        "token": "string"
+      },
+      {
+        "match": "(?<=(?:^|[=(:,\\[!&|?{};~])[ \\t]*|\\b(?:if|unless|when|and|or|return|puts)[ \\t]+)/(?![/* ])(?:[^/\\\\\\[\\r\\n]|\\\\.|\\[(?:[^\\]\\\\\\r\\n]|\\\\.)*\\])+/[imxounse]*",
+        "token": "regex"
+      },
+      {"match": ":\\\"[^\\\"\\r\\n]*\\\"", "token": "constant"},
+      {"match": "(?<![:\\w]):[A-Za-z_]\\w*[?!=]?", "token": "constant"},
+      {"match": "(?<![\\w:]):(?:\\[\\]=?|<=>|===?|=~|!=|<<|>>|<=|>=|\\*\\*|[+\\-*/%<>!~^&|])", "token": "constant"},
+      {"match": "(?<![\\w:@$])[A-Za-z_]\\w*[?!]?(?=:(?![:])[ \\t])", "token": "property"},
+      {"match": "@@?[A-Za-z_]\\w*", "token": "variable"},
+      {"match": "\\$(?:[A-Za-z_]\\w*|[!@&~0-9*$?:\\\"<>,./\\\\;])", "token": "variable"},
+      {
+        "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO]?[0-7_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)[ri]*",
+        "token": "number"
+      },
+      {"match": "(?<=\\bdef[ \\t]+(?:self\\.)?)[A-Za-z_]\\w*[?!=]?", "token": "function"},
+      {"match": "(?<![\\w@$])[A-Z][A-Za-z0-9_]*", "token": "type"},
+      {"words": true},
+      {
+        "operators": [
+          "<=>", "===", "**=", "...", "||=", "&&=", "<<=", ">>=", "&.", "..", "::", "=~", "!~", "==", "!=",
+          "<=", ">=", "&&", "||", "**", "+=", "-=", "*=", "/=", "%=", "|=", "&=", "^=", "<<", ">>", "=>", "->",
+          "+", "-", "*", "/", "%", "=", "<", ">", "!", "~", "&", "|", "^", "?"
+        ]
+      },
+      {"match": "[{}()\\[\\];,.:]", "token": "punctuation"}
+    ],
+    "interp": [
+      {
+        "name": "interpolation",
+        "begin": "#\\{",
+        "end": "\\}",
+        "multiline": true,
+        "beginToken": "punctuation",
+        "endToken": "punctuation",
+        "rules": [
+          {"include": "#code"}
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {"include": "#code"}
+  ]
+}

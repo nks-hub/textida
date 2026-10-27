@@ -1,0 +1,58 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "toml",
+  "name": "TOML",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".toml"],
+  "fileNames": ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"],
+  "wordPattern": "[A-Za-z_][\\w-]*",
+  "keywords": [
+    {"name": "constants", "token": "constant", "words": ["true", "false", "inf", "nan"]}
+  ],
+  "rules": [
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {"match": "(?<=^[ \\t]*)\\[\\[?[^\\]\\r\\n]*\\]\\]?", "token": "heading"},
+    {
+      "match": "(?<=^[ \\t]*)(?:[A-Za-z0-9_-]+|\"[^\"\\r\\n]*\"|'[^'\\r\\n]*')(?:[ \\t]*\\.[ \\t]*(?:[A-Za-z0-9_-]+|\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'))*(?=[ \\t]*=)",
+      "token": "property"
+    },
+    {
+      "match": "(?<=[{,][ \\t]*)(?:[A-Za-z0-9_-]+|\"[^\"\\r\\n]*\"|'[^'\\r\\n]*')(?:[ \\t]*\\.[ \\t]*(?:[A-Za-z0-9_-]+|\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'))*(?=[ \\t]*=)",
+      "token": "property"
+    },
+    {
+      "name": "multi-basic-string",
+      "begin": "\"\"\"",
+      "end": "\"\"\"",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"name": "multi-literal-string", "begin": "'''", "end": "'''", "token": "string", "multiline": true},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"name": "literal-string", "begin": "'", "end": "'", "token": "string"},
+    {
+      "match": "(?<![\\w.:-])\\d{4}-\\d{2}-\\d{2}(?:[Tt ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:[Zz]|[+-]\\d{2}:\\d{2})?)?(?![\\w.:-])|(?<![\\w.:-])\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?![\\w.:-])",
+      "token": "constant"
+    },
+    {
+      "match": "(?<![\\w.:-])[-+]?(?:0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)(?![\\w.:-])",
+      "token": "number"
+    },
+    {"words": true},
+    {"operators": ["="]},
+    {"match": "[\\[\\]{},.]", "token": "punctuation"}
+  ]
+}

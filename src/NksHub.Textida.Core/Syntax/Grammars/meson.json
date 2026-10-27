@@ -1,0 +1,74 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "meson",
+  "name": "Meson",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "fileNames": ["meson.build", "meson_options.txt", "meson.options"],
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "if", "elif", "else", "endif", "foreach", "endforeach", "break", "continue", "and", "or", "not",
+        "in"
+      ]
+    },
+    {"name": "constants", "token": "constant", "words": ["true", "false"]},
+    {
+      "name": "functions",
+      "token": "function",
+      "words": [
+        "add_global_arguments", "add_global_link_arguments", "add_languages", "add_project_arguments",
+        "add_project_dependencies", "add_project_link_arguments", "add_test_setup", "alias_target", "assert",
+        "benchmark", "both_libraries", "build_target", "configuration_data", "configure_file",
+        "custom_target", "debug", "declare_dependency", "dependency", "disabler", "environment", "error",
+        "executable", "files", "find_library", "find_program", "generator", "get_option", "get_variable",
+        "gettext", "import", "include_directories", "install_data", "install_emptydir", "install_headers",
+        "install_man", "install_subdir", "install_symlink", "is_disabler", "is_variable", "jar",
+        "join_paths", "library", "message", "option", "project", "range", "run_command", "run_target",
+        "set_variable", "shared_library", "shared_module", "static_library", "structured_sources", "subdir",
+        "subdir_done", "subproject", "summary", "test", "unset_variable", "vcs_tag", "warning"
+      ]
+    },
+    {"name": "objects", "token": "type", "words": ["meson", "build_machine", "host_machine", "target_machine"]}
+  ],
+  "rules": [
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {
+      "name": "multiline-string",
+      "begin": "(?<![\\w])f?'''",
+      "end": "'''",
+      "token": "string",
+      "multiline": true,
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "name": "fstring",
+      "begin": "(?<![\\w])f'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"},
+        {"match": "@[A-Za-z_]\\w*@", "token": "variable"}
+      ]
+    },
+    {
+      "name": "sq-string",
+      "begin": "'",
+      "end": "'",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\\d[\\d_]*)", "token": "number"},
+    {"match": "(?<=\\.)[A-Za-z_]\\w*(?=\\()", "token": "function"},
+    {"words": true},
+    {"operators": ["==", "!=", "<=", ">=", "+=", "+", "-", "*", "/", "%", "=", "<", ">", "?", ":"]},
+    {"match": "[()\\[\\]{},.]", "token": "punctuation"}
+  ]
+}

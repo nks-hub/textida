@@ -1,0 +1,72 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "go",
+  "name": "Go",
+  "comments": {"line": "//", "block": ["/*", "*/"]},
+  "version": "1.0.0",
+  "extensions": [".go"],
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for",
+        "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select",
+        "struct", "switch", "type", "var"
+      ]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "any", "bool", "byte", "comparable", "complex64", "complex128", "error", "float32", "float64", "int",
+        "int8", "int16", "int32", "int64", "rune", "string", "uint", "uint8", "uint16", "uint32", "uint64",
+        "uintptr"
+      ]
+    },
+    {"name": "constants", "token": "constant", "words": ["true", "false", "nil", "iota"]},
+    {
+      "name": "builtins",
+      "token": "function",
+      "words": [
+        "append", "cap", "clear", "close", "complex", "copy", "delete", "imag", "len", "make", "max", "min",
+        "new", "panic", "print", "println", "real", "recover"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "block-comment", "begin": "/\\*", "end": "\\*/", "token": "comment", "multiline": true},
+    {"name": "comment-line", "begin": "//", "end": "$", "token": "comment"},
+    {"name": "raw-string", "begin": "`", "end": "`", "token": "string", "multiline": true},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {
+      "match": "'(?:[^'\\\\\\r\\n]|\\\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{3}|.))'",
+      "token": "string"
+    },
+    {
+      "match": "(?<![\\w.])(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?|\\.\\d[\\d_]*(?:[eE][+-]?\\d+)?)i?",
+      "token": "number"
+    },
+    {"match": "(?<=\\bfunc[ \\t]+(?:\\([^)\\r\\n]*\\)[ \\t]*)?)[A-Za-z_]\\w*", "token": "function"},
+    {"match": "(?<=\\btype[ \\t]+)[A-Za-z_]\\w*", "token": "type"},
+    {"words": true},
+    {
+      "operators": [
+        "<<=", ">>=", "&^=", "&^", "...", ":=", "<-", "++", "--", "&&", "||", "==", "!=", "<=", ">=", "+=",
+        "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "+", "-", "*", "/", "%", "=", "<", ">", "!",
+        "&", "|", "^", "~"
+      ]
+    },
+    {"match": "[{}()\\[\\];,.]", "token": "punctuation"},
+    {"match": ":", "token": "punctuation"}
+  ]
+}

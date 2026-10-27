@@ -1,0 +1,61 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "makefile",
+  "name": "Makefile",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".mk", ".mak", ".make"],
+  "fileNames": ["Makefile", "makefile", "GNUmakefile"],
+  "repository": {
+    "var": [
+      {"match": "\\$\\$", "token": "string.escape"},
+      {"match": "\\$[@<^?*%+|]", "token": "variable"},
+      {
+        "name": "var-paren",
+        "begin": "\\$\\(",
+        "end": "\\)",
+        "token": "variable",
+        "rules": [
+          {
+            "match": "(?<=\\$\\()(?:subst|patsubst|strip|findstring|filter|filter-out|sort|word|wordlist|words|firstword|lastword|dir|notdir|suffix|basename|addsuffix|addprefix|join|wildcard|realpath|abspath|if|or|and|foreach|call|value|eval|origin|flavor|shell|error|warning|info|file)(?=[ \\t])",
+            "token": "function"
+          },
+          {"include": "#var"}
+        ]
+      },
+      {
+        "name": "var-brace",
+        "begin": "\\$\\{",
+        "end": "\\}",
+        "token": "variable",
+        "rules": [
+          {"include": "#var"}
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {
+      "match": "(?<=^[ \\t]*)(?:-?include|sinclude|ifn?eq|ifn?def|else|endif|define|endef|undefine|export|unexport|override|private|vpath)\\b",
+      "token": "keyword"
+    },
+    {
+      "name": "recipe",
+      "begin": "(?<=^)\\t",
+      "end": "(?<!\\\\)$",
+      "multiline": true,
+      "embed": "shell",
+      "rules": [
+        {"include": "#var"}
+      ]
+    },
+    {"match": "(?<=^)\\.[A-Z_]+(?=[ \\t]*:)", "token": "keyword"},
+    {"match": "(?<=^[ \\t]*)[A-Za-z_][\\w.\\-]*(?=[ \\t]*(?:[:+?!]|::)?=)", "token": "variable"},
+    {"match": "(?<=^)[^\\s:=#\\t$][^:=#\\r\\n]*?(?=[ \\t]*:(?!=))", "token": "function"},
+    {"include": "#var"},
+    {"operators": ["::=", ":=", "?=", "+=", "!=", "=", ":", "|"]},
+    {"match": "[;\\\\]", "token": "punctuation"}
+  ]
+}

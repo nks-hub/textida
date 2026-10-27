@@ -1,0 +1,47 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "rbs",
+  "name": "RBS",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".rbs"],
+  "wordPattern": "[A-Za-z_]\\w*[?!]?",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "class", "module", "interface", "end", "def", "alias", "type", "attr_reader", "attr_writer",
+        "attr_accessor", "include", "extend", "prepend", "public", "private", "unchecked", "out", "in"
+      ]
+    },
+    {
+      "name": "builtin-types",
+      "token": "type",
+      "words": [
+        "bool", "void", "untyped", "any", "top", "bot", "nil", "self", "instance", "class", "singleton",
+        "true", "false"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "comment-line", "begin": "#", "end": "$", "token": "comment"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\\\\.", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<![:\\w]):[A-Za-z_]\\w*", "token": "constant"},
+    {"match": "@@?[A-Za-z_]\\w*", "token": "variable"},
+    {"match": "(?<![\\w@$])(?:::)?[A-Z]\\w*(?:::[A-Z]\\w*)*", "token": "type"},
+    {"match": "(?<![\\w.])\\d+", "token": "number"},
+    {"words": true},
+    {"operators": ["->", "::", "=", "|", "&", "?", "*", "**", "<", ".."]},
+    {"match": "[{}()\\[\\],.:]", "token": "punctuation"}
+  ]
+}
