@@ -256,6 +256,98 @@ public class ConversionTests : IDisposable
         Assert.Equal("ab" + new string(' ', size - 2 % size) + "c", Text(tab));
     }
 
+    [AvaloniaFact]
+    public void Every_special_conversion_is_in_the_command_palette_under_its_title_and_in_the_edit_menu_submenu()
+    {
+        _app.SpecialConversions = SpecialConversions.All;
+        var tab = Open("a b");
+        tab.Editor!.Select(0, 3);
+        var inMenu = _w.MenuModel.Single(g => g.Label == "Úpravy").Items.OfType<MenuGroup>().SelectMany(g => g.Items.OfType<MenuCommand>()).Select(c => c.CommandId).ToList();
+        foreach (var conversion in SpecialConversions.All)
+        {
+            Assert.Contains(conversion.CommandId, inMenu);
+            _w.ShowPalette();
+            _w.SetPaletteQuery(_app.Workbench.Strings.Get(conversion.TitleKey));
+            Assert.Contains(_w.PaletteResults, r => r.CommandId == conversion.CommandId && r.Enabled);
+            _w.ClosePalette();
+        }
+
+        _w.ShowPalette();
+        _w.SetPaletteQuery(_app.Workbench.Strings.Get("cmd.edit.convert.urlEncode"));
+        _w.RunPaletteSelection();
+        Assert.Equal("a%20b", Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_special_conversion_recorded_in_a_macro_plays_over_other_selections_as_one_undo_step()
+    {
+        var registry = _app.Workbench.Commands;
+        var recorded = Open("a b");
+        recorded.Editor!.Select(0, 3);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.record"));
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.convert.urlEncode"));
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.stop"));
+        Assert.Equal(["nks.edit.convert.urlEncode"], registry.LastMacro.Select(s => s.Command));
+
+        var played = Open("x y\nz w");
+        played.Editor!.SetCarets(AdapterCarets.Create([new Sel(0, 3), new Sel(4, 7)], 1));
+        int steps = Steps(played);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.playLast"));
+        Assert.Equal("x%20y\nz%20w", Text(played));
+        Assert.Equal(steps + 1, Steps(played));
+        Undo();
+        Assert.Equal("x y\nz w", Text(played));
+    }
+
+    [AvaloniaTheory]
+    [InlineData(4, 3, 3)]
+    [InlineData(8, 7, 7)]
+    [InlineData(2, 1, 1)]
+    [InlineData(3, 2, 2)]
+    public void Tabs_to_spaces_uses_the_tab_size_of_the_document_and_the_real_column_of_each_selection_on_one_line(int tabSize, int firstSpaces, int secondSpaces)
+    {
+        var expected = "a" + new string(' ', firstSpaces) + "b" + new string(' ', secondSpaces) + "c";
+        var tab = Open("a\tb\tc");
+        tab.Editor!.ApplyOptions(tab.Editor.Settings with { TabSize = tabSize });
+        tab.Editor.SetCarets(AdapterCarets.Create([new Sel(1, 2), new Sel(3, 4)], 1));
+        int steps = Steps(tab);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.convert.tabsToSpaces"));
+        Assert.Equal(expected, Text(tab));
+        Assert.Equal(steps + 1, Steps(tab));
+        var first = new Sel(1, expected.IndexOf('b'));
+        Assert.Equal([first, new Sel(first.End + 1, expected.IndexOf('c'))], SelectionsOf(tab));
+    }
+
+    [AvaloniaFact]
+    public void Tabs_to_spaces_restarts_the_column_on_every_line_of_the_document()
+    {
+        var tab = Open("ab\tc\n\td\te");
+        tab.Editor!.ApplyOptions(tab.Editor.Settings with { TabSize = 8 });
+        tab.Editor.SetCarets(AdapterCarets.Create([new Sel(2, 3), new Sel(5, 6), new Sel(7, 8)], 1));
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.convert.tabsToSpaces"));
+        Assert.Equal("ab" + new string(' ', 6) + "c\n" + new string(' ', 8) + "d" + new string(' ', 7) + "e", Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void The_start_columns_of_selections_count_tab_stops_per_line_and_stay_linear_for_many_selections_on_one_line()
+    {
+        var small = new AvaloniaEdit.Document.TextDocument("a\tb\nc\td");
+        List<Sel> starts = [new Sel(1, 2), new Sel(3, 4), new Sel(4, 5), new Sel(5, 6), new Sel(6, 7)];
+        Assert.Equal([1, 9, 0, 1, 8], MainWindow.StartColumns(small, starts, 8));
+        Assert.Equal([1, 5, 0, 1, 4], MainWindow.StartColumns(small, starts, 4));
+
+        const int count = 30_000;
+        var line = new AvaloniaEdit.Document.TextDocument(string.Concat(Enumerable.Repeat("a\t", count)));
+        var targets = Enumerable.Range(0, count).Select(i => new Sel(2 * i + 1, 2 * i + 2)).ToList();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var columns = MainWindow.StartColumns(line, targets, 4);
+        watch.Stop();
+        Assert.Equal(count, columns.Length);
+        Assert.All(columns.Select((c, i) => (c, i)), x => Assert.Equal(x.i * 4 + 1, x.c));
+        // one pass takes milliseconds; counting from the line start for every selection reads about 9e8 characters, tens of seconds
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"took {watch.Elapsed}");
+    }
+
     // ---- P4.11.1 edit recipe ----
 
     private const string Columns = "\"converters\":[{\"id\":\"up\",\"title\":\"Upper\",\"rules\":[{\"find\":\"\\\\w+\",\"replace\":\"\\\\U$&\",\"regex\":true}]}]," +
