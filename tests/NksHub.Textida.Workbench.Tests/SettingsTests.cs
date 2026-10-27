@@ -565,7 +565,7 @@ public class SettingsSearchTests
         var keymap = host.BuildKeymap(Platform.Windows, user);
         var rows = index.Search("tab", stack, host.Commands, keymap).Where(h => h.Kind == SearchHitKind.Keybinding).ToList();
         Assert.Contains(rows, h => h.Id == "nks.edit.tab" && h.Shortcut == "Tab" && h.Conflicts.Count == 1 && !h.HasConflict);
-        // the user Tab overrides both default Tab bindings: indent outside a Markdown table and the next cell inside one
-        Assert.Contains(rows, h => h.Id == "nks.edit.indent" && h.Shortcut == "Tab" && h.Conflicts.Count == 2);
+        // the user Tab overrides all three default Tab bindings: indent outside a Markdown table and a snippet, the next cell inside a table, the next tab stop inside a snippet
+        Assert.Contains(rows, h => h.Id == "nks.edit.indent" && h.Shortcut == "Tab" && h.Conflicts.Count == 3);
     }
 }

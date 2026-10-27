@@ -4131,26 +4131,6 @@
       "group": "2_run/05_6_log",
       "submenu": "log",
       "order": 120
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openPathAtCaret",
-      "group": "1_new",
-      "order": 40
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportHtml",
-      "group": "2_disk",
-      "submenu": "export",
-      "order": 90
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportRtf",
-      "group": "2_disk",
-      "submenu": "export",
-      "order": 100
     }
   ],
   "keybindings": [

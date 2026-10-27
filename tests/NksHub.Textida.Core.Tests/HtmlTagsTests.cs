@@ -24,7 +24,8 @@ public class HtmlTagsTests
         Assert.True(HtmlTags.TryElement(Page, start, end, out start, out end));
         Assert.Equal(Page, Page[start..end]);
 
-        Assert.Equal(["</p>", "<p>"], HtmlTags.TagsToRemove(Page, open + 4).Select(t => Page[t.Start..t.End]));
+        Assert.Equal(["</p>", "<p>"], HtmlTags.TagsToRemove(Page, open + 3).Select(t => Page[t.Start..t.End]));
+        Assert.Equal(["<br>"], HtmlTags.TagsToRemove(Page, open + 5).Select(t => Page[t.Start..t.End]));
     }
 
     [Fact]

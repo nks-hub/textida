@@ -274,15 +274,18 @@ public partial class TextToolsTests
         rig.Recorded.Pick = _ => "sha1";
         Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash));
         Assert.EndsWith("a9993e364706816aba3e25717850c26c9cd0d89d", rig.LastNotice);
-        Assert.Equal(5, rig.Recorded.Picks[0].Items.Count);
+        Assert.Equal(6, rig.Recorded.Picks[0].Items.Count);
+        Assert.Contains(rig.Recorded.Picks[0].Items, i => i.Label == "CRC-32");
     }
 
     [Fact]
-    public async Task Several_selections_have_no_hash()
+    public async Task Several_selections_are_hashed_one_block_each()
     {
         await using var rig = await Rig.CreateAsync(Utf8("abcdef"), TextCodec.Utf8, [(0, 2), (3, 5)]);
-        Assert.Equal("failed", await rig.RunAsync(TextToolsPlugin.Hash, extra: ",\"algorithm\":\"sha1\""));
-        Assert.Equal(NoticeLevel.Error, rig.Recorded.Notices[^1].Level);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash, extra: ",\"algorithm\":\"sha1\""));
+        string Sha1(string text) => Convert.ToHexStringLower(SHA1.HashData(Utf8(text)));
+        Assert.Equal($"Part 1: SHA-1 (2 bytes): {Sha1("ab")}\nPart 2: SHA-1 (2 bytes): {Sha1("de")}", rig.LastNotice);
+        Assert.Equal(NoticeLevel.Info, rig.Recorded.Notices[^1].Level);
     }
 
     [Fact]
@@ -437,7 +440,18 @@ public partial class TextToolsTests
         await using var rig = await Rig.CreateAsync(Utf8(""), TextCodec.Utf8);
         Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Bases, extra: $",\"text\":\"{input}\""));
         Assert.StartsWith($"Decimal: {dec}, hexadecimal: {hex}, octal: ", rig.LastNotice);
-        Assert.EndsWith($", binary: {bin}", rig.LastNotice);
+        // Roman numeral and date follow the binary part when the number fits them
+        Assert.Equal(bin, rig.LastNotice.Split(", binary: ")[1].Split(' ')[0]);
+    }
+
+    [Fact]
+    public async Task A_small_number_also_gives_its_Roman_numeral_and_the_date_it_is_as_milliseconds()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8(""), TextCodec.Utf8);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Bases, extra: ",\"text\":\"1994\""));
+        Assert.EndsWith(" Roman: MCMXCIV. As milliseconds since 1 Jan 1970: 1970-01-01 00:00:01.994 UTC.", rig.LastNotice);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Bases, extra: ",\"text\":\"xiv\""));
+        Assert.StartsWith("Decimal: 14, ", rig.LastNotice);
     }
 
     [Fact]
