@@ -327,13 +327,13 @@
       "id": "nks.file.history",
       "title": "cmd.file.history",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.file.historyMark",
       "title": "cmd.file.historyMark",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.file.historySearch",
