@@ -318,7 +318,8 @@ public sealed class ToolTests : IDisposable
     {
         var declared = new[] { new ToolVariableDecl("Out", ToolVariableType.Path, "${FileDir}/my out"), new ToolVariableDecl("Note", ToolVariableType.Text) };
         string file = Path.Combine(_dir, "a.txt");
-        var lookup = ToolVariables.ForDocument(file, user: new Dictionary<string, string> { ["Note"] = "hello \"world\"", ["FileBase"] = "own" });
+        var user = new Dictionary<string, string> { ["Note"] = "hello \"world\"", ["FileBase"] = "own" };
+        var lookup = ToolVariables.ForDocument(file, shared: name => user.GetValueOrDefault(name));
         var tool = Resolve(Echo(["${Out}", "${Note}", "${FileBase}"]) with { Variables = declared }, lookup);
         var (_, lines) = await Run(tool);
         Assert.Equal([$"[{_dir}/my out]", "[hello \"world\"]", "[own]"], lines);
@@ -326,6 +327,16 @@ public sealed class ToolTests : IDisposable
         // declared without a value and without one anywhere: unavailable, like any unknown variable
         Assert.Throws<ToolException>(() => Resolve(Echo(["${Missing}"]) with { Variables = [new ToolVariableDecl("Missing", ToolVariableType.Text)] }));
         Assert.Throws<ToolException>(() => Resolve(Echo([]) with { Variables = [new ToolVariableDecl("X", ToolVariableType.Text, "a"), new ToolVariableDecl("X", ToolVariableType.Text, "b")] }));
+    }
+
+    [Fact]
+    public void The_shared_variables_come_before_the_tool_names_and_a_name_may_have_spaces_inside_the_braces()
+    {
+        string file = Path.Combine(_dir, "a.txt");
+        var shared = new Dictionary<string, string> { ["file.path"] = "shared path", ["File"] = "own file" };
+        var tool = Resolve(Echo(["${ file.path }", "${File}", "${ FileName }", "${Line}"]), ToolVariables.ForDocument(file, 3, 4, name => shared.GetValueOrDefault(name)));
+        Assert.Equal(["shared path", "own file", "a.txt", "3"], tool.Args.Skip(1));
+        Assert.Throws<ToolException>(() => Resolve(Echo(["${file.path}"]), ToolVariables.ForDocument(file)));
     }
 
     [Fact]
