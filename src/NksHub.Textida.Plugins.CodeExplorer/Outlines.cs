@@ -13,10 +13,11 @@ public readonly record struct Sym(string Kind, string Name, int Start, int End, 
 public static partial class Outlines
 {
     /// <summary>The language modes that have an outline.</summary>
-    public static bool Supports(string language) => language is "html" or "php" or "css" or "csharp" or "markdown";
+    public static bool Supports(string language) => language is "html" or "php" or "css" or "csharp" or "markdown" || Generic.ContainsKey(language);
 
     public static List<Sym> Extract(string language, string text) => language switch
     {
+        _ when Generic.TryGetValue(language, out var plan) => RunPlan(plan, text),
         "html" => Html(text),
         "php" => Php(text),
         "css" => Css(Mask(text, new MaskRules(false, false, true, false, false))),
@@ -27,7 +28,7 @@ public static partial class Outlines
 
     // ---- masking ----
 
-    private readonly record struct MaskRules(bool LineSlash, bool LineHash, bool Block, bool CSharp, bool Php);
+    private readonly record struct MaskRules(bool LineSlash, bool LineHash, bool Block, bool CSharp, bool Php, string Quotes = "\"'", bool Triple = false);
 
     /// <summary>Same length as the text: comments, strings and (in PHP) everything outside the PHP tags are replaced by spaces, line breaks stay.</summary>
     private static string Mask(string t, MaskRules r)
@@ -77,10 +78,15 @@ public static partial class Outlines
                 i = end;
                 continue;
             }
-            if (c is '"' or '\'' or '`' && (c != '`' || r.Php))
+            if (r.Quotes.Contains(c) || (c == '`' && r.Php))
             {
                 int end;
-                if (r.CSharp && c == '"' && next == '"' && i + 2 < n && t[i + 2] == '"')
+                if (r.Triple && next == c && i + 2 < n && t[i + 2] == c)
+                {
+                    int close = t.IndexOf(new string(c, 3), i + 3, StringComparison.Ordinal);
+                    end = close < 0 ? n : close + 3;
+                }
+                else if (r.CSharp && c == '"' && next == '"' && i + 2 < n && t[i + 2] == '"')
                 {
                     int close = t.IndexOf("\"\"\"", i + 3, StringComparison.Ordinal);
                     end = close < 0 ? n : close + 3;
@@ -94,7 +100,7 @@ public static partial class Outlines
                         if (verbatim) { if (t[end] == '"') { if (end + 1 < n && t[end + 1] == '"') { end += 2; continue; } break; } }
                         else if (t[end] == '\\') { end += 2; continue; }
                         else if (t[end] == c) break;
-                        else if (t[end] == '\n' && !r.Php) break;
+                        else if (t[end] == '\n' && !r.Php && c != '`') break;
                         end++;
                     }
                     end = Math.Min(n, end + 1);

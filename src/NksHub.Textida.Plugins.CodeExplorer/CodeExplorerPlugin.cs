@@ -12,7 +12,8 @@ namespace NksHub.Textida.Plugins.CodeExplorer;
 /// <param name="MaxBytes">Largest document the plugin reads whole.</param>
 /// <param name="MaxSymbols">Symbols published for one document; the editor refuses more.</param>
 /// <param name="MaxSymbolChars">Longest symbol name published; the editor refuses longer.</param>
-public sealed record CodeExplorerSettings(int ChunkBytes, int MaxBytes, int MaxSymbols, int MaxSymbolChars);
+/// <param name="MatchTimeoutMs">Longest time one rule may spend matching a text; a text that exceeds it gets no outline.</param>
+public sealed record CodeExplorerSettings(int ChunkBytes, int MaxBytes, int MaxSymbols, int MaxSymbolChars, int MatchTimeoutMs);
 
 /// <summary>
 /// The built-in Code Explorer: the functions, classes and headings of the open file as the symbols of the outline and of Go to Anything, from simple per-language rules (no language
@@ -27,6 +28,7 @@ public sealed class CodeExplorerPlugin : PluginBase
     public CodeExplorerPlugin(CodeExplorerSettings settings) : base("code-explorer", apiVersion: 1)
     {
         _settings = settings;
+        AppContext.SetData("REGEX_DEFAULT_MATCH_TIMEOUT", TimeSpan.FromMilliseconds(settings.MatchTimeoutMs)); // read when the first regex of the outline rules is built
         On("command/execute", ExecuteAsync);
     }
 
@@ -44,10 +46,11 @@ public sealed class CodeExplorerPlugin : PluginBase
         long revision = p.GetProperty("revision").GetInt64();
         string ui = p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en";
         bool notify = p.TryGetProperty("notify", out var n) && n.ValueKind == JsonValueKind.True;
+        bool partial = p.TryGetProperty("partial", out var part) && part.ValueKind == JsonValueKind.True;
         string result;
         try
         {
-            result = await IndexAsync(document, revision, language, ui, notify, ct);
+            result = await IndexAsync(document, revision, language, ui, notify, partial, ct);
         }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict)
         {
@@ -65,10 +68,10 @@ public sealed class CodeExplorerPlugin : PluginBase
         return Encoding.UTF8.GetBytes(result);
     }
 
-    private async Task<string> IndexAsync(string document, long revision, string language, string ui, bool notify, CancellationToken ct)
+    private async Task<string> IndexAsync(string document, long revision, string language, string ui, bool notify, bool partial, CancellationToken ct)
     {
         if (!Outlines.Supports(language)) return Status("unsupported");
-        var loaded = await DocumentText.LoadAsync(Rpc, document, revision, _settings.ChunkBytes, _settings.MaxBytes, ct);
+        var loaded = await DocumentText.LoadAsync(Rpc, document, revision, _settings.ChunkBytes, _settings.MaxBytes, ct, allowPartial: partial);
         var found = Outlines.Extract(language, loaded.Text);
         bool truncated = found.Count > _settings.MaxSymbols;
         var symbols = new StringBuilder();
@@ -83,6 +86,7 @@ public sealed class CodeExplorerPlugin : PluginBase
         }
         await Rpc.RequestAsync(DocumentMethods.SymbolsPublish, Encoding.UTF8.GetBytes($"{{\"document\":\"{document}\",\"revision\":{revision},\"symbols\":[{symbols}]}}"), null, ct);
         if (truncated && notify) await NotifyAsync(NoticeLevel.Warning, Texts.Get(ui, "tooMany", ("max", _settings.MaxSymbols.ToString())), ct);
-        return Status("indexed", $",\"revision\":{revision},\"count\":{Math.Min(found.Count, _settings.MaxSymbols)},\"truncated\":{(truncated ? "true" : "false")}");
+        if (loaded.Truncated && notify) await NotifyAsync(NoticeLevel.Warning, Texts.Get(ui, "partial", ("max", _settings.MaxBytes.ToString())), ct);
+        return Status("indexed", $",\"revision\":{revision},\"count\":{Math.Min(found.Count, _settings.MaxSymbols)},\"truncated\":{(truncated || loaded.Truncated ? "true" : "false")}");
     }
 }

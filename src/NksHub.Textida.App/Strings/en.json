@@ -879,6 +879,7 @@
   "plugin.secrets.title": "Hidden values",
   "plugin.secrets.message": "{name} will read the hidden values of {file} while it runs. Allow it?",
   "key.path.tip": "Key path under the caret",
+  "symbol.path.tip": "Symbol at the caret (from the code outline)",
   "key.path.none": "There is no key at the caret.",
   "key.path.copied": "Key path copied: {path}",
   "schema.none": "no schema",

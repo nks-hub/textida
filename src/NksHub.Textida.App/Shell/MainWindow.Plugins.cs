@@ -75,6 +75,12 @@ internal sealed partial class MainWindow
     /// <summary>Selects the bytes of <paramref name="range"/> in the tab and scrolls to them; the outline and the plugin API both end here.</summary>
     internal bool RevealBytes(DocTab tab, ByteRange range)
     {
+        if (tab.Paged is { } paged)
+        {
+            SelectTab(tab);
+            paged.GoToOffset(range.Start);
+            return true;
+        }
         if (tab.Surface is not { } surface || tab.Doc.TextBackend is not { } backend) return false;
         if (!backend.TryToCharOffset(range.Start, out int start) || !backend.TryToCharOffset(range.End, out int end)) return false;
         SelectTab(tab);

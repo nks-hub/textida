@@ -429,9 +429,10 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Nástroje, Struktura a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
-- Čte se podle jednoduchých pravidel jazyka, bez jazykového serveru a bez indexu projektu: HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (jmenné prostory, třídy, rozhraní, traity, výčty, funkce, metody), CSS (pravidla a @-pravidla), C# (jmenné prostory, typy, metody, konstruktory, vlastnosti), Markdown (nadpisy `#`).
+5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje.
+- Čte se podle jednoduchých pravidel jazyka, bez jazykového serveru a bez indexu projektu. Kromě jazyků níže: JavaScript a TypeScript (třídy, rozhraní, výčty, funkce, šipkové funkce, metody), Python (třídy, funkce, metody podle odsazení), Rust (moduly, struktury, výčty, traity, bloky impl, funkce, makra), Dart (třídy, mixiny, výčty, rozšíření, funkce, metody), C a C++ (jmenné prostory, struktury, třídy, výčty, funkce, makra), Bash (funkce), CMake (funkce, makra, cíle), Makefile (cíle, `define`), Meson (cíle, testy, podadresáře). Klíče YAML a JSON dává osnova klíčů. HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (jmenné prostory, třídy, rozhraní, traity, výčty, funkce, metody), CSS (pravidla a @-pravidla), C# (jmenné prostory, typy, metody, konstruktory, vlastnosti), Markdown (nadpisy `#`).
 - Komentáře a řetězce se nečtou. Co pravidla nepoznají, se přeskočí.
-- Soubor větší než limit pluginu nebo s víc symboly, než osnova unese, se zobrazí zkrácený a zpráva to řekne.
+- Soubor větší než limit pluginu nebo s víc symboly, než osnova unese, se zobrazí zkrácený a zpráva to řekne. Velký soubor ve stránkovaném zobrazení se čte na pozadí od začátku až po limit; skok na symbol posune stránkované zobrazení na jeho místo.
 
 ## [edit.carets] Více kurzorů
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets

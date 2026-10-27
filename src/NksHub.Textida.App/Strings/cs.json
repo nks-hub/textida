@@ -902,6 +902,7 @@
   "plugin.secrets.title": "Skryté hodnoty",
   "plugin.secrets.message": "{name} si při běhu přečte skryté hodnoty souboru {file}. Povolit?",
   "key.path.tip": "Cesta klíče pod kurzorem",
+  "symbol.path.tip": "Symbol u kurzoru (z osnovy kódu)",
   "key.path.none": "U kurzoru není žádný klíč.",
   "key.path.copied": "Cesta klíče zkopírována: {path}",
   "schema.none": "bez schématu",

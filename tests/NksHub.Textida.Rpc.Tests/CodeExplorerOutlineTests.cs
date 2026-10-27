@@ -119,7 +119,20 @@ public class CodeExplorerOutlineTests
             Assert.Empty(Outlines.Extract(language, ""));
             _ = Outlines.Extract(language, "{{{ <<< \" ' /* <?php function ( class { [ ---\n```\n# ");
         }
-        Assert.False(Outlines.Supports("python"));
-        Assert.Empty(Outlines.Extract("python", "def f(): pass"));
+        Assert.False(Outlines.Supports("lua"));
+        Assert.Empty(Outlines.Extract("lua", "function f() end"));
     }
+
+    [Theory]
+    [InlineData("javascript", "// function no() {}\nexport class A {\n  go(x) { return `}`; }\n}\nconst f = async (a) => { };\nfunction g(b) { }\n", new[] { "class A", "  method go(x)", "function f(a)", "function g(b)" })]
+    [InlineData("python", "# def no(): pass\nclass A:\n    \"\"\"def no(): pass\"\"\"\n    def m(self): pass\ndef f(): pass\n", new[] { "class A", "  method m(self)", "function f()" })]
+    [InlineData("rust", "// fn no() {}\nmod m { pub fn f<T>(x: T) -> T { x } }\nimpl<T> Foo<T> {\n    fn g(&self) {}\n}\nstruct S { a: i32 }\n", new[] { "mod m", "  function f(x: T)", "impl Foo<T>", "  method g(&self)", "struct S" })]
+    [InlineData("dart", "class A {\n  void m(int x) {\n    if (x > 0) { }\n  }\n}\nint f() => 1;\n", new[] { "class A", "  method m(int x)", "function f()" })]
+    [InlineData("c", "#define MAX 3\nstruct P { int x; };\nstatic int add(int a, int b)\n{\n    if (a) { }\n    return a + b; // int no(void) {}\n}\n", new[] { "macro MAX", "struct P", "function add(int a, int b)" })]
+    [InlineData("shell", "# no() {\nbuild() {\n  echo \"x() {\"\n}\nfunction deploy { :; }\n", new[] { "function build", "function deploy" })]
+    [InlineData("cmake", "# project(no)\nproject(Demo)\nadd_executable(app main.c)\nfunction(helper arg)\nendfunction()\n", new[] { "project Demo", "add_executable app", "function helper" })]
+    [InlineData("makefile", "CC := gcc\n.PHONY: all\nall: app\n\tgcc -o app\nclean:\n\trm app\n", new[] { "target all", "target clean" })]
+    [InlineData("meson", "project('demo', 'c')\nexe = executable('app', 'main.c')\n# test('no', exe)\ntest('unit', exe)\n", new[] { "project demo", "executable app", "test unit" })]
+    public void Other_languages_give_their_declarations_and_not_comments_or_strings(string language, string text, string[] expected) =>
+        Assert.Equal(expected, Tree(language, text).Select(l => l[..l.LastIndexOf(" [", StringComparison.Ordinal)]));
 }
