@@ -84,6 +84,7 @@ public sealed record DocumentApiOptions
     public required int MaxReadBytes { get; init; }
     public required int MaxFindMatches { get; init; }
     public required int MaxSnapshotsPerPlugin { get; init; }
+    /// <summary>How long a snapshot lives without being read; each read starts the time again.</summary>
     public required TimeSpan SnapshotLifetime { get; init; }
     /// <summary>Events waiting for one plugin; beyond it the events of a document are dropped and replaced by one <see cref="DocumentEvents.EventsLost"/>.</summary>
     public required int EventQueueCapacity { get; init; }

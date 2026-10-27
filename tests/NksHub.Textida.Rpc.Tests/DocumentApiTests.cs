@@ -284,6 +284,21 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task EachReadOfASnapshotRestartsItsLifetime()
+    {
+        var time = new ManualTime();
+        await using var rig = await Rig.CreateAsync(Utf8("hello"), time: time);
+        var id = (await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D())).GetProperty("snapshot").GetString()!;
+        for (int i = 0; i < 3; i++)
+        {
+            time.Advance(TimeSpan.FromSeconds(6)); // 18 s in all, the lifetime is 10 s
+            Assert.Equal(Utf8("hello"), FromB64(await rig.CallAsync(DocumentMethods.ReadBytes, $"{{\"snapshot\":\"{id}\",\"start\":0,\"end\":5}}")));
+        }
+        time.Advance(TimeSpan.FromSeconds(11));
+        await rig.ErrorAsync(DocumentMethods.ReadBytes, $"{{\"snapshot\":\"{id}\",\"start\":0,\"end\":1}}", DocumentErrorCodes.SnapshotExpired);
+    }
+
+    [Fact]
     public async Task PositionsMapForwardThroughTheChangeLogAndAmbiguousOnesAreAConflict()
     {
         await using var rig = await Rig.CreateAsync(Utf8("0123456789"));
