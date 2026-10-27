@@ -665,6 +665,7 @@
   "clips.save.tooLong": "Der Clip wurde nicht gespeichert: Der Text ist länger als {max} Zeichen.",
   "clips.save.tooLarge": "Der Clip wurde nicht gespeichert: Die Bibliothek wäre größer als {max} Bytes.",
   "clips.save.failed": "Der Clip wurde nicht gespeichert: {reason}",
+  "secrets.hiddenValue": "[verborgener Wert]",
   "plugin.secrets.title": "Verborgene Werte",
   "plugin.secrets.message": "{name} liest während der Ausführung die verborgenen Werte von {file}. Zulassen?",
   "key.path.tip": "Schlüsselpfad am Cursor",

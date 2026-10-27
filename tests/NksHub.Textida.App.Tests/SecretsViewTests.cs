@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using AvaloniaEdit.Rendering;
+using NksHub.Textida.Accessibility;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -203,6 +204,72 @@ public class SecretsViewTests : IDisposable
         await Until(() => !_app.Plugins.IsBusy);
         Assert.False(grant()); // the permission lasts for one run
         Assert.Equal(Env, Bytes(tab));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("en", "[hidden value]")]
+    [InlineData("cs", "[skrytá hodnota]")]
+    [InlineData("sk", "[skrytá hodnota]")]
+    [InlineData("de", "[verborgener Wert]")]
+    public void The_screen_reader_text_hides_the_values_names_them_and_keeps_the_caret_consistent(string language, string marker)
+    {
+        Loc.SetLanguage(language);
+        var tab = Open(".env");
+        var editor = tab.Editor!;
+        using var surface = new EditorTextSurface(editor);
+        var changes = new List<TextChange>();
+        surface.TextChanged += changes.Add;
+
+        string shown = surface.GetText(0, surface.Length);
+        Assert.Equal($"# keys\nAPI_KEY={marker}\nOTHER={marker}\nPLAIN={marker}\n", shown);
+        Assert.DoesNotContain("hunter2", shown);
+        Assert.DoesNotContain("a b", shown);
+        Assert.Equal(5, surface.LineCount);
+        Assert.Equal(Env, editor.Document.Text);
+
+        // a caret in the document lands at the same place of the shown text
+        int docKey = Env.IndexOf("OTHER", StringComparison.Ordinal);
+        editor.CaretOffset = docKey + 3;
+        Assert.Equal(shown.IndexOf("OTHER", StringComparison.Ordinal) + 3, surface.CaretOffset);
+        editor.CaretOffset = Env.Length;
+        Assert.Equal(shown.Length, surface.CaretOffset);
+
+        // a selection over a whole value covers the whole marker
+        int docValue = Env.IndexOf("hunter2", StringComparison.Ordinal);
+        editor.Select(docValue - 8, 15);
+        int shownKey = shown.IndexOf("API_KEY", StringComparison.Ordinal);
+        Assert.Equal(new TextSpan(shownKey, 8 + marker.Length), surface.Selection);
+        Assert.Equal("API_KEY=" + marker, surface.GetText(surface.Selection.Start, surface.Selection.Length));
+
+        // a selection made through the automation maps back to the document
+        surface.SetSelection(shownKey, 8 + marker.Length);
+        Assert.Equal((docValue - 8, 15), (editor.SelectionStart, editor.SelectionLength));
+
+        // the pointer resting on a value shows only that one, and the screen reader is told
+        changes.Clear();
+        editor.ShowSecretAt(docValue);
+        Assert.Equal($"# keys\nAPI_KEY=hunter2\nOTHER={marker}\nPLAIN={marker}\n", surface.GetText(0, surface.Length));
+        Assert.NotEmpty(changes);
+
+        // the switch shows everything: the real text, and the caret still maps
+        editor.ShowSecretAt(null);
+        changes.Clear();
+        editor.ToggleSecrets();
+        Assert.Equal(Env, surface.GetText(0, surface.Length));
+        Assert.NotEmpty(changes);
+        editor.CaretOffset = docKey;
+        Assert.Equal(docKey, surface.CaretOffset);
+
+        editor.ToggleSecrets();
+        Assert.DoesNotContain("hunter2", surface.GetText(0, surface.Length));
+    }
+
+    [AvaloniaFact]
+    public void The_screen_reader_text_of_other_files_is_the_document_text()
+    {
+        var tab = Open("notes.txt");
+        using var surface = new EditorTextSurface(tab.Editor!);
+        Assert.Equal(Env, surface.GetText(0, surface.Length));
     }
 
     private static async Task Until(Func<bool> condition)

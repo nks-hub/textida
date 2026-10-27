@@ -665,6 +665,7 @@
   "clips.save.tooLong": "The clip was not saved: the text is longer than {max} characters.",
   "clips.save.tooLarge": "The clip was not saved: the library would be larger than {max} bytes.",
   "clips.save.failed": "The clip was not saved: {reason}",
+  "secrets.hiddenValue": "[hidden value]",
   "plugin.secrets.title": "Hidden values",
   "plugin.secrets.message": "{name} will read the hidden values of {file} while it runs. Allow it?",
   "key.path.tip": "Key path under the caret",

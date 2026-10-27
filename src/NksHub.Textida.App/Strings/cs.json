@@ -682,6 +682,7 @@
   "clips.save.tooLong": "Klip se neuložil: text je delší než {max} znaků.",
   "clips.save.tooLarge": "Klip se neuložil: knihovna by byla větší než {max} bajtů.",
   "clips.save.failed": "Klip se neuložil: {reason}",
+  "secrets.hiddenValue": "[skrytá hodnota]",
   "plugin.secrets.title": "Skryté hodnoty",
   "plugin.secrets.message": "{name} si při běhu přečte skryté hodnoty souboru {file}. Povolit?",
   "key.path.tip": "Cesta klíče pod kurzorem",
