@@ -256,12 +256,15 @@ internal sealed partial class HexView
                         hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
                     }
                     var hex = Format(hexBuilder.ToString(), fore);
-                    for (int col = 0; col < n; col++)
+                    // a run of bytes of one kind gets one brush span (the blanks between them have no ink)
+                    for (int col = 0; col < n;)
                     {
                         byte b = buf[rowOffset - bufStart + col];
-                        if (b == 0) hex.SetForegroundBrush(dim, _hexChar[col], 2);
-                        else if (b == 0xFF) hex.SetForegroundBrush(accent, _hexChar[col], 2);
-                        else if (b < 0x20 || b == 0x7F) hex.SetForegroundBrush(muted, _hexChar[col], 2);
+                        var tint = HexTint(b, dim, accent, muted);
+                        int end = col + 1;
+                        while (end < n && ReferenceEquals(tint, HexTint(buf[rowOffset - bufStart + end], dim, accent, muted))) end++;
+                        if (tint is not null) hex.SetForegroundBrush(tint, _hexChar[col], _hexChar[end - 1] + 2 - _hexChar[col]);
+                        col = end;
                     }
                     context.DrawText(hex, new Point(_hexLeft, y + 1));
 
@@ -296,6 +299,8 @@ internal sealed partial class HexView
             return lo;
         }
 
+        private static IBrush? HexTint(byte b, IBrush dim, IBrush accent, IBrush muted) => b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
+
         private static char HexDigit(int v) => (char)(v < 10 ? '0' + v : 'A' + v - 10);
 
         private void Mark(DrawingContext context, IBrush brush, double y, int from, int to)
@@ -308,9 +313,10 @@ internal sealed partial class HexView
         {
             var run = new StringBuilder(n);
             int runStart = 0;
+            IBrush runBrush = fore;
             void Flush(int upTo)
             {
-                if (run.Length > 0) context.DrawText(Format(run.ToString(), fore), new Point(_charLeft + runStart * _cw, y + 1));
+                if (run.Length > 0) context.DrawText(Format(run.ToString(), runBrush), new Point(_charLeft + runStart * _cw, y + 1));
                 run.Clear();
                 runStart = upTo;
             }
@@ -318,9 +324,12 @@ internal sealed partial class HexView
             {
                 var cell = cells[i];
                 if (cell.Kind == HexCellKind.Invalid) context.FillRectangle(warn, new Rect(_charLeft + i * _cw, y, _cw, _rh));
-                if (cell.Glyph.Length == 1 && cell.Kind is HexCellKind.Normal)
+                if (cell.Glyph.Length == 1 && cell.Kind is not HexCellKind.Invalid)
                 {
-                    if (run.Length == 0) runStart = i;
+                    // consecutive dots (a zero-filled stretch) are one text, not one per byte
+                    var brush1 = cell.Kind == HexCellKind.Normal ? fore : dim;
+                    if (run.Length > 0 && !ReferenceEquals(runBrush, brush1)) Flush(i);
+                    if (run.Length == 0) { runStart = i; runBrush = brush1; }
                     run.Append(cell.Glyph);
                     continue;
                 }
