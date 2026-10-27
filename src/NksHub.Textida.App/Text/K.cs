@@ -1309,6 +1309,10 @@ public static class K
     public const string McpShareOff = "mcp.share.off";
     public const string McpShareNeedServer = "mcp.share.needServer";
     public const string McpShareUnavailable = "mcp.share.unavailable";
+    public const string McpShareSelectionOn = "mcp.share.selectionOn";
+    public const string McpShareSelectionEmpty = "mcp.share.selectionEmpty";
+    public const string McpShareSelectionTooLarge = "mcp.share.selectionTooLarge";
+    public const string McpSelectionTab = "mcp.selection.tab";
     public const string McpSecretsTitle = "mcp.secrets.title";
     public const string McpSecretsMessage = "mcp.secrets.message";
     public const string McpSecretsShow = "mcp.secrets.show";
@@ -1416,6 +1420,7 @@ public static class K
     public const string McpToolListDocuments = "mcp.tool.listDocuments";
     public const string McpToolReadRange = "mcp.tool.readRange";
     public const string McpToolSearch = "mcp.tool.search";
+    public const string McpToolGetSelection = "mcp.tool.getSelection";
     public const string McpToolPrepareChanges = "mcp.tool.prepareChanges";
     public const string McpToolChangeStatus = "mcp.tool.changeStatus";
     public const string McpToolOutline = "mcp.tool.outline";

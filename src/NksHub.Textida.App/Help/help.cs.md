@@ -1407,16 +1407,18 @@ Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává pro
 - Skončí, když se zavře jedna ze dvou karet. Hexadecimální a tabulkový pohled se neúčastní.
 
 ## [tools.mcp] Editor jako server MCP
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 Asistent s umělou inteligencí, kterého na tomto počítači spustíte (například programovací agent), může Textidu používat přes Model Context Protocol. Vidí jen karty, které mu sdílíte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
 1. Zvolte Nástroje, Server MCP. Dialog vypíše, co asistent dostane. Zapnutím se server spustí; dalším zvolením příkazu se vypne a všechny karty se odvolají.
 2. Asistenta nastavte tak, aby spouštěl program textida-mcp.exe ze složky mcp vedle editoru (celou cestu ukáže stavový řádek). S editorem mluví přes místní rouru, žádný síťový port se neotevírá.
 3. Otevřete kartu a zvolte Nástroje, MCP, Sdílet kartu s MCP. Stejným příkazem kartu odvoláte. Karta, která není sdílená, není ani vypsaná.
-4. Volbou Nástroje, MCP, Nástroje MCP zapnete nebo vypnete jednotlivé nástroje. Výběr nástroje v seznamu změní jeho stav, Escape seznam zavře.
-- Asistent čte text tak, jak je v editoru, i neuložený, hledá v něm, žádá osnovu, kódování a konce řádků, hledá řádky dané úrovně v logu libovolné velikosti a čte nebo hledá bajty (nejvýš 64 KiB najednou).
+4. Chcete-li asistentovi dát jen část karty, vyberte text a zvolte Nástroje, MCP, Sdílet výběr s MCP. Vybraný text se otevře jako kopie jen pro čtení ve vlastní kartě: nesleduje originál a asistent k ní nemůže navrhovat změny. Zavřením té karty ji odvoláte.
+5. Volbou Nástroje, MCP, Nástroje MCP zapnete nebo vypnete jednotlivé nástroje. Výběr nástroje v seznamu změní jeho stav, Escape seznam zavře.
+- Asistent čte text tak, jak je v editoru, i neuložený, hledá v něm, zjišťuje, kde máte kurzor a výběr, čte chyby a varování pluginů a kontroly kódu, žádá osnovu, kódování a konce řádků, hledá řádky dané úrovně v logu libovolné velikosti a čte nebo hledá bajty (nejvýš 64 KiB najednou).
 - Změna je návrh pro jednu revizi textu. Když se text mezitím změnil, návrh se odmítne a asistent si musí text přečíst znovu. Návrh uvidíte jako jiné změny celého dokumentu a zvolíte, jestli ho použít; asistent se může zeptat, jak dopadl.
 - Hodnoty v souborech .env vidí asistent jako *. Při sdílení takové karty se zeptáme, jestli smí vidět skutečné hodnoty; odpověď platí jen pro tu kartu.
-- Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží. Odvolá ji i znovunačtení souboru.
+- Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží, a návrh, který ještě čeká na vaše rozhodnutí, se stáhne a počítá se jako zamítnutý. Odvolá ji i znovunačtení souboru.
+- Na vaše rozhodnutí může čekat jen omezený počet návrhů najednou (limit je zatím provizorní); další se odmítne, dokud nerozhodnete. Výsledek větší než limit velikosti se odmítne a asistent se dozví, že má chtít méně.
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
 
 ## [tools.ide] Most /ide pro Claude Code
@@ -1427,7 +1429,7 @@ Claude Code běžící v terminálu na tomto počítači se k Textidě připojí
 3. V terminálu spusťte v Claude Code příkaz /ide. Program bez tokenu ze souboru zámku se odmítne.
 - Agent se při každé změně výběru dozví výběr a cestu zpřístupněné karty. Hodnoty z .env jsou skryté jako u každého jiného čtení. Odvolání karty to okamžitě zastaví.
 - Změny agenta přijdou jako návrhy stejným náhledem změn jako u MCP.
-- Nedokončeno: pole souboru zámku, podprotokol WebSocketu, zprávu o výběru a volání rozdílu Claude Code veřejná dokumentace nepopisuje, takže zatím není potvrzena žádná verze Claude Code, se kterou most funguje. Diagnostika je prázdný seznam, dokud nejsou připojené jazykové servery.
+- Nedokončeno: pole souboru zámku, podprotokol WebSocketu, zprávu o výběru a volání rozdílu Claude Code veřejná dokumentace nepopisuje, takže zatím není potvrzena žádná verze Claude Code, se kterou most funguje. Tvar výsledku getDiagnostics (chyby a varování zpřístupněných karet) je provizorní.
 
 ## [tools.agent] Agent přes ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

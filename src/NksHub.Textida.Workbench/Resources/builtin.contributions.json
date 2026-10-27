@@ -1993,6 +1993,12 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.tools.mcpShareSelection",
+      "title": "cmd.tools.mcpShareSelection",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.tools.mcpTools",
       "title": "cmd.tools.mcpTools",
       "category": "cat.tools"
@@ -4393,6 +4399,13 @@
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpShareSelection",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 25
     },
     {
       "menu": "tools",

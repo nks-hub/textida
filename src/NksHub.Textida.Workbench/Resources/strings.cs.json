@@ -523,6 +523,7 @@
   "cmd.settings.restore": "Obnovit konfiguraci...",
   "cmd.tools.mcpServer": "Server MCP: zapnout nebo vypnout...",
   "cmd.tools.mcpShareTab": "Sdílet kartu s MCP",
+  "cmd.tools.mcpShareSelection": "Sdílet výběr s MCP",
   "cmd.tools.ideBridge": "Most /ide: zapnout nebo vypnout...",
   "cmd.tools.mcpTools": "Nástroje MCP...",
   "cmd.tools.mcpServers": "Servery MCP agentů...",

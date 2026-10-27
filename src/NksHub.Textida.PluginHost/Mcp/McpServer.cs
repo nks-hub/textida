@@ -23,6 +23,8 @@ public sealed record McpServerOptions
     public required int SnippetBytes { get; init; }
     /// <summary>Longest log line returned, in UTF-16 code units.</summary>
     public required int MaxLineChars { get; init; }
+    /// <summary>Most proposals that may wait for the decision of the user at once; a further one is refused until the user decides on one.</summary>
+    public required int MaxPendingProposals { get; init; }
     /// <summary>Name of a document for the assistant (the tab title); the file name is used when this is missing or answers null.</summary>
     public Func<Guid, string?>? TitleOf { get; init; }
     /// <summary>Makes sure an outline of the live text exists before it is read (indexes the tab).</summary>
@@ -52,7 +54,7 @@ public sealed class McpServer
 
     public McpServer(McpServerOptions options)
     {
-        if (options.MaxResultChars < 1 || options.MaxRangeBytes < 1 || options.MaxItems < 1 || options.SnippetBytes < 1 || options.MaxLineChars < 1)
+        if (options.MaxResultChars < 1 || options.MaxRangeBytes < 1 || options.MaxItems < 1 || options.SnippetBytes < 1 || options.MaxLineChars < 1 || options.MaxPendingProposals < 1)
             throw new ArgumentException("Every MCP limit must be positive.", nameof(options));
         Options = options;
     }
@@ -129,7 +131,7 @@ public sealed class McpServer
     }
 
     internal static string Instructions =>
-        "Textida is a text editor. Only the tabs the user shared with you are visible; editor_list_documents lists them. " +
+        "Textida is a text editor. Only the tabs the user shared with you are visible; editor_list_documents lists them, editor_get_selection tells where the user's cursor and selection are. " +
         "Positions are byte offsets of a revision of the document: a read or a change names the revision it was made for, and a change for a revision that is no longer current is refused. " +
         "You never write to a document: editor_prepare_changes and editor_prepare_byte_changes put a proposal in front of the user, who sees it as a diff and decides; read the outcome with editor_get_change_status. " +
         "Values of .env files are shown as * unless the user allowed them for that tab.";

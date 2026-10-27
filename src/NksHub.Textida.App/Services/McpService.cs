@@ -17,7 +17,8 @@ namespace NksHub.Textida.App.Services;
 /// </summary>
 internal sealed class McpService : IProposalReviewer, IAsyncDisposable
 {
-    private sealed record Shared(MainWindow Window, DocTab Tab, OpenDocument Open, Document Document, bool ExposedByUs, Action Replaced);
+    /// <param name="Withdrawn">Fires when the share ends; a proposal still waiting for the user is then withdrawn from the change review.</param>
+    private sealed record Shared(MainWindow Window, DocTab Tab, OpenDocument Open, Document Document, bool ExposedByUs, Action Replaced, CancellationTokenSource Withdrawn);
 
     private readonly PluginServices _plugins;
     private readonly string _channel;
@@ -133,7 +134,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         if (revealSecrets) _plugins.Permissions.Grant(McpServer.ClientId, DocumentPermissions.SecretsReveal, scope);
         Action replaced = () => Unshare(document.Id); // a reload makes a new document, which the user has not shared
         tab.Doc.Replaced += replaced;
-        lock (_gate) _shared[document.Id] = new Shared(window, tab, tab.Doc, document, own, replaced);
+        lock (_gate) _shared[document.Id] = new Shared(window, tab, tab.Doc, document, own, replaced, new CancellationTokenSource());
     }
 
     /// <summary>Takes the tab back: the grants go (a request in flight is stopped) and the document is hidden again unless something else shows it. Call on the UI thread.</summary>
@@ -148,6 +149,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         var scope = GrantScope.OfDocument(document);
         foreach (var permission in new[] { DocumentPermissions.SecretsReveal, DocumentPermissions.EditPropose, DocumentPermissions.Read })
             _plugins.Permissions.Revoke(McpServer.ClientId, permission, scope);
+        shared.Withdrawn.Cancel(); // not disposed: a review that is just starting may still read its token
         if (shared.ExposedByUs && _plugins.Documents.IsExposed(document) && !_plugins.IsRunningOn(document) && !_plugins.Acp.IsSharedDocument(document)) _plugins.Documents.Withdraw(shared.Document);
         return true;
     }
@@ -175,14 +177,17 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         await Dispatcher.UIThread.InvokeAsync(() => _plugins.IndexSymbolsAsync(shared.Window, shared.Tab, reveal: false)).WaitAsync(cancellation);
     }
 
-    /// <summary>The user sees the proposal in the change preview of the window that shows the tab, and decides.</summary>
-    /// <summary>The proposal goes through the same change review as the proposals of plugins; a partly accepted one counts as applied.</summary>
+    /// <summary>
+    /// The user sees the proposal in the change review of the window that shows the tab, the same one the proposals of plugins use, and decides; a partly accepted one counts as applied.
+    /// Taking the tab back or switching the server off withdraws a proposal that is still waiting: nothing is written and it counts as rejected.
+    /// </summary>
     public async ValueTask<ReviewOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation)
     {
         Shared? shared;
         lock (_gate) _shared.TryGetValue(proposal.DocumentId, out shared);
         if (shared is null) return new ReviewOutcome(ProposalStatus.Stale);
-        var decision = await Dispatcher.UIThread.InvokeAsync(() => shared.Window.ReviewPluginProposalAsync(proposal, shared.Tab, Guid.NewGuid().ToString("N"), cancellation));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, shared.Withdrawn.Token);
+        var decision = await Dispatcher.UIThread.InvokeAsync(() => shared.Window.ReviewPluginProposalAsync(proposal, shared.Tab, Guid.NewGuid().ToString("N"), linked.Token));
         return decision.Outcome switch
         {
             ProposalOutcome.Applied or ProposalOutcome.Partial => new ReviewOutcome(ProposalStatus.Applied, await Dispatcher.UIThread.InvokeAsync(() => shared.Tab.Doc.Doc.Revision)),

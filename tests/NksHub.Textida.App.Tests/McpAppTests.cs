@@ -235,7 +235,7 @@ public class McpAppTests : IDisposable
         var discover = await Pump(client.RequestAsync("server/discover", $"{{{Meta}}}"), "server/discover");
         Assert.Equal("complete", discover.GetProperty("result").GetProperty("resultType").GetString());
         var tools = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "tools/list");
-        Assert.Equal(13, tools.GetProperty("result").GetProperty("tools").GetArrayLength());
+        Assert.Equal(McpServer.AllTools.Count, tools.GetProperty("result").GetProperty("tools").GetArrayLength());
 
         var listed = JsonDocument.Parse((await Pump(client.ToolAsync("editor_list_documents"), "list")).Text).RootElement;
         var only = Assert.Single(listed.GetProperty("documents").EnumerateArray());
@@ -360,12 +360,88 @@ public class McpAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Taking_the_tab_back_or_switching_the_server_off_withdraws_a_proposal_that_still_waits_for_the_user()
+    {
+        await SwitchOnAsync();
+        var tab = Open("waiting.txt", "alpha beta\n");
+        await ShareAsync(tab);
+        var client = NewClient();
+        var id = tab.Doc.Doc.Id;
+        async Task<string> ProposeAsync()
+        {
+            var reply = await Pump(client.ToolAsync("editor_prepare_changes", $"{{\"document\":\"{id}\",\"revision\":{tab.Doc.Doc.Revision},\"edits\":[{{\"find\":\"beta\",\"text\":\"delta\"}}]}}"), "proposal");
+            Assert.False(reply.IsError, reply.Text);
+            await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the review");
+            return JsonDocument.Parse(reply.Text).RootElement.GetProperty("proposal").GetString()!;
+        }
+
+        var first = await ProposeAsync();
+        Assert.Equal(ProposalStatus.Pending, _app.Plugins.Mcp.Ledger.Get(first)!.Status);
+        await ShareAsync(tab); // the user takes the tab back while the review is open
+        await Until(() => _app.Plugins.Mcp.Ledger.Get(first)!.Status != ProposalStatus.Pending, "the withdrawal");
+        Assert.Equal(ProposalStatus.Rejected, _app.Plugins.Mcp.Ledger.Get(first)!.Status);
+        Assert.Equal("alpha beta\n", tab.Editor!.Document.Text);
+
+        await ShareAsync(tab);
+        var second = await ProposeAsync();
+        await RunAsync("nks.tools.mcpServer"); // switching the server off withdraws it as well
+        await Until(() => _app.Plugins.Mcp.Ledger.Get(second)!.Status != ProposalStatus.Pending, "the withdrawal at switch off");
+        Assert.Equal(ProposalStatus.Rejected, _app.Plugins.Mcp.Ledger.Get(second)!.Status);
+        Assert.Equal("alpha beta\n", tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task The_assistant_asks_where_the_cursor_is_and_gets_the_selected_text_of_the_shared_tab()
+    {
+        await SwitchOnAsync();
+        var tab = Open("cursor.txt", "alpha beta gamma\n");
+        tab.Editor!.Select(6, 4);
+        Settle();
+        await ShareAsync(tab);
+        var client = NewClient();
+        var reply = await Pump(client.ToolAsync("editor_get_selection", $"{{\"document\":\"{tab.Doc.Doc.Id}\"}}"), "selection");
+        Assert.False(reply.IsError, reply.Text);
+        var selection = JsonDocument.Parse(reply.Text).RootElement.GetProperty("selections")[0];
+        Assert.Equal("beta", selection.GetProperty("text").GetString());
+        Assert.Equal((6, 10), (selection.GetProperty("start").GetInt32(), selection.GetProperty("end").GetInt32()));
+    }
+
+    [AvaloniaFact]
+    public async Task Sharing_the_selection_opens_a_read_only_excerpt_and_the_rest_of_the_tab_stays_hidden()
+    {
+        await SwitchOnAsync();
+        var tab = Open("whole.txt", "alpha beta gamma\n");
+        _w.SelectTab(tab);
+        tab.Editor!.Select(3, 0);
+        await RunAsync("nks.tools.mcpShareSelection"); // nothing selected: nothing is opened
+        Assert.DoesNotContain(_w.Documents, d => d.Doc.IsVirtual);
+
+        tab.Editor.Select(6, 4);
+        Settle();
+        await RunAsync("nks.tools.mcpShareSelection");
+        var excerpt = Assert.Single(_w.Documents, d => d.Doc.IsVirtual);
+        Assert.Equal("beta", excerpt.Doc.ReadText(new NksHub.Textida.Core.Documents.ByteRange(0, excerpt.Doc.ByteLength)));
+        Assert.Contains("whole.txt", excerpt.Title);
+        Assert.True(_app.Plugins.Mcp.IsSharedDocument(excerpt.Doc.Id));
+        Assert.False(_app.Plugins.Mcp.IsShared(tab));
+
+        var client = NewClient();
+        var listed = JsonDocument.Parse((await Pump(client.ToolAsync("editor_list_documents"), "list")).Text).RootElement;
+        Assert.Equal(excerpt.Doc.Id.ToString(), Assert.Single(listed.GetProperty("documents").EnumerateArray()).GetProperty("id").GetString());
+        Assert.Contains("beta", (await Pump(client.ToolAsync("editor_read_range", $"{{\"document\":\"{excerpt.Doc.Id}\"}}"), "the excerpt")).Text);
+        Assert.True((await Pump(client.ToolAsync("editor_read_range", $"{{\"document\":\"{tab.Doc.Doc.Id}\"}}"), "the whole tab")).IsError);
+        var edit = await Pump(client.ToolAsync("editor_prepare_changes", $"{{\"document\":\"{excerpt.Doc.Id}\",\"revision\":{excerpt.Doc.Revision},\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"B\"}}]}}"), "a proposal for the excerpt");
+        Assert.True(edit.IsError);
+        Assert.Equal("alpha beta gamma\n", tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public async Task Tools_can_be_switched_off_one_by_one()
     {
         await SwitchOnAsync();
         var client = NewClient();
         var before = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "list");
-        Assert.Equal(13, before.GetProperty("result").GetProperty("tools").GetArrayLength());
+        Assert.Equal(McpServer.AllTools.Count, before.GetProperty("result").GetProperty("tools").GetArrayLength());
         _app.Plugins.Mcp.Server.SetEnabled("editor_read_bytes", false);
         var after = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "list again");
         Assert.DoesNotContain("editor_read_bytes", after.GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()));

@@ -376,6 +376,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest log line an MCP result carries, in UTF-16 units.</summary>
     public const int McpMaxLineChars = 2000;
 
+    /// <summary>Placeholder, OPEN: proposals of the MCP assistant that may wait for the decision of the user at once; a further one is refused until the user decides on one. The owner has not decided it.</summary>
+    public const int McpMaxPendingProposals = 10;
+
+    /// <summary>Placeholder, OPEN: most bytes of a selection that Share Selection with MCP copies into its read-only excerpt; a larger selection is refused with a message. The owner has not decided it.</summary>
+    public const int McpMaxSelectionShareBytes = 1 << 20;
+
     public static McpServerOptions Mcp(DocumentApi documents, ProposalLedger ledger, Func<Guid, string?> titleOf, Func<Guid, CancellationToken, Task> ensureOutline) => new()
     {
         Documents = documents,
@@ -388,6 +394,7 @@ internal static class PluginLimitsPlaceholders
         MaxItems = McpMaxItems,
         SnippetBytes = McpSnippetBytes,
         MaxLineChars = McpMaxLineChars,
+        MaxPendingProposals = McpMaxPendingProposals,
         TitleOf = titleOf,
         EnsureOutline = ensureOutline,
     };

@@ -523,6 +523,7 @@
   "cmd.settings.restore": "Konfiguration wiederherstellen...",
   "cmd.tools.mcpServer": "MCP-Server: ein- oder ausschalten...",
   "cmd.tools.mcpShareTab": "Tab mit MCP teilen",
+  "cmd.tools.mcpShareSelection": "Auswahl mit MCP teilen",
   "cmd.tools.ideBridge": "/ide-Brücke: ein- oder ausschalten...",
   "cmd.tools.mcpTools": "MCP-Werkzeuge...",
   "cmd.tools.mcpServers": "MCP-Server der Agenten...",
