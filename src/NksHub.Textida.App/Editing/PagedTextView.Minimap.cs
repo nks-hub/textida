@@ -15,6 +15,10 @@ internal sealed partial class PagedTextView : IMinimapHost
     private (long Revision, long First, string[] Lines) _mapBlock = (-1, 0, []);
     private readonly Dictionary<long, string> _endings = [];
     private long _endingsRevision = -1;
+    private long _mapBytesRead;
+
+    /// <summary>Bytes of the file the minimap has read so far, for tests: a few blocks, never the file.</summary>
+    internal long MapBytesRead => Interlocked.Read(ref _mapBytesRead);
 
     event Action? IMinimapHost.MapChanged
     {
@@ -53,6 +57,7 @@ internal sealed partial class PagedTextView : IMinimapHost
         int window = (int)Math.Min(Doc.ByteLength - origin, MapBlockBytes);
         var buffer = new byte[window];
         Doc.Read(origin, buffer);
+        Interlocked.Add(ref _mapBytesRead, window);
         bool toEnd = origin + window >= Doc.ByteLength;
         var codec = Doc.Codec.WithBom(false);
         int w = Doc.Codec.Alignment;
@@ -84,7 +89,7 @@ internal sealed partial class PagedTextView : IMinimapHost
     }
 
     /// <summary>The line break that ends a line as text ("\r\n", "\r" or "\n"); empty for the last line and while the line index is not complete.</summary>
-    private string LineEndingOf(long line)
+    internal string LineEndingOf(long line)
     {
         if (_endingsRevision != Doc.Revision || _endings.Count > 400)
         {

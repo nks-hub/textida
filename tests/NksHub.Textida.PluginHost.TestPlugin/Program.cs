@@ -5,13 +5,14 @@ using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Rpc;
 
 // Test double for a real plugin: a separate process speaking the plugin protocol on stdin/stdout.
-// Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --exit-after-handshake,
+// Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --resync-delay MS (answers the resync late and says so on stderr), --exit-after-handshake,
 // --on-command JSON ({"method","params"} the plugin sends to the editor on command/execute; $document and $revision are filled in from the command).
 // The request "deaf" {ms} stops reading standard input for that long while the process lives on.
 var api = 1;
 var crashOnStart = -1;
 var stderrFlood = 0;
 var sleepBeforeRead = 0;
+var resyncDelay = 0;
 string? onCommand = null;
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -21,6 +22,7 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--crash-on-start": crashOnStart = int.Parse(args[i + 1]); break;
         case "--stderr-flood": stderrFlood = int.Parse(args[i + 1]); break;
         case "--sleep-before-read": sleepBeforeRead = int.Parse(args[i + 1]); break;
+        case "--resync-delay": resyncDelay = int.Parse(args[i + 1]); break;
         case "--on-command": onCommand = args[i + 1]; break;
     }
 }
@@ -37,14 +39,14 @@ if (crashOnStart >= 0)
 }
 if (sleepBeforeRead > 0) Thread.Sleep(sleepBeforeRead);
 
-var handler = new Handler(api, onCommand);
+var handler = new Handler(api, onCommand, resyncDelay);
 var limits = new RpcLimits(4 * 1024 * 1024, 64, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024);
 await using var rpc = new JsonRpcDispatcher(new DeafInput(Console.OpenStandardInput()), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
 handler.Rpc = rpc;
 await rpc.Completion;
 return 0;
 
-sealed class Handler(int api, string? onCommand) : IRpcHandler
+sealed class Handler(int api, string? onCommand, int resyncDelay) : IRpcHandler
 {
     public JsonRpcDispatcher Rpc = null!;
     volatile bool _frozen;
@@ -84,6 +86,11 @@ sealed class Handler(int api, string? onCommand) : IRpcHandler
                 return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: true), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 _resync = p.GetRawText();
+                if (resyncDelay > 0)
+                {
+                    Console.Error.WriteLine("test plugin: resync started");
+                    await Task.Delay(resyncDelay, CancellationToken.None);
+                }
                 return null;
             case PluginMethods.Ping:
                 while (_frozen) await Task.Delay(20, CancellationToken.None);

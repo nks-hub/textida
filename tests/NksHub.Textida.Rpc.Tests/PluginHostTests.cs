@@ -152,6 +152,29 @@ public class PluginHostTests
     }
 
     [Fact]
+    public async Task EventsThatFailWhileTheResyncIsOnItsWayStayCountedForTheNextResync()
+    {
+        await using var host = new PluginHost.PluginHost(Options());
+        host.Register(Spec("late", "--resync-delay", "1500"));
+        var starting = host.ActivateAsync("onCommand:late");
+        await T.Until(() => host.GetStderrTail("late").Any(l => l.Contains("resync started")), 20_000);
+        Assert.Equal(PluginState.Starting, host.GetState("late"));
+        await host.PublishEventAsync("documentChanged", Args("{\"id\":1}"));
+        await host.PublishEventAsync("documentChanged", Args("{\"id\":1}"));
+        Assert.Equal(["late"], await starting);
+
+        Assert.Equal(2, host.GetLostEvents("late")); // the resync was cut before them, so it did not carry them
+        Assert.Equal(0, (await host.CallAsync("late", "getResync")).GetProperty("lostEvents").GetInt32());
+
+        await Assert.ThrowsAsync<PluginCrashedException>(() => host.CallAsync("late", "crash", Args("{\"code\":3}")));
+        await T.Until(() => host.GetState("late") == PluginState.Running, 30_000);
+        var again = await host.CallAsync("late", "getResync");
+        Assert.True(again.GetProperty("restarted").GetBoolean());
+        Assert.Equal(2, again.GetProperty("lostEvents").GetInt32());
+        Assert.Equal(0, host.GetLostEvents("late"));
+    }
+
+    [Fact]
     public async Task APacedEventWaitsWhileThePluginHasTheWindowUnhandledAndGivesUpWhenItEnds()
     {
         await using var host = await Started(Options(o => o with { EventWindow = 1 }), null, null, Spec("p"));
@@ -239,7 +262,8 @@ public class PluginHostTests
         var crashed = 0;
         await using var host = await Started(Options(FastPings), null, null, Spec("ask"));
         host.Crashed += _ => Interlocked.Increment(ref crashed);
-        var answer = await host.CallAsync("ask", "awaitFrozen", Args("{\"ms\":2000}"));
+        // frozen for far longer than three missed pings take (150 ms interval, 500 ms timeout), so only the notice keeps it alive
+        var answer = await host.CallAsync("ask", "awaitFrozen", Args("{\"ms\":4500}"));
         Assert.Equal("decided", answer.GetString());
         Assert.Equal(0, crashed);
         Assert.Equal(PluginState.Running, host.GetState("ask"));

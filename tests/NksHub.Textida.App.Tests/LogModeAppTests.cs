@@ -328,6 +328,42 @@ public class LogModeAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_10_GiB_log_shows_the_marks_of_its_view_while_the_rest_of_it_is_still_being_read()
+    {
+        string path = Path.Combine(_temp.Path, "huge.log");
+        const long length = 10L << 30;
+        File.WriteAllBytes(path, []);
+        if (OperatingSystem.IsWindows())
+        {
+            var command = new System.Diagnostics.ProcessStartInfo("fsutil") { CreateNoWindow = true, UseShellExecute = false };
+            foreach (string arg in new[] { "sparse", "setflag", path }) command.ArgumentList.Add(arg);
+            using var process = System.Diagnostics.Process.Start(command)!;
+            process.WaitForExit();
+        }
+        using (var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
+        {
+            stream.SetLength(length);
+            stream.Write("INFO start\nERROR first failure\nWARN slow failure\n"u8);
+            stream.Position = length - 20;
+            stream.Write("\nERROR last failure\n"u8);
+        }
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        Settle();
+
+        SaveViewWithFilter("failure");
+        ToolTestKit.WaitFor(() => tab.Minimap!.FilterMarks.Count > 0, "no mark before the end of the reading", rounds: 6000);
+        // the failure at the very end is 10 GiB away: what was marked is what the reading had found by then
+        Assert.Equal([new MinimapMark(1, MinimapMarkKind.Error), new MinimapMark(2, MinimapMarkKind.Warning)], tab.Minimap!.FilterMarks);
+
+        ToolTestKit.WaitFor(() => tab.Minimap.FilterMarks.Count == 3, "the last failure was not marked", rounds: 6000);
+        Assert.Equal(MinimapMarkKind.Error, tab.Minimap.FilterMarks[2].Kind);
+        Assert.Equal(4, tab.Minimap.FilterMarks[2].Line);
+    }
+
+    [AvaloniaFact]
     public void Applying_a_view_without_a_highlight_removes_the_marks_and_a_broken_expression_is_refused()
     {
         var tab = Open("g.log", Sample);

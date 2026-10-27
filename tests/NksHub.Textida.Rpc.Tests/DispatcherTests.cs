@@ -234,11 +234,19 @@ public class DispatcherTests
     [Fact]
     public async Task AnOutgoingMessageOverTheLimitThrowsBeforeAnythingIsSent()
     {
-        await using var pair = Pair.Create(RpcProtocols.Plugin, With(l => l with { MaxMessageBytes = 1000 }), Echo("A"), T.Roomy, Echo("B"));
+        var reached = 0;
+        var peer = new DelegateHandler((m, p, ct) =>
+        {
+            Interlocked.Increment(ref reached);
+            return new ValueTask<byte[]?>(T.Json("true"));
+        });
+        await using var pair = Pair.Create(RpcProtocols.Plugin, With(l => l with { MaxMessageBytes = 1000 }), Echo("A"), T.Roomy, peer);
         var e = await Assert.ThrowsAsync<RpcException>(() => pair.A.RequestAsync("m", T.Json("\"" + new string('x', 5000) + "\"")));
         Assert.Equal(RpcErrorCodes.MessageTooLarge, e.Code);
         Assert.Equal(0, pair.A.PendingOutgoing);
         Assert.Equal(0, pair.A.QueuedOutgoingBytes);
+        await Task.Delay(200);
+        Assert.Equal(0, Volatile.Read(ref reached)); // the peer never saw it
     }
 
     [Fact]
@@ -388,6 +396,31 @@ public class DispatcherTests
         await T.Until(() => rpc.PendingOutgoing == 1 && rpc.QueuedOutgoingBytes > second);
         cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+        Assert.Equal(second, rpc.QueuedOutgoingBytes);
+        await rpc.NotifyAsync("last");
+
+        var reader = new FrameReader(output);
+        var methods = new List<string>();
+        for (var i = 0; i < 3; i++)
+        {
+            using var m = RpcMessage.Parse((await RpcProtocols.Plugin.Framing.ReadAsync(reader, 4096, default)).Payload!);
+            methods.Add(m.Method!);
+        }
+        Assert.Equal(["first", "second", "last"], methods);
+        Assert.Equal(0, rpc.QueuedReplyBytes);
+    }
+
+    [Fact]
+    public async Task ARequestThatTimesOutWhileStillQueuedIsNeverSentAndNeedsNoCancel()
+    {
+        var output = new MemoryPipe(capacityChunks: 1);
+        await using var rpc = new JsonRpcDispatcher(new MemoryPipe(), output, RpcProtocols.Plugin, T.Roomy, Echo("A"));
+        var second = RpcWire.Notification("second").Length;
+        await rpc.NotifyAsync("first");
+        await rpc.NotifyAsync("second");
+        await T.Until(() => rpc.QueuedOutgoingBytes == second);
+        await Assert.ThrowsAsync<RpcTimeoutException>(() => rpc.RequestAsync("never", timeout: TimeSpan.FromMilliseconds(200)).WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(0, rpc.PendingOutgoing);
         Assert.Equal(second, rpc.QueuedOutgoingBytes);
         await rpc.NotifyAsync("last");
 
