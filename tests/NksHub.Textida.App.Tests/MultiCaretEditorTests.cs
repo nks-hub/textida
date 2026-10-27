@@ -661,8 +661,11 @@ public class MultiCaretEditorTests : IDisposable
         var sb = new StringBuilder();
         for (int i = 0; sb.Length < 1 << 20; i++) sb.Append("line ").Append(i).Append(" lorem ipsum dolor sit amet consectetur\n");
         string original = sb.ToString();
-        var tab = Open(original);
-        var d = tab.Editor!.Document;
+        var tab = _w.OpenFile(_temp.File("one-mib.txt", original), null); // opened from a file like the performance gate does; a typed-in text of this size makes every edit far slower
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.CaretOffset = 0;
+        var d = tab.Editor.Document;
         int step = d.LineCount / 1000;
         var lineNumbers = Enumerable.Range(0, 1000).Select(i => 1 + i * step).ToArray();
         PlaceCarets(tab, [.. lineNumbers.Select(n => d.GetLineByNumber(n).Offset + 5)]);
@@ -674,7 +677,7 @@ public class MultiCaretEditorTests : IDisposable
         string expected = string.Join('\n', lines);
         Assert.True(expected == Text(tab), "the typed text did not land at every caret");
         Assert.True(expected == Bytes(tab), "the bytes of the document differ from the text");
-        Assert.Equal(1, Steps(tab));
+        Assert.Equal(1, tab.Doc.Doc.UndoDepth); // the typing is one step
         Assert.Equal(1000, tab.Editor.CaretCount);
 
         Mod(Key.Z);
@@ -729,6 +732,40 @@ public class MultiCaretEditorTests : IDisposable
         int tabs = _w.Tabs.Count();
         Mod(Key.N);
         Assert.Equal(tabs + 1, _w.Tabs.Count());
+    }
+
+    [AvaloniaFact]
+    public void A_composition_ends_when_the_editor_loses_the_focus_to_another_control_and_writes_nothing()
+    {
+        var tab = Open("abc");
+        tab.Editor!.CaretOffset = 1;
+        ImeClient(tab).SetPreeditText("ka");
+        Assert.Equal([1], Drawn(tab));
+
+        TestApp.Press(_w, Key.F, TestApp.Mod); // the find bar takes the focus
+        Assert.True(_w.FindBar.IsVisible);
+        Assert.Equal("", tab.Editor.Composition);
+        Assert.Empty(Drawn(tab));
+        Assert.Equal("abc", Text(tab));
+        Assert.Equal(0, Steps(tab));
+    }
+
+    [AvaloniaFact]
+    public void Escape_during_a_composition_does_not_close_the_find_bar_and_closes_it_afterwards()
+    {
+        var tab = Open("abc");
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        Assert.True(_w.FindBar.IsVisible);
+        tab.Editor!.TextArea.Focus();
+        var client = ImeClient(tab);
+        client.SetPreeditText("ka");
+        Assert.True(tab.Editor.IsComposing);
+
+        Press(Key.Escape);
+        Assert.True(_w.FindBar.IsVisible);
+        client.SetPreeditText(null); // the input method cancelled
+        Press(Key.Escape);
+        Assert.False(_w.FindBar.IsVisible);
     }
 
     [AvaloniaFact]
