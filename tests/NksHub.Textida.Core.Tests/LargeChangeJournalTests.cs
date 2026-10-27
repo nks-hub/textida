@@ -216,6 +216,95 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     [Fact]
+    public void A_journal_of_version_3_with_layout_6_records_and_a_payload_reference_recovers_and_is_rewritten_as_version_4()
+    {
+        string path = NewFile();
+        var print = FileFingerprint.TryRead(path)!;
+        var id = Guid.NewGuid();
+        string sessionId = Guid.NewGuid().ToString("N");
+        byte[] Payload(Action<BinaryWriter> fill)
+        {
+            var ms = new MemoryStream();
+            using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                w.Write((byte)6);
+                fill(w);
+            }
+            return ms.ToArray();
+        }
+
+        var block = new byte[5000];
+        LargeText.Fill(77, 0, block);
+        string blob = $"{sessionId}-{id:N}-blob-0.payload";
+        Directory.CreateDirectory(Path.Combine(Journal, "payload"));
+        File.WriteAllBytes(Path.Combine(Journal, "payload", blob), block);
+
+        var open = Payload(w =>
+        {
+            w.Write(id.ToByteArray());
+            w.Write(true);
+            w.Write(path);
+            w.Write(true);
+            w.Write(print.Size);
+            w.Write(print.LastWriteUtc.Ticks);
+            w.Write(print.Sha256);
+            w.Write(Encodings.TextCodec.Utf8.Name);
+            w.Write("paged");
+            w.Write(0L);
+            w.Write(0L);
+        });
+        var edit = Payload(w =>
+        {
+            w.Write(id.ToByteArray());
+            w.Write(1L);
+            w.Write((byte)ChangeKind.Edit);
+            w.Write(false);
+            w.Write(true);
+            w.Write(2);
+            w.Write(10L); // inline edit
+            w.Write(0L);
+            w.Write(4);
+            w.Write("ABCD"u8);
+            w.Write(0L);
+            w.Write(false);
+            w.Write(Size / 2); // edit whose bytes are in the payload file
+            w.Write(0L);
+            w.Write(0);
+            w.Write(0L);
+            w.Write(true);
+            w.Write(blob);
+            w.Write(0L);
+            w.Write((long)block.Length);
+            w.Write(JournalPayloads.SampleCrc(block.AsSpan(0, JournalPayloads.SampleBytes)));
+            w.Write(JournalPayloads.SampleCrc(block.AsSpan(block.Length - JournalPayloads.SampleBytes)));
+            w.Write(true);
+            w.Write(Encodings.TextCodec.Utf8.Name);
+        });
+        string old = Path.Combine(Journal, $"session-{sessionId}.njl");
+        using (var fs = new FileStream(old, FileMode.CreateNew))
+        {
+            fs.Write(JournalFormat.FileHeader(3));
+            fs.Write(JournalFormat.EncodeRecord(1, 1000, RecordType.DocOpen, open, 3));
+            fs.Write(JournalFormat.EncodeRecord(2, 1001, RecordType.DocEdit, edit, 3));
+        }
+
+        using (var session = JournalSession.Start(Journal, Backends(Factory(64 << 10)), new JournalOptions { Fsync = FsyncPolicy.Manual }))
+        {
+            var recovered = Assert.Single(session.Recovery.Documents);
+            Assert.Equal(RecoveryStatus.Restored, recovered.Status);
+            var doc = recovered.Document!;
+            Assert.Equal(Size + 4 + block.Length, doc.ByteLength);
+            Assert.Equal("ABCD", System.Text.Encoding.ASCII.GetString(doc.ReadBytes(new ByteRange(10, 14))));
+            Assert.Equal(block, doc.ReadBytes(new ByteRange(Size / 2 + 4, Size / 2 + 4 + block.Length)));
+            session.Flush();
+            Assert.False(File.Exists(old), "the version 3 journal was adopted and removed");
+            using var reader = new JournalReader(session.JournalPath!);
+            Assert.Equal(JournalFormat.CurrentVersion, reader.Version);
+            doc.Dispose();
+        }
+    }
+
+    [Fact]
     public void Payload_files_of_closed_documents_and_dead_sessions_are_removed()
     {
         NewFile();

@@ -370,6 +370,29 @@ public sealed class LargeRecoveryTests : IDisposable
     }
 
     [Fact]
+    public void The_threshold_of_the_application_defers_65_MiB_of_changes_and_leaves_the_file_alone()
+    {
+        string file = Path.Combine(_dir, "base.txt");
+        File.WriteAllBytes(file, "start\n"u8.ToArray());
+        var block = new byte[65 << 20];
+        Array.Fill(block, (byte)'a');
+        using (var session = JournalSession.Start(Journal, Backends(Paged()), Manual))
+        using (var doc = Doc.Open(file, ReferenceBackendFactory.Instance))
+        {
+            session.Track(doc);
+            Assert.True(doc.Insert(0, block).Applied);
+            session.Flush();
+        }
+
+        var path = Directory.GetFiles(Journal, "session-*.njl").Single();
+        var back = Assert.Single(JournalRecovery.Recover(path, Backends(Paged()), new RecoveryOptions { DeferAboveBytes = JournalPlaceholders.AskBeforeRecoverBytes }).Documents);
+        Assert.Equal(RecoveryStatus.Pending, back.Status);
+        Assert.Null(back.Document);
+        Assert.True(back.PendingBytes >= block.Length);
+        Assert.Equal("start\n", File.ReadAllText(file));
+    }
+
+    [Fact]
     public void Discarding_pending_changes_closes_the_document_and_deletes_its_payload_files()
     {
         var (_, original) = EditAndCrash();
