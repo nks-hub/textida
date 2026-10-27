@@ -33,6 +33,8 @@ public class ConversionTests : IDisposable
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
         _app.Clock = () => new DateTime(2026, 10, 27, 13, 5, 9);
+        // the list then holds only the converters a test installs; the tests of the special conversions set them back
+        _app.SpecialConversions = [];
     }
 
     public void Dispose()
@@ -170,7 +172,7 @@ public class ConversionTests : IDisposable
     [AvaloniaFact]
     public void A_special_conversion_runs_over_several_selections_as_one_step_and_the_selections_stay_on_the_converted_text()
     {
-        _app.SpecialConversions = [new SpecialConversion("test.double", "cmd.edit.convert", s => s + s)];
+        _app.SpecialConversions = [new SpecialConversion("test.double", "cmd.edit.convert", (s, _) => s + s)];
         var tab = Open("ab cd ef");
         tab.Editor!.SetCarets(AdapterCarets.Create([new Sel(0, 2), new Sel(6, 8)], 1));
         int steps = Steps(tab);
@@ -186,11 +188,72 @@ public class ConversionTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Every_shipped_special_conversion_has_a_title_in_every_language()
+    public void Every_shipped_special_conversion_is_a_repeatable_command_in_a_menu_with_its_title_in_every_language()
+    {
+        var wb = _app.Workbench;
+        var inMenus = wb.Commands.CommandsInMenus();
+        foreach (var conversion in SpecialConversions.All)
+        {
+            Assert.True(wb.Commands.TryGet(conversion.CommandId, out var command), conversion.CommandId);
+            Assert.Equal(conversion.TitleKey, command.TitleKey);
+            Assert.True(command.Repeatable && command.Macro, conversion.CommandId);
+            Assert.True(wb.Commands.HasHandler(conversion.CommandId), conversion.CommandId);
+            Assert.Contains(conversion.CommandId, inMenus);
+            foreach (var language in Loc.Languages)
+                Assert.True(StringTable.LoadBuiltin(language).HasOwn(conversion.TitleKey), $"{language}: {conversion.TitleKey}");
+        }
+    }
+
+    [AvaloniaFact]
+    public void Every_shipped_special_conversion_converts_two_selections_as_one_step_keeps_them_on_the_new_text_and_undoes()
     {
         foreach (var conversion in SpecialConversions.All)
-            foreach (var language in Loc.Languages)
-                Assert.True(Loc.Catalog(language).ContainsKey(conversion.TitleKey), $"{language}: {conversion.TitleKey}");
+        {
+            var sample = conversion.Sample!;
+            var tab = Open(sample + "\n" + sample);
+            var before = new List<Sel> { new(0, sample.Length), new(sample.Length + 1, 2 * sample.Length + 1) };
+            tab.Editor!.SetCarets(AdapterCarets.Create(before, 1));
+            var converted = conversion.Convert(sample, new ConversionContext(tab.Editor.Settings.TabSize, 0))!;
+            int steps = Steps(tab);
+
+            Assert.Equal(CommandOutcome.Handled, Run(conversion.CommandId));
+            Assert.Equal(converted + "\n" + converted, Text(tab));
+            Assert.Equal([new Sel(0, converted.Length), new Sel(converted.Length + 1, 2 * converted.Length + 1)], SelectionsOf(tab));
+            Assert.Equal(steps + 1, Steps(tab));
+
+            Undo();
+            Assert.Equal(sample + "\n" + sample, Text(tab));
+            Assert.Equal(before, SelectionsOf(tab));
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_special_conversion_that_cannot_read_one_selection_changes_none_and_says_why()
+    {
+        var tab = Open("12 cat");
+        tab.Editor!.SetCarets(AdapterCarets.Create([new Sel(0, 2), new Sel(3, 6)], 1));
+        int steps = Steps(tab);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.convert.decToHex"));
+        Assert.Equal("12 cat", Text(tab));
+        Assert.Equal(steps, Steps(tab));
+        Assert.Contains(Loc.Get(K.ConvertSpecialRefused), _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public void The_list_offers_the_special_conversions_with_a_preview_of_their_sample_and_tabs_follow_the_column_of_the_selection()
+    {
+        _app.SpecialConversions = SpecialConversions.All;
+        var tab = Open("ab\tc");
+        Run("nks.edit.convert");
+        Assert.Equal(SpecialConversions.All.Count, _w.QuickResults.Count);
+        _w.SetPaletteQuery(_app.Workbench.Strings.Get("cmd.edit.convert.removeAccents"));
+        Assert.Equal("Prilis zlutoucky kun", _w.PalettePreviewText);
+        _w.ClosePalette();
+
+        int size = tab.Editor!.Settings.TabSize;
+        tab.Editor.Select(1, 3);
+        Run("nks.edit.convert.tabsToSpaces");
+        Assert.Equal("ab" + new string(' ', size - 2 % size) + "c", Text(tab));
     }
 
     // ---- P4.11.1 edit recipe ----

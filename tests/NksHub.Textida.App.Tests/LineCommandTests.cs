@@ -513,9 +513,9 @@ public class LineCommandTests : IDisposable
             "nks.edit.convert", "nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.indent", "nks.edit.insertDateTime", "nks.edit.insertGuid", "nks.edit.insertIntoLines",
             "nks.edit.joinLines", "nks.edit.justifyBlock", "nks.edit.justifyCenter", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.lowerCase",
             "nks.edit.moveLineDown", "nks.edit.moveLineUp", "nks.edit.outdent", "nks.edit.reformatParagraph", "nks.edit.runRecipe", "nks.edit.sortLines", "nks.edit.toggleComment",
-            "nks.edit.upperCase",
+            "nks.edit.upperCase", .. NksHub.Textida.Core.Conversions.SpecialConversions.All.Select(c => c.CommandId),
         ];
-        Assert.Equal(expected, repeatable);
+        Assert.Equal(expected.Order(), repeatable);
         Assert.Equal("nks.edit.clipboardHistory", wb.Keymap.Bindings.Single(b => b.Sequence.Chords.Count == 1 && b.Sequence.Chords[0].Key == "v" && b.Sequence.Chords[0].Modifiers.HasFlag(NksHub.Textida.Workbench.Keys.KeyModifiers.Shift)).CommandId);
     }
 }
