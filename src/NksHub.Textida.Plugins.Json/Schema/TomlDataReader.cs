@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 
+using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary>

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace NksHub.Textida.Plugins.Json.Schema;
+namespace NksHub.Textida.Core.Data;
 
 /// <summary>
 /// Reads the part of YAML 1.2 that configuration files use into <see cref="DataNode"/>s with offsets: block mappings and sequences (also a sequence at the indentation of its key), flow

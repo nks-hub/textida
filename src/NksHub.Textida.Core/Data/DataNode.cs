@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace NksHub.Textida.Plugins.Json.Schema;
+namespace NksHub.Textida.Core.Data;
 
 public enum DataKind { Object, Array, String, Number, Boolean, Null }
 
