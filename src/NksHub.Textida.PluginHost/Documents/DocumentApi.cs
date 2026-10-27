@@ -30,7 +30,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
-            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1)
+            || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
@@ -107,6 +107,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         DocumentMethods.Unsubscribe or DocumentMethods.SnapshotRelease => null,
         DocumentMethods.EditApply or DocumentMethods.SnippetInsert => DocumentPermissions.EditDirect,
         DocumentMethods.EditPropose => DocumentPermissions.EditPropose,
+        DocumentMethods.ClipboardWrite => DocumentPermissions.ClipboardWrite,
         _ => DocumentPermissions.Read,
     };
 
@@ -169,6 +170,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.Reveal: return await RevealAsync(p);
             case DocumentMethods.SnippetInsert: return await InsertSnippetAsync(pluginId, p, lease!);
             case DocumentMethods.TabRegister: return RegisterTab(pluginId, p);
+            case DocumentMethods.TableSelection: return await TableSelectionAsync(pluginId, p);
+            case DocumentMethods.ClipboardWrite: return await ClipboardWriteAsync(p);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
