@@ -28,9 +28,9 @@ public class JsonFormatterTests
     {
         public readonly List<EditProposal> Items = [];
 
-        public ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
+        public ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
         {
-            lock (Items) { Items.Add(proposal); return ValueTask.FromResult("p" + Items.Count); }
+            lock (Items) { Items.Add(proposal); return ValueTask.FromResult(new ProposalDecision("p" + Items.Count, ProposalOutcome.Applied, proposal.Edits.Count, proposal.Edits.Count)); }
         }
     }
 

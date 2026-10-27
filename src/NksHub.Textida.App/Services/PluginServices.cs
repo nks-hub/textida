@@ -172,14 +172,15 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 
     public Task<T> InvokeAsync<T>(Func<T> work) => Dispatcher.UIThread.InvokeAsync(work).GetTask();
 
-    /// <summary>The window that runs the command shows the proposal in the same preview as the other whole-document actions; the document is not touched until the user applies it.</summary>
-    public async ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
+    /// <summary>The window that runs the command shows the proposal in the change review and the answer waits for the decision of the user; the document is not touched until the user applies it.</summary>
+    public async ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
     {
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            if (_running.TryGetValue(proposal.DocumentId, out var run)) _ = run.Window.ReviewPluginProposalAsync(proposal, run.Tab);
-        });
-        return Guid.NewGuid().ToString("N");
+        var id = Guid.NewGuid().ToString("N");
+        var review = await Dispatcher.UIThread.InvokeAsync<Task<ProposalDecision>>(() =>
+            _running.TryGetValue(proposal.DocumentId, out var run)
+                ? run.Window.ReviewPluginProposalAsync(proposal, run.Tab, id, cancellation)
+                : Task.FromResult(new ProposalDecision(id, ProposalOutcome.Stale, 0, proposal.Edits.Count)));
+        return await review.ConfigureAwait(false);
     }
 
     /// <summary>

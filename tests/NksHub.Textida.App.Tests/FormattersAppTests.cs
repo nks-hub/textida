@@ -160,10 +160,15 @@ public class FormattersAppTests : IDisposable
         tab.Editor!.Select(from, to - from);
         int steps = Steps(tab);
 
-        _dialogs.Answers.Enqueue(1);
-        await RunAsync("nks.edit.previewFormatSql");
-        await Until(() => _dialogs.Asked.Count == 1, "the preview dialog");
+        var preview = _app.Workbench.Commands.ExecuteAsync("nks.edit.previewFormatSql", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the change review");
         Assert.Equal(before, Text(tab));
+        _w.ResultsView!.CancelButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Until(() => preview.IsCompleted && !_app.Plugins.IsBusy, "the rejected proposal");
+        Assert.Equal(before, Text(tab));
+        _w.SelectTab(tab);
+        Settle();
+        tab.Editor!.TextArea.Focus();
 
         await RunAsync("nks.edit.formatSql");
         var formatted = Text(tab);
@@ -232,16 +237,23 @@ public class FormattersAppTests : IDisposable
         var tab = Open("t.html", "<p>hi <b>x</p><img src=a>");
         int steps = Steps(tab);
 
-        _dialogs.Answers.Enqueue(1);
-        await RunAsync("nks.edit.htmlTidy");
-        await Until(() => _dialogs.Asked.Count == 1, "the preview dialog");
+        var first = _app.Workbench.Commands.ExecuteAsync("nks.edit.htmlTidy", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the change review");
         Assert.Equal("<p>hi <b>x</p><img src=a>", Text(tab));
         Assert.Contains(_app.Output.Read(OutputChannel.Tasks), l => l.Text.Contains("Warning: missing </b> before </p>", StringComparison.Ordinal));
+        _w.ResultsView!.CancelButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Until(() => first.IsCompleted, "the rejected proposal");
+        Assert.Equal("<p>hi <b>x</p><img src=a>", Text(tab));
 
-        _dialogs.Answers.Enqueue(0);
-        await RunAsync("nks.edit.htmlTidy");
-        await Until(() => Text(tab).Contains("<!DOCTYPE html>", StringComparison.Ordinal), "the applied proposal");
+        _w.SelectTab(tab);
+        Settle();
+        tab.Editor!.TextArea.Focus();
+        var second = _app.Workbench.Commands.ExecuteAsync("nks.edit.htmlTidy", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true && _w.ResultsView.ApplyButton.IsVisible, "the second change review");
+        _w.ApplyPlan();
+        await Until(() => second.IsCompleted && Text(tab).Contains("<!DOCTYPE html>", StringComparison.Ordinal), "the applied proposal");
         Assert.Contains("<p>hi <b>x</b></p>", Text(tab));
+        _w.SelectTab(tab);
         Assert.Equal(steps + 1, Steps(tab));
         Undo();
         Assert.Equal("<p>hi <b>x</p><img src=a>", Text(tab));

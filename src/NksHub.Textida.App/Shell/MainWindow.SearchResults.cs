@@ -7,6 +7,7 @@ using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -109,15 +110,18 @@ internal sealed partial class MainWindow
     /// <summary>The user cancelled: the tab says so at once, the worker stops in the background.</summary>
     private void CancelFromView()
     {
-        if (_resultsView is not { IsRunning: true } view) return;
+        if (_resultsView is not { } view || (!view.IsRunning && _proposal is null)) return;
+        bool proposed = _proposal is not null;
         CancelFilesSearch();
         view.SetRunning(false);
-        view.SetHeader(view.TitleText, Loc.Get(K.ResultsCancelled));
+        if (proposed) view.Clear();
+        view.SetHeader(view.TitleText, Loc.Get(proposed ? K.ResultsFileSkipped : K.ResultsCancelled));
         UpdateStatus();
     }
 
     private void CancelFilesSearch()
     {
+        ResolveProposal(ProposalOutcome.Rejected, 0);
         _filesRun?.Cancel();
         _filesCancel?.Cancel();
     }
@@ -197,7 +201,7 @@ internal sealed partial class MainWindow
 
     private static string DisplayPath(string folder, string path)
     {
-        if (!System.IO.Path.IsPathRooted(path)) return path;
+        if (folder.Length == 0 || !System.IO.Path.IsPathRooted(path)) return path;
         var relative = System.IO.Path.GetRelativePath(folder, path);
         return relative.StartsWith("..", StringComparison.Ordinal) || System.IO.Path.IsPathRooted(relative) ? path : relative.Replace('\\', '/');
     }
@@ -269,13 +273,69 @@ internal sealed partial class MainWindow
             if (outcome.Message is { } message && outcome.Status == ChangeStatus.Failed) rows.Add(new SearchResultsView.NoteRow(message, warning: true));
         }
         view.ReplaceRows(rows);
-        view.SetApplyVisible(false, report.Conflicts > 0);
+        view.SetApplyVisible(false, report.Conflicts > 0 && _proposal is null);
+        view.SetCancelVisible(false);
         if (report.Conflicts > 0) view.AddNote(Loc.Get(K.ResultsConflictHint), warning: false);
         if (report.BatchId is null && journal is null && report.Applied > 0) view.AddNote(Loc.Get(K.ResultsNoJournal), warning: false);
         view.SetHeader(view.TitleText, Loc.Get(K.ResultsApplied, ("applied", report.Applied), ("replacements", report.HunksApplied), ("skipped", report.Rejected), ("conflicts", report.Conflicts), ("failed", report.Failed)));
         _plan = null;
         SetStatusMessage(Loc.Plural(K.FindReplaced, report.HunksApplied));
+        if (_proposal is not null) ResolveProposal(ProposalOutcomeOf(report.Files[0], plan.Files[0].Hunks.Count), report.HunksApplied);
         return report;
+    }
+
+    private static ProposalOutcome ProposalOutcomeOf(FileOutcome outcome, int total) => outcome.Status switch
+    {
+        ChangeStatus.Applied => outcome.HunksApplied == total ? ProposalOutcome.Applied : ProposalOutcome.Partial,
+        ChangeStatus.Rejected => ProposalOutcome.Rejected,
+        ChangeStatus.Conflict when outcome.NeedsRepreview => ProposalOutcome.Stale,
+        _ => ProposalOutcome.Failed,
+    };
+
+    // ---- a plugin proposal in the same review ----
+
+    private sealed record PendingProposal(string Id, int Total, TaskCompletionSource<ProposalDecision> Done);
+
+    private PendingProposal? _proposal;
+
+    /// <summary>Answers the waiting plugin. Rejected/stale/failed outcomes also drop the plan, so a late click on Apply writes nothing.</summary>
+    private void ResolveProposal(ProposalOutcome outcome, int accepted)
+    {
+        if (_proposal is not { } pending) return;
+        _proposal = null;
+        if (outcome is ProposalOutcome.Rejected) _plan = null;
+        pending.Done.TrySetResult(new ProposalDecision(pending.Id, outcome, accepted, pending.Total));
+    }
+
+    /// <summary>
+    /// Shows what a plugin proposes in the Search Results tab, change by change with the same ticks as Replace in Files, and returns the decision once the user has applied
+    /// the ticked changes (one undo step, only when the document is still at the revision of the proposal) or rejected all of them.
+    /// </summary>
+    internal Task<ProposalDecision> ShowProposalAsync(string id, string title, string origin, DocTab tab, FileChange change, CancellationToken cancellation)
+    {
+        CancelFilesSearch();
+        ++_filesGeneration;
+        var (_, view) = EnsureResultsTab();
+        view.Clear();
+        view.SetRunning(false);
+        view.Highlight = null;
+        var plan = ChangeBuilder.Proposal(title, origin, change);
+        _plan = plan;
+        _planPattern = null;
+        _planFolder = tab.Path is { } file ? System.IO.Path.GetDirectoryName(file) ?? "" : "";
+        var done = new TaskCompletionSource<ProposalDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = _proposal = new PendingProposal(id, change.Hunks.Count, done);
+        cancellation.Register(() => Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(_proposal, pending)) return;
+            CancelFromView();
+        }));
+        view.AddPlan(plan, _ => tab.Title);
+        view.SetHeader(Loc.Get(K.PluginProposal, ("title", title), ("changes", change.Hunks.Count)), "");
+        view.SetApplyVisible(change.Hunks.Count > 0, false);
+        view.SetCancelVisible(true);
+        UpdateStatus();
+        return done.Task;
     }
 
     private static string ConflictKey(ChangeConflict conflict) => conflict switch

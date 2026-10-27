@@ -98,7 +98,10 @@ public sealed partial class DocumentApi
         _ => Conflict(reason.ToString(), revision),
     };
 
-    /// <summary>Hands a batch against the current revision to the change preview service; the document does not change.</summary>
+    /// <summary>
+    /// Hands a batch against the current revision to the change review and answers after the user has decided (<c>decision</c>, <c>accepted</c> of <c>total</c> changes);
+    /// the review applies what was accepted. While it waits the plugin is not counted as unresponsive.
+    /// </summary>
     private async Task<byte[]> ProposeAsync(string pluginId, JsonElement p, CancellationToken ct)
     {
         var e = Find(NeedDocumentId(p));
@@ -114,11 +117,14 @@ public sealed partial class DocumentApi
             GuardSecrets(pluginId, d, edits);
             return new EditProposal(pluginId, d.Id, revision, edits, title);
         });
-        var id = await _options.Proposals.SubmitAsync(proposal, ct);
+        var decision = await _options.Proposals.SubmitAsync(proposal, ct);
         return Obj(w =>
         {
-            w.WriteString("proposal", id);
+            w.WriteString("proposal", decision.Id);
             w.WriteNumber("revision", revision);
+            w.WriteString("decision", decision.Outcome.ToString().ToLowerInvariant());
+            w.WriteNumber("accepted", decision.Accepted);
+            w.WriteNumber("total", decision.Total);
         });
     }
 

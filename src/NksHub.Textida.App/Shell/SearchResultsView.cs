@@ -100,7 +100,7 @@ internal sealed class SearchResultsView : DockPanel
         _repreview.Click += (_, _) => RepreviewRequested?.Invoke();
         AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.Key == Key.Escape && _running) { CancelRequested?.Invoke(); e.Handled = true; }
+            if (e.Key == Key.Escape && (_running || _cancel.IsVisible)) { CancelRequested?.Invoke(); e.Handled = true; }
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ApplyTexts();
     }
@@ -156,6 +156,9 @@ internal sealed class SearchResultsView : DockPanel
         _limit.Text = text;
         _limit.IsVisible = !string.IsNullOrEmpty(text);
     }
+
+    /// <summary>The Cancel button without a running search: a plugin proposal waits for a decision and Cancel rejects it all.</summary>
+    public void SetCancelVisible(bool visible) => _cancel.IsVisible = visible;
 
     public void SetApplyVisible(bool apply, bool repreview)
     {

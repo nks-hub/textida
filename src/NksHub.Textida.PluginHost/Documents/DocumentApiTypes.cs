@@ -179,9 +179,27 @@ public delegate Task<bool> PluginEventSender(string pluginId, string eventName, 
 /// <summary>An edit batch a plugin proposes; the user sees it before anything changes. <paramref name="Revision"/> is the revision the edits refer to.</summary>
 public sealed record EditProposal(string PluginId, Guid DocumentId, long Revision, IReadOnlyList<ByteEdit> Edits, string? Title);
 
-/// <summary>The change preview service (P2.5.2). It takes proposals the plugin made against a checked, current revision.</summary>
+/// <summary>How the user decided a proposal in the change review.</summary>
+public enum ProposalOutcome
+{
+    /// <summary>Every change was accepted and written as one undo step.</summary>
+    Applied,
+    /// <summary>Some changes were accepted and written as one undo step, the rest rejected.</summary>
+    Partial,
+    /// <summary>Nothing was written: the user rejected every change, or closed the review.</summary>
+    Rejected,
+    /// <summary>The document moved on from the revision of the proposal; nothing was written.</summary>
+    Stale,
+    /// <summary>The document refused the changes (invalid range, encoding); nothing was written.</summary>
+    Failed,
+}
+
+/// <summary>The answer to a proposal, given after the user has decided: how many of the <paramref name="Total"/> changes were written.</summary>
+public sealed record ProposalDecision(string Id, ProposalOutcome Outcome, int Accepted, int Total);
+
+/// <summary>The change review (P6.1). It takes proposals the plugin made against a checked, current revision and answers once the user has decided.</summary>
 public interface IEditProposals
 {
-    /// <summary>Returns the id of the stored proposal.</summary>
-    ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation);
+    /// <summary>Shows the proposal and returns when the user has decided, the review was closed or <paramref name="cancellation"/> was signalled (then nothing is written).</summary>
+    ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation);
 }
