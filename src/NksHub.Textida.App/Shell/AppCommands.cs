@@ -102,6 +102,8 @@ internal static class AppCommands
         On("nks.edit.clipFromSelection", w => w.SaveSelectionAsClip());
         On("nks.clips.editVariables", w => w.EditUserVariables());
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
+        On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
+        On("nks.edit.runRecipe", w => w.ShowRecipes(registry.IsRepeating));
         registry.SetHandler("nks.edit.repeatLast", (context, token) => registry.RepeatLastAsync(context, token));
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));
@@ -206,14 +208,14 @@ internal static class AppCommands
         Do("nks.help.contents", w => { var topic = w.HelpContextTopic(); w.ClosePalette(); app.OpenHelp(topic); });
     }
 
-    /// <summary>Gives the commands that data plugins name in their clips and templates a handler that inserts the clip or opens the template.</summary>
+    /// <summary>Gives the commands that data plugins name in their clips, templates, converters and recipes a handler that runs that item.</summary>
     public static void BindClips(App app)
     {
         foreach (var (command, pluginId, action) in app.Clips.CommandTargets)
         {
             var id = action.Id;
-            bool template = action.Kind == "template";
-            app.Workbench.Commands.SetHandler(command, (_, _) => ValueTask.FromResult(app.ActiveWindow is { } w ? w.RunClipCommand(pluginId, id, template) : CommandOutcome.NotHandled));
+            var kind = action.Kind;
+            app.Workbench.Commands.SetHandler(command, (_, _) => ValueTask.FromResult(app.ActiveWindow is { } w ? w.RunDataCommand(pluginId, id, kind) : CommandOutcome.NotHandled));
         }
     }
 }

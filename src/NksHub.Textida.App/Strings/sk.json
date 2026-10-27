@@ -681,5 +681,20 @@
   "clips.saved": "Klip „{title}“ je uložený. Vložiť klip ho teraz ponúka.",
   "clips.save.tooLong": "Klip sa neuložil: text je dlhší ako {max} znakov.",
   "clips.save.tooLarge": "Klip sa neuložil: knižnica by bola väčšia ako {max} bajtov.",
-  "clips.save.failed": "Klip sa neuložil: {reason}"
+  "clips.save.failed": "Klip sa neuložil: {reason}",
+  "convert.watermark": "Vyberte prevod",
+  "a11y.convert": "Prevody",
+  "convert.empty": "Zatiaľ nie sú žiadne prevody. Dajte do priečinka plugins v profile dátový plugin s prevodníkmi.",
+  "convert.failed": "Prevod {title} nebehol: {reason}. Nič sa nezmenilo.",
+  "convert.origin.builtin": "Vstavaný",
+  "recipes.watermark": "Vyberte recept úprav",
+  "a11y.recipes": "Recepty úprav",
+  "recipes.empty": "Zatiaľ nie sú žiadne recepty úprav. Dajte do priečinka plugins v profile dátový plugin s receptami.",
+  "recipes.failed": "Recept {title} nebehol: {reason}. Nič sa nezmenilo.",
+  "recipes.stale": "Súbor sa zmenil, kým bol otvorený náhľad. Nič sa nezmenilo; spustite recept znova.",
+  "recipes.changes.one": "{title}: zmení sa {count} časť.",
+  "recipes.changes.few": "{title}: zmenia sa {count} časti.",
+  "recipes.changes.other": "{title}: zmení sa {count} častí.",
+  "recipes.line": "R {line}, St {column}: {before} → {after}",
+  "recipes.linePlain": "{before} → {after}"
 }

@@ -268,6 +268,8 @@
   "cmd.edit.clipFromSelection": "Save Selection as Clip...",
   "cmd.clips.editVariables": "Edit User Variables",
   "cmd.file.newFromTemplate": "New from Template...",
+  "cmd.edit.convert": "Convert...",
+  "cmd.edit.runRecipe": "Run Edit Recipe...",
   "cmd.edit.repeatLast": "Repeat Last Command",
   "setting.editor.clipboardHistorySize.title": "Clipboard history size",
   "setting.editor.clipboardHistorySize.description": "How many copied texts the clipboard history keeps. It is kept in memory only and forgotten when the program closes.",

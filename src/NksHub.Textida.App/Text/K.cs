@@ -658,4 +658,17 @@ public static class K
     public const string ClipSaveTooLong = "clips.save.tooLong";
     public const string ClipSaveTooLarge = "clips.save.tooLarge";
     public const string ClipSaveFailed = "clips.save.failed";
+    public const string ConvertWatermark = "convert.watermark";
+    public const string A11yConvert = "a11y.convert";
+    public const string ConvertEmpty = "convert.empty";
+    public const string ConvertFailed = "convert.failed";
+    public const string ConvertOriginBuiltin = "convert.origin.builtin";
+    public const string RecipesWatermark = "recipes.watermark";
+    public const string A11yRecipes = "a11y.recipes";
+    public const string RecipesEmpty = "recipes.empty";
+    public const string RecipeFailed = "recipes.failed";
+    public const string RecipeStale = "recipes.stale";
+    public const string RecipeChanges = "recipes.changes";
+    public const string RecipeLine = "recipes.line";
+    public const string RecipeLinePlain = "recipes.linePlain";
 }

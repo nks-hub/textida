@@ -71,9 +71,13 @@ internal sealed class ScriptedDialogs : IDialogs
     public List<string> Picked { get; } = [];
     public Queue<string?> Folders { get; } = new();
 
+    /// <summary>Runs when a question is asked, before it is answered; a test changes the document here to see what a command does when the file moves under it.</summary>
+    public Action? WhileAsking { get; set; }
+
     public Task<int> ChooseAsync(Window owner, ChoiceRequest request)
     {
         Asked.Add(request);
+        WhileAsking?.Invoke();
         if (Answers.Count == 0) throw new InvalidOperationException("Unexpected dialog: " + request.Title + " / " + request.Message);
         return Task.FromResult(Answers.Dequeue());
     }

@@ -12,10 +12,15 @@ internal sealed record ClipEntry(string PluginId, string PluginName, ClipContrib
 
 internal sealed record TemplateEntry(string PluginId, string PluginName, TemplateContribution Template);
 
+internal sealed record ConverterEntry(string PluginId, string PluginName, ConverterContribution Converter);
+
+/// <summary><see cref="Converters"/> are the converters of the same plugin, the ones a <c>convert</c> step of the recipe may name.</summary>
+internal sealed record RecipeEntry(string PluginId, string PluginName, RecipeContribution Recipe, IReadOnlyList<ConverterContribution> Converters);
+
 internal enum SaveClipResult { Saved, TooLong, TooLarge, Damaged, IoError }
 
 /// <summary>
-/// The clips and file templates of the data plugins in the <c>plugins</c> folder of the profile: one subfolder per plugin with a
+/// The clips, file templates, converters and edit recipes of the data plugins in the <c>plugins</c> folder of the profile: one subfolder per plugin with a
 /// <c>nkspad-plugin.json</c> and no process. The user's own library is such a plugin too (<see cref="UserFolder"/>); "save selection as clip" writes into it.
 /// A plugin with a problem is left out and the reason is kept in <see cref="Problems"/>.
 /// </summary>
@@ -29,6 +34,8 @@ internal sealed class ClipLibrary
     private readonly HashSet<string> _registered = new(StringComparer.Ordinal);
     private readonly List<ClipEntry> _clips = [];
     private readonly List<TemplateEntry> _templates = [];
+    private readonly List<ConverterEntry> _converters = [];
+    private readonly List<RecipeEntry> _recipes = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<string> _problems = [];
 
@@ -40,9 +47,11 @@ internal sealed class ClipLibrary
 
     public IReadOnlyList<ClipEntry> Clips => _clips;
     public IReadOnlyList<TemplateEntry> Templates => _templates;
+    public IReadOnlyList<ConverterEntry> Converters => _converters;
+    public IReadOnlyList<RecipeEntry> Recipes => _recipes;
     public IReadOnlyList<string> Problems => _problems;
 
-    /// <summary>Commands that run a clip or a template, with the plugin and the item they name; the app gives each a handler.</summary>
+    /// <summary>Commands that run a clip, template, converter or recipe, with the plugin and the item they name; the app gives each a handler.</summary>
     public IReadOnlyList<(string Command, string PluginId, DataAction Action)> CommandTargets => _targets;
 
     public string UserManifestPath => Path.Combine(_directory, UserFolder, PluginManifest.FileName);
@@ -52,6 +61,8 @@ internal sealed class ClipLibrary
     {
         _clips.Clear();
         _templates.Clear();
+        _converters.Clear();
+        _recipes.Clear();
         _targets.Clear();
         _problems.Clear();
         if (!Directory.Exists(_directory)) return;
@@ -73,11 +84,17 @@ internal sealed class ClipLibrary
             var id = plugin.Manifest.Id;
             foreach (var clip in plugin.Manifest.Contributes.Clips) _clips.Add(new ClipEntry(id, plugin.Manifest.Name, clip));
             foreach (var template in plugin.Manifest.Contributes.Templates) _templates.Add(new TemplateEntry(id, plugin.Manifest.Name, template));
-            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template")) _targets.Add((command, id, action));
+            foreach (var converter in plugin.Manifest.Contributes.Converters) _converters.Add(new ConverterEntry(id, plugin.Manifest.Name, converter));
+            foreach (var recipe in plugin.Manifest.Contributes.Recipes) _recipes.Add(new RecipeEntry(id, plugin.Manifest.Name, recipe, plugin.Manifest.Contributes.Converters));
+            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe")) _targets.Add((command, id, action));
         }
     }
 
     public ClipEntry? FindClip(string pluginId, string clipId) => _clips.FirstOrDefault(c => c.PluginId == pluginId && c.Clip.Id == clipId);
+
+    public ConverterEntry? FindConverter(string pluginId, string converterId) => _converters.FirstOrDefault(c => c.PluginId == pluginId && c.Converter.Id == converterId);
+
+    public RecipeEntry? FindRecipe(string pluginId, string recipeId) => _recipes.FirstOrDefault(r => r.PluginId == pluginId && r.Recipe.Id == recipeId);
 
     public TemplateEntry? FindTemplate(string pluginId, string templateId) => _templates.FirstOrDefault(t => t.PluginId == pluginId && t.Template.Id == templateId);
 

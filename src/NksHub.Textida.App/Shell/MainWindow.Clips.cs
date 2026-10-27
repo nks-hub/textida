@@ -38,10 +38,17 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>The command of a clip or a template that a data plugin named.</summary>
-    internal CommandOutcome RunClipCommand(string pluginId, string itemId, bool template)
+    /// <summary>The command of a clip, template, converter or recipe that a data plugin named.</summary>
+    internal CommandOutcome RunDataCommand(string pluginId, string itemId, string kind)
     {
-        if (template)
+        if (kind == "converter") return _app.Clips.FindConverter(pluginId, itemId) is { } converter ? ConvertSelections(ConverterChoice(converter)) : CommandOutcome.NotHandled;
+        if (kind == "recipe")
+        {
+            if (ActiveEditor is not { IsReadOnly: false } || _app.Clips.FindRecipe(pluginId, itemId) is not { } recipe) return CommandOutcome.NotHandled;
+            _ = RunRecipeAsync(recipe, confirm: true);
+            return CommandOutcome.Handled;
+        }
+        if (kind == "template")
         {
             if (_app.Clips.FindTemplate(pluginId, itemId) is not { } t) return CommandOutcome.NotHandled;
             _ = NewFromTemplateAsync(t);

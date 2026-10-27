@@ -681,5 +681,20 @@
   "clips.saved": "Klip „{title}“ je uložen. Vložit klip ho teď nabízí.",
   "clips.save.tooLong": "Klip se neuložil: text je delší než {max} znaků.",
   "clips.save.tooLarge": "Klip se neuložil: knihovna by byla větší než {max} bajtů.",
-  "clips.save.failed": "Klip se neuložil: {reason}"
+  "clips.save.failed": "Klip se neuložil: {reason}",
+  "convert.watermark": "Vyberte převod",
+  "a11y.convert": "Převody",
+  "convert.empty": "Zatím nejsou žádné převody. Dejte do složky plugins v profilu datový plugin s převodníky.",
+  "convert.failed": "Převod {title} neproběhl: {reason}. Nic se nezměnilo.",
+  "convert.origin.builtin": "Vestavěný",
+  "recipes.watermark": "Vyberte recept úprav",
+  "a11y.recipes": "Recepty úprav",
+  "recipes.empty": "Zatím nejsou žádné recepty úprav. Dejte do složky plugins v profilu datový plugin s recepty.",
+  "recipes.failed": "Recept {title} neproběhl: {reason}. Nic se nezměnilo.",
+  "recipes.stale": "Soubor se změnil, zatímco byl otevřený náhled. Nic se nezměnilo; spusťte recept znovu.",
+  "recipes.changes.one": "{title}: změní se {count} část.",
+  "recipes.changes.few": "{title}: změní se {count} části.",
+  "recipes.changes.other": "{title}: změní se {count} částí.",
+  "recipes.line": "Ř {line}, Sl {column}: {before} → {after}",
+  "recipes.linePlain": "{before} → {after}"
 }

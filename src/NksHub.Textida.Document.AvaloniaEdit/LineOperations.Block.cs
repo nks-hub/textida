@@ -31,9 +31,9 @@ public static partial class LineOperations
 
     /// <summary>
     /// Replaces every selection with the text <paramref name="textFor"/> gives for its index (in document order). The caret goes after the new
-    /// text, or before it with <paramref name="caretBefore"/>.
+    /// text, or before it with <paramref name="caretBefore"/>; with <paramref name="selectNew"/> the new text stays selected instead.
     /// </summary>
-    public static IReadOnlyList<Sel> ReplaceSelections(TextDocument d, IReadOnlyList<Sel> sels, Func<int, string> textFor, bool caretBefore = false)
+    public static IReadOnlyList<Sel> ReplaceSelections(TextDocument d, IReadOnlyList<Sel> sels, Func<int, string> textFor, bool caretBefore = false, bool selectNew = false)
     {
         var result = new List<Sel>();
         int shift = 0;
@@ -46,7 +46,7 @@ public static partial class LineOperations
                 int start = s.Start + shift;
                 d.Replace(start, s.Length, text);
                 shift += text.Length - s.Length;
-                result.Add(Sel.At(caretBefore ? start : start + text.Length));
+                result.Add(selectNew ? new Sel(start, start + text.Length) : Sel.At(caretBefore ? start : start + text.Length));
             }
         }
         return result;

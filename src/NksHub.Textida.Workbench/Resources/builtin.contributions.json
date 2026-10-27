@@ -946,6 +946,24 @@
       "id": "nks.file.newFromTemplate",
       "title": "cmd.file.newFromTemplate",
       "category": "cat.file"
+    },
+    {
+      "id": "nks.edit.convert",
+      "title": "cmd.edit.convert",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.runRecipe",
+      "title": "cmd.edit.runRecipe",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
     }
   ],
   "menus": [
@@ -1704,6 +1722,18 @@
       "command": "nks.clips.editVariables",
       "group": "8_insert",
       "order": 7
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert",
+      "group": "8_insert",
+      "order": 8
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.runRecipe",
+      "group": "8_insert",
+      "order": 9
     },
     {
       "menu": "file",
