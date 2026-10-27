@@ -402,6 +402,31 @@ public class DispatcherTests
         Assert.Equal(0, rpc.QueuedReplyBytes);
     }
 
+    [Fact]
+    public async Task ARequestThatTimesOutWhileStillQueuedIsNeverSentAndNeedsNoCancel()
+    {
+        var output = new MemoryPipe(capacityChunks: 1);
+        await using var rpc = new JsonRpcDispatcher(new MemoryPipe(), output, RpcProtocols.Plugin, T.Roomy, Echo("A"));
+        var second = RpcWire.Notification("second").Length;
+        await rpc.NotifyAsync("first");
+        await rpc.NotifyAsync("second");
+        await T.Until(() => rpc.QueuedOutgoingBytes == second);
+        await Assert.ThrowsAsync<RpcTimeoutException>(() => rpc.RequestAsync("never", timeout: TimeSpan.FromMilliseconds(200)).WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(0, rpc.PendingOutgoing);
+        Assert.Equal(second, rpc.QueuedOutgoingBytes);
+        await rpc.NotifyAsync("last");
+
+        var reader = new FrameReader(output);
+        var methods = new List<string>();
+        for (var i = 0; i < 3; i++)
+        {
+            using var m = RpcMessage.Parse((await RpcProtocols.Plugin.Framing.ReadAsync(reader, 4096, default)).Payload!);
+            methods.Add(m.Method!);
+        }
+        Assert.Equal(["first", "second", "last"], methods);
+        Assert.Equal(0, rpc.QueuedReplyBytes);
+    }
+
     /// <summary>
     /// Requests 1 to 4 to a dispatcher whose peer reads nothing: answer 1 sits in the pipe, answer 2 is being written,
     /// answers 3 and 4 wait for room in the queue and hold both slots.
