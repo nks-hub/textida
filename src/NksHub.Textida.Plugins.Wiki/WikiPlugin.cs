@@ -22,9 +22,10 @@ public interface IWikiEditor
 
 /// <summary>
 /// The NKS IS wiki as a file source for the scheme <c>nksis</c> (P6.4.1): <c>nksis://wiki/&lt;page&gt;</c> is a page; the authority is only a label. The base URL of the wiki and the
-/// access token are asked from the user once and kept in the secret storage of the editor under the names <see cref="BaseUrlSecret"/> and <see cref="TokenSecret"/>;
-/// no host is built in, and the token is never part of an address, a log line or a message. Without a base URL or a token nothing is sent.
-/// The write is declared non-atomic (<see cref="AtomicWriteVerified"/>) until the wiki checks the expected revision in one step (P6.4.4), so the editor warns before saving.
+/// API key are asked from the user once and kept in the secret storage of the editor under the names <see cref="BaseUrlSecret"/> and <see cref="TokenSecret"/>;
+/// no host is built in, and the key is never part of an address, a log line or a message. Without a base URL or a key nothing is sent.
+/// The write is declared non-atomic (<see cref="AtomicWriteVerified"/>): the wiki API has no conditional write (P6.4.4), so the editor compares the revision token with a read
+/// before it writes and warns the user that a save in between is not noticed.
 /// </summary>
 public sealed class WikiPlugin : PluginBase
 {
@@ -32,7 +33,7 @@ public sealed class WikiPlugin : PluginBase
     public const string BaseUrlSecret = "baseUrl";
     public const string TokenSecret = "token";
 
-    /// <summary>False until the contract test of P6.4.4 (two concurrent writes against one revision, exactly one wins) has passed against the real service.</summary>
+    /// <summary>False until the wiki takes an expected revision and decides in one step (P6.4.4); its API has no such field today.</summary>
     public const bool AtomicWriteVerified = false;
 
     private readonly WikiSettings _settings;
@@ -45,7 +46,7 @@ public sealed class WikiPlugin : PluginBase
     {
         _settings = settings;
         _editor = editor ?? (() => new RpcEditor(Rpc));
-        _connect = connect ?? ((baseUrl, token) => new AssumedWikiHttp(Shared, baseUrl, token, settings.Timeout));
+        _connect = connect ?? ((baseUrl, token) => new NksIsWikiHttp(Shared, baseUrl, token, settings.Timeout));
         On(DocumentRequests.SourceList, (p, ct) => Guard(() => ListAsync(p, ct), ct));
         On(DocumentRequests.SourceRead, (p, ct) => Guard(() => ReadAsync(p, ct), ct));
         On(DocumentRequests.SourceStat, (p, ct) => Guard(() => StatAsync(p, ct), ct));
@@ -87,11 +88,7 @@ public sealed class WikiPlugin : PluginBase
     private async ValueTask<byte[]?> Guard(Func<Task<byte[]>> work, CancellationToken ct)
     {
         try { return await work().ConfigureAwait(false); }
-        catch (WikiConflictException e)
-        {
-            var data = Obj(w => { if (e.CurrentRevision is null) w.WriteNull("currentRevision"); else w.WriteString("currentRevision", e.CurrentRevision); });
-            throw new RpcException(DocumentErrorCodes.SourceConflict, T("conflict")) { DataJson = Encoding.UTF8.GetString(data) };
-        }
+        catch (WikiRateLimitException) { throw new RpcException(DocumentErrorCodes.SourceUnavailable, T("rateLimit")); }
         catch (WikiAuthException)
         {
             _api = null;
@@ -158,7 +155,7 @@ public sealed class WikiPlugin : PluginBase
     {
         var prefix = SlugOf(p, required: false);
         var api = await ConnectAsync(ct).ConfigureAwait(false);
-        var pages = await api.ListAsync(prefix, ct).ConfigureAwait(false);
+        var pages = await api.ListAsync(prefix, _settings.MaxEntries, ct).ConfigureAwait(false);
         return Obj(w =>
         {
             w.WriteStartArray("entries");
@@ -167,7 +164,7 @@ public sealed class WikiPlugin : PluginBase
                 w.WriteStartObject();
                 w.WriteString("uri", UriOf(page.Slug));
                 w.WriteString("name", page.Title ?? page.Slug[(page.Slug.LastIndexOf('/') + 1)..]);
-                w.WriteBoolean("isDirectory", false);
+                w.WriteBoolean("isDirectory", page.IsFolder);
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -195,14 +192,13 @@ public sealed class WikiPlugin : PluginBase
     private async Task<byte[]> WriteAsync(JsonElement p, CancellationToken ct)
     {
         var slug = SlugOf(p, required: true);
-        var expected = p.TryGetProperty("expectedRevision", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
         var bytes = Convert.FromBase64String(p.GetProperty("bytes").GetString()!);
         if (bytes.LongLength > _settings.MaxBytes) throw new RpcException(RpcErrorCodes.MessageTooLarge, T("tooLarge", ("max", _settings.MaxBytes.ToString())));
         string text;
         ReadOnlySpan<byte> content = bytes.AsSpan().StartsWith<byte>([0xEF, 0xBB, 0xBF]) ? bytes.AsSpan(3) : bytes;
         try { text = new UTF8Encoding(false, true).GetString(content); }
         catch (DecoderFallbackException) { throw Fail(T("notText")); }
-        var revision = await (await ConnectAsync(ct).ConfigureAwait(false)).WriteAsync(slug, text, expected, ct).ConfigureAwait(false);
+        var revision = await (await ConnectAsync(ct).ConfigureAwait(false)).WriteAsync(slug, text, ct).ConfigureAwait(false);
         return Obj(w => w.WriteString("revision", revision));
     }
 

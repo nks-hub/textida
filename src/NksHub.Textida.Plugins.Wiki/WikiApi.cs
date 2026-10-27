@@ -1,23 +1,19 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 
 namespace NksHub.Textida.Plugins.Wiki;
 
-/// <summary>A page of the wiki with the revision it was read at (an opaque string; the editor only compares it).</summary>
+/// <summary>A page of the wiki with its revision token (opaque to the editor, which only compares it).</summary>
 public sealed record WikiPage(string Text, string Revision);
 
-public sealed record WikiPageInfo(string Slug, string? Title);
+public sealed record WikiPageInfo(string Slug, string? Title, bool IsFolder);
 
-/// <summary>The page is not at the expected revision (<see cref="CurrentRevision"/> null: it is gone).</summary>
-public sealed class WikiConflictException(string? currentRevision) : Exception("The page is not at the expected revision.")
-{
-    public string? CurrentRevision { get; } = currentRevision;
-}
+/// <summary>The wiki did not accept the API key (401 or 403).</summary>
+public sealed class WikiAuthException(int status) : Exception($"The wiki refused the API key (HTTP {status}).");
 
-/// <summary>The wiki did not accept the token (401 or 403).</summary>
-public sealed class WikiAuthException(int status) : Exception($"The wiki refused the token (HTTP {status}).");
+/// <summary>The wiki answered 429: more requests per minute than its limit for the key.</summary>
+public sealed class WikiRateLimitException() : Exception("The wiki rate limit was reached.");
 
 /// <summary>The wiki cannot be reached or timed out.</summary>
 public sealed class WikiUnavailableException(string message) : Exception(message);
@@ -28,36 +24,31 @@ public sealed class WikiRequestException(int status) : Exception($"The wiki answ
     public int Status { get; } = status;
 }
 
-/// <summary>What the adapter needs from the wiki. The HTTP shape behind it is <see cref="AssumedWikiHttp"/>.</summary>
+/// <summary>What the adapter needs from the wiki. The HTTP mapping behind it is <see cref="NksIsWikiHttp"/>.</summary>
 public interface IWikiApi
 {
-    Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, CancellationToken cancellation);
+    /// <summary>The pages whose slug starts with <paramref name="prefix"/>, at most <paramref name="max"/>.</summary>
+    Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, int max, CancellationToken cancellation);
 
     /// <summary>The page, or null when it does not exist.</summary>
     Task<WikiPage?> ReadAsync(string slug, CancellationToken cancellation);
 
-    /// <summary>Writes the page and returns its new revision. <paramref name="expectedRevision"/> null creates a page that must not exist yet.</summary>
-    Task<string> WriteAsync(string slug, string text, string? expectedRevision, CancellationToken cancellation);
+    /// <summary>Writes the content of the page and returns its new revision token. The wiki cannot check a revision while writing, so the caller compares the token first.</summary>
+    Task<string> WriteAsync(string slug, string text, CancellationToken cancellation);
 }
 
 /// <summary>
-/// PLACEHOLDER for the HTTP mapping of the NKS IS wiki. Nothing in the repository or the plan describes the endpoints, the auth header or the revision field of the wiki
-/// (P6.4.4: the current state of the service is "not verified"), so this is an ASSUMED shape, used by the tests through a local fake server and to be replaced
-/// once the owner of the wiki documents the real one:
-/// <list type="bullet">
-/// <item><c>GET {base}/pages?prefix=P</c> answers <c>{"pages":[{"slug","title"?}]}</c>.</item>
-/// <item><c>GET {base}/pages/{slug}</c> answers <c>{"content","revision"}</c> (404: no such page); there is no separate stat call, a stat reads the page.</item>
-/// <item><c>PUT {base}/pages/{slug}</c> with <c>{"content","expectedRevision"}</c> answers <c>{"revision"}</c>; 409 with <c>{"currentRevision"}</c> means another revision.</item>
-/// <item>The token goes in <c>Authorization: Bearer</c>; <c>revision</c> may be a string or a number.</item>
-/// </list>
-/// Whether the wiki honours <c>expectedRevision</c> in one step is not known, which is why the plugin does not declare an atomic write.
+/// The HTTP mapping of the NKS IS wiki (OpenAPI 3.0 of the service), the only place that knows it. Base path <c>{base}/api/v1</c>, key in <c>X-Api-Key</c>
+/// (the Bearer scheme of the spec belongs to its MCP endpoint only). <c>GET /wiki?page&amp;limit&amp;search</c> lists (<c>{items,pages,...}</c>), <c>GET /wiki/{slug}</c> reads
+/// (page fields and <c>content</c>; 404: no page), <c>PUT /wiki/{slug}</c> updates with <c>{content}</c>. The spec has no expected-revision field and no 409, so a write is never atomic.
+/// The revision token is <c>version|revisionCount|updatedAt</c>: any of them changes when someone saves. 401 or 403: the key is missing or invalid; 429: 60 requests per minute per key.
 /// </summary>
-public sealed class AssumedWikiHttp(HttpClient http, Uri baseUrl, string token, TimeSpan timeout) : IWikiApi
+public sealed class NksIsWikiHttp(HttpClient http, Uri baseUrl, string key, TimeSpan timeout) : IWikiApi
 {
     private HttpRequestMessage Request(HttpMethod method, string path, byte[]? body = null)
     {
-        var request = new HttpRequestMessage(method, new Uri(baseUrl.AbsoluteUri.TrimEnd('/') + path));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var request = new HttpRequestMessage(method, new Uri(baseUrl.AbsoluteUri.TrimEnd('/') + "/api/v1" + path));
+        request.Headers.Add("X-Api-Key", key);
         request.Headers.Accept.ParseAdd("application/json");
         if (body is not null)
         {
@@ -90,62 +81,68 @@ public sealed class AssumedWikiHttp(HttpClient http, Uri baseUrl, string token, 
     private static void Check(HttpStatusCode status)
     {
         if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) throw new WikiAuthException((int)status);
+        if (status == HttpStatusCode.TooManyRequests) throw new WikiRateLimitException();
         if ((int)status is < 200 or >= 300) throw new WikiRequestException((int)status);
     }
 
-    private static string? RevisionOf(JsonElement e, string name) =>
-        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var r)
-            ? r.ValueKind switch { JsonValueKind.String => r.GetString(), JsonValueKind.Number => r.GetRawText(), _ => null }
+    private static string? Str(JsonElement e, string name) =>
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v)
+            ? v.ValueKind switch { JsonValueKind.String => v.GetString(), JsonValueKind.Number => v.GetRawText(), _ => null }
             : null;
 
-    public async Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, CancellationToken cancellation)
+    private static WikiPage? PageOf(JsonElement e) =>
+        Str(e, "version") is { } version && Str(e, "revisionCount") is { } count && Str(e, "updatedAt") is { } updated && Str(e, "content") is { } content
+            ? new WikiPage(content, $"{version}|{count}|{updated}")
+            : null;
+
+    public async Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, int max, CancellationToken cancellation)
     {
-        var (status, body) = await SendAsync(Request(HttpMethod.Get, "/pages?prefix=" + Uri.EscapeDataString(prefix)), cancellation);
-        using (body)
+        List<WikiPageInfo> list = [];
+        for (int page = 1; list.Count < max; page++)
         {
-            Check(status);
-            if (body is null || !body.RootElement.TryGetProperty("pages", out var pages) || pages.ValueKind != JsonValueKind.Array) throw new WikiRequestException((int)status);
-            List<WikiPageInfo> list = [];
-            foreach (var page in pages.EnumerateArray())
+            var query = $"?page={page}&limit={max}" + (prefix.Length > 0 ? "&search=" + Uri.EscapeDataString(prefix) : "");
+            var (status, body) = await SendAsync(Request(HttpMethod.Get, "/wiki" + query), cancellation);
+            using (body)
             {
-                if (page.ValueKind != JsonValueKind.Object || !page.TryGetProperty("slug", out var slug) || slug.ValueKind != JsonValueKind.String) continue;
-                list.Add(new WikiPageInfo(slug.GetString()!, page.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null));
+                Check(status);
+                if (body is null || !body.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) throw new WikiRequestException((int)status);
+                foreach (var item in items.EnumerateArray())
+                {
+                    if (Str(item, "slug") is not { } slug || !slug.StartsWith(prefix, StringComparison.Ordinal)) continue; // search is a text search, the prefix is a path
+                    list.Add(new WikiPageInfo(slug, Str(item, "title"), item.TryGetProperty("isFolder", out var f) && f.ValueKind == JsonValueKind.True));
+                }
+                if (!int.TryParse(Str(body.RootElement, "pages"), out int pages) || page >= pages) break;
             }
-            return list;
         }
+        return list.Take(max).ToList();
     }
 
     public async Task<WikiPage?> ReadAsync(string slug, CancellationToken cancellation)
     {
-        var (status, body) = await SendAsync(Request(HttpMethod.Get, "/pages/" + Escape(slug)), cancellation);
+        var (status, body) = await SendAsync(Request(HttpMethod.Get, "/wiki/" + Escape(slug)), cancellation);
         using (body)
         {
             if (status == HttpStatusCode.NotFound) return null;
             Check(status);
-            var root = body?.RootElement ?? default;
-            if (RevisionOf(root, "revision") is not { Length: > 0 } revision || !root.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String)
-                throw new WikiRequestException((int)status);
-            return new WikiPage(content.GetString()!, revision);
+            return PageOf(body?.RootElement ?? default) ?? throw new WikiRequestException((int)status);
         }
     }
 
-    public async Task<string> WriteAsync(string slug, string text, string? expectedRevision, CancellationToken cancellation)
+    public async Task<string> WriteAsync(string slug, string text, CancellationToken cancellation)
     {
         using var stream = new MemoryStream();
         using (var w = new Utf8JsonWriter(stream))
         {
             w.WriteStartObject();
             w.WriteString("content", text);
-            if (expectedRevision is null) w.WriteNull("expectedRevision"); else w.WriteString("expectedRevision", expectedRevision);
             w.WriteEndObject();
         }
-        var (status, body) = await SendAsync(Request(HttpMethod.Put, "/pages/" + Escape(slug), stream.ToArray()), cancellation);
-        using (body)
-        {
-            if (status == HttpStatusCode.Conflict) throw new WikiConflictException(RevisionOf(body?.RootElement ?? default, "currentRevision"));
-            Check(status);
-            return RevisionOf(body?.RootElement ?? default, "revision") is { Length: > 0 } revision ? revision : throw new WikiRequestException((int)status);
-        }
+        var (status, body) = await SendAsync(Request(HttpMethod.Put, "/wiki/" + Escape(slug), stream.ToArray()), cancellation);
+        body?.Dispose();
+        if (status == HttpStatusCode.NotFound) throw new WikiRequestException((int)status);
+        Check(status);
+        // the answer of an update is not relied on: the new token is read back
+        return (await ReadAsync(slug, cancellation))?.Revision ?? throw new WikiRequestException((int)HttpStatusCode.NotFound);
     }
 
     private static string Escape(string slug) => string.Join('/', slug.Split('/').Select(Uri.EscapeDataString));

@@ -14,8 +14,8 @@ using Xunit;
 namespace NksHub.Textida.Rpc.Tests;
 
 /// <summary>
-/// P6.4.1: the wiki adapter over the plugin protocol, against a local HTTP listener. The listener implements the ASSUMED shape of <see cref="AssumedWikiHttp"/> (the real wiki API is not
-/// documented anywhere in the repository): <c>GET pages?prefix=</c>, <c>GET pages/{slug}</c>, <c>PUT pages/{slug}</c> with <c>expectedRevision</c> checked in one step (409 otherwise), Bearer token.
+/// P6.4.1: the wiki adapter over the plugin protocol, against a local HTTP listener that follows the OpenAPI of the service as <see cref="NksIsWikiHttp"/> maps it:
+/// <c>{base}/api/v1/wiki</c> (paged list, read with <c>content</c>, <c>PUT</c> of <c>{content}</c> without any revision check), key in <c>X-Api-Key</c>, 401 for a bad key, 429 over the limit.
 /// The test side plays the editor: it answers <c>source/register</c>, <c>secret/*</c> (through the real <see cref="PluginSecrets"/> and its call log) and <c>ui/input</c>.
 /// </summary>
 public sealed class WikiPluginTests : IAsyncDisposable
@@ -65,8 +65,24 @@ public sealed class WikiPluginTests : IAsyncDisposable
         private readonly object _gate = new();
         public readonly Dictionary<string, (string Text, int Revision)> Pages = [];
         public readonly List<string> Requests = [];
-        public bool RejectToken;
+        public bool RejectToken, RateLimited;
+        public int PageSize = 100;
         public string Url { get; }
+
+        /// <summary>The revision token the adapter derives from <c>version</c>, <c>revisionCount</c> and <c>updatedAt</c> of revision number <paramref name="n"/> (below 10).</summary>
+        public static string TokenOf(int n) => $"1.{n}|{n}|2026-01-0{n}T00:00:00Z";
+
+        private string PageJson(string slug, bool content)
+        {
+            var (text, n) = Pages[slug];
+            var fields = new Dictionary<string, object>
+            {
+                ["id"] = 1, ["title"] = "Page " + slug, ["slug"] = slug, ["syntaxType"] = "markdown", ["isFolder"] = slug.EndsWith("/folder", StringComparison.Ordinal),
+                ["parentId"] = null!, ["version"] = $"1.{n}", ["revisionCount"] = n, ["updatedAt"] = $"2026-01-0{n}T00:00:00Z",
+            };
+            if (content) fields["content"] = text;
+            return JsonSerializer.Serialize(fields);
+        }
 
         public FakeWiki()
         {
@@ -106,34 +122,27 @@ public sealed class WikiPluginTests : IAsyncDisposable
             {
                 var request = c.Request;
                 Requests.Add(request.HttpMethod + " " + request.Url!.PathAndQuery);
-                if (RejectToken || request.Headers["Authorization"] != "Bearer " + Token) { Reply(c, 401, "{}"); return; }
+                if (RateLimited) { Reply(c, 429, "{}"); return; }
+                if (RejectToken || request.Headers["X-Api-Key"] != Token || request.Headers["Authorization"] is not null) { Reply(c, 401, "{}"); return; }
                 var path = request.Url.AbsolutePath;
-                const string root = "/wiki-api/pages";
+                const string root = "/wiki-api/api/v1/wiki";
                 if (path == root && request.HttpMethod == "GET")
                 {
-                    var prefix = request.QueryString["prefix"] ?? "";
-                    var list = Pages.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).Select(k => $"{{\"slug\":\"{k}\"}}");
-                    Reply(c, 200, "{\"pages\":[" + string.Join(",", list) + "]}");
+                    // the search is a text search; the adapter filters the slugs by prefix itself
+                    int number = int.Parse(request.QueryString["page"]!), limit = int.Parse(request.QueryString["limit"]!);
+                    var all = Pages.Keys.Order().ToArray();
+                    var items = all.Skip((number - 1) * PageSize).Take(Math.Min(limit, PageSize)).Select(k => PageJson(k, false));
+                    Reply(c, 200, $"{{\"items\":[{string.Join(",", items)}],\"total\":{all.Length},\"page\":{number},\"limit\":{limit},\"pages\":{Math.Max(1, (all.Length + PageSize - 1) / PageSize)}}}");
                     return;
                 }
                 var slug = Uri.UnescapeDataString(path[(root.Length + 1)..]);
                 bool exists = Pages.TryGetValue(slug, out var page);
-                if (request.HttpMethod == "GET")
-                {
-                    if (!exists) Reply(c, 404, "{}");
-                    else Reply(c, 200, JsonSerializer.Serialize(new Dictionary<string, object> { ["content"] = page.Text, ["revision"] = page.Revision.ToString() }));
-                    return;
-                }
+                if (!exists) { Reply(c, 404, "{}"); return; }
+                if (request.HttpMethod == "GET") { Reply(c, 200, PageJson(slug, true)); return; }
+                // the update takes the fields to change and checks no revision
                 using var body = JsonDocument.Parse(new StreamReader(request.InputStream, Encoding.UTF8).ReadToEnd());
-                var expected = body.RootElement.GetProperty("expectedRevision") is { ValueKind: JsonValueKind.String } e ? e.GetString() : null;
-                var current = exists ? page.Revision.ToString() : null;
-                if (expected != current)
-                {
-                    Reply(c, 409, JsonSerializer.Serialize(new Dictionary<string, string?> { ["currentRevision"] = current }));
-                    return;
-                }
                 Pages[slug] = (body.RootElement.GetProperty("content").GetString()!, page.Revision + 1);
-                Reply(c, 200, $"{{\"revision\":\"{Pages[slug].Revision}\"}}");
+                Reply(c, 200, PageJson(slug, true));
             }
         }
 
@@ -152,7 +161,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
     public WikiPluginTests()
     {
         _secrets.Values[WikiPlugin.BaseUrlSecret] = _wiki.Url;
-        _editor = new FakeEditor(new PluginSecrets(_secrets, _log), title => title.Contains("token", StringComparison.OrdinalIgnoreCase) ? _tokenAnswer : null);
+        _editor = new FakeEditor(new PluginSecrets(_secrets, _log), title => title.Contains("API key", StringComparison.Ordinal) ? _tokenAnswer : null);
         var pluginIn = new AnonymousPipeClientStream(PipeDirection.In, _toPlugin.ClientSafePipeHandle);
         var pluginOut = new AnonymousPipeClientStream(PipeDirection.Out, _fromPlugin.ClientSafePipeHandle);
         var plugin = new WikiPlugin(new WikiSettings(TimeSpan.FromSeconds(10), 1 << 20, 100, "en"));
@@ -176,7 +185,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
     private Task<JsonElement> WriteAsync(string uri, string text, string? expected) =>
         CallAsync(DocumentRequests.SourceWrite, new { uri, expectedRevision = expected, bytes = Convert.ToBase64String(Encoding.UTF8.GetBytes(text)) });
 
-    private const string Page = "nksis://wiki/docs/intro";
+    private const string Page = "nksis://wiki/docs/page-a";
 
     [Fact]
     public async Task The_plugin_registers_its_scheme_as_listing_and_writing_but_not_atomic()
@@ -195,75 +204,86 @@ public sealed class WikiPluginTests : IAsyncDisposable
     public async Task A_page_is_listed_opened_and_saved_with_the_revision_it_was_read_at()
     {
         _secrets.Values[WikiPlugin.TokenSecret] = Token;
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
-        _wiki.Pages["docs/other page"] = ("x", 5);
-        _wiki.Pages["misc/a"] = ("y", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+        _wiki.Pages["docs/page-b"] = ("x", 5);
+        _wiki.Pages["docs/folder"] = ("", 1);
+        _wiki.Pages["misc/page-c"] = ("y", 1);
+        _wiki.PageSize = 2; // the list is read page by page
 
         var list = await CallAsync(DocumentRequests.SourceList, new { uri = "nksis://wiki/docs" });
-        var uris = list.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("uri").GetString()).Order().ToArray();
-        Assert.Equal(["nksis://wiki/docs/intro", "nksis://wiki/docs/other%20page"], uris);
+        var entries = list.GetProperty("entries").EnumerateArray().OrderBy(e => e.GetProperty("uri").GetString(), StringComparer.Ordinal).ToArray();
+        Assert.Equal(["nksis://wiki/docs/folder", "nksis://wiki/docs/page-a", "nksis://wiki/docs/page-b"], entries.Select(e => e.GetProperty("uri").GetString()));
+        Assert.Equal([true, false, false], entries.Select(e => e.GetProperty("isDirectory").GetBoolean()));
+        Assert.Contains(_wiki.Requests, r => r.Contains("page=2"));
 
         var read = await ReadAsync(Page);
         Assert.Equal("one\n", read.GetProperty("text").GetString());
         var revision = read.GetProperty("revision").GetString();
-        Assert.Equal("1", revision);
+        Assert.Equal(FakeWiki.TokenOf(1), revision);
         var stat = await CallAsync(DocumentRequests.SourceStat, new { uri = Page });
         Assert.Equal(revision, stat.GetProperty("revision").GetString());
 
         var saved = await WriteAsync(Page, "edited one\n", revision);
 
-        Assert.Equal("2", saved.GetProperty("revision").GetString());
-        Assert.Equal(("edited one\n", 2), _wiki.Pages["docs/intro"]);
+        Assert.Equal(FakeWiki.TokenOf(2), saved.GetProperty("revision").GetString());
+        Assert.Equal(("edited one\n", 2), _wiki.Pages["docs/page-a"]);
         Assert.Equal("edited one\n", (await ReadAsync(Page)).GetProperty("text").GetString());
     }
 
     [Fact]
-    public async Task A_save_against_a_changed_revision_is_a_conflict_with_the_current_revision_and_writes_nothing()
+    public async Task A_save_by_someone_else_changes_the_revision_token_which_is_what_the_editor_compares_before_it_writes()
     {
         _secrets.Values[WikiPlugin.TokenSecret] = Token;
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
         var revision = (await ReadAsync(Page)).GetProperty("revision").GetString();
-        _wiki.Pages["docs/intro"] = ("changed by a colleague\n", 2);
 
-        var e = await Assert.ThrowsAsync<RpcException>(() => WriteAsync(Page, "mine\n", revision));
+        _wiki.Pages["docs/page-a"] = ("changed by a colleague\n", 2);
 
-        Assert.Equal(DocumentErrorCodes.SourceConflict, e.Code);
-        Assert.Equal("2", JsonDocument.Parse(e.DataJson!).RootElement.GetProperty("currentRevision").GetString());
-        Assert.Equal(("changed by a colleague\n", 2), _wiki.Pages["docs/intro"]);
-
-        // a page that is gone is a conflict with no current revision
-        _wiki.Pages.Remove("docs/intro");
-        var gone = await Assert.ThrowsAsync<RpcException>(() => WriteAsync(Page, "mine\n", "2"));
-        Assert.Equal(DocumentErrorCodes.SourceConflict, gone.Code);
-        Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(gone.DataJson!).RootElement.GetProperty("currentRevision").ValueKind);
+        var stat = await CallAsync(DocumentRequests.SourceStat, new { uri = Page });
+        Assert.NotEqual(revision, stat.GetProperty("revision").GetString());
+        // a page that is gone has no revision at all
+        _wiki.Pages.Remove("docs/page-a");
+        Assert.False((await CallAsync(DocumentRequests.SourceStat, new { uri = Page })).GetProperty("exists").GetBoolean());
     }
 
     [Fact]
-    public async Task Two_writes_against_the_same_revision_let_exactly_one_win_on_the_assumed_server()
+    public async Task The_wiki_checks_no_revision_so_the_write_is_declared_non_atomic_and_the_plugin_does_not_pretend_otherwise()
     {
         _secrets.Values[WikiPlugin.TokenSecret] = Token;
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("changed by a colleague\n", 2);
 
-        var results = await Task.WhenAll(new[] { "a\n", "b\n" }.Select(async text =>
-        {
-            try { await WriteAsync(Page, text, "1"); return 0; }
-            catch (RpcException e) { return e.Code; }
-        }));
+        await WriteAsync(Page, "mine\n", FakeWiki.TokenOf(1)); // the stale token is not looked at by the wiki; the editor compared it before
 
-        Assert.Equal(1, results.Count(r => r == 0));
-        Assert.Equal(1, results.Count(r => r == DocumentErrorCodes.SourceConflict));
+        Assert.Equal(("mine\n", 3), _wiki.Pages["docs/page-a"]);
+        Assert.False(WikiPlugin.AtomicWriteVerified);
+    }
+
+    [Fact]
+    public async Task Over_the_rate_limit_the_wiki_is_reported_unavailable_with_a_clear_message_and_asked_once()
+    {
+        _secrets.Values[WikiPlugin.TokenSecret] = Token;
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
+        _wiki.RateLimited = true;
+
+        var e = await Assert.ThrowsAsync<RpcException>(() => ReadAsync(Page));
+
+        Assert.Equal(DocumentErrorCodes.SourceUnavailable, e.Code);
+        Assert.Contains("60 requests per minute", e.Message);
+        Assert.Single(_wiki.Requests); // no retry loop
+        Assert.True(_secrets.Values.ContainsKey(WikiPlugin.TokenSecret)); // the key is fine, only the rate is not
     }
 
     [Fact]
     public async Task Without_a_token_the_user_is_asked_and_when_nothing_is_entered_nothing_is_sent()
     {
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
         _tokenAnswer = null;
 
         var e = await Assert.ThrowsAsync<RpcException>(() => ReadAsync(Page));
 
-        Assert.Contains("No access token", e.Message);
-        Assert.Equal(["NKS IS wiki: access token [hidden]"], _editor.Asked); // the typing is hidden
+        Assert.Contains("No API key", e.Message);
+        Assert.Equal(["NKS IS wiki: API key [hidden]"], _editor.Asked); // the typing is hidden
         Assert.Empty(_wiki.Requests);
         Assert.False(_secrets.Values.ContainsKey(WikiPlugin.TokenSecret));
 
@@ -292,12 +312,12 @@ public sealed class WikiPluginTests : IAsyncDisposable
     public async Task A_token_the_wiki_refuses_is_dropped_so_the_next_attempt_asks_again()
     {
         _secrets.Values[WikiPlugin.TokenSecret] = Token;
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
         _wiki.RejectToken = true;
 
         var e = await Assert.ThrowsAsync<RpcException>(() => ReadAsync(Page));
 
-        Assert.Contains("did not accept the token", e.Message);
+        Assert.Contains("missing or invalid", e.Message);
         Assert.False(_secrets.Values.ContainsKey(WikiPlugin.TokenSecret));
         _wiki.RejectToken = false;
         Assert.Equal("one\n", (await ReadAsync(Page)).GetProperty("text").GetString());
@@ -319,7 +339,7 @@ public sealed class WikiPluginTests : IAsyncDisposable
     public async Task The_token_is_in_no_log_no_address_and_no_message()
     {
         _tokenAnswer = Token;
-        _wiki.Pages["docs/intro"] = ("one\n", 1);
+        _wiki.Pages["docs/page-a"] = ("one\n", 1);
         var texts = new List<string>();
 
         var list = await CallAsync(DocumentRequests.SourceList, new { uri = "nksis://wiki/" });
