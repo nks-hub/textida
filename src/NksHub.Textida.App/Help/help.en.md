@@ -1036,15 +1036,18 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 - Not there yet: unstage a hunk, commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
 - The Git process starts with the first command. The `git` program must be on the PATH.
 
-## [tools.lsp] Language server: definition, references and diagnostics
-commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.restart, nks.lsp.stop
+## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
+commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
 1. Open a text document and choose Tools, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
 2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
-3. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down.
+3. Language Server: Rename Symbol asks for the new name of the word at the caret. The server's changes in all files, with the creating, renaming and deleting of files it asks for, are shown together in the change review; what you accept is applied as one step. A file that is open in another tab must have been started with the first command too, otherwise the rename is refused as a whole.
+4. Ctrl+J (Edit, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
+5. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down.
 - The editor does not start a server on its own: nothing runs until the first command of this group, and a server is not told about a file until then.
 - Large files shown in pages and files over the size limit never go to a server.
 - The server is looked up by name on the PATH. If it is not found, a notice names the program that was looked for.
-- Not there yet: completion and rename through the server, a status bar item, and the choice of the project folder (the folder of the first document is used).
+- The status bar shows LSP: running, LSP: not found or LSP: off for the language of the last command.
+- Not there yet: the choice of the project folder (the folder of the first document is used), and a rename in files that are not UTF-8.
 
 ## [edit.complete] Completion of words and clips
 commands: nks.edit.complete
@@ -1053,7 +1056,7 @@ commands: nks.edit.complete
 - The words are taken from all open text tabs. The word that is being typed is not offered, and a word is offered only when it is longer than what is typed. Words of the document being edited come first, then the more frequent ones.
 - Clips come from the library of the topic Clips. A clip with no language fits every document; a clip with a language fits only documents of that language.
 - The values of a secrets file (`.env`) are never offered while they are hidden. They are offered only in the file itself and only while shown.
-- The list holds a limited number of words; type in the box to narrow it. LSP completion is not part of this version.
+- The list holds a limited number of words; type in the box to narrow it. Entries of a running language server come with them, see the topic Language server.
 
 ## [edit.sql] SQL: dialect and formatting
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect

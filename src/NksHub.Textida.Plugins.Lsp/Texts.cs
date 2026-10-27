@@ -23,6 +23,15 @@ public static class Texts
         ["definitionsTitle"] = ["Definice: {count}", "Definitions: {count}", "Definície: {count}", "Definitionen: {count}"],
         ["referencesTitle"] = ["Odkazy: {count}", "References: {count}", "Odkazy: {count}", "Verweise: {count}"],
         ["truncated"] = ["Míst je víc, než se vejde do seznamu. Zobrazí se prvních {max}.", "There are more places than the list holds. The first {max} are shown.", "Miest je viac, než sa zmestí do zoznamu. Zobrazí sa prvých {max}.", "Es gibt mehr Stellen, als die Liste fasst. Die ersten {max} werden gezeigt."],
+        ["statusRunning"] = ["LSP: běží", "LSP: running", "LSP: beží", "LSP: läuft"],
+        ["statusNotFound"] = ["LSP: nenalezen", "LSP: not found", "LSP: nenájdený", "LSP: nicht gefunden"],
+        ["statusStopped"] = ["LSP: vypnut", "LSP: off", "LSP: vypnutý", "LSP: aus"],
+        ["statusTip"] = ["Jazykový server pro {language}", "Language server for {language}", "Jazykový server pre {language}", "Sprachserver für {language}"],
+        ["renameTitle"] = ["Přejmenovat symbol", "Rename Symbol", "Premenovať symbol", "Symbol umbenennen"],
+        ["renameLabel"] = ["Nový název", "New name", "Nový názov", "Neuer Name"],
+        ["renameBatch"] = ["Přejmenovat {old} na {new}", "Rename {old} to {new}", "Premenovať {old} na {new}", "{old} in {new} umbenennen"],
+        ["noRename"] = ["Server na tomto místě nic nepřejmenuje.", "The server renames nothing at this place.", "Server na tomto mieste nič nepremenuje.", "Der Server benennt an dieser Stelle nichts um."],
+        ["unreadable"] = ["Soubor, který se má změnit, nelze přečíst, není v UTF-8 nebo je příliš velký. Nic se nezměnilo.", "A file that would change cannot be read, is not UTF-8 or is too large. Nothing was changed.", "Súbor, ktorý sa má zmeniť, nemožno prečítať, nie je v UTF-8 alebo je príliš veľký. Nič sa nezmenilo.", "Eine Datei, die geändert würde, ist nicht lesbar, nicht UTF-8 oder zu groß. Es wurde nichts geändert."],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

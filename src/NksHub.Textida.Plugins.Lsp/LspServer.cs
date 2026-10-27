@@ -40,6 +40,8 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool Incremental { get; private set; }
     public bool Definition { get; private set; }
     public bool References { get; private set; }
+    public bool Completion { get; private set; }
+    public bool Rename { get; private set; }
     public bool Alive => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _stopping) == 0 && !_rpc.IsClosed;
 
     private LspServer(Process process, Stream input, Stream output, LspSettings settings, string rootUri, Func<string, JsonElement, ValueTask> onNotification)
@@ -88,7 +90,8 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             .Append(",\"clientInfo\":{\"name\":\"Textida\"},\"rootUri\":\"").Append(Encode(_rootUri)).Append("\",\"rootPath\":\"").Append(Encode(root))
             .Append("\",\"workspaceFolders\":[{\"uri\":\"").Append(Encode(_rootUri)).Append("\",\"name\":\"").Append(Encode(Path.GetFileName(root.TrimEnd('/', '\\')))).Append("\"}]")
             .Append(",\"capabilities\":{\"general\":{\"positionEncodings\":[\"utf-16\"]},\"textDocument\":{\"synchronization\":{\"dynamicRegistration\":false,\"didSave\":false},")
-            .Append("\"definition\":{\"linkSupport\":true},\"references\":{},\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true}}}");
+            .Append("\"definition\":{\"linkSupport\":true},\"references\":{},\"completion\":{\"completionItem\":{\"snippetSupport\":false}},\"rename\":{\"prepareSupport\":false},")
+            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
         var answer = await RequestAsync("initialize", json.ToString(), _settings.StartTimeoutMs, ct).ConfigureAwait(false);
         if (answer.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object)
         {
@@ -100,6 +103,8 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             }
             Definition = Provides(caps, "definitionProvider");
             References = Provides(caps, "referencesProvider");
+            Completion = Provides(caps, "completionProvider");
+            Rename = Provides(caps, "renameProvider");
         }
         await _rpc.NotifyAsync("initialized", "{}"u8.ToArray(), ct).ConfigureAwait(false);
     }

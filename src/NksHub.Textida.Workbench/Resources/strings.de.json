@@ -146,6 +146,7 @@
   "cmd.lsp.start": "Sprachserver: für dieses Dokument starten",
   "cmd.lsp.goToDefinition": "Sprachserver: Zur Definition springen",
   "cmd.lsp.findReferences": "Sprachserver: Verweise suchen",
+  "cmd.lsp.rename": "Sprachserver: Symbol umbenennen",
   "cmd.lsp.restart": "Sprachserver: Neu starten",
   "cmd.lsp.stop": "Sprachserver: Beenden",
   "cmd.edit.complete": "Wort oder Clip vervollständigen...",

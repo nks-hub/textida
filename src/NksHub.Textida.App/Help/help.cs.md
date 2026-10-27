@@ -1041,15 +1041,18 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 - Chybí zatím: vrácení úseku z indexu, commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
 - Proces Git se spustí prvním příkazem. Program `git` musí být v PATH.
 
-## [tools.lsp] Jazykový server: definice, odkazy a diagnostika
-commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.restart, nks.lsp.stop
+## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
+commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
 1. Otevřete textový dokument a zvolte Nástroje, Jazykový server: spustit pro tento dokument. Spustí se server pro jazyk dokumentu a dostane jeho text. Od té chvíle mu jde každá úprava a to, co server označí za chybu, se podtrhne.
 2. Jazykový server: přejít na definici skočí na definici slova pod kurzorem, i do jiného souboru. Jazykový server: najít odkazy vypíše všechna místa v panelu vlevo; Enter nebo dvojklik na položku ji otevře.
-3. Když server skončí sám, upozornění to oznámí a podtržení, která nakreslil, zmizí. Jazykový server: restartovat (nebo jiný příkaz této skupiny) ho spustí znovu a předá mu všechny otevřené dokumenty tak, jak jsou teď. Jazykový server: zastavit ho vypne.
+3. Jazykový server: přejmenovat symbol se zeptá na nový název slova pod kurzorem. Změny serveru ve všech souborech, včetně vytvoření, přejmenování a smazání souborů, které žádá, se ukážou společně v náhledu změn; co přijmete, se použije jako jeden krok. Soubor otevřený v jiné kartě musí být také spuštěný prvním příkazem, jinak se přejmenování odmítne celé.
+4. Ctrl+J (Úpravy, Doplnit slovo nebo klip) nabídne i to, co běžící server nabízí u kurzoru. Výběr takové položky provede ve stejném kroku Zpět i další změny, které server žádá, třeba přidání importu. Odpověď, která přijde po změně textu, se nezobrazí.
+5. Když server skončí sám, upozornění to oznámí a podtržení, která nakreslil, zmizí. Jazykový server: restartovat (nebo jiný příkaz této skupiny) ho spustí znovu a předá mu všechny otevřené dokumenty tak, jak jsou teď. Jazykový server: zastavit ho vypne.
 - Editor žádný server sám nespouští: dokud nezvolíte první příkaz této skupiny, nic neběží a server o souboru nic neví.
 - Velké soubory zobrazené po stránkách a soubory nad limitem velikosti se serveru nikdy nepředají.
 - Server se hledá podle názvu v PATH. Když se nenajde, upozornění pojmenuje program, který se hledal.
-- Zatím chybí: doplňování a přejmenování přes server, položka ve stavovém řádku a volba složky projektu (použije se složka prvního dokumentu).
+- Stavový řádek ukazuje LSP: běží, LSP: nenalezen nebo LSP: vypnut pro jazyk posledního příkazu.
+- Zatím chybí: volba složky projektu (použije se složka prvního dokumentu) a přejmenování v souborech, které nejsou v UTF-8.
 
 ## [edit.complete] Doplňování slov a klipů
 commands: nks.edit.complete
@@ -1058,7 +1061,7 @@ commands: nks.edit.complete
 - Slova se berou ze všech otevřených textových karet. Slovo, které právě píšete, se nenabízí, a slovo se nabízí, jen když je delší než napsaný začátek. Nejdřív jdou slova z upravovaného dokumentu, pak ta častější.
 - Klipy jsou z knihovny z tématu Klipy. Klip bez jazyka se hodí do každého dokumentu; klip s jazykem jen do dokumentů toho jazyka.
 - Hodnoty tajného souboru (`.env`) se nenabízejí, dokud jsou skryté. Nabízejí se jen v tom samém souboru a jen když jsou zobrazené.
-- Seznam drží omezený počet slov; zúžíte ho psaním do pole. Doplňování přes LSP v této verzi není.
+- Seznam drží omezený počet slov; zúžíte ho psaním do pole. Položky běžícího jazykového serveru přibudou, viz téma Jazykový server.
 
 ## [edit.sql] SQL: dialekt a formátování
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
