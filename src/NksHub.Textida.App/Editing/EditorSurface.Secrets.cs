@@ -22,7 +22,7 @@ internal sealed partial class EditorSurface
     private Action? _contentChanged;
 
     /// <summary>The document is a secrets file by its name.</summary>
-    public bool IsSecretFile => SecretValues.IsSecretFile(Doc.Doc.FilePath);
+    public bool IsSecretFile => SecretValues.IsSecretFile(Doc.Doc.SecretsPath);
 
     /// <summary>The user chose to show the values in this tab.</summary>
     public bool SecretsRevealed => _secretsRevealed;

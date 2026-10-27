@@ -166,7 +166,7 @@ public static class SearchWorker
                 {
                     ct.ThrowIfCancellationRequested();
                     var snap = b.Snapshot;
-                    var outcome = Run(new SnapshotChunkSource(snap), snap.Codec, b.Title, b.Path, ct);
+                    var outcome = Run(new SnapshotChunkSource(snap), snap.Codec, b.Title, b.Path ?? b.VirtualName, ct); // the name of a virtual document decides whether its values are hidden
                     if (outcome is null) continue;
                     Deliver(new SearchSource(b.Path, snap.DocumentId, snap.Revision, b.Title, snap.Codec, snap.ByteLength, null), outcome);
                 }

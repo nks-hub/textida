@@ -88,6 +88,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes one inspection call (file facts, log query) reads before it stops and says where to go on.</summary>
     public const long InspectionMaxScanBytes = 256L << 20;
 
+    /// <summary>Placeholder: virtual documents (read only tabs a plugin supplies) one plugin keeps open at once.</summary>
+    public const int VirtualDocumentsPerPlugin = 8;
+
+    /// <summary>Placeholder: largest content of a virtual document, in bytes.</summary>
+    public const long VirtualDocumentMaxBytes = 4L << 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -118,6 +124,8 @@ internal static class PluginLimitsPlaceholders
         MaxSecretScanBytes = SecretScanMaxBytes,
         MaxClipboardChars = ClipboardMaxChars,
         MaxScanBytes = InspectionMaxScanBytes,
+        MaxVirtualDocumentsPerPlugin = VirtualDocumentsPerPlugin,
+        MaxVirtualBytes = VirtualDocumentMaxBytes,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

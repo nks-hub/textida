@@ -188,6 +188,7 @@ internal sealed partial class MainWindow
     public async Task<bool> SaveAsync(DocTab tab)
     {
         var od = tab.Doc;
+        if (od.IsVirtual) return RefuseVirtualSave();
         if (od.Path is null) return await SaveAsAsync(tab);
         if (!await ConfirmTypedLossAsync(tab)) return false;
         return await SaveCoreAsync(tab, overwrite: false);
@@ -243,9 +244,16 @@ internal sealed partial class MainWindow
         }
     }
 
+    private bool RefuseVirtualSave()
+    {
+        SetStatusMessage(Loc.Get(K.VirtualReadOnly));
+        return false;
+    }
+
     public async Task<bool> SaveAsAsync(DocTab tab)
     {
         var od = tab.Doc;
+        if (od.IsVirtual) return RefuseVirtualSave();
         var doc = od.Doc;
         if (!await ConfirmTypedLossAsync(tab)) return false;
 

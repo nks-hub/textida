@@ -131,7 +131,7 @@ internal sealed partial class MainWindow
     public async Task<bool> ApplyEditorConfigFormatAsync(DocTab tab)
     {
         var od = tab.Doc;
-        if (od.IsLarge || od.IsResults) return false;
+        if (od.IsLarge || od.IsResults || od.IsVirtual) return false;
         od.RefreshEditorConfig();
         var codec = EditorConfigCodec(od.EditorConfig.Get("charset"));
         bool hasCharset = codec is not null;

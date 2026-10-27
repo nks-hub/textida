@@ -211,7 +211,7 @@ public sealed partial class DocumentApi
         if (_options.Permissions.IsDelegated(pluginId))
             throw new RpcException(DocumentErrorCodes.PermissionDenied, "A command another plugin started cannot write documents.")
             { DataJson = $"{{\"permission\":\"{DocumentPermissions.EditDirect}\",\"reason\":\"Delegated\"}}" };
-        var e = Find(NeedDocumentId(p));
+        var e = FindWritable(NeedDocumentId(p));
         long revision = NeedLong(p, "revision");
         List<SnippetItem>? explicitItems = null;
         string text = "";

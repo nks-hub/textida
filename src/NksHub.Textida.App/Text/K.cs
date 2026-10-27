@@ -1014,6 +1014,9 @@ public static class K
     public const string LockFree = "lock.free";
     public const string LockStill = "lock.still";
     public const string LockSaveRefused = "lock.saveRefused";
+    public const string VirtualReadOnly = "virtual.readOnly";
+    public const string CompareSideRevision = "compare.side.revision";
+    public const string CompareSideRevisionBare = "compare.side.revisionBare";
     public const string RemoteConnectionsWatermark = "remote.connections.watermark";
     public const string RemoteConnectionsA11y = "remote.connections.a11y";
     public const string RemoteNewConnection = "remote.newConnection";

@@ -28,6 +28,19 @@ public partial class DocumentApiTests
         public readonly List<(string Text, string? Html)> Clipboard = [];
         public TableSelectionData? TableSelection(Guid document) => Table?.Invoke();
         public void SetClipboard(Guid document, string text, string? html) { lock (Clipboard) Clipboard.Add((text, html)); }
+
+        public readonly List<(string Plugin, string Name, string? Title, Document Document)> Virtuals = [];
+        public readonly List<DiffRequest> Diffs = [];
+        public bool DiffShown = true;
+
+        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec)
+        {
+            var doc = Document.CreateVirtual(name, content, PagedBackendFactory.Instance, codec);
+            lock (Virtuals) Virtuals.Add((pluginId, name, title, doc));
+            return doc;
+        }
+
+        public bool OpenDiff(DiffRequest request) { lock (Diffs) Diffs.Add(request); return DiffShown; }
     }
 
     static string Symbol(string id, string name, long start, long end, string? parent = null) =>

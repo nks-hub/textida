@@ -189,7 +189,7 @@ internal sealed partial class MainWindow
             }
             else if (c.Path is { } path) JumpToFile(path, line);
         };
-        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(HideSecrets(c.Tab.Path, surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096)))) : c.Path is { } p && !missing ? () => ReadPreview(p) : null;
+        Func<string>? preview = c.Tab is { Surface: { } surface } ? () => FirstLines(HideSecrets(c.Tab.Doc.Doc.SecretsPath, surface.Document.GetText(0, Math.Min(surface.Document.TextLength, 4096)))) : c.Path is { } p && !missing ? () => ReadPreview(p) : null;
         return new QuickRow(title, category.Length > 0 ? category : null, directory, null, !missing, missing ? reason : null, a11y, run, preview);
     }
 

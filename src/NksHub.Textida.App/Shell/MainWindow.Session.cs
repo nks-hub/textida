@@ -22,7 +22,7 @@ internal sealed partial class MainWindow
         foreach (var g in _groups.Where(g => g.Tabs.Count > 0))
         {
             if (g == _activeGroup) activeGroup = groups.Count;
-            groups.Add(new SessionGroup([.. g.Tabs.Where(t => !t.Doc.IsResults).Select(CaptureTab)], g.Active?.Doc.JournalId));
+            groups.Add(new SessionGroup([.. g.Tabs.Where(t => !t.Doc.IsResults && !t.Doc.IsVirtual).Select(CaptureTab)], g.Active?.Doc.JournalId));
         }
         return new SessionModel(groups, activeGroup);
     }

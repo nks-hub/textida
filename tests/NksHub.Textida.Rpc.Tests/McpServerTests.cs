@@ -35,6 +35,8 @@ public class McpServerTests
         public string NewLine(Guid document) => "\n";
         public TableSelectionData? TableSelection(Guid document) => null;
         public void SetClipboard(Guid document, string text, string? html) { }
+        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, NksHub.Textida.Core.Encodings.TextCodec codec) => throw new NotSupportedException();
+        public bool OpenDiff(DiffRequest request) => false;
     }
 
     /// <summary>The user: sees each proposal and answers when the test says so.</summary>
@@ -106,7 +108,7 @@ public class McpServerTests
                 TabTimeout = TimeSpan.FromMilliseconds(500),
                 MaxSecretScanBytes = 1 << 20,
                 MaxClipboardChars = 1000,
-                MaxScanBytes = maxScanBytes,
+                MaxScanBytes = maxScanBytes, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
             }, owner, (_, _, _) => Task.FromResult(false), (_, _, _, _, _) => throw new NotSupportedException());
             var options = new McpServerOptions
             {
@@ -412,6 +414,27 @@ public class McpServerTests
             rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
         }
         finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public async Task A_virtual_document_the_user_shared_is_read_through_the_same_gate_and_takes_no_proposal()
+    {
+        await using var rig = Rig.Create();
+        var doc = Document.CreateVirtual(".env", Utf8("API_KEY=hunter2\nname=shown\n"), PagedBackendFactory.Instance, TextCodec.Utf8);
+        rig.Share(doc);
+
+        var listed = (await rig.ToolAsync("editor_list_documents")).Json.GetProperty("documents");
+        Assert.Equal(doc.Id, Assert.Single(listed.EnumerateArray()).GetProperty("id").GetGuid());
+        var read = (await rig.ToolAsync("editor_read_range", rig.Args(doc))).Json.GetProperty("text").GetString()!;
+        Assert.DoesNotContain("hunter2", read);
+        Assert.Contains("API_KEY=*******", read);
+        Assert.Empty((await rig.ToolAsync("editor_search", rig.Args(doc, "\"text\":\"hunter2\""))).Json.GetProperty("matches").EnumerateArray());
+
+        var edit = await rig.ToolAsync("editor_prepare_changes", rig.Args(doc, $"\"revision\":{doc.Revision},\"edits\":[{{\"start\":0,\"end\":3,\"text\":\"x\"}}]"));
+        Assert.True(edit.IsError);
+        Assert.Contains("read only", edit.Text);
+        Assert.Empty(rig.Reviewer.Seen);
+        rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
     }
 
     // ---- P6.3.2 ----

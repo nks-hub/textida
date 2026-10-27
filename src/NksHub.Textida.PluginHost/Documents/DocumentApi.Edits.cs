@@ -50,7 +50,7 @@ public sealed partial class DocumentApi
         if (_options.Permissions.IsDelegated(pluginId))
             throw new RpcException(DocumentErrorCodes.PermissionDenied, "A command another plugin started cannot write documents.")
             { DataJson = $"{{\"permission\":\"{DocumentPermissions.EditDirect}\",\"reason\":\"Delegated\"}}" };
-        var e = Find(NeedDocumentId(p));
+        var e = FindWritable(NeedDocumentId(p));
         long revision = NeedLong(p, "revision");
         var batchId = NeedString(p, "batchId");
         if (batchId.Length == 0) throw Invalid("Parameter 'batchId' must not be empty.");
@@ -104,7 +104,7 @@ public sealed partial class DocumentApi
     /// </summary>
     private async Task<byte[]> ProposeAsync(string pluginId, JsonElement p, CancellationToken ct)
     {
-        var e = Find(NeedDocumentId(p));
+        var e = FindWritable(NeedDocumentId(p));
         long revision = NeedLong(p, "revision");
         var editsJson = Need(p, "edits");
         var title = p.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
@@ -135,7 +135,7 @@ public sealed partial class DocumentApi
     /// </summary>
     private void GuardSecrets(string pluginId, Document d, IReadOnlyList<ByteEdit> edits)
     {
-        if (!SecretValues.IsSecretFile(d.FilePath) || _options.Permissions.IsGranted(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(d.Id))) return;
+        if (!SecretValues.IsSecretFile(d.SecretsPath) || _options.Permissions.IsGranted(pluginId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(d.Id))) return;
         var hidden = SecretsOf(d, d.GetSnapshot(), d.BomLength)!.Value;
         if (edits.Any(edit => SecretValues.Overlaps(hidden, edit.Range.Start, edit.Range.End)))
             throw PluginPermissions.Denied(DocumentPermissions.SecretsReveal, "Secret", "The edit touches a hidden value of a secrets file; the plugin has not been allowed to see it.");

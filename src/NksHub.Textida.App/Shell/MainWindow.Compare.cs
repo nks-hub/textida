@@ -50,14 +50,14 @@ internal sealed partial class MainWindow
     private DocTab? CompareSource() => Active is { Custom: null, Hex: null } tab && !tab.Doc.IsResults ? tab : null;
 
     /// <summary>Opens a compare tab for two sides and starts the comparison.</summary>
-    internal DocTab OpenCompare(CompareSide left, CompareSide right)
+    internal DocTab OpenCompare(CompareSide left, CompareSide right, string? title = null)
     {
         var session = new CompareSession(left, right);
         var view = new DiffView(session, Options) { ReadClipboard = async () => Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null };
         view.Refused += SetStatusMessage;
         view.ViewChanged += () => { if (ActiveCompare == view) UpdateStatus(); };
         var od = OpenDocument.NewResults();
-        od.TitleOverride = () => Loc.Get(K.CompareTab, ("left", left.Title), ("right", right.Title));
+        od.TitleOverride = () => title ?? Loc.Get(K.CompareTab, ("left", left.Title), ("right", right.Title));
         Adopt(od);
         var tab = new DocTab(od, Options, view);
         tab.ViewClosed += session.Dispose;

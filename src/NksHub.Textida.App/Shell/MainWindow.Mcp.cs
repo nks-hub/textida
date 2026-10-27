@@ -71,7 +71,7 @@ internal sealed partial class MainWindow
             return;
         }
         bool reveal = false;
-        if (SecretValues.IsSecretFile(tab.Path))
+        if (SecretValues.IsSecretFile(tab.Doc.Doc.SecretsPath))
         {
             var buttons = new[] { new DialogButton(Loc.Get(K.McpSecretsKeep), IsDefault: true), new DialogButton(Loc.Get(K.McpSecretsShow)), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
             int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpSecretsTitle), Loc.Get(K.McpSecretsMessage, ("file", tab.Title)), buttons));
