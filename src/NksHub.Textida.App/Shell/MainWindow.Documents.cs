@@ -109,9 +109,7 @@ internal sealed partial class MainWindow
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;
             surface.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
-
             surface.SnippetChoicesRequested += choices => { if (tab == Active) ShowSnippetChoices(surface, choices); };
-
             surface.KeyCommand = RunKeyCommand;
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
@@ -221,7 +219,6 @@ internal sealed partial class MainWindow
         {
             ForgetDocument(od);
             RememberClosed(od);
-
             FindDocumentClosed(od.Doc);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);

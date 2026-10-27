@@ -37,8 +37,7 @@ internal sealed record EditorOptions(
     bool CutCopyWholeLine = false,
     bool HideMouseWhileTyping = true,
     bool LinkNeedsCtrl = true,
-    int WrapIndent = 0)
-
+    int WrapIndent = 0,
     bool MatchBrackets = true)
 {
     /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
@@ -103,8 +102,7 @@ internal sealed record EditorOptions(
             CutCopyWholeLine: s.GetBool("advanced.cutCopyWholeLine"),
             HideMouseWhileTyping: s.GetBool("advanced.hideMouseWhileTyping"),
             LinkNeedsCtrl: s.GetBool("advanced.linkNeedsCtrl"),
-            WrapIndent: (int)s.GetInt("advanced.wrapIndent"));
-
+            WrapIndent: (int)s.GetInt("advanced.wrapIndent"),
             MatchBrackets: s.GetBool("editor.matchBrackets"));
     }
 }

@@ -626,10 +626,8 @@ internal sealed partial class PagedTextView : Grid
         Doc.Read(start, bytes);
         bool truncated = length > take;
         if (truncated) take = Doc.Codec.CompleteLength(bytes);
-        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize, HideAnsi);
-
         DecodedLines++;
-        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize);
+        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize, HideAnsi);
     }
 
     /// <summary>
@@ -683,10 +681,8 @@ internal sealed partial class PagedTextView : Grid
             int take = Math.Min(length, MaxLineBytes);
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
-            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize, HideAnsi);
-
             DecodedLines++;
-            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
+            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize, HideAnsi);
             if (last) return;
             pos = next;
         }
@@ -1636,19 +1632,14 @@ internal sealed partial class PagedTextView : Grid
                             if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
                             else
                             {
-                                window = window.Replace('\t', ' ');
                                 if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window, selection);
-                                var shownWindow = Format(window, fore);
-                                if (owner._tokens.TryGetValue(line, out var windowTokens)) ColorWindow(shownWindow, windowTokens, column, window.Length, palette);
-                                context.DrawText(shownWindow, new Point(x, y));
-
-                                if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window.Length, selection);
                                 string drawn = options.ShowWhitespace ? window.Replace(' ', '·').Replace('\t', '→') : window.Replace('\t', ' ');
                                 var windowText = Format(drawn, fore);
+                                if (owner._tokens.TryGetValue(line, out var windowTokens)) ColorWindow(windowText, windowTokens, column, window.Length, palette);
                                 if (options.ShowWhitespace) DimMarks(windowText, drawn, dim);
                                 context.DrawText(windowText, new Point(x, y));
                                 // a window shorter than asked for holds the end of the line; an empty one starts after it
-                                if (options.ShowLineEndings && window.Length > 0 && window.Length < WindowColumns) DrawLineEnding(context, line, x + window.Length * _digitWidth, y, dim);
+                                if (options.ShowLineEndings && window.Length > 0 && window.Length < WindowColumns) DrawLineEnding(context, line, x + WindowX(window, window.Length), y, dim);
                             }
                             continue;
                         }
