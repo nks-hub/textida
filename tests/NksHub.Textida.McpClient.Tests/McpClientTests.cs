@@ -152,6 +152,33 @@ public sealed class McpClientTests
         Assert.DoesNotContain(secret, (await Assert.ThrowsAsync<McpServerExitedException>(() => client.CallToolAsync("crash"))).Message);
     }
 
+    /// <summary>The official reference server (<c>@modelcontextprotocol/server-everything</c>), started the way an agent's configuration starts it: <c>npx -y package</c>.</summary>
+    [Fact]
+    [Trait("Category", "RealClient")]
+    public async Task The_official_reference_server_lists_its_tools_answers_a_call_and_honours_a_cancel()
+    {
+        var npx = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).SelectMany(d => new[] { "npx.cmd", "npx" }.Select(f => Path.Combine(d, f))).FirstOrDefault(File.Exists);
+        if (npx is null) return; // nothing to test without Node.js
+        var entry = new McpServerEntry("everything", McpAgent.ClaudeCode, McpTransport.Stdio, "npx", ["-y", "@modelcontextprotocol/server-everything"], new Dictionary<string, string>(), null, new Dictionary<string, string>());
+        var launch = McpConfig.BuildLaunch(entry, _ => null, AppContext.BaseDirectory);
+        var log = new Log();
+        await using var client = await McpClient.StartAsync(launch, Options with { HandshakeTimeout = TimeSpan.FromMinutes(3) }, log.Add);
+        Console.WriteLine($"reference server: {client.ServerName} {client.ServerVersion}, protocol {client.ProtocolVersion}");
+
+        var tools = await client.ListToolsAsync();
+        Assert.Contains(tools, t => t.Name == "echo");
+        var echo = await client.CallToolAsync("echo", """{"message":"hello from textida"}""");
+        Assert.False(echo.IsError);
+        Assert.Contains("hello from textida", echo.Text);
+
+        using var cts = new CancellationTokenSource();
+        var slow = client.CallToolAsync("trigger-long-running-operation", """{"duration":60,"steps":60}""", cts.Token);
+        await Task.Delay(500);
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => slow);
+        Assert.Contains("hello again", (await client.CallToolAsync("echo", """{"message":"hello again"}""")).Text); // the server is still there
+    }
+
     [Fact]
     public async Task Disposing_ends_the_server_through_its_input()
     {
