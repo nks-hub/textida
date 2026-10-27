@@ -54,7 +54,7 @@
                     <SolidColorBrush x:Key="AccentSoft">#1F4A43</SolidColorBrush>
                     <SolidColorBrush x:Key="Scrim">#4D000000</SolidColorBrush>
                     <SolidColorBrush x:Key="Highlight">#80B38A00</SolidColorBrush>
-                    <SolidColorBrush x:Key="CurrentLine">#2A2D31</SolidColorBrush>
+                    <SolidColorBrush x:Key="CurrentLine">#25272B</SolidColorBrush>
                     <SolidColorBrush x:Key="BracketMatch">#454B53</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectionBg">#553DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="InfoBg">#26322F</SolidColorBrush>
@@ -101,7 +101,7 @@
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,2,0" />
-            <Setter Property="CornerRadius" Value="7,7,0,0" />
+            <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
         </Style>
         <!-- The active tab takes the editor colour and an accent line, so it reads as the top of the content below -->

@@ -54,7 +54,7 @@ internal sealed partial class EditorSurface : TextEditor
         Options.CutCopyWholeLine = false;
         FontWeight = FontWeight.Normal;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
-        foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
+        TuneGutter();
         TextArea.LeftMargins.Insert(0, new BookmarkMargin(doc.Bookmarks));
         Settings = options;
         ApplyOptions(options);
@@ -93,6 +93,17 @@ internal sealed partial class EditorSurface : TextEditor
     }
 
     public OpenDocument Doc { get; }
+
+    /// <summary>Spaces the line numbers and draws the gutter edge as the same solid line as the edge of the minimap (AvaloniaEdit draws it dotted); again after the line numbers are switched back on, which rebuilds the margins.</summary>
+    private void TuneGutter()
+    {
+        foreach (var margin in TextArea.LeftMargins.OfType<LineNumberMargin>()) margin.Margin = new Thickness(10, 0, 14, 0);
+        foreach (var edge in TextArea.LeftMargins.OfType<Avalonia.Controls.Shapes.Line>())
+        {
+            edge.StrokeDashArray = null;
+            edge.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, this.GetResourceObservable("Border"));
+        }
+    }
     /// <summary>Keeps the syntax colors of this view current.</summary>
     public SyntaxFeeder Syntax { get; }
     public EditorOptions Settings { get; private set; }
