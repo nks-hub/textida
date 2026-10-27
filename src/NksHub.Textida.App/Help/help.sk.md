@@ -733,6 +733,17 @@ Okno výstupu je pruh pod editorom, do ktorého zapisujú úlohy a hľadania. Pr
 - Text sa dá vybrať a skopírovať. Prázdny kanál napíše Do tohto výstupu sa zatiaľ nič nezapísalo.
 - Výstup sa číta zo súborov v profile, takže po páde programu, ktorý ho písal, zostane viditeľný.
 
+## [view.pluginPanels] Panely pluginov
+commands: nks.view.pluginPanels
+Panel pluginu je zoznam alebo strom, ktorý plugin pošle editoru. Editor ho ukáže v ľavom stĺpci.
+1. Zvoľte Zobraziť a Panely pluginov, alebo príkaz nájdite v palete. Zoznam ukáže panely, ktoré pluginy práve majú, a pri každom názov pluginu.
+2. Vyberte panel a stlačte Enter. Otvorí sa s vybranou prvou položkou.
+3. Šípky hore a dole prechádzajú položky, šípka vpravo a vľavo rozbalí a zbalí vetvu. Enter alebo dvojklik položku otvorí.
+4. Esc v paneli ho zavrie a vráti vás do textu. Keď píšete v texte, panel zostane otvorený.
+- Keď plugin položky obnoví, vybraná položka zostane vybraná.
+- Úlohu pluginu zrušíte tlačidlom Zrušiť v stavovom riadku. Riadok potom pri úlohe píše, že sa ruší. Keď ju plugin čoskoro sám neukončí, ukončí ju editor a uvoľní jej miesto.
+- Keď proces pluginu skončí, zmiznú jeho panely, položka stavového riadku aj úlohy.
+
 ## [view.fullscreen] Celá obrazovka
 commands: nks.view.fullScreen
 1. Stlačte F11, alebo zvoľte Zobraziť a Celá obrazovka.

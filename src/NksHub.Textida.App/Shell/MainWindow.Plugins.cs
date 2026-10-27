@@ -16,6 +16,7 @@ using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Ui;
+using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -30,7 +31,10 @@ internal sealed partial class MainWindow
     private readonly Button _pluginPanelClose = new() { Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly TreeView _pluginTree = new() { Background = Brushes.Transparent, Focusable = true };
     private readonly StackPanel _pluginStatus = new() { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
+    private readonly Dictionary<string, TextBlock> _pluginStatusItems = [];
+    private readonly Dictionary<(string Plugin, string Task), StackPanel> _pluginTaskRows = [];
     private (string Plugin, string Panel)? _pluginPanelKey;
+    private PluginPanel? _pluginPanelDrawn;
 
     public bool PluginPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _pluginPanel.IsVisible;
     internal TreeView PluginTree => _pluginTree;
@@ -126,9 +130,38 @@ internal sealed partial class MainWindow
     private void OnPluginPanelRevealed(string plugin, string panel)
     {
         if (!ReferenceEquals(_app.ActiveWindow, this)) return;
+        ShowPluginPanel(plugin, panel, focus: !PluginPanelOpen);
+    }
+
+    /// <summary>Shows a panel a plugin has sent in the left column; with <paramref name="focus"/> the keyboard goes to its selected (or first) item.</summary>
+    internal void ShowPluginPanel(string plugin, string panel, bool focus = true)
+    {
         _pluginPanelKey = (plugin, panel);
-        RefreshPluginUi();
-        if (!PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, true);
+        RefreshPluginPanel(_app.Plugins.Ui);
+        if (focus && _pluginPanelKey is not null) ToggleLeft(LeftPanel.Plugin, true);
+    }
+
+    /// <summary>The panels the plugins show now, in the quick list; the chosen one opens on the left.</summary>
+    internal CommandOutcome ShowPluginPanels()
+    {
+        var plugins = _app.Plugins;
+        var names = PluginServices.BuiltIns.ToDictionary(b => b.Id, b => b.Name, StringComparer.Ordinal);
+        if (plugins.Ui.Panels.Any(p => !names.ContainsKey(p.PluginId)))
+            foreach (var installed in plugins.Manager.Installed()) names.TryAdd(installed.Id, installed.Name);
+        var rows = plugins.Ui.Panels.Select(p =>
+        {
+            string plugin = names.GetValueOrDefault(p.PluginId, p.PluginId);
+            return new QuickRow(p.Model.Title, plugin, null, null, true, null, p.Model.Title + ", " + plugin, () => ShowPluginPanel(p.PluginId, p.Model.Id));
+        }).ToList();
+        ShowChoice(Loc.Get(K.PluginPanelsWatermark), Loc.Get(K.A11yPluginPanels), rows, emptyText: Loc.Get(K.PluginPanelsEmpty));
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Gives the keyboard to the panel: the selected item, else the first one, so the arrows and Enter work at once and a screen reader names an item.</summary>
+    private void FocusPluginTree()
+    {
+        if (_pluginTree.SelectedItem is null && _pluginTree.Items.Count > 0) _pluginTree.SelectedItem = _pluginTree.Items[0];
+        if (_pluginTree.SelectedItem is not TreeViewItem item || !item.Focus()) _pluginTree.Focus();
     }
 
     /// <summary>Draws the panel, the status items and the tasks again from the state the plugins have sent.</summary>
@@ -139,15 +172,22 @@ internal sealed partial class MainWindow
         _pluginPanelClose.SetValue(ToolTip.TipProperty, Loc.Get(K.PluginPanelClose));
         AutomationProperties.SetName(_pluginPanelClose, Loc.Get(K.PluginPanelClose));
 
-        _pluginStatus.Children.Clear();
+        // items and rows are updated in place: rebuilding them on every progress report would lose a click on Cancel that lands between two reports
+        var shown = new List<Control>(ui.Status.Count + ui.Tasks.Count);
         foreach (var (plugin, status) in ui.Status)
         {
-            var item = new TextBlock { Text = status.Text, VerticalAlignment = VerticalAlignment.Center };
-            if (status.Tooltip is not null) ToolTip.SetTip(item, status.Tooltip);
+            if (!_pluginStatusItems.TryGetValue(plugin, out var item)) _pluginStatusItems[plugin] = item = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            item.Text = status.Text;
+            ToolTip.SetTip(item, status.Tooltip);
             AutomationProperties.SetName(item, status.Text);
-            _pluginStatus.Children.Add(item);
+            shown.Add(item);
         }
-        foreach (var task in ui.Tasks) _pluginStatus.Children.Add(BuildTaskItem(task));
+        foreach (var gone in _pluginStatusItems.Keys.Where(k => !ui.Status.ContainsKey(k)).ToList()) _pluginStatusItems.Remove(gone);
+        foreach (var task in ui.Tasks) shown.Add(PluginTaskRow(task));
+        foreach (var gone in _pluginTaskRows.Keys.Where(k => !ui.Tasks.Any(t => t.PluginId == k.Plugin && t.Model.Id == k.Task)).ToList()) _pluginTaskRows.Remove(gone);
+        if (_pluginStatus.Children.SequenceEqual(shown)) return;
+        _pluginStatus.Children.Clear();
+        _pluginStatus.Children.AddRange(shown);
     }
 
     private void RefreshPluginPanel(PluginUiHost ui)
@@ -158,6 +198,7 @@ internal sealed partial class MainWindow
             if (_pluginPanelKey is not null)
             {
                 _pluginPanelKey = null;
+                _pluginPanelDrawn = null;
                 _pluginTree.Items.Clear();
                 if (PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, false);
             }
@@ -167,8 +208,27 @@ internal sealed partial class MainWindow
         string name = Loc.Get(K.A11yPluginPanel, ("title", shown.Model.Title));
         AutomationProperties.SetName(_pluginPanel, name);
         AutomationProperties.SetName(_pluginTree, name);
+        if (ReferenceEquals(_pluginPanelDrawn?.Model, shown.Model)) return; // a status or task change: the tree keeps its selection and focus
+
+        // new items of the same panel keep the selected item (by id) and the keyboard where they were
+        bool samePanel = _pluginPanelDrawn is { } drawn && drawn.PluginId == shown.PluginId && drawn.Model.Id == shown.Model.Id;
+        string? selected = samePanel ? (_pluginTree.SelectedItem as TreeViewItem)?.Tag as string : null;
+        bool focused = samePanel && _pluginTree.IsKeyboardFocusWithin;
+        _pluginPanelDrawn = shown;
         _pluginTree.Items.Clear();
         foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
+        if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
+        if (focused) FocusPluginTree();
+    }
+
+    private static TreeViewItem? FindPluginNode(ItemCollection items, string id)
+    {
+        foreach (var node in items.OfType<TreeViewItem>())
+        {
+            if ((string?)node.Tag == id) return node;
+            if (FindPluginNode(node.Items, id) is { } found) return found;
+        }
+        return null;
     }
 
     private static TreeViewItem BuildPluginNode(PanelItem item)
@@ -182,23 +242,39 @@ internal sealed partial class MainWindow
         return node;
     }
 
-    private Control BuildTaskItem(PluginTask task)
+    /// <summary>The row of a task: its text, a progress bar and, while it can still be cancelled, the Cancel button. A cancelled task says so until it ends.</summary>
+    private StackPanel PluginTaskRow(PluginTask task)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        var text = task.Progress.Message is { Length: > 0 } message ? task.Model.Title + ": " + message : task.Model.Title;
-        row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
-        var bar = new ProgressBar { Width = 80, Height = 4, Minimum = 0, Maximum = 1, IsIndeterminate = task.Progress.Fraction is null, Value = task.Progress.Fraction ?? 0, VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(bar);
-        AutomationProperties.SetName(row, task.Progress.Fraction is { } f
-            ? Loc.Get(K.A11yPluginTask, ("title", task.Model.Title), ("percent", (int)Math.Round(f * 100)))
-            : Loc.Get(K.A11yPluginTaskBusy, ("title", task.Model.Title)));
-        if (task.Model.Cancellable)
+        var key = (task.PluginId, task.Model.Id);
+        if (!_pluginTaskRows.TryGetValue(key, out var row))
         {
-            var cancel = new Button { Content = Loc.Get(K.PluginTaskCancel), VerticalAlignment = VerticalAlignment.Center };
-            cancel.Classes.Add("statusitem");
-            AutomationProperties.SetName(cancel, Loc.Get(K.A11yPluginTaskCancel, ("title", task.Model.Title)));
-            cancel.Click += (_, _) => { if (_app.Plugins.Ui.Api is { } api) _ = api.CancelTaskAsync(task.PluginId, task.Model.Id); };
-            row.Children.Add(cancel);
+            row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(new TextBlock { VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new ProgressBar { Width = 80, Height = 4, Minimum = 0, Maximum = 1, VerticalAlignment = VerticalAlignment.Center });
+            if (task.Model.Cancellable)
+            {
+                var cancel = new Button { VerticalAlignment = VerticalAlignment.Center };
+                cancel.Classes.Add("statusitem");
+                cancel.Click += (_, _) => _ = _app.Plugins.Ui.CancelAsync(key.PluginId, key.Id);
+                row.Children.Add(cancel);
+            }
+            _pluginTaskRows[key] = row;
+        }
+        string title = task.Model.Title;
+        var progress = task.Progress;
+        string text = task.Cancelling ? Loc.Get(K.PluginTaskCancelling, ("title", title)) : progress.Message is { Length: > 0 } message ? title + ": " + message : title;
+        ((TextBlock)row.Children[0]).Text = text;
+        var bar = (ProgressBar)row.Children[1];
+        bar.IsIndeterminate = progress.Fraction is null;
+        bar.Value = progress.Fraction ?? 0;
+        AutomationProperties.SetName(row, task.Cancelling ? text : progress.Fraction is { } f
+            ? Loc.Get(K.A11yPluginTask, ("title", title), ("percent", (int)Math.Round(f * 100)))
+            : Loc.Get(K.A11yPluginTaskBusy, ("title", title)));
+        if (row.Children.Count > 2 && row.Children[2] is Button button)
+        {
+            button.Content = Loc.Get(K.PluginTaskCancel);
+            AutomationProperties.SetName(button, Loc.Get(K.A11yPluginTaskCancel, ("title", title)));
+            button.IsVisible = !task.Cancelling;
         }
         return row;
     }

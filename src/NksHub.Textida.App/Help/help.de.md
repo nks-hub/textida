@@ -728,6 +728,17 @@ Das Ausgabefenster ist ein Streifen unter dem Editor, in den Aufgaben und Suchen
 - Der Text lässt sich markieren und kopieren. Ein leerer Kanal meldet In diese Ausgabe wurde noch nichts geschrieben.
 - Die Ausgabe wird aus Dateien im Profil gelesen und bleibt deshalb nach einem Absturz des schreibenden Programms sichtbar.
 
+## [view.pluginPanels] Plugin-Bereiche
+commands: nks.view.pluginPanels
+Ein Plugin-Bereich ist eine Liste oder ein Baum, den ein Plugin an den Editor schickt. Der Editor zeigt ihn in der linken Spalte.
+1. Wählen Sie Ansicht und dann Plugin-Bereiche oder suchen Sie den Befehl in der Palette. Die Liste zeigt die Bereiche, die Plugins gerade haben, jeweils mit dem Namen des Plugins.
+2. Wählen Sie einen Bereich und drücken Sie Enter. Er öffnet sich mit dem ersten Eintrag ausgewählt.
+3. Die Pfeiltasten nach oben und unten gehen durch die Einträge, nach rechts und links klappen sie einen Zweig auf und zu. Enter oder ein Doppelklick öffnet einen Eintrag.
+4. Esc im Bereich schließt ihn und bringt Sie zurück in den Text. Während Sie im Text schreiben, bleibt der Bereich offen.
+- Wenn das Plugin die Einträge erneuert, bleibt der ausgewählte Eintrag ausgewählt.
+- Abbrechen in der Statusleiste bricht eine Aufgabe eines Plugins ab. Die Zeile meldet dann, dass die Aufgabe abgebrochen wird. Beendet das Plugin sie nicht bald selbst, beendet der Editor sie und gibt ihren Platz frei.
+- Wenn der Plugin-Prozess endet, verschwinden seine Bereiche, sein Eintrag in der Statusleiste und seine Aufgaben.
+
 ## [view.fullscreen] Vollbild
 commands: nks.view.fullScreen
 1. Drücken Sie F11 oder wählen Sie Ansicht und dann Vollbild.

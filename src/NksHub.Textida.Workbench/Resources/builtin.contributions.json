@@ -732,6 +732,11 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.view.pluginPanels",
+      "title": "cmd.view.pluginPanels",
+      "category": "cat.view"
+    },
+    {
       "id": "nks.view.fullScreen",
       "title": "cmd.view.fullScreen",
       "category": "cat.view"
@@ -2681,6 +2686,12 @@
       "command": "nks.view.toggleOutput",
       "group": "3_panels/4_panels",
       "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.pluginPanels",
+      "group": "3_panels/4_panels",
+      "order": 40
     },
     {
       "menu": "view",

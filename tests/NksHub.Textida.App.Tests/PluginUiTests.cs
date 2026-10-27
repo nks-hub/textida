@@ -196,13 +196,88 @@ public class PluginUiTests : IDisposable
         Assert.Empty(_app.Plugins.Ui.Tasks);
     }
 
+    private const string TwoItems = "\"items\":[{\"id\":\"a\",\"label\":\"first\"},{\"id\":\"b\",\"label\":\"second\"}]";
+
+    [AvaloniaFact]
+    public async Task A_panel_opens_from_the_palette_with_the_keyboard_on_its_first_item_and_Esc_in_it_closes_it()
+    {
+        _w.Show();
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\"," + TwoItems + "}"));
+        await Until(() => _app.Plugins.Ui.Panels.Count == 1, "the panel data");
+        Assert.False(_w.PluginPanelOpen);
+
+        await _app.Workbench.Commands.ExecuteAsync("nks.view.pluginPanels", new ShellContext(_w, forMenu: false));
+        Assert.True(_w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice);
+        var row = Assert.Single(_w.QuickResults);
+        Assert.Equal(("Todo", "p"), (row.Title, row.Category));
+        _w.RunPaletteSelection();
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.SelectedItem is TreeViewItem { Tag: "a" } && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard on the first item");
+        Assert.Equal("Todo", _w.PluginPanelTitle);
+        Assert.Equal("view.pluginPanels", _w.HelpContextTopic());
+
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        Assert.False(_w.PluginPanelOpen);
+    }
+
+    [AvaloniaFact]
+    public async Task The_panel_list_says_so_when_no_plugin_shows_a_panel()
+    {
+        await _app.Workbench.Commands.ExecuteAsync("nks.view.pluginPanels", new ShellContext(_w, forMenu: false));
+        Assert.Empty(_w.QuickResults);
+        Assert.Equal(Loc.Get(K.PluginPanelsEmpty), _w.PaletteEmptyText);
+    }
+
+    [AvaloniaFact]
+    public async Task New_items_of_the_open_panel_keep_the_selected_item_and_a_status_change_leaves_the_tree_alone()
+    {
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen, "the panel");
+        var second = _w.PluginTree.Items.OfType<TreeViewItem>().Single(i => (string?)i.Tag == "b");
+        _w.PluginTree.SelectedItem = second;
+
+        await Pump(Editor(UiMethods.StatusSet, "{\"text\":\"busy\"}"));
+        await Until(() => ((Panel)_w.PluginStatusHost).Children.Count == 1, "the status item");
+        Assert.Same(second, _w.PluginTree.SelectedItem);
+
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"items\":[{\"id\":\"new\",\"label\":\"zero\"},{\"id\":\"a\",\"label\":\"first\"},{\"id\":\"b\",\"label\":\"second\"}]}"));
+        await Until(() => _w.PluginTree.Items.Count == 3, "the new items");
+        Assert.Equal("b", (_w.PluginTree.SelectedItem as TreeViewItem)?.Tag);
+    }
+
+    [AvaloniaFact]
+    public async Task A_task_row_is_kept_while_progress_comes_and_says_it_cancels_once_Cancel_was_pressed()
+    {
+        await StartPluginAsync();
+        var id = (await Pump(Editor(UiMethods.TaskStart, "{\"title\":\"Indexing\",\"cancellable\":true}"))).GetProperty("task").GetString()!;
+        await Until(() => ((Panel)_w.PluginStatusHost).Children.Count == 1, "the task row");
+        var row = (StackPanel)((Panel)_w.PluginStatusHost).Children[0];
+        var cancel = row.Children.OfType<Button>().Single();
+
+        // a row rebuilt on every report would drop a click that lands between two of them
+        await Pump(Editor(UiMethods.TaskProgress, $"{{\"task\":\"{id}\",\"fraction\":0.5}}"));
+        await Until(() => row.Children.OfType<ProgressBar>().Single().Value == 0.5, "the progress in the same row");
+        Assert.Same(row, ((Panel)_w.PluginStatusHost).Children[0]);
+
+        cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await WaitForEventAsync(UiEvents.TaskCancelled);
+        await Until(() => !cancel.IsVisible, "the row saying it cancels");
+        Assert.Equal(Loc.Get(K.PluginTaskCancelling, ("title", "Indexing")), row.Children.OfType<TextBlock>().Single().Text);
+        Assert.True(_app.Plugins.Ui.Tasks.Single().Cancelling);
+
+        await Pump(Editor(UiMethods.TaskEnd, $"{{\"task\":\"{id}\"}}"));
+        await Until(() => ((Panel)_w.PluginStatusHost).Children.Count == 0, "the row gone after the end");
+    }
+
     [AvaloniaFact]
     public void The_texts_of_the_plugin_UI_exist_in_every_language()
     {
         foreach (var tag in Loc.Languages)
         {
             Loc.SetLanguage(tag);
-            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated })
+            foreach (var key in new[] { K.PluginPanelClose, K.A11yPluginPanel, K.PluginTaskCancel, K.A11yPluginTaskCancel, K.A11yPluginTask, K.A11yPluginTaskBusy, K.PluginPickWatermark, K.A11yPluginPick, K.PluginUnavailable, K.PluginProposal, K.PluginSymbolsTitle, K.PluginSymbolsOutdated,
+                K.PluginTaskCancelling, K.PluginPanelsWatermark, K.A11yPluginPanels, K.PluginPanelsEmpty })
                 Assert.NotEqual(key, Loc.Get(key));
         }
     }

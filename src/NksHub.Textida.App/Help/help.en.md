@@ -728,6 +728,17 @@ The output window is a strip below the editor that tasks and searches write to. 
 - The text can be selected and copied. An empty channel says Nothing has been written to this output yet.
 - The output is read from files in the profile, so it stays visible after the program that wrote it crashed.
 
+## [view.pluginPanels] Plugin panels
+commands: nks.view.pluginPanels
+A plugin panel is a list or a tree that a plugin sends to the editor. The editor shows it in the left column.
+1. Choose View and then Plugin Panels, or find the command in the palette. The list shows the panels the plugins have now, each with the name of its plugin.
+2. Select a panel and press Enter. It opens with its first item selected.
+3. Up and Down arrow walk through the items, Right and Left arrow expand and collapse a branch. Enter or a double click opens an item.
+4. Esc in the panel closes it and takes you back to the text. While you type in the text, the panel stays open.
+- When the plugin refreshes the items, the selected item stays selected.
+- Cancel in the status bar cancels a task of a plugin. The row then says that the task is being cancelled. If the plugin does not end the task soon, the editor ends it and frees its place.
+- When the plugin process stops, its panels, its status bar item and its tasks disappear.
+
 ## [view.fullscreen] Full screen
 commands: nks.view.fullScreen
 1. Press F11, or choose View and then Full Screen.

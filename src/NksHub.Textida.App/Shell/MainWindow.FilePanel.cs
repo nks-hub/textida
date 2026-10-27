@@ -135,13 +135,19 @@ internal sealed partial class MainWindow
         _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
         _leftHost.IsVisible = show;
         _menuModel = BuildMenuModel();
-        if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : which == LeftPanel.Plugin ? _pluginTree : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
+        if (show && which == LeftPanel.Plugin) Dispatcher.UIThread.Post(FocusPluginTree, DispatcherPriority.Input);
+        else if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
         else if (Active is { } tab) FocusView(tab);
     }
 
-    /// <summary>Closes whichever left panel is open; false when none was.</summary>
+    /// <summary>Closes whichever left panel is open; false when none was. A plugin panel closes only from inside: it stays beside the text while you type.</summary>
     private bool CloseLeftPanel()
     {
+        if (PluginPanelOpen && _pluginPanel.IsKeyboardFocusWithin)
+        {
+            ToggleLeft(LeftPanel.Plugin, false);
+            return true;
+        }
         if (!DocumentsPanelOpen && !FilePanelOpen) return false;
         ToggleLeft(DocumentsPanelOpen ? LeftPanel.Documents : LeftPanel.Files, false);
         return true;
