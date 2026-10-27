@@ -323,22 +323,35 @@ public class FileTreeTests(Xunit.Abstractions.ITestOutputHelper output)
     public async Task A_folder_with_a_hundred_thousand_files_opens_after_one_listing()
     {
         using var dir = new JournalTempDir();
+        // a first listing pays for JIT and thread pool start-up; that is not what the gate measures
+        using (var warm = new FileTree(dir.Path)) await warm.LoadRootAsync();
+
         string big = dir.Combine("big");
         Directory.CreateDirectory(big);
         Parallel.For(0, 100_000, i => File.WriteAllBytes(Path.Combine(big, $"f{i:D6}.txt"), []));
         File.WriteAllText(dir.Combine("readme.txt"), "");
 
+        // the median of five listings of the root, so one stall of the disk right after 100000 creations does not decide
+        var roots = new List<long>();
+        for (int i = 0; i < 5; i++)
+        {
+            using var probe = new FileTree(dir.Path);
+            var timer = Stopwatch.StartNew();
+            await probe.LoadRootAsync();
+            roots.Add(timer.ElapsedMilliseconds);
+            Assert.Equal(2, probe.Rows.Count); // the folder is not read until it is opened
+        }
+        roots.Sort();
+        long root = roots[roots.Count / 2];
+
         using var tree = new FileTree(dir.Path);
-        var sw = Stopwatch.StartNew();
         await tree.LoadRootAsync();
-        long root = sw.ElapsedMilliseconds;
-        Assert.Equal(2, tree.Rows.Count); // the folder is not read until it is opened
-        sw.Restart();
+        var sw = Stopwatch.StartNew();
         await tree.ExpandAsync(big);
         long opened = sw.ElapsedMilliseconds;
         Assert.Equal(100_002, tree.Rows.Count);
-        output.WriteLine($"root folder {root} ms, 100000 files opened in {opened} ms");
-        Assert.True(root < 500);
+        output.WriteLine($"root folder {string.Join("/", roots)} ms, 100000 files opened in {opened} ms");
+        Assert.True(root < 500, $"root listing median {root} ms ({string.Join("/", roots)})");
     }
 }
 
