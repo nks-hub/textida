@@ -2222,6 +2222,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Jeden deklarativní záznam na skupinu jazyků: přípony a jména souborů, gramatika, příkaz LSP s ověřenou verzí, formátovač, linter s formátem výstupu a tabulkou závažností, konfigurační soubory, manifest. Na začátku 17 skupin z tabulky analýza konkurence. Editor nástroj jen najde (PATH, `node_modules/.bin`, `vendor/bin`, `.venv`) nebo použije cestu od uživatele; nic nestahuje. Navíc Ruff, Prettier/Biome, ShellCheck, shfmt, SQLFluff, StyLua, `dart format`.
   - **Funkce:** F213
   - **Hotovo, když:** existuje verzovaná tabulka skupina → formát → nástroj a verze → scénář → OS pro všech 17 skupin; pro každou slíbenou kombinaci projde úspěch, syntaktická chyba, chybějící nástroj, timeout a zakázaná síť; editor nástroj najde v PATH i v lokální složce projektu a nic nestáhne.
+  - **Stav 27. 10. 2026:** částečně: `LanguageCatalog` (Core/Tools, verze 1, 17 skupin) je jediný zdroj přípon, jmen souborů, gramatik, LSP, formátovačů, linterů, konfigurací a manifestů; čtou ho `ConfigFormatters`, LSP plugin a `LanguageModes`. Ruff, Prettier, Biome, ShellCheck, shfmt, SQLFluff, StyLua a `dart format` jako data. `ToolLocator` hledá v cestě od uživatele, `node_modules/.bin`, `vendor/bin`, `.venv` a PATH, nic nestahuje; testy přes ToolEcho (úspěch, chyba, chybějící nástroj, timeout). Chybí: tabulka skupina → nástroj → scénář → OS, připnuté verze, ověření se skutečnými nástroji (jen gofmt), nastavení cesty od uživatele; LSP plugin dál startuje jen C# servery a akce při uložení nabízejí jen původní čtyři formátovače.
   - **Závisí na:** P8.5.1, P8.3.1
   - **Odhad:** F213 1–2 ČT (matice); další nástroje 1–2 ČT
   - **Umístění:** data, čte je jádro a podle nich spouští LSP plugin
@@ -2277,10 +2278,11 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.7.3
   - **Odhad:** v rámci F183 (viz P8.7.3); Go, Rust, Ruby 1–2 ČT
   - **Umístění:** vestavěný plugin
-- [ ] **P8.7.4** Konfigurace platná pro soubor
+- [x] **P8.7.4** Konfigurace platná pro soubor
   - **Co a proč:** Stavový řádek ukáže konfigurace platné pro kartu (`.editorconfig`, `.clang-format`, `.clang-tidy`, `.rubocop.yml`, `rustfmt.toml`, `.golangci.yml`), klik otevře, chybějící jde založit ze šablony. Jen procházení nadřazených složek, bez spouštění nástrojů.
   - **Funkce:** F210
   - **Hotovo, když:** u souboru v podsložce stavový řádek ukáže nejbližší nadřazený `.editorconfig` a `.clang-format`.
+  - **Stav 27. 10. 2026:** hotovo: `ConfigFiles` najde platné konfigurace jen průchodem nadřazených složek (soubory z katalogu P8.5.3), stavový řádek je ukáže, klik otevře seznam, chybějící jde založit z vlastní minimální šablony (příkaz `nks.file.configFiles`, nápověda 4 jazyky); test: soubor v podsložce ukáže nejbližší `.editorconfig` a `.clang-format`. Seznam se obnoví při otevření, uložení a přejmenování, ne při vytvoření souboru zvenku; prázdný `.editorconfig` se neukáže.
   - **Závisí na:** P2.6.1, P8.5.3
   - **Odhad:** F210 0,5–1 ČT (matice)
   - **Umístění:** jádro
