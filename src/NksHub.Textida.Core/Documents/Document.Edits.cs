@@ -27,6 +27,8 @@ public sealed partial class Document
     private readonly List<UndoEntry> _undo = [];
     private readonly List<UndoEntry> _redo = [];
     private UndoEntry? _saved;
+    /// <summary>The newest undo step when a save took its snapshot: edits made while it runs must not join it, or it would no longer be the saved state.</summary>
+    private UndoEntry? _joinBarrier;
     private bool _savedUnreachable;
     private int _groupDepth;
     private UndoEntry? _groupEntry;
@@ -55,7 +57,7 @@ public sealed partial class Document
     public EditResult Apply(IReadOnlyList<ByteEdit> edits, EditOptions? options = null)
     {
         ThrowIfDisposed();
-        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
+        if (_saving && !_editsDuringSave) return EditResult.Fail(ConflictReason.Saving, _revision);
         options ??= new();
         long baseRevision = options.BaseRevision ?? _revision;
         var work = new List<Pending>(edits.Count);
@@ -384,7 +386,7 @@ public sealed partial class Document
         }
         UndoEntry? top = _undo.Count > 0 ? _undo[^1] : null;
         if (_groupDepth > 0 && _groupEntry is { } group) Join(group, step);
-        else if (_groupDepth == 0 && key is not null && top is not null && top.Key == key && top != _saved) Join(top, step);
+        else if (_groupDepth == 0 && key is not null && top is not null && top.Key == key && top != _saved && top != _joinBarrier) Join(top, step);
         else
         {
             var entry = new UndoEntry(key);
@@ -459,13 +461,18 @@ public sealed partial class Document
     /// <summary>Takes the current content as the saved one without a file, for a document whose text was handed on elsewhere (a string fragment written back).</summary>
     public void MarkClean() => MarkSaved();
 
-    private void MarkSaved()
+    private void MarkSaved(SaveMark? mark = null)
     {
         if (FilePath is { } saved && _backend.BackingPath is { } mapped && SamePath(mapped, saved)) ReleaseFillUndo();
-        _saved = _undo.Count > 0 ? _undo[^1] : null;
+        var top = mark is { } m ? m.Top : _undo.Count > 0 ? _undo[^1] : null;
+        // a step that fill-undo release removed is below everything left, so the empty history is the saved state
+        _saved = top is not null && _undo.Contains(top) ? top : null;
         _savedUnreachable = false;
-        SavedRevision = _revision;
+        SavedRevision = mark?.Revision ?? _revision;
     }
+
+    /// <summary>Undo steps that were there at the last save (all of them when nothing changed since).</summary>
+    internal int SavedUndoDepth => _saved is null ? 0 : _undo.IndexOf(_saved) + 1;
 
     /// <summary>Revision of the last save; the revision the document was created or opened at (0) until then.</summary>
     public long SavedRevision { get; private set; }

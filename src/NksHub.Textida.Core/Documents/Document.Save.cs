@@ -17,13 +17,26 @@ public sealed record SavePlan(SaveMode Mode, IReadOnlyList<ByteRange> Ranges, lo
 public sealed partial class Document
 {
     private bool _saving;
+    private bool _editsDuringSave;
     private CancellationTokenSource? _saveCancel;
 
     /// <summary>Test seam of the in-place write.</summary>
     internal PatchHooks? InPlaceHooks;
 
-    /// <summary>True while a save works on a snapshot; the document takes no change meanwhile (<see cref="ConflictReason.Saving"/>).</summary>
+    /// <summary>Test seam of the streamed save: called with the step (<c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
+    internal Action<string, string>? StreamSaveStep;
+
+    /// <summary>The state a save writes: what the document was when its snapshot was taken, which may be older than the document is when the save ends.</summary>
+    private readonly record struct SaveMark(UndoEntry? Top, long Revision, long Length);
+
+    /// <summary>
+    /// True while a save works on a snapshot. The document takes no change meanwhile (<see cref="ConflictReason.Saving"/>), except edits
+    /// while a whole new file is streamed by a backend that can keep them (<see cref="EditsDuringSave"/>).
+    /// </summary>
     public bool IsSaving => _saving;
+
+    /// <summary>True while a save runs and <see cref="Apply"/> still takes edits; they stay unsaved when the save ends.</summary>
+    public bool EditsDuringSave => _saving && _editsDuringSave;
 
     /// <summary>
     /// How <see cref="Save"/> would write the document to its own file now: in place when only same-length changes happened since
@@ -82,7 +95,7 @@ public sealed partial class Document
         BeforeSaveCommit?.Invoke();
         var (digests, blockConflict) = CheckOriginalBlocks(target, plan, snapshot, guard, CancellationToken.None);
         if (blockConflict is not null) return new(false, blockConflict);
-        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+        Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
         InPlacePatch.Apply(target, plan.Ranges, snapshot, CancellationToken.None, InPlaceHooks, _backend.BeginInPlaceWrite());
         if (VerifyWritten(target, hash) is { } differs) return new(false, differs);
         CompleteSave(target, hash, AcceptDigests(digests));
@@ -155,14 +168,14 @@ public sealed partial class Document
         return change;
     }
 
-    private void CompleteSave(string target, string hash, OriginalBlockHashes? baseline)
+    private void CompleteSave(string target, string hash, OriginalBlockHashes? baseline, SaveMark? mark = null)
     {
         _baseline = baseline;
         _snapshot = null; // the cached snapshot predates the write; dropping it lets the preserved old bytes go
         FilePath = target;
-        Fingerprint = new FileFingerprint(ByteLength, File.GetLastWriteTimeUtc(target), hash);
+        Fingerprint = new FileFingerprint(mark?.Length ?? ByteLength, File.GetLastWriteTimeUtc(target), hash);
         _lastReported = null;
-        MarkSaved();
+        MarkSaved(mark);
         Saved?.Invoke(this, EventArgs.Empty);
     }
 
@@ -182,14 +195,23 @@ public sealed partial class Document
         _saveCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var ct = _saveCancel.Token;
         string? temp = null;
+        bool streaming = false;
         try
         {
             var plan = inPlace ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
+            // the snapshot is taken before the first await, so the document takes edits (when it can) from the moment the save is called
+            streaming = plan.Mode == SaveMode.Stream && _backend.EditsDuringStreamingSave;
+            IByteSnapshot? snapshot = streaming ? _backend.BeginStreamingSave() : _backend.CreateSnapshot();
+            var mark = new SaveMark(_undo.Count > 0 ? _undo[^1] : null, _revision, snapshot.ByteLength);
+            if (streaming)
+            {
+                _joinBarrier = mark.Top;
+                _editsDuringSave = true;
+            }
             // an in-place save checks the file once, after the hash; a new file checks before and after it is written
             if (guard && plan.Mode == SaveMode.Stream && await Task.Run(CheckExternalChange, CancellationToken.None) is { } early) return new(false, early);
             ct.ThrowIfCancellationRequested();
 
-            IByteSnapshot? snapshot = _backend.CreateSnapshot();
             string hash;
             OriginalBlockHashes? baseline;
             if (plan.Mode == SaveMode.InPlace)
@@ -202,7 +224,7 @@ public sealed partial class Document
                     BeforeSaveCommit?.Invoke();
                     var (digests, blockConflict) = await Task.Run(() => CheckOriginalBlocks(target, plan, snapshot!, guard, ct), CancellationToken.None);
                     if (blockConflict is not null) return new(false, blockConflict);
-                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+                    Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
                     await Task.Run(() => InPlacePatch.Apply(target, plan.Ranges, snapshot!, ct, InPlaceHooks, _backend.BeginInPlaceWrite()), CancellationToken.None);
                     if (await Task.Run(() => VerifyWritten(target, hash), CancellationToken.None) is { } differs) return new(false, differs);
                     baseline = AcceptDigests(digests);
@@ -218,7 +240,11 @@ public sealed partial class Document
             {
                 temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
                 string tempPath = temp;
-                try { (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct), CancellationToken.None); }
+                try
+                {
+                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct), CancellationToken.None);
+                    StreamSaveStep?.Invoke("temp-written", tempPath);
+                }
                 catch (SnapshotInvalidatedException) when (guard)
                 {
                     if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } changed) return new(false, changed);
@@ -228,15 +254,21 @@ public sealed partial class Document
                 ct.ThrowIfCancellationRequested();
                 _snapshot = null;
                 snapshot = null;
-                Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+                Saving?.Invoke(this, new SavingEventArgs(target, mark.Length, hash, mark.Revision));
+                StreamSaveStep?.Invoke("before-swap", tempPath);
                 if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(tempPath, target);
                 else FileSwap.Replace(tempPath, target);
+                StreamSaveStep?.Invoke("after-swap", tempPath);
             }
-            CompleteSave(target, hash, baseline);
+            CompleteSave(target, hash, baseline, streaming ? mark : null);
+            StreamSaveStep?.Invoke("saved", target);
             return new(true, null);
         }
         finally
         {
+            if (streaming) _backend.EndStreamingSave();
+            _editsDuringSave = false;
+            _joinBarrier = null;
             _saving = false;
             _saveCancel?.Dispose();
             _saveCancel = null;

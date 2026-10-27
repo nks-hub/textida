@@ -139,7 +139,7 @@ public sealed partial class Document
             BeforeSaveCommit?.Invoke();
             if (guard && CheckExternalChange() is { } late) return new(false, late);
 
-            Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash));
+            Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
             if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
             else FileSwap.Replace(temp, target);
 

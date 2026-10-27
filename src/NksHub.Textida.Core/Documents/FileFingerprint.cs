@@ -34,9 +34,10 @@ public enum ExternalChangeKind
 /// <summary>A conflict between the document and its file on disk.</summary>
 public sealed record ExternalChange(Guid DocumentId, long Revision, string Path, FileFingerprint Expected, FileFingerprint? Actual, ExternalChangeKind Kind);
 
-/// <summary>Size and SHA-256 of the file a save is about to move over <see cref="Target"/>.</summary>
-public sealed class SavingEventArgs(string target, long size, string sha256) : EventArgs
+/// <summary>Size and SHA-256 of the file a save is about to move over <see cref="Target"/>; <see cref="Revision"/> is the revision that file holds (the document may be further on).</summary>
+public sealed class SavingEventArgs(string target, long size, string sha256, long revision = -1) : EventArgs
 {
+    public long Revision { get; } = revision;
     public string Target { get; } = target;
     public long Size { get; } = size;
     public string Sha256 { get; } = sha256;

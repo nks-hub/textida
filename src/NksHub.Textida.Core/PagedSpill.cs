@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 using Microsoft.Win32.SafeHandles;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core;
 
@@ -37,6 +38,18 @@ internal sealed class SpillFile : IDisposable
         string path = Path.Combine(dir, $"{Environment.ProcessId}-{Guid.NewGuid():N}-{kind}.spill");
         return new(File.OpenHandle(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete, FileOptions.DeleteOnClose | FileOptions.RandomAccess));
     }
+
+    /// <summary>
+    /// A scratch file that stays after a crash because a journal record refers to its bytes (<see cref="NksHub.Textida.Core.Documents.DurableBytes"/>). The caller owns its deletion.
+    /// </summary>
+    public static SpillFile CreateDurable(string directory, string name)
+    {
+        Directory.CreateDirectory(directory);
+        return new(File.OpenHandle(Path.Combine(directory, name), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess));
+    }
+
+    /// <summary>Makes everything written so far survive a power loss.</summary>
+    public void Sync() => RandomAccess.FlushToDisk(_handle);
 
     /// <summary>Deletes spill files whose owner process is gone. shortcut: a reused process id keeps a file until that process ends too.</summary>
     public static void SweepOrphans(string directory)
@@ -85,11 +98,12 @@ internal sealed class SpillFile : IDisposable
 /// spill file and later appends go there, so memory stays at the budget however much text is inserted. Appends come from the document's
 /// thread, reads also from snapshots on other threads.
 /// </summary>
-internal sealed class AddBuffer(long budget, string? spillDirectory)
+internal sealed class AddBuffer(long budget, string? spillDirectory, DurableSpill? durable = null)
 {
     private readonly object _gate = new();
     private byte[] _mem = new byte[4096];
     private SpillFile? _file;
+    private DurableSpill? _durable = durable;
     private long _length;
 
     public long Length => Volatile.Read(ref _length);
@@ -103,7 +117,7 @@ internal sealed class AddBuffer(long budget, string? spillDirectory)
             if (_file is null && need > Math.Min(budget, Array.MaxLength))
             {
                 // a failed write leaves the buffer in memory and unchanged, so the edit that wanted the bytes can be refused cleanly
-                var file = SpillFile.Create(spillDirectory, "add");
+                var file = _durable is { } d ? SpillFile.CreateDurable(d.Directory, d.Name) : SpillFile.Create(spillDirectory, "add");
                 try { file.Write(0, _mem.AsSpan(0, (int)start)); }
                 catch
                 {
@@ -124,6 +138,38 @@ internal sealed class AddBuffer(long budget, string? spillDirectory)
         }
     }
 
+    /// <summary>Makes the spill file of this buffer a durable one; false when the buffer is already on disk in a file that dies with the process.</summary>
+    public bool TryMakeDurable(DurableSpill durable)
+    {
+        lock (_gate)
+        {
+            if (_file is not null) return _durable == durable;
+            _durable = durable;
+            return true;
+        }
+    }
+
+    /// <summary>Name of the durable file the bytes live in, or null while they are in memory or in a file that dies with the process.</summary>
+    public string? DurableName
+    {
+        get
+        {
+            lock (_gate) return _file is not null ? _durable?.Name : null;
+        }
+    }
+
+    /// <summary>Where <paramref name="length"/> bytes at <paramref name="start"/> can be read after a crash.</summary>
+    public bool TryDescribe(long start, long length, out DurableBytes bytes)
+    {
+        lock (_gate)
+        {
+            bytes = default;
+            if (_file is not { } file || _durable is not { } d || start < 0 || start + length > _length) return false;
+            bytes = new DurableBytes(d.Name, start, length, file.Sync);
+            return true;
+        }
+    }
+
     /// <summary>The bytes straight from memory, or false once the buffer lives on disk. For the document's own thread only.</summary>
     public bool TryGetSpan(long start, int length, out ReadOnlySpan<byte> span)
     {
@@ -140,6 +186,9 @@ internal sealed class AddBuffer(long budget, string? spillDirectory)
         }
     }
 }
+
+/// <summary>A spill file that a journal may refer to: the directory and the file name inside it.</summary>
+internal sealed record DurableSpill(string Directory, string Name);
 
 internal sealed record PieceEdit(long Offset, Piece[] Removed, Piece[] Inserted);
 

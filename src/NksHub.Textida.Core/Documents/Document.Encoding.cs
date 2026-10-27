@@ -58,6 +58,7 @@ public sealed partial class Document
     public void ReinterpretAs(TextCodec codec)
     {
         ThrowIfDisposed();
+        if (_saving) throw new InvalidOperationException("The document cannot change its encoding while it is being saved.");
         if (codec == _codec) return;
         RequireSupported(codec);
         SetCodec(codec);
@@ -83,6 +84,7 @@ public sealed partial class Document
     public EditResult ConvertTo(TextCodec target, string? replacement = null)
     {
         ThrowIfDisposed();
+        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
         if (target == _codec) return new(true, _revision, ConflictReason.None);
         RequireSupported(target);
         var plan = ByteFidelity.PlanConvert(DecodeAll(), target, replacement);

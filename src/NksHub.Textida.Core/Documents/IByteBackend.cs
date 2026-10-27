@@ -53,6 +53,30 @@ public interface IByteBackend : IDisposable
     /// <summary>Undoes <see cref="ReplaceRepeated"/>: the <paramref name="insertedLength"/> bytes at <paramref name="offset"/> become what was removed.</summary>
     void RestoreRemoved(long offset, long insertedLength, object removed) => throw new NotSupportedException();
 
+    /// <summary>True when edits made while a streaming save writes its snapshot are kept as unsaved changes of the new file (<see cref="BeginStreamingSave"/>).</summary>
+    bool EditsDuringStreamingSave => false;
+    /// <summary>
+    /// The snapshot a save writes. A backend that returns true from <see cref="EditsDuringStreamingSave"/> keeps the edits made from now until
+    /// <see cref="EndStreamingSave"/>, and <see cref="ReplaceBackingFile"/> applies them to the new file; the others are not edited during a save.
+    /// </summary>
+    IByteSnapshot BeginStreamingSave() => CreateSnapshot();
+    /// <summary>Ends the window of <see cref="BeginStreamingSave"/>, after a swap, a failure or a cancel.</summary>
+    void EndStreamingSave() { }
+
+    /// <summary>
+    /// Asks the backend to keep text it holds in files on disk (a large add buffer) in files named <paramref name="namePrefix"/>-* inside
+    /// <paramref name="directory"/> that survive a crash, so a journal can refer to them (<see cref="TryGetDurableBytes"/>). Affects files made later.
+    /// </summary>
+    void UseDurableSpill(string directory, string namePrefix) { }
+    /// <summary>True when the bytes at <paramref name="offset"/> are exactly one inserted block that lives in a durable file.</summary>
+    bool TryGetDurableBytes(long offset, long length, out DurableBytes bytes)
+    {
+        bytes = default;
+        return false;
+    }
+    /// <summary>Name of the durable file the backend is writing to now, if any.</summary>
+    string? DurableFile => null;
+
     void CopyTo(Stream destination);
     /// <summary>
     /// <paramref name="tempPath"/> holds exactly the current bytes. Move it over <paramref name="targetPath"/> atomically;
@@ -60,6 +84,9 @@ public interface IByteBackend : IDisposable
     /// </summary>
     void ReplaceBackingFile(string tempPath, string targetPath);
 }
+
+/// <summary>Inserted bytes that live in the durable file <see cref="File"/> at <see cref="Offset"/>; <see cref="Sync"/> makes them survive a power loss.</summary>
+public readonly record struct DurableBytes(string File, long Offset, long Length, Action Sync);
 
 /// <summary>The window in which a file mapped by a backend is overwritten in place; disposing it accepts the file as it is then (its write time included).</summary>
 public interface IInPlaceWriteScope : IDisposable
@@ -144,6 +171,8 @@ public static class FileSwap
         string? dir = Path.GetDirectoryName(target);
         if (dir is null || !Directory.Exists(dir)) return;
         string prefix = Path.GetFileName(target) + ".textida-";
+        // a temp file of a save that died is a whole copy of the document, tens of GiB for a large one; a save still writing holds it open, so the delete fails and leaves it
+        foreach (var stale in Directory.GetFiles(dir, prefix + "*.tmp").Where(p => !p.EndsWith(".old.tmp", StringComparison.OrdinalIgnoreCase))) TryDelete(stale);
         // shortcut: a second editor instance saving the same file at this very moment would lose its parked copy; acceptable until instances share a lock
         var parked = Directory.GetFiles(dir, prefix + "*.old.tmp")
             .Where(p => Path.GetFileName(p).StartsWith(prefix, StringComparison.Ordinal))
