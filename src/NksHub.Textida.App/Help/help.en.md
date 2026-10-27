@@ -185,6 +185,7 @@ The program keeps a revision of a file at every save and at every change another
 - Files that hold secret values, such as .env, are not stored unless you turn on Keep history of secrets files in the settings.
 - Limits (revisions per file, days, MiB per file, MiB in total) are set in the settings; 0 means no limit. The newest revision of a file is never deleted.
 - If the disk is full, the status bar says so and no revision is damaged.
+- A pinned revision is never deleted by the limits; Pin in the revision menu keeps it, Unpin releases it. A file above the size limit gets no revisions and the status bar says so. Old revisions are cleaned in the background.
 
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark

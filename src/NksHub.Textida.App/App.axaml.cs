@@ -167,6 +167,7 @@ public sealed partial class App : Application
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());
         OpenDocument.History = History;
+        PruneHistoryInBackground();
         Locks = new NksHub.Textida.Core.Files.FileLocks(Path.Combine(ProfileDirectory, "locks"), Guid.NewGuid().ToString("N")[..8]);
         Remote = new RemoteServices(ProfileDirectory, Credentials);
         Reviews = new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
@@ -376,6 +377,7 @@ public sealed partial class App : Application
                 break;
             case var k when k.StartsWith("history.", StringComparison.Ordinal):
                 History.Policy = ReadHistoryPolicy();
+                PruneHistoryInBackground();
                 break;
             case "search.regexTimeoutMs":
                 ApplyRegexTimeout();
@@ -396,7 +398,19 @@ public sealed partial class App : Application
             MaxAge = Limit("history.maxAgeDays") is { } days ? TimeSpan.FromDays(days) : null,
             MaxBytesPerFile = Limit("history.maxMiBPerFile", 1L << 20),
             MaxTotalBytes = Limit("history.maxTotalMiB", 1L << 20),
+            MaxRevisionBytes = PluginLimitsPlaceholders.HistoryRevisionMaxBytes,
         };
+    }
+
+    /// <summary>Applies the retention limits to the whole store off the UI thread; a store that cannot be opened is reported when the user next uses the history.</summary>
+    private void PruneHistoryInBackground()
+    {
+        var history = History;
+        _ = Task.Run(() =>
+        {
+            try { history.PruneAll(); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or HistoryFormatException) { /* retried at the next start or settings change */ }
+        });
     }
 
     private void ApplyRegexTimeout() => RegexTools.MatchTimeoutMs = (int)Workbench.Settings.GetInt("search.regexTimeoutMs");

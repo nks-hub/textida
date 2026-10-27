@@ -17,6 +17,9 @@ internal sealed partial class MainWindow
 {
     private const int HistoryPreviewBytes = 4000;
 
+    /// <summary>The pin owner of a revision that the user pinned by hand; other owners (a pending review) are not touched by it.</summary>
+    private const string UserPinOwner = "user";
+
     private bool HistoryTarget(out DocTab tab, out string path)
     {
         tab = null!;
@@ -45,7 +48,7 @@ internal sealed partial class MainWindow
     private QuickRow HistoryRow(DocTab tab, string path, HistoryRevision r, string? detail, Action run)
     {
         var when = HistoryWhen(r);
-        detail ??= string.Join(" · ", new[] { HistorySourceText(r.Source), OpenDocument.FormatSize(r.Size), r.Label }.Where(s => !string.IsNullOrEmpty(s)));
+        detail ??= string.Join(" · ", new[] { HistorySourceText(r.Source), OpenDocument.FormatSize(r.Size), r.Label, r.Pinned ? Loc.Get(K.HistoryPinnedTag) : null }.Where(s => !string.IsNullOrEmpty(s)));
         return new QuickRow(r.Label is { Length: > 0 } ? $"{when}  {r.Label}" : when, null, detail, null, true, null, $"{when}, {detail}", run, () => HistoryPreview(tab, path, r));
     }
 
@@ -65,7 +68,9 @@ internal sealed partial class MainWindow
     internal CommandOutcome ShowHistory()
     {
         if (!HistoryTarget(out var tab, out var path)) return CommandOutcome.Handled;
-        var rows = _app.History.List(path).Select(r => HistoryRow(tab, path, r, null, () => _ = HistoryActionsAsync(tab, path, r))).ToList();
+        List<QuickRow> rows;
+        try { rows = _app.History.List(path).Select(r => HistoryRow(tab, path, r, null, () => _ = HistoryActionsAsync(tab, path, r))).ToList(); }
+        catch (HistoryFormatException e) { ReportDamagedStore(e); return CommandOutcome.Handled; }
         ShowChoice(Loc.Get(K.HistoryWatermark), Loc.Get(K.HistoryA11y), rows, emptyText: Loc.Get(K.HistoryEmpty));
         return CommandOutcome.Handled;
     }
@@ -75,7 +80,7 @@ internal sealed partial class MainWindow
         var buttons = new List<DialogButton>
         {
             new(Loc.Get(K.HistoryCompare), IsDefault: true), new(Loc.Get(K.HistoryRestoreFile)), new(Loc.Get(K.HistoryRestoreSection)),
-            new(Loc.Get(K.HistorySetLabel)), new(Loc.Get(K.DialogCancel), IsCancel: true),
+            new(Loc.Get(K.HistorySetLabel)), new(Loc.Get(r.Pins.Contains(UserPinOwner) ? K.HistoryUnpin : K.HistoryPin)), new(Loc.Get(K.DialogCancel), IsCancel: true),
         };
         var details = r.Label is { Length: > 0 } label ? new[] { Loc.Get(K.HistoryActionsLabel, ("label", label)) } : null;
         var request = new ChoiceRequest(Loc.Get(K.HistoryActionsTitle, ("time", HistoryWhen(r))),
@@ -86,8 +91,23 @@ internal sealed partial class MainWindow
             case 1: RestoreRevision(tab, path, r, section: false); break;
             case 2: RestoreRevision(tab, path, r, section: true); break;
             case 3: await LabelRevisionAsync(path, r); break;
+            case 4: TogglePin(path, r); break;
         }
     }
+
+    private void TogglePin(string path, HistoryRevision r)
+    {
+        bool pin = !r.Pins.Contains(UserPinOwner);
+        try
+        {
+            if (pin) _app.History.Pin(path, r.Id, UserPinOwner); else _app.History.Unpin(path, r.Id, UserPinOwner);
+            SetStatusMessage(Loc.Get(pin ? K.HistoryPinned : K.HistoryUnpinned));
+        }
+        catch (HistoryFormatException e) { ReportDamagedStore(e); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { SetStatusMessage(Loc.Get(K.HistoryFailed, ("reason", e.Message))); }
+    }
+
+    private void ReportDamagedStore(HistoryFormatException e) => SetStatusMessage(Loc.Get(K.HistoryStoreDamaged, ("reason", e.Message)));
 
     private async Task LabelRevisionAsync(string path, HistoryRevision r)
     {
@@ -196,11 +216,23 @@ internal sealed partial class MainWindow
     {
         using var ms = new MemoryStream();
         tab.Doc.Doc.Backend.CopyTo(ms);
-        ReportHistory(_app.History.Record(path, ms.ToArray(), HistorySource.BeforeRestore));
+        ReportHistory(RecordSafely(path, ms.ToArray(), HistorySource.BeforeRestore, null));
+    }
+
+    /// <summary>A store that cannot be opened (damaged marker, newer format) is reported as a failed record instead of an exception.</summary>
+    private HistoryRecordResult RecordSafely(string path, byte[] content, HistorySource source, string? label)
+    {
+        try { return _app.History.Record(path, content, source, label); }
+        catch (HistoryFormatException e) { return new HistoryRecordResult(HistoryStatus.Failed, null, e.Message); }
     }
 
     private void ReportHistory(HistoryRecordResult result)
     {
+        if (result.Status == HistoryStatus.TooLarge)
+        {
+            SetStatusMessage(Loc.Get(K.HistoryTooLarge, ("size", OpenDocument.FormatSize(_app.History.Policy.MaxRevisionBytes ?? 0))));
+            return;
+        }
         if (result.Status == HistoryStatus.Failed) SetStatusMessage(result.NoSpace ? Loc.Get(K.HistoryNoSpace) : Loc.Get(K.HistoryFailed, ("reason", result.Problem ?? "")));
         else if (result.Status == HistoryStatus.Skipped) SetStatusMessage(Loc.Get(K.HistorySkipped));
     }
@@ -220,7 +252,7 @@ internal sealed partial class MainWindow
         if (string.IsNullOrEmpty(label)) return;
         using var ms = new MemoryStream();
         tab.Doc.Doc.Backend.CopyTo(ms);
-        var result = _app.History.Record(path, ms.ToArray(), HistorySource.Manual, label);
+        var result = RecordSafely(path, ms.ToArray(), HistorySource.Manual, label);
         try
         {
             // the newest revision already holds this text: the label goes to it
@@ -244,7 +276,9 @@ internal sealed partial class MainWindow
     {
         var text = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HistorySearchTitle), Loc.Get(K.HistorySearchPrompt), "");
         if (string.IsNullOrEmpty(text)) return;
-        var hits = await _app.History.SearchAsync(path, new SearchPattern(text, CaseSensitive: false));
+        IReadOnlyList<HistorySearchHit> hits;
+        try { hits = await _app.History.SearchAsync(path, new SearchPattern(text, CaseSensitive: false)); }
+        catch (HistoryFormatException e) { ReportDamagedStore(e); return; }
         if (hits.Count == 0) { SetStatusMessage(Loc.Get(K.HistorySearchNone)); return; }
         var rows = hits.Select(h => HistoryRow(tab, path, h.Revision,
             Loc.Get(K.HistorySearchDetail, ("matches", h.Matches), ("line", h.FirstLine), ("preview", h.Preview.Trim())), () => CompareWithRevision(tab, path, h.Revision))).ToList();

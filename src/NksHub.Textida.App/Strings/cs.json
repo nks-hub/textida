@@ -121,6 +121,13 @@
   "history.searchWatermark": "Revize, které obsahují text",
   "history.searchNone": "Žádná revize tohoto souboru text neobsahuje.",
   "history.searchDetail": "{matches}×, řádek {line}: {preview}",
+  "history.pin": "Připnout"
+  "history.unpin": "Odepnout"
+  "history.pinnedTag": "Připnuto"
+  "history.pinned": "Revize je připnutá a zůstane, dokud ji neodepnete."
+  "history.unpinned": "Revize už není připnutá."
+  "history.tooLarge": "Soubor je nad limitem velikosti revize ({size}), proto se revize neuložila."
+  "history.storeDamaged": "Úložiště historie je poškozené nebo z novější verze: {reason} Nic se nezměnilo.",
   "loss.title": "Znaky, které kódování nepodporuje",
   "loss.message.one": "{count} znak nejde zapsat v kódování {encoding}: {groups}.",
   "loss.message.few": "{count} znaky nejdou zapsat v kódování {encoding}: {groups}.",

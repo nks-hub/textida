@@ -185,6 +185,7 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 - Dateien mit geheimen Werten, etwa .env, werden nicht gespeichert, solange Sie in den Einstellungen nicht Verlauf von Dateien mit geheimen Werten führen einschalten.
 - Grenzen (Revisionen pro Datei, Tage, MiB pro Datei, MiB insgesamt) stellen Sie in den Einstellungen ein; 0 heißt keine Grenze. Die neueste Revision einer Datei wird nie gelöscht.
 - Ist der Datenträger voll, meldet das die Statusleiste, und keine Revision wird beschädigt.
+- Eine angeheftete Revision löschen die Grenzen nie; Anheften im Revisionsmenü hält sie, Lösen gibt sie frei. Eine Datei über der Größengrenze bekommt keine Revisionen, und die Statusleiste meldet das. Alte Revisionen werden im Hintergrund aufgeräumt.
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark

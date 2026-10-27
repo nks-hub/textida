@@ -46,6 +46,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: bytes a wildcard <c>*</c> or an open repeat of a hex search may stand for while the setting <c>hex.wildcardMaxBytes</c> is 0. The owner has not decided it.</summary>
     public const int HexWildcardDefaultMaxBytes = 256;
 
+    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
+    public const long HistoryRevisionMaxBytes = 32L << 20;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

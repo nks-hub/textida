@@ -28,8 +28,10 @@ public enum HistoryStatus
     Recorded,
     /// <summary>The newest revision already holds exactly these bytes.</summary>
     Unchanged,
-    /// <summary>History is off, the file is a secrets file, or the file is above the size limit.</summary>
+    /// <summary>History is off, or the file is a secrets file.</summary>
     Skipped,
+    /// <summary>The file is above <see cref="HistoryPolicy.MaxRevisionBytes"/>; no revision is kept, and the older ones are untouched.</summary>
+    TooLarge,
     /// <summary>Nothing was stored (see <see cref="HistoryRecordResult.Problem"/>); existing revisions are untouched.</summary>
     Failed,
 }
@@ -191,7 +193,7 @@ public sealed partial class FileHistory
     {
         if (!_policy.Enabled) return new(HistoryStatus.Skipped, null);
         if (!_policy.StoreSecretFiles && SecretValues.IsSecretFile(path)) return new(HistoryStatus.Skipped, null);
-        if (_policy.MaxRevisionBytes is { } max && content.CanSeek && content.Length - content.Position > max) return new(HistoryStatus.Skipped, null);
+        if (_policy.MaxRevisionBytes is { } max && content.CanSeek && content.Length - content.Position > max) return new(HistoryStatus.TooLarge, null);
 
         lock (_gate)
         {
@@ -215,7 +217,7 @@ public sealed partial class FileHistory
                     size = 0;
                     for (int n; (n = content.Read(buf, 0, buf.Length)) > 0;)
                     {
-                        if (_policy.MaxRevisionBytes is { } cap && size + n > cap) { fs.Dispose(); FileSwap.TryDelete(temp); return new(HistoryStatus.Skipped, null); }
+                        if (_policy.MaxRevisionBytes is { } cap && size + n > cap) { fs.Dispose(); FileSwap.TryDelete(temp); return new(HistoryStatus.TooLarge, null); }
                         fs.Write(buf, 0, n);
                         sha.AppendData(buf, 0, n);
                         size += n;
