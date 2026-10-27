@@ -83,6 +83,8 @@
   "setting.editor.lineNumbers.description": "Zeigt die Spalte mit den Zeilennummern.",
   "setting.editor.highlightCurrentLine.title": "Aktuelle Zeile hervorheben",
   "setting.editor.highlightCurrentLine.description": "Färbt die Zeile mit dem Cursor ein.",
+  "setting.editor.matchBrackets.title": "Passende Klammern hervorheben",
+  "setting.editor.matchBrackets.description": "Färbt die Klammer am Cursor und ihr Gegenstück ein. Klammern in Zeichenketten und Kommentaren zählen nicht.",
   "setting.editor.links.title": "Anklickbare Links",
   "setting.editor.links.description": "Webadressen öffnen sich mit Strg+Klick.",
   "setting.editor.rightMargin.title": "Spalte des rechten Rands",

@@ -498,6 +498,7 @@ commands: nks.search.gotoBracket
 2. Press Ctrl+Shift+Backslash, or choose Search and then Go to Matching Bracket.
 3. The caret jumps to the opposite bracket.
 - If the bracket has no match, the status bar says The bracket has no match.
+- While the caret stands next to a bracket and nothing is selected, the bracket and its partner are colored. Brackets in strings and comments do not count. Highlight matching brackets in the settings turns it off.
 - The command is not available in a large file in paged mode.
 
 ## [search.gotoAnything] Go to anything

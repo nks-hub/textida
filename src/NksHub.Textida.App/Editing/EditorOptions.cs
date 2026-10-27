@@ -31,7 +31,8 @@ internal sealed record EditorOptions(
     bool Minimap = true,
     int RightMargin = 0,
     string FallbackFontFamily = "",
-    bool TabsOnly = false)
+    bool TabsOnly = false,
+    bool MatchBrackets = true)
 {
     /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
     public string FullFontFamily => FallbackFontFamily.Length == 0 ? FontFamily : FontFamily + ", " + FallbackFontFamily;
@@ -90,6 +91,7 @@ internal sealed record EditorOptions(
             Minimap: s.GetBool("editor.minimap"),
             RightMargin: (int)s.GetInt("editor.rightMargin", l),
             FallbackFontFamily: s.GetString("editor.fallbackFontFamily"),
-            TabsOnly: tabsOnly);
+            TabsOnly: tabsOnly,
+            MatchBrackets: s.GetBool("editor.matchBrackets"));
     }
 }

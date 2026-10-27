@@ -23,6 +23,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
+    public const int BracketHighlightMaxLines = 5000;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

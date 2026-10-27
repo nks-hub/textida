@@ -498,6 +498,7 @@ commands: nks.search.gotoBracket
 2. Drücken Sie Strg+Umschalt+Backslash oder wählen Sie Suchen und dann Zur passenden Klammer springen.
 3. Der Cursor springt zur Gegenklammer.
 - Hat die Klammer kein Gegenstück, meldet die Statusleiste Die Klammer hat kein Gegenstück.
+- Steht der Cursor neben einer Klammer und ist nichts markiert, werden die Klammer und ihr Gegenstück eingefärbt. Klammern in Zeichenketten und Kommentaren zählen nicht. Passende Klammern hervorheben in den Einstellungen schaltet das ab.
 - In einer großen Datei im Seitenmodus gibt es den Befehl nicht.
 
 ## [search.gotoAnything] Gehe zu Beliebigem

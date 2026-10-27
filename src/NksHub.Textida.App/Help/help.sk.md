@@ -503,6 +503,7 @@ commands: nks.search.gotoBracket
 2. Stlačte Ctrl+Shift+spätná lomka, alebo zvoľte Hľadať a Prejsť na párovú zátvorku.
 3. Kurzor skočí na protiľahlú zátvorku.
 - Ak zátvorka nemá protějšok, stavový riadok napíše Zátvorka nemá protějšok.
+- Keď kurzor stojí pri zátvorke a nič nie je vybrané, podfarbí sa zátvorka aj jej náprotivok. Zátvorky v reťazcoch a komentároch sa nepočítajú. Vypne to voľba Zvýrazniť párové zátvorky v nastaveniach.
 - Vo veľkom súbore v stránkovanom režime príkaz nie je.
 
 ## [search.gotoAnything] Prejsť na čokoľvek

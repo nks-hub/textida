@@ -83,6 +83,8 @@
   "setting.editor.lineNumbers.description": "Shows the column with line numbers.",
   "setting.editor.highlightCurrentLine.title": "Highlight current line",
   "setting.editor.highlightCurrentLine.description": "Colors the line that holds the caret.",
+  "setting.editor.matchBrackets.title": "Highlight matching brackets",
+  "setting.editor.matchBrackets.description": "Colors the bracket next to the caret and its partner. Brackets in strings and comments do not count.",
   "setting.editor.links.title": "Clickable links",
   "setting.editor.links.description": "Web addresses open with Ctrl+click.",
   "setting.editor.rightMargin.title": "Right margin column",

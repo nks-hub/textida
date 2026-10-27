@@ -222,6 +222,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.SelectionBrush = Find("SelectionBg");
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
+        BracketBrush = Find("BracketMatch");
         _caretBrush = Find("Fg");
         UpdateNativeCaret();
         _colorizer.Palette = _levels.Palette = _highlight.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
