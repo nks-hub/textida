@@ -863,6 +863,7 @@
   "schema.none": "bez schémy",
   "schema.name": "schéma {name}",
   "schema.tip": "Schéma, podľa ktorého sa súbor kontroluje",
+  "lsp.textOnly": "Jazykový server pracuje len s textovými dokumentmi, nie s veľkými súbormi zobrazenými po stránkach.",
   "keys.compare.header": "Porovnanie kľúčov súborov {a} a {b}",
   "keys.compare.syntax": "{file}: chyba syntaxe na riadku {line}, kľúče za ňou sa neporovnávajú.",
   "keys.compare.none": "V súbore {file} nič nechýba.",

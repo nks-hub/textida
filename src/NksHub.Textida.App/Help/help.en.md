@@ -1026,6 +1026,16 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 - Not there yet: unstage a hunk, commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
 - The Git process starts with the first command. The `git` program must be on the PATH.
 
+## [tools.lsp] Language server: definition, references and diagnostics
+commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.restart, nks.lsp.stop
+1. Open a text document and choose Tools, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
+2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
+3. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down.
+- The editor does not start a server on its own: nothing runs until the first command of this group, and a server is not told about a file until then.
+- Large files shown in pages and files over the size limit never go to a server.
+- The server is looked up by name on the PATH. If it is not found, a notice names the program that was looked for.
+- Not there yet: completion and rename through the server, a status bar item, and the choice of the project folder (the folder of the first document is used).
+
 ## [edit.complete] Completion of words and clips
 commands: nks.edit.complete
 1. Press Ctrl+J (Edit, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.

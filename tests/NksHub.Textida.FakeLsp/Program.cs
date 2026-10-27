@@ -1,0 +1,226 @@
+// Stand-in for a language server in tests: JSON-RPC over stdio with Content-Length framing. It keeps its own copy of every document it is told about
+// and counts positions in UTF-16 units, as the protocol says, without sharing any code with the client it is tested against.
+// Options: --full (ask for whole texts instead of ranges), --dump DIR (after every open and change write NAME.txt with its copy, NAME.version with the version
+// and NAME.stats with "opens=N incremental=N full=N"), --external FILE (a file on disk that definitions may point into).
+// Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
+// a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document.
+using System.Text;
+using System.Text.Json;
+
+bool full = args.Contains("--full");
+string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
+string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
+if (dump is not null) Directory.CreateDirectory(dump);
+
+var input = Console.OpenStandardInput();
+var output = Console.OpenStandardOutput();
+var gate = new object();
+var texts = new Dictionary<string, string>();
+var stats = new Dictionary<string, (int Opens, int Incremental, int Full)>();
+
+void Send(string json)
+{
+    var body = Encoding.UTF8.GetBytes(json);
+    lock (gate)
+    {
+        output.Write(Encoding.ASCII.GetBytes($"Content-Length: {body.Length}\r\n\r\n"));
+        output.Write(body);
+        output.Flush();
+    }
+}
+
+string Quote(string s) => JsonSerializer.Serialize(s);
+
+byte[]? ReadMessage()
+{
+    int length = -1;
+    while (true)
+    {
+        var line = new StringBuilder();
+        int b;
+        while ((b = input.ReadByte()) >= 0 && b != '\n') if (b != '\r') line.Append((char)b);
+        if (b < 0) return null;
+        if (line.Length == 0) break;
+        if (line.ToString().StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)) length = int.Parse(line.ToString()[15..].Trim());
+    }
+    var body = new byte[length];
+    for (int read = 0; read < length;)
+    {
+        int n = input.Read(body, read, length - read);
+        if (n <= 0) return null;
+        read += n;
+    }
+    return body;
+}
+
+// ---- positions: lines end with \n, \r\n or \r; a character is a UTF-16 unit ----
+
+int Offset(string text, int line, int character)
+{
+    int at = 0;
+    for (int l = 0; l < line && at < text.Length; l++)
+    {
+        while (at < text.Length && text[at] != '\n' && text[at] != '\r') at++;
+        if (at < text.Length) at += text[at] == '\r' && at + 1 < text.Length && text[at + 1] == '\n' ? 2 : 1;
+    }
+    int end = at;
+    while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
+    return Math.Min(at + character, end);
+}
+
+(int Line, int Character) Position(string text, int offset)
+{
+    int line = 0, start = 0;
+    for (int i = 0; i < offset; i++)
+    {
+        if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
+        else if (text[i] != '\r' && text[i] != '\n') continue;
+        line++;
+        start = i + 1;
+    }
+    return (line, offset - start);
+}
+
+string Range(string text, int start, int end)
+{
+    var (sl, sc) = Position(text, start);
+    var (el, ec) = Position(text, end);
+    return $"{{\"start\":{{\"line\":{sl},\"character\":{sc}}},\"end\":{{\"line\":{el},\"character\":{ec}}}}}";
+}
+
+static bool IsWord(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+string WordAt(string text, int offset)
+{
+    int s = offset, e = offset;
+    while (s > 0 && IsWord(text[s - 1])) s--;
+    while (e < text.Length && IsWord(text[e])) e++;
+    return text[s..e];
+}
+
+string Location(string uri, string text, int start, int end) => $"{{\"uri\":{Quote(uri)},\"range\":{Range(text, start, end)}}}";
+
+// ---- documents ----
+
+string DumpName(string uri) => string.Concat(Uri.UnescapeDataString(uri[(uri.LastIndexOf('/') + 1)..]).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+
+void Changed(string uri, long version, string text)
+{
+    texts[uri] = text;
+    if (dump is not null)
+    {
+        var name = DumpName(uri);
+        File.WriteAllText(Path.Combine(dump, name + ".txt"), text, new UTF8Encoding(false));
+        var (opens, incremental, fullCount) = stats.GetValueOrDefault(uri);
+        File.WriteAllText(Path.Combine(dump, name + ".stats"), $"opens={opens} incremental={incremental} full={fullCount}");
+        File.WriteAllText(Path.Combine(dump, name + ".version"), version.ToString());
+    }
+    if (text.Contains("CRASH")) Environment.Exit(3);
+    var items = new List<string>();
+    for (int at = text.IndexOf("ERROR", StringComparison.Ordinal); at >= 0; at = text.IndexOf("ERROR", at + 5, StringComparison.Ordinal))
+        items.Add($"{{\"range\":{Range(text, at, at + 5)},\"severity\":1,\"code\":\"E1\",\"message\":\"found ERROR\"}}");
+    Send($"{{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{{\"uri\":{Quote(uri)},\"version\":{version},\"diagnostics\":[{string.Join(',', items)}]}}}}");
+}
+
+string? Definition(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    var word = WordAt(text, Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32()));
+    if (word.Length == 0) return null;
+    var needle = "def " + word;
+    foreach (var (otherUri, otherText) in texts)
+        if (otherText.IndexOf(needle, StringComparison.Ordinal) is var at and >= 0)
+            return Location(otherUri, otherText, at + 4, at + 4 + word.Length);
+    if (external is not null && File.Exists(external))
+    {
+        var externalText = File.ReadAllText(external, new UTF8Encoding(false));
+        if (externalText.IndexOf(needle, StringComparison.Ordinal) is var at and >= 0)
+            return Location(new Uri(Path.GetFullPath(external)).AbsoluteUri, externalText, at + 4, at + 4 + word.Length);
+    }
+    return null;
+}
+
+string References(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    var word = WordAt(text, Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32()));
+    var found = new List<string>();
+    if (word.Length > 0)
+        for (int at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
+            if ((at == 0 || !IsWord(text[at - 1])) && (at + word.Length == text.Length || !IsWord(text[at + word.Length])))
+                found.Add(Location(uri, text, at, at + word.Length));
+    return "[" + string.Join(',', found) + "]";
+}
+
+// ---- the loop ----
+
+while (ReadMessage() is { } body)
+{
+    using var doc = JsonDocument.Parse(body);
+    var root = doc.RootElement;
+    var method = root.GetProperty("method").GetString()!;
+    var p = root.TryGetProperty("params", out var pp) ? pp : default;
+    bool isRequest = root.TryGetProperty("id", out var id);
+    string Reply(string result) => $"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"result\":{result}}}";
+    switch (method)
+    {
+        case "initialize":
+            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
+            break;
+        case "shutdown":
+            Send(Reply("null"));
+            break;
+        case "exit":
+            return 0;
+        case "textDocument/didOpen":
+        {
+            var item = p.GetProperty("textDocument");
+            var uri = item.GetProperty("uri").GetString()!;
+            var (opens, incremental, fullCount) = stats.GetValueOrDefault(uri);
+            stats[uri] = (opens + 1, incremental, fullCount);
+            Changed(uri, item.GetProperty("version").GetInt64(), item.GetProperty("text").GetString()!);
+            break;
+        }
+        case "textDocument/didChange":
+        {
+            var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+            var text = texts[uri];
+            var (opens, incremental, fullCount) = stats.GetValueOrDefault(uri);
+            foreach (var change in p.GetProperty("contentChanges").EnumerateArray())
+            {
+                if (change.TryGetProperty("range", out var range))
+                {
+                    int start = Offset(text, range.GetProperty("start").GetProperty("line").GetInt32(), range.GetProperty("start").GetProperty("character").GetInt32());
+                    int end = Offset(text, range.GetProperty("end").GetProperty("line").GetInt32(), range.GetProperty("end").GetProperty("character").GetInt32());
+                    text = text[..start] + change.GetProperty("text").GetString() + text[end..];
+                    incremental++;
+                }
+                else
+                {
+                    text = change.GetProperty("text").GetString()!;
+                    fullCount++;
+                }
+            }
+            stats[uri] = (opens, incremental, fullCount);
+            Changed(uri, p.GetProperty("textDocument").GetProperty("version").GetInt64(), text);
+            break;
+        }
+        case "textDocument/didClose":
+            texts.Remove(p.GetProperty("textDocument").GetProperty("uri").GetString()!);
+            break;
+        case "textDocument/definition":
+            Send(Reply(Definition(p) ?? "null"));
+            break;
+        case "textDocument/references":
+            Send(Reply(References(p)));
+            break;
+        default:
+            if (isRequest) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32601,\"message\":\"unknown\"}}}}");
+            break;
+    }
+}
+return 0;

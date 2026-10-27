@@ -613,4 +613,43 @@ public class PluginUiTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         Assert.False(PluginServices.IsSchemaFile(plain));
     }
+
+    // ---- P8.5.4 and P8.5.5: language server commands (the protocol itself is tested with a fake server in Rpc.Tests) ----
+
+    [AvaloniaFact]
+    public async Task A_paged_file_never_starts_the_language_server()
+    {
+        var tab = OpenPaged("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("alpha beta gamma\r\n", (3 << 20) / 18))));
+
+        Assert.False(await _app.Plugins.RunLspAsync(_w, tab, "lsp.start"));
+
+        Assert.Equal(PluginState.Inactive, Host.GetState(PluginServices.LspPluginId));
+    }
+
+    [AvaloniaFact]
+    public async Task A_document_of_a_language_without_a_server_gets_the_notice_of_the_plugin_process()
+    {
+        var tab = _w.OpenFile(_temp.File("plain.txt", "some text\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        await RunAsync("nks.lsp.goToDefinition");
+
+        Assert.True(HasNotice("Pro tento typ dokumentu není nastavený žádný jazykový server."), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        Assert.Equal(PluginState.Running, Host.GetState(PluginServices.LspPluginId));
+    }
+
+    [AvaloniaFact]
+    public void A_place_of_the_server_is_selected_by_its_utf16_columns_and_an_item_of_the_list_names_it()
+    {
+        var path = _temp.File("place.txt", "é€😀 x\nsecond é 😀 target here\n");
+        _w.GoToPlace(path, 1, 12, 1, 18);
+
+        var tab = _w.Active!;
+        Assert.Equal("target", Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(Selected(tab))));
+
+        Assert.Equal((path, 3, 4, 5, 6), PluginServices.ParsePlace("3:4:5:6|" + path)!.Value);
+        Assert.Null(PluginServices.ParsePlace("3:4|" + path));
+        Assert.Null(PluginServices.ParsePlace("no bar"));
+    }
 }

@@ -840,6 +840,7 @@
   "schema.none": "kein Schema",
   "schema.name": "Schema {name}",
   "schema.tip": "Schema, gegen das die Datei geprüft wird",
+  "lsp.textOnly": "Ein Sprachserver arbeitet nur mit Textdokumenten, nicht mit großen Dateien, die seitenweise angezeigt werden.",
   "keys.compare.header": "Vergleich der Schlüssel von {a} und {b}",
   "keys.compare.syntax": "{file}: Syntaxfehler in Zeile {line}; die Schlüssel danach werden nicht verglichen.",
   "keys.compare.none": "In {file} fehlt nichts.",

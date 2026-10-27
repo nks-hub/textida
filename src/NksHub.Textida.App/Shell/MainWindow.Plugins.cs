@@ -67,6 +67,7 @@ internal sealed partial class MainWindow
     {
         if (_pluginPanelKey is not { } key || _pluginTree.SelectedItem is not TreeViewItem { Tag: string item }) return;
         if (key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal)) _app.Plugins.RevealSymbol(key.Plugin, key.Panel, item);
+        else if (key.Panel == PluginServices.LspLocationsPanel) { if (PluginServices.ParsePlace(item) is { } place) GoToPlace(place.Path, place.Line, place.Character, place.EndLine, place.EndCharacter); }
         else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
     }
 
@@ -78,6 +79,32 @@ internal sealed partial class MainWindow
         SelectTab(tab);
         surface.SetSelections([new Sel(start, end)]);
         return true;
+    }
+
+    /// <summary>
+    /// Opens the file of a place a language server named and selects it. Lines are 0-based and columns count UTF-16 units, which is how the text view counts characters,
+    /// so the place is the one the server meant whatever the encoding of the file.
+    /// </summary>
+    internal void GoToPlace(string path, int line, int character, int endLine, int endCharacter)
+    {
+        try
+        {
+            var tab = OpenFile(path, null);
+            if (tab.Surface is { } surface)
+            {
+                int At(int l, int c)
+                {
+                    var info = surface.Document.GetLineByNumber(Math.Clamp(l + 1, 1, surface.Document.LineCount));
+                    return info.Offset + Math.Clamp(c, 0, info.Length);
+                }
+                surface.SetSelections([new Sel(At(line, character), At(endLine, endCharacter))]);
+            }
+            FocusView(tab);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            SetStatusMessage(e.Message);
+        }
     }
 
     /// <summary>Puts the carets a plugin computed (bytes of the current revision) into the tab; the last one that can be placed stays the primary.</summary>

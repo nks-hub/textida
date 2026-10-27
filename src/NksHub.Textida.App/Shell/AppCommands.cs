@@ -187,6 +187,11 @@ internal static class AppCommands
         Fire("nks.git.diffIndex", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffIndex"));
         Fire("nks.git.diffHead", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffHead"));
         Fire("nks.git.stageHunk", (w, t) => app.Plugins.RunGitAsync(w, t, "git.stageHunk"));
+        Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
+        Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
+        Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
+        Fire("nks.lsp.restart", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.restart"));
+        Fire("nks.lsp.stop", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.stop"));
         Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());
 
         On("nks.tools.run", w => w.ShowToolMenu());

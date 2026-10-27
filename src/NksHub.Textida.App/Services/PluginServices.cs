@@ -39,6 +39,10 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string FormattersActivation = "onCommand:formatters";
     public const string GitPluginId = "textida.git";
     private const string GitActivation = "onCommand:git";
+    public const string LspPluginId = "textida.lsp";
+    private const string LspActivation = "onCommand:lsp";
+    /// <summary>The panel the language server plugin lists several places in; its items are <c>line:character:endLine:endCharacter|path</c>.</summary>
+    public const string LspLocationsPanel = "lsp:locations";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -147,6 +151,54 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
             [GitActivation], gitFolder));
+
+        // the language server client reads the documents it follows and publishes diagnostics; it never writes a document
+        permissions.Grant(LspPluginId, DocumentPermissions.Read, GrantScope.All);
+        var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "lsp");
+        var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
+            ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
+             "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString()],
+            [LspActivation], lspFolder));
+    }
+
+    // ---- language servers: definition, references, diagnostics ----
+
+    /// <summary>
+    /// Runs a language server command (<c>lsp.start</c>, <c>lsp.definition</c>, <c>lsp.references</c>, <c>lsp.restart</c>, <c>lsp.stop</c>) for the tab. The server starts with the first command and follows the
+    /// document until its tab closes. A tab without a text surface (a large file shown in pages) never reaches the plugin. A definition in another file opens that file. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunLspAsync(MainWindow window, DocTab tab, string command)
+    {
+        if (tab.Surface is not { } surface)
+        {
+            window.SetStatusMessage(Loc.Get(K.LspTextOnly));
+            return false;
+        }
+        var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
+            $",\"lspLanguage\":\"{JsonEncodedText.Encode(tab.Doc.Language.Id)}\",\"offset\":{CaretOf(surface) ?? 0}", keep: true, keepOpen: true);
+        if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"
+            && r.TryGetProperty("revealed", out var revealed) && !revealed.GetBoolean() && r.GetProperty("locations") is { ValueKind: JsonValueKind.Array } places && places.GetArrayLength() == 1)
+        {
+            var place = places[0];
+            window.GoToPlace(place.GetProperty("path").GetString()!, place.GetProperty("line").GetInt32(), place.GetProperty("character").GetInt32(),
+                place.GetProperty("endLine").GetInt32(), place.GetProperty("endCharacter").GetInt32());
+        }
+        return outcome.Started;
+    }
+
+    /// <summary>A click on an item of the list of places: reads <c>line:character:endLine:endCharacter|path</c>, null for anything else.</summary>
+    internal static (string Path, int Line, int Character, int EndLine, int EndCharacter)? ParsePlace(string item)
+    {
+        int bar = item.IndexOf('|');
+        if (bar < 0) return null;
+        var numbers = item[..bar].Split(':');
+        if (numbers.Length != 4 || !int.TryParse(numbers[0], out int line) || !int.TryParse(numbers[1], out int character)
+            || !int.TryParse(numbers[2], out int endLine) || !int.TryParse(numbers[3], out int endCharacter))
+            return null;
+        return (item[(bar + 1)..], line, character, endLine, endCharacter);
     }
 
     // ---- Git: status, diff against the index and HEAD, stage the hunk at the caret ----
@@ -462,10 +514,11 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>
     /// Runs one plugin command on the tab. The document (and <paramref name="other"/>, when a command compares two) is visible to plugins only meanwhile, unless
     /// <paramref name="keep"/> asks to leave a document with published symbols exposed: the outline stays valid, and the document goes when its tab closes (<see cref="Forget"/>).
+    /// <paramref name="keepOpen"/> (with <paramref name="keep"/>) leaves the document exposed whether or not the plugin published anything, for a language server that follows its edits.
     /// <paramref name="keepHidden"/> leaves the values of a secrets file hidden from the plugin without asking. <paramref name="extra"/> is more members of the request object, already written as JSON (starting with a comma). Without <paramref name="notify"/> a plugin that cannot run is passed over silently.
     /// </summary>
     private async Task<Outcome> ExecuteAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command,
-        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false, bool keepHidden = false)
+        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false, bool keepHidden = false, bool keepOpen = false)
     {
         var document = tab.Doc.Doc;
         var otherDocument = other?.Doc.Doc;
@@ -498,7 +551,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         }
         finally
         {
-            if (own && keep && (Documents.HasSymbols(document.Id) || Documents.HasDiagnostics(document.Id))) Keep(tab.Doc, document);
+            if (own && keep && (keepOpen || Documents.HasSymbols(document.Id) || Documents.HasDiagnostics(document.Id))) Keep(tab.Doc, document);
             else if (own) Documents.Withdraw(document);
             if (ownOther) Documents.Withdraw(otherDocument!);
             _running.Remove(document.Id);

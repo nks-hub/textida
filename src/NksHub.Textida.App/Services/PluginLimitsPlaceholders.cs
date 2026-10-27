@@ -127,6 +127,24 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: time one <c>pattern</c> of a schema may take on one value before it counts as not matching.</summary>
     public const int SchemaRegexTimeoutMilliseconds = 200;
 
+    /// <summary>Placeholder: largest file handed to a language server; a larger one never starts one. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
+    public const int LspMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder: time a language server has to answer <c>initialize</c>. OPEN: the owner has not decided it.</summary>
+    public const int LspStartTimeoutMilliseconds = 30_000;
+
+    /// <summary>Placeholder: time a language server has to answer a definition or references request. OPEN: the owner has not decided it.</summary>
+    public const int LspRequestTimeoutMilliseconds = 10_000;
+
+    /// <summary>Placeholder: time a language server gets to shut down and leave before it is killed. OPEN: the owner has not decided it.</summary>
+    public const int LspStopTimeoutMilliseconds = 3000;
+
+    /// <summary>Placeholder: places listed for one definition or references request. Must not exceed the items per panel of <see cref="Ui"/>.</summary>
+    public const int LspMaxLocations = 500;
+
+    /// <summary>Placeholder: last lines of a language server's standard error kept for the report of its end.</summary>
+    public const int LspStderrLines = 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
