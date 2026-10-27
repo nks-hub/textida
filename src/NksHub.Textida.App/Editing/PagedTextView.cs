@@ -18,6 +18,7 @@ using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -100,7 +101,11 @@ internal sealed partial class PagedTextView : Grid
         };
     }
 
-    private void RepaintLog() => _canvas.InvalidateVisual();
+    private void RepaintLog()
+    {
+        _lines.Clear(); // the lines were built with or without the escapes of the log hidden
+        _canvas.InvalidateVisual();
+    }
 
     /// <summary>Raised when the first line on screen, the caret or the index state changed.</summary>
     public event Action? ViewChanged;
@@ -522,7 +527,7 @@ internal sealed partial class PagedTextView : Grid
         Doc.Read(start, bytes);
         bool truncated = length > take;
         if (truncated) take = Doc.Codec.CompleteLength(bytes);
-        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize);
+        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize, HideAnsi);
     }
 
     /// <summary>
@@ -576,7 +581,7 @@ internal sealed partial class PagedTextView : Grid
             int take = Math.Min(length, MaxLineBytes);
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
-            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize);
+            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize, HideAnsi);
             if (last) return;
             pos = next;
         }
@@ -1061,6 +1066,12 @@ internal sealed partial class PagedTextView : Grid
         Focus();
         base.OnPointerPressed(e);
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if ((e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)) && StackTraceAt(e.GetPosition(_canvas)) is { } link)
+        {
+            e.Handled = true;
+            StackTraceClicked?.Invoke(link);
+            return;
+        }
         Place(e.GetPosition(_canvas), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragFrom = _caret;
         e.Pointer.Capture(this);
@@ -1203,7 +1214,7 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>One decoded line: its text, the map between characters and bytes, and the text with tabs expanded for drawing.</summary>
     private sealed class LineView
     {
-        public LineView(long start, bool truncated, long byteLength, DecodedText map, int tabSize)
+        public LineView(long start, bool truncated, long byteLength, DecodedText map, int tabSize, bool hideAnsi = false)
         {
             Start = start;
             Truncated = truncated;
@@ -1212,9 +1223,13 @@ internal sealed partial class PagedTextView : Grid
             var text = map.Text;
             var display = new StringBuilder(text.Length);
             DisplayAt = new int[text.Length + 1];
-            for (int i = 0; i < text.Length; i++)
+            var escapes = hideAnsi && AnsiSgr.Contains(text) ? AnsiSgr.Parse(text).Escapes : [];
+            HidesAnsi = escapes.Count > 0;
+            for (int i = 0, e = 0; i < text.Length; i++)
             {
                 DisplayAt[i] = display.Length;
+                while (e < escapes.Count && escapes[e].Start + escapes[e].Length <= i) e++;
+                if (e < escapes.Count && i >= escapes[e].Start) continue; // an escape sequence of a log takes no room
                 if (text[i] == '\t') display.Append(' ', Math.Max(1, tabSize) - display.Length % Math.Max(1, tabSize));
                 else display.Append(text[i]);
             }
@@ -1230,6 +1245,7 @@ internal sealed partial class PagedTextView : Grid
             Map = other.Map;
             DisplayAt = other.DisplayAt;
             Display = other.Display;
+            HidesAnsi = other.HidesAnsi;
             _marked = other._marked;
         }
 
@@ -1246,6 +1262,8 @@ internal sealed partial class PagedTextView : Grid
         public bool Truncated { get; }
         public DecodedText Map { get; }
         public string Display { get; }
+        /// <summary>Escape sequences are left out of <see cref="Display"/>; their characters map to the column of the text after them.</summary>
+        public bool HidesAnsi { get; }
 
         private string? _marked;
         /// <summary><see cref="Display"/> with a middle dot for every space and an arrow in the first column of every tab; the same length, so the colors of the tokens still fit.</summary>
@@ -1256,7 +1274,8 @@ internal sealed partial class PagedTextView : Grid
             var shown = Display.ToCharArray();
             var text = Map.Text;
             for (int i = 0; i < text.Length; i++)
-                if (text[i] == ' ') shown[DisplayAt[i]] = '·';
+                if (DisplayAt[i + 1] == DisplayAt[i]) continue;
+                else if (text[i] == ' ') shown[DisplayAt[i]] = '·';
                 else if (text[i] == '\t') shown[DisplayAt[i]] = '→';
             return new string(shown);
         }
@@ -1362,6 +1381,26 @@ internal sealed partial class PagedTextView : Grid
             if (b > a) context.FillRectangle(brush, new Rect(x + (a - column) * _digitWidth, y, (b - a) * _digitWidth, _lineHeight));
         }
 
+        /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line; backgrounds are filled now, before the text is drawn over them.</summary>
+        private void DrawAnsi(DrawingContext context, FormattedText text, LineView view, double y)
+        {
+            int length = view.Map.Text.Length;
+            foreach (var span in AnsiSgr.Parse(view.Map.Text).Spans)
+            {
+                int from = view.DisplayAt[Math.Min(span.Start, length)], to = view.DisplayAt[Math.Min(span.Start + span.Length, length)];
+                if (to <= from) continue;
+                var style = span.Style;
+                if (style.Back.ToRgb() is { } back)
+                {
+                    double x1 = XOf(view, Math.Min(span.Start, length)), x2 = XOf(view, Math.Min(span.Start + span.Length, length));
+                    context.FillRectangle(new ImmutableSolidColorBrush(Color.FromRgb((byte)(back >> 16), (byte)(back >> 8), (byte)back)), new Rect(TextLeft - owner._hScroll + x1, y, x2 - x1, _lineHeight));
+                }
+                if (style.Fore.ToRgb() is { } fore) text.SetForegroundBrush(new ImmutableSolidColorBrush(Color.FromRgb((byte)(fore >> 16), (byte)(fore >> 8), (byte)fore)), from, to - from);
+                if (style.Bold) text.SetFontWeight(FontWeight.Bold, from, to - from);
+                if (style.Underline) text.SetTextDecorations(TextDecorations.Underline, from, to - from);
+            }
+        }
+
         private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush)
         {
             var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
@@ -1431,8 +1470,9 @@ internal sealed partial class PagedTextView : Grid
                         insertLength = owner._preedit.Length;
                         shown = shown.Insert(insertAt, owner._preedit);
                     }
-                    var text = Format(shown, fore);
-                    if (levels?.Classify(view.Map.Text) is { } level && palette.GetBrush(LogLevelKinds.Of(level)) is { } levelBrush) text.SetForegroundBrush(levelBrush);
+                    bool dimmed = levels is not null && owner.FoldCriteria is { } fold && !LogFold.KeepsAlone(view.Map.Text, levels, fold);
+                    var text = Format(shown, dimmed ? dim : fore);
+                    if (!dimmed && levels?.Classify(view.Map.Text) is { } level && palette.GetBrush(LogLevelKinds.Of(level)) is { } levelBrush) text.SetForegroundBrush(levelBrush);
                     if (owner._tokens.TryGetValue(line, out var tokens))
                         foreach (var token in tokens)
                         {
@@ -1444,6 +1484,7 @@ internal sealed partial class PagedTextView : Grid
                             }
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
+                    if (view.HidesAnsi && insertLength == 0) DrawAnsi(context, text, view, y);
                     if (insertLength > 0) text.SetTextDecorations(TextDecorations.Underline, insertAt, insertLength);
                     if (options.ShowWhitespace)
                         for (int k = 0; k < shown.Length;)

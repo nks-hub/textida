@@ -17,6 +17,23 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds between two looks at a followed log for new lines, truncation or rotation. The owner has not decided it.</summary>
     public const int LogFollowPollMilliseconds = 1000;
 
+    /// <summary>Placeholder, OPEN: parts the error heatmap of the minimap cuts a log into (by byte position); the picture takes the densest bucket of each row.</summary>
+    public const int LogHeatBuckets = 1024;
+
+    /// <summary>Placeholder, OPEN: bytes the error heatmap reads per request while it counts lines in the background; also the working memory of one pass.</summary>
+    public const int LogHeatChunkBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: a log up to this size is read whole for the heatmap; a larger one is sampled.</summary>
+    public const long LogHeatFullScanBytes = 256L << 20;
+
+    /// <summary>Placeholder, OPEN: bytes read at the start of each bucket when the heatmap samples a log larger than <see cref="LogHeatFullScanBytes"/>.</summary>
+    public const int LogHeatSampleBytesPerBucket = 128 << 10;
+
+    /// <summary>Placeholder, OPEN: milliseconds the heatmap waits after the last edit of a log before it counts again.</summary>
+    public const int LogHeatDelayMilliseconds = 1500;
+
+    public static LogHeatLimits LogHeat() => new(LogHeatChunkBytes, LogHeatFullScanBytes, LogHeatSampleBytesPerBucket);
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

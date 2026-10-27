@@ -960,6 +960,13 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 - Die Datei wird einmal pro Sekunde angesehen. Dieser Wert und die 4096 Bytes sind keine entschiedenen Werte.
 - Die Treffer liegen im Speicher ohne Obergrenze. Der Hervorhebungsausdruck einer Anzeige bleibt in der Datei, wird aber noch nicht gezeichnet.
 
+## [log.full] Voller Log-Modus: Einklappen, Stacktraces, Heatmap, ANSI-Farben
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Uninteressante Zeilen einklappen fragt nach einer Stufe (Zeilen mindestens dieser Stufe bleiben: error, warning, info, debug) und einem regulären Ausdruck (passende Zeilen bleiben). Jeder Abschnitt der übrigen Zeilen wird zu einer Platzhalterzeile, die ein Klick öffnet. Eine Zeile ohne Stufenwort, etwa ein Stacktrace-Frame, gehört zum Eintrag darüber. Log: Alle Zeilen anzeigen öffnet wieder alles. In einer seitenweise geladenen (sehr großen) Datei lassen sich Zeilen nicht einklappen; die Zeilen, die eingeklappt würden, werden stattdessen abgeblendet gezeichnet.
+2. Strg+Klick auf einen Stacktrace-Frame von .NET, Java, Python, PHP oder Node.js öffnet die Datei an dieser Zeile; Log: Datei der Stacktrace-Zeile öffnen tut dasselbe für die Zeile mit dem Cursor. Ein relativer Pfad wird im Ordner des Logs gesucht, dann in den Arbeitsbereich-Ordnern; ein bloßer Dateiname (Java) wird darunter gesucht.
+3. Der Streifen am rechten Rand der Minimap zeigt, wo Fehlerzeilen (rot) und Warnungen (gelb) dicht liegen. Er wird im Hintergrund gezählt. Eine Datei bis 256 MiB wird ganz gelesen, eine größere nur stichprobenartig; das Bild ist dann eine Schätzung. Diese Grenzen sind keine entschiedenen Werte.
+4. ANSI-Escape-Sequenzen in einem Log werden ausgeblendet und als Farben (16, 256 und True Color), Fett und Unterstreichung gezeichnet. Die Datei wird nie verändert, Speichern behält die Sequenzen also. Log: ANSI-Escapes unverändert anzeigen wechselt zwischen Farben und den reinen Sequenzen. Ein Stil, den eine Zeile offen lässt, geht nicht in die nächste Zeile über.
+
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Die Befehle stehen im Menü Ansicht und in der Palette. Jeder schaltet eine Einstellung um; die Einstellungen lassen sich auch in den Einstellungen ändern.

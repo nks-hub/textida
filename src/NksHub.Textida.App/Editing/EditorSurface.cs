@@ -75,11 +75,16 @@ internal sealed partial class EditorSurface : TextEditor
         InitCarets();
         InitSecrets();
         InitColors();
+        InitLogFull();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
-    private void ApplyLogLevels() => _levels.Rules = Doc.IsLog ? Doc.LogLevels : null;
+    private void ApplyLogLevels()
+    {
+        _levels.Rules = Doc.IsLog ? Doc.LogLevels : null;
+        ApplyAnsi();
+    }
 
     public OpenDocument Doc { get; }
     /// <summary>Keeps the syntax colors of this view current.</summary>
@@ -104,6 +109,7 @@ internal sealed partial class EditorSurface : TextEditor
     public void BindDocument()
     {
         TextArea.ClearSelection();
+        ClearFolds();
         Document = Doc.TextBackend!.TextDocument;
         _colorizer.BindDocument(Document);
         CaretOffset = 0;
