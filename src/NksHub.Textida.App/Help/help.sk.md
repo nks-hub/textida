@@ -925,12 +925,12 @@ Dve hex mriežky vedľa seba, ktoré sa posúvajú spoločne, s rozdielmi podfar
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spúšťanie nástrojov, Spustiť nástroj ponúkne nástroje zapísané v súbore tools.json v priečinku profilu. Posledný riadok ten súbor otvorí; prvýkrát do neho zapíše prázdny, ktorý doplníte.
 2. Nástroj má id, title, executable a args (zoznam: jedna položka je jeden argument). Voliteľné sú cwd (adresár, kde pobeží; bez neho priečinok aktuálneho súboru), timeoutSeconds (bez neho nie je žiadny časový limit) a logPattern (pozri Vzor LOGu). Príklad: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
-3. V executable, args a cwd zastupujú premenné ${File} (úplná cesta), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} a ${Column} aktuálny dokument; $$ je znak dolára. Argument zostane jedným argumentom, nech hodnota obsahuje čokoľvek, aj medzery a úvodzovky: žiadny shell sa nepoužíva. Neznáma premenná alebo ${File} pri dokumente bez súboru zastaví spustenie skôr, než sa čokoľvek začne. Platia tu aj premenné klipov a receptov (file.path, date, datetime, selection, user.name a vaše vlastné premenné) s rovnakou hodnotou ako tam. Vlastná premenná rovnakého mena má prednosť aj pred ${File} a ďalšími. Keď sa súbor vlastných premenných nedá prečítať, nástroj sa nespustí a výstup povie prečo.
+3. V executable, args a cwd zastupujú premenné ${File} (úplná cesta), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} a ${Column} aktuálny dokument; ${Selection} je vybraný text (môže mať viac riadkov), ${Word} slovo pod kurzorom a ${ProjectRoot} najbližší priečinok nad súborom (alebo jeho vlastný), ktorý má .textida alebo .git; $$ je znak dolára. Argument zostane jedným argumentom, nech hodnota obsahuje čokoľvek, aj medzery a úvodzovky: žiadny shell sa nepoužíva. Neznáma premenná alebo taká, ktorá sa nehodí (${File} pri dokumente bez súboru, ${Selection} bez výberu, ${Word} mimo slova), zastaví spustenie skôr, než sa čokoľvek začne. Platia tu aj premenné klipov a receptov (file.path, date, datetime, selection, user.name a vaše vlastné premenné) s rovnakou hodnotou ako tam. Vlastná premenná rovnakého mena má prednosť aj pred ${File} a ďalšími. Keď sa súbor vlastných premenných nedá prečítať, nástroj sa nespustí a výstup povie prečo.
 4. Nástroj, ktorého príkaz a adresár ešte nebežali, sa ukáže s oboma a spustí sa až po vašom potvrdení. Potvrdenie platí, kým sa nezmení definícia alebo program, na ktorý vedie.
 5. Výstup ide riadok po riadku na kartu Úlohy v okne výstupu, nakoniec s kódom ukončenia a časom. Tlačidlo Zastaviť v tom okne alebo príkaz Zastaviť bežiaci nástroj ukončí program aj všetko, čo spustil; to isté urobí časový limit.
 - Dávkové súbory (.bat, .cmd) sa spúšťajú cez cmd.exe a každý argument sa preň uzavrie do úvodzoviek, takže medzery, úvodzovky a znaky ako & | < > ^ % prejdú bez zmeny. Argument s koncom riadka alebo iným riadiacim znakom sa odmietne pred spustením; rovnako argument s !, keď dávka zapína oneskorené rozvinutie.
 - Názov programu bez cesty sa hľadá len v PATH, nikdy v pracovnom adresári.
-- Výstup sa číta ako UTF-8. Beží vždy len jeden nástroj.
+- Výstup sa číta ako UTF-8, ak nástroj neuvádza iné kódovanie ("outputEncoding": "windows-1250") alebo nie je zadané nastavenie Predvolené kódovanie výstupu nástrojov. Nástroj bez timeoutSeconds dostane nastavenie Predvolený časový limit nástrojov (0: bez limitu). Beží vždy len jeden nástroj.
 
 ## [tools.logPattern] Vzor LOGu: kliknutie na chybu vo výstupe
 commands: nks.tools.logPattern
@@ -947,13 +947,15 @@ commands: nks.tools.edit
 3. Text je jeden riadok. Cesta je jeden neprázdny riadok bez znakov * ? " < > | . Hodnota zlého typu zastaví spustenie skôr, než čokoľvek začne, a výstup menuje premennú.
 4. Priečinok otvoreného súboru alebo priečinok nad ním môže obsahovať .textida/tools.json s nástrojmi rovnakého tvaru. Ukážu sa v Spustiť nástroj, ale spustia sa až po potvrdení príkazu a adresára, aj keď rovnaký text máte vo vlastnom súbore. Ak sa definícia zmení vrátane premenných, opýtame sa znova. Tieto nástroje sa v editore upraviť nedajú.
 - Prázdny argument sa v editore napísať nedá. Uloženie zahodí komentáre v tools.json.
+- Pole Kódovanie výstupu pomenúva kódovanie, v ktorom sa výstup číta (utf-8, windows-1250, ibm852); meno, ktoré systém nepozná, sa odmietne. Prázdne: predvolené z nastavení.
 
 ## [tools.make] Makefile: spustenie cieľa
-commands: nks.tools.makeTargets
-1. S otvoreným Makefile (Makefile, GNUmakefile, *.mk, *.mak) vypíše Nástroje, Spúšťanie nástrojov, Spustiť cieľ Makefile jeho ciele z textu karty. Vybraný cieľ spustí ako make -f s týmto súborom a cieľom v priečinku súboru.
-2. Beh ide cez spúšťač nástrojov: príkaz sa ukáže a prvýkrát sa potvrdzuje, výstup ide do karty Úlohy, Zastaviť ukončí make aj všetko, čo spustil.
-3. Riadok výstupu, ktorý menuje súbor a riadok (main.c:12:5: error, Makefile:7:), otvorí to miesto klikom alebo Enterom.
-- Make musí byť nainštalovaný a v PATH. Zvláštne ciele (.PHONY), vzorové pravidlá a názvy s premennou alebo zástupným znakom sa nevypisujú. Potvrdenie sa viaže na príkaz, nie na obsah Makefile, pretože spustiť Makefile znamená spustiť, čo hovorí.
+commands: nks.tools.makeTargets, nks.tools.makeRepeat
+1. Nástroje, Spúšťanie nástrojov, Spustiť cieľ Makefile vypíše ciele Makefile k otvorenému súboru: samotný súbor, keď je Makefile (Makefile, GNUmakefile, *.mk, *.mak), inak najbližší GNUmakefile, makefile alebo Makefile v jeho priečinku alebo v priečinkoch nad ním. Hľadanie končí v koreni projektu (priečinok s .textida alebo .git). Ak je Makefile otvorený, ciele sa čítajú z textu karty. Vybraný cieľ spustí ako make -f s týmto súborom a cieľom v priečinku Makefile.
+2. Zopakovať posledný cieľ Makefile spustí naposledy spustený cieľ znova.
+3. Beh ide cez spúšťač nástrojov: príkaz sa ukáže a prvýkrát sa potvrdzuje, výstup ide do karty Úlohy, Zastaviť ukončí make aj všetko, čo spustil.
+4. Riadok výstupu, ktorý menuje súbor a riadok (main.c:12:5: error, Makefile:7:), otvorí to miesto klikom alebo Enterom. Rekurzívny make hlási „Entering directory“ a „Leaving directory“; relatívny názov súboru za takým riadkom sa hľadá v tom priečinku.
+- Make musí byť nainštalovaný a v PATH, alebo uvedený v nastavení Program make (napríklad mingw32-make). Zvláštne ciele (.PHONY), vzorové pravidlá a názvy s premennou alebo zástupným znakom sa nevypisujú. Potvrdenie sa viaže na príkaz, nie na obsah Makefile, pretože spustiť Makefile znamená spustiť, čo hovorí.
 
 ## [packages.registry] Manifesty balíkov: názvy, verzie a značka novšej verzie
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke

@@ -1472,6 +1472,8 @@ public static class K
     public const string ToolEditCwd = "tool.edit.cwd";
     public const string ToolEditTimeout = "tool.edit.timeout";
     public const string ToolEditPattern = "tool.edit.pattern";
+    public const string ToolEditEncoding = "tool.edit.encoding";
+    public const string ToolEditEncodingBad = "tool.edit.encodingBad";
     public const string ToolEditVariables = "tool.edit.variables";
     public const string ToolEditPreview = "tool.edit.preview";
     public const string ToolEditPreviewFailed = "tool.edit.previewFailed";
@@ -1488,6 +1490,8 @@ public static class K
     public const string A11yMake = "a11y.make";
     public const string MakeNotMakefile = "make.notMakefile";
     public const string MakeNoTargets = "make.noTargets";
+    public const string MakeTooBig = "make.tooBig";
+    public const string MakeNoneYet = "make.noneYet";
     public const string MakeDetail = "make.detail";
     public const string MakeTitle = "make.title";
     public const string PackagesConsentTitle = "packages.consent.title";

@@ -920,12 +920,12 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Running Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
 2. A tool has an id, a title, an executable and args (a list: one entry is one argument). Optional are cwd (the directory it runs in; the folder of the current file when missing), timeoutSeconds (without it there is no time limit) and logPattern (see LOG pattern). Example: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
-3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or ${File} for a document that has no file, stops the run before anything starts. The variables of clips and recipes work here too (file.path, date, datetime, selection, user.name and your own variables), with the same value as there. Your own variable of the same name comes before ${File} and the others as well. When the file of your own variables cannot be read, the tool does not start and the output says why.
+3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; ${Selection} is the selected text (it may span lines), ${Word} the word under the caret and ${ProjectRoot} the nearest folder at or above the file that has .textida or .git; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or one that does not apply (${File} for a document that has no file, ${Selection} with nothing selected, ${Word} outside a word), stops the run before anything starts. The variables of clips and recipes work here too (file.path, date, datetime, selection, user.name and your own variables), with the same value as there. Your own variable of the same name comes before ${File} and the others as well. When the file of your own variables cannot be read, the tool does not start and the output says why.
 4. A tool whose command and directory have not run before is shown with both and starts only after you confirm. The confirmation is remembered until the definition, or the program it leads to, changes.
 5. The output goes line by line to the Tasks tab of the output window, followed by the exit code and the time. Stop in that window, or Stop Running Tool, ends the program and everything it started; so does the time limit.
 - Batch files (.bat, .cmd) are started through cmd.exe with every argument quoted for it, so spaces, quotes and characters such as & | < > ^ % pass through unchanged. An argument with a line break or another control character is refused before the start, and so is one with ! when the batch file turns delayed expansion on.
 - A program name without a path is looked for in PATH only, never in the working directory.
-- Output is read as UTF-8. One tool runs at a time.
+- Output is read as UTF-8 unless the tool names another encoding ("outputEncoding": "windows-1250") or the setting Default output encoding of tools is set. A tool without timeoutSeconds gets the setting Default time limit of tools (0: no limit). One tool runs at a time.
 
 ## [tools.logPattern] LOG pattern: click an error in the output
 commands: nks.tools.logPattern
@@ -942,13 +942,15 @@ commands: nks.tools.edit
 3. A text is one line. A path is one line, not empty, without the characters * ? " < > | . A value of the wrong type stops the run before anything starts and the output names the variable.
 4. The folder of the open file, or a folder above it, may hold .textida/tools.json with tools of the same shape. They are listed in Run Tool, but they run only after you confirm the command and the directory, even when the same text is in your own file. A definition that changes, including its variables, is asked again. These tools cannot be edited in the editor.
 - An empty argument cannot be written in the editor. Saving drops comments in tools.json.
+- The field Output encoding names the encoding the output is read in (utf-8, windows-1250, ibm852); a name the system does not know is refused. Empty: the default of the settings.
 
 ## [tools.make] Makefile: run a target
-commands: nks.tools.makeTargets
-1. With a Makefile open (Makefile, GNUmakefile, *.mk, *.mak), Tools, Running Tools, Run Makefile Target lists its targets, read from the text of the tab. Choose one to run make -f with that file and the target, in the folder of the file.
-2. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
-3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
-- Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
+commands: nks.tools.makeTargets, nks.tools.makeRepeat
+1. Tools, Running Tools, Run Makefile Target lists the targets of the Makefile for the open file: the file itself when it is a Makefile (Makefile, GNUmakefile, *.mk, *.mak), otherwise the nearest GNUmakefile, makefile or Makefile in its folder or the folders above it. The search stops at the root of the project (a folder with .textida or .git). The list is read from the text of the tab when the Makefile is open. Choose one to run make -f with that file and the target, in the folder of the Makefile.
+2. Repeat Last Makefile Target runs the target started last once more.
+3. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
+4. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter. A recursive make says "Entering directory" and "Leaving directory"; a relative file name after such a line is looked for in that folder.
+- Make has to be installed and found in PATH, or named in the setting Make program (for example mingw32-make). Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke

@@ -168,8 +168,21 @@ internal sealed partial class MainWindow
         var context = _app.VariableContextFor(tab?.Path, SelectionTexts(tab?.Surface).FirstOrDefault() ?? "", out var broken);
         if (broken is not null) throw new ToolException(Loc.Get(K.ClipVariablesBroken, ("reason", broken)));
         var scope = new VariableScope(context);
-        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, name => scope.TryGet(name, out var value) ? value : null),
+        var variables = ToolVariables.ForDocument(tab?.Path, line, column, name => scope.TryGet(name, out var value) ? value : null,
+            tab is null ? null : () => SelectionOf(tab), tab is null ? null : () => WordText(tab));
+        return ToolRunner.Resolve(WithToolDefaults(spec), variables,
             (tab?.Path is { } own ? Path.GetDirectoryName(Path.GetFullPath(own)) : ActiveDirectory()) ?? Environment.CurrentDirectory);
+    }
+
+    private static string? WordText(DocTab tab) => WordRangeAtCaret(tab) is { } r ? tab.Surface!.Document.GetText(r.Start, r.End - r.Start) : null;
+
+    /// <summary>Fills what a definition leaves out from the settings <c>tools.timeoutSeconds</c> and <c>tools.outputEncoding</c> (0 and empty: the placeholders).</summary>
+    private ToolSpec WithToolDefaults(ToolSpec spec)
+    {
+        var settings = _app.Workbench.Settings;
+        long seconds = settings.GetInt("tools.timeoutSeconds") is > 0 and var chosen ? chosen : PluginLimitsPlaceholders.ToolDefaultTimeoutSeconds;
+        var encoding = ToolCatalog.FindEncoding(settings.GetString("tools.outputEncoding")) ?? ToolCatalog.FindEncoding(PluginLimitsPlaceholders.ToolOutputEncoding);
+        return spec with { Timeout = spec.Timeout ?? (seconds > 0 ? TimeSpan.FromSeconds(seconds) : null), OutputEncoding = spec.OutputEncoding ?? encoding };
     }
 
     // ---- editor of the definitions ----
@@ -203,17 +216,37 @@ internal sealed partial class MainWindow
 
     private static readonly Lazy<LogPattern> MakeErrors = new(() => LogPattern.Compile(MakefileTargets.ErrorPattern, LogPatternSyntax.Regex));
 
-    /// <summary>Lists the targets of the open Makefile; the chosen one is run by make through the tool runner.</summary>
+    /// <summary>The Makefile of the open file: the file itself when it is one, otherwise the nearest Makefile in its folder or above it (see <see cref="MakefileTargets.FindNearest"/>).</summary>
+    private static string? MakefileFor(DocTab tab) =>
+        tab.Path is not { } path ? null
+        : MakefileTargets.IsMakefileName(Path.GetFileName(path)) ? Path.GetFullPath(path)
+        : MakefileTargets.FindNearest(Path.GetDirectoryName(Path.GetFullPath(path)), PluginLimitsPlaceholders.MakefileSearchLevels);
+
+    /// <summary>The Makefile and the target started last, for Repeat Last Makefile Target.</summary>
+    private (string Makefile, string Target)? _lastMake;
+
+    /// <summary>Lists the targets of the Makefile nearest to the open file; the chosen one is run by make through the tool runner.</summary>
     internal CommandOutcome ShowMakeTargets()
     {
-        if (Active is not { Custom: null, Hex: null } tab || tab.Path is not { } path || !MakefileTargets.IsMakefileName(Path.GetFileName(path)))
+        if (Active is not { Custom: null, Hex: null } tab || MakefileFor(tab) is not { } path)
         {
             SetStatusMessage(Loc.Get(K.MakeNotMakefile));
             return CommandOutcome.Handled;
         }
         string text;
-        try { text = tab.Surface is { } surface ? surface.Document.GetText(0, surface.Document.TextLength) : File.ReadAllText(path); }
-        catch (IOException e)
+        try
+        {
+            // the text of an open tab wins over the file: the targets are those of what is on the screen
+            if (Tabs.FirstOrDefault(t => t.Surface is not null && t.Path is { } p && string.Equals(Path.GetFullPath(p), path, PathComparison)) is { Surface: { } surface })
+                text = surface.Document.GetText(0, surface.Document.TextLength);
+            else if (new FileInfo(path).Length > PluginLimitsPlaceholders.MakefileMaxBytes)
+            {
+                SetStatusMessage(Loc.Get(K.MakeTooBig, ("file", path), ("bytes", PluginLimitsPlaceholders.MakefileMaxBytes)));
+                return CommandOutcome.Handled;
+            }
+            else text = File.ReadAllText(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             SetStatusMessage(e.Message);
             return CommandOutcome.Handled;
@@ -225,17 +258,28 @@ internal sealed partial class MainWindow
             return CommandOutcome.Handled;
         }
         var rows = targets.Select(t => new QuickRow(t.Name, null, Loc.Get(K.MakeDetail, ("line", t.Line)), null, true, null, t.Name, () => _ = RunMakeTargetAsync(path, t.Name))).ToList();
-        ShowChoice(Loc.Get(K.MakeWatermark), Loc.Get(K.A11yMake), rows);
+        ShowChoice(Loc.Get(K.MakeWatermark, ("file", path)), Loc.Get(K.A11yMake), rows);
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Runs the target that was started last once more, with the same Makefile.</summary>
+    internal CommandOutcome RepeatMakeTarget()
+    {
+        if (_lastMake is not { } last) SetStatusMessage(Loc.Get(K.MakeNoneYet));
+        else _ = RunMakeTargetAsync(last.Makefile, last.Target);
         return CommandOutcome.Handled;
     }
 
     /// <summary>
     /// Runs <c>make -f file target</c> in the folder of the Makefile as a tool: the command is confirmed the first time, the output goes to the Tasks channel and a line
-    /// that names a file and a line opens it. <paramref name="program"/> and <paramref name="programArgs"/> (put before the arguments of make) exist so a test can stand in for make.
+    /// that names a file and a line opens it. The program is the setting <c>tools.makeProgram</c> (<c>make</c> when empty); <paramref name="program"/> and <paramref name="programArgs"/>
+    /// (put before the arguments of make) exist so a test can stand in for make.
     /// </summary>
-    internal Task RunMakeTargetAsync(string makefile, string target, string program = MakefileTargets.DefaultProgram, IReadOnlyList<string>? programArgs = null)
+    internal Task RunMakeTargetAsync(string makefile, string target, string? program = null, IReadOnlyList<string>? programArgs = null)
     {
         string full = Path.GetFullPath(makefile);
+        _lastMake = (full, target);
+        program ??= _app.Workbench.Settings.GetString("tools.makeProgram") is { Length: > 0 } own ? own : MakefileTargets.DefaultProgram;
         static string Literal(string text) => text.Replace("$", "$$", StringComparison.Ordinal);
         var definition = new ExternalToolContribution
         {
@@ -295,7 +339,9 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.LogNoPlace));
             return false;
         }
-        if (ResolveLogFile(place, log) is not { } file)
+        // a recursive make announces the folder it works in; a relative file name in its errors belongs to that folder
+        string directory = MakefileTargets.DirectoryAt(_outputShown.Take(index).Where(l => l.Source == line.Source).Select(l => l.Text), log.WorkDirectory);
+        if (ResolveLogFile(place, log with { WorkDirectory = directory }) is not { } file)
         {
             SetStatusMessage(Loc.Get(K.LogFileMissing, ("file", place.File ?? "")));
             return false;

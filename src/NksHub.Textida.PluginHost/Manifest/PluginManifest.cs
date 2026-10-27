@@ -225,6 +225,8 @@ public sealed class ExternalToolContribution
     public int? TimeoutSeconds { get; set; }
     /// <summary>Id of the log pattern that makes the output clickable.</summary>
     public string? LogPattern { get; set; }
+    /// <summary>Name of the encoding the output of the program is read in (<c>utf-8</c>, <c>windows-1250</c>, <c>ibm852</c>); the setting <c>tools.outputEncoding</c> when absent.</summary>
+    public string? OutputEncoding { get; set; }
     /// <summary>Variables the tool declares, each with a type; a value of the wrong type stops the tool before it starts.</summary>
     public List<ToolVariableContribution>? Variables { get; set; }
 }

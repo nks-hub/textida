@@ -428,8 +428,8 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>The word under the caret; the word is selected so that the next search starts behind it.</summary>
-    private static string? WordAtCaret(DocTab tab)
+    /// <summary>The offsets of the word under the caret in a text tab, or null when the caret is not in a word.</summary>
+    private static (int Start, int End)? WordRangeAtCaret(DocTab tab)
     {
         if (tab.Surface is not { } s) return null;
         var d = s.Document;
@@ -438,9 +438,15 @@ internal sealed partial class MainWindow
         int start = caret, end = caret;
         while (start > 0 && IsWord(d.GetCharAt(start - 1))) start--;
         while (end < d.TextLength && IsWord(d.GetCharAt(end))) end++;
-        if (end == start) return null;
-        s.SetSelections([new Sel(start, end)]);
-        return d.GetText(start, end - start);
+        return end == start ? null : (start, end);
+    }
+
+    /// <summary>The word under the caret; the word is selected so that the next search starts behind it.</summary>
+    private static string? WordAtCaret(DocTab tab)
+    {
+        if (WordRangeAtCaret(tab) is not { } word || tab.Surface is not { } s) return null;
+        s.SetSelections([new Sel(word.Start, word.End)]);
+        return s.Document.GetText(word.Start, word.End - word.Start);
     }
 
     // ---- replacing ----

@@ -269,6 +269,18 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest answer body of one <c>net/request</c>. It travels base64 encoded, so it stays well under the 4 MiB message limit of <see cref="Host"/>. The owner has not decided it.</summary>
     public const int NetworkMaxResponseBytes = 2 << 20;
 
+    /// <summary>Placeholder, OPEN: seconds after which a tool with no <c>timeoutSeconds</c> of its own is ended while the setting <c>tools.timeoutSeconds</c> is 0. 0 means no limit, which is how tools ran before. The owner has not decided it.</summary>
+    public const int ToolDefaultTimeoutSeconds = 0;
+
+    /// <summary>Placeholder, OPEN: the encoding the output of a tool is read in while its definition names none and the setting <c>tools.outputEncoding</c> is empty. The owner has not decided it.</summary>
+    public const string ToolOutputEncoding = "utf-8";
+
+    /// <summary>Placeholder, OPEN: folders looked into for the nearest Makefile, counting the folder of the open file and those above it. The search also stops at the root of the project. The owner has not decided it.</summary>
+    public const int MakefileSearchLevels = 8;
+
+    /// <summary>Placeholder, OPEN: largest Makefile in bytes that is read from disk to list its targets; a larger one is refused with a message. The owner has not decided it.</summary>
+    public const long MakefileMaxBytes = 4L << 20;
+
     public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
 
     public static PluginHostOptions Host() => new()
