@@ -488,10 +488,12 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     /// <summary>
     /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the
-    /// table API and writes the clipboard. While the values of a secrets file are hidden the plugin gets <c>*</c> in their place and nothing is asked. False when nothing was started.
+    /// table API and writes the clipboard. While the values of a secrets file are hidden the plugin gets <c>*</c> in their place and nothing is asked. SQL is written in the
+    /// dialect of the document (the file, its folder, the <c>sql.dialect</c> setting). False when nothing was started.
     /// </summary>
     public async Task<bool> RunTableCopyAsync(MainWindow window, DocTab tab, string command) =>
-        tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, keepHidden: tab.Surface is { SecretsHidden: true })).Started;
+        tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command,
+            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.Surface is { SecretsHidden: true })).Started;
 
     // ---- web data: colours and key paths ----
 

@@ -120,6 +120,8 @@ public sealed class ConverterContribution
     public string? Command { get; set; }
     public List<ConverterRule> Rules { get; set; } = [];
     public List<ConverterSample> Samples { get; set; } = [];
+    /// <summary>Also offered in Copy Table As: the converter gets the selected cells as Copy writes them (tab-separated, one row per line) and its result goes to the clipboard.</summary>
+    public bool Table { get; set; }
 }
 
 public sealed class ConverterRule

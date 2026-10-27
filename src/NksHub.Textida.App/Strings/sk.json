@@ -1130,6 +1130,8 @@
   "table.copyAs.sql": "SQL INSERT",
   "table.copyAs.json": "JSON",
   "table.copyAs.html": "Tabuľka HTML",
+  "table.copyAs.copied": "Vybrané bunky sú skopírované ako {title}.",
+  "table.copyAs.failed": "Prevodník {title} nebehol: {reason}. Schránka zostala bez zmeny.",
   "a11y.compare": "Porovnanie",
   "compare.tab": "Porovnanie: {left} / {right}",
   "compare.side.clipboard": "Schránka",

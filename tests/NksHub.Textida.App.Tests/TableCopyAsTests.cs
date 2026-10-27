@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -10,11 +11,15 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P5.1.3 and P5.1.2 in the app: the selected cells as a model, copy as Markdown, SQL, JSON and HTML through the plugin process, and hidden values that never reach the clipboard.</summary>
+/// <summary>
+/// P5.1.3 and P5.1.2 in the app: the selected cells as a model, copy as Markdown, SQL (in the dialect of the document), JSON and HTML through the plugin process,
+/// own forms as converters of a data plugin, and hidden values that never reach the clipboard.
+/// </summary>
 [Collection("LocState")]
 public class TableCopyAsTests : IDisposable
 {
@@ -174,5 +179,69 @@ public class TableCopyAsTests : IDisposable
         await _w.Clipboard.SetTextAsync("before");
         _app.Workbench.Commands.ExecuteAsync("nks.edit.copy", new ShellContext(_w, forMenu: false)).AsTask().GetAwaiter().GetResult();
         Assert.Equal("KEY=hunter2\n\"OTHER=\"\"a b\"\"\"", await ClipboardAfterAsync(_w, "before")); // the second cell holds quotes, so it is quoted as a spreadsheet does
+    }
+
+    [AvaloniaFact]
+    public async Task The_sql_form_follows_the_dialect_of_the_folder()
+    {
+        _temp.File(".editorconfig", "root = true\n[*]\nsql_dialect = mysql\n");
+        var (tab, view) = OpenTable("data.csv", Sample);
+        Assert.Equal("mysql", tab.Doc.SqlDialect);
+        view.SelectAll();
+
+        _dialogs.Prompts.Enqueue("people");
+        var sql = await CopyAsAsync("table.copyAs.sql");
+        Assert.Contains("INSERT INTO `people` (`id`, `name`, `note`) VALUES ('1', 'Ann', 'it''s');\n", sql);
+    }
+
+    // ---- own forms: converters of a data plugin marked for tables ----
+
+    private const string Exporters = "{\"schemaVersion\":1,\"id\":\"acme.export\",\"name\":\"Acme exporters\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"converters\":[" +
+        "{\"id\":\"wiki\",\"title\":\"Wiki table\",\"table\":true,\"rules\":[{\"find\":\"\\t\",\"replace\":\" || \"},{\"find\":\"^(.+)$\",\"replace\":\"|| $1 ||\",\"regex\":true}]," +
+        "\"samples\":[{\"input\":\"a\\tb\",\"expected\":\"|| a || b ||\"}]}," +
+        "{\"id\":\"upper\",\"title\":\"Upper case\",\"rules\":[{\"find\":\"a\",\"replace\":\"A\"}]}]}}";
+
+    private ConverterEntry InstallExporters()
+    {
+        var dir = Path.Combine(_app.ProfileDirectory, "plugins", "acme.export");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, PluginManifest.FileName), Exporters, Encoding.UTF8);
+        _app.ReloadClips();
+        Assert.Empty(_app.Clips.Problems);
+        return Assert.IsType<ConverterEntry>(_app.Clips.FindConverter("acme.export", "wiki"));
+    }
+
+    [AvaloniaFact]
+    public async Task A_converter_marked_for_tables_is_offered_after_the_built_in_forms_and_copies_the_cells_in_its_form()
+    {
+        var entry = InstallExporters();
+        var (tab, view) = OpenTable("people.csv", "id,name\n1,Ann\n2,Bo\n");
+        view.SelectAll();
+
+        var menu = Assert.IsType<MenuFlyout>(_w.ShowTableCopyAsMenu());
+        var titles = menu.Items.OfType<MenuItem>().Select(i => i.Header as string).ToList();
+        menu.Hide();
+        Assert.Equal(MainWindow.TableCopyForms.Length + 1, titles.Count);
+        Assert.Equal("Wiki table", titles[^1]);
+        Assert.DoesNotContain("Upper case", titles); // a converter without "table" stays out
+
+        await _w.Clipboard!.SetTextAsync("before");
+        Assert.True(_w.CopyTableAs(entry));
+        Assert.Equal("|| id || name ||\n|| 1 || Ann ||\n|| 2 || Bo ||", await ClipboardAfterAsync(_w, "before"));
+        Assert.Contains(_app.ClipboardHistory.Items, item => item.StartsWith("|| id", StringComparison.Ordinal));
+        Assert.Equal("id,name\n1,Ann\n2,Bo\n", Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task A_converter_gets_a_hidden_value_of_an_env_file_only_as_the_placeholder()
+    {
+        var entry = InstallExporters();
+        var (_, view) = OpenTable(".env", Env);
+        view.SelectAll();
+
+        await _w.Clipboard!.SetTextAsync("before");
+        Assert.True(_w.CopyTableAs(entry));
+        Assert.Equal($"|| {SecretValues.Placeholder} ||\n|| {SecretValues.Placeholder} ||", await ClipboardAfterAsync(_w, "before"));
+        Assert.DoesNotContain(_app.ClipboardHistory.Items, item => item.Contains("hunter2", StringComparison.Ordinal));
     }
 }

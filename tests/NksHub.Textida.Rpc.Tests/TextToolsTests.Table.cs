@@ -71,25 +71,43 @@ public partial class TextToolsTests
 
     // ---- SQL ----
 
-    /// <summary>Reads INSERT statements back: names in double quotes, values in single quotes with a doubled quote for one.</summary>
-    static List<(string Table, List<string> Columns, List<string> Values)> ParseInserts(string sql)
+    /// <summary>
+    /// Reads INSERT statements back as the database of the dialect would: names in double quotes (backticks for <c>mysql</c>, brackets for <c>tsql</c>), values in single
+    /// quotes with a doubled quote for one (<c>N</c> before them for <c>tsql</c>; for <c>mysql</c> a backslash starts an escape, so a lone one is lost).
+    /// </summary>
+    static List<(string Table, List<string> Columns, List<string> Values)> ParseInserts(string sql, string dialect = "generic")
     {
+        var (open, close) = dialect switch { "mysql" => ('`', '`'), "tsql" => ('[', ']'), _ => ('"', '"') };
         var result = new List<(string, List<string>, List<string>)>();
         int i = 0;
-        string Quoted(char q)
+        string Quoted(char start, char end, bool escapes = false)
         {
-            Assert.Equal(q, sql[i++]);
+            Assert.Equal(start, sql[i++]);
             var text = new StringBuilder();
             while (true)
             {
-                if (sql[i] == q)
+                if (escapes && sql[i] == '\\')
                 {
-                    if (i + 1 < sql.Length && sql[i + 1] == q) { text.Append(q); i += 2; continue; }
+                    char e = sql[i + 1];
+                    // MySQL keeps the backslash of \% and \_ and drops it before any other character
+                    text.Append(e switch { 'n' => "\n", 'r' => "\r", 't' => "\t", '0' => "\0", 'b' => "\b", 'Z' => "\u001a", '%' or '_' => "\\" + e, _ => e.ToString() });
+                    i += 2;
+                    continue;
+                }
+                if (sql[i] == end)
+                {
+                    if (i + 1 < sql.Length && sql[i + 1] == end) { text.Append(end); i += 2; continue; }
                     i++;
                     return text.ToString();
                 }
                 text.Append(sql[i++]);
             }
+        }
+        string Name() => Quoted(open, close);
+        string Value()
+        {
+            if (dialect == "tsql") Assert.Equal('N', sql[i++]);
+            return Quoted('\'', '\'', escapes: dialect == "mysql");
         }
         void Skip(string expected)
         {
@@ -100,18 +118,18 @@ public partial class TextToolsTests
         while (i < sql.Length)
         {
             Skip("INSERT INTO ");
-            var table = Quoted('"');
+            var table = Name();
             var columns = new List<string>();
             Assert.Equal(' ', sql[i++]);
             if (sql[i] == '(')
             {
                 i++;
-                do { columns.Add(Quoted('"')); } while (sql[i] == ',' && ++i > 0 && sql[i++] == ' ');
+                do { columns.Add(Name()); } while (sql[i] == ',' && ++i > 0 && sql[i++] == ' ');
                 Skip(")");
             }
             Skip("VALUES (");
             var values = new List<string>();
-            do { values.Add(Quoted('\'')); } while (sql[i] == ',' && ++i > 0 && sql[i++] == ' ');
+            do { values.Add(Value()); } while (sql[i] == ',' && ++i > 0 && sql[i++] == ' ');
             Skip(");");
             Assert.Equal('\n', sql[i++]);
             result.Add((table, columns, values));
@@ -134,6 +152,37 @@ public partial class TextToolsTests
         Assert.Equal(table.Rows.SelectMany(r => r), statements.SelectMany(s => s.Values));
         Assert.Contains("'it''s'", TableExport.Sql(table, "t"));
         Assert.Contains("\"na'me\"", TableExport.Sql(table, "t"));
+    }
+
+    [Theory]
+    [InlineData("generic")]
+    [InlineData("postgres")]
+    [InlineData("sqlite")]
+    [InlineData("mysql")]
+    [InlineData("tsql")]
+    public void Sql_of_each_dialect_reads_back_to_the_same_names_and_values(string dialect)
+    {
+        var table = Three();
+        const string name = "my\"`]table";
+        var statements = ParseInserts(TableExport.Sql(table, name, dialect), dialect);
+
+        Assert.Equal(table.Rows.Count, statements.Count);
+        Assert.All(statements, s =>
+        {
+            Assert.Equal(name, s.Table);
+            Assert.Equal(["id", "na'me", "no|te"], s.Columns);
+        });
+        Assert.Equal(table.Rows.SelectMany(r => r), statements.SelectMany(s => s.Values));
+    }
+
+    [Fact]
+    public void Mysql_doubles_a_backslash_tsql_marks_values_as_unicode_and_the_others_leave_it()
+    {
+        var one = new TableData(0, 1, ["path"], [["C:\\dir"]]);
+        Assert.Equal("INSERT INTO `t` (`path`) VALUES ('C:\\\\dir');\n", TableExport.Sql(one, "t", "mysql"));
+        Assert.Equal("INSERT INTO [t] ([path]) VALUES (N'C:\\dir');\n", TableExport.Sql(one, "t", "tsql"));
+        Assert.Equal("INSERT INTO \"t\" (\"path\") VALUES ('C:\\dir');\n", TableExport.Sql(one, "t", "postgres"));
+        Assert.Equal(TableExport.Sql(one, "t"), TableExport.Sql(one, "t", "no-such-dialect"));
     }
 
     [Fact]
@@ -244,5 +293,20 @@ public partial class TextToolsTests
         rig.Recorded.Input = _ => "orders";
         Assert.Equal("completed", await rig.RunAsync("table.copyAs.sql"));
         Assert.StartsWith("INSERT INTO \"orders\" ", rig.Tools.Clipboard[0].Text);
+    }
+
+    [Fact]
+    public async Task The_sql_form_writes_the_dialect_the_editor_names()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), TextCodec.Utf8);
+        var table = Three();
+        rig.Tools.Table = () => Selected(table);
+
+        Assert.Equal("completed", await rig.RunAsync("table.copyAs.sql", extra: ",\"table\":\"people\",\"dialect\":\"mysql\""));
+        Assert.Equal("completed", await rig.RunAsync("table.copyAs.sql", extra: ",\"table\":\"people\",\"dialect\":\"tsql\""));
+
+        Assert.Equal(TableExport.Sql(table, "people", "mysql"), rig.Tools.Clipboard[0].Text);
+        Assert.Equal(TableExport.Sql(table, "people", "tsql"), rig.Tools.Clipboard[1].Text);
+        Assert.StartsWith("INSERT INTO `people` ", rig.Tools.Clipboard[0].Text);
     }
 }

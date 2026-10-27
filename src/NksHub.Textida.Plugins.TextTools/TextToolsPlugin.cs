@@ -436,7 +436,8 @@ public sealed class TextToolsPlugin : PluginBase
 
     /// <summary>
     /// Reads the cells selected in the table view at the revision of the command and puts them on the clipboard as Markdown, SQL INSERT, JSON or HTML (the HTML form
-    /// also as rich HTML). The SQL form needs a table name: the <c>table</c> parameter, or what the user types, starting with the name of the file.
+    /// also as rich HTML). The SQL form needs a table name: the <c>table</c> parameter, or what the user types, starting with the name of the file; the <c>dialect</c>
+    /// parameter decides the quoting (<see cref="TableExport.Sql"/>).
     /// </summary>
     private async Task<string> RunCopyTableAsync(Context c, string command, CancellationToken ct)
     {
@@ -456,7 +457,8 @@ public sealed class TextToolsPlugin : PluginBase
             default:
                 var name = c.Parameters.TryGetProperty("table", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : await AskTableNameAsync(c, ct);
                 if (string.IsNullOrWhiteSpace(name)) return "cancelled";
-                (text, form) = (TableExport.Sql(table, name.Trim()), "SQL INSERT");
+                var dialect = c.Parameters.TryGetProperty("dialect", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString()! : "generic";
+                (text, form) = (TableExport.Sql(table, name.Trim(), dialect), "SQL INSERT");
                 break;
         }
         await CallAsync(DocumentMethods.ClipboardWrite, $"{{\"document\":\"{c.Document}\",\"text\":\"{Quote(text)}\"{(html is null ? "" : $",\"html\":\"{Quote(html)}\"")}}}", ct);
