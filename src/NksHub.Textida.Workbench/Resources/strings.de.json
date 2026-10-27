@@ -397,5 +397,9 @@
   "cmd.edit.fragmentSql": "Zeichenkette als SQL bearbeiten",
   "cmd.edit.fragmentHtml": "Zeichenkette als HTML bearbeiten",
   "cmd.edit.fragmentWriteBack": "Fragment in die Zeichenkette zurückschreiben",
-  "cmd.file.configFiles": "Konfigurationsdateien dieser Datei..."
+  "cmd.file.configFiles": "Konfigurationsdateien dieser Datei...",
+  "cmd.packages.lookup": "Paketversionen prüfen...",
+  "cmd.packages.refresh": "Paketversionen aktualisieren...",
+  "cmd.packages.revoke": "Paketregister-Abfragen verbieten",
+  "cmd.packages.script": "Paketskript ausführen..."
 }

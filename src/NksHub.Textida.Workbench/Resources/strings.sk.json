@@ -397,5 +397,9 @@
   "cmd.edit.fragmentSql": "Upraviť reťazec ako SQL",
   "cmd.edit.fragmentHtml": "Upraviť reťazec ako HTML",
   "cmd.edit.fragmentWriteBack": "Zapísať fragment späť do reťazca",
-  "cmd.file.configFiles": "Konfiguračné súbory tohto súboru..."
+  "cmd.file.configFiles": "Konfiguračné súbory tohto súboru...",
+  "cmd.packages.lookup": "Skontrolovať verzie balíkov...",
+  "cmd.packages.refresh": "Obnoviť verzie balíkov...",
+  "cmd.packages.revoke": "Zakázať dotazy na registre balíkov",
+  "cmd.packages.script": "Spustiť skript balíka..."
 }

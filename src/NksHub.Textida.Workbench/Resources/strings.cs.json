@@ -397,5 +397,9 @@
   "cmd.edit.fragmentSql": "Upravit řetězec jako SQL",
   "cmd.edit.fragmentHtml": "Upravit řetězec jako HTML",
   "cmd.edit.fragmentWriteBack": "Zapsat fragment zpět do řetězce",
-  "cmd.file.configFiles": "Konfigurační soubory tohoto souboru..."
+  "cmd.file.configFiles": "Konfigurační soubory tohoto souboru...",
+  "cmd.packages.lookup": "Zkontrolovat verze balíčků...",
+  "cmd.packages.refresh": "Obnovit verze balíčků...",
+  "cmd.packages.revoke": "Zakázat dotazy na registry balíčků",
+  "cmd.packages.script": "Spustit skript balíčku..."
 }

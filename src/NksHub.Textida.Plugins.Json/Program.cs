@@ -3,16 +3,23 @@ using System.Text.Json;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Plugins.Json;
+using NksHub.Textida.Plugins.Json.Packages;
 using NksHub.Textida.Plugins.Json.Schema;
 using NksHub.Textida.Rpc;
 
 // Built-in JSON plugin: a separate process speaking the plugin protocol on stdin/stdout.
 // Required options (no defaults, the editor decides): --max-bytes N, --indent N.
 // Schema checks and key completion need all of: --schema-max-bytes N, --schema-depth N, --schema-regex-ms N; without them the plugin only formats.
+// Package registry lookups need all of: --registry-config FILE (the consent the editor keeps), --registry-timeout-ms N, --registry-max-bytes N, --registry-page-size N,
+// --registry-max-lookups N, --registry-manifest-max-bytes N; --registry-url ID=URL (repeatable) sends one registry's requests elsewhere (a mirror, a test).
 long maxBytes = -1;
 int indent = -1;
 long schemaMaxBytes = -1;
 int schemaDepth = -1, schemaRegexMs = -1;
+string? registryConfig = null;
+int registryTimeout = -1, registryPage = -1, registryLookups = -1;
+long registryBytes = -1, registryManifestBytes = -1;
+var registryUrls = new Dictionary<string, string>();
 for (var i = 0; i < args.Length - 1; i++)
 {
     if (args[i] == "--max-bytes") maxBytes = long.Parse(args[i + 1]);
@@ -20,6 +27,13 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--schema-max-bytes") schemaMaxBytes = long.Parse(args[i + 1]);
     else if (args[i] == "--schema-depth") schemaDepth = int.Parse(args[i + 1]);
     else if (args[i] == "--schema-regex-ms") schemaRegexMs = int.Parse(args[i + 1]);
+    else if (args[i] == "--registry-config") registryConfig = args[i + 1];
+    else if (args[i] == "--registry-timeout-ms") registryTimeout = int.Parse(args[i + 1]);
+    else if (args[i] == "--registry-max-bytes") registryBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--registry-page-size") registryPage = int.Parse(args[i + 1]);
+    else if (args[i] == "--registry-max-lookups") registryLookups = int.Parse(args[i + 1]);
+    else if (args[i] == "--registry-manifest-max-bytes") registryManifestBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--registry-url" && args[i + 1].Split('=', 2) is [var registryId, var registryUrl]) registryUrls[registryId] = registryUrl;
 }
 if (maxBytes < 1 || indent < 0)
 {
@@ -33,13 +47,24 @@ await using var rpc = new JsonRpcDispatcher(Console.OpenStandardInput(), Console
 handler.Command = new FormatCommand(rpc, new FormatSettings(maxBytes, indent));
 if (schemaMaxBytes > 0 && schemaDepth > 0 && schemaRegexMs > 0)
     handler.Schema = new SchemaService(rpc, new SchemaSettings(schemaMaxBytes, schemaDepth, schemaRegexMs), new SchemaCatalog([]));
+RegistryClient? registryClient = null;
+if (registryConfig is not null && registryTimeout > 0 && registryBytes > 0 && registryPage > 0 && registryLookups > 0 && registryManifestBytes > 0)
+{
+    var registrySettings = new RegistrySettings(registryConfig, registryTimeout, registryBytes, registryPage, registryLookups, registryManifestBytes);
+    var adapters = RegistryAdapter.CreateAll();
+    foreach (var adapter in adapters) if (registryUrls.TryGetValue(adapter.Id, out var url)) adapter.Override(url);
+    registryClient = new RegistryClient(registrySettings);
+    handler.Packages = new PackageService(rpc, registryClient, registrySettings, adapters);
+}
 await rpc.Completion;
+registryClient?.Dispose();
 return 0;
 
 sealed class Handler : IRpcHandler
 {
     public FormatCommand Command = null!;
     public SchemaService? Schema;
+    public PackageService? Packages;
 
     public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement p, CancellationToken ct)
     {
@@ -48,9 +73,9 @@ sealed class Handler : IRpcHandler
             case PluginMethods.Initialize:
                 return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(1, "json-formatter"), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
-                if (Schema is not null)
+                if (Schema is not null || Packages is not null)
                 {
-                    try { await Schema.RegisterAsync(); }
+                    try { await (Schema is not null ? Schema.RegisterAsync() : Packages!.RegisterAsync()); }
                     catch (RpcException) { } // the editor refused the registration: the plugin still formats
                 }
                 return Encoding.UTF8.GetBytes("true");
@@ -61,14 +86,29 @@ sealed class Handler : IRpcHandler
                 var command = p.GetProperty("command").GetString();
                 if (command == SchemaService.Check)
                     return await (Schema ?? throw new RpcException(RpcErrorCodes.InvalidParams, "The schema options were not given.")).CheckAsync(p);
+                if (command == PackageService.Check)
+                    return await (Packages ?? throw new RpcException(RpcErrorCodes.InvalidParams, "The registry options were not given.")).CheckAsync(p);
                 if (command is not (FormatCommand.Format or FormatCommand.Preview))
                     throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
                 return Encoding.UTF8.GetBytes($"{{\"status\":\"{await Command.RunAsync(p)}\"}}");
             case DocumentRequests.Completion:
-                return await (Schema ?? throw new RpcException(RpcErrorCodes.MethodNotFound, "The plugin has no schema options.")).CompleteAsync(p);
+                if (Schema is null && Packages is null) throw new RpcException(RpcErrorCodes.MethodNotFound, "The plugin has no schema or registry options.");
+                var keys = Schema is null ? null : await Schema.CompleteAsync(p);
+                var packages = Packages is null ? null : await Packages.CompleteAsync(p);
+                return keys is null ? packages! : packages is null ? keys : MergeOffers(keys, packages);
             default:
                 throw new RpcException(RpcErrorCodes.MethodNotFound, $"Unknown method '{method}'.");
         }
+    }
+
+    /// <summary>Joins two completion answers of the same revision: the items of <paramref name="more"/> follow those of <paramref name="first"/>. Both are written by this plugin, as <c>{"revision":n,"items":[...]}</c>.</summary>
+    private static byte[] MergeOffers(byte[] first, byte[] more)
+    {
+        const string Marker = "\"items\":[";
+        string a = Encoding.UTF8.GetString(first), b = Encoding.UTF8.GetString(more);
+        string extra = b[(b.IndexOf(Marker, StringComparison.Ordinal) + Marker.Length)..^2];
+        if (extra.Length == 0) return first;
+        return Encoding.UTF8.GetBytes(a[..^2] + (a.EndsWith("[]}", StringComparison.Ordinal) ? "" : ",") + extra + "]}");
     }
 
     public ValueTask HandleNotificationAsync(string method, JsonElement p)

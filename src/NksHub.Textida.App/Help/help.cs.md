@@ -835,6 +835,22 @@ commands: nks.tools.makeTargets
 3. Řádek výstupu, který jmenuje soubor a řádek (main.c:12:5: error, Makefile:7:), otevře to místo klikem nebo Enterem.
 - Make musí být nainstalovaný a v PATH. Zvláštní cíle (.PHONY), vzorová pravidla a názvy s proměnnou či zástupným znakem se nevypisují. Potvrzení se váže na příkaz, ne na obsah Makefile, protože spustit Makefile znamená spustit, co říká.
 
+## [packages.registry] Manifesty balíčků: názvy, verze a značka novější verze
+commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
+1. V souborech package.json, composer.json, requirements.txt, .csproj, go.mod, Cargo.toml a Gemfile se editor umí zeptat registru balíčků (npm, Packagist, PyPI, NuGet, proxy Go, crates.io, RubyGems) na názvy a verze. Bez vašeho souhlasu se nic neposílá: Nástroje, Zkontrolovat verze balíčků ukáže servery a zeptá se jednou pro každý registr.
+2. Po souhlasu nabídne Ctrl+J v názvu položky názvy z registru a ve verzi verze toho balíčku, od nejnovější. PyPI a proxy Go nemají vyhledávání: název se nabídne jen tehdy, když napsaný text je celý název.
+3. Položka s přesně zadanou verzí (1.2.3, ==1.2.3, v1.2.3), pro kterou existuje novější vydání, dostane informační značku na verzi. Rozsahy (^, ~, >=) se neznačí. Předběžná verze se za novější nebere, dokud existuje vydání. Kontrola běží, když přestanete psát.
+4. Odpovědi se drží v cache do zavření editoru. Nabídka nebo značka z cache to říká („cache“). Obnovit verze balíčků zahodí cache toho registru a zeptá se znovu.
+5. Zakázat dotazy na registry balíčků vezme zpět všechny souhlasy a zahodí cache. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde a dotazy se pak zastaví.
+- Nic se nestahuje ani neinstaluje, nehledají se zranitelnosti a go mod download se nikdy nespouští. K registru se dostanou jen názvy balíčků, napsaný text a vaše síťová adresa.
+- Registr, který selže, nenabídne nic; Zkontrolovat verze balíčků napíše chybu do stavového řádku. Časový limit, limit velikosti a počet balíčků na jednu kontrolu jsou prozatímní.
+
+## [packages.scripts] Skripty balíčku: npm a Composer
+commands: nks.packages.script
+1. S otevřeným souborem package.json nebo composer.json vypíše Nástroje, Spustit skript balíčku jeho skripty. Vybraný se spustí jako npm run název nebo composer run-script název ve složce souboru.
+2. Jde to přes spouštěč nástrojů jako nástroj z projektové složky: příkaz, složka a soubor, ze kterého skript pochází, se ukážou a je třeba je potvrdit. Potvrzení je vázané na text skriptu, takže změněný skript se zeptá znovu. Výstup jde do karty Úlohy; Zastaviť ho ukončí.
+- npm nebo Composer musí být nainstalovaný. Na Windows jsou oba dávkové soubory, které spouštěč odmítá; editor místo toho spustí Node s npm-cli.js, nebo PHP s composer.phar, ze složky dávkového souboru.
+
 ## [file.saveActions] Akce při uložení: formátovat, spustit nástroj, nahrát
 commands: nks.file.saveActions
 1. Soubor, Akce při uložení vypíše, co běží kolem uložení: formátování, nástroj, nahrání na server. Řádek akci zapne nebo vypne; řádek pod ním přepíná „jen při ručním uložení“. Formátovač (gofmt, rustfmt, clang-format, RuboCop) se nabídne jen tehdy, když jeho konfigurace (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) leží ve složce souboru nebo výš, a je vypnutý, dokud ho nezapnete.

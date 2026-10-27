@@ -1591,6 +1591,29 @@
       "title": "cmd.file.configFiles",
       "category": "cat.file",
       "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.packages.lookup",
+      "title": "cmd.packages.lookup",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.packages.refresh",
+      "title": "cmd.packages.refresh",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.packages.revoke",
+      "title": "cmd.packages.revoke",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.packages.script",
+      "title": "cmd.packages.script",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
     }
   ],
   "menus": [
@@ -3027,6 +3050,30 @@
       "command": "nks.file.configFiles",
       "group": "2_save",
       "order": 36
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.lookup",
+      "group": "6_packages",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.refresh",
+      "group": "6_packages",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.revoke",
+      "group": "6_packages",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.packages.script",
+      "group": "6_packages",
+      "order": 40
     }
   ],
   "keybindings": [

@@ -145,6 +145,18 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a language server's standard error kept for the report of its end.</summary>
     public const int LspStderrLines = 20;
 
+    /// <summary>Placeholder: time one package registry request may take. OPEN: the owner has not decided it.</summary>
+    public const int RegistryTimeoutMilliseconds = 10_000;
+
+    /// <summary>Placeholder: largest answer of a package registry that is read; a larger one is an error. OPEN: the owner has not decided it.</summary>
+    public const long RegistryMaxResponseBytes = 8L << 20;
+
+    /// <summary>Placeholder: names asked of a registry for one name completion. OPEN: the owner has not decided it.</summary>
+    public const int RegistryPageSize = 20;
+
+    /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
+    public const int RegistryMaxLookups = 50;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

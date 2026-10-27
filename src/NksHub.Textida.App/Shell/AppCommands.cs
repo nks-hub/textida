@@ -206,6 +206,10 @@ internal static class AppCommands
         On("nks.file.saveActions", w => w.ShowSaveActions());
         On("nks.file.configFiles", w => w.ShowConfigFiles());
         On("nks.tools.makeTargets", w => w.ShowMakeTargets());
+        On("nks.packages.lookup", w => w.PackageLookup(refresh: false));
+        On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
+        On("nks.packages.revoke", w => w.PackageRevoke());
+        On("nks.packages.script", w => w.ShowPackageScripts());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.log.levels", w => w.ChooseLogLevels());

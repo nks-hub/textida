@@ -830,6 +830,22 @@ commands: nks.tools.makeTargets
 3. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter.
 - Make muss installiert und im PATH sein. Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
 
+## [packages.registry] Paketmanifeste: Namen, Versionen und Marke für neuere Versionen
+commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
+1. In package.json, composer.json, requirements.txt, einer .csproj-Datei, go.mod, Cargo.toml und Gemfile kann der Editor das Paketregister (npm, Packagist, PyPI, NuGet, Go-Proxy, crates.io, RubyGems) nach Namen und Versionen fragen. Ohne Ihre Zustimmung wird nichts gesendet: Werkzeuge, Paketversionen prüfen zeigt die Server und fragt einmal je Register.
+2. Nach der Zustimmung bietet Strg+J im Namen eines Eintrags Namen aus dem Register an und in einer Version die Versionen dieses Pakets, die neueste zuerst. PyPI und der Go-Proxy haben keine Suche: ein Name wird nur angeboten, wenn der getippte Text der ganze Name ist.
+3. Ein Eintrag mit genau festgelegter Version (1.2.3, ==1.2.3, v1.2.3), zu dem es ein neueres Release gibt, bekommt an der Version eine Informationsmarke. Bereiche (^, ~, >=) werden nicht markiert. Eine Vorabversion gilt nicht als neuere Version, solange es ein Release gibt. Die Prüfung läuft, wenn Sie aufhören zu tippen.
+4. Antworten bleiben bis zum Schließen des Editors im Cache. Ein Angebot oder eine Marke aus dem Cache sagt das („cache“). Paketversionen aktualisieren verwirft den Cache dieses Registers und fragt erneut.
+5. Paketregister-Abfragen verbieten nimmt jede Zustimmung zurück und verwirft den Cache. Es gilt der Proxy aus dem Befehl Netzwerk-Proxy; ein Proxy mit Benutzernamen lässt sich nicht verwenden, die Abfragen stoppen dann.
+- Es wird nichts heruntergeladen oder installiert, nach Schwachstellen wird nicht gesucht und go mod download läuft nie. Zum Register gelangen nur Paketnamen, der getippte Text und Ihre Netzwerkadresse.
+- Ein Register, das ausfällt, bietet nichts an; Paketversionen prüfen nennt den Fehler in der Statusleiste. Zeitlimit, Größenlimit und Zahl der Pakete je Prüfung sind vorläufig.
+
+## [packages.scripts] Paketskripte: npm und Composer
+commands: nks.packages.script
+1. Bei geöffneter package.json oder composer.json listet Werkzeuge, Paketskript ausführen deren Skripte auf. Das gewählte läuft als npm run Name oder composer run-script Name im Ordner der Datei.
+2. Es läuft über den Werkzeug-Starter wie ein Werkzeug aus einem Projektordner: Befehl, Ordner und die Datei, aus der das Skript stammt, werden gezeigt und müssen bestätigt werden. Die Bestätigung gilt für den Text des Skripts, ein geändertes Skript fragt also erneut. Die Ausgabe geht in den Tab Aufgaben; Stopp beendet es.
+- npm oder Composer muss installiert sein. Unter Windows sind beide Batchdateien, die der Starter ablehnt; der Editor startet stattdessen Node mit npm-cli.js oder PHP mit composer.phar aus dem Ordner der Batchdatei.
+
 ## [file.saveActions] Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen
 commands: nks.file.saveActions
 1. Datei, Aktionen beim Speichern listet auf, was rund um das Speichern läuft: Formatieren, ein Werkzeug, Hochladen auf den Server. Eine Zeile schaltet die Aktion ein oder aus; die Zeile darunter schaltet „nur beim manuellen Speichern“ um. Ein Formatierer (gofmt, rustfmt, clang-format, RuboCop) wird nur angeboten, wenn seine Konfigurationsdatei (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) im Ordner der Datei oder darüber liegt, und er bleibt aus, bis Sie ihn einschalten.
