@@ -3608,7 +3608,7 @@
     {
       "key": "ctrl+j",
       "command": "nks.edit.complete",
-      "when": "editorFocus"
+      "when": "editorFocus && !hexMode"
     },
     {
       "key": "alt+f1",
