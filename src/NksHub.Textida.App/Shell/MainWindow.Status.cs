@@ -106,7 +106,7 @@ internal sealed partial class MainWindow
         _indentItem.Content = Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize));
         var codec = od.Doc.Codec;
         _encodingItem.Content = codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : "");
-        _eolItem.Content = EolLabel(od);
+        _eolItem.Content = EolLabel(od, opts);
         _languageItem.Content = od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name;
         var configs = ConfigHitsOf(od).Where(h => h.Path is not null).ToList();
         _configItem.Content = ConfigLabel(configs);
@@ -148,10 +148,10 @@ internal sealed partial class MainWindow
         return dot;
     }
 
-    private string EolLabel(OpenDocument od) => od.Eol.Style switch
+    private static string EolLabel(OpenDocument od, EditorOptions opts) => od.Eol.Style switch
     {
         EolStyle.Mixed => Loc.Get(K.StatusEolMixed),
-        EolStyle.None => od.NewLine(Options.ConfiguredEol) switch { "\r\n" => "CRLF", "\r" => "CR", _ => "LF" },
+        EolStyle.None => od.NewLine(opts.ConfiguredEol) switch { "\r\n" => "CRLF", "\r" => "CR", _ => "LF" },
         _ => od.Eol.Label,
     };
 

@@ -103,11 +103,13 @@ public static class SettingRules
     private const double MaxExactInteger = 9007199254740992;
 
     /// <summary>The numeric value of a JSON number whatever CLR type backs the node (parsed nodes and nodes built in code differ).</summary>
-    public static double? ToNumber(JsonNode? node) =>
-        node is JsonValue v && v.GetValueKind() == JsonValueKind.Number
-        && double.TryParse(ToText(v), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d)
-            ? d
-            : null;
+    public static double? ToNumber(JsonNode? node)
+    {
+        if (node is not JsonValue v || v.GetValueKind() != JsonValueKind.Number) return null;
+        if (v.TryGetValue(out long l)) return l; // the text round trip below allocates a stream and a writer per call
+        if (v.TryGetValue(out double fast)) return fast;
+        return double.TryParse(ToText(v), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+    }
 
     private static string? CheckRange(SettingDefinition definition, double value)
     {
