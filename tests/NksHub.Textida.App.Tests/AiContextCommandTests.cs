@@ -150,6 +150,43 @@ public class AiContextCommandTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Tabs_past_the_size_limit_are_left_out_and_the_preview_names_them_with_the_limit()
+    {
+        OpenFile("A.cs", "int a;\n");
+        OpenFile("B.cs", new string('b', 200) + "\n");
+        _w.AiContextMaxBytes = 100;
+
+        var text = await CopyAsync("Open tabs");
+        Assert.Contains("int a;", text);
+        Assert.DoesNotContain("bbbb", text);
+        var preview = _dialogs.Asked[^1];
+        Assert.Contains("Files: 1.", preview.Message);
+        Assert.Contains(preview.Details!, d => d.EndsWith("B.cs: does not fit in the size limit of the whole context (100 B)"));
+    }
+
+    [AvaloniaFact]
+    public async Task A_paged_selection_far_over_the_size_limit_is_named_without_being_copied()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(_temp.Bytes("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 200_000).Select(i => $"line {i}\n")))), null);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
+        {
+            Thread.Sleep(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+        tab.Paged!.SelectAll();
+        _w.AiContextMaxBytes = 1000;
+
+        foreach (var scope in new[] { "Selection", "Open tabs" })
+        {
+            Assert.Equal("before", await CopyAsync(scope));
+            var preview = _dialogs.Asked[^1];
+            Assert.Contains("Files: 0.", preview.Message);
+            Assert.Contains(preview.Details!, d => d.EndsWith("big.log: does not fit in the size limit of the whole context (1000 B)"));
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_opened_folder_gives_its_text_files_and_names_env_binary_hidden_and_ignored_ones()
     {
         var root = Path.Combine(_temp.Path, "proj");
