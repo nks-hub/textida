@@ -1218,6 +1218,12 @@
       "enablement": "tableMode"
     },
     {
+      "id": "nks.table.copyAs",
+      "title": "cmd.table.copyAs",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
       "id": "nks.compare.clipboard",
       "title": "cmd.compare.clipboard",
       "category": "cat.tools",
@@ -2321,6 +2327,12 @@
       "command": "nks.table.clearFilter",
       "group": "4_table",
       "order": 80
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.copyAs",
+      "group": "4_table",
+      "order": 90
     },
     {
       "menu": "tools",

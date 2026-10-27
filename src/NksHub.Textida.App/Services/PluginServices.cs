@@ -80,6 +80,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
 
         // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
         permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
+        permissions.Grant(TextToolsPluginId, DocumentPermissions.ClipboardWrite, GrantScope.All);
         var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
@@ -194,6 +195,13 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// </summary>
     public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command) =>
         tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command);
+
+    /// <summary>
+    /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the
+    /// table API and writes the clipboard. While the values of a secrets file are hidden the plugin gets <c>*</c> in their place and nothing is asked. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunTableCopyAsync(MainWindow window, DocTab tab, string command) =>
+        tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, keepHidden: tab.Surface is { SecretsHidden: true })).Started;
 
     // ---- web data: colours and key paths ----
 
@@ -420,10 +428,10 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>
     /// Runs one plugin command on the tab. The document (and <paramref name="other"/>, when a command compares two) is visible to plugins only meanwhile, unless
     /// <paramref name="keep"/> asks to leave a document with published symbols exposed: the outline stays valid, and the document goes when its tab closes (<see cref="Forget"/>).
-    /// <paramref name="extra"/> is more members of the request object, already written as JSON (starting with a comma). Without <paramref name="notify"/> a plugin that cannot run is passed over silently.
+    /// <paramref name="keepHidden"/> leaves the values of a secrets file hidden from the plugin without asking. <paramref name="extra"/> is more members of the request object, already written as JSON (starting with a comma). Without <paramref name="notify"/> a plugin that cannot run is passed over silently.
     /// </summary>
     private async Task<Outcome> ExecuteAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command,
-        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false)
+        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false, bool keepHidden = false)
     {
         var document = tab.Doc.Doc;
         var otherDocument = other?.Doc.Doc;
@@ -433,7 +441,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             while (Blocking() is { Background: true } asking) await asking.Done.Task;
         if (Busy()) return default;
         // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
-        bool reveal = SecretValues.IsSecretFile(document.FilePath);
+        bool reveal = !keepHidden && SecretValues.IsSecretFile(document.FilePath);
         if (reveal && !await window.PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PluginSecretsTitle), Loc.Get(K.PluginSecretsMessage, ("name", name), ("file", Path.GetFileName(document.FilePath)!))))) return default;
         if (Busy()) return default;
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -532,6 +540,14 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     public void PlaceSelections(Guid document, SelectionSet selections)
     {
         if (TabOf(document) is { } found) found.Window.PlaceSelections(found.Tab, selections);
+    }
+
+    public TableSelectionData? TableSelection(Guid document) =>
+        TabOf(document) is { Tab: { TableShown: true, Table: { } table } } ? table.SelectionData() : null;
+
+    public void SetClipboard(Guid document, string text, string? html)
+    {
+        if (TabOf(document) is { } found) found.Window.WriteClipboard(text, html);
     }
 
     public string NewLine(Guid document) =>

@@ -1,0 +1,178 @@
+using System.Diagnostics;
+using System.Text;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
+using NksHub.Textida.App.Shell;
+using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.Workbench.Commands;
+
+namespace NksHub.Textida.App.Tests;
+
+/// <summary>P5.1.3 and P5.1.2 in the app: the selected cells as a model, copy as Markdown, SQL, JSON and HTML through the plugin process, and hidden values that never reach the clipboard.</summary>
+[Collection("LocState")]
+public class TableCopyAsTests : IDisposable
+{
+    private const string Sample = "id,name,note\n1,Ann,\"it's\"\n2,\"Bo\"\"b\",a|b\n3,Cyd,\"x\ny\"\n";
+    private const string Env = "KEY=hunter2\nOTHER=\"a b\"\n";
+
+    private readonly TempDir _temp = new();
+    private readonly ScriptedDialogs _dialogs = new();
+    private readonly App _app;
+    private readonly MainWindow _w;
+
+    public TableCopyAsTests()
+    {
+        _app = TestApp.Prepare(_temp, _dialogs);
+        Loc.SetLanguage("en");
+        _w = _app.CreateWindow(null);
+    }
+
+    public void Dispose()
+    {
+        TestApp.Cleanup(_app);
+        Loc.SetLanguage(Loc.DefaultLanguage);
+        _temp.Dispose();
+    }
+
+    private (DocTab Tab, CsvView View) OpenTable(string name, string text)
+    {
+        var tab = _w.OpenFile(_temp.File(name, text), null);
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.view.table", new ShellContext(_w, forMenu: true)).AsTask().GetAwaiter().GetResult());
+        var view = Assert.IsType<CsvView>(_w.ActiveTable);
+        _w.UpdateLayout();
+        while (!view.RowsComplete) view.Tick();
+        return (tab, view);
+    }
+
+    private static async Task<string?> ClipboardAfterAsync(MainWindow w, string before)
+    {
+        var sw = Stopwatch.StartNew();
+        string? now;
+        while ((now = await w.Clipboard!.TryGetTextAsync()) == before && sw.ElapsedMilliseconds < 5000)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(20);
+        }
+        return now;
+    }
+
+    private async Task<string?> CopyAsAsync(string command)
+    {
+        await _w.Clipboard!.SetTextAsync("before");
+        Assert.True(await _w.CopyTableAsAsync(command));
+        return await ClipboardAfterAsync(_w, "before");
+    }
+
+    private static string Bytes(DocTab tab) => Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
+
+    [AvaloniaFact]
+    public void The_selected_columns_come_as_values_header_row_numbers_and_the_bytes_of_each_cell()
+    {
+        var (tab, view) = OpenTable("data.csv", Sample);
+        view.Select(0, 1, 1, 2); // rows 1 and 2, columns name and note
+        var data = view.SelectionData();
+
+        Assert.Equal((1, 2), (data.FirstColumn, data.Columns));
+        Assert.Equal(["name", "note"], data.Header!.Select(c => c.Value));
+        var rows = data.Rows.ToList();
+        Assert.Equal([1, 2], rows.Select(r => r.Number));
+        Assert.Equal(["Ann", "it's", "Bo\"b", "a|b"], rows.SelectMany(r => r.Cells).Select(c => c.Value));
+        var all = tab.Doc.Doc;
+        Assert.Equal("\"it's\"", Encoding.UTF8.GetString(all.ReadBytes(rows[0].Cells[1].Range)));
+        Assert.Equal("Ann", Encoding.UTF8.GetString(all.ReadBytes(rows[0].Cells[0].Range)));
+
+        view.ApplyFilter("Cyd", 1);
+        view.SelectAll();
+        Assert.Equal([3], view.SelectionData().Rows.Select(r => r.Number));
+    }
+
+    [AvaloniaFact]
+    public async Task All_four_forms_reach_the_clipboard_with_the_values_of_the_selected_columns()
+    {
+        var (tab, view) = OpenTable("data.csv", Sample);
+        view.SelectAll();
+
+        Assert.Equal("| id | name | note |\n| --- | --- | --- |\n| 1 | Ann | it's |\n| 2 | Bo\"b | a\\|b |\n| 3 | Cyd | x<br>y |\n", await CopyAsAsync("table.copyAs.markdown"));
+
+        var json = await CopyAsAsync("table.copyAs.json");
+        using (var parsed = System.Text.Json.JsonDocument.Parse(json!))
+            Assert.Equal(["1", "Ann", "it's", "2", "Bo\"b", "a|b", "3", "Cyd", "x\ny"], parsed.RootElement.EnumerateArray().SelectMany(r => r.EnumerateObject().Select(p => p.Value.GetString())));
+        Assert.Contains(_app.ClipboardHistory.Items, item => item == json);
+
+        var html = await CopyAsAsync("table.copyAs.html");
+        Assert.Contains("<th>note</th>", html);
+        Assert.Contains("<td>it&#39;s</td>", html);
+        Assert.Contains("<td>Bo&quot;b</td>", html);
+        Assert.Contains("<td>x<br>y</td>", html);
+
+        _dialogs.Prompts.Enqueue("people");
+        var sql = await CopyAsAsync("table.copyAs.sql");
+        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES ('1', 'Ann', 'it''s');\n", sql);
+        Assert.Contains("VALUES ('3', 'Cyd', 'x\ny');\n", sql);
+        Assert.Equal(Sample, Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task The_html_form_is_on_the_clipboard_as_html_too()
+    {
+        var (_, view) = OpenTable("data.csv", Sample);
+        view.SelectAll();
+        var html = await CopyAsAsync("table.copyAs.html");
+
+        var data = await _w.Clipboard!.TryGetDataAsync();
+        var item = Assert.Single(data!.Items);
+        Assert.Contains(ClipboardHtml.Format, item.Formats);
+        var raw = await item.TryGetRawAsync(ClipboardHtml.Format);
+        var text = Encoding.UTF8.GetString(Assert.IsType<byte[]>(raw));
+        Assert.Contains(html!.Trim(), text);
+    }
+
+    [AvaloniaFact]
+    public void The_windows_form_of_html_names_where_the_fragment_is_in_bytes()
+    {
+        var bytes = ClipboardHtml.CfHtml("<b>é</b>");
+        var text = Encoding.UTF8.GetString(bytes);
+        int Offset(string name) => int.Parse(text[(text.IndexOf(name + ":", StringComparison.Ordinal) + name.Length + 1)..][..10]);
+
+        Assert.Equal("<html>", Encoding.UTF8.GetString(bytes, Offset("StartHTML"), 6));
+        Assert.Equal("<b>é</b>", Encoding.UTF8.GetString(bytes, Offset("StartFragment"), Offset("EndFragment") - Offset("StartFragment")));
+        Assert.Equal(bytes.Length, Offset("EndHTML"));
+    }
+
+    [AvaloniaFact]
+    public async Task A_hidden_value_of_an_env_file_never_reaches_the_clipboard_by_copy_cut_or_copy_as()
+    {
+        var (tab, view) = OpenTable(".env", Env);
+        view.SelectAll();
+        Assert.True(tab.Surface!.SecretsHidden);
+
+        await _w.Clipboard!.SetTextAsync("before");
+        _app.Workbench.Commands.ExecuteAsync("nks.edit.copy", new ShellContext(_w, forMenu: false)).AsTask().GetAwaiter().GetResult();
+        Assert.Equal(SecretValues.Placeholder + "\n" + SecretValues.Placeholder, await ClipboardAfterAsync(_w, "before"));
+
+        await _w.Clipboard.SetTextAsync("before");
+        _app.Workbench.Commands.ExecuteAsync("nks.edit.cut", new ShellContext(_w, forMenu: false)).AsTask().GetAwaiter().GetResult();
+        await ClipboardAfterAsync(_w, "before");
+        Assert.Equal(Env, Bytes(tab)); // a cut that touches a hidden value deletes nothing
+
+        var markdown = await CopyAsAsync("table.copyAs.markdown");
+        Assert.DoesNotContain("hunter2", markdown);
+        Assert.DoesNotContain("a b", markdown);
+        Assert.Contains("*", markdown);
+        Assert.Empty(_dialogs.Asked); // nothing was asked: the plugin was not given the values
+        Assert.DoesNotContain(_app.ClipboardHistory.Items, item => item.Contains("hunter2", StringComparison.Ordinal));
+
+        tab.Surface.ToggleSecrets();
+        await _w.Clipboard.SetTextAsync("before");
+        _app.Workbench.Commands.ExecuteAsync("nks.edit.copy", new ShellContext(_w, forMenu: false)).AsTask().GetAwaiter().GetResult();
+        Assert.Equal("KEY=hunter2\n\"OTHER=\"\"a b\"\"\"", await ClipboardAfterAsync(_w, "before")); // the second cell holds quotes, so it is quoted as a spreadsheet does
+    }
+}

@@ -12,6 +12,8 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -582,26 +584,68 @@ internal sealed partial class CsvView : Grid, IDisposable
         _ = redo ? Doc.Redo() : Doc.Undo();
     }
 
+    // ---- selection as a model ----
+
+    /// <summary>
+    /// The selected cells for a plugin: the columns, the header of those columns and the selected data rows read one by one (a filtered view gives the rows it shows).
+    /// Call on the UI thread and read the rows before the document changes.
+    /// </summary>
+    internal TableSelectionData SelectionData()
+    {
+        var sel = Selection;
+        EnsureData(sel.LastRow + 1);
+        TableCell CellOf(int row, IReadOnlyList<CsvField> fields, int column) =>
+            column < fields.Count ? new TableCell(_table.Text(fields[column]), new ByteRange(fields[column].Start, fields[column].End)) : new TableCell("", _table.CellRange(row, column));
+        IReadOnlyList<TableCell>? header = null;
+        if (HeaderRows > 0)
+        {
+            var fields = _table.Fields(0);
+            header = [.. Enumerable.Range(sel.FirstColumn, sel.ColumnCount).Select(c => CellOf(0, fields, c))];
+        }
+        IEnumerable<TableRow> Rows()
+        {
+            for (int r = Math.Max(0, sel.FirstRow); r <= sel.LastRow && r < DataRowCount; r++)
+            {
+                int docRow = DocRow(r);
+                var fields = _table.Fields(docRow);
+                yield return new TableRow(RowNumber(r), [.. Enumerable.Range(sel.FirstColumn, sel.ColumnCount).Select(c => CellOf(docRow, fields, c))]);
+            }
+        }
+        return new TableSelectionData(sel.FirstColumn, sel.ColumnCount, header, Rows());
+    }
+
     // ---- clipboard text ----
 
-    /// <summary>The selected cells as tab-separated text, one row per line; a value with a tab, a quote or a line break is quoted, as spreadsheets do.</summary>
-    public string SelectedText()
+    /// <summary>
+    /// The selected cells as tab-separated text, one row per line; a value with a tab, a quote or a line break is quoted, as spreadsheets do. A cell that touches
+    /// one of the <paramref name="hidden"/> byte ranges (the values of a secrets file that are hidden) gives the placeholder and sets <paramref name="masked"/>.
+    /// </summary>
+    public string SelectedText(IReadOnlyList<ByteRange>? hidden, out bool masked)
     {
         var sel = Selection;
         var text = new StringBuilder();
+        masked = false;
         for (int r = sel.FirstRow; r <= sel.LastRow && (r < 0 || r < DataRowCount); r++)
         {
-            var values = RowValues(r);
+            var fields = _table.Fields(DocRow(r));
             if (r > sel.FirstRow) text.Append('\n');
             for (int c = sel.FirstColumn; c <= sel.LastColumn; c++)
             {
                 if (c > sel.FirstColumn) text.Append('\t');
-                string value = c < values.Length ? values[c] : "";
+                string value = "";
+                if (c < fields.Count)
+                {
+                    bool secret = hidden is not null && SecretValues.Overlaps(hidden, fields[c].Start, fields[c].End);
+                    masked |= secret;
+                    value = secret ? SecretValues.Placeholder : _table.Text(fields[c]);
+                }
                 text.Append(value.AsSpan().IndexOfAny("\t\r\n\"") >= 0 ? "\"" + value.Replace("\"", "\"\"") + "\"" : value);
             }
         }
         return text.ToString();
     }
+
+    public string SelectedText() => SelectedText(null, out _);
 
     /// <summary>
     /// Writes tab-separated text into the cells from the first selected cell on, as one undo step. Rows past the last one are added;

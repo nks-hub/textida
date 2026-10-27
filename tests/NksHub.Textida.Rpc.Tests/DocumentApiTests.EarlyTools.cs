@@ -23,6 +23,11 @@ public partial class DocumentApiTests
         public bool Reveal(Guid document, ByteRange range) { if (HasView) Revealed.Add(range); return HasView; }
         public void PlaceSelections(Guid document, SelectionSet selections) => Placed.Add(selections);
         public string NewLine(Guid document) => Eol;
+
+        public Func<TableSelectionData?>? Table;
+        public readonly List<(string Text, string? Html)> Clipboard = [];
+        public TableSelectionData? TableSelection(Guid document) => Table?.Invoke();
+        public void SetClipboard(Guid document, string text, string? html) { lock (Clipboard) Clipboard.Add((text, html)); }
     }
 
     static string Symbol(string id, string name, long start, long end, string? parent = null) =>

@@ -35,6 +35,10 @@ public static class Texts
         ["base.label"] = ["Číslo (desítkově, nebo s 0x, 0b, 0o)", "Number (decimal, or with 0x, 0b, 0o)", "Číslo (desiatkovo, alebo s 0x, 0b, 0o)", "Zahl (dezimal oder mit 0x, 0b, 0o)"],
         ["base.result"] = ["Desítkově: {dec}, šestnáctkově: {hex}, osmičkově: {oct}, dvojkově: {bin}", "Decimal: {dec}, hexadecimal: {hex}, octal: {oct}, binary: {bin}", "Desiatkovo: {dec}, šestnástkovo: {hex}, osmičkovo: {oct}, dvojkovo: {bin}", "Dezimal: {dec}, hexadezimal: {hex}, oktal: {oct}, binär: {bin}"],
         ["base.invalid"] = ["'{text}' není celé číslo (desítkové, nebo s předponou 0x, 0b, 0o).", "'{text}' is not a whole number (decimal, or with the prefix 0x, 0b, 0o).", "'{text}' nie je celé číslo (desiatkové, alebo s predponou 0x, 0b, 0o).", "'{text}' ist keine ganze Zahl (dezimal oder mit dem Präfix 0x, 0b, 0o)."],
+        ["table.none"] = ["Dokument není zobrazen jako tabulka.", "The document is not shown as a table.", "Dokument nie je zobrazený ako tabuľka.", "Das Dokument wird nicht als Tabelle angezeigt."],
+        ["table.copied"] = ["Zkopírováno jako {format}: řádků {rows}, sloupců {columns}.", "Copied as {format}: {rows} rows, {columns} columns.", "Skopírované ako {format}: riadkov {rows}, stĺpcov {columns}.", "Kopiert als {format}: {rows} Zeilen, {columns} Spalten."],
+        ["table.sqlTitle"] = ["Kopírovat jako SQL INSERT", "Copy as SQL INSERT", "Kopírovať ako SQL INSERT", "Als SQL INSERT kopieren"],
+        ["table.sqlLabel"] = ["Název tabulky", "Table name", "Názov tabuľky", "Tabellenname"],
     };
 
     private static int Column(string language) => language switch { "cs" => 0, "sk" => 2, "de" => 3, _ => 1 };

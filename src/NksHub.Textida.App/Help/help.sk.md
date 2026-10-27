@@ -936,6 +936,16 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Keď je znak úvodzoviek vypnutý v Oddeľovač a záhlavie tabuľky, hodnota s oddeľovačom alebo zalomením riadku sa odmietne.
 - Kým je zapnutý filter, nemožno pridať riadok.
 
+## [table.copyAs] Kopírovanie buniek ako Markdown, SQL, JSON alebo HTML
+commands: nks.table.copyAs
+Označte bunky v tabuľkovom zobrazení a zvoľte Zobrazenie, Kopírovať tabuľku ako a potom podobu. Do schránky sa uložia označené stĺpce a riadky v tej podobe.
+- Tabuľka Markdown: tabuľka s oddeľovačmi zvislíc, s hlavičkou (alebo s písmenami stĺpcov A, B, ... bez hlavičky). Zvláštne znaky, napríklad zvislica, spätná lomka, hviezdičky, podčiarkovníky a špicaté zátvorky, dostanú spätnú lomku a koniec riadka v bunke sa zmení na `<br>`.
+- SQL INSERT: jeden príkaz na riadok, hodnoty ako text v jednoduchých úvodzovkách (úvodzovka sa zdvojí). Názvy stĺpcov sú z hlavičky. Program sa spýta na názov tabuľky, ponúkne názov súboru.
+- JSON: pole objektov pomenovaných podľa hlavičky, alebo pole polí, keď hlavička chýba, má prázdny názov alebo sa názov opakuje. Všetky hodnoty sú text.
+- Tabuľka HTML: prvok table s entitami pre `& < > " '`; schránka drží HTML ako zdrojový text aj ako HTML na vloženie do dokumentu.
+- Skrytá hodnota súboru .env sa skopíruje ako hviezdičky, nie ako jej text. Kopírovanie a vystrihnutie klávesmi Ctrl+C a Ctrl+X dá na jej miesto tiež zástupný znak a vystrihnutie, ktoré sa jej dotkne, nič nezmaže.
+- Ak sa súbor počas príkazu zmení, nič sa neskopíruje a oznámenie vyzve na nové spustenie.
+
 ## [table.region] Úprava vybraného textu ako tabuľky
 commands: nks.table.editRegion
 Vyberte časť textu, napríklad blok riadkov oddelených čiarkami v poznámke alebo v logu, a zvoľte Zobrazenie, Upraviť výber ako tabuľku.

@@ -931,6 +931,16 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Ist das Anführungszeichen in Tabellentrennzeichen und Kopfzeile ausgeschaltet, wird ein Wert mit Trennzeichen oder Zeilenumbruch abgelehnt.
 - Solange ein Filter aktiv ist, können keine Zeilen hinzugefügt werden.
 
+## [table.copyAs] Zellen als Markdown, SQL, JSON oder HTML kopieren
+commands: nks.table.copyAs
+Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle kopieren als und dann eine Form. Die Zwischenablage enthält die markierten Spalten und Zeilen in dieser Form.
+- Markdown-Tabelle: eine Tabelle mit senkrechten Strichen, mit Kopfzeile (ohne Kopfzeile mit den Spaltenbuchstaben A, B, ...). Sonderzeichen wie der senkrechte Strich, der Backslash, Sternchen, Unterstriche und spitze Klammern erhalten einen Backslash, und ein Zeilenumbruch in einer Zelle wird zu `<br>`.
+- SQL INSERT: eine Anweisung pro Zeile, die Werte als Text in einfachen Anführungszeichen (ein Anführungszeichen wird verdoppelt). Die Spaltennamen stammen aus der Kopfzeile. Das Programm fragt nach dem Tabellennamen und schlägt den Dateinamen vor.
+- JSON: ein Array von Objekten, benannt nach der Kopfzeile, oder ein Array von Arrays, wenn die Kopfzeile fehlt, einen leeren Namen hat oder einen Namen wiederholt. Alle Werte sind Text.
+- HTML-Tabelle: ein table-Element mit Entitäten für `& < > " '`; die Zwischenablage enthält das HTML als Quelltext und als HTML zum Einfügen in ein Dokument.
+- Ein verborgener Wert einer .env-Datei wird als Sterne kopiert, nicht als sein Text. Kopieren und Ausschneiden mit Strg+C und Strg+X setzen ebenfalls den Platzhalter ein, und ein Ausschneiden, das einen berührt, löscht nichts.
+- Ändert sich die Datei während des Befehls, wird nichts kopiert, und ein Hinweis fordert zum erneuten Ausführen auf.
+
 ## [table.region] Ausgewählten Text als Tabelle bearbeiten
 commands: nks.table.editRegion
 Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen in einer Notiz oder einem Log, und wählen Sie Ansicht, Auswahl als Tabelle bearbeiten.

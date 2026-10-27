@@ -30,6 +30,10 @@ public static class DocumentMethods
     public const string SnippetInsert = "snippet/insert";
     /// <summary>Early tools: the plugin offers (or stops offering) to answer the Tab key.</summary>
     public const string TabRegister = "editor/tabHandler";
+    /// <summary>The cells selected in the table view of a document, with the header and the revision they belong to.</summary>
+    public const string TableSelection = "table/selection";
+    /// <summary>Puts text, and optionally HTML, on the clipboard.</summary>
+    public const string ClipboardWrite = "clipboard/write";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -59,6 +63,8 @@ public static class DocumentPermissions
     /// edit that touches a value is refused. Only the user grants it, for one document.
     /// </summary>
     public const string SecretsReveal = "document.secrets.reveal";
+    /// <summary>Replaces the clipboard content. What a plugin writes is its own text; a hidden value of a secrets file only reaches it when <see cref="SecretsReveal"/> was granted.</summary>
+    public const string ClipboardWrite = "clipboard.write";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
@@ -78,6 +84,8 @@ public static class DocumentErrorCodes
     public const int SymbolsQuotaExceeded = -32028;
     /// <summary>The document has no text view to take selections from or to show a range in.</summary>
     public const int NoTextView = -32029;
+    /// <summary>The document is not shown as a table, so there are no selected cells.</summary>
+    public const int NoTableView = -32030;
 }
 
 /// <summary>
@@ -112,7 +120,21 @@ public sealed record DocumentApiOptions
     public required TimeSpan TabTimeout { get; init; }
     /// <summary>Largest secrets file whose values are looked for; a larger one is hidden whole, because looking would mean holding it in memory.</summary>
     public required long MaxSecretScanBytes { get; init; }
+    /// <summary>Longest text (and longest HTML) one clipboard write holds, in UTF-16 code units.</summary>
+    public required int MaxClipboardChars { get; init; }
 }
+
+/// <summary>One cell of the table selection: its value as the table shows it and the bytes it occupies in the document (empty at the end of a short row).</summary>
+public sealed record TableCell(string Value, ByteRange Range);
+
+/// <summary>A selected data row; <paramref name="Number"/> is its 1-based number in the file, the header not counted.</summary>
+public sealed record TableRow(int Number, IReadOnlyList<TableCell> Cells);
+
+/// <summary>
+/// The selected cells of a table view: <paramref name="Columns"/> columns from the 0-based <paramref name="FirstColumn"/>, the <paramref name="Header"/>
+/// of those columns (null without a header) and the selected <paramref name="Rows"/>, read lazily on the thread that owns the document.
+/// </summary>
+public sealed record TableSelectionData(int FirstColumn, int Columns, IReadOnlyList<TableCell>? Header, IEnumerable<TableRow> Rows);
 
 /// <summary>One symbol of an outline: a named range of one revision. <paramref name="ParentId"/> names an earlier symbol or is null.</summary>
 public sealed record SymbolInfo(string Id, string Name, string Kind, string? ParentId, ByteRange Range);
@@ -136,6 +158,10 @@ public interface IEditorTools
     void PlaceSelections(Guid document, SelectionSet selections);
     /// <summary>The line break a new line of the document gets.</summary>
     string NewLine(Guid document);
+    /// <summary>The cells selected in the table view of the document; null when it is not shown as a table.</summary>
+    TableSelectionData? TableSelection(Guid document);
+    /// <summary>Replaces the clipboard: <paramref name="text"/> and, when given, <paramref name="html"/> as the rich form of it.</summary>
+    void SetClipboard(Guid document, string text, string? html);
 }
 
 /// <summary>Sends a request to a plugin and waits for its answer (<see cref="PluginHost.CallAsync"/> with the timeout).</summary>

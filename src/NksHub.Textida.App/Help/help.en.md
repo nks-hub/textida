@@ -931,6 +931,16 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - When the quote character is turned off in Table Delimiter and Header, a value with the delimiter or a line break is refused.
 - Rows cannot be added while a filter is on.
 
+## [table.copyAs] Copying cells as Markdown, SQL, JSON or HTML
+commands: nks.table.copyAs
+Select cells in the table view and choose View, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.
+- Markdown table: a pipe table with the header (or the column letters A, B, ... when there is no header). Special characters such as the pipe, the backslash, asterisks, underscores and angle brackets get a backslash, and a line break in a cell becomes `<br>`.
+- SQL INSERT: one statement per row with the values as text in single quotes (a quote is doubled). The header gives the column names. You are asked for the table name, starting with the file name.
+- JSON: an array of objects named by the header, or an array of arrays when the header is missing, has an empty name or repeats a name. All values are text.
+- HTML table: a table element with entities for `& < > " '`; the clipboard holds the HTML as source text and as HTML for pasting into a document.
+- A hidden value of a .env file is copied as stars, not as its text. Copy and cut with Ctrl+C and Ctrl+X put the placeholder in its place too, and a cut that touches one deletes nothing.
+- If the file changes while the command runs, nothing is copied and a notice asks you to run it again.
+
 ## [table.region] Editing selected text as a table
 commands: nks.table.editRegion
 Select a part of a text, for example a block of comma-separated lines in a note or a log, and choose View, Edit Selection as Table.

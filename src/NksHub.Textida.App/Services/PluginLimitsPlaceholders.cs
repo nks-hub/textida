@@ -80,6 +80,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: most words the completion list (Ctrl+J) holds; the best ranked are kept.</summary>
     public const int CompletionMaxWords = 200;
 
+    /// <summary>Placeholder: longest text (and HTML) one plugin write puts on the clipboard, in UTF-16 units; the same provisional bound the clipboard history uses.</summary>
+    public const int ClipboardMaxChars = ClipboardHistory.MaxItemLength;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
@@ -107,6 +110,7 @@ internal static class PluginLimitsPlaceholders
         MaxSnippetCarets = SnippetCarets,
         TabTimeout = TabTimeout,
         MaxSecretScanBytes = SecretScanMaxBytes,
+        MaxClipboardChars = ClipboardMaxChars,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,
