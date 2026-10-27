@@ -101,6 +101,39 @@ public sealed class LargeModel
         Length += insertLength - deleteLength;
     }
 
+    /// <summary>
+    /// A Replace All: edits in ascending order and in the coordinates of the content before any of them, each inside one piece, in one pass over the pieces
+    /// (one <see cref="Replace"/> per edit would copy the list of pieces for every one of them).
+    /// </summary>
+    public void ReplaceAscending(IReadOnlyList<(long Offset, long Delete, long Seed, long InsertLength)> edits)
+    {
+        var next = new List<(long Seed, long Start, long Length)>(_segments.Count + 2 * edits.Count);
+        int e = 0;
+        long pos = 0;
+        foreach (var (seed, start, length) in _segments)
+        {
+            long end = pos + length, taken = 0;
+            while (e < edits.Count && edits[e].Offset < end)
+            {
+                var (offset, delete, editSeed, insert) = edits[e++];
+                if (offset + delete > end) throw new InvalidOperationException("an edit of a Replace All crosses two pieces of the model");
+                long before = offset - (pos + taken);
+                if (before > 0) next.Add((seed, start + taken, before));
+                if (insert > 0) next.Add((editSeed, 0, insert));
+                taken = offset + delete - pos;
+            }
+            if (taken < length) next.Add((seed, start + taken, length - taken));
+            pos = end;
+        }
+        for (; e < edits.Count; e++)
+        {
+            if (edits[e].Offset != pos || edits[e].Delete != 0) throw new InvalidOperationException("an edit of a Replace All is past the end of the model");
+            if (edits[e].InsertLength > 0) next.Add((edits[e].Seed, 0, edits[e].InsertLength));
+        }
+        Length += edits.Sum(x => x.InsertLength - x.Delete);
+        _segments = next;
+    }
+
     public string Sha256()
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -144,12 +177,9 @@ public sealed record LargeOp(string Name, int Permille, long Delete, long Insert
         return edits;
     }
 
-    /// <summary>Applies the op to the model; the last edit first, so that the offsets of the others stay right.</summary>
-    public void ApplyBulk(LargeModel model)
-    {
-        var edits = BulkEdits();
-        for (int k = edits.Count - 1; k >= 0; k--) model.Replace(edits[k].Offset, 1, Seed + k, edits[k].Bytes.Length);
-    }
+    /// <summary>Applies the op to the model.</summary>
+    public void ApplyBulk(LargeModel model) =>
+        model.ReplaceAscending([.. BulkEdits().Select((e, k) => (e.Offset, 1L, Seed + k, (long)e.Bytes.Length))]);
 }
 
 /// <summary>
