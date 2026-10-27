@@ -48,7 +48,7 @@ internal sealed partial class MainWindow
         _agentBoundary.Classes.Add("findcount");
         _agentText.Classes.Add("outputtext");
         _agentInput.Classes.Add("findinput");
-        foreach (var button in new[] { _agentCancel, _agentStop, _agentClose }) button.Classes.Add("outputaction");
+        foreach (var button in new[] { _agentSend, _agentCancel, _agentStop, _agentClose }) button.Classes.Add("outputaction");
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), Children = { _agentCancel, _agentStop, _agentClose } };
         var header = new DockPanel { Height = 30, LastChildFill = false };
