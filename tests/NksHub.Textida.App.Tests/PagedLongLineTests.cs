@@ -1,10 +1,15 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
+using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.TextInput;
+using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
@@ -321,6 +326,95 @@ public class PagedLongLineTests : IDisposable
         await Eventually(() => { Draw(); return paged.HorizontalMaximum is > 1_499_000 and <= 1_500_000; });
         paged.ScrollToColumn(3_000_000);
         Assert.InRange(paged.HorizontalMaximum, 1_499_000, 1_500_000);
+    }
+
+    [AvaloniaFact]
+    public async Task A_failed_read_of_a_window_is_tried_again_by_the_next_draw_and_not_by_a_loop_of_redraws()
+    {
+        var tab = OpenLine(new string('a', 3_000_000));
+        var paged = tab.Paged!;
+        int reads = 0;
+        bool fail = true;
+        paged.WindowRead = (_, _, _, _) =>
+        {
+            Interlocked.Increment(ref reads);
+            return fail ? throw new IOException("the file is gone") : "OK";
+        };
+
+        paged.ScrollToColumn(2_000_000);
+        Draw();
+        await Eventually(() => Volatile.Read(ref reads) >= 1 && !paged.WindowsPending);
+        int first = Volatile.Read(ref reads);
+        for (int i = 0; i < 5; i++)
+        {
+            Draw(); // a failed read that invalidated the view would start its read again in each of these frames
+            await Task.Delay(20);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.InRange(Volatile.Read(ref reads), first, first + 1); // the frame of the first draw may still be asking once more
+        Assert.Null(paged.CachedWindow(0));
+
+        fail = false;
+        paged.ScrollToColumn(2_000_001); // a change the next draw has to answer
+        Draw();
+        await Eventually(() => { Draw(); return paged.CachedWindow(0) == "OK"; });
+    }
+
+    private static TextInputMethodClient ImeClient(PagedTextView paged)
+    {
+        var args = new TextInputMethodClientRequestedEventArgs { RoutedEvent = InputElement.TextInputMethodClientRequestedEvent };
+        paged.RaiseEvent(args);
+        return Assert.IsAssignableFrom<TextInputMethodClient>(args.Client);
+    }
+
+    [AvaloniaFact]
+    public async Task The_caret_and_a_click_in_a_far_window_follow_the_real_width_of_a_proportional_font_with_wide_characters()
+    {
+        _app.Workbench.Set("editor.fontFamily", JsonValue.Create("Arial"));
+        const string unit = "iiii.WWWW中中中ěš";
+        string model = string.Concat(Enumerable.Repeat(unit, 200_000)); // 2.8 million characters
+        var tab = OpenLine(model);
+        var paged = tab.Paged!;
+        int col = unit.Length * 100_000;
+        paged.GoToOffset(ByteOffset(model, col));
+        Draw();
+        await Eventually(() => { Draw(); return !paged.WindowsPending && paged.CachedWindow(0) is { Length: > 0 }; });
+        // the jump leaves the caret at the right edge; put it well inside so that the steps below do not scroll
+        paged.ScrollToColumn(col - 40);
+        Draw();
+        await Eventually(() => { Draw(); return !paged.WindowsPending && paged.CachedWindow(0) is { Length: > 0 }; });
+
+        var options = _w.Options;
+        double Width(string text) => new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+            new Typeface(new FontFamily(options.FullFontFamily)), options.FontSize, Brushes.Black).WidthIncludingTrailingWhitespace;
+        double cell = Width("0");
+        Assert.True(Math.Abs(Width(model.Substring(col, 5)) - 5 * cell) > 3, "the sample must be wider or narrower than the fixed cells, or the test proves nothing");
+
+        var client = ImeClient(paged);
+        double x0 = client.CursorRectangle.X;
+        var steps = new List<(int Columns, Rect Caret)>();
+        for (int k = 1; k <= 14; k++)
+        {
+            TestApp.Press(_w, Key.Right);
+            Draw();
+            steps.Add((k, client.CursorRectangle));
+        }
+        Assert.Equal(ByteOffset(model, col + 14), paged.CaretOffset);
+        foreach (var (k, caret) in steps)
+        {
+            double real = Width(model.Substring(col, k));
+            Assert.True(Math.Abs(caret.X - x0 - real) < 1.5, $"after {k} columns the caret moved {caret.X - x0:0.0} px, the text is {real:0.0} px wide");
+        }
+
+        // a click on the place of a caret puts the caret at that column
+        foreach (int k in new[] { 4, 5, 7, 12 })
+        {
+            var caret = steps[k - 1].Caret;
+            var point = client.TextViewVisual.TranslatePoint(new Point(caret.X + 0.2, caret.Y + caret.Height / 2), _w)!.Value;
+            _w.MouseDown(point, MouseButton.Left);
+            _w.MouseUp(point, MouseButton.Left);
+            Assert.Equal(ByteOffset(model, col + k), paged.CaretOffset);
+        }
     }
 }
 

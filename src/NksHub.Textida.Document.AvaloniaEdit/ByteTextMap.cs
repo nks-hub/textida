@@ -276,10 +276,54 @@ internal sealed class ByteTextMap
             _runs[i0 - 1] = new Run { Data = [.. previous.Data!, .. bytes], Bytes = previous.Bytes + bytes.Length, Chars = previous.Chars + chars, Text = previous.Text is null ? null : previous.Text + text };
             i0--;
         }
-        else if (bytes.Length > 0 || chars > 0) _runs.Insert(i0, new Run { Data = bytes, Bytes = bytes.Length, Chars = chars, Text = text });
+        else if (bytes.Length > 0 || chars > 0) InsertRuns(i0, bytes, text, chars);
         _totalBytes += bytes.Length - removed.Count;
         Invalidate(i0);
         return [.. removed];
+    }
+
+    /// <summary>An edited run is cut to about this many chars. It has no checkpoints, so a lookup inside it walks unit by unit from its start.</summary>
+    private const int MaxRunChars = 1024;
+
+    /// <summary>Puts inserted bytes into the run list. A long insertion (a paste, a text set into the view) becomes several runs, so that a lookup walks at most one of them.</summary>
+    private void InsertRuns(int at, byte[] bytes, string? text, int chars)
+    {
+        if (chars > 2 * MaxRunChars && TryCut(bytes, text, chars) is { } pieces) _runs.InsertRange(at, pieces);
+        else _runs.Insert(at, new Run { Data = bytes, Bytes = bytes.Length, Chars = chars, Text = text });
+    }
+
+    /// <summary>Cuts an insertion at unit boundaries into runs of about <see cref="MaxRunChars"/> chars; null when the pieces do not add up to the whole.</summary>
+    private List<Run>? TryCut(byte[] bytes, string? text, int chars)
+    {
+        var pieces = new List<Run>(chars / MaxRunChars + 1);
+        int bytePos = 0, charPos = 0;
+        if (text is not null)
+        {
+            while (charPos < text.Length)
+            {
+                int end = Math.Min(text.Length, charPos + MaxRunChars);
+                if (end < text.Length && char.IsHighSurrogate(text[end - 1])) end++; // a pair stays in one run
+                int n = _codec.LossyByteCount(text.AsSpan(charPos, end - charPos));
+                if (bytePos + n > bytes.Length) return null;
+                pieces.Add(new Run { Data = bytes.AsSpan(bytePos, n).ToArray(), Bytes = n, Chars = end - charPos, Text = text[charPos..end] });
+                charPos = end;
+                bytePos += n;
+            }
+        }
+        else
+        {
+            while (bytePos < bytes.Length)
+            {
+                int startByte = bytePos, startChar = charPos;
+                while (bytePos < bytes.Length && charPos - startChar < MaxRunChars)
+                {
+                    bytePos += _codec.ReadUnit(bytes.AsSpan(bytePos), out int c);
+                    charPos += c;
+                }
+                pieces.Add(new Run { Data = bytes.AsSpan(startByte, bytePos - startByte).ToArray(), Bytes = bytePos - startByte, Chars = charPos - startChar });
+            }
+        }
+        return bytePos == bytes.Length && charPos == chars ? pieces : null;
     }
 
     /// <summary>Per char of the view: true when it belongs to typed text (an edited run made from text), false when it comes from the original bytes.</summary>

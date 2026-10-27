@@ -352,6 +352,75 @@ public class MultiCaretTests
     }
 
     [Fact]
+    public void Many_carets_in_a_big_text_that_was_typed_in_are_edited_in_a_time_that_does_not_depend_on_the_size_of_one_run()
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; sb.Length < 1 << 20; i++) sb.Append("line ").Append(i).Append(" lorem ipsum dolor sit amet consectetur\n");
+        string text = sb.ToString();
+        using var doc = Doc.FromBytes(Array.Empty<byte>(), AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        var backend = (AvaloniaEditBackend)doc.Backend;
+        backend.TextDocument.Text = text; // pasted: one edited run of a million chars, which has no checkpoints of its own
+        Assert.Equal(text.Length, doc.ByteLength);
+
+        var d = backend.TextDocument;
+        var offsets = Enumerable.Range(0, 100).Select(i => d.GetLineByNumber(1 + i * (d.LineCount / 100)).Offset + 5).ToArray();
+        var carets = Carets.Create([.. offsets.Select(Sel.At)], offsets.Length - 1);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var applied = MultiEdit.Apply(doc, backend, carets, MultiEdit.PlanText(carets, "é"));
+        clock.Stop();
+
+        Assert.True(applied.Edit.Applied);
+        var expected = new StringBuilder(text);
+        foreach (int offset in offsets.Reverse()) expected.Insert(offset, "é");
+        Assert.True(Encoding.UTF8.GetBytes(expected.ToString()).AsSpan().SequenceEqual(doc.ReadBytes(new ByteRange(0, doc.ByteLength))), "the bytes differ from the expected text");
+        Assert.True(expected.ToString() == backend.TextDocument.Text, "the text view differs from the expected text");
+        Assert.True(clock.Elapsed.TotalSeconds < 2, $"100 carets took {clock.Elapsed.TotalSeconds:0.0} s");
+        doc.Undo();
+        Assert.True(text == backend.TextDocument.Text, "undo did not restore the text");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_long_insertion_cut_into_runs_converts_every_offset_like_a_naive_encoding_also_around_pairs_and_the_cuts(bool asBytes)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; sb.Length < 5000; i++) sb.Append(i % 7 == 0 ? "\U0001F600" : i % 5 == 0 ? "€" : i % 3 == 0 ? "ě" : "a");
+        string text = sb.ToString();
+        sb.Clear();
+        sb.Append(text, 0, 1023).Append("\U0001F600"); // a pair that straddles the first cut
+        text = sb.Append(text, 1023, text.Length - 1023).ToString();
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes("xyz"), AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        var backend = (AvaloniaEditBackend)doc.Backend;
+        if (asBytes) Assert.True(doc.Insert(1, Encoding.UTF8.GetBytes(text)).Applied);
+        else backend.TextDocument.Insert(1, text);
+        string whole = "x" + text + "yz";
+        Assert.Equal(Encoding.UTF8.GetByteCount(whole), doc.ByteLength);
+        Assert.True(whole == backend.TextDocument.Text, "the view differs");
+
+        int checkedOffsets = 0;
+        for (int c = 0; c <= whole.Length; c++)
+        {
+            if (c > 0 && c < whole.Length && char.IsHighSurrogate(whole[c - 1])) continue; // inside a pair
+            long expected = Encoding.UTF8.GetByteCount(whole.AsSpan(0, c));
+            Assert.Equal(expected, backend.ToByteOffset(c));
+            Assert.True(backend.TryToCharOffset(expected, out int back));
+            Assert.Equal(c, back);
+            checkedOffsets++;
+        }
+        Assert.True(checkedOffsets > 4000);
+        Assert.True(Encoding.UTF8.GetBytes(whole).AsSpan().SequenceEqual(doc.ReadBytes(new ByteRange(0, doc.ByteLength))), "the bytes differ");
+
+        // an edit in the middle of the cut runs: a character in front of the straddling pair and one inside the last run
+        var carets = Carets.Create([Sel.At(1023), Sel.At(whole.Length - 2)], 1);
+        Assert.True(MultiEdit.Apply(doc, backend, carets, MultiEdit.PlanText(carets, "é")).Edit.Applied);
+        string edited = whole.Insert(whole.Length - 2, "é").Insert(1023, "é");
+        Assert.True(Encoding.UTF8.GetBytes(edited).AsSpan().SequenceEqual(doc.ReadBytes(new ByteRange(0, doc.ByteLength))), "the bytes after the edit differ");
+        doc.Undo();
+        Assert.True(whole == backend.TextDocument.Text, "undo did not restore the view");
+    }
+
+    [Fact]
     public void Offsets_that_fall_on_a_checkpoint_of_the_byte_map_convert_both_ways_and_edit_exactly()
     {
         string text = string.Concat(Enumerable.Repeat("0123456789abcdef", 400)); // 6400 chars, checkpoints every 1024
