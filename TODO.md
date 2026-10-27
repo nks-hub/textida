@@ -2551,6 +2551,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P9.4.3, P9.4.4, P1.2.5
   - **Odhad:** F166 3–5 ČT navíc (matice) za P9.4.1, P9.4.3 a P9.4.4
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. Uložené pohledy (`logviews.json` v profilu, atomický zápis: filtr, úrovně, pravidla, zvýraznění, pozice), příkazy v podmenu Log, skok na další/předchozí shodu, testy LogViewStoreTests. Chybí: kreslení zvýraznění pohledu (zadáno dalšímu vývojáři), ověření uživatelským scénářem.
 - [ ] **P9.4.3** Inkrementální filtr rostoucího logu
   - **Co a proč:** Sledování přibývajících řádků; nové shody se hledají jen v přírůstku.
   - **Funkce:** F166 (částečně: inkrementální filtr)
@@ -2558,6 +2559,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P3.1.4
   - **Odhad:** v rámci F166 (viz P9.4.1)
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. `LogFollower` čte jen přírůstek, filtr hledá jen v něm a shody souhlasí s naivním průchodem (LogFollowTests, 1 GiB test Category=Large). Interval 1000 ms je placeholder. Chybí běh nad 10GiB logem; shody v paměti nemají horní mez.
 - [ ] **P9.4.4** Rotace a zkrácení logu
   - **Co a proč:** Log, který jiný program zkrátí nebo vymění při rotaci, se pozná podle otisku podkladu (P1.2.3).
   - **Funkce:** F166 (částečně: rotace)
@@ -2565,6 +2567,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P9.4.3, P1.2.3
   - **Odhad:** v rámci F166 (viz P9.4.1)
   - **Umístění:** jádro
+  - **Stav 27. 10. 2026:** částečně. Zkrácení podle velikosti, rotace podle prvních 4096 bajtů (placeholder) a ve Windows i podle času vzniku; staré shody se zahodí, stavový řádek to ohlásí. Mimo Windows rotaci se stejným začátkem a ne menší velikostí nepozná.
 - [ ] **P9.4.2** Plný režim logu
   - **Co a proč:** Sbalení nezajímavých řádků, odkazy ze stack trace na soubor, heatmapa chyb v minimapě, barvy ANSI, i ve stránkovaném režimu.
   - **Funkce:** F187
