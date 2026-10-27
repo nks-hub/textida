@@ -693,6 +693,17 @@ Die Karte ist ein Streifen neben der Bildlaufleiste, der die ganze Datei auf ein
 - Die Statistik einer ganzen Datei über 1 GiB wird nicht auf einmal gezählt: Wählen Sie einen Bereich.
 - Karte und Zählen laufen neben dem Fenster und werden bei einer Änderung der Datei neu gemacht.
 
+## [hex.compare] Hex: Binärvergleich
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Unterschieden und einer Liste darunter.
+1. Hex: Mit Datei vergleichen fragt nach einer Datei und vergleicht sie mit dem Dokument des aktiven Tabs (mit seinen ungespeicherten Änderungen). Hex: Mit gespeicherter Datei vergleichen vergleicht das Dokument mit seiner eigenen Datei auf dem Datenträger, sodass Sie genau sehen, was das nächste Speichern ändern würde.
+2. Ausgerichtet (Standard) sucht nach Bytes, die eine Datei eingefügt oder gelöscht hat, sodass ein eingefügter Block als Einfügung erscheint und die Bytes dahinter nicht als geändert gemeldet werden. Byte für Byte vergleicht jeden Offset mit demselben Offset der anderen Datei, was für Dateien mit festem Aufbau passt. Es gilt für jede Datei über 256 MiB, die der ausgerichtete Modus nicht liest.
+3. Die Liste benennt jeden Unterschied: geändert, eingefügt oder gelöscht, mit seinem Bereich in der linken und der rechten Datei. Eingabe auf einer Zeile, F8 und Umschalt+F8 (oder die Schaltflächen) springen zum nächsten und vorherigen Unterschied in beiden Rastern.
+- Das Scrollen eines Rasters scrollt das andere an dieselbe Stelle der anderen Datei; bei eingefügten Bytes ist das die entsprechende Stelle, nicht derselbe Offset.
+- Die Raster sind schreibgeschützt. Die Karte neben jedem Raster markiert die Unterschiede.
+- Die Liste endet bei 1.000.000 Unterschieden (das Fenster sagt es); zwei unabhängige Dateien würden sonst den Speicher füllen.
+- Zwei Revisionen einer Datei aus dem lokalen Verlauf werden noch nicht angeboten, weil es den lokalen Verlauf noch nicht gibt.
+
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.

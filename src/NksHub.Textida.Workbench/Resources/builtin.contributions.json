@@ -939,6 +939,18 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.compare.file",
+      "title": "cmd.hex.compare.file",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.compare.saved",
+      "title": "cmd.hex.compare.saved",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.edit.clipboardHistory",
       "title": "cmd.edit.clipboardHistory",
       "category": "cat.edit",
@@ -1445,6 +1457,18 @@
       "command": "nks.hex.bookmarks.import",
       "group": "7_hex",
       "order": 100
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.compare.saved",
+      "group": "7_hex",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.compare.file",
+      "group": "7_hex",
+      "order": 120
     },
     {
       "menu": "search",

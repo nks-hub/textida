@@ -693,6 +693,17 @@ The map is a strip beside the scroll bar that shows the whole file at once, in a
 - The statistics of a whole file above 1 GiB are not counted at once: select a range.
 - The map and the counting run beside the window and are redone when the file changes.
 
+## [hex.compare] Hex: binary comparison
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Two hex grids side by side, scrolling together, with the differences tinted and listed below.
+1. Hex: Compare with File asks for a file and compares it with the document of the active tab (with its unsaved changes). Hex: Compare with Saved File compares the document with its own file on disk, so you see exactly what the next save would change.
+2. Aligned (the default) looks for bytes that one file has inserted or deleted, so an inserted block shows as an insertion and the bytes behind it are not reported as changed. Byte by byte compares every offset with the same offset in the other file, which is what you want for files with a fixed layout. It is used for any file over 256 MiB, which the aligned mode does not read.
+3. The list names each difference: changed, inserted or deleted, with its range in the left and in the right file. Enter on a row, F8 and Shift+F8 (or the buttons) go to the next and previous difference in both grids.
+- Scrolling one grid scrolls the other to the same place in the other file; with inserted bytes that is the corresponding place, not the same offset.
+- The grids are read-only. The map beside each grid marks the differences.
+- The list stops at 1,000,000 differences (the window says so); two unrelated files would otherwise fill the memory.
+- Two revisions of a file from the local history are not offered yet, because the local history does not exist.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.

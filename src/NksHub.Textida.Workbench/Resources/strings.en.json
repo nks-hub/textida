@@ -292,6 +292,8 @@
   "cmd.hex.minimap": "Hex: File Map",
   "cmd.hex.minimap.mode": "Hex: Map by Entropy or Kind of Byte",
   "cmd.hex.statistics": "Hex: Byte Statistics",
+  "cmd.hex.compare.file": "Hex: Compare with File...",
+  "cmd.hex.compare.saved": "Hex: Compare with Saved File",
   "setting.files.binaryAsHex.title": "Binary files in hex",
   "setting.files.binaryAsHex.description": "What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch.",
   "cmd.edit.clipboardHistory": "Clipboard History...",

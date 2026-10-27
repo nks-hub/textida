@@ -693,6 +693,17 @@ Mapa je prúžok vedľa posuvníka, ktorý ukazuje celý súbor naraz v bunkách
 - Štatistika celého súboru nad 1 GiB sa nepočíta naraz: vyberte úsek.
 - Mapa aj počítanie bežia vedľa okna a pri zmene súboru sa robia znova.
 
+## [hex.compare] Hex: binárne porovnanie
+commands: nks.hex.compare.file, nks.hex.compare.saved
+Dve hex mriežky vedľa seba, ktoré sa posúvajú spoločne, s rozdielmi podfarbenými a vypísanými dole.
+1. Hex: porovnať so súborom sa spýta na súbor a porovná ho s dokumentom aktívnej karty (aj s jeho neuloženými zmenami). Hex: porovnať s uloženým súborom porovná dokument s jeho vlastným súborom na disku, takže vidíte presne, čo by budúce uloženie zmenilo.
+2. So zarovnaním (predvolené) hľadá bajty, ktoré jeden súbor vložil alebo zmazal, takže vložený blok sa ukáže ako vloženie a bajty za ním sa nehlásia ako zmenené. Bajt po bajte porovnáva každý offset s rovnakým offsetom v druhom súbore, čo sa hodí na súbory s pevným rozložením. Použije sa pri každom súbore nad 256 MiB, ktorý režim so zarovnaním nečíta.
+3. Zoznam pomenuje každý rozdiel: zmenené, vložené alebo zmazané, s jeho rozsahom v ľavom a v pravom súbore. Enter na riadku, F8 a Shift+F8 (alebo tlačidlá) skočia na ďalší a predchádzajúci rozdiel v oboch mriežkach.
+- Posun jednej mriežky posunie druhú na rovnaké miesto v druhom súbore; pri vložených bajtoch je to zodpovedajúce miesto, nie rovnaký offset.
+- Mriežky sú len na čítanie. Mapa vedľa každej mriežky označuje rozdiely.
+- Zoznam končí na 1 000 000 rozdieloch (okno to povie); dva nesúvisiace súbory by inak zaplnili pamäť.
+- Dve revízie súboru z miestnej histórie sa zatiaľ neponúkajú, pretože miestna história neexistuje.
+
 ## [tools.run] Nástroje: spustenie externého programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spustiť nástroj ponúkne nástroje zapísané v súbore tools.json v priečinku profilu. Posledný riadok ten súbor otvorí; prvýkrát do neho zapíše prázdny, ktorý doplníte.

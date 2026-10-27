@@ -225,6 +225,8 @@ internal static class AppCommands
         On("nks.hex.minimap", w => w.ToggleHexMinimap());
         On("nks.hex.minimap.mode", w => w.CycleHexMapMode());
         On("nks.hex.statistics", w => w.ToggleHexStatistics());
+        On("nks.hex.compare.file", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.CompareHexWithFileAsync(tab); return CommandOutcome.Handled; });
+        On("nks.hex.compare.saved", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; w.CompareHexWithSaved(tab); return CommandOutcome.Handled; });
         On("nks.hex.bookmarks.panel", w => w.ToggleHexBookmarkPanel());
         On("nks.hex.bookmarks.edit", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.EditHexBookmarkAsync(hex); return CommandOutcome.Handled; });
         On("nks.hex.bookmarks.export", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ExportHexBookmarksAsync(hex); return CommandOutcome.Handled; });

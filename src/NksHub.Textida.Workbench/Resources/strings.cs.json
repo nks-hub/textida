@@ -292,6 +292,8 @@
   "cmd.hex.minimap": "Hex: mapa souboru",
   "cmd.hex.minimap.mode": "Hex: mapa podle entropie nebo druhu bajtů",
   "cmd.hex.statistics": "Hex: statistika bajtů",
+  "cmd.hex.compare.file": "Hex: porovnat se souborem...",
+  "cmd.hex.compare.saved": "Hex: porovnat s uloženým souborem",
   "setting.files.binaryAsHex.title": "Binární soubory v hexu",
   "setting.files.binaryAsHex.description": "Co se stane, když má soubor v prvních 8 000 bajtech bajt NUL: zeptat se v liště, vždy otevřít v hexu, nebo nikdy nepřepínat.",
   "cmd.edit.clipboardHistory": "Historie schránky...",

@@ -292,6 +292,8 @@
   "cmd.hex.minimap": "Hex: Dateikarte",
   "cmd.hex.minimap.mode": "Hex: Karte nach Entropie oder Art der Bytes",
   "cmd.hex.statistics": "Hex: Byte-Statistik",
+  "cmd.hex.compare.file": "Hex: Mit Datei vergleichen...",
+  "cmd.hex.compare.saved": "Hex: Mit gespeicherter Datei vergleichen",
   "setting.files.binaryAsHex.title": "Binärdateien im Hex-Editor",
   "setting.files.binaryAsHex.description": "Was passiert, wenn eine Datei in den ersten 8.000 Bytes ein NUL-Byte hat: in der Leiste nachfragen, immer in Hex öffnen oder nie umschalten.",
   "cmd.edit.clipboardHistory": "Zwischenablage-Verlauf...",
