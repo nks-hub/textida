@@ -430,6 +430,17 @@ public class MultiCaretEditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_composition_is_drawn_before_a_space_or_tab_shown_as_a_hidden_character()
+    {
+        var tab = Open("a b\tc");
+        _w.ToggleHiddenCharacters();
+        PlaceCarets(tab, 1, 3);
+        ImeClient(tab).SetPreeditText("に");
+        Assert.Equal([1, 3], Drawn(tab));
+        Assert.Equal("a b\tc", Text(tab));
+    }
+
+    [AvaloniaFact]
     public void A_commit_that_arrives_while_the_composition_is_drawn_lands_once_at_every_caret()
     {
         var tab = Open("a b");

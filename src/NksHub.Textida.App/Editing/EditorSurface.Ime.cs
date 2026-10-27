@@ -30,7 +30,8 @@ internal sealed partial class EditorSurface
 
     private void InitIme()
     {
-        TextArea.TextView.ElementGenerators.Add(new PreeditGenerator(this));
+        // ahead of the generators that take a character (shown space or tab, link), which would otherwise win its offset; the secret mask goes before it later
+        TextArea.TextView.ElementGenerators.Insert(0, new PreeditGenerator(this));
         TextArea.AddHandler(TextInputMethodClientRequestedEvent, OnClientRequested, RoutingStrategies.Bubble, handledEventsToo: true);
         TextArea.Caret.PositionChanged += (_, _) =>
         {
