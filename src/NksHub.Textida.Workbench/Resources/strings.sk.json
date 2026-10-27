@@ -407,5 +407,9 @@
   "cmd.packages.revoke": "Zakázať dotazy na registre balíkov",
   "cmd.packages.script": "Spustiť skript balíka...",
   "cmd.edit.runRecipeFiles": "Spustiť recept nad súbormi...",
-  "cmd.plugins.manage": "Správca pluginov..."
+  "cmd.plugins.manage": "Správca pluginov...",
+  "cmd.help.updateCheck": "Zistiť aktualizácie...",
+  "cmd.help.updateReturn": "Vrátiť sa na predchádzajúcu verziu...",
+  "setting.updates.checkOnStart.title": "Zisťovať aktualizácie pri štarte",
+  "setting.updates.checkOnStart.description": "Pri štarte sa opýta adresy aktualizácií na najnovšiu verziu a pri novšej ukáže lištu. Predvolene vypnuté; nič iné sa neposiela."
 }

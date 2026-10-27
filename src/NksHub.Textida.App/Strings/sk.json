@@ -1462,5 +1462,20 @@
   "shell.assoc.title": "Asociácie súborov",
   "shell.assoc.watermark": "Vyberte príponu, pri ktorej sa Textida pridá do Otvoriť v, alebo odoberie",
   "shell.assoc.on": "priradené",
-  "shell.assoc.off": "nepriradené"
+  "shell.assoc.off": "nepriradené",
+  "update.title": "Aktualizácia",
+  "update.checking": "Zisťujem aktualizácie...",
+  "update.current": "Textida {version} je aktuálna.",
+  "update.notConfigured": "Tento build nemá nastavenú adresu aktualizácií ani podpisový kľúč, aktualizácie preto nemožno zistiť.",
+  "update.unavailable": "Aktualizácie fungujú len v nainštalovanej Textide (Setup.ps1 vedľa Textida.exe vo Windows).",
+  "update.failed": "Aktualizácia zlyhala: {reason}",
+  "update.available": "Je k dispozícii Textida {version}, máte {current}. Otvorené dokumenty zostanú. Textida sa kvôli inštalácii reštartuje a súčasná verzia zostane pre Návrat na predchádzajúcu verziu.",
+  "update.install": "Nainštalovať a reštartovať",
+  "update.downloading": "Sťahujem Textidu {version}...",
+  "update.unsaved": "Najprv uložte alebo zatvorte dokumenty s neuloženými zmenami: žurnál je vypnutý, aktualizácia by ich mohla stratiť.",
+  "update.bar": "Je k dispozícii Textida {version}.",
+  "update.return.title": "Predchádzajúca verzia",
+  "update.return.ask": "Vrátiť sa na Textidu {version}? Textida sa reštartuje. Otvorené dokumenty zostanú.",
+  "update.return": "Vrátiť a reštartovať",
+  "update.noPrevious": "Nie je žiadna predchádzajúca verzia, na ktorú by sa dalo vrátiť."
 }

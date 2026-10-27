@@ -407,5 +407,9 @@
   "cmd.packages.revoke": "Zakázat dotazy na registry balíčků",
   "cmd.packages.script": "Spustit skript balíčku...",
   "cmd.edit.runRecipeFiles": "Spustit recept nad soubory...",
-  "cmd.plugins.manage": "Správce pluginů..."
+  "cmd.plugins.manage": "Správce pluginů...",
+  "cmd.help.updateCheck": "Zjistit aktualizace...",
+  "cmd.help.updateReturn": "Vrátit se na předchozí verzi...",
+  "setting.updates.checkOnStart.title": "Zjišťovat aktualizace při startu",
+  "setting.updates.checkOnStart.description": "Při startu se zeptá adresy aktualizací na nejnovější verzi a při novější ukáže lištu. Ve výchozím stavu vypnuto; nic dalšího se neposílá."
 }

@@ -75,6 +75,8 @@ dotnet run tools/BuildWindowsPackage.cs -- --version <version> --output ./artifa
 
 The Explorer menu entry "Open with Textida" and the optional file associations are written by the program itself under `HKCU\Software\Classes` (Tools menu: Add Textida to the Explorer Menu, File Associations, Remove Textida from Explorer). The uninstaller removes them through `Textida.exe --unregister-shell`. There is no macOS package yet.
 
+Updates are checked only when you choose Help, Check for Updates, or at start if the setting `updates.checkOnStart` is on (off by default). The check is one GET of a static feed signed with ECDSA P-256; the package must match the SHA-256 and size inside the signed part. The new version is unpacked next to the old one (`Textida.new`), and `Setup.ps1 -ApplyUpdate` switches the folders after Textida has closed; the old version stays as `Textida.previous` and Help, Return to the Previous Version swaps back. The feed address and the public key are still empty constants in `AppUpdater`, so a build checks nothing until they are set.
+
 Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 
 ## Contributing

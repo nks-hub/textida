@@ -407,5 +407,9 @@
   "cmd.packages.revoke": "Forbid Package Registry Lookups",
   "cmd.packages.script": "Run Package Script...",
   "cmd.edit.runRecipeFiles": "Run Recipe on Files...",
-  "cmd.plugins.manage": "Plugin Manager..."
+  "cmd.plugins.manage": "Plugin Manager...",
+  "cmd.help.updateCheck": "Check for Updates...",
+  "cmd.help.updateReturn": "Return to the Previous Version...",
+  "setting.updates.checkOnStart.title": "Check for updates at start",
+  "setting.updates.checkOnStart.description": "Asks the update address for the newest version when Textida starts, and shows a bar when there is one. Off by default; nothing else is sent."
 }
