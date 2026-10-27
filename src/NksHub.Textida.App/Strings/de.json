@@ -562,6 +562,7 @@
   "hex.find.count": "Treffer {index} von {total}",
   "hex.find.limit": "Mindestens {n} Treffer (die Suche endete am Limit)",
   "hex.find.invalid": "Ungültiges Muster: {reason}",
+  "hex.find.preview": "Ein Treffer ist {min} bis {max} Bytes lang.",
   "hex.find.running": "Suche…",
   "hex.find.stale": "Die Datei hat sich inzwischen auf dem Datenträger geändert; das Suchergebnis wurde verworfen.",
   "hex.replace.title": "Bytes ersetzen",

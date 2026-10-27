@@ -17,5 +17,5 @@ public abstract class ByteQuery
     /// Adds the matches that start in the first <paramref name="starts"/> bytes of <paramref name="window"/> (offset <paramref name="block"/> of the snapshot), in order.
     /// Returns true when <paramref name="maxResults"/> matches are collected.
     /// </summary>
-    internal abstract bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct);
+    internal abstract bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct, bool startsRange = false, bool endsRange = false);
 }

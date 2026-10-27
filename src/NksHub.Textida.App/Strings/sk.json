@@ -580,6 +580,7 @@
   "hex.find.count": "Zhoda {index} z {total}",
   "hex.find.limit": "Aspoň {n} zhôd (hľadanie skončilo na limite)",
   "hex.find.invalid": "Neplatný vzor: {reason}",
+  "hex.find.preview": "Zhoda má {min} až {max} bajtov.",
   "hex.find.running": "Hľadám…",
   "hex.find.stale": "Súbor sa medzitým zmenil na disku, výsledok hľadania sa zahodil.",
   "hex.replace.title": "Nahradiť bajty",

@@ -39,6 +39,20 @@ public class ByteRegexTests
     }
 
     [Fact]
+    public void Anchors_match_only_at_the_start_and_end_of_the_range_in_every_chunk_size()
+    {
+        using var d = Make("abxabxabxab"u8.ToArray());
+        foreach (int chunk in new[] { 1, 2, 3, 100 })
+        {
+            Assert.Equal([0L], Starts(d, ByteRegex.Parse("^ab"), chunk));
+            Assert.Equal([9L], Starts(d, ByteRegex.Parse("ab$"), chunk));
+            Assert.Equal([0L, 9L], Starts(d, ByteRegex.Parse("^ab|ab$"), chunk));
+        }
+        var inside = ByteSearch.Find(d.GetSnapshot(), ByteRegex.Parse("^ab"), new ByteSearchOptions { Range = new(3, 11), ChunkBytes = 2 });
+        Assert.Equal([3L], inside.Matches.Select(m => m.Start));
+    }
+
+    [Fact]
     public void The_wildcard_star_reaches_at_most_n_bytes()
     {
         byte[] data = "A12B A1234B AB A123B".Select(c => (byte)c).ToArray();
@@ -100,8 +114,6 @@ public class ByteRegexTests
     }
 
     [Theory]
-    [InlineData("^abc")]
-    [InlineData("abc$")]
     [InlineData(@"\bword")]
     [InlineData("(a)\\1")]
     [InlineData("(?=a)b")]

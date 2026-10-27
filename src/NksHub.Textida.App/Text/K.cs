@@ -563,6 +563,7 @@ public static class K
     public const string HexFindCount = "hex.find.count";
     public const string HexFindLimit = "hex.find.limit";
     public const string HexFindInvalid = "hex.find.invalid";
+    public const string HexFindPreview = "hex.find.preview";
     public const string HexFindRunning = "hex.find.running";
     public const string HexFindStale = "hex.find.stale";
     public const string HexReplaceTitle = "hex.replace.title";

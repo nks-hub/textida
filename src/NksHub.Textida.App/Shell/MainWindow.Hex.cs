@@ -435,12 +435,24 @@ internal sealed partial class MainWindow
         return BytePattern.ParseHex(q);
     }
 
-    /// <summary>N of the wildcard from the settings; null while it is still 0 (not chosen).</summary>
-    private int? WildcardMax => _app.Workbench.Settings.GetInt("hex.wildcardMaxBytes") is > 0 and var n ? (int)n : null;
+    /// <summary>N of the wildcard from the settings; the placeholder default while the setting is 0 (not chosen).</summary>
+    private int? WildcardMax => _app.Workbench.Settings.GetInt("hex.wildcardMaxBytes") is > 0 and var n ? (int)n : PluginLimitsPlaceholders.HexWildcardDefaultMaxBytes;
+
+    /// <summary>Live line under the query box: the lengths a match may have, or why the query is refused.</summary>
+    private string PreviewHexQuery(HexView hex, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        try
+        {
+            var q = ParseHexQuery(text, hex.Charset, WildcardMax);
+            return Loc.Get(K.HexFindPreview, ("min", q.MinLength), ("max", q.MaxLength));
+        }
+        catch (Exception e) when (e is FormatException or OverflowException or ArgumentException) { return Loc.Get(K.HexFindInvalid, ("reason", e.Message)); }
+    }
 
     internal async Task FindBytesAsync(HexView hex)
     {
-        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexFindTitle), Loc.Get(K.HexFindLabel), _hexQuery);
+        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexFindTitle), Loc.Get(K.HexFindLabel), _hexQuery, text => PreviewHexQuery(hex, text));
         if (string.IsNullOrWhiteSpace(answer)) return;
         try { _hexPattern = ParseHexQuery(answer, hex.Charset, WildcardMax); }
         catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
@@ -458,7 +470,7 @@ internal sealed partial class MainWindow
     /// </summary>
     internal async Task ReplaceBytesAsync(HexView hex)
     {
-        var findText = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexReplaceTitle), Loc.Get(K.HexFindLabel), _hexQuery);
+        var findText = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexReplaceTitle), Loc.Get(K.HexFindLabel), _hexQuery, text => PreviewHexQuery(hex, text));
         if (string.IsNullOrWhiteSpace(findText)) return;
         ByteQuery query;
         try { query = ParseHexQuery(findText, hex.Charset, WildcardMax); }

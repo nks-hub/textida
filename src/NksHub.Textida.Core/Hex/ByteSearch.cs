@@ -51,7 +51,7 @@ public static class ByteSearch
                     filled += read;
                 }
                 int starts = (int)Math.Min(options.ChunkBytes, lastStart - block + 1);
-                if (pattern.Scan(buffer.AsSpan(0, count), starts, block, matches, options.MaxResults, cancellationToken)) return Result(true);
+                if (pattern.Scan(buffer.AsSpan(0, count), starts, block, matches, options.MaxResults, cancellationToken, block == range.Start, block + count == range.End)) return Result(true);
                 block += starts;
             }
         }

@@ -303,7 +303,7 @@
   "setting.search.regexTimeoutMs.title": "Časový limit regulárneho výrazu (ms)",
   "setting.search.regexTimeoutMs.description": "Výraz so spätnými odkazmi, lookaroundom alebo atomickými skupinami beží v klasickom engine a po tomto čase sa na jednom texte zastaví. Ostatné výrazy bežia v engine s lineárnym časom a nie sú obmedzené.",
   "setting.hex.wildcardMaxBytes.title": "Najdlhší zástupný znak * v hex hľadaní (bajty)",
-  "setting.hex.wildcardMaxBytes.description": "N, najviac koľko bajtov smie v hex hľadaní nahradiť zástupný znak * a každé otvorené opakovanie v regulárnom výraze nad bajtmi (.*, +, {n,}). 0 znamená, že N ešte nie je zvolené: hľadanie s * oň potom požiada. Vlastný rozsah ide vždy napísať ako *{m,n}.",
+  "setting.hex.wildcardMaxBytes.description": "N, najviac koľko bajtov smie v hex hľadaní nahradiť zástupný znak * a každé otvorené opakovanie v regulárnom výraze nad bajtmi (.*, +, {n,}). 0 znamená, že N ešte nie je zvolené: platí vstavená predvolená hodnota 256 bajtov. Vlastný rozsah ide vždy napísať ako *{m,n}.",
   "setting.tools.diffTool.title": "Externý porovnávač",
   "setting.tools.diffTool.description": "Cesta k programu na porovnanie dvoch súborov. Prázdne: príkaz Porovnať s diskom otvorí vstavané porovnanie.",
   "setting.tools.diffArguments.title": "Argumenty porovnávača",

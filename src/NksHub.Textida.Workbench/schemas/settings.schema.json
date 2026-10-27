@@ -442,7 +442,7 @@
           "default": 0,
           "minimum": 0,
           "maximum": 1048576,
-          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: a search with * then asks for it. A range of your own can always be written as *{m,n}.",
+          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
           "x-scope": "application"
         },
         "review.autoKeep": {
