@@ -224,19 +224,21 @@ public class CompareTests : IDisposable
     [AvaloniaFact]
     public async Task A_side_follows_the_other_across_an_inserted_block()
     {
-        var left = string.Join("\n", Enumerable.Range(0, 10).Select(i => "l" + i));
-        var right = string.Join("\n", ["l0", "l1", "l2", "n1", "n2", "n3", "l3", "l4", "l5", "l6", "l7", "l8", "l9"]);
+        // long enough to scroll whatever height the laid-out window gives the view; the view cannot scroll past its last page
+        var lines = Enumerable.Range(0, 300).Select(i => "l" + i).ToList();
+        var left = string.Join("\n", lines);
+        var right = string.Join("\n", lines.Take(150).Concat(["n1", "n2", "n3"]).Concat(lines.Skip(150)));
         var tab = NewWith(left);
         var view = await OpenWithClipboard(tab, right);
 
-        view.ScrollToRow(2);
-        Assert.Equal((2, 2), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
-        view.ScrollToRow(4); // inside the inserted block: the left side stays where the block sits
-        Assert.Equal((3, 4), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
-        view.ScrollToRow(6); // l3 stands level with l3
-        Assert.Equal((3, 6), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
-        view.ScrollToRow(9);
-        Assert.Equal((6, 9), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
+        view.ScrollToRow(148);
+        Assert.Equal((148, 148), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
+        view.ScrollToRow(151); // inside the inserted block: the left side stays where the block sits
+        Assert.Equal((150, 151), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
+        view.ScrollToRow(153); // l150 stands level with l150
+        Assert.Equal((150, 153), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
+        view.ScrollToRow(200);
+        Assert.Equal((197, 200), (view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)));
     }
 
     [AvaloniaFact]

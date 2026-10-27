@@ -445,7 +445,7 @@ public class PluginUiTests : IDisposable
 
         Assert.True(HasNotice($"Bajty: {Grouped(bytes.Length)}, znaky: {Grouped(bytes.Length)}, slova: {Grouped(3 * lines)}, řádky: {Grouped(lines + 1)}"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
         Assert.Equal(bytes.Length, tab.Doc.Doc.ByteLength);
-        Assert.Empty(_app.Plugins.Ui.Tasks);
+        await Until(() => _app.Plugins.Ui.Tasks.Count == 0, "the plugin task to end");
     }
 
     [AvaloniaFact]
@@ -457,7 +457,7 @@ public class PluginUiTests : IDisposable
 
         var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.hash", new ShellContext(_w, forMenu: false)).AsTask();
         await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the algorithm pick");
-        Assert.Equal(["MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512"], _w.QuickResults.Select(r => r.Title));
+        Assert.Equal(["MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512", "CRC-32"], _w.QuickResults.Select(r => r.Title));
         _w.RunPaletteSelection();
         await Until(() => run.IsCompleted, "the command");
         await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
