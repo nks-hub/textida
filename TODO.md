@@ -1468,6 +1468,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.5.2** Emmet
   - **Co a proč:** Zkratka + Tab v HTML a CSS, náhled před rozbalením, obalení výběru zkratkou.
   - **Funkce:** F182
+  - **Stav 26. 10. 2026:** částečně: plugin `NksHub.Textida.Plugins.Emmet` (algoritmus napsaný podle veřejného popisu syntaxe, bez kódu a dat Emmetu): `ul>li*3` + Tab vytvoří seznam s kurzorem v každé položce jako jeden krok undo, Tab mimo zkratku odsadí jako dřív, náhled a obalení výběru; jádro umí `items` ve `snippet/insert`. Otevřené: jazyky (dnes HTML a CSS), vypnutí v nastavení, zástupné limity; Perf test 33 ms na 1 MiB napsaný, neměřen; přeskakování mezi zástupnými místy chybí.
   - **Hotovo, když:** `ul>li*3` + Tab vytvoří seznam se třemi položkami s kurzory na místech snippetu; Tab mimo zkratku plugin předá zpět jádru a odsadí jako dřív; obalení výběru vrátí jeden krok undo.
   - **Závisí na:** P3b.3.2, P3b.3.5, P4.1.1
   - **Odhad:** F182 2–3 ČT (matice)
@@ -1492,6 +1493,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.5.5** Doplňování slov a klipů
   - **Co a proč:** Ctrl+J doplní slova z dokumentu a klipy, funguje hned po instalaci. LSP doplňování je v P8.
   - **Funkce:** F076
+  - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Zástupná hodnota 200 slov v nabídce; Perf neměřen.
   - **Hotovo, když:** doplnění nabídne slova z otevřených karet a klipy podle jazyka do 33 ms v souboru 1 MiB.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu

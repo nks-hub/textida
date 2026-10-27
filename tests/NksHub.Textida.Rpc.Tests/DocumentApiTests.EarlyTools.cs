@@ -183,6 +183,48 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task SnippetItemsReplaceTheirOwnRangesWithTheirOwnTextAndCaretsAsOneUndoStep()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());
+        var rev = rig.Revision;
+        var depth = rig.Owner.Run(() => rig.Doc.UndoDepth);
+
+        // the second item is listed first: the order does not matter
+        var r = await rig.CallAsync(DocumentMethods.SnippetInsert, rig.D(
+            $"\"revision\":{rev},\"items\":[{{\"start\":4,\"end\":7,\"text\":\"Y\\nZ\",\"carets\":[1,3]}},{{\"start\":0,\"end\":3,\"text\":\"X\",\"carets\":[1]}}]"));
+
+        Assert.Equal("X\nY\nZ\n", Text(rig));
+        Assert.Equal((rev + 1, 3), (r.GetProperty("revision").GetInt64(), r.GetProperty("carets").GetInt32()));
+        Assert.Equal(depth + 1, rig.Owner.Run(() => rig.Doc.UndoDepth));
+        var placed = Assert.Single(rig.Tools.Placed);
+        Assert.Equal([1, 3, 5], placed.Items.Select(s => s.Caret));
+        Assert.Equal(1, placed.Primary); // the primary selection lay in the second item
+
+        var undo = rig.Owner.Run(() => rig.Doc.Undo());
+        Assert.Equal("é1\né2\n", Text(rig));
+        Assert.Equal([new ByteRange(2, 3), new ByteRange(6, 7)], undo!.Selections);
+    }
+
+    [Fact]
+    public async Task SnippetItemsThatOverlapSplitACharacterOrAreStaleChangeNothing()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());
+        var rev = rig.Revision;
+
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[{{\"start\":0,\"end\":3,\"text\":\"a\"}},{{\"start\":2,\"end\":4,\"text\":\"b\"}}]"), DocumentErrorCodes.EditsOverlap);
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[{{\"start\":1,\"end\":3,\"text\":\"a\"}}]"), DocumentErrorCodes.InvalidRange);
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[]"), RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[{{\"start\":3,\"end\":2,\"text\":\"a\"}}]"), RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[{{\"start\":0,\"end\":3,\"text\":\"ab\",\"carets\":[3]}}]"), RpcErrorCodes.InvalidParams);
+        Assert.Equal("é1\né2\n", Text(rig));
+
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("z")));
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"items\":[{{\"start\":0,\"end\":3,\"text\":\"a\"}}]"), DocumentErrorCodes.RevisionConflict);
+        Assert.Equal("zé1\né2\n", Text(rig));
+        Assert.Empty(rig.Tools.Placed);
+    }
+
+    [Fact]
     public async Task ASnippetNeedsSelectionsToInsertInto()
     {
         await using var rig = await Rig.CreateAsync(Utf8("ab"), codec: TextCodec.Utf8);
@@ -216,6 +258,13 @@ public partial class DocumentApiTests
 
         await SetTabAsync(rig, "{\"handled\":true}");
         Assert.True(await rig.Api.OfferTabAsync(rig.Doc.Id));
+
+        // the language mode and the indentation unit travel with the request when the editor gives them
+        Assert.True(await rig.Api.OfferTabAsync(rig.Doc.Id, default, "html", "  "));
+        var all = await RequestsAsync(rig);
+        var withContext = all[all.GetArrayLength() - 1];
+        Assert.Equal(("html", "  "), (withContext.GetProperty("language").GetString(), withContext.GetProperty("indent").GetString()));
+        Assert.False(asked.TryGetProperty("language", out _));
 
         await SetTabAsync(rig, "{\"handled\":true,\"error\":true}");
         Assert.False(await rig.Api.OfferTabAsync(rig.Doc.Id));

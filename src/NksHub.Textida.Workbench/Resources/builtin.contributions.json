@@ -1071,6 +1071,28 @@
       "id": "nks.edit.copyAiContext",
       "title": "cmd.edit.copyAiContext",
       "category": "cat.edit"
+    },
+    {
+      "id": "nks.tools.emmetPreview",
+      "title": "cmd.tools.emmetPreview",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly && (language == 'html' || language == 'css')"
+    },
+    {
+      "id": "nks.tools.emmetWrap",
+      "title": "cmd.tools.emmetWrap",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly && language == 'html'"
+    },
+    {
+      "id": "nks.edit.complete",
+      "title": "cmd.edit.complete",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
     }
   ],
   "menus": [
@@ -1997,6 +2019,24 @@
       "command": "nks.edit.copyAiContext",
       "group": "2_clip",
       "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.emmetPreview",
+      "group": "4_emmet",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.emmetWrap",
+      "group": "4_emmet",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.complete",
+      "group": "8_insert",
+      "order": 4
     }
   ],
   "keybindings": [
@@ -2342,6 +2382,11 @@
     {
       "key": "mod+shift+v",
       "command": "nks.edit.clipboardHistory",
+      "when": "editorFocus"
+    },
+    {
+      "key": "ctrl+j",
+      "command": "nks.edit.complete",
       "when": "editorFocus"
     }
   ],

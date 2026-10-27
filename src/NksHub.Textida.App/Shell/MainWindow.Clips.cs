@@ -112,8 +112,11 @@ internal sealed partial class MainWindow
 
     // ---- insert ----
 
-    /// <summary>Asks for the form (when the clip has one), then writes the clip at every caret as one undo step. Nothing changes when any caret cannot be expanded.</summary>
-    internal async Task InsertClipAsync(ClipEntry entry)
+    /// <summary>
+    /// Asks for the form (when the clip has one), then writes the clip at every caret as one undo step. Nothing changes when any caret cannot be expanded.
+    /// With <paramref name="replaceWord"/> the word in front of each caret (a completion in progress) is replaced by the clip.
+    /// </summary>
+    internal async Task InsertClipAsync(ClipEntry entry, bool replaceWord = false)
     {
         var clip = entry.Clip;
         if (ActiveEditor is not { IsReadOnly: false } surface || Active is not { } tab) return;
@@ -139,7 +142,7 @@ internal sealed partial class MainWindow
             }
             pieces.Add(result);
         }
-        RunEdit((s, sels) => LineOperations.ReplaceSelectionsWithCarets(s.Document, sels, i => (pieces[i].Text, pieces[i].Carets)));
+        RunEdit((s, sels) => LineOperations.ReplaceSelectionsWithCarets(s.Document, replaceWord ? WidenToWord(s, sels) : sels, i => (pieces[i].Text, pieces[i].Carets)));
     }
 
     // ---- clip from the selection ----

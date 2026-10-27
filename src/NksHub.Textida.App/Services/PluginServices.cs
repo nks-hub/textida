@@ -29,6 +29,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string WebDataActivation = "onCommand:webdata";
     public const string CodeExplorerPluginId = "textida.codeexplorer";
     private const string CodeExplorerActivation = "onCommand:codeexplorer";
+    public const string EmmetPluginId = "textida.emmet";
+    private const string EmmetActivation = "onCommand:emmet";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -100,6 +102,16 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
              "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
             [CodeExplorerActivation], explorerFolder));
+
+        // Emmet reads the text in front of the carets and writes the expansion back as one snippet; it answers the Tab key
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
+            permissions.Grant(EmmetPluginId, permission, GrantScope.All);
+        var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "emmet");
+        var emmetProgram = Path.Combine(emmetFolder, "NksHub.Textida.Plugins.Emmet" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(EmmetPluginId, "Emmet", emmetProgram,
+            ["--context-bytes", PluginLimitsPlaceholders.EmmetContextBytes.ToString(), "--max-chars", PluginLimitsPlaceholders.SnippetLength.ToString(),
+             "--max-carets", PluginLimitsPlaceholders.SnippetCarets.ToString()],
+            [EmmetActivation], emmetFolder));
     }
 
     internal Host HostForTests => _host;
@@ -480,15 +492,47 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         panelId.StartsWith(SymbolsPanelPrefix, StringComparison.Ordinal) && Guid.TryParseExact(panelId[SymbolsPanelPrefix.Length..], "N", out var document)
         && Documents.ResolveSymbol(pluginId, document, symbolId) is { } range && Reveal(document, range);
 
-    /// <summary>Lets the plugins that registered for Tab answer it. False: nobody handled it and the caller indents as it does without plugins.</summary>
+    // ---- Emmet ----
+
+    /// <summary>The abbreviation syntax (<c>html</c> or <c>css</c>) Emmet expands in a language mode; null for any other mode.</summary>
+    internal static string? EmmetSyntax(string languageId) => languageId is "html" or "css" ? languageId : null;
+
+    /// <summary>Starts the Emmet process when it is not running, so that it can answer the Tab key. False when it cannot run; Tab then does what it does without it.</summary>
+    private async Task<bool> EnsureEmmetAsync()
+    {
+        try
+        {
+            await _host.ActivateAsync(EmmetActivation);
+            return true;
+        }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException) { return false; }
+    }
+
+    /// <summary>
+    /// Runs an Emmet command (<c>emmet.preview</c> or <c>emmet.wrap</c>) on the tab; the plugin asks the user what it needs and changes the document as one undo step.
+    /// Returns false when nothing was started (no text editor, or a language mode Emmet does not work in).
+    /// </summary>
+    public async Task<bool> RunEmmetAsync(MainWindow window, DocTab tab, string command)
+    {
+        if (tab.Surface is not { } surface || EmmetSyntax(tab.Doc.Language.Id) is not { } syntax) return false;
+        string extra = $",\"syntax\":\"{syntax}\",\"indent\":\"{System.Text.Json.JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\"";
+        return (await ExecuteAsync(window, tab, EmmetPluginId, EmmetActivation, "Emmet", command, extra)).Started;
+    }
+
+    /// <summary>
+    /// Lets the plugins that registered for Tab answer it (Emmet is started by the first Tab in an HTML or CSS file). False: nobody handled it and the caller
+    /// indents as it does without plugins.
+    /// </summary>
     public async Task<bool> OfferTabAsync(DocTab tab)
     {
-        if (!Documents.HasTabProviders || tab.Surface is not { } surface) return false;
+        if (tab.Surface is not { } surface) return false;
+        if (EmmetSyntax(tab.Doc.Language.Id) is not null) await EnsureEmmetAsync();
+        if (!Documents.HasTabProviders) return false;
         var document = tab.Doc.Doc;
         // a document that stays visible to plugins (an outline provider) is not hidden again when Tab is done
         bool own = !Documents.IsExposed(document.Id);
         if (own) Documents.Expose(document, surface.ByteSelections);
-        try { return await Documents.OfferTabAsync(document.Id); }
+        try { return await Documents.OfferTabAsync(document.Id, default, tab.Doc.Language.Id, surface.Settings.Indent.Unit); }
         finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
     }
 

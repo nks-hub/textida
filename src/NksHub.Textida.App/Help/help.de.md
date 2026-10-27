@@ -838,3 +838,25 @@ Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner al
 - Jede Datei hat Pfad, Zeilen, Sprache, Kodierung und Revision. Eine Datei mit nicht gespeicherten Änderungen ist markiert, und der Text ist der Text im Editor.
 - Weggelassen und benannt: .env-Dateien (ihre Werte werden nie kopiert, auch nicht, wenn sie im Editor sichtbar sind), von Ignorierdateien ausgeschlossene Dateien und Ordner, versteckte und Binärdateien, Dateien über dem Größenlimit beim Durchsuchen des Ordners und nicht lesbare Dateien.
 - Eine große Datei im seitenweisen Modus wird nie ganz kopiert: nur ihre Auswahl. Ohne Auswahl wird sie als weggelassen aufgeführt.
+
+## [tools.emmet] Emmet-Abkürzungen
+commands: nks.tools.emmetPreview, nks.tools.emmetWrap
+1. Geben Sie in einer HTML- oder CSS-Datei eine Abkürzung ein und drücken Sie Tab. Aus `ul>li*3` wird eine Liste mit drei Einträgen und einem Cursor in jedem.
+2. Tab rückt wie bisher ein, wenn vor dem Cursor keine Abkürzung steht, wenn Text markiert ist, wenn der Cursor in einem offenen Tag steht oder wenn die Abkürzung ungültig ist.
+3. Extras, Emmet-Abkürzung als Vorschau zeigt, was aus der Abkürzung vor dem Cursor würde (`|` markiert die Cursor), und erweitert sie nach Bestätigung.
+4. Extras, Mit Emmet-Abkürzung umschließen (nur HTML) fragt nach einer Abkürzung und umschließt damit jede Markierung. Der Text kommt in das innerste letzte Element; ein nacktes `*` an diesem Element (`ul>li*`) erzeugt ein Element pro Zeile.
+5. Jede Erweiterung geht in alle Cursor gleichzeitig und ist ein Schritt für Rückgängig.
+- HTML: `name#id.class[attr=value]{text}*3`; `>` Kind, `+` Geschwister, `^` eine Ebene höher, `( )` Gruppe; in Namen, Klassen und Text ist `$` die Nummer der Wiederholung (`$$` füllt mit Nullen, `$@-` zählt abwärts, `$@3` beginnt bei 3). Ein einzelnes Wort wird nur erweitert, wenn es ein HTML-Tag-Name oder ein Kurzname des Plugins ist (`bq`, `btn`, `a:link`, `input:checkbox`, `!` für ein Seitengerüst). In einem Element wird der fehlende Name je nach Eltern zu `li`, `tr`, `td`, `option`, `span` oder `div`.
+- CSS: `m10-20` ist `margin: 10px 20px;`, `w100p` ist `width: 100%;`, `c#f00`, `pos:a`, `dn`, ein `!` am Ende fügt `!important` an, `+` verbindet mehrere Deklarationen. Eine ganze Zahl bekommt `px`, ein Bruch `em`; die Buchstaben `p`, `e`, `x`, `r` nach einer Zahl bedeuten `%`, `em`, `ex`, `rem`. Es funktioniert nur innerhalb eines Blocks `{ }`.
+- Die Kurznamen sind die eigene Tabelle des Plugins mit gängigen Eigenschaften und Tags, nicht der volle Emmet-Umfang.
+- Die Cursor stehen in allen leeren Elementen gleichzeitig (gibt es keines, im ersten leeren Attributwert); ein Sprung von einem Platzhalter zum nächsten fehlt noch.
+- Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
+
+## [edit.complete] Vervollständigung von Wörtern und Clips
+commands: nks.edit.complete
+1. Drücken Sie Strg+J (Bearbeiten, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.
+2. Wählen Sie einen Eintrag. Ein Wort ersetzt das Wort vor jedem Cursor; ein Clip wird wie im Thema Clips eingefügt und ersetzt dieses Wort. Es ist ein Schritt für Rückgängig.
+- Die Wörter stammen aus allen offenen Text-Tabs. Das Wort, das gerade getippt wird, wird nicht angeboten, und ein Wort wird nur angeboten, wenn es länger ist als das Getippte. Zuerst kommen Wörter des bearbeiteten Dokuments, dann die häufigeren.
+- Clips stammen aus der Bibliothek des Themas Clips. Ein Clip ohne Sprache passt zu jedem Dokument; ein Clip mit Sprache nur zu Dokumenten dieser Sprache.
+- Die Werte einer Geheimnisdatei (`.env`) werden nie angeboten, solange sie verborgen sind. Sie werden nur in der Datei selbst und nur angezeigt angeboten.
+- Die Liste hält eine begrenzte Zahl von Wörtern; Sie engen sie durch Tippen im Feld ein. Vervollständigung über LSP gehört nicht zu dieser Version.

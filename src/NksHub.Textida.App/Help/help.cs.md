@@ -838,3 +838,25 @@ Vloží do schránky výběr, soubor, otevřené karty nebo otevřenou složku j
 - U každého souboru je cesta, řádky, jazyk, kódování a revize. Soubor s neuloženými změnami je označen a text je ten, který je teď v editoru.
 - Vynecháno a pojmenováno: soubory .env (jejich hodnoty se nikdy nekopírují, ani když jsou v editoru zobrazené), soubory a složky vyřazené soubory ignorování, skryté, binární soubory, soubory nad limitem velikosti při procházení složky a soubory, které nejdou přečíst.
 - Velký soubor ve stránkovaném režimu se nikdy nekopíruje celý: jen jeho výběr. Bez výběru je uveden jako vynechaný.
+
+## [tools.emmet] Zkratky Emmet
+commands: nks.tools.emmetPreview, nks.tools.emmetWrap
+1. V souboru HTML nebo CSS napište zkratku a stiskněte Tab. Z `ul>li*3` vznikne seznam o třech položkách s kurzorem v každé z nich.
+2. Tab odsazuje jako dřív, když před kurzorem žádná zkratka není, když je něco označeno, když je kurzor uvnitř otevřené značky nebo když zkratka není platná.
+3. Nástroje, Náhled zkratky Emmet ukáže, čím by zkratka před kurzorem byla (`|` označuje kurzory), a po potvrzení ji rozbalí.
+4. Nástroje, Obalit zkratkou Emmet (jen HTML) se zeptá na zkratku a obalí jí každý výběr. Text přijde do nejvnitřnějšího posledního prvku; holá `*` na tom prvku (`ul>li*`) udělá jeden prvek na řádek.
+5. Každé rozbalení jde do všech kurzorů najednou a je jeden krok Zpět.
+- HTML: `name#id.class[attr=value]{text}*3`; `>` potomek, `+` sourozenec, `^` o úroveň výš, `( )` skupina; v názvech, třídách a textu je `$` číslo opakování (`$$` doplní nuly, `$@-` počítá dolů, `$@3` začíná od 3). Samotné slovo se rozbalí, jen když je to název značky HTML nebo krátký název z pluginu (`bq`, `btn`, `a:link`, `input:checkbox`, `!` pro kostru stránky). Uvnitř prvku se chybějící název doplní na `li`, `tr`, `td`, `option`, `span` nebo `div`, podle rodiče.
+- CSS: `m10-20` je `margin: 10px 20px;`, `w100p` je `width: 100%;`, `c#f00`, `pos:a`, `dn`, koncový `!` přidá `!important`, `+` spojí víc deklarací. Celé číslo dostane `px`, zlomek `em`; písmena `p`, `e`, `x`, `r` za číslem znamenají `%`, `em`, `ex`, `rem`. Funguje jen uvnitř bloku `{ }`.
+- Krátké názvy jsou vlastní tabulka pluginu s běžnými vlastnostmi a značkami, ne úplná sada Emmet.
+- Kurzory stojí ve všech prázdných prvcích najednou (když žádný není, v první prázdné hodnotě atributu); skok z jednoho zástupného místa na další zatím není.
+- Proces Emmet se spustí prvním Tabem v souboru HTML nebo CSS.
+
+## [edit.complete] Doplňování slov a klipů
+commands: nks.edit.complete
+1. Stiskněte Ctrl+J (Úpravy, Doplnit slovo nebo klip). Seznam nabídne slova, která pokračují slovo před kurzorem, a pak klipy, které se hodí pro jazyk dokumentu.
+2. Vyberte položku. Slovo nahradí slovo před každým kurzorem; klip se vloží jako v tématu Klipy a nahradí toto slovo. Je to jeden krok Zpět.
+- Slova se berou ze všech otevřených textových karet. Slovo, které právě píšete, se nenabízí, a slovo se nabízí, jen když je delší než napsaný začátek. Nejdřív jdou slova z upravovaného dokumentu, pak ta častější.
+- Klipy jsou z knihovny z tématu Klipy. Klip bez jazyka se hodí do každého dokumentu; klip s jazykem jen do dokumentů toho jazyka.
+- Hodnoty tajného souboru (`.env`) se nenabízejí, dokud jsou skryté. Nabízejí se jen v tom samém souboru a jen když jsou zobrazené.
+- Seznam drží omezený počet slov; zúžíte ho psaním do pole. Doplňování přes LSP v této verzi není.
