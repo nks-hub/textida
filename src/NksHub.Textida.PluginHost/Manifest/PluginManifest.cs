@@ -64,6 +64,22 @@ public sealed class PluginContributions
     public List<TemplateContribution> Templates { get; set; } = [];
     public List<LogPatternContribution> LogPatterns { get; set; } = [];
     public List<ExternalToolContribution> ExternalTools { get; set; } = [];
+    public List<LanguageHelpContribution> LanguageHelp { get; set; } = [];
+}
+
+/// <summary>
+/// Where the help for a language is. <see cref="Kind"/> <c>url</c>: <see cref="Target"/> is an <c>http</c> or <c>https</c> address in which <c>${word}</c> stands for the word under the
+/// caret and <c>${language}</c> for the language id; the editor shows it and opens it only after the user agrees. <c>file</c>: <see cref="Target"/> is a file inside the plugin folder,
+/// opened in the editor.
+/// </summary>
+public sealed class LanguageHelpContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    /// <summary>The language mode id the source belongs to, for example <c>php</c>.</summary>
+    public string Language { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string Target { get; set; } = "";
 }
 
 /// <summary>

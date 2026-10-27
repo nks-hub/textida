@@ -293,5 +293,16 @@
   "setting.editor.clipboardHistorySize.title": "Größe des Zwischenablage-Verlaufs",
   "setting.editor.clipboardHistorySize.description": "Wie viele kopierte Texte der Verlauf behält. Er liegt nur im Speicher und wird beim Beenden vergessen.",
   "setting.editor.dateTimeFormat.title": "Datums- und Zeitformat",
-  "setting.editor.dateTimeFormat.description": ".NET-Format, zum Beispiel yyyy-MM-dd HH:mm. Wird von Datum und Uhrzeit einfügen benutzt; Monats- und Tagesnamen folgen der Sprache der Oberfläche."
+  "setting.editor.dateTimeFormat.description": ".NET-Format, zum Beispiel yyyy-MM-dd HH:mm. Wird von Datum und Uhrzeit einfügen benutzt; Monats- und Tagesnamen folgen der Sprache der Oberfläche.",
+  "cmd.edit.formatSql": "SQL formatieren",
+  "cmd.edit.previewFormatSql": "Vorschau der SQL-Formatierung",
+  "cmd.edit.htmlEncode": "In HTML-Entitäten umwandeln",
+  "cmd.edit.htmlDecode": "Aus HTML-Entitäten umwandeln",
+  "cmd.edit.htmlTidy": "Mit HTML Tidy formatieren",
+  "cmd.tools.sqlDialect": "SQL-Dialekt...",
+  "cmd.help.languageHelp": "Hilfe zu einer Sprache",
+  "setting.sql.dialect.title": "Standard-SQL-Dialekt",
+  "setting.sql.dialect.description": "Dialekt für SQL-Dateien, für die weder Datei noch Ordner einen festlegt. Ordner: sql_dialect in .editorconfig.",
+  "setting.html.tidyPath.title": "HTML-Tidy-Programm",
+  "setting.html.tidyPath.description": "Vollständiger Pfad zum Programm HTML Tidy. Leer: Der Editor sucht neben dem Formatierer-Plugin, im Ordner tools/tidy und in PATH."
 }

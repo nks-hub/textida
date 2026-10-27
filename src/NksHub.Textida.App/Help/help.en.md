@@ -825,3 +825,31 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 - Recipes are data: contributes.recipes in nkspad-plugin.json, with id, title, steps and optionally command. Steps that choose come first. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} keeps the matches inside the current parts. {"kind": "columns", "from": 3, "to": 5} keeps columns 3 to 5 of every line (counted in characters from 1; to 0 or left out means up to the end of the line; a shorter line gives nothing).
 - Steps that change: {"kind": "convert", "converter": "id"} (a converter of the same plugin), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} and {"kind": "set", "text": "..."}, which replaces the part with a text in the template language of clips. In it ${selection} is the part itself, and the variables have the same values as in a clip (topic Clips); carets $| are ignored.
 - A recipe with no steps, an unknown kind, a bad pattern, an unknown converter, a choosing step after a changing one or no changing step is refused when the plugin is read.
+
+## [edit.sql] SQL: dialect and formatting
+commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
+1. Edit, Format SQL lays out the selections, or the whole file when nothing is selected: a clause per line, one select item per line, sub-queries indented, keywords in one letter case. It is one undo step and nothing outside the selection changes.
+2. Edit, Preview SQL Formatting shows the same result in the change preview first.
+3. The dialect decides the colors and which words count as keywords. The first of these that is set wins: Tools, SQL Dialect (this file only); `sql_dialect = mysql` in an `.editorconfig` (every SQL file in that folder and below); the setting Default SQL dialect. With none of them the dialect is Generic, and nothing is reported as an error.
+- Dialects: generic, mysql, postgres, sqlite, tsql. The editor never connects to a database.
+- Strings, quoted names and comments are copied as written. Formatting a result again changes nothing.
+- A selection larger than the limit of the plugin is refused with a message.
+- Indentation (4 spaces) and keyword case (upper) are fixed for now; they are not settings yet.
+
+## [edit.html] HTML: entities and HTML Tidy
+commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+1. Edit, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
+2. Edit, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
+3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
+- Tidy is not part of this build: install it and set the path, or put it in one of those places.
+- Line numbers in the messages count from the start of the text that was sent to Tidy.
+- Letters outside ASCII are not written as entities; the encoding of the file holds them.
+
+## [help.language] Help for a language
+commands: nks.help.languageHelp
+1. Put the caret on a word, for example a function name, and press Alt+F1.
+2. The editor looks the word up in the help sources set for the language of the file. A file of the plugin opens in the editor. A web address is shown first and opens in your browser only after you confirm.
+3. With more than one source for the language you pick one.
+- Sources are data. A plugin without a program lists them under `languageHelp` in `nkspad-plugin.json`, each with `id`, `title`, `language` (the language id, for example `php`), `kind` (`url` or `file`) and `target`. In a web address `${word}` stands for the word and `${language}` for the language id. The target of a file is a path inside the plugin folder.
+- Only `http` and `https` addresses are accepted; a plugin with any other address is refused when it is read.
+- No sources are included yet. Without one for the language the status bar says so.

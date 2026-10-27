@@ -377,6 +377,57 @@
       "enablement": "!readOnly && !largeFileMode"
     },
     {
+      "id": "nks.edit.formatSql",
+      "title": "cmd.edit.formatSql",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && language == 'sql'",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.previewFormatSql",
+      "title": "cmd.edit.previewFormatSql",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && language == 'sql'"
+    },
+    {
+      "id": "nks.edit.htmlEncode",
+      "title": "cmd.edit.htmlEncode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlDecode",
+      "title": "cmd.edit.htmlDecode",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlTidy",
+      "title": "cmd.edit.htmlTidy",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && language == 'html'"
+    },
+    {
+      "id": "nks.tools.sqlDialect",
+      "title": "cmd.tools.sqlDialect",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !largeFileMode && language == 'sql'"
+    },
+    {
+      "id": "nks.help.languageHelp",
+      "title": "cmd.help.languageHelp",
+      "category": "cat.app",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.tools.statistics",
       "title": "cmd.tools.statistics",
       "category": "cat.tools"
@@ -1424,6 +1475,48 @@
       "order": 80
     },
     {
+      "menu": "edit",
+      "command": "nks.edit.formatSql",
+      "group": "5_format",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.previewFormatSql",
+      "group": "5_format",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlTidy",
+      "group": "5_format",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlEncode",
+      "group": "5_format",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlDecode",
+      "group": "5_format",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.sqlDialect",
+      "group": "5_sql",
+      "order": 10
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.languageHelp",
+      "group": "0_contents",
+      "order": 20
+    },
+    {
       "menu": "tools",
       "command": "nks.tools.statistics",
       "group": "1_text",
@@ -2154,6 +2247,11 @@
     {
       "key": "f1",
       "command": "nks.help.contents"
+    },
+    {
+      "key": "alt+f1",
+      "command": "nks.help.languageHelp",
+      "when": "editorFocus"
     },
     {
       "key": "alt+z",
@@ -3044,6 +3142,42 @@
         "begin",
         "end",
         "block"
+      ]
+    },
+    {
+      "key": "sql.dialect",
+      "type": "string",
+      "default": "generic",
+      "title": "setting.sql.dialect.title",
+      "description": "setting.sql.dialect.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "enum": [
+        "generic",
+        "mysql",
+        "postgres",
+        "sqlite",
+        "tsql"
+      ],
+      "tags": [
+        "sql",
+        "dialect",
+        "format"
+      ]
+    },
+    {
+      "key": "html.tidyPath",
+      "type": "string",
+      "default": "",
+      "title": "setting.html.tidyPath.title",
+      "description": "setting.html.tidyPath.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "html",
+        "tidy",
+        "format",
+        "path"
       ]
     },
     {

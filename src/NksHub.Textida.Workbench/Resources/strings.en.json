@@ -293,5 +293,16 @@
   "setting.editor.clipboardHistorySize.title": "Clipboard history size",
   "setting.editor.clipboardHistorySize.description": "How many copied texts the clipboard history keeps. It is kept in memory only and forgotten when the program closes.",
   "setting.editor.dateTimeFormat.title": "Date and time format",
-  "setting.editor.dateTimeFormat.description": ".NET custom format, for example yyyy-MM-dd HH:mm. Used by Insert Date and Time; month and day names follow the interface language."
+  "setting.editor.dateTimeFormat.description": ".NET custom format, for example yyyy-MM-dd HH:mm. Used by Insert Date and Time; month and day names follow the interface language.",
+  "cmd.edit.formatSql": "Format SQL",
+  "cmd.edit.previewFormatSql": "Preview SQL Formatting",
+  "cmd.edit.htmlEncode": "Convert to HTML Entities",
+  "cmd.edit.htmlDecode": "Convert from HTML Entities",
+  "cmd.edit.htmlTidy": "Format with HTML Tidy",
+  "cmd.tools.sqlDialect": "SQL Dialect...",
+  "cmd.help.languageHelp": "Language Help",
+  "setting.sql.dialect.title": "Default SQL dialect",
+  "setting.sql.dialect.description": "Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
+  "setting.html.tidyPath.title": "HTML Tidy program",
+  "setting.html.tidyPath.description": "Full path of the HTML Tidy program. Empty: the editor looks next to the formatters plugin, in tools/tidy and in PATH."
 }

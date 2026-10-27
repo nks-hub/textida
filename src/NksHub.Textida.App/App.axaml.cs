@@ -43,6 +43,9 @@ public sealed partial class App : Application
     internal ToolApprovals ToolApprovals { get; private set; } = null!;
     /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
+
+    /// <summary>Opens a web address in the browser of the system; true when it was opened. Null uses the launcher of the window. Settable so tests open nothing.</summary>
+    internal Func<Uri, Task<bool>>? UriOpener { get; set; }
     internal LastParameters LastParameters { get; private set; } = new();
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>

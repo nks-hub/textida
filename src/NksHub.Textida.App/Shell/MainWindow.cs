@@ -57,6 +57,7 @@ internal sealed partial class MainWindow : Window
     /// <summary>The same for a document: its <c>.editorconfig</c> layer goes into the settings stack first, so every value carries its source; an indentation set there beats the one detected from the content.</summary>
     internal EditorOptions OptionsFor(OpenDocument od)
     {
+        od.SetGlobalSqlDialect(_app.Workbench.Settings.GetString("sql.dialect"));
         EditorConfigSettings.Apply(_app.Workbench.Settings, od.EditorConfig);
         var options = EditorOptions.From(_app.Workbench.Settings, od.Language.Id);
         bool configIndent = od.EditorConfig.Properties.Keys.Any(k => k is "indent_style" or "indent_size" or "tab_width");
@@ -294,6 +295,7 @@ internal sealed partial class MainWindow : Window
     private void ApplyLanguageOptions()
     {
         Active?.Doc.RefreshEditorConfig();
+        foreach (var sql in Documents.Where(d => d.Language.Id == "sql" && !ReferenceEquals(d, Active?.Doc))) sql.RefreshEditorConfig();
         foreach (var tab in Tabs)
         {
             var options = OptionsFor(tab);

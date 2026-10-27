@@ -825,3 +825,31 @@ Recept vyberie časti otvoreného súboru, zmení ich a pred zápisom ukáže v�
 - Recepty sú dáta: contributes.recipes v nkspad-plugin.json, s id, title, steps a voliteľne command. Kroky, ktoré vyberajú, idú prvé. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} ponechá zhody vo vnútri doterajších častí. {"kind": "columns", "from": 3, "to": 5} ponechá stĺpce 3 až 5 každého riadku (počíta sa v znakoch od 1; to 0 alebo vynechané znamená do konca riadku; kratší riadok nedá nič).
 - Kroky, ktoré menia: {"kind": "convert", "converter": "id"} (prevodník rovnakého pluginu), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} a {"kind": "set", "text": "..."}, ktorý nahradí časť textom v jazyku šablón klipov. V ňom je ${selection} samotná časť a premenné majú rovnaké hodnoty ako v klipe (téma Klipy); kurzory $| sa ignorujú.
 - Recept bez krokov, s neznámym druhom, chybným vzorom, neznámym prevodníkom, vyberajúcim krokom po meniacom alebo bez meniaceho kroku sa pri čítaní pluginu odmietne.
+
+## [edit.sql] SQL: dialekt a formátovanie
+commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
+1. Úpravy, Formátovať SQL usporiada výbery, alebo celý súbor, keď nie je nič vybrané: klauzula na samostatnom riadku, každá položka výberu na riadku, poddotazy odsadené, kľúčové slová jedným typom písma. Je to jeden krok späť a nič mimo výberu sa nezmení.
+2. Úpravy, Náhľad formátovania SQL ukáže rovnaký výsledok najprv v náhľade zmien.
+3. Dialekt určuje farby a to, ktoré slová sú kľúčové. Platí prvý nastavený z týchto: Nástroje, Dialekt SQL (len tento súbor); `sql_dialect = mysql` v súbore `.editorconfig` (každý súbor SQL v tom priečinku a pod ním); nastavenie Predvolený dialekt SQL. Bez nich je dialekt Generic a nič sa nehlási ako chyba.
+- Dialekty: generic, mysql, postgres, sqlite, tsql. Editor sa k žiadnej databáze nepripája.
+- Reťazce, ohraničené názvy a komentáre sa prepíšu bez zmeny. Ďalšie formátovanie výsledku nič nezmení.
+- Výber väčší ako limit pluginu sa odmietne so správou.
+- Odsadenie (4 medzery) a veľkosť kľúčových slov (veľké) sú zatiaľ pevné; nastavenie to ešte nie je.
+
+## [edit.html] HTML: entity a HTML Tidy
+commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+1. Úpravy, Previesť na entity HTML nahradí v označených častiach (v celom súbore, keď nie je nič vybrané) znaky & < > " ' entitami. Previesť z entít HTML prečíta pomenované, desiatkové aj šestnástkové entity späť. Zakódovaný text prevedený späť dá pôvodný text. Každé je jeden krok späť.
+2. Úpravy, Formátovať pomocou HTML Tidy pošle HTML programu HTML Tidy a výsledok ukáže v náhľade zmien. Správy Tidy idú do okna výstupu.
+3. Tidy je samostatný program. Editor ho hľadá na ceste z nastavenia Program HTML Tidy, v priečinku `tidy` vedľa pluginu formátovačov, v priečinku `tools/tidy` aplikácie a v priečinkoch z PATH. Keď ho nenájde, správa vypíše všetky miesta.
+- Tidy nie je súčasťou tohto zostavenia: nainštalujte ho a nastavte cestu, alebo ho dajte na niektoré z tých miest.
+- Čísla riadkov v správach sa počítajú od začiatku textu, ktorý sa Tidy poslal.
+- Písmená mimo ASCII sa ako entity nepíšu; drží ich kódovanie súboru.
+
+## [help.language] Pomocník k jazyku
+commands: nks.help.languageHelp
+1. Dajte kurzor na slovo, napríklad názov funkcie, a stlačte Alt+F1.
+2. Editor slovo vyhľadá v zdrojoch pomocníka nastavených pre jazyk súboru. Súbor pluginu sa otvorí v editore. Webová adresa sa najprv ukáže a v prehliadači sa otvorí až po potvrdení.
+3. Keď je pre jazyk viac zdrojov, vyberiete jeden.
+- Zdroje sú dáta. Plugin bez programu ich vypíše v `languageHelp` v `nkspad-plugin.json`, každý s `id`, `title`, `language` (id jazyka, napríklad `php`), `kind` (`url` alebo `file`) a `target`. Vo webovej adrese `${word}` znamená slovo a `${language}` id jazyka. Cieľ súboru je cesta vnútri priečinka pluginu.
+- Prijímajú sa len adresy `http` a `https`; plugin s inou adresou sa pri načítaní odmietne.
+- Žiadne zdroje zatiaľ nie sú pribalené. Keď pre jazyk žiadny nie je, stavový riadok to povie.

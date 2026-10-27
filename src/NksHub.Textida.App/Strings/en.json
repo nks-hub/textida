@@ -756,5 +756,18 @@
   "log.levels.default": "Default level words (ERROR, WARN, INFO, DEBUG)",
   "log.levels.applied": "Log levels: {name}",
   "log.pattern.found.one": "{count} line has a place",
-  "log.pattern.found.other": "{count} lines have a place"
+  "log.pattern.found.other": "{count} lines have a place",
+  "tidy.output.source": "HTML Tidy",
+  "langHelp.none": "No help source is set for {language}. A data plugin can add one (Help, Help for a language).",
+  "langHelp.noWord": "Put the caret on a word to look it up.",
+  "langHelp.pick.title": "Help for \"{word}\"",
+  "langHelp.pick.watermark": "Choose a help source",
+  "langHelp.open.title": "Open help in the browser?",
+  "langHelp.open.message": "The help source \"{source}\" opens this address in your browser: {url}",
+  "langHelp.open.failed": "The address could not be opened: {url}",
+  "sql.dialect.pick.title": "SQL dialect",
+  "sql.dialect.pick.watermark": "Choose the dialect of this file",
+  "sql.dialect.inherit": "Follow the folder and the global setting",
+  "sql.dialect.set": "SQL dialect of this file: {dialect}",
+  "sql.dialect.inherited": "The SQL dialect of this file follows the folder and the global setting: {dialect}"
 }

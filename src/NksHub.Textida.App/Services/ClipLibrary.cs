@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -13,6 +14,9 @@ internal sealed record ClipEntry(string PluginId, string PluginName, ClipContrib
 internal sealed record TemplateEntry(string PluginId, string PluginName, TemplateContribution Template);
 
 internal sealed record ConverterEntry(string PluginId, string PluginName, ConverterContribution Converter);
+
+/// <summary>A place that explains a language, as a data plugin states it; <paramref name="Source"/> is ready to resolve (a file target is a full path).</summary>
+internal sealed record HelpEntry(string PluginId, string PluginName, HelpSource Source);
 
 /// <summary><see cref="Converters"/> are the converters of the same plugin, the ones a <c>convert</c> step of the recipe may name.</summary>
 internal sealed record RecipeEntry(string PluginId, string PluginName, RecipeContribution Recipe, IReadOnlyList<ConverterContribution> Converters);
@@ -36,6 +40,7 @@ internal sealed class ClipLibrary
     private readonly List<TemplateEntry> _templates = [];
     private readonly List<ConverterEntry> _converters = [];
     private readonly List<RecipeEntry> _recipes = [];
+    private readonly List<HelpEntry> _helps = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<string> _problems = [];
 
@@ -49,6 +54,7 @@ internal sealed class ClipLibrary
     public IReadOnlyList<TemplateEntry> Templates => _templates;
     public IReadOnlyList<ConverterEntry> Converters => _converters;
     public IReadOnlyList<RecipeEntry> Recipes => _recipes;
+    public IReadOnlyList<HelpEntry> Helps => _helps;
     public IReadOnlyList<string> Problems => _problems;
 
     /// <summary>Commands that run a clip, template, converter or recipe, with the plugin and the item they name; the app gives each a handler.</summary>
@@ -63,6 +69,7 @@ internal sealed class ClipLibrary
         _templates.Clear();
         _converters.Clear();
         _recipes.Clear();
+        _helps.Clear();
         _targets.Clear();
         _problems.Clear();
         if (!Directory.Exists(_directory)) return;
@@ -86,6 +93,8 @@ internal sealed class ClipLibrary
             foreach (var template in plugin.Manifest.Contributes.Templates) _templates.Add(new TemplateEntry(id, plugin.Manifest.Name, template));
             foreach (var converter in plugin.Manifest.Contributes.Converters) _converters.Add(new ConverterEntry(id, plugin.Manifest.Name, converter));
             foreach (var recipe in plugin.Manifest.Contributes.Recipes) _recipes.Add(new RecipeEntry(id, plugin.Manifest.Name, recipe, plugin.Manifest.Contributes.Converters));
+            foreach (var h in plugin.Manifest.Contributes.LanguageHelp)
+                _helps.Add(new HelpEntry(id, plugin.Manifest.Name, new HelpSource(h.Id, h.Title, h.Language, h.Kind == "file" ? HelpKind.File : HelpKind.Url, h.Kind == "file" ? Path.GetFullPath(Path.Combine(plugin.Directory, h.Target)) : h.Target)));
             foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe")) _targets.Add((command, id, action));
         }
     }

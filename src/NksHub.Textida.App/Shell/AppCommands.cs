@@ -127,6 +127,11 @@ internal static class AppCommands
         On("nks.edit.expandSelection", w => w.ExpandSelection());
         Fire("nks.edit.formatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: false));
         Fire("nks.edit.previewFormatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: true));
+        Fire("nks.edit.formatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: false));
+        Fire("nks.edit.previewFormatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: true));
+        Fire("nks.edit.htmlEncode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true));
+        Fire("nks.edit.htmlDecode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: false));
+        Fire("nks.edit.htmlTidy", (w, t) => app.Plugins.RunTidyAsync(w, t));
 
         // tools
         Fire("nks.tools.statistics", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.stats"));
@@ -150,6 +155,7 @@ internal static class AppCommands
         Do("nks.tools.goToSymbol", w => w.ShowQuickOpen("@"));
         Fire("nks.tools.showOutline", (w, t) => app.Plugins.IndexSymbolsAsync(w, t, reveal: true));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
+        Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());
 
         On("nks.tools.run", w => w.ShowToolMenu());
         On("nks.tools.stop", w => w.StopTool());
@@ -230,6 +236,7 @@ internal static class AppCommands
         foreach (var tag in Loc.Languages) Do(LanguageCommandPrefix + tag, _ => app.SetLanguage(tag));
         Do("nks.help.about", w => _ = app.Dialogs.ShowAboutAsync(w));
         Do("nks.help.contents", w => { var topic = w.HelpContextTopic(); w.ClosePalette(); app.OpenHelp(topic); });
+        Fire("nks.help.languageHelp", (w, _) => w.ShowLanguageHelpAsync());
     }
 
     /// <summary>Gives the commands that data plugins name in their clips, templates, converters and recipes a handler that runs that item.</summary>

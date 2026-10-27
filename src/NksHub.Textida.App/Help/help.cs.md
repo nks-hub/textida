@@ -825,3 +825,31 @@ Recept vybere části otevřeného souboru, změní je a před zápisem ukáže 
 - Recepty jsou data: contributes.recipes v nkspad-plugin.json, s id, title, steps a volitelně command. Kroky, které vybírají, jdou první. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} ponechá shody uvnitř dosavadních částí. {"kind": "columns", "from": 3, "to": 5} ponechá sloupce 3 až 5 každého řádku (počítá se ve znacích od 1; to 0 nebo vynechané znamená do konce řádku; kratší řádek nedá nic).
 - Kroky, které mění: {"kind": "convert", "converter": "id"} (převodník stejného pluginu), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} a {"kind": "set", "text": "..."}, který nahradí část textem v jazyce šablon klipů. V něm je ${selection} samotná část a proměnné mají stejné hodnoty jako v klipu (téma Klipy); kurzory $| se ignorují.
 - Recept bez kroků, s neznámým druhem, chybným vzorem, neznámým převodníkem, vybírajícím krokem po měnícím nebo bez měnícího kroku se při čtení pluginu odmítne.
+
+## [edit.sql] SQL: dialekt a formátování
+commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
+1. Úpravy, Formátovat SQL uspořádá výběry, nebo celý soubor, když nic není vybráno: klauzule na samostatném řádku, každá položka výběru na řádku, poddotazy odsazené, klíčová slova jedním typem písma. Je to jeden krok zpět a nic mimo výběr se nezmění.
+2. Úpravy, Náhled formátování SQL ukáže stejný výsledek nejdřív v náhledu změn.
+3. Dialekt určuje barvy a to, která slova jsou klíčová. Platí první nastavený z těchto: Nástroje, Dialekt SQL (jen tento soubor); `sql_dialect = mysql` v souboru `.editorconfig` (každý soubor SQL v té složce a pod ní); nastavení Výchozí dialekt SQL. Bez nich je dialekt Generic a nic se nehlásí jako chyba.
+- Dialekty: generic, mysql, postgres, sqlite, tsql. Editor se k žádné databázi nepřipojuje.
+- Řetězce, uvozené názvy a komentáře se opíšou beze změny. Další formátování výsledku nic nezmění.
+- Výběr větší než limit pluginu se odmítne se zprávou.
+- Odsazení (4 mezery) a velikost klíčových slov (velká) jsou zatím pevné; nastavení to ještě není.
+
+## [edit.html] HTML: entity a HTML Tidy
+commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+1. Úpravy, Převést na entity HTML nahradí v označených částech (v celém souboru, když nic není vybráno) znaky & < > " ' entitami. Převést z entit HTML přečte pojmenované, desítkové i šestnáctkové entity zpět. Zakódovaný text převedený zpět dá původní text. Každé je jeden krok zpět.
+2. Úpravy, Formátovat pomocí HTML Tidy pošle HTML programu HTML Tidy a výsledek ukáže v náhledu změn. Zprávy Tidy jdou do okna výstupu.
+3. Tidy je samostatný program. Editor ho hledá na cestě z nastavení Program HTML Tidy, ve složce `tidy` vedle pluginu formátovačů, ve složce `tools/tidy` aplikace a ve složkách z PATH. Když ho nenajde, zpráva vypíše všechna místa.
+- Tidy není součástí tohoto sestavení: nainstalujte ho a nastavte cestu, nebo ho dejte na některé z těch míst.
+- Čísla řádků ve zprávách se počítají od začátku textu, který se Tidy poslal.
+- Písmena mimo ASCII se jako entity nepíšou; drží je kódování souboru.
+
+## [help.language] Nápověda k jazyku
+commands: nks.help.languageHelp
+1. Dejte kurzor na slovo, například název funkce, a stiskněte Alt+F1.
+2. Editor slovo vyhledá ve zdrojích nápovědy nastavených pro jazyk souboru. Soubor pluginu se otevře v editoru. Webová adresa se nejdřív ukáže a v prohlížeči se otevře až po potvrzení.
+3. Když je pro jazyk víc zdrojů, vyberete jeden.
+- Zdroje jsou data. Plugin bez programu je vypíše v `languageHelp` v `nkspad-plugin.json`, každý s `id`, `title`, `language` (id jazyka, například `php`), `kind` (`url` nebo `file`) a `target`. Ve webové adrese `${word}` znamená slovo a `${language}` id jazyka. Cíl souboru je cesta uvnitř složky pluginu.
+- Přijímají se jen adresy `http` a `https`; plugin s jinou adresou se při načtení odmítne.
+- Žádné zdroje zatím nejsou přibalené. Když pro jazyk žádný není, stavový řádek to řekne.

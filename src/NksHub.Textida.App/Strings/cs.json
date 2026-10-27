@@ -776,5 +776,18 @@
   "log.levels.applied": "Úrovně logu: {name}",
   "log.pattern.found.one": "Místo má {count} řádek",
   "log.pattern.found.few": "Místo mají {count} řádky",
-  "log.pattern.found.other": "Místo má {count} řádků"
+  "log.pattern.found.other": "Místo má {count} řádků",
+  "tidy.output.source": "HTML Tidy",
+  "langHelp.none": "Pro jazyk {language} není nastaven žádný zdroj nápovědy. Přidat ho může datový plugin (Nápověda, Nápověda k jazyku).",
+  "langHelp.noWord": "Umístěte kurzor na slovo, které chcete vyhledat.",
+  "langHelp.pick.title": "Nápověda k „{word}“",
+  "langHelp.pick.watermark": "Vyberte zdroj nápovědy",
+  "langHelp.open.title": "Otevřít nápovědu v prohlížeči?",
+  "langHelp.open.message": "Zdroj nápovědy „{source}“ otevře v prohlížeči tuto adresu: {url}",
+  "langHelp.open.failed": "Adresu se nepodařilo otevřít: {url}",
+  "sql.dialect.pick.title": "Dialekt SQL",
+  "sql.dialect.pick.watermark": "Vyberte dialekt tohoto souboru",
+  "sql.dialect.inherit": "Podle složky a globálního nastavení",
+  "sql.dialect.set": "Dialekt SQL tohoto souboru: {dialect}",
+  "sql.dialect.inherited": "Dialekt SQL tohoto souboru se řídí složkou a globálním nastavením: {dialect}"
 }

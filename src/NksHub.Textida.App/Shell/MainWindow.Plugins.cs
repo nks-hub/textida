@@ -10,6 +10,8 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 
@@ -201,6 +203,69 @@ internal sealed partial class MainWindow
         var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.KeysComparePickTitle), Loc.Get(K.KeysComparePickWatermark), items), CancellationToken.None);
         if (chosen is null || !int.TryParse(chosen, out int index)) return;
         await _app.Plugins.CompareKeysAsync(this, tab, candidates[index]);
+    }
+
+    // ---- help for the language ----
+
+    /// <summary>The word under the caret, or the selection when it is one short run of word characters.</summary>
+    private static string? WordUnderCaret(AvaloniaEdit.TextEditor editor)
+    {
+        if (editor.SelectedText is { Length: > 0 and <= 128 } selected && LanguageHelp.WordAt(selected, 0) == selected) return selected;
+        var line = editor.Document.GetLineByOffset(editor.CaretOffset);
+        return LanguageHelp.WordAt(editor.Document.GetText(line.Offset, line.Length), editor.CaretOffset - line.Offset);
+    }
+
+    /// <summary>
+    /// Alt+F1: looks up the word under the caret in the help sources the data plugins set for the language of the tab. A file of a plugin opens in the editor;
+    /// a web address is shown first and opens in the browser only after the user agrees. With more than one source the user picks.
+    /// </summary>
+    internal async Task ShowLanguageHelpAsync()
+    {
+        if (Active is not { Editor: { } editor } tab) return;
+        var mode = tab.Doc.Language;
+        var sources = LanguageHelp.For(_app.Clips.Helps.Select(h => h.Source), mode.Id);
+        if (sources.Count == 0)
+        {
+            SetStatusMessage(Loc.Get(K.LangHelpNone, ("language", mode.Name.Length > 0 ? mode.Name : mode.Id)));
+            return;
+        }
+        if (WordUnderCaret(editor) is not { } word)
+        {
+            SetStatusMessage(Loc.Get(K.LangHelpNoWord));
+            return;
+        }
+        var source = sources[0];
+        if (sources.Count > 1)
+        {
+            var items = sources.Select((s, i) => new PickItem(i.ToString(), s.Title, null)).ToList();
+            var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.LangHelpPickTitle, ("word", word)), Loc.Get(K.LangHelpPickWatermark), items), CancellationToken.None);
+            if (chosen is null || !int.TryParse(chosen, out int index)) return;
+            source = sources[index];
+        }
+        if (source.Kind == HelpKind.File)
+        {
+            if (File.Exists(source.Target)) OpenFile(source.Target, null);
+            return;
+        }
+        if (LanguageHelp.UrlFor(source, word) is not { } uri) return;
+        if (!await PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.LangHelpOpenTitle), Loc.Get(K.LangHelpOpenMessage, ("source", source.Title), ("url", uri.AbsoluteUri))))) return;
+        bool opened = _app.UriOpener is { } open ? await open(uri) : await Launcher.LaunchUriAsync(uri);
+        if (!opened) SetStatusMessage(Loc.Get(K.LangHelpOpenFailed, ("url", uri.AbsoluteUri)));
+    }
+
+    // ---- SQL dialect of a file ----
+
+    /// <summary>Asks for the dialect of the SQL file in the active tab; the first row hands it back to the folder and the global setting.</summary>
+    internal async Task ChooseSqlDialectAsync()
+    {
+        if (Active is not { } tab || tab.Doc.Language.Id != "sql") return;
+        var items = new List<PickItem> { new("", Loc.Get(K.SqlDialectInherit), null) };
+        items.AddRange(SqlDialects.All.Select(d => new PickItem(d.Id, d.Name, null)));
+        var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.SqlDialectPickTitle), Loc.Get(K.SqlDialectPickWatermark), items), CancellationToken.None);
+        if (chosen is null) return;
+        tab.Doc.ChooseSqlDialect(chosen.Length == 0 ? null : chosen);
+        var name = SqlDialects.All.First(d => d.Id == tab.Doc.SqlDialect).Name;
+        SetStatusMessage(Loc.Get(chosen.Length == 0 ? K.SqlDialectInherited : K.SqlDialectSet, ("dialect", name)));
     }
 
     internal async Task<bool> PluginConfirmAsync(ConfirmRequest request)

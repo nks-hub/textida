@@ -72,7 +72,12 @@ public class SyntaxStreamingPatternTests
         string[] resources = assembly.GetManifestResourceNames()
             .Where(n => n.StartsWith("Grammars/", StringComparison.Ordinal) && !n.EndsWith("schema.json", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal).ToArray();
-        Assert.Equal(BuiltinGrammars.Registry.All.Count(), resources.Length);
+        // the dialects of SQL are made from the generic grammar; only the rules they add are new regular expressions
+        Assert.Equal(BuiltinGrammars.Registry.All.Count() - (SqlDialects.All.Count - 1), resources.Length);
+        using (var dialects = assembly.GetManifestResourceStream("Dialects/sql.json")!)
+        using (var json = JsonDocument.Parse(dialects))
+            foreach (string pattern in Patterns(json.RootElement))
+                AssertEquivalent(pattern, caseSensitive: false, Samples, "Dialects/sql.json");
         foreach (string name in resources)
         {
             using var input = assembly.GetManifestResourceStream(name)!;

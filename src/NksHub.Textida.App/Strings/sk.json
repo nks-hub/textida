@@ -776,5 +776,18 @@
   "log.levels.applied": "Úrovne logu: {name}",
   "log.pattern.found.one": "Miesto má {count} riadok",
   "log.pattern.found.few": "Miesto majú {count} riadky",
-  "log.pattern.found.other": "Miesto má {count} riadkov"
+  "log.pattern.found.other": "Miesto má {count} riadkov",
+  "tidy.output.source": "HTML Tidy",
+  "langHelp.none": "Pre jazyk {language} nie je nastavený žiadny zdroj pomocníka. Môže ho pridať dátový plugin (Pomocník, Pomocník k jazyku).",
+  "langHelp.noWord": "Umiestnite kurzor na slovo, ktoré chcete vyhľadať.",
+  "langHelp.pick.title": "Pomocník k „{word}“",
+  "langHelp.pick.watermark": "Vyberte zdroj pomocníka",
+  "langHelp.open.title": "Otvoriť pomocníka v prehliadači?",
+  "langHelp.open.message": "Zdroj pomocníka „{source}“ otvorí v prehliadači túto adresu: {url}",
+  "langHelp.open.failed": "Adresu sa nepodarilo otvoriť: {url}",
+  "sql.dialect.pick.title": "Dialekt SQL",
+  "sql.dialect.pick.watermark": "Vyberte dialekt tohto súboru",
+  "sql.dialect.inherit": "Podľa priečinka a globálneho nastavenia",
+  "sql.dialect.set": "Dialekt SQL tohto súboru: {dialect}",
+  "sql.dialect.inherited": "Dialekt SQL tohto súboru sa riadi priečinkom a globálnym nastavením: {dialect}"
 }

@@ -338,6 +338,25 @@
           "description": "Close BEGIN with END. Enter after BEGIN in SQL adds a matching END line.",
           "x-scope": "language"
         },
+        "sql.dialect": {
+          "type": "string",
+          "default": "generic",
+          "enum": [
+            "generic",
+            "mysql",
+            "postgres",
+            "sqlite",
+            "tsql"
+          ],
+          "description": "Default SQL dialect. Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
+          "x-scope": "application"
+        },
+        "html.tidyPath": {
+          "type": "string",
+          "default": "",
+          "description": "HTML Tidy program. Full path of the HTML Tidy program. Empty: the editor looks next to the formatters plugin, in tools/tidy and in PATH.",
+          "x-scope": "application"
+        },
         "files.binaryAsHex": {
           "type": "string",
           "default": "ask",

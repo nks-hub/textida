@@ -21,6 +21,7 @@ public class SyntaxStreamingParityTests
         "ini-key", "ini-string", "yaml-key", "yaml-string", "neon-key",
         "markdown-link", "markdown-code", "php-comment-close", "php-code-comment",
         "plaintext-url", "python-name", "shell-variable", "sql-quoted-name",
+        "sql-mysql-comment", "sql-postgres-string", "sql-sqlite-quoted-name", "sql-tsql-bracket-name",
         "xml-entity", "latte-variable", "razor-expression", "sln-string",
     };
 
@@ -159,6 +160,10 @@ public class SyntaxStreamingParityTests
             "python-name" => InRun("python", "def ", "():", "function", "pass"),
             "shell-variable" => InRun("shell", "echo ${", "}", "variable", "echo next"),
             "sql-quoted-name" => InRun("sql", "SELECT `", "`;", "variable", "SELECT 2;"),
+            "sql-mysql-comment" => InRun("sql-mysql", "# ", "", "comment", "SELECT 2;"),
+            "sql-postgres-string" => InRun("sql-postgres", "SELECT '", "';", "string", "SELECT 2;"),
+            "sql-sqlite-quoted-name" => InRun("sql-sqlite", "SELECT \"", "\";", "variable", "SELECT 2;"),
+            "sql-tsql-bracket-name" => InRun("sql-tsql", "SELECT [", "];", "variable", "SELECT 2;"),
             "xml-entity" => InRun("xml", "<a>&", ";</a>", "string.escape", "<next/>"),
             "latte-variable" => InRun("latte", "{$", "}", "variable", "{if true}next{/if}"),
             "razor-expression" => InRun("razor", "@(\"", "\")", "string", "<p>@next</p>"),
