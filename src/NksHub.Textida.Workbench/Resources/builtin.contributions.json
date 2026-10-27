@@ -2933,8 +2933,9 @@
     {
       "menu": "edit",
       "command": "nks.edit.pasteAsHtml",
-      "group": "2_clip",
-      "order": 55
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 25
     },
     {
       "menu": "edit",

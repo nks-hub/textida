@@ -292,7 +292,7 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Als HTML und aus einer Datei einfügen
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
-- Als HTML einfügen (Menü Bearbeiten) fügt den HTML-Quelltext ein, den ein Browser oder eine Textverarbeitung beim Kopieren von formatiertem Text in die Zwischenablage gelegt hat. Er wird als Text eingefügt, wie bei Strg+V, als ein Rückgängig-Schritt. Enthält die Zwischenablage kein HTML, sagt es die Statusleiste.
+- Als HTML einfügen (Bearbeiten, Einfügen) fügt den HTML-Quelltext ein, den ein Browser oder eine Textverarbeitung beim Kopieren von formatiertem Text in die Zwischenablage gelegt hat. Er wird als Text eingefügt, wie bei Strg+V, als ein Rückgängig-Schritt. Enthält die Zwischenablage kein HTML, sagt es die Statusleiste.
 - Aus Datei einfügen (Bearbeiten, Einfügen) setzt den Text der gewählten Datei in jeden Cursor, als ein Rückgängig-Schritt. Die Kodierung der Datei wird wie beim Öffnen erkannt, und ihre Zeilenenden werden zu denen des Dokuments. Eine Datei über 16 MiB wird nicht eingefügt.
 - Beide funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus (Thema Große Dateien).
 

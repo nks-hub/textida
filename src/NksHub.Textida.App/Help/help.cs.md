@@ -297,7 +297,7 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Vložit jako HTML a ze souboru
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
-- Vložit jako HTML (menu Úpravy) vloží zdrojový kód HTML, který do schránky uložil prohlížeč nebo textový editor při kopírování formátovaného textu. Vloží se jako text, stejně jako při Ctrl+V, jako jeden krok zpět. Když ve schránce HTML není, řekne to stavový řádek.
+- Vložit jako HTML (Úpravy, Vložit) vloží zdrojový kód HTML, který do schránky uložil prohlížeč nebo textový editor při kopírování formátovaného textu. Vloží se jako text, stejně jako při Ctrl+V, jako jeden krok zpět. Když ve schránce HTML není, řekne to stavový řádek.
 - Vložit ze souboru (Úpravy, Vložit) vloží text vybraného souboru do každého kurzoru jako jeden krok zpět. Kódování souboru se pozná jako při otevření a konce řádků se převedou na konce řádků dokumentu. Soubor větší než 16 MiB se nevloží.
 - Oba příkazy nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu (téma Velké soubory).
 

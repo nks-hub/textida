@@ -292,7 +292,7 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Paste as HTML and insert from a file
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
-- Paste as HTML (Edit menu) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
+- Paste as HTML (Edit, Insert) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
 - Insert from File (Edit, Insert) puts the text of the file you choose at every caret as one Undo step. The encoding of the file is detected as when it is opened, and its line endings become those of the document. A file larger than 16 MiB is not inserted.
 - Neither works in a read-only document or in paged mode (topic Large files).
 
