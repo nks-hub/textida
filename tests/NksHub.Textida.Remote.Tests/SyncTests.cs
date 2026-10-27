@@ -147,6 +147,36 @@ public class SyncTests
     }
 
     [Theory, MemberData(nameof(ServersData))]
+    public async Task AStagedProjectFileGoesToANewServerFileKeepsTheLastUploadAsBaseAndAFileItNeverSentIsAConflict(RemoteProtocol protocol)
+    {
+        await using var r = await Rig.StartAsync(protocol, ("old.txt", "on the server"));
+        using var project = new TempDir();
+        var store = r.Store;
+        string source = project.Combine("a.txt");
+        File.WriteAllText(source, "first");
+
+        var copy = store.Stage(r.Client.Connection.Id, "/a.txt", source);
+        Assert.True(copy.Base.IsNone);
+        var sent = await RemoteSync.UploadAsync(r.Client, store, copy, VersionCheck.Stat, null, null, default);
+        Assert.Equal(UploadStatus.Uploaded, sent.Status);
+        Assert.Equal("first", File.ReadAllText(r.ServerFile("a.txt")));
+
+        File.WriteAllText(source, "second");
+        var again = store.Stage(r.Client.Connection.Id, "/a.txt", source);
+        Assert.Equal(sent.Copy.Base, again.Base);
+        Assert.Equal(UploadStatus.Uploaded, (await RemoteSync.UploadAsync(r.Client, store, again, VersionCheck.Stat, null, null, default)).Status);
+        Assert.Equal("second", File.ReadAllText(r.ServerFile("a.txt")));
+
+        File.WriteAllText(project.Combine("old.txt"), "from the project");
+        var never = store.Stage(r.Client.Connection.Id, "/old.txt", project.Combine("old.txt"));
+        var conflict = await RemoteSync.UploadAsync(r.Client, store, never, VersionCheck.Stat, null, null, default);
+        Assert.Equal(UploadStatus.Conflict, conflict.Status);
+        Assert.Equal("on the server", Encoding.UTF8.GetString(conflict.ServerContent!));
+        Assert.Equal("on the server", File.ReadAllText(r.ServerFile("old.txt")));
+        Assert.Equal("from the project", File.ReadAllText(project.Combine("old.txt"))); // the file of the project is only read
+    }
+
+    [Theory, MemberData(nameof(ServersData))]
     public async Task ServerChangedAfterOpenGivesAConflictWithTheServerContentAndWritesNothing(RemoteProtocol protocol)
     {
         await using var r = await Rig.StartAsync(protocol, ("a.txt", "original"));

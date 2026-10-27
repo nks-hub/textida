@@ -283,6 +283,14 @@ internal sealed partial class MainWindow
         }
 
         if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite: false, choice.Path);
+        // a Save As is a manual save too: the actions of the folder it writes to run around it
+        return await SaveWithActionsAsync(tab, SaveOrigin.Manual, () => SaveAsFileAsync(tab, choice), choice.Path);
+    }
+
+    private async Task<bool> SaveAsFileAsync(DocTab tab, SaveAsChoice choice)
+    {
+        var od = tab.Doc;
+        var doc = od.Doc;
         PrepareForSave(od);
         try
         {
@@ -312,6 +320,13 @@ internal sealed partial class MainWindow
                     // a copy on disk is a file of its own; the tab no longer belongs to the source
                     od.Source = null;
                     od.TitleOverride = null;
+                    tab.ShowBar(null);
+                }
+                if (od.RemoteCopy is { } copy && !string.Equals(System.IO.Path.GetFullPath(copy.LocalPath), System.IO.Path.GetFullPath(choice.Path), PathComparison))
+                {
+                    // the same for a copy of a server file: an upload would send the old copy, not this file
+                    od.RemoteCopy = null;
+                    _acceptedServerVersion.Remove(od);
                     tab.ShowBar(null);
                 }
                 if (codec != od.Guess?.Codec) od.SetEncodingChosen();

@@ -5,7 +5,7 @@ namespace NksHub.Textida.Core.Tests;
 
 /// <summary>
 /// P8.5.3 and P8.7.4: the table of language tools, the discovery of a program on disk and the configuration files that apply to a file.
-/// ToolEcho stands in for every tool. No real formatter, linter or language server is started, so their command lines are not verified here (only gofmt has a test with the real program).
+/// ToolEcho stands in for every tool. No real formatter, linter or language server is started, so their command lines are not verified here (gofmt, clang-format and dart format have tests with the real program in <see cref="SaveActionsTests"/>).
 /// </summary>
 public sealed class LanguageCatalogTests : IDisposable
 {
@@ -55,7 +55,7 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Equal(ids.Count, ids.Distinct().Count());
         var extensions = LanguageCatalog.Groups.SelectMany(g => g.Modes).SelectMany(m => m.Extensions).ToList();
         Assert.Equal(extensions.Count, extensions.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(1, LanguageCatalog.Version);
+        Assert.Equal(2, LanguageCatalog.Version);
     }
 
     [Fact]
@@ -72,22 +72,23 @@ public sealed class LanguageCatalogTests : IDisposable
             Assert.NotEmpty(l.Extensions); // Clippy checks the whole crate, so a linter need not take the file as an argument
         });
         Assert.All(LanguageCatalog.Formatters, f => Assert.Contains("${File}", f.Args));
-        // no version is pinned and only gofmt was run for real: the table says so instead of claiming more
+        // no version is pinned and only gofmt, clang-format and dart format were run for real: the table says so instead of claiming more
         Assert.All(LanguageCatalog.Lsp, l => Assert.Null(l.Version));
-        Assert.Equal(["gofmt"], LanguageCatalog.Formatters.Where(f => f.Verified).Select(f => f.Id));
+        Assert.Equal(["clang-format", "dart-format", "gofmt"], LanguageCatalog.Formatters.Where(f => f.Verified).Select(f => f.Id).Order());
     }
 
     [Fact]
     public void The_consumers_read_the_catalog_and_behave_as_before()
     {
-        Assert.Equal(["clang-format", "gofmt", "rubocop", "rustfmt"], ConfigFormatters.All.Select(f => f.Id).Order());
+        Assert.Equal(LanguageCatalog.Formatters.Select(f => f.Id), ConfigFormatters.All.Select(f => f.Id)); // Save Actions offers every formatter of the table
         var gofmt = ConfigFormatters.Find("gofmt")!;
         Assert.Equal("gofmt", gofmt.Executable);
         Assert.Equal([".go"], gofmt.Extensions);
         Assert.Equal(["go.mod"], gofmt.ConfigFiles);
         Assert.Equal(["-w", "${File}"], gofmt.Args);
         Assert.Contains(".cs", ConfigFormatters.Find("clang-format")!.Extensions);
-        Assert.Null(ConfigFormatters.Find("prettier")); // data only: Save Actions offers just the four that were tried
+        Assert.Equal([".editorconfig"], ConfigFormatters.Find("shfmt")!.ConfigFiles); // shfmt reads its options from EditorConfig
+        Assert.Equal(["analysis_options.yaml"], ConfigFormatters.Find("dart-format")!.ConfigFiles);
         // the language servers the plugin starts: Roslyn first, csharp-ls as the fallback
         Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Shipped).Select(l => l.Program));
         Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Shipped).Arguments);

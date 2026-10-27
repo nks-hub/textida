@@ -243,4 +243,103 @@ public class SaveActionsAppTests : IDisposable
         await Task.CompletedTask;
         _w.CloseTab(tab);
     }
+
+    [AvaloniaFact]
+    public async Task A_formatter_runs_with_the_provisional_limit_when_the_file_sets_none()
+    {
+        string path = _temp.File("p.txt", "abc");
+        var tab = _w.OpenFile(path, null);
+        Configure(null, Entry("format", "fake"));
+        _w.SaveActionRunner = new SaveActionRunner(_ => Fake("--format"));
+        Assert.Equal(TimeSpan.FromSeconds(PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds), _w.LoadSaveActions(path).FormatTimeout);
+        tab.Editor!.Document.Insert(0, "x");
+
+        await SaveAsync(tab);
+
+        Assert.Equal("XABC", File.ReadAllText(path));
+    }
+
+    [AvaloniaFact]
+    public async Task Save_As_runs_the_actions_for_the_new_file_and_a_server_copy_saved_elsewhere_is_no_longer_uploaded()
+    {
+        File.WriteAllText(Path.Combine(_server.Path, "a.txt"), "server one");
+        var tab = await OpenRemoteAsync("/a.txt");
+        Configure(60, Entry("format", "fake"), Entry("upload"));
+        _w.SaveActionRunner = new SaveActionRunner(_ => Fake("--format"));
+        tab.Editor!.Document.Insert(0, "edited ");
+        string target = Path.Combine(_temp.Path, "local.txt");
+        _dialogs.SaveAs.Enqueue(new SaveAsChoice(target, tab.Doc.Doc.Codec));
+
+        var task = _w.SaveAsAsync(tab);
+        await Until(() => task.IsCompleted, "the Save As");
+
+        Assert.True(await task);
+        Assert.Equal("EDITED SERVER ONE", File.ReadAllText(target));
+        Assert.Null(tab.Doc.RemoteCopy);
+        Assert.Equal("server one", File.ReadAllText(Path.Combine(_server.Path, "a.txt")));
+        Assert.Contains(TaskLines(), l => l.Contains(Loc.Get(K.SaveActionsUploadNoServer)));
+    }
+
+    [AvaloniaFact]
+    public async Task A_file_of_a_project_goes_to_its_default_server_after_a_yes_and_a_change_on_the_server_is_not_overwritten_without_one()
+    {
+        _ftps = await FtpsServer.StartAsync(_server.Path, password: Password);
+        _app.Remote.Connections.Add(_ftps.Connection(_ftps.Identity) with { Name = "Test server" }, Password, _secrets);
+        string remote = Directory.CreateDirectory(Path.Combine(_server.Path, "site", "src")).FullName;
+        File.WriteAllText(Path.Combine(remote, "same.txt"), "same");
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "web")).FullName;
+        SaveActionConfig.Write(Path.Combine(project, SaveActionConfig.ProjectFolderName, SaveActionConfig.FileName),
+            new SaveActionsFile { Actions = [new SaveActionEntry { Kind = "upload", Server = "Test server", RemoteFolder = "/site" }] });
+        string src = Directory.CreateDirectory(Path.Combine(project, "src")).FullName;
+        string path = Path.Combine(src, "a.txt");
+        File.WriteAllText(path, "one");
+        string onServer = Path.Combine(remote, "a.txt");
+        var tab = _w.OpenFile(path, null);
+        _app.Workbench.Set("files.autoSave", "afterDelay");
+
+        async Task AutosaveAsync()
+        {
+            var autosave = tab.Doc.Autosave!.Pipeline!();
+            await Until(() => autosave.IsCompleted, "the autosave");
+        }
+
+        // after an autosave nobody can say yes: nothing is sent
+        tab.Editor!.Document.Insert(3, " two");
+        await AutosaveAsync();
+        Assert.Equal("one two", File.ReadAllText(path));
+        Assert.False(File.Exists(onServer));
+        Assert.Empty(_dialogs.Asked);
+        Assert.Contains(TaskLines(), l => l.Contains(Loc.Get(K.SaveActionsServerNotApproved, ("folder", project), ("name", "Test server"))));
+
+        // a manual save asks once and sends the file to the same place below the server folder
+        _dialogs.Answers.Enqueue(0);
+        tab.Editor!.Document.Insert(7, " three");
+        await SaveAsync(tab);
+        await Until(() => Read(onServer) == "one two three", "the upload to the server of the project");
+        Assert.Equal(Loc.Get(K.SaveActionsServerConfirmTitle), Assert.Single(_dialogs.Asked).Title);
+
+        // the server file changed since that upload: an autosave sends nothing, a manual save asks and "upload anyway" sends
+        File.WriteAllText(onServer, "changed on the server");
+        tab.Editor!.Document.Insert(13, " four");
+        await AutosaveAsync();
+        Assert.Equal("changed on the server", Read(onServer));
+        Assert.Single(_dialogs.Asked);
+
+        _dialogs.Answers.Enqueue(1);
+        tab.Editor!.Document.Insert(18, " five");
+        await SaveAsync(tab);
+        await Until(() => Read(onServer) == "one two three four five", "the upload after the conflict");
+        Assert.Equal(Loc.Get(K.RemoteConflictTitle), _dialogs.Asked[^1].Title);
+
+        // a file the server already holds with the same bytes is no conflict
+        string same = Path.Combine(src, "same.txt");
+        File.WriteAllText(same, "same");
+        var other = _w.OpenFile(same, null);
+        other.Editor!.Document.Insert(4, "!");
+        other.Editor!.Document.Remove(4, 1);
+        int asked = _dialogs.Asked.Count;
+        await SaveAsync(other);
+        Assert.Equal(asked, _dialogs.Asked.Count);
+        Assert.Equal("same", Read(Path.Combine(remote, "same.txt")));
+    }
 }

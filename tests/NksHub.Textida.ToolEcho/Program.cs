@@ -1,6 +1,7 @@
 // Stand-in for an external tool in tests: prints the arguments it received, one per line in brackets.
 // --format FILE: stand-in for a formatter, rewrites the file in upper case. --format-fail FILE: leaves the file alone, writes "syntax error" to standard error and exits with 2.
-// A file named like the program plus ".sample" next to it (a renamed copy standing in for a linter) is printed as it is, whatever the arguments; a first line "#exit N" sets the exit code, "#sleep" waits a minute instead.
+// A file named like the program plus ".sample" next to it (a renamed copy standing in for a linter) is printed as it is, whatever the arguments; a first line "#exit N" sets the exit code, "#sleep" waits a minute instead,
+// "#format" rewrites the last argument that is a file in upper case (a renamed copy standing in for a formatter). Such a copy writes the arguments it got to ".args" next to it, one per line.
 // --sleep: prints "started" and then waits a minute. --both: writes one line to each output stream. A trailing "--exit N" sets the exit code.
 // --mcp modern|legacy|old: a small MCP server on standard input and output. modern answers server/discover, legacy only initialize (2025-11-25), old answers initialize with an
 // older version. Tools: echo, slow (never answers; a cancel is reported on stderr), crash (exits with 7), env (value of a variable), secret (writes the variable named TEST_SECRET to stderr), page2 (second page of the list).
@@ -10,10 +11,16 @@ using System.Text.Json;
 Console.OutputEncoding = new UTF8Encoding(false);
 if (Environment.ProcessPath is { } self && File.Exists(self + ".sample"))
 {
+    File.WriteAllLines(self + ".args", args);
     var sample = File.ReadAllLines(self + ".sample");
     if (sample.Length > 0 && sample[0] == "#sleep")
     {
         Thread.Sleep(TimeSpan.FromMinutes(1));
+        return 0;
+    }
+    if (sample.Length > 0 && sample[0] == "#format" && args.LastOrDefault(File.Exists) is { } target)
+    {
+        File.WriteAllText(target, File.ReadAllText(target).ToUpperInvariant(), new UTF8Encoding(false));
         return 0;
     }
     int sampleCode = 0;

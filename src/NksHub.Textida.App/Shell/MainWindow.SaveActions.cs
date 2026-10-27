@@ -3,6 +3,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Tools;
+using NksHub.Textida.Remote;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -19,15 +20,20 @@ internal sealed partial class MainWindow
 
     private string SaveActionsFilePath => Path.Combine(_app.ProfileDirectory, SaveActionConfig.FileName);
 
-    internal SaveActionSet LoadSaveActions(string? documentPath) =>
-        SaveActionConfig.Load(SaveActionsFilePath, SaveActionConfig.FindProjectFile(documentPath is null ? null : Path.GetDirectoryName(Path.GetFullPath(documentPath))));
+    /// <summary>The actions for a file; without <c>formatTimeoutSeconds</c> a formatter gets the provisional limit of <see cref="PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds"/>.</summary>
+    internal SaveActionSet LoadSaveActions(string? documentPath)
+    {
+        var set = SaveActionConfig.Load(SaveActionsFilePath, SaveActionConfig.FindProjectFile(documentPath is null ? null : Path.GetDirectoryName(Path.GetFullPath(documentPath))));
+        return set with { FormatTimeout = set.FormatTimeout ?? TimeSpan.FromSeconds(PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds) };
+    }
 
     /// <summary>Runs <paramref name="save"/> with the actions of the document around it and reports what did not go well. Returns whether the save went through.</summary>
-    private async Task<bool> SaveWithActionsAsync(DocTab tab, SaveOrigin origin, Func<Task<bool>> save)
+    /// <param name="path">The file a Save As writes; the actions of its folder apply.</param>
+    private async Task<bool> SaveWithActionsAsync(DocTab tab, SaveOrigin origin, Func<Task<bool>> save, string? path = null)
     {
         var od = tab.Doc;
-        var set = LoadSaveActions(od.Path);
-        var report = await SaveActionRunner.RunAsync(od.Doc, set, origin, save, action => RunAfterSaveAsync(tab, action, interactive: origin == SaveOrigin.Manual));
+        var set = LoadSaveActions(path ?? od.Path);
+        var report = await SaveActionRunner.RunAsync(od.Doc, set, origin, save, action => RunAfterSaveAsync(tab, action, interactive: origin == SaveOrigin.Manual), path: path);
         ReportSaveActions(set, report);
         return report.Saved;
     }
@@ -43,8 +49,9 @@ internal sealed partial class MainWindow
     {
         if (action.Kind == SaveActionKind.Upload)
         {
-            if (tab.Doc.RemoteCopy is null) return Loc.Get(K.SaveActionsUploadNoServer);
-            return await UploadRemoteAsync(tab, saveFirst: false, interactive) ? null : Loc.Get(K.SaveActionsUploadNotDone);
+            if (tab.Doc.RemoteCopy is not null) return await UploadRemoteAsync(tab, saveFirst: false, interactive) ? null : Loc.Get(K.SaveActionsUploadNotDone);
+            if (action.Server is { } server) return await UploadToProjectServerAsync(tab, server, interactive);
+            return Loc.Get(K.SaveActionsUploadNoServer);
         }
         if (action.Kind == SaveActionKind.Lint)
         {
@@ -56,6 +63,91 @@ internal sealed partial class MainWindow
         var entry = _app.Tools.Load(tab.Path is null ? null : Path.GetDirectoryName(Path.GetFullPath(tab.Path))).Tools.FirstOrDefault(t => t.Spec.Id == action.Id);
         if (entry is null) return Loc.Get(K.SaveActionsToolUnknown, ("id", action.Id));
         return await RunToolAsync(entry, tab, interactive) ? null : Loc.Get(K.SaveActionsToolFailed, ("title", entry.Title));
+    }
+
+    private RemoteConnection? ConnectionNamed(string nameOrId)
+    {
+        var all = _app.Remote.Connections.Load();
+        return all.FirstOrDefault(c => c.Id == nameOrId) ?? all.FirstOrDefault(c => string.Equals(c.Name, nameOrId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Sends a saved file of a project to the default server the project file names. The project file comes with the project, so sending its files to one of your connections waits for a yes
+    /// (after an autosave nobody is there to say it, and nothing is sent). The bytes go through a copy in <see cref="RemoteServices.Deployments"/> that keeps the revision of the last upload,
+    /// so a file that changed on the server since then, or that the project never sent, is a conflict and is not overwritten without a yes.
+    /// </summary>
+    /// <returns>Null when the server holds the saved bytes now, otherwise why not.</returns>
+    private async Task<string?> UploadToProjectServerAsync(DocTab tab, ServerTarget server, bool interactive)
+    {
+        var od = tab.Doc;
+        string Say(string text)
+        {
+            SetStatusMessage(text);
+            return text;
+        }
+        if (tab.Path is not { } path || server.RemotePathOf(path) is not { } remotePath) return Say(Loc.Get(K.SaveActionsServerOutside, ("folder", server.ProjectFolder)));
+        if (ConnectionNamed(server.Connection) is not { } connection) return Say(Loc.Get(K.SaveActionsServerUnknown, ("name", server.Connection)));
+        string approval = server.ApprovalKey(connection.Id);
+        if (!_app.ToolApprovals.Has(approval))
+        {
+            string refused = Loc.Get(K.SaveActionsServerNotApproved, ("folder", server.ProjectFolder), ("name", connection.Name));
+            if (!interactive) return Say(refused);
+            var request = new ChoiceRequest(Loc.Get(K.SaveActionsServerConfirmTitle),
+                Loc.Get(K.SaveActionsServerConfirm, ("folder", server.ProjectFolder), ("name", connection.Name), ("remote", server.RemoteFolder)),
+                [new DialogButton(Loc.Get(K.SaveActionsServerConfirmUpload), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
+                [Loc.Get(K.SaveActionsServerConfirmFile, ("file", Path.Combine(server.ProjectFolder, SaveActionConfig.ProjectFolderName, SaveActionConfig.FileName)))]);
+            if (await _app.Dialogs.ChooseAsync(this, request) != 0) return Say(refused);
+            _app.ToolApprovals.Approve(approval);
+        }
+
+        WorkingCopy copy;
+        string staged;
+        try
+        {
+            copy = _app.Remote.Deployments.Stage(connection.Id, remotePath, path);
+            staged = RemoteTransfer.HashOf(copy.LocalPath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Say(Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", e.Message))); }
+        // the copy has to be the bytes this save wrote, not what another program put in the file since
+        if (od.Doc.Fingerprint is not { HasHash: true } written || !string.Equals(staged, written.Sha256, StringComparison.OrdinalIgnoreCase))
+            return Say(Loc.Get(K.SaveActionsUploadChanged));
+
+        await using var client = await ConnectAsync(connection);
+        if (client is null) return Loc.Get(K.SaveActionsUploadNotDone);
+        var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
+        var options = new TransferOptions { Log = e => RemoteLog(connection, DescribeStep(e)) };
+        _acceptedServerVersion.TryGetValue(od, out var accepted);
+        try
+        {
+            var outcome = await RemoteSync.UploadAsync(client, _app.Remote.Deployments, copy, mode, accepted, options, CancellationToken.None);
+            // the server already holds exactly these bytes (a first save of a project that was deployed before): no conflict, the upload only records them as the base
+            if (outcome is { Status: UploadStatus.Conflict, Server: { } found } && found.Sha256 == staged)
+                outcome = await RemoteSync.UploadAsync(client, _app.Remote.Deployments, copy, mode, found, options, CancellationToken.None);
+            switch (outcome.Status)
+            {
+                case UploadStatus.Uploaded:
+                    _acceptedServerVersion.Remove(od);
+                    SetStatusMessage(Loc.Get(K.RemoteUploaded, ("title", od.Title), ("name", connection.Name)));
+                    return null;
+                case UploadStatus.NothingToSend:
+                    SetStatusMessage(Loc.Get(K.RemoteNothingToSend, ("title", od.Title)));
+                    return null;
+                default:
+                    if (interactive) await ResolveUploadConflictAsync(tab, connection, client, outcome, async () => await UploadToProjectServerAsync(tab, server, interactive: true));
+                    else
+                    {
+                        RemoteLog(connection, Loc.Get(K.RemoteLogConflict, ("path", outcome.Copy.RemotePath)));
+                        SetStatusMessage(Loc.Get(K.SaveActionsUploadConflict, ("title", od.Title)));
+                    }
+                    return Loc.Get(K.SaveActionsUploadNotDone);
+            }
+        }
+        catch (Exception e) when (e is RemoteException or IOException)
+        {
+            RemoteLog(connection, Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", ReasonOf(e))));
+            SetStatusMessage(Loc.Get(K.RemoteUploadFailed, ("title", od.Title), ("reason", ReasonOf(e))));
+            return ReasonOf(e);
+        }
     }
 
     private void ReportSaveActions(SaveActionSet set, SaveActionReport report)
@@ -86,7 +178,7 @@ internal sealed partial class MainWindow
         SaveActionKind.Format => Loc.Get(K.SaveActionsFormat, ("name", ConfigFormatters.Find(action.Id)?.Title ?? action.Id)),
         SaveActionKind.Lint => Loc.Get(K.SaveActionsLint, ("name", Linters.Find(action.Id)?.Title ?? action.Id)),
         SaveActionKind.Tool => Loc.Get(K.SaveActionsTool, ("name", _app.Tools.Load().Tools.FirstOrDefault(t => t.Spec.Id == action.Id)?.Title ?? action.Id)),
-        _ => Loc.Get(K.SaveActionsUpload),
+        _ => action.Server is { } server ? Loc.Get(K.SaveActionsUploadTo, ("name", server.Connection), ("folder", server.RemoteFolder)) : Loc.Get(K.SaveActionsUpload),
     };
 
     // ---- the list the user turns on and off ----
