@@ -520,6 +520,96 @@ public class HexTests : IDisposable
         Assert.True(doc.IsModified);
     }
 
+    /// <summary>A mapped file with one byte inserted, so Ctrl+S streams a new file; the save stops once the temporary file is written.</summary>
+    private (DocTab Tab, byte[] Original, byte[] Saved, ManualResetEventSlim Gate) StreamSaveHeldOpen()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var original = Sample(3 << 20);
+        var tab = OpenHex(original);
+        var doc = tab.Doc.Doc;
+        Press(Key.Insert);
+        tab.Hex!.MoveTo(10);
+        TestApp.Type(_w, "A5");
+        var saved = Bytes(tab);
+        Assert.Equal(original.Length + 1, saved.Length);
+        var written = new ManualResetEventSlim();
+        var gate = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step != "temp-writing") return; // runs on the worker, so the window stays usable
+            written.Set();
+            gate.Wait(20_000);
+        };
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => written.IsSet);
+        Assert.True(doc.EditsDuringSave);
+        return (tab, original, saved, gate);
+    }
+
+    [AvaloniaFact]
+    public void Typing_and_deleting_during_a_streamed_save_leave_the_file_at_the_saved_revision_and_the_editor_unsaved()
+    {
+        var (tab, original, saved, gate) = StreamSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        long savedRevision = doc.Revision;
+        TestApp.Type(_w, "7B");
+        Press(Key.Delete);
+        var edited = Bytes(tab);
+        Assert.NotEqual(saved, edited);
+        Assert.True(doc.Revision > savedRevision);
+        Assert.True(doc.IsSaving);
+        Assert.Contains(Loc.Get(K.HexSaving), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(saved)), Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(tab.Path!))));
+        Assert.Equal(edited, Bytes(tab));
+        Assert.True(doc.IsModified);
+        Assert.Equal(savedRevision, doc.SavedRevision);
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexSavedEditsPending)));
+
+        for (int i = 0; i < 5 && doc.IsModified; i++) Press(Key.Z, TestApp.Mod);
+        Assert.Equal(saved, Bytes(tab));
+        Assert.False(doc.IsModified);
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(original, Bytes(tab));
+    }
+
+    [AvaloniaFact]
+    public void Undo_and_redo_during_a_streamed_save_do_not_touch_the_file_and_the_state_after_it_is_right()
+    {
+        var (tab, original, saved, gate) = StreamSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(original, Bytes(tab));
+        Assert.True(doc.IsSaving);
+
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(saved, File.ReadAllBytes(tab.Path!)); // the undo moved the editor only
+        Assert.Equal(original, Bytes(tab));
+        Assert.True(doc.IsModified);
+
+        Press(Key.Y, TestApp.Mod);
+        Assert.Equal(saved, Bytes(tab));
+        Assert.False(doc.IsModified);
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(original, Bytes(tab));
+        Assert.True(doc.IsModified);
+    }
+
+    [AvaloniaFact]
+    public void A_fill_during_a_streamed_save_is_refused_with_the_busy_message()
+    {
+        var (tab, _, saved, gate) = StreamSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Assert.Equal(ConflictReason.Saving, doc.Fill(new ByteRange(0, 4), new byte[] { 1 }, 4).Conflict);
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(saved, Bytes(tab));
+        Assert.False(doc.IsModified);
+    }
+
     // ---- the reader ----
 
     [AvaloniaFact]

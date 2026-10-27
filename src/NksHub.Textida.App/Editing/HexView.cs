@@ -438,7 +438,7 @@ internal sealed partial class HexView : Grid
     public void UndoRedo(bool redo)
     {
         if (ReadOnly) return;
-        if (Doc.IsSaving) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
+        if (redo ? Doc.RedoBlockedBySave : Doc.UndoBlockedBySave) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         if (!(redo ? Editor.Redo() : Editor.Undo())) return;
         Reveal(Editor.Caret);
         _canvas.InvalidateVisual();

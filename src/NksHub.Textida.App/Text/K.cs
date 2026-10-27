@@ -535,6 +535,7 @@ public static class K
     public const string HexOffsetDecimal = "hex.offsetDecimal";
     public const string HexSaving = "hex.saving";
     public const string HexSaveCancelled = "hex.saveCancelled";
+    public const string HexSavedEditsPending = "hex.savedEditsPending";
     public const string HexSavedInPlace = "hex.savedInPlace";
     public const string HexSwitchFailed = "hex.switchFailed";
     public const string HexBarBinary = "hex.bar.binary";
