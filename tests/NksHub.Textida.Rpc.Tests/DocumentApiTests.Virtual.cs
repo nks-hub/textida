@@ -320,4 +320,37 @@ public partial class DocumentApiTests
         rig.Owner.Run(() => { rig.Api.PluginEnded("p"); return 0; }); // a second report changes nothing
         Assert.Equal(2, rig.Tools.VirtualClosed.Count);
     }
+
+    [Fact]
+    public async Task AnotherPluginEditsAnEditableVirtualDocumentOnlyWithTheEditPermissionOfThatDocument()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), plugins: ["p", "q"], tune: WithVirtualSave);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        rig.Permissions.Revoke("q", DocumentPermissions.EditDirect, GrantScope.All);
+        rig.Permissions.Revoke("q", DocumentPermissions.EditPropose, GrantScope.All);
+        var opened = await rig.CallAsync(DocumentMethods.VirtualOpen, OpenEditableParams("agent://session/7", "notes.md", "one\n"));
+        var id = opened.GetProperty("document").GetGuid();
+        var revision = opened.GetProperty("revision").GetInt64();
+        var doc = rig.Tools.Virtuals.Single().Document;
+        string Edit(string batch) => $"{{\"document\":\"{id}\",\"revision\":{revision},\"batchId\":\"{batch}\",\"edits\":[{{\"start\":0,\"end\":3,\"text\":\"two\"}}]}}";
+
+        // without the grant the edit and the proposal are refused by name, and the document keeps its text and revision
+        var denied = await rig.ErrorAsync(DocumentMethods.EditApply, Edit("b1"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal(DocumentPermissions.EditDirect, denied.GetProperty("data").GetProperty("permission").GetString());
+        var proposal = await rig.ErrorAsync(DocumentMethods.EditPropose, Edit("b2"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal(DocumentPermissions.EditPropose, proposal.GetProperty("data").GetProperty("permission").GetString());
+        Assert.Equal("one\n", VirtualText(rig, id));
+        Assert.Equal(revision, rig.Owner.Run(() => doc.Revision));
+        Assert.Empty(rig.Proposals.Items);
+
+        // the grant for this document lets the edit through, the provider hears it, and the document it names is the only one it opens
+        rig.Permissions.Grant("q", DocumentPermissions.EditDirect, GrantScope.OfDocument(id));
+        var applied = await rig.CallAsync(DocumentMethods.EditApply, Edit("b3"), plugin: "q");
+        Assert.True(applied.GetProperty("applied").GetBoolean(), applied.GetRawText());
+        Assert.Equal("two\n", VirtualText(rig, id));
+        Assert.True(doc.IsModified);
+        await rig.WaitEventsAsync(e => e.Any(x => x.GetProperty("name").GetString() == DocumentEvents.Changed && x.GetProperty("payload").GetProperty("source").GetString() == "plugin:q"));
+        await rig.ErrorAsync(DocumentMethods.EditApply, rig.D($"\"revision\":{rig.Revision},\"batchId\":\"b4\",\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"y\"}}]"), DocumentErrorCodes.PermissionDenied, plugin: "q");
+        Assert.Equal("x", Encoding.UTF8.GetString(rig.Owner.Run(() => rig.Doc.ReadBytes(new ByteRange(0, rig.Doc.ByteLength)))));
+    }
 }
