@@ -185,8 +185,10 @@ public class HexMapAppTests : IDisposable
 
         var times = new List<double>();
         var random = new Random(1);
+        var clock = Stopwatch.StartNew();
         for (int i = 0; i < 300; i++)
         {
+            Assert.True(clock.Elapsed < TimeSpan.FromMinutes(2), $"{i} of 300 scrolls took {clock.Elapsed.TotalSeconds:0} s; something blocks the UI thread");
             hex.MoveTo(random.NextInt64(0, length - 1000));
             hex.Center(hex.Caret);
             _w.UpdateLayout();
