@@ -1449,6 +1449,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.4.1** Code Explorer bez LSP a symboly v Goto Anything
   - **Co a proč:** Strom funkcí, tříd a značek nad otevřeným souborem bez LSP a bez indexu projektu. Osnova CMake, Makefile, Meson a klíčů YAML. Symboly `@` v Goto Anything. Poskytovatele symbolů a reveal dává API z P3b.3.5.
   - **Funkce:** F083, F148 (částečně: symboly)
+  - **Stav 26. 10. 2026:** částečně: vestavěný plugin `NksHub.Textida.Plugins.CodeExplorer` (jednoduchá pravidla jazyka, bez LSP, komentáře a řetězce se nečtou) – osnova HTML, PHP, CSS, C# a Markdownu patří k revizi, po úpravě se obnoví, zpožděná odpověď pro starší revizi se neukáže; klik v osnově i `@` v Přejít na cokoli vyberou stejné bajty; osnova přežije restart procesu pluginu (test). Chybí osnova CMake, Makefile a Meson (jazykové režimy v aplikaci nejsou); limity jsou zástupné hodnoty; ověřeno jen headless.
   - **Hotovo, když:** osnova HTML, PHP, CSS, C# a Markdownu patří ke konkrétní revizi a po úpravě se obnoví; zpožděná odpověď pro starší revizi se nezobrazí jako aktuální; klik i `@` v Goto Anything trefí stejné bajty; osnova přežije restart hostitele pluginů.
   - **Závisí na:** P3b.2.2, P3b.3.5, P2.1.2
   - **Odhad:** osnova CMake a Makefile 0,5 ČT; symboly v rámci F148 (P2.1.2); jinak bez odhadu

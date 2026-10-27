@@ -675,6 +675,9 @@ public static class K
     public const string PaletteKeysReading = "palette.keys.reading";
     public const string PaletteKeysNone = "palette.keys.none";
     public const string PaletteCategoryKey = "palette.category.key";
+    public const string PaletteSymbolsReading = "palette.symbols.reading";
+    public const string PaletteSymbolsNone = "palette.symbols.none";
+    public const string PaletteCategorySymbol = "palette.category.symbol";
     public const string ColorSwatchTip = "color.swatch.tip";
     public const string ColorPickerHue = "color.picker.hue";
     public const string ColorPickerSaturation = "color.picker.saturation";

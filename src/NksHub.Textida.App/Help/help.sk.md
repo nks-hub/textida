@@ -288,6 +288,16 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 - YAML v blokovom zápise sa číta: vnorené kľúče, zoznamy, kľúče v úvodzovkách a blokové skaláry. Hodnota v zložených alebo hranatých zátvorkách sa počíta za jednu hodnotu. JSON smie mať komentáre a čiarku na konci.
 - Chyba syntaxe zastaví čítanie na tom mieste; kľúče pred ňou zostanú a správa uvedie riadok.
 
+## [tools.outline] Osnova kódu a symboly
+commands: nks.tools.showOutline, nks.tools.goToSymbol
+1. V súboroch HTML, PHP, CSS, C# a Markdown ukáže Nástroje, Zobraziť osnovu kódu funkcie, triedy, nadpisy a pravidlá súboru ako strom v paneli pluginu. Kliknutie označí meno symbolu.
+2. Nástroje, Prejsť na symbol (alebo `@` v Prejsť na čokoľvek) vypíše tie isté symboly podľa mena; Enter označí rovnaké bajty ako kliknutie v osnove.
+3. Osnova patrí ku konkrétnej revízii dokumentu. Po úprave sa sama obnoví; kým príde nová, zostane stará označená ako zastaralá a skok sa presunie cez vykonané úpravy, alebo sa odmietne, keď sa zmenil text, na ktorom symbol stál. Odpoveď pre staršiu revíziu sa nikdy nezobrazí ako aktuálna.
+4. Keď sa proces pluginu zastaví, osnova sa po jeho obnovení načíta znova.
+- Číta sa podľa jednoduchých pravidiel jazyka, bez jazykového servera a bez indexu projektu: HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (menné priestory, triedy, rozhrania, traity, výčty, funkcie, metódy), CSS (pravidlá a @-pravidlá), C# (menné priestory, typy, metódy, konštruktory, vlastnosti), Markdown (nadpisy `#`).
+- Komentáre a reťazce sa nečítajú. Čo pravidlá nepoznajú, sa preskočí.
+- Súbor väčší než limit pluginu alebo s viac symbolmi, než osnova unesie, sa zobrazí skrátený a správa to povie.
+
 ## [edit.carets] Viac kurzorov
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
 1. Vyberte slovo; Ctrl+D pridá ďalší jeho výskyt do výberu. Opakujte pre ďalšie výskyty.

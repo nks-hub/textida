@@ -27,6 +27,8 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     private const string TextToolsActivation = "onCommand:texttools";
     public const string WebDataPluginId = "textida.webdata";
     private const string WebDataActivation = "onCommand:webdata";
+    public const string CodeExplorerPluginId = "textida.codeexplorer";
+    private const string CodeExplorerActivation = "onCommand:codeexplorer";
 
     /// <summary>The outline of a document is the panel with this prefix and the document id; its items are the symbol ids.</summary>
     public const string SymbolsPanelPrefix = "symbols:";
@@ -60,7 +62,11 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync)), Documents);
-        _host.StateChanged += (id, state) => { if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id)); };
+        _host.StateChanged += (id, state) =>
+        {
+            if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
+            if (id == CodeExplorerPluginId && state == PluginState.Running) Dispatcher.UIThread.Post(RefreshOutlines); // a restarted process has lost the symbols it published
+        };
 
         var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
@@ -85,6 +91,15 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
             ["--chunk-bytes", PluginLimitsPlaceholders.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.WebDataMaxBytes.ToString(),
              "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
             [WebDataActivation], webFolder));
+
+        // the code explorer only reads: it finds the symbols of a text from simple rules of its language
+        permissions.Grant(CodeExplorerPluginId, DocumentPermissions.Read, GrantScope.All);
+        var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "codeexplorer");
+        var explorerProgram = Path.Combine(explorerFolder, "NksHub.Textida.Plugins.CodeExplorer" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        _host.Register(new PluginSpec(CodeExplorerPluginId, "Code Explorer", explorerProgram,
+            ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
+             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
+            [CodeExplorerActivation], explorerFolder));
     }
 
     internal Host HostForTests => _host;
@@ -216,6 +231,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     }
 
     private bool _revealOutline = true;
+    private bool _revealAlways;
 
     /// <summary>
     /// Reads the keys of a YAML or JSON tab through the web data plugin and publishes them as the symbols of the document: the outline lists them and Go to Anything
@@ -224,16 +240,83 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     public async Task<bool> IndexKeysAsync(MainWindow window, DocTab tab, bool reveal)
     {
         if (tab.Surface is null || KeySyntax(tab.Doc.Language.Id) is not { } syntax) return false;
-        _revealOutline = reveal;
+        _revealOutline = _revealAlways = reveal;
         try { return (await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.index", $",\"syntax\":\"{syntax}\"", keep: true)).Started; }
-        finally { _revealOutline = true; }
+        finally { _revealOutline = true; _revealAlways = false; }
     }
 
-    /// <summary>The keys published for the tab, and whether they are those of the revision the tab has now.</summary>
-    internal IReadOnlyList<SymbolInfo> KeySymbols(DocTab tab, out bool current) => Documents.SymbolsOf(WebDataPluginId, tab.Doc.Doc.Id, out current);
+    // ---- code outline: symbols from simple rules of the language ----
 
-    /// <summary>Jumps to a published key exactly as a click in the outline does. False when the key is gone or the text it stood on was changed.</summary>
-    public bool RevealKey(DocTab tab, string symbolId) => RevealSymbol(WebDataPluginId, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
+    /// <summary>The plugin that publishes the symbols of a language mode: the web data plugin for the keys of YAML and JSON, the code explorer for code and markup; null for any other mode.</summary>
+    internal static string? SymbolPlugin(string languageId) =>
+        KeySyntax(languageId) is not null ? WebDataPluginId : languageId is "html" or "php" or "css" or "csharp" or "markdown" ? CodeExplorerPluginId : null;
+
+    /// <summary>
+    /// Reads the symbols of the tab (keys, or the code outline) through their plugin and publishes them: the outline lists them and Go to Anything (<c>@</c>) jumps to them,
+    /// both to the same bytes. <paramref name="reveal"/> opens the outline. False when the language has no symbols or nothing was started.
+    /// </summary>
+    public Task<bool> IndexSymbolsAsync(MainWindow window, DocTab tab, bool reveal) =>
+        SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+
+    private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
+    {
+        if (tab.Surface is null || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
+        _outlineWanted.Add(tab.Doc.Doc.Id);
+        _revealOutline = _revealAlways = reveal;
+        var document = tab.Doc.Doc;
+        long revision = document.Revision;
+        try
+        {
+            bool started = (await ExecuteAsync(window, tab, CodeExplorerPluginId, CodeExplorerActivation, "Code Explorer", "outline.index",
+                $",\"outlineLanguage\":\"{tab.Doc.Language.Id}\",\"notify\":{(notify ? "true" : "false")}", keep: true, notify: notify)).Started;
+            if (started && ReferenceEquals(tab.Doc.Doc, document) && document.Revision != revision) _ = RefreshOutlineAsync(document.Id); // typed while the plugin read
+            return started;
+        }
+        finally { _revealOutline = true; _revealAlways = false; }
+    }
+
+    private readonly HashSet<Guid> _outlineWanted = [];
+    private readonly HashSet<Guid> _outlineRefreshing = [];
+
+    /// <summary>
+    /// Reads the outline of a document again after it was edited, once it has rested: the old set stays (marked outdated) until the new one replaces it. An edit that comes
+    /// while the plugin reads makes it read once more, so the outline ends up at the revision the document has.
+    /// </summary>
+    private async Task RefreshOutlineAsync(Guid document)
+    {
+        if (!_outlineWanted.Contains(document) || !_outlineRefreshing.Add(document)) return;
+        try
+        {
+            while (_outlineWanted.Contains(document))
+            {
+                await Task.Delay(PluginLimitsPlaceholders.OutlineRefreshMilliseconds);
+                if (TabOf(document) is not { } found || !_outlineWanted.Contains(document)) break;
+                Documents.SymbolsOf(CodeExplorerPluginId, document, out bool current);
+                if (current) break;
+                long revision = found.Tab.Doc.Doc.Revision;
+                if (!await IndexOutlineAsync(found.Window, found.Tab, reveal: false, notify: false) || found.Tab.Doc.Doc.Revision == revision) break;
+            }
+        }
+        finally { _outlineRefreshing.Remove(document); }
+    }
+
+    /// <summary>The code explorer came back from a stop: the outlines it had published are gone, so every document that wants one is read again.</summary>
+    private void RefreshOutlines()
+    {
+        foreach (var document in _outlineWanted.ToArray()) _ = RefreshOutlineAsync(document);
+    }
+
+    /// <summary>The symbols published for the tab, and whether they are those of the revision the tab has now.</summary>
+    internal IReadOnlyList<SymbolInfo> TabSymbols(DocTab tab, out bool current)
+    {
+        if (SymbolPlugin(tab.Doc.Language.Id) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
+        current = false;
+        return [];
+    }
+
+    /// <summary>Jumps to a published symbol exactly as a click in the outline does. False when the symbol is gone or the text it stood on was changed.</summary>
+    public bool RevealTabSymbol(DocTab tab, string symbolId) =>
+        SymbolPlugin(tab.Doc.Language.Id) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
 
     /// <summary>
     /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the
@@ -343,6 +426,7 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>The document is going away (its last tab closed): plugins stop seeing it and its symbols go. Call on the UI thread, before the document is disposed.</summary>
     public void Forget(Document document)
     {
+        _outlineWanted.Remove(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
     }
@@ -366,13 +450,14 @@ internal sealed class PluginServices : IEditProposals, IDocumentOwnerThread, IEd
     /// <summary>Draws the outline of a document in the plugin panel; an outdated set stays, marked as such, until a current one replaces it.</summary>
     public void SymbolsChanged(SymbolSet set, bool current) => OnUi(() =>
     {
+        if (!current && set.PluginId == CodeExplorerPluginId) _ = RefreshOutlineAsync(set.Document);
         bool first = _outlines.Add((set.PluginId, set.Document));
         var byParent = set.Symbols.GroupBy(s => s.ParentId ?? "").ToDictionary(g => g.Key, g => g.ToList());
         List<PanelItem> Level(string parent) => byParent.TryGetValue(parent, out var list)
             ? [.. list.Select(s => new PanelItem(s.Id, s.Name, s.Kind.Length == 0 ? null : s.Kind, Level(s.Id)))]
             : [];
         var title = Loc.Get(current ? K.PluginSymbolsTitle : K.PluginSymbolsOutdated);
-        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: first && _revealOutline));
+        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline)));
     });
 
     public void SymbolsCleared(string pluginId, Guid document) => OnUi(() =>

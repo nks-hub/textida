@@ -132,6 +132,8 @@
   "cmd.tools.copyKeyPath": "Schlüsselpfad kopieren",
   "cmd.tools.showKeys": "Schlüsselgliederung anzeigen",
   "cmd.tools.goToKey": "Gehe zu Schlüssel...",
+  "cmd.tools.showOutline": "Codegliederung anzeigen",
+  "cmd.tools.goToSymbol": "Gehe zu Symbol...",
   "cmd.tools.compareKeys": "Schlüssel mit anderer Datei vergleichen...",
   "cat.log": "Log",
   "cmd.tools.run": "Werkzeug ausführen...",

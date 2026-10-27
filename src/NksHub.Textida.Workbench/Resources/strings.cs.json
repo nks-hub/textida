@@ -132,6 +132,8 @@
   "cmd.tools.copyKeyPath": "Kopírovat cestu klíče",
   "cmd.tools.showKeys": "Zobrazit osnovu klíčů",
   "cmd.tools.goToKey": "Přejít na klíč...",
+  "cmd.tools.showOutline": "Zobrazit osnovu kódu",
+  "cmd.tools.goToSymbol": "Přejít na symbol...",
   "cmd.tools.compareKeys": "Porovnat klíče s jiným souborem...",
   "cat.log": "Log",
   "cmd.tools.run": "Spustit nástroj...",

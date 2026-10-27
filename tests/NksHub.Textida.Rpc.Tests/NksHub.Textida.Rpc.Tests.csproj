@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.WebData\NksHub.Textida.Plugins.WebData.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.CodeExplorer\NksHub.Textida.Plugins.CodeExplorer.csproj" />
   </ItemGroup>
 
 </Project>
