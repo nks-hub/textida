@@ -159,6 +159,28 @@ internal sealed class ColumnIndex
         lock (_gate) return _lengths.TryGetValue(lineStart, out columns);
     }
 
+    /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="Spacing"/> columns before it, so it is short.</summary>
+    public bool IsNear(long lineStart, long column) =>
+        TryNearest(lineStart, column, out long known, out _) ? column - known <= Spacing : column <= Spacing;
+
+    /// <summary>Adds the points and line lengths that <paramref name="other"/> noted about the same text and takes its last read point.</summary>
+    public void Merge(ColumnIndex other)
+    {
+        var lines = new List<(long Line, (long Column, long Position)[] Points)>();
+        KeyValuePair<long, long>[] lengths;
+        (long Line, long Column, long Position) last;
+        lock (other._gate)
+        {
+            foreach (long key in other._recent) lines.Add((key, [.. other._lines[key]]));
+            lengths = [.. other._lengths];
+            last = other._last;
+        }
+        foreach (var (line, points) in lines)
+            foreach (var (column, position) in points) Add(line, column, position);
+        foreach (var (line, columns) in lengths) SetLength(line, columns);
+        if (last.Line >= 0) SetLast(last.Line, last.Column, last.Position);
+    }
+
     public void SetLast(long lineStart, long column, long position)
     {
         lock (_gate) _last = (lineStart, column, position);
@@ -187,6 +209,45 @@ internal sealed class ColumnIndex
         long victim = _recent[0];
         _recent.RemoveAt(0);
         if (_lines.Remove(victim, out var points)) _points -= points.Count;
+    }
+}
+
+/// <summary>
+/// Columns of one revision of a <see cref="PagedDocument"/> for another thread, one read at a time. Over an unedited document it reads the mapped file and
+/// notes the column points in the index of the file; over an edited one it reads a snapshot and notes them in a copy that <see cref="PagedDocument.KeepColumns"/> takes back.
+/// </summary>
+public sealed class ColumnSnapshot
+{
+    private readonly MappedFileSource _source;
+    private readonly PagedSnapshot? _content;
+    private readonly TextCodec _codec;
+    private byte[] _buffer = [];
+
+    internal ColumnSnapshot(MappedFileSource source, PagedSnapshot? content, ColumnIndex index, long version)
+    {
+        _source = source;
+        _content = content;
+        _codec = source.Codec;
+        Index = index;
+        Version = version;
+    }
+
+    internal ColumnIndex Index { get; }
+    internal long Version { get; }
+    internal bool Edited => _content is not null;
+
+    /// <summary>What <see cref="PagedDocument.ReadColumns"/> returned for the revision this snapshot was made from.</summary>
+    public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default) =>
+        _content is null
+            ? _source.ReadColumns(lineStart, startColumn, maxColumns, ct)
+            : ColumnReader.Read(Window, _content.ByteLength, _codec, _source.BomLength, Index, lineStart, startColumn, maxColumns, ct);
+
+    private ReadOnlySpan<byte> Window(long position, long maxLength)
+    {
+        long want = Math.Min(maxLength, _content!.ByteLength - position);
+        if (want <= 0) return default;
+        if (_buffer.Length < want) _buffer = new byte[Math.Max(want, 64 * 1024)];
+        return _buffer.AsSpan(0, _content.Read(position, _buffer.AsSpan(0, (int)want)));
     }
 }
 

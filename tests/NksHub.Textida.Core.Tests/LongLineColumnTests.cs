@@ -123,6 +123,80 @@ public class LongLineColumnTests
     }
 
     [Fact]
+    public void AFarReadOfAnEditedLineOnAnotherThreadMatchesTheDocumentAndItsPointsComeBack()
+    {
+        string line = LongLine(400_000);
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path);
+        doc.Insert(0, "12345");
+        string edited = "12345" + line;
+        Assert.False(doc.IsColumnNear(0, 3_000_000));
+
+        var columns = doc.SnapshotColumns();
+        string text = Task.Run(() => columns.ReadColumns(0, 3_000_000, 15)).Result;
+        Assert.Equal(Expected(edited, 3_000_000, 15), text);
+        Assert.False(doc.IsColumnNear(0, 3_000_000)); // the points stay with the snapshot until they are taken over
+
+        doc.KeepColumns(columns);
+        Assert.True(doc.IsColumnNear(0, 3_000_000));
+        Assert.True(doc.IsColumnNear(0, 3_000_010));
+        Assert.Equal(Expected(edited, 3_000_010, 15), doc.ReadColumns(0, 3_000_010, 15));
+    }
+
+    [Fact]
+    public void ASnapshotReadKeepsItsTextButNotItsPointsWhenTheDocumentChangedMeanwhile()
+    {
+        string line = LongLine(400_000);
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path);
+        doc.Insert(0, "12345");
+        var columns = doc.SnapshotColumns();
+        doc.Insert(0, "ab"); // after the snapshot: its points describe text that has moved
+
+        Assert.Equal(Expected("12345" + line, 3_000_000, 15), columns.ReadColumns(0, 3_000_000, 15));
+        doc.KeepColumns(columns);
+        Assert.False(doc.IsColumnNear(0, 3_000_000));
+        Assert.Equal(Expected("ab12345" + line, 3_000_000, 15), doc.ReadColumns(0, 3_000_000, 15));
+    }
+
+    [Fact]
+    public void AnUneditedDocumentReadsItsSnapshotFromTheFileAndNotesThePointsThere()
+    {
+        string line = LongLine(400_000);
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path);
+        var columns = doc.SnapshotColumns();
+        Assert.Equal(Expected(line, 3_000_000, 15), Task.Run(() => columns.ReadColumns(0, 3_000_000, 15)).Result);
+        Assert.True(doc.IsColumnNear(0, 3_000_000));
+        Assert.True(doc.Source.IsColumnNear(0, 3_000_000));
+    }
+
+    [Fact]
+    public void MergingAnIndexAddsItsPointsLengthsAndLastRead()
+    {
+        var index = new ColumnIndex();
+        index.Add(0, 1_000_000, 1_500_000);
+        var other = new ColumnIndex();
+        other.Add(0, 2_000_000, 3_000_000);
+        other.Add(7_000_000, 1_000_000, 8_000_000);
+        other.SetLength(0, 2_500_000);
+        other.SetLast(0, 2_400_000, 3_600_000);
+
+        index.Merge(other);
+
+        Assert.True(index.TryNearest(0, 2_100_000, out long column, out long position));
+        Assert.Equal((2_000_000L, 3_000_000L), (column, position));
+        Assert.True(index.TryNearest(0, 1_500_000, out column, out _));
+        Assert.Equal(1_000_000, column);
+        Assert.True(index.TryNearest(0, 2_450_000, out column, out position));
+        Assert.Equal((2_400_000L, 3_600_000L), (column, position));
+        Assert.True(index.TryNearest(7_000_000, 1_200_000, out column, out _));
+        Assert.Equal(1_000_000, column);
+        Assert.True(index.TryGetLength(0, out long length));
+        Assert.Equal(2_500_000, length);
+    }
+
+    [Fact]
     public void ChangingTheCodecDropsTheNotedPoints()
     {
         var bytes = Encoding.UTF8.GetBytes(LongLine(400_000));

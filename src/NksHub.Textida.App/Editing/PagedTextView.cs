@@ -29,7 +29,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 /// <remarks>
 /// shortcut: one selection only (no extra carets, no block mode); a line longer than <see cref="MaxLineBytes"/> shows its first part
-/// and is edited through the bytes around the caret (the caret column and the selection come from the column index of the document, never from decoding the line); its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; no tokens there, a selection only when it covers the rest of the line); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
+/// and is edited through the bytes around the caret (the caret column and the selection come from the column index of the document, never from decoding the line); its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; a window starts at the cell of its first column and is measured inside, and gets its tokens once the feeder has scanned the line up to it); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
 {
@@ -86,6 +86,7 @@ internal sealed partial class PagedTextView : Grid
         _hBar.ValueChanged += (_, _) =>
         {
             _hScroll = _hBar.Value * _canvas.CharWidth;
+            FeedSyntax();
             _canvas.InvalidateVisual();
         };
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
@@ -431,30 +432,58 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Token runs the view colors a line with, for tests; null when the line has none.</summary>
     internal IReadOnlyList<Token>? TokensOf(long line) => _tokens.GetValueOrDefault(line);
 
+    /// <summary>Token columns are 32 bit and the feeder adds a margin of the requested width, so a window further out than this has no colors.</summary>
+    private const long MaxTokenColumn = int.MaxValue / 4;
+
     /// <summary>
     /// Tells the feeder which lines and which UTF-16 columns of them are on screen. A line of at most 4096 characters is asked for whole;
-    /// of a longer line only the characters between the left and the right edge of the view, found with the same measuring the caret uses.
+    /// of a longer line only the characters between the left and the right edge of the view, found with the same measuring the caret uses;
+    /// of a truncated line the cells of its decoded part on screen, or the columns of the window drawn beyond that part.
     /// </summary>
     private void FeedSyntax()
     {
         if (!Syntax.Active) return;
-        int first = int.MaxValue, last = 0;
+        long first = long.MaxValue, last = 0, shortLast = -1;
+        double cell = _canvas.CharWidth;
+        long left = (long)Math.Floor(_hScroll / cell), right = (long)Math.Ceiling((_hScroll + _canvas.TextWidth) / cell);
+        bool window = false;
         for (int i = 0; i <= _canvas.VisibleLines; i++)
         {
             if (!Indexed || GetLine(TopLine + i) is not { } view) break;
-            if (view.Truncated) continue; // the feeder tokenizes it by columns from the document, not from this view
             int length = view.Map.Text.Length;
-            if (length <= 4096)
+            if (view.Truncated)
             {
-                first = 0;
-                last = Math.Max(last, length);
+                if (left >= view.Display.Length)
+                {
+                    window = true;
+                    first = Math.Min(first, left);
+                    last = Math.Max(last, left + _canvas.WindowColumns);
+                    continue;
+                }
+                first = Math.Min(first, view.IndexAtDisplay((int)left));
+                last = Math.Max(last, view.IndexAtDisplay((int)Math.Min(right, view.Display.Length)) + 1);
                 continue;
             }
-            first = Math.Min(first, _canvas.IndexAtX(view, _hScroll));
+            if (length <= 4096)
+            {
+                shortLast = Math.Max(shortLast, length);
+                continue;
+            }
+            int from = _canvas.IndexAtX(view, _hScroll);
+            if (from >= length) continue; // the line ends left of the view
+            first = Math.Min(first, from);
             last = Math.Max(last, _canvas.IndexAtX(view, _hScroll + _canvas.TextWidth) + 1);
         }
-        if (first == int.MaxValue) first = 0;
-        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), first, Math.Max(first + 1, last));
+        // shortcut: next to a window far out a short line counts as off screen; one that reaches it through tabs or wide characters stays plain there
+        if (shortLast >= 0 && !window)
+        {
+            first = 0;
+            last = Math.Max(last, shortLast);
+        }
+        if (first == long.MaxValue) first = 0;
+        first = Math.Min(first, MaxTokenColumn);
+        last = Math.Clamp(last, first + 1, MaxTokenColumn + 1);
+        Syntax.SetVisible(TopLine, TopLine + Math.Max(1, _canvas.VisibleLines), (int)first, (int)last);
     }
 
     private void ApplyTokens(SyntaxViewport viewport)
@@ -785,6 +814,10 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Text of the window kept for the line starting at <paramref name="lineStart"/> in the current revision, or null.</summary>
     internal string? CachedWindow(long lineStart) => _windows.TryGetValue(lineStart, out var known) && known.Revision == Doc.Revision ? known.Text : null;
 
+    /// <summary>First column and text of the window kept for a truncated line in the current revision, or null.</summary>
+    private (long Column, string Text)? KeptWindow(LineView view) =>
+        _windows.TryGetValue(view.Start, out var known) && known.Revision == Doc.Revision ? (known.Column, known.Text) : null;
+
     /// <summary>Largest column the horizontal bar scrolls to.</summary>
     internal double HorizontalMaximum => _hBar.Maximum;
 
@@ -793,13 +826,13 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>
     /// Text of the columns [<paramref name="column"/>, +<paramref name="columns"/>) of a truncated line, read from the document without decoding the rest of the line.
-    /// The window is kept for the revision it was read in. A read that would walk far (no column point near, document not edited) runs on the thread pool:
-    /// this returns null at once and the surface draws the window when the read ends; a newer window of the same line cancels the older read.
+    /// The window is kept for the revision it was read in. A read that would walk far (no column point near) runs on the thread pool, over a snapshot
+    /// when the document is edited: this returns null at once and the surface draws the window when the read ends; a newer window of the same line cancels the older read.
     /// </summary>
     private string? WindowOf(LineView view, long column, int columns)
     {
         if (_windows.TryGetValue(view.Start, out var known) && known.Revision == Doc.Revision && known.Column == column && known.Columns == columns) return known.Text;
-        if (Paged.IsModified || (WindowRead is null && Paged.Source.IsColumnNear(view.Start, column)))
+        if (WindowRead is null && Paged.IsColumnNear(view.Start, column))
         {
             if (_windows.Count > 16) _windows.Clear();
             string text = Paged.ReadColumns(view.Start, column, columns);
@@ -821,16 +854,22 @@ internal sealed partial class PagedTextView : Grid
     private async Task LoadWindow(long lineStart, long column, int columns, CancellationTokenSource cts)
     {
         long revision = Doc.Revision;
-        var source = Paged.Source;
+        var paged = Paged;
         var read = WindowRead;
+        ColumnSnapshot? reader = null;
         string? text = null;
-        try { text = await Task.Run(() => read is null ? source.ReadColumns(lineStart, column, columns, cts.Token) : read(lineStart, column, columns, cts.Token), cts.Token); }
-        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException) { }
+        try
+        {
+            var snapshot = reader = paged.SnapshotColumns();
+            text = await Task.Run(() => read is null ? snapshot.ReadColumns(lineStart, column, columns, cts.Token) : read(lineStart, column, columns, cts.Token), cts.Token);
+        }
+        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException or IOException) { }
         bool current = _pending.TryGetValue(lineStart, out var now) && now.Cts == cts;
         if (current) _pending.Remove(lineStart);
-        if (!current) return;
-        if (text is not null && !cts.IsCancellationRequested && revision == Doc.Revision)
+        if (!current || text is null) return; // a failed read is tried again by the next draw that needs the window, not by a loop of redraws
+        if (!cts.IsCancellationRequested && revision == Doc.Revision)
         {
+            paged.KeepColumns(reader!);
             if (_windows.Count > 16) _windows.Clear();
             _windows[lineStart] = (revision, column, columns, text);
             BuildColumnIndexInBackground(lineStart);
@@ -1112,7 +1151,7 @@ internal sealed partial class PagedTextView : Grid
         if (GetLine(line) is not { } view) return;
         double x = point.X - _canvas.TextLeft + _hScroll;
         long to = view.Truncated && x / _canvas.CharWidth >= view.Display.Length
-            ? OffsetOfColumn(view, (long)Math.Round(x / _canvas.CharWidth))
+            ? OffsetOfColumn(view, _canvas.ColumnAtX(view, x))
             : view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, x));
         _extend = extend;
         try { MoveTo(to, line); }
@@ -1310,13 +1349,14 @@ internal sealed partial class PagedTextView : Grid
         private double _lineHeight = 18;
         private double _digitWidth = 8;
         private double _gutter = 40;
+        private bool _fixedPitch = true;
 
         public int VisibleLines => (int)Math.Ceiling(Math.Max(0, Bounds.Height) / _lineHeight);
         public double LineHeight => _lineHeight;
         /// <summary>Width of one cell of the fixed grid that horizontal windows of truncated lines use.</summary>
         public double CharWidth => _digitWidth;
-        /// <summary>Columns that fit in the text area, with one more cell at each edge.</summary>
-        public int WindowColumns => (int)Math.Ceiling(TextWidth / _digitWidth) + 2;
+        /// <summary>Columns that fit in the text area with one more cell at each edge; twice as many in a proportional font, whose letters are mostly narrower than a digit.</summary>
+        public int WindowColumns => ((int)Math.Ceiling(TextWidth / _digitWidth) + 2) * (_fixedPitch ? 1 : 2);
         public double DigitWidth => _digitWidth;
         public double TextLeft => _gutter + TextPadding;
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
@@ -1333,9 +1373,36 @@ internal sealed partial class PagedTextView : Grid
             return new Rect(x, (c.Line - owner.TopLine) * _lineHeight, 1.5, _lineHeight);
         }
 
-        /// <summary>Horizontal position of a UTF-16 column: measured inside the decoded part of the line, on the fixed grid of the windows beyond it.</summary>
-        public double XOfColumn(LineView view, long column) =>
-            column <= view.Map.Text.Length ? XOf(view, (int)column) : column * _digitWidth;
+        /// <summary>
+        /// Horizontal position of a UTF-16 column: measured inside the decoded part of the line; beyond it measured inside the window kept for the line,
+        /// which starts at the cell of its first column, and on the fixed grid of cells outside that window.
+        /// </summary>
+        public double XOfColumn(LineView view, long column)
+        {
+            if (column <= view.Map.Text.Length) return XOf(view, (int)column);
+            if (owner.KeptWindow(view) is { } w && column >= w.Column && column - w.Column <= w.Text.Length)
+                return w.Column * _digitWidth + WindowX(w.Text, (int)(column - w.Column));
+            return column * _digitWidth;
+        }
+
+        /// <summary>Width of the first <paramref name="count"/> characters of a window as it is drawn.</summary>
+        private double WindowX(string window, int count) =>
+            count <= 0 ? 0 : Format(window[..Math.Min(count, window.Length)].Replace('\t', ' '), Brushes.Black).WidthIncludingTrailingWhitespace;
+
+        /// <summary>Column nearest to the horizontal position <paramref name="x"/> in the text beyond the decoded part of a truncated line.</summary>
+        public long ColumnAtX(LineView view, double x)
+        {
+            if (owner.KeptWindow(view) is not { } w || x < w.Column * _digitWidth) return (long)Math.Round(x / _digitWidth);
+            double local = x - w.Column * _digitWidth;
+            int lo = 0, hi = w.Text.Length;
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) / 2;
+                if (WindowX(w.Text, mid) <= local) lo = mid; else hi = mid - 1;
+            }
+            if (lo < w.Text.Length && WindowX(w.Text, lo + 1) - local < local - WindowX(w.Text, lo)) lo++;
+            return w.Column + lo;
+        }
 
         public double XOf(LineView view, int index) =>
             view.DisplayAt[index] == 0 ? 0 : Format(view.Display[..view.DisplayAt[index]], Brushes.Black).WidthIncludingTrailingWhitespace;
@@ -1359,6 +1426,7 @@ internal sealed partial class PagedTextView : Grid
             var sample = Format("0", Brushes.Black);
             _lineHeight = Math.Ceiling(sample.Height);
             _digitWidth = sample.Width;
+            _fixedPitch = Math.Abs(Format("i", Brushes.Black).Width - Format("W", Brushes.Black).Width) < 0.01;
             return availableSize;
         }
 
@@ -1381,16 +1449,27 @@ internal sealed partial class PagedTextView : Grid
             owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
         }
 
-        /// <summary>Fills the part of the selection that lies in the window of <paramref name="length"/> columns from column <paramref name="column"/> of a truncated line.</summary>
-        private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, int length, IBrush brush)
+        /// <summary>Fills the part of the selection that lies in <paramref name="window"/>, the columns from column <paramref name="column"/> of a truncated line drawn at <paramref name="x"/>.</summary>
+        private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, string window, IBrush brush)
         {
             var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
             if (to <= view.Start || from > view.Start + view.ByteLength) return;
-            long windowStart = owner.OffsetOfColumn(view, column), windowEnd = owner.OffsetOfColumn(view, column + length);
+            long windowStart = owner.OffsetOfColumn(view, column), windowEnd = owner.OffsetOfColumn(view, column + window.Length);
             if (to <= windowStart || from >= windowEnd) return;
             long a = from <= windowStart ? column : owner.ColumnOfOffset(view, from);
-            long b = to >= windowEnd ? column + length : owner.ColumnOfOffset(view, to);
-            if (b > a) context.FillRectangle(brush, new Rect(x + (a - column) * _digitWidth, y, (b - a) * _digitWidth, _lineHeight));
+            long b = to >= windowEnd ? column + window.Length : owner.ColumnOfOffset(view, to);
+            double left = WindowX(window, (int)(a - column)), right = WindowX(window, (int)(b - column));
+            if (right > left) context.FillRectangle(brush, new Rect(x + left, y, right - left, _lineHeight));
+        }
+
+        /// <summary>Colors the window of a truncated line that starts at <paramref name="column"/> with the tokens of the line, which count columns from the line start.</summary>
+        private static void ColorWindow(FormattedText text, Token[] tokens, long column, int length, SyntaxPalette palette)
+        {
+            foreach (var token in tokens)
+            {
+                long from = Math.Max(token.Start, column) - column, to = Math.Min(token.End, column + length) - column;
+                if (to > from && palette.GetBrush(token.Kind) is { } brush) text.SetForegroundBrush(brush, (int)from, (int)(to - from));
+            }
         }
 
         /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line; backgrounds are filled now, before the text is drawn over them.</summary>
@@ -1469,8 +1548,10 @@ internal sealed partial class PagedTextView : Grid
                             else
                             {
                                 window = window.Replace('\t', ' ');
-                                if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window.Length, selection);
-                                context.DrawText(Format(window, fore), new Point(x, y));
+                                if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window, selection);
+                                var shownWindow = Format(window, fore);
+                                if (owner._tokens.TryGetValue(line, out var windowTokens)) ColorWindow(shownWindow, windowTokens, column, window.Length, palette);
+                                context.DrawText(shownWindow, new Point(x, y));
                             }
                             continue;
                         }

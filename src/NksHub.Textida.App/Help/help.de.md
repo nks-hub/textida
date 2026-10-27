@@ -1033,16 +1033,15 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
 - Suchen (Strg+F). In Dateien suchen.
+- Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
 ### Was nicht geht
 - Auswahl, Zwischenablage (Ausschneiden, Kopieren, Einfügen), Blockauswahl, mehrere Cursor.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
 - Zur passenden Klammer springen, Zeilenumbruch.
 - Konvertieren und erneutes Lesen der Codierung, Vereinheitlichen der Zeilenenden, Normalisierung.
 - Speichern unter nur in derselben Codierung.
-- Eine Zeile über 16 KiB wird nur teilweise angezeigt und lässt sich nicht bearbeiten.
 ### Meldungen
 - Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich: Warten Sie, bis die Datei durchgelesen ist.
-- Die Zeile ist länger als 16 KiB und kann im Seitenmodus nicht bearbeitet werden: Bearbeiten Sie die Zeile mit einem anderen Programm.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Das Speichern einer großen Datei hält das Fenster auf.

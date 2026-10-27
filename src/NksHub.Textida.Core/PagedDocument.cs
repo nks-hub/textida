@@ -26,6 +26,7 @@ public sealed class PagedDocument : IPagedTextSource
     private DurableSpill? _durable;
     private int _durableCount;
     private readonly ColumnIndex _editedColumns = new();
+    private long _columnsVersion; // changes whenever the points of _editedColumns may stop describing the text
 
     private PagedDocument(MappedFileSource source, MappedFileSourceOptions options)
     {
@@ -100,6 +101,7 @@ public sealed class PagedDocument : IPagedTextSource
         bool reindex = !MappedFileSource.SharesLineIndex(_source.Codec, codec);
         _source.SetCodec(codec);
         _editedColumns.Clear();
+        _columnsVersion++;
         _options.Codec = codec;
         if (reindex) _tree.StopTrackingLines();
     }
@@ -255,6 +257,7 @@ public sealed class PagedDocument : IPagedTextSource
 
     private Piece[] Apply(long offset, long removeLength, Piece[] insert)
     {
+        _columnsVersion++;
         if (IsModified) _editedColumns.DropFrom(offset);
         else _editedColumns.CopyBefore(_source.Columns, offset);
         var removed = _tree.Remove(offset, removeLength);
@@ -356,6 +359,28 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>Length in UTF-16 columns of a line, when a read has reached its end since the last edit.</summary>
     public bool TryGetLineColumns(long lineStart, out long columns) =>
         IsModified ? _editedColumns.TryGetLength(lineStart, out columns) : _source.TryGetLineColumns(lineStart, out columns);
+
+    /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
+    public bool IsColumnNear(long lineStart, long column) =>
+        IsModified ? _editedColumns.IsNear(lineStart, column) : _source.IsColumnNear(lineStart, column);
+
+    /// <summary>
+    /// A reader of the columns of the current revision for another thread, so that a far read does not hold up this one. The points it notes on an
+    /// edited document come back with <see cref="KeepColumns"/>; on an unedited one they go straight to the index of the file.
+    /// </summary>
+    public ColumnSnapshot SnapshotColumns()
+    {
+        if (!IsModified) return new ColumnSnapshot(_source, null, _source.Columns, _columnsVersion);
+        var index = new ColumnIndex();
+        index.Merge(_editedColumns);
+        return new ColumnSnapshot(_source, CreateSnapshot(), index, _columnsVersion);
+    }
+
+    /// <summary>Takes over the column points that <paramref name="columns"/> noted, unless the document changed after the snapshot was made.</summary>
+    public void KeepColumns(ColumnSnapshot columns)
+    {
+        if (columns.Edited && columns.Version == _columnsVersion && IsModified) _editedColumns.Merge(columns.Index);
+    }
 
     /// <summary>
     /// UTF-16 columns from the start of the line that starts at <paramref name="lineStart"/> to <paramref name="offset"/>, a character boundary of that line,

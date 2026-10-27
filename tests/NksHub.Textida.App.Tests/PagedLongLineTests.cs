@@ -9,10 +9,11 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>Horizontal windows of a long line on the paged surface: reads off the UI thread, stale reads, the scroll range in characters.</summary>
+/// <summary>Horizontal windows of a long line on the paged surface: reads off the UI thread (also after an edit), stale reads, colors, the scroll range in characters.</summary>
 [Collection("LocState")]
 public class PagedLongLineTests : IDisposable
 {
@@ -49,9 +50,9 @@ public class PagedLongLineTests : IDisposable
 
     private DocTab OpenLine(string line) => OpenBytes(Encoding.UTF8.GetBytes(line + "\nnext\n"));
 
-    private DocTab OpenBytes(byte[] content)
+    private DocTab OpenBytes(byte[] content, string name = "long.txt")
     {
-        var tab = _w.OpenFile(_temp.Bytes("long.txt", content), null);
+        var tab = _w.OpenFile(_temp.Bytes(name, content), null);
         Assert.True(tab.Doc.IsLarge);
         for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
         {
@@ -113,6 +114,54 @@ public class PagedLongLineTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         Draw();
         Assert.Equal("FRESH", paged.CachedWindow(0));
+    }
+
+    [AvaloniaFact]
+    public async Task A_far_window_of_an_edited_line_is_read_off_the_UI_thread_and_shows_the_edited_text()
+    {
+        var random = new Random(3);
+        string line = string.Create(3_000_000, random, (span, r) => { for (int i = 0; i < span.Length; i++) span[i] = (char)('a' + r.Next(26)); });
+        var tab = OpenLine(line);
+        var paged = tab.Paged!;
+        TestApp.Type(_w, "XYZ"); // the caret starts at the beginning of the line
+        Draw();
+        string edited = "XYZ" + line;
+        var document = ((PagedBackend)tab.Doc.Doc.Backend).Paged;
+        Assert.True(document.IsModified);
+        Assert.False(document.IsColumnNear(0, 2_500_000)); // no point near: the window is read the far way, on the thread pool
+
+        paged.ScrollToColumn(2_500_000);
+        Draw();
+        string? window = null;
+        await Eventually(() => { Draw(); return (window = paged.CachedWindow(0)) is { Length: > 0 }; });
+        // the bar may land one column early: hScroll / cell is rounded down
+        Assert.True(window == edited.Substring(2_500_000, window!.Length) || window == edited.Substring(2_499_999, window.Length), "the window does not show the edited text");
+        Assert.False(paged.WindowsPending);
+        Assert.True(document.IsColumnNear(0, 2_500_000)); // the points of the far read came back, so scrolling on reads on the UI thread
+    }
+
+    [AvaloniaFact]
+    public async Task A_far_window_of_a_long_line_gets_the_colors_of_its_grammar()
+    {
+        string line = "[" + string.Concat(Enumerable.Repeat("\"ab\",1,", 160_000)) + "0]"; // 1 120 003 characters, above the 1 MiB threshold of the paged mode
+        var tab = OpenBytes(Encoding.UTF8.GetBytes(line + "\n[2]\n"), "long.json");
+        var paged = tab.Paged!;
+        Assert.True(paged.Syntax.Active);
+
+        paged.ScrollToColumn(150_000);
+        Draw();
+        bool Colored() => paged.TokensOf(0) is { } tokens
+            && tokens.Any(t => t.Start >= 150_010 && t.Kind == TokenKinds.String)
+            && tokens.Any(t => t.Start >= 150_010 && t.Kind == TokenKinds.Number);
+        await Eventually(() => { Draw(); return Colored(); });
+
+        foreach (var token in paged.TokensOf(0)!.Where(t => t.Start >= 150_010 && t.End < 150_050))
+        {
+            string text = line.Substring(token.Start, token.Length);
+            if (token.Kind == TokenKinds.String) Assert.Equal("\"ab\"", text);
+            if (token.Kind == TokenKinds.Number) Assert.Equal("1", text);
+        }
+        Assert.NotNull(paged.CachedWindow(0));
     }
 
     private const string Unit = "ěšč abc 中";

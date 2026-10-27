@@ -299,8 +299,7 @@ public sealed class MappedFileSource : IPagedTextSource
     public bool TryGetLineColumns(long lineStart, out long columns) => _columns.TryGetLength(lineStart, out columns);
 
     /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
-    public bool IsColumnNear(long lineStart, long column) =>
-        _columns.TryNearest(lineStart, column, out long known, out _) ? column - known <= ColumnIndex.Spacing : column <= ColumnIndex.Spacing;
+    public bool IsColumnNear(long lineStart, long column) => _columns.IsNear(lineStart, column);
 
     internal ColumnIndex Columns => _columns;
     internal int BomLength => _bomLength;

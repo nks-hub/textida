@@ -1038,16 +1038,15 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).
 - Psát, mazat (Backspace a Delete), Enter a Tab na místě kurzoru. Zpět a Znovu. Uložit.
 - Hledat (Ctrl+F). Hledání v souborech.
+- Řádek delší než 16 KiB posunete do stran posuvníkem pod textem. Vzdálená část řádku se na chvíli ukáže jako …, dokud se nenačte. Barvy v ní přibudou, jakmile program přečte řádek až k ní.
 ### Co nejde
 - Výběr, schránka (Vyjmout, Kopírovat, Vložit), blokový výběr, více kurzorů.
 - Příkazy nad řádky, odsazením, velikostí písmen, nahrazení.
 - Přejít na párovou závorku, zalamování řádků.
 - Převod a opětovné čtení kódování, sjednocení konců řádků, normalizace.
 - Uložit jako jen ve stejném kódování.
-- Řádek delší než 16 KiB se ukáže jen z části a upravit nejde.
 ### Hlášení
 - Číslování řádků ještě běží, úpravy půjdou za chvíli: počkejte, až se soubor dočte.
-- Řádek je delší než 16 KiB, ve stránkovaném režimu se nedá upravit: řádek upravte jiným programem.
 - Znak se nedá zapsat v kódování souboru: napište jiný znak.
 - Velký soubor v kódování ... se zatím nedá otevřít: soubor se neotevře; jiné kódování ve velkém souboru program zatím nepřečte.
 - Ukládání velkého souboru zdrží okno.
