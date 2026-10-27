@@ -267,6 +267,7 @@ public class FileOperationsTests
     }
 }
 
+[Collection("Latency")]
 public class FileTreeTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Fact]
