@@ -392,5 +392,6 @@
   "cmd.macro.run": "Run Saved Macro...",
   "cmd.tools.edit": "Edit Tool Definitions...",
   "cmd.tools.makeTargets": "Run Makefile Target...",
-  "cmd.file.saveActions": "Save Actions..."
+  "cmd.file.saveActions": "Save Actions...",
+  "cmd.file.configFiles": "Configuration Files of This File..."
 }

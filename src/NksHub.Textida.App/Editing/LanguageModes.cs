@@ -1,5 +1,6 @@
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -25,50 +26,56 @@ internal static class LanguageModes
     private static readonly LanguageMode[] Builtin =
     [
         new(PlainId, "", [".txt", ".text"], CommentStyle.None),
-        new("html", "HTML", [".html", ".htm", ".xhtml"], CommentStyle.None),
-        new("css", "CSS", [".css"], new(null, true)),
-        new("javascript", "JavaScript", [".js", ".mjs", ".cjs", ".jsx"], Slash),
-        new("typescript", "TypeScript", [".ts", ".tsx"], Slash),
-        new("json", "JSON", [".json", ".jsonc"], CommentStyle.None),
+        Catalog("html", "HTML", CommentStyle.None),
+        Catalog("css", "CSS", new(null, true)),
+        Catalog("javascript", "JavaScript", Slash),
+        Catalog("typescript", "TypeScript", Slash),
+        Catalog("json", "JSON", CommentStyle.None),
         new("xml", "XML", [".xml", ".xsd", ".xaml", ".axaml", ".csproj", ".props", ".targets", ".svg", ".config"], CommentStyle.None),
-        new("csharp", "C#", [".cs"], Slash),
-        new("c", "C", [".c"], Slash),
-        new("cpp", "C++", [".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"], Slash),
-        new("java", "Java", [".java"], Slash),
-        new("php", "PHP", [".php"], Slash),
+        Catalog("csharp", "C#", Slash),
+        Catalog("c", "C", Slash),
+        Catalog("cpp", "C++", Slash),
+        Catalog("java", "Java", Slash),
+        Catalog("php", "PHP", Slash),
         new("razor", "Razor", [".cshtml", ".razor"], CommentStyle.None),
-        new("latte", "Latte", [".latte"], CommentStyle.None),
-        new("neon", "NEON", [".neon"], Hash),
+        Catalog("latte", "Latte", CommentStyle.None),
+        Catalog("neon", "NEON", Hash),
         new("sln", "Solution", [".sln"], Hash),
-        new("python", "Python", [".py"], Hash),
-        new("sql", "SQL", [".sql"], new("--", false)),
+        Catalog("python", "Python", Hash),
+        Catalog("sql", "SQL", new("--", false)),
         new("markdown", "Markdown", [".md", ".markdown"], CommentStyle.None),
         new("yaml", "YAML", [".yml", ".yaml"], Hash),
         new("ini", "INI", [".ini", ".cfg", ".conf"], new(";", false)),
-        new("shell", "Shell", [".sh", ".bash", ".zsh"], Hash),
-        new("powershell", "PowerShell", [".ps1", ".psm1", ".psd1"], Hash),
+        Catalog("shell", "Shell", Hash),
+        Catalog("powershell", "PowerShell", Hash),
         new("batch", "Batch", [".bat", ".cmd"], CommentStyle.None),
-        new("go", "Go", [".go"], Slash),
-        new("gomod", "Go module", [], new("//", false)) { FileNames = ["go.mod", "go.work"] },
-        new("gotmpl", "Go template", [".gohtml", ".gotmpl"], CommentStyle.None),
-        new("rust", "Rust", [".rs"], Slash),
-        new("toml", "TOML", [".toml"], Hash) { FileNames = ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"] },
-        new("cmake", "CMake", [".cmake"], Hash) { FileNames = ["CMakeLists.txt"] },
-        new(MakefileId, "Makefile", [".mk", ".mak", ".make"], Hash) { FileNames = ["Makefile", "makefile", "GNUmakefile"] },
-        new("meson", "Meson", [], Hash) { FileNames = ["meson.build", "meson_options.txt", "meson.options"] },
-        new("ruby", "Ruby", [".rb", ".rake", ".gemspec", ".ru", ".rbw", ".thor", ".jbuilder", ".podspec"], Hash)
-            { FileNames = ["Gemfile", "Rakefile", "Guardfile", "Capfile", "Vagrantfile", "Podfile", "Brewfile", "Berksfile", "Fastfile", "Appfile"] },
-        new("erb", "ERB", [".erb", ".rhtml"], CommentStyle.None),
-        new("haml", "HAML", [".haml"], new("-#", false)),
-        new("slim", "Slim", [".slim"], new("/", false)),
-        new("rbs", "RBS", [".rbs"], Hash),
-        new("kotlin", "Kotlin", [".kt", ".kts"], Slash),
-        new("lua", "Lua", [".lua", ".rockspec"], new("--", false)),
-        new("swift", "Swift", [".swift"], Slash),
-        new("dart", "Dart", [".dart"], Slash),
-        new("r", "R", [".r"], Hash) { FileNames = [".Rprofile"] },
+        Catalog("go", "Go", Slash),
+        Catalog("gomod", "Go module", new("//", false)),
+        Catalog("gotmpl", "Go template", CommentStyle.None),
+        Catalog("rust", "Rust", Slash),
+        Catalog("toml", "TOML", Hash),
+        Catalog("cmake", "CMake", Hash),
+        Catalog(MakefileId, "Makefile", Hash),
+        Catalog("meson", "Meson", Hash),
+        Catalog("ruby", "Ruby", Hash),
+        Catalog("erb", "ERB", CommentStyle.None),
+        Catalog("haml", "HAML", new("-#", false)),
+        Catalog("slim", "Slim", new("/", false)),
+        Catalog("rbs", "RBS", Hash),
+        Catalog("kotlin", "Kotlin", Slash),
+        Catalog("lua", "Lua", new("--", false)),
+        Catalog("swift", "Swift", Slash),
+        Catalog("dart", "Dart", Slash),
+        Catalog("r", "R", Hash),
         new(LogId, "Log", [".log"], CommentStyle.None),
     ];
+
+    /// <summary>A mode of a group of <see cref="LanguageCatalog"/>: the extensions and file names come from the catalog, the name and the comments are the editor's.</summary>
+    private static LanguageMode Catalog(string id, string name, CommentStyle comments)
+    {
+        var mode = LanguageCatalog.Mode(id) ?? throw new InvalidOperationException($"The language catalog has no mode '{id}'.");
+        return new(id, name, [.. mode.Extensions], comments) { FileNames = [.. mode.FileNames] };
+    }
 
     private static LanguageMode[] _user = [];
     private static GrammarRegistry _grammars = BuiltinGrammars.Registry;
@@ -96,7 +103,7 @@ internal static class LanguageModes
     /// <summary>Id of the built-in grammar that colours the mode; null where none exists (plain text and the modes without a grammar).</summary>
     public static string? GrammarId(LanguageMode mode)
     {
-        string id = mode.Id == "typescript" ? "javascript" : mode.Id;
+        string id = LanguageCatalog.Mode(mode.Id)?.Grammar ?? mode.Id;
         return id != PlainId && _grammars.Find(id) is not null ? id : null;
     }
 

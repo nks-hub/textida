@@ -392,5 +392,6 @@
   "cmd.macro.run": "Gespeichertes Makro ausführen...",
   "cmd.tools.edit": "Werkzeugdefinitionen bearbeiten...",
   "cmd.tools.makeTargets": "Makefile-Ziel ausführen...",
-  "cmd.file.saveActions": "Aktionen beim Speichern..."
+  "cmd.file.saveActions": "Aktionen beim Speichern...",
+  "cmd.file.configFiles": "Konfigurationsdateien dieser Datei..."
 }

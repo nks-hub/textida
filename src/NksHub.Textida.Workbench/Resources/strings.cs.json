@@ -392,5 +392,6 @@
   "cmd.macro.run": "Spustit uložené makro...",
   "cmd.tools.edit": "Upravit definice nástrojů...",
   "cmd.tools.makeTargets": "Spustit cíl Makefile...",
-  "cmd.file.saveActions": "Akce při uložení..."
+  "cmd.file.saveActions": "Akce při uložení...",
+  "cmd.file.configFiles": "Konfigurační soubory tohoto souboru..."
 }

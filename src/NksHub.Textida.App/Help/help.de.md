@@ -840,6 +840,11 @@ commands: nks.file.saveActions
 - Ein Zeitlimit ist nicht voreingestellt: Solange formatTimeoutSeconds fehlt, läuft kein Formatierer, und die Statuszeile sagt es. Der Wert im Beispiel ist nur ein Beispiel.
 - Nach einem automatischen Speichern kann niemand antworten: Ein nie bestätigtes Werkzeug startet nicht, und eine neuere Version auf dem Server erscheint in der Leiste der Registerkarte statt in einem Dialog.
 - Das Umschalten einer Aktion in der Liste schreibt saveActions.json im Profil neu und verwirft darin Kommentare. Aktionen aus einem Projekt werden aufgelistet, aber in der Projektdatei geändert.
+## [file.configFiles] Konfigurationsdateien der Datei
+commands: nks.file.configFiles
+1. Die Statusleiste nennt die Konfigurationsdateien, die für die geöffnete Datei gelten: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml und die Konfigurationen der Sprache (zum Beispiel ruff.toml, stylua.toml, .shellcheckrc). Es ist jeweils die nächstgelegene Datei im Ordner der Datei oder darüber. Klicken Sie auf den Eintrag oder wählen Sie Datei, Konfigurationsdateien dieser Datei.
+2. Aus der Liste öffnen Sie die gewählte Datei. Eine fehlende Konfiguration lässt sich aus einer minimalen Vorlage anlegen; sie wird in den nächsten übergeordneten Ordner mit .git geschrieben, sonst in den Ordner der Datei, und eine vorhandene Datei wird nie ersetzt.
+- Es werden nur Ordner angesehen: kein Werkzeug wird gestartet, die Liste zeigt also, was auf dem Datenträger liegt, nicht was ein Werkzeug verwenden würde. Die Liste wird beim Öffnen, Speichern und Umbenennen der Datei neu gelesen; eine außerhalb des Editors angelegte Datei erscheint daher nach dem nächsten Speichern.
 ## [log.mode] Log-Modus: Stufen und nächster Fehler
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. Ein Dokument in der Sprache Log (Dateien auf .log, oder Format, Sprache) färbt jede Zeile nach ihrer Stufe: Fehler, Warnung, Information oder Debug. Die schwerste in einer Zeile gefundene Stufe entscheidet.

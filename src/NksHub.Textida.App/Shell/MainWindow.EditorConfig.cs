@@ -2,6 +2,8 @@ using Avalonia.Controls;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Tools;
+using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Shell;
@@ -17,11 +19,65 @@ internal sealed partial class MainWindow
         return null;
     }
 
-    private void OpenEditorConfigFile()
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<EditorConfigResult, IReadOnlyList<ConfigHit>> ConfigHitCache = new();
+
+    /// <summary>
+    /// The configuration files that apply to the document (P8.7.4), found by walking the parent folders only. The walk runs once per <see cref="OpenDocument.EditorConfig"/> result,
+    /// which is replaced when the file is opened, saved or renamed, so the status bar does not touch the disk on every caret move. <c>.editorconfig</c> comes from that result.
+    /// </summary>
+    internal static IReadOnlyList<ConfigHit> ConfigHitsOf(OpenDocument od) =>
+        od.Path is not { } path ? [] : ConfigHitCache.GetValue(od.EditorConfig, editorConfig =>
+        [.. ConfigFiles.For(path).Select(h => ReferenceEquals(h.Config, LanguageCatalog.EditorConfig) ? h with { Path = editorConfig.Properties.Count > 0 ? editorConfig.Files[0] : null } : h)
+            .Where(h => h.Path is not null || !ReferenceEquals(h.Config, LanguageCatalog.EditorConfig) || editorConfig.Files.Count == 0)]);
+
+    /// <summary>The text of the status bar item: the names of the configuration files found, two at most.</summary>
+    internal static string ConfigLabel(IReadOnlyList<ConfigHit> found)
     {
-        if (Active?.Doc.EditorConfig.Files is not { Count: > 0 } files) return;
-        try { OpenFile(files[0], null); }
+        var names = found.Select(h => System.IO.Path.GetFileName(h.Path!)).ToList();
+        return string.Join(", ", names.Take(2)) + (names.Count > 2 ? " +" + (names.Count - 2) : "");
+    }
+
+    /// <summary>Lists the configuration files of the active file: a found one opens on a click, a missing one with a template is created in the project folder.</summary>
+    internal CommandOutcome ShowConfigFiles()
+    {
+        var rows = new List<QuickRow>();
+        if (Active is { Custom: null, Hex: null } tab && tab.Path is { } path)
+        {
+            var hits = ConfigHitsOf(tab.Doc);
+            foreach (var hit in hits.Where(h => h.Path is not null))
+            {
+                string found = hit.Path!, name = System.IO.Path.GetFileName(found);
+                rows.Add(new QuickRow(name, null, System.IO.Path.GetDirectoryName(found), null, true, null, name, () => OpenConfigFile(found)));
+            }
+            foreach (var hit in hits.Where(h => h.Path is null && h.Config.Template is not null))
+            {
+                var config = hit.Config;
+                string name = Loc.Get(K.ConfigFilesCreate, ("name", config.Names[0])), detail = Loc.Get(K.ConfigFilesCreateDetail, ("folder", ConfigFiles.FolderForNew(path)));
+                rows.Add(new QuickRow(name, null, detail, null, true, null, name + ", " + detail, () => CreateConfigFile(tab, config)));
+            }
+        }
+        ShowChoice(Loc.Get(K.ConfigFilesWatermark), Loc.Get(K.A11yConfigFiles), rows, emptyText: Loc.Get(K.ConfigFilesEmpty));
+        return CommandOutcome.Handled;
+    }
+
+    private void OpenConfigFile(string path)
+    {
+        try { OpenFile(path, null); }
         catch (IOException e) { SetStatusMessage(e.Message); }
+    }
+
+    private void CreateConfigFile(DocTab tab, CatalogConfig config)
+    {
+        string created;
+        try { created = ConfigFiles.Create(config, tab.Path!); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            SetStatusMessage(Loc.Get(K.ConfigFilesFailed, ("name", config.Names[0]), ("reason", e.Message)));
+            return;
+        }
+        tab.Doc.RefreshEditorConfig();
+        OpenConfigFile(created);
+        SetStatusMessage(Loc.Get(K.ConfigFilesCreated, ("file", created)));
     }
 
     /// <summary>Status bar of the search results tab: the counts on the left, the name of the view on the right.</summary>

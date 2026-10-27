@@ -404,8 +404,7 @@ public static class K
     public const string ResultsConflictHint = "results.conflictHint";
     public const string ResultsNoJournal = "results.noJournal";
     public const string StatusSearchResults = "status.searchResults";
-    public const string StatusEditorConfig = "status.editorConfig";
-    public const string StatusEditorConfigTip = "status.editorConfig.tip";
+    public const string StatusConfigFilesTip = "status.configFiles.tip";
     public const string StatusIndentFromConfig = "status.indent.fromConfig";
     public const string StatusTrimSkipped = "status.trimSkipped";
     public const string GoToNotIndexed = "goToLine.notIndexed";
@@ -1265,4 +1264,11 @@ public static class K
     public const string SaveActionsToolNotApproved = "saveActions.toolNotApproved";
     public const string SaveActionsToolUnknown = "saveActions.toolUnknown";
     public const string SaveActionsToolFailed = "saveActions.toolFailed";
+    public const string ConfigFilesWatermark = "configFiles.watermark";
+    public const string A11yConfigFiles = "a11y.configFiles";
+    public const string ConfigFilesCreate = "configFiles.create";
+    public const string ConfigFilesCreateDetail = "configFiles.createDetail";
+    public const string ConfigFilesEmpty = "configFiles.empty";
+    public const string ConfigFilesCreated = "configFiles.created";
+    public const string ConfigFilesFailed = "configFiles.failed";
 }

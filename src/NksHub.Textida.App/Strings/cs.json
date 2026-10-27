@@ -415,8 +415,6 @@
   "results.conflictHint": "Soubory s konfliktem zůstaly beze změny. „Nový náhled“ vytvoří náhled znovu.",
   "results.noJournal": "Žurnál obnovy není k dispozici, pád uprostřed dávky by se nedal dokončit ani vrátit.",
   "status.searchResults": "Hledání",
-  "status.editorConfig": ".editorconfig",
-  "status.editorConfig.tip": "Nastavení ze souboru {file}: {properties}. Klepnutím soubor otevřete.",
   "status.indent.fromConfig": "Odsazení z {file}",
   "status.trimSkipped": "Ořez mezer se při ukládání nepodařil: historie změn je příliš krátká nebo je soubor příliš velký",
   "goToLine.notIndexed": "Na tuto pozici ještě nevede index řádků, zkuste to za chvíli",
@@ -1314,5 +1312,13 @@
   "saveActions.uploadConflict": "{title} se na serveru změnil, nic se nenahrálo.",
   "saveActions.toolNotApproved": "Nástroj ještě nebyl potvrzen; spusťte ho jednou ručně přes Spustit nástroj.",
   "saveActions.toolUnknown": "Nástroj s identifikátorem {id} neexistuje.",
-  "saveActions.toolFailed": "Nástroj {title} nedoběhl bez chyby."
+  "saveActions.toolFailed": "Nástroj {title} nedoběhl bez chyby.",
+  "configFiles.watermark": "Konfigurační soubory",
+  "a11y.configFiles": "Konfigurační soubory tohoto souboru",
+  "configFiles.create": "Vytvořit {name}",
+  "configFiles.createDetail": "ze šablony, ve složce {folder}",
+  "configFiles.empty": "Pro tento soubor neplatí žádná konfigurace.",
+  "configFiles.created": "Vytvořeno {file}",
+  "configFiles.failed": "{name} se nepodařilo vytvořit: {reason}",
+  "status.configFiles.tip": "Konfigurace platná pro tento soubor. Klepnutím ji otevřete nebo založíte."
 }

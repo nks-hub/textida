@@ -18,13 +18,9 @@ public sealed record FormatOutcome(FormatResult Result, string Reason = "");
 /// </summary>
 public static class ConfigFormatters
 {
+    /// <summary>The formatters of <see cref="LanguageCatalog"/> that Save Actions offers.</summary>
     public static readonly IReadOnlyList<FormatterDef> All =
-    [
-        new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"]),
-        new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"]),
-        new("clang-format", "clang-format", "clang-format", ["-i", "${File}"], [".clang-format", "_clang-format"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".m", ".mm", ".cs", ".java"]),
-        new("rubocop", "RuboCop", "rubocop", ["-a", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"]),
-    ];
+        [.. LanguageCatalog.Formatters.Where(f => f.OnSave).Select(f => new FormatterDef(f.Id, f.Title, f.Executable, f.Args, f.ConfigFiles, f.Extensions))];
 
     public static FormatterDef? Find(string id) => All.FirstOrDefault(f => f.Id == id);
 

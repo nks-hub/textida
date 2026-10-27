@@ -220,6 +220,18 @@ public class SearchFilesTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_status_bar_names_the_nearest_parent_editorconfig_and_clang_format_of_a_file_in_a_subfolder()
+    {
+        string dir = Tree((".editorconfig", "root = true\n[*.cpp]\nindent_style = space\nindent_size = 2\n"), (".clang-format", "BasedOnStyle: LLVM\n"),
+            (Path.Combine("src", "deep", "a.cpp"), "int x;\n"), ("b.txt", "x\n"));
+        _w.OpenFile(Path.Combine(dir, "src", "deep", "a.cpp"), null);
+        Assert.Contains(".editorconfig, .clang-format", _w.StatusRightText);
+        _w.OpenFile(Path.Combine(dir, "b.txt"), null);
+        Assert.DoesNotContain(".clang-format", _w.StatusRightText);
+        Assert.DoesNotContain(".editorconfig", _w.StatusRightText);
+    }
+
+    [AvaloniaFact]
     public void The_settings_page_names_the_editorconfig_file_as_the_source_of_a_value()
     {
         string dir = Tree((".editorconfig", "root = true\n[*.txt]\nindent_size = 3\n"), ("a.txt", "x\n"));

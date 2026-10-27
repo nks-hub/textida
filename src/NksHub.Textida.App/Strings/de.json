@@ -402,8 +402,6 @@
   "results.conflictHint": "Dateien mit Konflikt blieben unverändert. „Neue Vorschau“ erstellt die Vorschau erneut.",
   "results.noJournal": "Das Wiederherstellungsjournal ist nicht verfügbar; ein Absturz mitten im Stapel könnte nicht abgeschlossen oder zurückgesetzt werden.",
   "status.searchResults": "Suche",
-  "status.editorConfig": ".editorconfig",
-  "status.editorConfig.tip": "Einstellungen aus {file}: {properties}. Klicken, um die Datei zu öffnen.",
   "status.indent.fromConfig": "Einrückung aus {file}",
   "status.trimSkipped": "Leerzeichen am Zeilenende wurden beim Speichern nicht entfernt: Der Änderungsverlauf ist zu kurz oder die Datei zu groß",
   "goToLine.notIndexed": "Der Zeilenindex reicht noch nicht bis zu dieser Position; versuchen Sie es gleich noch einmal",
@@ -1284,5 +1282,13 @@
   "saveActions.uploadConflict": "{title} wurde auf dem Server geändert, es wurde nichts hochgeladen.",
   "saveActions.toolNotApproved": "Dieses Werkzeug wurde noch nicht bestätigt; führen Sie es einmal über Werkzeug ausführen aus.",
   "saveActions.toolUnknown": "Es gibt kein Werkzeug mit der Kennung {id}.",
-  "saveActions.toolFailed": "Das Werkzeug {title} wurde nicht fehlerfrei beendet."
+  "saveActions.toolFailed": "Das Werkzeug {title} wurde nicht fehlerfrei beendet.",
+  "configFiles.watermark": "Konfigurationsdateien",
+  "a11y.configFiles": "Konfigurationsdateien dieser Datei",
+  "configFiles.create": "{name} anlegen",
+  "configFiles.createDetail": "aus einer Vorlage, in {folder}",
+  "configFiles.empty": "Für diese Datei gilt keine Konfigurationsdatei.",
+  "configFiles.created": "{file} angelegt",
+  "configFiles.failed": "{name} konnte nicht angelegt werden: {reason}",
+  "status.configFiles.tip": "Konfiguration, die für diese Datei gilt. Klicken zum Öffnen oder Anlegen."
 }
