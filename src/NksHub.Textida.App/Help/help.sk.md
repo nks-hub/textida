@@ -919,6 +919,7 @@ Dva texty sa porovnajú po riadkoch v samostatnej karte. Rovnaké riadky stoja o
 1. Porovnať so schránkou (ponuka Nástroje alebo kontextová ponuka editora) porovná kartu s textom v schránke. Ak je v editore vybraný text, porovná sa len výber.
 2. Porovnať so súborom sa opýta na súbor a porovná s ním kartu. Porovnať s diskom je v ponuke Súbor a porovná kartu s jej súborom.
 3. Porovnať dva texty otvorí dve prázdne strany. Tlačidlá Vložiť ľavý text a Vložiť pravý text vložia do strany obsah schránky.
+- Z príkazového riadka otvorí textida --diff ľavý pravý porovnanie dvoch súborov: ľavý súbor sa otvorí v karte a môže prijímať bloky z pravého, ktorý je len na čítanie.
 - Strana s kartou je samotný dokument: keď sa zmení, porovná sa znova po krátkej pauze. Schránka, výber a súbor na disku sú strany len na čítanie.
 - Iný koniec riadku (CR, LF, CRLF) riadok nezmení. Medzery a veľkosť písmen áno.
 - Veľký súbor v stránkovanom režime sa porovnáva bez načítania: čítajú sa len riadky na obrazovke.

@@ -117,6 +117,14 @@ internal sealed partial class MainWindow
         return OpenCompare(DocumentSide(tab), FileSide(System.IO.Path.GetFullPath(path)));
     }
 
+    /// <summary>Compares two files from the command line: the left one is opened in a tab (and can take blocks of the right one), the right one is read-only.</summary>
+    internal DocTab CompareFiles(string left, string right)
+    {
+        right = System.IO.Path.GetFullPath(right);
+        if (!File.Exists(right)) throw new FileNotFoundException(Loc.Get(K.ErrorOpenFailed, ("path", right), ("reason", new FileNotFoundException().Message)), right);
+        return OpenCompare(DocumentSide(OpenFile(left, null)), FileSide(right));
+    }
+
     /// <summary>The built-in comparison of a tab with its file on disk, used while no external tool is set.</summary>
     private DocTab CompareWithDiskBuiltIn(DocTab tab, string path) =>
         OpenCompare(DocumentSide(tab), new CompareSide { Title = Loc.Get(K.CompareSideDisk, ("title", tab.Title)), FilePath = path, FileCodec = tab.Doc.Doc.Codec });

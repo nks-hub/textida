@@ -919,6 +919,7 @@ Zwei Texte werden zeilenweise in einem eigenen Tab verglichen. Gleiche Zeilen st
 1. Mit Zwischenablage vergleichen (Menü Extras oder Kontextmenü des Editors) vergleicht den Tab mit dem Text der Zwischenablage. Ist im Editor Text ausgewählt, wird nur die Auswahl verglichen.
 2. Mit Datei vergleichen fragt nach einer Datei und vergleicht den Tab damit. Mit Datenträger vergleichen steht im Menü Datei und vergleicht den Tab mit seiner eigenen Datei.
 3. Zwei Texte vergleichen öffnet zwei leere Seiten. Die Schaltflächen Linken Text einfügen und Rechten Text einfügen setzen die Zwischenablage in eine Seite ein.
+- Von der Befehlszeile öffnet textida --diff links rechts den Vergleich zweier Dateien: Die linke Datei öffnet sich in einem Tab und kann Blöcke der rechten aufnehmen, die schreibgeschützt ist.
 - Die Tab-Seite ist das Dokument selbst: Ändert es sich, wird nach einer kurzen Pause neu verglichen. Zwischenablage, Auswahl und Datei auf dem Datenträger sind schreibgeschützte Seiten.
 - Ein anderes Zeilenende (CR, LF, CRLF) macht eine Zeile nicht anders. Leerzeichen und Groß-/Kleinschreibung schon.
 - Eine große Datei im seitenweisen Modus wird verglichen, ohne geladen zu werden: Es werden nur die Zeilen auf dem Bildschirm gelesen.

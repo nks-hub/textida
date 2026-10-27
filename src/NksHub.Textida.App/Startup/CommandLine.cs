@@ -9,12 +9,14 @@ public sealed record CommandLineArgs(
     bool NewWindow,
     bool Wait,
     bool Smoke,
-    string? Error);
+    string? Error,
+    IReadOnlyList<string>? Diff = null);
 
 /// <summary>
-/// Parses <c>[--new-window] [--wait] [--line N] [--hex] [--offset N] [--smoke] [--] path...</c>. <c>--line N</c> (or <c>--line=N</c>)
+/// Parses <c>[--new-window] [--wait] [--line N] [--hex] [--offset N] [--smoke] [--diff left right] [--] path...</c>. <c>--line N</c> (or <c>--line=N</c>)
 /// applies to the nearest path without a line: the previous one, otherwise the next one. <c>--hex</c> opens that path in the hex view and
 /// <c>--offset N</c> (decimal or <c>0x</c> hex, also <c>--offset=N</c>) puts the caret on a byte; an offset implies <c>--hex</c>.
+/// <c>--diff left right</c> opens the comparison of two files: the left one in a tab of its own, the right one read-only.
 /// </summary>
 public static class CommandLine
 {
@@ -25,6 +27,7 @@ public static class CommandLine
         int? pendingLine = null;
         bool pendingHex = false;
         long? pendingOffset = null;
+        string[]? diff = null;
 
         CommandLineArgs Fail(string error) => new([], false, false, false, error);
 
@@ -54,6 +57,12 @@ public static class CommandLine
                 case "--new-window": newWindow = true; break;
                 case "--wait": wait = true; break;
                 case "--smoke": smoke = true; break;
+                case "--diff":
+                    if (diff is not null || i + 2 >= args.Count || args[i + 1].StartsWith("--", StringComparison.Ordinal) || args[i + 2].StartsWith("--", StringComparison.Ordinal))
+                        return Fail("--diff needs two paths, once");
+                    diff = [Path.GetFullPath(args[i + 1], workingDirectory), Path.GetFullPath(args[i + 2], workingDirectory)];
+                    i += 2;
+                    break;
                 case "--hex":
                     if (files.Count > 0 && !files[^1].Hex) files[^1] = files[^1] with { Hex = true };
                     else pendingHex = true;
@@ -81,7 +90,7 @@ public static class CommandLine
 
         if (pendingLine is not null) return Fail("--line has no path to apply to");
         if (pendingHex || pendingOffset is not null) return Fail("--hex and --offset need a path to apply to");
-        if (wait && files.Count == 0) return Fail("--wait needs at least one path");
-        return new CommandLineArgs(files, newWindow, wait, smoke, null);
+        if (wait && files.Count == 0 && diff is null) return Fail("--wait needs at least one path");
+        return new CommandLineArgs(files, newWindow, wait, smoke, null, diff);
     }
 }

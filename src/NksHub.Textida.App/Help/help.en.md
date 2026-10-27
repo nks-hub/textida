@@ -919,6 +919,7 @@ Two texts are compared line by line in a tab of their own. Equal lines stand lev
 1. Compare with Clipboard (Tools menu, or the context menu of the editor) compares the tab with the text on the clipboard. With text selected in the editor, only the selection is compared.
 2. Compare with File asks for a file and compares the tab with it. Compare with Disk is in the File menu and compares the tab with its own file.
 3. Compare Two Texts opens two empty sides. Paste left text and Paste right text put the clipboard into a side.
+- From the command line, textida --diff left right opens the comparison of two files: the left file opens in a tab and can take blocks of the right one, which is read-only.
 - The tab side is the document itself: when it changes, the comparison is made again after a short pause. The clipboard, a selection and a file on disk are read-only sides.
 - A different line ending (CR, LF, CRLF) does not make a line differ. Spaces and letter case do.
 - A large file in paged mode is compared without being loaded: only the lines on screen are read.

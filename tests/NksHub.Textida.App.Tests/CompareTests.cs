@@ -173,6 +173,21 @@ public class CompareTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_command_line_opens_two_files_as_a_comparison()
+    {
+        var left = _temp.File("l.txt", "1\n2\n");
+        var right = _temp.File("r.txt", "1\nX\n");
+
+        await _app.OpenRequestAsync(new NksHub.Textida.App.Startup.IpcRequest { Diff = [left, right] });
+
+        var view = Assert.IsType<DiffView>(_w.Active!.Custom);
+        await view.Session.RefreshAsync();
+        Assert.Equal(left, view.Session.Left.Document!.Path);
+        Assert.Equal([new DiffHunk(1, 1, 1, 1)], view.Session.Diff!.Hunks);
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _app.OpenRequestAsync(new NksHub.Textida.App.Startup.IpcRequest { Diff = [left, Path.Combine(_temp.Path, "none.txt")] }));
+    }
+
+    [AvaloniaFact]
     public async Task Two_pasted_texts_are_compared_with_nothing_in_the_way()
     {
         var tab = _w.OpenTextCompare();

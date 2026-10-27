@@ -83,4 +83,17 @@ public class CommandLineTests
 
     [Fact]
     public void Wait_needs_a_path() => Assert.NotNull(CommandLine.Parse(["--wait"], Cwd).Error);
+
+    [Fact]
+    public void Diff_takes_two_paths_and_needs_both()
+    {
+        var a = CommandLine.Parse(["--wait", "--diff", "l.txt", Path.Combine("sub", "r.txt")], Cwd);
+        Assert.Null(a.Error);
+        Assert.Equal([Full("l.txt"), Full(Path.Combine("sub", "r.txt"))], a.Diff);
+        Assert.Empty(a.Files);
+        Assert.Null(CommandLine.Parse(["x.txt"], Cwd).Diff);
+        Assert.NotNull(CommandLine.Parse(["--diff", "l.txt"], Cwd).Error);
+        Assert.NotNull(CommandLine.Parse(["--diff", "l.txt", "--wait"], Cwd).Error);
+        Assert.NotNull(CommandLine.Parse(["--diff", "a", "b", "--diff", "c", "d"], Cwd).Error);
+    }
 }
