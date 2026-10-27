@@ -40,6 +40,13 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--registry-page-size") registryPage = int.Parse(args[i + 1]);
     else if (args[i] == "--registry-max-lookups") registryLookups = int.Parse(args[i + 1]);
     else if (args[i] == "--registry-manifest-max-bytes") registryManifestBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--registry-cache-max-bytes") registryCacheBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--registry-cache-seconds") registryCacheSeconds = int.Parse(args[i + 1]);
+    else if (args[i] == "--schema-cache") schemaCache = args[i + 1];
+    else if (args[i] == "--schema-cache-max-bytes") schemaCacheBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--schema-download-max-bytes") schemaDownloadBytes = long.Parse(args[i + 1]);
+    else if (args[i] == "--schema-cache-max-age-seconds") schemaCacheAge = int.Parse(args[i + 1]);
+    else if (args[i] == "--schema-retry-seconds") schemaRetry = int.Parse(args[i + 1]);
     else if (args[i] == "--registry-url" && args[i + 1].Split('=', 2) is [var registryId, var registryUrl]) registryUrls[registryId] = registryUrl;
 }
 if (maxBytes < 1 || indent < 0)
