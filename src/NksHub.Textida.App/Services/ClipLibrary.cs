@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -51,6 +52,9 @@ internal sealed class ClipLibrary
     public IReadOnlyList<RecipeEntry> Recipes => _recipes;
     public IReadOnlyList<string> Problems => _problems;
 
+    /// <summary>The highlighters of the data plugins, on top of the built-in grammars (which they may include and embed). Replaced by every <see cref="Load"/>.</summary>
+    public GrammarRegistry Grammars { get; private set; } = new(BuiltinGrammars.Registry);
+
     /// <summary>Commands that run a clip, template, converter or recipe, with the plugin and the item they name; the app gives each a handler.</summary>
     public IReadOnlyList<(string Command, string PluginId, DataAction Action)> CommandTargets => _targets;
 
@@ -65,6 +69,7 @@ internal sealed class ClipLibrary
         _recipes.Clear();
         _targets.Clear();
         _problems.Clear();
+        var grammars = Grammars = new GrammarRegistry(BuiltinGrammars.Registry);
         if (!Directory.Exists(_directory)) return;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var folder in Directory.EnumerateDirectories(_directory).Order(StringComparer.OrdinalIgnoreCase))
@@ -75,6 +80,11 @@ internal sealed class ClipLibrary
             if (result.Plugin is not { } plugin) { _problems.Add($"{name}: {string.Join("; ", result.Errors)}"); continue; }
             if (plugin.Manifest.Main is not null) { _problems.Add($"{name}: only plugins without a process are read from this folder."); continue; }
             if (!seen.Add(plugin.Manifest.Id)) { _problems.Add($"{name}: the plugin id '{plugin.Manifest.Id}' is already used by another folder."); continue; }
+            if (plugin.GrammarJson.Select(json => Grammar.Parse(json, grammars).Id).FirstOrDefault(g => grammars.All.Any(x => string.Equals(x.Id, g, StringComparison.OrdinalIgnoreCase))) is { } taken)
+            {
+                _problems.Add($"{name}: the highlighter id '{taken}' is already used by another plugin.");
+                continue;
+            }
             if (!_registered.Contains(plugin.Manifest.Id))
             {
                 var conflicts = _commands.AddManifest(plugin.Contributions);
@@ -82,6 +92,7 @@ internal sealed class ClipLibrary
                 _registered.Add(plugin.Manifest.Id);
             }
             var id = plugin.Manifest.Id;
+            foreach (var json in plugin.GrammarJson) grammars.Add(json);
             foreach (var clip in plugin.Manifest.Contributes.Clips) _clips.Add(new ClipEntry(id, plugin.Manifest.Name, clip));
             foreach (var template in plugin.Manifest.Contributes.Templates) _templates.Add(new TemplateEntry(id, plugin.Manifest.Name, template));
             foreach (var converter in plugin.Manifest.Contributes.Converters) _converters.Add(new ConverterEntry(id, plugin.Manifest.Name, converter));

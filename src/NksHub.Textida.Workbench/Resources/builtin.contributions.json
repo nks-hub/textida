@@ -1066,6 +1066,11 @@
       "id": "nks.log.levels",
       "title": "cmd.log.levels",
       "category": "cat.log"
+    },
+    {
+      "id": "nks.edit.copyAiContext",
+      "title": "cmd.edit.copyAiContext",
+      "category": "cat.edit"
     }
   ],
   "menus": [
@@ -1986,6 +1991,12 @@
       "command": "nks.log.levels",
       "group": "6_log",
       "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyAiContext",
+      "group": "2_clip",
+      "order": 60
     }
   ],
   "keybindings": [

@@ -1540,9 +1540,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.7 Zvýrazňovače jako data
 
-- [ ] **P4.7.1** Multi-zvýraznění, uživatelské zvýrazňovače a jejich nastavení
+- [x] **P4.7.1** Multi-zvýraznění, uživatelské zvýrazňovače a jejich nastavení
   - **Co a proč:** Smíšené jazyky (HTML, CSS, JS, PHP v jednom dokumentu) s jednoznačnou prioritou, popsané pravidly pro engine F121. Uživatelské zvýrazňovače jako dokumentovaná podmnožina pravidel. Jazykové profily v nastavení. Princip z `09` kap. 6, ne data PSPadu.
   - **Funkce:** F115, F122, F128
+  - **Stav 26. 10. 2026:** hotovo: stránka PHP s HTML, CSS a JS se obarví všemi čtyřmi jazyky a po skoku za dlouhý blok JS a editaci jeho začátku se tokeny shodují s plným průchodem; zvýrazňovač z datového pluginu se načte bez procesu (výběr podle přípony nebo jména souboru, smí vnořit vestavěné jazyky); neplatné pravidlo (regex, neznámá vlastnost, `embed`, `include`, id vestavěného jazyka, duplicitní id) se ohlásí při načtení a plugin se přeskočí; nápověda popisuje formát gramatiky. Jazykové profily přes stávající vrstvu nastavení podle jazyka, bez vlastní volby.
   - **Hotovo, když:** PHP stránka s HTML, CSS a JS se zvýrazní všemi čtyřmi jazyky; po skoku za dlouhý blok jednoho jazyka a po editaci jeho začátku mimo viewport se tokeny shodují s plným referenčním průchodem (checkpointy z P3.2.3); vlastní zvýrazňovač z datového pluginu se načte bez procesu; neplatné pravidlo se ohlásí při instalaci.
   - **Závisí na:** P3.2.1, P3b.2.1
   - **Odhad:** bez odhadu
@@ -1587,6 +1588,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.9.1** Kopírovat jako kontext pro AI
   - **Co a proč:** Výběr, kurzory, karty, soubory nebo složka jako jeden blok v Markdownu nebo XML s cestou, rozsahem řádků, jazykem, kódováním a revizí; neuložené změny označené. Vynechá `.env`, pravidla ignorování a binární soubory a řekne proč. Nic po síti, jen schránka.
   - **Funkce:** F254
+  - **Stav 26. 10. 2026:** částečně: „Kopírovat jako kontext pro AI“ (výběr, soubor, otevřené karty, otevřená složka) s náhledem počtu souborů, velikosti v Markdownu i XML a vynechaných částí s důvodem; cesta, řádky, jazyk, kódování a revize u každého souboru, neuložené změny označené; `.env` se nekopíruje nikdy (filtr v builderu); vynechá `.gitignore`, skryté, binární, velké a nečitelné. Otevřené: limit celkové velikosti; ověřeno jen headless.
   - **Hotovo, když:** náhled ukáže velikost a vynechané části s důvodem; hodnoty z `.env` se do schránky nedostanou; ve stránkovaném režimu se zkopíruje jen výběr.
   - **Závisí na:** P2.5.1, P4.6.2
   - **Odhad:** F254 1–1,5 ČT (matice)

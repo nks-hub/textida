@@ -521,6 +521,10 @@ commands: nks.format.language
 2. Vyberte jazyk, napríklad Obyčajný text.
 - Jazyk určuje nastavenia platné len pre tento jazyk (napríklad zalamovanie riadkov alebo odsadenie) a pravidlá zvýrazňovania.
 - Pri otvorení sa jazyk určí podľa prípony súboru.
+- Vlastné zvýrazňovače sú dáta: contributes.grammars v nkspad-plugin.json uvádza súbory gramatík (JSON, formatVersion 1, popísané v grammar.schema.json): id, name, extensions, fileNames, comments, keywords a rules. Pravidlo je match (regulárny výraz), words, operators, include, alebo oblasť s begin a end, ktorá môže vnoriť iný jazyk.
+- Zvýrazňovač môže zahrnúť a vnoriť vstavané jazyky, napríklad "embed": "javascript". Súbor, ktorý končí jednou z jeho prípon alebo má jeden z jeho fileNames, sa otvorí v tomto jazyku; id zvýrazňovača je jazyk v nastaveniach jazyka.
+- Zvýrazňovač so zlým regulárnym výrazom, neznámou vlastnosťou, neznámym include alebo embed, alebo s id vstavaného jazyka sa pri načítaní pluginu odmietne. Plugin sa preskočí a stavový riadok povie, ktorý súbor a ktoré pravidlo.
+- V príliš dlhom riadku nechá zvýrazňovač z pluginu riadok bez farieb.
 
 ## [window.new] Nové okno
 commands: nks.window.new
@@ -825,3 +829,12 @@ Recept vyberie časti otvoreného súboru, zmení ich a pred zápisom ukáže v�
 - Recepty sú dáta: contributes.recipes v nkspad-plugin.json, s id, title, steps a voliteľne command. Kroky, ktoré vyberajú, idú prvé. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} ponechá zhody vo vnútri doterajších častí. {"kind": "columns", "from": 3, "to": 5} ponechá stĺpce 3 až 5 každého riadku (počíta sa v znakoch od 1; to 0 alebo vynechané znamená do konca riadku; kratší riadok nedá nič).
 - Kroky, ktoré menia: {"kind": "convert", "converter": "id"} (prevodník rovnakého pluginu), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} a {"kind": "set", "text": "..."}, ktorý nahradí časť textom v jazyku šablón klipov. V ňom je ${selection} samotná časť a premenné majú rovnaké hodnoty ako v klipe (téma Klipy); kurzory $| sa ignorujú.
 - Recept bez krokov, s neznámym druhom, chybným vzorom, neznámym prevodníkom, vyberajúcim krokom po meniacom alebo bez meniaceho kroku sa pri čítaní pluginu odmietne.
+
+## [edit.aiContext] Kopírovať ako kontext pre AI
+commands: nks.edit.copyAiContext
+Vloží do schránky výber, súbor, otvorené karty alebo otvorený priečinok ako jeden blok v Markdowne alebo XML, ktorý vložíte do AI asistenta. Nič sa nikam neposiela.
+1. Zvoľte Úpravy, Kopírovať ako kontext pre AI a vyberte, čo kopírovať: Výber (všetky výbery), Tento súbor, Otvorené karty alebo Otvorený priečinok.
+2. Náhľad ukáže, koľko súborov sa vloží, veľkosť ako Markdown a ako XML a čo bolo vynechané s dôvodom. Zvoľte Kopírovať ako Markdown alebo Kopírovať ako XML.
+- Pri každom súbore je cesta, riadky, jazyk, kódovanie a revízia. Súbor s neuloženými zmenami je označený a text je ten, ktorý je teraz v editore.
+- Vynechané a pomenované: súbory .env (ich hodnoty sa nikdy nekopírujú, ani keď sú v editore zobrazené), súbory a priečinky vylúčené súbormi ignorovania, skryté, binárne súbory, súbory nad limitom veľkosti pri prechádzaní priečinka a súbory, ktoré sa nedajú prečítať.
+- Veľký súbor v stránkovanom režime sa nikdy nekopíruje celý: len jeho výber. Bez výberu je uvedený ako vynechaný.

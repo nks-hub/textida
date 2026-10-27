@@ -7,7 +7,11 @@ namespace NksHub.Textida.App.Editing;
 /// A language mode of a document: the name shown in the status bar, the file extensions that select it and how its comments continue.
 /// The mode drives the status bar, the per-language settings layer, comment continuation and the highlighting grammar.
 /// </summary>
-internal sealed record LanguageMode(string Id, string Name, string[] Extensions, CommentStyle Comments);
+internal sealed record LanguageMode(string Id, string Name, string[] Extensions, CommentStyle Comments)
+{
+    /// <summary>Exact file names that select the mode (of a highlighter from a data plugin).</summary>
+    public string[] FileNames { get; init; } = [];
+}
 
 internal static class LanguageModes
 {
@@ -17,7 +21,7 @@ internal static class LanguageModes
     private static readonly CommentStyle Slash = new("//", true);
     private static readonly CommentStyle Hash = new("#", false);
 
-    public static IReadOnlyList<LanguageMode> All { get; } =
+    private static readonly LanguageMode[] Builtin =
     [
         new(PlainId, "", [".txt", ".text"], CommentStyle.None),
         new("html", "HTML", [".html", ".htm", ".xhtml"], CommentStyle.None),
@@ -45,20 +49,44 @@ internal static class LanguageModes
         new(LogId, "Log", [".log"], CommentStyle.None),
     ];
 
-    public static LanguageMode Plain => All[0];
+    private static LanguageMode[] _user = [];
+    private static GrammarRegistry _grammars = BuiltinGrammars.Registry;
+
+    /// <summary>The built-in modes followed by the ones of the highlighters of data plugins.</summary>
+    public static IReadOnlyList<LanguageMode> All { get; private set; } = Builtin;
+
+    /// <summary>Grammars the modes colour with: the built-in ones and those of the data plugins.</summary>
+    public static GrammarRegistry Grammars => _grammars;
+
+    public static LanguageMode Plain => Builtin[0];
+
+    /// <summary>Makes the highlighters of <paramref name="registry"/> (built on top of the built-in grammars) language modes selected by their extensions and file names.</summary>
+    public static void UseUserGrammars(GrammarRegistry registry)
+    {
+        _grammars = registry;
+        _user = [.. registry.All.OrderBy(g => g.Id, StringComparer.Ordinal).Select(g =>
+            new LanguageMode(g.Id, g.Name, [.. g.Extensions], new CommentStyle(g.LineComment, false)) { FileNames = [.. g.FileNames] })];
+        All = [.. Builtin, .. _user];
+    }
+
+    public static Tokenizer Tokenizer(string grammarId) =>
+        new(_grammars.Find(grammarId) ?? throw new KeyNotFoundException($"No grammar '{grammarId}'."));
 
     /// <summary>Id of the built-in grammar that colours the mode; null where none exists yet (plain text and the languages of P8.8.2).</summary>
     public static string? GrammarId(LanguageMode mode)
     {
         string id = mode.Id == "typescript" ? "javascript" : mode.Id;
-        return id != PlainId && BuiltinGrammars.Registry.Find(id) is not null ? id : null;
+        return id != PlainId && _grammars.Find(id) is not null ? id : null;
     }
 
     public static LanguageMode ById(string id) => All.FirstOrDefault(l => l.Id == id) ?? Plain;
 
     public static LanguageMode ForPath(string? path)
     {
+        if (path is not null && Path.GetFileName(path) is { Length: > 0 } name
+            && _user.FirstOrDefault(m => m.FileNames.Contains(name, StringComparer.OrdinalIgnoreCase) || m.Extensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase))) is { } custom)
+            return custom;
         var ext = path is null ? "" : Path.GetExtension(path);
-        return All.FirstOrDefault(l => l.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase)) ?? Plain;
+        return Builtin.FirstOrDefault(l => l.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase)) ?? Plain;
     }
 }

@@ -20,7 +20,7 @@ internal sealed class SyntaxProbe : ITokenProbe, IDisposable
     /// <summary>Null when the language has no grammar or the document is too large to follow.</summary>
     public static SyntaxProbe? TryCreate(Document document, string language)
     {
-        if (BuiltinGrammars.Registry.Find(language) is not { } grammar || !SyntaxSession.CanFollow(document)) return null;
+        if (LanguageModes.Grammars.Find(language) is not { } grammar || !SyntaxSession.CanFollow(document)) return null;
         return new(new SyntaxSession(document, new Tokenizer(grammar)), language);
     }
 

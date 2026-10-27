@@ -104,6 +104,7 @@ internal static class AppCommands
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
         On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
         On("nks.edit.runRecipe", w => w.ShowRecipes(registry.IsRepeating));
+        On("nks.edit.copyAiContext", w => w.ShowAiContext());
         registry.SetHandler("nks.edit.repeatLast", (context, token) => registry.RepeatLastAsync(context, token));
         Edit("nks.edit.deleteLine", (s, sels) => LineOperations.DeleteLines(s.Document, sels));
         Edit("nks.edit.duplicateLine", (s, sels) => LineOperations.DuplicateLines(s.Document, sels));

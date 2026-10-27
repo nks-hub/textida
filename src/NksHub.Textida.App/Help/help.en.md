@@ -521,6 +521,10 @@ commands: nks.format.language
 2. Choose a language, for example Plain text.
 - The language decides which settings apply only to that language (for example word wrap or indentation) and the highlighting rules.
 - When a file opens, the language is chosen from its extension.
+- Your own highlighters are data: contributes.grammars in nkspad-plugin.json lists grammar files (JSON, formatVersion 1, described by grammar.schema.json): id, name, extensions, fileNames, comments, keywords and rules. A rule is match (a regular expression), words, operators, include, or a region with begin and end that may embed another language.
+- A highlighter can include and embed the built-in languages, for example "embed": "javascript". A file that ends with one of its extensions or has one of its fileNames opens in that language; the id of the highlighter is the language in the settings of a language.
+- A highlighter with a wrong regular expression, an unknown property, an unknown include or embed, or the id of a built-in language is refused when the plugin is read. The plugin is skipped and the status bar says which file and rule.
+- In a very long line a highlighter of a plugin leaves the line without colours.
 
 ## [window.new] New window
 commands: nks.window.new
@@ -825,3 +829,12 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 - Recipes are data: contributes.recipes in nkspad-plugin.json, with id, title, steps and optionally command. Steps that choose come first. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} keeps the matches inside the current parts. {"kind": "columns", "from": 3, "to": 5} keeps columns 3 to 5 of every line (counted in characters from 1; to 0 or left out means up to the end of the line; a shorter line gives nothing).
 - Steps that change: {"kind": "convert", "converter": "id"} (a converter of the same plugin), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} and {"kind": "set", "text": "..."}, which replaces the part with a text in the template language of clips. In it ${selection} is the part itself, and the variables have the same values as in a clip (topic Clips); carets $| are ignored.
 - A recipe with no steps, an unknown kind, a bad pattern, an unknown converter, a choosing step after a changing one or no changing step is refused when the plugin is read.
+
+## [edit.aiContext] Copy as AI context
+commands: nks.edit.copyAiContext
+Puts the selection, the file, the open tabs or the opened folder on the clipboard as one block of Markdown or XML, to paste into an AI assistant. Nothing is sent anywhere.
+1. Choose Edit, Copy as AI Context and pick what to copy: the Selection (every selection), This file, the Open tabs or the Opened folder.
+2. The preview shows how many files go in, the size as Markdown and as XML, and what was left out with the reason. Choose Copy as Markdown or Copy as XML.
+- Each file has its path, the lines, the language, the encoding and the revision. A file with changes that are not saved is marked, and the text is the text in the editor now.
+- Left out and named: .env files (their values are never copied, also when they are shown in the editor), files and folders the ignore files exclude, hidden ones, binary files, files over the size limit of the folder walk and files that cannot be read.
+- A large file in paged mode is never copied whole: only its selection is. Without a selection it is listed as left out.

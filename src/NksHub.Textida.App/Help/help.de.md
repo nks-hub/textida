@@ -521,6 +521,10 @@ commands: nks.format.language
 2. Wählen Sie eine Sprache, zum Beispiel Nur-Text.
 - Die Sprache bestimmt, welche Einstellungen nur für diese Sprache gelten (zum Beispiel Zeilenumbruch oder Einzug), und die Regeln der Hervorhebung.
 - Beim Öffnen wird die Sprache anhand der Dateiendung gewählt.
+- Eigene Hervorhebungen sind Daten: contributes.grammars in nkspad-plugin.json nennt Grammatikdateien (JSON, formatVersion 1, beschrieben in grammar.schema.json): id, name, extensions, fileNames, comments, keywords und rules. Eine Regel ist match (ein regulärer Ausdruck), words, operators, include oder ein Bereich mit begin und end, der eine andere Sprache einbetten kann.
+- Eine Hervorhebung kann die eingebauten Sprachen einbinden und einbetten, zum Beispiel "embed": "javascript". Eine Datei, die auf eine ihrer Endungen endet oder einen ihrer fileNames hat, öffnet sich in dieser Sprache; die id der Hervorhebung ist die Sprache in den Spracheinstellungen.
+- Eine Hervorhebung mit falschem regulärem Ausdruck, unbekannter Eigenschaft, unbekanntem include oder embed oder mit der id einer eingebauten Sprache wird beim Lesen des Plugins abgelehnt. Das Plugin wird übersprungen und die Statusleiste nennt Datei und Regel.
+- In einer sehr langen Zeile lässt die Hervorhebung eines Plugins die Zeile ohne Farben.
 
 ## [window.new] Neues Fenster
 commands: nks.window.new
@@ -825,3 +829,12 @@ Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebni
 - Rezepte sind Daten: contributes.recipes in nkspad-plugin.json, mit id, title, steps und optional command. Wählende Schritte kommen zuerst. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} behält die Treffer innerhalb der bisherigen Teile. {"kind": "columns", "from": 3, "to": 5} behält die Spalten 3 bis 5 jeder Zeile (in Zeichen ab 1 gezählt; to 0 oder weggelassen heißt bis zum Zeilenende; eine kürzere Zeile ergibt nichts).
 - Ändernde Schritte: {"kind": "convert", "converter": "id"} (ein Konverter desselben Plugins), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} und {"kind": "set", "text": "..."}, der den Teil durch einen Text in der Vorlagensprache der Clips ersetzt. Darin ist ${selection} der Teil selbst, und die Variablen haben dieselben Werte wie in einem Clip (Thema Clips); Einfügemarken $| werden ignoriert.
 - Ein Rezept ohne Schritte, mit unbekannter Art, falschem Muster, unbekanntem Konverter, einem wählenden Schritt nach einem ändernden oder ohne ändernden Schritt wird beim Lesen des Plugins abgelehnt.
+
+## [edit.aiContext] Als KI-Kontext kopieren
+commands: nks.edit.copyAiContext
+Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner als einen Block in Markdown oder XML in die Zwischenablage, zum Einfügen in einen KI-Assistenten. Es wird nichts gesendet.
+1. Wählen Sie Bearbeiten, Als KI-Kontext kopieren und dann, was kopiert wird: die Auswahl (alle Auswahlen), Diese Datei, die Geöffneten Tabs oder den Geöffneten Ordner.
+2. Die Vorschau zeigt, wie viele Dateien hineinkommen, die Größe als Markdown und als XML und was mit welchem Grund weggelassen wurde. Wählen Sie Als Markdown kopieren oder Als XML kopieren.
+- Jede Datei hat Pfad, Zeilen, Sprache, Kodierung und Revision. Eine Datei mit nicht gespeicherten Änderungen ist markiert, und der Text ist der Text im Editor.
+- Weggelassen und benannt: .env-Dateien (ihre Werte werden nie kopiert, auch nicht, wenn sie im Editor sichtbar sind), von Ignorierdateien ausgeschlossene Dateien und Ordner, versteckte und Binärdateien, Dateien über dem Größenlimit beim Durchsuchen des Ordners und nicht lesbare Dateien.
+- Eine große Datei im seitenweisen Modus wird nie ganz kopiert: nur ihre Auswahl. Ohne Auswahl wird sie als weggelassen aufgeführt.

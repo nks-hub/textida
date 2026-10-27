@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Profile;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -138,6 +139,7 @@ public sealed partial class App : Application
     internal void ReloadClips()
     {
         Clips.Load();
+        LanguageModes.UseUserGrammars(Clips.Grammars);
         AppCommands.BindClips(this);
     }
 

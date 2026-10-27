@@ -289,6 +289,7 @@
   "cmd.file.newFromTemplate": "Neu aus Vorlage...",
   "cmd.edit.convert": "Umwandeln...",
   "cmd.edit.runRecipe": "Bearbeitungsrezept ausführen...",
+  "cmd.edit.copyAiContext": "Als KI-Kontext kopieren...",
   "cmd.edit.repeatLast": "Letzten Befehl wiederholen",
   "setting.editor.clipboardHistorySize.title": "Größe des Zwischenablage-Verlaufs",
   "setting.editor.clipboardHistorySize.description": "Wie viele kopierte Texte der Verlauf behält. Er liegt nur im Speicher und wird beim Beenden vergessen.",
