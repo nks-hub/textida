@@ -2268,13 +2268,15 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** V manifestech doplnění názvu a verze z registru na vyžádání, značka novější verze, spuštění skriptu přes F124. Společný klient registru se souhlasem a cache; jednotlivé registry jsou adaptéry v P8.7.5. Síť jen po svolení, bez kontroly zranitelností a bez automatického `go mod download`.
   - **Funkce:** F183
   - **Hotovo, když:** bez svolení editor nepošle žádný dotaz do registru (ověřeno síťovým testem PR.6.4); po svolení se u starší verze ukáže značka novější verze; odpověď z cache se pozná a jde obnovit.
+  - **Stav 27. 10. 2026:** částečně: společný klient v pluginu Json, síť jen po svolení pro každý registr (`package-registries.json`, dialog podle vzoru projektových nástrojů), cache v paměti se značkou `cache` a obnovením, odvolání souhlasu cache zahodí; příkazy Zkontrolovat / Obnovit / Zakázat / Spustit skript balíčku (npm a composer přes spouštěč s potvrzením vázaným na text skriptu). Test: bez souhlasu nula požadavků na lokální server. Chybí síťový test PR.6.4, skutečné registry a `npm run` / `composer run-script` nevyzkoušené; proxy s přihlášením lookupy zastaví. Limity a životnost cache otevřené.
   - **Závisí na:** P8.7.1, P8.2.1, P5.4.4
   - **Odhad:** F183 3–5 ČT (matice) za P8.7.3 a P8.7.5
   - **Umístění:** vestavěný plugin
-- [ ] **P8.7.5** Adaptéry registrů balíčků
+- [x] **P8.7.5** Adaptéry registrů balíčků
   - **Co a proč:** Adaptéry ve skupinách s vlastními testy: `composer.json`, `package.json`, `requirements.txt`, `.csproj`, `go.mod`, `Cargo.toml`, `Gemfile`.
   - **Funkce:** F183 (částečně: adaptéry registrů)
   - **Hotovo, když:** každý adaptér má test doplnění názvu, verze a značky novější verze proti nahrané odpovědi registru a test chyby registru.
+  - **Stav 27. 10. 2026:** hotovo: 7 adaptérů (Packagist, npm, PyPI, NuGet, Go proxy, crates.io, RubyGems), každý s testem názvu, verze, značky novější verze (diagnostika information) a chyby registru proti ručně psané odpovědi v tvaru veřejného API. PyPI a Go proxy nemají vyhledávání (název jen celý); rozsahy `^`, `~`, `>=` se neznačí.
   - **Závisí na:** P8.7.3
   - **Odhad:** v rámci F183 (viz P8.7.3); Go, Rust, Ruby 1–2 ČT
   - **Umístění:** vestavěný plugin
