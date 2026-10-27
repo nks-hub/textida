@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Threading;
 using NksHub.Textida.App.Profile;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -218,6 +219,9 @@ internal static class TestApp
             w.Close();
         }
         app.Journal.Dispose();
+        // plugin processes and the MCP listener of this run must not outlive it: their callbacks would land in the next test
+        Task.Run(() => app.Plugins.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(15));
+        Dispatcher.UIThread.RunJobs();
     }
 
     public static RawInputModifiers Mod => Shortcuts.Primary == KeyModifiers.Meta ? RawInputModifiers.Meta : RawInputModifiers.Control;
