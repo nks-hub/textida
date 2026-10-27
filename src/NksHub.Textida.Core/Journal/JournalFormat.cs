@@ -21,6 +21,7 @@ public enum RecordType : byte
     BatchFileSkipped = 15,
     BatchEnd = 16,
     DocMove = 17,
+    BatchOperationPlan = 18,
 }
 
 /// <summary>One record read from or written to a journal; <see cref="TimestampMs"/> is Unix time in milliseconds (0 in version 1 files).</summary>
@@ -160,7 +161,7 @@ public sealed class JournalReader : IDisposable
         _file.ReadExactly(buf.AsSpan(headerSize));
         var type = (RecordType)buf[8];
         long seq = BinaryPrimitives.ReadInt64LittleEndian(buf.AsSpan(9));
-        if (BinaryPrimitives.ReadUInt32LittleEndian(buf.AsSpan(4)) != JournalFormat.RecordCrc(buf) || seq != _expectedSeq || type is < RecordType.SessionState or > RecordType.DocMove)
+        if (BinaryPrimitives.ReadUInt32LittleEndian(buf.AsSpan(4)) != JournalFormat.RecordCrc(buf) || seq != _expectedSeq || type is < RecordType.SessionState or > RecordType.BatchOperationPlan)
             return Stop(JournalTail.Corrupt);
 
         long ts = Version >= 2 ? BinaryPrimitives.ReadInt64LittleEndian(buf.AsSpan(17)) : 0;

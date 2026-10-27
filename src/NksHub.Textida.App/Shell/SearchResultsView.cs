@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Search;
@@ -51,6 +52,13 @@ internal sealed class SearchResultsView : DockPanel
     {
         public string Text { get; } = text;
         public bool Warning { get; } = warning;
+    }
+
+    /// <summary>The first lines of the content a create writes, shown as added lines under the row of the new file. It has no tick: the tick of the file decides.</summary>
+    public sealed class PreviewRow(FileRow file, NewFilePreview preview) : Row
+    {
+        public FileRow File { get; } = file;
+        public NewFilePreview Preview { get; } = preview;
     }
 
     private const int ContextBefore = 60, ContextAfter = 90;
@@ -199,6 +207,8 @@ internal sealed class SearchResultsView : DockPanel
             };
             batch.Add(head);
             batch.AddRange(file.Hunks.Select(h => new HunkRow(head, h)));
+            if (file.Operation is { Kind: FileOperationKind.Create, Content: { } content })
+                batch.Add(new PreviewRow(head, ChangeBuilder.PreviewOfNewFile(content, PluginLimitsPlaceholders.NewFilePreviewLines, PluginLimitsPlaceholders.NewFilePreviewLineChars)));
         }
         _rows.AddRange(batch);
     }
@@ -223,6 +233,7 @@ internal sealed class SearchResultsView : DockPanel
         FileRow f => BuildFile(f),
         HitRow h => BuildHit(h),
         HunkRow h => BuildHunk(h),
+        PreviewRow p => BuildPreview(p),
         NoteRow n => BuildNote(n),
         _ => new Border(),
     };
@@ -342,6 +353,31 @@ internal sealed class SearchResultsView : DockPanel
         var run = new Run(text) { FontWeight = FontWeight.SemiBold };
         run.Bind(Inline.BackgroundProperty, host.GetResourceObservable(brushKey));
         return run;
+    }
+
+    private static Control BuildPreview(PreviewRow p)
+    {
+        var preview = p.Preview;
+        var panel = new StackPanel { Margin = new Thickness(60, 1, 12, 5) };
+        foreach (var line in preview.Lines)
+        {
+            var text = new TextBlock { FontFamily = Mono, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+            if (line.Length > 0) text.Inlines!.Add(Marked(text, line, "DiffAdded"));
+            var sign = new TextBlock { Text = "+", FontFamily = Mono, Width = 16, VerticalAlignment = VerticalAlignment.Top };
+            sign.Classes.Add("resultgood");
+            panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { sign, text } });
+        }
+        string? note = preview.IsBinary ? Loc.Get(K.WorkspacePreviewBinary, ("bytes", preview.Bytes))
+            : preview.TotalLines == 0 ? Loc.Get(K.WorkspacePreviewEmpty)
+            : preview.Hidden > 0 ? Loc.Get(K.WorkspacePreviewMore, ("count", preview.Hidden)) : null;
+        if (note is not null)
+        {
+            var more = new TextBlock { Text = note, FontSize = 12, Margin = new Thickness(16, 0, 0, 0) };
+            more.Classes.Add("resultmuted");
+            panel.Children.Add(more);
+        }
+        AutomationProperties.SetName(panel, Loc.Get(K.WorkspacePreviewA11y, ("file", p.File.Display), ("lines", preview.TotalLines), ("bytes", preview.Bytes)));
+        return panel;
     }
 
     private static Control BuildNote(NoteRow n)

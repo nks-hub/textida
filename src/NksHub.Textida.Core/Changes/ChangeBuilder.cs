@@ -11,6 +11,12 @@ namespace NksHub.Textida.Core.Changes;
 /// <summary>A replacement of a byte range of the base content with new text.</summary>
 public readonly record struct TextReplacement(ByteRange Range, string NewText);
 
+/// <summary>The first lines of the content a create writes, for the change review. <see cref="IsBinary"/> content has no lines; <see cref="TotalLines"/> counts all lines, shown or not.</summary>
+public sealed record NewFilePreview(IReadOnlyList<string> Lines, int TotalLines, long Bytes, bool IsBinary)
+{
+    public int Hidden => TotalLines - Lines.Count;
+}
+
 /// <summary>Builds <see cref="FileChange"/> and <see cref="ChangeProposal"/> values for producers other than Replace in Files (recipes, plugins, agents).</summary>
 public static class ChangeBuilder
 {
@@ -20,6 +26,28 @@ public static class ChangeBuilder
     private const int ContextChars = 120;
 
     public static ChangeProposal Proposal(string title, string origin, params FileChange[] files) => new(Guid.NewGuid(), title, origin, files);
+
+    /// <summary>
+    /// The text of the content of a new file as the review shows it: at most <paramref name="maxLines"/> lines of at most <paramref name="maxLineChars"/> characters (a cut line ends in "…").
+    /// Content with a NUL byte that is not UTF-16 or UTF-32 is binary and has no lines.
+    /// </summary>
+    public static NewFilePreview PreviewOfNewFile(byte[] content, int maxLines, int maxLineChars)
+    {
+        if (content.Length == 0) return new NewFilePreview([], 0, 0, false);
+        if (ContentScanner.Detect(content, content.Length) is not { } codec) return new NewFilePreview([], 0, content.Length, true);
+        string text = codec.Decode(content).Text;
+        if (text.Length > 0 && text[0] == '﻿') text = text[1..];
+        var lines = new List<string>();
+        int total = 0;
+        for (int pos = 0; pos < text.Length;)
+        {
+            int length = text.AsSpan(pos).IndexOfAny('\r', '\n');
+            int end = length < 0 ? text.Length : pos + length;
+            if (total++ < maxLines) lines.Add(end - pos > maxLineChars ? text[pos..(pos + maxLineChars)] + "…" : text[pos..end]);
+            pos = end < text.Length && text[end] == '\r' && end + 1 < text.Length && text[end + 1] == '\n' ? end + 2 : Math.Min(end + 1, text.Length);
+        }
+        return new NewFilePreview(lines, total, content.Length, false);
+    }
 
     /// <summary>A change for an open document, based on its current revision (read from a snapshot). Ranges must be character boundaries of that revision.</summary>
     public static FileChange ForDocument(Document doc, IEnumerable<TextReplacement> edits)

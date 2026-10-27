@@ -117,7 +117,7 @@ public sealed record FileOutcome(string Key, string DisplayName, ChangeStatus St
     public bool NeedsRepreview => Conflict is ChangeConflict.StaleRevision or ChangeConflict.ExternalChange or ChangeConflict.Missing or ChangeConflict.DocumentUnavailable;
 }
 
-/// <param name="BatchId">Id of the crash-recovery journal of the disk files; null when no journal directory was given or no disk file was touched.</param>
+/// <param name="BatchId">Id of the crash-recovery journal of the disk files and file operations; null when no journal directory was given or none of them was touched.</param>
 public sealed record ApplyReport(Guid ProposalId, IReadOnlyList<FileOutcome> Files, Guid? BatchId)
 {
     public int Applied => Files.Count(f => f.Status == ChangeStatus.Applied);

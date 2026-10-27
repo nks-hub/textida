@@ -309,6 +309,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest file a workspace edit may create, in bytes. OPEN: the owner has not decided it.</summary>
     public const long WorkspaceEditFileBytes = 4L << 20;
 
+    /// <summary>Placeholder: lines of the content of a new file the change review shows; the rest is counted. OPEN: the owner has not decided it.</summary>
+    public const int NewFilePreviewLines = 30;
+
+    /// <summary>Placeholder: characters of one line of the preview of a new file; a longer line is cut. OPEN: the owner has not decided it.</summary>
+    public const int NewFilePreviewLineChars = 200;
+
     /// <summary>Placeholder: longest text of one preview a plugin shows, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int PreviewMaxChars = 1 << 20;
 

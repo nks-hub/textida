@@ -51,7 +51,7 @@ that document, not the journal.
 | 9 DocSaveIntent | document id, revision (the one the file holds, which can be older than the document, see Recovery), path, size and SHA-256 of the file about to be moved into place, codec name. For an in-place save (no whole-file hash is computed) the hash field holds `inplace:START-END,...;HEX` instead: the written byte ranges and one SHA-256 over their new bytes. No layout change, so the version stays 3; an older reader sees a hash that never matches |
 | 10 DocCodec | document id, revision, codec name: "re-read as", replayed with `ReinterpretAs` |
 | 17 DocMove | document id, new path: the file was renamed or moved on disk, the unsaved work follows it; recovery opens the new path |
-| 11-16 Batch* | Replace in Files batch, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
+| 11-16 Batch*, 18 BatchOperationPlan | Batch of file changes, see below; these types only appear in `batch-<id>.njl`, never in a session journal |
 
 Named documents are recorded as path plus fingerprint (size and SHA-256), never as content, so a paged 100 MiB file costs a few
 hundred bytes. Unnamed documents carry their initial bytes as seeds.
@@ -103,20 +103,25 @@ writes `<journal>.tmp`, syncs it and moves it over the journal, so a crash leave
 
 ## Replace batch journal
 
-A batch of file replacements (`Changes/ChangeApplier.cs`) has its own journal `batch-<id>.njl` with a lock file, in the same format.
-Document targets are not part of it: their edits are recorded by the session journal like any other edit.
+A batch of file changes (`Changes/ChangeApplier.cs`: Replace in Files, recipes, workspace edits of plugins) has its own journal `batch-<id>.njl` with a lock file, in the same format.
+It holds the edits of files on disk and the file operations (create, rename, delete). Document targets are not part of it: their edits are recorded by the session journal like any other edit.
 
 | Type | Content |
 | --- | --- |
-| 11 BatchBegin | batch id, title, origin, creation time, number of files |
+| 11 BatchBegin | batch id, title, origin, creation time, number of plans (files and operations together) |
 | 12 BatchFilePlan | batch id, file index, path, codec name, size and SHA-256 of the content the plan is based on, hunks (start, old bytes, new bytes) |
 | 13 BatchFileIntent | batch id, file index, size and SHA-256 of the new content, name of the temporary file; written and fsynced before the new file is moved into place |
-| 14 BatchFileDone | batch id, file index (not fsynced on its own) |
+| 14 BatchFileDone | batch id, file or operation index (not fsynced on its own) |
 | 15 BatchFileSkipped | batch id, file index, reason (the file no longer matched its base) |
 | 16 BatchEnd | batch id; the journal is deleted right after it |
+| 18 BatchOperationPlan | batch id, index (after the file plans), kind (0 create, 1 rename, 2 delete), path, new path (rename, else empty), size and SHA-256 of the content the change is based on (-1 and empty when it names none), sidecar name, length of the content and the content (create only, else -1) |
 
-`BatchBegin` and all plans are fsynced once before the first file is touched, so a plan is either whole or no file was changed.
+`BatchBegin` and all plans, operations included, are fsynced once before the first file is touched, so a plan is either whole or no file was changed.
+The sidecar is the temporary file a create writes before it moves it in, and the name a delete parks the file under until the whole batch is done (the file is then deleted for good).
 After a crash the state of every file comes from its hash, not from `BatchFileDone`: the base hash means untouched, the intended hash
 (from the intent) means applied, anything else means someone else changed it and the file is left alone. `BatchRecovery` offers to
 finish (apply the plans of untouched files) or to roll back (reverse the hunks of applied files, checked against the base hash);
 both are safe to repeat, because a crash during recovery leaves files in the same hash-defined states.
+An operation has no intent record; its state comes from the files: a create is applied when its target holds the planned content, a rename when the old name is gone and the new one is there
+(with the planned content, when the plan names one), a delete when the file is gone. A parked file of a delete means "applied, not yet final": finishing deletes it, rolling back moves it back.
+A delete whose parked file is gone was made final before the crash; it is reported as applied and a roll back reports it as a conflict, because the content is gone.
