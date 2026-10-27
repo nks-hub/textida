@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -219,6 +220,65 @@ public class FindTests : IDisposable
         Assert.Equal("alpha", _w.FindBar.FindBox.Text);
         TestApp.Press(_w, Key.Escape);
         Assert.False(_w.FindBar.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task In_a_paged_file_F3_selects_the_match_and_List_shows_the_limit_in_the_results_tab_without_searching_again()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(_temp.File("paged.log", string.Concat(Enumerable.Range(0, 150_000).Select(i => $"row {i} needle\n"))), null);
+        Assert.True(tab.Doc.IsLarge);
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        Query("needle");
+        await Settle(() => !_w.FindIsRunning);
+        Assert.Equal(Loc.Get(K.FindLimit, ("total", 150_000L), ("listed", 100_000)), _w.FindBar.CountText.Text);
+        Assert.Equal(_w.FindHits[0].Range, tab.Paged!.SelectionRange);
+        TestApp.Press(_w, Key.F3);
+        await Settle(() => tab.Paged!.SelectionRange == _w.FindHits[1].Range);
+
+        var run = _w.FindRun;
+        _w.FindBar.ListButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Settle(() => _w.ResultsView is { IsRunning: false, Rows.Count: > 0 });
+        var view = _w.ResultsView!;
+        var listed = view.Rows.OfType<SearchResultsView.HitRow>().ToList();
+        Assert.Equal(100_000, listed.Count);
+        Assert.Equal(Loc.Get(K.ResultsListLimit, ("shown", 100_000), ("total", 150_000L)), view.LimitText);
+
+        _w.OpenResult(listed[99_000]);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(tab, _w.Active);
+        Assert.Equal(listed[99_000].Hit.Range, tab.Paged!.SelectionRange);
+        Assert.Same(run, _w.FindRun); // neither the listing nor coming back to the document searched it again
+    }
+
+    [AvaloniaFact]
+    public async Task Cancel_on_the_bar_stops_the_search_of_a_paged_file_at_once_and_its_worker_ends_within_a_second()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        byte[] line = "2026-10-26 12:00:00 INFO request handled path=/api/items/42\n"u8.ToArray();
+        var bytes = new byte[(48 << 20) / line.Length * line.Length];
+        for (int at = 0; at < bytes.Length; at += line.Length) line.CopyTo(bytes, at);
+        var tab = _w.OpenFile(_temp.Bytes("cancel.log", bytes), null);
+        Assert.True(tab.Doc.IsLarge);
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        Assert.False(_w.FindBar.StopButton.IsVisible);
+        _w.FindBar.RegexToggle.IsChecked = true;
+        Query(@"items/\d+");
+        Assert.True(_w.FindIsRunning);
+        Assert.True(_w.FindBar.StopButton.IsVisible);
+        var run = _w.FindRun!;
+
+        long t0 = Stopwatch.GetTimestamp();
+        _w.FindBar.StopButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.False(_w.FindIsRunning);
+        Assert.False(_w.FindBar.StopButton.IsVisible);
+        Assert.Equal(Loc.Get(K.ResultsCancelled), _w.FindBar.CountText.Text);
+        Assert.Same(run.Completion, await Task.WhenAny(run.Completion, Task.Delay(1000)));
+        Assert.True(Stopwatch.GetElapsedTime(t0).TotalMilliseconds <= 1000, "the worker must end within a second of the cancel");
+
+        TestApp.Press(_w, Key.F3); // a stopped search has no matches to step through, so the next step searches again
+        Assert.NotSame(run, _w.FindRun);
+        await Settle(() => !_w.FindIsRunning, 30_000);
     }
 
     [AvaloniaFact]
