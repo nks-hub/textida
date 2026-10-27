@@ -178,7 +178,8 @@ commands: nks.remote.exportConnections, nks.remote.importConnections
 commands: nks.remote.proxy
 1. Wählen Sie Datei und dann Remotedateien und dann Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
 2. Geben Sie Server und Port ein, bei Bedarf auch Benutzername und Passwort des Proxys. Das Passwort kommt in den Anmeldeinformationsspeicher.
-- Der Proxy wird für FTPS und SFTP verwendet. Eine Verbindung mit eigenem Proxy behält ihn.
+- Der Proxy wird für FTPS, SFTP, die Update-Prüfung und die Anfragen verwendet, die Plugins über den Editor senden (Berechtigung network). Eine Verbindung mit eigenem Proxy behält ihn.
+- Ein Plugin, das selbst eine Verbindung öffnet, umgeht den Proxy. Abfragen bei Paketregistern verwenden den Proxy, aber keinen mit Benutzernamen.
 - SOCKS4 funktioniert nur für SFTP. Für FTPS nehmen Sie SOCKS5 oder HTTP.
 - Jeder andere Proxytyp wird mit einer Meldung abgelehnt.
 

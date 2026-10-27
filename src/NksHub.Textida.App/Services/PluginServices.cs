@@ -72,6 +72,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     public UiApi UiApi { get; }
     internal PluginPermissions Permissions { get; } = new();
 
+    /// <summary><c>net/request</c> of the plugins (P5.4.4): the requests go out with the handler of the network policy, read for each one.</summary>
+    internal PluginNetwork Network { get; }
+
     /// <summary>The plugins that come with the editor: id and name.</summary>
     internal static IReadOnlyList<(string Id, string Name)> BuiltIns { get; } =
     [
@@ -116,6 +119,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
             PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
         app.Workbench.SettingChanged += OnSettingChanged;
+
+        Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimitsPlaceholders.Network(), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
+        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync), ("net/", Network.HandleAsync)), Documents);
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
@@ -200,8 +206,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
             [GitActivation], gitFolder));
 
-        // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get
+        // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
         permissions.Grant(WikiPluginId, DocumentPermissions.Source, GrantScope.All);
+        permissions.Grant(WikiPluginId, PluginPermissionNames.Network, GrantScope.All);
         var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "wiki");
         var wikiProgram = Path.Combine(wikiFolder, "NksHub.Textida.Plugins.Wiki" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WikiPluginId, "NKS IS wiki", wikiProgram,

@@ -179,7 +179,8 @@ commands: nks.remote.exportConnections, nks.remote.importConnections
 commands: nks.remote.proxy
 1. Zvolte Soubor a pak Vzdálené soubory a pak Síťová proxy a vyberte HTTP, SOCKS4, SOCKS5 nebo žádnou proxy.
 2. Zadejte server a port, a podle potřeby uživatele a heslo proxy. Heslo se uloží do systémové klíčenky.
-- Proxy se používá pro FTPS a SFTP. Připojení, které má vlastní proxy, si ji ponechá.
+- Proxy se používá pro FTPS, SFTP, kontrolu aktualizací a požadavky, které pluginy posílají přes editor (oprávnění network). Připojení, které má vlastní proxy, si ji ponechá.
+- Plugin, který si spojení otevře sám, proxy obejde. Dotazy do registrů balíčků proxy použijí, ale ne proxy s uživatelským jménem.
 - SOCKS4 funguje jen pro SFTP. Pro FTPS použijte SOCKS5 nebo HTTP.
 - Jiný typ proxy program odmítne se zprávou.
 

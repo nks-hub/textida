@@ -260,6 +260,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: events a plugin may have sent to it and not handled yet before the editor holds its document events back. OPEN: the owner has not decided it.</summary>
     public const int EventWindow = 32;
 
+    /// <summary>Placeholder, OPEN: time one <c>net/request</c> of a plugin may take, answer included. The owner has not decided it.</summary>
+    public const int NetworkTimeoutMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: largest answer body of one <c>net/request</c>. It travels base64 encoded, so it stays well under the 4 MiB message limit of <see cref="Host"/>. The owner has not decided it.</summary>
+    public const int NetworkMaxResponseBytes = 2 << 20;
+
+    public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
+
     public static PluginHostOptions Host() => new()
     {
         EventWindow = EventWindow,
