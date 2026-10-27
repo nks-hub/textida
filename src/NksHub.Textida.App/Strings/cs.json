@@ -1197,7 +1197,7 @@
   "mcp.agents.tryStart": "Spustit",
   "mcp.agents.detailCommand": "Příkaz: {command}",
   "mcp.agents.detailFolder": "Složka: {folder}",
-  "mcp.agents.resultOk": "{name} funguje. Nástrojů: {count}. Protokol: {version}.",
+  "mcp.agents.resultOk": "{name} funguje. Nástrojů: {tools}. Protokol: {version}.",
   "mcp.agents.resultFailed": "{name} se nepodařilo vyzkoušet: {reason}",
   "mcp.agents.converted": "Úryvek pro {agent} ({file}) je v nové kartě. Hodnoty jsou nahrazené ***; do žádného souboru se nezapsalo.",
   "mcp.agents.convertInvalid": "Úryvek pro {agent} neprošel kontrolou formátu: {reason}",

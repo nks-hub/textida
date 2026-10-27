@@ -107,7 +107,7 @@ internal sealed partial class MainWindow
             await using var client = await Client.StartAsync(launch, options, line => _app.Output.Append(OutputChannel.Tasks, source, line), timeout.Token);
             var tools = await client.ListToolsAsync(timeout.Token);
             result = [.. tools.Select(t => t.Name)];
-            message = Loc.Get(K.McpAgentsResultOk, ("name", entry.Name), ("count", tools.Count.ToString()), ("version", client.ProtocolVersion));
+            message = Loc.Get(K.McpAgentsResultOk, ("name", entry.Name), ("tools", tools.Count.ToString()), ("version", client.ProtocolVersion));
         }
         catch (McpServerExitedException e)
         {

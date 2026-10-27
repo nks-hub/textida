@@ -1170,7 +1170,7 @@
   "mcp.agents.tryStart": "Starten",
   "mcp.agents.detailCommand": "Befehl: {command}",
   "mcp.agents.detailFolder": "Ordner: {folder}",
-  "mcp.agents.resultOk": "{name} funktioniert. Tools: {count}. Protokoll: {version}.",
+  "mcp.agents.resultOk": "{name} funktioniert. Tools: {tools}. Protokoll: {version}.",
   "mcp.agents.resultFailed": "{name} ließ sich nicht ausprobieren: {reason}",
   "mcp.agents.converted": "Ausschnitt für {agent} ({file}) steht in einem neuen Tab. Werte sind als *** ersetzt; in keine Datei wurde geschrieben.",
   "mcp.agents.convertInvalid": "Der Ausschnitt für {agent} besteht die Formatprüfung nicht: {reason}",

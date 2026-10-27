@@ -128,7 +128,7 @@ public class McpAgentsAppTests : IDisposable
         await WaitForChoiceAsync("the list again", 3);
 
         var result = _dialogs.Asked[1];
-        Assert.Equal(Loc.Get(K.McpAgentsResultOk, ("name", "fake"), ("count", "5"), ("version", "2026-07-28")), result.Message);
+        Assert.Equal(Loc.Get(K.McpAgentsResultOk, ("name", "fake"), ("tools", "5"), ("version", "2026-07-28")), result.Message);
         Assert.Equal(["echo", "slow", "crash", "env", "secret"], result.Details);
         Assert.True(File.Exists(_marker));
         var lines = _app.Output.Read(OutputChannel.Tasks);
@@ -223,7 +223,7 @@ public class McpAgentsAppTests : IDisposable
         await Until(() => _dialogs.Asked.Count == 2, "the result");
         Assert.Contains("TEST_SECRET=***", _dialogs.Asked[0].Details!); // the value came from the store and is shown hidden, as the start will use it
         Assert.DoesNotContain(_dialogs.Asked.SelectMany(a => a.Details ?? []).Append(_dialogs.Asked[1].Message), s => s.Contains(Secret));
-        Assert.Equal(Loc.Get(K.McpAgentsResultOk, ("name", "viaStore"), ("count", "5"), ("version", "2026-07-28")), _dialogs.Asked[1].Message);
+        Assert.Equal(Loc.Get(K.McpAgentsResultOk, ("name", "viaStore"), ("tools", "5"), ("version", "2026-07-28")), _dialogs.Asked[1].Message);
         await WaitForChoiceAsync("the list again", 1);
         _w.ClosePalette();
         await Until(() => _w.McpTask.IsCompleted, "the list to end");

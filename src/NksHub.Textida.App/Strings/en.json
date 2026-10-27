@@ -1170,7 +1170,7 @@
   "mcp.agents.tryStart": "Start",
   "mcp.agents.detailCommand": "Command: {command}",
   "mcp.agents.detailFolder": "Folder: {folder}",
-  "mcp.agents.resultOk": "{name} works. Tools: {count}. Protocol: {version}.",
+  "mcp.agents.resultOk": "{name} works. Tools: {tools}. Protocol: {version}.",
   "mcp.agents.resultFailed": "{name} could not be tried: {reason}",
   "mcp.agents.converted": "Snippet for {agent} ({file}) is in a new tab. Values are shown as ***; nothing was written to any file.",
   "mcp.agents.convertInvalid": "The snippet for {agent} does not pass the format check: {reason}",
