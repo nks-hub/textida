@@ -44,6 +44,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     private const string FormattersActivation = "onCommand:formatters";
     public const string GitPluginId = "textida.git";
     private const string GitActivation = "onCommand:git";
+    /// <summary>The panel of the Git status; its items are the full paths of the files, a click opens the file.</summary>
+    public const string GitStatusPanel = "git:status";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -175,8 +177,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         foreach (var argument in PluginLimitsPlaceholders.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
         _host.Register(new PluginSpec(FormattersPluginId, "Formatters", formattersProgram, formattersArguments, [FormattersActivation], formattersFolder));
 
-        // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk
-        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual })
+        // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk,
+        // and edits the document only when the user takes a side of a merge conflict
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual, DocumentPermissions.EditDirect })
             permissions.Grant(GitPluginId, permission, GrantScope.All);
         var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
         var gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
@@ -287,7 +290,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     // ---- Git: status, diff against the index and HEAD, stage the hunk at the caret ----
 
-    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>) for the file of the tab. False when nothing was started.</summary>
+    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>, <c>git.unstageHunk</c>, <c>git.conflictOurs</c>, <c>git.conflictTheirs</c>, <c>git.conflictBoth</c>, <c>git.markResolved</c>) for the file of the tab. False when nothing was started.</summary>
     public async Task<bool> RunGitAsync(MainWindow window, DocTab tab, string command)
     {
         var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");

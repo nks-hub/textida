@@ -56,7 +56,12 @@ public class GitPluginTests
             File.WriteAllBytes(PathOf(name), Encoding.UTF8.GetBytes(content));
         }
 
-        public string Run(params string[] args)
+        public string Run(params string[] args) => Execute(args, true);
+
+        /// <summary>Runs git and does not fail on a non-zero exit (a merge that ends in a conflict).</summary>
+        public string RunAllowFailure(params string[] args) => Execute(args, false);
+
+        string Execute(string[] args, bool mustSucceed)
         {
             var info = new ProcessStartInfo("git") { WorkingDirectory = Dir, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
             foreach (var a in args) info.ArgumentList.Add(a);
@@ -64,7 +69,7 @@ public class GitPluginTests
             var output = p.StandardOutput.ReadToEndAsync();
             var error = p.StandardError.ReadToEndAsync();
             p.WaitForExit();
-            Assert.True(p.ExitCode == 0, $"git {string.Join(' ', args)}: {error.Result}");
+            Assert.True(!mustSucceed || p.ExitCode == 0,$"git {string.Join(' ', args)}: {error.Result}");
             return output.Result;
         }
 
@@ -94,6 +99,7 @@ public class GitPluginTests
             var permissions = new PluginPermissions();
             permissions.Grant("git", DocumentPermissions.Read, GrantScope.All);
             permissions.Grant("git", DocumentPermissions.Virtual, GrantScope.All);
+            permissions.Grant("git", DocumentPermissions.EditDirect, GrantScope.All);
             var docs = new DocumentApi(new DocumentApiOptions
             {
                 MaxReadBytes = 1 << 16, MaxFindMatches = maxFind, MaxSnapshotsPerPlugin = 2, SnapshotLifetime = TimeSpan.FromSeconds(10),
@@ -118,11 +124,11 @@ public class GitPluginTests
             return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
         }
 
-        public string VirtualText(int n)
-        {
-            var d = Tools.Virtuals[n].Document;
-            return Encoding.UTF8.GetString(d.GetSnapshot().ReadBytes(new ByteRange(0, d.ByteLength)));
-        }
+        public string VirtualText(int n) => TextOf(Tools.Virtuals[n].Document);
+
+        public string TreeText() => TextOf(Doc);
+
+        static string TextOf(Document d) => Encoding.UTF8.GetString(d.GetSnapshot().ReadBytes(new ByteRange(0, d.ByteLength)));
 
         public async ValueTask DisposeAsync()
         {
@@ -173,17 +179,17 @@ public class GitPluginTests
         Assert.Equal(before, File.ReadAllBytes(indexFile));
         var panel = rig.Ui.Panels[^1];
         Assert.Equal(GitPlugin.StatusPanel, panel.Id);
-        Assert.Contains(panel.Items, i => i.Id == "a.txt" && i.Detail == "In tree: modified");
-        Assert.Contains(panel.Items, i => i.Id == "b.txt" && i.Detail == "Staged: modified");
-        Assert.Contains(panel.Items, i => i.Id == "new one.txt" && i.Detail == "untracked");
+        Assert.Contains(panel.Items, i => i.Label == "a.txt" && i.Detail == "In tree: modified");
+        Assert.Contains(panel.Items, i => i.Label == "b.txt" && i.Detail == "Staged: modified");
+        Assert.Contains(panel.Items, i => i.Label == "new one.txt" && i.Detail == "untracked");
 
         // another program changes the repository: the next run shows it
         repo.Write("sub/d.txt", "d2\n");
         repo.Run("add", "a.txt");
         Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
         Assert.Equal(Expected(repo), Shown(rig));
-        Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Id == "sub/d.txt");
-        Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Id == "a.txt" && i.Detail == "Staged: modified");
+        Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Label == "sub/d.txt");
+        Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Label == "a.txt" && i.Detail == "Staged: modified");
     }
 
     static string[] Expected(Repo repo)
@@ -198,7 +204,7 @@ public class GitPluginTests
         return [.. paths.Order()];
     }
 
-    static string[] Shown(Rig rig) => [.. rig.Ui.Panels[^1].Items.Select(i => i.Id).Order()];
+    static string[] Shown(Rig rig) => [.. rig.Ui.Panels[^1].Items.Select(i => i.Label).Order()];
 
     [Fact]
     public async Task A_clean_tree_and_a_file_outside_a_repository_are_said_so()
@@ -335,5 +341,169 @@ public class GitPluginTests
 
         Assert.Equal("n[1].txt\n", repo.Run("diff", "--cached", "--name-only"));
         Assert.Equal("one\ntwo\n", repo.Run("show", ":n[1].txt"));
+    }
+
+    [Fact]
+    public async Task Unstaging_one_of_two_staged_hunks_takes_back_only_that_hunk()
+    {
+        using var repo = new Repo(("f.txt", Original));
+        var tree = ThreeChanges();
+        repo.Write("f.txt", tree);
+        await using var rig = await Rig.CreateAsync(repo.PathOf("f.txt"), Offset(tree, "L2"));
+        Assert.Equal("staged", await rig.RunAsync(GitPlugin.StageHunkCommand));
+        rig.Caret = Offset(tree, "L6");
+        Assert.Equal("staged", await rig.RunAsync(GitPlugin.StageHunkCommand));
+        Assert.Equal(Numbered(12, i => i is 2 or 6 ? "L" + i : null), repo.Run("show", ":f.txt"));
+
+        Assert.Equal("unstaged", await rig.RunAsync(GitPlugin.UnstageHunkCommand));
+
+        Assert.Equal(Numbered(12, i => i == 2 ? "L2" : null), repo.Run("show", ":f.txt"));
+        var cached = repo.Run("diff", "--cached", "-U0", "--no-color");
+        Assert.Equal(1, cached.Split('\n').Count(l => l.StartsWith("@@ ")));
+        Assert.Contains("-l2\n+L2\n", cached);
+        Assert.Equal(tree, File.ReadAllText(repo.PathOf("f.txt")));
+        Assert.Contains((NoticeLevel.Info, "Hunk 2 of f.txt is removed from the index."), rig.Ui.Notices);
+
+        // a caret in a change that is not staged, and one outside every change, take nothing back
+        rig.Caret = Offset(tree, "L11");
+        Assert.Equal("noStagedHunk", await rig.RunAsync(GitPlugin.UnstageHunkCommand));
+        rig.Caret = Offset(tree, "l8");
+        Assert.Equal("noStagedHunk", await rig.RunAsync(GitPlugin.UnstageHunkCommand));
+        Assert.Equal(Numbered(12, i => i == 2 ? "L2" : null), repo.Run("show", ":f.txt"));
+    }
+
+    [Fact]
+    public async Task Unstaging_the_only_hunk_of_a_new_file_takes_the_file_out_of_the_index()
+    {
+        using var repo = new Repo(("keep.txt", "k\n"));
+        repo.Write("new.txt", "one\ntwo\n");
+        await using var rig = await Rig.CreateAsync(repo.PathOf("new.txt"), 1);
+        Assert.Equal("staged", await rig.RunAsync(GitPlugin.StageHunkCommand));
+        Assert.Equal("new.txt\n", repo.Run("diff", "--cached", "--name-only"));
+
+        Assert.Equal("unstaged", await rig.RunAsync(GitPlugin.UnstageHunkCommand));
+
+        Assert.Equal("", repo.Run("diff", "--cached", "--name-only"));
+        Assert.Equal("?? new.txt\n", repo.Run("status", "--porcelain=v1"));
+    }
+
+    [Fact]
+    public void A_caret_is_moved_from_the_tree_to_the_index_by_the_changes_before_it()
+    {
+        // index -> tree: 2 bytes replaced by 5 at 10..12 (tree 10..15), 4 bytes removed at 30 (tree 33), 3 bytes added at 50 (tree 53..56)
+        HunkPair[] hunks = [new(0, 10, 12, 10, 15), new(1, 30, 34, 33, 33), new(2, 50, 50, 53, 56)];
+        Assert.Equal(5, Hunks.ToLeft(hunks, 5));
+        Assert.Equal(10, Hunks.ToLeft(hunks, 12));   // inside a change: where it started
+        Assert.Equal(12, Hunks.ToLeft(hunks, 15));   // after it: 3 bytes less
+        Assert.Equal(30, Hunks.ToLeft(hunks, 33));   // where lines were removed
+        Assert.Equal(40, Hunks.ToLeft(hunks, 39));   // after both: 3 less and 4 more, one more in all
+        Assert.Equal(50, Hunks.ToLeft(hunks, 54));   // inside the added bytes
+    }
+
+    [Fact]
+    public void Conflict_blocks_are_found_with_the_ranges_of_both_sides()
+    {
+        var text = "a\n<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> other\nb\n<<<<<<< HEAD\r\nx\r\n||||||| base\r\ny\r\n=======\r\nz\r\n>>>>>>> other\r\nc\n<<<<<<< open\nq\n=======\n";
+        var bytes = Encoding.UTF8.GetBytes(text);
+        var blocks = Conflicts.Find(bytes);
+        Assert.Equal(2, blocks.Count); // the last one is not closed
+        string Slice(long s, long e) => text[(int)s..(int)e];
+        Assert.Equal("ours\n", Slice(blocks[0].OursStart, blocks[0].OursEnd));
+        Assert.Equal("theirs\n", Slice(blocks[0].TheirsStart, blocks[0].TheirsEnd));
+        Assert.Equal("<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> other\n", Slice(blocks[0].Start, blocks[0].End));
+        Assert.Equal("x\r\n", Slice(blocks[1].OursStart, blocks[1].OursEnd));
+        Assert.Equal("z\r\n", Slice(blocks[1].TheirsStart, blocks[1].TheirsEnd));
+        Assert.Same(blocks[0], Conflicts.At(blocks, blocks[0].Start));
+        Assert.Same(blocks[0], Conflicts.At(blocks, blocks[0].End - 1));
+        Assert.Null(Conflicts.At(blocks, blocks[0].End));
+        Assert.Null(Conflicts.At(blocks, 0));
+        Assert.Empty(Conflicts.Find("# Title\n=======\ntext\n"u8));
+    }
+
+    /// <summary>A repository whose merge stopped on one conflicting line.</summary>
+    static Repo ConflictRepo()
+    {
+        var repo = new Repo(("c.txt", "a\nb\nc\n"));
+        var main = repo.Run("branch", "--show-current").Trim();
+        repo.Run("checkout", "-q", "-b", "other");
+        repo.Write("c.txt", "a\ntheirs\nc\n");
+        repo.Run("commit", "-q", "-am", "other");
+        repo.Run("checkout", "-q", main);
+        repo.Write("c.txt", "a\nours\nc\n");
+        repo.Run("commit", "-q", "-am", "ours");
+        repo.RunAllowFailure("merge", "other");
+        return repo;
+    }
+
+    [Theory]
+    [InlineData(GitPlugin.ConflictOursCommand, "a\nours\nc\n")]
+    [InlineData(GitPlugin.ConflictTheirsCommand, "a\ntheirs\nc\n")]
+    [InlineData(GitPlugin.ConflictBothCommand, "a\nours\ntheirs\nc\n")]
+    public async Task A_side_of_the_conflict_block_at_the_caret_replaces_the_block(string command, string expected)
+    {
+        using var repo = ConflictRepo();
+        var text = File.ReadAllText(repo.PathOf("c.txt"));
+        Assert.Contains("<<<<<<<", text);
+        await using var rig = await Rig.CreateAsync(repo.PathOf("c.txt"), Offset(text, "theirs"));
+
+        Assert.Equal("resolved", await rig.RunAsync(command));
+
+        Assert.Equal(expected, rig.TreeText());
+        Assert.Equal(text, File.ReadAllText(repo.PathOf("c.txt"))); // the file is saved by the user, not by the plugin
+
+        rig.Caret = 0; // no block there any more
+        Assert.Equal("noConflictMarkers", await rig.RunAsync(command));
+    }
+
+    [Fact]
+    public async Task A_caret_outside_every_conflict_block_changes_nothing()
+    {
+        using var repo = ConflictRepo();
+        var text = File.ReadAllText(repo.PathOf("c.txt"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("c.txt"), 0);
+        Assert.Equal("noConflictMarkers", await rig.RunAsync(GitPlugin.ConflictBothCommand));
+        Assert.Equal(text, rig.TreeText());
+    }
+
+    [Fact]
+    public async Task Mark_resolved_needs_no_markers_and_a_saved_file_and_then_clears_the_conflict_in_the_index()
+    {
+        using var repo = ConflictRepo();
+        Assert.NotEqual("", repo.Run("ls-files", "-u"));
+        var text = File.ReadAllText(repo.PathOf("c.txt"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("c.txt"), Offset(text, "ours"));
+        Assert.Equal("markersLeft", await rig.RunAsync(GitPlugin.MarkResolvedCommand));
+        Assert.NotEqual("", repo.Run("ls-files", "-u"));
+
+        Assert.Equal("resolved", await rig.RunAsync(GitPlugin.ConflictBothCommand));
+        Assert.Equal("unsaved", await rig.RunAsync(GitPlugin.MarkResolvedCommand));
+        Assert.NotEqual("", repo.Run("ls-files", "-u"));
+
+        repo.Write("c.txt", rig.TreeText());
+        Assert.Equal("markedResolved", await rig.RunAsync(GitPlugin.MarkResolvedCommand));
+        Assert.Equal("", repo.Run("ls-files", "-u"));
+        Assert.Equal("a\nours\ntheirs\nc\n", repo.Run("show", ":c.txt"));
+        Assert.Equal("notInConflict", await rig.RunAsync(GitPlugin.MarkResolvedCommand));
+    }
+
+    [Fact]
+    public async Task The_status_panel_opens_files_by_full_path_and_the_status_bar_follows_the_repository()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("sub/b.txt", "b\n"));
+        var branch = repo.Run("branch", "--show-current").Trim();
+        repo.Write("a.txt", "a2\n");
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        var root = repo.Run("rev-parse", "--show-toplevel").Trim();
+        Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Label == "a.txt" && System.IO.Path.GetFullPath(i.Id) == System.IO.Path.GetFullPath(System.IO.Path.Combine(root, "a.txt")));
+        Assert.Equal($"{branch} ~1", rig.Ui.Statuses[^1]!.Text);
+        Assert.Contains($"branch {branch}", rig.Ui.Statuses[^1]!.Tooltip!);
+
+        repo.Run("add", "a.txt");
+        repo.Write("sub/b.txt", "b2\n");
+        repo.Write("new.txt", "n\n");
+        Assert.Equal("opened", await rig.RunAsync(GitPlugin.DiffHeadCommand));
+        Assert.Equal($"{branch} +1 ~1 ?1", rig.Ui.Statuses[^1]!.Text);
     }
 }

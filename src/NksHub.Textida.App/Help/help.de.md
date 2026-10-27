@@ -1158,14 +1158,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
 
 ## [tools.git] Git: Status, Vergleich und Abschnitt vormerken
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Führen Sie den Befehl erneut aus, wenn sich das Repository von außen ändert.
 2. Git: Mit Index vergleichen und Git: Mit HEAD vergleichen öffnen einen Vergleichs-Tab des offenen Textes mit seiner Version im Index oder in HEAD. Die Abschnitte sind dieselben wie in `git diff`.
 3. Git: Abschnitt am Cursor vormerken schreibt nur die Änderung in den Index, in der der Cursor steht. Die übrigen Änderungen der Datei bleiben nur im Arbeitsbaum. Die Datei auf der Festplatte wird nicht verändert.
 4. Hat ein anderes Programm den Index inzwischen geändert, wird nichts geschrieben. Das Plugin liest den Index neu und meldet einen Konflikt; prüfen Sie die Änderungen und wiederholen Sie den Befehl.
 - Das Plugin schreibt nur bei Git: Abschnitt am Cursor vormerken in das Repository. Status und Vergleich lesen nur und erneuern nicht einmal die Indexdatei.
 - Vorgemerkt wird der im Editor offene Text, gespeichert oder nicht. Eine Datei mit ungelöstem Merge-Konflikt wird nicht vorgemerkt.
-- Noch nicht vorhanden: Abschnitt zurücknehmen, Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
+5. Git: Abschnitt am Cursor aus dem Index nehmen nimmt nur die vorgemerkte Änderung, in der der Cursor steht (oder auf die er in der Datei zeigt), nach HEAD zurück. Die übrigen vorgemerkten Änderungen bleiben.
+6. Setzen Sie bei einem Merge-Konflikt den Cursor in den Block zwischen `<<<<<<<` und `>>>>>>>` und wählen Sie Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen. Der Block wird durch die gewählte Seite ersetzt. Ist kein Block mehr übrig und die Datei gespeichert, wählen Sie Git: Datei als gelöst markieren; die Datei wird im Index vorgemerkt.
+7. Doppelklick oder Enter auf eine Datei im Statuspanel öffnet sie. Die Statusleiste zeigt den Branch und Zähler: `+` vorgemerkt, `~` geändert, `?` nicht verfolgt, `!` Konflikte; sie wird nach jedem Git-Befehl aktualisiert.
+- Noch nicht vorhanden: Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
 - Der Git-Prozess startet mit dem ersten Befehl. Das Programm `git` muss im PATH liegen.
 
 ## [tools.lsp] Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose

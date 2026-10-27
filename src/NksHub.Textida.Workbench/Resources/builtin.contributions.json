@@ -1351,6 +1351,41 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.unstageHunk",
+      "title": "cmd.git.unstageHunk",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictOurs",
+      "title": "cmd.git.conflictOurs",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictTheirs",
+      "title": "cmd.git.conflictTheirs",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictBoth",
+      "title": "cmd.git.conflictBoth",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.markResolved",
+      "title": "cmd.git.markResolved",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -3124,6 +3159,41 @@
       "group": "3_code/08_9_git",
       "submenu": "git",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.unstageHunk",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictOurs",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictTheirs",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictBoth",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.markResolved",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 90
     },
     {
       "menu": "tools",
