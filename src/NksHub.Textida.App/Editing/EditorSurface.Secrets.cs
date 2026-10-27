@@ -73,7 +73,14 @@ internal sealed partial class EditorSurface
         Options.EnableTextDragDrop = !SecretsHidden; // dragging a selection out would carry the plain text
         TextArea.TextView.Redraw();
         _contentChanged?.Invoke();
+        SecretsViewChanged?.Invoke();
     }
+
+    /// <summary>The value shown in plain because the pointer rests on it, or null.</summary>
+    internal SecretSpan? SecretShown => _secretMask?.Shown;
+
+    /// <summary>Values were hidden or shown (the switch, the name of the file, a value under the pointer); the accessibility text follows.</summary>
+    internal event Action? SecretsViewChanged;
 
     private void RestOnSecret(PointerEventArgs e)
     {
@@ -95,6 +102,7 @@ internal sealed partial class EditorSurface
         _secretMask.Shown = next;
         foreach (var span in new[] { previous, next })
             if (span is { } s) TextArea.TextView.Redraw(s.Start, s.Length);
+        SecretsViewChanged?.Invoke();
     }
 
     /// <summary>

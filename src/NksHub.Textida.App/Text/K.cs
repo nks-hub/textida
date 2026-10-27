@@ -658,6 +658,7 @@ public static class K
     public const string ClipSaveTooLong = "clips.save.tooLong";
     public const string ClipSaveTooLarge = "clips.save.tooLarge";
     public const string ClipSaveFailed = "clips.save.failed";
+    public const string SecretHiddenValue = "secrets.hiddenValue";
     public const string PluginSecretsTitle = "plugin.secrets.title";
     public const string PluginSecretsMessage = "plugin.secrets.message";
     public const string KeyPathTip = "key.path.tip";

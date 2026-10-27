@@ -9,7 +9,9 @@ using AvaloniaEdit.Rendering;
 using NksHub.Textida.Accessibility;
 using NksHub.Textida.Accessibility.MacOS;
 using NksHub.Textida.Accessibility.Windows;
+using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -24,6 +26,8 @@ internal sealed class EditorTextSurface : DocumentTextSurface
     public EditorTextSurface(EditorSurface editor) : base(editor.Doc.Doc)
     {
         _editor = editor;
+        RefreshMask(); // the base built the text before the editor was known
+        editor.SecretsViewChanged += OnSecretsViewChanged;
         editor.TextArea.Caret.PositionChanged += OnEditorSelection;
         editor.TextArea.SelectionChanged += OnEditorSelection;
         editor.TextArea.GotFocus += OnEditorFocus;
@@ -41,10 +45,27 @@ internal sealed class EditorTextSurface : DocumentTextSurface
     // Runs after the base class has reloaded the text, so the caret that moved with the edit is read against the new text.
     private void OnDocumentEdited(object? sender, DocumentChangedEventArgs e) => SyncSelection();
 
+    protected override bool MaskSecrets => _editor is { SecretsHidden: true };
+    protected override SecretSpan? RevealedSecret => _editor?.SecretShown;
+    protected override string HiddenMarker => Loc.Get(K.SecretHiddenValue);
+
+    private void OnSecretsViewChanged()
+    {
+        RefreshMask();
+        SyncSelection();
+    }
+
     private void SyncSelection()
     {
         var sel = _editor.GetSelections()[0];
-        Select(sel.Anchor, sel.Caret);
+        if (sel.Caret == sel.Anchor)
+        {
+            int at = ToShown(sel.Caret);
+            Select(at, at);
+            return;
+        }
+        bool forward = sel.Caret > sel.Anchor;
+        Select(ToShown(sel.Anchor, !forward), ToShown(sel.Caret, forward));
     }
 
     public override bool IsReadOnly => _editor.IsReadOnly;
@@ -55,6 +76,9 @@ internal sealed class EditorTextSurface : DocumentTextSurface
     {
         start = Math.Clamp(start, 0, Length);
         length = Math.Clamp(length, 0, Length - start);
+        int end = ToDocument(start + length);
+        start = ToDocument(start);
+        length = end - start;
         if (length == 0)
         {
             _editor.TextArea.ClearSelection();
@@ -93,7 +117,8 @@ internal sealed class EditorTextSurface : DocumentTextSurface
             if (lines.Count == 0) return default;
             int start = lines[0].FirstDocumentLine.Offset;
             var last = lines[^1].LastDocumentLine;
-            return new(start, Math.Min(Length, last.Offset + last.TotalLength) - start);
+            int from = ToShown(start);
+            return new(from, Math.Min(Length, ToShown(last.Offset + last.TotalLength, true)) - from);
         }
     }
 
@@ -103,8 +128,10 @@ internal sealed class EditorTextSurface : DocumentTextSurface
         var lines = ShownLines();
         if (lines.Count == 0) return [];
         var doc = _editor.Document;
+        int end = ToDocument(start + length);
+        start = ToDocument(start);
         var from = doc.GetLocation(start);
-        var to = doc.GetLocation(start + length);
+        var to = doc.GetLocation(end);
         int firstShown = lines[0].FirstDocumentLine.LineNumber, lastShown = lines[^1].LastDocumentLine.LineNumber;
         var scroll = view.ScrollOffset;
         var rects = new List<ScreenRect>();
@@ -128,17 +155,18 @@ internal sealed class EditorTextSurface : DocumentTextSurface
         double unit = PixelsPerUnit;
         var local = view.PointToClient(new PixelPoint((int)Math.Round(x * unit), (int)Math.Round(y * unit)));
         if (!new Rect(view.Bounds.Size).Contains(local) || view.GetPosition(local) is not { } position) return -1;
-        return _editor.Document.GetOffset(position.Location);
+        return ToShown(_editor.Document.GetOffset(position.Location));
     }
 
     public override void ScrollIntoView(int start, int length, bool alignToTop)
     {
-        var at = _editor.Document.GetLocation(start);
+        var at = _editor.Document.GetLocation(ToDocument(start));
         _editor.ScrollTo(at.Line, at.Column);
     }
 
     public override void Dispose()
     {
+        _editor.SecretsViewChanged -= OnSecretsViewChanged;
         _editor.TextArea.Caret.PositionChanged -= OnEditorSelection;
         _editor.TextArea.SelectionChanged -= OnEditorSelection;
         _editor.TextArea.GotFocus -= OnEditorFocus;
