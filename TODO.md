@@ -1714,6 +1714,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 - [ ] **P5.3.1** Místní historie souborů: ukládání revizí, diff a obnova
   - **Co a proč:** Revize každého uložení i změny zvenku, diff a obnova celého souboru nebo úseku. Bez projektu a Gitu. Trvalé úložiště s migrací formátu, které aktualizace editoru nesmaže. Je to základ revize změn F178 v P6. Retence je v P5.3.2, štítky a hledání v P5.3.3.
   - **Funkce:** F172
+  - **Stav 26. 10. 2026:** částečně: revize jako soubor s vlastními metadaty (bez sdíleného indexu, pád při zápisu nechá nejvýš sirotka, kterého další přístup uklidí), značka verze (historie z novějšího editoru se odmítne beze změny), kontrola hashe při čtení; ukládají se uložení, změny zvenku a stav při prvním otevření; obnova celého souboru jako krok undo, obnova výběru mění jen vybrané řádky; porovnání s revizí přes stávající `ExternalDiff.Compare`. Soubory ve stránkovaném režimu se do historie neukládají (bez rozhodnutého stropu velikosti by se kopírovaly celé), příkazy historie jsou v něm zakázané. Pád simulovaný v procesu, ne harness; UI neověřeno.
   - **Hotovo, když:** každou zachovanou revizi jde obnovit, i po restartu a po aktualizaci editoru; změna zvenku se zapíše jako revize; obnova úseku změní jen ten úsek.
   - **Závisí na:** P5.2.1, P1.2.3
   - **Odhad:** F172 3–5 ČT (matice) za P5.3.1–P5.3.3
@@ -1721,13 +1722,15 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 - [ ] **P5.3.2** Retence historie a připnuté revize
   - **Co a proč:** Délka a limit velikosti jsou nastavitelné. Kvóta nesmí zničit možnost vrátit nevyřízenou změnu: revize, která je základem nevyřízené revize změn F178, je připnutá a retence ji nesmaže.
   - **Funkce:** F172 (částečně: retence)
+  - **Stav 26. 10. 2026:** částečně: limity počtu, stáří, velikosti na soubor a celkové velikosti; nejnovější a připnutá revize se nesmažou ani při nesplnitelné kvótě; plný disk se ohlásí a starší revize zůstanou. Otevřené: výchozí hodnoty limitů (dnes 0 = bez limitu) a strop velikosti souboru; připnutí jen jako API bez UI.
   - **Hotovo, když:** překročení limitu smaže nejstarší nepřipnuté revize podle nastavení; připnutý základ nevyřízené revize F178 zůstane i při dosažení kvóty; nedostatek místa na disku se ohlásí a žádnou revizi nepoškodí.
   - **Závisí na:** P5.3.1
   - **Odhad:** v rámci F172 (viz P5.3.1)
   - **Umístění:** jádro
-- [ ] **P5.3.3** Štítky a hledání v revizích
+- [x] **P5.3.3** Štítky a hledání v revizích
   - **Co a proč:** Štítek u revize a hledání textu ve starších revizích souboru.
   - **Funkce:** F172 (částečně: štítky a hledání)
+  - **Stav 26. 10. 2026:** hotovo: štítky s filtrem, hledání v revizích stávajícím vyhledávačem najde text jen ve starší revizi a otevře ji v porovnání. Soubory s tajnými hodnotami (`.env`) se do historie neukládají ani neprohledávají (nastavení `history.storeSecretFiles` vypnuté, rozhodnutí otevřené).
   - **Hotovo, když:** revize se štítkem jde najít podle štítku; hledání najde text, který je jen ve starší revizi, a otevře ji v diffu.
   - **Závisí na:** P5.3.1
   - **Odhad:** v rámci F172 (viz P5.3.1)
