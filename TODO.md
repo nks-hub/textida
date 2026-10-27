@@ -2191,6 +2191,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Doplňování a rename s náhledem workspace edits; spouští se na vyžádání. Nad obřími soubory nedostupné. Roslyn LSP s připnutou verzí a `--telemetryLevel off`, záloha csharp-ls. Životní cyklus a synchronizace jsou v P8.5.4, navigace a diagnostika v P8.5.5.
   - **Funkce:** F157
   - **Hotovo, když:** rename v C# přes Roslyn LSP ukáže náhled všech změn a použije je jako jeden krok; doplnění s dodatečnou úpravou projde podle P8.4.2; stavový řádek ukáže „LSP: nenalezen / běží / vypnut“; ve stránkovaném režimu se LSP nespustí; síťový test PR.6.4 s běžícím LSP nezaznamená telemetrii.
+  - **Stav 27. 10. 2026:** částečně: doplňování ze serveru přes `completion/request` (`additionalTextEdits` jedním undo, stará odpověď zahozena), příkaz `nks.lsp.rename` pošle WorkspaceEdit včetně create/rename/delete přes náhled všech změn jako jednu dávku, stavový řádek „LSP: běží / nenalezen / vypnut“ ve 4 jazycích, stránkovaný soubor server nespustí; testy s testovacím serverem. Neověřeno: rename přes skutečný Roslyn LSP a síťový test PR.6.4. Rename odmítne soubor otevřený v jiné kartě mimo LSP a soubory mimo UTF-8. Kdo uděluje `workspace.files`, otevřené.
   - **Závisí na:** P8.5.4, P8.5.5, P8.4.2, P8.4.3
   - **Odhad:** F157 4–7 ČT (matice) za P8.5.1, P8.5.4 a P8.5.5
   - **Umístění:** vestavěný plugin
