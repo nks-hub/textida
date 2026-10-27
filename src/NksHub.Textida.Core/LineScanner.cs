@@ -31,6 +31,40 @@ public static class LineScanner
         return n;
     }
 
+    internal static (T Cr, T Lf) Eol<T>() where T : unmanaged => typeof(T) == typeof(byte)
+        ? ((T)(object)(byte)'\r', (T)(object)(byte)'\n')
+        : ((T)(object)'\r', (T)(object)'\n');
+
+    /// <summary>Start of the line that holds <paramref name="at"/> (a position between CR and LF belongs to the line of the CR).</summary>
+    internal static int LineStartOf<T>(ReadOnlySpan<T> text, int at) where T : unmanaged, IEquatable<T>
+    {
+        var (cr, lf) = Eol<T>();
+        int end = at > 0 && at < text.Length && text[at - 1].Equals(cr) && text[at].Equals(lf) ? at - 1 : at;
+        return text[..end].LastIndexOfAny(cr, lf) + 1;
+    }
+
+    /// <summary>End of the line that holds <paramref name="at"/>, before its terminator.</summary>
+    internal static int LineEndOf<T>(ReadOnlySpan<T> text, int at) where T : unmanaged, IEquatable<T>
+    {
+        var (cr, lf) = Eol<T>();
+        int i = text[at..].IndexOfAny(cr, lf);
+        return i < 0 ? text.Length : at + i;
+    }
+
+    /// <summary>
+    /// Terminators that end inside <c>[from, to]</c> of an ASCII-compatible text (UTF-8 bytes or chars) by the rules of this class, a CRLF
+    /// counting once at its LF. A CR at <c>to - 1</c> is not counted when the LF follows at <c>to</c>, so segments of one text add up.
+    /// </summary>
+    internal static long CountBreaks<T>(ReadOnlySpan<T> text, int from, int to) where T : unmanaged, IEquatable<T>
+    {
+        var (cr, lf) = Eol<T>();
+        var seg = text[from..to];
+        ReadOnlySpan<T> crlf = [cr, lf];
+        long n = seg.Count(lf) + seg.Count(cr) - seg.Count(crlf);
+        if (seg.Length > 0 && seg[^1].Equals(cr) && to < text.Length && text[to].Equals(lf)) n--;
+        return n;
+    }
+
     /// <summary>Index of the first terminator at or after <paramref name="from"/>, or -1. A CR at the last byte of the span counts as a terminator.</summary>
     public static int FindTerminator(ReadOnlySpan<byte> span, int from)
     {

@@ -77,12 +77,10 @@ public static class ChangeBuilder
         int cursor = 0, line = 1;
         foreach (var (cs, ce, newText) in edits)
         {
-            line += text[cursor..cs].Count('\n');
+            line += (int)LineScanner.CountBreaks(text, cursor, cs);
             cursor = cs;
-            int lineStart = text[..cs].LastIndexOf('\n') + 1;
-            int lf = text[ce..].IndexOf('\n');
-            int lineEnd = lf < 0 ? text.Length : ce + lf;
-            if (lineEnd > ce && text[lineEnd - 1] == '\r') lineEnd--;
+            int lineStart = LineScanner.LineStartOf(text, cs);
+            int lineEnd = LineScanner.LineEndOf(text, ce);
             string before = text[lineStart..cs].ToString(), after = text[ce..Math.Max(ce, lineEnd)].ToString();
             if (before.Length > ContextChars) before = before[^ContextChars..];
             if (after.Length > ContextChars) after = after[..ContextChars];
