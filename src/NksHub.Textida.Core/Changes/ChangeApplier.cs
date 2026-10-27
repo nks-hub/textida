@@ -9,18 +9,21 @@ namespace NksHub.Textida.Core.Changes;
 /// transaction (one revision, one undo step) and only when it is still at the proposal's revision; a file on disk is rewritten only
 /// when its content is still the base of the proposal, from a temporary file moved into place, with every byte outside the hunks
 /// copied verbatim and the replacement texts encoded in the file's own codec. A stale target is reported as a conflict and left alone,
-/// the others go on. Disk files are journaled (see FORMAT.md) so that an interrupted batch can be finished or rolled back
-/// (<see cref="BatchRecovery"/>). The call is synchronous and, because it edits documents, runs on the thread that owns them.
+/// the others go on. Disk files and file operations (create, rename, delete) are journaled (see FORMAT.md) before the first of them is touched, so that an interrupted batch
+/// can be finished or rolled back (<see cref="BatchRecovery"/>). The call is synchronous and, because it edits documents, runs on the thread that owns them.
 /// </summary>
 /// <param name="findDocument">Resolves the document a proposal names; null when it is not open.</param>
 /// <param name="journalDirectory">Directory of the batch journals; null applies disk files without crash recovery.</param>
 public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? journalDirectory = null)
 {
-    /// <summary>Test seam called at named points of a batch ("plan", "before-swap:N", "after-swap:N", "after-file:N", "before-end").</summary>
+    /// <summary>Test seam called at named points of a batch ("plan", "before-op:N", "after-op:N", "before-swap:N", "after-swap:N", "after-file:N", "before-end", "after-commit").</summary>
     public Action<string>? FaultPoint { get; init; }
 
     /// <summary>One file of a batch: what the report names it, how many hunks were chosen of how many, and the plan that is journaled and applied.</summary>
     private sealed record Job(string Key, string DisplayName, int Selected, int Total, BatchFilePlan Plan);
+
+    /// <summary>A file operation of a batch and the plan that is journaled for it.</summary>
+    private sealed record OperationJob(FileChange Change, BatchOperationPlan Plan);
 
     /// <summary>A document change checked against the open document: the document and the edits to write.</summary>
     private sealed record PreparedDocument(FileChange File, Document Doc, List<ByteEdit> Edits, int Chosen);
@@ -58,28 +61,105 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
             return Report(proposal, outcomes, null);
         }
 
-        var run = new FileOperationRun();
-        foreach (var operation in operations.Where(o => !outcomes.ContainsKey(o.Key)))
+        var ops = operations.Where(o => !outcomes.ContainsKey(o.Key)).Select((o, i) => new OperationJob(o, PlanOperation(jobs.Count + i, o))).ToList();
+        Guid batchId = Guid.NewGuid();
+        BatchJournalWriter? journal = null;
+        if (journalDirectory is not null && jobs.Count + ops.Count > 0 && !TryBegin(batchId, proposal.Title, proposal.Origin, jobs, ops, outcomes, out journal))
         {
-            try
+            if (proposal.Atomic)
             {
-                run.Do(operation);
-                outcomes[operation.Key] = new(operation.Key, operation.DisplayName, ChangeStatus.Applied, ChangeConflict.None, 1, 0);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                string? undone = run.RollBack();
-                foreach (var done in operations) outcomes.Remove(done.Key);
                 NotApplied(documents, jobs, operations, outcomes);
-                outcomes[operation.Key] = Failed(operation, 1, e.Message + (undone is null ? "" : " Undoing the earlier file operations failed too: " + undone));
                 return Report(proposal, outcomes, null);
             }
+            jobs = [];
+            ops = [];
         }
 
-        foreach (var document in documents) outcomes[document.File.Key] = ApplyDocument(proposal, document);
-        Guid? batch = jobs.Count > 0 ? RunJobs(proposal.Title, proposal.Origin, jobs, outcomes) : null;
-        run.Commit();
-        return Report(proposal, outcomes, batch);
+        var run = new FileOperationRun();
+        try
+        {
+            if (jobs.Count + ops.Count > 0) FaultPoint?.Invoke("plan");
+            foreach (var item in ops)
+            {
+                var operation = item.Change;
+                FaultPoint?.Invoke($"before-op:{item.Plan.Index}");
+                try
+                {
+                    run.Do(operation, item.Plan.Sidecar);
+                    outcomes[operation.Key] = new(operation.Key, operation.DisplayName, ChangeStatus.Applied, ChangeConflict.None, 1, 0);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    string? undone = run.RollBack();
+                    foreach (var done in ops) outcomes.Remove(done.Change.Key);
+                    NotApplied(documents, jobs, operations, outcomes);
+                    outcomes[operation.Key] = Failed(operation, 1, e.Message + (undone is null ? "" : " Undoing the earlier file operations failed too: " + undone));
+                    // what was undone needs no recovery; what could not be undone keeps the journal for the next start
+                    if (undone is null) EndJournal(journal);
+                    else journal?.Dispose();
+                    return Report(proposal, outcomes, undone is null || journal is null ? null : batchId);
+                }
+                journal?.Done(item.Plan.Index);
+                FaultPoint?.Invoke($"after-op:{item.Plan.Index}");
+            }
+
+            foreach (var document in documents) outcomes[document.File.Key] = ApplyDocument(proposal, document);
+            foreach (var job in jobs) outcomes[job.Key] = ApplyFile(job, batchId, journal);
+            if (jobs.Count + ops.Count > 0) FaultPoint?.Invoke("before-end");
+            run.Commit();
+            if (jobs.Count + ops.Count > 0) FaultPoint?.Invoke("after-commit");
+        }
+        catch
+        {
+            journal?.Dispose(); // an interrupted batch keeps its journal for recovery
+            throw;
+        }
+        EndJournal(journal);
+        return Report(proposal, outcomes, journal is null ? null : batchId);
+    }
+
+    private static BatchOperationPlan PlanOperation(int index, FileChange change)
+    {
+        var op = change.Operation!;
+        var print = change.BaseFingerprint;
+        return new BatchOperationPlan(index, op.Kind, change.Path!, op.NewPath, print?.Size ?? -1, print is { HasHash: true } ? print.Sha256 : null, FileOperationRun.Sidecar(change.Path!),
+            op.Kind == FileOperationKind.Create ? op.Content ?? [] : null);
+    }
+
+    /// <summary>
+    /// Writes the whole plan of the batch (files and operations) and syncs it before the first file is touched. When the journal cannot be written nothing is done: every file and operation
+    /// is reported as failed and the call returns false.
+    /// </summary>
+    private bool TryBegin(Guid id, string title, string origin, List<Job> jobs, List<OperationJob> ops, Dictionary<string, FileOutcome> outcomes, out BatchJournalWriter? journal)
+    {
+        journal = null;
+        try
+        {
+            journal = BatchJournalWriter.Create(journalDirectory!, id);
+            journal.Begin(title, origin, jobs.Count + ops.Count);
+            foreach (var job in jobs) journal.Plan(job.Plan);
+            foreach (var op in ops) journal.Operation(op.Plan);
+            journal.Flush();
+            if (journal.Fault is not null) throw new IOException("The journal could not be written.", journal.Fault);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            journal?.Dispose();
+            journal = null;
+            string why = "The recovery journal could not be written, so nothing was changed: " + e.Message;
+            foreach (var job in jobs) outcomes[job.Key] = Failed(job.Key, job.DisplayName, job.Selected, why);
+            foreach (var op in ops) outcomes[op.Change.Key] = Failed(op.Change, 1, why);
+            return false;
+        }
+    }
+
+    /// <summary>The batch is done: its journal is marked finished and deleted. A journal that stopped working stays, as the file states it describes can still be recovered.</summary>
+    private static void EndJournal(BatchJournalWriter? journal)
+    {
+        if (journal is null) return;
+        if (journal.Fault is null) journal.Complete();
+        else journal.Dispose();
     }
 
     private static ApplyReport Report(ChangeProposal proposal, Dictionary<string, FileOutcome> outcomes, Guid? batch) =>
@@ -187,53 +267,25 @@ public sealed class ChangeApplier(Func<Guid, Document?> findDocument, string? jo
     {
         var outcomes = new Dictionary<string, FileOutcome>();
         var jobs = plans.Select((p, i) => new Job(p.Key, p.DisplayName, p.Plan.Hunks.Count, p.Plan.Hunks.Count, p.Plan with { Index = i })).ToList();
-        Guid? batch = RunJobs(title, origin, jobs, outcomes);
-        return new ApplyReport(Guid.NewGuid(), [.. plans.Select(p => outcomes[p.Key])], batch);
-    }
-
-    private Guid? RunJobs(string title, string origin, List<Job> items, Dictionary<string, FileOutcome> outcomes)
-    {
-        if (items.Count == 0) return null;
-
-        // 2. write the whole plan and sync it before the first file is touched
-        BatchJournalWriter? journal = null;
         Guid batchId = Guid.NewGuid();
-        if (journalDirectory is not null)
-        {
-            try
-            {
-                journal = BatchJournalWriter.Create(journalDirectory, batchId);
-                journal.Begin(title, origin, items.Count);
-                foreach (var item in items) journal.Plan(item.Plan);
-                journal.Flush();
-                if (journal.Fault is not null) throw new IOException("The journal could not be written.", journal.Fault);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                journal?.Dispose();
-                foreach (var item in items) outcomes[item.Key] = Failed(item.Key, item.DisplayName, item.Selected, "The recovery journal could not be written, so nothing was changed: " + e.Message);
-                return null;
-            }
-        }
+        BatchJournalWriter? journal = null;
+        if (jobs.Count > 0 && journalDirectory is not null && !TryBegin(batchId, title, origin, jobs, [], outcomes, out journal))
+            return new ApplyReport(Guid.NewGuid(), [.. plans.Select(p => outcomes[p.Key])], null);
 
-        // 3. one file at a time: intent (synced), temporary file, move into place
+        // one file at a time: intent (synced), temporary file, move into place
         try
         {
-            FaultPoint?.Invoke("plan");
-            foreach (var item in items) outcomes[item.Key] = ApplyFile(item, batchId, journal);
-            FaultPoint?.Invoke("before-end");
+            if (jobs.Count > 0) FaultPoint?.Invoke("plan");
+            foreach (var job in jobs) outcomes[job.Key] = ApplyFile(job, batchId, journal);
+            if (jobs.Count > 0) FaultPoint?.Invoke("before-end");
         }
         catch
         {
             journal?.Dispose(); // an interrupted batch keeps its journal for recovery
             throw;
         }
-        if (journal is not null)
-        {
-            if (journal.Fault is null) journal.Complete();
-            else journal.Dispose();
-        }
-        return journalDirectory is null ? null : batchId;
+        EndJournal(journal);
+        return new ApplyReport(Guid.NewGuid(), [.. plans.Select(p => outcomes[p.Key])], journal is null ? null : batchId);
     }
 
     private static FileOutcome Failed(FileChange f, int hunks, string message) => Failed(f.Key, f.DisplayName, hunks, message);

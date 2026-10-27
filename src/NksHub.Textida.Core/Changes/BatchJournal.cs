@@ -12,6 +12,15 @@ internal sealed record BatchFilePlan(int Index, string Path, string Codec, long 
 
 internal sealed record BatchIntent(int Index, long NewSize, string NewSha, string TempName);
 
+/// <summary>
+/// A create, rename or delete as the journal holds it. <paramref name="BaseSize"/> is -1 and <paramref name="BaseSha"/> null when the change names no content of the file;
+/// <paramref name="Sidecar"/> is the temporary file of a create or the name a deleted file is parked under; <paramref name="Content"/> is what a create writes.
+/// </summary>
+internal sealed record BatchOperationPlan(int Index, FileOperationKind Kind, string Path, string? NewPath, long BaseSize, string? BaseSha, string Sidecar, byte[]? Content)
+{
+    public string? ContentSha { get; } = Content is null ? null : BatchFiles.Sha(Content);
+}
+
 /// <summary>Content arithmetic shared by apply and recovery.</summary>
 internal static class BatchFiles
 {
@@ -159,6 +168,20 @@ internal sealed class BatchJournalWriter : IDisposable
         }
     }));
 
+    public void Operation(BatchOperationPlan o) => _writer.Append(RecordType.BatchOperationPlan, Build(w =>
+    {
+        w.Write(_id.ToByteArray());
+        w.Write(o.Index);
+        w.Write((byte)o.Kind);
+        w.Write(o.Path);
+        w.Write(o.NewPath ?? "");
+        w.Write(o.BaseSize);
+        w.Write(o.BaseSha ?? "");
+        w.Write(o.Sidecar);
+        w.Write(o.Content?.Length ?? -1);
+        if (o.Content is not null) w.Write(o.Content);
+    }));
+
     public void Intent(BatchIntent i) =>
         _writer.Append(RecordType.BatchFileIntent, Build(w => { w.Write(_id.ToByteArray()); w.Write(i.Index); w.Write(i.NewSize); w.Write(i.NewSha); w.Write(i.TempName); }));
 
@@ -196,16 +219,19 @@ public enum BatchFileState
     Missing,
 }
 
-public sealed record PendingBatchFile(int Index, string Path, BatchFileState State, int Hunks);
+/// <param name="Operation">Set for a create, rename or delete; such a file has one change, not hunks.</param>
+public sealed record PendingBatchFile(int Index, string Path, BatchFileState State, int Hunks, FileOperationKind? Operation = null);
 
 /// <summary>A batch whose process died before it ended. Choose <see cref="Finish"/> or <see cref="RollBack"/>; either may be repeated after a crash.</summary>
 public sealed class PendingBatch : IDisposable
 {
     private readonly List<BatchFilePlan> _plans;
+    private readonly List<BatchOperationPlan> _operations;
     private readonly Dictionary<int, BatchIntent> _intents;
     private FileStream? _lock;
 
-    internal PendingBatch(Guid id, string title, string origin, DateTime created, string journalPath, List<BatchFilePlan> plans, Dictionary<int, BatchIntent> intents, FileStream lockFile)
+    internal PendingBatch(Guid id, string title, string origin, DateTime created, string journalPath, List<BatchFilePlan> plans, List<BatchOperationPlan> operations,
+        Dictionary<int, BatchIntent> intents, FileStream lockFile)
     {
         Id = id;
         Title = title;
@@ -213,6 +239,7 @@ public sealed class PendingBatch : IDisposable
         CreatedUtc = created;
         JournalPath = journalPath;
         _plans = plans;
+        _operations = operations;
         _intents = intents;
         _lock = lockFile;
     }
@@ -224,7 +251,11 @@ public sealed class PendingBatch : IDisposable
     public string JournalPath { get; }
 
     /// <summary>The state of every file of the batch, derived from the content on disk now.</summary>
-    public IReadOnlyList<PendingBatchFile> Files => [.. _plans.Select(p => new PendingBatchFile(p.Index, p.Path, Classify(p), p.Hunks.Count))];
+    public IReadOnlyList<PendingBatchFile> Files =>
+    [
+        .. _plans.Select(p => new PendingBatchFile(p.Index, p.Path, Classify(p), p.Hunks.Count)),
+        .. _operations.Select(o => new PendingBatchFile(o.Index, o.Path, OperationRecovery.Classify(o), 1, o.Kind)),
+    ];
 
     private BatchFileState Classify(BatchFilePlan p)
     {
@@ -290,6 +321,8 @@ public sealed class PendingBatch : IDisposable
                 outcomes.Add(Make(ChangeStatus.Failed, ChangeConflict.None, e.Message));
             }
         }
+        // operations never share a path with each other, so the order only matters for taste: roll back last first
+        foreach (var o in finish ? _operations : Enumerable.Reverse(_operations)) outcomes.Add(OperationRecovery.Run(o, finish));
         // a failed file keeps the journal so the user can try again
         if (outcomes.All(o => o.Status != ChangeStatus.Failed)) Discard();
         return outcomes;
@@ -365,6 +398,7 @@ public static class BatchRecovery
             DateTime created = default;
             bool begun = false, ended = false;
             var plans = new List<BatchFilePlan>();
+            var operations = new List<BatchOperationPlan>();
             var intents = new Dictionary<int, BatchIntent>();
             int declared = 0;
             while (reader.TryRead(out var rec))
@@ -399,6 +433,17 @@ public static class BatchRecovery
                             plans.Add(new BatchFilePlan(index, file, codec, size, sha, hunks));
                             break;
                         }
+                    case RecordType.BatchOperationPlan:
+                        {
+                            int index = r.ReadInt32();
+                            var kind = (FileOperationKind)r.ReadByte();
+                            string file = r.ReadString(), target = r.ReadString();
+                            long size = r.ReadInt64();
+                            string sha = r.ReadString(), sidecar = r.ReadString();
+                            int length = r.ReadInt32();
+                            operations.Add(new BatchOperationPlan(index, kind, file, target.Length == 0 ? null : target, size, sha.Length == 0 ? null : sha, sidecar, length < 0 ? null : r.ReadBytes(length)));
+                            break;
+                        }
                     case RecordType.BatchFileIntent:
                         {
                             int index = r.ReadInt32();
@@ -411,8 +456,8 @@ public static class BatchRecovery
                 }
             }
             // a torn plan means the process died before any file was touched
-            if (!begun || ended || plans.Count == 0 || plans.Count != declared) return null;
-            return new PendingBatch(id, title, origin, created, path, plans, intents, lockFile);
+            if (!begun || ended || plans.Count + operations.Count == 0 || plans.Count + operations.Count != declared) return null;
+            return new PendingBatch(id, title, origin, created, path, plans, operations, intents, lockFile);
         }
         catch (Exception e) when (e is JournalFormatException or IOException or EndOfStreamException)
         {
