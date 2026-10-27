@@ -57,11 +57,12 @@ internal static class Crc32
 /// Binary layout of a journal file (see FORMAT.md next to this file). All integers are little endian.
 /// File header: magic "NKSJRNL\0", u16 version, u16 flags, u32 CRC of the first 12 bytes.
 /// Record: u32 payload length, u32 CRC, u8 type, u64 sequence, [i64 timestamp, version 2+], payload.
+/// Version 3 differs from 2 only in the payload layout of edit records (a large inserted block may be a reference to a payload file).
 /// The CRC covers every record byte except the CRC field itself.
 /// </summary>
 public static class JournalFormat
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
     public const int OldestReadableVersion = 1;
     public const int FileHeaderSize = 16;
     private static readonly byte[] Magic = "NKSJRNL\0"u8.ToArray();
@@ -246,6 +247,12 @@ public sealed class JournalWriter : IDisposable
     }
 
     public string Path { get; internal set; }
+
+    /// <summary>
+    /// Runs before every write of records, inside the same failure handling: what the records refer to (payload files) is made durable first.
+    /// A record that refers to data is therefore never on disk before the data is.
+    /// </summary>
+    public Action? BeforeWrite { get; set; }
     /// <summary>Bytes durably written so far.</summary>
     public long Length { get; private set; }
     /// <summary>Set when a write failed; the journal no longer protects the session.</summary>
@@ -277,6 +284,7 @@ public sealed class JournalWriter : IDisposable
             }
             try
             {
+                BeforeWrite?.Invoke();
                 _file.Write(batch.GetBuffer(), 0, (int)batch.Length);
                 _file.Flush(true);
                 Length += batch.Length;
@@ -306,6 +314,7 @@ public sealed class JournalWriter : IDisposable
             {
                 if (Fault is null && batch.Length > 0)
                 {
+                    BeforeWrite?.Invoke();
                     _file.Write(batch.GetBuffer(), 0, (int)batch.Length);
                     _file.Flush(true);
                     Length += batch.Length;

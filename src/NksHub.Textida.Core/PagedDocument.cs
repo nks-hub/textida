@@ -1,3 +1,4 @@
+using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core;
@@ -21,6 +22,9 @@ public sealed class PagedDocument : IPagedTextSource
     private MappedFileSource _source;
     private AddBuffer _add;
     private bool _saving;
+    private List<(long Offset, long Removed, Piece[] Inserted)>? _window;
+    private DurableSpill? _durable;
+    private int _durableCount;
     private readonly ColumnIndex _editedColumns = new();
 
     private PagedDocument(MappedFileSource source, MappedFileSourceOptions options)
@@ -51,7 +55,36 @@ public sealed class PagedDocument : IPagedTextSource
     [Obsolete("PagedDocument has no Text: read a byte range or lines (PLAN 5.1).", error: true)]
     public string Text => throw new NotSupportedException();
 
-    private AddBuffer NewAddBuffer() => new(_options.SpillBudgetBytes, _options.SpillDirectory);
+    private AddBuffer NewAddBuffer() => new(_options.SpillBudgetBytes, _options.SpillDirectory, NextDurable());
+
+    private DurableSpill? NextDurable() => _durable is { } d ? d with { Name = $"{d.Name}-add-{_durableCount++}.payload" } : null;
+
+    /// <summary>
+    /// From now on the add buffer spills into a file named <paramref name="namePrefix"/>-add-N.payload in <paramref name="directory"/> that survives a crash,
+    /// so a journal can refer to inserted text instead of copying it. A buffer that is already on disk in a scratch file keeps it.
+    /// </summary>
+    public void UseDurableSpill(string directory, string namePrefix)
+    {
+        _durable = new DurableSpill(directory, namePrefix);
+        _add.TryMakeDurable(NextDurable()!);
+    }
+
+    /// <summary>Name of the durable file the add buffer lives in, or null.</summary>
+    public string? DurableFile => _add.DurableName;
+
+    /// <summary>True when the bytes at <paramref name="offset"/> are one inserted block that lives in a durable file.</summary>
+    public bool TryGetDurableBytes(long offset, long length, out DurableBytes bytes)
+    {
+        bytes = default;
+        if (length <= 0 || offset < 0 || offset + length > ByteLength) return false;
+        Piece? only = null;
+        foreach (var p in _tree.EnumerateRange(offset, length))
+        {
+            if (only is not null) return false;
+            only = p;
+        }
+        return only is { Original: false, Repeated: false } piece && piece.Length == length && _add.TryDescribe(piece.Start, length, out bytes);
+    }
 
     /// <summary>Immutable view of the current content; cheap (pieces only) and safe to read from other threads.</summary>
     public PagedSnapshot CreateSnapshot() => new([.. _tree.EnumerateRange(0, ByteLength)], _add, _source.File);
@@ -193,6 +226,7 @@ public sealed class PagedDocument : IPagedTextSource
         if (deleteLength == 0 && insert.IsEmpty) return;
         Piece[] inserted = insert.IsEmpty ? [] : [new Piece(false, _add.Append(insert), insert.Length)];
         var removed = Apply(offset, deleteLength, inserted);
+        _window?.Add((offset, deleteLength, inserted));
         _undo.Push(new PieceEdit(offset, removed, inserted));
         _redo.Clear();
     }
@@ -200,6 +234,7 @@ public sealed class PagedDocument : IPagedTextSource
     public bool Undo()
     {
         EnsureNotSaving();
+        EnsureNoWindow();
         if (_undo.Count == 0) return false;
         var e = _undo.Pop();
         Apply(e.Offset, e.Inserted.Sum(p => p.Length), e.Removed);
@@ -210,6 +245,7 @@ public sealed class PagedDocument : IPagedTextSource
     public bool Redo()
     {
         EnsureNotSaving();
+        EnsureNoWindow();
         if (_redo.Count == 0) return false;
         var e = _redo.Pop();
         Apply(e.Offset, e.Removed.Sum(p => p.Length), e.Inserted);
@@ -223,6 +259,11 @@ public sealed class PagedDocument : IPagedTextSource
         var removed = _tree.Remove(offset, removeLength);
         _tree.Insert(offset, insert);
         return removed;
+    }
+
+    private void EnsureNoWindow()
+    {
+        if (_window is not null) throw new InvalidOperationException("Undo and redo refer to the file that a streaming save is about to replace.");
     }
 
     private void EnsureNotSaving()
@@ -263,6 +304,7 @@ public sealed class PagedDocument : IPagedTextSource
         if (pattern.IsEmpty || length < 0) throw new ArgumentException("A pattern needs at least one byte and a length of zero or more.");
         Piece[] inserted = length == 0 ? [] : [new Piece(false, 0, length, pattern.ToArray())];
         var removed = Apply(offset, deleteLength, inserted);
+        _window?.Add((offset, deleteLength, inserted));
         _undo.Push(new PieceEdit(offset, removed, inserted));
         _redo.Clear();
         return removed;
@@ -272,6 +314,7 @@ public sealed class PagedDocument : IPagedTextSource
     public void RestoreRemoved(long offset, long insertedLength, object removed)
     {
         EnsureNotSaving();
+        EnsureNoWindow();
         var pieces = (Piece[])removed;
         var gone = Apply(offset, insertedLength, pieces);
         _undo.Push(new PieceEdit(offset, gone, pieces));
@@ -342,6 +385,54 @@ public sealed class PagedDocument : IPagedTextSource
             if (lines.Count == maxLines || atEof) return lines;
             window = checked(window * 4);
         }
+    }
+
+    /// <summary>True between <see cref="BeginStreamingSave"/> and <see cref="EndStreamingSave"/> or <see cref="CommitStreamingSave"/>.</summary>
+    public bool InStreamingSave => _window is not null;
+
+    /// <summary>
+    /// Freezes the current content as the snapshot a save writes and starts to note the edits made from now on. The document stays editable
+    /// (insert, delete, replace); <see cref="CommitStreamingSave"/> puts those edits on top of the saved file, so they stay unsaved.
+    /// </summary>
+    public PagedSnapshot BeginStreamingSave()
+    {
+        EnsureNotSaving();
+        if (_window is not null) throw new InvalidOperationException("A streaming save is already open.");
+        var snapshot = CreateSnapshot();
+        _window = [];
+        return snapshot;
+    }
+
+    /// <summary>Drops the notes of <see cref="BeginStreamingSave"/>; the edits stay in the document.</summary>
+    public void EndStreamingSave() => _window = null;
+
+    /// <summary>
+    /// Moves <paramref name="temp"/>, which holds exactly the snapshot of <see cref="BeginStreamingSave"/>, over the open file, maps the result and
+    /// replays the edits made since on top of it. The undo history refers to the replaced file and ends; the replayed edits are the new history.
+    /// When the swap fails the document keeps the old file and all its edits.
+    /// </summary>
+    public void CommitStreamingSave(string temp, string target)
+    {
+        var window = _window ?? throw new InvalidOperationException("No streaming save is open.");
+        _source.IndexProgress -= OnSourceProgress;
+        _source.Dispose();
+        try { Documents.FileSwap.Replace(temp, target); }
+        catch
+        {
+            _source = MappedFileSource.Open(target, _options);
+            _source.IndexProgress += OnSourceProgress;
+            throw;
+        }
+        _source = MappedFileSource.Open(target, _options);
+        _source.IndexProgress += OnSourceProgress;
+        _window = null;
+        _tree.Reset(new Piece(true, 0, _source.ByteLength));
+        _undo.Clear();
+        _redo.Clear();
+        _editedColumns.Clear();
+        // the inserted pieces point into the add buffer, which is kept, never into the replaced file
+        foreach (var (offset, removeLength, inserted) in window)
+            _undo.Push(new PieceEdit(offset, Apply(offset, removeLength, inserted), inserted));
     }
 
     /// <summary>

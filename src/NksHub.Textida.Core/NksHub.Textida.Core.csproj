@@ -5,6 +5,7 @@
     <InternalsVisibleTo Include="NksHub.Textida.Document.Contract" />
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
     <InternalsVisibleTo Include="NksHub.Textida.Remote.Tests" />
+    <InternalsVisibleTo Include="NksHub.Textida.Journal.CrashHarness" />
   </ItemGroup>
 
   <ItemGroup>
