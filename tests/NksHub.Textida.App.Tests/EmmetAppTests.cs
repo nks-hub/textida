@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -17,8 +18,12 @@ public class EmmetAppTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
+    private readonly TimeSpan _tabTimeout = PluginLimitsPlaceholders.TabTimeout;
+
     public EmmetAppTests()
     {
+        // Tab waits for the plugin process; a busy machine can miss 500 ms (the timeout path has its own test in DocumentApiTests.EarlyTools)
+        PluginLimitsPlaceholders.TabTimeout = TimeSpan.FromSeconds(10);
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
         _w.Width = 1000;
@@ -27,6 +32,7 @@ public class EmmetAppTests : IDisposable
 
     public void Dispose()
     {
+        PluginLimitsPlaceholders.TabTimeout = _tabTimeout;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
