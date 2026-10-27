@@ -653,8 +653,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     }
 
     /// <summary>
-    /// The state a (re)started plugin needs: the revisions of the documents it subscribed to. It also drops what the old process left behind
-    /// (queued events and snapshots), because the state returned here replaces them.
+    /// The state a (re)started plugin needs: the current revision of every document it may read, and whether it still follows it (a subscription
+    /// outlives a restart of the plugin). It also drops what the old process left behind (queued events and snapshots), because the state returned here replaces them.
     /// </summary>
     public byte[] BuildState(string pluginId)
     {
@@ -673,11 +673,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             {
                 w.WriteStartObject();
                 w.WriteStartArray("documents");
-                foreach (var e in _exposed.Values.Where(x => x.Subscribers.Contains(pluginId)))
+                foreach (var e in _exposed.Values.Where(x => _options.Permissions.IsGranted(pluginId, DocumentPermissions.Read, GrantScope.OfDocument(x.Doc.Id))))
                 {
                     w.WriteStartObject();
                     w.WriteString("id", e.Doc.Id);
                     w.WriteNumber("revision", e.Doc.Revision);
+                    w.WriteBoolean("subscribed", e.Subscribers.Contains(pluginId));
                     w.WriteEndObject();
                 }
                 w.WriteEndArray();

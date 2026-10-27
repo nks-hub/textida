@@ -47,7 +47,7 @@ public abstract class PluginBase(string name, int apiVersion)
         switch (method)
         {
             case PluginMethods.Initialize:
-                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(ApiVersion, Name), PluginJson.Default.InitializeResult);
+                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(ApiVersion, Name, EventAcks: true), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 await OnResyncAsync(p).ConfigureAwait(false);
                 return null;
@@ -60,5 +60,14 @@ public abstract class PluginBase(string name, int apiVersion)
         }
     }
 
-    internal ValueTask HandleNotificationAsync(string method, JsonElement p) => method == PluginMethods.Event ? OnEventAsync(p) : ValueTask.CompletedTask;
+    /// <summary>Events are handled one after another and each is acknowledged, so the editor holds the next ones back while <see cref="OnEventAsync"/> is slow.</summary>
+    internal async ValueTask HandleNotificationAsync(string method, JsonElement p)
+    {
+        if (method != PluginMethods.Event) return;
+        try { await OnEventAsync(p).ConfigureAwait(false); }
+        // an event that failed is still handled; without the acknowledgement the editor would wait for it for good
+        finally { await Rpc.NotifyAsync(PluginMethods.EventsHandled, HandledOne).ConfigureAwait(false); }
+    }
+
+    private static readonly byte[] HandledOne = "{\"count\":1}"u8.ToArray();
 }

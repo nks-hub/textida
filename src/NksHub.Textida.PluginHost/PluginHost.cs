@@ -22,6 +22,7 @@ public sealed class PluginHost : IAsyncDisposable
 
     public PluginHost(PluginHostOptions options, PluginApiCallback? api = null, IPluginStateSource? stateSource = null)
     {
+        if (options.EventWindow is < 1) throw new ArgumentException("The event window must be positive.", nameof(options));
         _options = options;
         _api = api;
         _stateSource = stateSource;
@@ -56,6 +57,10 @@ public sealed class PluginHost : IAsyncDisposable
         public readonly TaskCompletionSource<PluginCrashInfo> Ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public PluginEndReason? KillReason;
         public string KillDetail = "";
+        /// <summary>The plugin declared <see cref="InitializeResult.EventAcks"/>; <see cref="Unacked"/> counts its events sent and not handled yet.</summary>
+        public bool AcksEvents;
+        public int Unacked;
+        public readonly SemaphoreSlim Acked = new(0);
     }
 
     public void Register(PluginSpec spec)
@@ -158,17 +163,35 @@ public sealed class PluginHost : IAsyncDisposable
         foreach (var p in all) await SendAsync(p, payload).ConfigureAwait(false);
     }
 
-    /// <summary>Sends an event to one plugin. False when it could not be delivered (the plugin is down); it then counts as lost.</summary>
-    public Task<bool> SendEventAsync(string pluginId, string name, ReadOnlyMemory<byte> payloadJson) =>
-        SendAsync(Get(pluginId), EventPayload(name, payloadJson));
+    /// <summary>
+    /// Sends an event to one plugin. False when it could not be delivered (the plugin is down); it then counts as lost. A <paramref name="paced"/> event first waits
+    /// while the plugin has <see cref="PluginHostOptions.EventWindow"/> events unhandled, so the backlog of a slow plugin stays with the caller.
+    /// </summary>
+    public Task<bool> SendEventAsync(string pluginId, string name, ReadOnlyMemory<byte> payloadJson, bool paced = false) =>
+        SendAsync(Get(pluginId), EventPayload(name, payloadJson), paced ? _options.EventWindow : null);
 
-    static async Task<bool> SendAsync(Plugin p, byte[] payload)
+    static async Task<bool> SendAsync(Plugin p, byte[] payload, int? window = null)
     {
         var run = p.Current;
         if (p.State == PluginState.Running && run is not null)
         {
-            try { await run.Rpc.NotifyAsync(PluginMethods.Event, payload).ConfigureAwait(false); return true; }
+            try
+            {
+                if (run.AcksEvents)
+                {
+                    while (window is { } w && Volatile.Read(ref run.Unacked) >= w) await run.Acked.WaitAsync(run.Cts.Token).ConfigureAwait(false);
+                    Interlocked.Increment(ref run.Unacked);
+                }
+                try { await run.Rpc.NotifyAsync(PluginMethods.Event, payload).ConfigureAwait(false); }
+                catch (Exception) when (run.AcksEvents)
+                {
+                    Interlocked.Decrement(ref run.Unacked); // never sent, so never acknowledged
+                    throw;
+                }
+                return true;
+            }
             catch (IOException) { }
+            catch (OperationCanceledException) { } // the run ended while the event waited
         }
         if (p.State is PluginState.Running or PluginState.Starting or PluginState.WaitingRestart)
             Interlocked.Increment(ref p.LostEvents);
@@ -291,7 +314,7 @@ public sealed class PluginHost : IAsyncDisposable
         var run = new Run(process);
         p.Current = run;
         run.StderrTask = Task.Run(() => DrainStderrAsync(p, process));
-        run.Rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Plugin, _options.Limits, new HostHandler(this, p));
+        run.Rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Plugin, _options.Limits, new HostHandler(this, p, run));
         _ = Task.Run(() => MonitorAsync(p, run));
 
         try
@@ -339,6 +362,7 @@ public sealed class PluginHost : IAsyncDisposable
         }
         if (result is null || result.ApiVersion != _options.ApiVersion)
             throw new PluginHandshakeException(p.Spec.Id, $"Plugin '{p.Spec.DisplayName}' implements plugin API version {result?.ApiVersion.ToString() ?? "(none)"}, but this editor provides version {_options.ApiVersion}.");
+        run.AcksEvents = result.EventAcks;
 
         await run.Rpc.NotifyAsync(PluginMethods.Initialized).ConfigureAwait(false);
         var resync = ResyncPayload(p, restarted);
@@ -481,7 +505,7 @@ public sealed class PluginHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync() => await ShutdownAsync().ConfigureAwait(false);
 
-    sealed class HostHandler(PluginHost host, Plugin plugin) : IRpcHandler
+    sealed class HostHandler(PluginHost host, Plugin plugin, Run run) : IRpcHandler
     {
         public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation)
         {
@@ -496,7 +520,20 @@ public sealed class PluginHost : IAsyncDisposable
         {
             if (method == PluginMethods.AwaitingUser)
                 plugin.Awaiting = parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty("awaiting", out var a) && a.ValueKind == JsonValueKind.True;
+            else if (method == PluginMethods.EventsHandled && run.AcksEvents && parameters.ValueKind == JsonValueKind.Object
+                && parameters.TryGetProperty("count", out var c) && c.ValueKind == JsonValueKind.Number && c.TryGetInt32(out var count) && count > 0)
+                Acknowledge(count);
             return ValueTask.CompletedTask;
+        }
+
+        /// <summary>More acknowledgements than events sent would open the window wider than allowed, so the count stops at zero.</summary>
+        void Acknowledge(int count)
+        {
+            int seen;
+            do seen = Volatile.Read(ref run.Unacked);
+            while (Interlocked.CompareExchange(ref run.Unacked, Math.Max(0, seen - count), seen) != seen);
+            // one waiting send is enough to wake: it checks the count again before it goes on
+            if (run.Acked.CurrentCount == 0) run.Acked.Release();
         }
     }
 }

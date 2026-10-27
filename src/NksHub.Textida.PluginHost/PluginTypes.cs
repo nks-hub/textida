@@ -16,11 +16,18 @@ public static class PluginMethods
     public const string Event = "$/event";
     /// <summary>Plugin to host: the plugin waits for a user decision, so the watchdog must not count missed pings.</summary>
     public const string AwaitingUser = "$/awaitingUser";
+    /// <summary>Plugin to host: <c>{"count"}</c> more <see cref="Event"/> notifications were handled. Only a plugin that declared <see cref="InitializeResult.EventAcks"/> sends it.</summary>
+    public const string EventsHandled = "$/eventsHandled";
 }
 
 /// <summary>Handshake request. A plugin must answer with the same <c>apiVersion</c> or an error.</summary>
 public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName);
-public sealed record InitializeResult(int ApiVersion, string? Name);
+
+/// <param name="EventAcks">
+/// The plugin acknowledges every handled event with <see cref="PluginMethods.EventsHandled"/>. The editor then holds document events back once
+/// <see cref="PluginHostOptions.EventWindow"/> are unhandled, so a slow plugin gets <c>document/eventsLost</c> instead of a backlog in its own memory.
+/// </param>
+public sealed record InitializeResult(int ApiVersion, string? Name, bool EventAcks = false);
 public sealed record AwaitingUserParams(bool Awaiting);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
@@ -53,6 +60,8 @@ public sealed record PluginHostOptions
     public required int StderrTailLines { get; init; }
     /// <summary>Bound for a <see cref="PluginHost.CallAsync"/> that names no timeout. Null keeps such a call open until the plugin answers or ends.</summary>
     public TimeSpan? DefaultCallTimeout { get; init; }
+    /// <summary>Events a plugin with <see cref="InitializeResult.EventAcks"/> may have unhandled before a paced <see cref="PluginHost.SendEventAsync"/> waits. Null never waits.</summary>
+    public int? EventWindow { get; init; }
 }
 
 public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped }
