@@ -838,3 +838,30 @@ Puts the selection, the file, the open tabs or the opened folder on the clipboar
 - Each file has its path, the lines, the language, the encoding and the revision. A file with changes that are not saved is marked, and the text is the text in the editor now.
 - Left out and named: .env files (their values are never copied, also when they are shown in the editor), files and folders the ignore files exclude, hidden ones, binary files, files over the size limit of the folder walk and files that cannot be read.
 - A large file in paged mode is never copied whole: only its selection is. Without a selection it is listed as left out.
+
+## [table.view] Table view for CSV and TSV
+commands: nks.view.table, nks.table.dialect
+A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
+1. Ctrl+K then Ctrl+T (View menu, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
+2. View, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header.
+- A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
+- Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
+- A quoted cell may hold line breaks; the table shows its first line and the mark ↵.
+- Copy puts the selected cells on the clipboard as tab-separated text; Paste writes tab-separated text from the current cell on.
+
+## [table.edit] Table view: editing and filtering
+commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
+1. Enter or F2 (or just typing) edits the current cell. Enter saves and moves down, Shift+Enter inserts a line break, Esc cancels. A cell that was quoted stays quoted; another value is quoted only when it holds the delimiter, a double quote or a line break.
+2. View, Insert Row adds an empty row after the current one. Insert Column asks for the name of the column and adds it after the current one. Delete Row and Delete Column remove the selected rows or columns. Each action is one Undo step.
+3. View, Filter Rows shows only the rows whose current column contains the text (upper and lower case do not matter). Clear Filter shows all rows again. A filter never changes the file, and row numbers stay those of the file.
+- Delete clears the selected cells. A short row gets the missing delimiters when a cell behind its end is filled in.
+- When the quote character is turned off in Table Delimiter and Header, a value with the delimiter or a line break is refused.
+- Rows cannot be added while a filter is on.
+
+## [table.region] Editing selected text as a table
+commands: nks.table.editRegion
+Select a part of a text, for example a block of comma-separated lines in a note or a log, and choose View, Edit Selection as Table.
+1. The dialog asks for the delimiter (comma, semicolon, tab or vertical bar), whether a double quote encloses values and whether the first selected row is the header. The preview shows the first rows as cells.
+2. The selected text becomes the table. The rest of the file stays text: a cell edit changes the bytes of that cell only, and nothing outside the selection is read or changed.
+- Everything of the table view works in it: moving, editing, adding and deleting rows and columns, filtering, copy and paste. The status bar says that only the selected text is the table.
+- Rows added at the end go inside the selection. Toggle Table View returns to the text; the next Toggle Table View shows the whole file as a table.

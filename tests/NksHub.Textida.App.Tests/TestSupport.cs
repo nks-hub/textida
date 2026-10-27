@@ -121,6 +121,17 @@ internal sealed class ScriptedDialogs : IDialogs
 
     public Task ShowAboutAsync(Window owner) => Task.CompletedTask;
 
+    public Queue<NksHub.Textida.Core.Csv.CsvDialect?> TableRegions { get; } = new();
+    /// <summary>What the preview of the table dialog showed for each scripted answer.</summary>
+    public List<string> TableRegionPreviews { get; } = [];
+
+    public Task<NksHub.Textida.Core.Csv.CsvDialect?> TableRegionAsync(Window owner, NksHub.Textida.Core.Csv.CsvDialect initial, Func<NksHub.Textida.Core.Csv.CsvDialect, string> preview)
+    {
+        var answer = TableRegions.Count > 0 ? TableRegions.Dequeue() : throw new InvalidOperationException("Unexpected table dialog");
+        if (answer is { } dialect) TableRegionPreviews.Add(preview(dialect));
+        return Task.FromResult(answer);
+    }
+
     public Queue<LineInsertOptions?> InsertOptions { get; } = new();
     public Queue<SortOptions?> SortOptionsAnswers { get; } = new();
     /// <summary>What the preview of the insert and sort dialogs showed for the scripted answers.</summary>

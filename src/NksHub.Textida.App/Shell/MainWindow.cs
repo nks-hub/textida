@@ -256,7 +256,8 @@ internal sealed partial class MainWindow : Window
     /// <summary>Gives the keyboard to the text area of the tab, so typing works at once without a click.</summary>
     private static void FocusView(DocTab tab)
     {
-        if (tab.Surface is { } surface) surface.TextArea.Focus();
+        if (tab.TableShown) tab.Table!.Focus();
+        else if (tab.Surface is { } surface) surface.TextArea.Focus();
         else tab.View.Focus();
     }
 
@@ -265,7 +266,7 @@ internal sealed partial class MainWindow : Window
     private bool IsFocusInTextInput() => FocusManager?.GetFocusedElement() is TextBox;
 
     /// <summary>True when the keyboard focus is inside the active tab's text surface.</summary>
-    public bool EditorHasFocus => Active is { } tab && FocusManager?.GetFocusedElement() is Visual v && (ReferenceEquals(v, tab.View) || tab.View.IsVisualAncestorOf(v));
+    public bool EditorHasFocus => Active is { } tab && FocusManager?.GetFocusedElement() is Visual v && (ReferenceEquals(v, tab.View) || tab.View.IsVisualAncestorOf(v) || (tab.Table is { } table && (ReferenceEquals(v, table) || table.IsVisualAncestorOf(v))));
 
     private void RefreshTitle() => Title = Active is null ? Loc.Get(K.AppName) : $"{Active.Title} - {Loc.Get(K.AppName)}";
 
@@ -300,7 +301,8 @@ internal sealed partial class MainWindow : Window
             tab.Surface?.ApplyOptions(options);
             tab.Paged?.ApplyOptions(options);
             tab.Hex?.ApplyOptions(options);
-            if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap;
+            tab.Table?.ApplyOptions(options);
+            if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap && !tab.TableShown;
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }
@@ -327,6 +329,7 @@ internal sealed partial class MainWindow : Window
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
         ApplyFileTexts();
         ApplyHexTexts();
+        ApplyTableTexts();
         ApplyOutputTexts();
         RefreshPluginUi();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));

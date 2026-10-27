@@ -71,6 +71,7 @@ internal static class AppCommands
         On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null && w.ActiveHex is null && w.Active?.Paged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.edit.selectAll", w =>
         {
+            if (w.ActiveTable is { } table) { table.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveHex is { } hex) { hex.SelectAll(); return CommandOutcome.Handled; }
             if (w.Active?.Paged is { } paged) { paged.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled;
@@ -189,6 +190,15 @@ internal static class AppCommands
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
         On("nks.view.hex", w => w.ToggleHex());
         Do("nks.file.openAsHex", w => _ = w.OpenAsHexDialogAsync());
+        On("nks.view.table", w => w.ToggleTable());
+        On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
+        On("nks.table.dialect", w => { w.ShowTableDialectMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        On("nks.table.insertRow", w => w.TableCommand(t => t.InsertRow()));
+        On("nks.table.deleteRow", w => w.TableCommand(t => t.DeleteRows()));
+        On("nks.table.insertColumn", w => { if (w.ActiveTable is null) return CommandOutcome.NotHandled; _ = w.InsertTableColumnAsync(); return CommandOutcome.Handled; });
+        On("nks.table.deleteColumn", w => w.TableCommand(t => t.DeleteColumns()));
+        On("nks.table.filter", w => { if (w.ActiveTable is null) return CommandOutcome.NotHandled; _ = w.FilterTableAsync(); return CommandOutcome.Handled; });
+        On("nks.table.clearFilter", w => w.TableCommand(t => t.ApplyFilter("", t.Column)));
         On("nks.hex.toggleInsert", w => w.HexCommand(h => h.ToggleInsert()));
         On("nks.hex.inspector", w => w.ToggleInspector());
         On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });

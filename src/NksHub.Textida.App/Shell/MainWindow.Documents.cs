@@ -140,6 +140,7 @@ internal sealed partial class MainWindow
             int index = group.Tabs.ToList().IndexOf(tab);
             bool wasActive = Active == tab;
             tab.ShowBar(null);
+            tab.Table?.Rebind();
             if (tab.Surface is { } s && !od.IsLarge)
             {
                 s.BindDocument();

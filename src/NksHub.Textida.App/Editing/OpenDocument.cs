@@ -3,6 +3,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
+using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Journal;
@@ -110,6 +111,17 @@ internal sealed class OpenDocument : IDisposable
         >= 1L << 10 => $"{bytes / (double)(1L << 10):0.#} KiB",
         _ => $"{bytes} B",
     };
+
+    // ---- table ----
+
+    private CsvDialect? _tableDialect;
+
+    /// <summary>How the table views of this document split the text; the delimiter follows the file extension until the user picks one.</summary>
+    public CsvDialect TableDialect
+    {
+        get => _tableDialect ??= CsvDialect.ForPath(Path);
+        set => _tableDialect = value;
+    }
 
     // ---- hex ----
 

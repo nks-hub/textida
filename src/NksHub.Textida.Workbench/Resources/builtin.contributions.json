@@ -773,6 +773,60 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.view.table",
+      "title": "cmd.view.table",
+      "category": "cat.view",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.table.editRegion",
+      "title": "cmd.table.editRegion",
+      "category": "cat.view",
+      "enablement": "hasSelection && !tableMode"
+    },
+    {
+      "id": "nks.table.dialect",
+      "title": "cmd.table.dialect",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.insertRow",
+      "title": "cmd.table.insertRow",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.deleteRow",
+      "title": "cmd.table.deleteRow",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.insertColumn",
+      "title": "cmd.table.insertColumn",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.deleteColumn",
+      "title": "cmd.table.deleteColumn",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.filter",
+      "title": "cmd.table.filter",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
+      "id": "nks.table.clearFilter",
+      "title": "cmd.table.clearFilter",
+      "category": "cat.view",
+      "enablement": "tableMode"
+    },
+    {
       "id": "nks.file.openAsHex",
       "title": "cmd.file.openAsHex",
       "category": "cat.file"
@@ -1820,6 +1874,60 @@
     },
     {
       "menu": "view",
+      "command": "nks.view.table",
+      "group": "4_table",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.editRegion",
+      "group": "4_table",
+      "order": 15
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.dialect",
+      "group": "4_table",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertRow",
+      "group": "4_table",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteRow",
+      "group": "4_table",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertColumn",
+      "group": "4_table",
+      "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteColumn",
+      "group": "4_table",
+      "order": 60
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.filter",
+      "group": "4_table",
+      "order": 70
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.clearFilter",
+      "group": "4_table",
+      "order": 80
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.toggleInsert",
       "group": "3_hex",
       "order": 20
@@ -2327,6 +2435,10 @@
     {
       "key": "mod+k mod+h",
       "command": "nks.view.hex"
+    },
+    {
+      "key": "mod+k mod+t",
+      "command": "nks.view.table"
     },
     {
       "key": "insert",

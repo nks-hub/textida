@@ -838,3 +838,30 @@ Vloží do schránky výber, súbor, otvorené karty alebo otvorený priečinok 
 - Pri každom súbore je cesta, riadky, jazyk, kódovanie a revízia. Súbor s neuloženými zmenami je označený a text je ten, ktorý je teraz v editore.
 - Vynechané a pomenované: súbory .env (ich hodnoty sa nikdy nekopírujú, ani keď sú v editore zobrazené), súbory a priečinky vylúčené súbormi ignorovania, skryté, binárne súbory, súbory nad limitom veľkosti pri prechádzaní priečinka a súbory, ktoré sa nedajú prečítať.
 - Veľký súbor v stránkovanom režime sa nikdy nekopíruje celý: len jeho výber. Bez výberu je uvedený ako vynechaný.
+
+## [table.view] Tabuľka pre CSV a TSV
+commands: nks.view.table, nks.table.dialect
+Súbor CSV alebo TSV možno zobraziť ako tabuľku: jeden riadok súboru je jeden riadok tabuľky, jedno pole je jedna bunka. Je to ten istý dokument ako v textovom zobrazení, s rovnakou históriou Späť; nič sa neprevádza a úprava bunky zmení len bajty tej bunky.
+1. Ctrl+K a potom Ctrl+T (ponuka Zobrazenie, Prepnúť tabuľku a text) prepína medzi tabuľkou a textom. Súbor .tsv alebo .tab sa delí podľa tabulátorov, ostatné súbory podľa čiarok.
+2. Zobrazenie, Oddeľovač a záhlavie tabuľky vyberie čiarku, bodkočiarku, tabulátor alebo zvislú čiaru ako oddeľovač, či úvodzovky ohraničujú hodnoty a či je prvý riadok záhlavie.
+- Veľký súbor sa otvorí hneď: riadky sa počítajú na pozadí a rozsah posuvníka rastie, ako sa súbor číta. Kým sa nedôjde na koniec, stavový riadok ukazuje počet riadkov s plusom, napríklad 12+.
+- Šípky, Tab, PageUp a PageDown, Home a End (v rámci riadku), Ctrl+Home a Ctrl+End presúvajú aktuálnu bunku; Shift rozširuje výber. Kliknutie na záhlavie stĺpca vyberie stĺpec, kliknutie na číslo riadku vyberie riadok.
+- Bunka v úvodzovkách môže obsahovať zalomenie riadku; tabuľka ukáže jej prvý riadok a značku ↵.
+- Kopírovať dá vybrané bunky do schránky ako text oddelený tabulátormi; Vložiť zapíše text oddelený tabulátormi od aktuálnej bunky.
+
+## [table.edit] Tabuľka: úpravy a filter
+commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
+1. Enter alebo F2 (alebo jednoducho písanie) upraví aktuálnu bunku. Enter uloží a posunie sa nadol, Shift+Enter vloží zalomenie riadku, Esc zruší. Bunka, ktorá bola v úvodzovkách, v nich zostane; iná hodnota sa uvedie do úvodzoviek len vtedy, keď obsahuje oddeľovač, úvodzovku alebo zalomenie riadku.
+2. Zobrazenie, Vložiť riadok pridá prázdny riadok za aktuálny. Vložiť stĺpec sa spýta na názov stĺpca a pridá ho za aktuálny. Zmazať riadok a Zmazať stĺpec odstránia vybrané riadky alebo stĺpce. Každá akcia je jeden krok Späť.
+3. Zobrazenie, Filtrovať riadky ukáže len riadky, ktorých aktuálny stĺpec obsahuje zadaný text (na veľkosti písmen nezáleží). Zrušiť filter ukáže všetky riadky. Filter súbor nikdy nemení a čísla riadkov zostávajú číslami riadkov v súbore.
+- Delete vymaže vybrané bunky. Krátky riadok dostane chýbajúce oddeľovače, keď sa vyplní bunka za jeho koncom.
+- Keď je znak úvodzoviek vypnutý v Oddeľovač a záhlavie tabuľky, hodnota s oddeľovačom alebo zalomením riadku sa odmietne.
+- Kým je zapnutý filter, nemožno pridať riadok.
+
+## [table.region] Úprava vybraného textu ako tabuľky
+commands: nks.table.editRegion
+Vyberte časť textu, napríklad blok riadkov oddelených čiarkami v poznámke alebo v logu, a zvoľte Zobrazenie, Upraviť výber ako tabuľku.
+1. Dialóg sa spýta na oddeľovač (čiarka, bodkočiarka, tabulátor alebo zvislá čiara), či úvodzovky ohraničujú hodnoty a či je prvý vybraný riadok záhlavie. Náhľad ukáže prvé riadky ako bunky.
+2. Vybraný text sa stane tabuľkou. Zvyšok súboru zostane textom: úprava bunky zmení len bajty tej bunky a nič mimo výberu sa nečíta ani nemení.
+- Funguje v ňom všetko z tabuľky: pohyb, úpravy, pridávanie a mazanie riadkov a stĺpcov, filter, kopírovanie a vkladanie. Stavový riadok hovorí, že tabuľkou je len vybraný text.
+- Riadky pridané na koniec patria do výberu. Prepnúť tabuľku a text vráti text; ďalšie Prepnúť tabuľku a text ukáže ako tabuľku celý súbor.
