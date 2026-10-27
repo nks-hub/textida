@@ -1413,6 +1413,7 @@
   "a11y.macros": "Uložená makra",
   "macro.empty": "Zatím nejsou uložená žádná makra. Nahrajte makro a zvolte Uložit poslední makro jako.",
   "macro.damaged": "Makro {file} nešlo přečíst: {reason}",
+  "macro.findNoQuery": "Nenahráno: Najít další a Najít předchozí potřebují hledaný text v liště hledání. Nahrávání pokračuje.",
   "macro.stopped.one": "Makro nahráno: {count} krok",
   "macro.stopped.few": "Makro nahráno: {count} kroky",
   "macro.stopped.other": "Makro nahráno: {count} kroků",

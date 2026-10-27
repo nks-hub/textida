@@ -1386,6 +1386,7 @@
   "a11y.macros": "Gespeicherte Makros",
   "macro.empty": "Noch keine gespeicherten Makros. Eines aufzeichnen und dann Letztes Makro speichern unter wählen.",
   "macro.damaged": "Makro {file} konnte nicht gelesen werden: {reason}",
+  "macro.findNoQuery": "Nicht aufgezeichnet: Weitersuchen und Rückwärts suchen brauchen einen Suchtext in der Suchleiste. Die Aufzeichnung läuft weiter.",
   "macro.stopped.one": "Makro aufgezeichnet: {count} Schritt",
   "macro.stopped.other": "Makro aufgezeichnet: {count} Schritte",
   "macro.played.one": "Makro abgespielt: {count} Schritt",

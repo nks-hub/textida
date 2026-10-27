@@ -1374,6 +1374,7 @@ public static class K
     public const string MacroEmpty = "macro.empty";
     public const string MacroDetail = "macro.detail";
     public const string MacroDamaged = "macro.damaged";
+    public const string MacroFindNoQuery = "macro.findNoQuery";
     public const string ToolConfirmForeign = "tool.confirm.foreign";
     public const string ToolConfirmSource = "tool.confirm.source";
     public const string ToolEditTitle = "tool.edit.title";

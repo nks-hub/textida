@@ -334,6 +334,11 @@ internal sealed partial class EditorSurface : TextEditor
             e.Handled = true;
             return;
         }
+        if (!BlockMode && KeyCommand is { } run && StepCommandOf(e) is { } id && run(id))
+        {
+            e.Handled = true;
+            return;
+        }
         if (HandleCaretKey(e)) return;
         if (BlockMode && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home)
         {

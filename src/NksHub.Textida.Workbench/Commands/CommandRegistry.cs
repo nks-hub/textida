@@ -73,8 +73,11 @@ public enum CommandOutcome
     NotRecordable,
 }
 
-/// <summary>One step of a macro: a command of the registry, or text typed at the carets. Exactly one of the two is set.</summary>
-public sealed record MacroStep(string? Command, string? Text);
+/// <summary>
+/// One step of a macro: a command of the registry, or text typed at the carets. Exactly one of the two is set.
+/// <see cref="Argument"/> is what the command recorded with itself (<see cref="CommandRegistry.RecordArgument"/>), such as the search of Find Next.
+/// </summary>
+public sealed record MacroStep(string? Command, string? Text, string? Argument = null);
 
 /// <summary>How far <see cref="CommandRegistry.PlayAsync"/> got: <see cref="Done"/> steps ran; <see cref="Outcome"/> is <see cref="CommandOutcome.Handled"/> when all of them did.</summary>
 public sealed record MacroResult(int Done, CommandOutcome Outcome);
@@ -190,11 +193,21 @@ public sealed class CommandRegistry
     public const string MacroCommandPrefix = "nks.macro.";
 
     private List<MacroStep>? _recording;
+    private string? _argument;
     private int _depth;
 
     public bool IsRecording => _recording is not null;
 
     public bool IsPlaying { get; private set; }
+
+    /// <summary>While a macro plays a command step, the argument recorded with it; the command uses it instead of asking (Find Next takes its search from here).</summary>
+    public string? StepArgument { get; private set; }
+
+    /// <summary>Called by a running command while a macro is recorded: the step it is recorded as keeps <paramref name="argument"/>.</summary>
+    public void RecordArgument(string argument)
+    {
+        if (_recording is not null && !IsPlaying) _argument = argument;
+    }
 
     /// <summary>The last macro that was recorded and not empty.</summary>
     public IReadOnlyList<MacroStep> LastMacro { get; private set; } = [];
@@ -240,9 +253,14 @@ public sealed class CommandRegistry
             for (int i = 0; i < steps.Count; i++)
             {
                 var step = steps[i];
-                var outcome = step.Command is { } id
-                    ? await ExecuteAsync(id, context, cancellationToken).ConfigureAwait(true)
-                    : typeText(step.Text ?? "") ? CommandOutcome.Handled : CommandOutcome.NotHandled;
+                CommandOutcome outcome;
+                if (step.Command is { } id)
+                {
+                    StepArgument = step.Argument;
+                    try { outcome = await ExecuteAsync(id, context, cancellationToken).ConfigureAwait(true); }
+                    finally { StepArgument = null; }
+                }
+                else outcome = typeText(step.Text ?? "") ? CommandOutcome.Handled : CommandOutcome.NotHandled;
                 if (outcome != CommandOutcome.Handled) return new MacroResult(i, outcome);
             }
             return new MacroResult(steps.Count, CommandOutcome.Handled);
@@ -291,6 +309,7 @@ public sealed class CommandRegistry
             return CommandOutcome.NotRecordable;
         }
 
+        if (outermost) _argument = null;
         _depth++;
         try
         {
@@ -323,7 +342,8 @@ public sealed class CommandRegistry
             }
             else
             {
-                outcome = await handler(context, cancellationToken).ConfigureAwait(false);
+                // back on the caller's thread: a macro step is recorded there in the order the UI thread sees it, next to the typed text
+                outcome = await handler(context, cancellationToken).ConfigureAwait(true);
             }
 
             if (outcome == CommandOutcome.Handled && command.Repeatable)
@@ -334,7 +354,8 @@ public sealed class CommandRegistry
             // only the outermost call is recorded: what a command runs inside itself (a fallback) is part of it
             if (outcome == CommandOutcome.Handled && outermost && command.Macro && _recording is { } steps && !IsPlaying)
             {
-                steps.Add(new MacroStep(command.Id, null));
+                steps.Add(new MacroStep(command.Id, null, _argument));
+                _argument = null;
             }
 
             if (outcome == CommandOutcome.Handled || command.FallbackId is null)

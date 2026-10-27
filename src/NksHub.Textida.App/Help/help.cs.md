@@ -343,13 +343,15 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu.
 
 ## [edit.macro] Makra
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
 1. Nástroje, Makra, Nahrát makro, spustí nahrávání. Pracujte příkazy a psaním. Nástroje, Makra, Zastavit nahrávání makra, ho ukončí.
 2. Nástroje, Makra, Přehrát poslední makro, ho znovu přehraje nad aktuálními výběry a kurzory.
 3. Nástroje, Makra, Uložit poslední makro jako, ho uloží pod názvem do složky macros v profilu. Nástroje, Makra, Spustit uložené makro, ukáže uložená makra a přehraje vybrané.
-- Makro si pamatuje příkazy, ne klávesy: Duplikovat řádek, velikost písmen, Přidat další výskyt a podobné, a napsaný text. Při více kurzorech udělá totéž jako ruční postup.
+- Makro si pamatuje příkazy, ne klávesy: Duplikovat řádek, velikost písmen, Přidat další výskyt a podobné, Vyjmout, Kopírovat, Vložit, a napsaný text. Při více kurzorech udělá totéž jako ruční postup.
+- Při nahrávání se jako příkazy zaznamenají i šipky, Home, End, Ctrl+Home, Ctrl+End, Ctrl se šipkami (se Shiftem i bez), Backspace a Delete. Posouvají a mažou u všech kurzorů.
+- Najít další a Najít předchozí (F3, Shift+F3, Enter v liště hledání) si s krokem uloží hledaný text z lišty hledání, takže makro najde tentýž text i při pozdějším přehrání. Lištu hledání otevřete a hledaný text napište před začátkem nahrávání; bez hledaného textu se krok nenahraje.
 - Přehrání je jeden krok Zpět. Když krok neproběhne, makro se tam zastaví a stavový řádek krok pojmenuje; co proběhlo předtím, zůstává jedním krokem Zpět.
-- Při nahrávání se příkaz, který makro nemůže přehrát, odmítne a stavový řádek to řekne: vše s dialogem, příkazy se soubory, Vyjmout, Kopírovat, Vložit, pohyb kurzoru šipkami, Hledat. Nahrávání pokračuje.
+- Při nahrávání se příkaz, který makro nemůže přehrát, odmítne a stavový řádek to řekne: vše s dialogem, příkazy se soubory, otevření lišty hledání. Nahrávání pokračuje. Kliknutí myší, Page Up a Page Down se nenahrávají.
 - Přehrání potřebuje upravitelný textový dokument. Import maker PSPadu není k dispozici.
 
 ## [edit.json] Formátování JSON

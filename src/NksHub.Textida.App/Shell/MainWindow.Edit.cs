@@ -216,9 +216,12 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    internal CommandOutcome CopyAsync() => ActiveTable is { } table ? TableCopy(table, cut: false) : ActiveHex is not null ? HexCopy(cut: false) : PagedCopy(cut: false) ?? CopyOrCut(cut: false);
+    internal Task<CommandOutcome> CopyAsync() => CopyOrCutAsync(cut: false);
 
-    internal CommandOutcome CutAsync() => ActiveTable is { } table ? TableCopy(table, cut: true) : ActiveHex is not null ? HexCopy(cut: true) : PagedCopy(cut: true) ?? CopyOrCut(cut: true);
+    internal Task<CommandOutcome> CutAsync() => CopyOrCutAsync(cut: true);
+
+    private Task<CommandOutcome> CopyOrCutAsync(bool cut) =>
+        ActiveTable is { } table ? Task.FromResult(TableCopy(table, cut)) : ActiveHex is not null ? Task.FromResult(HexCopy(cut)) : PagedCopy(cut) is { } paged ? Task.FromResult(paged) : CopyOrCutTextAsync(cut);
 
     private CommandOutcome? PagedCopy(bool cut)
     {
@@ -227,23 +230,29 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>Copy and cut: with several carets the selected texts go to the clipboard one per line.</summary>
-    private CommandOutcome CopyOrCut(bool cut)
+    /// <summary>
+    /// Copy and cut: with several carets the selected texts go to the clipboard one per line. One selection gets the line endings of the platform, as the
+    /// editor control gives them. The task ends when the clipboard has the text, so the next step of a macro can paste it.
+    /// </summary>
+    private async Task<CommandOutcome> CopyOrCutTextAsync(bool cut)
     {
         if (ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
         if (surface.CopyHidden(cut)) return CommandOutcome.Handled;
-        if (!surface.IsMulti)
+        string? text = surface.IsMulti ? surface.SelectedTexts(surface.Doc.NewLine(surface.Settings.ConfiguredEol))
+            : surface.HasSelection ? TextUtilities.NormalizeNewLines(surface.SelectedText, Environment.NewLine) : null;
+        if (text is null || Clipboard is not { } clipboard) return CommandOutcome.Handled;
+        RememberCopy(text);
+        var written = clipboard.SetTextAsync(text);
+        if (cut && !surface.IsReadOnly)
         {
-            RememberCopy(surface.SelectedText);
-            if (cut) surface.Cut(); else surface.Copy();
-            return CommandOutcome.Handled;
+            if (surface.IsMulti) surface.DeleteSelected();
+            else
+            {
+                surface.TextArea.Selection.ReplaceSelectionWithText("");
+                surface.TextArea.Caret.BringCaretToView();
+            }
         }
-        if (surface.SelectedTexts(surface.Doc.NewLine(surface.Settings.ConfiguredEol)) is { } text && Clipboard is { } clipboard)
-        {
-            RememberCopy(text);
-            _ = clipboard.SetTextAsync(text);
-            if (cut && !surface.IsReadOnly) surface.DeleteSelected();
-        }
+        await written;
         return CommandOutcome.Handled;
     }
 

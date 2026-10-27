@@ -79,9 +79,21 @@ internal static class AppCommands
         // edit
         Do("nks.edit.undo", w => w.Undo());
         Do("nks.edit.redo", w => w.Redo());
-        On("nks.edit.cut", w => w.CutAsync());
-        On("nks.edit.copy", w => w.CopyAsync());
-        On("nks.edit.paste", w => { _ = w.PasteAsync(); return w.ActiveEditor is null && w.ActiveHex is null && w.Active?.Paged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
+        // the clipboard commands of the text editor end when the clipboard is written or read and the text is in, so a macro step waits for them
+        void OnAsync(string id, Func<MainWindow, Task<CommandOutcome>> run) =>
+            registry.SetHandler(id, (_, _) => app.ActiveWindow is { } w ? new ValueTask<CommandOutcome>(run(w)) : done(CommandOutcome.NotHandled));
+        OnAsync("nks.edit.cut", w => w.CutAsync());
+        OnAsync("nks.edit.copy", w => w.CopyAsync());
+        registry.SetHandler("nks.edit.paste", (_, _) =>
+        {
+            if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
+            bool text = w.ActiveTable is null && w.ActiveHex is null && w.Active?.Paged is null && w.ActiveEditor is not null;
+            var pasting = w.PasteAsync();
+            if (text) return new ValueTask<CommandOutcome>(pasting);
+            return done(w.ActiveEditor is null && w.ActiveHex is null && w.Active?.Paged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled);
+        });
+        foreach (var (id, step, extend) in EditorSurface.StepCommands)
+            On(id, w => w.ActiveEditor is { } s && s.Step(step, extend) ? CommandOutcome.Handled : CommandOutcome.NotHandled);
         On("nks.edit.selectAll", w =>
         {
             if (w.ActiveTable is { } table) { table.SelectAll(); return CommandOutcome.Handled; }
@@ -247,8 +259,8 @@ internal static class AppCommands
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));
         On("nks.search.replace", w => w.ShowFind(replace: true));
-        Do("nks.search.findNext", w => _ = w.FindStepAsync(forward: true));
-        Do("nks.search.findPrevious", w => _ = w.FindStepAsync(forward: false));
+        registry.SetHandler("nks.search.findNext", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: true) : done(CommandOutcome.NotHandled));
+        registry.SetHandler("nks.search.findPrevious", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: false) : done(CommandOutcome.NotHandled));
         On("nks.search.findWord", w => w.FindWord());
         On("nks.search.findInFiles", w => w.ShowFindInFiles(replace: false));
         On("nks.search.replaceInFiles", w => w.ShowFindInFiles(replace: true));
