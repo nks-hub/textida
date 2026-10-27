@@ -530,7 +530,8 @@ commands: nks.view.toggleWordWrap
 commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 1. Strg+= vergrößert die Schrift um einen Punkt, Strg+- verkleinert sie.
 2. Strg+0 stellt die Standardgröße wieder her.
-- Die Größe liegt zwischen 6 und 72 Punkt und wird in der Einstellung Schriftgröße gespeichert.
+- Die Größe hat keine feste Obergrenze: Sie wächst, solange mindestens eine Zeile in die Ansicht passt, das Minimum ist 6 Punkt. Sie wird in der Einstellung Schriftgröße gespeichert.
+- Im Text ändert auch Strg+Mausrad die Größe, in Hex Strg+Umschalt+Mausrad.
 
 ## [view.display] Verborgene Zeichen, Zeilennummern und Minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -739,6 +740,9 @@ commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPe
 Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Palette zur Verfügung.
 - Codierung der Zeichenspalte: die Codierung, in der Bytes als Zeichen angezeigt werden.
 - Layout: Bytes pro Zeile (8, 16, 24, 32, 48, 64), Gruppierung der Bytes und Offsetformat. Jede Größe hat auch einen eigenen Befehl.
+- Strg+Mausrad über Hex fügt einen Block Bytes pro Zeile hinzu oder nimmt ihn weg (eine Gruppe, mindestens 8); die Zeile mit dem Cursor bleibt an ihrer Stelle. Es gibt keine feste Grenze, nur die Fensterbreite: Passt der nächste Block nicht, tut das Mausrad nichts.
+- An Fensterbreite anpassen: Die Bytes pro Zeile folgen der Fensterbreite, abgerundet auf ein Vielfaches der Gruppe. Eine Größe von Hand oder Strg+Mausrad schaltet es aus.
+- Strg+Umschalt+Mausrad ändert die Schriftgröße auch in Hex, wie Strg+=, Strg+- und Strg+0.
 - Offsets zwischen dezimal und hexadezimal umschalten.
 - Die nächste Hex-Ansicht merkt sich die Auswahl.
 

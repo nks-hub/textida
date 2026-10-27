@@ -534,6 +534,7 @@
   "hex.size.a11y": "File size: {value}",
   "hex.group": "groups of {n} B",
   "hex.offsetDecimal": "Decimal offsets",
+  "hex.fitWidth": "Fit window width",
   "hex.saving": "Saving… Esc cancels it.",
   "hex.saveCancelled": "Saving cancelled, the file is unchanged.",
   "hex.savedEditsPending": "Saved. Edits made while saving are not in the file yet.",

@@ -532,6 +532,7 @@ public static class K
     public const string HexSizeA11y = "hex.size.a11y";
     public const string HexGroup = "hex.group";
     public const string HexOffsetDecimal = "hex.offsetDecimal";
+    public const string HexFitWidth = "hex.fitWidth";
     public const string HexSaving = "hex.saving";
     public const string HexSaveCancelled = "hex.saveCancelled";
     public const string HexSavedEditsPending = "hex.savedEditsPending";

@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
@@ -37,12 +38,15 @@ internal sealed partial class HexView : Grid
     private long _changedRevision = -1, _changedBase = -1;
     private int _bytesPerRow = LastBytesPerRow;
     private int _group = 1;
+    private bool _fitWidth = LastFitWidth;
     private bool _decimalOffsets;
     private bool _dragging;
     private bool _revealWhenSized;
 
     /// <summary>Choices made in one hex view are the starting point of the next one.</summary>
     internal static int LastBytesPerRow { get; private set; } = 16;
+    /// <summary>Whether the row follows the window width; remembered like <see cref="LastBytesPerRow"/>.</summary>
+    internal static bool LastFitWidth { get; private set; }
     private static HexCharset? _lastCharset;
 
     public HexView(OpenDocument doc, EditorOptions options)
@@ -130,6 +134,7 @@ internal sealed partial class HexView : Grid
 
     public int BytesPerRow => _bytesPerRow;
     public int Group => _group;
+    public bool FitWidth => _fitWidth;
     public bool DecimalOffsets => _decimalOffsets;
     public HexCharset Charset => Editor.Charset;
     public long Caret => Editor.Caret;
@@ -242,6 +247,9 @@ internal sealed partial class HexView : Grid
     {
         _options = o;
         _canvas.InvalidateMeasure();
+        if (_canvas.Bounds.Width > 0) _canvas.Measure(_canvas.Bounds.Size); // the cell size is new before the fit and the scroll range read it
+        ApplyFit();
+        UpdateScrollRange();
         _canvas.InvalidateVisual();
     }
 
@@ -249,18 +257,60 @@ internal sealed partial class HexView : Grid
 
     // ---- layout choices ----
 
+    /// <summary>An explicit choice of the row width (menu, command); it ends the fit to the window width.</summary>
     public void SetBytesPerRow(int count)
     {
-        if (!RowSizes.Contains(count) || count == _bytesPerRow) return;
+        if (count < MinBytesPerRow) return;
+        _fitWidth = LastFitWidth = false;
+        ApplyBytesPerRow(count);
+    }
+
+    private const int MinBytesPerRow = 8;
+
+    private void ApplyBytesPerRow(int count)
+    {
+        if (count == _bytesPerRow) { RaiseViewChanged(); return; }
         long caretRow = Editor.Caret / _bytesPerRow;
-        _firstRow = _firstRow * _bytesPerRow / count;
+        bool caretShown = caretRow >= _firstRow && caretRow < _firstRow + VisibleRows;
+        long screenRow = caretRow - _firstRow, oldFirst = _firstRow * _bytesPerRow;
         _bytesPerRow = LastBytesPerRow = count;
         _group = _group > 1 && count % _group != 0 ? 1 : _group;
+        _firstRow = Math.Max(0, caretShown ? Editor.Caret / count - screenRow : oldFirst / count);
         UpdateScrollRange();
         Reveal(Editor.Caret);
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
         RaiseViewChanged();
+    }
+
+    /// <summary>Ctrl+wheel: one block (a group, at least 8 bytes) more or fewer per row, as far as the width of the view allows.</summary>
+    internal void StepBytesPerRow(int blocks)
+    {
+        int step = Math.Max(MinBytesPerRow, _group), target = _bytesPerRow + blocks * step;
+        if (target < MinBytesPerRow || blocks > 0 && target > MaxBytesPerRow()) return;
+        SetBytesPerRow(target);
+    }
+
+    /// <summary>The widest row, a multiple of the group, that the width of the view holds; 0 while the view has no width.</summary>
+    internal int MaxBytesPerRow()
+    {
+        int unit = Math.Max(1, _group);
+        int fit = _canvas.Capacity(_group);
+        return fit < MinBytesPerRow ? 0 : fit / unit * unit;
+    }
+
+    /// <summary>Turns the fit to the window width on or off; on, the row is set from the width now and on every resize.</summary>
+    public void SetFitWidth(bool on)
+    {
+        _fitWidth = LastFitWidth = on;
+        ApplyFit();
+        RaiseViewChanged();
+    }
+
+    private void ApplyFit()
+    {
+        if (!_fitWidth || MaxBytesPerRow() is not (> 0 and var fit)) return;
+        ApplyBytesPerRow(Math.Max(MinBytesPerRow, fit));
     }
 
     public void SetCharset(HexCharset charset)
@@ -272,8 +322,9 @@ internal sealed partial class HexView : Grid
 
     public void SetGroup(int group)
     {
-        if (group is not (1 or 2 or 4 or 8) || _bytesPerRow % group != 0) return;
+        if (group is not (1 or 2 or 4 or 8) || !_fitWidth && _bytesPerRow % group != 0) return;
         _group = group;
+        ApplyFit();
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
         RaiseViewChanged();
@@ -603,6 +654,13 @@ internal sealed partial class HexView : Grid
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
+        // Ctrl+Shift+wheel (the font size) is taken by the window before it gets here
+        if (e.KeyModifiers == Shortcuts.Primary)
+        {
+            if (e.Delta.Y != 0) StepBytesPerRow(e.Delta.Y > 0 ? 1 : -1);
+            e.Handled = true;
+            return;
+        }
         _firstRow = Math.Clamp(_firstRow - (long)Math.Round(e.Delta.Y * 3), 0, (long)_bar.Maximum);
         UpdateScrollRange();
         _canvas.InvalidateVisual();

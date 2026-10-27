@@ -535,7 +535,8 @@ commands: nks.view.toggleWordWrap
 commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 1. Ctrl+= zväčší písmo o jeden bod, Ctrl+- zmenší.
 2. Ctrl+0 vráti predvolenú veľkosť.
-- Veľkosť je v rozsahu 6 až 72 bodov a ukladá sa do nastavenia Veľkosť písma.
+- Veľkosť nemá pevný strop: rastie, kým sa do zobrazenia zmestí aspoň jeden riadok, najmenej je 6 bodov. Ukladá sa do nastavenia Veľkosť písma.
+- V texte mení veľkosť aj Ctrl+koliesko myši, v hexe Ctrl+Shift+koliesko.
 
 ## [view.display] Skryté znaky, čísla riadkov a minimapa
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -744,6 +745,9 @@ commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPe
 Príkazy sú dostupné v hexe, v ponuke Zobraziť, v stavovom riadku a v palete.
 - Kódovanie stĺpca znakov: výber kódovania, ktorým sa bajty ukazujú ako znaky.
 - Rozloženie: bajtov na riadok (8, 16, 24, 32, 48, 64), zoskupenie po bajtoch a formát offsetov. Každá veľkosť má aj vlastný príkaz.
+- Ctrl+koliesko myši nad hexom pridá alebo uberie jeden blok bajtov v riadku (jedno zoskupenie, najmenej 8) a riadok s kurzorom zostane na mieste. Strop nie je pevný, len šírka okna: keď sa ďalší blok nezmestí, koliesko nič neurobí.
+- Podľa šírky okna: počet bajtov v riadku sleduje šírku okna a zaokrúhľuje sa nadol na násobok zoskupenia. Ručná voľba veľkosti alebo Ctrl+koliesko to vypne.
+- Ctrl+Shift+koliesko mení veľkosť písma aj v hexe, rovnako ako Ctrl+=, Ctrl+- a Ctrl+0.
 - Prepnúť offsety desiatkovo a hexadecimálne.
 - Voľby si ďalšie hex zobrazenie pamätá.
 

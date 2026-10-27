@@ -530,7 +530,8 @@ commands: nks.view.toggleWordWrap
 commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 1. Ctrl+= enlarges the font by one point, Ctrl+- reduces it.
 2. Ctrl+0 restores the default size.
-- The size ranges from 6 to 72 points and is stored in the setting Font size.
+- The size has no fixed upper limit: it grows as long as at least one line fits in the view, and the minimum is 6 points. It is stored in the setting Font size.
+- Ctrl+wheel changes the size in text, Ctrl+Shift+wheel in hex.
 
 ## [view.display] Hidden characters, line numbers and minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -739,6 +740,9 @@ commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPe
 The commands are available in hex, in the View menu, in the status bar and in the palette.
 - Character column encoding: the encoding in which bytes are shown as characters.
 - Layout: bytes per row (8, 16, 24, 32, 48, 64), grouping of bytes and the offset format. Each size also has its own command.
+- Ctrl+wheel over the hex adds or removes one block of bytes per row (one group, at least 8) and the row with the caret stays in place. There is no fixed limit, only the window width: when the next block does not fit, the wheel does nothing.
+- Fit window width: the bytes per row follow the window width, rounded down to a multiple of the group. Choosing a size by hand or Ctrl+wheel turns it off.
+- Ctrl+Shift+wheel changes the font size in hex too, like Ctrl+=, Ctrl+- and Ctrl+0.
 - Toggle offsets between decimal and hexadecimal.
 - The next hex view remembers the choices.
 
