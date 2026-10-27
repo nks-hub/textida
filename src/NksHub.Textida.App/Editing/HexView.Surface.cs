@@ -48,7 +48,32 @@ internal sealed partial class HexView
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
             base.OnSizeChanged(e);
+            owner.ApplyFit();
             owner.UpdateScrollRange();
+        }
+
+        /// <summary>The most bytes per row whose three columns fit in the width of the surface for the given grouping; 0 before it has a width.</summary>
+        public int Capacity(int group)
+        {
+            if (Bounds.Width <= 0) return 0;
+            long length = owner.Doc.ByteLength;
+            int digits = Math.Max(8, owner._decimalOffsets ? length.ToString(CultureInfo.InvariantCulture).Length : length.ToString("X", CultureInfo.InvariantCulture).Length);
+            int best = 0;
+            for (int bpr = MinRow; Pad + (digits + 2) * _cw + (HexChars(bpr, group) + 2) * _cw + bpr * _cw + Pad <= Bounds.Width; bpr++) best = bpr;
+            return best;
+        }
+
+        private const int MinRow = 8;
+
+        private static int HexChars(int bpr, int group)
+        {
+            int pos = 0;
+            for (int col = 0; col < bpr; col++)
+            {
+                if (col > 0) pos += IsGap(col, bpr, group) ? 2 : 1;
+                pos += 2;
+            }
+            return pos;
         }
 
         private void EnsureLayout()

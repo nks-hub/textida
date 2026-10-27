@@ -45,11 +45,12 @@ internal sealed partial class MainWindow
         tab?.Minimap?.SetMarks(hits is null ? [] : hits.Select(h => new MinimapMark(h.Line - 1, MinimapMarkKind.Match)).ToList());
     }
 
-    /// <summary>Ctrl+wheel over a text view zooms like the zoom commands, so the size is the setting and not a leftover of the control.</summary>
+    /// <summary>Ctrl+wheel over a text view, Ctrl+Shift+wheel over a hex view zoom like the zoom commands, so the size is the setting and not a leftover of the control.</summary>
     private void OnWheelZoom(object? sender, PointerWheelEventArgs e)
     {
-        if (e.KeyModifiers != Shortcuts.Primary || e.Delta.Y == 0 || Active is not { Custom: null } tab) return;
-        if (e.Source is not Visual source || !tab.Root.IsVisualAncestorOf(source)) return;
+        if (e.Delta.Y == 0 || Active is not { } tab || e.Source is not Visual source || !tab.Root.IsVisualAncestorOf(source)) return;
+        bool hex = source.FindAncestorOfType<HexView>(includeSelf: true) is not null;
+        if (hex ? e.KeyModifiers != (Shortcuts.Primary | KeyModifiers.Shift) : e.KeyModifiers != Shortcuts.Primary || tab.Custom is not null) return;
         Zoom(e.Delta.Y > 0 ? 1 : -1);
         e.Handled = true;
     }

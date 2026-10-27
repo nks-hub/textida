@@ -70,7 +70,6 @@
           "type": "integer",
           "default": 14,
           "minimum": 6,
-          "maximum": 72,
           "description": "Font size. Font size in points.",
           "x-scope": "application"
         },

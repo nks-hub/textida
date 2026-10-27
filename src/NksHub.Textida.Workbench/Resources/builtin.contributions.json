@@ -3783,7 +3783,6 @@
       "category": "cat.editor",
       "scope": "application",
       "minimum": 6,
-      "maximum": 72,
       "tags": [
         "font",
         "size"

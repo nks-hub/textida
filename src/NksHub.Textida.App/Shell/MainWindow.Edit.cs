@@ -312,7 +312,14 @@ internal sealed partial class MainWindow
     {
         var settings = _app.Workbench.Settings;
         double size = settings.GetNumber("editor.fontSize");
-        _app.Workbench.Set("editor.fontSize", System.Text.Json.Nodes.JsonValue.Create((int)Math.Clamp(Math.Round(size) + delta, 6, 72)));
+        _app.Workbench.Set("editor.fontSize", System.Text.Json.Nodes.JsonValue.Create((int)Math.Clamp(Math.Round(size) + delta, 6, MaxFontSize(Math.Round(size)))));
+    }
+
+    /// <summary>The largest font size that still leaves a line in the active view; never below the current size, so a small view does not force the size down.</summary>
+    private double MaxFontSize(double current)
+    {
+        double height = Active?.Root.Bounds.Height ?? 0;
+        return Math.Max(6, height > 0 ? Math.Max(current, Math.Floor(height / 1.6)) : 1000);
     }
 
     internal void ZoomReset() => _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);

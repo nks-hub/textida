@@ -552,6 +552,7 @@
   "hex.size.a11y": "Veľkosť súboru: {value}",
   "hex.group": "po {n} B",
   "hex.offsetDecimal": "Offsety desiatkovo",
+  "hex.fitWidth": "Podľa šírky okna",
   "hex.saving": "Ukladanie… Esc ho zruší.",
   "hex.saveCancelled": "Ukladanie zrušené, súbor zostal bez zmeny.",
   "hex.savedEditsPending": "Uložené. Úpravy z čias ukladania zatiaľ v súbore nie sú.",

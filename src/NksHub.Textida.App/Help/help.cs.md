@@ -535,7 +535,8 @@ commands: nks.view.toggleWordWrap
 commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 1. Ctrl+= zvětší písmo o jeden bod, Ctrl+- zmenší.
 2. Ctrl+0 vrátí výchozí velikost.
-- Velikost je v rozsahu 6 až 72 bodů a ukládá se do nastavení Velikost písma.
+- Velikost nemá pevný strop: roste, dokud se do zobrazení vejde alespoň jeden řádek, nejméně je 6 bodů. Ukládá se do nastavení Velikost písma.
+- V textu mění velikost i Ctrl+kolečko myši, v hexu Ctrl+Shift+kolečko.
 
 ## [view.display] Skryté znaky, čísla řádků a minimapa
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -744,6 +745,9 @@ commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPe
 Příkazy jsou dostupné v hexu, v nabídce Zobrazit, ve stavovém řádku a v paletě.
 - Kódování znakového sloupce: výběr kódování, kterým se bajty ukazují jako znaky.
 - Rozložení: bajtů na řádek (8, 16, 24, 32, 48, 64), seskupení po bajtech a formát offsetů. Každá velikost má i vlastní příkaz.
+- Ctrl+kolečko myši nad hexem přidá nebo ubere jeden blok bajtů na řádku (jedno seskupení, nejméně 8) a řádek s kurzorem zůstane na místě. Strop není pevný, jen šířka okna: když se další blok nevejde, kolečko nic neudělá.
+- Podle šířky okna: počet bajtů na řádku sleduje šířku okna a zaokrouhluje se dolů na násobek seskupení. Ruční volba velikosti nebo Ctrl+kolečko to vypne.
+- Ctrl+Shift+kolečko mění velikost písma i v hexu, stejně jako Ctrl+= , Ctrl+- a Ctrl+0.
 - Přepnout offsety dekadicky a hexadecimálně.
 - Volby si další hex zobrazení pamatuje.
 

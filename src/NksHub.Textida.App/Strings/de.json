@@ -534,6 +534,7 @@
   "hex.size.a11y": "Dateigröße: {value}",
   "hex.group": "Gruppen zu {n} B",
   "hex.offsetDecimal": "Offsets dezimal",
+  "hex.fitWidth": "An Fensterbreite anpassen",
   "hex.saving": "Speichern… Esc bricht ab.",
   "hex.saveCancelled": "Speichern abgebrochen, die Datei blieb unverändert.",
   "hex.savedEditsPending": "Gespeichert. Änderungen während des Speicherns sind noch nicht in der Datei.",

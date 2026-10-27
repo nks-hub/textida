@@ -310,15 +310,18 @@ internal sealed partial class MainWindow
         foreach (int size in HexView.Sizes)
         {
             int chosen = size;
-            var item = new MenuItem { Header = Loc.Get(K.HexPerRow, ("n", size)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.BytesPerRow == size, GroupName = "hexrow" };
+            var item = new MenuItem { Header = Loc.Get(K.HexPerRow, ("n", size)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.BytesPerRow == size && !hex.FitWidth, GroupName = "hexrow" };
             item.Click += (_, _) => hex.SetBytesPerRow(chosen);
             flyout.Items.Add(item);
         }
+        var fit = new MenuItem { Header = Loc.Get(K.HexFitWidth), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.FitWidth, GroupName = "hexrow" };
+        fit.Click += (_, _) => hex.SetFitWidth(true);
+        flyout.Items.Add(fit);
         flyout.Items.Add(new Separator());
         foreach (int group in new[] { 1, 2, 4, 8 })
         {
             int chosen = group;
-            var item = new MenuItem { Header = Loc.Get(K.HexGroup, ("n", group)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.Group == group, GroupName = "hexgroup", IsEnabled = hex.BytesPerRow % group == 0 };
+            var item = new MenuItem { Header = Loc.Get(K.HexGroup, ("n", group)), ToggleType = MenuItemToggleType.Radio, IsChecked = hex.Group == group, GroupName = "hexgroup", IsEnabled = hex.FitWidth || hex.BytesPerRow % group == 0 };
             item.Click += (_, _) => hex.SetGroup(chosen);
             flyout.Items.Add(item);
         }
