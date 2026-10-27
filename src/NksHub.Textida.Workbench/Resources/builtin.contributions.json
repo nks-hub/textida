@@ -1255,6 +1255,31 @@
       "category": "cat.log"
     },
     {
+      "id": "nks.log.follow",
+      "title": "cmd.log.follow",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.saveView",
+      "title": "cmd.log.saveView",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.views",
+      "title": "cmd.log.views",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.nextMatch",
+      "title": "cmd.log.nextMatch",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.previousMatch",
+      "title": "cmd.log.previousMatch",
+      "category": "cat.log"
+    },
+    {
       "id": "nks.edit.fragmentJson",
       "title": "cmd.edit.fragmentJson",
       "category": "cat.edit",
@@ -2988,6 +3013,41 @@
       "group": "2_run/05_6_log",
       "submenu": "log",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.follow",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.saveView",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.views",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.nextMatch",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.previousMatch",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 80
     },
     {
       "menu": "edit",

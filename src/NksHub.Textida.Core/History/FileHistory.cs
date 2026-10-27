@@ -145,7 +145,7 @@ public sealed partial class FileHistory
 
     // ---- writing ----
 
-    private static void WriteAtomic(string path, byte[] bytes)
+    internal static void WriteAtomic(string path, byte[] bytes)
     {
         var temp = Path.Combine(Path.GetDirectoryName(path)!, "." + Guid.NewGuid().ToString("N")[..12] + ".tmp");
         try

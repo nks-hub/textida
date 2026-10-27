@@ -949,6 +949,17 @@ commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 - Die Regeln gelten, solange das Dokument geöffnet ist, und werden nicht gespeichert.
 - Eine Zeile mit mehr als 8192 Zeichen wird im Editor nach ihren ersten 8192 Zeichen beurteilt.
 
+## [log.live] Live-Log: Verfolgen, gespeicherte Anzeigen, Rotation
+commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nks.log.previousMatch
+1. Log: verfolgen liest die Datei erneut, sobald Zeilen hinzukommen, und setzt den Cursor ans Ende. Das geht bei jeder Dateigröße, auch im seitenweisen Modus. Es braucht ein als Datei gespeichertes Dokument ohne ungespeicherte Änderungen; bei ungespeicherten Änderungen hält es an und die Statuszeile sagt es. Der Befehl noch einmal beendet das Verfolgen.
+2. Log: Anzeige speichern fragt nach einem Namen, einem regulären Ausdruck und den Stufen, die bleiben (error, warning, info, debug; leer heißt alle). Die Anzeige wird in logviews.json im Profil gespeichert, zusammen mit den Stufenregeln des Dokuments und der Cursorposition, und wird die Live-Anzeige des Dokuments.
+3. Log: Anzeigen listet die gespeicherten Anzeigen. Die gewählte setzt Stufenregeln, Filter und Cursorposition und liest die Datei einmal, um die passenden Zeilen zu finden. Wurde die Anzeige für eine andere Datei gespeichert, wird die Position nicht verwendet.
+4. Log: nächster Treffer der Anzeige und Log: vorheriger Treffer der Anzeige springen zwischen den Zeilen, die der Filter behält. Wächst die Datei, werden nur die neuen Zeilen untersucht; der früher gelesene Teil wird nicht noch einmal gelesen. Eine letzte Zeile ohne Zeilenende wird erst übernommen, wenn sie endet.
+5. Kürzt ein anderes Programm das Log oder ersetzt es (Rotation: die Datei wird umbenannt und unter dem alten Namen entsteht eine neue), sagt es die Statuszeile, die früheren Treffer werden verworfen und das Lesen beginnt am Anfang des neuen Inhalts. Eine fehlende Datei wird einmal gemeldet, dann wird gewartet.
+- Eine Rotation erkennt man an den ersten 4096 Bytes der Datei und unter Windows an der Erstellungszeit. Eine neue Datei, die mit denselben Bytes beginnt und nicht kürzer ist als die alte, ist davon nicht zu unterscheiden; eine ersetzte Datei gleicher Länge mit gleicher Zeit und gleichen Bytes fällt nicht auf.
+- Die Datei wird einmal pro Sekunde angesehen. Dieser Wert und die 4096 Bytes sind keine entschiedenen Werte.
+- Die Treffer liegen im Speicher ohne Obergrenze. Der Hervorhebungsausdruck einer Anzeige bleibt in der Datei, wird aber noch nicht gezeichnet.
+
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Die Befehle stehen im Menü Ansicht und in der Palette. Jeder schaltet eine Einstellung um; die Einstellungen lassen sich auch in den Einstellungen ändern.

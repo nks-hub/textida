@@ -14,6 +14,9 @@ namespace NksHub.Textida.App.Services;
 /// </summary>
 internal static class PluginLimitsPlaceholders
 {
+    /// <summary>Placeholder, OPEN: milliseconds between two looks at a followed log for new lines, truncation or rotation. The owner has not decided it.</summary>
+    public const int LogFollowPollMilliseconds = 1000;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

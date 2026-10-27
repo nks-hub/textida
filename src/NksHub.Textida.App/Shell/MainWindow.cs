@@ -375,6 +375,7 @@ internal sealed partial class MainWindow : Window
         _app.Workbench.SettingChanged -= OnSettingChanged;
         ReleaseNavigation();
         ReleaseOutput();
+        ReleaseLogFollow();
         ReleaseAgent();
         ReleasePlugins();
         bool others = _app.Windows.Count > 1;

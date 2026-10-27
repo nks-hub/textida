@@ -230,6 +230,11 @@ internal static class AppCommands
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.log.levels", w => w.ChooseLogLevels());
+        On("nks.log.follow", w => w.ToggleLogFollow());
+        On("nks.log.saveView", w => w.SaveLogView());
+        On("nks.log.views", w => w.ShowLogViews());
+        On("nks.log.nextMatch", w => w.LogViewStep(forward: true));
+        On("nks.log.previousMatch", w => w.LogViewStep(forward: false));
 
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));
