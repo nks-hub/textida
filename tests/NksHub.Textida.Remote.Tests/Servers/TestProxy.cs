@@ -54,7 +54,7 @@ public sealed class TestProxy : IDisposable
             {
                 var s = client.GetStream();
                 var target = Kind switch { ProxyType.Http => await Http(s), ProxyType.Socks4 => await Socks4(s), _ => await Socks5(s) };
-                if (target is null) { Interlocked.Increment(ref _refused); return; }
+                if (target is null) return;
                 using var upstream = new TcpClient();
                 await upstream.ConnectAsync(target.Value.Host, target.Value.Port, _stop.Token);
                 Interlocked.Increment(ref _tunnels);
@@ -65,6 +65,13 @@ public sealed class TestProxy : IDisposable
             }
             catch (Exception e) when (e is IOException or SocketException or OperationCanceledException or ObjectDisposedException) { }
         }
+    }
+
+    /// <summary>Counts the refusal before the client can see it, so a test that has just read the error finds it counted.</summary>
+    private async Task Refuse(NetworkStream s, byte[] reply)
+    {
+        Interlocked.Increment(ref _refused);
+        await s.WriteAsync(reply);
     }
 
     private static async Task<byte[]> Exactly(Stream s, int n)
@@ -85,13 +92,13 @@ public sealed class TestProxy : IDisposable
         }
         var lines = sb.ToString().Split("\r\n");
         var parts = lines[0].Split(' ');
-        if (parts[0] != "CONNECT") { await s.WriteAsync("HTTP/1.1 405 Method Not Allowed\r\n\r\n"u8.ToArray()); return null; }
+        if (parts[0] != "CONNECT") { await Refuse(s, "HTTP/1.1 405 Method Not Allowed\r\n\r\n"u8.ToArray()); return null; }
         if (User is not null)
         {
             string expected = "Proxy-Authorization: Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{User}:{Password}"));
             if (!lines.Any(l => l.Equals(expected, StringComparison.OrdinalIgnoreCase)))
             {
-                await s.WriteAsync("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"t\"\r\n\r\n"u8.ToArray());
+                await Refuse(s, "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"t\"\r\n\r\n"u8.ToArray());
                 return null;
             }
         }
@@ -115,7 +122,7 @@ public sealed class TestProxy : IDisposable
         }
         if (head[0] != 4 || head[1] != 1 || (User is not null && Encoding.ASCII.GetString([.. id]) != User))
         {
-            await s.WriteAsync(new byte[] { 0, 0x5B, 0, 0, 0, 0, 0, 0 });
+            await Refuse(s, new byte[] { 0, 0x5B, 0, 0, 0, 0, 0, 0 });
             return null;
         }
         await s.WriteAsync(new byte[] { 0, 0x5A, 0, 0, 0, 0, 0, 0 });
@@ -127,7 +134,7 @@ public sealed class TestProxy : IDisposable
         var greeting = await Exactly(s, 2);
         var methods = await Exactly(s, greeting[1]);
         byte method = User is null ? (byte)0 : (byte)2;
-        if (!methods.Contains(method)) { await s.WriteAsync(new byte[] { 5, 0xFF }); return null; }
+        if (!methods.Contains(method)) { await Refuse(s, new byte[] { 5, 0xFF }); return null; }
         await s.WriteAsync(new byte[] { 5, method });
         if (User is not null)
         {
@@ -135,8 +142,8 @@ public sealed class TestProxy : IDisposable
             string user = Encoding.UTF8.GetString(await Exactly(s, v[1]));
             string pass = Encoding.UTF8.GetString(await Exactly(s, (await Exactly(s, 1))[0]));
             bool ok = user == User && pass == Password;
-            await s.WriteAsync(new byte[] { 1, (byte)(ok ? 0 : 1) });
-            if (!ok) return null;
+            if (!ok) { await Refuse(s, new byte[] { 1, 1 }); return null; }
+            await s.WriteAsync(new byte[] { 1, 0 });
         }
         var req = await Exactly(s, 4);
         string host = req[3] switch
