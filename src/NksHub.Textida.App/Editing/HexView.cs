@@ -218,10 +218,24 @@ internal sealed partial class HexView : Grid
         Dispatcher.UIThread.Post(CheckFile);
     }
 
+    private int _checking;
+
+    /// <summary>
+    /// The safety net behind the file watcher. A file whose size and time are as recorded is left alone, and the check itself hashes the whole file,
+    /// so it runs on a worker, one at a time: on the UI thread a large file froze the window for seconds on every tick.
+    /// </summary>
     private void CheckFile()
     {
-        try { Doc.CheckExternalChange(); }
-        catch (IOException) { }
+        var doc = Doc;
+        if (doc.FilePath is { } path && doc.Fingerprint is { } print && new FileInfo(path) is { Exists: true } info
+            && info.Length == print.Size && info.LastWriteTimeUtc == print.LastWriteUtc) return;
+        if (Interlocked.Exchange(ref _checking, 1) == 1) return;
+        Task.Run(() =>
+        {
+            try { doc.CheckExternalChange(); }
+            catch (Exception e) when (e is IOException or ObjectDisposedException) { }
+            finally { Volatile.Write(ref _checking, 0); }
+        });
     }
 
     public void ApplyOptions(EditorOptions o)
