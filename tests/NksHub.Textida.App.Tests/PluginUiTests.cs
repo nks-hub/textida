@@ -270,6 +270,34 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_arrows_move_through_the_panel_and_Enter_sends_the_chosen_item_to_the_plugin()
+    {
+        _w.Show();
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.SelectedItem is TreeViewItem { Tag: "a" } && _w.PluginTree.IsKeyboardFocusWithin, "the first item with the keyboard");
+
+        TestApp.Press(_w, Avalonia.Input.Key.Down);
+        Assert.Equal("b", (_w.PluginTree.SelectedItem as TreeViewItem)?.Tag);
+        TestApp.Press(_w, Avalonia.Input.Key.Enter);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var all = await Pump(Host.CallAsync("p", "events"));
+            var activated = all.EnumerateArray().Where(e => e.GetProperty("name").GetString() == UiEvents.PanelActivated).ToList();
+            if (activated.Count > 0)
+            {
+                var payload = Assert.Single(activated).GetProperty("payload");
+                Assert.Equal(("todo", "b"), (payload.GetProperty("panel").GetString(), payload.GetProperty("item").GetString()));
+                break;
+            }
+            Assert.True(sw.ElapsedMilliseconds < 30_000, "Not reached: the activated item");
+            await Task.Delay(20);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task F1_in_the_open_panel_opens_the_help_topic_of_plugin_panels()
     {
         _w.Show();
