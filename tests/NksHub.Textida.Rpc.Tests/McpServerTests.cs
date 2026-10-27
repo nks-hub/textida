@@ -181,8 +181,15 @@ public class McpServerTests
             return new ToolReply(reply.Result.GetProperty("isError").GetBoolean(), text);
         }
 
-        public Document NewDocument(byte[] content, TextCodec? codec = null) =>
-            Document.FromBytes(content, PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
+        /// <summary>A document whose line index is complete, so the line numbers the tools report do not depend on how fast the index thread runs.</summary>
+        public Document NewDocument(byte[] content, TextCodec? codec = null)
+        {
+            var doc = Document.FromBytes(content, PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
+            var until = DateTime.UtcNow.AddSeconds(30);
+            while (!doc.LineIndexState.Complete && DateTime.UtcNow < until) Thread.Sleep(1);
+            Assert.True(doc.LineIndexState.Complete);
+            return doc;
+        }
 
         /// <summary>Shows the document to the assistant the way the editor does when the user shares a tab.</summary>
         public Document Share(Document doc, bool propose = true, Func<SelectionSet?>? selections = null)
