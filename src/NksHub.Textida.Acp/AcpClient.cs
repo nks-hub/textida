@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Rpc;
 
@@ -73,7 +74,7 @@ public class AcpException(string message, int? code = null) : Exception(message)
 
 /// <summary>The agent process ended (or closed its output) while the client was waiting for it. Reported to the caller; it never takes the editor down.</summary>
 public sealed class AcpAgentExitedException(AcpExit exit)
-    : AcpException("The agent ended" + (exit.ExitCode is { } c ? $" (exit code {c})" : "") + (exit.StderrTail.Length > 0 ? ": " + exit.StderrTail.Split('\n')[^1].Trim() : "."))
+    : AcpException("The agent ended" + (exit.ExitCode is { } c ? $" (exit code {c})" : "") + (exit.StderrTail.Length > 0 ? ": " + UriMask.MaskText(exit.StderrTail.Split('\n')[^1].Trim()) : "."))
 {
     public AcpExit Exit { get; } = exit;
 }

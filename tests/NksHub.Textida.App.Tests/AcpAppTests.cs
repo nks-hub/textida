@@ -6,6 +6,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
@@ -204,6 +205,7 @@ public class AcpAppTests : IDisposable
         Assert.False(Acp.IsShared(shared));
         await SayAsync("read " + shared.Path);
         await Until(() => Panel(_w).Split("READERR:-32002:").Length == 4, "the refusal after withdrawing");
+        Assert.Equal(1, Acp.Boundary().Reads); // only the read the editor served is counted
     }
 
     // ---- fs/write_text_file ----
@@ -231,6 +233,7 @@ public class AcpAppTests : IDisposable
         await Until(() => _w.AgentTask.IsCompleted, "the turn");
         Assert.Equal("alpha\ndelta\ngamma", tab.Editor.Document.Text);
         Assert.Equal("alpha\nbeta\ngamma", File.ReadAllText(tab.Path!)); // the document is changed, not saved
+        Assert.Equal(new AgentBoundary(0, 1, 1, 0, 0), Acp.Boundary());
         _ = hunk;
 
         // one undo step takes it back, the way an applied change always does
@@ -255,6 +258,7 @@ public class AcpAppTests : IDisposable
         await UntilPanelHas("WRITE-ERR:-32001:The user rejected the change.");
         Assert.Equal("alpha\nbeta\n", tab.Editor!.Document.Text);
         Assert.Equal("alpha\nbeta\n", File.ReadAllText(tab.Path!));
+        Assert.Equal(new AgentBoundary(0, 1, 0, 0, 0), Acp.Boundary()); // decided, not applied
     }
 
     [AvaloniaFact]
@@ -314,6 +318,7 @@ public class AcpAppTests : IDisposable
         var asked = Assert.Single(_dialogs.Asked);
         Assert.Equal(Loc.Get(K.AgentPermissionTitle, ("agent", "Fake agent")), asked.Title);
         Assert.Contains("Run the tests", asked.Message);
+        Assert.Null(asked.Details); // an ordinary tool with no "always" choice has nothing to add
         Assert.Equal(["Allow once", "Reject", Loc.Get(K.DialogCancel)], asked.Buttons.Select(b => b.Label));
         // the safe answer is the default; the cancel button is the cancel button
         Assert.Equal([false, true, false], asked.Buttons.Select(b => b.IsDefault));
@@ -395,6 +400,164 @@ public class AcpAppTests : IDisposable
         Assert.False(Acp.IsShared(untitled));
         Assert.Equal(Loc.Get(K.AgentShareUnavailable), _w.StatusMessageText);
         Assert.All(AcpAdapters.All, a => Assert.False(a.IsVerified));
+    }
+
+    // ---- P6.6.3 / P6.6.4: adapters, versions and the boundary of the guarantee ----
+
+    private static string Dotnet => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+
+    private static AcpAdapter FakeAdapter(string versionFlag = "--version", string? verified = null) =>
+        new("fake", "Fake agent", Dotnet, [FakeAgent], "0.1.0", "https://example.invalid/fake", verified, VersionArgs: [FakeAgent, versionFlag]);
+
+    private async Task<bool> StartAdapterAsync(AcpAdapter adapter)
+    {
+        var start = Acp.StartAsync(_w, new AcpLaunch(Dotnet, adapter.Args, _temp.Path), adapter.Name, adapter);
+        await Until(() => start.IsCompleted, "the agent to start");
+        return await start;
+    }
+
+    private bool HasNote(string text) => Acp.Lines().Any(l => l.Role == AgentRole.Note && l.Text == text);
+
+    private static string Counts(int reads, int proposals, int applied, int commands, int other) =>
+        Loc.Get(K.AgentBoundaryCounts, ("reads", reads), ("proposals", proposals), ("applied", applied), ("commands", commands), ("other", other));
+
+    private static string AllReach() => string.Join(", ", Loc.Get(K.AgentReachFiles), Loc.Get(K.AgentReachPrograms), Loc.Get(K.AgentReachNetwork));
+
+    private async Task UntilBoundaryHas(string text) => await Until(() => _w.AgentBoundaryNowText.Contains(text), "the boundary to show: " + text);
+
+    private Task OpenChoiceAsync(int rows, string what) =>
+        Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice && _w.QuickResults.Count == rows, what);
+
+    [AvaloniaFact]
+    public async Task The_version_of_the_program_is_noted_next_to_the_table_and_a_program_without_one_only_gets_a_note()
+    {
+        Assert.True(await StartAdapterAsync(FakeAdapter()));
+        Assert.Equal(AgentState.Ready, Acp.State);
+        Assert.True(HasNote(Loc.Get(K.AgentVersionUnverified, ("agent", "Fake agent"), ("version", "0.1.0"), ("listed", "0.1.0"))));
+        await Acp.StopAsync();
+
+        Assert.True(await StartAdapterAsync(FakeAdapter(verified: "0.1.0")));
+        Assert.True(HasNote(Loc.Get(K.AgentVersionVerified, ("agent", "Fake agent"), ("version", "0.1.0"), ("listed", "0.1.0"))));
+        await Acp.StopAsync();
+
+        Assert.True(await StartAdapterAsync(FakeAdapter("--version-silent")));
+        Assert.Equal(AgentState.Ready, Acp.State);
+        Assert.True(HasNote(Loc.Get(K.AgentVersionUnknown, ("agent", "Fake agent"), ("reason", "no version in the output"))));
+    }
+
+    [AvaloniaFact]
+    public async Task Stopping_while_the_version_is_read_ends_the_start_without_an_agent()
+    {
+        var adapter = FakeAdapter("--version-hang");
+        var start = Acp.StartAsync(_w, new AcpLaunch(Dotnet, adapter.Args, _temp.Path), adapter.Name, adapter);
+        Assert.Equal(AgentState.Starting, Acp.State);
+        await Acp.StopAsync();
+        await Until(() => start.IsCompleted, "the start to end", seconds: 10); // the check itself has a longer limit, so only the stop can end it this soon
+        Assert.False(await start);
+        Assert.Equal(AgentState.None, Acp.State);
+        Assert.False(Acp.IsRunning);
+    }
+
+    [AvaloniaFact]
+    public async Task The_panel_marks_tools_that_run_outside_the_editor_and_counts_what_went_through_it()
+    {
+        await RunAsync("nks.agent.panel");
+        var tab = Open("shared.txt", "alpha\nbeta\ngamma");
+        Assert.True(await StartAdapterAsync(FakeAdapter()));
+        await UntilBoundaryHas(Loc.Get(K.AgentBoundaryMode, ("agent", "Fake agent"), ("reach", AllReach())));
+        await UntilBoundaryHas(Counts(0, 0, 0, 0, 0));
+        await ShareAsync(tab);
+
+        await SayAsync("outside");
+        await UntilPanelHas("OUTSIDE-DONE");
+        var done = Loc.Get(K.AgentToolCompleted);
+        await UntilPanelHas(Loc.Get(K.AgentLineToolOutside, ("title", "Run the tests"), ("status", done)));
+        Assert.Contains(Loc.Get(K.AgentLineToolOutside, ("title", "Run the build"), ("status", done)), Panel(_w));
+        Assert.Contains(Loc.Get(K.AgentLineToolOutside, ("title", "Delete the cache"), ("status", done)), Panel(_w));
+        // a read by the agent's own tool may or may not have gone through the editor, so it is not marked
+        Assert.Contains(Loc.Get(K.AgentLineTool, ("title", "Look at a file"), ("status", done)), Panel(_w));
+        await UntilBoundaryHas(Counts(0, 0, 0, 2, 1));
+
+        await SayAsync("read " + tab.Path);
+        await UntilPanelHas("READ:alpha");
+        await UntilBoundaryHas(Counts(1, 0, 0, 2, 1));
+
+        // a new agent starts with new counts, and with no agent the panel shows no boundary of a session
+        await Acp.StopAsync();
+        await Until(() => _w.AgentBoundaryNowText.Length == 0, "the boundary of the session to go");
+        Assert.True(await StartAdapterAsync(FakeAdapter()));
+        Assert.Equal(new AgentBoundary(0, 0, 0, 0, 0), Acp.Boundary());
+    }
+
+    [AvaloniaFact]
+    public async Task A_permission_question_for_a_tool_outside_the_editor_says_so_and_flags_an_always_choice()
+    {
+        await RunAsync("nks.agent.panel");
+        Assert.True(await StartAsync());
+        _dialogs.Answers.Enqueue(1); // Reject
+        await SayAsync("permexec");
+        await Until(() => Panel(_w).Contains("\"optionId\":\"reject-once\""), "the rejection");
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains("Run rm", asked.Message);
+        Assert.Equal([Loc.Get(K.AgentPermissionOutside), Loc.Get(K.AgentPermissionAlways)], asked.Details);
+        Assert.Equal(["Allow once", "Reject", "Always allow", Loc.Get(K.DialogCancel)], asked.Buttons.Select(b => b.Label));
+        Assert.Equal([false, true, false, false], asked.Buttons.Select(b => b.IsDefault));
+    }
+
+    [AvaloniaFact]
+    public async Task Start_Agent_says_where_each_program_is_found_and_a_missing_one_gets_a_clear_message_instead_of_a_start()
+    {
+        Open("a.txt", "x"); // the agent works in the folder of the open file
+        var missing = new AcpAdapter("gone", "Gone agent", "textida-no-such-agent-xyz", ["--acp"], "1.2.3", "https://example.invalid/gone");
+        _w.AgentAdapters = [FakeAdapter(), missing];
+        await _app.Workbench.Commands.ExecuteAsync("nks.agent.start", new ShellContext(_w, forMenu: false));
+        await OpenChoiceAsync(2, "the list");
+        Assert.Equal(["Fake agent", "Gone agent"], _w.QuickResults.Select(r => r.Title));
+        Assert.Equal($"{FakeAdapter().CommandLine} · {Loc.Get(K.AgentStartFound)} · {Loc.Get(K.AgentStartUnverified)}", _w.QuickResults[0].Detail);
+        Assert.Equal($"{missing.CommandLine} · {Loc.Get(K.AgentStartMissingInPath)}", _w.QuickResults[1].Detail);
+
+        _dialogs.Answers.Enqueue(0); // OK
+        _w.MovePalette(1);
+        _w.RunPaletteSelection();
+        await Until(() => _w.AgentTask.IsCompleted, "the command to end");
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Equal(Loc.Get(K.AgentStartTitle, ("agent", "Gone agent")), asked.Title);
+        Assert.Contains("textida-no-such-agent-xyz", asked.Message);
+        Assert.Contains("was not found in PATH", asked.Message);
+        Assert.Contains("https://example.invalid/gone", asked.Message);
+        Assert.Equal(AgentState.None, Acp.State);
+    }
+
+    [AvaloniaFact]
+    public async Task Start_Agent_asks_with_the_resolved_program_and_the_boundary_of_that_agent_and_starts_it_only_after_a_yes()
+    {
+        var tab = Open("a.txt", "x");
+        var adapter = FakeAdapter();
+        _w.AgentAdapters = [adapter];
+        await _app.Workbench.Commands.ExecuteAsync("nks.agent.start", new ShellContext(_w, forMenu: false));
+        await OpenChoiceAsync(1, "the list");
+        _dialogs.Answers.Enqueue(1); // Cancel
+        _w.RunPaletteSelection();
+        await Until(() => _w.AgentTask.IsCompleted, "the command to end");
+        Assert.Equal(AgentState.None, Acp.State);
+
+        await _app.Workbench.Commands.ExecuteAsync("nks.agent.start", new ShellContext(_w, forMenu: false));
+        await OpenChoiceAsync(1, "the list again");
+        _dialogs.Answers.Enqueue(0); // Start
+        _w.RunPaletteSelection();
+        await Until(() => _w.AgentTask.IsCompleted, "the start to end");
+        await _w.AgentTask;
+        Assert.Equal(AgentState.Ready, Acp.State);
+
+        Assert.Equal(2, _dialogs.Asked.Count);
+        var asked = _dialogs.Asked[1];
+        var program = AcpLaunch.Find(adapter.Command).Path!;
+        var folder = Path.GetDirectoryName(tab.Path)!;
+        Assert.Equal(Loc.Get(K.AgentStartMessage, ("command", new ToolInvocation("x", program, adapter.Args, folder, null, "").CommandLine), ("folder", folder)), asked.Message);
+        Assert.Equal([Loc.Get(K.AgentStartReads), Loc.Get(K.AgentStartWrites), Loc.Get(K.AgentStartOwn, ("agent", "Fake agent"), ("reach", AllReach())), Loc.Get(K.AgentStartMode, ("agent", "Fake agent"))], asked.Details);
+        Assert.True(_w.AgentPanelOpen);
+        Assert.True(HasNote(Loc.Get(K.AgentVersionUnverified, ("agent", "Fake agent"), ("version", "0.1.0"), ("listed", "0.1.0"))));
+        await UntilBoundaryHas(Loc.Get(K.AgentBoundaryMode, ("agent", "Fake agent"), ("reach", AllReach())));
     }
 }
 

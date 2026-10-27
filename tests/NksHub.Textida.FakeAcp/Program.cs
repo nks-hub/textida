@@ -5,13 +5,32 @@
 //   write PATH\nTEXT asks the client for fs/write_text_file and streams "WRITE-OK" (or "WRITE-ERR:code:message")
 //   perm             asks session/request_permission (allow-once / reject-once) and streams "PERM:" + the outcome
 //   permwait         the same, but the turn waits for the answer and ends with cancelled when the outcome is cancelled
+//   permexec         the same for a tool of kind execute, with an extra "allow always" option
+//   seen             streams "SEEN:" and the methods the client has sent so far, in order, separated by commas
+//   caps             streams "CAPS:" and the clientCapabilities of the client's initialize request
+//   outside          reports four tool calls that complete: two of kind execute, one delete, one read
 //   slow             streams "tick" every 50 ms until session/cancel arrives, then ends the turn with cancelled
 //   crash            writes a line to stderr and exits with code 3 in the middle of the turn
 //   silent           never answers the prompt (and ignores session/cancel)
 //   anything else    streams "echo:" + the text
 // Options: --protocol N (answer initialize with version N), --hang-init (never answer initialize), --auth (session/new fails with "authentication required").
+// Version probe (the program is started like a real agent program asked for its version): --version prints a line with 0.1.0 and leaves, --version-silent prints nothing,
+// --version-fail writes to stderr and exits with code 4, --version-hang never answers.
 using System.Text.Json;
 using System.Text.Json.Nodes;
+
+if (args.Contains("--version-hang")) await Task.Delay(Timeout.Infinite);
+if (args.Contains("--version-fail"))
+{
+    Console.Error.WriteLine("boom");
+    Environment.Exit(4);
+}
+if (args.Contains("--version-silent")) return;
+if (args.Contains("--version"))
+{
+    Console.WriteLine("fake-acp 0.1.0 (build 2026.10)");
+    return;
+}
 
 int protocol = int.Parse(args.SkipWhile(a => a != "--protocol").Skip(1).FirstOrDefault() ?? "1");
 bool hangInit = args.Contains("--hang-init");
@@ -22,6 +41,8 @@ var gate = new object();
 var waiting = new Dictionary<long, TaskCompletionSource<JsonNode>>();
 long nextId = 1000;
 var cancelled = new TaskCompletionSource();
+var seen = new List<string>();
+var caps = "";
 
 void Send(JsonObject message)
 {
@@ -78,23 +99,40 @@ async Task RunPrompt(JsonNode id, string text)
             Chunk(answer["error"] is null ? "WRITE-OK" : "WRITE-ERR:" + Failure(answer));
             break;
         }
-        case "perm" or "permwait":
+        case "perm" or "permwait" or "permexec":
         {
-            var answer = await Ask("session/request_permission", new JsonObject
+            bool exec = word == "permexec";
+            var toolCall = new JsonObject { ["toolCallId"] = "call_2", ["title"] = exec ? "Run rm" : "Run the tests" };
+            var options = new JsonArray
             {
-                ["sessionId"] = "sess_fake",
-                ["toolCall"] = new JsonObject { ["toolCallId"] = "call_2", ["title"] = "Run the tests" },
-                ["options"] = new JsonArray
-                {
-                    new JsonObject { ["optionId"] = "allow-once", ["name"] = "Allow once", ["kind"] = "allow_once" },
-                    new JsonObject { ["optionId"] = "reject-once", ["name"] = "Reject", ["kind"] = "reject_once" },
-                },
-            });
+                new JsonObject { ["optionId"] = "allow-once", ["name"] = "Allow once", ["kind"] = "allow_once" },
+                new JsonObject { ["optionId"] = "reject-once", ["name"] = "Reject", ["kind"] = "reject_once" },
+            };
+            if (exec)
+            {
+                toolCall["kind"] = "execute";
+                options.Add(new JsonObject { ["optionId"] = "allow-always", ["name"] = "Always allow", ["kind"] = "allow_always" });
+            }
+            var answer = await Ask("session/request_permission", new JsonObject { ["sessionId"] = "sess_fake", ["toolCall"] = toolCall, ["options"] = options });
             var outcome = answer["result"]!["outcome"]!;
             Chunk("PERM:" + outcome.ToJsonString());
             if (word == "permwait" && (string?)outcome["outcome"] == "cancelled") stop = "cancelled";
             break;
         }
+        case "seen":
+            lock (seen) Chunk("SEEN:" + string.Join(',', seen));
+            break;
+        case "caps":
+            Chunk("CAPS:" + caps);
+            break;
+        case "outside":
+            foreach (var (callId, title, kind) in new[] { ("call_s1", "Run the tests", "execute"), ("call_s2", "Run the build", "execute"), ("call_s3", "Delete the cache", "delete"), ("call_s4", "Look at a file", "read") })
+            {
+                Update(new JsonObject { ["sessionUpdate"] = "tool_call", ["toolCallId"] = callId, ["title"] = title, ["kind"] = kind, ["status"] = "pending" });
+                Update(new JsonObject { ["sessionUpdate"] = "tool_call_update", ["toolCallId"] = callId, ["status"] = "completed" });
+            }
+            Chunk("OUTSIDE-DONE");
+            break;
         case "slow":
             for (int i = 0; i < 400 && !cancelled.Task.IsCompleted; i++)
             {
@@ -124,6 +162,7 @@ while (await input.ReadLineAsync() is { } line)
     var message = JsonNode.Parse(line)!;
     var method = (string?)message["method"];
     var id = message["id"];
+    if (method is not null) lock (seen) seen.Add(method);
     if (method is null)
     {
         TaskCompletionSource<JsonNode>? tcs;
@@ -134,6 +173,7 @@ while (await input.ReadLineAsync() is { } line)
     switch (method)
     {
         case "initialize":
+            caps = message["params"]?["clientCapabilities"]?.ToJsonString() ?? "";
             if (hangInit) break;
             Send(new JsonObject
             {

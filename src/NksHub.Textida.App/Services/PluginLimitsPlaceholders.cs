@@ -461,6 +461,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest text file (bytes of the content) handed to an agent in one <c>fs/read_text_file</c>. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
     public const int AcpMaxReadBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: seconds an agent program gets to print its version (<c>--version</c>) before it is ended and the version counts as unknown. The owner has not decided it.</summary>
+    public const int AcpVersionCheckTimeoutSeconds = 15;
+
     public static NksHub.Textida.Acp.AcpOptions Acp() => new(
         new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
         TimeSpan.FromSeconds(AcpStartTimeoutSeconds), TimeSpan.FromSeconds(AcpIdleTimeoutSeconds), TimeSpan.FromSeconds(AcpExitGraceSeconds), AcpStderrLines,
