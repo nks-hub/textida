@@ -1,4 +1,4 @@
-using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -30,6 +30,8 @@ internal sealed partial class PagedTextView : IMinimapHost
 
     long IMinimapHost.LineCount => LineCount;
 
+    bool IMinimapHost.Sampled => true;
+
     (long First, long Count) IMinimapHost.Visible => (TopLine, Math.Max(1, _canvas.VisibleLines));
 
     void IMinimapHost.ScrollToLine(long line) => _bar.Value = Math.Clamp(line, 0, _bar.Maximum);
@@ -43,11 +45,9 @@ internal sealed partial class PagedTextView : IMinimapHost
         return at < _mapBlock.Lines.Length ? _mapBlock.Lines[at] : null;
     }
 
-    /// <summary>Decodes the lines from <paramref name="first"/> on that lie in one block of the file, each cut to what the map can show.</summary>
-    /// <remarks>shortcut: byte-oriented encodings only (a line break is the byte 10 or 13), as in the block loader of the lines on screen; UTF-16 and UTF-32 files get no picture.</remarks>
+    /// <summary>Decodes the lines from <paramref name="first"/> on that lie in one block of the file, each cut to what the map can show. Line breaks are found in code units, as the block loader of the lines on screen finds them, so UTF-16 and UTF-32 files have a picture too.</summary>
     private string[] ReadMapLines(long first)
     {
-        if (Doc.Codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) return [];
         long origin = LineStart(first);
         if (origin < 0) return [];
         int window = (int)Math.Min(Doc.ByteLength - origin, MapBlockBytes);
@@ -55,21 +55,25 @@ internal sealed partial class PagedTextView : IMinimapHost
         Doc.Read(origin, buffer);
         bool toEnd = origin + window >= Doc.ByteLength;
         var codec = Doc.Codec.WithBom(false);
+        int w = Doc.Codec.Alignment;
         var lines = new List<string>();
         for (int pos = 0; pos < window && first + lines.Count < LineCount && lines.Count < MapBlockLines;)
         {
-            int end = pos;
-            while (end < window && buffer[end] != 10 && buffer[end] != 13) end++;
+            int end = LineScanner.FindTerminator(buffer, pos, Doc.Codec);
             int next;
-            if (end == window)
+            if (end < 0)
             {
                 if (!toEnd) break; // the line goes on in the next block
-                next = window;
+                end = next = window;
             }
-            else if (buffer[end] == 10) next = end + 1;
-            else if (end + 1 < window) next = buffer[end + 1] == 10 ? end + 2 : end + 1;
-            else if (toEnd) next = end + 1;
-            else break; // a CR at the edge of the block may start a CRLF
+            else if (end + w > window) break; // a partial unit at the edge of the block
+            else
+            {
+                next = end + w;
+                uint unit = LineScanner.Unit(buffer, end, Doc.Codec);
+                if (unit == 13 && next >= window && !toEnd) break; // a CR at the edge of the block may start a CRLF
+                if (unit == 10 && end >= pos + w && LineScanner.Unit(buffer, end - w, Doc.Codec) == 13) end -= w;
+            }
             int take = Math.Min(end - pos, Minimap.MaxChars * 4);
             if (take < end - pos) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
             string text = codec.Decode(buffer.AsMemory(pos, take)).Text;

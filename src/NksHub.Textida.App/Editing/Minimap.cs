@@ -8,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
@@ -36,6 +37,9 @@ internal interface IMinimapHost
 
     /// <summary>Raised when <see cref="LineText"/> answers differently without an edit (hidden values were shown or hidden).</summary>
     event Action? ContentChanged;
+
+    /// <summary>The document is a large file: when it is many screens long, the map shows samples spread over the whole file instead of the surroundings of the viewport.</summary>
+    bool Sampled => false;
 }
 
 internal enum MinimapMarkKind : byte
@@ -48,25 +52,32 @@ internal enum MinimapMarkKind : byte
 /// <summary>A line to mark in the narrow strip at the right edge of the minimap, which covers the whole file.</summary>
 internal readonly record struct MinimapMark(long Line, MinimapMarkKind Kind);
 
-/// <summary>Where the picture of the lines and the viewport rectangle sit, in pixels of the minimap.</summary>
-internal readonly record struct MinimapLayout(long Top, int Rows, int Capacity, double ThumbTop, double ThumbHeight, bool Surroundings);
+/// <summary>Where the picture of the lines and the viewport rectangle sit, in pixels of the minimap. A <paramref name="Sampled"/> picture covers the whole file and the rectangle is a thin pointer.</summary>
+internal readonly record struct MinimapLayout(long Top, int Rows, int Capacity, double ThumbTop, double ThumbHeight, bool Surroundings, bool Sampled = false);
 
 /// <summary>
 /// The arithmetic of the minimap. A file that fits shows every line; a file up to <see cref="Proportional"/> times what fits is shown
 /// in a window that slides with the scroll position (as in Sublime Text); a longer one shows the surroundings of the viewport, so
-/// nothing but the lines of that window is ever read.
+/// nothing but the lines of that window is ever read. A longer large file is sampled instead: strips of consecutive lines from the starts
+/// of equal parts of the file, so the picture covers all of it and still reads only the lines of the strips.
 /// </summary>
 internal static class MinimapGeometry
 {
     public const int Proportional = 4;
 
-    public static MinimapLayout Compute(long lines, long first, long count, int height, int rowPx)
+    public static MinimapLayout Compute(long lines, long first, long count, int height, int rowPx, bool sampled = false)
     {
         rowPx = Math.Max(1, rowPx);
         int capacity = Math.Max(1, height / rowPx);
         lines = Math.Max(0, lines);
         count = Math.Max(1, count);
         first = Math.Clamp(first, 0, Math.Max(0, lines - 1));
+        if (sampled && lines > (long)capacity * Proportional)
+        {
+            double full = capacity * (double)rowPx;
+            double pointer = Math.Clamp(count * full / lines, 2, full);
+            return new MinimapLayout(0, capacity, capacity, Math.Clamp(first * full / lines, 0, full - pointer), pointer, false, true);
+        }
         long top;
         bool surroundings = false;
         if (lines <= capacity) top = 0;
@@ -87,9 +98,19 @@ internal static class MinimapGeometry
         return new MinimapLayout(top, rows, capacity, thumbTop, thumbHeight, surroundings);
     }
 
-    /// <summary>The zero-based line drawn at <paramref name="y"/>.</summary>
-    public static long LineAt(MinimapLayout layout, long lines, int rowPx, double y) =>
-        Math.Clamp(layout.Top + (long)Math.Floor(y / Math.Max(1, rowPx)), 0, Math.Max(0, lines - 1));
+    /// <summary>The zero-based line drawn at <paramref name="y"/>; in a sampled picture the line at that share of the file.</summary>
+    public static long LineAt(MinimapLayout layout, long lines, int rowPx, double y) => layout.Sampled
+        ? Math.Clamp((long)(y / Math.Max(1, layout.Rows * (double)Math.Max(1, rowPx)) * lines), 0, Math.Max(0, lines - 1))
+        : Math.Clamp(layout.Top + (long)Math.Floor(y / Math.Max(1, rowPx)), 0, Math.Max(0, lines - 1));
+
+    /// <summary>The zero-based line painted in <paramref name="row"/>. A sampled picture cuts the file into one equal part per strip of <paramref name="stripRows"/> rows and shows the first lines of each part.</summary>
+    public static long LineOfRow(MinimapLayout layout, long lines, int row, int stripRows)
+    {
+        if (!layout.Sampled) return layout.Top + row;
+        stripRows = Math.Max(1, stripRows);
+        long strips = (layout.Rows + stripRows - 1) / stripRows;
+        return Math.Clamp(row / stripRows * lines / strips + row % stripRows, 0, Math.Max(0, lines - 1));
+    }
 
     /// <summary>The first line on screen after the viewport rectangle moved <paramref name="dy"/> pixels away from where it was with <paramref name="pressFirst"/> on top.</summary>
     public static long FirstAfterDrag(MinimapLayout layout, long lines, long count, int rowPx, int height, long pressFirst, double dy)
@@ -97,7 +118,8 @@ internal static class MinimapGeometry
         rowPx = Math.Max(1, rowPx);
         count = Math.Max(1, count);
         double perPixel;
-        if (lines <= layout.Capacity || layout.Surroundings) perPixel = 1.0 / rowPx;
+        if (layout.Sampled) perPixel = lines / Math.Max(1, layout.Rows * (double)rowPx);
+        else if (lines <= layout.Capacity || layout.Surroundings) perPixel = 1.0 / rowPx;
         else
         {
             double travel = (layout.Capacity - count) * (double)rowPx;
@@ -111,7 +133,8 @@ internal static class MinimapGeometry
 /// The reduced picture of the text at the right edge of a surface: the lines in the colors of the syntax highlighting, a translucent
 /// rectangle for the part on screen, and a narrow strip for marks that cover the whole file. Dragging the rectangle (or clicking)
 /// scrolls the surface. Only the lines of the picture are read, never the whole document, so the cost does not depend on its size;
-/// the picture is drawn into a bitmap off screen in short slices and shown once complete.
+/// the picture is drawn into a bitmap off screen in short slices and shown once complete. A log without a grammar is drawn in the
+/// colors of its levels.
 /// </summary>
 internal sealed unsafe class Minimap : Control, IDisposable
 {
@@ -122,7 +145,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(8);
     private static readonly TimeSpan TextSettle = TimeSpan.FromMilliseconds(120);
 
-    private readonly record struct BuildKey(long Top, int Rows, int Width, int Height, int RowPx, bool Dark, long Version);
+    /// <param name="Lines">The line count a sampled picture was spread over; 0 for a picture of consecutive lines.</param>
+    private readonly record struct BuildKey(long Top, int Rows, int Width, int Height, int RowPx, bool Dark, long Version, long Lines);
 
     private readonly OpenDocument _doc;
     private readonly IMinimapHost _host;
@@ -141,6 +165,10 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private bool _attached;
     private bool _disposed;
     private MinimapMark[] _marks = [];
+    private MinimapMark[] _filterMarks = [];
+    private (string Grammar, Tokenizer Tokenizer)? _sampler;
+    private LineState? _sampleState;
+    private readonly List<Token> _sampleTokens = [];
     private byte[] _lane = [];
     private (int Height, long Lines, int Stamp) _laneKey;
     private int _marksStamp;
@@ -178,6 +206,20 @@ internal sealed unsafe class Minimap : Control, IDisposable
         InvalidateVisual();
     }
 
+    /// <summary>Replaces the marks of the lines the filter of a live log view keeps. They share the strip with the find marks; in a row of the strip the more severe kind wins.</summary>
+    public void SetFilterMarks(IReadOnlyList<MinimapMark> marks)
+    {
+        _filterMarks = [.. marks];
+        _marksStamp++;
+        InvalidateVisual();
+    }
+
+    /// <summary>The marks of the live log view filter, for tests.</summary>
+    internal IReadOnlyList<MinimapMark> FilterMarks => _filterMarks;
+
+    /// <summary>The picture covers the whole file with samples, for tests.</summary>
+    internal bool IsSampled => Wanted() is { Layout.Sampled: true };
+
     /// <summary>Shows the density of error and warning lines of a log along the strip at the right edge, which covers the whole file; null removes it.</summary>
     public void SetHeat(LogHeatmap? heat)
     {
@@ -199,6 +241,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.ContentChanged += Invalidate;
         _doc.Doc.Changed += OnDocumentChanged;
         _doc.Replaced += Invalidate;
+        _doc.LanguageChanged += Invalidate;
+        _doc.LogLevelsChanged += Invalidate;
         ActualThemeVariantChanged += OnThemeChanged;
         UpdateName();
         Invalidate();
@@ -218,6 +262,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.ContentChanged -= Invalidate;
         _doc.Doc.Changed -= OnDocumentChanged;
         _doc.Replaced -= Invalidate;
+        _doc.LanguageChanged -= Invalidate;
+        _doc.LogLevelsChanged -= Invalidate;
         ActualThemeVariantChanged -= OnThemeChanged;
         _textTimer.Stop();
     }
@@ -317,14 +363,15 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (width < 8 || height < 8 || !IsVisible) return null;
         int rowPx = Math.Max(2, (int)Math.Ceiling(height / (double)MaxRows));
         var (first, count) = _host.Visible;
-        var layout = MinimapGeometry.Compute(_host.LineCount, first, count, height, rowPx);
-        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version), layout, rowPx);
+        long lines = _host.LineCount;
+        var layout = MinimapGeometry.Compute(lines, first, count, height, rowPx, _host.Sampled);
+        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, layout.Sampled ? lines : 0), layout, rowPx);
     }
 
     private void Pump()
     {
         if (_disposed || Wanted() is not { } first) return;
-        RequestColors(first.Layout, first.Key.Width); // the colors may arrive at once and change the version
+        if (!first.Layout.Sampled) RequestColors(first.Layout, first.Key.Width); // the colors may arrive at once and change the version
         if (Wanted() is not { } wanted) return;
         var key = wanted.Key;
         if (_shown is not null && key == _shownKey) return;
@@ -349,10 +396,14 @@ internal sealed unsafe class Minimap : Control, IDisposable
             if (_nextRow == 0)
                 for (int y = 0; y < key.Height; y++) new Span<uint>(pixels + (long)y * stride, key.Width).Clear();
             int columns = key.Width - LaneWidth(key.Width);
+            int stripRows = PluginLimitsPlaceholders.MinimapSampleStripRows;
+            var sampler = wanted.Layout.Sampled ? Sampler() : null;
             while (_nextRow < key.Rows)
             {
-                long line = key.Top + _nextRow;
-                PaintRow(pixels, stride, key, columns, _nextRow, _host.LineText(line), _tokens.GetValueOrDefault(line), plain);
+                long line = MinimapGeometry.LineOfRow(wanted.Layout, key.Lines, _nextRow, stripRows);
+                string? text = _host.LineText(line);
+                var tokens = wanted.Layout.Sampled ? SampleTokens(sampler, text, _nextRow % stripRows == 0) : _tokens.GetValueOrDefault(line);
+                PaintRow(pixels, stride, key, columns, _nextRow, text, tokens ?? LevelTokens(text), plain);
                 _nextRow++;
                 if (Stopwatch.GetElapsedTime(started) > Slice && _nextRow < key.Rows)
                 {
@@ -366,6 +417,29 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _back = null;
         InvalidateVisual();
     }
+
+    private Tokenizer? Sampler()
+    {
+        if (LanguageModes.GrammarId(_doc) is not { } id) return null;
+        if (_sampler is not { } known || known.Grammar != id) _sampler = known = (id, LanguageModes.Tokenizer(id));
+        return known.Tokenizer;
+    }
+
+    /// <summary>The tokens of a line of a sampled picture, tokenized on the spot from the state the line above it in its strip left.</summary>
+    /// <remarks>shortcut: each strip starts in the initial state, so a strip that begins inside a comment or string of several lines is colored as code; a checkpointed scan of the whole file would fix it.</remarks>
+    private Token[]? SampleTokens(Tokenizer? tokenizer, string? text, bool stripStart)
+    {
+        if (tokenizer is null) return null;
+        if (stripStart || _sampleState is null) _sampleState = tokenizer.InitialState;
+        if (string.IsNullOrEmpty(text)) return null;
+        _sampleTokens.Clear();
+        _sampleState = tokenizer.TokenizeLine(text, _sampleState, _sampleTokens);
+        return [.. _sampleTokens];
+    }
+
+    /// <summary>A line of a log in the color of its level, as the editor draws it; null for a line without a level and outside log mode.</summary>
+    private Token[]? LevelTokens(string? text) =>
+        _doc.IsLog && !string.IsNullOrEmpty(text) && _doc.LogLevels.Classify(text) is { } level ? [new Token(0, text.Length, LogLevelKinds.Of(level))] : null;
 
     private int LaneWidth(int width) => Math.Max(3, (int)Math.Round(width / 28.0));
 
@@ -426,6 +500,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
         var thumb = new Rect(0, layout.ThumbTop, width, layout.ThumbHeight);
         context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.12), thumb);
         context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.4), new Rect(width - 2, thumb.Y, 2, thumb.Height));
+        if (layout.Sampled) // the viewport of a large file is too small for a rectangle: a thin pointer shows where it is
+            context.FillRectangle(new ImmutableSolidColorBrush(Resource("Accent", Color.Parse("#3B82F6"))), new Rect(0, thumb.Y, width, Math.Max(2, Math.Round(2 * scale))));
         DrawLane(context, layout, width, height, plain);
     }
 
@@ -443,12 +519,12 @@ internal sealed unsafe class Minimap : Control, IDisposable
             context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.45), new Rect(x, y, laneWidth, Math.Max(3, count * (double)height / lines)));
         }
         DrawHeat(context, x, laneWidth, height);
-        if (_marks.Length == 0) return;
+        if (_marks.Length == 0 && _filterMarks.Length == 0) return;
         if (_laneKey != (height, lines, _marksStamp))
         {
             _laneKey = (height, lines, _marksStamp);
             _lane = new byte[height];
-            foreach (var mark in _marks)
+            foreach (var mark in _marks.Concat(_filterMarks))
             {
                 if (mark.Line < 0 || mark.Line >= lines) continue;
                 int row = (int)Math.Min(height - 1, mark.Line * (long)height / lines);

@@ -25,6 +25,8 @@ internal sealed partial class MainWindow
         public bool Tail { get; set; }
         public bool Busy { get; set; }
         public long LastConsumed { get; set; } = -1;
+        /// <summary>The epoch and match count the minimap marks were made from.</summary>
+        public (int Epoch, long Count) Marked { get; set; } = (-1, -1);
         public CancellationTokenSource Cts { get; } = new();
     }
 
@@ -53,7 +55,24 @@ internal sealed partial class MainWindow
     {
         if (!_logSessions.Remove(od, out var old)) return;
         old.Cts.Cancel();
+        foreach (var view in od.Views) view.Minimap?.SetFilterMarks([]);
         if (_logSessions.Count == 0) _logTimer?.Stop();
+    }
+
+    /// <summary>Marks the lines the filter of the live view keeps in the minimap strip of the document's tabs: error lines red, warnings yellow, the others blue.</summary>
+    private void ShowLogMarks(LogSession session)
+    {
+        var follower = session.Follower;
+        var state = (follower.Epoch, follower.MatchCount);
+        if (state == session.Marked) return;
+        session.Marked = state;
+        var marks = follower.MatchLines().Select(m => new MinimapMark(m.Line, m.Level switch
+        {
+            LogLevel.Error => MinimapMarkKind.Error,
+            LogLevel.Warning => MinimapMarkKind.Warning,
+            _ => MinimapMarkKind.Match,
+        })).ToList();
+        foreach (var view in session.Doc.Views) view.Minimap?.SetFilterMarks(marks);
     }
 
     private void LogFollowTick()
@@ -78,7 +97,12 @@ internal sealed partial class MainWindow
             if (shown.ElapsedMilliseconds < 300) return;
             shown.Restart();
             long total = Math.Max(1, new FileInfo(path).Length);
-            Dispatcher.UIThread.Post(() => { if (_logSessions.GetValueOrDefault(session.Doc) == session) SetStatusMessage(Loc.Get(K.LogFollowReading, ("percent", Math.Clamp(reached * 100 / total, 0, 100)))); });
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_logSessions.GetValueOrDefault(session.Doc) != session) return;
+                SetStatusMessage(Loc.Get(K.LogFollowReading, ("percent", Math.Clamp(reached * 100 / total, 0, 100))));
+                ShowLogMarks(session); // the first reading of a large log shows its matches as they are found
+            });
         }
         LogFollowUpdate update;
         try { update = await Task.Run(() => session.Follower.Poll(session.Cts.Token, Progress)); }
@@ -90,6 +114,7 @@ internal sealed partial class MainWindow
         }
         finally { session.Busy = false; }
         if (_logSessions.GetValueOrDefault(session.Doc) != session || !_docs.Contains(session.Doc)) return;
+        ShowLogMarks(session);
 
         string name = session.Doc.Title;
         bool first = session.LastConsumed < 0;

@@ -565,8 +565,9 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Choose View and then Show Hidden Characters (Ctrl+K, Ctrl+W): spaces, tabs and the line endings CR, LF and CRLF are drawn. The document is not changed.
 2. Show Line Numbers (Ctrl+K, Ctrl+N), Highlight Current Line, Show Right Margin (a vertical line at column 80, set with the setting Right margin column) and Clickable Links switch the rest on and off.
-3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting. Click or drag it to scroll. In a large file it shows only the lines around the screen.
-- Matches of the find bar are marked in the narrow strip at the right edge of the minimap.
+3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting, a log in the colors of its levels. Click or drag it to scroll. A long file in the editor shows only the lines around the screen.
+- In a large file (paged mode) the picture is sampled: short runs of lines from the starts of equal parts of the whole file, so the file is never read whole. A thin line shows the position instead of a rectangle. While the lines are being indexed, the picture covers the lines counted so far, as the scroll bar does. The number of lines in a run is a placeholder, not a decided value.
+- Matches of the find bar are marked in the narrow strip at the right edge of the minimap. The lines that the filter of a live log view keeps are marked there too: error lines red, warnings yellow, the others blue.
 - Links open with Ctrl+click and are not available in paged mode.
 - A line longer than 50,000 characters is never wrapped: Toggle Word Wrap then says so in the status bar. The paged mode never wraps.
 - Characters the main font lacks are drawn with the fonts of the setting Fallback fonts.

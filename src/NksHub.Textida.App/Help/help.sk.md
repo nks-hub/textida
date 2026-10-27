@@ -570,8 +570,9 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Zvoľte Zobraziť a Zobraziť skryté znaky (Ctrl+K, Ctrl+W): vykreslia sa medzery, tabulátory a konce riadkov CR, LF a CRLF. Dokument sa nemení.
 2. Zobraziť čísla riadkov (Ctrl+K, Ctrl+N), Zvýrazniť aktuálny riadok, Zobraziť pravý okraj (zvislá čiara v stĺpci 80, nastavuje sa v nastavení Stĺpec pravého okraja) a Klikacie odkazy zapínajú a vypínajú zvyšok.
-3. Zobraziť minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu vo farbách zvýraznenia. Kliknutím alebo ťahaním sa posúva. Pri veľkom súbore ukazuje len riadky okolo obrazovky.
-- Zhody z lišty hľadania sú označené v úzkom pruhu na pravom okraji minimapy.
+3. Zobraziť minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu vo farbách zvýraznenia, log vo farbách úrovní. Kliknutím alebo ťahaním sa posúva. Dlhý súbor v editore ukazuje len riadky okolo obrazovky.
+- Pri veľkom súbore (stránkovaný režim) je obraz vzorkovaný: krátke úseky riadkov zo začiatkov rovnako veľkých častí celého súboru, takže sa nikdy nečíta celý. Namiesto obdĺžnika ukazuje pozíciu tenká čiara. Pri indexovaní riadkov pokrýva obraz zatiaľ spočítané riadky, rovnako ako posuvník. Počet riadkov v úseku je placeholder, nie je to rozhodnutá hodnota.
+- Zhody z lišty hľadania sú označené v úzkom pruhu na pravom okraji minimapy. Riadky, ktoré ponechá filter živého pohľadu na log, sú v pruhu tiež: chybové červeno, varovania žlto, ostatné modro.
 - Odkazy sa otvoria kliknutím s Ctrl a v stránkovanom režime nie sú k dispozícii.
 - Riadok dlhší ako 50 000 znakov sa nikdy nezalomí: Prepnúť zalamovanie to povie v stavovom riadku. Stránkovaný režim nezalamuje nikdy.
 - Znaky, ktoré hlavné písmo nemá, sa vykreslia písmami z nastavenia Náhradné písma.

@@ -565,8 +565,9 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Wählen Sie Ansicht und Verborgene Zeichen anzeigen (Strg+K, Strg+W): Leerzeichen, Tabulatoren und die Zeilenenden CR, LF und CRLF werden gezeichnet. Das Dokument wird nicht verändert.
 2. Zeilennummern anzeigen (Strg+K, Strg+N), Aktuelle Zeile hervorheben, Rechten Rand anzeigen (senkrechte Linie bei Spalte 80, einstellbar mit der Einstellung Spalte des rechten Rands) und Anklickbare Links schalten den Rest ein und aus.
-3. Minimap anzeigen (Strg+K, Strg+M) zeigt am rechten Rand ein verkleinertes Bild des Textes in den Farben der Hervorhebung. Klicken oder Ziehen scrollt. Bei einer großen Datei zeigt sie nur die Zeilen um den Bildschirm.
-- Treffer der Suchleiste sind im schmalen Streifen am rechten Rand der Minimap markiert.
+3. Minimap anzeigen (Strg+K, Strg+M) zeigt am rechten Rand ein verkleinertes Bild des Textes in den Farben der Hervorhebung, ein Log in den Farben seiner Stufen. Klicken oder Ziehen scrollt. Eine lange Datei im Editor zeigt nur die Zeilen um den Bildschirm.
+- Bei einer großen Datei (seitenweiser Modus) ist das Bild eine Stichprobe: kurze Zeilenfolgen vom Anfang gleich großer Teile der ganzen Datei, die Datei wird also nie ganz gelesen. Statt eines Rechtecks zeigt eine dünne Linie die Position. Solange die Zeilen indiziert werden, deckt das Bild die bisher gezählten Zeilen ab, wie die Bildlaufleiste. Die Zahl der Zeilen einer Folge ist ein Platzhalter, kein entschiedener Wert.
+- Treffer der Suchleiste sind im schmalen Streifen am rechten Rand der Minimap markiert. Die Zeilen, die der Filter einer Live-Ansicht eines Logs behält, sind dort ebenfalls markiert: Fehlerzeilen rot, Warnungen gelb, die übrigen blau.
 - Links öffnen sich mit Strg+Klick und sind im seitenweisen Modus nicht verfügbar.
 - Eine Zeile mit mehr als 50.000 Zeichen wird nie umgebrochen: Zeilenumbruch umschalten sagt das in der Statusleiste. Der seitenweise Modus bricht nie um.
 - Zeichen, die die Hauptschrift nicht hat, werden mit den Schriften der Einstellung Ersatzschriften gezeichnet.
