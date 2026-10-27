@@ -347,7 +347,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     {
         if (info.StderrTail.Count > 0) _app.Output.Append(OutputChannel.Tasks, info.DisplayName, string.Join('\n', info.StderrTail));
         if (_app.ActiveWindow is not { } window) return;
-        window.ShowNotice("plugin:" + info.PluginId, CrashMessage(info), [(Loc.Get(K.PluginCrashLog), () => window.ShowOutput(OutputChannel.Tasks))], warning: true);
+        // not the plugin's own notice key: the state change right after the crash dismisses the notices of the ended plugin
+        window.ShowNotice("plugin.crash:" + info.PluginId, CrashMessage(info), [(Loc.Get(K.PluginCrashLog), () => window.ShowOutput(OutputChannel.Tasks))], warning: true);
     }
 
     internal static string CrashMessage(PluginCrashInfo info)
