@@ -138,6 +138,8 @@ public static class FileSwap
             {
                 if (File.Exists(target))
                 {
+                    // rename(2) ignores the write bit of the target, ReplaceFile refuses it: both refuse
+                    if ((File.GetAttributes(target) & FileAttributes.ReadOnly) != 0) throw new UnauthorizedAccessException($"The file is read-only: {target}");
                     TryDelete(backup);
                     File.Replace(temp, target, backup);
                 }

@@ -23,7 +23,7 @@ public static class SecretValues
     public static bool IsSecretFile(string? path)
     {
         if (string.IsNullOrEmpty(path)) return false;
-        var name = Path.GetFileName(path.AsSpan());
+        var name = path.AsSpan(path.AsSpan().LastIndexOfAny('/', '\\') + 1);
         return name.Equals(".env", StringComparison.OrdinalIgnoreCase) || name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase)
             || name.EndsWith(".env", StringComparison.OrdinalIgnoreCase);
     }

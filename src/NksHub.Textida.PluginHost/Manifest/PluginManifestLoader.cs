@@ -272,7 +272,7 @@ public static class PluginManifestLoader
         full = "";
         why = "";
         if (string.IsNullOrWhiteSpace(relative) || Path.IsPathRooted(relative)) { why = "must be a relative path."; return false; }
-        full = Path.GetFullPath(Path.Combine(root, relative));
+        full = Path.GetFullPath(Path.Combine(root, relative.Replace('\\', '/')));
         if (full != root && !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) { why = "leaves the plugin folder."; return false; }
         return true;
     }
