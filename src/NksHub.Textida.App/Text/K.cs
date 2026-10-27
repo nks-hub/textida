@@ -616,6 +616,7 @@ public static class K
     public const string KsyErrLimitRepeat = "ksy.err.limitRepeat";
     public const string KsyErrLimitSize = "ksy.err.limitSize";
     public const string KsyErrLimitWork = "ksy.err.limitWork";
+    public const string KsyErrExpression = "ksy.err.expression";
     public const string HexCompareTitle = "hex.compare.title";
     public const string HexCompareLeft = "hex.compare.left";
     public const string HexCompareMemory = "hex.compare.memory";

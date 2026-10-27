@@ -637,6 +637,7 @@
   "ksy.err.limitRepeat": "{subject}: príliš veľa opakovaní",
   "ksy.err.limitSize": "{subject}: príliš veľké",
   "ksy.err.limitWork": "{subject}: čítanie by trvalo príliš dlho",
+  "ksy.err.expression": "{subject}: nemožno vypočítať",
   "hex.compare.title": "Porovnanie: {left} a {right}",
   "hex.compare.left": "{name} · {size} B",
   "hex.compare.memory": "{name} (obsah v okne)",

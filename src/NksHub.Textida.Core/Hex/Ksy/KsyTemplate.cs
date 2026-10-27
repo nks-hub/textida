@@ -21,32 +21,42 @@ public enum KsyErrorKind
     LimitRepeat,
     LimitSize,
     LimitWork,
+    /// <summary>An expression could not be computed (division by zero, a missing field, a wrong kind of value); the subject is the expression or the field.</summary>
+    Expression,
 }
 
 /// <summary>An error with the 1-based line of the template it belongs to (0 when no line applies).</summary>
 public sealed record KsyError(KsyErrorKind Kind, int Line, string Subject);
 
-public enum KsyKind { Int, Float, Str, Strz, Bytes, User }
+public enum KsyKind { Int, Float, Str, Strz, Bytes, User, Switch }
 
 public enum KsyOrder { Default, Little, Big }
 
 /// <summary>The type of a field: <see cref="Width"/> is in bytes for numbers.</summary>
 public sealed record KsyType(KsyKind Kind, int Width = 0, bool Signed = false, KsyOrder Order = KsyOrder.Default, string? UserName = null);
 
-/// <summary>A size or a repeat count: a number, or the name of an earlier integer field of the same type.</summary>
-public readonly record struct KsyCount(long Literal, string? Field);
+public enum KsyRepeat { None, Eos, Expr, Until }
 
-public enum KsyRepeat { None, Eos, Expr }
+/// <summary>One branch of <c>switch-on</c>; a null <see cref="Key"/> is the default branch <c>_</c>.</summary>
+public sealed record KsyCase(KsyExpr? Key, KsyType Type);
 
-public sealed class KsyAttr
+public sealed record KsySwitch(KsyExpr On, IReadOnlyList<KsyCase> Cases);
+
+/// <summary>A field of <c>seq</c> or an instance. <see cref="Pos"/> and <see cref="Value"/> belong to instances only; a type of kind <see cref="KsyKind.Switch"/> is chosen by <see cref="Switch"/> when the field is read.</summary>
+public sealed record KsyAttr
 {
     public required string Id { get; init; }
     public required int Line { get; init; }
     public required KsyType Type { get; init; }
-    public KsyCount? Size { get; init; }
+    public KsyExpr? Size { get; init; }
     public bool SizeEos { get; init; }
     public KsyRepeat Repeat { get; init; }
-    public KsyCount? RepeatCount { get; init; }
+    public KsyExpr? RepeatCount { get; init; }
+    public KsyExpr? RepeatUntil { get; init; }
+    public KsyExpr? If { get; init; }
+    public KsyExpr? Pos { get; init; }
+    public KsyExpr? Value { get; init; }
+    public KsySwitch? Switch { get; init; }
     public byte[]? Contents { get; init; }
     public string? Enum { get; init; }
     public string? Encoding { get; init; }
@@ -57,6 +67,7 @@ public sealed class KsyTypeDef
     public required string Name { get; init; }
     public required KsyOrder Endian { get; init; }
     public List<KsyAttr> Seq { get; } = [];
+    public List<KsyAttr> Instances { get; } = [];
 }
 
 public sealed class KsyTemplate
