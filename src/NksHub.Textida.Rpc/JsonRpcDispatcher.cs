@@ -334,21 +334,22 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
             Interlocked.Add(ref _inboundBytes, -msg.Size);
             msg.Dispose();
         }
+        var budgeted = false;
         try
         {
             // The answer keeps its slot while it waits for room, so a peer that asks without reading the answers meets the concurrency limit.
-            if (response is not null) await QueueAsync(response, cts.Token).ConfigureAwait(false);
+            if (response is not null) { await _outBudget.AcquireAsync(response.Length, cts.Token).ConfigureAwait(false); budgeted = true; }
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
-        {
-            if (Cancelled(id) is { } cancelled) Enqueue(cancelled);
-        }
-        catch (IOException) { } // the connection ended while the answer waited
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { response = Cancelled(id); }
+        catch (IOException) { response = null; } // the connection ended while the answer waited
         finally
         {
+            // Freed before the answer is queued: a peer that sends its next request as soon as it sees the answer must find the slot free.
             lock (_gate) _incoming.Remove(id);
             cts.Dispose();
         }
+        if (budgeted) Write(new Outgoing(response!, budgeted: true));
+        else if (response is not null) Enqueue(response);
     }
 
     byte[]? Cancelled(RpcId id) => _protocol.RespondsToCancelled ? RpcWire.Error(id, RpcErrorCodes.RequestCancelled, "The request was cancelled.") : null;
