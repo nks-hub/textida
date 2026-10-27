@@ -2,10 +2,11 @@ using System.Reflection;
 
 namespace NksHub.Textida.Plugins.Json.Schema;
 
-public enum DataDialect { Json, Jsonc, Toml }
+/// <summary><see cref="Markdown"/> is a Markdown file whose YAML frontmatter is the data.</summary>
+public enum DataDialect { Json, Jsonc, Toml, Yaml, Markdown }
 
-/// <summary>A schema the plugin ships. <see cref="FileMatch"/> are globs; a glob without '/' matches the file name, any other is matched against the end of the path.</summary>
-public sealed record SchemaEntry(string Id, string Name, string Resource, string[] FileMatch);
+/// <summary>A schema the plugin ships. <see cref="FileMatch"/> are globs; a glob without '/' matches the file name, any other is matched against the end of the path. <see cref="Dialect"/> overrides the dialect of the file extension.</summary>
+public sealed record SchemaEntry(string Id, string Name, string Resource, string[] FileMatch, DataDialect? Dialect = null);
 
 /// <summary>A rule of the user: a file, folder or mask (<see cref="Glob"/>) mapped to a schema id (a bundled one) and optionally to a dialect.</summary>
 public sealed record SchemaMapping(string Glob, string SchemaId, DataDialect? Dialect = null);
@@ -20,6 +21,16 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
     [
         new("package.json", "package.json", "schemas/package.schema.json", ["package.json"]),
         new("cargo", "Cargo.toml", "schemas/cargo.schema.json", ["Cargo.toml"]),
+        new("claude-settings", "Claude Code settings", "schemas/claude-settings.schema.json", [".claude/settings*.json"], DataDialect.Json),
+        new("mcp", ".mcp.json", "schemas/mcp.schema.json", [".mcp.json"], DataDialect.Json),
+        new("codex-config", "Codex config.toml", "schemas/codex-config.schema.json", [".codex/config.toml"], DataDialect.Toml),
+        new("opencode", "opencode.json", "schemas/opencode.schema.json", ["opencode.json", "opencode.jsonc"], DataDialect.Jsonc),
+        new("github-workflow", "GitHub Actions workflow", "schemas/github-workflow.schema.json", [".github/workflows/*.yml", ".github/workflows/*.yaml"], DataDialect.Yaml),
+        new("skill-claude", "SKILL.md (Claude Code)", "schemas/skill-claude.schema.json", [".claude/skills/**/SKILL.md"], DataDialect.Markdown),
+        new("skill-agentskills", "SKILL.md (Agent Skills)", "schemas/skill-agentskills.schema.json", ["SKILL.md"], DataDialect.Markdown),
+        new("agent-claude", "Claude Code agent", "schemas/agent-claude.schema.json", ["agents/*.md"], DataDialect.Markdown),
+        new("rule-claude", "Claude Code rule", "schemas/rule-claude.schema.json", [".claude/rules/**/*.md", "rules/*.md"], DataDialect.Markdown),
+        new("rule-cursor", "Cursor rule", "schemas/rule-cursor.schema.json", ["*.mdc"], DataDialect.Markdown),
         new("textida-settings", "Textida settings", "schemas/textida-settings.schema.json", []),
         new("textida-keymap", "Textida keymap", "schemas/textida-keymap.schema.json", []),
     ];
@@ -30,6 +41,8 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
     {
         ".toml" => DataDialect.Toml,
         ".jsonc" => DataDialect.Jsonc,
+        ".yaml" or ".yml" => DataDialect.Yaml,
+        ".md" or ".mdc" => DataDialect.Markdown,
         _ => DataDialect.Json,
     };
 
@@ -40,10 +53,10 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
         foreach (var m in _user)
         {
             if (!Glob.IsMatch(m.Glob, path)) continue;
-            if (Bundled.FirstOrDefault(b => b.Id == m.SchemaId) is { } e) return (e, m.Dialect ?? dialect);
+            if (Bundled.FirstOrDefault(b => b.Id == m.SchemaId) is { } e) return (e, m.Dialect ?? e.Dialect ?? dialect);
         }
         foreach (var b in Bundled)
-            if (b.FileMatch.Any(g => Glob.IsMatch(g, path))) return (b, dialect);
+            if (b.FileMatch.Any(g => Glob.IsMatch(g, path))) return (b, b.Dialect ?? dialect);
         return (null, dialect);
     }
 
@@ -54,8 +67,13 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
         return r.ReadToEnd();
     }
 
-    public static bool TryParse(string text, DataDialect dialect, int maxDepth, out DataNode? node, out DataSyntaxException? error) =>
-        dialect == DataDialect.Toml ? TomlDataReader.TryParse(text, maxDepth, out node, out error) : JsonDataReader.TryParse(text, dialect == DataDialect.Jsonc, maxDepth, out node, out error);
+    public static bool TryParse(string text, DataDialect dialect, int maxDepth, out DataNode? node, out DataSyntaxException? error) => dialect switch
+    {
+        DataDialect.Toml => TomlDataReader.TryParse(text, maxDepth, out node, out error),
+        DataDialect.Yaml => YamlDataReader.TryParse(text, maxDepth, out node, out error),
+        DataDialect.Markdown => YamlDataReader.TryParseFrontmatter(text, maxDepth, out node, out error),
+        _ => JsonDataReader.TryParse(text, dialect == DataDialect.Jsonc, maxDepth, out node, out error),
+    };
 
     /// <summary>Parses the file in its dialect and checks it against the schema that applies to <paramref name="path"/>.</summary>
     public SchemaCheckResult Check(string path, string text, SchemaOptions options)
@@ -64,7 +82,17 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
         if (!TryParse(text, dialect, options.MaxDepth, out var data, out var syntax)) return new(schema, dialect, syntax, []);
         if (schema is null) return new(null, dialect, null, []);
         if (!TryParse(LoadSchemaText(schema), DataDialect.Json, options.MaxDepth, out var schemaNode, out _)) throw new InvalidOperationException($"The bundled schema {schema.Id} is not valid JSON.");
-        return new(schema, dialect, null, new SchemaValidator(schemaNode!, options).Validate(data!));
+        var issues = new SchemaValidator(schemaNode!, options).Validate(data!);
+        if (schema.Id == "skill-agentskills") issues.AddRange(FolderNameIssues(path, data!));
+        return new(schema, dialect, null, issues);
+    }
+
+    /// <summary>The Agent Skills specification says <c>name</c> must match the parent folder; Claude Code lets it differ, so only that profile asks.</summary>
+    private static IEnumerable<SchemaIssue> FolderNameIssues(string path, DataNode data)
+    {
+        var parts = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || data.Get("name") is not { Kind: DataKind.String } name || name.Text == parts[^2]) yield break;
+        yield return new SchemaIssue("folder", $"The name must match the folder name '{parts[^2]}'.", name.Start, name.End, "/name");
     }
 
     /// <summary>Property names the schema allows in the object around <paramref name="offset"/> and that are not written there yet.</summary>
@@ -76,7 +104,7 @@ public sealed class SchemaCatalog(IEnumerable<SchemaMapping> userMappings)
         {
             DataNode? inner = null;
             foreach (var m in node.Members)
-                if (offset > m.NameEnd && offset <= m.Value.End && offset >= m.Value.Start && m.Value.Kind is DataKind.Object or DataKind.Array) { inner = m.Value; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth)).Select(s => s.Get("properties")?.Get(m.Name)).OfType<DataNode>().ToList(); break; }
+                if (offset > m.NameEnd && offset <= m.Value.End && offset >= m.Value.Start && m.Value.Kind is DataKind.Object or DataKind.Array) { inner = m.Value; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth)).Select(s => s.Get("properties")?.Get(m.Name) ?? (s.Get("additionalProperties") is { Kind: DataKind.Object } any ? any : null)).OfType<DataNode>().ToList(); break; }
             if (inner is null && node.Kind == DataKind.Array)
                 foreach (var i in node.Items)
                     if (offset >= i.Start && offset <= i.End && i.Kind is DataKind.Object or DataKind.Array) { inner = i; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth)).Select(s => s.Get("items")).OfType<DataNode>().ToList(); break; }

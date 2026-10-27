@@ -13,7 +13,7 @@ namespace NksHub.Textida.Plugins.Json;
 public sealed record SchemaSettings(long MaxBytes, int MaxDepth, int RegexTimeoutMilliseconds);
 
 /// <summary>
-/// The schema engine behind the language service API: <c>schema.check</c> reads a JSON, JSONC or TOML file, checks it against the schema that applies to its path and publishes the
+/// The schema engine behind the language service API: <c>schema.check</c> reads a JSON, JSONC, TOML or YAML file (or the YAML frontmatter of a Markdown file), checks it against the schema that applies to its path and publishes the
 /// findings as diagnostics of the source <see cref="Source"/>; <c>completion/request</c> offers the keys the schema allows around the caret. Both work on one revision and say so.
 /// </summary>
 public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings, SchemaCatalog catalog)
@@ -84,7 +84,7 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
             else
             {
                 var result = catalog.Check(d.Path ?? "", text, Options);
-                if (result.Syntax is { } syntax && (schema is not null || dialect != DataDialect.Toml)) items.Add((syntax.Start, Math.Max(syntax.End, syntax.Start), syntax.Message, "syntax"));
+                if (result.Syntax is { } syntax && (schema is not null || dialect is DataDialect.Json or DataDialect.Jsonc)) items.Add((syntax.Start, Math.Max(syntax.End, syntax.Start), syntax.Message, "syntax"));
                 items.AddRange(result.Issues.Select(i => (i.Start, i.End, i.Pointer.Length == 0 ? i.Detail : i.Pointer + ": " + i.Detail, i.Code)));
             }
             issues = items.Count;
