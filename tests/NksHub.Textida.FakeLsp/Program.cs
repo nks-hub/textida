@@ -1,7 +1,7 @@
 // Stand-in for a language server in tests: JSON-RPC over stdio with Content-Length framing. It keeps its own copy of every document it is told about
 // and counts positions in UTF-16 units, as the protocol says, without sharing any code with the client it is tested against.
 // Options: --full (ask for whole texts instead of ranges), --dump DIR (after every open and change write NAME.txt with its copy, NAME.version with the version
-// and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process holding "root=<rootUri>", "cwd=<working folder>" and one "open <uri>" or "close <uri>" line per document event,
+// and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process holding "root=<rootUri>", "cwd=<working folder>", "configuration=yes|no" (whether the client announced workspace.configuration) and one "open <uri>" or "close <uri>" line per document event,
 // and init-options.json with the initializationOptions it got), --external FILE (a file on disk that definitions may point into),
 // --config SECTIONS (after "initialized" ask the client for workspace/configuration with these comma separated sections, "*" for an item without one, and write the answer to config-answer.json).
 // Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
@@ -249,6 +249,7 @@ while (ReadMessage() is { } body)
             if (dump is not null && p.TryGetProperty("initializationOptions", out var initOptions)) File.WriteAllText(Path.Combine(dump, "init-options.json"), initOptions.GetRawText());
             Note("root=" + (p.TryGetProperty("rootUri", out var rootUri) ? rootUri.GetString() : ""));
             Note("cwd=" + Environment.CurrentDirectory);
+            Note("configuration=" + (p.TryGetProperty("capabilities", out var caps) && caps.TryGetProperty("workspace", out var ws) && ws.TryGetProperty("configuration", out var cfg) && cfg.ValueKind == JsonValueKind.True ? "yes" : "no"));
             Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;
         case "initialized":

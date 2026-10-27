@@ -779,8 +779,9 @@ public class LspPluginTests
         await rig.RunAsync(doc, LspPlugin.StartCommand);
 
         var answer = Path.Combine(rig.Dump, "config-answer.json");
-        await T.Until(() => File.Exists(answer));
+        await T.Until(() => File.Exists(answer) && ReadShared(answer).Length > 0);
         Assert.Equal("[{\"level\":3},3,\"strict\",{\"mode\":\"strict\",\"fake\":{\"level\":3}},null,null]", ReadShared(answer));
+        Assert.Contains("configuration=yes", ReadShared(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")))); // the client announces that it answers workspace/configuration
     }
 
     [Fact]
@@ -792,7 +793,7 @@ public class LspPluginTests
         await rig.RunAsync(doc, LspPlugin.StartCommand);
 
         var answer = Path.Combine(rig.Dump, "config-answer.json");
-        await T.Until(() => File.Exists(answer));
+        await T.Until(() => File.Exists(answer) && ReadShared(answer).Length > 0);
         Assert.Equal("[null,null]", ReadShared(answer));
     }
 
