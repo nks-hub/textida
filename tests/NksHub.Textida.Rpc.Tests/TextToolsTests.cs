@@ -29,7 +29,7 @@ public partial class TextToolsTests
 
     sealed class NoProposals : IEditProposals
     {
-        public ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation) => ValueTask.FromResult("p");
+        public ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation) => ValueTask.FromResult(new ProposalDecision("p", ProposalOutcome.Rejected, 0, 0));
     }
 
     sealed class Rig : IAsyncDisposable

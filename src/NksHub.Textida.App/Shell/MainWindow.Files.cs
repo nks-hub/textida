@@ -355,17 +355,30 @@ internal sealed partial class MainWindow
     private void OnExternalChange(OpenDocument od, ExternalChange change)
     {
         if (!_docs.Contains(od) || !string.Equals(change.Path, od.Path, PathComparison)) return;
+        bool reviewable = change.Kind == ExternalChangeKind.Modified && od.Views.FirstOrDefault() is { } first && ReviewTarget(first);
+        if (reviewable && _app.Workbench.Settings.GetBool("review.autoKeep"))
+        {
+            _ = KeepExternalAsync(od.Views[0]);
+            return;
+        }
         foreach (var tab in od.Views.ToList())
         {
             var t = tab;
             IReadOnlyList<(string, Action)> actions = change.Kind == ExternalChangeKind.Missing
                 ? [(Loc.Get(K.BarKeep), () => DismissBars(od)), (Loc.Get(K.BarCloseTab), () => { DismissBars(od); _ = CloseTabAsync(t); })]
                 : [(Loc.Get(K.BarReload), () => _ = ReloadAsync(t)), (Loc.Get(K.BarKeepMine), () => { DismissBars(od); SetStatusMessage(Loc.Get(K.StatusKeptMine)); }), (Loc.Get(K.BarCompare), () => CompareWithDisk(t))];
+            if (reviewable) actions = [(Loc.Get(K.ReviewBar), () => { DismissBars(od); _ = StartReviewAsync(t); }), .. actions];
             var message = change.Kind == ExternalChangeKind.Missing
                 ? Loc.Get(K.BarMissing, ("title", od.Title))
                 : Loc.Get(K.BarChanged, ("title", od.Title));
             t.ShowBar(new InfoBar(message, actions, warning: true, onClose: () => DismissBars(od)));
         }
+    }
+
+    /// <summary>With <c>review.autoKeep</c> on, a change from outside to a tab without unsaved edits is taken over at once.</summary>
+    private async Task KeepExternalAsync(DocTab tab)
+    {
+        if (await ReloadAsync(tab)) SetStatusMessage(Loc.Get(K.ReviewAutoKept, ("title", tab.Title)));
     }
 
     private static void DismissBars(OpenDocument od)

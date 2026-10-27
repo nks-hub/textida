@@ -41,6 +41,8 @@ public sealed class PluginHost : IAsyncDisposable
         public readonly Queue<string> Stderr = new();
         public long LostEvents;
         public volatile bool Awaiting;
+        /// <summary>Requests of the plugin that wait for a decision of the user (edit proposals); the plugin is idle meanwhile, not hung.</summary>
+        public int Deciding;
         public string? DisabledReason;
     }
 
@@ -347,7 +349,7 @@ public sealed class PluginHost : IAsyncDisposable
             while (!run.Ended.Task.IsCompleted)
             {
                 await Task.Delay(_options.PingInterval, run.Cts.Token).ConfigureAwait(false);
-                if (p.Awaiting) { missed = 0; continue; }
+                if (p.Awaiting || Volatile.Read(ref p.Deciding) > 0) { missed = 0; continue; }
                 try
                 {
                     await run.Rpc.RequestAsync(PluginMethods.Ping, default, _options.PingTimeout, run.Cts.Token).ConfigureAwait(false);
@@ -458,10 +460,14 @@ public sealed class PluginHost : IAsyncDisposable
 
     sealed class HostHandler(PluginHost host, Plugin plugin) : IRpcHandler
     {
-        public ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation) =>
-            host._api is null
-                ? throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.")
-                : host._api(plugin.Spec.Id, method, parameters, cancellation);
+        public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation)
+        {
+            if (host._api is null) throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
+            if (method != Documents.DocumentMethods.EditPropose) return await host._api(plugin.Spec.Id, method, parameters, cancellation).ConfigureAwait(false);
+            Interlocked.Increment(ref plugin.Deciding);
+            try { return await host._api(plugin.Spec.Id, method, parameters, cancellation).ConfigureAwait(false); }
+            finally { Interlocked.Decrement(ref plugin.Deciding); }
+        }
 
         public ValueTask HandleNotificationAsync(string method, JsonElement parameters)
         {

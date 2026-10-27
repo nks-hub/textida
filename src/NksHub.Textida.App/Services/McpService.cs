@@ -130,12 +130,20 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     }
 
     /// <summary>The user sees the proposal in the change preview of the window that shows the tab, and decides.</summary>
-    public async ValueTask<ProposalOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation)
+    /// <summary>The proposal goes through the same change review as the proposals of plugins; a partly accepted one counts as applied.</summary>
+    public async ValueTask<ReviewOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation)
     {
         Shared? shared;
         lock (_gate) _shared.TryGetValue(proposal.DocumentId, out shared);
-        if (shared is null) return new ProposalOutcome(ProposalStatus.Stale);
-        return await Dispatcher.UIThread.InvokeAsync(() => shared.Window.ReviewPluginProposalAsync(proposal, shared.Tab));
+        if (shared is null) return new ReviewOutcome(ProposalStatus.Stale);
+        var decision = await Dispatcher.UIThread.InvokeAsync(() => shared.Window.ReviewPluginProposalAsync(proposal, shared.Tab, Guid.NewGuid().ToString("N"), cancellation));
+        return decision.Outcome switch
+        {
+            ProposalOutcome.Applied or ProposalOutcome.Partial => new ReviewOutcome(ProposalStatus.Applied, await Dispatcher.UIThread.InvokeAsync(() => shared.Tab.Doc.Doc.Revision)),
+            ProposalOutcome.Rejected => new ReviewOutcome(ProposalStatus.Rejected),
+            ProposalOutcome.Stale => new ReviewOutcome(ProposalStatus.Stale),
+            _ => new ReviewOutcome(ProposalStatus.Failed),
+        };
     }
 
     public async ValueTask DisposeAsync()

@@ -67,6 +67,7 @@ internal sealed partial class MainWindow
         if (od.Path is { } localPath) od.RemoteCopy ??= _app.Remote.Copies.FindByLocalPath(localPath);
         _app.Journal.Track(od);
         od.EnsureWatching();
+        AttachReview(od);
         TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);

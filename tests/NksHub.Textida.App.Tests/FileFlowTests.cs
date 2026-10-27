@@ -328,7 +328,7 @@ public class FileFlowTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         var bar = Assert.IsType<InfoBar>(tab.Bar);
-        Assert.Equal(["Znovu načíst", "Ponechat moje", "Porovnat"], bar.Buttons.Select(b => (string?)b.Content));
+        Assert.Equal(["Zkontrolovat změny", "Znovu načíst", "Ponechat moje", "Porovnat"], bar.Buttons.Select(b => (string?)b.Content));
         Assert.Equal("mine", Text(tab)); // never replaced silently
         Click(BarButton(tab, "Znovu načíst"));
         Dispatcher.UIThread.RunJobs();

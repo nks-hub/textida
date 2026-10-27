@@ -34,9 +34,9 @@ public partial class DocumentApiTests
     {
         public readonly List<EditProposal> Items = [];
 
-        public ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
+        public ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
         {
-            lock (Items) { Items.Add(proposal); return ValueTask.FromResult("proposal-" + Items.Count); }
+            lock (Items) { Items.Add(proposal); return ValueTask.FromResult(new ProposalDecision("proposal-" + Items.Count, ProposalOutcome.Applied, proposal.Edits.Count, proposal.Edits.Count)); }
         }
     }
 
@@ -460,6 +460,7 @@ public partial class DocumentApiTests
         var rev = rig.Revision;
         var ok = await rig.CallAsync(DocumentMethods.EditPropose, rig.D($"\"revision\":{rev},\"title\":\"Shout\",\"edits\":[{{\"start\":0,\"end\":5,\"text\":\"HELLO\"}}]"));
         Assert.Equal("proposal-1", ok.GetProperty("proposal").GetString());
+        Assert.Equal(("applied", 1, 1), (ok.GetProperty("decision").GetString(), ok.GetProperty("accepted").GetInt32(), ok.GetProperty("total").GetInt32()));
         lock (rig.Proposals.Items)
         {
             var p = Assert.Single(rig.Proposals.Items);

@@ -439,6 +439,12 @@
           "maximum": 1048576,
           "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: a search with * then asks for it. A range of your own can always be written as *{m,n}.",
           "x-scope": "application"
+        },
+        "review.autoKeep": {
+          "type": "boolean",
+          "default": false,
+          "description": "Keep changes from outside without review. On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review.",
+          "x-scope": "application"
         }
       },
       "additionalProperties": true

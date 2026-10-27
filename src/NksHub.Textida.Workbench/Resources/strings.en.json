@@ -368,5 +368,10 @@
   "cmd.remote.importConnections": "Import Connections...",
   "cmd.tools.mcpServer": "MCP Server: Switch On or Off...",
   "cmd.tools.mcpShareTab": "Share This Tab with MCP",
-  "cmd.tools.mcpTools": "MCP Tools..."
+  "cmd.tools.mcpTools": "MCP Tools...",
+  "cmd.review.open": "Review Changes from Outside",
+  "cmd.review.next": "Next Change from Outside",
+  "cmd.review.previous": "Previous Change from Outside",
+  "setting.review.autoKeep.title": "Keep changes from outside without review",
+  "setting.review.autoKeep.description": "On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review."
 }

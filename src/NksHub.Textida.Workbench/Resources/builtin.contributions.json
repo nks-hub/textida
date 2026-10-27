@@ -1392,6 +1392,24 @@
       "id": "nks.tools.mcpTools",
       "title": "cmd.tools.mcpTools",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.review.open",
+      "title": "cmd.review.open",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.review.next",
+      "title": "cmd.review.next",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.review.previous",
+      "title": "cmd.review.previous",
+      "category": "cat.file",
+      "enablement": "hasDocument && !largeFileMode"
     }
   ],
   "menus": [
@@ -2678,6 +2696,12 @@
       "command": "nks.tools.mcpTools",
       "group": "8_mcp",
       "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.open",
+      "group": "2_disk",
+      "order": 75
     }
   ],
   "keybindings": [
@@ -3063,6 +3087,16 @@
       "key": "mod+k mod+g",
       "command": "nks.hex.minimap",
       "when": "hexMode"
+    },
+    {
+      "key": "alt+f7",
+      "command": "nks.review.next",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+shift+f7",
+      "command": "nks.review.previous",
+      "when": "editorFocus"
     }
   ],
   "settings": [
@@ -3987,6 +4021,20 @@
         "regex",
         "search",
         "bytes"
+      ]
+    },
+    {
+      "key": "review.autoKeep",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.review.autoKeep.title",
+      "description": "setting.review.autoKeep.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "review",
+        "external",
+        "reload"
       ]
     }
   ]

@@ -23,12 +23,12 @@ public partial class DocumentApiTests
         public readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public volatile bool Cancelled;
 
-        public async ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
+        public async ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
         {
             Entered.TrySetResult();
             try { await Task.Delay(Timeout.Infinite, cancellation); }
             catch (OperationCanceledException) { Cancelled = true; throw; }
-            return "never";
+            return new ProposalDecision("never", ProposalOutcome.Rejected, 0, 0);
         }
     }
 

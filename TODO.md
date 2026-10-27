@@ -1878,13 +1878,15 @@ Společný základ celé etapy (kap. 5.3). F179, F180 a pluginy do ní jen posí
 - [ ] **P6.1.1** Revize změn po úsecích
   - **Co a proč:** Změna souboru jiným procesem se v otevřené kartě neuplatní potichu. Úseky proti základu (poslední stav, který uživatel viděl nebo uložil, drží F172), Ponechat / Vrátit po úseku, souboru i všech. Značka v liště karet, šipky mezi úseky, stav přežije restart. Automatické ponechání jen jako volba, výchozí vypnuto. Platí pro karty i sledovanou složku; ignoruje `.git`, `.gitignore`, `.codegraph/` a přepisy agentů.
   - **Funkce:** F178
+  - **Stav 26. 10. 2026:** částečně: u změny zvenku v nezměněné kartě „Zkontrolovat změny“ – dosavadní obsah se uloží do místní historie a připne, změny se vypíšou po úsecích, nezaškrtnuté se vrátí jedním krokem undo, pak uložení s kontrolou verze; štítek „± N“ v liště karet, Alt+F7 / Alt+Shift+F7, stav přežije restart, připnutý základ retence nesmaže; `review.autoKeep` vypnuté. Chybí: sledovaná složka a ignorování `.git`, `.gitignore`, `.codegraph/` (řeší se jen otevřené karty); karty s neuloženými úpravami a `.env` zůstávají na starém panelu.
   - **Hotovo, když:** změna od Claude Code, Codexu i skriptu se ukáže po úsecích; Vrátit zapíše obsah základu běžným uložením s kontrolou revize; stav revize přežije pád; základ nevyřízené revize je v místní historii připnutý a retence ho nesmaže (P5.3.2).
   - **Závisí na:** P5.3.1, P5.3.2, P2.5.2, P1.5.1
   - **Odhad:** F178 2–3 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P6.1.2** Návrhy pluginů do revize změn
+- [x] **P6.1.2** Návrhy pluginů do revize změn
   - **Co a proč:** `edit/propose` z P3b se přepojí ze služby náhledu změn na revizi F178. Odpověď přijde po rozhodnutí uživatele. Je to rozšíření kontraktu F199; návrhový mechanismus z P3b se znovu neúčtuje.
   - **Funkce:** F199 (částečně: napojení na F178)
+  - **Stav 26. 10. 2026:** hotovo: návrh pluginu (`edit/propose`) i asistenta přes MCP se ukáže jako úseky se zaškrtávátky v kartě výsledků (stejné jako Nahradit v souborech); plugin dostane odpověď po rozhodnutí (`applied`, `partial`, `rejected`, `stale`, `failed`), MCP dostane číslo návrhu hned a výsledek přečte z evidence; přijaté úseky jedním krokem undo, ostatní bajty beze změny; zastaralá revize nic nezapíše; další návrh čeká ve frontě a otevřenou kontrolu nepřepíše (test); plugin čekající na rozhodnutí hlídání neukončí (test bez opravy padá). Bajtové návrhy a skryté `.env` jdou přes inspektor bajtů (přijmout nebo odmítnout celé).
   - **Hotovo, když:** návrh pluginu se ukáže v revizi jako úseky, plugin dostane výsledek až po rozhodnutí a hlídání hostitele ho mezitím neukončí.
   - **Závisí na:** P6.1.1, P3b.3.2
   - **Odhad:** v rámci F199 (matice, viz P3b.3.2)

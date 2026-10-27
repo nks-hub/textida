@@ -35,6 +35,7 @@ public sealed partial class App : Application
     internal BackupService Backups { get; private set; } = null!;
     /// <summary>Local history of files: a revision for every save and every change from outside.</summary>
     internal FileHistory History { get; private set; } = null!;
+    internal ReviewStore Reviews { get; private set; } = null!;
     internal OutputChannels Output { get; private set; } = null!;
     /// <summary>The editor locks of the files open in this run; a file another instance holds opens read only.</summary>
     internal NksHub.Textida.Core.Files.FileLocks Locks { get; private set; } = null!;
@@ -149,6 +150,7 @@ public sealed partial class App : Application
         OpenDocument.History = History;
         Locks = new NksHub.Textida.Core.Files.FileLocks(Path.Combine(ProfileDirectory, "locks"), Guid.NewGuid().ToString("N")[..8]);
         Remote = new RemoteServices(ProfileDirectory, Credentials);
+        Reviews = new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
     }
 
     /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>

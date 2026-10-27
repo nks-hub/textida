@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
@@ -276,23 +277,60 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Shows what a plugin (or the MCP assistant) proposes in the preview of the other whole-document actions and applies it when the user agrees. The outcome is what became of the
-    /// proposal: rejected by the user, stale when the text it touched changed before the user decided, or applied.
+    /// Shows what a plugin proposes in the change review (hunks with ticks in the Search Results tab) and answers when the user has decided. A proposal made for another
+    /// revision than the document has now is stale and nothing is written. Edits that are not text of the document (raw bytes) or a hidden secrets file go to the
+    /// byte inspector instead, which can only accept or reject the batch as a whole.
     /// </summary>
-    internal async Task<ProposalOutcome> ReviewPluginProposalAsync(EditProposal proposal, DocTab tab)
+    internal async Task<ProposalDecision> ReviewPluginProposalAsync(EditProposal proposal, DocTab tab, string id, CancellationToken cancellation)
     {
-        var source = "plugin:" + proposal.PluginId;
-        var report = tab.Doc.Doc.InspectEdits(proposal.Edits, source, proposal.Revision, proposal.RawBytes);
-        if (report is null) { SetStatusMessage(Loc.Get(K.StatusChangeConflict)); return new ProposalOutcome(ProposalStatus.Stale); }
+        var doc = tab.Doc.Doc;
+        int total = proposal.Edits.Count;
+        string title = proposal.Title ?? proposal.PluginId;
+        if (doc.Revision != proposal.Revision)
+        {
+            SetStatusMessage(Loc.Get(K.StatusChangeConflict));
+            return new ProposalDecision(id, ProposalOutcome.Stale, 0, total);
+        }
+        if (total > 0 && !proposal.RawBytes && tab.Surface is not { SecretsHidden: true } && TextReplacements(doc, proposal.Edits) is { } replacements)
+        {
+            FileChange? change = null;
+            try { change = ChangeBuilder.ForDocument(doc, replacements); }
+            catch (Exception e) when (e is ArgumentException or NotSupportedException) { }
+            if (change is not null) return await ShowProposalAsync(id, title, "plugin:" + proposal.PluginId, tab, change, cancellation);
+        }
+
+        var report = doc.InspectEdits(proposal.Edits, "plugin:" + proposal.PluginId, proposal.Revision, proposal.RawBytes);
+        if (report is null)
+        {
+            SetStatusMessage(Loc.Get(K.StatusChangeConflict));
+            return new ProposalDecision(id, ProposalOutcome.Stale, 0, total);
+        }
         var headline = proposal.PluginId == McpServer.ClientId
-            ? Loc.Get(K.McpProposal, ("title", proposal.Title ?? Loc.Get(K.McpToolsTitle)), ("changes", proposal.Edits.Count))
-            : Loc.Get(K.PluginProposal, ("title", proposal.Title ?? proposal.PluginId), ("changes", proposal.Edits.Count));
+            ? Loc.Get(K.McpProposal, ("title", proposal.Title ?? Loc.Get(K.McpToolsTitle)), ("changes", total))
+            : Loc.Get(K.PluginProposal, ("title", title), ("changes", total));
         var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, headline, Loc.Get(K.PreviewApply));
-        if (answer != LossAnswer.Replace) return new ProposalOutcome(ProposalStatus.Rejected);
+        if (answer != LossAnswer.Replace) return new ProposalDecision(id, ProposalOutcome.Rejected, 0, total);
         report.Confirm();
-        var result = tab.Doc.Doc.Apply(report);
-        if (result.Applied) return new ProposalOutcome(ProposalStatus.Applied, result.Revision);
+        if (doc.Apply(report).Applied) return new ProposalDecision(id, ProposalOutcome.Applied, total, total);
         SetStatusMessage(Loc.Get(K.StatusChangeConflict));
-        return new ProposalOutcome(ProposalStatus.Stale);
+        return new ProposalDecision(id, ProposalOutcome.Stale, 0, total);
+    }
+
+    /// <summary>The edits as text of the document, or null when one of them is bytes that do not decode to text the codec writes back unchanged.</summary>
+    private static List<TextReplacement>? TextReplacements(Document doc, IReadOnlyList<ByteEdit> edits)
+    {
+        var list = new List<TextReplacement>(edits.Count);
+        foreach (var edit in edits)
+        {
+            var bytes = edit.Insert.ToArray();
+            try
+            {
+                string text = doc.Codec.Decode(bytes).Text;
+                if (!doc.Codec.Encode(text).AsSpan().SequenceEqual(bytes)) return null;
+                list.Add(new TextReplacement(edit.Range, text));
+            }
+            catch (Exception e) when (e is ArgumentException or UnrepresentableCharactersException) { return null; }
+        }
+        return list;
     }
 }

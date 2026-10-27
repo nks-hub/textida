@@ -371,6 +371,14 @@ public class PluginUiTests : IDisposable
 
     // ---- JSON formatter inside the app ----
 
+    /// <summary>Starts a command whose plugin waits for the user (a proposal), so the command is not awaited to its end.</summary>
+    private async Task StartAsync(string command)
+    {
+        var run = _app.Workbench.Commands.ExecuteAsync(command, new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => run.IsCompleted, command);
+        Assert.Equal(CommandOutcome.Handled, await run);
+    }
+
     private async Task RunAsync(string command)
     {
         var run = _app.Workbench.Commands.ExecuteAsync(command, new ShellContext(_w, forMenu: false)).AsTask();
@@ -499,13 +507,19 @@ public class PluginUiTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         tab.Editor!.TextArea.Focus();
 
-        _dialogs.Answers.Enqueue(1);
-        await RunAsync("nks.edit.previewFormatJson");
-        await Until(() => _dialogs.Asked.Count == 1, "the preview dialog");
+        await StartAsync("nks.edit.previewFormatJson");
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the change review");
+        Assert.Equal("[1,2]", Utf8(tab));
+        _w.ResultsView!.CancelButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await Until(() => !_app.Plugins.IsBusy, "the rejected proposal");
         Assert.Equal("[1,2]", Utf8(tab));
 
-        _dialogs.Answers.Enqueue(0);
-        await RunAsync("nks.edit.previewFormatJson");
+        _w.SelectTab(tab);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        await StartAsync("nks.edit.previewFormatJson");
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true && _w.ResultsView.ApplyButton.IsVisible, "the second change review");
+        _w.ApplyPlan();
         await Until(() => Utf8(tab) == "[\n  1,\n  2\n]", "the applied preview");
     }
 }

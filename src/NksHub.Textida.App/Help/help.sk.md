@@ -1099,6 +1099,7 @@ Dve karty sa posúvajú spolu, takže rovnaký text dvoch súborov zostáva opro
 - Riadky sa priraďujú porovnaním z témy Porovnanie textov: druhý súbor sa posunie na zodpovedajúci riadok, aj cez vložené alebo odobraté bloky. Kým sa porovnanie dopočíta, platí rovnaké číslo riadka.
 - Skončí, keď sa zavrie jedna z dvoch kariet. Hexadecimálny a tabuľkový pohľad sa nezúčastňujú.
 
+<<<<<<< HEAD
 ## [tools.mcp] Editor ako server MCP
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (napríklad programovací agent), môže Textidu používať cez Model Context Protocol. Vidí len karty, ktoré mu zdieľate, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
@@ -1111,3 +1112,16 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Hodnoty v súboroch .env vidí asistent ako *. Pri zdieľaní takej karty sa opýtame, či smie vidieť skutočné hodnoty; odpoveď platí len pre tú kartu.
 - Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia. Odvolá ju aj opätovné načítanie súboru.
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
+=======
+## [review.external] Kontrola zmien zvonka
+commands: nks.review.open, nks.review.next, nks.review.previous
+Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.
+1. Zvoľte Skontrolovať zmeny. Karta prevezme nový obsah, skorší obsah zostane v miestnej histórii a po dobu kontroly sa nezmaže a karta Výsledky hľadania vypíše zmeny po riadkoch.
+2. Zaškrtnite zmeny, ktoré chcete ponechať. Nezaškrtnuté, alebo celý súbor s nezaškrtnutým poľom, sa po voľbe Použiť vrátia na skorší obsah.
+3. Použiť zapíše vrátený text do karty ako jeden krok späť a súbor uloží; bajty mimo vrátených zmien zostanú bez zmeny.
+- Karta ukazuje štítok s počtom čakajúcich zmien. Voľbou Súbor a Skontrolovať zmeny zvonka zoznam otvoríte znova; vráti sa aj po reštarte.
+- Alt+F7 a Alt+Shift+F7 skočia na ďalšiu a predchádzajúcu zmenu zvonka.
+- Ak počas kontroly v karte píšete, zmeny sa ukážu znova z nového textu.
+- Súbory s tajnými hodnotami (.env) a súbory s neuloženými úpravami zostávajú pri staršom paneli: Načítať znova, Ponechať moje, Porovnať.
+- S voľbou Ponechať zmeny zvonka bez kontroly v nastaveniach karta prevezme nový obsah hneď. V predvolenom stave je vypnutá.
+>>>>>>> worktree-agent-a2c693abd3ed51248

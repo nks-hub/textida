@@ -41,12 +41,12 @@ public class McpServerTests
     sealed class FakeReviewer : IProposalReviewer
     {
         public readonly List<EditProposal> Seen = [];
-        public TaskCompletionSource<ProposalOutcome> Decision = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<ReviewOutcome> Decision = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public ValueTask<ProposalOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation)
+        public ValueTask<ReviewOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation)
         {
             lock (Seen) Seen.Add(proposal);
-            return new ValueTask<ProposalOutcome>(Decision.Task);
+            return new ValueTask<ReviewOutcome>(Decision.Task);
         }
     }
 
@@ -360,7 +360,7 @@ public class McpServerTests
         // the user looks at the diff and applies it
         var applied = rig.Owner.Run(() => doc.Apply(proposal.Edits, new EditOptions { BaseRevision = proposal.Revision, Source = "plugin:mcp" }));
         Assert.True(applied.Applied);
-        rig.Reviewer.Decision.SetResult(new ProposalOutcome(ProposalStatus.Applied, applied.Revision));
+        rig.Reviewer.Decision.SetResult(new ReviewOutcome(ProposalStatus.Applied, applied.Revision));
         await T.Until(() => rig.Ledger.Get(id)!.Status == ProposalStatus.Applied);
         var status = (await rig.ToolAsync("editor_get_change_status", $"{{\"proposal\":\"{id}\"}}")).Json;
         Assert.Equal("applied", status.GetProperty("status").GetString());

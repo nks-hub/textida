@@ -1183,5 +1183,18 @@
   "mcp.tool.logQuery": "Najít řádky dané úrovně ve sdíleném logu",
   "mcp.tool.readBytes": "Číst bajty sdílené karty (nejvýš 64 KiB)",
   "mcp.tool.searchBytes": "Hledat posloupnost bajtů",
-  "mcp.tool.prepareByteChanges": "Navrhnout změny bajtů (rozhodnete vy)"
+  "mcp.tool.prepareByteChanges": "Navrhnout změny bajtů (rozhodnete vy)",
+  "review.queued": "Další návrhy čekají: {count}",
+  "review.bar": "Zkontrolovat změny",
+  "review.title": "Změny zvenku: {title}",
+  "review.hint": "Zaškrtnuté změny zůstanou. Nezaškrtnuté se po použití vrátí na obsah před změnou.",
+  "review.badge": "± {count}",
+  "review.none": "V této kartě nečeká žádná změna zvenku na kontrolu",
+  "review.noBase": "Dřívější obsah se nepodařilo uložit do místní historie, změny proto nejde zkontrolovat. Použijte Znovu načíst.",
+  "review.done": "Kontrola hotová: ponecháno {kept}, vráceno {reverted}",
+  "review.stale": "Text se během kontroly změnil, změny se ukazují znovu",
+  "review.notSaved": "V kartě vráceno, ale neuloženo: {reason}",
+  "review.autoKept": "Změna zvenku převzata: {title}",
+  "review.same": "Soubor má stejný obsah jako dřív, není co kontrolovat",
+  "review.busy": "Jiná kontrola je otevřená. Nejdřív ji dokončete, pak zvolte Zkontrolovat změny zvenku."
 }

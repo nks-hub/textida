@@ -8,12 +8,12 @@ public enum ProposalStatus { Pending, Applied, Rejected, Stale, Failed }
 public sealed record ProposalEntry(string Id, Guid Document, long Revision, int Edits, string? Title, ProposalStatus Status, long? AppliedRevision);
 
 /// <summary>What the user decided about a proposal; <paramref name="Revision"/> is the document revision after it was applied.</summary>
-public readonly record struct ProposalOutcome(ProposalStatus Status, long? Revision = null);
+public readonly record struct ReviewOutcome(ProposalStatus Status, long? Revision = null);
 
 /// <summary>Shows a proposal to the user (as a diff) and reports the decision.</summary>
 public interface IProposalReviewer
 {
-    ValueTask<ProposalOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation);
+    ValueTask<ReviewOutcome> ReviewAsync(EditProposal proposal, CancellationToken cancellation);
 }
 
 /// <summary>Bounded record of the proposals of the assistant; the oldest entry goes first.</summary>
@@ -36,7 +36,7 @@ public sealed class ProposalLedger(int capacity)
         return id;
     }
 
-    public void Resolve(string id, ProposalOutcome outcome)
+    public void Resolve(string id, ReviewOutcome outcome)
     {
         lock (_gate)
         {
@@ -56,18 +56,18 @@ public sealed class ProposalLedger(int capacity)
 /// </summary>
 public sealed class McpProposals(ProposalLedger ledger, IProposalReviewer reviewer, IEditProposals? other = null) : IEditProposals
 {
-    public ValueTask<string> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
+    public ValueTask<ProposalDecision> SubmitAsync(EditProposal proposal, CancellationToken cancellation)
     {
         if (proposal.PluginId != McpServer.ClientId)
             return other?.SubmitAsync(proposal, cancellation) ?? throw new InvalidOperationException("No service takes the proposals of this plugin.");
         var id = ledger.Add(proposal);
         _ = DecideAsync(id, proposal);
-        return ValueTask.FromResult(id);
+        return ValueTask.FromResult(new ProposalDecision(id, ProposalOutcome.Pending, 0, proposal.Edits.Count));
     }
 
     private async Task DecideAsync(string id, EditProposal proposal)
     {
         try { ledger.Resolve(id, await reviewer.ReviewAsync(proposal, CancellationToken.None).ConfigureAwait(false)); }
-        catch (Exception) { ledger.Resolve(id, new ProposalOutcome(ProposalStatus.Failed)); }
+        catch (Exception) { ledger.Resolve(id, new ReviewOutcome(ProposalStatus.Failed)); }
     }
 }

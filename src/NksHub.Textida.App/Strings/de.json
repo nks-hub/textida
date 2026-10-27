@@ -1156,5 +1156,18 @@
   "mcp.tool.logQuery": "Zeilen einer Stufe in einem freigegebenen Log finden",
   "mcp.tool.readBytes": "Bytes eines freigegebenen Tabs lesen (bis 64 KiB)",
   "mcp.tool.searchBytes": "Nach einem Bytemuster suchen",
-  "mcp.tool.prepareByteChanges": "Byte-Änderungen vorschlagen (Sie entscheiden)"
+  "mcp.tool.prepareByteChanges": "Byte-Änderungen vorschlagen (Sie entscheiden)",
+  "review.queued": "Weitere Vorschläge warten: {count}",
+  "review.bar": "Änderungen prüfen",
+  "review.title": "Änderungen von außen: {title}",
+  "review.hint": "Angehakte Änderungen bleiben. Nicht angehakte werden beim Anwenden auf den Inhalt vor der Änderung zurückgesetzt.",
+  "review.badge": "± {count}",
+  "review.none": "In diesem Tab wartet keine Änderung von außen auf Prüfung",
+  "review.noBase": "Der frühere Inhalt konnte nicht im lokalen Verlauf gesichert werden, die Änderungen lassen sich daher nicht prüfen. Verwenden Sie Neu laden.",
+  "review.done": "Prüfung beendet: {kept} behalten, {reverted} zurückgesetzt",
+  "review.stale": "Der Text hat sich während der Prüfung geändert; die Änderungen werden erneut angezeigt",
+  "review.notSaved": "Im Tab zurückgesetzt, aber nicht gespeichert: {reason}",
+  "review.autoKept": "Änderung von außen übernommen: {title}",
+  "review.same": "Die Datei hat denselben Inhalt wie zuvor; nichts zu prüfen",
+  "review.busy": "Eine andere Prüfung ist offen. Beenden Sie sie zuerst und wählen Sie dann Änderungen von außen prüfen."
 }

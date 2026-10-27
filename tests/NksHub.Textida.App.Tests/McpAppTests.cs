@@ -253,21 +253,24 @@ public class McpAppTests : IDisposable
         Assert.Contains("-32020", stale.Text);
         Assert.Empty(_dialogs.Asked.Skip(1));
 
-        _dialogs.Answers.Enqueue(0); // apply
+        // a text proposal goes to the change review by hunks, the same one the proposals of plugins use
         var proposed = await Pump(client.ToolAsync("editor_prepare_changes", $"{{\"document\":\"{id}\",\"revision\":{revision},\"title\":\"Rename\",\"edits\":[{{\"find\":\"beta\",\"text\":\"delta\"}}]}}"), "proposal");
         Assert.False(proposed.IsError, proposed.Text);
         var proposal = JsonDocument.Parse(proposed.Text).RootElement.GetProperty("proposal").GetString()!;
+        Assert.Equal(ProposalStatus.Pending, _app.Plugins.Mcp.Ledger.Get(proposal)!.Status);
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the review");
+        _w.ApplyPlan();
         await Until(() => _app.Plugins.Mcp.Ledger.Get(proposal)!.Status != ProposalStatus.Pending, "the user's decision");
-        var preview = _dialogs.Asked[^1];
-        Assert.Contains("Rename", preview.Message);
         Assert.Equal(ProposalStatus.Applied, _app.Plugins.Mcp.Ledger.Get(proposal)!.Status);
         Assert.Equal("unsaved alpha delta gamma\n", shared.Editor.Document.Text);
         var status = JsonDocument.Parse((await Pump(client.ToolAsync("editor_get_change_status", $"{{\"proposal\":\"{proposal}\"}}"), "status")).Text).RootElement;
         Assert.Equal("applied", status.GetProperty("status").GetString());
 
         // a proposal the user rejects changes nothing
-        _dialogs.Answers.Enqueue(1);
         var again = JsonDocument.Parse((await Pump(client.ToolAsync("editor_prepare_changes", $"{{\"document\":\"{id}\",\"revision\":{status.GetProperty("appliedRevision").GetInt64()},\"edits\":[{{\"find\":\"gamma\",\"text\":\"omega\"}}]}}"), "second proposal")).Text).RootElement.GetProperty("proposal").GetString()!;
+        await Until(() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true, "the second review");
+        foreach (var row in _w.ResultsView!.Rows.OfType<SearchResultsView.HunkRow>()) row.Selected = false;
+        _w.ApplyPlan();
         await Until(() => _app.Plugins.Mcp.Ledger.Get(again)!.Status != ProposalStatus.Pending, "the second decision");
         Assert.Equal(ProposalStatus.Rejected, _app.Plugins.Mcp.Ledger.Get(again)!.Status);
         Assert.Equal("unsaved alpha delta gamma\n", shared.Editor.Document.Text);

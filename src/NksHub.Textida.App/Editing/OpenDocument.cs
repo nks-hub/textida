@@ -126,6 +126,12 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>Size badge for the tab of a large file, like "10 GiB".</summary>
     public string? SizeBadge => IsHex ? (IsLarge ? "HEX · " + FormatSize(_doc.ByteLength) : "HEX") : IsLarge ? FormatSize(_doc.ByteLength) : null;
 
+    /// <summary>The change from outside that waits for review in this document (P6.1.1); null when there is none.</summary>
+    internal NksHub.Textida.App.Services.ReviewState? Review { get; set; }
+    /// <summary>How many changes the pending review lists, as of the last time it was built.</summary>
+    public int ReviewCount { get; set; }
+    public string? ReviewBadge => Review is null ? null : Loc.Get(K.ReviewBadge, ("count", ReviewCount));
+
     public static string FormatSize(long bytes) => bytes switch
     {
         >= 1L << 30 => $"{bytes / (double)(1L << 30):0.#} GiB",

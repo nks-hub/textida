@@ -189,6 +189,25 @@ public class PluginHostTests
     }
 
     [Fact]
+    public async Task APluginWaitingForTheDecisionOnAProposalIsNotKilledEvenIfItAnswersNoPings()
+    {
+        var decision = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var crashed = 0;
+        PluginApiCallback api = (_, method, _, _) => method == "edit/propose" ? new ValueTask<byte[]?>(decision.Task) : throw new RpcException(RpcErrorCodes.MethodNotFound, method);
+        await using var host = await Started(Options(), api, null, Spec("ask"));
+        host.Crashed += _ => Interlocked.Increment(ref crashed);
+        await host.CallAsync("ask", "freeze");
+        var pending = host.CallAsync("ask", "callEditor", Args("{\"method\":\"edit/propose\",\"params\":{}}"));
+        await Task.Delay(2500); // far past three missed pings (150 ms interval, 250 ms timeout)
+        Assert.False(pending.IsCompleted);
+        Assert.Equal(0, crashed);
+        Assert.Equal(PluginState.Running, host.GetState("ask"));
+
+        decision.SetResult(System.Text.Encoding.UTF8.GetBytes("{\"decision\":\"applied\"}"));
+        Assert.Equal("applied", (await pending).GetProperty("decision").GetString());
+    }
+
+    [Fact]
     public async Task ShutdownEndsEveryPluginProcess()
     {
         var host = await Started(Options(), null, null, Spec("a"), Spec("b"));

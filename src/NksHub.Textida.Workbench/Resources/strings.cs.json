@@ -368,5 +368,10 @@
   "cmd.remote.importConnections": "Importovat připojení...",
   "cmd.tools.mcpServer": "Server MCP: zapnout nebo vypnout...",
   "cmd.tools.mcpShareTab": "Sdílet kartu s MCP",
-  "cmd.tools.mcpTools": "Nástroje MCP..."
+  "cmd.tools.mcpTools": "Nástroje MCP...",
+  "cmd.review.open": "Zkontrolovat změny zvenku",
+  "cmd.review.next": "Další změna zvenku",
+  "cmd.review.previous": "Předchozí změna zvenku",
+  "setting.review.autoKeep.title": "Ponechat změny zvenku bez kontroly",
+  "setting.review.autoKeep.description": "Zapnuto: když jiný program změní soubor karty bez neuložených úprav, karta hned převezme nový obsah a kontrola se nenabízí. Vypnuto: změny čekají na vaši kontrolu."
 }
