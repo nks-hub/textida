@@ -2,9 +2,10 @@ namespace NksHub.Textida.Core.Completion;
 
 /// <summary>
 /// The text of one open document for word completion. <paramref name="Caret"/> is the offset of the caret in <paramref name="Text"/> when this is the document being
-/// edited, otherwise -1; the word the caret is in is the one being typed, so it is not offered.
+/// edited, otherwise -1; the word the caret is in is the one being typed, so it is not offered. <paramref name="Index"/> is the index of <paramref name="Text"/> when the caller
+/// keeps one between offers; without it the text is scanned (and <paramref name="Text"/> is not needed when there is no caret).
 /// </summary>
-public readonly record struct CompletionSource(string Text, int Caret = -1);
+public readonly record struct CompletionSource(string Text, int Caret = -1, WordIndex? Index = null);
 
 /// <summary>
 /// Completion of words from the text of open documents. A word is letters, digits and underscores, as everywhere else in the editor. The text a caller gives is
@@ -22,6 +23,16 @@ public static class WordCompletion
         return start;
     }
 
+    /// <summary>The word the caret is in (its characters in front of the caret make the prefix), or null.</summary>
+    private static string? TypedWord(string text, int caret)
+    {
+        if (caret <= 0 || caret > text.Length || !IsWordChar(text[caret - 1])) return null;
+        int start = caret - 1, end = caret;
+        while (start > 0 && IsWordChar(text[start - 1])) start--;
+        while (end < text.Length && IsWordChar(text[end])) end++;
+        return text[start..end];
+    }
+
     private struct Count
     {
         public int Total;
@@ -35,26 +46,19 @@ public static class WordCompletion
     public static List<string> Words(IReadOnlyList<CompletionSource> sources, string prefix, int max)
     {
         var counts = new Dictionary<string, Count>(StringComparer.Ordinal);
-        var lookup = counts.GetAlternateLookup<ReadOnlySpan<char>>();
         for (int k = 0; k < sources.Count; k++)
         {
-            var text = sources[k].Text.AsSpan();
-            int caret = sources[k].Caret;
-            for (int i = 0; i < text.Length;)
+            var index = sources[k].Index ?? WordIndex.Build(sources[k].Text);
+            string? typed = TypedWord(sources[k].Text, sources[k].Caret);
+            index.ForEachStartingWith(prefix, (word, total) =>
             {
-                if (!IsWordChar(text[i])) { i++; continue; }
-                int start = i;
-                while (i < text.Length && IsWordChar(text[i])) i++;
-                int length = i - start;
-                bool beingTyped = caret > start && caret <= i;
-                if (length <= prefix.Length || beingTyped) continue;
-                var word = text.Slice(start, length);
-                if (prefix.Length > 0 && !word.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
-                ref var count = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(lookup, word, out bool existed);
-                if (!existed) count = default;
-                count.Total++;
+                if (word.Length <= prefix.Length) return;
+                if (typed is not null && word == typed) total--;
+                if (total <= 0) return;
+                ref var count = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(counts, word, out _);
+                count.Total += total;
                 if (k == 0) count.InFirstSource = true;
-            }
+            });
         }
         // the best `max` of possibly very many words: a heap that keeps the worst on top is cheaper than sorting them all
         var best = new PriorityQueue<KeyValuePair<string, Count>, KeyValuePair<string, Count>>(Comparer<KeyValuePair<string, Count>>.Create((a, b) => Rank(b, a)));
