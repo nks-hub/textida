@@ -282,6 +282,101 @@ public class FindTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task F3_Enter_and_List_while_the_search_of_a_paged_file_runs_wait_for_it_and_do_not_start_it_over()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        byte[] line = "2026-10-26 12:00:00 INFO request handled path=/api/items/42\n"u8.ToArray();
+        var bytes = new byte[(48 << 20) / line.Length * line.Length];
+        for (int at = 0; at < bytes.Length; at += line.Length) line.CopyTo(bytes, at);
+        var tab = _w.OpenFile(_temp.Bytes("wait.log", bytes), null);
+        Assert.True(tab.Doc.IsLarge);
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        _w.FindBar.RegexToggle.IsChecked = true;
+        Query(@"items/\d+");
+        Assert.True(_w.FindIsRunning);
+        var run = _w.FindRun!;
+
+        TestApp.Press(_w, Key.F3);
+        TestApp.Press(_w, Key.Enter); // in the field of the bar
+        Assert.Same(run, _w.FindRun);
+        _w.FindBar.ListButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Settle(() => !_w.FindIsRunning && _w.ResultsView is { IsRunning: false, Rows.Count: > 0 }, 60_000);
+
+        Assert.Same(run, _w.FindRun);
+        Assert.Equal(100_000, _w.ResultsView!.Rows.OfType<SearchResultsView.HitRow>().Count());
+        Assert.Contains(_w.FindHits, h => h.Range == tab.Paged!.SelectionRange);
+    }
+
+    [AvaloniaFact]
+    public async Task In_a_paged_file_with_an_unfinished_index_a_match_beyond_it_is_selected_and_a_listed_match_follows_a_later_edit()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var sb = new System.Text.StringBuilder();
+        long needleAt = 0;
+        for (int i = 1; i <= 700_000; i++)
+        {
+            if (i == 650_000) needleAt = sb.Length + $"line {i} ".Length;
+            sb.Append("line ").Append(i).Append(i == 650_000 ? " NEEDLE\n" : "\n");
+        }
+        string path = _temp.Bytes("beyond.log", System.Text.Encoding.ASCII.GetBytes(sb.ToString()));
+        using var gate = new ManualResetEventSlim();
+        NksHub.Textida.Core.MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= 3) gate.Wait(); };
+        try
+        {
+            var tab = _w.OpenFile(path, null);
+            var paged = tab.Paged!;
+            var document = ((NksHub.Textida.Core.Documents.PagedBackend)tab.Doc.Doc.Backend).Paged;
+            await Settle(() => document.IndexedBytes == 3L << 20);
+            Assert.False(paged.Index.Complete);
+            Assert.True(needleAt > 3L << 20, "the match must lie beyond the indexed part");
+
+            TestApp.Press(_w, Key.F, TestApp.Mod);
+            Query("NEEDLE");
+            await Settle(() => !_w.FindIsRunning);
+            var expected = new NksHub.Textida.Core.Documents.ByteRange(needleAt, needleAt + 6);
+            Assert.Equal(expected, Assert.Single(_w.FindHits).Range);
+            Assert.Equal(expected, paged.SelectionRange);
+            Assert.False(paged.Index.Complete);
+
+            _w.FindBar.ListButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+            await Settle(() => _w.ResultsView is { IsRunning: false, Rows.Count: > 0 });
+            var row = _w.ResultsView!.Rows.OfType<SearchResultsView.HitRow>().Single();
+
+            gate.Set();
+            await Settle(() => paged.Index.Complete);
+            Assert.True(tab.Doc.Doc.Insert(0, "ZZ"u8.ToArray()).Applied);
+            _w.OpenResult(row); // the match was found in the revision before the edit
+            Assert.Equal(new NksHub.Textida.Core.Documents.ByteRange(needleAt + 2, needleAt + 8), paged.SelectionRange);
+        }
+        finally
+        {
+            gate.Set();
+            NksHub.Textida.Core.MappedFileSource.IndexBlockHook = null;
+        }
+    }
+
+    /// <summary>The numbers a running search reports are checked in the core tests; this is the bar showing them as a percentage while the search runs.</summary>
+    [AvaloniaFact]
+    public async Task While_a_search_runs_the_bar_shows_the_percentage_of_the_bytes_scanned_and_the_Cancel_button()
+    {
+        _w.NewDocument();
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var channel = System.Threading.Channels.Channel.CreateUnbounded<SearchBatch>();
+        var run = new SearchRun(channel.Reader, new TaskCompletionSource<SearchSummary>().Task, new CancellationTokenSource(), () => (30, 120));
+        var busy = typeof(MainWindow).GetProperty("FindBusy", flags)!;
+        typeof(MainWindow).GetField("_findRun", flags)!.SetValue(_w, run);
+        busy.SetValue(_w, true);
+        try
+        {
+            Assert.True(_w.FindBar.StopButton.IsVisible);
+            await Settle(() => _w.FindBar.CountText.Text == Loc.Get(K.FindProgress, ("percent", 25L)), 5_000);
+        }
+        finally { busy.SetValue(_w, false); }
+        Assert.False(_w.FindBar.StopButton.IsVisible);
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Perf")]
     public async Task Typing_in_the_field_cancels_the_stale_search_of_a_100_MiB_file_the_ui_answers_within_100_ms_and_the_worker_ends_within_a_second()
     {
@@ -376,6 +471,33 @@ public class FindTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         editor.SetSelections([Sel.At(2)]);
         Assert.Null(editor.MatchingBrackets());
+    }
+
+    [AvaloniaFact]
+    public void Go_to_bracket_jumps_between_the_block_tags_of_a_latte_template()
+    {
+        var tab = _w.OpenFile(_temp.File("t.latte", "{if $a}x{else}y{/if}\n"), null);
+        tab.Editor!.CaretOffset = 2; // inside the opening tag
+        Assert.Equal(NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, _w.GoToBracket());
+        Assert.Equal(15, tab.Editor.CaretOffset); // the "{" of {/if}
+        tab.Editor.CaretOffset = 17;
+        _w.GoToBracket();
+        Assert.Equal(0, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void A_line_over_the_wrap_limit_is_not_scanned_for_the_highlight_but_Go_to_bracket_still_pairs_on_it()
+    {
+        int limit = NksHub.Textida.App.Editing.EditorSurface.WrapLineLimit;
+        var shorter = _w.OpenFile(_temp.File("short.txt", "(" + new string('x', limit - 10) + ")\n"), null);
+        shorter.Editor!.CaretOffset = 1;
+        Assert.Equal((0, limit - 9), shorter.Editor.MatchingBrackets());
+
+        var tab = _w.OpenFile(_temp.File("giant.txt", "(" + new string('x', limit + 10) + ")\n"), null);
+        tab.Editor!.CaretOffset = 1;
+        Assert.Null(tab.Editor.MatchingBrackets());
+        Assert.Equal(NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, _w.GoToBracket());
+        Assert.Equal(limit + 11, tab.Editor.CaretOffset);
     }
 
     [AvaloniaFact]
