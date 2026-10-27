@@ -23,6 +23,8 @@ internal sealed partial class MainWindow
 
     private void OnKeyDownTunnel(object? sender, KeyEventArgs e)
     {
+        // while an input method composes, Esc, Enter and the arrows confirm or cancel the composition; shortcuts with Ctrl, Alt or ⌘ still run
+        if (ActiveEditor is { IsComposing: true } && (e.KeyModifiers & ~Avalonia.Input.KeyModifiers.Shift) == Avalonia.Input.KeyModifiers.None) return;
         if (e.Key == Key.Escape)
         {
             if (!IsPaletteOpen && CancelLogSearch()) { e.Handled = true; return; }

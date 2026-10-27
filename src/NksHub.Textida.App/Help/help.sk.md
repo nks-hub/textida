@@ -429,6 +429,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 5. Písaním sa menia všetky miesta naraz. Esc nechá jediný kurzor.
 - Stavový riadok ukazuje počet kurzorov.
 - Alt+ťahanie myšou vytvorí kurzor na každom riadku alebo blokový výber podľa nastavenia Alt+ťahanie.
+- So vstupnou metódou (japončina, čínština, kórejčina) je rozpísaný text vidieť podčiarknutý pri každom kurzore. Po potvrdení sa zapíše do všetkých naraz ako jeden krok Späť; Esc ho zruší a kurzory nechá.
 
 ## [edit.mark] Značka a výber po značku
 commands: nks.edit.selectToMark

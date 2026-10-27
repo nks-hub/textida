@@ -77,6 +77,7 @@ internal sealed partial class EditorSurface : TextEditor
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
         InitViewOptions();
         InitCarets();
+        InitIme();
         InitSecrets();
         InitColors();
     }
@@ -107,6 +108,13 @@ internal sealed partial class EditorSurface : TextEditor
     {
         base.OnAttachedToVisualTree(e);
         ApplyTheme();
+    }
+
+    // a tab switch takes the editor out of the window; a composition it showed is gone with it
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        EndComposition();
+        base.OnDetachedFromVisualTree(e);
     }
 
     public void BindDocument()
@@ -334,6 +342,7 @@ internal sealed partial class EditorSurface : TextEditor
             e.Handled = true;
             return;
         }
+        if (IsComposing) return; // the keys belong to the input method; at several carets they would edit every one
         if (HandleCaretKey(e)) return;
         if (BlockMode && e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home)
         {
@@ -375,6 +384,7 @@ internal sealed partial class EditorSurface : TextEditor
 
     private void OnTextEnteringCore(TextInputEventArgs e)
     {
+        EndComposition(); // the committed text replaces what was drawn
         if (!IsReadOnly && e.Text is { Length: > 0 } seen) TextTyped?.Invoke(seen);
         if (e.Text is { Length: > 0 } entered && TypeAtCarets(entered))
         {

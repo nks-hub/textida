@@ -424,6 +424,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 5. Beim Tippen ändern sich alle Stellen gleichzeitig. Esc lässt nur einen Cursor übrig.
 - Die Statusleiste zeigt die Anzahl der Cursor.
 - Alt+Ziehen mit der Maus erzeugt je nach Einstellung Alt+Ziehen einen Cursor in jeder Zeile oder eine Blockauswahl.
+- Mit einer Eingabemethode (Japanisch, Chinesisch, Koreanisch) erscheint der Text, der gerade zusammengesetzt wird, unterstrichen an jedem Cursor. Nach dem Bestätigen wird er an allen als ein Rückgängig-Schritt eingefügt; Esc bricht ihn ab und lässt die Cursor stehen.
 
 ## [edit.mark] Marke und bis Marke auswählen
 commands: nks.edit.selectToMark

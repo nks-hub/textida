@@ -79,6 +79,7 @@ internal sealed partial class EditorSurface
     private void OnCoreChangedCore(NksHub.Textida.Core.Documents.DocumentChangedEventArgs e)
     {
         _stamp++;
+        EndComposition();
         if (_others is null) return;
         // a reread replaces the whole text of the view and the area loses its selection; the primary one is put back from its anchors
         if (e.Change.Kind == ChangeKind.View && _primaryKept?.Current() is { } kept && Doc.TextBackend is { } backend
@@ -109,6 +110,7 @@ internal sealed partial class EditorSurface
 
     private void RebindCarets()
     {
+        EndComposition();
         DropOthers();
         _probe?.Dispose();
         _probe = null;
