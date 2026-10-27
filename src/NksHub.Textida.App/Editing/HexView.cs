@@ -82,6 +82,22 @@ internal sealed partial class HexView : Grid
     public HexInspectorPanel Inspector { get; }
     /// <summary>The map of the whole file beside the scroll bar.</summary>
     internal HexMinimap Minimap { get; }
+
+    /// <summary>The view only shows: no key, paste, cut or undo changes the bytes (the grids of a comparison).</summary>
+    internal bool ReadOnly { get; set; }
+
+    /// <summary>Stretches to tint as differences from another file, ascending; empty outside a comparison.</summary>
+    internal IReadOnlyList<ByteRange> DiffMarks { get; private set; } = [];
+
+    /// <summary>The theme brush the differences are tinted with (<c>DiffRemoved</c> on the left, <c>DiffAdded</c> on the right).</summary>
+    internal string DiffBrushKey { get; private set; } = "DiffRemoved";
+
+    internal void ShowDifferences(IReadOnlyList<ByteRange> ranges, string brushKey)
+    {
+        DiffMarks = ranges;
+        DiffBrushKey = brushKey;
+        _canvas.InvalidateVisual();
+    }
     /// <summary>The histogram and the figures of the selection.</summary>
     internal HexStatsPanel Statistics { get; }
     /// <summary>The map is shown in the next hex view too once it was switched on or off in one.</summary>
@@ -386,12 +402,13 @@ internal sealed partial class HexView : Grid
 
     internal void Do(HexResult result) => Report(result);
 
-    public void TypeNibble(int digit) => Report(Editor.TypeNibble(digit));
+    public void TypeNibble(int digit) { if (!ReadOnly) Report(Editor.TypeNibble(digit)); }
 
-    public void TypeText(string text) => Report(Editor.TypeText(text));
+    public void TypeText(string text) { if (!ReadOnly) Report(Editor.TypeText(text)); }
 
     public async Task DeleteAsync(bool backspace)
     {
+        if (ReadOnly) return;
         var result = backspace ? Editor.Backspace(DeleteMode.Ask) : Editor.Delete(DeleteMode.Ask);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
@@ -406,6 +423,7 @@ internal sealed partial class HexView : Grid
 
     public void UndoRedo(bool redo)
     {
+        if (ReadOnly) return;
         if (Doc.IsSaving) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         if (!(redo ? Editor.Redo() : Editor.Undo())) return;
         Reveal(Editor.Caret);
@@ -432,12 +450,13 @@ internal sealed partial class HexView : Grid
         var data = new DataTransfer();
         data.Add(item);
         await clipboard.SetDataAsync(data);
-        if (cut) await DeleteAsync(backspace: false);
+        if (cut) await DeleteAsync(backspace: false); // does nothing in a read-only view
     }
 
     /// <summary>Pastes bytes: the exact bytes of another hex view, else hex text, else (in the character column) text in the charset.</summary>
     public async Task PasteAsync()
     {
+        if (ReadOnly) return;
         if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
         byte[]? bytes = null;
         if (await clipboard.TryGetDataAsync() is { } data)
@@ -462,6 +481,7 @@ internal sealed partial class HexView : Grid
     /// <summary>Pastes bytes already made from the clipboard (or from a form of it); a block longer than the rest of the file asks what to do.</summary>
     public async Task PasteBytesAsync(byte[] bytes)
     {
+        if (ReadOnly) return;
         var result = Editor.Paste(bytes);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {

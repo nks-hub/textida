@@ -216,6 +216,20 @@ internal sealed partial class HexView
                     context.FillRectangle(bar, new Rect(_charLeft + a * _cw, y, (z - a) * _cw, 2));
                 }
 
+                // differences from the other file of a comparison: the tint of the theme and a bar under the bytes
+                if (owner.DiffMarks.Count > 0)
+                {
+                    var diffTint = Brush(owner.DiffBrushKey, soft);
+                    for (int k = FirstRangeAfter(owner.DiffMarks, rowOffset); k < owner.DiffMarks.Count && owner.DiffMarks[k].Start < rowOffset + n; k++)
+                    {
+                        int a = (int)Math.Max(0, owner.DiffMarks[k].Start - rowOffset), z = (int)Math.Min(n, owner.DiffMarks[k].End - rowOffset);
+                        if (z <= a) continue;
+                        Mark(context, diffTint, y, a, z);
+                        context.FillRectangle(danger, new Rect(HexX(a), y + _rh - 2, HexX(z - 1) + 2 * _cw - HexX(a), 1.5));
+                        context.FillRectangle(danger, new Rect(_charLeft + a * _cw, y + _rh - 2, (z - a) * _cw, 1.5));
+                    }
+                }
+
                 // changed bytes: a tint and an underline, so the mark does not rest on colour alone
                 for (int k = FirstRangeAfter(ranges, rowOffset); k < ranges.Count && ranges[k].Start < rowOffset + n; k++)
                 {
