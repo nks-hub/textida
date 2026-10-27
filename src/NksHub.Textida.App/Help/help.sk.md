@@ -167,6 +167,16 @@ commands: nks.source.open
 - Adresy s heslom, tokenom alebo kľúčom sa na lište, v nedávnych súboroch a v logu ukazujú s ***. Nedávne súbory držia len zamaskovanú adresu, takže zdroj, ktorý tajnú časť v adrese potrebuje, si ju vyžiada znova.
 - Obmedzenie: tajná časť vnútri cesty adresy sa nepozná a zostane viditeľná. Uložiť ako zapíše kópiu na disk a ukončí väzbu na zdroj.
 
+## [plugins.virtual] Karty, ktoré dodá plugin
+Plugin môže otvoriť vlastnú kartu s dátami, ktoré si drží: prepis konverzácie, vygenerovaný súbor, výpis alebo rozdiel. Takáto karta nemá súbor. Nesie štítok („virtuálna · iba čítanie“ alebo „virtuálna · upraviteľná“) a lištu, ktorá menuje plugin a adresu, ktorú mu dal (adresa s heslom alebo tokenom ukazuje na ich mieste ***).
+1. V karte iba na čítanie sa dá hľadať, vyberať a kopírovať a má osnovu ako každý súbor svojho jazyka, ale nedá sa do nej písať ani ju uložiť. Uložiť aj Uložiť ako to povedia v stavovom riadku.
+2. Do upraviteľnej karty sa dá písať, vrátane Späť a Znova. Plugin sa o každej úprave dozvie sám. Uložiť (aj keď kartu zatvoríte a zvolíte Uložiť) pošle text pluginu, nikdy do súboru; keď plugin odmietne alebo neodpovie včas, karta zostane neuložená a stavový riadok uvedie dôvod. Uložiť ako nie je k dispozícii.
+3. Plugin môže text svojej karty nahradiť. Nahradí tým aj to, čo ste napísali a neuložili, a skončí tým história späť karty; plugin, ktorý tomu chce predísť, uvedie revíziu, ktorú videl naposledy, a zmena, ktorú ste medzitým urobili, potom nahradenie zastaví.
+4. Keď plugin svoju kartu zatvorí, skončí alebo je vypnutý, karta sa zatvorí bez pýtania a stavový riadok to povie. Neuložený text je stratený.
+- Karta pluginu sa neukladá do relácie, do žurnálu ani do nedávnych súborov.
+- Hodnoty v karte .env sú skryté ako v súbore. Plugin na ich mieste vidí hviezdičky, ak ste mu to nepovolili.
+- Počet takýchto kariet na plugin, ich veľkosť a čakanie na uloženie sú zatiaľ provizórne.
+
 ## [remote.backup] Záloha pripojení
 commands: nks.remote.exportConnections, nks.remote.importConnections
 1. Zvoľte Súbor a potom Vzdialené súbory a potom Exportovať pripojenia a pomenujte súbor. Obsahuje zoznam pripojení: názov, protokol, server, port, používateľa a dôveryhodnú identitu servera.
@@ -1441,6 +1451,8 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 5. Keď agent žiada o oprávnenie, dialóg ukáže voľby, ktoré agent ponúka. Zrušenie alebo zatvorenie dialógu odpovie „zrušené“.
 - Kde záruka končí: editor riadi len to, čo ide cez neho. Vlastné nástroje agenta môžu meniť súbory, spúšťať programy a používať sieť bez editora a editor žiadnemu agentovi nenastavuje režim oprávnení (každý si ponechá vlastný predvolený). Čo smie agent robiť, nastavte v nastaveniach samotného agenta.
 - Každý agent je v zozname ako „neoverené“: žiadny beh so skutočným programom zatiaľ neprešiel skúšobnými scenármi. Ťah, v ktorom agent príliš dlho nič nepovie ani sa nespýta, skončí ako vypršaný. Časové limity a veľkosť súboru odovzdaného agentovi sú zatiaľ provizórne.
+- Plugin môže v tom istom paneli viesť vlastnú konverzáciu (oprávnenie agent.panel). Panel sa dá ovládať klávesnicou: otvorí sa s kurzorom v poli správy, Enter odošle, Tab prechádza tlačidlá Odoslať, Zrušiť ťah, Zastaviť agenta a Zavrieť, medzerník alebo Enter tlačidlo stlačí a Esc panel zavrie a vráti do editora. Zrušiť ťah agenta a Zastaviť agenta sú aj príkazy v ponuke a v palete. Čítačka obrazovky dostane názov panela, konverzácie, poľa správy, stavu a každého tlačidla a zmena stavu (štartuje, pripravený, pracuje, skončil) sa ohlási. Overené stromom prístupnosti programu, zatiaľ nie skutočnou čítačkou obrazovky.
+
 ## [tools.mcpAgents] Servery MCP agentov
 commands: nks.tools.mcpServers
 Jeden zoznam serverov MCP, s ktorými sú nastavení vaši programovací agenti. Textida číta Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Súbory projektu hľadá v priečinku aktívneho súboru a v nadradených priečinkoch. Súbory iba číta, nikdy do nich nezapisuje.

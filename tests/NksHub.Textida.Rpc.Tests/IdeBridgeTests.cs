@@ -34,7 +34,7 @@ public class IdeBridgeTests
         public string NewLine(Guid document) => "\n";
         public TableSelectionData? TableSelection(Guid document) => null;
         public void SetClipboard(Guid document, string text, string? html) { }
-        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec) => throw new NotSupportedException();
+        public Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec, VirtualInfo info) => throw new NotSupportedException();
         public bool OpenDiff(DiffRequest request) => false;
         public void DiagnosticsChanged(Guid document) { }
     }

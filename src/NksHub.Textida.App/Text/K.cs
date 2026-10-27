@@ -1147,6 +1147,15 @@ public static class K
     public const string LockStill = "lock.still";
     public const string LockSaveRefused = "lock.saveRefused";
     public const string VirtualReadOnly = "virtual.readOnly";
+    public const string VirtualBadgeReadOnly = "virtual.badge.readOnly";
+    public const string VirtualBadgeEditable = "virtual.badge.editable";
+    public const string VirtualBarReadOnly = "virtual.bar.readOnly";
+    public const string VirtualBarEditable = "virtual.bar.editable";
+    public const string VirtualSaved = "virtual.saved";
+    public const string VirtualSaveFailed = "virtual.saveFailed";
+    public const string VirtualSaveAsRefused = "virtual.saveAsRefused";
+    public const string VirtualClosed = "virtual.closed";
+    public const string VirtualClosedUnsaved = "virtual.closedUnsaved";
     public const string CompareSideRevision = "compare.side.revision";
     public const string CompareSideRevisionBare = "compare.side.revisionBare";
     public const string RemoteConnectionsWatermark = "remote.connections.watermark";
@@ -1403,6 +1412,7 @@ public static class K
     public const string A11yAgentPanel = "a11y.agent.panel";
     public const string A11yAgentTranscript = "a11y.agent.transcript";
     public const string A11yAgentInput = "a11y.agent.input";
+    public const string A11yAgentStatus = "a11y.agent.status";
     public const string AgentPluginOpened = "agent.plugin.opened";
     public const string PreviewPanelTitle = "preview.panel.title";
     public const string PreviewPanelStatus = "preview.panel.status";

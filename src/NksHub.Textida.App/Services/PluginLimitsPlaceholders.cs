@@ -185,6 +185,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest content of a virtual document, in bytes.</summary>
     public const long VirtualDocumentMaxBytes = 4L << 20;
 
+    /// <summary>Placeholder, OPEN: how long the editor waits for a plugin to take the save of an editable virtual document before the tab stays unsaved. The owner has not decided it.</summary>
+    public const int VirtualSaveTimeoutMilliseconds = 15_000;
+
     /// <summary>Placeholder: how long the editor waits for a file source (list, read, stat, write) before it counts the source as not reachable. OPEN: the owner has not decided it.</summary>
     public const int SourceTimeoutMilliseconds = 15_000;
 
@@ -351,6 +354,7 @@ internal static class PluginLimitsPlaceholders
         MaxScanBytes = InspectionMaxScanBytes,
         MaxVirtualDocumentsPerPlugin = VirtualDocumentsPerPlugin,
         MaxVirtualBytes = VirtualDocumentMaxBytes,
+        VirtualSaveTimeout = TimeSpan.FromMilliseconds(VirtualSaveTimeoutMilliseconds),
         MaxDiagnosticsPerDocument = DiagnosticsPerDocument,
         MaxCompletionItems = CompletionItemsPerPlugin,
         MaxCompletionEdits = CompletionEditsPerItem,
