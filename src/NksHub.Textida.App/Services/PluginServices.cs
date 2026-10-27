@@ -878,6 +878,20 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         return true;
     }
 
+    public string? FilePath(Guid document) => TabOf(document)?.Tab.Doc.Path;
+
+    public string IndentUnit(Guid document) =>
+        TabOf(document) is { } found && found.Tab.Surface is { } surface ? surface.Settings.Indent.Unit : "    ";
+
+    public void BeginSnippets(Guid document, IReadOnlyList<(long Start, NksHub.Textida.Core.Snippets.ParsedSnippet Snippet)> snippets)
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var placed = new List<(int, NksHub.Textida.Core.Snippets.ParsedSnippet)>(snippets.Count);
+        foreach (var (start, snippet) in snippets)
+            if (backend.TryToCharOffset(start, out int at)) placed.Add((at, snippet));
+        surface.BeginSnippet(placed);
+    }
+
     public string NewLine(Guid document) =>
         TabOf(document) is { } found && found.Tab.Surface is { } surface ? found.Tab.Doc.NewLine(surface.Settings.ConfiguredEol) : "\n";
 

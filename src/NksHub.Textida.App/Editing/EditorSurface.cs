@@ -113,6 +113,7 @@ internal sealed partial class EditorSurface : TextEditor
 
     public void BindDocument()
     {
+        EndSnippet();
         TextArea.ClearSelection();
         ClearFolds();
         Document = Doc.TextBackend!.TextDocument;
@@ -339,6 +340,12 @@ internal sealed partial class EditorSurface : TextEditor
     {
         if (HiddenCopyKey(e))
         {
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && InSnippet)
+        {
+            EndSnippet();
             e.Handled = true;
             return;
         }

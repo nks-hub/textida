@@ -831,6 +831,8 @@ public static class K
     public const string A11yClips = "a11y.clips";
     public const string ClipsEmpty = "clips.empty";
     public const string CompleteWatermark = "complete.watermark";
+    public const string SnippetChoiceWatermark = "snippet.choose";
+    public const string A11ySnippetChoice = "a11y.snippetChoice";
     public const string A11yComplete = "a11y.complete";
     public const string CompleteEmpty = "complete.empty";
     public const string CompleteWord = "complete.word";

@@ -2027,6 +2027,24 @@
       "id": "nks.log.showRaw",
       "title": "cmd.log.showRaw",
       "category": "cat.log"
+    },
+    {
+      "id": "nks.snippet.next",
+      "title": "cmd.snippet.next",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.previous",
+      "title": "cmd.snippet.previous",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.end",
+      "title": "cmd.snippet.end",
+      "category": "cat.edit",
+      "when": "editorFocus && inSnippet"
     }
   ],
   "menus": [
@@ -4113,6 +4131,26 @@
       "group": "2_run/05_6_log",
       "submenu": "log",
       "order": 120
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openPathAtCaret",
+      "group": "1_new",
+      "order": 40
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportHtml",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 90
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportRtf",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 100
     }
   ],
   "keybindings": [
@@ -4213,26 +4251,6 @@
       "key": "mod+bracketleft",
       "command": "nks.edit.outdent",
       "when": "editorFocus"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.markdown.nextCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.markdown.previousCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
     },
     {
       "key": "shift+enter",
@@ -4528,6 +4546,36 @@
       "key": "alt+shift+f7",
       "command": "nks.review.previous",
       "when": "editorFocus"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.edit.outdent",
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.edit.tab",
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.snippet.next",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.snippet.previous",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.markdown.nextCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.markdown.previousCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
     }
   ],
   "settings": [

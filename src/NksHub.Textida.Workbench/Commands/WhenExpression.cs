@@ -46,9 +46,11 @@ public static class ContextKeys
     public const string CompareMode = "compareMode";
     /// <summary>The caret is in a Markdown table with a header and a row of dashes.</summary>
     public const string InMarkdownTable = "inMarkdownTable";
+    /// <summary>A snippet session runs in the active editor: Tab and Shift+Tab walk through its stops.</summary>
+    public const string InSnippet = "inSnippet";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet];
 }
 
 /// <summary>

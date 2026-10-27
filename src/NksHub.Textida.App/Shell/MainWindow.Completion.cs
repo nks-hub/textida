@@ -202,6 +202,11 @@ internal sealed partial class MainWindow
         return widened;
     }
 
+    /// <summary>The list of values of a snippet stop, in the same popup as the completion; the pick replaces the text of the stop.</summary>
+    private void ShowSnippetChoices(EditorSurface surface, IReadOnlyList<string> choices) =>
+        ShowChoice(Loc.Get(K.SnippetChoiceWatermark), Loc.Get(K.A11ySnippetChoice),
+            [.. choices.Select(value => new QuickRow(value, null, null, null, true, null, value, () => { if (ReferenceEquals(ActiveEditor, surface)) surface.ChooseSnippetValue(value); }))]);
+
     private void InsertWord(EditorSurface surface, string word)
     {
         if (!ReferenceEquals(ActiveEditor, surface) || surface.IsReadOnly) return;

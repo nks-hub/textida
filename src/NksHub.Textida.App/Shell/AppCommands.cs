@@ -210,6 +210,9 @@ internal static class AppCommands
         On("nks.tools.markdownFormatTable", w => w.FormatMarkdownTable());
         On("nks.tools.markdownUpdateToc", w => w.UpdateMarkdownToc());
         On("nks.tools.markdownRepairTable", w => w.RepairMarkdownTable());
+        On("nks.snippet.next", w => w.ActiveEditor is { } s && s.NextSnippetStop() ? CommandOutcome.Handled : CommandOutcome.NotHandled);
+        On("nks.snippet.previous", w => w.ActiveEditor is { } s && s.PreviousSnippetStop() ? CommandOutcome.Handled : CommandOutcome.NotHandled);
+        Surface("nks.snippet.end", s => s.EndSnippet());
         On("nks.markdown.nextCell", w => w.MoveTableCell(forward: true));
         On("nks.markdown.previousCell", w => w.MoveTableCell(forward: false));
         On("nks.markdown.newRow", w => w.AddTableRow());

@@ -842,6 +842,8 @@
   "clips.watermark": "Choose a clip to insert",
   "a11y.clips": "Clips",
   "clips.empty": "No clips yet. Select text and choose Save Selection as Clip, or put a data plugin with clips into the plugins folder of the profile.",
+  "snippet.choose": "Choose a value for the placeholder",
+  "a11y.snippetChoice": "Snippet values",
   "complete.watermark": "Choose a word or clip to complete",
   "a11y.complete": "Completion",
   "complete.empty": "Nothing to complete here. Words come from the open tabs and clips from the language of the document.",

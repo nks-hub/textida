@@ -842,6 +842,8 @@
   "clips.watermark": "Clip zum Einfügen wählen",
   "a11y.clips": "Clips",
   "clips.empty": "Noch keine Clips. Text markieren und Auswahl als Clip speichern wählen, oder ein Datenplugin mit Clips in den Ordner plugins des Profils legen.",
+  "snippet.choose": "Wert für den Platzhalter wählen",
+  "a11y.snippetChoice": "Snippet-Werte",
   "complete.watermark": "Wort oder Clip zum Vervollständigen wählen",
   "a11y.complete": "Vervollständigung",
   "complete.empty": "Hier gibt es nichts zu vervollständigen. Wörter stammen aus den offenen Tabs, Clips aus der Sprache des Dokuments.",

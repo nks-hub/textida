@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Resources\*.json" LogicalName="%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
