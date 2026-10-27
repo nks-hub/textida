@@ -81,7 +81,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     internal PluginManager Manager { get; }
 
     /// <summary>Installed plugins that could not be read at start; each entry names the plugin and the reason.</summary>
-    internal IReadOnlyList<string> InstalledProblems { get; }
+    internal List<string> InstalledProblems { get; }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonElement> _pluginSettings = new(StringComparer.Ordinal);
 
     private readonly HashSet<string> _boundInstalled = [];
 
@@ -107,7 +109,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
+        _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
+            PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
+        app.Workbench.SettingChanged += OnSettingChanged;
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
@@ -212,7 +216,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             PluginLimitsPlaceholders.PluginZip(), BuiltIns.Select(b => b.Id).ToHashSet(StringComparer.Ordinal), permissions, _host);
         // nothing awaits a process here: registering the enabled plugins completes at once
         var (installed, problems) = Manager.StartAsync().GetAwaiter().GetResult();
-        InstalledProblems = problems;
+        InstalledProblems = [.. problems];
         foreach (var plugin in installed) BindInstalled(plugin);
     }
 
@@ -226,11 +230,34 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
         var id = plugin.Manifest.Id;
+        foreach (var problem in DeclarePlugin(plugin)) InstalledProblems.Add($"{id}: {problem}");
         foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))
         {
             var name = command.Id;
             commands.SetHandler(name, async (_, _) => await RunInstalledAsync(id, name));
         }
+    }
+
+    /// <summary>Puts the keybindings and settings of a plugin into the app and keeps its setting values ready for the handshake of its process.</summary>
+    internal IReadOnlyList<string> DeclarePlugin(LoadedPlugin plugin)
+    {
+        var errors = _app.Workbench.AddPlugin(plugin.Contributions, plugin.Manifest.Name);
+        RefreshSettings(plugin.Manifest.Id);
+        return errors;
+    }
+
+    private void RefreshSettings(string pluginId)
+    {
+        if (_app.Workbench.PluginSettingValues(pluginId) is { } values) _pluginSettings[pluginId] = JsonDocument.Parse(values.ToJsonString()).RootElement.Clone();
+        else _pluginSettings.TryRemove(pluginId, out _);
+    }
+
+    /// <summary>A setting of a plugin changed: a running process hears it as the event <c>settings.changed</c> with all its values; a stopped one gets them at its next start.</summary>
+    private void OnSettingChanged(string key)
+    {
+        if (_app.Workbench.PluginOfSetting(key) is not { } id) return;
+        RefreshSettings(id);
+        if (_host.IsRegistered(id) && _pluginSettings.TryGetValue(id, out var values)) _ = _host.SendEventAsync(id, "settings.changed", Encoding.UTF8.GetBytes(values.GetRawText()));
     }
 
     private async ValueTask<CommandOutcome> RunInstalledAsync(string pluginId, string command)

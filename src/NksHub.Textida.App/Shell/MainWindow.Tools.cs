@@ -103,7 +103,7 @@ internal sealed partial class MainWindow
             }
             var details = new List<string> { Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory)) };
             if (entry.Source is { } origin) details.Add(Loc.Get(K.ToolConfirmSource, ("source", origin)));
-            var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(entry.Foreign ? K.ToolConfirmForeign : K.ToolConfirmMessage, ("title", entry.Title)),
+            var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(!entry.Foreign ? K.ToolConfirmMessage : Path.GetFileName(entry.Source) == PluginManifest.FileName ? K.ToolConfirmPlugin : K.ToolConfirmForeign, ("title", entry.Title)),
                 [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], details);
             if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
             _app.ToolApprovals.Approve(tool);

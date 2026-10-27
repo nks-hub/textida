@@ -38,9 +38,15 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>The command of a clip, template, converter or recipe that a data plugin named.</summary>
+    /// <summary>The command of a clip, template, converter, recipe or external tool that a data plugin named. A tool asks for the usual confirmation of its command first.</summary>
     internal CommandOutcome RunDataCommand(string pluginId, string itemId, string kind)
     {
+        if (kind == "external tool")
+        {
+            if (_app.Clips.FindTool(pluginId, itemId) is not { } tool) return CommandOutcome.NotHandled;
+            _ = RunToolAsync(tool);
+            return CommandOutcome.Handled;
+        }
         if (kind == "converter") return _app.Clips.FindConverter(pluginId, itemId) is { } converter ? ConvertSelections(ConverterChoice(converter)) : CommandOutcome.NotHandled;
         if (kind == "recipe")
         {

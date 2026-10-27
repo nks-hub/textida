@@ -41,7 +41,7 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: carets one snippet or clip places in each selection.</summary>
     public const int SnippetCarets = 64;
 
-    /// <summary>Placeholder: largest grammar file of a data plugin.</summary>
+    /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
     public const long GrammarMaxBytes = 1 << 20;
     /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
     public const long SecretScanMaxBytes = 16L << 20;

@@ -131,8 +131,16 @@ public static class PluginManifestLoader
         {
             if (!TryResolveInside(root, path, out var full, out var why)) { errors.Add($"Grammar '{path}': {why}"); continue; }
             if (!File.Exists(full)) { errors.Add($"Grammar '{path}' does not exist."); continue; }
-            if (new FileInfo(full).Length > maxBytes) { errors.Add($"Grammar '{path}' is larger than {maxBytes} bytes."); continue; }
-            var json = File.ReadAllText(full, Encoding.UTF8);
+            string json;
+            try
+            {
+                // the handle is opened for reading only, so the file cannot grow between the size check and the read
+                using var stream = File.OpenRead(full);
+                if (stream.Length > maxBytes) { errors.Add($"Grammar '{path}' is larger than {maxBytes} bytes."); continue; }
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                json = reader.ReadToEnd();
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { errors.Add($"Grammar '{path}': {e.Message}"); continue; }
             try
             {
                 var g = scratch.Add(json);

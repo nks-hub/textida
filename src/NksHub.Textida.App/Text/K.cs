@@ -1469,6 +1469,11 @@ public static class K
     public const string PluginsErrorFailed = "plugins.error.failed";
     public const string PluginsManageMessage = "plugins.manage.message";
     public const string PluginsManagePrevious = "plugins.manage.previous";
+    public const string PluginsKeysMessage = "plugins.keys.message";
+    public const string PluginsKeysOverridden = "plugins.keys.overridden";
+    public const string PluginsKeysClash = "plugins.keys.clash";
+    public const string PluginsKeysPrefix = "plugins.keys.prefix";
+    public const string ToolConfirmPlugin = "tool.confirm.plugin";
     public const string PluginsManageEnabled = "plugins.manage.enabled";
     public const string PluginsManageDisabled = "plugins.manage.disabled";
     public const string PluginsManageEnable = "plugins.manage.enable";
