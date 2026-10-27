@@ -44,16 +44,21 @@ internal sealed class ClipLibrary
     private readonly List<HelpEntry> _helps = [];
     private readonly List<DeclaredServer> _servers = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
+    private readonly List<(string PluginId, ToolEntry Tool)> _tools = [];
     private readonly List<string> _problems = [];
+    private readonly List<string> _declareProblems = [];
 
     private readonly Func<IEnumerable<string>>? _installedFolders;
+    private readonly Func<LoadedPlugin, IReadOnlyList<string>>? _declare;
 
     /// <param name="installedFolders">Folders of the enabled plugins the plugin manager installed; the data plugins among them are read like the ones in <paramref name="pluginsDirectory"/>.</param>
-    public ClipLibrary(string pluginsDirectory, CommandRegistry commands, Func<IEnumerable<string>>? installedFolders = null)
+    /// <param name="declare">Called once per data plugin after its commands are registered, to put its keybindings and settings into the app; returns why they were refused.</param>
+    public ClipLibrary(string pluginsDirectory, CommandRegistry commands, Func<IEnumerable<string>>? installedFolders = null, Func<LoadedPlugin, IReadOnlyList<string>>? declare = null)
     {
         _directory = pluginsDirectory;
         _commands = commands;
         _installedFolders = installedFolders;
+        _declare = declare;
     }
 
     public IReadOnlyList<ClipEntry> Clips => _clips;
@@ -65,6 +70,9 @@ internal sealed class ClipLibrary
     /// <summary>Language servers declared by installed, enabled plugins, in load order. Whether a plugin may start them is the <c>language.server</c> grant, checked where they are used.</summary>
     public IReadOnlyList<DeclaredServer> LanguageServers => _servers;
     public IReadOnlyList<string> Problems => _problems;
+
+    /// <summary>External tools that data plugins declare, each with the plugin that owns it.</summary>
+    public IReadOnlyList<(string PluginId, ToolEntry Tool)> Tools => _tools;
 
     /// <summary>The highlighters of the data plugins, on top of the built-in grammars (which they may include and embed). Replaced by every <see cref="Load"/>.</summary>
     public GrammarRegistry Grammars { get; private set; } = new(BuiltinGrammars.Registry);
@@ -84,7 +92,9 @@ internal sealed class ClipLibrary
         _helps.Clear();
         _servers.Clear();
         _targets.Clear();
+        _tools.Clear();
         _problems.Clear();
+        _problems.AddRange(_declareProblems);
         var grammars = Grammars = new GrammarRegistry(BuiltinGrammars.Registry);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         IEnumerable<string> own = Directory.Exists(_directory) ? Directory.EnumerateDirectories(_directory).Order(StringComparer.OrdinalIgnoreCase) : [];
@@ -114,6 +124,12 @@ internal sealed class ClipLibrary
                 var conflicts = _commands.AddManifest(plugin.Contributions);
                 if (conflicts.Count > 0) { _problems.Add($"{name}: {string.Join("; ", conflicts)}"); continue; }
                 _registered.Add(plugin.Manifest.Id);
+                if (_declare?.Invoke(plugin) is { Count: > 0 } refused)
+                {
+                    var problem = $"{name}: {string.Join("; ", refused)}";
+                    _declareProblems.Add(problem);
+                    _problems.Add(problem);
+                }
             }
             var id = plugin.Manifest.Id;
             foreach (var json in plugin.GrammarJson) grammars.Add(json);
@@ -123,9 +139,14 @@ internal sealed class ClipLibrary
             foreach (var recipe in plugin.Manifest.Contributes.Recipes) _recipes.Add(new RecipeEntry(id, plugin.Manifest.Name, recipe, plugin.Manifest.Contributes.Converters));
             foreach (var h in plugin.Manifest.Contributes.LanguageHelp)
                 _helps.Add(new HelpEntry(id, plugin.Manifest.Name, new HelpSource(h.Id, h.Title, h.Language, h.Kind == "file" ? HelpKind.File : HelpKind.Url, h.Kind == "file" ? Path.GetFullPath(Path.Combine(plugin.Directory, h.Target)) : h.Target)));
-            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe")) _targets.Add((command, id, action));
+            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe" or "external tool")) _targets.Add((command, id, action));
+            var tools = ToolCatalog.FromContributions(plugin.Manifest.Contributes, Path.Combine(plugin.Directory, PluginManifest.FileName));
+            foreach (var tool in tools.Tools) _tools.Add((id, tool));
+            foreach (var error in tools.Errors) _problems.Add($"{name}: {error}");
         }
     }
+
+    public ToolEntry? FindTool(string pluginId, string toolId) => _tools.FirstOrDefault(t => t.PluginId == pluginId && t.Tool.Definition.Id == toolId).Tool;
 
     public ClipEntry? FindClip(string pluginId, string clipId) => _clips.FirstOrDefault(c => c.PluginId == pluginId && c.Clip.Id == clipId);
 

@@ -10,7 +10,27 @@ public sealed class GitException(string message) : Exception(message);
 /// <summary>One line of <c>git status</c>: <paramref name="Index"/> and <paramref name="Tree"/> are the two status letters (space = unchanged, <c>?</c> = untracked).</summary>
 public sealed record StatusEntry(char Index, char Tree, string Path, string? From);
 
-/// <summary>An entry of the index: the file mode, the blob and the merge stage (0 unless the path is in conflict).</summary>
+/// <summary>What the status bar shows: files with a change in the index, in the tree, untracked, and in conflict.</summary>
+public sealed record StatusCounts(int Staged, int Changed, int Untracked, int Conflicts)
+{
+    public static StatusCounts Of(IEnumerable<StatusEntry> entries)
+    {
+        int staged = 0, changed = 0, untracked = 0, conflicts = 0;
+        foreach (var e in entries)
+        {
+            if (e.Index == '?') untracked++;
+            else if (e.Index == 'U' || e.Tree == 'U' || (e.Index, e.Tree) is ('A', 'A') or ('D', 'D')) conflicts++;
+            else
+            {
+                if (e.Index != ' ') staged++;
+                if (e.Tree != ' ') changed++;
+            }
+        }
+        return new StatusCounts(staged, changed, untracked, conflicts);
+    }
+}
+
+/// <summary>An entry of the index:the file mode, the blob and the merge stage (0 unless the path is in conflict).</summary>
 public sealed record IndexEntry(string Mode, string Sha, int Stage);
 
 /// <summary>
@@ -125,6 +145,23 @@ public sealed class GitRepository
         }
         return list;
     }
+
+    /// <summary>The current branch; the short commit when <c>HEAD</c> is detached, empty in a repository without a commit.</summary>
+    public async Task<string> BranchAsync(CancellationToken ct)
+    {
+        var (code, output, _) = await RunAsync(Root, ["branch", "--show-current"], null, readOnly: true, ct).ConfigureAwait(false);
+        var name = code == 0 ? Encoding.UTF8.GetString(output).Trim() : "";
+        if (name.Length > 0) return name;
+        (code, output, _) = await RunAsync(Root, ["rev-parse", "--short", "HEAD"], null, readOnly: true, ct).ConfigureAwait(false);
+        return code == 0 ? Encoding.UTF8.GetString(output).Trim() : "";
+    }
+
+    /// <summary>Marks a path resolved (or stages the whole file): <c>git add</c> of what is on disk, with the filters and line ending rules of the repository.</summary>
+    public async Task AddAsync(string path, CancellationToken ct) => await RunOrThrowAsync(["add", "--", path], null, readOnly: false, ct).ConfigureAwait(false);
+
+    /// <summary>Takes a path out of the index; the file in the working tree stays.</summary>
+    public async Task RemoveFromIndexAsync(string path, CancellationToken ct) =>
+        await RunOrThrowAsync(["update-index", "--force-remove", "--", path], null, readOnly: false, ct).ConfigureAwait(false);
 
     /// <summary>The index entry of a path; null when the path is not in the index.</summary>
     public async Task<IndexEntry?> IndexEntryAsync(string path, CancellationToken ct)

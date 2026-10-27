@@ -134,6 +134,17 @@ public class FileHistoryTests
     }
 
     [Fact]
+    public void FileAboveTheSizeLimitReportsTooLargeAndKeepsEarlierRevisions()
+    {
+        using var dir = new JournalTempDir();
+        var (h, _) = Make(dir, new HistoryPolicy { MaxRevisionBytes = 4 });
+        var file = dir.Combine("a.txt");
+        Assert.Equal(HistoryStatus.Recorded, h.Record(file, U("abc"), HistorySource.Save).Status);
+        Assert.Equal(HistoryStatus.TooLarge, h.Record(file, U("abcdef"), HistorySource.Save).Status);
+        Assert.Single(h.List(file));
+    }
+
+    [Fact]
     public void SecretsFilesAreNotStoredUnlessAllowed()
     {
         using var dir = new JournalTempDir();

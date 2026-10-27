@@ -3,6 +3,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Manager;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Keys;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -140,8 +141,22 @@ internal sealed partial class MainWindow
         string message = Loc.Get(K.PluginsManageMessage, ("name", plugin.Name), ("version", plugin.Version), ("state", Loc.Get(plugin.Enabled ? K.PluginsManageEnabled : K.PluginsManageDisabled)))
             + (plugin.PreviousVersion is { } kept ? " " + Loc.Get(K.PluginsManagePrevious, ("previous", kept)) : "");
         var buttons = actions.Select((a, i) => new DialogButton(a.Label, IsDefault: i == 0)).Append(new DialogButton(Loc.Get(K.PluginsManageClose), IsCancel: true)).ToList();
-        int picked = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(plugin.Name, message, buttons));
+        var conflicts = _app.Workbench.KeyConflictsOf(id).Select(KeyConflictText).ToList();
+        if (conflicts.Count > 0) message += " " + Loc.Get(K.PluginsKeysMessage, ("count", conflicts.Count));
+        int picked = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(plugin.Name, message, buttons, conflicts));
         if (picked >= 0 && picked < actions.Count) await actions[picked].Run();
+    }
+
+    /// <summary>One line for a clash of keys: a binding of a built-in, profile or user layer wins over a plugin's, so the plugin's keys then do nothing.</summary>
+    private static string KeyConflictText(KeyConflict c)
+    {
+        string Origin(KeyBinding b) => $"{b.Layer}: {b.Source}";
+        return c.Kind switch
+        {
+            KeyConflictKind.Overridden => Loc.Get(K.PluginsKeysOverridden, ("keys", c.Loser.Sequence.ToString()), ("command", c.Loser.CommandId), ("winner", c.Winner.CommandId), ("origin", Origin(c.Winner))),
+            KeyConflictKind.Prefix => Loc.Get(K.PluginsKeysPrefix, ("keys", c.Winner.Sequence.ToString()), ("command", c.Winner.CommandId), ("other", c.Loser.CommandId), ("otherKeys", c.Loser.Sequence.ToString())),
+            _ => Loc.Get(K.PluginsKeysClash, ("keys", c.Winner.Sequence.ToString()), ("command", c.Loser.CommandId), ("other", c.Winner.CommandId), ("origin", Origin(c.Winner))),
+        };
     }
 
     private async Task SetPluginEnabledAsync(ManagedPlugin plugin, bool enabled)

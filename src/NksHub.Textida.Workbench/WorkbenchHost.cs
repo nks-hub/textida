@@ -47,7 +47,7 @@ public sealed class WorkbenchHost
             return errors;
         }
 
-        var duplicateSettings = manifest.Settings.Where(s => Settings.TryGet(s.Key, out _)).Select(s => $"Setting '{s.Key}' from '{manifest.Id}' is already defined.").ToList();
+        var duplicateSettings = DuplicateSettings(manifest);
         if (duplicateSettings.Count > 0)
         {
             return duplicateSettings;
@@ -59,6 +59,30 @@ public sealed class WorkbenchHost
             return errors;
         }
 
+        AddDeclared(manifest, trust);
+        return [];
+    }
+
+    /// <summary>
+    /// Adds only the settings and keybindings of a manifest whose commands the caller registered itself (a plugin). Nothing is added if a setting key exists.
+    /// Plugin keybindings sit in the lowest layer, so a built-in, profile or user binding on the same keys wins.
+    /// </summary>
+    public IReadOnlyList<string> AddDeclarations(ContributionManifest manifest, ManifestTrust trust)
+    {
+        var duplicates = DuplicateSettings(manifest);
+        if (duplicates.Count == 0)
+        {
+            AddDeclared(manifest, trust);
+        }
+
+        return duplicates;
+    }
+
+    private List<string> DuplicateSettings(ContributionManifest manifest) =>
+        manifest.Settings.Where(s => Settings.TryGet(s.Key, out _)).Select(s => $"Setting '{s.Key}' from '{manifest.Id}' is already defined.").ToList();
+
+    private void AddDeclared(ContributionManifest manifest, ManifestTrust trust)
+    {
         foreach (var s in manifest.Settings)
         {
             Settings.Add(s, manifest.Id);
@@ -68,8 +92,6 @@ public sealed class WorkbenchHost
         {
             _layers.Add(new KeymapLayer(trust == ManifestTrust.Builtin ? KeymapLayerKind.Default : KeymapLayerKind.Plugin, manifest.Id, manifest.Keybindings));
         }
-
-        return [];
     }
 
     /// <summary>Builds the keymap of a platform from the contributed layers plus profile and user layers.</summary>

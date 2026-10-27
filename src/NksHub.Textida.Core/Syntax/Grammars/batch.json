@@ -1,0 +1,60 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "batch",
+  "name": "Batch",
+  "comments": {"line": "::"},
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".bat", ".cmd"],
+  "wordPattern": "[A-Za-z_]\\w*",
+  "keywords": [
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "if", "else", "for", "in", "do", "goto", "call", "exit", "not", "exist", "defined", "errorlevel",
+        "equ", "neq", "lss", "leq", "gtr", "geq", "enabledelayedexpansion", "disabledelayedexpansion"
+      ]
+    },
+    {
+      "name": "builtins",
+      "token": "function",
+      "words": [
+        "echo", "set", "setlocal", "endlocal", "cd", "chdir", "copy", "del", "erase", "dir", "md", "mkdir", "rd", "rmdir",
+        "move", "ren", "rename", "type", "cls", "pause", "title", "path", "prompt", "popd", "pushd", "shift", "start",
+        "ver", "vol", "xcopy", "robocopy", "find", "findstr", "more", "sort", "choice", "timeout", "color", "mode"
+      ]
+    },
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["nul", "con", "prn", "aux"]
+    }
+  ],
+  "repository": {
+    "variables": [
+      {"match": "%%~?[A-Za-z]\\w*|%~?[A-Za-z]*[0-9*]|%[A-Za-z_][^%\\s]*%|![A-Za-z_][^!\\s]*!", "token": "variable"}
+    ]
+  },
+  "rules": [
+    {"name": "comment-line", "begin": "(?<=^[ \\t]*@?)(?:rem(?![\\w])|::)", "end": "$", "token": "comment"},
+    {"match": "(?<=^[ \\t]*):(?!:)[^\\s&|<>()]+", "token": "function"},
+    {"match": "(?<=\\b(?:goto|call)[ \\t]+):[^\\s&|<>()]+", "token": "function"},
+    {
+      "name": "dq-string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"include": "#variables"}
+      ]
+    },
+    {"include": "#variables"},
+    {"match": "(?<=\\s)/[A-Za-z?]\\w*", "token": "attribute"},
+    {"match": "(?<![\\w.])\\d+(?![\\w.])", "token": "number"},
+    {"words": true},
+    {"operators": ["&&", "||", "==", ">>", "&", "|", ">", "<", "=", "@"]},
+    {"match": "[()]", "token": "punctuation"}
+  ]
+}

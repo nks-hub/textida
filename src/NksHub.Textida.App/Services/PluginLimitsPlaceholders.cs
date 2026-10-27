@@ -20,8 +20,40 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
+    /// <summary>Placeholder, OPEN: how many times an upload is repeated after the connection was lost (each repeat checks the server version again and continues a partial temporary file).</summary>
+    public const int RemoteRetryCount = 3;
+
+    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload; every further repeat waits twice as long.</summary>
+    public const int RemoteRetryBaseDelayMilliseconds = 2000;
+
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
+
+    /// <summary>Placeholder, OPEN: parts the error heatmap of the minimap cuts a log into (by byte position); the picture takes the densest bucket of each row.</summary>
+    public const int LogHeatBuckets = 1024;
+
+    /// <summary>Placeholder, OPEN: bytes the error heatmap reads per request while it counts lines in the background; also the working memory of one pass.</summary>
+    public const int LogHeatChunkBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: a log up to this size is read whole for the heatmap; a larger one is sampled.</summary>
+    public const long LogHeatFullScanBytes = 256L << 20;
+
+    /// <summary>Placeholder, OPEN: bytes read at the start of each bucket when the heatmap samples a log larger than <see cref="LogHeatFullScanBytes"/>.</summary>
+    public const int LogHeatSampleBytesPerBucket = 128 << 10;
+
+    /// <summary>Placeholder, OPEN: milliseconds the heatmap waits after the last edit of a log before it counts again.</summary>
+    public const int LogHeatDelayMilliseconds = 1500;
+
+    public static LogHeatLimits LogHeat() => new(LogHeatChunkBytes, LogHeatFullScanBytes, LogHeatSampleBytesPerBucket);
+
+    /// <summary>Placeholder, OPEN: bytes from the start of a file that the CSV delimiter detection reads.</summary>
+    public const long CsvDetectSampleBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: bytes a wildcard <c>*</c> or an open repeat of a hex search may stand for while the setting <c>hex.wildcardMaxBytes</c> is 0. The owner has not decided it.</summary>
+    public const int HexWildcardDefaultMaxBytes = 256;
+
+    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
+    public const long HistoryRevisionMaxBytes = 32L << 20;
 
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
@@ -32,6 +64,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the text tools (statistics, hashes) read per request; the one chunk is their working memory. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int TextToolsChunkBytes = 1 << 20;
 
+    /// <summary>Placeholder: entries in each frequency list (characters, words) of the document statistics.</summary>
+    public const int TextToolsFrequencyTop = 10;
+
+    /// <summary>Placeholder: distinct words the statistics keep for the word frequency list; further new words are left out and the list says so.</summary>
+    public const int TextToolsFrequencyMaxWords = 100_000;
+
+    /// <summary>Placeholder: characters of a word that count towards its frequency entry.</summary>
+    public const int TextToolsFrequencyMaxWordLength = 64;
+
     /// <summary>Placeholder: milliseconds between two progress reports of a running text tool.</summary>
     public const int TextToolsProgressMilliseconds = 250;
 
@@ -41,7 +82,7 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: carets one snippet or clip places in each selection.</summary>
     public const int SnippetCarets = 64;
 
-    /// <summary>Placeholder: largest grammar file of a data plugin.</summary>
+    /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
     public const long GrammarMaxBytes = 1 << 20;
     /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
     public const long SecretScanMaxBytes = 16L << 20;
@@ -72,7 +113,10 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the Code Explorer reads per request. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int CodeExplorerChunkBytes = 1 << 20;
 
-    /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols.</summary>
+    /// <summary>Placeholder, OPEN: milliseconds one outline rule may spend on a text; past it the file gets no outline.</summary>
+    public const int CodeExplorerMatchTimeoutMilliseconds = 2000;
+
+    /// <summary>Placeholder: largest file the Code Explorer reads whole to find its symbols; of a paged (large) file it reads only this many bytes from the start.</summary>
     public const int CodeExplorerMaxBytes = 4 << 20;
 
     /// <summary>Placeholder: largest range the formatters (SQL layout, HTML entities, HTML Tidy) work on; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>

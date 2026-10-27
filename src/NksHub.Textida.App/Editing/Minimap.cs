@@ -12,6 +12,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Syntax;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -143,6 +144,10 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private byte[] _lane = [];
     private (int Height, long Lines, int Stamp) _laneKey;
     private int _marksStamp;
+    private LogHeatmap? _heat;
+    private (int Height, LogHeatmap? Heat) _heatKey;
+    private byte[] _heatErrors = [];
+    private byte[] _heatWarnings = [];
     private bool _dragging;
     private long _pressFirst;
     private double _pressY;
@@ -170,6 +175,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
     {
         _marks = [.. marks];
         _marksStamp++;
+        InvalidateVisual();
+    }
+
+    /// <summary>Shows the density of error and warning lines of a log along the strip at the right edge, which covers the whole file; null removes it.</summary>
+    public void SetHeat(LogHeatmap? heat)
+    {
+        _heat = heat;
         InvalidateVisual();
     }
 
@@ -430,6 +442,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
             double y = first * (double)height / lines;
             context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.45), new Rect(x, y, laneWidth, Math.Max(3, count * (double)height / lines)));
         }
+        DrawHeat(context, x, laneWidth, height);
         if (_marks.Length == 0) return;
         if (_laneKey != (height, lines, _marksStamp))
         {
@@ -451,6 +464,40 @@ internal sealed unsafe class Minimap : Control, IDisposable
             y = end;
         }
     }
+
+    private const int HeatSteps = 8;
+    private static readonly IBrush[] HeatErrorBrushes = HeatBrushes(Color.Parse("#E5484D"));
+    private static readonly IBrush[] HeatWarningBrushes = HeatBrushes(Color.Parse("#E2A400"));
+
+    private static IBrush[] HeatBrushes(Color color) =>
+        [.. Enumerable.Range(1, HeatSteps).Select(i => (IBrush)new ImmutableSolidColorBrush(color, 0.25 + 0.75 * i / HeatSteps))];
+
+    /// <summary>Draws the heatmap behind the marks: every row of the strip takes the densest bucket that falls in it, shown in as many steps of opacity as <see cref="HeatSteps"/>.</summary>
+    private void DrawHeat(DrawingContext context, double x, int laneWidth, int height)
+    {
+        if (_heat is not { Buckets: > 0 } heat) return;
+        if (_heatKey != (height, heat))
+        {
+            _heatKey = (height, heat);
+            _heatErrors = new byte[height];
+            _heatWarnings = new byte[height];
+            for (int b = 0; b < heat.Buckets; b++)
+            {
+                int row = (int)Math.Min(height - 1, (long)b * height / heat.Buckets);
+                _heatErrors[row] = (byte)Math.Max(_heatErrors[row], Step(heat.ErrorDensity(b)));
+                _heatWarnings[row] = (byte)Math.Max(_heatWarnings[row], Step(heat.WarningDensity(b)));
+            }
+        }
+        for (int y = 0; y < height; y++)
+        {
+            byte error = _heatErrors[y], warning = _heatWarnings[y];
+            if (error == 0 && warning == 0) continue;
+            var brush = error >= warning && error > 0 ? HeatErrorBrushes[error - 1] : HeatWarningBrushes[warning - 1];
+            context.FillRectangle(brush, new Rect(x, y, laneWidth, 1));
+        }
+    }
+
+    private static byte Step(double density) => density <= 0 ? (byte)0 : (byte)Math.Clamp((int)Math.Ceiling(density * HeatSteps), 1, HeatSteps);
 
     private static readonly IBrush MatchBrush = new ImmutableSolidColorBrush(Color.Parse("#3B82F6"));
     private static readonly IBrush WarningBrush = new ImmutableSolidColorBrush(Color.Parse("#E2A400"));

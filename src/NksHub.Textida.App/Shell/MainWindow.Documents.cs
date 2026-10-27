@@ -62,7 +62,7 @@ internal sealed partial class MainWindow
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
-        od.HistoryProblem += result => SetStatusMessage(result.NoSpace ? Loc.Get(K.HistoryNoSpace) : Loc.Get(K.HistoryFailed, ("reason", result.Problem ?? "")));
+        od.HistoryProblem += ReportHistory;
         AcquireLock(od);
         if (od.Path is { } localPath) od.RemoteCopy ??= _app.Remote.Copies.FindByLocalPath(localPath);
         _app.Journal.Track(od);
@@ -71,6 +71,7 @@ internal sealed partial class MainWindow
         TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);
+        TrackLogHeat(od);
     }
 
     /// <summary>With <c>editor.detectIndentation</c> on, the indentation of a file wins over the configured one for that file.</summary>
@@ -91,7 +92,8 @@ internal sealed partial class MainWindow
             od.Autosave = null;
             return;
         }
-        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = OpenDocument.AutosaveInterval }, _app.Backups, a => Dispatcher.UIThread.Post(a))
+        var interval = OpenDocument.AutosaveInterval > TimeSpan.Zero ? OpenDocument.AutosaveInterval : TimeSpan.FromSeconds(_app.Workbench.Settings.GetInt("advanced.autosaveIntervalSeconds"));
+        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = interval },_app.Backups, a => Dispatcher.UIThread.Post(a))
         {
             Pipeline = () => AutosaveWithActionsAsync(od),
         };
@@ -106,6 +108,9 @@ internal sealed partial class MainWindow
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;
+            surface.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
+
+            surface.SnippetChoicesRequested += choices => { if (tab == Active) ShowSnippetChoices(surface, choices); };
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }
@@ -115,6 +120,7 @@ internal sealed partial class MainWindow
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
             tab.Paged.Copied += RememberCopy;
+            tab.Paged.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
@@ -212,6 +218,7 @@ internal sealed partial class MainWindow
         if (od.Views.Count == 0)
         {
             ForgetDocument(od);
+            RememberClosed(od);
             if (untrack) _app.Journal.Untrack(od);
             _docs.Remove(od);
             od.Closed.TrySetResult();

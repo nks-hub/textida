@@ -374,6 +374,11 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.remote.cancel",
+      "title": "cmd.remote.cancel",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.remote.check",
       "title": "cmd.remote.check",
       "category": "cat.file",
@@ -467,6 +472,16 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.hashCopy",
+      "title": "cmd.tools.hashCopy",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.hashCompare",
+      "title": "cmd.tools.hashCompare",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.calculateBlock",
       "title": "cmd.tools.calculateBlock",
       "category": "cat.tools",
@@ -476,6 +491,12 @@
       "id": "nks.tools.evaluateExpression",
       "title": "cmd.tools.evaluateExpression",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.insertExpression",
+      "title": "cmd.tools.insertExpression",
+      "category": "cat.tools",
+      "enablement": "!readOnly && !largeFileMode"
     },
     {
       "id": "nks.tools.convertBase",
@@ -974,6 +995,46 @@
       "category": "cat.file"
     },
     {
+      "id": "nks.open.special",
+      "title": "cmd.open.special",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.hex",
+      "title": "cmd.open.hex",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.withEncoding",
+      "title": "cmd.open.withEncoding",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.readOnly",
+      "title": "cmd.open.readOnly",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.newCopy",
+      "title": "cmd.open.newCopy",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.containingFolder",
+      "title": "cmd.open.containingFolder",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.defaultApp",
+      "title": "cmd.open.defaultApp",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.open.lastClosed",
+      "title": "cmd.open.lastClosed",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.hex.toggleInsert",
       "title": "cmd.hex.toggleInsert",
       "category": "cat.hex",
@@ -1402,6 +1463,41 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.unstageHunk",
+      "title": "cmd.git.unstageHunk",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictOurs",
+      "title": "cmd.git.conflictOurs",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictTheirs",
+      "title": "cmd.git.conflictTheirs",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.conflictBoth",
+      "title": "cmd.git.conflictBoth",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.markResolved",
+      "title": "cmd.git.markResolved",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -1488,6 +1584,58 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly && !largeFileMode && language == 'html'"
+    },
+    {
+      "id": "nks.edit.htmlEncodeAll",
+      "title": "cmd.edit.htmlEncodeAll",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode"
+    },
+    {
+      "id": "nks.edit.htmlCloseTag",
+      "title": "cmd.edit.htmlCloseTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlMatchTag",
+      "title": "cmd.edit.htmlMatchTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlSelectElement",
+      "title": "cmd.edit.htmlSelectElement",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlRemoveTag",
+      "title": "cmd.edit.htmlRemoveTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlWrapTag",
+      "title": "cmd.edit.htmlWrapTag",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlStripTags",
+      "title": "cmd.edit.htmlStripTags",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
+      "undo": "transaction"
     },
     {
       "id": "nks.tools.sqlDialect",
@@ -1859,6 +2007,44 @@
       "title": "cmd.tools.shellRemove",
       "category": "cat.tools",
       "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.log.fold",
+      "title": "cmd.log.fold",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.unfold",
+      "title": "cmd.log.unfold",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.openFrame",
+      "title": "cmd.log.openFrame",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.showRaw",
+      "title": "cmd.log.showRaw",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.snippet.next",
+      "title": "cmd.snippet.next",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.previous",
+      "title": "cmd.snippet.previous",
+      "category": "cat.edit",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "id": "nks.snippet.end",
+      "title": "cmd.snippet.end",
+      "category": "cat.edit",
+      "when": "editorFocus && inSnippet"
     }
   ],
   "menus": [
@@ -2321,6 +2507,13 @@
     },
     {
       "menu": "file",
+      "command": "nks.remote.cancel",
+      "group": "4_remote",
+      "submenu": "remote",
+      "order": 35
+    },
+    {
+      "menu": "file",
       "command": "nks.remote.check",
       "group": "4_remote",
       "submenu": "remote",
@@ -2419,6 +2612,20 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.hashCopy",
+      "group": "1_text/01_1_text",
+      "submenu": "text",
+      "order": 21
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.hashCompare",
+      "group": "1_text/01_1_text",
+      "submenu": "text",
+      "order": 22
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.calculateBlock",
       "group": "1_text/01_2_calculate",
       "submenu": "text",
@@ -2430,6 +2637,13 @@
       "group": "1_text/01_2_calculate",
       "submenu": "text",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.insertExpression",
+      "group": "1_text/01_2_calculate",
+      "submenu": "text",
+      "order": 25
     },
     {
       "menu": "tools",
@@ -2668,6 +2882,7 @@
       "menu": "file",
       "command": "nks.file.openPathAtCaret",
       "group": "1_new",
+      "submenu": "special",
       "order": 40
     },
     {
@@ -2850,6 +3065,69 @@
       "command": "nks.file.openAsHex",
       "group": "1_new",
       "order": 25
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.hex",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 201
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.withEncoding",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 202
+    },
+    {
+      "menu": "file",
+      "command": "nks.format.reread",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 203
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.readOnly",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 204
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.newCopy",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 205
+    },
+    {
+      "menu": "file",
+      "command": "nks.search.relatedFile",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 206
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.containingFolder",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 207
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.defaultApp",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 208
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.lastClosed",
+      "group": "1_new",
+      "submenu": "special",
+      "order": 209
     },
     {
       "menu": "file",
@@ -3156,17 +3434,17 @@
       "order": 80
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportHtml",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 90
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportRtf",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 100
     },
     {
@@ -3210,6 +3488,41 @@
       "group": "3_code/08_9_git",
       "submenu": "git",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.unstageHunk",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictOurs",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictTheirs",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictBoth",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.markResolved",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 90
     },
     {
       "menu": "tools",
@@ -3294,6 +3607,55 @@
       "group": "3_text/5_format",
       "submenu": "format",
       "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlEncodeAll",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlCloseTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlMatchTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlSelectElement",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlRemoveTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 100
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlWrapTag",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 110
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlStripTags",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 120
     },
     {
       "menu": "tools",
@@ -3741,6 +4103,54 @@
       "group": "4_other/13_9_shell",
       "submenu": "shell",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.fold",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 90
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.unfold",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.openFrame",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 110
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.showRaw",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 120
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openPathAtCaret",
+      "group": "1_new",
+      "order": 40
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportHtml",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 90
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportRtf",
+      "group": "2_disk",
+      "submenu": "export",
+      "order": 100
     }
   ],
   "keybindings": [
@@ -3841,26 +4251,6 @@
       "key": "mod+bracketleft",
       "command": "nks.edit.outdent",
       "when": "editorFocus"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.edit.outdent",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.edit.tab",
-      "when": "editorFocus && !readOnly && !inMarkdownTable"
-    },
-    {
-      "key": "tab",
-      "command": "nks.markdown.nextCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
-    },
-    {
-      "key": "shift+tab",
-      "command": "nks.markdown.previousCell",
-      "when": "editorFocus && !readOnly && inMarkdownTable"
     },
     {
       "key": "shift+enter",
@@ -4156,6 +4546,36 @@
       "key": "alt+shift+f7",
       "command": "nks.review.previous",
       "when": "editorFocus"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.edit.outdent",
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.edit.tab",
+      "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.snippet.next",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.snippet.previous",
+      "when": "editorFocus && !readOnly && inSnippet"
+    },
+    {
+      "key": "tab",
+      "command": "nks.markdown.nextCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.markdown.previousCell",
+      "when": "editorFocus && !readOnly && inMarkdownTable && !inSnippet"
     }
   ],
   "settings": [
@@ -5106,6 +5526,121 @@
         "review",
         "external",
         "reload"
+      ]
+    },
+    {
+      "key": "advanced.scrollPastEnd",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.scrollPastEnd.title",
+      "description": "setting.advanced.scrollPastEnd.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "scroll",
+        "end",
+        "document",
+        "blank"
+      ]
+    },
+    {
+      "key": "advanced.cutCopyWholeLine",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.cutCopyWholeLine.title",
+      "description": "setting.advanced.cutCopyWholeLine.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "cut",
+        "copy",
+        "line",
+        "clipboard",
+        "selection"
+      ]
+    },
+    {
+      "key": "advanced.hideMouseWhileTyping",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.advanced.hideMouseWhileTyping.title",
+      "description": "setting.advanced.hideMouseWhileTyping.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "mouse",
+        "pointer",
+        "cursor",
+        "typing",
+        "hide"
+      ]
+    },
+    {
+      "key": "advanced.linkNeedsCtrl",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.advanced.linkNeedsCtrl.title",
+      "description": "setting.advanced.linkNeedsCtrl.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "link",
+        "url",
+        "click",
+        "ctrl",
+        "modifier"
+      ]
+    },
+    {
+      "key": "advanced.wrapIndent",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.advanced.wrapIndent.title",
+      "description": "setting.advanced.wrapIndent.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 32,
+      "tags": [
+        "wrap",
+        "indent",
+        "continuation",
+        "line"
+      ]
+    },
+    {
+      "key": "advanced.recentFilesCount",
+      "type": "integer",
+      "default": 50,
+      "title": "setting.advanced.recentFilesCount.title",
+      "description": "setting.advanced.recentFilesCount.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 200,
+      "tags": [
+        "recent",
+        "files",
+        "history",
+        "list"
+      ]
+    },
+    {
+      "key": "advanced.autosaveIntervalSeconds",
+      "type": "integer",
+      "default": 30,
+      "title": "setting.advanced.autosaveIntervalSeconds.title",
+      "description": "setting.advanced.autosaveIntervalSeconds.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 1,
+      "maximum": 3600,
+      "tags": [
+        "autosave",
+        "save",
+        "interval",
+        "delay",
+        "seconds"
       ]
     }
   ]

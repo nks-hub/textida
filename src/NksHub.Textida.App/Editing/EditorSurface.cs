@@ -79,6 +79,7 @@ internal sealed partial class EditorSurface : TextEditor
         InitCarets();
         InitSecrets();
         InitColors();
+        InitLogFull();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -87,6 +88,7 @@ internal sealed partial class EditorSurface : TextEditor
     {
         _levels.Rules = Doc.IsLog ? Doc.LogLevels : null;
         _highlight.Pattern = Doc.LogHighlight;
+        ApplyAnsi();
     }
 
     public OpenDocument Doc { get; }
@@ -111,7 +113,9 @@ internal sealed partial class EditorSurface : TextEditor
 
     public void BindDocument()
     {
+        EndSnippet();
         TextArea.ClearSelection();
+        ClearFolds();
         Document = Doc.TextBackend!.TextDocument;
         _colorizer.BindDocument(Document);
         CaretOffset = 0;
@@ -208,6 +212,11 @@ internal sealed partial class EditorSurface : TextEditor
         Options.ShowTabs = o.ShowWhitespace;
         Options.EnableTextDragDrop = !SecretsHidden;
         Options.AcceptsTab = false;
+        Options.AllowScrollBelowDocument = o.ScrollPastEnd;
+        Options.CutCopyWholeLine = o.CutCopyWholeLine;
+        Options.HideCursorWhileTyping = o.HideMouseWhileTyping;
+        Options.RequireControlModifierForHyperlinkClick = o.LinkNeedsCtrl;
+        Options.WordWrapIndentation = o.WrapIndent * TextArea.TextView.WideSpaceWidth;
         ApplyViewOptions(o);
     }
 
@@ -331,6 +340,12 @@ internal sealed partial class EditorSurface : TextEditor
     {
         if (HiddenCopyKey(e))
         {
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && InSnippet)
+        {
+            EndSnippet();
             e.Handled = true;
             return;
         }

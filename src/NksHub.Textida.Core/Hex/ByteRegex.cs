@@ -9,7 +9,7 @@ namespace NksHub.Textida.Core.Hex;
 /// <summary>
 /// A regular expression over bytes. A byte is a character 0 to 255: <c>.</c> is any one byte (also 0A and 0D), <c>\xHH</c> is a byte, and a class such as
 /// <c>[\x01-\x08]</c> or <c>[^\x00]</c> is a set of bytes. Supported: groups <c>( )</c> and <c>(?: )</c>, alternation <c>|</c>, the repeats <c>? * + {n} {n,m} {n,}</c>
-/// with a lazy <c>?</c> after them, and the escapes <c>\n \r \t \0 \d \D \w \W \s \S</c> (ASCII). Not supported, because bytes have no lines, words or look-around: anchors,
+/// with a lazy <c>?</c> after them, and the escapes <c>\n \r \t \0 \d \D \w \W \s \S</c> (ASCII). The anchors <c>^</c> and <c>$</c> are the start and the end of the searched range (the file, or the selection when the search is limited to it). Not supported, because bytes have no lines, words or look-around:
 /// <c>\b</c>, groups with a look-around, back references, flags and a letter or symbol above 7E written bare (write it as <c>\xHH</c>).
 /// <para>
 /// The wildcard <c>*</c> stands for 0 to N bytes: <c>.*</c> reaches at most N bytes, and a <c>*</c> with nothing before it (at the start, after <c>(</c> or <c>|</c>) is <c>.{0,N}</c>.
@@ -91,21 +91,25 @@ public sealed class ByteRegex : ByteQuery
         return new ByteRegex(text, new Seq(seq), maxRepeat);
     }
 
-    internal override bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct)
+    internal override bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct, bool startsRange = false, bool endsRange = false)
     {
-        string text = Encoding.Latin1.GetString(window);
-        int at = 0;
-        while (at < starts)
+        // a marker char (not a byte) stands before the range start and after its end so ^ and $ can be lookarounds that never consume a byte
+        string text = (startsRange ? Marker : "") + Encoding.Latin1.GetString(window) + (endsRange ? Marker : "");
+        int shift = startsRange ? 1 : 0;
+        int at = shift;
+        while (at < starts + shift)
         {
             ct.ThrowIfCancellationRequested();
             var m = _regex.Match(text, at);
-            if (!m.Success || m.Index >= starts) break;
-            matches.Add(new ByteRange(block + m.Index, block + m.Index + m.Length));
+            if (!m.Success || m.Index >= starts + shift) break;
+            matches.Add(new ByteRange(block + m.Index - shift, block + m.Index - shift + m.Length));
             if (matches.Count == maxResults) return true;
             at = m.Index + 1;
         }
         return false;
     }
+
+    private static readonly string Marker = ((char)0x100).ToString();
 
     /// <summary>True when the regular expression matches exactly these bytes from the first to the last; for tests and previews.</summary>
     public bool IsMatch(ReadOnlySpan<byte> bytes)
@@ -168,6 +172,12 @@ public sealed class ByteRegex : ByteQuery
         public static readonly Any Instance = new();
         public override (long Min, long Max) Length() => (1, 1);
         public override void Emit(StringBuilder sb) => sb.Append(@"[\x00-\xFF]");
+    }
+
+    private sealed class Anchor(bool start) : Node
+    {
+        public override (long Min, long Max) Length() => (0, 0);
+        public override void Emit(StringBuilder sb) => sb.Append(start ? $"(?<={Marker})" : $"(?={Marker})");
     }
 
     private sealed class Seq(List<Node> items) : Node
@@ -319,7 +329,8 @@ public sealed class ByteRegex : ByteQuery
                     return inner;
                 case '[': return ParseClass();
                 case '\\': return Escape(inClass: false);
-                case '^' or '$': throw new FormatException("Bytes have no lines; ^ and $ are not supported.");
+                case '^': return new Anchor(start: true);
+                case '$': return new Anchor(start: false);
                 case ']' or '}': throw new FormatException($"Unexpected '{c}'; write \\{c} for the byte.");
                 default:
                     if (c is < ' ' or > '~') throw new FormatException($"Write the byte 0x{(int)c:X2} as \\x{(int)c:X2}.");

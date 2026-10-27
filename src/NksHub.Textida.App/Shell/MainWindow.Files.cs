@@ -199,14 +199,14 @@ internal sealed partial class MainWindow
 
     /// <summary>The save of a named file with the save actions around it; a save that comes back through here from inside the actions (a conflict answered with "overwrite") runs none again.</summary>
     private Task<bool> SaveCoreAsync(DocTab tab, bool overwrite, SaveOrigin origin = SaveOrigin.Manual) =>
-        tab.Doc.LockedReadOnly || tab.Hex is not null ? SaveFileAsync(tab, overwrite) : SaveWithActionsAsync(tab, origin, () => SaveFileAsync(tab, overwrite));
+        tab.Doc.LockedReadOnly || tab.Doc.UserReadOnly || tab.Hex is not null ? SaveFileAsync(tab, overwrite) : SaveWithActionsAsync(tab, origin, () => SaveFileAsync(tab, overwrite));
 
     private async Task<bool> SaveFileAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
-        if (od.LockedReadOnly)
+        if (od.LockedReadOnly || od.UserReadOnly)
         {
-            SetStatusMessage(Loc.Get(K.LockSaveRefused));
+            SetStatusMessage(Loc.Get(od.UserReadOnly ? K.SpecialSaveRefused : K.LockSaveRefused));
             return false;
         }
         if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite);

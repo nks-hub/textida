@@ -23,6 +23,7 @@ public sealed class FormattersPlugin : PluginBase
     public const string SqlPreview = "sql.preview";
     public const string HtmlEncode = "html.encode";
     public const string HtmlDecode = "html.decode";
+    public const string HtmlEncodeAll = "html.encodeAll";
     public const string HtmlTidy = "html.tidy";
 
     private readonly FormattersSettings _settings;
@@ -49,6 +50,9 @@ public sealed class FormattersPlugin : PluginBase
                 break;
             case HtmlEncode:
                 run = await RangeTransform.RunAsync(Rpc, p, _settings.MaxBytes, "", false, (text, _, _, _) => Task.FromResult(RangeResult.Changed(HtmlEntities.Encode(text))), ct);
+                break;
+            case HtmlEncodeAll:
+                run = await RangeTransform.RunAsync(Rpc, p, _settings.MaxBytes, "", false, (text, _, _, _) => Task.FromResult(RangeResult.Changed(HtmlEntities.EncodeAll(text))), ct);
                 break;
             case HtmlDecode:
                 run = await RangeTransform.RunAsync(Rpc, p, _settings.MaxBytes, "", false, (text, _, _, _) => Task.FromResult(RangeResult.Changed(HtmlEntities.Decode(text))), ct);

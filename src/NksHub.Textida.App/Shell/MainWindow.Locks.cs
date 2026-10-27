@@ -25,7 +25,7 @@ internal sealed partial class MainWindow
         foreach (var tab in od.Views)
         {
             if (tab.Surface is { } surface) surface.IsReadOnly = od.ReadOnly;
-            if (tab.Paged is { } paged) paged.ReadOnlyReason = od.IsVirtual ? Loc.Get(K.VirtualReadOnly) : od.LockedReadOnly ? Loc.Get(K.LockSaveRefused) : null;
+            if (tab.Paged is { } paged) paged.ReadOnlyReason = od.IsVirtual ? Loc.Get(K.VirtualReadOnly) : od.LockedReadOnly ? Loc.Get(K.LockSaveRefused) : od.UserReadOnly ? Loc.Get(K.SpecialSaveRefused) : null;
         }
         if (od.Lock is not { State: not LockState.Writable } lck) return;
         string title = od.Title;

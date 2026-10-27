@@ -44,6 +44,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     private const string FormattersActivation = "onCommand:formatters";
     public const string GitPluginId = "textida.git";
     private const string GitActivation = "onCommand:git";
+    /// <summary>The panel of the Git status; its items are the full paths of the files, a click opens the file.</summary>
+    public const string GitStatusPanel = "git:status";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -81,7 +83,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     internal PluginManager Manager { get; }
 
     /// <summary>Installed plugins that could not be read at start; each entry names the plugin and the reason.</summary>
-    internal IReadOnlyList<string> InstalledProblems { get; }
+    internal List<string> InstalledProblems { get; }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonElement> _pluginSettings = new(StringComparer.Ordinal);
 
     private readonly HashSet<string> _boundInstalled = [];
 
@@ -107,7 +111,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
         var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host(), PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
+        _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
+            PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync)), Documents);
+        app.Workbench.SettingChanged += OnSettingChanged;
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
@@ -125,13 +131,16 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
              "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString()],
             [JsonActivation], folder));
 
-        // the text tools only read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text
+        // the text tools read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text; only inserting an expression result writes
         permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
+        permissions.Grant(TextToolsPluginId, DocumentPermissions.EditDirect, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.ClipboardWrite, GrantScope.All);
         var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
-            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString()],
+            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString(),
+             "--frequency-top", PluginLimitsPlaceholders.TextToolsFrequencyTop.ToString(), "--frequency-max-words", PluginLimitsPlaceholders.TextToolsFrequencyMaxWords.ToString(),
+             "--frequency-max-word-length", PluginLimitsPlaceholders.TextToolsFrequencyMaxWordLength.ToString()],
             [TextToolsActivation], toolsFolder));
 
         // colours and key paths read the text; the colour conversion writes the converted values back
@@ -150,7 +159,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var explorerProgram = Path.Combine(explorerFolder, "NksHub.Textida.Plugins.CodeExplorer" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(CodeExplorerPluginId, "Code Explorer", explorerProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
-             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
+             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(),
+             "--match-timeout-ms", PluginLimitsPlaceholders.CodeExplorerMatchTimeoutMilliseconds.ToString()],
             [CodeExplorerActivation], explorerFolder));
 
         // Emmet reads the text in front of the carets and writes the expansion back as one snippet; it answers the Tab key
@@ -175,8 +185,9 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         foreach (var argument in PluginLimitsPlaceholders.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
         _host.Register(new PluginSpec(FormattersPluginId, "Formatters", formattersProgram, formattersArguments, [FormattersActivation], formattersFolder));
 
-        // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk
-        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual })
+        // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk,
+        // and edits the document only when the user takes a side of a merge conflict
+        foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual, DocumentPermissions.EditDirect })
             permissions.Grant(GitPluginId, permission, GrantScope.All);
         var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
         var gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
@@ -212,7 +223,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             PluginLimitsPlaceholders.PluginZip(), BuiltIns.Select(b => b.Id).ToHashSet(StringComparer.Ordinal), permissions, _host);
         // nothing awaits a process here: registering the enabled plugins completes at once
         var (installed, problems) = Manager.StartAsync().GetAwaiter().GetResult();
-        InstalledProblems = problems;
+        InstalledProblems = [.. problems];
         foreach (var plugin in installed) BindInstalled(plugin);
     }
 
@@ -226,11 +237,34 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
         var id = plugin.Manifest.Id;
+        foreach (var problem in DeclarePlugin(plugin)) InstalledProblems.Add($"{id}: {problem}");
         foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))
         {
             var name = command.Id;
             commands.SetHandler(name, async (_, _) => await RunInstalledAsync(id, name));
         }
+    }
+
+    /// <summary>Puts the keybindings and settings of a plugin into the app and keeps its setting values ready for the handshake of its process.</summary>
+    internal IReadOnlyList<string> DeclarePlugin(LoadedPlugin plugin)
+    {
+        var errors = _app.Workbench.AddPlugin(plugin.Contributions, plugin.Manifest.Name);
+        RefreshSettings(plugin.Manifest.Id);
+        return errors;
+    }
+
+    private void RefreshSettings(string pluginId)
+    {
+        if (_app.Workbench.PluginSettingValues(pluginId) is { } values) _pluginSettings[pluginId] = JsonDocument.Parse(values.ToJsonString()).RootElement.Clone();
+        else _pluginSettings.TryRemove(pluginId, out _);
+    }
+
+    /// <summary>A setting of a plugin changed: a running process hears it as the event <c>settings.changed</c> with all its values; a stopped one gets them at its next start.</summary>
+    private void OnSettingChanged(string key)
+    {
+        if (_app.Workbench.PluginOfSetting(key) is not { } id) return;
+        RefreshSettings(id);
+        if (_host.IsRegistered(id) && _pluginSettings.TryGetValue(id, out var values)) _ = _host.SendEventAsync(id, "settings.changed", Encoding.UTF8.GetBytes(values.GetRawText()));
     }
 
     private async ValueTask<CommandOutcome> RunInstalledAsync(string pluginId, string command)
@@ -295,7 +329,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     // ---- Git: status, diff against the index and HEAD, stage the hunk at the caret ----
 
-    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>) for the file of the tab. False when nothing was started.</summary>
+    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>, <c>git.unstageHunk</c>, <c>git.conflictOurs</c>, <c>git.conflictTheirs</c>, <c>git.conflictBoth</c>, <c>git.markResolved</c>) for the file of the tab. False when nothing was started.</summary>
     public async Task<bool> RunGitAsync(MainWindow window, DocTab tab, string command)
     {
         var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
@@ -312,8 +346,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     }
 
     /// <summary>Converts the selections (the whole text when nothing is selected) to HTML entities or back, as one undo step. False when nothing was started.</summary>
-    public async Task<bool> RunHtmlEntitiesAsync(MainWindow window, DocTab tab, bool encode) =>
-        tab.Surface is not null && (await RunFormatterAsync(window, tab, encode ? "html.encode" : "html.decode", "")).Started;
+    public async Task<bool> RunHtmlEntitiesAsync(MainWindow window, DocTab tab, bool encode, bool nonAscii = false) =>
+        tab.Surface is not null && (await RunFormatterAsync(window, tab, encode ? (nonAscii ? "html.encodeAll" : "html.encode") : "html.decode", "")).Started;
 
     /// <summary>
     /// Formats the HTML of the tab with HTML Tidy and proposes the result in the change preview; the messages of Tidy go to the output window.
@@ -406,8 +440,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// Runs one of the text tools (<c>text.stats</c>, <c>text.hash</c>, <c>text.calculate</c>, <c>text.expression</c>, <c>text.bases</c>) on the tab through the text tools plugin
     /// process. They work on text, hex and paged tabs alike and read from a snapshot, so a large file is never held in memory. Returns false when nothing was started.
     /// </summary>
-    public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command) =>
-        tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command);
+    public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command, string extra = "") =>
+        tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, extra);
 
     /// <summary>
     /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the
@@ -532,7 +566,11 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     /// <summary>The plugin that publishes the symbols of a language mode: the web data plugin for the keys of YAML and JSON, the code explorer for code and markup; null for any other mode.</summary>
     internal static string? SymbolPlugin(string languageId) =>
-        KeySyntax(languageId) is not null ? WebDataPluginId : languageId is "html" or "php" or "css" or "csharp" or "markdown" ? CodeExplorerPluginId : null;
+        KeySyntax(languageId) is not null ? WebDataPluginId : OutlineLanguages.Contains(languageId) ? CodeExplorerPluginId : null;
+
+    /// <summary>The language modes the code explorer has rules for (the same set as <c>Outlines.Supports</c> in the plugin).</summary>
+    private static readonly HashSet<string> OutlineLanguages =
+        ["html", "php", "css", "csharp", "markdown", "javascript", "typescript", "python", "rust", "dart", "c", "cpp", "shell", "cmake", "makefile", "meson"];
 
     /// <summary>
     /// Reads the symbols of the tab (keys, or the code outline) through their plugin and publishes them: the outline lists them and Go to Anything (<c>@</c>) jumps to them,
@@ -543,7 +581,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
     {
-        if (tab.Surface is null || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
+        if ((tab.Surface is null && tab.Paged is null) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
+        bool paged = tab.Paged is not null; // a large file: read from its start up to the limit, in the background
         _outlineWanted.Add(tab.Doc.Doc.Id);
         _revealOutline = _revealAlways = reveal;
         var document = tab.Doc.Doc;
@@ -551,11 +590,68 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         try
         {
             bool started = (await ExecuteAsync(window, tab, CodeExplorerPluginId, CodeExplorerActivation, "Code Explorer", "outline.index",
-                $",\"outlineLanguage\":\"{tab.Doc.Language.Id}\",\"notify\":{(notify ? "true" : "false")}", keep: true, notify: notify)).Started;
+                $",\"outlineLanguage\":\"{tab.Doc.Language.Id}\",\"notify\":{(notify ? "true" : "false")},\"partial\":{(paged ? "true" : "false")}", keep: true, notify: notify, background: paged)).Started;
             if (started && ReferenceEquals(tab.Doc.Doc, document) && document.Revision != revision) _ = RefreshOutlineAsync(document.Id); // typed while the plugin read
             return started;
         }
         finally { _revealOutline = true; _revealAlways = false; }
+    }
+
+    private DispatcherTimer? _symbolTimer;
+    private DocTab? _symbolWanted;
+    private bool _symbolShown;
+
+    /// <summary>Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents), while the tab has an outline.</summary>
+    public void TrackSymbol(DocTab? tab)
+    {
+        if (tab is null || !_outlineWanted.Contains(tab.Doc.Doc.Id) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId)
+        {
+            _symbolWanted = null;
+            ShowSymbol(null);
+            return;
+        }
+        _symbolWanted = tab;
+        if (_symbolTimer is null)
+        {
+            _symbolTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.KeyPathDebounceMilliseconds) };
+            _symbolTimer.Tick += (_, _) =>
+            {
+                _symbolTimer.Stop();
+                if (_symbolWanted is { } wanted) ShowSymbol(SymbolPathAtCaret(wanted));
+            };
+        }
+        _symbolTimer.Stop();
+        _symbolTimer.Start();
+    }
+
+    private void ShowSymbol(string? path)
+    {
+        if (path is null)
+        {
+            if (!_symbolShown) return;
+            _symbolShown = false;
+            Ui.SetStatus(CodeExplorerPluginId, null);
+            return;
+        }
+        _symbolShown = true;
+        Ui.SetStatus(CodeExplorerPluginId, new StatusModel(path, Loc.Get(K.SymbolPathTip)));
+    }
+
+    /// <summary>The symbol the caret is in or after, with its parents, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
+    private string? SymbolPathAtCaret(DocTab tab)
+    {
+        long? caret = tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
+        var symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
+        if (caret is not { } at || !current) return null;
+        SymbolInfo? found = null;
+        foreach (var s in symbols)
+            if (s.Range.Start <= at && (found is null || s.Range.Start >= found.Range.Start)) found = s;
+        if (found is null) return null;
+        var byId = symbols.ToDictionary(s => s.Id);
+        var parts = new List<string> { found.Name };
+        for (var parent = found.ParentId; parent is not null && byId.TryGetValue(parent, out var p) && parts.Count < 8; parent = p.ParentId)
+            parts.Insert(0, p.Name.Contains('(') ? p.Name[..p.Name.IndexOf('(')] : p.Name);
+        return string.Join(" › ", parts);
     }
 
     private readonly HashSet<Guid> _outlineWanted = [];
@@ -632,8 +728,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         return true;
     }
 
-    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command) =>
-        (await ExecuteAsync(window, tab, pluginId, activation, name, command)).Started;
+    private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command, string extra = "") =>
+        (await ExecuteAsync(window, tab, pluginId, activation, name, command, extra)).Started;
 
     /// <summary>The answer of a plugin command: whether it was started at all (not when it is already running on the document or the user refused), and what the plugin said.</summary>
     private readonly record struct Outcome(bool Started, JsonElement Result);
@@ -780,6 +876,20 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         if (_app.ActiveWindow is not { } window) return false;
         window.OpenDiffRequest(request);
         return true;
+    }
+
+    public string? FilePath(Guid document) => TabOf(document)?.Tab.Doc.Path;
+
+    public string IndentUnit(Guid document) =>
+        TabOf(document) is { } found && found.Tab.Surface is { } surface ? surface.Settings.Indent.Unit : "    ";
+
+    public void BeginSnippets(Guid document, IReadOnlyList<(long Start, NksHub.Textida.Core.Snippets.ParsedSnippet Snippet)> snippets)
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var placed = new List<(int, NksHub.Textida.Core.Snippets.ParsedSnippet)>(snippets.Count);
+        foreach (var (start, snippet) in snippets)
+            if (backend.TryToCharOffset(start, out int at)) placed.Add((at, snippet));
+        surface.BeginSnippet(placed);
     }
 
     public string NewLine(Guid document) =>

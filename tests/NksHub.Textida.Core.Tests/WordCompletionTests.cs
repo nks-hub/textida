@@ -22,6 +22,14 @@ public class WordCompletionTests
     [InlineData("", 0, 0)]
     public void The_prefix_starts_after_the_last_character_that_is_not_part_of_a_word(string text, int caret, int start) => Assert.Equal(start, WordCompletion.PrefixStart(text, caret));
 
+    [Theory]
+    [InlineData("config", "Co", "Config")]
+    [InlineData("config", "CO", "CONFIG")]
+    [InlineData("config", "co", "config")]
+    [InlineData("configPath", "Co", "configPath")]
+    [InlineData("config", "", "config")]
+    public void The_offered_word_takes_the_case_the_user_typed(string word, string prefix, string expected) => Assert.Equal(expected, WordCompletion.MatchCase(word, prefix));
+
     [Fact]
     public void Words_start_with_the_prefix_ignoring_case_and_are_longer_than_it()
     {

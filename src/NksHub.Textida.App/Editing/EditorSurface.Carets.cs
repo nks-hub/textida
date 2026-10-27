@@ -90,6 +90,7 @@ internal sealed partial class EditorSurface
     /// <summary>Releases what the surface holds on the document; called when its tab closes.</summary>
     public void Detach()
     {
+        EndSnippet();
         Doc.LanguageChanged -= ApplyLogLevels;
         Doc.LogLevelsChanged -= ApplyLogLevels;
         Doc.LogHighlightChanged -= ApplyLogLevels;

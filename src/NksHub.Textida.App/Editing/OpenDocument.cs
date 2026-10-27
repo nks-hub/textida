@@ -1,4 +1,5 @@
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -103,8 +104,8 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>Indentation detected from the content of the file when it was opened; replaces the configured one for this document.</summary>
     public IndentSettings? IndentOverride { get; set; }
     public AutosaveService? Autosave { get; set; }
-    /// <summary>How often a document with autosave on is written to its own file.</summary>
-    public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.FromSeconds(30);
+    /// <summary>Overrides the interval of the <c>advanced.autosaveIntervalSeconds</c> setting when above zero (tests use it for a short wait).</summary>
+    public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.Zero;
     public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public List<DocTab> Views { get; } = [];
 
@@ -118,7 +119,9 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null && !_switchedForHex;
-    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly;
+    public bool ReadOnly => IsResults || IsVirtual || LockedReadOnly || UserReadOnly;
+    /// <summary>The user opened the file read only (Open Special); saving is refused until the tab is closed.</summary>
+    public bool UserReadOnly { get; set; }
     /// <summary>The document is a view of data a plugin supplies (P6.2.6): read only, never saved, never journaled and not part of the session.</summary>
     public bool IsVirtual => _doc.IsVirtual;
     /// <summary>The lock this document holds on its file, or the reason the file opened read only; null for a document without a file.</summary>
@@ -168,11 +171,19 @@ internal sealed class OpenDocument : IDisposable
 
     private CsvDialect? _tableDialect;
 
-    /// <summary>How the table views of this document split the text; the delimiter follows the file extension until the user picks one.</summary>
+    /// <summary>How the table views of this document split the text; the delimiter is detected from the start of the text (the file extension when that is unclear) until the user picks one.</summary>
     public CsvDialect TableDialect
     {
-        get => _tableDialect ??= CsvDialect.ForPath(Path);
+        get => _tableDialect ??= DetectTableDialect();
         set => _tableDialect = value;
+    }
+
+    private CsvDialect DetectTableDialect()
+    {
+        var byPath = CsvDialect.ForPath(Path);
+        long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimitsPlaceholders.CsvDetectSampleBytes);
+        while (end > start && end < Doc.ByteLength && !Doc.IsCharBoundary(end)) end--;
+        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath);
     }
 
     // ---- hex ----

@@ -231,11 +231,11 @@ public class LivePreviewTests : IDisposable
     [AvaloniaFact]
     public void The_repair_command_fixes_a_table_without_dashes_as_one_undo_step()
     {
-        var tab = Open("x\n\na|b\n1\n", "markdown");
+        var tab = Open("x\n\na|b\n1|\n", "markdown");
         tab.Editor!.CaretOffset = tab.Editor.Document.GetLineByNumber(3).Offset;
         _w.RepairMarkdownTable();
         Assert.Equal("x\n\n| a   | b   |\n| --- | --- |\n| 1   |     |\n", tab.Editor.Document.Text);
         _w.Undo();
-        Assert.Equal("x\n\na|b\n1\n", tab.Editor.Document.Text);
+        Assert.Equal("x\n\na|b\n1|\n", tab.Editor.Document.Text);
     }
 }

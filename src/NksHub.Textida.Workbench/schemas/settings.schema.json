@@ -442,13 +442,61 @@
           "default": 0,
           "minimum": 0,
           "maximum": 1048576,
-          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: a search with * then asks for it. A range of your own can always be written as *{m,n}.",
+          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
           "x-scope": "application"
         },
         "review.autoKeep": {
           "type": "boolean",
           "default": false,
           "description": "Keep changes from outside without review. On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review.",
+          "x-scope": "application"
+        },
+        "advanced.scrollPastEnd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Scroll past the end of the text. Lets the last line scroll up to the top of the editor, leaving empty space below the text.",
+          "x-scope": "application"
+        },
+        "advanced.cutCopyWholeLine": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cut and copy the whole line without a selection. With nothing selected, Cut and Copy take the line of the caret including its line break.",
+          "x-scope": "application"
+        },
+        "advanced.hideMouseWhileTyping": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide the mouse pointer while typing. The mouse pointer disappears over the text while you type and returns when you move the mouse.",
+          "x-scope": "application"
+        },
+        "advanced.linkNeedsCtrl": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open links only with Ctrl+click. On: a link opens with Ctrl+click. Off: a plain click opens it. Applies only when links are turned on.",
+          "x-scope": "application"
+        },
+        "advanced.wrapIndent": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 32,
+          "description": "Indent of wrapped lines (columns). How many columns the continuation of a wrapped line is indented, on top of the indentation of the line itself. Applies with word wrap on.",
+          "x-scope": "application"
+        },
+        "advanced.recentFilesCount": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Recent files kept. How many recently opened files the list keeps. 0 keeps none. A lower number cuts the list the next time a file is opened.",
+          "x-scope": "application"
+        },
+        "advanced.autosaveIntervalSeconds": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "Autosave interval (seconds). How often a document with changes is written to its own file when Autosave is on.",
           "x-scope": "application"
         }
       },

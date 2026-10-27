@@ -133,7 +133,11 @@ commands: nks.remote.upload
 3. Změnil-li se soubor na serveru mezitím, nepošle se nic. Zvolte Zobrazit rozdíly, uvidíte verzi ze serveru vedle své, převezměte do své strany, co potřebujete, uložte a nahrajte znovu. Přesto nahrát nahradí právě tu verzi serveru, kterou jste viděli.
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
-- Nic se neopakuje samo. Po chybě zvolte Nahrát na server znovu; nejdřív zase zkontroluje server.
+- Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
+
+## [remote.cancel] Zrušit přenos
+commands: nks.remote.cancel
+Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání se zastaví, server si ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání.
 
 ## [remote.check] Zkontrolovat verzi na serveru
 commands: nks.remote.check
@@ -186,6 +190,7 @@ Program uchovává revizi souboru při každém uložení a při každé změně
 - Soubory s tajnými hodnotami, například .env, se neukládají, dokud v nastavení nezapnete Ukládat historii souborů s tajnými hodnotami.
 - Limity (revizí na soubor, dny, MiB na soubor, MiB celkem) se nastavují v nastavení; 0 znamená bez omezení. Nejnovější revize souboru se nikdy nesmaže.
 - Když je disk plný, stavový řádek to oznámí a žádná revize se nepoškodí.
+- Připnutou revizi limity nikdy nesmažou; Připnout v nabídce revize ji drží, Odepnout ji uvolní. Soubor nad limitem velikosti revize nedostane a stavový řádek to oznámí. Staré revize se uklízejí na pozadí.
 
 ## [file.historyMark] Označit revizi
 commands: nks.file.historyMark
@@ -213,6 +218,14 @@ commands: nks.file.openPathAtCaret
 - Míří-li cesta na složku, ukáže se v panelu Soubory.
 - Pod kurzorem není cesta: Pod kurzorem není cesta k souboru. Soubor neexistuje: napíše se cesta a že neexistuje.
 
+## [file.openSpecial] Zvláštní otevření
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Zvolte Soubor a pak Zvláštní otevření, nebo spusťte Zvláštní otevření v paletě. V panelu souborů klikněte na soubor pravým tlačítkem a zvolte Zvláštní otevření.
+2. Vyberte, jak soubor otevřít. Z panelu se použije vybraný soubor, jinak soubor aktuální karty; když žádný není, vyberete ho.
+- Otevřít soubor v hex, Otevřít s kódováním (seznam kódování se otevře po souboru), Otevřít jen pro čtení (karta neukládá), Otevřít jako novou kopii (neuložený dokument s textem souboru).
+- Znovu otevřít s kódováním, Otevřít cestu pod kurzorem a Související soubor pracují s aktuální kartou.
+- Otevřít složku souboru ukáže složku ve správci souborů systému; Otevřít výchozí aplikací předá soubor programu, který mu systém přiřadil.
+- Znovu otevřít naposledy zavřenou kartu otevře soubor karty zavřené jako poslední; zavřené soubory, které už neexistují, se přeskočí.
 ## [app.settings] Nastavení
 commands: nks.app.openSettings
 1. Stiskněte Ctrl+čárka, nebo zvolte Nastavení a Nastavení.
@@ -361,19 +374,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Pokud se dokument po spuštění příkazu změnil, příkaz se zastaví a vyzve vás ke spuštění znovu.
 
 ## [tools.stats] Statistika dokumentu a hashe
-commands: nks.tools.statistics, nks.tools.hash
-1. Nabídka Nástroje, Text a výpočty, Statistika dokumentu, spočítá bajty, znaky, slova, řádky a nejdelší řádek celého dokumentu.
-2. Nabídka Nástroje, Text a výpočty, Spočítat hash, se zeptá na algoritmus (MD5, SHA-1, SHA-256, SHA-384 nebo SHA-512) a spočítá hash surových bajtů celého souboru nebo označené části.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Nabídka Nástroje, Text a výpočty, Statistika dokumentu, spočítá bajty, znaky, slova, řádky a nejdelší řádek celého dokumentu, nebo označených částí dohromady, a vypíše nejčastější znaky a slova.
+2. Nabídka Nástroje, Text a výpočty, Spočítat hash, se zeptá na algoritmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 nebo SHA-512) a spočítá hash surových bajtů celého souboru nebo každé označené části. Spočítat hash a zkopírovat dá hash i do schránky. Porovnat hash s vloženým se zeptá na hash, algoritmus pozná podle délky a řekne, jestli se shoduje.
 - Oba příkazy čtou dokument po blocích a vy můžete dál pracovat, ukazují průběh a jdou zrušit. Žádný nedrží celý soubor v paměti, takže fungují na souborech libovolné velikosti, i ve stránkovaném a hex zobrazení.
 - Zrušená statistika se ukáže jako neúplná s počtem spočítaných bajtů. Zrušený hash výsledek nemá.
 - Statistika i hash platí pro dokument, jaký byl při spuštění příkazu; úpravy během výpočtu je nemění.
-- Slovo je souvislá řada písmen a číslic. Hash nemá výsledek pro více označených částí najednou.
+- Slovo je souvislá řada písmen a číslic; slova se počítají malými písmeny. Seznam slov drží omezený počet různých slov a řekne, když je plný. Více označených částí se počítá jako jeden text.
 
 ## [tools.calculate] Výpočet bloku, výrazy a číselné soustavy
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Spočítat označený blok sečte čísla v označení (blokové označení, sloupec čísel) a ukáže počet, součet, nejmenší, největší a průměr.
-2. Vyhodnotit výraz se zeptá na výraz, předvyplní označený text a ukáže výsledek. Rozumí + - * / ^ ( ), MOD a funkcím ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR a TRUNC. Čísla se píší s tečkou. Cokoli jiného, třeba volání příkazu systému, se odmítne a nic se nespustí.
-3. Převést číselnou soustavu se zeptá na celé číslo, desítkově nebo s předponou 0x, 0b či 0o, a ukáže ho desítkově, šestnáctkově, osmičkově a dvojkově.
+2. Vyhodnotit výraz se zeptá na výraz, předvyplní označený text nebo řádek s kurzorem a ukáže výsledek. Vložit výsledek výrazu zapíše " = výsledek" za označení nebo řádek jako jeden krok zpět, s desetinnou tečkou bez ohledu na jazyk. Rozumí + - * / ^ ( ), MOD a funkcím ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR a TRUNC. Čísla se píší s tečkou. Cokoli jiného, třeba volání příkazu systému, se odmítne a nic se nespustí.
+3. Převést číselnou soustavu se zeptá na celé číslo, desítkově, s předponou 0x, 0b či 0o, nebo římsky, a ukáže ho desítkově, šestnáctkově, osmičkově, dvojkově, jako římské číslo (1 až 3999) a jako datum, kterým je při čtení jako milisekundy od 1. 1. 1970.
 - Program pozná, jak jsou čísla v označení zapsána (čeština a slovenština: 1 234,50, němčina: 1.234,50, angličtina: 1,234.50). Když vyhovuje víc zápisů, třeba 1,234, vezme ten z jazyka programu. Výsledky se ukážou ve formátu jazyka programu. Změna jazyka dokument nezmění.
 - Text v označení, který není číslo, se přeskočí a spočítá. Převod čísel funguje pro hodnoty od -9223372036854775808 do 18446744073709551615.
 - Mocnina bere jen kladný základ. Výpočet používá čísla s dvojitou přesností.
@@ -416,9 +429,10 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Nástroje, Struktura a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
-- Čte se podle jednoduchých pravidel jazyka, bez jazykového serveru a bez indexu projektu: HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (jmenné prostory, třídy, rozhraní, traity, výčty, funkce, metody), CSS (pravidla a @-pravidla), C# (jmenné prostory, typy, metody, konstruktory, vlastnosti), Markdown (nadpisy `#`).
+5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje.
+- Čte se podle jednoduchých pravidel jazyka, bez jazykového serveru a bez indexu projektu. Kromě jazyků níže: JavaScript a TypeScript (třídy, rozhraní, výčty, funkce, šipkové funkce, metody), Python (třídy, funkce, metody podle odsazení), Rust (moduly, struktury, výčty, traity, bloky impl, funkce, makra), Dart (třídy, mixiny, výčty, rozšíření, funkce, metody), C a C++ (jmenné prostory, struktury, třídy, výčty, funkce, makra), Bash (funkce), CMake (funkce, makra, cíle), Makefile (cíle, `define`), Meson (cíle, testy, podadresáře). Klíče YAML a JSON dává osnova klíčů. HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (jmenné prostory, třídy, rozhraní, traity, výčty, funkce, metody), CSS (pravidla a @-pravidla), C# (jmenné prostory, typy, metody, konstruktory, vlastnosti), Markdown (nadpisy `#`).
 - Komentáře a řetězce se nečtou. Co pravidla nepoznají, se přeskočí.
-- Soubor větší než limit pluginu nebo s víc symboly, než osnova unese, se zobrazí zkrácený a zpráva to řekne.
+- Soubor větší než limit pluginu nebo s víc symboly, než osnova unese, se zobrazí zkrácený a zpráva to řekne. Velký soubor ve stránkovaném zobrazení se čte na pozadí od začátku až po limit; skok na symbol posune stránkované zobrazení na jeho místo.
 
 ## [edit.carets] Více kurzorů
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
@@ -754,8 +768,8 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 - F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
-- Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), hledání o ně požádá. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
-- Vzor mezi lomítky je regulární výraz nad bajty, například /\x50\x4B[\x01-\x08]/. Bajt je znak 0 až 255, . je jeden libovolný bajt (i 0A a 0D), \xHH je bajt a [...] množina bajtů. Skupiny, |, ? * + {n,m} a \n \r \t \0 \d \w \s fungují; ^, $, \b, zpětné odkazy a lookaround ne, protože bajty nemají řádky ani slova. Otevřené opakování (.*, +, {n,}) sahá nejvýš na N bajtů. Shoda potřebuje aspoň jeden bajt a shody se smějí překrývat.
+- Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
+- Vzor mezi lomítky je regulární výraz nad bajty, například /\x50\x4B[\x01-\x08]/. Bajt je znak 0 až 255, . je jeden libovolný bajt (i 0A a 0D), \xHH je bajt a [...] množina bajtů. Skupiny, |, ? * + {n,m} a \n \r \t \0 \d \w \s fungují; ^ a $ jsou začátek a konec souboru (při nahrazení výběru); \b, zpětné odkazy a lookaround ne, protože bajty nemají řádky ani slova. Otevřené opakování (.*, +, {n,}) sahá nejvýš na N bajtů. Shoda potřebuje aspoň jeden bajt a shody se smějí překrývat.
 - Ctrl+H nahrazuje bajty: nejdřív vzor (stejné tvary jako Hledat), potom náhradu hexem, textem v uvozovkách nebo číslem; prázdná náhrada shody smaže. Je-li něco vybráno, hledá se jen ve výběru.
 - Náhled vypíše každou shodu s původními a novými bajty a upozorní, když se změní délka souboru. Nahradit vše zapíše všechno jedním krokem zpět. Změnil-li se soubor po náhledu, nenahradí se nic. Shody, které se překrývají s předchozí, se vynechají.
 - V režimu přepisu musí mít náhrada délku shody; délku změníte po zapnutí režimu vkládání (klávesa Insert).
@@ -849,7 +863,7 @@ Panel struktury čte soubor podle šablony a ukáže jeho pole jako strom. Výb�
 1. Hex: Šablona struktury (Ctrl+J) panel otevře, nebo zavře, když už má fokus. Šablona se vybere podle magického čísla, potom podle přípony souboru; seznam nad stromem dovolí zvolit jinou a volba platí pro danou příponu do konce běhu programu.
 2. Pole s částmi (struktura nebo seznam) se čte až při rozbalení, takže velký soubor se otevře hned. Řádek ukazuje jméno, hodnotu a šedě offset a délku v bajtech.
 3. Pole, které nejde přečíst, je červené s důvodem, třeba že přesahuje konec dat nebo se liší od očekávaných bajtů. Pole za ním se nezobrazí, protože jejich místo není známé.
-- Šablony jsou podmnožina formátu Kaitai Struct .ksy: celá čísla, desetinná čísla, řetězce, surové bajty, pevné bajty (contents), výčty, vnořené typy, size, size-eos a repeat (eos nebo počet). Velikost nebo počet je číslo nebo dřívější celočíselné pole. Výrazy, if, switch-on, instances a process nejsou podporovány.
+- Šablony jsou podmnožina formátu Kaitai Struct .ksy: celá čísla, desetinná čísla, řetězce, surové bajty, pevné bajty (contents), výčty, vnořené typy, size, size-eos, repeat (eos, expr nebo until), if, switch-on s cases (klíč _ je výchozí větev), instances s pos nebo value a výrazy. Výrazy jsou povolené v size, repeat-expr, repeat-until, if, pos, value a switch-on. Počítají 64bitová celá čísla, true/false a řetězce: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, závorky, čísla (desítkově, 0x, 0b), řetězce v uvozovkách, jména dřívějších polí a instancí, a.b, seznam[i], enum::člen, _parent, _root, _index, _ (poslední prvek v repeat-until), _io.pos, _io.size, _io.eof, .as<typ> (bez převodu), .to_i a .length u řetězce, .size, .first a .last u seznamu. pos se počítá od začátku proudu struktury (struktura se size je vlastní proud). Desetinná čísla, pole v zápisu, jiné metody, process a vše ostatní, co není uvedeno, se odmítne s řádkem šablony. Dělení nulou, chybějící pole nebo špatný druh hodnoty dá chybu na daném poli; obří size nebo počet skončí chybou limitu. Instance jsou vypsané za poli.
 - Čtení skončí hláškou, když šablona vnořuje příliš hluboko, opakuje jedno pole příliš často nebo čte řetězec či množství práce nad pevným limitem.
 - Přibalené šablony: hlavička BMP a seznam bloků PNG. Otevření vlastního souboru .ksy zatím není.
 
@@ -922,6 +936,7 @@ commands: nks.plugins.manage
 4. Po výběru nainstalovaného pluginu ho můžete zapnout nebo vypnout, aktualizovat z novějšího ZIP, vrátit na předchozí verzi, změnit jeho oprávnění nebo odinstalovat. Nová verze se rozbalí vedle staré a aktivní je, až když se načte; stará zůstane pro návrat. Aktualizace se ptá jen na oprávnění, na která jste se dosud nebyli dotázáni; dřívější odpovědi platí dál.
 5. Odebrané oprávnění hned zastaví nové požadavky pluginu a zruší ty, které čekají. Plugin bez oprávnění dostane chybu, ne prázdný výsledek. Vypnutí ukončí proces; odinstalace smaže jen složku daného pluginu.
 - Oprávnění jsou záznam toho, co jste povolili, ne izolace: plugin je program, který běží s právy vašeho uživatele. Instalujte jen pluginy, kterým věříte. Podpisy se zatím nekontrolují. Limity velikosti a počtu souborů ve ZIP jsou provizorní. Nové příkazy aktualizovaného pluginu se objeví po restartu.
+- Plugin může přinést klávesy a nastavení. Jeho klávesy (contributes.keybindings, volitelně s podmínkou "when") fungují jako klávesy editoru, ale klávesa editoru, profilu nebo vašeho keymap.json vždy vyhraje nad klávesou pluginu; kolize se vypíše u pluginu ve Správci pluginů. Jeho nastavení (contributes.settings, klíče začínají id pluginu) jsou v Nastavení pod názvem pluginu, s výchozí hodnotou z manifestu, a běžící plugin dostane hodnoty při startu a pak znovu jako událost settings.changed. Příkaz, který v manifestu pojmenuje nástroj (contributes.externalTools), ho spustí bez kódu pluginu, až po vašem potvrzení příkazu a adresáře.
 
 ## [tools.lint] Lintery: podtržení nálezů PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy a RuboCopu
 commands: nks.tools.lint
@@ -975,6 +990,13 @@ commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.e
 - Obarví se celý dokument a výběr se z něj vyřízne, takže výběr začínající uvnitř komentáře je obarvený jako v editoru. U velkého souboru (stránkovaný režim) a u více kurzorů nebo bloku se bere jen označený text a barví se od svého začátku.
 - Text nad 8388608 znaků se odmítne zprávou, označte jeho část. Mez je placeholder, není rozhodnutá hodnota. Práce běží na pozadí, okno zůstává použitelné.
 - HTML je UTF-8. RTF je ASCII: zpětné lomítko, složené závorky a každý znak mimo ASCII (například česká písmena s diakritikou) se zapíšou jako escape.
+
+## [log.full] Plný režim logu: sbalení, stack trace, heatmapa, barvy ANSI
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Sbalit nezajímavé řádky se zeptá na úroveň (zůstanou řádky aspoň této úrovně: error, warning, info, debug) a na regulární výraz (zůstanou řádky, které mu vyhovují). Každý úsek ostatních řádků se změní v jeden zástupný řádek, který se klepnutím otevře. Řádek bez slova úrovně, například řádek stack trace, patří k záznamu nad ním. Log: Zobrazit všechny řádky vše znovu otevře. Ve stránkovaném (velmi velkém) souboru se řádky sbalit nedají; řádky, které by se sbalily, se místo toho kreslí tlumeně.
+2. Ctrl+klepnutí na řádek stack trace z .NET, Javy, Pythonu, PHP nebo Node.js otevře soubor na daném řádku; Log: Otevřít soubor řádku stack trace to udělá pro řádek s kurzorem. Relativní cesta se hledá ve složce logu, potom ve složkách pracovního prostoru; holé jméno souboru (Java) se hledá pod nimi.
+3. Pruh u pravého okraje minimapy ukazuje, kde jsou hustě chybové řádky (červeně) a varování (žlutě). Počítá se na pozadí. Soubor do 256 MiB se čte celý, větší se vzorkuje, takže obraz je odhad. Tyto meze nejsou rozhodnuté hodnoty.
+4. Escape sekvence ANSI v logu se skryjí a kreslí se jako barvy (16, 256 i true color), tučné písmo a podtržení. Soubor se nikdy nemění, takže uložení escape sekvence zachová. Log: Zobrazit escape sekvence ANSI nezpracované přepíná mezi barvami a holými sekvencemi. Styl, který řádek nechá otevřený, se do dalšího řádku nepřenáší.
 
 ## [view.options] Zobrazení editoru
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1089,13 +1111,16 @@ Nápověda popisuje jen to, co tato verze umí. Tato věc v ní zatím není:
 - Rozšíření (pluginy), vzdálené soubory a další funkce z plánu verze 1.0: v této verzi nejsou.
 
 ## [edit.clips] Klipy
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Klip je kus textu s místy pro proměnné a kurzory. Klipy dodávají datové pluginy ve složce plugins v profilu; jeden podadresář na plugin, se souborem nkspad-plugin.json a bez programu.
 1. Zvolte Úpravy, Vložit, Vložit klip. Seznam ukazuje klipy s náhledem textu, který by se vložil.
 2. Vyberte klip. Má-li formulář, vyplňte ho: náhled sleduje, co píšete, špatná hodnota je označená a OK zůstane zašedlé, dokud každá hodnota nesedí k svému typu.
 3. Text se vloží do každého kurzoru a nahradí každý výběr, jako jeden krok Zpět. Kurzory skončí tam, kde má klip značku $|.
 - Uložit výběr jako klip se zeptá na název a přidá označený text do vaší vlastní knihovny (plugin user.clips, složka user-clips). Text se uloží doslova, takže dolar v něm zůstane dolarem. Klip je v seznamu hned.
 - Jazyk šablon: ${name} je proměnná, $| značí kurzor (kolik chcete), $$ je znak dolaru. Konce řádků se změní na konec řádku dokumentu.
+- Snippety: klip (a volání pluginu snippet/insert s "format": "template") smí používat číslovaná zástupná místa: $1, ${1:výchozí text}, ${1|jedna,dva,tři|}, $0 (konečný kurzor). Stejné číslo na více místech se upravuje společně. Po vložení je vybráno první místo; Tab skočí na další, Shift+Tab na předchozí a po posledním jde kurzor na $0. Esc nebo klik mimo snippet ho ukončí. Místo se seznamem hodnot otevře seznam k výběru. Při více kurzorech má každý svůj snippet a místa se procházejí společně.
+- Řádky snippetu za prvním dostanou odsazení řádku, na kterém snippet začíná; tabulátory v jeho vlastním odsazení se změní na odsazení dokumentu (tabulátory nebo mezery). Klip bez číslovaných míst se vkládá tak, jak je.
+- Ve snippetu $| není kurzor a dolar před číslicí je zástupné místo: dolar napište $$ nebo \$. Kromě ${name} fungují proměnné TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID a CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (i jako $NAME). Vnořená místa a transformace nejsou podporovány; text, který do syntaxe nezapadá, zůstane, jak je.
 - Odkud proměnná bere hodnotu, od nejsilnějšího: 1. hodnota napsaná ve formuláři klipu, 2. vaše vlastní proměnné (Úpravy, Vložit, Upravit uživatelské proměnné otevře soubor variables.json v profilu: jeden objekt JSON se jménem a textem), 3. vestavěné. Stejné jméno znamená všude totéž.
 - Vestavěné proměnné: file.path, file.dir, file.name, file.base, file.ext (neuložený dokument file.* nemá), date (rrrr-MM-dd), time (HH:mm:ss), datetime (nastavení Formát data a času), guid (pro každý kurzor nový), selection (text vybraný u tohoto kurzoru), user.name. Jméno bez hodnoty vložení zastaví a stavový řádek ho vypíše.
 - Pole formuláře: name, label, type, default, choices, required. Typy: text, integer (celé číslo), number (desetinná tečka), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (rrrr-MM-dd), file (existující soubor), choice (jedna z hodnot choices). Výchozí hodnota smí používat proměnné, třeba ${date}.
@@ -1174,14 +1199,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Proces Emmet se spustí prvním Tabem v souboru HTML nebo CSS.
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Příkaz spusťte znovu, až se repozitář změní zvenku.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
 4. Když se index mezitím změnil jiným programem, nic se nezapíše. Plugin index načte znovu a oznámí konflikt; zkontrolujte změny a příkaz zopakujte.
 - Plugin zapisuje do repozitáře jen při Git: připravit úsek. Stav a porovnání jen čtou a nemění ani soubor index.
 - Připravuje se text otevřený v editoru, i když není uložený. Soubor s nevyřešeným konfliktem slučování se nepřipravuje.
-- Chybí zatím: vrácení úseku z indexu, commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
+5. Git: vrátit úsek pod kurzorem z indexu vezme zpět do HEAD jen přípravenou změnu, ve které kurzor stojí (nebo na ni v souboru ukazuje). Ostatní připravené změny zůstanou.
+6. Při konfliktu slučování umístěte kurzor do bloku mezi `<<<<<<<` a `>>>>>>>` a zvolte Git: konflikt, vzít naše změny / jejich změny / obě strany. Blok se nahradí zvolenou stranou. Až žádný blok nezbyde a soubor je uložený, zvolte Git: označit soubor jako vyřešený; soubor se přidá do indexu.
+7. Panel stavu otevře soubor dvojklikem nebo Enterem. Ve stavovém řádku je větev a počty: `+` v indexu, `~` změněno, `?` nesledováno, `!` konflikty; aktualizuje se po každém příkazu Git.
+- Chybí zatím: commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
 - Proces Git se spustí prvním příkazem. Program `git` musí být v PATH.
 
 ## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
@@ -1227,13 +1255,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Odsazení (4 mezery) a velikost klíčových slov (velká) jsou zatím pevné; nastavení to ještě není.
 
 ## [edit.html] HTML: entity a HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Úpravy, Formátování, Převést na entity HTML nahradí v označených částech (v celém souboru, když nic není vybráno) znaky & < > " ' entitami. Převést z entit HTML přečte pojmenované, desítkové i šestnáctkové entity zpět. Zakódovaný text převedený zpět dá původní text. Každé je jeden krok zpět.
 2. Úpravy, Formátování, Formátovat pomocí HTML Tidy pošle HTML programu HTML Tidy a výsledek ukáže v náhledu změn. Zprávy Tidy jdou do okna výstupu.
 3. Tidy je samostatný program. Editor ho hledá na cestě z nastavení Program HTML Tidy, ve složce `tidy` vedle pluginu formátovačů, ve složce `tools/tidy` aplikace a ve složkách z PATH. Když ho nenajde, zpráva vypíše všechna místa.
 - Tidy není součástí tohoto sestavení: nainstalujte ho a nastavte cestu, nebo ho dejte na některé z těch míst.
 - Čísla řádků ve zprávách se počítají od začátku textu, který se Tidy poslal.
-- Písmena mimo ASCII se jako entity nepíšou; drží je kódování souboru.
+- Převést na entity HTML včetně znaků mimo ASCII zapíše i každý znak mimo ASCII jako číselnou entitu (`&#233;`); převod zpět dá text zase.
+4. Nástroje pro tagy (soubory HTML, XML a PHP): Úpravy, Formátování, Zavřít otevřený tag zapíše koncový tag nejbližšího tagu, který je u kurzoru ještě otevřený. Přejít na protější tag přesune kurzor k protějšku tagu u kurzoru. Vybrat element vybere element kolem výběru; opakováním se vybere další nadřazený. Odstranit tag smaže počáteční a koncový tag elementu u kurzoru a obsah nechá. Obalit tagem se zeptá na název a obalí jím každý výběr. Odstranit všechny tagy smaže z označených částí všechny tagy a komentáře (z celého souboru, když nic není vybráno).
+- Tagy se párují podle vnoření. Komentáře a obsah `script` a `style` tagy neobsahují. Nepovinné koncové tagy HTML (`li`, `p`) se nedomýšlejí, takový tag se tedy počítá jako otevřený.
+- Vložení obrázku nebo odkazu s rozměry zatím není.
 
 ## [help.language] Nápověda k jazyku
 commands: nks.help.languageHelp
@@ -1248,7 +1279,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Soubor CSV nebo TSV lze zobrazit jako tabulku: jeden řádek souboru je jeden řádek tabulky, jedno pole je jedna buňka. Je to týž dokument jako v textovém zobrazení, se stejnou historií Zpět; nic se nepřevádí a úprava buňky změní jen bajty té buňky.
 1. Ctrl+K a pak Ctrl+T (nabídka Zobrazení, Přepnout tabulku a text) přepíná mezi tabulkou a textem. Soubor .tsv nebo .tab se dělí podle tabulátorů, ostatní soubory podle čárek.
-2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví.
+2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona).
 - Velký soubor se otevře hned: řádky se počítají na pozadí a rozsah posuvníku roste, jak se soubor čte. Než se dojde na konec, stavový řádek ukazuje počet řádků s plusem, například 12+.
 - Šipky, Tab, PageUp a PageDown, Home a End (v rámci řádku), Ctrl+Home a Ctrl+End přesouvají aktuální buňku; Shift rozšiřuje výběr. Klepnutí na záhlaví sloupce vybere sloupec, klepnutí na číslo řádku vybere řádek.
 - Buňka v uvozovkách může obsahovat zalomení řádku; tabulka ukáže její první řádek a značku ↵.

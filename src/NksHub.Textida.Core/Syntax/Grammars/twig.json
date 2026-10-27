@@ -1,0 +1,81 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "twig",
+  "name": "Twig",
+  "comments": {"block": ["{#", "#}"]},
+  "version": "1.0.0",
+  "extensions": [".twig"],
+  "wordPattern": "[A-Za-z_][\\w]*",
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "null", "none", "TRUE", "FALSE", "NULL", "NONE"]
+    },
+    {
+      "name": "tags",
+      "token": "keyword",
+      "words": [
+        "apply", "autoescape", "block", "cache", "deprecated", "do", "else", "elseif", "embed", "endapply", "endautoescape",
+        "endblock", "endcache", "endembed", "endfor", "endif", "endmacro", "endsandbox", "endset", "endverbatim", "endwith",
+        "extends", "flush", "for", "from", "if", "import", "include", "macro", "sandbox", "set", "use", "verbatim", "with",
+        "and", "as", "in", "is", "matches", "not", "only", "or", "same", "defined", "empty", "ignore", "missing"
+      ]
+    }
+  ],
+  "repository": {
+    "code": [
+      {
+        "name": "dq-string",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {
+        "name": "sq-string",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "rules": [
+          {"match": "\\\\.", "token": "string.escape"}
+        ]
+      },
+      {"match": "\\|[A-Za-z_]\\w*", "token": "function"},
+      {"match": "[A-Za-z_]\\w*(?=\\()", "token": "function"},
+      {"match": "(?<![\\w.])\\d+(?:\\.\\d+)?", "token": "number"},
+      {"words": true},
+      {"match": "(?![-~]?(?:%|\\})\\})(?:\\*\\*|\\?\\?|\\?:|\\.\\.|<=>|===|==|!=|<=|>=|=>|[-+*/%~<>=?:.!])", "token": "operator"},
+      {"match": "[()\\[\\],]", "token": "punctuation"}
+    ]
+  },
+  "rules": [
+    {"name": "twig-comment", "begin": "\\{#", "end": "#\\}", "token": "comment", "multiline": true},
+    {
+      "name": "twig-statement",
+      "begin": "\\{%[-~]?",
+      "end": "[-~]?%\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#code"}
+      ]
+    },
+    {
+      "name": "twig-output",
+      "begin": "\\{\\{[-~]?",
+      "end": "[-~]?\\}\\}",
+      "multiline": true,
+      "beginToken": "meta",
+      "endToken": "meta",
+      "rules": [
+        {"include": "#code"}
+      ]
+    },
+    {"include": "html"}
+  ]
+}

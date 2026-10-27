@@ -155,7 +155,7 @@ public sealed class BytePattern : ByteQuery
     /// <summary>One syntax node per byte, for building a <see cref="ByteRegex"/> out of hex text.</summary>
     internal IEnumerable<ByteRegex.Node> ToNodes() => values.Select((v, i) => ByteRegex.SetFor(v, masks[i]));
 
-    internal override bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct)
+    internal override bool Scan(ReadOnlySpan<byte> window, int starts, long block, List<ByteRange> matches, int maxResults, CancellationToken ct, bool startsRange = false, bool endsRange = false)
     {
         for (int at = 0; at < starts; at++)
         {

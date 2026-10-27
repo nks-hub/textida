@@ -1,0 +1,71 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "vb",
+  "name": "Visual Basic",
+  "comments": {"line": "'"},
+  "version": "1.0.0",
+  "caseSensitive": false,
+  "extensions": [".vb", ".vbs", ".bas"],
+  "wordPattern": "[A-Za-z_]\\w*",
+  "keywords": [
+    {
+      "name": "constants",
+      "token": "constant",
+      "words": ["true", "false", "nothing"]
+    },
+    {
+      "name": "types",
+      "token": "type",
+      "words": [
+        "boolean", "byte", "char", "date", "decimal", "double", "integer", "long", "object", "sbyte", "short", "single",
+        "string", "uinteger", "ulong", "ushort", "variant"
+      ]
+    },
+    {
+      "name": "operators",
+      "token": "operator",
+      "words": ["and", "andalso", "or", "orelse", "not", "xor", "mod", "is", "isnot", "like"]
+    },
+    {
+      "name": "keywords",
+      "token": "keyword",
+      "words": [
+        "addhandler", "addressof", "as", "byref", "byval", "call", "case", "catch", "class", "const", "continue", "ctype",
+        "declare", "default", "delegate", "dim", "directcast", "do", "each", "else", "elseif", "end", "enum", "erase",
+        "error", "event", "exit", "finally", "for", "friend", "function", "get", "gettype", "global", "gosub", "goto",
+        "handles", "if", "implements", "imports", "in", "inherits", "interface", "let", "lib", "loop", "me", "module",
+        "mustinherit", "mustoverride", "mybase", "myclass", "namespace", "narrowing", "new", "next", "notinheritable",
+        "notoverridable", "of", "on", "operator", "option", "optional", "overloads", "overridable", "overrides",
+        "paramarray", "partial", "preserve", "private", "property", "protected", "public", "raiseevent", "readonly",
+        "redim", "removehandler", "resume", "return", "select", "set", "shadows", "shared", "static", "step", "stop",
+        "structure", "sub", "synclock", "then", "throw", "to", "try", "trycast", "typeof", "using", "wend", "when",
+        "while", "widening", "with", "withevents", "writeonly", "yield", "async", "await", "iterator"
+      ]
+    }
+  ],
+  "rules": [
+    {"name": "doc-comment", "begin": "'''", "end": "$", "token": "comment.doc"},
+    {"name": "comment-line", "begin": "'", "end": "$", "token": "comment"},
+    {"name": "rem-comment", "begin": "(?<=^[ \\t]*)rem(?![\\w])", "end": "$", "token": "comment"},
+    {"name": "preprocessor-line", "begin": "(?<=^[ \\t]*)#(?=[A-Za-z])", "end": "$", "token": "preprocessor"},
+    {
+      "name": "string",
+      "begin": "\"",
+      "end": "\"",
+      "token": "string",
+      "rules": [
+        {"match": "\"\"", "token": "string.escape"}
+      ]
+    },
+    {"match": "(?<=\\b(?:sub|function)[ \\t]+)[A-Za-z_]\\w*", "token": "function"},
+    {"match": "(?<=\\b(?:class|module|structure|interface|enum)[ \\t]+)[A-Za-z_]\\w*", "token": "type"},
+    {
+      "match": "(?<![\\w.])(?:&[Hh][0-9A-Fa-f]+|&[Oo][0-7]+|\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)(?:UL|LU|[LSIUDFR])?(?![\\w])",
+      "token": "number"
+    },
+    {"words": true},
+    {"operators": ["<>", "<=", ">=", ":=", "+=", "-=", "*=", "/=", "\\=", "^=", "&=", "=", "<", ">", "+", "-", "*", "/", "\\", "^", "&"]},
+    {"match": "[(){},.:]", "token": "punctuation"}
+  ]
+}

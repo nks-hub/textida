@@ -119,6 +119,46 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_data_plugin_brings_a_setting_under_its_name_a_key_that_loses_to_a_builtin_one_and_a_tool_command()
+    {
+        Install("acme", Manifest("\"commands\":[{\"id\":\"acme.clips.run\",\"title\":\"Run\"}]," +
+            "\"keybindings\":[{\"key\":\"mod+s\",\"command\":\"acme.clips.run\"}]," +
+            "\"settings\":[{\"key\":\"acme.clips.width\",\"type\":\"integer\",\"default\":7,\"title\":\"Width\"}]," +
+            "\"externalTools\":[{\"id\":\"echo\",\"title\":\"Echo\",\"executable\":\"echo\",\"command\":\"acme.clips.run\"}]"));
+        Assert.Empty(_app.Clips.Problems);
+
+        var wb = _app.Workbench;
+        Assert.Equal(7, wb.Settings.GetInt("acme.clips.width"));
+        Assert.Contains(wb.SearchIndex.Search("Acme clips", wb.Settings, wb.Commands, wb.Keymap), h => h.Id == "acme.clips.width" && h.Category == "Acme clips");
+        var conflict = Assert.Single(wb.KeyConflictsOf("acme.clips"));
+        Assert.Equal("nks.file.save", conflict.Winner.CommandId);
+        Assert.NotNull(_app.Clips.FindTool("acme.clips", "echo"));
+        Assert.True(wb.Commands.HasHandler("acme.clips.run"));
+    }
+
+    [AvaloniaFact]
+    public void A_snippet_clip_indents_later_lines_selects_the_first_stop_mirrors_it_and_tab_walks_to_the_end()
+    {
+        Install("acme", Manifest("\"clips\":[{\"id\":\"sn\",\"title\":\"Sn\",\"text\":\"${1:foo} = $1;\\n$2 end\"}]"));
+        var tab = Open("  x");
+        tab.Editor!.CaretOffset = 3;
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal("  xfoo = foo;\n   end", Text(tab).Replace("\r\n", "\n"));
+        Assert.True(tab.Editor.InSnippet);
+        Assert.Equal(new Sel(3, 6), CaretsOf(tab).Single());
+
+        tab.Editor.TypeText("bar");
+        Assert.Equal("  xbar = bar;\n   end", Text(tab).Replace("\r\n", "\n"));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.Equal(Sel.At(Text(tab).IndexOf("end", StringComparison.Ordinal) - 1), CaretsOf(tab).Single());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Text(tab).Length, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
     public void The_command_a_clip_names_inserts_it_and_a_selection_is_replaced()
     {
         Install("acme", Manifest(Box));

@@ -19,6 +19,7 @@ internal sealed class AppWorkbench
 
     private readonly string _profileDirectory;
     private SettingsFile _userFile;
+    private readonly Dictionary<string, List<string>> _pluginSettings = [];
 
     public AppWorkbench(string profileDirectory, string language)
     {
@@ -87,10 +88,47 @@ internal sealed class AppWorkbench
     private void ApplyProfile()
     {
         BehaviourProfiles.ApplySettings(Settings, Profile);
+        RebuildKeymap();
+    }
+
+    private void RebuildKeymap()
+    {
         Keymap = BuildKeymap(out var problem);
         KeymapProblem = problem;
         Dispatcher = new KeyDispatcher(Keymap, Host.Commands);
     }
+
+    /// <summary>
+    /// Puts the keybindings and settings of a plugin into the keymap and the searchable settings; its commands are registered by the caller. The settings are listed under
+    /// <paramref name="name"/> with the defaults of the manifest. Done once per plugin and run; returns why the settings were refused, or an empty list.
+    /// </summary>
+    public IReadOnlyList<string> AddPlugin(ContributionManifest manifest, string name)
+    {
+        if (_pluginSettings.ContainsKey(manifest.Id)) return [];
+        foreach (var setting in manifest.Settings) setting.Category = name;
+        var errors = Host.AddDeclarations(manifest, ManifestTrust.Plugin);
+        if (errors.Count > 0) return errors;
+        _pluginSettings[manifest.Id] = [.. manifest.Settings.Select(s => s.Key)];
+        if (manifest.Settings.Count > 0) SearchIndex = new SettingsSearchIndex(Host.Settings, Strings);
+        if (manifest.Keybindings.Count > 0) RebuildKeymap();
+        return [];
+    }
+
+    /// <summary>The current values of the settings a plugin declared, by full key; null when it declared none.</summary>
+    public JsonObject? PluginSettingValues(string pluginId)
+    {
+        if (!_pluginSettings.TryGetValue(pluginId, out var keys) || keys.Count == 0) return null;
+        var values = new JsonObject();
+        foreach (var key in keys) values[key] = Settings.Resolve(key)!.Value;
+        return values;
+    }
+
+    /// <summary>The id of the plugin that declared the setting, or null.</summary>
+    public string? PluginOfSetting(string key) => _pluginSettings.FirstOrDefault(p => p.Value.Contains(key)).Key;
+
+    /// <summary>Conflicts the keybindings of a plugin take part in. A built-in, profile or user binding on the same keys wins; the plugin's binding then does not work.</summary>
+    public IReadOnlyList<KeyConflict> KeyConflictsOf(string pluginId) =>
+        [.. Keymap.Conflicts.Where(c => c.Winner is { Layer: KeymapLayerKind.Plugin } w && w.Source == pluginId || c.Loser is { Layer: KeymapLayerKind.Plugin } l && l.Source == pluginId)];
 
     public void SetLanguage(string language)
     {

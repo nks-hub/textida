@@ -155,7 +155,7 @@ internal sealed partial class MainWindow
 
     internal void GoToRelatedFile()
     {
-        if (Active is not { Path: { } path })
+        if (SpecialTarget() is not { } path)
         {
             SetStatusMessage(Loc.Get(K.RelatedUnsaved));
             return;

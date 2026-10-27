@@ -15,7 +15,10 @@ namespace NksHub.Textida.Plugins.TextTools;
 /// <summary>Limits of the text tools; the editor passes both on the command line, so no number is fixed in the plugin.</summary>
 /// <param name="ChunkBytes">Bytes read from the document per request; must not exceed what the document API returns in one read.</param>
 /// <param name="ProgressInterval">Time between two progress reports of a running task.</param>
-public sealed record TextToolsSettings(int ChunkBytes, TimeSpan ProgressInterval);
+/// <param name="FrequencyTop">How many entries the frequency lists of the statistics show.</param>
+/// <param name="FrequencyMaxWords">Most distinct words the statistics keep for their frequency list; zero switches the frequency lists off.</param>
+/// <param name="FrequencyMaxWordLength">Characters of a word that count towards its frequency entry.</param>
+public sealed record TextToolsSettings(int ChunkBytes, TimeSpan ProgressInterval, int FrequencyTop = 0, int FrequencyMaxWords = 0, int FrequencyMaxWordLength = 0);
 
 /// <summary>
 /// The built-in text tools in one process: statistics and hashes stream the document in chunks from a snapshot (the text is never held whole),
@@ -114,14 +117,20 @@ public sealed class TextToolsPlugin : PluginBase
     }
 
     /// <summary>The non-empty selections of the document in document order, as byte ranges.</summary>
-    private async Task<List<Range>> SelectedAsync(Context c, CancellationToken ct)
+    private async Task<List<Range>> SelectedAsync(Context c, CancellationToken ct) =>
+        [.. (await CaretsAsync(c, ct)).Where(s => s.Anchor != s.Caret).Select(s => new Range(Math.Min(s.Anchor, s.Caret), Math.Max(s.Anchor, s.Caret))).OrderBy(r => r.Start)];
+
+    /// <summary>Every selection of the document, empty ones (a bare caret) included.</summary>
+    private async Task<List<(long Anchor, long Caret)>> CaretsAsync(Context c, CancellationToken ct)
     {
         var selections = await CallAsync(DocumentMethods.Selections, $"{{\"document\":\"{c.Document}\"}}", ct);
         if (selections.GetProperty("revision").GetInt64() != c.Revision) throw new RpcException(DocumentErrorCodes.RevisionConflict, "Stale.");
-        return [.. selections.GetProperty("selections").EnumerateArray()
-            .Select(s => (A: s.GetProperty("anchor").GetInt64(), C: s.GetProperty("caret").GetInt64()))
-            .Where(s => s.A != s.C).Select(s => new Range(Math.Min(s.A, s.C), Math.Max(s.A, s.C))).OrderBy(r => r.Start)];
+        return [.. selections.GetProperty("selections").EnumerateArray().Select(s => (s.GetProperty("anchor").GetInt64(), s.GetProperty("caret").GetInt64()))];
     }
+
+    private static string? Text(Context c, string name) => c.Parameters.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    private static bool Flag(Context c, string name) => c.Parameters.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
     private async Task<string> ReadTextAsync(Context c, Range r, CancellationToken ct)
     {
@@ -181,41 +190,105 @@ public sealed class TextToolsPlugin : PluginBase
     private async Task<string> RunStatisticsAsync(Context c, CancellationToken ct)
     {
         var info = await InfoAsync(c, ct);
+        var selected = await SelectedAsync(c, ct);
+        var ranges = selected.Count > 0 ? selected : [new Range(info.Bom, info.Length)];
+        var total = ranges.Sum(r => r.End - r.Start);
         var (scan, cancel) = await BeginAsync(c, Texts.Get(c.Language, "stats.task"), ct);
         await using var _ = scan;
         using var __ = cancel;
-        var statistics = new TextStatistics(info.Codec);
-        var total = info.Length - info.Bom;
-        var outcome = await ByteScan.RunAsync(info.Bom, info.Length, _settings.ChunkBytes, scan.Reader, statistics.Add, scan.Progress(total, ""), cancel.Token);
+        var statistics = new TextStatistics(info.Codec, _settings.FrequencyMaxWords, _settings.FrequencyMaxWordLength);
+        var progress = scan.Progress(total, "");
+        long done = 0;
+        bool completed = true;
+        foreach (var r in ranges)
+        {
+            var before = done;
+            var outcome = await ByteScan.RunAsync(r.Start, r.End, _settings.ChunkBytes, scan.Reader, statistics.Add, d => progress(before + d), cancel.Token);
+            done += outcome.Done;
+            statistics.Break();
+            if (!(completed = outcome.Completed)) break;
+        }
         ct.ThrowIfCancellationRequested();
-        var result = statistics.Finish(info.Length);
+        var result = statistics.Finish(selected.Count > 0 ? total : info.Length);
         var format = NumberFormat.For(c.Language);
-        var text = Texts.Get(c.Language, "stats.result", ("bytes", format.Format(result.Bytes)), ("characters", format.Format(result.Characters)), ("words", format.Format(result.Words)),
-            ("lines", format.Format(result.Lines)), ("longest", format.Format(result.LongestLine)));
-        if (outcome.Completed) return await ReportAsync("completed", NoticeLevel.Info, text, ct);
-        var partial = Texts.Get(c.Language, "stats.partial", ("done", format.Format(outcome.Done)), ("total", format.Format(total)));
+        var text = (selected.Count > 0 ? Texts.Get(c.Language, "stats.selection") : "")
+            + Texts.Get(c.Language, "stats.result", ("bytes", format.Format(result.Bytes)), ("characters", format.Format(result.Characters)), ("words", format.Format(result.Words)),
+                ("lines", format.Format(result.Lines)), ("longest", format.Format(result.LongestLine)));
+        if (_settings is { FrequencyMaxWords: > 0, FrequencyTop: > 0 })
+        {
+            string List(IReadOnlyList<(string Text, long Count)> top) => string.Join(", ", top.Select(x => $"{x.Text} ({format.Format(x.Count)})"));
+            if (statistics.TopCharacters(1).Count > 0)
+                text += Texts.Get(c.Language, "stats.topCharacters", ("list", List(statistics.TopCharacters(_settings.FrequencyTop))))
+                    + Texts.Get(c.Language, "stats.topWords", ("list", List(statistics.TopWords(_settings.FrequencyTop))));
+            if (statistics.WordTableFull) text += Texts.Get(c.Language, "stats.wordsCapped");
+        }
+        if (completed) return await ReportAsync("completed", NoticeLevel.Info, text, ct);
+        var partial = Texts.Get(c.Language, "stats.partial", ("done", format.Format(done)), ("total", format.Format(total)));
         return await ReportAsync("incomplete", NoticeLevel.Warning, partial + text, ct);
     }
 
     private async Task<string> RunHashAsync(Context c, CancellationToken ct)
     {
         var info = await InfoAsync(c, ct);
-        var chosen = c.Parameters.TryGetProperty("algorithm", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString()! : await PickAlgorithmAsync(c, ct);
+        var expected = Text(c, "expected");
+        if (Flag(c, "compare") && expected is null)
+        {
+            expected = await AskHashAsync(c, ct);
+            if (expected is null) return "cancelled";
+        }
+        expected = expected is null ? null : new string([.. expected.Where(ch => !char.IsWhiteSpace(ch))]).ToLowerInvariant();
+        var chosen = Text(c, "algorithm");
+        if (expected is not null && chosen is null)
+        {
+            chosen = BlockHash.IdForHexLength(expected.Length);
+            if (chosen is null) return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "hash.compareLength", ("length", expected.Length.ToString())), ct);
+        }
+        chosen ??= await PickAlgorithmAsync(c, ct);
         if (chosen.Length == 0) return "cancelled";
         if (!BlockHash.TryGet(chosen, out var algorithm))
             return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "hash.unknown", ("algorithm", chosen)), ct);
         var selected = await SelectedAsync(c, ct);
-        if (selected.Count > 1) return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "hash.severalRanges"), ct);
-        var range = selected.Count == 1 ? selected[0] : new Range(0, info.Length);
+        var ranges = selected.Count > 0 ? selected : [new Range(0, info.Length)];
         var (scan, cancel) = await BeginAsync(c, Texts.Get(c.Language, "hash.task", ("algorithm", algorithm.Label)), ct);
         await using var _ = scan;
         using var __ = cancel;
-        var (hex, outcome) = await BlockHash.ComputeAsync(algorithm.Algorithm, range.Start, range.End, _settings.ChunkBytes, scan.Reader, scan.Progress(range.End - range.Start, algorithm.Label), cancel.Token);
-        ct.ThrowIfCancellationRequested();
         var format = NumberFormat.For(c.Language);
-        if (hex is null)
-            return await ReportAsync("cancelled", NoticeLevel.Warning, Texts.Get(c.Language, "hash.cancelled", ("done", format.Format(outcome.Done)), ("total", format.Format(range.End - range.Start))), ct);
-        return await ReportAsync("completed", NoticeLevel.Info, Texts.Get(c.Language, "hash.result", ("algorithm", algorithm.Label), ("bytes", format.Format(range.End - range.Start)), ("hash", hex)), ct);
+        var lines = new List<string>();
+        var hashes = new List<string>();
+        bool allMatch = true;
+        foreach (var range in ranges)
+        {
+            long length = range.End - range.Start;
+            var (hex, outcome) = await BlockHash.ComputeAsync(algorithm.Algorithm, range.Start, range.End, _settings.ChunkBytes, scan.Reader, scan.Progress(length, algorithm.Label), cancel.Token);
+            ct.ThrowIfCancellationRequested();
+            if (hex is null)
+                return await ReportAsync("cancelled", NoticeLevel.Warning, Texts.Get(c.Language, "hash.cancelled", ("done", format.Format(outcome.Done)), ("total", format.Format(length))), ct);
+            var line = (ranges.Count > 1 ? Texts.Get(c.Language, "hash.block", ("number", (lines.Count + 1).ToString())) : "")
+                + Texts.Get(c.Language, "hash.result", ("algorithm", algorithm.Label), ("bytes", format.Format(length)), ("hash", hex));
+            if (expected is not null)
+            {
+                bool match = hex == expected;
+                allMatch &= match;
+                line += Texts.Get(c.Language, match ? "hash.match" : "hash.differ");
+            }
+            lines.Add(line);
+            hashes.Add(hex);
+        }
+        var message = string.Join('\n', lines);
+        if (Flag(c, "copy"))
+        {
+            await CallAsync(DocumentMethods.ClipboardWrite, $"{{\"document\":\"{c.Document}\",\"text\":\"{Quote(string.Join('\n', hashes))}\"}}", ct);
+            message += Texts.Get(c.Language, "hash.copied");
+        }
+        return await ReportAsync(allMatch ? "completed" : "mismatch", allMatch ? NoticeLevel.Info : NoticeLevel.Warning, message, ct);
+    }
+
+    /// <summary>Asks for the hash to compare with; null when the user dismisses the question.</summary>
+    private async Task<string?> AskHashAsync(Context c, CancellationToken ct)
+    {
+        var answer = await CallAsync(UiMethods.Input,
+            $"{{\"title\":\"{Quote(Texts.Get(c.Language, "hash.compareTitle"))}\",\"label\":\"{Quote(Texts.Get(c.Language, "hash.compareLabel"))}\",\"value\":\"\"}}", ct);
+        return answer.GetProperty("value").ValueKind == JsonValueKind.String ? answer.GetProperty("value").GetString() : null;
     }
 
     /// <summary>The id of the algorithm the user picks, or an empty string when the pick is dismissed.</summary>
@@ -256,25 +329,63 @@ public sealed class TextToolsPlugin : PluginBase
         return await ReportAsync("completed", NoticeLevel.Info, text, ct);
     }
 
-    /// <summary>Asks for a line of text, starting with the selection when it is one short range; null when the user dismisses the question.</summary>
-    private async Task<string?> AskAsync(Context c, string titleKey, string labelKey, CancellationToken ct)
+    /// <summary>
+    /// The text a command works on: the only selection when it is short, else (with <paramref name="caretLine"/>) the line of the first caret. <c>End</c> is the byte
+    /// offset behind it, where a result can be inserted; null when there is no such text.
+    /// </summary>
+    private async Task<(string Text, long End)?> SourceAsync(Context c, bool caretLine, CancellationToken ct)
     {
-        await InfoAsync(c, ct);
-        var selected = await SelectedAsync(c, ct);
-        var start = selected.Count == 1 && selected[0].End - selected[0].Start <= _settings.ChunkBytes ? await ReadTextAsync(c, selected[0], ct) : "";
+        var info = await InfoAsync(c, ct);
+        var carets = await CaretsAsync(c, ct);
+        var selected = carets.Where(s => s.Anchor != s.Caret).ToList();
+        if (selected.Count == 1)
+        {
+            var r = new Range(Math.Min(selected[0].Anchor, selected[0].Caret), Math.Max(selected[0].Anchor, selected[0].Caret));
+            return r.End - r.Start <= _settings.ChunkBytes ? (await ReadTextAsync(c, r, ct), r.End) : null;
+        }
+        if (selected.Count > 0 || !caretLine || carets.Count == 0) return null;
+        try
+        {
+            long Offset(JsonElement e) => e.GetProperty("offset").GetInt64();
+            var position = await CallAsync(DocumentMethods.OffsetToPosition, $"{{\"document\":\"{c.Document}\",\"revision\":{c.Revision},\"offset\":{carets[0].Caret}}}", ct);
+            long line = position.GetProperty("line").GetInt64();
+            string At(long n) => $"{{\"document\":\"{c.Document}\",\"revision\":{c.Revision},\"line\":{n},\"column\":0}}";
+            long start = Offset(await CallAsync(DocumentMethods.PositionToOffset, At(line), ct)), end = info.Length;
+            try { end = Offset(await CallAsync(DocumentMethods.PositionToOffset, At(line + 1), ct)); }
+            catch (RpcException e) when (e.Code != DocumentErrorCodes.RevisionConflict) { }
+            if (end <= start || end - start > _settings.ChunkBytes) return null;
+            var text = (await ReadTextAsync(c, new Range(start, end), ct)).TrimEnd('\r', '\n');
+            return (text, start + info.Codec.Encode(text).Length);
+        }
+        catch (RpcException e) when (e.Code != DocumentErrorCodes.RevisionConflict) { return null; }
+    }
+
+    /// <summary>Asks for a line of text, starting with <paramref name="start"/>; null when the user dismisses the question.</summary>
+    private async Task<string?> AskAsync(Context c, string titleKey, string labelKey, string start, CancellationToken ct)
+    {
         var answer = await CallAsync(UiMethods.Input,
             $"{{\"title\":\"{Quote(Texts.Get(c.Language, titleKey))}\",\"label\":\"{Quote(Texts.Get(c.Language, labelKey))}\",\"value\":\"{Quote(start.Length <= 1000 ? start : "")}\"}}", ct);
         return answer.GetProperty("value").ValueKind == JsonValueKind.String ? answer.GetProperty("value").GetString() : null;
     }
 
+    /// <summary>
+    /// Evaluates the typed text (the <c>text</c> parameter), or what the user confirms, starting with the selection or the line of the caret. With <c>insert</c> it takes
+    /// that text without asking and writes " = result" behind it, in the plain invariant form so that the file does not depend on the language of the interface.
+    /// </summary>
     private async Task<string> RunExpressionAsync(Context c, CancellationToken ct)
     {
-        var typed = c.Parameters.TryGetProperty("text", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : await AskAsync(c, "expr.title", "expr.label", ct);
+        bool insert = Flag(c, "insert");
+        var source = Text(c, "text") is null ? await SourceAsync(c, caretLine: true, ct) : null;
+        var typed = Text(c, "text") ?? (insert ? source?.Text : await AskAsync(c, "expr.title", "expr.label", source?.Text ?? "", ct));
+        if (typed is null && insert) return await ReportAsync("failed", NoticeLevel.Warning, Texts.Get(c.Language, "expr.noSource"), ct);
         if (typed is null) return "cancelled";
         var format = NumberFormat.For(c.Language);
         try
         {
             var value = ExpressionEvaluator.Evaluate(typed);
+            if (insert && source is { } at)
+                await CallAsync(DocumentMethods.EditApply,
+                    $"{{\"document\":\"{c.Document}\",\"revision\":{c.Revision},\"batchId\":\"{Guid.NewGuid():N}\",\"edits\":[{{\"start\":{at.End},\"end\":{at.End},\"text\":\"{Quote(" = " + value.ToString("R", CultureInfo.InvariantCulture))}\"}}]}}", ct);
             return await ReportAsync("completed", NoticeLevel.Info, Texts.Get(c.Language, "expr.result", ("expression", typed.Trim()), ("result", format.Format(value))), ct);
         }
         catch (ExpressionException e)
@@ -295,15 +406,20 @@ public sealed class TextToolsPlugin : PluginBase
         }
     }
 
+    /// <summary>Converts a whole number (decimal, 0x, 0b, 0o prefixed, or a Roman numeral) to the other bases, to a Roman numeral and to the date it is as Unix milliseconds.</summary>
     private async Task<string> RunBasesAsync(Context c, CancellationToken ct)
     {
-        var typed = c.Parameters.TryGetProperty("text", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : await AskAsync(c, "base.title", "base.label", ct);
+        var typed = Text(c, "text") ?? await AskAsync(c, "base.title", "base.label", (await SourceAsync(c, caretLine: false, ct))?.Text ?? "", ct);
         if (typed is null) return "cancelled";
-        if (!BaseConverter.TryParse(typed, out var value))
+        if (!BaseConverter.TryParse(typed, out var value) && !BaseConverter.TryParseRoman(typed, out value))
             return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "base.invalid", ("text", typed.Trim())), ct);
         static string Prefixed(BigInteger v, int radix, string prefix) => v.Sign < 0 ? "-" + prefix + BaseConverter.ToRadix(-v, radix) : prefix + BaseConverter.ToRadix(v, radix);
-        return await ReportAsync("completed", NoticeLevel.Info, Texts.Get(c.Language, "base.result", ("dec", value.ToString(CultureInfo.InvariantCulture)),
-            ("hex", Prefixed(value, 16, "0x")), ("oct", Prefixed(value, 8, "0o")), ("bin", Prefixed(value, 2, "0b"))), ct);
+        var text = Texts.Get(c.Language, "base.result", ("dec", value.ToString(CultureInfo.InvariantCulture)),
+            ("hex", Prefixed(value, 16, "0x")), ("oct", Prefixed(value, 8, "0o")), ("bin", Prefixed(value, 2, "0b")));
+        if (BaseConverter.ToRoman(value) is { } roman) text += Texts.Get(c.Language, "base.roman", ("roman", roman));
+        if (value >= DateTimeOffset.MinValue.ToUnixTimeMilliseconds() && value <= DateTimeOffset.MaxValue.ToUnixTimeMilliseconds())
+            text += Texts.Get(c.Language, "base.date", ("date", DateTimeOffset.FromUnixTimeMilliseconds((long)value).ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)));
+        return await ReportAsync("completed", NoticeLevel.Info, text, ct);
     }
 
     // ---- copy the selected cells as ... ----

@@ -26,6 +26,14 @@ internal static class NavigationCommands
         Do("nks.file.openPathAtCaret", w => w.OpenPathAtCaret());
         Fire("nks.file.openFolder", w => w.OpenFolderWithDialogAsync());
         Do("nks.view.toggleFilePanel", w => w.ToggleFiles());
+        Do("nks.open.special", w => w.ShowSpecialOpen());
+        Fire("nks.open.hex", w => w.OpenTargetAsHexAsync());
+        Fire("nks.open.withEncoding", w => w.OpenTargetWithEncodingAsync());
+        Fire("nks.open.readOnly", w => w.OpenTargetReadOnlyAsync());
+        Fire("nks.open.newCopy", w => w.OpenTargetAsNewCopyAsync());
+        Fire("nks.open.containingFolder", w => w.ShowContainingFolderAsync());
+        Fire("nks.open.defaultApp", w => w.OpenWithDefaultAppAsync());
+        Do("nks.open.lastClosed", w => w.ReopenLastClosed());
         Fire("nks.files.newFile", w => w.NewFileAsync());
         Fire("nks.files.newFolder", w => w.NewFolderAsync());
         Fire("nks.files.duplicate", w => w.DuplicateAsync());

@@ -237,7 +237,7 @@ public class HighlightExportWindowTests : IDisposable
     public void A_paged_file_is_exported_by_its_selection_only_and_without_one_a_message_says_so()
     {
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
-        var tab = _w.OpenFile(_temp.File("big.txt", "some text\n"), null);
+        var tab = _w.OpenFile(_temp.File("big.txt", string.Concat(Enumerable.Range(1, 200_000).Select(i => $"line {i}\n"))), null); // over the 1 MiB threshold
         Assert.True(tab.Doc.IsLarge);
         _dialogs.SaveFiles.Enqueue(Path.Combine(_temp.Path, "no.html"));
         _w.ExportHighlighted(MainWindow.ExportForm.Html);

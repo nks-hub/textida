@@ -462,7 +462,7 @@ public class NavigationTests : IDisposable
         Assert.Equal("Panel souborů", AutomationProperties.GetName(_w.FilePanelControl));
         var menu = _w.FileList.ContextMenu!;
         var titles = menu.Items.OfType<MenuItem>().Select(m => (string)m.Header!).ToList();
-        Assert.Equal(["Nový soubor ve složce...", "Nová složka...", "Duplikovat", "Přejmenovat...", "Přesunout...", "Smazat do koše", "Obnovit soubory", "Přidat k oblíbeným", "Oblíbené..."], titles);
+        Assert.Equal(["Nový soubor ve složce...", "Nová složka...", "Duplikovat", "Přejmenovat...", "Přesunout...", "Smazat do koše", "Obnovit soubory", "Přidat k oblíbeným", "Oblíbené...", "Zvláštní otevření"], titles);
     }
 
     [AvaloniaFact]
@@ -486,6 +486,64 @@ public class NavigationTests : IDisposable
         tab.Editor.TextArea.Caret.Offset = tab.Editor.Document.GetLineByNumber(2).Offset + tab.Editor.Document.GetLineByNumber(2).Length - 3;
         _w.OpenPathAtCaret();
         Assert.Contains("nothing.zzz", _w.StatusMessageText);
+    }
+
+    // ---- P9.5.3 special open ----
+
+    [AvaloniaFact]
+    public async Task Special_open_from_the_panel_menu_lists_the_variants()
+    {
+        await PanelWithFolderAsync(("a.txt", "x"));
+        var special = _w.FileList.ContextMenu!.Items.OfType<MenuItem>().Last();
+        Assert.Equal(SpecialOpen.Variants.Length, special.Items.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_as_hex_opens_the_file_in_the_hex_view()
+    {
+        string root = await PanelWithFolderAsync(("a.bin", "abc"));
+        _w.OpenFile(Path.Combine(root, "a.bin"), null);
+        await _w.OpenTargetAsHexAsync();
+        Assert.True(_w.Active!.Doc.IsHex);
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_read_only_refuses_a_save()
+    {
+        string root = await PanelWithFolderAsync(("a.txt", "abc"));
+        _w.OpenFile(Path.Combine(root, "a.txt"), null);
+        await _w.OpenTargetReadOnlyAsync();
+        Assert.True(_w.Active!.Doc.ReadOnly);
+        Assert.False(await _w.SaveAsync(_w.Active));
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_as_new_copy_gives_an_unsaved_document_with_the_text()
+    {
+        string root = await PanelWithFolderAsync(("a.txt", "abc"));
+        _w.OpenFile(Path.Combine(root, "a.txt"), null);
+        await _w.OpenTargetAsNewCopyAsync();
+        Assert.Null(_w.Active!.Path);
+        Assert.Equal("abc", _w.Active.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_with_encoding_opens_the_file()
+    {
+        string root = await PanelWithFolderAsync(("a.txt", "abc"));
+        _dialogs.Picked.Add(Path.Combine(root, "a.txt"));
+        await _w.OpenTargetWithEncodingAsync();
+        Assert.Equal(Path.Combine(root, "a.txt"), _w.Active!.Path);
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_reopens_the_last_closed_tab()
+    {
+        string root = await PanelWithFolderAsync(("a.txt", "abc"));
+        string path = Path.Combine(root, "a.txt");
+        await _w.CloseTabAsync(_w.OpenFile(path, null));
+        _w.ReopenLastClosed();
+        Assert.Equal(path, _w.Active!.Path);
     }
 
     // ---- P2.3.1 - P2.3.3 operations ----

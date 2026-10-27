@@ -2,6 +2,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -38,9 +39,15 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>The command of a clip, template, converter or recipe that a data plugin named.</summary>
+    /// <summary>The command of a clip, template, converter, recipe or external tool that a data plugin named. A tool asks for the usual confirmation of its command first.</summary>
     internal CommandOutcome RunDataCommand(string pluginId, string itemId, string kind)
     {
+        if (kind == "external tool")
+        {
+            if (_app.Clips.FindTool(pluginId, itemId) is not { } tool) return CommandOutcome.NotHandled;
+            _ = RunToolAsync(tool);
+            return CommandOutcome.Handled;
+        }
         if (kind == "converter") return _app.Clips.FindConverter(pluginId, itemId) is { } converter ? ConvertSelections(ConverterChoice(converter)) : CommandOutcome.NotHandled;
         if (kind == "recipe")
         {
@@ -142,7 +149,36 @@ internal sealed partial class MainWindow
             }
             pieces.Add(result);
         }
+        if (pieces[0].Snippet is not null) { InsertSnippets(surface, [.. pieces.Select(p => p.Snippet!)], newLine, replaceWord); return; }
         RunEdit((s, sels) => LineOperations.ReplaceSelectionsWithCarets(s.Document, replaceWord ? WidenToWord(s, sels) : sels, i => (pieces[i].Text, pieces[i].Carets)));
+    }
+
+    /// <summary>
+    /// Writes a snippet (one per selection) as one undo step: the lines after the first take the indentation of the line it starts on, the tabs of its own
+    /// indentation become the indentation unit of the document. Then the session of its tab stops starts, or the caret goes to <c>$0</c> when there are none.
+    /// </summary>
+    private void InsertSnippets(EditorSurface surface, IReadOnlyList<ParsedSnippet> snippets, string newLine, bool replaceWord)
+    {
+        var placed = new List<(int Start, ParsedSnippet Snippet)>();
+        var outcome = RunEdit((s, sels) =>
+        {
+            var targets = (replaceWord ? WidenToWord(s, sels) : sels).OrderBy(t => t.Start).ToList();
+            var document = s.Document;
+            var ready = new List<ParsedSnippet>(targets.Count);
+            int shift = 0;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var line = document.GetLineByOffset(targets[i].Start);
+                int lead = 0;
+                while (lead < targets[i].Start - line.Offset && document.GetCharAt(line.Offset + lead) is ' ' or '\t') lead++;
+                var one = snippets[i].Reindent(document.GetText(line.Offset, lead), s.Settings.Indent.Unit, newLine);
+                ready.Add(one);
+                placed.Add((targets[i].Start + shift, one));
+                shift += one.Text.Length - targets[i].Length;
+            }
+            return LineOperations.ReplaceSelectionsWithCarets(document, targets, i => (ready[i].Text, [ready[i].FinalOffset]));
+        });
+        if (outcome == CommandOutcome.Handled && ReferenceEquals(ActiveEditor, surface)) surface.BeginSnippet(placed);
     }
 
     // ---- clip from the selection ----

@@ -103,6 +103,13 @@ public class FormattersTests
     }
 
     [Fact]
+    public void Html_entities_encode_all_writes_characters_outside_ascii_as_numbers_and_decode_returns_the_text()
+    {
+        Assert.Equal("&lt;p&gt;caf&#233; &#20013; &#128512;&lt;/p&gt;", HtmlEntities.EncodeAll("<p>café 中 😀</p>"));
+        Assert.Equal("<p>café 中 😀</p>", HtmlEntities.Decode(HtmlEntities.EncodeAll("<p>café 中 😀</p>")));
+    }
+
+    [Fact]
     public void Tidy_is_looked_for_at_the_set_path_next_to_the_plugin_in_the_application_folder_and_on_path_and_the_answer_names_every_place()
     {
         var root = Path.Combine(Path.GetTempPath(), "tidy-locate-" + Guid.NewGuid().ToString("N"));

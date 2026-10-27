@@ -129,6 +129,13 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         if (status != FtpStatus.Success) throw new RemoteException(RemoteError.Failed, $"The upload of '{path}' failed.");
     });
 
+    // FluentFTP asks the server for the size of the partial file and continues the source from there.
+    public Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken cancellation) => Guard(async () =>
+    {
+        var status = await Client.UploadStream(source, path, FtpRemoteExists.Resume, false, null, cancellation).ConfigureAwait(false);
+        if (status != FtpStatus.Success) throw new RemoteException(RemoteError.Failed, $"The upload of '{path}' failed.");
+    });
+
     public Task RenameAsync(string from, string to, CancellationToken cancellation) => Guard(async () =>
     {
         if (await Client.FileExists(to, cancellation).ConfigureAwait(false)) throw new RemoteException(RemoteError.Failed, $"'{to}' already exists.");

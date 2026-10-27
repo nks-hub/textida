@@ -132,7 +132,11 @@ commands: nks.remote.upload
 3. Hat sich die Datei auf dem Server inzwischen geändert, wird nichts gesendet. Wählen Sie Unterschiede zeigen, sehen Sie die Serverversion neben Ihrer, übernehmen Sie in Ihre Seite, was Sie brauchen, speichern Sie und laden Sie erneut hoch. Trotzdem hochladen ersetzt genau die Serverversion, die Sie gesehen haben.
 - Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
 - Grenze: Prüfung und Austausch sind zwei Schritte, weil FTP und SFTP kein bedingtes Schreiben kennen. Eine Änderung, die jemand in diesem letzten Moment macht, wird nicht bemerkt. Die Prüfung läuft erst nach dem vollständigen Upload, der Moment ist also kurz.
-- Nichts wird automatisch wiederholt. Wählen Sie nach einem Fehler erneut Auf Server hochladen; es prüft zuerst wieder den Server.
+- Bricht die Verbindung beim Hochladen ab, versucht das Programm es einige Male mit wachsenden Pausen erneut. Jeder Versuch prüft zuerst wieder die Serverversion, und eine teilweise gesendete temporäre Datei wird erst fortgesetzt, wenn ihr Inhalt mit Ihrer Datei übereinstimmt. Verweigert der Server das Umbenennen, das die Datei an ihren Platz setzt, wird die alte Datei beiseitegelegt, die neue verschoben und bei einem Fehler die alte zurückgeholt.
+
+## [remote.cancel] Übertragung abbrechen
+commands: nks.remote.cancel
+Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen stoppt, der Server behält seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort.
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
@@ -185,6 +189,7 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 - Dateien mit geheimen Werten, etwa .env, werden nicht gespeichert, solange Sie in den Einstellungen nicht Verlauf von Dateien mit geheimen Werten führen einschalten.
 - Grenzen (Revisionen pro Datei, Tage, MiB pro Datei, MiB insgesamt) stellen Sie in den Einstellungen ein; 0 heißt keine Grenze. Die neueste Revision einer Datei wird nie gelöscht.
 - Ist der Datenträger voll, meldet das die Statusleiste, und keine Revision wird beschädigt.
+- Eine angeheftete Revision löschen die Grenzen nie; Anheften im Revisionsmenü hält sie, Lösen gibt sie frei. Eine Datei über der Größengrenze bekommt keine Revisionen, und die Statusleiste meldet das. Alte Revisionen werden im Hintergrund aufgeräumt.
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
@@ -208,6 +213,14 @@ commands: nks.file.openPathAtCaret
 - Zeigt der Pfad auf einen Ordner, wird er im Panel Dateien angezeigt.
 - Kein Pfad am Cursor: Am Cursor steht kein Dateipfad. Datei existiert nicht: Der Pfad wird mit dem Hinweis genannt, dass er nicht existiert.
 
+## [file.openSpecial] Spezielles Öffnen
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Wählen Sie Datei und dann Spezielles Öffnen oder starten Sie Spezielles Öffnen in der Palette. Im Dateipanel klicken Sie mit der rechten Maustaste auf eine Datei und wählen Spezielles Öffnen.
+2. Wählen Sie, wie die Datei geöffnet wird. Aus dem Panel wird die gewählte Datei verwendet, sonst die Datei des aktuellen Tabs; gibt es keine, wählen Sie eine aus.
+- Datei in Hex öffnen, Mit Kodierung öffnen (die Kodierungsliste erscheint nach dem Öffnen), Schreibgeschützt öffnen (der Tab speichert nicht), Als neue Kopie öffnen (ein ungespeichertes Dokument mit dem Text der Datei).
+- Mit Kodierung neu öffnen, Pfad am Cursor öffnen und Zugehörige Datei arbeiten mit dem aktuellen Tab.
+- Ordner der Datei öffnen zeigt den Ordner im Dateimanager des Systems; Mit Standard-App öffnen übergibt die Datei dem Programm, das das System dafür festgelegt hat.
+- Zuletzt geschlossenen Tab erneut öffnen öffnet die Datei des zuletzt geschlossenen Tabs; geschlossene Dateien, die nicht mehr existieren, werden übersprungen.
 ## [app.settings] Einstellungen
 commands: nks.app.openSettings
 1. Drücken Sie Strg+Komma oder wählen Sie Einstellungen und dann Einstellungen.
@@ -356,19 +369,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
 ## [tools.stats] Dokumentstatistik und Hashes
-commands: nks.tools.statistics, nks.tools.hash
-1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments.
-2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder des markierten Teils.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments oder der markierten Teile zusammen und listet die häufigsten Zeichen und Wörter auf.
+2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash, erkennt den Algorithmus an der Länge und sagt, ob er übereinstimmt.
 - Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
 - Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
 - Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
-- Ein Wort ist eine zusammenhängende Folge von Buchstaben und Ziffern. Für mehrere markierte Bereiche gleichzeitig gibt es keinen Hash.
+- Ein Wort ist eine zusammenhängende Folge von Buchstaben und Ziffern; Wörter werden in Kleinbuchstaben gezählt. Die Wortliste hält nur eine begrenzte Zahl verschiedener Wörter und sagt, wenn sie voll ist. Mehrere markierte Teile werden als ein Text gezählt.
 
 ## [tools.calculate] Blockberechnung, Ausdrücke und Zahlensysteme
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Markierten Block berechnen addiert die Zahlen in der Markierung (Blockmarkierung, eine Spalte von Zahlen) und zeigt Anzahl, Summe, kleinste, größte und Durchschnitt.
-2. Ausdruck auswerten fragt nach einem Ausdruck, beginnt mit dem markierten Text und zeigt das Ergebnis. Verstanden werden + - * / ^ ( ), MOD und die Funktionen ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR und TRUNC. Zahlen werden mit Punkt geschrieben. Alles andere, etwa der Aufruf eines Systembefehls, wird abgelehnt und nichts wird ausgeführt.
-3. Zahlensystem umrechnen fragt nach einer ganzen Zahl, dezimal oder mit dem Präfix 0x, 0b oder 0o, und zeigt sie dezimal, hexadezimal, oktal und binär.
+2. Ausdruck auswerten fragt nach einem Ausdruck, beginnt mit dem markierten Text oder der Zeile des Cursors und zeigt das Ergebnis. Ausdrucksergebnis einfügen schreibt " = Ergebnis" hinter die Markierung oder die Zeile, als einen Rückgängig-Schritt, mit Punkt als Dezimalzeichen in jeder Sprache. Verstanden werden + - * / ^ ( ), MOD und die Funktionen ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR und TRUNC. Zahlen werden mit Punkt geschrieben. Alles andere, etwa der Aufruf eines Systembefehls, wird abgelehnt und nichts wird ausgeführt.
+3. Zahlensystem umrechnen fragt nach einer ganzen Zahl, dezimal, mit dem Präfix 0x, 0b oder 0o, oder römisch, und zeigt sie dezimal, hexadezimal, oktal, binär, als römische Zahl (1 bis 3999) und als das Datum, das sie als Unix-Millisekunden ergibt.
 - Das Programm erkennt, wie die Zahlen in der Markierung geschrieben sind (Tschechisch und Slowakisch: 1 234,50, Deutsch: 1.234,50, Englisch: 1,234.50). Passen mehrere Schreibweisen, etwa bei 1,234, nimmt es die der Programmsprache. Die Ergebnisse erscheinen im Format der Programmsprache. Ein Sprachwechsel ändert das Dokument nicht.
 - Text in der Markierung, der keine Zahl ist, wird übersprungen und gezählt. Die Zahlenumrechnung funktioniert für Werte von -9223372036854775808 bis 18446744073709551615.
 - Potenzen nehmen nur eine positive Basis. Die Berechnung verwendet Zahlen mit doppelter Genauigkeit.
@@ -411,9 +424,10 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Extras, Struktur und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
 3. Die Gliederung gehört zu einer Revision des Dokuments. Nach einer Änderung wird sie von selbst erneuert; bis die neue da ist, bleibt die alte als veraltet markiert, und ein Sprung wird über die seitdem gemachten Änderungen getragen oder abgelehnt, wenn der Text, auf dem das Symbol stand, geändert wurde. Eine Antwort für eine ältere Revision wird nie als aktuell gezeigt.
 4. Hält der Plugin-Prozess an, wird die Gliederung nach seiner Rückkehr neu gelesen.
-- Gelesen wird mit einfachen Regeln der Sprache, ohne Sprachserver und ohne Projektindex: HTML (Überschriften, Elemente mit `id`, `main`, `nav`, `section` und ähnliche), PHP (Namensräume, Klassen, Schnittstellen, Traits, Enums, Funktionen, Methoden), CSS (Regeln und At-Regeln), C# (Namensräume, Typen, Methoden, Konstruktoren, Eigenschaften), Markdown (`#`-Überschriften).
+5. Solange eine Datei eine Gliederung hat, nennt die Statusleiste das Symbol, in dem der Cursor steht, samt Eltern (zum Beispiel `Klasse › Methode`); sie folgt dem Cursor und ist bei veralteter Gliederung ausgeblendet.
+- Gelesen wird mit einfachen Regeln der Sprache, ohne Sprachserver und ohne Projektindex. Außer den Sprachen unten: JavaScript und TypeScript (Klassen, Schnittstellen, Enums, Funktionen, Pfeilfunktionen, Methoden), Python (Klassen, Funktionen, Methoden nach Einrückung), Rust (Module, Structs, Enums, Traits, impl-Blöcke, Funktionen, Makros), Dart (Klassen, Mixins, Enums, Erweiterungen, Funktionen, Methoden), C und C++ (Namensräume, Structs, Klassen, Enums, Funktionen, Makros), Bash (Funktionen), CMake (Funktionen, Makros, Ziele), Makefile (Ziele, `define`), Meson (Ziele, Tests, Unterordner). Schlüssel von YAML und JSON liefert die Schlüsselgliederung. HTML (Überschriften, Elemente mit `id`, `main`, `nav`, `section` und ähnliche), PHP (Namensräume, Klassen, Schnittstellen, Traits, Enums, Funktionen, Methoden), CSS (Regeln und At-Regeln), C# (Namensräume, Typen, Methoden, Konstruktoren, Eigenschaften), Markdown (`#`-Überschriften).
 - Kommentare und Zeichenketten werden nicht gelesen. Was die Regeln nicht erkennen, wird übersprungen.
-- Eine Datei über dem Limit des Plugins oder mit mehr Symbolen, als die Gliederung fasst, wird gekürzt gezeigt, und die Meldung sagt es.
+- Eine Datei über dem Limit des Plugins oder mit mehr Symbolen, als die Gliederung fasst, wird gekürzt gezeigt, und die Meldung sagt es. Eine große Datei in der seitenweisen Ansicht wird im Hintergrund vom Anfang bis zum Limit gelesen; ein Sprung zu einem Symbol scrollt die seitenweise Ansicht dorthin.
 
 ## [edit.carets] Mehrere Cursor
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
@@ -749,8 +763,8 @@ Hex zeigt eine Datei Byte für Byte: Offset, Bytes hexadezimal und Zeichen. Es l
 - F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam.
 - Strg+G öffnet Gehe zu Offset. Schreibweise: 0x1F40, +0x100 (ab dem Cursor), end-512, 50%, 4K, sel (Beginn der Auswahl), val (der Vier-Byte-Wert am Cursor).
 - Nicht gefunden: Es gibt keinen Treffer. Ungültiges Muster oder Ungültiger Ausdruck: Korrigieren Sie die Eingabe. Der Offset liegt außerhalb der Datei: Geben Sie einen kleineren Wert ein. Die Datei hat sich inzwischen auf dem Datenträger geändert, das Suchergebnis wurde verworfen: Wiederholen Sie die Suche.
-- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), fragt die Suche danach. *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
-- Ein Muster zwischen Schrägstrichen ist ein regulärer Ausdruck über Bytes, zum Beispiel /\x50\x4B[\x01-\x08]/. Ein Byte ist ein Zeichen 0 bis 255, . ist ein beliebiges Byte (auch 0A und 0D), \xHH ist ein Byte und [...] eine Menge von Bytes. Gruppen, |, ? * + {n,m} und \n \r \t \0 \d \w \s funktionieren; ^, $, \b, Rückverweise und Lookaround nicht, weil Bytes keine Zeilen oder Wörter haben. Eine offene Wiederholung (.*, +, {n,}) reicht höchstens N Bytes weit. Ein Treffer braucht mindestens ein Byte, und Treffer dürfen sich überlappen.
+- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), gilt der eingebaute Standardwert von 256 Bytes. *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
+- Ein Muster zwischen Schrägstrichen ist ein regulärer Ausdruck über Bytes, zum Beispiel /\x50\x4B[\x01-\x08]/. Ein Byte ist ein Zeichen 0 bis 255, . ist ein beliebiges Byte (auch 0A und 0D), \xHH ist ein Byte und [...] eine Menge von Bytes. Gruppen, |, ? * + {n,m} und \n \r \t \0 \d \w \s funktionieren; ^ und $ sind Anfang und Ende der Datei (beim Ersetzen der Auswahl); \b, Rückverweise und Lookaround nicht, weil Bytes keine Zeilen oder Wörter haben. Eine offene Wiederholung (.*, +, {n,}) reicht höchstens N Bytes weit. Ein Treffer braucht mindestens ein Byte, und Treffer dürfen sich überlappen.
 - Strg+H ersetzt Bytes: zuerst das Muster (dieselben Formen wie bei Suchen), dann der Ersatz als Hex, Text in Anführungszeichen oder Zahl; ein leerer Ersatz löscht die Treffer. Bei einer Auswahl wird nur in ihr gesucht.
 - Eine Vorschau listet jeden Treffer mit den alten und neuen Bytes auf und warnt, wenn sich die Länge der Datei ändert. Alle ersetzen schreibt alles als einen Rückgängig-Schritt. Hat sich die Datei nach der Vorschau geändert, wird nichts ersetzt. Treffer, die einen früheren überlappen, bleiben außen vor.
 - Im Überschreibmodus muss der Ersatz so lang sein wie der Treffer; schalten Sie den Einfügemodus ein (Taste Einfg), um die Länge zu ändern.
@@ -844,7 +858,7 @@ Das Strukturpanel liest die Datei mit einer Vorlage und zeigt ihre Felder als Ba
 1. Hex: Strukturvorlage (Strg+J) öffnet das Panel oder schließt es, wenn es schon den Fokus hat. Die Vorlage wird nach der Magic Number gewählt, danach nach der Dateiendung; die Liste über dem Baum erlaubt eine andere Wahl, die für diese Endung bis zum Programmende gilt.
 2. Ein Feld mit Teilen (Struktur oder Liste) wird erst beim Aufklappen gelesen, daher öffnet sich auch eine große Datei sofort. Jede Zeile zeigt den Namen, den Wert und grau den Offset und die Länge in Bytes.
 3. Ein Feld, das sich nicht lesen lässt, steht rot mit dem Grund da, zum Beispiel weil es über das Ende der Daten hinausreicht oder von den erwarteten Bytes abweicht. Die Felder dahinter erscheinen nicht, weil ihre Lage unbekannt ist.
-- Vorlagen sind eine Teilmenge des Formats Kaitai Struct .ksy: Ganzzahlen, Gleitkommazahlen, Zeichenketten, rohe Bytes, feste Bytes (contents), Aufzählungen, verschachtelte Typen, size, size-eos und repeat (eos oder Anzahl). Größe oder Anzahl ist eine Zahl oder ein früheres Ganzzahlfeld. Ausdrücke, if, switch-on, instances und process werden nicht unterstützt.
+- Vorlagen sind eine Teilmenge des Formats Kaitai Struct .ksy: Ganzzahlen, Gleitkommazahlen, Zeichenketten, rohe Bytes, feste Bytes (contents), Aufzählungen, verschachtelte Typen, size, size-eos, repeat (eos, expr oder until), if, switch-on mit cases (Schlüssel _ ist der Standardzweig), instances mit pos oder value und Ausdrücke. Ausdrücke sind in size, repeat-expr, repeat-until, if, pos, value und switch-on erlaubt. Sie rechnen mit 64-Bit-Ganzzahlen, true/false und Zeichenketten: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, Klammern, Zahlen (dezimal, 0x, 0b), Zeichenketten in Anführungszeichen, Namen früherer Felder und Instanzen, a.b, Liste[i], enum::Mitglied, _parent, _root, _index, _ (das letzte Element in repeat-until), _io.pos, _io.size, _io.eof, .as<Typ> (ohne Umwandlung), .to_i und .length bei Zeichenketten, .size, .first und .last bei Listen. pos zählt ab dem Anfang des Datenstroms der Struktur (eine Struktur mit size ist ein eigener Strom). Gleitkommazahlen, Array-Schreibweise, andere Methoden, process und alles Übrige, was nicht aufgeführt ist, wird mit der Vorlagenzeile abgelehnt. Eine Division durch null, ein fehlendes Feld oder eine falsche Art von Wert ergibt einen Fehler an diesem Feld; eine riesige Größe oder Anzahl endet mit einem Limitfehler. Instanzen stehen hinter den Feldern.
 - Das Lesen endet mit einer Meldung, wenn eine Vorlage zu tief verschachtelt, ein Feld zu oft wiederholt oder eine Zeichenkette oder Arbeitsmenge über einem festen Limit liest.
 - Mitgelieferte Vorlagen: BMP-Header und PNG-Chunkliste. Eine eigene .ksy-Datei zu öffnen ist noch nicht möglich.
 
@@ -917,6 +931,7 @@ commands: nks.plugins.manage
 4. Nach der Wahl eines installierten Plugins können Sie es aktivieren oder deaktivieren, aus einer neueren ZIP aktualisieren, auf die vorherige Version zurücksetzen, seine Berechtigungen ändern oder es deinstallieren. Eine neue Version wird neben der alten entpackt und erst aktiv, wenn sie lädt; die alte bleibt für das Zurücksetzen. Ein Update fragt nur nach Berechtigungen, nach denen noch nie gefragt wurde; frühere Antworten gelten weiter.
 5. Eine zurückgenommene Berechtigung stoppt neue Anfragen des Plugins sofort und bricht wartende ab. Ein Plugin ohne Berechtigung erhält einen Fehler, kein leeres Ergebnis. Deaktivieren beendet den Prozess; Deinstallieren löscht nur den Ordner dieses Plugins.
 - Berechtigungen halten fest, was Sie erlaubt haben, und sind keine Sandbox: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Installieren Sie nur Plugins, denen Sie vertrauen. Signaturen werden noch nicht geprüft. Die Grenzen für Größe und Dateianzahl einer ZIP sind vorläufig. Neue Befehle eines aktualisierten Plugins erscheinen nach einem Neustart.
+- Ein Plugin kann Tasten und Einstellungen mitbringen. Seine Tasten (contributes.keybindings, optional mit "when") funktionieren wie die Tasten des Editors, aber eine Taste des Editors, des Profils oder Ihrer keymap.json gewinnt immer gegen eine Plugin-Taste; der Konflikt steht beim Plugin im Plugin-Manager. Seine Einstellungen (contributes.settings, Schlüssel beginnen mit der Plugin-ID) erscheinen unter dem Namen des Plugins in den Einstellungen, mit dem Standardwert aus dem Manifest, und ein laufendes Plugin bekommt die Werte beim Start und danach als Ereignis settings.changed. Ein Befehl, der im Manifest ein Werkzeug nennt (contributes.externalTools), startet es ohne Plugin-Code, nachdem Sie Befehl und Verzeichnis bestätigt haben.
 
 ## [tools.lint] Linter: Funde von PHPStan, Psalm, golangci-lint, Clippy, clang-tidy und RuboCop unterstreichen
 commands: nks.tools.lint
@@ -970,6 +985,13 @@ commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.e
 - Das ganze Dokument wird gefärbt und die Auswahl daraus geschnitten, eine Auswahl, die in einem Kommentar beginnt, ist also wie im Editor gefärbt. Bei einer großen Datei (seitenweiser Modus) und bei mehreren Cursorn oder einer Blockauswahl wird nur der markierte Text genommen und ab seinem eigenen Anfang gefärbt.
 - Ein Text über 8388608 Zeichen wird mit einer Meldung abgelehnt; markieren Sie einen Teil. Die Grenze ist ein Platzhalter, kein entschiedener Wert. Die Arbeit läuft im Hintergrund, das Fenster bleibt bedienbar.
 - HTML ist UTF-8. RTF ist ASCII: Rückwärtsschrägstrich, geschweifte Klammern und jedes Zeichen außerhalb von ASCII (zum Beispiel tschechische Buchstaben) werden als Escape geschrieben.
+
+## [log.full] Voller Log-Modus: Einklappen, Stacktraces, Heatmap, ANSI-Farben
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Uninteressante Zeilen einklappen fragt nach einer Stufe (Zeilen mindestens dieser Stufe bleiben: error, warning, info, debug) und einem regulären Ausdruck (passende Zeilen bleiben). Jeder Abschnitt der übrigen Zeilen wird zu einer Platzhalterzeile, die ein Klick öffnet. Eine Zeile ohne Stufenwort, etwa ein Stacktrace-Frame, gehört zum Eintrag darüber. Log: Alle Zeilen anzeigen öffnet wieder alles. In einer seitenweise geladenen (sehr großen) Datei lassen sich Zeilen nicht einklappen; die Zeilen, die eingeklappt würden, werden stattdessen abgeblendet gezeichnet.
+2. Strg+Klick auf einen Stacktrace-Frame von .NET, Java, Python, PHP oder Node.js öffnet die Datei an dieser Zeile; Log: Datei der Stacktrace-Zeile öffnen tut dasselbe für die Zeile mit dem Cursor. Ein relativer Pfad wird im Ordner des Logs gesucht, dann in den Arbeitsbereich-Ordnern; ein bloßer Dateiname (Java) wird darunter gesucht.
+3. Der Streifen am rechten Rand der Minimap zeigt, wo Fehlerzeilen (rot) und Warnungen (gelb) dicht liegen. Er wird im Hintergrund gezählt. Eine Datei bis 256 MiB wird ganz gelesen, eine größere nur stichprobenartig; das Bild ist dann eine Schätzung. Diese Grenzen sind keine entschiedenen Werte.
+4. ANSI-Escape-Sequenzen in einem Log werden ausgeblendet und als Farben (16, 256 und True Color), Fett und Unterstreichung gezeichnet. Die Datei wird nie verändert, Speichern behält die Sequenzen also. Log: ANSI-Escapes unverändert anzeigen wechselt zwischen Farben und den reinen Sequenzen. Ein Stil, den eine Zeile offen lässt, geht nicht in die nächste Zeile über.
 
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1084,13 +1106,16 @@ Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge sind noch nicht 
 - Erweiterungen (Plugins), entfernte Dateien und weitere Funktionen aus dem Plan für Version 1.0: nicht in dieser Version.
 
 ## [edit.clips] Clips
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Ein Clip ist ein Stück Text mit Stellen für Variablen und Eingabemarken. Clips liefern Datenplugins im Ordner plugins des Profils; ein Unterordner pro Plugin, mit der Datei nkspad-plugin.json und ohne Programm.
 1. Bearbeiten, Einfügen, Clip einfügen wählen. Die Liste zeigt die Clips mit einer Vorschau des Textes, der eingefügt würde.
 2. Einen Clip wählen. Hat er ein Formular, ausfüllen: Die Vorschau folgt der Eingabe, ein falscher Wert wird markiert und OK bleibt gedimmt, bis jeder Wert zu seinem Typ passt.
 3. Der Text geht in jede Eingabemarke und ersetzt jede Auswahl, als ein Rückgängig-Schritt. Die Eingabemarken stehen danach dort, wo der Clip die Marke $| hat.
 - Auswahl als Clip speichern fragt nach einem Namen und fügt den markierten Text Ihrer eigenen Bibliothek hinzu (Plugin user.clips, Ordner user-clips). Der Text wird wörtlich gespeichert, ein Dollarzeichen bleibt also ein Dollarzeichen. Der Clip steht sofort in der Liste.
 - Vorlagensprache: ${name} ist eine Variable, $| setzt eine Eingabemarke (beliebig viele), $$ ist ein Dollarzeichen. Zeilenumbrüche werden zum Zeilenumbruch des Dokuments.
+- Snippets: Ein Clip (und der Plugin-Aufruf snippet/insert mit "format": "template") darf nummerierte Platzhalter verwenden: $1, ${1:Vorgabetext}, ${1|eins,zwei,drei|}, $0 (die Endposition). Dieselbe Nummer an mehreren Stellen wird gemeinsam bearbeitet. Nach dem Einfügen ist der erste Platzhalter markiert; Tab springt zum nächsten, Umschalt+Tab zum vorherigen, nach dem letzten geht die Eingabemarke zu $0. Esc oder ein Klick außerhalb beendet das Snippet. Ein Platzhalter mit Werteliste öffnet die Auswahlliste. Bei mehreren Eingabemarken hat jede ihr eigenes Snippet, die Platzhalter werden gemeinsam durchlaufen.
+- Die Zeilen eines Snippets nach der ersten übernehmen die Einrückung der Zeile, in der es beginnt; Tabs in der eigenen Einrückung werden zur Einrückung des Dokuments (Tabs oder Leerzeichen). Ein Clip ohne nummerierte Platzhalter wird unverändert eingefügt.
+- In einem Snippet ist $| keine Eingabemarke, und ein Dollarzeichen vor einer Ziffer ist ein Platzhalter: Schreiben Sie $$ oder \$ für ein Dollarzeichen. Neben ${name} gelten die Variablen TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID und CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (auch als $NAME). Verschachtelte Platzhalter und Transformationen werden nicht unterstützt; Text, der nicht zur Syntax passt, bleibt unverändert.
 - Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. Ihre eigenen Variablen (Bearbeiten, Einfügen, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 3. die eingebauten. Derselbe Name bedeutet überall dasselbe.
 - Eingebaute Variablen: file.path, file.dir, file.name, file.base, file.ext (ein ungespeichertes Dokument hat kein file.*), date (jjjj-MM-tt), time (HH:mm:ss), datetime (die Einstellung Datums- und Zeitformat), guid (für jede Eingabemarke neu), selection (der an dieser Eingabemarke markierte Text), user.name. Ein Name ohne Wert stoppt das Einfügen und die Statusleiste nennt ihn.
 - Formularfelder: name, label, type, default, choices, required. Typen: text, integer (ganze Zahl), number (Dezimalpunkt), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (jjjj-MM-tt), file (eine vorhandene Datei), choice (einer der Werte aus choices). Ein Vorgabewert darf Variablen nutzen, etwa ${date}.
@@ -1169,14 +1194,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
 
 ## [tools.git] Git: Status, Vergleich und Abschnitt vormerken
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Führen Sie den Befehl erneut aus, wenn sich das Repository von außen ändert.
 2. Git: Mit Index vergleichen und Git: Mit HEAD vergleichen öffnen einen Vergleichs-Tab des offenen Textes mit seiner Version im Index oder in HEAD. Die Abschnitte sind dieselben wie in `git diff`.
 3. Git: Abschnitt am Cursor vormerken schreibt nur die Änderung in den Index, in der der Cursor steht. Die übrigen Änderungen der Datei bleiben nur im Arbeitsbaum. Die Datei auf der Festplatte wird nicht verändert.
 4. Hat ein anderes Programm den Index inzwischen geändert, wird nichts geschrieben. Das Plugin liest den Index neu und meldet einen Konflikt; prüfen Sie die Änderungen und wiederholen Sie den Befehl.
 - Das Plugin schreibt nur bei Git: Abschnitt am Cursor vormerken in das Repository. Status und Vergleich lesen nur und erneuern nicht einmal die Indexdatei.
 - Vorgemerkt wird der im Editor offene Text, gespeichert oder nicht. Eine Datei mit ungelöstem Merge-Konflikt wird nicht vorgemerkt.
-- Noch nicht vorhanden: Abschnitt zurücknehmen, Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
+5. Git: Abschnitt am Cursor aus dem Index nehmen nimmt nur die vorgemerkte Änderung, in der der Cursor steht (oder auf die er in der Datei zeigt), nach HEAD zurück. Die übrigen vorgemerkten Änderungen bleiben.
+6. Setzen Sie bei einem Merge-Konflikt den Cursor in den Block zwischen `<<<<<<<` und `>>>>>>>` und wählen Sie Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen. Der Block wird durch die gewählte Seite ersetzt. Ist kein Block mehr übrig und die Datei gespeichert, wählen Sie Git: Datei als gelöst markieren; die Datei wird im Index vorgemerkt.
+7. Doppelklick oder Enter auf eine Datei im Statuspanel öffnet sie. Die Statusleiste zeigt den Branch und Zähler: `+` vorgemerkt, `~` geändert, `?` nicht verfolgt, `!` Konflikte; sie wird nach jedem Git-Befehl aktualisiert.
+- Noch nicht vorhanden: Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
 - Der Git-Prozess startet mit dem ersten Befehl. Das Programm `git` muss im PATH liegen.
 
 ## [tools.lsp] Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose
@@ -1222,13 +1250,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Einrückung (4 Leerzeichen) und Schreibung der Schlüsselwörter (Großbuchstaben) sind vorerst fest; es sind noch keine Einstellungen.
 
 ## [edit.html] HTML: Entitäten und HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Bearbeiten, Formatierung, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
 2. Bearbeiten, Formatierung, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
 3. Tidy ist ein eigenes Programm. Der Editor sucht es am Pfad der Einstellung HTML-Tidy-Programm, im Ordner `tidy` neben dem Formatierer-Plugin, in `tools/tidy` des Programmordners und in den Ordnern von PATH. Wird es nicht gefunden, nennt die Meldung alle Orte.
 - Tidy gehört nicht zu diesem Build: Installieren Sie es und setzen Sie den Pfad, oder legen Sie es an einen dieser Orte.
 - Zeilennummern in den Meldungen zählen ab dem Anfang des Textes, der an Tidy geschickt wurde.
-- Buchstaben außerhalb von ASCII werden nicht als Entitäten geschrieben; die Kodierung der Datei trägt sie.
+- In HTML-Entitäten umwandeln, auch Nicht-ASCII schreibt zusätzlich jedes Zeichen außerhalb von ASCII als numerische Entität (`&#233;`); die Rückwandlung ergibt wieder den Text.
+4. Tag-Werkzeuge (HTML-, XML- und PHP-Dateien): Bearbeiten, Formatierung, Offenes Tag schließen schreibt das End-Tag des nächsten Tags, das am Cursor noch offen ist. Zum Gegen-Tag springen setzt den Cursor auf den Partner des Tags am Cursor. Element auswählen wählt das Element um die Auswahl; wiederholt wählt es das nächste äußere. Tag entfernen löscht Start- und End-Tag des Elements am Cursor und behält den Inhalt. In Tag einschließen fragt nach einem Namen und umschließt jede Auswahl damit. Alle Tags entfernen löscht aus den Auswahlen alle Tags und Kommentare (aus der ganzen Datei, wenn nichts markiert ist).
+- Tags werden nach Verschachtelung gepaart. Kommentare und der Inhalt von `script` und `style` enthalten keine Tags. Die optionalen End-Tags von HTML (`li`, `p`) werden nicht ergänzt; ein solches Tag gilt also als offen.
+- Das Einfügen eines Bildes oder Links mit Größe gibt es noch nicht.
 
 ## [help.language] Hilfe zu einer Sprache
 commands: nks.help.languageHelp
@@ -1243,7 +1274,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Eine CSV- oder TSV-Datei kann als Tabelle angezeigt werden: eine Zeile der Datei je Tabellenzeile, ein Feld je Zelle. Es ist dasselbe Dokument wie in der Textansicht, mit demselben Rückgängig-Verlauf; nichts wird umgewandelt, und das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle.
 1. Strg+K und dann Strg+T (Menü Ansicht, Tabelle, Tabellenansicht umschalten) wechselt zwischen Tabelle und Text. Eine .tsv- oder .tab-Datei wird an Tabulatoren geteilt, jede andere an Kommas.
-2. Ansicht, Tabelle, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist.
+2. Ansicht, Tabelle, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist. Solange Sie nichts wählen, wird das Trennzeichen aus den ersten Zeilen der Datei erkannt (bei unklarem Ergebnis entscheidet die Endung).
 - Eine große Datei öffnet sich sofort: Die Zeilen werden im Hintergrund gezählt, und der Bildlaufbereich wächst, während die Datei gelesen wird. Bis das Ende erreicht ist, zeigt die Statusleiste die Zeilenzahl mit einem Plus, etwa 12+.
 - Pfeiltasten, Tab, Bild auf und Bild ab, Pos1 und Ende (innerhalb der Zeile), Strg+Pos1 und Strg+Ende bewegen die aktuelle Zelle; Umschalt erweitert die Auswahl. Ein Klick auf eine Spaltenüberschrift wählt die Spalte, ein Klick auf eine Zeilennummer die Zeile.
 - Eine Zelle in Anführungszeichen kann Zeilenumbrüche enthalten; die Tabelle zeigt ihre erste Zeile und das Zeichen ↵.

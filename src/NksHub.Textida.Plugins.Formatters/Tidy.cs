@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.Plugins.Formatters;
 
@@ -42,18 +43,17 @@ public static class Tidy
     /// <summary>Runs Tidy on <paramref name="html"/>. Throws <see cref="TimeoutException"/> when it does not finish in <paramref name="timeout"/> (the process is ended).</summary>
     public static async Task<TidyRun> RunAsync(string program, IReadOnlyList<string> arguments, string html, TimeSpan timeout, CancellationToken ct)
     {
-        var info = new ProcessStartInfo(program)
-        {
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardInputEncoding = new UTF8Encoding(false),
-            StandardOutputEncoding = new UTF8Encoding(false),
-            StandardErrorEncoding = new UTF8Encoding(false),
-        };
-        foreach (var argument in arguments) info.ArgumentList.Add(argument);
+        ProcessStartInfo info;
+        try { info = ProcessLaunch.CreateStartInfo(program, arguments); }
+        catch (ToolException e) { throw new InvalidOperationException(e.Message, e); }
+        info.RedirectStandardInput = true;
+        info.RedirectStandardOutput = true;
+        info.RedirectStandardError = true;
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        info.StandardInputEncoding = new UTF8Encoding(false);
+        info.StandardOutputEncoding = new UTF8Encoding(false);
+        info.StandardErrorEncoding = new UTF8Encoding(false);
         using var process = Process.Start(info) ?? throw new IOException("The program did not start.");
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(timeout);

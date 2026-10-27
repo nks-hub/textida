@@ -124,12 +124,12 @@ public class MarkdownToolsTests
     [Fact]
     public void A_broken_table_gets_its_dashes_back_short_rows_filled_and_colons_kept()
     {
-        var noDashes = MarkdownTools.Repair(Lines("a|b|c\n1|2\n4"), 1)!;
+        var noDashes = MarkdownTools.Repair(Lines("a|b|c\n1|2\n4|"), 1)!;
         Assert.Equal(["| a   | b   | c   |", "| --- | --- | --- |", "| 1   | 2   |     |", "| 4   |     |     |"], noDashes.Lines);
         Assert.Equal(2, noDashes.CaretRow);
         Assert.Equal(3, noDashes.Count);
 
-        var colons = MarkdownTools.Repair(Lines("h1|h2\n:-:|--:\nx"), 2)!;
+        var colons = MarkdownTools.Repair(Lines("h1|h2\n:-:|--:\nx|"), 2)!;
         Assert.Equal(["| h1  |  h2 |", "| :-: | --: |", "|  x  |     |"], colons.Lines);
 
         var stray = MarkdownTools.Repair(Lines("| a | b |\n|---|---|\n| 1 | 2 |\n|---|---|"), 0)!;

@@ -19,6 +19,12 @@ public interface IRemoteClient : IAsyncDisposable
     /// <summary>Writes the stream to <paramref name="path"/>, replacing whatever is there. Not atomic; <see cref="RemoteTransfer"/> builds the safe variant.</summary>
     Task UploadAsync(string path, Stream source, CancellationToken cancellation);
 
+    /// <summary>
+    /// Continues a broken upload: <paramref name="path"/> already holds the first <paramref name="offset"/> bytes of the source (SFTP writes at the offset, FTP resumes with REST or APPE).
+    /// The caller has verified those bytes; <see cref="RemoteTransfer"/> checks the result.
+    /// </summary>
+    Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken cancellation);
+
     /// <summary>Renames <paramref name="from"/> to <paramref name="to"/>; fails when <paramref name="to"/> exists.</summary>
     Task RenameAsync(string from, string to, CancellationToken cancellation);
 

@@ -165,7 +165,7 @@ internal sealed partial class MainWindow
         if (offer is not null)
         {
             ReportLibraryProblems();
-            rows.AddRange(offer.Words.Select(word => new QuickRow(word, Loc.Get(K.CompleteWord), null, null, true, null, word, () => InsertWord(surface, word))));
+            rows.AddRange(offer.Words.Select(word => new QuickRow(word, Loc.Get(K.CompleteWord), null, null, true, null, word, () => InsertWord(surface, WordCompletion.MatchCase(word, offer.Prefix)))));
             rows.AddRange(offer.Clips.Select(e => new QuickRow(
                 e.Clip.Title, e.Clip.Language ?? e.PluginName, FirstLines(e.Clip.Text, 1), null, true, null, $"{e.Clip.Title}, {e.PluginName}",
                 () => _ = InsertClipAsync(e, replaceWord: true), () => PreviewOf(e.Clip.Text, e.Clip.Fields))));
@@ -201,6 +201,11 @@ internal sealed partial class MainWindow
         }
         return widened;
     }
+
+    /// <summary>The list of values of a snippet stop, in the same popup as the completion; the pick replaces the text of the stop.</summary>
+    private void ShowSnippetChoices(EditorSurface surface, IReadOnlyList<string> choices) =>
+        ShowChoice(Loc.Get(K.SnippetChoiceWatermark), Loc.Get(K.A11ySnippetChoice),
+            [.. choices.Select(value => new QuickRow(value, null, null, null, true, null, value, () => { if (ReferenceEquals(ActiveEditor, surface)) surface.ChooseSnippetValue(value); }))]);
 
     private void InsertWord(EditorSurface surface, string word)
     {

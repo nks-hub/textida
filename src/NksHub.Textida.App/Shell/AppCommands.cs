@@ -65,6 +65,7 @@ internal static class AppCommands
         On("nks.remote.open", w => w.OpenRemote());
         On("nks.remote.connections", w => w.ShowConnections());
         On("nks.remote.upload", w => w.UploadRemote());
+        On("nks.remote.cancel", w => w.CancelRemoteTransfer());
         On("nks.remote.check", w => w.CheckRemote());
         On("nks.remote.unsent", w => w.ShowUnsent());
         On("nks.source.open", w => w.OpenFromSource());
@@ -172,11 +173,21 @@ internal static class AppCommands
         Fire("nks.edit.previewFormatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: true));
         Fire("nks.edit.htmlEncode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true));
         Fire("nks.edit.htmlDecode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: false));
+        Fire("nks.edit.htmlEncodeAll", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true, nonAscii: true));
+        On("nks.edit.htmlCloseTag", w => w.HtmlCloseTag());
+        On("nks.edit.htmlMatchTag", w => w.HtmlMatchTag());
+        On("nks.edit.htmlSelectElement", w => w.HtmlSelectElement());
+        On("nks.edit.htmlRemoveTag", w => w.HtmlRemoveTag());
+        On("nks.edit.htmlStripTags", w => w.HtmlStripTags());
+        Do("nks.edit.htmlWrapTag", w => _ = w.HtmlWrapTagAsync());
         Fire("nks.edit.htmlTidy", (w, t) => app.Plugins.RunTidyAsync(w, t));
 
         // tools
         Fire("nks.tools.statistics", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.stats"));
         Fire("nks.tools.hash", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash"));
+        Fire("nks.tools.hashCopy", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"copy\":true"));
+        Fire("nks.tools.hashCompare", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"compare\":true"));
+        Fire("nks.tools.insertExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression", ",\"insert\":true"));
         Fire("nks.tools.calculateBlock", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.calculate"));
         Fire("nks.tools.evaluateExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression"));
         Fire("nks.tools.convertBase", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.bases"));
@@ -199,6 +210,9 @@ internal static class AppCommands
         On("nks.tools.markdownFormatTable", w => w.FormatMarkdownTable());
         On("nks.tools.markdownUpdateToc", w => w.UpdateMarkdownToc());
         On("nks.tools.markdownRepairTable", w => w.RepairMarkdownTable());
+        On("nks.snippet.next", w => w.ActiveEditor is { } s && s.NextSnippetStop() ? CommandOutcome.Handled : CommandOutcome.NotHandled);
+        On("nks.snippet.previous", w => w.ActiveEditor is { } s && s.PreviousSnippetStop() ? CommandOutcome.Handled : CommandOutcome.NotHandled);
+        Surface("nks.snippet.end", s => s.EndSnippet());
         On("nks.markdown.nextCell", w => w.MoveTableCell(forward: true));
         On("nks.markdown.previousCell", w => w.MoveTableCell(forward: false));
         On("nks.markdown.newRow", w => w.AddTableRow());
@@ -210,6 +224,11 @@ internal static class AppCommands
         Fire("nks.git.diffIndex", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffIndex"));
         Fire("nks.git.diffHead", (w, t) => app.Plugins.RunGitAsync(w, t, "git.diffHead"));
         Fire("nks.git.stageHunk", (w, t) => app.Plugins.RunGitAsync(w, t, "git.stageHunk"));
+        Fire("nks.git.unstageHunk", (w, t) => app.Plugins.RunGitAsync(w, t, "git.unstageHunk"));
+        Fire("nks.git.conflictOurs", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictOurs"));
+        Fire("nks.git.conflictTheirs", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictTheirs"));
+        Fire("nks.git.conflictBoth", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictBoth"));
+        Fire("nks.git.markResolved", (w, t) => app.Plugins.RunGitAsync(w, t, "git.markResolved"));
         Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
@@ -239,6 +258,10 @@ internal static class AppCommands
         On("nks.edit.copyHtmlSource", w => w.CopyHighlighted(htmlSource: true));
         On("nks.log.levels", w => w.ChooseLogLevels());
         On("nks.log.follow", w => w.ToggleLogFollow());
+        On("nks.log.fold", w => w.FoldLog());
+        On("nks.log.unfold", w => w.UnfoldLog());
+        On("nks.log.openFrame", w => w.OpenStackFrame());
+        On("nks.log.showRaw", w => w.ToggleLogRaw());
         On("nks.log.saveView", w => w.SaveLogView());
         On("nks.log.views", w => w.ShowLogViews());
         On("nks.log.nextMatch", w => w.LogViewStep(forward: true));

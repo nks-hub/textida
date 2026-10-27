@@ -85,15 +85,15 @@ public class HexSearchAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_wildcard_follows_the_setting_n_and_asks_for_it_while_it_is_not_chosen()
+    public void The_wildcard_follows_the_setting_n_and_uses_the_default_while_it_is_not_chosen()
     {
         var data = Encoding.ASCII.GetBytes("\0A12B A1234B");
         var hex = OpenHex(data).Hex!;
 
         _dialogs.Prompts.Enqueue("41 * 42");
         TestApp.Press(_w, Key.F, TestApp.Mod);
-        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexFindInvalid, ("reason", "")).Trim().TrimEnd(':')));
-        Assert.False(hex.Editor.HasSelection);
+        PumpUntil(() => hex.Editor.HasSelection);
+        Assert.Equal((1L, 12L), (hex.Editor.Selection.Start, hex.Editor.Selection.End)); // * is greedy up to the default span, so it reaches the last B
 
         _app.Workbench.Set("hex.wildcardMaxBytes", 2);
         _dialogs.Prompts.Enqueue("41 * 42");

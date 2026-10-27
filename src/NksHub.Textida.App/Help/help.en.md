@@ -132,7 +132,11 @@ commands: nks.remote.upload
 3. If the file on the server changed meanwhile, nothing is sent. Choose Show Differences to see the server version beside yours, copy what you need into your side, save, and upload again. Upload Anyway replaces exactly the server version you were shown.
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
 - Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
-- Nothing is repeated automatically. After a failure, choose Upload to Server again; it checks the server again first.
+- When the connection is lost during an upload, the program tries again a few times with growing pauses. Every try checks the server version again first, and a partly sent temporary file is continued where it stopped after its content was compared with your file. If the server refuses the rename that puts the file in place, the old file is set aside, the new one is moved in, and the old one is restored if that fails.
+
+## [remote.cancel] Cancel the transfer
+commands: nks.remote.cancel
+Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
@@ -185,6 +189,7 @@ The program keeps a revision of a file at every save and at every change another
 - Files that hold secret values, such as .env, are not stored unless you turn on Keep history of secrets files in the settings.
 - Limits (revisions per file, days, MiB per file, MiB in total) are set in the settings; 0 means no limit. The newest revision of a file is never deleted.
 - If the disk is full, the status bar says so and no revision is damaged.
+- A pinned revision is never deleted by the limits; Pin in the revision menu keeps it, Unpin releases it. A file above the size limit gets no revisions and the status bar says so. Old revisions are cleaned in the background.
 
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
@@ -208,6 +213,14 @@ commands: nks.file.openPathAtCaret
 - If the path points to a folder, it is shown in the Files panel.
 - No path under the caret: No file path at the caret. File does not exist: the path is shown with a note that it does not exist.
 
+## [file.openSpecial] Open Special
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Choose File and then Open Special, or run Open Special in the palette. In the Files panel, right-click a file and choose Open Special.
+2. Choose how to open the file. From the panel the selected file is used; elsewhere the file of the current tab, and if there is none you pick one.
+- Open File as Hex, Open with Encoding (the encoding list opens after the file), Open Read Only (the tab does not save), Open as New Copy (an unsaved document with the text of the file).
+- Reopen with Encoding, Open Path at Caret and Related File work on the current tab.
+- Open Containing Folder shows the folder in the system file manager; Open with Default App hands the file to the program the system assigns to it.
+- Reopen Last Closed Tab opens the file of the tab closed last; closed files that no longer exist are skipped.
 ## [app.settings] Settings
 commands: nks.app.openSettings
 1. Press Ctrl+comma, or choose Settings and then Settings.
@@ -356,19 +369,19 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson
 - If the document changed after the command started, the command stops and asks you to run it again.
 
 ## [tools.stats] Document statistics and hashes
-commands: nks.tools.statistics, nks.tools.hash
-1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document.
-2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of the selected part.
+commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
+1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document, or of the selected parts together, and lists the most frequent characters and words.
+2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (CRC-32, MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of every selected part. Calculate Hash and Copy also puts the hash on the clipboard. Compare Hash with Pasted asks for a hash, picks the algorithm by its length and says whether it matches.
 - Both read the document in blocks while you keep working, show progress and can be cancelled. Neither holds the whole file in memory, so they work on files of any size, also in paged and hex view.
 - A cancelled statistic is shown as incomplete, with how many bytes were counted. A cancelled hash gives no result.
 - The statistic and the hash are of the document as it was when the command started; if you edit meanwhile, they do not change.
-- A word is a run of letters and digits. The hash has no result for several selections at once.
+- A word is a run of letters and digits; words are counted in lower case. The word list keeps a limited number of distinct words and says when it is full. Several selected parts are counted as one text.
 
 ## [tools.calculate] Block calculation, expressions and number bases
-commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.convertBase
+commands: nks.tools.calculateBlock, nks.tools.evaluateExpression, nks.tools.insertExpression, nks.tools.convertBase
 1. Calculate Selected Block adds up the numbers in the selection (a block selection, a column of numbers) and shows the count, sum, smallest, largest and average.
-2. Evaluate Expression asks for an expression, starting with the selected text, and shows the result. It understands + - * / ^ ( ), MOD and the functions ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR and TRUNC. Numbers are written with a dot. Anything else, such as a call of a system command, is refused and nothing is run.
-3. Convert Number Base asks for a whole number, decimal or with the prefix 0x, 0b or 0o, and shows it in decimal, hexadecimal, octal and binary.
+2. Evaluate Expression asks for an expression, starting with the selected text or the line of the caret, and shows the result. Insert Expression Result writes " = result" behind the selection or the line, as one undo step, with a dot as the decimal mark whatever the language is. It understands + - * / ^ ( ), MOD and the functions ABS, ATAN, COS, EXP, LN, ROUND, SIN, SQRT, SQR and TRUNC. Numbers are written with a dot. Anything else, such as a call of a system command, is refused and nothing is run.
+3. Convert Number Base asks for a whole number, decimal, with the prefix 0x, 0b or 0o, or a Roman numeral, and shows it in decimal, hexadecimal, octal and binary, as a Roman numeral (1 to 3999) and as the date it is when read as Unix milliseconds.
 - The program recognises how the numbers in the selection are written (Czech and Slovak: 1 234,50, German: 1.234,50, English: 1,234.50). When more than one way fits, such as 1,234, it takes the one of the program language. The results are shown in the format of the program language. Changing the language does not change the document.
 - Text in the selection that is not a number is skipped and counted. The number conversion works for values from -9223372036854775808 to 18446744073709551615.
 - Powers take a positive base only. The calculation uses double precision numbers.
@@ -411,9 +424,10 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Tools, Structure and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
 3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
 4. If the plugin process stops, the outline is read again once it is back.
-- It is read with simple rules of the language, without a language server and without a project index: HTML (headings, elements with an `id`, `main`, `nav`, `section` and similar), PHP (namespaces, classes, interfaces, traits, enums, functions, methods), CSS (rules and at-rules), C# (namespaces, types, methods, constructors, properties), Markdown (`#` headings).
+5. While a file has an outline, the status bar names the symbol the caret is in, with its parents (for example `Class › method`); it follows the caret and is hidden while the outline is outdated.
+- It is read with simple rules of the language, without a language server and without a project index. Besides the languages below: JavaScript and TypeScript (classes, interfaces, enums, functions, arrow functions, methods), Python (classes, functions, methods by indentation), Rust (modules, structs, enums, traits, impl blocks, functions, macros), Dart (classes, mixins, enums, extensions, functions, methods), C and C++ (namespaces, structs, classes, enums, functions, macros), Bash (functions), CMake (functions, macros, targets), Makefile (targets, `define`), Meson (targets, tests, subdirs). Keys of YAML and JSON come from the key outline. HTML (headings, elements with an `id`, `main`, `nav`, `section` and similar), PHP (namespaces, classes, interfaces, traits, enums, functions, methods), CSS (rules and at-rules), C# (namespaces, types, methods, constructors, properties), Markdown (`#` headings).
 - Comments and strings are not read. What the rules do not recognise is skipped.
-- A file larger than the limit of the plugin, or with more symbols than the outline holds, is shown cut short and the message says so.
+- A file larger than the limit of the plugin, or with more symbols than the outline holds, is shown cut short and the message says so. A large file opened in the paged view is read in the background from its start up to the limit; a jump to a symbol scrolls the paged view to it.
 
 ## [edit.carets] Multiple carets
 commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAllOccurrences, nks.edit.addCaretAbove, nks.edit.addCaretBelow, nks.edit.clearCarets
@@ -749,8 +763,8 @@ Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It r
 - F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit.
 - Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
 - Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
-- The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the search asks for it. *{2,8} writes a range of your own and needs no setting.
-- A pattern between slashes is a regular expression over bytes, for example /\x50\x4B[\x01-\x08]/. A byte is a character 0 to 255, . is any one byte (also 0A and 0D), \xHH is a byte and [...] a set of bytes. Groups, |, ? * + {n,m} and \n \r \t \0 \d \w \s work; ^, $, \b, back references and look-around do not, because bytes have no lines or words. An open repeat (.*, +, {n,}) reaches at most N bytes. A match needs at least one byte, and matches may overlap.
+- The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the built-in default of 256 bytes is used. *{2,8} writes a range of your own and needs no setting.
+- A pattern between slashes is a regular expression over bytes, for example /\x50\x4B[\x01-\x08]/. A byte is a character 0 to 255, . is any one byte (also 0A and 0D), \xHH is a byte and [...] a set of bytes. Groups, |, ? * + {n,m} and \n \r \t \0 \d \w \s work; ^ and $ are the start and the end of the file (of the selection in Replace); \b, back references and look-around do not, because bytes have no lines or words. An open repeat (.*, +, {n,}) reaches at most N bytes. A match needs at least one byte, and matches may overlap.
 - Ctrl+H replaces bytes: first the pattern (the same forms as Find), then the replacement as hex, text in quotes or a number; an empty replacement deletes the matches. With a selection only the selection is searched.
 - A preview lists every match with its old and new bytes and warns when the length of the file changes. Replace All writes all of them as one undo step. If the file changed after the preview, nothing is replaced. Matches that overlap an earlier one are left out.
 - In overwrite mode the replacement must be as long as the match; switch to insert mode (the Insert key) to change the length.
@@ -844,7 +858,7 @@ The structure panel reads the file through a template and shows its fields as a 
 1. Hex: Structure Template (Ctrl+J) opens the panel, or closes it when it already has the focus. The template that fits the file is chosen by its magic number, then by the file extension; the list above the tree lets you pick another one, and the choice is kept for that extension until the program ends.
 2. A field with parts (a structure or a list) is read when you open it, so a large file opens at once. Each row shows the name, the value and, in grey, the offset and the length in bytes.
 3. A field that cannot be read is shown in red with the reason, for example that it runs past the end of the data or differs from the expected bytes. The fields behind it are not shown, because their place is unknown.
-- Templates are a subset of the Kaitai Struct .ksy format: integers, floats, strings, raw bytes, fixed bytes (contents), enums, nested types, size, size-eos and repeat (eos or a count). A size or a count is a number or an earlier integer field. Expressions, if, switch-on, instances and process are not supported.
+- Templates are a subset of the Kaitai Struct .ksy format: integers, floats, strings, raw bytes, fixed bytes (contents), enums, nested types, size, size-eos, repeat (eos, expr or until), if, switch-on with cases (key _ is the default), instances with pos or value, and expressions. Expressions are allowed in size, repeat-expr, repeat-until, if, pos, value and switch-on. They compute 64-bit integers, true/false and strings: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, brackets, numbers (decimal, 0x, 0b), quoted strings, names of earlier fields and instances, a.b, list[i], enum::member, _parent, _root, _index, _ (the last element in repeat-until), _io.pos, _io.size, _io.eof, .as<type> (no conversion), .to_i and .length of a string, .size, .first and .last of a list. pos counts from the start of the structure's stream (a structure with size is a stream of its own). Floats, array literals, other methods, process and everything else not listed are refused with the template line. A division by zero, a missing field or a wrong kind of value gives an error on that field; a huge size or count ends in a limit error. Instances are listed after the fields.
 - Reading stops with a message when a template nests too deep, repeats one field too often, or reads a string or an amount of work above a fixed limit.
 - Shipped templates: BMP header and PNG chunk list. Opening your own .ksy file is not available yet.
 
@@ -917,6 +931,7 @@ commands: nks.plugins.manage
 4. Choose an installed plugin to enable or disable it, update it from a newer ZIP, roll back to the previous version, change its permissions or uninstall it. A new version is unpacked beside the old one and becomes active only when it loads; the old one stays for the roll back. An update asks only about permissions you were never asked about; your earlier answers stay.
 5. A permission you take back stops new requests of the plugin at once and cancels the ones waiting. A plugin without a permission gets an error, not an empty result. Disabling stops the process; uninstalling deletes only the folder of that plugin.
 - Permissions are a record of what you allowed, not a sandbox: a plugin is a program that runs with your user rights. Install only plugins you trust. Signatures are not checked yet. The size and file count limits for a ZIP are provisional. New commands of an updated plugin appear after a restart.
+- A plugin can bring keys and settings. Its keys (contributes.keybindings, with an optional "when") work like the keys of the editor, but a key of the editor, of the profile or your own keymap.json always wins over a plugin key; the clash is listed under the plugin in the Plugin Manager. Its settings (contributes.settings, keys that start with the plugin id) appear in Settings under the name of the plugin, with the default from the manifest, and a running plugin gets the values at its start and again as the event settings.changed. A command that names a tool in the manifest (contributes.externalTools) runs it without any plugin code, after you confirmed its command and directory.
 
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop find
 commands: nks.tools.lint
@@ -970,6 +985,13 @@ commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.e
 - The whole document is colored, then the selection is cut out of it, so a selection that starts inside a comment is colored as in the editor. In a large file (paged mode) and with several carets or a block selection only the selected text is taken, and it is colored from its own start.
 - A text over 8388608 characters is refused with a message; select a part of it. The limit is a placeholder, not a decided value. The work runs in the background, so the window stays usable.
 - HTML is UTF-8. RTF is ASCII: backslash, braces and every character outside ASCII (for example Czech letters) are written as escapes.
+
+## [log.full] Full log mode: folding, stack traces, heatmap, ANSI colors
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Fold Uninteresting Lines asks for a level (lines of at least that level stay: error, warning, info, debug) and a regular expression (lines that match stay). Each run of other lines becomes one placeholder row that a click opens. A line without a level word, such as a stack trace frame, goes with the entry above it. Log: Show All Lines opens everything again. In a paged file (very large) rows cannot be folded; the lines that would be folded are drawn dim instead.
+2. Ctrl+click on a stack trace frame of .NET, Java, Python, PHP or Node.js opens the file at that line; Log: Open File of Stack Trace Frame does the same for the caret line. A relative path is looked for in the folder of the log, then in the workspace folders; a bare file name (Java) is searched below them.
+3. The strip at the right edge of the minimap shows where error lines (red) and warning lines (yellow) are dense. It is counted in the background. A file up to 256 MiB is read whole; a larger one is sampled, so the picture is an estimate. These limits are not decided values.
+4. ANSI escape sequences in a log are hidden and drawn as colors (16, 256 and true colors), bold and underline. The file is never changed, so saving keeps the escapes. Log: Show ANSI Escapes Raw switches between the colors and the plain sequences. A style that a line leaves open does not carry into the next line.
 
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1084,13 +1106,16 @@ This help describes only what this version can do. These things are not in it ye
 - Plugins, remote files and other functions planned for version 1.0: not in this version.
 
 ## [edit.clips] Clips
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 A clip is a piece of text with places for variables and carets. Clips come from data plugins in the folder plugins of the profile; one subfolder per plugin, with a file nkspad-plugin.json and no program.
 1. Choose Edit, Insert, Insert Clip. The list shows the clips with a preview of the text that would be inserted.
 2. Pick a clip. If it has a form, fill it in: the preview follows what you type, a wrong value is marked and OK stays dimmed until every value fits its type.
 3. The text goes into every caret and replaces every selection, as one Undo step. The carets end where the clip has the mark $|.
 - Save Selection as Clip asks for a name and adds the selected text to your own library (the plugin user.clips, folder user-clips). The text is kept literally, so a dollar sign in it stays a dollar sign. The clip is in the list at once.
 - Template language: ${name} is a variable, $| marks a caret (as many as you like), $$ is a dollar sign. Line breaks become the line break of the document.
+- Snippets: a clip (and the plugin call snippet/insert with "format": "template") may use numbered tab stops: $1, ${1:default text}, ${1|one,two,three|}, $0 (the final caret). The same number in several places is edited together. After the insert the first stop is selected; Tab goes to the next one, Shift+Tab to the previous one, and after the last one the caret goes to $0. Escape or a click outside the snippet ends it. A stop with a list of values opens the list of choices. With several carets each has its own snippet and the stops are visited together.
+- The lines of a snippet after the first take the indentation of the line it starts on; tabs in its own indentation become the indentation of the document (tabs or spaces). A clip without numbered stops is inserted as it is.
+- In a snippet $| is not a caret, and a dollar sign before a digit is a stop: write $$ or \$ for a dollar sign. Besides ${name} the variables TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID and CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND work (also as $NAME). Nested stops and transforms are not supported; text that does not fit the syntax stays as it is.
 - Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. your own variables (Edit, Insert, Edit User Variables opens the file variables.json of the profile: one JSON object of name and text), 3. the built-in ones. The same name means the same everywhere.
 - Built-in variables: file.path, file.dir, file.name, file.base, file.ext (an unsaved document has no file.*), date (yyyy-MM-dd), time (HH:mm:ss), datetime (the setting Date and time format), guid (a new one for each caret), selection (the text selected at that caret), user.name. A name with no value stops the insertion and the status bar names it.
 - Form fields: name, label, type, default, choices, required. Types: text, integer, number (decimal point), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (yyyy-MM-dd), file (an existing file), choice (one of choices). A default may use variables, for example ${date}.
@@ -1169,14 +1194,17 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
 ## [tools.git] Git: status, compare and stage a hunk
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
 1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
 4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
 - The plugin writes to the repository only on Git: Stage Hunk at Caret. Status and compare only read and do not even refresh the index file.
 - The text open in the editor is staged, saved or not. A file with an unresolved merge conflict is not staged.
-- Not there yet: unstage a hunk, commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
+5. Git: Unstage Hunk at Caret takes back to HEAD only the staged change the caret is in (or points to in the file). The other staged changes stay.
+6. For a merge conflict put the caret in the block between `<<<<<<<` and `>>>>>>>` and choose Git: Conflict, Take Ours / Take Theirs / Take Both. The block is replaced by the chosen side. When no block is left and the file is saved, choose Git: Mark File Resolved; the file is added to the index.
+7. A double click or Enter on a file in the status panel opens it. The status bar shows the branch and counts: `+` staged, `~` changed, `?` untracked, `!` conflicts; it updates after every Git command.
+- Not there yet: commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
 - The Git process starts with the first command. The `git` program must be on the PATH.
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
@@ -1222,13 +1250,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Indentation (4 spaces) and keyword case (upper) are fixed for now; they are not settings yet.
 
 ## [edit.html] HTML: entities and HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Edit, Formatting, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
 2. Edit, Formatting, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
 3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
 - Tidy is not part of this build: install it and set the path, or put it in one of those places.
 - Line numbers in the messages count from the start of the text that was sent to Tidy.
-- Letters outside ASCII are not written as entities; the encoding of the file holds them.
+- Convert to HTML Entities Including Non-ASCII also writes every character outside ASCII as a numeric entity (`&#233;`); converting back gives the text again.
+4. Tag tools (HTML, XML and PHP files): Edit, Formatting, Close Open Tag writes the end tag of the nearest tag that is still open at the caret. Go to Matching Tag moves the caret to the partner of the tag at the caret. Select Element selects the element around the selection; repeat it to select the next one out. Remove Tag deletes the start and end tag of the element at the caret and keeps its content. Wrap in Tag asks for a name and wraps each selection in it. Strip Tags removes all tags and comments from the selections (the whole file when nothing is selected).
+- Tags are paired by nesting. Comments and the content of `script` and `style` hold no tags. The optional end tags of HTML (`li`, `p`) are not inferred, so such a tag counts as open.
+- Inserting an image or link with its size is not available.
 
 ## [help.language] Help for a language
 commands: nks.help.languageHelp
@@ -1243,7 +1274,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
 1. Ctrl+K then Ctrl+T (View menu, Table, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
-2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header.
+2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first lines of the file (the extension decides when they are unclear).
 - A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
 - Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
 - A quoted cell may hold line breaks; the table shows its first line and the mark ↵.

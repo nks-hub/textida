@@ -48,7 +48,7 @@ public sealed class HistoryRecorder : IDisposable
                 {
                     if (onlyIfEmpty && _history.List(path).Count > 0) return;
                     var result = _history.RecordFile(path, source);
-                    if (result.Status == HistoryStatus.Failed) Failed?.Invoke(path, result);
+                    if (result.Status is HistoryStatus.Failed or HistoryStatus.TooLarge) Failed?.Invoke(path, result);
                 }
                 catch (HistoryFormatException e)
                 {
