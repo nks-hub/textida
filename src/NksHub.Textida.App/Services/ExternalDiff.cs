@@ -5,7 +5,7 @@ using NksHub.Textida.Core.Documents;
 namespace NksHub.Textida.App.Services;
 
 /// <summary>
-/// Compares a tab with the file on disk in an external tool (until the built-in diff of P5.2 exists). The content of the tab
+/// Compares a tab with the file on disk in an external tool, when the user set one (otherwise the built-in comparison is used). The content of the tab
 /// is handed over as a temporary file with exactly the bytes of the document; the file is deleted when the tool exits.
 /// </summary>
 internal static class ExternalDiff

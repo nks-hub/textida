@@ -98,14 +98,11 @@ commands: nks.file.reload
 
 ## [file.compare] Mit Datenträger vergleichen
 commands: nks.file.compareWithDisk
-Der Befehl startet Ihr eigenes Vergleichsprogramm: links die Datei auf dem Datenträger, rechts der Inhalt des Tabs.
-1. Tragen Sie einmal in den Einstellungen das Externe Vergleichsprogramm (den Pfad zu einem Programm) und bei Bedarf die Argumente des Vergleichsprogramms ein. In der Vorlage steht {left} für die Datei auf dem Datenträger und {right} für den Inhalt des Tabs.
-2. Wählen Sie Datei und dann Mit Datenträger vergleichen.
-- Ist kein Programm eingestellt, erscheint eine Leiste: Kein externes Vergleichsprogramm eingestellt, mit der Schaltfläche Einstellungen öffnen.
+Der Tab und die Datei auf dem Datenträger werden nebeneinander in einem eigenen Tab gezeigt. Links steht der Tab mit den nicht gespeicherten Änderungen, rechts die Datei auf dem Datenträger.
+1. Wählen Sie Datei und dann Mit Datenträger vergleichen. Der Tab mit dem Vergleich öffnet sich (Thema Texte vergleichen).
+2. Ist in den Einstellungen ein Externes Vergleichsprogramm eingetragen, startet stattdessen Ihr Programm: links die Datei auf dem Datenträger, rechts der Inhalt des Tabs. In der Argumentvorlage ist {left} die Datei auf dem Datenträger und {right} der Inhalt des Tabs. Die dem Programm übergebene Kopie des Tabs wird gelöscht, wenn es endet.
 - Ein Tab ohne Datei auf dem Datenträger meldet: Der Tab hat keine Datei auf dem Datenträger, mit der verglichen werden kann.
-- Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
-- Ein eigenes Vergleichsfenster hat das Programm nicht; es verwendet das von Ihnen eingestellte Programm.
-
+- Startet Ihr Programm nicht, schreibt die Statusleiste Das Vergleichsprogramm ist nicht gestartet und nennt den Grund.
 ## [file.openPath] Pfad am Cursor öffnen
 commands: nks.file.openPathAtCaret
 1. Setzen Sie den Cursor auf einen Dateipfad im Text, zum Beispiel src/a.cs:12.
@@ -915,3 +912,32 @@ Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen
 2. Der ausgewählte Text wird zur Tabelle. Der Rest der Datei bleibt Text: Das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle, und außerhalb der Auswahl wird nichts gelesen oder geändert.
 - Alles aus der Tabellenansicht funktioniert darin: Bewegen, Bearbeiten, Zeilen und Spalten hinzufügen und löschen, Filtern, Kopieren und Einfügen. Die Statusleiste sagt, dass nur der ausgewählte Text die Tabelle ist.
 - Am Ende hinzugefügte Zeilen gehören zur Auswahl. Tabellenansicht umschalten kehrt zum Text zurück; das nächste Umschalten zeigt die ganze Datei als Tabelle.
+
+## [compare.text] Texte vergleichen
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts
+Zwei Texte werden zeilenweise in einem eigenen Tab verglichen. Gleiche Zeilen stehen auf gleicher Höhe, ein geänderter Block ist auf beiden Seiten getönt und im mittleren Streifen markiert, und die Leiste oben nennt die Zahl der Unterschiede.
+1. Mit Zwischenablage vergleichen (Menü Extras oder Kontextmenü des Editors) vergleicht den Tab mit dem Text der Zwischenablage. Ist im Editor Text ausgewählt, wird nur die Auswahl verglichen.
+2. Mit Datei vergleichen fragt nach einer Datei und vergleicht den Tab damit. Mit Datenträger vergleichen steht im Menü Datei und vergleicht den Tab mit seiner eigenen Datei.
+3. Zwei Texte vergleichen öffnet zwei leere Seiten. Die Schaltflächen Linken Text einfügen und Rechten Text einfügen setzen die Zwischenablage in eine Seite ein.
+- Die Tab-Seite ist das Dokument selbst: Ändert es sich, wird nach einer kurzen Pause neu verglichen. Zwischenablage, Auswahl und Datei auf dem Datenträger sind schreibgeschützte Seiten.
+- Ein anderes Zeilenende (CR, LF, CRLF) macht eine Zeile nicht anders. Leerzeichen und Groß-/Kleinschreibung schon.
+- Eine große Datei im seitenweisen Modus wird verglichen, ohne geladen zu werden: Es werden nur die Zeilen auf dem Bildschirm gelesen.
+- Jede Seite darf zwischen gemeinsamem Anfang und gemeinsamem Ende bis zu 16 Millionen Zeilen haben; darüber ist die Strecke ein geänderter Block. Bis zu 10 000 geänderte Zeilen werden genau gefunden; bei mehr schreibt die Leiste „nicht minimal“ und geänderte Zeilen werden zu größeren Blöcken zusammengefasst. Das Ergebnis bleibt richtig.
+
+## [compare.navigate] Zwischen Unterschieden wechseln und sie kopieren
+commands: nks.compare.next, nks.compare.previous, nks.compare.copyToRight, nks.compare.copyToLeft
+1. F7 springt zum nächsten Unterschied, Umschalt+F7 zum vorherigen (auch im Menü Extras). Der aktuelle Unterschied hat einen Rahmen.
+2. Im mittleren Streifen hat die erste Zeile jedes Unterschieds zwei Pfeile. Der linke kopiert den Block der rechten Seite nach links, der rechte den Block der linken Seite nach rechts. Dasselbe tun für den aktuellen Unterschied die Schaltflächen über den Seiten und die Befehle Unterschied nach rechts kopieren und nach links kopieren.
+3. Ein Kopieren ist eine einzige Änderung des Dokuments, Rückgängig nimmt es in einem Schritt zurück.
+- Nur eine Seite, die ein geöffnetes Dokument ist, kann einen Block aufnehmen. Eine Datei auf dem Datenträger, die Zwischenablage und eine Auswahl haben keinen Pfeil.
+- Hat sich das Dokument nach dem Vergleich geändert, wird nichts kopiert; es wird neu verglichen und Sie kopieren noch einmal.
+- Kann die Kodierung des Ziels die Zeichen des Blocks nicht aufnehmen, wird nichts kopiert und die Statusleiste sagt es.
+- Das Mausrad bewegt beide Seiten gemeinsam, Umschalt und Mausrad scrollen zur Seite.
+
+## [view.syncScroll] Synchrones Scrollen
+commands: nks.view.syncScroll
+Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander bleibt.
+1. Zeigen Sie die beiden Dateien nebeneinander: Wählen Sie im Menü eines Tabs In andere Gruppe verschieben, damit jede Datei ihre eigene Gruppe hat.
+2. Wählen Sie Ansicht und dann Scrollen synchronisieren. Der aktive Tab und der aktive Tab der nächsten Gruppe folgen einander. Wählen Sie den Befehl noch einmal, um es zu beenden.
+- Die Zeilen werden mit dem Vergleich aus dem Thema Texte vergleichen zugeordnet: Die andere Datei scrollt zur entsprechenden Zeile, auch über eingefügte oder entfernte Blöcke hinweg. Solange der Vergleich berechnet wird, gilt dieselbe Zeilennummer.
+- Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.

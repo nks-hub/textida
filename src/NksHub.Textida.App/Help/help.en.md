@@ -98,14 +98,11 @@ commands: nks.file.reload
 
 ## [file.compare] Compare with disk
 commands: nks.file.compareWithDisk
-The command starts your own comparison program: the file on disk on the left, the content of the tab on the right.
-1. Once, fill in External diff tool (the path to a program) in the settings, and if needed Diff tool arguments. In the template {left} is the file on disk and {right} is the content of the tab.
-2. Choose File and then Compare with Disk.
-- Without a program set, a bar appears: No external diff tool is set, with the button Open Settings.
+The tab and the file on disk are shown side by side in a tab of their own. The tab is on the left with the changes you have not saved, the file on disk on the right.
+1. Choose File and then Compare with Disk. The tab with the comparison opens (topic Comparing texts).
+2. If External diff tool is set in the settings, your own program is started instead: the file on disk on the left, the content of the tab on the right. In the argument template {left} is the file on disk and {right} is the content of the tab. The copy of the tab handed to the program is deleted when it ends.
 - A tab without a file on disk says: The tab has no file on disk to compare with.
-- If the program does not start, the status bar says The diff tool did not start and gives the reason.
-- The program has no comparison window of its own; it uses the one you set.
-
+- If your program does not start, the status bar says The diff tool did not start and gives the reason.
 ## [file.openPath] Open path at caret
 commands: nks.file.openPathAtCaret
 1. Put the caret on a file path in the text, for example src/a.cs:12.
@@ -915,3 +912,32 @@ Select a part of a text, for example a block of comma-separated lines in a note 
 2. The selected text becomes the table. The rest of the file stays text: a cell edit changes the bytes of that cell only, and nothing outside the selection is read or changed.
 - Everything of the table view works in it: moving, editing, adding and deleting rows and columns, filtering, copy and paste. The status bar says that only the selected text is the table.
 - Rows added at the end go inside the selection. Toggle Table View returns to the text; the next Toggle Table View shows the whole file as a table.
+
+## [compare.text] Comparing texts
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts
+Two texts are compared line by line in a tab of their own. Equal lines stand level, a changed block is tinted on both sides and marked in the middle strip, and the bar above says how many differences there are.
+1. Compare with Clipboard (Tools menu, or the context menu of the editor) compares the tab with the text on the clipboard. With text selected in the editor, only the selection is compared.
+2. Compare with File asks for a file and compares the tab with it. Compare with Disk is in the File menu and compares the tab with its own file.
+3. Compare Two Texts opens two empty sides. Paste left text and Paste right text put the clipboard into a side.
+- The tab side is the document itself: when it changes, the comparison is made again after a short pause. The clipboard, a selection and a file on disk are read-only sides.
+- A different line ending (CR, LF, CRLF) does not make a line differ. Spaces and letter case do.
+- A large file in paged mode is compared without being loaded: only the lines on screen are read.
+- Each side may have up to 16 million lines between the common beginning and the common end; beyond that the stretch is one changed block. Up to 10,000 changed lines are found exactly; with more, the bar says not minimal and changed lines are grouped in larger blocks. The result is still correct.
+
+## [compare.navigate] Moving between differences and copying them
+commands: nks.compare.next, nks.compare.previous, nks.compare.copyToRight, nks.compare.copyToLeft
+1. F7 goes to the next difference and Shift+F7 to the previous one (also in the Tools menu). The current difference has a frame.
+2. In the middle strip, the first row of each difference has two arrows. The left one copies the block of the right side to the left, the right one copies the block of the left side to the right. The buttons above the sides and the commands Copy Difference to the Right and to the Left do the same for the current difference.
+3. A copy is one edit of the document, so Undo takes it back in one step.
+- Only a side that is an open document can receive a block. A file on disk, the clipboard and a selection have no arrow.
+- If the document changed after the comparison was made, nothing is copied; the comparison is made again and you copy once more.
+- If the encoding of the target cannot hold the characters of the block, nothing is copied and the status bar says so.
+- The mouse wheel moves both sides together, Shift and the wheel scroll sideways.
+
+## [view.syncScroll] Synchronized scrolling
+commands: nks.view.syncScroll
+Two tabs scroll together, so equal text of two files stays side by side.
+1. Show the two files next to each other: choose Move to Other Group in the menu of a tab, so each file has its own group.
+2. Choose View and then Synchronize Scrolling. The active tab and the active tab of the next group follow each other. Choose the command again to stop.
+- The lines are matched with the comparison of Comparing texts: the other file scrolls to the line that corresponds, also across inserted or removed blocks. While that comparison is being made, the same line number is used.
+- It stops when one of the two tabs is closed. The hex view and the table view do not take part.

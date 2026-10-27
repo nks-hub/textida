@@ -215,7 +215,7 @@
   "setting.search.regexTimeoutMs.title": "Regular expression time limit (ms)",
   "setting.search.regexTimeoutMs.description": "A pattern with backreferences, lookaround or atomic groups runs in the backtracking engine and is stopped after this time on one text. Other patterns run in the linear-time engine and are not limited.",
   "setting.tools.diffTool.title": "External diff tool",
-  "setting.tools.diffTool.description": "Path of a program that compares two files. Empty: Compare with Disk says what is missing.",
+  "setting.tools.diffTool.description": "Path of a program that compares two files. Empty: Compare with Disk opens the built-in comparison.",
   "setting.tools.diffArguments.title": "Diff tool arguments",
   "setting.tools.diffArguments.description": "Argument template; {left} is the file on disk, {right} the content of the tab.",
   "cmd.edit.addNextOccurrence": "Add Next Occurrence",
@@ -317,5 +317,13 @@
   "setting.sql.dialect.title": "Default SQL dialect",
   "setting.sql.dialect.description": "Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
   "setting.html.tidyPath.title": "HTML Tidy program",
-  "setting.html.tidyPath.description": "Full path of the HTML Tidy program. Empty: the editor looks next to the formatters plugin, in tools/tidy and in PATH."
+  "setting.html.tidyPath.description": "Full path of the HTML Tidy program. Empty: the editor looks next to the formatters plugin, in tools/tidy and in PATH.",
+  "cmd.compare.clipboard": "Compare with Clipboard",
+  "cmd.compare.file": "Compare with File...",
+  "cmd.compare.texts": "Compare Two Texts",
+  "cmd.compare.next": "Next Difference",
+  "cmd.compare.previous": "Previous Difference",
+  "cmd.compare.copyToRight": "Copy Difference to the Right",
+  "cmd.compare.copyToLeft": "Copy Difference to the Left",
+  "cmd.view.syncScroll": "Synchronize Scrolling"
 }

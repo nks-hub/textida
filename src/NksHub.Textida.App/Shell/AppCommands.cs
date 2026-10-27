@@ -200,6 +200,14 @@ internal static class AppCommands
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
         On("nks.view.hex", w => w.ToggleHex());
         Do("nks.file.openAsHex", w => _ = w.OpenAsHexDialogAsync());
+        On("nks.compare.clipboard", w => { _ = w.CompareWithClipboardAsync(); return CommandOutcome.Handled; });
+        On("nks.compare.file", w => { _ = w.CompareWithFileAsync(); return CommandOutcome.Handled; });
+        Do("nks.compare.texts", w => w.OpenTextCompare());
+        On("nks.compare.next", w => w.CompareStep(next: true));
+        On("nks.compare.previous", w => w.CompareStep(next: false));
+        On("nks.compare.copyToRight", w => w.CompareCopy(Core.Compare.DiffSide.B));
+        On("nks.compare.copyToLeft", w => w.CompareCopy(Core.Compare.DiffSide.A));
+        On("nks.view.syncScroll", w => w.ToggleSyncScroll());
         On("nks.view.table", w => w.ToggleTable());
         On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
         On("nks.table.dialect", w => { w.ShowTableDialectMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });

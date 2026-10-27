@@ -17,6 +17,32 @@ public sealed record DiffSource(IByteSnapshot Snapshot, TextCodec Codec, long St
         codec ??= TextCodec.Utf8;
         return new(new ArraySnapshot(codec.Encode(text)), codec);
     }
+
+    /// <summary>A file read in place. Without a <paramref name="codec"/> the encoding is guessed from the first MiB; the snapshot is disposable and the caller disposes it.</summary>
+    public static DiffSource OfFile(string path, TextCodec? codec = null)
+    {
+        var snapshot = new FileByteSnapshot(path);
+        try
+        {
+            var sample = new byte[(int)Math.Min(snapshot.ByteLength, 1 << 20)];
+            for (int done = 0; done < sample.Length;)
+            {
+                int n = snapshot.Read(done, sample.AsSpan(done));
+                if (n <= 0) break;
+                done += n;
+            }
+            codec ??= EncodingGuesser.Guess(sample, snapshot.ByteLength <= sample.Length).Codec;
+            return new(snapshot, codec, codec.BomLengthIn(sample));
+        }
+        catch
+        {
+            snapshot.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>Releases the file behind a source made by <see cref="OfFile"/>; a snapshot of a document needs nothing.</summary>
+    public void Release() => (Snapshot as IDisposable)?.Dispose();
 }
 
 /// <summary>Bytes of a file on disk, read in place; the file is opened shared so the editor and other programs keep working with it.</summary>

@@ -27,6 +27,12 @@ internal sealed partial class MainWindow
     /// <summary>Status bar of the search results tab: the counts on the left, the name of the view on the right.</summary>
     private void ShowResultsStatus()
     {
+        if (Active?.Custom is Editing.DiffView compare)
+        {
+            _statusLeft.Text = _message.Length > 0 ? _message : compare.SummaryText;
+            _statusRight.Children.Add(new TextBlock { Text = Loc.Get(K.A11yCompare), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+            return;
+        }
         _statusLeft.Text = ResultsView?.SummaryText ?? Loc.Get(K.StatusReady);
         _statusRight.Children.Add(new TextBlock { Text = Loc.Get(K.StatusSearchResults), VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
     }

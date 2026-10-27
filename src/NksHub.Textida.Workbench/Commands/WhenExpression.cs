@@ -42,9 +42,11 @@ public static class ContextKeys
     public const string HexMode = "hexMode";
     /// <summary>The active tab shows its document as a table.</summary>
     public const string TableMode = "tableMode";
+    /// <summary>The active tab is a comparison of two sides.</summary>
+    public const string CompareMode = "compareMode";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode];
 }
 
 /// <summary>

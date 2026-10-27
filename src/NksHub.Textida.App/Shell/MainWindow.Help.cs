@@ -22,6 +22,7 @@ internal sealed partial class MainWindow
         if (_find.IsVisible && _find.IsKeyboardFocusWithin) return _find.FilesMode ? "search.inFiles" : _find.ReplaceShown ? "search.replace" : "search.find";
         if (FilePanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.files";
         if (DocumentsPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.documents";
+        if (Active?.Custom is Editing.DiffView) return "compare.text";
         if (Active?.Custom is not null) return "search.inFiles";
         if (Active?.Paged is not null) return "paged";
         return HelpCatalog.StartTopic;

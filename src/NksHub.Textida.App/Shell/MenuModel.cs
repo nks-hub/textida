@@ -30,6 +30,17 @@ internal static class MenuRenderer
         return menu;
     }
 
+    /// <summary>Items for a context menu; each is asked for its state now, as the menu opens.</summary>
+    public static IEnumerable<Control> ToContextItems(IEnumerable<MenuNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            var item = ToItem(node);
+            if (item is MenuItem { Tag: MenuCommand { EnabledNow: { } enabled } } menuItem) menuItem.IsEnabled = enabled();
+            yield return item;
+        }
+    }
+
     /// <summary>Asks every command of an opened submenu for its current state.</summary>
     private static void Refresh(MenuItem parent)
     {

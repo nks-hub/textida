@@ -98,14 +98,11 @@ commands: nks.file.reload
 
 ## [file.compare] Porovnat s diskem
 commands: nks.file.compareWithDisk
-Příkaz spustí váš vlastní program na porovnání: vlevo soubor na disku, vpravo obsah karty.
-1. Jednou v nastavení vyplňte Externí porovnávač (cestu k programu) a případně Argumenty porovnávače. V šabloně znamená {left} soubor na disku a {right} obsah karty.
-2. Zvolte Soubor a Porovnat s diskem.
-- Bez nastaveného programu se ukáže lišta Není nastaven externí porovnávač s tlačítkem Otevřít nastavení.
-- Karta bez souboru na disku napíše Karta nemá soubor na disku, není s čím porovnávat.
-- Nespustí-li se program, stavový řádek napíše Porovnávač se nespustil a důvod.
-- Vlastní porovnávač v programu není; používá se ten, který nastavíte.
-
+Karta a soubor na disku se ukážou vedle sebe v samostatné kartě. Vlevo je karta i s neuloženými změnami, vpravo soubor na disku.
+1. Zvolte Soubor a potom Porovnat s diskem. Otevře se karta s porovnáním (téma Porovnání textů).
+2. Je-li v nastavení vyplněný Externí porovnávač, spustí se místo toho váš program: vlevo soubor na disku, vpravo obsah karty. V šabloně argumentů je {left} soubor na disku a {right} obsah karty. Kopie karty předaná programu se po jeho skončení smaže.
+- Karta bez souboru na disku řekne: Karta nemá soubor na disku, není s čím porovnávat.
+- Když se váš program nespustí, stavový řádek napíše Porovnávač se nespustil a uvede důvod.
 ## [file.openPath] Otevřít cestu pod kurzorem
 commands: nks.file.openPathAtCaret
 1. Dejte kurzor na cestu k souboru v textu, například src/a.cs:12.
@@ -915,3 +912,32 @@ Vyberte část textu, například blok řádků oddělených čárkami v poznám
 2. Vybraný text se stane tabulkou. Zbytek souboru zůstane textem: úprava buňky změní jen bajty té buňky a nic mimo výběr se nečte ani nemění.
 - Funguje v něm vše z tabulky: pohyb, úpravy, přidávání a mazání řádků a sloupců, filtr, kopírování a vkládání. Stavový řádek říká, že tabulkou je jen vybraný text.
 - Řádky přidané na konec patří do výběru. Přepnout tabulku a text vrátí text; další Přepnout tabulku a text ukáže jako tabulku celý soubor.
+
+## [compare.text] Porovnání textů
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts
+Dva texty se porovnají po řádcích v samostatné kartě. Stejné řádky stojí proti sobě, změněný blok je na obou stranách podbarvený a označený ve střední liště a lišta nahoře říká, kolik je rozdílů.
+1. Porovnat se schránkou (menu Nástroje nebo místní nabídka editoru) porovná kartu s textem ve schránce. Je-li v editoru vybraný text, porovná se jen výběr.
+2. Porovnat se souborem se zeptá na soubor a porovná s ním kartu. Porovnat s diskem je v menu Soubor a porovná kartu s jejím souborem.
+3. Porovnat dva texty otevře dvě prázdné strany. Tlačítka Vložit levý text a Vložit pravý text vloží do strany obsah schránky.
+- Strana s kartou je samotný dokument: když se změní, porovná se znovu po krátké pauze. Schránka, výběr a soubor na disku jsou strany jen pro čtení.
+- Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano.
+- Velký soubor ve stránkovaném režimu se porovnává bez načtení: čtou se jen řádky na obrazovce.
+- Každá strana může mít mezi společným začátkem a společným koncem až 16 milionů řádků; víc je jeden změněný blok. Až 10 000 změněných řádků se najde přesně; při větším počtu lišta napíše, že výsledek není minimální, a změněné řádky se sloučí do větších bloků. Výsledek je pořád správný.
+
+## [compare.navigate] Přechod mezi rozdíly a jejich kopírování
+commands: nks.compare.next, nks.compare.previous, nks.compare.copyToRight, nks.compare.copyToLeft
+1. F7 skočí na další rozdíl a Shift+F7 na předchozí (také v menu Nástroje). Aktuální rozdíl má rámeček.
+2. Ve střední liště má první řádek každého rozdílu dvě šipky. Levá zkopíruje blok pravé strany doleva, pravá zkopíruje blok levé strany doprava. Totéž pro aktuální rozdíl dělají tlačítka nad stranami a příkazy Zkopírovat rozdíl doprava a doleva.
+3. Kopie je jedna úprava dokumentu, takže Zpět ji vrátí jedním krokem.
+- Blok může přijmout jen strana, která je otevřený dokument. Soubor na disku, schránka a výběr šipku nemají.
+- Když se dokument po porovnání změnil, nic se nezkopíruje; porovná se znovu a zkopírujete to ještě jednou.
+- Když kódování cíle nepojme znaky bloku, nic se nezkopíruje a stavový řádek to napíše.
+- Kolečko myši posouvá obě strany společně, Shift a kolečko posouvá do stran.
+
+## [view.syncScroll] Synchronizované posouvání
+commands: nks.view.syncScroll
+Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává proti sobě.
+1. Zobrazte oba soubory vedle sebe: v nabídce karty zvolte Přesunout do jiné skupiny, aby měl každý soubor svou skupinu.
+2. Zvolte Zobrazit a potom Synchronizovat posouvání. Aktivní karta a aktivní karta další skupiny se sledují. Dalším zvolením příkazu to vypnete.
+- Řádky se přiřazují porovnáním z tématu Porovnání textů: druhý soubor se posune na odpovídající řádek, i přes vložené nebo odebrané bloky. Než se porovnání dopočítá, platí stejné číslo řádku.
+- Skončí, když se zavře jedna ze dvou karet. Hexadecimální a tabulkový pohled se neúčastní.
