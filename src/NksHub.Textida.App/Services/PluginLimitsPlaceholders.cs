@@ -40,6 +40,9 @@ internal static class PluginLimitsPlaceholders
 
     public static LogHeatLimits LogHeat() => new(LogHeatChunkBytes, LogHeatFullScanBytes, LogHeatSampleBytesPerBucket);
 
+    /// <summary>Placeholder, OPEN: bytes from the start of a file that the CSV delimiter detection reads.</summary>
+    public const long CsvDetectSampleBytes = 64 * 1024;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

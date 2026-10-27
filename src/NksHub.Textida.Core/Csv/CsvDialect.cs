@@ -18,6 +18,40 @@ public readonly record struct CsvDialect(char Delimiter, char Quote = '"', bool 
     public static CsvDialect ForPath(string? path) =>
         Path.GetExtension(path ?? "").ToLowerInvariant() is ".tsv" or ".tab" ? Tsv : Csv;
 
+    /// <summary>
+    /// Picks the delimiter from the first lines of a text: the candidate (comma, semicolon, tab, pipe) that splits most of them into the same
+    /// number of fields (more than one). Quotes are tracked per line, so a quoted line break may mislead it. Without a clear winner the fallback stays.
+    /// </summary>
+    public static CsvDialect Detect(string sample, CsvDialect fallback, int maxLines = 20)
+    {
+        var lines = sample.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).Take(maxLines).ToList();
+        if (lines.Count < 2) return fallback;
+        char best = fallback.Delimiter;
+        (int Lines, int Fields) bestScore = (0, 0);
+        foreach (char candidate in new[] { ',', ';', '\t', '|' })
+        {
+            if (candidate == fallback.Quote) continue;
+            var counts = lines.Select(l => CountOutsideQuotes(l, candidate, fallback.Quote)).ToList();
+            var (fields, hits) = counts.Where(c => c > 0).GroupBy(c => c).Select(g => (g.Key, g.Count())).OrderByDescending(g => g.Item2).ThenByDescending(g => g.Key).FirstOrDefault();
+            if (hits * 5 < lines.Count * 4) continue;
+            if ((hits, fields) is var score && (score.hits > bestScore.Lines || (score.hits == bestScore.Lines && score.fields > bestScore.Fields)))
+                (best, bestScore) = (candidate, score);
+        }
+        return bestScore.Lines == 0 ? fallback : fallback with { Delimiter = best };
+    }
+
+    private static int CountOutsideQuotes(string line, char delimiter, char quote)
+    {
+        int count = 0;
+        bool inQuote = false;
+        foreach (char c in line)
+        {
+            if (c == quote && quote != '\0') inQuote = !inQuote;
+            else if (c == delimiter && !inQuote) count++;
+        }
+        return count;
+    }
+
     public void Validate()
     {
         if (Delimiter is '\r' or '\n' or '\0' || Delimiter > 0x7F || Quote > 0x7F || Delimiter == Quote || Quote is '\r' or '\n')

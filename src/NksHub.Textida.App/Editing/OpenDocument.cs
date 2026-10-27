@@ -1,4 +1,5 @@
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -170,11 +171,19 @@ internal sealed class OpenDocument : IDisposable
 
     private CsvDialect? _tableDialect;
 
-    /// <summary>How the table views of this document split the text; the delimiter follows the file extension until the user picks one.</summary>
+    /// <summary>How the table views of this document split the text; the delimiter is detected from the start of the text (the file extension when that is unclear) until the user picks one.</summary>
     public CsvDialect TableDialect
     {
-        get => _tableDialect ??= CsvDialect.ForPath(Path);
+        get => _tableDialect ??= DetectTableDialect();
         set => _tableDialect = value;
+    }
+
+    private CsvDialect DetectTableDialect()
+    {
+        var byPath = CsvDialect.ForPath(Path);
+        long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimitsPlaceholders.CsvDetectSampleBytes);
+        while (end > start && end < Doc.ByteLength && !Doc.IsCharBoundary(end)) end--;
+        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath);
     }
 
     // ---- hex ----
