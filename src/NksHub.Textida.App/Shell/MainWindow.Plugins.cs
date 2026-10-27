@@ -306,7 +306,7 @@ internal sealed partial class MainWindow
     /// <summary>
     /// Shows what a plugin proposes in the change review (hunks with ticks in the Search Results tab) and answers when the user has decided. A proposal made for another
     /// revision than the document has now is stale and nothing is written. Edits that are not text of the document (raw bytes) or a hidden secrets file go to the
-    /// byte inspector instead, which can only accept or reject the batch as a whole.
+    /// byte inspector instead, which can only accept or reject the batch as a whole. When <paramref name="cancellation"/> fires either review closes and nothing is written.
     /// </summary>
     internal async Task<ProposalDecision> ReviewPluginProposalAsync(EditProposal proposal, DocTab tab, string id, CancellationToken cancellation)
     {
@@ -335,7 +335,8 @@ internal sealed partial class MainWindow
         var headline = proposal.PluginId == McpServer.ClientId
             ? Loc.Get(K.McpProposal, ("title", proposal.Title ?? Loc.Get(K.McpToolsTitle)), ("changes", total))
             : Loc.Get(K.PluginProposal, ("title", title), ("changes", total));
-        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, headline, Loc.Get(K.PreviewApply));
+        // a plugin that crashed, restarted or lost its permission while the user decided has its batch dropped, as the review by hunks does
+        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, headline, Loc.Get(K.PreviewApply), cancellation);
         if (answer != LossAnswer.Replace) return new ProposalDecision(id, ProposalOutcome.Rejected, 0, total);
         report.Confirm();
         if (doc.Apply(report).Applied) return new ProposalDecision(id, ProposalOutcome.Applied, total, total);

@@ -98,20 +98,22 @@ internal sealed partial class MainWindow
     /// The byte inspector (F169) for an action that rewrites bytes the user did not edit: the headline, the size, encoding and line endings before and after,
     /// every changed range, and the characters the target cannot hold. Without loss there are two answers, apply and cancel; with loss three: cancel (nothing is
     /// written), change the encoding (the one picked next) or replace with "?". <see cref="LossAnswer.Replace"/> also means "applied" when nothing is lost.
+    /// When <paramref name="cancellation"/> fires (the plugin that asked went away) the dialog closes and the answer is <see cref="LossAnswer.Cancel"/>.
     /// </summary>
-    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmInspectionAsync(OpenDocument od, ByteInspection report, string headline, string acceptLabel)
+    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmInspectionAsync(OpenDocument od, ByteInspection report, string headline, string acceptLabel, CancellationToken cancellation = default)
     {
-        if (report.HasLoss) return await ConfirmLossAsync(od, report.Loss, report.CodecAfter, acceptLabel, report, headline);
+        if (report.HasLoss) return await ConfirmLossAsync(od, report.Loss, report.CodecAfter, acceptLabel, report, headline, cancellation);
         var request = new ChoiceRequest(Loc.Get(K.InspectTitle), headline + "\n" + DescribeInspection(report),
             [new DialogButton(Loc.Get(K.PreviewApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(od.Doc, report));
-        return await _app.Dialogs.ChooseAsync(this, request) == 0 ? (LossAnswer.Replace, null) : (LossAnswer.Cancel, null);
+        return await _app.Dialogs.ChooseAsync(this, request, cancellation) == 0 && !cancellation.IsCancellationRequested ? (LossAnswer.Replace, null) : (LossAnswer.Cancel, null);
     }
 
     /// <summary>
     /// The text part of the byte inspector (F169): every character the encoding cannot hold with its line, column, byte position and the bytes written instead,
     /// the size before and after, and three answers: cancel (nothing is written), change the encoding (the one picked next) or replace with "?".
     /// </summary>
-    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmLossAsync(OpenDocument od, LossReport loss, TextCodec codec, string acceptLabel, ByteInspection? report = null, string? headline = null)
+    internal async Task<(LossAnswer Answer, TextCodec? Codec)> ConfirmLossAsync(OpenDocument od, LossReport loss, TextCodec codec, string acceptLabel, ByteInspection? report = null, string? headline = null,
+        CancellationToken cancellation = default)
     {
         var doc = od.Doc;
         string replacement = HexEditor.ToHexText(codec.EncodeLossy("?"));
@@ -123,7 +125,8 @@ internal sealed partial class MainWindow
             message += "\n" + Loc.Get(K.LossSize, ("encoding", codec.Name), ("before", doc.ByteLength), ("after", codec == doc.Codec ? doc.ByteLength : doc.PreviewConvert(codec).ByteLength));
         var request = new ChoiceRequest(Loc.Get(K.LossTitle), message + "\n" + Loc.Get(K.LossReplacement),
             [new DialogButton(acceptLabel), new DialogButton(Loc.Get(K.LossChangeEncoding)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], details);
-        switch (await _app.Dialogs.ChooseAsync(this, request))
+        int answer = await _app.Dialogs.ChooseAsync(this, request, cancellation);
+        switch (cancellation.IsCancellationRequested ? -1 : answer)
         {
             case 0: return (LossAnswer.Replace, null);
             case 1:
