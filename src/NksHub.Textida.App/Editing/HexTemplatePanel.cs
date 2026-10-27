@@ -197,6 +197,7 @@ internal static class KsyText
             KsyErrorKind.LimitDepth => K.KsyErrLimitDepth,
             KsyErrorKind.LimitRepeat => K.KsyErrLimitRepeat,
             KsyErrorKind.LimitSize => K.KsyErrLimitSize,
+            KsyErrorKind.Expression => K.KsyErrExpression,
             _ => K.KsyErrLimitWork,
         };
         string text = Loc.Get(key, ("subject", error.Subject));

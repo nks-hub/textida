@@ -81,16 +81,16 @@ public class KsyTests
         Assert.Equal(["dm", "demo"], t.Extensions);
         Assert.Equal([0x44, (byte)'M'], t.Magic);
         Assert.Equal(KsyRepeat.Expr, t.Root.Seq[2].Repeat);
-        Assert.Equal("count", t.Root.Seq[2].RepeatCount!.Value.Field);
+        Assert.Equal("count", t.Root.Seq[2].RepeatCount!.Source);
         Assert.Equal("second", t.Enums["kinds"][2]);
     }
 
     [Theory]
     [InlineData("process: xor(1)", "process")]
-    [InlineData("if: 1 == 1", "if")]
-    [InlineData("type:\n      switch-on: kind\n      cases: {}", "switch-on")]
-    [InlineData("repeat: until\n    repeat-until: true", "repeat-until")]
-    [InlineData("size: len + 1", "expression len + 1")]
+    [InlineData("size: len * 1.5", "expression float literal")]
+    [InlineData("size: '[1, 2].size'", "expression array literal")]
+    [InlineData("size: len.substring(0, 1)", "expression call .substring(...)")]
+    [InlineData("type:\n      switch-on: len\n      cases:\n        1: u1\n      terminator: 0", "type/terminator")]
     public void An_unsupported_construct_is_refused_by_name_and_line(string field, string subject)
     {
         var e = Refuse($"meta:\n  id: x\nseq:\n  - id: len\n    type: u1\n  - id: a\n    {field}\n");
@@ -100,10 +100,10 @@ public class KsyTests
     }
 
     [Fact]
-    public void Top_level_instances_and_params_are_refused_by_name()
+    public void Top_level_params_are_refused_by_name()
     {
-        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    type: u1\ninstances:\n  b:\n    value: 1\n");
-        Assert.Equal((KsyErrorKind.Unsupported, "instances", 6), (e.Kind, e.Subject, e.Line));
+        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    type: u1\nparams:\n  - id: p\n    type: u1\n");
+        Assert.Equal((KsyErrorKind.Unsupported, "params", 6), (e.Kind, e.Subject, e.Line));
     }
 
     [Theory]

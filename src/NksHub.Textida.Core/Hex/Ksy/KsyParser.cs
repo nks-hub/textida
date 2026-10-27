@@ -6,8 +6,9 @@ namespace NksHub.Textida.Core.Hex.Ksy;
 
 /// <summary>
 /// Reads the subset of Kaitai Struct <c>.ksy</c> that <see cref="KsyReader"/> can interpret: <c>meta</c> (<c>id</c>, <c>endian</c>, <c>encoding</c>, <c>file-extension</c>, <c>title</c>),
-/// <c>seq</c>, <c>types</c>, <c>enums</c>, integers, floats, <c>str</c>, <c>strz</c>, raw bytes, <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>), <c>contents</c> and <c>enum</c>.
-/// A size or count is a number or the name of an earlier integer field; expressions (P8.10.4), <c>if</c>, <c>switch-on</c>, <c>instances</c>, <c>process</c> and the rest are refused by name.
+/// <c>seq</c>, <c>types</c>, <c>enums</c>, <c>instances</c> (<c>pos</c> or <c>value</c>), integers, floats, <c>str</c>, <c>strz</c>, raw bytes, <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>),
+/// <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>. <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c> and <c>switch-on</c> are expressions
+/// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. <c>process</c> and the rest are refused by name.
 /// </summary>
 public static class KsyParser
 {
@@ -50,12 +51,14 @@ public static class KsyParser
 
     private sealed class Builder(string text)
     {
-        private static readonly string[] AttrKeys = ["id", "type", "size", "size-eos", "repeat", "repeat-expr", "contents", "enum", "encoding", "doc", "doc-ref"];
+        private static readonly string[] AttrKeys = ["id", "type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "contents", "enum", "encoding", "doc", "doc-ref"];
+        private static readonly string[] InstanceKeys = ["type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "pos", "value", "contents", "enum", "encoding", "doc", "doc-ref"];
         private static readonly string[] MetaKeys = ["id", "title", "endian", "encoding", "file-extension", "license", "ks-version", "ks-debug", "tags", "application", "xref"];
         private static readonly string[] Encodings = ["UTF-8", "ASCII", "ISO-8859-1", "UTF-16LE", "UTF-16BE"];
 
         private KsyTemplate _t = null!;
         private string? _encoding;
+        private readonly Dictionary<KsyTypeDef, List<DataMember>> _declared = [];
 
         private Fail Err(int offset, KsyErrorKind kind, string subject) => new(new KsyError(kind, LineOf(text, offset), subject));
 
@@ -65,7 +68,7 @@ public static class KsyParser
         {
             if (doc.Kind != DataKind.Object) throw Err(doc.Start, KsyErrorKind.Invalid, "(root)");
             foreach (var m in doc.Members)
-                if (m.Name is not ("meta" or "seq" or "types" or "enums" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
+                if (m.Name is not ("meta" or "seq" or "types" or "enums" or "instances" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
 
             var meta = doc.Get("meta") ?? throw Err(doc.Start, KsyErrorKind.Invalid, "meta");
             if (meta.Kind != DataKind.Object) throw Err(meta.Start, KsyErrorKind.Invalid, "meta");
@@ -101,12 +104,39 @@ public static class KsyParser
             foreach (var (def, node) in typeNodes)
             {
                 foreach (var m in node.Members)
-                    if (m.Name is not ("seq" or "meta" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
-                ReadSeq(def, node.Get("seq"));
+                    if (m.Name is not ("seq" or "meta" or "instances" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
+                Declare(def, node.Get("instances"));
             }
+            Declare(_t.Root, doc.Get("instances"));
+            foreach (var (def, node) in typeNodes) ReadSeq(def, node.Get("seq"));
             ReadSeq(_t.Root, doc.Get("seq"));
             if (_t.Root.Seq.Count == 0) throw Err(doc.Start, KsyErrorKind.Invalid, "seq");
+            foreach (var (def, _) in typeNodes) ReadInstances(def);
+            ReadInstances(_t.Root);
             return _t;
+        }
+
+        /// <summary>Notes the names of the instances of a type, so that expressions can refer to them before they are read.</summary>
+        private void Declare(KsyTypeDef def, DataNode? instances)
+        {
+            if (instances is null) return;
+            if (instances.Kind != DataKind.Object) throw Err(instances.Start, KsyErrorKind.Invalid, "instances");
+            foreach (var m in instances.Members)
+            {
+                if (!IsId(m.Name)) throw Err(m.NameStart, KsyErrorKind.Invalid, m.Name);
+                if (m.Value.Kind != DataKind.Object) throw Err(m.Value.Start, KsyErrorKind.Invalid, m.Name);
+            }
+            _declared[def] = instances.Members;
+        }
+
+        private void ReadInstances(KsyTypeDef def)
+        {
+            if (!_declared.TryGetValue(def, out var members)) return;
+            foreach (var m in members)
+            {
+                if (def.Seq.Any(a => a.Id == m.Name)) throw Err(m.NameStart, KsyErrorKind.Duplicate, m.Name);
+                def.Instances.Add(ReadAttr(def, m.Value, m.Name));
+            }
         }
 
         private KsyOrder Endian(DataNode meta, KsyOrder inherited = KsyOrder.Default)
@@ -173,12 +203,24 @@ public static class KsyParser
             }
         }
 
-        private KsyAttr ReadAttr(KsyTypeDef def, DataNode n)
+        private KsyAttr ReadAttr(KsyTypeDef def, DataNode n, string? instanceId = null)
         {
             foreach (var m in n.Members)
-                if (!AttrKeys.Contains(m.Name)) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
-            string id = $"field_{def.Seq.Count + 1}";
-            if (n.Get("id") is { } idNode)
+                if (!(instanceId is null ? AttrKeys : InstanceKeys).Contains(m.Name)) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
+            string id = instanceId ?? $"field_{def.Seq.Count + 1}";
+            var ifExpr = n.Get("if") is { } ifNode ? Expr(def, ifNode, "if") : null;
+            var posNode = n.Get("pos");
+            var valueNode = n.Get("value");
+            if (instanceId is not null)
+            {
+                if ((posNode is null) == (valueNode is null)) throw Err(n.Start, KsyErrorKind.Invalid, "pos");
+                if (valueNode is not null)
+                {
+                    if (n.Members.Any(m => m.Name is not ("value" or "if" or "doc" or "doc-ref"))) throw Err(valueNode.Start, KsyErrorKind.Invalid, "value");
+                    return new KsyAttr { Id = id, Line = LineOf(text, n.Start), Type = new KsyType(KsyKind.Bytes), If = ifExpr, Value = Expr(def, valueNode, "value") };
+                }
+            }
+            else if (n.Get("id") is { } idNode)
             {
                 if (idNode.Kind != DataKind.String || !IsId(idNode.Text)) throw Err(idNode.Start, KsyErrorKind.Invalid, "id");
                 id = idNode.Text;
@@ -192,6 +234,7 @@ public static class KsyParser
             if (size is not null && eos) throw Err(size.Start, KsyErrorKind.Invalid, "size");
 
             KsyType type;
+            KsySwitch? sw = null;
             byte[]? bytes = null;
             if (contents is not null)
             {
@@ -204,15 +247,20 @@ public static class KsyParser
                 if (size is null && !eos) throw Err(n.Start, KsyErrorKind.Invalid, "type");
                 type = new KsyType(KsyKind.Bytes);
             }
-            else type = ReadType(def, typeNode);
-
-            if (type.Kind is KsyKind.Int or KsyKind.Float or KsyKind.Strz && (size is not null || eos)) throw Err((size ?? sizeEos)!.Start, KsyErrorKind.Invalid, "size");
-            if (type.Kind is KsyKind.Str && size is null && !eos) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "size");
-            if (type.Kind == KsyKind.Int && type.Width > 1 && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
-            if (type.Kind == KsyKind.Float && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
+            else type = ReadType(def, typeNode, out sw);
 
             string? encoding = Encoding(n.Get("encoding"));
-            if (type.Kind is KsyKind.Str or KsyKind.Strz && encoding is null) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "encoding");
+            if (sw is null)
+            {
+                if (type.Kind is KsyKind.Int or KsyKind.Float or KsyKind.Strz && (size is not null || eos)) throw Err((size ?? sizeEos)!.Start, KsyErrorKind.Invalid, "size");
+                CheckType(def, type, typeNode, size is not null || eos, encoding);
+            }
+            else
+            {
+                // Without a default branch a value that no branch names is read as raw bytes, which need a size.
+                if (sw.Cases.All(c => c.Key is not null) && size is null && !eos) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "size");
+                foreach (var c in sw.Cases) CheckType(def, c.Type, typeNode, size is not null || eos, encoding);
+            }
 
             string? enumName = null;
             if (n.Get("enum") is { } en)
@@ -226,30 +274,49 @@ public static class KsyParser
             var repeat = KsyRepeat.None;
             if (repeatNode is not null)
             {
-                if (repeatNode.Kind != DataKind.String || repeatNode.Text is not ("eos" or "expr")) throw Err(repeatNode.Start, KsyErrorKind.Unsupported, "repeat/" + repeatNode.Text);
-                repeat = repeatNode.Text == "eos" ? KsyRepeat.Eos : KsyRepeat.Expr;
+                if (repeatNode.Kind != DataKind.String || repeatNode.Text is not ("eos" or "expr" or "until")) throw Err(repeatNode.Start, KsyErrorKind.Unsupported, "repeat/" + repeatNode.Text);
+                repeat = repeatNode.Text switch { "eos" => KsyRepeat.Eos, "expr" => KsyRepeat.Expr, _ => KsyRepeat.Until };
             }
             var countNode = n.Get("repeat-expr");
             if ((repeat == KsyRepeat.Expr) != (countNode is not null)) throw Err((countNode ?? repeatNode)?.Start ?? n.Start, KsyErrorKind.Invalid, "repeat-expr");
+            var untilNode = n.Get("repeat-until");
+            if ((repeat == KsyRepeat.Until) != (untilNode is not null)) throw Err((untilNode ?? repeatNode)?.Start ?? n.Start, KsyErrorKind.Invalid, "repeat-until");
 
             return new KsyAttr
             {
                 Id = id,
                 Line = LineOf(text, n.Start),
                 Type = type,
-                Size = size is null ? null : Count(def, size, "size"),
+                Switch = sw,
+                If = ifExpr,
+                Pos = posNode is null ? null : Expr(def, posNode, "pos"),
+                Size = size is null ? null : Expr(def, size, "size"),
                 SizeEos = eos,
                 Repeat = repeat,
-                RepeatCount = countNode is null ? null : Count(def, countNode, "repeat-expr"),
+                RepeatCount = countNode is null ? null : Expr(def, countNode, "repeat-expr"),
+                RepeatUntil = untilNode is null ? null : Expr(def, untilNode, "repeat-until"),
                 Contents = bytes,
                 Enum = enumName,
                 Encoding = encoding,
             };
         }
 
-        private KsyType ReadType(KsyTypeDef def, DataNode n)
+        private void CheckType(KsyTypeDef def, KsyType type, DataNode? typeNode, bool sized, string? encoding)
         {
-            if (n.Kind == DataKind.Object) throw Err(n.Start, KsyErrorKind.Unsupported, "switch-on");
+            if (type.Kind is KsyKind.Str && !sized) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "size");
+            if (type.Kind == KsyKind.Int && type.Width > 1 && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
+            if (type.Kind == KsyKind.Float && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
+            if (type.Kind is KsyKind.Str or KsyKind.Strz && encoding is null) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "encoding");
+        }
+
+        private KsyType ReadType(KsyTypeDef def, DataNode n, out KsySwitch? sw)
+        {
+            sw = null;
+            if (n.Kind == DataKind.Object)
+            {
+                sw = ReadSwitch(def, n);
+                return new KsyType(KsyKind.Switch);
+            }
             if (n.Kind != DataKind.String) throw Err(n.Start, KsyErrorKind.Invalid, "type");
             string s = n.Text;
             if (s == "str") return new KsyType(KsyKind.Str);
@@ -258,6 +325,27 @@ public static class KsyParser
             if (s.Length > 1 && s[0] == 'b' && s.Skip(1).All(char.IsAsciiDigit)) throw Err(n.Start, KsyErrorKind.Unsupported, "type " + s);
             if (_t.Types.ContainsKey(s)) return new KsyType(KsyKind.User, UserName: s);
             throw Err(n.Start, KsyErrorKind.UnknownType, s);
+        }
+
+        private KsySwitch ReadSwitch(KsyTypeDef def, DataNode n)
+        {
+            foreach (var m in n.Members)
+                if (m.Name is not ("switch-on" or "cases")) throw Err(m.NameStart, KsyErrorKind.Unsupported, "type/" + m.Name);
+            var on = n.Get("switch-on") ?? throw Err(n.Start, KsyErrorKind.Invalid, "switch-on");
+            if (n.Get("cases") is not { Kind: DataKind.Object, Members.Count: > 0 } cases) throw Err(n.Start, KsyErrorKind.Invalid, "cases");
+            var branches = new List<KsyCase>();
+            foreach (var c in cases.Members)
+            {
+                KsyExpr? key = null;
+                if (c.Name != "_")
+                {
+                    key = Expr(def, c.Name, c.NameStart, "cases");
+                    if (key.UsesContext) throw Err(c.NameStart, KsyErrorKind.Invalid, "cases");
+                }
+                if (c.Value.Kind == DataKind.Object) throw Err(c.Value.Start, KsyErrorKind.Unsupported, "switch-on/type");
+                branches.Add(new KsyCase(key, ReadType(def, c.Value, out _)));
+            }
+            return new KsySwitch(Expr(def, on, "switch-on"), branches);
         }
 
         private static bool TryNumeric(string s, out KsyType type)
@@ -272,14 +360,32 @@ public static class KsyParser
             return true;
         }
 
-        private KsyCount Count(KsyTypeDef def, DataNode n, string key)
+        private KsyExpr Expr(KsyTypeDef def, DataNode n, string key)
         {
-            if (n.Kind == DataKind.Number && n.IsInteger && long.TryParse(n.Text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long value) && value >= 0) return new KsyCount(value, null);
-            if (n.Kind != DataKind.String) throw Err(n.Start, KsyErrorKind.Invalid, key);
-            if (!IsId(n.Text)) throw Err(n.Start, KsyErrorKind.Unsupported, "expression " + n.Text);
-            var source = def.Seq.FirstOrDefault(a => a.Id == n.Text);
-            if (source is not { Type.Kind: KsyKind.Int, Repeat: KsyRepeat.None }) throw Err(n.Start, KsyErrorKind.UnknownField, n.Text);
-            return new KsyCount(0, n.Text);
+            string source = n.Kind switch
+            {
+                DataKind.String or DataKind.Number => n.Text,
+                DataKind.Boolean => n.Bool ? "true" : "false",
+                _ => throw Err(n.Start, KsyErrorKind.Invalid, key),
+            };
+            return Expr(def, source, n.Start, key);
+        }
+
+        /// <summary>Parses an expression and checks what it names: fields read before it, instances, enums and types must exist. What it computes is known only when a file is read.</summary>
+        private KsyExpr Expr(KsyTypeDef def, string source, int at, string key)
+        {
+            if (!KsyExpr.TryParse(source, out var expr, out var bad))
+                throw bad!.Unsupported ? Err(at, KsyErrorKind.Unsupported, "expression " + bad.Reason) : Err(at, KsyErrorKind.Syntax, $"{key}: {bad.Reason}");
+            foreach (string name in expr!.Names)
+                if (def.Seq.All(a => a.Id != name) && !(_declared.TryGetValue(def, out var members) && members.Any(m => m.Name == name))) throw Err(at, KsyErrorKind.UnknownField, name);
+            foreach (var (enumName, member) in expr.EnumRefs)
+            {
+                if (!_t.Enums.TryGetValue(enumName, out var values)) throw Err(at, KsyErrorKind.UnknownEnum, enumName);
+                if (!values.ContainsValue(member)) throw Err(at, KsyErrorKind.UnknownField, enumName + "::" + member);
+            }
+            foreach (string cast in expr.Casts)
+                if (cast is not ("str" or "strz") && !TryNumeric(cast, out _) && !_t.Types.ContainsKey(cast)) throw Err(at, KsyErrorKind.UnknownType, cast);
+            return expr;
         }
 
         private byte[] Contents(DataNode n)

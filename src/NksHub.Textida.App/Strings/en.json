@@ -617,6 +617,7 @@
   "ksy.err.limitRepeat": "{subject}: too many repeats",
   "ksy.err.limitSize": "{subject}: too large",
   "ksy.err.limitWork": "{subject}: too much work to read",
+  "ksy.err.expression": "{subject}: cannot be computed",
   "hex.compare.title": "Compare: {left} and {right}",
   "hex.compare.left": "{name} · {size} B",
   "hex.compare.memory": "{name} (content in the window)",
