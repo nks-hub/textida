@@ -1256,6 +1256,16 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
 
+## [help.updates] Updates and return to the previous version
+commands: nks.help.updateCheck, nks.help.updateReturn
+Windows only, in the installed Textida (the folder made by Setup.ps1). Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
+1. Choose Help, Check for Updates. If a newer version is offered, Textida asks before it does anything.
+2. Install and restart downloads the package, checks its checksum against the signed file, and unpacks it next to the current version. Only then Textida closes, the folders are switched and Textida starts again with your tabs. Unsaved text is kept by the journal; with the journal off, save or close the documents first.
+3. If anything is wrong (signature, checksum, a package that does not match), nothing is installed and the current version keeps running.
+4. Choose Help, Return to the Previous Version to go back to the version that was installed before the last update. The newer version then becomes the one you can return to.
+- The settings of Textida and the journal stay where they are, and a portable profile folder is carried over.
+- This build checks only when it has an update address and a signing key; a build without them says so.
+
 ## [review.external] Review changes from outside
 commands: nks.review.open, nks.review.next, nks.review.previous
 When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.

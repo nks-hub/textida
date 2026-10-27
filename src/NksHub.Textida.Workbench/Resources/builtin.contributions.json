@@ -1334,6 +1334,18 @@
       "enablement": "hasDocument && !largeFileMode && language == 'sql'"
     },
     {
+      "id": "nks.help.updateCheck",
+      "title": "cmd.help.updateCheck",
+      "category": "cat.app",
+      "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.help.updateReturn",
+      "title": "cmd.help.updateReturn",
+      "category": "cat.app",
+      "enablement": "platform == 'windows'"
+    },
+    {
       "id": "nks.help.languageHelp",
       "title": "cmd.help.languageHelp",
       "category": "cat.app",
@@ -2414,6 +2426,18 @@
       "command": "nks.help.contents",
       "group": "0_contents",
       "order": 10
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.updateCheck",
+      "group": "1_about",
+      "order": 5
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.updateReturn",
+      "group": "1_about",
+      "order": 6
     },
     {
       "menu": "help",
@@ -3917,6 +3941,19 @@
       "tags": [
         "save",
         "automatic"
+      ]
+    },
+    {
+      "key": "updates.checkOnStart",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.updates.checkOnStart.title",
+      "description": "setting.updates.checkOnStart.description",
+      "category": "cat.app",
+      "scope": "application",
+      "tags": [
+        "update",
+        "network"
       ]
     },
     {

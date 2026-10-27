@@ -166,6 +166,12 @@
           "description": "Auto save. Saves changed files to their own path.",
           "x-scope": "application"
         },
+        "updates.checkOnStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Check for updates at start. Asks the update address for the newest version when Textida starts, and shows a bar when there is one. Off by default; nothing else is sent.",
+          "x-scope": "application"
+        },
         "remote.versionCheck": {
           "type": "string",
           "default": "stat",

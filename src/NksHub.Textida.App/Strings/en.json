@@ -1481,5 +1481,20 @@
   "shell.assoc.title": "File associations",
   "shell.assoc.watermark": "Choose an extension to add Textida to Open with, or to remove it",
   "shell.assoc.on": "associated",
-  "shell.assoc.off": "not associated"
+  "shell.assoc.off": "not associated",
+  "update.title": "Update",
+  "update.checking": "Checking for updates...",
+  "update.current": "Textida {version} is up to date.",
+  "update.notConfigured": "This build has no update address or signing key set, so it cannot check for updates.",
+  "update.unavailable": "Updates work only in an installed Textida (Setup.ps1 next to Textida.exe on Windows).",
+  "update.failed": "Update failed: {reason}",
+  "update.available": "Textida {version} is available, you have {current}. Open documents are kept. Textida restarts to install it, and the current version stays for Return to the Previous Version.",
+  "update.install": "Install and restart",
+  "update.downloading": "Downloading Textida {version}...",
+  "update.unsaved": "Save or close the documents with unsaved changes first: the journal is off, so an update could lose them.",
+  "update.bar": "Textida {version} is available.",
+  "update.return.title": "Previous version",
+  "update.return.ask": "Return to Textida {version}? Textida restarts. Open documents are kept.",
+  "update.return": "Return and restart",
+  "update.noPrevious": "There is no previous version to return to."
 }

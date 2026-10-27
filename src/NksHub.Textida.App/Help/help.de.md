@@ -1256,6 +1256,16 @@ Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers
 - Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
 - Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
 
+## [help.updates] Updates und Rückkehr zur vorherigen Version
+commands: nks.help.updateCheck, nks.help.updateReturn
+Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.
+1. Wählen Sie Hilfe, Nach Updates suchen. Wird eine neuere Version angeboten, fragt Textida, bevor es etwas tut.
+2. Installieren und neu starten lädt das Paket herunter, prüft seine Prüfsumme anhand der signierten Datei und entpackt es neben der aktuellen Version. Erst dann schließt Textida, die Ordner werden getauscht und Textida startet mit Ihren Tabs neu. Ungespeicherter Text bleibt im Journal; bei ausgeschaltetem Journal speichern oder schließen Sie die Dokumente zuerst.
+3. Stimmt etwas nicht (Signatur, Prüfsumme, ein Paket, das nicht passt), wird nichts installiert und die aktuelle Version läuft weiter.
+4. Hilfe, Zur vorherigen Version zurückkehren bringt Sie zu der Version, die vor dem letzten Update installiert war. Die neuere Version ist dann die, zu der Sie zurückkehren können.
+- Die Einstellungen von Textida und das Journal bleiben, ein portabler Profilordner wird übernommen.
+- Dieser Build sucht nur, wenn er eine Update-Adresse und einen Signaturschlüssel hat; ohne beide sagt er das.
+
 ## [review.external] Änderungen von außen prüfen
 commands: nks.review.open, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.

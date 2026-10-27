@@ -412,5 +412,9 @@
   "cmd.packages.revoke": "Paketregister-Abfragen verbieten",
   "cmd.packages.script": "Paketskript ausführen...",
   "cmd.edit.runRecipeFiles": "Rezept auf Dateien anwenden...",
-  "cmd.plugins.manage": "Plugin-Manager..."
+  "cmd.plugins.manage": "Plugin-Manager...",
+  "cmd.help.updateCheck": "Nach Updates suchen...",
+  "cmd.help.updateReturn": "Zur vorherigen Version zurückkehren...",
+  "setting.updates.checkOnStart.title": "Beim Start nach Updates suchen",
+  "setting.updates.checkOnStart.description": "Fragt beim Start die Update-Adresse nach der neuesten Version und zeigt bei einer neueren eine Leiste. Standardmäßig aus; sonst wird nichts gesendet."
 }

@@ -1481,5 +1481,20 @@
   "shell.assoc.title": "Dateizuordnungen",
   "shell.assoc.watermark": "Wählen Sie eine Endung, für die Textida zu Öffnen mit hinzugefügt oder entfernt wird",
   "shell.assoc.on": "zugeordnet",
-  "shell.assoc.off": "nicht zugeordnet"
+  "shell.assoc.off": "nicht zugeordnet",
+  "update.title": "Update",
+  "update.checking": "Suche nach Updates...",
+  "update.current": "Textida {version} ist aktuell.",
+  "update.notConfigured": "In diesem Build sind weder Update-Adresse noch Signaturschlüssel gesetzt, daher kann er nicht nach Updates suchen.",
+  "update.unavailable": "Updates funktionieren nur in einer installierten Textida (Setup.ps1 neben Textida.exe unter Windows).",
+  "update.failed": "Update fehlgeschlagen: {reason}",
+  "update.available": "Textida {version} ist verfügbar, Sie haben {current}. Offene Dokumente bleiben erhalten. Textida startet zur Installation neu, die aktuelle Version bleibt für Zur vorherigen Version zurückkehren erhalten.",
+  "update.install": "Installieren und neu starten",
+  "update.downloading": "Lade Textida {version} herunter...",
+  "update.unsaved": "Speichern oder schließen Sie zuerst die Dokumente mit ungespeicherten Änderungen: Das Journal ist aus, ein Update könnte sie verlieren.",
+  "update.bar": "Textida {version} ist verfügbar.",
+  "update.return.title": "Vorherige Version",
+  "update.return.ask": "Zu Textida {version} zurückkehren? Textida startet neu. Offene Dokumente bleiben erhalten.",
+  "update.return": "Zurückkehren und neu starten",
+  "update.noPrevious": "Es gibt keine vorherige Version, zu der man zurückkehren könnte."
 }

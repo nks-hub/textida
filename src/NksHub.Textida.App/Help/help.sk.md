@@ -1261,6 +1261,16 @@ Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho 
 - Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
 - Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.
 
+## [help.updates] Aktualizácie a návrat na predchádzajúcu verziu
+commands: nks.help.updateCheck, nks.help.updateReturn
+Len Windows, v nainštalovanej Textide (priečinok vytvorený cez Setup.ps1). Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.
+1. Zvoľte Pomocník, Zistiť aktualizácie. Ak sa ponúka novšia verzia, Textida sa pred čímkoľvek opýta.
+2. Nainštalovať a reštartovať stiahne balík, overí jeho kontrolný súčet podľa podpísaného súboru a rozbalí ho vedľa súčasnej verzie. Až potom sa Textida zatvorí, priečinky sa prepnú a Textida sa spustí znova s vašimi kartami. Neuložený text drží žurnál; pri vypnutom žurnáli dokumenty najprv uložte alebo zatvorte.
+3. Ak čokoľvek nesedí (podpis, kontrolný súčet, balík, ktorý nezodpovedá), nič sa nenainštaluje a súčasná verzia beží ďalej.
+4. Pomocník, Vrátiť sa na predchádzajúcu verziu vás vráti na verziu, ktorá bola nainštalovaná pred poslednou aktualizáciou. Novšia verzia sa potom stane tou, na ktorú sa dá vrátiť.
+- Nastavenia Textidy a žurnál zostávajú, priečinok prenosného profilu sa prenesie.
+- Tento build zisťuje aktualizácie len vtedy, ak má adresu aktualizácií a podpisový kľúč; build bez nich to povie.
+
 ## [review.external] Kontrola zmien zvonka
 commands: nks.review.open, nks.review.next, nks.review.previous
 Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.

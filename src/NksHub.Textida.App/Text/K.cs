@@ -1459,4 +1459,19 @@ public static class K
     public const string ShellAssocWatermark = "shell.assoc.watermark";
     public const string ShellAssocOn = "shell.assoc.on";
     public const string ShellAssocOff = "shell.assoc.off";
+    public const string UpdateTitle = "update.title";
+    public const string UpdateChecking = "update.checking";
+    public const string UpdateCurrent = "update.current";
+    public const string UpdateNotConfigured = "update.notConfigured";
+    public const string UpdateUnavailable = "update.unavailable";
+    public const string UpdateFailed = "update.failed";
+    public const string UpdateAvailable = "update.available";
+    public const string UpdateInstall = "update.install";
+    public const string UpdateDownloading = "update.downloading";
+    public const string UpdateUnsaved = "update.unsaved";
+    public const string UpdateBar = "update.bar";
+    public const string UpdateReturnTitle = "update.return.title";
+    public const string UpdateReturnAsk = "update.return.ask";
+    public const string UpdateReturn = "update.return";
+    public const string UpdateNoPrevious = "update.noPrevious";
 }

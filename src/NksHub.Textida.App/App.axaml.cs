@@ -111,6 +111,7 @@ public sealed partial class App : Application
             {
                 first.RestoreFrom(Journal);
                 first.ShowJournalWarnings();
+                first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
             };
         }
