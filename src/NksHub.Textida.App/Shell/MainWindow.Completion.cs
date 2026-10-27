@@ -49,7 +49,12 @@ internal sealed partial class MainWindow
                 text = SecretValues.Mask(text, spans);
                 sources.Add(new CompletionSource(text));
             }
-            else sources.Add(new CompletionSource(current ? other.Document.Text : "", current ? caret : -1, WordIndexOf(other)));
+            else if (current)
+            {
+                var line = other.Document.GetLineByOffset(caret); // the word at the caret is all that is read of the text
+                sources.Add(new CompletionSource(other.Document.GetText(line.Offset, line.Length), caret - line.Offset, WordIndexOf(other)));
+            }
+            else sources.Add(new CompletionSource("", -1, WordIndexOf(other)));
         }
 
         string language = tab.Doc.Language.Id;
@@ -62,18 +67,72 @@ internal sealed partial class MainWindow
         return new CompletionCandidates(prefix, WordCompletion.Words(sources, prefix, PluginLimitsPlaceholders.CompletionMaxWords), clips);
     }
 
-    private sealed record IndexedRevision(ITextSourceVersion Version, WordIndex Index);
+    private static readonly ConditionalWeakTable<EditorSurface, WordIndexTracker> WordIndexes = new();
 
-    private static readonly ConditionalWeakTable<EditorSurface, IndexedRevision> WordIndexes = new();
-
-    /// <summary>The words of the text as it is now; counted again only after an edit.</summary>
+    /// <summary>The words of the text as it is now; built once, then kept up to date by the edits.</summary>
     private static WordIndex WordIndexOf(EditorSurface surface)
     {
-        var version = surface.Document.Version;
-        if (WordIndexes.TryGetValue(surface, out var known) && version.BelongsToSameDocumentAs(known.Version) && version.CompareAge(known.Version) == 0) return known.Index;
-        var fresh = new IndexedRevision(version, WordIndex.Build(surface.Document.Text));
-        WordIndexes.AddOrUpdate(surface, fresh);
-        return fresh.Index;
+        if (!WordIndexes.TryGetValue(surface, out var tracker) || !ReferenceEquals(tracker.Document, surface.Document))
+        {
+            tracker?.Detach();
+            tracker = new WordIndexTracker(surface.Document);
+            WordIndexes.AddOrUpdate(surface, tracker);
+        }
+        return tracker.Index;
+    }
+
+    /// <summary>
+    /// A <see cref="WordIndex"/> of a document that follows its edits: the lines an edit touches are taken out as they were and put in as they are. An edit in a very long line,
+    /// or one that is not seen whole, drops the index and the next offer builds it again.
+    /// </summary>
+    private sealed class WordIndexTracker
+    {
+        private const int LongestLine = 1 << 16;
+        private WordIndex? _index;
+        private string? _before;
+
+        public WordIndexTracker(TextDocument document)
+        {
+            Document = document;
+            document.Changing += OnChanging;
+            document.Changed += OnChanged;
+        }
+
+        public TextDocument Document { get; }
+
+        public WordIndex Index => _index ??= WordIndex.Build(Document.Text);
+
+        public void Detach()
+        {
+            Document.Changing -= OnChanging;
+            Document.Changed -= OnChanged;
+        }
+
+        private void OnChanging(object? sender, DocumentChangeEventArgs e)
+        {
+            if (_index is null) return;
+            _before = _before is null ? LinesOf(e.Offset, e.RemovalLength) : null; // a change inside a change is not followed
+            if (_before is null) _index = null;
+        }
+
+        private void OnChanged(object? sender, DocumentChangeEventArgs e)
+        {
+            string? before = _before;
+            _before = null;
+            if (_index is null) return;
+            string? after = before is null ? null : LinesOf(e.Offset, e.InsertionLength);
+            if (after is null) _index = null;
+            else _index.Change(before!, after);
+        }
+
+        /// <summary>The whole lines that a stretch of the text touches, or null when they are too long to follow.</summary>
+        private string? LinesOf(int offset, int length)
+        {
+            var first = Document.GetLineByOffset(offset);
+            var last = Document.GetLineByOffset(offset + length);
+            int size = last.Offset + last.Length - first.Offset;
+            return size > LongestLine ? null : Document.GetText(first.Offset, size);
+        }
     }
 
     internal CommandOutcome ShowCompletion()

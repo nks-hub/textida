@@ -200,4 +200,44 @@ public class CompletionTests : IDisposable
         Assert.True(p95 <= 33, $"p95 {p95} ms");
         Assert.NotNull(tab);
     }
+
+    [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void The_offer_right_after_a_typed_edit_in_a_megabyte_file_takes_33_ms()
+    {
+        var text = new StringBuilder();
+        for (int i = 0; text.Length < 1 << 20; i++) text.Append("alpha").Append(i % 5000).Append(i % 7 == 0 ? "\n" : " ");
+        Open("small.txt", "alp");
+        var big = Open("big.txt", text.ToString());
+        Install("{\"id\":\"b1\",\"title\":\"Alpine\",\"text\":\"x\"}");
+        var document = big.Editor!.Document;
+        _w.GatherCompletion();
+        var runs = new long[20];
+        CompletionCandidates offer = null!;
+        for (int i = 0; i < runs.Length; i++)
+        {
+            document.Insert(document.TextLength, " alp");
+            big.Editor.CaretOffset = document.TextLength;
+            var sw = Stopwatch.StartNew();
+            offer = _w.GatherCompletion()!;
+            runs[i] = sw.ElapsedTicks;
+        }
+        Assert.NotEmpty(offer.Words);
+        Assert.NotEmpty(offer.Clips);
+        long p95 = runs.Order().ElementAt(runs.Length * 95 / 100 - 1) * 1000 / Stopwatch.Frequency;
+        Assert.True(p95 <= 33, $"p95 {p95} ms");
+    }
+
+    [AvaloniaFact]
+    public void The_offer_after_edits_has_the_words_of_the_text_as_it_is_now()
+    {
+        var tab = Open("a.txt", "alpha beta\ngamma");
+        _w.GatherCompletion();
+        var document = tab.Editor!.Document;
+        document.Insert(0, "alps ");
+        document.Remove(document.Text.IndexOf("alpha", StringComparison.Ordinal), 5);
+        tab.Editor.CaretOffset = document.TextLength;
+        document.Insert(document.TextLength, "\nalp");
+        Assert.Equal(["alps"], _w.GatherCompletion()!.Words);
+    }
 }

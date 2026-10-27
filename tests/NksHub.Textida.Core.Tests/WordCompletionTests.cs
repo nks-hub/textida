@@ -116,6 +116,37 @@ public class WordCompletionTests
         }
     }
 
+    private static List<(string Word, int Total)> Entries(WordIndex index)
+    {
+        var all = new List<(string, int)>();
+        index.ForEachStartingWith("", (w, n) => all.Add((w, n)));
+        return all;
+    }
+
+    [Fact]
+    public void An_index_changed_by_the_lines_of_random_edits_equals_one_built_from_the_text()
+    {
+        var rng = new Random(5);
+        for (int round = 0; round < 80; round++)
+        {
+            string text = RandomText(rng, 60);
+            var index = WordIndex.Build(text);
+            for (int edit = 0; edit < 25; edit++)
+            {
+                int at = rng.Next(text.Length + 1);
+                int removal = rng.Next(3) == 0 ? 0 : Math.Min(rng.Next(15), text.Length - at);
+                string insert = rng.Next(3) == 0 ? "" : rng.Next(2) == 0 ? "ab\n" : RandomText(rng, 2)[..^1];
+                int from = at == 0 ? 0 : text.LastIndexOf('\n', at - 1) + 1;
+                int toOld = text.IndexOf('\n', at + removal) is var t and >= 0 ? t : text.Length;
+                string before = text[from..toOld];
+                text = text.Remove(at, removal).Insert(at, insert);
+                int toNew = text.IndexOf('\n', at + insert.Length) is var u and >= 0 ? u : text.Length;
+                index.Change(before, text[from..toNew]);
+                Assert.Equal(Entries(WordIndex.Build(text)), Entries(index));
+            }
+        }
+    }
+
     [Fact]
     [Trait("Category", "Perf")]
     public void A_megabyte_of_text_is_searched_for_candidates_in_33_ms()
