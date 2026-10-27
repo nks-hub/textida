@@ -210,7 +210,8 @@ public static class MiniToml
                 if (!End && Cur == '\n') _i++;
                 int close = s.IndexOf("'''", _i, StringComparison.Ordinal);
                 if (close < 0) throw Fail("the multi-line string is not closed");
-                var text = s[_i..close];
+                // a file saved on Windows has CRLF inside the string; TOML lets a reader normalise the newline
+                var text = s[_i..close].Replace("\r\n", "\n", StringComparison.Ordinal);
                 _i = close + 3;
                 return text;
             }
@@ -242,6 +243,7 @@ public static class MiniToml
                     return sb.ToString();
                 }
                 if (c == '\n' && !multi) throw Fail("the string is not closed");
+                if (multi && c == '\r' && _i + 1 < s.Length && s[_i + 1] == '\n') { sb.Append('\n'); _i += 2; continue; }
                 if (c != '\\') { sb.Append(c); _i++; continue; }
                 _i++;
                 if (End) throw Fail("the string is not closed");
