@@ -295,6 +295,12 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 - Vložiť bez posunu kurzora (ponuka Úpravy) vloží text zo schránky a kurzor nechá tam, kde bol, pred novým textom. V blokovom výbere sa kurzor vráti do ľavého horného rohu.
 - Vloženie nefunguje v dokumente len na čítanie; Vložiť bez posunu kurzora nefunguje ani v stránkovanom režime (téma Veľké súbory).
 
+## [edit.specialPaste] Vložiť ako HTML a zo súboru
+commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
+- Vložiť ako HTML (ponuka Úpravy) vloží zdrojový kód HTML, ktorý do schránky uložil prehliadač alebo textový editor pri kopírovaní formátovaného textu. Vloží sa ako text, rovnako ako pri Ctrl+V, ako jeden krok späť. Keď v schránke HTML nie je, povie to stavový riadok.
+- Vložiť zo súboru (Úpravy, Vložiť) vloží text vybraného súboru do každého kurzora ako jeden krok späť. Kódovanie súboru sa rozpozná ako pri otvorení a konce riadkov sa prevedú na konce riadkov dokumentu. Súbor väčší ako 16 MiB sa nevloží.
+- Oba príkazy nefungujú v dokumente len na čítanie ani v stránkovanom režime (téma Veľké súbory).
+
 ## [edit.insertLines] Vloženie do riadkov
 commands: nks.edit.insertIntoLines
 Príkaz zapíše text, čísla alebo odrážky do riadkov výberu, alebo do všetkých riadkov, keď je len kurzor.
@@ -326,9 +332,10 @@ commands: nks.search.selectLinesByRange
 - Nefunguje v stránkovanom režime.
 
 ## [format.block] Zarovnanie a zalomenie riadkov
-commands: nks.edit.reformatParagraph, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
+commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 Tieto príkazy sú v ponuke Formát. Pôsobia na vybrané riadky, alebo na všetky riadky, keď je len kurzor (Preformátovať odsek: na odsek s kurzorom). Každý je jeden krok späť.
 - Preformátovať odsek zalomí text na stĺpci z nastavenia Stĺpec pravého okraja, spojí riadky odseku a odstráni nadbytočné medzery. Odseky oddeľuje prázdny riadok a každý riadok odseku dostane odsadenie prvého riadka. Keď nie je pravý okraj nastavený, povie to stavový riadok.
+- Preformátovať odsek (koniec pri krátkom riadku) robí to isté, ale odsek končí aj za riadkom kratším ako polovica pravého okraja, takže sa nespojí s ďalším riadkom. Hodí sa pre text bez prázdnych riadkov medzi odsekmi.
 - Zarovnať riadky vľavo odstráni medzery na začiatku a na konci riadkov.
 - Zarovnať riadky vpravo a Vycentrovať riadky zarovnajú na šírku najdlhšieho riadka.
 - Zarovnať riadky do bloku rozšíri medzery medzi slovami, kým nie je každý riadok taký široký ako najdlhší; riadok s jedným slovom zostane.

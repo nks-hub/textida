@@ -815,6 +815,8 @@
   "lines.ranges.invalid": "Not a list of line numbers. Write numbers and ranges such as 10-20, 40-50.",
   "lines.ranges.beyond": "Lines in the document: {total}.",
   "lines.reformat.noMargin": "Set the Right margin column in the settings first; the paragraph is wrapped at that column.",
+  "lines.pasteHtml.none": "The clipboard holds no HTML. Copy the text from a browser or a word processor that puts HTML on the clipboard.",
+  "lines.insertFile.tooLarge": "{name} is larger than {limit} bytes and was not inserted.",
   "lines.dateFormat.invalid": "The date and time format is not valid: {reason}",
   "clips.watermark": "Choose a clip to insert",
   "a11y.clips": "Clips",

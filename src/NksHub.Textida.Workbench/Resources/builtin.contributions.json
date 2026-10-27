@@ -1097,6 +1097,22 @@
       "undo": "transaction"
     },
     {
+      "id": "nks.edit.pasteAsHtml",
+      "title": "cmd.edit.pasteAsHtml",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertFromFile",
+      "title": "cmd.edit.insertFromFile",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
       "id": "nks.edit.insertIntoLines",
       "title": "cmd.edit.insertIntoLines",
       "category": "cat.edit",
@@ -1123,6 +1139,16 @@
     {
       "id": "nks.edit.reformatParagraph",
       "title": "cmd.edit.reformatParagraph",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true,
+      "macro": true
+    },
+    {
+      "id": "nks.edit.reformatShortLines",
+      "title": "cmd.edit.reformatShortLines",
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
@@ -2906,10 +2932,23 @@
     },
     {
       "menu": "edit",
+      "command": "nks.edit.pasteAsHtml",
+      "group": "2_clip",
+      "order": 55
+    },
+    {
+      "menu": "edit",
       "command": "nks.edit.insertIntoLines",
       "group": "4_more/8_insert",
       "submenu": "insert",
       "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertFromFile",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 20
     },
     {
       "menu": "edit",
@@ -2991,6 +3030,12 @@
       "command": "nks.edit.reformatParagraph",
       "group": "5_block",
       "order": 10
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.reformatShortLines",
+      "group": "5_block",
+      "order": 15
     },
     {
       "menu": "format",

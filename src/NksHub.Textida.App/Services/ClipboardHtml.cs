@@ -28,6 +28,39 @@ internal static class ClipboardHtml
         int end = endFragment + After.Length;
         return Encoding.UTF8.GetBytes(string.Format(Header, headerLength, end, startFragment, endFragment) + Before + fragment + After);
     }
+
+    /// <summary>
+    /// The HTML in the bytes another program put on the clipboard: with a CF_HTML header the fragment it marks (else the HTML document it marks),
+    /// without one the whole UTF-8 text. Trailing NUL bytes some programs add are dropped.
+    /// </summary>
+    public static string Decode(byte[] raw)
+    {
+        int length = raw.Length;
+        while (length > 0 && raw[length - 1] == 0) length--;
+        string text = Encoding.UTF8.GetString(raw, 0, length);
+        if (!text.StartsWith("Version:", StringComparison.Ordinal)) return text;
+        int tag = text.IndexOf('<');
+        string header = tag < 0 ? text : text[..tag];
+        var range = Marked(header, "StartFragment", "EndFragment", length) ?? Marked(header, "StartHTML", "EndHTML", length);
+        return range is { } r ? Encoding.UTF8.GetString(raw, r.Start, r.End - r.Start) : text;
+    }
+
+    private static (int Start, int End)? Marked(string header, string startName, string endName, int length)
+    {
+        int start = HeaderNumber(header, startName), end = HeaderNumber(header, endName);
+        return start >= 0 && end >= start && end <= length ? (start, end) : null;
+    }
+
+    /// <summary>The byte offset after <c>name:</c> in the header; -1 when it is missing or negative (CF_HTML writes -1 for a part it leaves out).</summary>
+    private static int HeaderNumber(string header, string name)
+    {
+        int at = header.IndexOf(name + ":", StringComparison.Ordinal);
+        if (at < 0) return -1;
+        var rest = header.AsSpan(at + name.Length + 1);
+        int digits = 0;
+        while (digits < rest.Length && char.IsAsciiDigit(rest[digits])) digits++;
+        return digits > 0 && int.TryParse(rest[..digits], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int value) ? value : -1;
+    }
 }
 
 /// <summary>The RTF form of the clipboard: "Rich Text Format" on Windows, <c>public.rtf</c> on macOS, <c>text/rtf</c> elsewhere. RTF is ASCII, so the bytes are the text.</summary>

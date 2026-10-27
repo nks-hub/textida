@@ -838,6 +838,8 @@
   "lines.ranges.invalid": "Nie je to zoznam čísel riadkov. Píšte čísla a rozsahy ako 10-20, 40-50.",
   "lines.ranges.beyond": "Riadkov v dokumente: {total}.",
   "lines.reformat.noMargin": "Najprv nastavte stĺpec pravého okraja v nastaveniach; odsek sa zalomí na tomto stĺpci.",
+  "lines.pasteHtml.none": "V schránke nie je HTML. Skopírujte text z prehliadača alebo textového editora, ktorý HTML do schránky ukladá.",
+  "lines.insertFile.tooLarge": "Súbor {name} je väčší než {limit} bajtov a nevložil sa.",
   "lines.dateFormat.invalid": "Formát dátumu a času nie je platný: {reason}",
   "clips.watermark": "Vyberte klip na vloženie",
   "a11y.clips": "Klipy",

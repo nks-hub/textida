@@ -1,15 +1,18 @@
 using System.Globalization;
+using Avalonia.Input;
 using Avalonia.Input.Platform;
 using AvaloniaEdit.Document;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The clipboard history, the special paste, and the line and block commands that need a dialog or a setting: insert into lines, sort, select by range,
+/// The clipboard history, the special paste (keep the caret, as HTML, from a file), and the line and block commands that need a dialog or a setting: insert into lines, sort, select by range,
 /// align, wrap, date and time, GUID. The text work is in <see cref="LineOperations"/>; each command here runs it as one undo step through <see cref="RunEdit"/>.
 /// </summary>
 internal sealed partial class MainWindow
@@ -67,6 +70,66 @@ internal sealed partial class MainWindow
         }
         var pieces = MultiCaret.SplitForCarets(text, surface.GetSelections().Count);
         return RunEdit((s, sels) => LineOperations.ReplaceSelections(s.Document, sels, i => pieces?[i] ?? text, caretBefore: true));
+    }
+
+    // ---- paste as HTML ----
+
+    /// <summary>The HTML form of the clipboard (what a browser or a word processor copied) goes in as source text, the way Paste puts text in; without one the status bar says so.</summary>
+    internal async Task<CommandOutcome> PasteAsHtmlAsync()
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
+        string? html = null;
+        if (Clipboard is { } clipboard && await clipboard.TryGetDataAsync() is { } data)
+        {
+            using (data)
+                if (await data.TryGetValueAsync(ClipboardHtml.Format) is { } raw) html = ClipboardHtml.Decode(raw);
+        }
+        if (string.IsNullOrEmpty(html)) SetStatusMessage(Loc.Get(K.LinesPasteHtmlNone));
+        else if (ReferenceEquals(ActiveEditor, surface) && !surface.IsReadOnly) PasteText(surface, html);
+        return CommandOutcome.Handled;
+    }
+
+    // ---- insert from file ----
+
+    /// <summary>The text of a file the user picks, its encoding guessed as on open and its line endings turned into those of the document, at every caret as one undo step.</summary>
+    internal CommandOutcome InsertFromFile()
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
+        _ = InsertFromFileAsync(surface);
+        return CommandOutcome.Handled;
+    }
+
+    private async Task InsertFromFileAsync(EditorSurface surface)
+    {
+        var picked = await _app.Dialogs.PickFilesAsync(this);
+        if (picked.Count == 0) return;
+        string path = picked[0];
+        string? text;
+        try { text = await Task.Run(() => ReadInsertedFile(path)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            SetStatusMessage(Loc.Get(K.ErrorOpenFailed, ("path", path), ("reason", e.Message)));
+            return;
+        }
+        if (text is null)
+        {
+            SetStatusMessage(Loc.Get(K.LinesInsertFileTooLarge, ("name", Path.GetFileName(path)), ("limit", PluginLimitsPlaceholders.InsertFromFileMaxBytes)));
+            return;
+        }
+        if (!ReferenceEquals(ActiveEditor, surface)) return;
+        text = TextUtilities.NormalizeNewLines(text, surface.Doc.NewLine(surface.Settings.ConfiguredEol));
+        RunEdit((s, sels) => LineOperations.ReplaceSelections(s.Document, sels, _ => text));
+    }
+
+    /// <summary>The decoded text of the file; null when it is larger than <see cref="PluginLimitsPlaceholders.InsertFromFileMaxBytes"/>.</summary>
+    private static string? ReadInsertedFile(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > PluginLimitsPlaceholders.InsertFromFileMaxBytes) return null;
+        var bytes = new byte[stream.Length];
+        stream.ReadExactly(bytes);
+        var codec = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, OpenDocument.SampleBytes)), bytes.Length <= OpenDocument.SampleBytes).Codec;
+        return codec.Decode(bytes).Text;
     }
 
     // ---- insert into lines ----
@@ -170,8 +233,11 @@ internal sealed partial class MainWindow
     internal CommandOutcome Justify(Justification mode) =>
         RunEdit((s, sels) => LineOperations.JustifyLines(s.Document, sels, mode));
 
-    /// <summary>Wraps the paragraphs at the right margin column; without one set the user is told where to set it.</summary>
-    internal CommandOutcome Reformat()
+    /// <summary>
+    /// Wraps the paragraphs at the right margin column; without one set the user is told where to set it. With <paramref name="shortLines"/> a line
+    /// shorter than <see cref="PluginLimitsPlaceholders.ReformatShortLinePercent"/> percent of the margin also ends its paragraph.
+    /// </summary>
+    internal CommandOutcome Reformat(bool shortLines = false)
     {
         if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
         int width = surface.Settings.RightMargin;
@@ -180,7 +246,8 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.LinesReformatNoMargin));
             return CommandOutcome.Handled;
         }
-        return RunEdit((s, sels) => LineOperations.ReformatParagraphs(s.Document, sels, width));
+        int shortLine = shortLines ? Math.Max(1, width * PluginLimitsPlaceholders.ReformatShortLinePercent / 100) : 0;
+        return RunEdit((s, sels) => LineOperations.ReformatParagraphs(s.Document, sels, width, shortLine));
     }
 
     // ---- date, time and GUID ----

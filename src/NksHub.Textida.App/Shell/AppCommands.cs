@@ -102,10 +102,13 @@ internal static class AppCommands
         On("nks.edit.toggleBlockSelect", w => w.ToggleBlockSelect());
         On("nks.edit.clipboardHistory", w => w.ShowClipboardHistory());
         On("nks.edit.pasteKeepCaret", w => { _ = w.PasteKeepCaretAsync(); return w.ActiveEditor is { IsReadOnly: false } ? CommandOutcome.Handled : CommandOutcome.NotHandled; });
+        On("nks.edit.pasteAsHtml", w => { _ = w.PasteAsHtmlAsync(); return w.ActiveEditor is { IsReadOnly: false } ? CommandOutcome.Handled : CommandOutcome.NotHandled; });
+        On("nks.edit.insertFromFile", w => w.InsertFromFile());
         On("nks.edit.insertIntoLines", w => w.InsertIntoLines(registry.IsRepeating));
         On("nks.edit.sortLines", w => w.SortLines(registry.IsRepeating));
         On("nks.search.selectLinesByRange", w => w.SelectLinesByRange(registry.IsRepeating));
         On("nks.edit.reformatParagraph", w => w.Reformat());
+        On("nks.edit.reformatShortLines", w => w.Reformat(shortLines: true));
         On("nks.edit.justifyLeft", w => w.Justify(Justification.Left));
         On("nks.edit.justifyRight", w => w.Justify(Justification.Right));
         On("nks.edit.justifyCenter", w => w.Justify(Justification.Center));

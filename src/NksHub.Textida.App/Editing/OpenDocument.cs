@@ -22,7 +22,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 internal sealed class OpenDocument : IDisposable
 {
-    private const int SampleBytes = 1 << 20;
+    internal const int SampleBytes = 1 << 20;
     private const int EolBlockChars = 1 << 14;
 
     /// <summary>Where saves and changes from outside are recorded; set once by the app, null leaves documents without history.</summary>

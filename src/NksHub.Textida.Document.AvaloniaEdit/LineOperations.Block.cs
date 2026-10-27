@@ -163,9 +163,17 @@ public static partial class LineOperations
     public static IReadOnlyList<Sel> JustifyLines(TextDocument d, IReadOnlyList<Sel> sels, Justification mode) =>
         ReplaceBlocks(d, sels, TargetBlocks(d, sels), lines => LineText.Justify(lines, mode));
 
-    /// <summary>Wraps the paragraphs of the selections, or the paragraph of a caret without selection, at <paramref name="width"/> columns.</summary>
-    public static IReadOnlyList<Sel> ReformatParagraphs(TextDocument d, IReadOnlyList<Sel> sels, int width)
+    /// <summary>
+    /// Wraps the paragraphs of the selections, or the paragraph of a caret without selection, at <paramref name="width"/> columns. Paragraphs end at
+    /// blank lines and, with <paramref name="shortLine"/> above 0, also after a line shorter than that (<see cref="LineText.IsShort"/>).
+    /// </summary>
+    public static IReadOnlyList<Sel> ReformatParagraphs(TextDocument d, IReadOnlyList<Sel> sels, int width, int shortLine = 0)
     {
+        bool Ends(int n)
+        {
+            var l = d.GetLineByNumber(n);
+            return IsBlank(d, l) || LineText.IsShort(d.GetText(l.Offset, l.Length), shortLine);
+        }
         var blocks = new List<Block>();
         foreach (var s in sels)
         {
@@ -173,11 +181,11 @@ public static partial class LineOperations
             int line = d.GetLineByOffset(s.Start).LineNumber;
             if (IsBlank(d, d.GetLineByNumber(line))) continue;
             int first = line, last = line;
-            while (first > 1 && !IsBlank(d, d.GetLineByNumber(first - 1))) first--;
-            while (last < d.LineCount && !IsBlank(d, d.GetLineByNumber(last + 1))) last++;
+            while (first > 1 && !Ends(first - 1)) first--;
+            while (last < d.LineCount && !Ends(last) && !IsBlank(d, d.GetLineByNumber(last + 1))) last++;
             blocks.Add(new Block(first, last));
         }
-        return ReplaceBlocks(d, sels, MergeBlocks(blocks), lines => LineText.Reformat(lines, width), caretToEnd: true);
+        return ReplaceBlocks(d, sels, MergeBlocks(blocks), lines => LineText.Reformat(lines, width, shortLine), caretToEnd: true);
     }
 
     private static List<Block> MergeBlocks(List<Block> blocks)

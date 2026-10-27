@@ -803,6 +803,8 @@ public static class K
     public const string LinesRangesInvalid = "lines.ranges.invalid";
     public const string LinesRangesBeyond = "lines.ranges.beyond";
     public const string LinesReformatNoMargin = "lines.reformat.noMargin";
+    public const string LinesPasteHtmlNone = "lines.pasteHtml.none";
+    public const string LinesInsertFileTooLarge = "lines.insertFile.tooLarge";
     public const string LinesDateFormatInvalid = "lines.dateFormat.invalid";
     public const string ClipsWatermark = "clips.watermark";
     public const string A11yClips = "a11y.clips";
