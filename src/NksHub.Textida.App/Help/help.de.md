@@ -1206,6 +1206,7 @@ Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner al
 - Jede Datei hat Pfad, Zeilen, Sprache, Kodierung und Revision. Eine Datei mit nicht gespeicherten Änderungen ist markiert, und der Text ist der Text im Editor.
 - Weggelassen und benannt: .env-Dateien (ihre Werte werden nie kopiert, auch nicht, wenn sie im Editor sichtbar sind), von Ignorierdateien ausgeschlossene Dateien und Ordner, versteckte und Binärdateien, Dateien über dem Größenlimit beim Durchsuchen des Ordners und nicht lesbare Dateien.
 - Eine große Datei im seitenweisen Modus wird nie ganz kopiert: nur ihre Auswahl. Ohne Auswahl wird sie als weggelassen aufgeführt.
+- Eine Datei oder Auswahl, die nicht mehr in die Größengrenze des ganzen Kontexts passt, wird weggelassen und mit der Grenze aufgeführt; eine kleinere Datei danach kann noch hineinpassen.
 
 ## [edit.fragment] Zeichenkette als JSON, SQL oder HTML bearbeiten
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack

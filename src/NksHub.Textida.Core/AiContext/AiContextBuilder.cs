@@ -16,6 +16,8 @@ public enum AiOmitReason
     Unreadable,
     /// <summary>A file shown in paged mode: only a selection of it is copied, never the whole file.</summary>
     Paged,
+    /// <summary>The text does not fit in what is left of the size limit of the whole context.</summary>
+    TotalLimit,
 }
 
 /// <summary>One part of a file. Lines are 1-based and inclusive; they are null when the line index does not reach the part yet (a paged file).</summary>
@@ -53,23 +55,38 @@ public static class AiContextBuilder
         AiOmitReason.Binary => "binary",
         AiOmitReason.TooLarge => "too-large",
         AiOmitReason.Unreadable => "unreadable",
+        AiOmitReason.TotalLimit => "size-limit",
         _ => "paged",
     };
 
-    public static AiContextResult Build(IEnumerable<AiSource> sources, IEnumerable<AiOmission> omitted, AiContextFormat format)
+    /// <param name="maxTextBytes">
+    /// Size limit of the whole context: the UTF-8 bytes of the copied text, without the headers, so Markdown and XML hold the same files. A source that does not
+    /// fit in what is left is named as left out; a later, smaller one may still fit.
+    /// </param>
+    public static AiContextResult Build(IEnumerable<AiSource> sources, IEnumerable<AiOmission> omitted, AiContextFormat format, long maxTextBytes = long.MaxValue)
     {
         var kept = new List<AiSource>();
         var left = new List<AiOmission>(omitted);
+        long room = maxTextBytes;
         foreach (var source in sources)
         {
-            if (SecretValues.IsSecretFile(source.Path)) left.Add(new AiOmission(AiOmitReason.SecretFile, source.Name));
-            else kept.Add(source);
+            if (SecretValues.IsSecretFile(source.Path)) { left.Add(new AiOmission(AiOmitReason.SecretFile, source.Name)); continue; }
+            long size = source.Ranges.Sum(r => (long)Encoding.UTF8.GetByteCount(r.Text));
+            if (size > room) { left.Add(new AiOmission(AiOmitReason.TotalLimit, source.Name)); continue; }
+            room -= size;
+            kept.Add(source);
         }
         var sb = new StringBuilder();
         if (format == AiContextFormat.Markdown) WriteMarkdown(sb, kept, left);
         else WriteXml(sb, kept, left);
         return new AiContextResult(sb.ToString(), kept.Count, left);
     }
+
+    /// <summary>
+    /// True when text stored in <paramref name="storedBytes"/> bytes cannot fit in <paramref name="room"/> UTF-8 bytes, so it need not be read: every character
+    /// takes at least one UTF-8 byte and at most four stored bytes (UTF-32), after a byte order mark of at most four.
+    /// </summary>
+    public static bool CannotFit(long storedBytes, long room) => (storedBytes - 4) / 4 > room;
 
     /// <summary>Number of lines of a text: a line break ends a line, so a final break starts no new one; an empty text is one line.</summary>
     public static long CountLines(string text)

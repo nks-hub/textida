@@ -1044,6 +1044,7 @@ public static class K
     public const string AiReasonTooLarge = "aicontext.reason.tooLarge";
     public const string AiReasonUnreadable = "aicontext.reason.unreadable";
     public const string AiReasonPaged = "aicontext.reason.paged";
+    public const string AiReasonTotalLimit = "aicontext.reason.totalLimit";
     public const string TidyOutputSource = "tidy.output.source";
     public const string LangHelpNone = "langHelp.none";
     public const string LangHelpNoWord = "langHelp.noWord";

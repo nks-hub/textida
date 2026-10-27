@@ -67,6 +67,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: Reformat Paragraph (Ends at a Short Line) counts a line shorter than this percent of the right margin column as the last of its paragraph.</summary>
     public const int ReformatShortLinePercent = 50;
 
+    /// <summary>Placeholder, OPEN: size limit of one Copy as AI Context, in UTF-8 bytes of the copied text; files past it are left out and named. The owner has not decided it.</summary>
+    public const long AiContextMaxBytes = 8L << 20;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

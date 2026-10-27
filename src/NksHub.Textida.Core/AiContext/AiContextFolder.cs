@@ -1,3 +1,4 @@
+using System.Text;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Core.Secrets;
@@ -9,14 +10,16 @@ public sealed record AiFolderContext(IReadOnlyList<AiSource> Sources, IReadOnlyL
 
 /// <summary>
 /// Reads a folder for <see cref="AiContextBuilder"/>: the walk follows the ignore files (<c>.gitignore</c>, <c>.ignore</c>) of <see cref="FileWalker"/>; secrets files
-/// are named and never read; hidden files and folders, binary files, files over the size limit of the walk and unreadable files are left out and counted.
+/// are named and never read; hidden files and folders, binary files, files over the size limit of the walk, unreadable files and files past the size limit
+/// of the whole context are left out and counted. Only files that fit in that limit stay in memory.
 /// </summary>
 public static class AiContextFolder
 {
     private const int BinarySampleBytes = 8000;
 
     /// <param name="languageOf">Language id of a file name, for the header of the file.</param>
-    public static AiFolderContext Collect(string root, Func<string, string> languageOf, CancellationToken ct = default)
+    /// <param name="maxTextBytes">Size limit of the whole context, counted as <see cref="AiContextBuilder.Build"/> counts it.</param>
+    public static AiFolderContext Collect(string root, Func<string, string> languageOf, long maxTextBytes = long.MaxValue, CancellationToken ct = default)
     {
         root = Path.GetFullPath(root);
         var stats = new FileWalkStats();
@@ -24,13 +27,14 @@ public static class AiContextFolder
         var options = new FileWalkOptions { IncludeHidden = true };
         var sources = new List<AiSource>();
         var omissions = new List<AiOmission>();
-        long hidden = 0;
+        long hidden = 0, overLimit = 0, room = maxTextBytes;
         foreach (var entry in FileWalker.Walk(root, options, stats, ct))
         {
             ct.ThrowIfCancellationRequested();
             var name = Path.GetRelativePath(root, entry.Path).Replace('\\', '/');
             if (SecretValues.IsSecretFile(entry.Path)) { omissions.Add(new AiOmission(AiOmitReason.SecretFile, name)); continue; }
             if (IsHidden(name, entry.Path)) { hidden++; continue; }
+            if (AiContextBuilder.CannotFit(entry.Length, room)) { overLimit++; continue; }
             byte[] bytes;
             try { bytes = File.ReadAllBytes(entry.Path); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { omissions.Add(new AiOmission(AiOmitReason.Unreadable, name)); continue; }
@@ -44,12 +48,16 @@ public static class AiContextFolder
                 continue;
             }
             var text = codec.WithBom(false).Decode(bytes.AsMemory(codec.BomLengthIn(bytes))).Text;
+            long size = Encoding.UTF8.GetByteCount(text);
+            if (size > room) { overLimit++; continue; }
+            room -= size;
             sources.Add(new AiSource(name, entry.Path, languageOf(entry.Path), codec.Name, null, false, [AiRange.Whole(text)]));
         }
         if (hidden > 0) omissions.Add(new AiOmission(AiOmitReason.Hidden, Count: hidden));
         if (stats.Ignored > 0) omissions.Add(new AiOmission(AiOmitReason.IgnoreRules, Count: stats.Ignored));
         if (stats.TooLarge > 0) omissions.Add(new AiOmission(AiOmitReason.TooLarge, Count: stats.TooLarge));
         if (stats.Unreadable > 0) omissions.Add(new AiOmission(AiOmitReason.Unreadable, Count: stats.Unreadable));
+        if (overLimit > 0) omissions.Add(new AiOmission(AiOmitReason.TotalLimit, Count: overLimit));
         return new AiFolderContext(sources, omissions);
     }
 
