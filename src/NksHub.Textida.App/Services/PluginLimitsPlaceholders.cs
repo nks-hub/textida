@@ -40,13 +40,16 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: entries kept in the plugin call log.</summary>
     public const int CallLogCapacity = 1000;
 
+    /// <summary>Placeholder: how long Tab waits for a plugin before it indents as without one. Settable so tests on a loaded machine do not race it.</summary>
+    internal static TimeSpan TabTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
+
     public static DocumentApiOptions Documents(IEditProposals proposals, IEditorTools tools, PluginPermissions permissions, PluginCallLog callLog) => new()
     {
         MaxSymbolsPerDocument = 5000,
         MaxSymbolTextLength = 400,
         MaxSnippetLength = 64 * 1024,
         MaxSnippetCarets = 64,
-        TabTimeout = TimeSpan.FromMilliseconds(500),
+        TabTimeout = TabTimeout,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,

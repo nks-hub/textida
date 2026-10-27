@@ -30,14 +30,19 @@ public class PluginUiTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
+    private readonly TimeSpan _tabTimeout = PluginLimitsPlaceholders.TabTimeout;
+
     public PluginUiTests()
     {
+        // a real plugin process on a busy machine can miss 500 ms; the timeout path has its own test in DocumentApiTests.EarlyTools
+        PluginLimitsPlaceholders.TabTimeout = TimeSpan.FromSeconds(10);
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
     }
 
     public void Dispose()
     {
+        PluginLimitsPlaceholders.TabTimeout = _tabTimeout;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
