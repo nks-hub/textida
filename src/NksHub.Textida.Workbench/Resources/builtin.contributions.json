@@ -3156,17 +3156,17 @@
       "order": 80
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportHtml",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 90
     },
     {
-      "menu": "file",
+      "menu": "edit",
       "command": "nks.file.exportRtf",
-      "group": "2_disk",
-      "submenu": "export",
+      "group": "2_clip",
+      "submenu": "copyas",
       "order": 100
     },
     {
