@@ -2116,6 +2116,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Záznam a přehrání příkazů z registru s centrálním pořadím a jedním undo. Ne binární emulace. Import PME až po 1.0.
   - **Funkce:** F018
   - **Hotovo, když:** zaznamenané makro nad více výběry dá při přehrání stejný výsledek jako ruční postup a vrátí se jedním undo.
+  - **Stav 27. 10. 2026:** částečně: záznam a přehrání v `CommandRegistry` (jen nejvnější volání, napsaný text jako textový krok), přehrání jedním undo; příkazy Nahrát / Zastavit / Přehrát poslední / Uložit / Spustit uložené (`macros/<název>.json` v profilu), nápověda ve 4 jazycích. Do makra smí jen příkazy s příznakem `macro: true` v manifestu, ostatní se při nahrávání odmítnou s hláškou. Test: makro nad třemi výběry = ruční postup, jeden undo. Chybí pohyb kurzoru šipkami, schránka a hledání v makru (nejsou synchronní příkazy registru); výchozí zkratky otevřené; výběr uloženého makra v UI neověřen spuštěním.
   - **Závisí na:** P1.6.1, P4.5.4
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
