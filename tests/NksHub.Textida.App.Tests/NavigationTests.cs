@@ -115,7 +115,7 @@ public class NavigationTests : IDisposable
         var save = _w.PaletteResults.Where(r => r.CommandId.StartsWith("nks.file.save", StringComparison.Ordinal)).ToList();
         Assert.True(save.Count >= 3);
         Assert.All(save, r => Assert.Equal("Není otevřený žádný dokument", r.DisabledReason));
-        Assert.All(save.Where(r => r.CommandId != "nks.file.saveAll"), r => Assert.NotNull(r.Shortcut));
+        Assert.All(save.Where(r => r.CommandId is not ("nks.file.saveAll" or "nks.file.saveActions")), r => Assert.NotNull(r.Shortcut));
         Assert.Contains(_w.QuickResults, r => r.Reason == "Není otevřený žádný dokument" && !r.Enabled && r.AutomationName.Contains("Není otevřený žádný dokument"));
 
         _w.NewDocument();
