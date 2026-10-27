@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.App\NksHub.Textida.App.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

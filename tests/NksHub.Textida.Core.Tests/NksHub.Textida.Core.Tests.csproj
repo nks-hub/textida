@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Document.Contract\NksHub.Textida.Document.Contract.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Journal.CrashHarness\NksHub.Textida.Journal.CrashHarness.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
   </ItemGroup>
 
 </Project>
