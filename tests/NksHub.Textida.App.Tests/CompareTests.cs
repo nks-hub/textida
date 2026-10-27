@@ -224,8 +224,9 @@ public class CompareTests : IDisposable
     [AvaloniaFact]
     public async Task A_side_follows_the_other_across_an_inserted_block()
     {
-        var left = string.Join("\n", Enumerable.Range(0, 10).Select(i => "l" + i));
-        var right = string.Join("\n", ["l0", "l1", "l2", "n1", "n2", "n3", "l3", "l4", "l5", "l6", "l7", "l8", "l9"]);
+        // more rows than a laid-out view shows, so the scroll range reaches every row asked for
+        var left = string.Join("\n", Enumerable.Range(0, 100).Select(i => "l" + i));
+        var right = string.Join("\n", ["l0", "l1", "l2", "n1", "n2", "n3", .. Enumerable.Range(3, 97).Select(i => "l" + i)]);
         var tab = NewWith(left);
         var view = await OpenWithClipboard(tab, right);
 
