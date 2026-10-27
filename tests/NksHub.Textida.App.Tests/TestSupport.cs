@@ -213,6 +213,9 @@ internal static class TestApp
     /// <summary>Closes every window and releases the journal so the folder can be deleted.</summary>
     public static void Cleanup(App app)
     {
+        // settings and help belong to no main window; left open they stay subscribed to Loc.Changed and answer the next test's language switch
+        app.SettingsView?.Close();
+        app.HelpView?.Close();
         foreach (var w in app.Windows.ToList())
         {
             foreach (var t in w.Tabs.ToList()) w.CloseTab(t); // no question at the end of a test
