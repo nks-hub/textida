@@ -157,15 +157,18 @@ internal sealed partial class MainWindow
         Active is { Custom: null } tab && tab.Path is { } path ? Path.GetDirectoryName(Path.GetFullPath(path)) : null;
 
     /// <summary>
-    /// The one place that turns a tool definition into the program, the arguments and the directory: the variables of the open document and the user's own variables
-    /// come in here. The launcher and the definition editor both call it, so the editor shows what the menu starts.
+    /// The one place that turns a tool definition into the program, the arguments and the directory: the variables of the open document and those of
+    /// <c>App.VariableContextFor</c> (the user's own, file.path, date and the rest, as clips and recipes see them) come in here. The launcher and the
+    /// definition editor both call it, so the editor shows what the menu starts. A user variables file that cannot be read stops the tool, as it stops a clip.
     /// </summary>
     internal ToolInvocation ResolveTool(ToolSpec spec, DocTab? document = null)
     {
         var tab = document ?? (Active is { Custom: null } active ? active : null);
         var (line, column) = tab?.CaretPosition() ?? (1, 1);
-        var (user, _) = UserVariables.Load(Path.Combine(_app.ProfileDirectory, UserVariables.FileName));
-        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, user),
+        var context = _app.VariableContextFor(tab?.Path, SelectionTexts(tab?.Surface).FirstOrDefault() ?? "", out var broken);
+        if (broken is not null) throw new ToolException(Loc.Get(K.ClipVariablesBroken, ("reason", broken)));
+        var scope = new VariableScope(context);
+        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, name => scope.TryGet(name, out var value) ? value : null),
             (tab?.Path is { } own ? Path.GetDirectoryName(Path.GetFullPath(own)) : ActiveDirectory()) ?? Environment.CurrentDirectory);
     }
 

@@ -76,8 +76,10 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>The text of each selection of the active editor, in document order.</summary>
-    private List<string> SelectionTexts() =>
-        ActiveEditor is { } surface ? [.. surface.GetSelections().OrderBy(s => s.Start).Select(s => surface.Document.GetText(s.Start, s.Length))] : [];
+    private List<string> SelectionTexts() => SelectionTexts(ActiveEditor);
+
+    private static List<string> SelectionTexts(EditorSurface? surface) =>
+        surface is not null ? [.. surface.GetSelections().OrderBy(s => s.Start).Select(s => surface.Document.GetText(s.Start, s.Length))] : [];
 
     // ---- form and expansion ----
 

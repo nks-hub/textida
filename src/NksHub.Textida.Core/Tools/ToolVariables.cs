@@ -20,14 +20,15 @@ public sealed record ToolVariableDecl(string Name, ToolVariableType Type, string
 /// </summary>
 public static class ToolVariables
 {
-    /// <summary>Names the editor itself provides; user variables (P4.1.3) are added through the lookup of <see cref="Expand"/>.</summary>
+    /// <summary>Names only tools have; the names shared with clips and recipes (P4.1.3) come in through the <c>shared</c> lookup of <see cref="ForDocument"/>.</summary>
     public static readonly IReadOnlyList<string> BuiltIn = ["File", "FileDir", "FileName", "FileBase", "FileExt", "Line", "Column"];
 
     /// <summary>
     /// The built-in variables for a document; those that do not apply (no file yet) are left out, so using them is an error before anything runs.
-    /// <paramref name="user"/> are the user's own variables (P4.1.3); they come before the built-in ones.
+    /// <paramref name="shared"/> gives the variables clips and recipes use as well (the user's own, then <c>file.path</c>, <c>date</c> and the rest);
+    /// it is asked first, so a user variable named like a tool variable wins and a name means the same in a clip, a recipe and a tool.
     /// </summary>
-    public static Func<string, string?> ForDocument(string? path, long line = 1, long column = 1, IReadOnlyDictionary<string, string>? user = null)
+    public static Func<string, string?> ForDocument(string? path, long line = 1, long column = 1, Func<string, string?>? shared = null)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -43,7 +44,7 @@ public static class ToolVariables
             values["FileBase"] = Path.GetFileNameWithoutExtension(full);
             values["FileExt"] = Path.GetExtension(full);
         }
-        return name => user is not null && user.TryGetValue(name, out var own) ? own : values.GetValueOrDefault(name);
+        return name => shared?.Invoke(name) ?? values.GetValueOrDefault(name);
     }
 
     /// <summary>Why <paramref name="value"/> is not a <paramref name="type"/>, or null when it is.</summary>
@@ -95,7 +96,7 @@ public static class ToolVariables
             if (template[i + 1] != '{') { sb.Append(c); continue; }
             int close = template.IndexOf('}', i + 2);
             if (close < 0) throw new ToolException($"Variable not closed in '{template}'.");
-            string name = template[(i + 2)..close];
+            string name = template[(i + 2)..close].Trim(); // ${ name } as in clips
             sb.Append(lookup(name) ?? throw new ToolException($"Unknown or unavailable variable '${{{name}}}'."));
             i = close;
         }
