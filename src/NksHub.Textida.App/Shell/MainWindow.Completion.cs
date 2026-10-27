@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using AvaloniaEdit.Document;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
@@ -39,15 +41,15 @@ internal sealed partial class MainWindow
         {
             if (candidate.Surface is not { } other || !seen.Add(candidate.Doc)) continue;
             bool current = ReferenceEquals(candidate, tab);
-            string text = other.Document.Text;
             if (other.IsSecretFile && !(current && other.SecretsRevealed))
             {
+                string text = other.Document.Text;
                 var spans = SecretValues.Find(text);
                 if (current && SecretValues.SpanAt(spans, caret) is not null) return null;
                 text = SecretValues.Mask(text, spans);
                 sources.Add(new CompletionSource(text));
             }
-            else sources.Add(new CompletionSource(text, current ? caret : -1));
+            else sources.Add(new CompletionSource(current ? other.Document.Text : "", current ? caret : -1, WordIndexOf(other)));
         }
 
         string language = tab.Doc.Language.Id;
@@ -58,6 +60,20 @@ internal sealed partial class MainWindow
             .OrderBy(e => e.Clip.Language is null)
             .ToList();
         return new CompletionCandidates(prefix, WordCompletion.Words(sources, prefix, PluginLimitsPlaceholders.CompletionMaxWords), clips);
+    }
+
+    private sealed record IndexedRevision(ITextSourceVersion Version, WordIndex Index);
+
+    private static readonly ConditionalWeakTable<EditorSurface, IndexedRevision> WordIndexes = new();
+
+    /// <summary>The words of the text as it is now; counted again only after an edit.</summary>
+    private static WordIndex WordIndexOf(EditorSurface surface)
+    {
+        var version = surface.Document.Version;
+        if (WordIndexes.TryGetValue(surface, out var known) && version.BelongsToSameDocumentAs(known.Version) && version.CompareAge(known.Version) == 0) return known.Index;
+        var fresh = new IndexedRevision(version, WordIndex.Build(surface.Document.Text));
+        WordIndexes.AddOrUpdate(surface, fresh);
+        return fresh.Index;
     }
 
     internal CommandOutcome ShowCompletion()
