@@ -284,6 +284,133 @@ public class PagedSurfaceTests : IDisposable
         Assert.Equal(1, tab.Doc.Doc.UndoDepth);
     }
 
+    // ---- very long lines and a bounded window ----
+
+    private const string Unit = "ěšč abc 中";
+
+    private static string Doc(DocTab tab) => Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
+
+    [AvaloniaFact]
+    public void A_caret_far_inside_a_long_line_is_read_where_it_is_and_edits_are_announced()
+    {
+        string model = string.Concat(Enumerable.Repeat(Unit, 150_000)); // 1 500 000 characters, far beyond the decoded part of the line
+        var tab = OpenIndexed(_temp.Bytes("long-read.txt", Encoding.UTF8.GetBytes(model + "\nnext\n")));
+        var paged = tab.Paged!;
+        int col = 60_003;
+        paged.GoToOffset(Encoding.UTF8.GetByteCount(model.AsSpan(0, col)));
+        _w.UpdateLayout();
+        using var surface = new PagedTextView.TextSurface(paged);
+        var changes = new List<TextChange>();
+        surface.TextChanged += changes.Add;
+
+        Assert.InRange(surface.Length, 1, 4 * PagedTextView.MaxLineBytes); // the window never holds the line
+        Assert.Equal(model[col], surface.GetText(surface.CaretOffset, 1)[0]);
+        Assert.True(surface.Selection.IsEmpty);
+
+        // the screen reader reads the character, the word and the selection at the caret
+        var range = TextRange.Caret(surface);
+        range.ExpandToEnclosingUnit(TextUnit.Character);
+        Assert.Equal(model[col].ToString(), range.GetText());
+        for (int i = 0; i < 3; i++) TestApp.Press(_w, Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(model.Substring(col, 3), TextRange.SelectionOf(surface).GetText());
+        Assert.Equal(surface.Selection.End, surface.CaretOffset);
+        Assert.Equal(model.Substring(col, 3), paged.SelectedText());
+        var bounds = Assert.Single(surface.GetRangeBounds(surface.Selection.Start, 3));
+        Assert.True(bounds.Width > 0);
+
+        // typing over the selection is one change of the window text at the caret
+        changes.Clear();
+        TestApp.Type(_w, "Q");
+        model = model[..col] + "Q" + model[(col + 3)..];
+        col++;
+        Assert.Equal(model, Doc(tab)[..model.Length]);
+        Assert.NotEmpty(changes);
+        Assert.Equal('Q', surface.GetText(surface.CaretOffset - 1, 1)[0]);
+        Assert.Equal(model[col], surface.GetText(surface.CaretOffset, 1)[0]);
+
+        // moving far along the line follows the caret; the window text changes and says so
+        changes.Clear();
+        paged.GoToOffset(Encoding.UTF8.GetByteCount(model.AsSpan(0, 90_000)));
+        Assert.NotEmpty(changes);
+        Assert.Equal(model[90_000], surface.GetText(surface.CaretOffset, 1)[0]);
+        Assert.Contains(model.Substring(89_990, 20), surface.GetText(0, surface.Length));
+
+        // back at the start of the line the first part is shown again
+        paged.GoToOffset(0);
+        Assert.StartsWith(model[..50], surface.GetText(0, surface.Length));
+        Assert.Equal(0, surface.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void The_window_text_stays_bounded_when_every_line_is_long()
+    {
+        string row = new string('x', 15_000) + "\n";
+        var tab = OpenIndexed(_temp.Bytes("long-rows.txt", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat(row, 800)))));
+        var paged = tab.Paged!;
+        _w.UpdateLayout();
+        using var surface = new PagedTextView.TextSurface(paged);
+        int changes = 0;
+        surface.TextChanged += _ => changes++;
+
+        void AssertBounded()
+        {
+            int visible = surface.VisibleRange.Length;
+            Assert.True(visible > 0);
+            Assert.True(surface.Length < 4 * PagedTextView.MaxLineBytes + 2 * (visible + 2 * row.Length), $"window of {surface.Length} characters");
+            Assert.True(surface.Length < 800 * row.Length / 4);
+        }
+
+        AssertBounded();
+        paged.GoToLine(400);
+        AssertBounded();
+        Assert.True(surface.FirstLine <= 399 && 399 < surface.FirstLine + surface.LineCount);
+        changes = 0;
+        for (int i = 0; i < 20; i++) _ = (surface.Length, surface.VisibleRange, surface.CaretOffset);
+        Assert.Equal(0, changes); // a window that holds less than the margin does not rebuild itself on every query
+    }
+
+    [AvaloniaFact]
+    public void Composition_on_a_long_line_reads_the_text_around_the_caret_and_the_commit_replaces_the_selection()
+    {
+        string model = string.Concat(Enumerable.Repeat(Unit, 150_000));
+        var tab = OpenIndexed(_temp.Bytes("long-ime.txt", Encoding.UTF8.GetBytes(model + "\nnext\n")));
+        var paged = tab.Paged!;
+        int col = 70_000;
+        paged.GoToOffset(Encoding.UTF8.GetByteCount(model.AsSpan(0, col)));
+        _w.UpdateLayout();
+        var args = new TextInputMethodClientRequestedEventArgs { RoutedEvent = InputElement.TextInputMethodClientRequestedEvent };
+        paged.RaiseEvent(args);
+        var client = Assert.IsAssignableFrom<TextInputMethodClient>(args.Client);
+        var doc = tab.Doc.Doc;
+        long revision = doc.Revision;
+
+        Assert.InRange(client.SurroundingText.Length, 1, 400);
+        Assert.Contains(model.Substring(col, 10), client.SurroundingText);
+        Assert.Equal(client.Selection.Start, client.Selection.End);
+        int caretIndex = client.Selection.Start;
+        Assert.Equal(model[col], client.SurroundingText[caretIndex]);
+
+        client.SetPreeditText("にほんご");
+        Assert.True(client.CursorRectangle.Width > 0);
+        Assert.Equal(revision, doc.Revision);
+
+        // reconversion: the input method sees the selection inside the text around the caret
+        client.SetPreeditText(null);
+        for (int i = 0; i < 4; i++) TestApp.Press(_w, Key.Right, RawInputModifiers.Shift);
+        var selection = client.Selection;
+        Assert.Equal(4, selection.End - selection.Start);
+        Assert.Equal(model.Substring(col, 4), client.SurroundingText[selection.Start..selection.End]);
+
+        _w.KeyTextInput("日本語");
+        string expected = model[..col] + "日本語" + model[(col + 4)..];
+        Assert.True(expected + "\nnext\n" == Doc(tab), "the document differs from the model");
+        Assert.Equal(1, doc.UndoDepth);
+        Assert.Equal((1L, (long)col + 3 + 1), tab.CaretPosition());
+
+        TestApp.Press(_w, Key.Z, TestApp.Mod);
+        Assert.True(model + "\nnext\n" == Doc(tab), "undo did not restore the line");
+    }
+
     // ---- the line index in the background ----
 
     /// <summary>Byte offset where the row <paramref name="row"/> (zero based) of "line N\n" rows starts.</summary>
