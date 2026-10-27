@@ -36,6 +36,12 @@ public sealed partial class App : Application
     /// <summary>Local history of files: a revision for every save and every change from outside.</summary>
     internal FileHistory History { get; private set; } = null!;
     internal OutputChannels Output { get; private set; } = null!;
+    /// <summary>The editor locks of the files open in this run; a file another instance holds opens read only.</summary>
+    internal NksHub.Textida.Core.Files.FileLocks Locks { get; private set; } = null!;
+    /// <summary>Where passwords live: the credential store of the operating system. Tests replace it.</summary>
+    internal NksHub.Textida.Core.Secrets.ICredentialStore Credentials { get; set; } = NksHub.Textida.Core.Secrets.CredentialStores.ForCurrentPlatform();
+    /// <summary>Connections, local copies of remote files and the network policy.</summary>
+    internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
@@ -141,6 +147,8 @@ public sealed partial class App : Application
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());
         OpenDocument.History = History;
+        Locks = new NksHub.Textida.Core.Files.FileLocks(Path.Combine(ProfileDirectory, "locks"), Guid.NewGuid().ToString("N")[..8]);
+        Remote = new RemoteServices(ProfileDirectory, Credentials);
     }
 
     /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>

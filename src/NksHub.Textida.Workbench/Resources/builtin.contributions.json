@@ -336,6 +336,48 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.remote.open",
+      "title": "cmd.remote.open",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.remote.connections",
+      "title": "cmd.remote.connections",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.remote.upload",
+      "title": "cmd.remote.upload",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.remote.check",
+      "title": "cmd.remote.check",
+      "category": "cat.file",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.remote.unsent",
+      "title": "cmd.remote.unsent",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.remote.proxy",
+      "title": "cmd.remote.proxy",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.remote.exportConnections",
+      "title": "cmd.remote.exportConnections",
+      "category": "cat.file"
+    },
+    {
+      "id": "nks.remote.importConnections",
+      "title": "cmd.remote.importConnections",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.edit.selectLine",
       "title": "cmd.edit.selectLine",
       "category": "cat.edit",
@@ -1665,6 +1707,54 @@
       "menu": "file",
       "command": "nks.file.historySearch",
       "group": "2_disk",
+      "order": 80
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.open",
+      "group": "4_remote",
+      "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.connections",
+      "group": "4_remote",
+      "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.upload",
+      "group": "4_remote",
+      "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.check",
+      "group": "4_remote",
+      "order": 40
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.unsent",
+      "group": "4_remote",
+      "order": 50
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.proxy",
+      "group": "4_remote",
+      "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.exportConnections",
+      "group": "4_remote",
+      "order": 70
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.importConnections",
+      "group": "4_remote",
       "order": 80
     },
     {
@@ -3261,6 +3351,25 @@
       "tags": [
         "save",
         "automatic"
+      ]
+    },
+    {
+      "key": "remote.versionCheck",
+      "type": "string",
+      "default": "stat",
+      "title": "setting.remote.versionCheck.title",
+      "description": "setting.remote.versionCheck.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "stat",
+        "content"
+      ],
+      "tags": [
+        "remote",
+        "ftp",
+        "sftp",
+        "upload"
       ]
     },
     {

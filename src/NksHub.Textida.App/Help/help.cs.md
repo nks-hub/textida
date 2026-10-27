@@ -106,6 +106,65 @@ Příkaz spustí váš vlastní program na porovnání: vlevo soubor na disku, v
 - Nespustí-li se program, stavový řádek napíše Porovnávač se nespustil a důvod.
 - Vlastní porovnávač v programu není; používá se ten, který nastavíte.
 
+## [remote.connections] Vzdálená připojení
+commands: nks.remote.connections
+Připojení si pamatuje server, uživatele a protokol. Heslo je v systémové klíčence operačního systému a nikdy se nezapíše do souboru nastavení ani do zálohy.
+1. Zvolte Soubor a pak Vzdálená připojení. Seznam ukáže uložená připojení.
+2. Zvolte Nové připojení a odpovězte na otázky: název, protokol, server, port, uživatel a heslo. U SFTP lze místo hesla zadat soubor se soukromým klíčem.
+3. Vyberte připojení, otevřete z něj soubor, nebo ho smažte i s uloženým heslem.
+- Běžná volba je FTPS a SFTP. Prosté FTP posílá heslo i soubory nešifrovaně a použije se, až když ho pro dané připojení výslovně povolíte.
+- Při prvním připojení program ukáže identitu serveru (klíč SSH nebo certifikát TLS) a zeptá se, zda jí věříte. Porovnejte ji s tou, kterou vám dal správce serveru.
+- Změní-li se identita serveru, kterému jste uvěřili, program se nepřipojí, dokud novou nepotvrdíte. Než to uděláte, přečtěte si varování.
+- Ukládání hesla funguje ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu systémová klíčenka zatím podporovaná není a program to řekne, místo aby heslo uložil jinam.
+
+## [remote.open] Otevřít vzdálený soubor
+commands: nks.remote.open
+1. Zvolte Soubor a pak Otevřít vzdálený soubor a vyberte připojení.
+2. Napište cestu na serveru. Cesta ke složce ukáže její obsah: složku otevřete, aby se vstoupilo dovnitř, soubor, aby se otevřel.
+3. Soubor se zkopíruje do tohoto počítače a otevře v kartě. Upravujte a ukládejte jako obvykle: Uložit mění jen kopii v tomto počítači.
+- Lišta nad textem říká, zda je kopie shodná se serverem. Editor sám funguje bez připojení.
+- Vzdálený soubor, který už kopii má, se otevře z kopie, včetně změn, které jste ještě neposlali. Verze ze serveru se nikdy nestáhne přes vaši práci.
+- Záznam přenosů je na kartě Vzdálené v okně výstupu.
+
+## [remote.upload] Nahrát na server
+commands: nks.remote.upload
+1. Zvolte Soubor a pak Nahrát na server. Změněná karta se nejdřív uloží.
+2. Než program cokoli pošle, podívá se na soubor na serveru. Je-li to pořád verze, kterou jste otevřeli, nový obsah se pošle pod dočasným jménem a teprve pak nahradí starý soubor. Nepovedené nebo přerušené nahrání nechá na serveru starou verzi.
+3. Změnil-li se soubor na serveru mezitím, nepošle se nic. Zvolte Zobrazit rozdíly, uvidíte verzi ze serveru vedle své, převezměte do své strany, co potřebujete, uložte a nahrajte znovu. Přesto nahrát nahradí právě tu verzi serveru, kterou jste viděli.
+- Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
+- Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
+- Nic se neopakuje samo. Po chybě zvolte Nahrát na server znovu; nejdřív zase zkontroluje server.
+
+## [remote.check] Zkontrolovat verzi na serveru
+commands: nks.remote.check
+Zvolte Soubor a pak Zkontrolovat verzi na serveru. Lišta řekne: shodné se serverem, změněno tady a neodesláno, změněno na serveru, změněno na obou místech, nebo soubor už na serveru neexistuje. Nic se nestahuje ani nemění.
+
+## [remote.unsent] Neodeslané vzdálené změny
+commands: nks.remote.unsent
+Změny vzdáleného souboru se nejdřív uloží v tomto počítači. Seznam ukáže vzdálené soubory, jejichž kopie je změněná a neodeslaná, i po zavření programu nebo po pádu. Vyberte jeden a otevře se kopie; lišta nabídne Nahrát.
+- Úpravy nepotřebují připojení. Neodeslané změny zůstanou, dokud je nenahrajete.
+
+## [remote.backup] Záloha připojení
+commands: nks.remote.exportConnections, nks.remote.importConnections
+1. Zvolte Soubor a pak Exportovat připojení a pojmenujte soubor. Obsahuje seznam připojení: název, protokol, server, port, uživatele a důvěryhodnou identitu serveru.
+2. Zvolte Soubor a pak Importovat připojení a načtete takový soubor na jiném počítači nebo po přeinstalaci.
+- Soubor neobsahuje hesla, přístupové fráze ani tokeny, takže ho lze sdílet. Po importu vyberte připojení a zvolte Nastavit heslo.
+- Importované připojení nahradí připojení se stejným vnitřním identifikátorem.
+
+## [remote.proxy] Síťová proxy
+commands: nks.remote.proxy
+1. Zvolte Soubor a pak Síťová proxy a vyberte HTTP, SOCKS4, SOCKS5 nebo žádnou proxy.
+2. Zadejte server a port, a podle potřeby uživatele a heslo proxy. Heslo se uloží do systémové klíčenky.
+- Proxy se používá pro FTPS a SFTP. Připojení, které má vlastní proxy, si ji ponechá.
+- SOCKS4 funguje jen pro SFTP. Pro FTPS použijte SOCKS5 nebo HTTP.
+- Jiný typ proxy program odmítne se zprávou.
+
+## [file.locks] Zamčené soubory
+Soubor se otevře jen pro čtení, když ho má otevřený jiný program a nedovoluje ostatním zapisovat, nebo když ho upravuje jiné okno Textidy. Lišta nad textem uvede důvod.
+- Zkusit znovu zámek zkontroluje znovu, například po zavření souboru v jiném programu.
+- Přesto upravit zapne pro soubor souběžný zápis. Každé uložení pak porovná soubor na disku s tím, co jste otevřeli, a zeptá se, když se změnil; nic se nepřepíše potichu.
+- Zámek okna zaniká s oknem, i po pádu. Textida nezapisuje žádné soubory zámků k vašim dokumentům a soubory .lck jiných programů ignoruje.
+
 ## [file.history] Místní historie
 commands: nks.file.history
 Program uchovává revizi souboru při každém uložení a při každé změně, kterou soubor provede jiný program. Nepotřebuje projekt ani Git.

@@ -196,6 +196,11 @@ internal sealed partial class MainWindow
     private async Task<bool> SaveCoreAsync(DocTab tab, bool overwrite)
     {
         var od = tab.Doc;
+        if (od.LockedReadOnly)
+        {
+            SetStatusMessage(Loc.Get(K.LockSaveRefused));
+            return false;
+        }
         if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite);
         PrepareForSave(od);
         try
@@ -286,6 +291,8 @@ internal sealed partial class MainWindow
             {
                 if (codec != od.Guess?.Codec) od.SetEncodingChosen();
                 od.NotifyChanged();
+                AcquireLock(od);
+                ApplyLock(od);
                 RefreshAll();
                 SetStatusMessage(Loc.Get(K.StatusSaved));
                 _app.SessionChanged();

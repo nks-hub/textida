@@ -105,6 +105,65 @@ The tab and the file on disk are shown side by side in a tab of their own. The t
 - If the program does not start, the status bar says The diff tool did not start and gives the reason.
 - The program has no comparison window of its own; it uses the one you set.
 
+## [remote.connections] Remote connections
+commands: nks.remote.connections
+A connection holds the server, the user and the protocol. The password is kept in the credential store of the operating system and is never written to a settings file or to a backup.
+1. Choose File and then Remote Connections. The list shows the saved connections.
+2. Choose New Connection and answer the questions: name, protocol, server, port, user and password. For SFTP you can give a private key file instead of a password.
+3. Choose a connection to open a file from it, or to delete it with its saved password.
+- FTPS and SFTP are the normal choices. Plain FTP sends the password and the files unencrypted and is used only after you allow it for that connection.
+- The first time you connect, the program shows the identity of the server (an SSH host key or a TLS certificate) and asks you to trust it. Compare it with the one the server administrator gave you.
+- If the identity of a server you trusted changes, the program does not connect until you confirm the new one. Read the warning before you do.
+- Saving a password works on Windows (Credential Manager). On macOS and Linux the credential store is not supported yet, and the program says so instead of keeping the password anywhere else.
+
+## [remote.open] Open a remote file
+commands: nks.remote.open
+1. Choose File and then Open Remote File, and choose a connection.
+2. Type the path on the server. A path to a folder shows its content: choose a folder to go in, or a file to open it.
+3. The file is copied to this computer and opens in a tab. Edit and save as usual: Save changes only the copy on this computer.
+- The bar above the text says whether the copy is the same as on the server. The editor itself works without a connection.
+- Opening a remote file that already has a copy shows the copy, including changes you did not send yet. The server version is never fetched over your work.
+- The log of the transfers is in the Remote tab of the output window.
+
+## [remote.upload] Upload to the server
+commands: nks.remote.upload
+1. Choose File and then Upload to Server. A changed tab is saved first.
+2. Before it sends anything, the program looks at the file on the server. If it is still the version you opened, the new content is sent under a temporary name and then replaces the old file. A failed or interrupted upload leaves the old version on the server.
+3. If the file on the server changed meanwhile, nothing is sent. Choose Show Differences to see the server version beside yours, copy what you need into your side, save, and upload again. Upload Anyway replaces exactly the server version you were shown.
+- The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
+- Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
+- Nothing is repeated automatically. After a failure, choose Upload to Server again; it checks the server again first.
+
+## [remote.check] Check the server version
+commands: nks.remote.check
+Choose File and then Check Server Version. The bar says: same as on the server, changed here and not sent, changed on the server, changed in both places, or the file no longer exists on the server. Nothing is downloaded or changed.
+
+## [remote.unsent] Unsent remote changes
+commands: nks.remote.unsent
+Changes to a remote file are saved on this computer first. The list shows the remote files whose copy was changed and not sent, also after the program was closed or crashed. Choose one to open the copy; the bar offers Upload.
+- Editing needs no connection. Unsent changes stay until you upload them.
+
+## [remote.backup] Back up connections
+commands: nks.remote.exportConnections, nks.remote.importConnections
+1. Choose File and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
+2. Choose File and then Import Connections to read such a file on another computer or after a reinstall.
+- The file holds no passwords, passphrases or tokens, so it can be shared. After an import, choose a connection and Set Password.
+- A connection that you import replaces a connection with the same internal identifier.
+
+## [remote.proxy] Network proxy
+commands: nks.remote.proxy
+1. Choose File and then Network Proxy, and choose HTTP, SOCKS4, SOCKS5 or no proxy.
+2. Enter the server and the port, and a user name and password if the proxy needs them. The password goes to the credential store.
+- The proxy is used for FTPS and SFTP. A connection that has a proxy of its own keeps it.
+- SOCKS4 works for SFTP only. For FTPS use SOCKS5 or HTTP.
+- Any other proxy type is refused with a message.
+
+## [file.locks] Locked files
+A file opens read only when another program has it open and does not let others write to it, or when another window of Textida is editing it. The bar above the text names the reason.
+- Try Again checks the lock again, for example after the other program closed the file.
+- Edit Anyway turns on concurrent writing for that file. Every save then compares the file on disk with what you opened and asks when it changed; nothing is overwritten silently.
+- The lock of a window ends with the window, also after a crash. Textida writes no lock files next to your documents and ignores .lck files of other programs.
+
 ## [file.history] Local history
 commands: nks.file.history
 The program keeps a revision of a file at every save and at every change another program makes to it. It needs no project and no Git.

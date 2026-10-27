@@ -17,6 +17,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <!-- In-process FTPS server for the remote file tests (MIT); test-only. -->
+    <PackageReference Include="FubarDev.FtpServer" Version="3.1.2" />
+    <PackageReference Include="FubarDev.FtpServer.FileSystem.DotNet" Version="3.1.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +29,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.App\NksHub.Textida.App.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
+    <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\FtpsServer.cs" Link="Servers\FtpsServer.cs" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
     <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />

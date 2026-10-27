@@ -23,5 +23,7 @@ Check(ByteFidelity.Convert(utf8, TextCodec.Cp1250, "?").AsSpan().SequenceEqual(n
 Check(ByteFidelity.PlanConvert(utf8, TextCodec.Cp1252).Loss.Total == 3, "cp1252 loss");
 Check(UnicodeNormalizer.Preview(TextCodec.Utf8.Decode(TextCodec.Utf8.Encode("é")), NormalizationForm.FormC).Count == 1, "normalization");
 
+await RemoteChecks.RunAsync(args, Check);
+
 Console.WriteLine(failures == 0 ? "AOT check OK" : $"AOT check FAILED ({failures})");
 return failures;

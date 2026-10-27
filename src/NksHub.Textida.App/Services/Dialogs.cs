@@ -33,6 +33,8 @@ internal interface IDialogs
     Task<string?> PickSaveFileAsync(Window owner, string title, string suggestedName);
     /// <param name="preview">Text shown under the input and refreshed on every edit, so the user sees what the answer would do before confirming.</param>
     Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null);
+    /// <summary>Like <see cref="PromptAsync"/> for a password: the typed characters are masked and nothing is preset. Null when cancelled. A dialog that cannot mask answers null.</summary>
+    Task<string?> PromptSecretAsync(Window owner, string title, string label) => Task.FromResult<string?>(null);
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
     Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected);
     Task ShowAboutAsync(Window owner);
@@ -151,6 +153,29 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         ok.Click += (_, _) => dialog.Close(input.Text ?? "");
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
+        return await dialog.ShowDialog<string?>(owner);
+    }
+
+    public async Task<string?> PromptSecretAsync(Window owner, string title, string label)
+    {
+        var input = new TextBox { PasswordChar = '\u2022', MinWidth = 260 };
+        AutomationProperties.SetName(input, label);
+        var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
+        var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
+        var panel = new StackPanel
+        {
+            Margin = new Thickness(20), Spacing = 10,
+            Children =
+            {
+                new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap },
+                input,
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
+            },
+        };
+        var dialog = Frame(title, panel, 360);
+        ok.Click += (_, _) => dialog.Close(input.Text ?? "");
+        cancel.Click += (_, _) => dialog.Close(null);
+        dialog.Opened += (_, _) => input.Focus();
         return await dialog.ShowDialog<string?>(owner);
     }
 

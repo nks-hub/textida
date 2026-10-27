@@ -98,7 +98,13 @@ internal sealed class OpenDocument : IDisposable
     public AvaloniaEditBackend? TextBackend => _doc.Backend as AvaloniaEditBackend;
     /// <summary>Opened in the paged backend: shown and edited on the paged surface.</summary>
     public bool IsLarge => TextBackend is null && !_switchedForHex;
-    public bool ReadOnly => IsResults;
+    public bool ReadOnly => IsResults || LockedReadOnly;
+    /// <summary>The lock this document holds on its file, or the reason the file opened read only; null for a document without a file.</summary>
+    public Core.Files.FileLockResult? Lock { get; set; }
+    /// <summary>Another program or another editor window holds the file, so this tab only reads it.</summary>
+    public bool LockedReadOnly => Lock is { IsReadOnly: true };
+    /// <summary>Set when this document is the local copy of a remote file; the copy knows the server revision it was made from.</summary>
+    public Remote.WorkingCopy? RemoteCopy { get; set; }
     /// <summary>The document behind the "Search Results" tab: it has no text of its own, is never saved and never journaled.</summary>
     public bool IsResults { get; private init; }
     /// <summary>The <c>.editorconfig</c> properties of the file; empty for a document without a path. Refreshed by <see cref="RefreshEditorConfig"/>.</summary>
@@ -418,6 +424,7 @@ internal sealed class OpenDocument : IDisposable
     {
         _eolTimer.Stop();
         Autosave?.Dispose();
+        Lock?.Dispose();
         Unhook(_doc);
         HexBookmarks.Dispose();
         _doc.Dispose();

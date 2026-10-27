@@ -166,6 +166,16 @@
           "description": "Auto save. Saves changed files to their own path.",
           "x-scope": "application"
         },
+        "remote.versionCheck": {
+          "type": "string",
+          "default": "stat",
+          "enum": [
+            "stat",
+            "content"
+          ],
+          "description": "Check of the server version. stat: size and modification time (the content is fetched only when they differ). content: always fetch the server content and compare it; slower, and it also notices a change within the same second and size.",
+          "x-scope": "application"
+        },
         "workbench.keymapProfile": {
           "type": "string",
           "default": "default",

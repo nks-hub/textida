@@ -113,6 +113,15 @@ internal sealed class ScriptedDialogs : IDialogs
         return Task.FromResult(answer);
     }
 
+    public Queue<string?> Secrets { get; } = new();
+    public List<string> SecretsAsked { get; } = [];
+
+    public Task<string?> PromptSecretAsync(Window owner, string title, string label)
+    {
+        SecretsAsked.Add(label);
+        return Task.FromResult(Secrets.Count > 0 ? Secrets.Dequeue() : null);
+    }
+
     public Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected)
     {
         EncodingsOffered.Add(targets);

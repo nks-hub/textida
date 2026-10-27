@@ -355,5 +355,15 @@
   "cmd.compare.copyToRight": "Unterschied nach rechts kopieren",
   "cmd.compare.copyToLeft": "Unterschied nach links kopieren",
   "cmd.view.syncScroll": "Scrollen synchronisieren",
-  "menu.editor.context": "Kontextmenü des Editors"
+  "menu.editor.context": "Kontextmenü des Editors",
+  "cmd.remote.open": "Remote-Datei öffnen...",
+  "cmd.remote.connections": "Remote-Verbindungen...",
+  "cmd.remote.upload": "Auf Server hochladen",
+  "cmd.remote.check": "Serverversion prüfen",
+  "cmd.remote.unsent": "Nicht gesendete Remote-Änderungen...",
+  "cmd.remote.proxy": "Netzwerk-Proxy...",
+  "setting.remote.versionCheck.title": "Prüfung der Serverversion",
+  "setting.remote.versionCheck.description": "stat: Größe und Änderungszeit (der Inhalt wird nur geholt, wenn sie sich unterscheiden). content: Der Serverinhalt wird immer geholt und verglichen; langsamer, erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.",
+  "cmd.remote.exportConnections": "Verbindungen exportieren...",
+  "cmd.remote.importConnections": "Verbindungen importieren..."
 }

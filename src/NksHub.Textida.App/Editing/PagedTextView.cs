@@ -746,10 +746,14 @@ internal sealed partial class PagedTextView : Grid
 
     // ---- editing ----
 
+    /// <summary>Set while the file is locked by another program or window: edits are refused with this text.</summary>
+    public string? ReadOnlyReason { get; set; }
+
     private bool CanEdit(out long line, out LineView view)
     {
         line = 0;
         view = null!;
+        if (ReadOnlyReason is { } locked) { Refused?.Invoke(locked); return false; }
         if (!Indexed) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         if (CaretLine() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         if (c.View.Truncated) { Refused?.Invoke(Loc.Get(K.PagedLongLine, ("size", OpenDocument.FormatSize(MaxLineBytes)))); return false; }

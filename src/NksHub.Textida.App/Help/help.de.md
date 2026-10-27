@@ -105,6 +105,65 @@ Der Tab und die Datei auf dem Datenträger werden nebeneinander in einem eigenen
 - Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
 - Ein eigenes Vergleichsfenster hat das Programm nicht; es verwendet das von Ihnen eingestellte Programm.
 
+## [remote.connections] Remote-Verbindungen
+commands: nks.remote.connections
+Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im Anmeldeinformationsspeicher des Betriebssystems und wird nie in eine Einstellungsdatei oder ein Backup geschrieben.
+1. Wählen Sie Datei und dann Remote-Verbindungen. Die Liste zeigt die gespeicherten Verbindungen.
+2. Wählen Sie Neue Verbindung und beantworten Sie die Fragen: Name, Protokoll, Server, Port, Benutzer und Passwort. Bei SFTP können Sie statt eines Passworts eine Datei mit dem privaten Schlüssel angeben.
+3. Wählen Sie eine Verbindung, um eine Datei daraus zu öffnen oder sie mit dem gespeicherten Passwort zu löschen.
+- Üblich sind FTPS und SFTP. Einfaches FTP sendet Passwort und Dateien unverschlüsselt und wird erst benutzt, wenn Sie es für diese Verbindung ausdrücklich erlauben.
+- Bei der ersten Verbindung zeigt das Programm die Identität des Servers (einen SSH-Hostschlüssel oder ein TLS-Zertifikat) und fragt, ob Sie ihr vertrauen. Vergleichen Sie sie mit der, die Ihnen der Serveradministrator gegeben hat.
+- Ändert sich die Identität eines Servers, dem Sie vertraut haben, verbindet sich das Programm erst, wenn Sie die neue bestätigen. Lesen Sie vorher die Warnung.
+- Das Speichern von Passwörtern funktioniert unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux wird der Anmeldeinformationsspeicher noch nicht unterstützt; das Programm sagt das, statt das Passwort anderswo abzulegen.
+
+## [remote.open] Remote-Datei öffnen
+commands: nks.remote.open
+1. Wählen Sie Datei und dann Remote-Datei öffnen und wählen Sie eine Verbindung.
+2. Geben Sie den Pfad auf dem Server ein. Ein Ordnerpfad zeigt seinen Inhalt: Wählen Sie einen Ordner, um hineinzugehen, oder eine Datei, um sie zu öffnen.
+3. Die Datei wird auf diesen Computer kopiert und in einem Tab geöffnet. Bearbeiten und speichern Sie wie gewohnt: Speichern ändert nur die Kopie auf diesem Computer.
+- Die Leiste über dem Text sagt, ob die Kopie dem Stand auf dem Server entspricht. Der Editor selbst arbeitet ohne Verbindung.
+- Eine Remote-Datei, die schon eine Kopie hat, wird aus der Kopie geöffnet, auch mit Änderungen, die Sie noch nicht gesendet haben. Die Serverversion wird nie über Ihre Arbeit geladen.
+- Das Protokoll der Übertragungen steht im Tab Remote des Ausgabefensters.
+
+## [remote.upload] Auf Server hochladen
+commands: nks.remote.upload
+1. Wählen Sie Datei und dann Auf Server hochladen. Ein geänderter Tab wird zuerst gespeichert.
+2. Bevor das Programm etwas sendet, sieht es sich die Datei auf dem Server an. Ist es noch die Version, die Sie geöffnet haben, wird der neue Inhalt unter einem vorläufigen Namen gesendet und ersetzt erst dann die alte Datei. Ein misslungener oder unterbrochener Upload lässt die alte Version auf dem Server.
+3. Hat sich die Datei auf dem Server inzwischen geändert, wird nichts gesendet. Wählen Sie Unterschiede zeigen, sehen Sie die Serverversion neben Ihrer, übernehmen Sie in Ihre Seite, was Sie brauchen, speichern Sie und laden Sie erneut hoch. Trotzdem hochladen ersetzt genau die Serverversion, die Sie gesehen haben.
+- Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
+- Grenze: Prüfung und Austausch sind zwei Schritte, weil FTP und SFTP kein bedingtes Schreiben kennen. Eine Änderung, die jemand in diesem letzten Moment macht, wird nicht bemerkt. Die Prüfung läuft erst nach dem vollständigen Upload, der Moment ist also kurz.
+- Nichts wird automatisch wiederholt. Wählen Sie nach einem Fehler erneut Auf Server hochladen; es prüft zuerst wieder den Server.
+
+## [remote.check] Serverversion prüfen
+commands: nks.remote.check
+Wählen Sie Datei und dann Serverversion prüfen. Die Leiste sagt: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert oder die Datei gibt es auf dem Server nicht mehr. Es wird nichts geladen oder geändert.
+
+## [remote.unsent] Nicht gesendete Remote-Änderungen
+commands: nks.remote.unsent
+Änderungen an einer Remote-Datei werden zuerst auf diesem Computer gespeichert. Die Liste zeigt die Remote-Dateien, deren Kopie geändert und nicht gesendet wurde, auch nach dem Schließen oder einem Absturz des Programms. Wählen Sie eine aus, dann öffnet sich die Kopie; die Leiste bietet Hochladen an.
+- Das Bearbeiten braucht keine Verbindung. Nicht gesendete Änderungen bleiben, bis Sie sie hochladen.
+
+## [remote.backup] Verbindungen sichern
+commands: nks.remote.exportConnections, nks.remote.importConnections
+1. Wählen Sie Datei und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
+2. Wählen Sie Datei und dann Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
+- Die Datei enthält keine Passwörter, Passphrasen oder Token und kann daher weitergegeben werden. Wählen Sie nach dem Import eine Verbindung und dann Passwort setzen.
+- Eine importierte Verbindung ersetzt eine Verbindung mit derselben internen Kennung.
+
+## [remote.proxy] Netzwerk-Proxy
+commands: nks.remote.proxy
+1. Wählen Sie Datei und dann Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
+2. Geben Sie Server und Port ein, bei Bedarf auch Benutzername und Passwort des Proxys. Das Passwort kommt in den Anmeldeinformationsspeicher.
+- Der Proxy wird für FTPS und SFTP verwendet. Eine Verbindung mit eigenem Proxy behält ihn.
+- SOCKS4 funktioniert nur für SFTP. Für FTPS nehmen Sie SOCKS5 oder HTTP.
+- Jeder andere Proxytyp wird mit einer Meldung abgelehnt.
+
+## [file.locks] Gesperrte Dateien
+Eine Datei wird schreibgeschützt geöffnet, wenn ein anderes Programm sie geöffnet hat und anderen das Schreiben verbietet oder wenn ein anderes Textida-Fenster sie bearbeitet. Die Leiste über dem Text nennt den Grund.
+- Erneut versuchen prüft die Sperre noch einmal, zum Beispiel nachdem das andere Programm die Datei geschlossen hat.
+- Trotzdem bearbeiten schaltet das parallele Schreiben für die Datei ein. Jedes Speichern vergleicht dann die Datei auf dem Datenträger mit dem, was Sie geöffnet haben, und fragt nach, wenn sie sich geändert hat; nichts wird stillschweigend überschrieben.
+- Die Sperre eines Fensters endet mit dem Fenster, auch nach einem Absturz. Textida legt keine Sperrdateien neben Ihre Dokumente und ignoriert .lck-Dateien anderer Programme.
+
 ## [file.history] Lokaler Verlauf
 commands: nks.file.history
 Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein anderes Programm eine Revision der Datei. Es braucht weder ein Projekt noch Git.

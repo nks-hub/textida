@@ -4,6 +4,7 @@
     <InternalsVisibleTo Include="NksHub.Textida.Core.Tests" />
     <InternalsVisibleTo Include="NksHub.Textida.Document.Contract" />
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
+    <InternalsVisibleTo Include="NksHub.Textida.Remote.Tests" />
   </ItemGroup>
 
   <ItemGroup>

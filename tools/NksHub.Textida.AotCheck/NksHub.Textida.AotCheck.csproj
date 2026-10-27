@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,7 @@ using System.Text;
 namespace NksHub.Textida.App.Services;
 
 /// <summary>The purposes output is kept apart by; each has its own file, so one noisy source cannot bury another.</summary>
-internal enum OutputChannel { Tasks, Search }
+internal enum OutputChannel { Tasks, Search, Remote }
 
 /// <summary>One line of a channel: when it was written, by which source (a tool name, a search) and the text.</summary>
 internal readonly record struct OutputLine(DateTime Time, string Source, string Text);
