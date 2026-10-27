@@ -9,7 +9,7 @@ public class SyntaxGrammarFormatTests
     [
         "plaintext", "ini", "json", "xml", "html", "css", "javascript", "php", "php-code", "csharp", "sql", "markdown", "python", "shell", "yaml", "latte", "neon", "razor", "sln",
         "c", "cpp", "go", "gomod", "gotmpl", "rust", "toml", "makefile", "cmake", "meson", "ruby", "erb", "haml", "slim", "rbs", "java", "kotlin", "lua", "swift",
-        "dart", "r", "powershell",
+        "dart", "r", "powershell", "twig", "blade", "batch", "vb",
         "sql-mysql", "sql-postgres", "sql-sqlite", "sql-tsql",
     ];
 

@@ -33,12 +33,15 @@ internal static class LanguageModes
         Catalog("json", "JSON", CommentStyle.None),
         new("xml", "XML", [".xml", ".xsd", ".xaml", ".axaml", ".csproj", ".props", ".targets", ".svg", ".config"], CommentStyle.None),
         Catalog("csharp", "C#", Slash),
+        Catalog("vb", "Visual Basic", new("'", false)),
         Catalog("c", "C", Slash),
         Catalog("cpp", "C++", Slash),
         Catalog("java", "Java", Slash),
         Catalog("php", "PHP", Slash),
         new("razor", "Razor", [".cshtml", ".razor"], CommentStyle.None),
         Catalog("latte", "Latte", CommentStyle.None),
+        Catalog("blade", "Blade", CommentStyle.None),
+        Catalog("twig", "Twig", CommentStyle.None),
         Catalog("neon", "NEON", Hash),
         new("sln", "Solution", [".sln"], Hash),
         Catalog("python", "Python", Hash),
@@ -48,7 +51,7 @@ internal static class LanguageModes
         new("ini", "INI", [".ini", ".cfg", ".conf"], new(";", false)),
         Catalog("shell", "Shell", Hash),
         Catalog("powershell", "PowerShell", Hash),
-        new("batch", "Batch", [".bat", ".cmd"], CommentStyle.None),
+        Catalog("batch", "Batch", new("::", false)),
         Catalog("go", "Go", Slash),
         Catalog("gomod", "Go module", new("//", false)),
         Catalog("gotmpl", "Go template", CommentStyle.None),
@@ -118,9 +121,10 @@ internal static class LanguageModes
         if (path is not null && Path.GetFileName(path) is { Length: > 0 } name
             && _user.FirstOrDefault(m => m.FileNames.Contains(name, StringComparer.OrdinalIgnoreCase) || m.Extensions.Any(e => name.EndsWith(e, StringComparison.OrdinalIgnoreCase))) is { } custom)
             return custom;
-        var ext = path is null ? "" : Path.GetExtension(path);
         var file = path is null ? "" : Path.GetFileName(path);
+        // the longest matching suffix wins, so ".blade.php" beats ".php"
         return Builtin.FirstOrDefault(l => l.FileNames.Contains(file, StringComparer.OrdinalIgnoreCase))
-            ?? Builtin.FirstOrDefault(l => l.Extensions.Contains(ext, StringComparer.OrdinalIgnoreCase)) ?? Plain;
+            ?? Builtin.Where(l => l.Extensions.Any(e => e.Length > 0 && file.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+                .MaxBy(l => l.Extensions.Where(e => file.EndsWith(e, StringComparison.OrdinalIgnoreCase)).Max(e => e.Length)) ?? Plain;
     }
 }

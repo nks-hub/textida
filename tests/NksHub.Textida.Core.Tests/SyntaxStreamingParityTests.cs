@@ -26,6 +26,7 @@ public class SyntaxStreamingParityTests
         "c-string", "cpp-comment", "go-string", "gomod-comment", "gotmpl-action", "rust-comment", "toml-key", "toml-heading", "makefile-target",
         "cmake-comment", "meson-string", "ruby-comment", "erb-comment", "haml-tag", "slim-comment", "rbs-comment", "java-string",
         "kotlin-string", "lua-comment", "swift-string", "dart-string", "r-string", "powershell-string",
+        "twig-comment", "blade-comment", "batch-comment", "vb-comment",
     };
 
     [Theory]
@@ -194,6 +195,10 @@ public class SyntaxStreamingParityTests
             "dart-string" => InRun("dart", "var s = '", "';", "string", "var y = 1;"),
             "r-string" => InRun("r", "x <- \"", "\"", "string", "y <- 1"),
             "powershell-string" => InRun("powershell", "$s = \"", "\"", "string", "$y = 1"),
+            "twig-comment" => InRun("twig", "{# ", " #}", "comment", "<p>next</p>"),
+            "blade-comment" => InRun("blade", "{{-- ", " --}}", "comment", "<p>next</p>"),
+            "batch-comment" => InRun("batch", "rem ", "", "comment", "echo next"),
+            "vb-comment" => InRun("vb", "' ", "", "comment", "Dim y = 1"),
             _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
         };
     }
