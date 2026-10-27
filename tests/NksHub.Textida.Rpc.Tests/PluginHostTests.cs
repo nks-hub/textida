@@ -282,6 +282,47 @@ public class PluginHostTests
         Assert.Equal("1", (await host.CallAsync("calm", "echo", Args("1"))).GetRawText());
     }
 
+    /// <summary>An event of about 600 kB: two of them fill the outgoing queue of <see cref="Options"/> (1 MiB) once the plugin stops reading.</summary>
+    static byte[] Bulk() => Args("{\"text\":\"" + new string('e', 600_000) + "\"}");
+
+    [Fact]
+    public async Task APluginThatStopsReadingHoldsBackOnlyItselfAndACallToItEndsWithItsTimeout()
+    {
+        await using var host = await Started(Options(), null, null, Spec("deaf"), Spec("other"));
+        await host.CallAsync("deaf", "deaf", Args("{\"ms\":10000}"));
+        var events = Task.WhenAll(host.PublishEventAsync("bulk", Bulk()), host.PublishEventAsync("bulk", Bulk()));
+
+        await Assert.ThrowsAsync<RpcTimeoutException>(() => host.CallAsync("deaf", "echo", Args("1"), TimeSpan.FromMilliseconds(500)).WaitAsync(TimeSpan.FromSeconds(10)));
+        await T.Until(() => host.CallAsync("other", "eventCount").GetAwaiter().GetResult().GetInt32() == 2, 5000);
+        Assert.False(events.IsCompleted);
+        Assert.Equal(PluginState.Running, host.GetState("other"));
+
+        // once it reads again, what was held back arrives and nothing is lost
+        await events.WaitAsync(TimeSpan.FromSeconds(60));
+        Assert.Equal("1", (await host.CallAsync("deaf", "echo", Args("1"))).GetRawText());
+        Assert.Equal(2, (await host.CallAsync("deaf", "eventCount")).GetInt32());
+        Assert.Equal(0, host.GetLostEvents("deaf"));
+        Assert.Equal(PluginState.Running, host.GetState("deaf"));
+    }
+
+    [Fact]
+    public async Task APluginThatStopsReadingIsKilledAsUnresponsiveEvenWithItsQueueFull()
+    {
+        var crashed = new List<PluginCrashInfo>();
+        await using var host = await Started(Options(FastPings), null, null, Spec("deaf"));
+        host.Crashed += i => { lock (crashed) crashed.Add(i); };
+        var pid = await Pid(host, "deaf");
+        await host.CallAsync("deaf", "deaf", Args("{\"ms\":600000}"));
+        var events = Task.WhenAll(host.PublishEventAsync("bulk", Bulk()), host.PublishEventAsync("bulk", Bulk()));
+
+        await T.Until(() => { lock (crashed) return crashed.Count == 1; });
+        Assert.Equal("deaf", crashed[0].PluginId);
+        Assert.Equal(PluginEndReason.Unresponsive, crashed[0].Reason);
+        await events.WaitAsync(TimeSpan.FromSeconds(10)); // the event held back fails with the connection instead of waiting for ever
+        await T.Until(() => !Alive(pid));
+        await T.Until(() => host.GetState("deaf") == PluginState.Running);
+    }
+
     [Fact]
     public async Task ChattyStderrIsDrainedAndOnlyTheTailIsKept()
     {
