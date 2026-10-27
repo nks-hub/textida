@@ -196,6 +196,16 @@ public sealed class ExternalToolContribution
     public int? TimeoutSeconds { get; set; }
     /// <summary>Id of the log pattern that makes the output clickable.</summary>
     public string? LogPattern { get; set; }
+    /// <summary>Variables the tool declares, each with a type; a value of the wrong type stops the tool before it starts.</summary>
+    public List<ToolVariableContribution>? Variables { get; set; }
+}
+
+/// <summary>A variable of an external tool: <c>type</c> is <c>text</c> or <c>path</c>; without <c>value</c> the user or built-in variable of the same name is used.</summary>
+public sealed class ToolVariableContribution
+{
+    public string Name { get; set; } = "";
+    public string Type { get; set; } = "text";
+    public string? Value { get; set; }
 }
 
 [JsonSourceGenerationOptions(

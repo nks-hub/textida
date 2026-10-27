@@ -1137,6 +1137,17 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.edit",
+      "title": "cmd.tools.edit",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.makeTargets",
+      "title": "cmd.tools.makeTargets",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.log.nextError",
       "title": "cmd.log.nextError",
       "category": "cat.log"
@@ -2470,6 +2481,18 @@
       "command": "nks.tools.logPattern",
       "group": "5_run",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.makeTargets",
+      "group": "5_run",
+      "order": 15
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.edit",
+      "group": "5_run",
+      "order": 40
     },
     {
       "menu": "tools",

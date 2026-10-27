@@ -383,5 +383,7 @@
   "cmd.macro.stop": "Zastavit nahrávání makra",
   "cmd.macro.playLast": "Přehrát poslední makro",
   "cmd.macro.save": "Uložit poslední makro jako...",
-  "cmd.macro.run": "Spustit uložené makro..."
+  "cmd.macro.run": "Spustit uložené makro...",
+  "cmd.tools.edit": "Upravit definice nástrojů...",
+  "cmd.tools.makeTargets": "Spustit cíl Makefile..."
 }

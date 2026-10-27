@@ -6,9 +6,12 @@ using System.Text;
 namespace NksHub.Textida.Core.Tools;
 
 /// <summary>
-/// A tool as its definition states it: variables are still in the text. <paramref name="Timeout"/> is null for no limit.
+/// A tool as its definition states it: variables are still in the text. <paramref name="Timeout"/> is null for no limit. <paramref name="Variables"/> are the
+/// typed variables the definition declares. <paramref name="Origin"/> names the config file of a tool that does not come from the profile (null for the profile);
+/// the approval of such a tool is tied to that file and to the directory it runs in.
 /// </summary>
-public sealed record ToolSpec(string Id, string Executable, IReadOnlyList<string> Args, string? Cwd = null, TimeSpan? Timeout = null);
+public sealed record ToolSpec(string Id, string Executable, IReadOnlyList<string> Args, string? Cwd = null, TimeSpan? Timeout = null,
+    IReadOnlyList<ToolVariableDecl>? Variables = null, string? Origin = null);
 
 /// <summary>
 /// A tool with every variable replaced: the program (a full path), one entry per argument and the directory it runs in. This is exactly what is shown
@@ -42,22 +45,26 @@ public static class ToolRunner
     public static ToolInvocation Resolve(ToolSpec spec, Func<string, string?> variables, string defaultDirectory)
     {
         if (string.IsNullOrWhiteSpace(spec.Executable)) throw new ToolException("The tool has no program.");
+        variables = ToolVariables.Declare(spec.Variables, variables);
         string cwd = spec.Cwd is { Length: > 0 } c ? ToolVariables.Expand(c, variables) : defaultDirectory;
         if (!Directory.Exists(cwd)) throw new ToolException($"The directory '{cwd}' does not exist.");
         cwd = Path.GetFullPath(cwd);
         string exe = FindExecutable(ToolVariables.Expand(spec.Executable, variables), cwd);
         var args = spec.Args.Select(a => ToolVariables.Expand(a, variables)).ToArray();
-        return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe));
+        return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe, cwd));
     }
 
     /// <summary>
     /// What an approval is tied to: the definition as written (with its variables), the full path of the program it resolves to and the
-    /// directory text. Changing any of them asks again; a different file in the same place does not.
+    /// directory text, the declared variables and, for a tool from another config file, that file and the directory it runs in. Changing any of them asks
+    /// again; a different file in the same place does not.
     /// </summary>
-    internal static string Fingerprint(ToolSpec spec, string resolvedExecutable)
+    internal static string Fingerprint(ToolSpec spec, string resolvedExecutable, string resolvedDirectory)
     {
         var sb = new StringBuilder();
-        foreach (var part in new[] { spec.Id, spec.Executable, resolvedExecutable, spec.Cwd ?? "" }.Concat(spec.Args)) sb.Append(part.Length).Append(':').Append(part).Append('\0');
+        var parts = new[] { spec.Id, spec.Executable, resolvedExecutable, spec.Cwd ?? "", spec.Origin ?? "", spec.Origin is null ? "" : resolvedDirectory }
+            .Concat(spec.Args).Concat((spec.Variables ?? []).Select(v => $"{v.Name}:{v.Type}={v.Value}"));
+        foreach (var part in parts) sb.Append(part.Length).Append(':').Append(part).Append('\0');
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));
     }
 

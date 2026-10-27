@@ -820,6 +820,21 @@ commands: nks.tools.logPattern
 4. Použiť pre výstup zariadi, že vzor platí pre riadky v okne výstupu: kliknutie na riadok alebo Enter otvorí súbor na tom riadku. Relatívny názov súboru sa hľadá v adresári, kde nástroj bežal, potom v priečinku súboru, ktorý bol otvorený pri spustení, potom medzi otvorenými dokumentmi podľa názvu.
 - Nástroj môže mať vzor vlastný: v tools.json "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] a v nástroji "logPattern": "gcc". Bez "syntax" je vzor regulárny výraz.
 
+## [tools.edit] Nástroje: úprava definícií, typované premenné, nástroje z priečinka
+commands: nks.tools.edit
+1. Nástroje, Upraviť definície nástrojov otvorí jeden editor nástrojov zo súboru tools.json. Nový, Uložiť a Zmazať zapisujú súbor hneď. Riadok pod formulárom ukáže príkaz presne tak, ako by sa spustil pre otvorený súbor, alebo prečo sa teraz nedá spustiť. Editor aj Spustiť nástroj berú rovnakú definíciu, takže nástroj sa z oboch spustí s rovnakými argumentmi.
+2. Definícia môže deklarovať premenné, jednu na riadok: Názov:text alebo Názov:path, prípadne s =hodnota (hodnota smie používať ďalšie premenné, napríklad Out:path=${FileDir}/out). Bez hodnoty sa vezme používateľská alebo vstavaná premenná rovnakého mena. Poradie je: deklarovaná hodnota, vaše vlastné premenné (Upraviť používateľské premenné), vstavané. V executable, args a cwd ju použijete ako ${Názov}.
+3. Text je jeden riadok. Cesta je jeden neprázdny riadok bez znakov * ? " < > | . Hodnota zlého typu zastaví spustenie skôr, než čokoľvek začne, a výstup menuje premennú.
+4. Priečinok otvoreného súboru alebo priečinok nad ním môže obsahovať .textida/tools.json s nástrojmi rovnakého tvaru. Ukážu sa v Spustiť nástroj, ale spustia sa až po potvrdení príkazu a adresára, aj keď rovnaký text máte vo vlastnom súbore. Ak sa definícia zmení vrátane premenných, opýtame sa znova. Tieto nástroje sa v editore upraviť nedajú.
+- Prázdny argument sa v editore napísať nedá. Uloženie zahodí komentáre v tools.json.
+
+## [tools.make] Makefile: spustenie cieľa
+commands: nks.tools.makeTargets
+1. S otvoreným Makefile (Makefile, GNUmakefile, *.mk, *.mak) vypíše Nástroje, Spustiť cieľ Makefile jeho ciele z textu karty. Vybraný cieľ spustí ako make -f s týmto súborom a cieľom v priečinku súboru.
+2. Beh ide cez spúšťač nástrojov: príkaz sa ukáže a prvýkrát sa potvrdzuje, výstup ide do karty Úlohy, Zastaviť ukončí make aj všetko, čo spustil.
+3. Riadok výstupu, ktorý menuje súbor a riadok (main.c:12:5: error, Makefile:7:), otvorí to miesto klikom alebo Enterom.
+- Make musí byť nainštalovaný a v PATH. Zvláštne ciele (.PHONY), vzorové pravidlá a názvy s premennou alebo zástupným znakom sa nevypisujú. Potvrdenie sa viaže na príkaz, nie na obsah Makefile, pretože spustiť Makefile znamená spustiť, čo hovorí.
+
 ## [log.mode] Režim logu: úrovne a ďalšia chyba
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. Dokument v jazyku Log (súbory .log, alebo Formát, Jazyk) zafarbí každý riadok podľa jeho úrovne: chyba, varovanie, informácia alebo ladenie. Rozhoduje najzávažnejšia úroveň nájdená v riadku.

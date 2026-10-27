@@ -192,6 +192,8 @@ internal static class AppCommands
         On("nks.tools.run", w => w.ShowToolMenu());
         On("nks.tools.stop", w => w.StopTool());
         Do("nks.tools.logPattern", w => w.ShowLogPatternTester());
+        Do("nks.tools.edit", w => w.ShowToolEditor());
+        On("nks.tools.makeTargets", w => w.ShowMakeTargets());
         On("nks.log.nextError", w => w.LogStep(forward: true));
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.log.levels", w => w.ChooseLogLevels());

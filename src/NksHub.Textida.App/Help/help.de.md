@@ -815,6 +815,21 @@ commands: nks.tools.logPattern
 4. Für die Ausgabe verwenden sorgt dafür, dass das Muster für die Zeilen im Ausgabefenster gilt: Ein Klick auf eine Zeile oder Enter öffnet die Datei an dieser Zeile. Ein relativer Dateiname wird im Verzeichnis gesucht, in dem das Werkzeug lief, dann im Ordner der beim Start geöffneten Datei, dann unter den offenen Dokumenten nach Namen.
 - Ein Werkzeug kann ein eigenes Muster mitbringen: in tools.json "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] und im Werkzeug "logPattern": "gcc". Ohne "syntax" ist das Muster ein regulärer Ausdruck.
 
+## [tools.edit] Werkzeuge: Definitionen bearbeiten, typisierte Variablen, Werkzeuge aus einem Ordner
+commands: nks.tools.edit
+1. Werkzeuge, Werkzeugdefinitionen bearbeiten öffnet einen Editor für die Werkzeuge der Datei tools.json. Neu, Speichern und Löschen schreiben die Datei sofort. Die Zeile unter dem Formular zeigt den Befehl genau so, wie er für die geöffnete Datei starten würde, oder warum er jetzt nicht laufen kann. Editor und Werkzeug ausführen nutzen dieselbe Definition, das Werkzeug startet also von beiden mit denselben Argumenten.
+2. Eine Definition kann Variablen deklarieren, eine pro Zeile: Name:text oder Name:path, optional mit =Wert (der Wert darf andere Variablen nutzen, etwa Out:path=${FileDir}/out). Ohne Wert gilt die eigene oder eingebaute Variable gleichen Namens. Die Reihenfolge: deklarierter Wert, Ihre eigenen Variablen (Eigene Variablen bearbeiten), eingebaute. In executable, args und cwd steht sie als ${Name}.
+3. Ein Text ist eine Zeile. Ein Pfad ist eine nicht leere Zeile ohne die Zeichen * ? " < > | . Ein Wert des falschen Typs stoppt den Lauf, bevor etwas startet, und die Ausgabe nennt die Variable.
+4. Der Ordner der geöffneten Datei oder ein Ordner darüber kann .textida/tools.json mit Werkzeugen gleicher Form enthalten. Sie erscheinen in Werkzeug ausführen, laufen aber erst nach Bestätigung von Befehl und Verzeichnis, auch wenn derselbe Text in Ihrer eigenen Datei steht. Ändert sich die Definition, auch die Variablen, wird erneut gefragt. Diese Werkzeuge lassen sich im Editor nicht bearbeiten.
+- Ein leeres Argument lässt sich im Editor nicht schreiben. Beim Speichern gehen Kommentare in tools.json verloren.
+
+## [tools.make] Makefile: Ziel ausführen
+commands: nks.tools.makeTargets
+1. Bei geöffnetem Makefile (Makefile, GNUmakefile, *.mk, *.mak) listet Werkzeuge, Makefile-Ziel ausführen dessen Ziele aus dem Text des Tabs. Das gewählte Ziel läuft als make -f mit dieser Datei und dem Ziel im Ordner der Datei.
+2. Der Lauf geht über den Werkzeug-Starter: Der Befehl wird gezeigt und beim ersten Mal bestätigt, die Ausgabe geht in den Tab Aufgaben, Stopp beendet make und alles, was es gestartet hat.
+3. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter.
+- Make muss installiert und im PATH sein. Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
+
 ## [log.mode] Log-Modus: Stufen und nächster Fehler
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. Ein Dokument in der Sprache Log (Dateien auf .log, oder Format, Sprache) färbt jede Zeile nach ihrer Stufe: Fehler, Warnung, Information oder Debug. Die schwerste in einer Zeile gefundene Stufe entscheidet.

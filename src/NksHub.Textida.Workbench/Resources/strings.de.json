@@ -383,5 +383,7 @@
   "cmd.macro.stop": "Makroaufzeichnung beenden",
   "cmd.macro.playLast": "Letztes Makro abspielen",
   "cmd.macro.save": "Letztes Makro speichern unter...",
-  "cmd.macro.run": "Gespeichertes Makro ausführen..."
+  "cmd.macro.run": "Gespeichertes Makro ausführen...",
+  "cmd.tools.edit": "Werkzeugdefinitionen bearbeiten...",
+  "cmd.tools.makeTargets": "Makefile-Ziel ausführen..."
 }

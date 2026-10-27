@@ -371,6 +371,180 @@ public class ToolLauncherTests : IDisposable
         Assert.Equal(_app.Tools.FilePath, _w.Active!.Path);
     }
 
+    // ---- P8.2.1: editor of definitions, typed variables, tools from a folder ----
+
+    [AvaloniaFact]
+    public void A_tool_made_in_the_editor_runs_with_the_arguments_the_runner_gives_the_same_definition()
+    {
+        string folder = Directory.CreateDirectory(Path.Combine(_temp.Path, "my docs")).FullName;
+        string file = Path.Combine(folder, "a file.txt");
+        File.WriteAllText(file, "x");
+        _w.OpenFile(file, null);
+        Define([ToolTestKit.Tool("ref", "Ref", ["${File}", "a \"quoted\" & b", "${FileBase}|${FileExt}", "${FileDir}/o"], cwd: "${FileDir}")],
+            [new JsonObject { ["id"] = "gcc", ["title"] = "gcc", ["syntax"] = "mask", ["pattern"] = "[%F:%L:%C:*" }]);
+
+        var editor = new ToolEditorWindow(_app.Tools, _w.PreviewTool);
+        Assert.Equal(["Ref"], editor.Titles);
+        editor.NewNow();
+        editor.Draft = new ToolDraft
+        {
+            Id = "ed", Title = "Ed", Executable = ToolTestKit.Dotnet, Cwd = "${FileDir}", Variables = "Out:path=${FileDir}/o",
+            Args = string.Join('\n', ToolTestKit.EchoDll, "${File}", "a \"quoted\" & b", "${FileBase}|${FileExt}", "${Out}"),
+        };
+        Assert.True(editor.SaveNow());
+        Assert.Equal(["Ref", "Ed"], editor.Titles);
+
+        var catalog = _app.Tools.Load();
+        Assert.Single(catalog.Patterns);
+        Assert.Empty(catalog.Errors);
+        Assert.Equal(_w.ResolveTool(Entry("ref").Spec).Args, _w.ResolveTool(Entry("ed").Spec).Args);
+        editor.Select(1);
+        Assert.Equal(Loc.Get(K.ToolEditPreview, ("command", _w.ResolveTool(Entry("ed").Spec).CommandLine)), editor.PreviewText);
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("ed"));
+        var lines = Lines();
+        Assert.Contains($"[{file}]", lines);
+        Assert.Contains("[a \"quoted\" & b]", lines);
+        Assert.Contains("[a file|.txt]", lines);
+        Assert.Contains($"[{folder}/o]", lines);
+
+        Assert.True(editor.DeleteNow());
+        Assert.Equal(["Ref"], editor.Titles);
+        Assert.Equal(["ref"], _app.Tools.Load().Tools.Select(t => t.Spec.Id));
+    }
+
+    [AvaloniaFact]
+    public void The_editor_refuses_what_is_not_a_definition_and_keeps_the_file_as_it_was()
+    {
+        Define([ToolTestKit.Tool("ref", "Ref", ["x"])]);
+        string before = File.ReadAllText(_app.Tools.FilePath);
+        var editor = new ToolEditorWindow(_app.Tools, _w.PreviewTool);
+        var ok = new ToolDraft { Id = "n", Title = "N", Executable = ToolTestKit.Dotnet };
+
+        editor.NewNow();
+        editor.Draft = new ToolDraft { Id = "n" };
+        Assert.False(editor.SaveNow());
+        Assert.Equal(Loc.Get(K.ToolEditNeeds), editor.NoteText);
+        editor.Draft = new ToolDraft { Id = "n", Title = "N", Executable = "x", Timeout = "abc" };
+        Assert.False(editor.SaveNow());
+        Assert.Equal(Loc.Get(K.ToolEditTimeoutBad), editor.NoteText);
+        editor.Draft = new ToolDraft { Id = "n", Title = "N", Executable = "x", Variables = "Out:number" };
+        Assert.False(editor.SaveNow());
+        Assert.Equal(Loc.Get(K.ToolEditVariableBad, ("line", 1)), editor.NoteText);
+        editor.Draft = new ToolDraft { Id = "ref", Title = "N", Executable = "x" };
+        Assert.False(editor.SaveNow());
+        Assert.Equal(Loc.Get(K.ToolEditDuplicate, ("id", "ref")), editor.NoteText);
+        Assert.Equal(before, File.ReadAllText(_app.Tools.FilePath));
+
+        editor.Draft = ok;
+        Assert.True(editor.SaveNow());
+        Assert.Equal(["ref", "n"], _app.Tools.Load().Tools.Select(t => t.Spec.Id));
+    }
+
+    [AvaloniaFact]
+    public void A_typed_variable_of_the_wrong_type_is_refused_before_the_tool_starts_and_a_user_variable_fills_it()
+    {
+        string path = Path.Combine(_app.ProfileDirectory, NksHub.Textida.Workbench.Clips.UserVariables.FileName);
+        var tool = ToolTestKit.Tool("typed", "Typed", ["${Target}"]);
+        tool["variables"] = new JsonArray(new JsonObject { ["name"] = "Target", ["type"] = "path" });
+        Define([tool]);
+
+        File.WriteAllText(path, """{"Target": "bad*name"}""");
+        Finish(Run("typed"));
+        Assert.Empty(_dialogs.Asked);
+        var refused = Assert.Single(Lines());
+        Assert.Contains("${Target}", refused, StringComparison.Ordinal);
+        Assert.False(_w.ToolRunningNow);
+
+        File.WriteAllText(path, """{"Target": "good/name.txt"}""");
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("typed"));
+        Assert.Contains("[good/name.txt]", Lines());
+
+        var wrong = ToolTestKit.Tool("typed", "Typed", ["${Target}"]);
+        wrong["variables"] = new JsonArray(new JsonObject { ["name"] = "Target", ["type"] = "color" });
+        Define([wrong]);
+        Assert.Empty(_app.Tools.Load().Tools);
+        Assert.Single(_app.Tools.Load().Errors);
+    }
+
+    [AvaloniaFact]
+    public void A_tool_from_a_folder_runs_only_after_a_yes_and_a_changed_definition_asks_again()
+    {
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        string sub = Directory.CreateDirectory(Path.Combine(project, "src")).FullName;
+        string file = Path.Combine(sub, "a.txt");
+        File.WriteAllText(file, "x");
+        string config = Path.Combine(Directory.CreateDirectory(Path.Combine(project, ".textida")).FullName, "tools.json");
+        void Write(string arg) => File.WriteAllText(config, new JsonObject { ["externalTools"] = new JsonArray(ToolTestKit.Tool("p", "Project tool", [arg])) }.ToJsonString());
+        ToolEntry Folder() => _app.Tools.Load(sub).Tools.Single(t => t.Spec.Id == "p");
+        Write("one");
+        _w.OpenFile(file, null);
+
+        Assert.True(Folder().Foreign);
+        Assert.DoesNotContain(_app.Tools.Load().Tools, t => t.Spec.Id == "p");
+
+        _dialogs.Answers.Enqueue(1);
+        Finish(_w.RunToolAsync(Folder()));
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Equal(Loc.Get(K.ToolConfirmForeign, ("title", "Project tool")), asked.Message);
+        Assert.Contains(asked.Details!, d => d.Contains(config, StringComparison.Ordinal));
+        Assert.DoesNotContain("[one]", Lines());
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.RunToolAsync(Folder()));
+        Finish(_w.RunToolAsync(Folder()));
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal(2, Lines().Count(l => l == "[one]"));
+
+        Write("two");
+        _dialogs.Answers.Enqueue(1);
+        Finish(_w.RunToolAsync(Folder()));
+        Assert.Equal(3, _dialogs.Asked.Count);
+        Assert.DoesNotContain("[two]", Lines());
+
+        // a tool of the profile with the same id wins; the folder tool is reported
+        Define([ToolTestKit.Tool("p", "Project tool", ["two"])]);
+        Assert.Contains(_app.Tools.Load(sub).Errors, e => e.StartsWith("p:", StringComparison.Ordinal));
+    }
+
+    // ---- P8.2.2: Makefile targets ----
+
+    [AvaloniaFact]
+    public void A_makefile_target_runs_through_the_runner_and_an_error_line_in_the_output_opens_its_file()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Makefile");
+        File.WriteAllText(makefile, ".PHONY: build\nbuild: a.c\n\techo hi\ntest:\n\techo t\n");
+
+        _w.OpenFile(Path.Combine(folder, "a.c"), null);
+        _w.ShowMakeTargets();
+        Assert.Equal(Loc.Get(K.MakeNotMakefile), _w.StatusMessageText);
+
+        _w.OpenFile(makefile, null);
+        _w.ShowMakeTargets();
+        Assert.Equal(["build", "test"], _w.QuickResults.Select(r => r.Title));
+        Assert.Equal(Loc.Get(K.MakeDetail, ("line", 2)), _w.QuickResults[0].Detail);
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll, "a.c:3:4: error: boom"]));
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(asked.Details!, d => d.Contains("-f", StringComparison.Ordinal) && d.Contains("build", StringComparison.Ordinal));
+        Assert.Contains(asked.Details!, d => d.Contains(folder, StringComparison.Ordinal));
+        var lines = Lines();
+        Assert.Contains("[-f]", lines);
+        Assert.Contains("[Makefile]", lines);
+        Assert.Contains("[build]", lines);
+
+        Assert.True(_w.OpenOutputLine(OutputLineIndex("[a.c:3:4: error: boom]")));
+        Assert.Equal(Path.Combine(folder, "a.c"), _w.Active!.Path);
+        Assert.Equal((3L, 4L), _w.Active.CaretPosition());
+
+        Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll, "a.c:3:4: error: boom"]));
+        Assert.Single(_dialogs.Asked);
+    }
+
     [AvaloniaFact]
     public void The_commands_are_in_the_tools_menu()
     {
@@ -379,6 +553,8 @@ public class ToolLauncherTests : IDisposable
         Assert.Contains("nks.tools.run", ids);
         Assert.Contains("nks.tools.stop", ids);
         Assert.Contains("nks.tools.logPattern", ids);
+        Assert.Contains("nks.tools.edit", ids);
+        Assert.Contains("nks.tools.makeTargets", ids);
         Assert.Contains("nks.log.nextError", ids);
         Assert.Contains("nks.log.previousError", ids);
         Assert.Contains("nks.log.levels", ids);
