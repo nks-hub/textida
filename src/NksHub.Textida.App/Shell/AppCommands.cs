@@ -222,6 +222,10 @@ internal static class AppCommands
         On("nks.hex.fill", w => w.HexToolMenu(w.HexFillItems));
         On("nks.hex.operate", w => w.HexToolMenu(w.HexOperateItems));
         On("nks.hex.checksum", w => w.HexChecksumMenu());
+        On("nks.hex.bookmarks.panel", w => w.ToggleHexBookmarkPanel());
+        On("nks.hex.bookmarks.edit", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.EditHexBookmarkAsync(hex); return CommandOutcome.Handled; });
+        On("nks.hex.bookmarks.export", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ExportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
+        On("nks.hex.bookmarks.import", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.ImportHexBookmarksAsync(hex); return CommandOutcome.Handled; });
         Do("nks.view.toggleOutput", w => w.ToggleOutput());
         Do("nks.view.fullScreen", w => w.ToggleFullScreen());
 

@@ -44,7 +44,7 @@ internal sealed partial class MainWindow
             if (a >= 0 && z >= a) ranges.Add(new ByteRange(a, z));
         }
         // an unnamed document keeps its number as the title, so "Untitled 3" comes back as 3 in any language
-        return new SessionTab(tab.Doc.JournalId ?? Guid.Empty, tab.Path is null ? tab.Doc.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) : tab.Title, doc.Revision, ranges, tab.Doc.Bookmarks.Offsets);
+        return new SessionTab(tab.Doc.JournalId ?? Guid.Empty, tab.Path is null ? tab.Doc.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) : tab.Title, doc.Revision, ranges, tab.Doc.Bookmarks.Offsets, tab.Doc.HexBookmarks.Capture());
     }
 
     // ---- restoring ----
@@ -81,6 +81,7 @@ internal sealed partial class MainWindow
                     var tab = AddView(Open(rd), group);
                     ApplySelection(tab, st);
                     if (st.Bookmarks is { Count: > 0 } marks && !tab.Doc.Bookmarks.HasAny) tab.Doc.Bookmarks.Restore(marks, tab.Doc.Doc.Revision);
+                    if (st.HexBookmarks is { Count: > 0 } regions && tab.Doc.HexBookmarks.Count == 0) tab.Doc.HexBookmarks.Restore(regions, tab.Doc.Doc.Revision);
                     if (sg.ActiveDocId == st.DocId && active is null) active = tab;
                 }
                 if (active is not null) group.Select(active);

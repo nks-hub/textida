@@ -672,6 +672,17 @@ commands: nks.hex.checksum
 - Každý variant CRC má pevný polynóm a parametre (šírka, začiatočná hodnota, zrkadlenie vstupu a výsledku, koncové xor) podľa katalógu algoritmov CRC.
 - CRC s vlastným polynómom vezme šírku v bitoch a hex polynóm (nepárny), začiatočnú hodnotu, dva príznaky zrkadlenia (0 alebo 1) a koncové xor.
 
+## [hex.bookmarks] Hex: záložky a farebné oblasti
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+Záložka v hexe označí oblasť bajtov menom, farbou, poznámkou a typom, ako bola prečítaná v inšpektore dát.
+1. Ctrl+F2 označí výber (bez výberu hodnotu, ktorú inšpektor dát ukazuje pri kurzore, alebo jeden bajt) a odstráni najužšiu záložku pod kurzorom, ak nejaká je. F2 a Shift+F2 skočia na ďalšiu a predchádzajúcu záložku.
+2. Hex: vlastnosti záložky otvorí meno, farbu, poznámku a typ záložky pod kurzorom (bez nej vznikne nová).
+3. Hex: panel záložiek (Ctrl+K a potom Ctrl+B) vypíše záložky s filtrom, ktorý hľadá v mene, poznámke a type. Enter alebo dvojklik vyberie oblasť, Delete ju odstráni.
+4. Hex: exportovať záložky zapíše CSV (meno, farba, poznámka, typ, počiatočný a koncový offset) alebo, keď názov súboru končí na .json, JSON. Hex: importovať záložky prečíta obe formy a pridá oblasti, ktoré sa do súboru zmestia; prázdna oblasť, oblasť mimo súboru alebo už existujúca sa preskočí a stavový riadok ich spočíta.
+- Oblasť je vykreslená vo farbe záložky s prúžkom hore, takže farba nie je jediné znamenie; stavový riadok pomenuje záložku pod kurzorom.
+- Oblasti sledujú bajty: bajty vložené pred oblasť ju posunú, bajty vložené dovnútra ju predĺžia, úprava cez jej okraj sa do nej zahrnie, späť a znova ju vrátia. Oblasť, ktorej bajty boli všetky zmazané, zaniká.
+- Záložky sa ukladajú do relácie (po reštarte sú späť), nikdy do súboru. Zmazať záložky odstráni všetky.
+
 ## [tools.run] Nástroje: spustenie externého programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spustiť nástroj ponúkne nástroje zapísané v súbore tools.json v priečinku profilu. Posledný riadok ten súbor otvorí; prvýkrát do neho zapíše prázdny, ktorý doplníte.
@@ -717,7 +728,7 @@ Záložka označí riadok, na ktorý sa chcete vrátiť.
 2. F2 skočí na ďalšiu záložku, Shift+F2 na predchádzajúcu. Po poslednej sa pokračuje od prvej.
 3. Zmazať záložky (v palete) odstráni všetky záložky dokumentu; stavový riadok napíše Záložky odstránené.
 - Ak dokument nemá žiadne záložky, stavový riadok napíše Dokument nemá žiadne záložky.
-- Záložky nie sú v hexe ani v karte výsledkov hľadania. Vo veľkom súbore, ktorého riadky sa ešte číslujú, príkaz napíše, že index riadkov ešte na to miesto nesiaha.
+- Karta výsledkov hľadania záložky nemá. V hexe tie isté príkazy označujú oblasti bajtov (pozri Hex: záložky). Vo veľkom súbore, ktorého riadky sa ešte číslujú, príkaz napíše, že index riadkov ešte na to miesto nesiaha.
 
 ## [recovery] Obnova po páde
 Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch sekúnd od zmeny. Neuložený dokument sa tak nestratí, ani keď program spadne alebo vypnete počítač.

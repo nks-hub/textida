@@ -184,6 +184,8 @@ internal sealed partial class HexView
             }
 
             var ranges = owner.ChangedRanges();
+            var marks = owner.Marks.Items;
+            var highlight = Brush("Highlight", Brushes.Gold);
             var sel = editor.HasSelection ? editor.Selection : default;
             bool hasSel = editor.HasSelection;
             var cells = new HexCell[bpr];
@@ -201,6 +203,18 @@ internal sealed partial class HexView
 
                 string offsetText = owner._decimalOffsets ? rowOffset.ToString("D" + _digits, CultureInfo.InvariantCulture) : rowOffset.ToString("X" + _digits, CultureInfo.InvariantCulture);
                 context.DrawText(Format(offsetText, dim), new Point(Pad, y + 1));
+
+                // bookmarks: a tint in the colour of the region and a bar on top of it, so the mark does not rest on colour alone
+                foreach (var b in marks)
+                {
+                    if (b.Range.Start >= rowOffset + n || b.Range.End <= rowOffset) continue;
+                    var tint = BookmarkBrush(b.Color, 0x44, highlight);
+                    int a = (int)Math.Max(0, b.Range.Start - rowOffset), z = (int)Math.Min(n, b.Range.End - rowOffset);
+                    Mark(context, tint, y, a, z);
+                    var bar = BookmarkBrush(b.Color, 0xFF, highlight);
+                    context.FillRectangle(bar, new Rect(HexX(a) - _cw * 0.5, y, HexX(z - 1) + 2 * _cw - HexX(a) + _cw * 0.5 + 1, 2));
+                    context.FillRectangle(bar, new Rect(_charLeft + a * _cw, y, (z - a) * _cw, 2));
+                }
 
                 // changed bytes: a tint and an underline, so the mark does not rest on colour alone
                 for (int k = FirstRangeAfter(ranges, rowOffset); k < ranges.Count && ranges[k].Start < rowOffset + n; k++)
@@ -244,6 +258,17 @@ internal sealed partial class HexView
                 }
                 if (caret >= rowOffset && caret <= rowOffset + n && (caret < rowOffset + bpr)) DrawCaret(context, accent, muted, y, (int)(caret - rowOffset), caret < length);
             }
+        }
+
+        private readonly Dictionary<(string?, byte), IBrush> _bookmarkBrushes = [];
+
+        /// <summary>The colour of a bookmark at the given opacity; a bookmark without a colour takes the highlight of the theme.</summary>
+        private IBrush BookmarkBrush(string? color, byte alpha, IBrush fallback)
+        {
+            if (color is null) return alpha == 0xFF ? fallback : Brush("Highlight", fallback);
+            if (_bookmarkBrushes.TryGetValue((color, alpha), out var cached)) return cached;
+            var c = Color.Parse(color);
+            return _bookmarkBrushes[(color, alpha)] = new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
         }
 
         private static int FirstRangeAfter(IReadOnlyList<ByteRange> ranges, long offset)

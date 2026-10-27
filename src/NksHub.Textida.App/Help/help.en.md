@@ -672,6 +672,17 @@ commands: nks.hex.checksum
 - Every CRC variant has a fixed polynomial and parameters (width, start value, reflected input and result, final xor), the same as in the catalogue of CRC algorithms.
 - A CRC with your own polynomial takes the width in bits and, in hex, the polynomial (odd), the start value, the two reflection flags (0 or 1) and the final xor.
 
+## [hex.bookmarks] Hex: bookmarks and coloured regions
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+A hex bookmark marks a region of bytes with a name, a colour, a comment and the type it was read as in the data inspector.
+1. Ctrl+F2 marks the selection (without a selection: the value the data inspector shows at the caret, or one byte) and removes the narrowest bookmark under the caret when there is one. F2 and Shift+F2 jump to the next and previous bookmark.
+2. Hex: Bookmark Properties opens the name, colour, comment and the type of the bookmark under the caret (a new bookmark when there is none).
+3. Hex: Bookmarks Panel (Ctrl+K then Ctrl+B) lists the bookmarks with a filter that matches name, comment and type. Enter or a double click selects the region; Delete removes it.
+4. Hex: Export Bookmarks writes a CSV (name, colour, comment, type, start and end offset) or, when the file name ends in .json, JSON. Hex: Import Bookmarks reads either form and adds the regions that fit the file; a region that is empty, lies outside the file or is already there is skipped, and the status bar counts them.
+- A region is drawn tinted in its colour with a bar on top, so the colour is not the only sign; the status line names the bookmark under the caret.
+- Regions follow the bytes: bytes inserted before a region move it, bytes inserted inside make it longer, an edit over its edge is taken into it, undo and redo move it back. A region whose bytes were all deleted is dropped.
+- Bookmarks are kept in the session (they are back after a restart), never in the file. Clear Bookmarks removes all of them.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
@@ -717,7 +728,7 @@ A bookmark marks a line you want to return to.
 2. F2 jumps to the next bookmark, Shift+F2 to the previous one. After the last it continues with the first.
 3. Clear Bookmarks (in the palette) removes all bookmarks of the document; the status bar says Bookmarks removed.
 - If the document has no bookmarks, the status bar says The document has no bookmarks.
-- There are no bookmarks in hex or in a search results tab. In a large file whose lines are still being numbered the command says the line index does not reach that place yet.
+- A search results tab has no bookmarks. In hex the same commands mark regions of bytes (see Hex: bookmarks). In a large file whose lines are still being numbered the command says the line index does not reach that place yet.
 
 ## [recovery] Crash recovery
 The program continuously writes unsaved text to a journal, within two seconds of a change at the latest. An unsaved document is not lost even if the program crashes or the computer is switched off.

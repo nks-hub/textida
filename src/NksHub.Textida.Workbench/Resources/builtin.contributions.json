@@ -897,6 +897,30 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.bookmarks.panel",
+      "title": "cmd.hex.bookmarks.panel",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.edit",
+      "title": "cmd.hex.bookmarks.edit",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.export",
+      "title": "cmd.hex.bookmarks.export",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.bookmarks.import",
+      "title": "cmd.hex.bookmarks.import",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.edit.clipboardHistory",
       "title": "cmd.edit.clipboardHistory",
       "category": "cat.edit",
@@ -1379,6 +1403,30 @@
       "command": "nks.hex.checksum",
       "group": "7_hex",
       "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.panel",
+      "group": "7_hex",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.edit",
+      "group": "7_hex",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.export",
+      "group": "7_hex",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.bookmarks.import",
+      "group": "7_hex",
+      "order": 100
     },
     {
       "menu": "search",
@@ -2601,6 +2649,11 @@
     {
       "key": "mod+k mod+i",
       "command": "nks.hex.inspector",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+b",
+      "command": "nks.hex.bookmarks.panel",
       "when": "hexMode"
     },
     {

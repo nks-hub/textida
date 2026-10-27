@@ -1,5 +1,6 @@
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 
 namespace NksHub.Textida.Core.Journal;
 
@@ -239,7 +240,12 @@ public static class JournalRecovery
                 if (doc is not null && rel >= 0 && rel <= doc.Revision)
                     foreach (long b in (t.Bookmarks ?? []).Where(b => b >= 0 && (rel < doc.Revision || b <= doc.ByteLength)))
                         if (doc.CreateAnchor(b, AnchorGravity.Right, rel) is { IsValid: true } mappedMark) bookmarks.Add(mappedMark.Offset);
-                tabs.Add(new(t.DocId, t.Title, doc?.Revision ?? 0, selections, bookmarks));
+                var hexMarks = new List<StoredHexBookmark>();
+                if (doc is not null && rel >= 0 && rel <= doc.Revision)
+                    foreach (var h in t.HexBookmarks ?? [])
+                        if (h.Start >= 0 && h.End > h.Start && doc.MapRegion(new ByteRange(h.Start, h.End), rel) is { } region && region.End <= doc.ByteLength)
+                            hexMarks.Add(h with { Start = region.Start, End = region.End });
+                tabs.Add(new(t.DocId, t.Title, doc?.Revision ?? 0, selections, bookmarks, hexMarks));
             }
             groups.Add(new(tabs, g.ActiveDocId is { } a && tabs.Any(t => t.DocId == a) ? a : tabs.FirstOrDefault()?.DocId));
         }

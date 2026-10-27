@@ -128,6 +128,19 @@ internal sealed class HexInspectorPanel : Border
         _ => "GUID",
     };
 
+    /// <summary>
+    /// The type and the length of the value the selected row shows at the caret, for a bookmark made from it (<c>uint32 LE</c>, 4); null while the panel is closed,
+    /// when the row is not a complete value, or when there is a selection (the selection is then the region).
+    /// </summary>
+    internal (string Type, int Length)? TypedValue()
+    {
+        int index = _list.SelectedIndex;
+        if (!IsVisible || _owner.Editor.HasSelection || index < 0 || index >= _values.Length || _values[index] is not { Status: InspectorStatus.Ok } v || v.Length <= 0) return null;
+        var kind = _kinds[index];
+        bool ordered = kind is not (InspectorKind.Int8 or InspectorKind.UInt8 or InspectorKind.Uleb128 or InspectorKind.Sleb128 or InspectorKind.Latin1 or InspectorKind.Utf8 or InspectorKind.Guid);
+        return (KindName(kind) + (ordered ? (_bigEndian ? " BE" : " LE") : ""), v.Length);
+    }
+
     private long ValueStart => _owner.Editor.HasSelection ? _owner.Editor.Selection.Start : _owner.Editor.Caret;
 
     private string Show(InspectorValue v) => v.Status switch

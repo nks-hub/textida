@@ -51,13 +51,16 @@ internal sealed partial class HexView : Grid
         _options = options;
         Editor = new HexEditor(doc.Doc, _lastCharset ?? HexCharset.For(doc.Doc.Codec));
         Focusable = true;
-        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto");
+        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto");
         _canvas = new HexSurface(this);
         Inspector = new HexInspectorPanel(this) { IsVisible = false };
+        BookmarkList = new HexBookmarksPanel(this) { IsVisible = false };
         SetColumn(_bar, 1);
-        SetColumn(Inspector, 2);
+        SetColumn(BookmarkList, 2);
+        SetColumn(Inspector, 3);
         Children.Add(_canvas);
         Children.Add(_bar);
+        Children.Add(BookmarkList);
         Children.Add(Inspector);
         _bar.ValueChanged += (_, _) =>
         {
@@ -71,6 +74,10 @@ internal sealed partial class HexView : Grid
 
     public HexEditor Editor { get; }
     public HexInspectorPanel Inspector { get; }
+    /// <summary>The list of bookmarks beside the grid.</summary>
+    public HexBookmarksPanel BookmarkList { get; }
+    /// <summary>The regions marked in this document.</summary>
+    internal HexBookmarks Marks => _od.HexBookmarks;
     private Document Doc => _od.Doc;
 
     /// <summary>Raised when the caret, the selection, the mode or the first row changed.</summary>
@@ -106,6 +113,7 @@ internal sealed partial class HexView : Grid
         base.OnAttachedToVisualTree(e);
         Doc.Changed += OnDocChanged;
         Doc.Saved += OnSaved;
+        Marks.Changed += OnMarksChanged;
         _watch.Start();
         UpdateScrollRange();
     }
@@ -115,6 +123,7 @@ internal sealed partial class HexView : Grid
         base.OnDetachedFromVisualTree(e);
         Doc.Changed -= OnDocChanged;
         Doc.Saved -= OnSaved;
+        Marks.Changed -= OnMarksChanged;
         _watch.Stop();
     }
 
@@ -124,6 +133,13 @@ internal sealed partial class HexView : Grid
         UpdateScrollRange();
         _canvas.InvalidateVisual();
         Inspector.Refresh();
+        RaiseViewChanged();
+    }
+
+    private void OnMarksChanged()
+    {
+        _canvas.InvalidateVisual();
+        BookmarkList.Refresh();
         RaiseViewChanged();
     }
 

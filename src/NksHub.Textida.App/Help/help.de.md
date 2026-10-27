@@ -672,6 +672,17 @@ commands: nks.hex.checksum
 - Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.
 - Ein CRC mit eigenem Polynom nimmt die Breite in Bit und hex das Polynom (ungerade), den Startwert, die zwei Spiegelungsflags (0 oder 1) und das End-XOR.
 
+## [hex.bookmarks] Hex: Lesezeichen und farbige Bereiche
+commands: nks.hex.bookmarks.panel, nks.hex.bookmarks.edit, nks.hex.bookmarks.export, nks.hex.bookmarks.import
+Ein Hex-Lesezeichen markiert einen Bytebereich mit Name, Farbe, Kommentar und dem Typ, als der er im Dateninspektor gelesen wurde.
+1. Strg+F2 markiert die Auswahl (ohne Auswahl den Wert, den der Dateninspektor am Cursor zeigt, oder ein Byte) und entfernt das engste Lesezeichen unter dem Cursor, falls es eins gibt. F2 und Umschalt+F2 springen zum nächsten und vorherigen Lesezeichen.
+2. Hex: Lesezeichen-Eigenschaften öffnet Name, Farbe, Kommentar und Typ des Lesezeichens unter dem Cursor (ohne eins entsteht ein neues).
+3. Hex: Lesezeichen-Bereich (Strg+K, dann Strg+B) listet die Lesezeichen mit einem Filter, der in Name, Kommentar und Typ sucht. Eingabe oder Doppelklick wählt den Bereich aus, Entf entfernt ihn.
+4. Hex: Lesezeichen exportieren schreibt eine CSV (Name, Farbe, Kommentar, Typ, Start- und Endoffset) oder, wenn der Dateiname auf .json endet, JSON. Hex: Lesezeichen importieren liest beide Formen und fügt die Bereiche hinzu, die in die Datei passen; ein leerer Bereich, einer außerhalb der Datei oder ein vorhandener wird übersprungen, und die Statusleiste zählt sie.
+- Ein Bereich wird in seiner Farbe getönt mit einem Balken oben gezeichnet, die Farbe ist also nicht das einzige Zeichen; die Statuszeile nennt das Lesezeichen unter dem Cursor.
+- Bereiche folgen den Bytes: Bytes vor einem Bereich verschieben ihn, Bytes darin verlängern ihn, eine Änderung über seinen Rand wird aufgenommen, Rückgängig und Wiederholen bringen ihn zurück. Ein Bereich, dessen Bytes alle gelöscht wurden, entfällt.
+- Lesezeichen werden in der Sitzung gespeichert (nach einem Neustart sind sie wieder da), nie in der Datei. Lesezeichen löschen entfernt alle.
+
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.
@@ -717,7 +728,7 @@ Ein Lesezeichen markiert eine Zeile, zu der Sie zurückkehren wollen.
 2. F2 springt zum nächsten Lesezeichen, Umschalt+F2 zum vorherigen. Nach dem letzten geht es beim ersten weiter.
 3. Lesezeichen löschen (in der Palette) entfernt alle Lesezeichen des Dokuments; die Statusleiste meldet Lesezeichen entfernt.
 - Hat das Dokument keine Lesezeichen, meldet die Statusleiste Das Dokument hat keine Lesezeichen.
-- In Hex und in einem Tab mit Suchergebnissen gibt es keine Lesezeichen. In einer großen Datei, deren Zeilen noch nummeriert werden, meldet der Befehl, dass der Zeilenindex diese Stelle noch nicht erreicht.
+- Der Ergebnis-Tab der Suche hat keine Lesezeichen. Im Hex markieren dieselben Befehle Bytebereiche (siehe Hex: Lesezeichen). In einer großen Datei, deren Zeilen noch nummeriert werden, meldet der Befehl, dass der Zeilenindex diese Stelle noch nicht erreicht.
 
 ## [recovery] Wiederherstellung nach Absturz
 Das Programm schreibt ungespeicherten Text laufend in ein Journal, spätestens zwei Sekunden nach einer Änderung. Ein ungespeichertes Dokument geht so auch nicht verloren, wenn das Programm abstürzt oder der Rechner ausgeschaltet wird.

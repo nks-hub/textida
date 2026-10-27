@@ -78,6 +78,44 @@ internal static class ChangeMap
         return true;
     }
 
+    /// <summary>
+    /// Maps the region <c>[start, end)</c> through the change for a marker that must survive edits (hex bookmarks). Bytes inserted at the start go before the region,
+    /// bytes inserted at the end go after it, bytes inserted inside make it longer. An edit that covers an edge of the region is taken into the region: the start moves
+    /// to the start of what replaced the bytes, the end to its end. False when nothing of the region is left.
+    /// </summary>
+    public static bool TryMapRegion(ref long start, ref long end, ChangeSet change)
+    {
+        long s = MapEdge(start, isEnd: false, change), e = MapEdge(end, isEnd: true, change);
+        if (e <= s) return false;
+        (start, end) = (s, e);
+        return true;
+    }
+
+    private static long MapEdge(long pos, bool isEnd, ChangeSet change)
+    {
+        long shift = 0;
+        foreach (var (a, d, i) in change.Edits)
+        {
+            if (pos < a) break;
+            if (d == 0)
+            {
+                if (pos == a)
+                {
+                    if (!isEnd) shift += i;
+                    break;
+                }
+                shift += i;
+            }
+            else
+            {
+                if (pos == a) break;
+                if (pos < a + d) return isEnd ? a + shift + i : a + shift;
+                shift += i - d;
+            }
+        }
+        return pos + shift;
+    }
+
     /// <summary>Running sum of <c>Inserted - Deleted</c> over the edits of a change: entry k is the shift of the first k edits.</summary>
     public static long[] ShiftPrefix(ChangeSet change)
     {

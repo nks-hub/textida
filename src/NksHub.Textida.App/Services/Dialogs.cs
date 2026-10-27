@@ -36,6 +36,8 @@ internal interface IDialogs
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
     Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected);
     Task ShowAboutAsync(Window owner);
+    /// <summary>The name, colour and comment of a hex bookmark. Null when cancelled.</summary>
+    Task<HexBookmarkForm?> HexBookmarkAsync(Window owner, HexBookmarkForm initial);
     /// <summary>The choices of "Insert into Lines"; <paramref name="preview"/> gives the text shown for the current choices. Null when cancelled.</summary>
     Task<LineInsertOptions?> InsertIntoLinesAsync(Window owner, LineInsertOptions initial, Func<LineInsertOptions, string> preview);
     /// <summary>The rules of "Sort Lines" with a live preview of the result. Null when cancelled.</summary>

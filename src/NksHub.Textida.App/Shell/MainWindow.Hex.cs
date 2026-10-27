@@ -66,6 +66,7 @@ internal sealed partial class MainWindow
         hex.Choose = async (title, message, labels) => await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(title, message,
             [.. labels.Select((label, i) => new DialogButton(label, IsDefault: i == 0, IsCancel: i == labels.Count - 1))]));
         AutomationProperties.SetName(hex, Loc.Get(K.A11yHexEditor));
+        WireHexBookmarks(hex);
     }
 
     // ---- switching between text and hex ----
@@ -261,6 +262,7 @@ internal sealed partial class MainWindow
             var info = hex.Describe(editor.Caret);
             position += $" · {info.Value:X2} = {info.Value}";
         }
+        if (hex.Marks.Containing(editor.Caret) is [{ } under, ..]) position += " · " + Loc.Get(K.HexBmStatus, ("name", under.Name.Length > 0 ? under.Name : hex.OffsetText(under.Range.Start)));
         string message = _message.Length > 0 ? _message : doc.IsSaving ? Loc.Get(K.HexSaving) : doc.IsModified ? "" : Loc.Get(K.StatusReady);
         _statusLeft.Text = message.Length > 0 ? position + " · " + message : position;
 
