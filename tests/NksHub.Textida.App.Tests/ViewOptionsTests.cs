@@ -15,6 +15,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Tests;
@@ -389,7 +390,7 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_sideways_range_of_a_long_line_follows_a_change_of_the_font_size_and_of_the_line_end_marks()
+    public void The_sideways_range_of_a_long_line_leaves_room_for_the_line_end_mark()
     {
         var tab = OpenLong("range.txt", new string('x', 1_100_000) + "\nnext\n" + CodeLines(10));
         Settle();
@@ -401,12 +402,21 @@ public class ViewOptionsTests : IDisposable
         Capture();
         Settle();
         Assert.True(paged.HorizontalMaximum > plain + 2, $"room for the line end mark: {plain} -> {paged.HorizontalMaximum}");
+    }
 
-        double small = paged.HorizontalMaximum;
+    [AvaloniaFact]
+    public void The_sideways_range_of_a_long_line_follows_a_change_of_the_font_size()
+    {
+        var tab = OpenLong("zoom.txt", new string('x', 1_100_000) + "\nnext\n" + CodeLines(10));
+        Settle();
+        var paged = tab.Paged!;
+        double before = paged.HorizontalMaximum;
+        Assert.InRange(before, 1_000_000, 1_100_000);
+
         _w.Zoom(8);
         Capture();
         Settle();
-        Assert.True(paged.HorizontalMaximum > small + 5, $"fewer columns fit after the zoom: {small} -> {paged.HorizontalMaximum}");
+        Assert.True(paged.HorizontalMaximum > before + 5, $"fewer columns fit after the zoom: {before} -> {paged.HorizontalMaximum}");
     }
 
     // ---- line numbers, current line, margin, links ----
@@ -939,6 +949,61 @@ public class ViewOptionsTests : IDisposable
         long file = tab.Doc.Doc.ByteLength;
         Assert.True(file > 12_000_000, $"{file} bytes");
         Assert.InRange(tab.Paged!.MapBytesRead, 1, file / 4);
+    }
+
+    [AvaloniaFact]
+    public void The_heatmap_of_a_log_is_drawn_in_the_strip_and_goes_when_it_is_removed()
+    {
+        var tab = Open("heat.cs", KeywordFile(3000));
+        var map = tab.Minimap!;
+        var strip = InWindow(map, new Rect(map.Bounds.Width - 5, 0, 4, map.Bounds.Height));
+        var (red, yellow) = (Color.Parse("#E5484D"), Color.Parse("#E2A400"));
+        var (errors, warnings, lines) = (new int[100], new int[100], Enumerable.Repeat(10, 100).ToArray());
+        errors[70] = 10; // the densest bucket draws in full strength
+        warnings[20] = 5;
+        Assert.Equal(0, Matching(Capture(), strip, [red, yellow], 4));
+
+        map.SetHeat(new LogHeatmap(errors, warnings, lines, sampled: false));
+        var shot = Capture();
+        Rect Bucket(int bucket) => InWindow(map, new Rect(map.Bounds.Width - 5, (int)(bucket * map.Bounds.Height / 100) - 1, 4, 3));
+        Assert.True(Matching(shot, Bucket(70), [red], 4) > 0, "no error heat at its bucket");
+        Assert.Equal(0, Matching(shot, Bucket(70), [yellow], 4));
+        Assert.True(Matching(shot, Bucket(20), [yellow], 4) > 0, "no warning heat at its bucket");
+        Assert.Equal(0, Matching(shot, Bucket(20), [red], 4));
+        Assert.Equal(0, Matching(shot, Bucket(40), [red, yellow], 4)); // a bucket without a count stays bare
+
+        map.SetHeat(null);
+        Assert.Equal(0, Matching(Capture(), strip, [red, yellow], 4));
+    }
+
+    [AvaloniaFact]
+    public void In_a_row_of_the_strip_the_more_severe_mark_wins_whichever_came_first()
+    {
+        var tab = Open("sev.cs", KeywordFile(3000));
+        var map = tab.Minimap!;
+        var strip = InWindow(map, new Rect(map.Bounds.Width - 5, 0, 4, map.Bounds.Height));
+        var (red, yellow, blue) = (Color.Parse("#E5484D"), Color.Parse("#E2A400"), Color.Parse("#3B82F6"));
+
+        // two neighbouring lines that fall into one row of the strip, whatever its height is
+        long lines = tab.Editor!.Document.LineCount, height = (long)map.Bounds.Height;
+        long line = Enumerable.Range(2400, 100).First(l => l * height / lines == (l + 1) * height / lines);
+        map.SetMarks([new MinimapMark(line, MinimapMarkKind.Match)]);
+        map.SetFilterMarks([new MinimapMark(line + 1, MinimapMarkKind.Error)]);
+        var shot = Capture();
+        Assert.True(Matching(shot, strip, [red], 4) > 0, "error over match");
+        Assert.Equal(0, Matching(shot, strip, [blue], 4));
+
+        map.SetMarks([new MinimapMark(line, MinimapMarkKind.Error)]);
+        map.SetFilterMarks([new MinimapMark(line + 1, MinimapMarkKind.Warning)]);
+        shot = Capture();
+        Assert.True(Matching(shot, strip, [red], 4) > 0, "error over warning");
+        Assert.Equal(0, Matching(shot, strip, [yellow], 4));
+
+        map.SetMarks([new MinimapMark(line, MinimapMarkKind.Match)]);
+        map.SetFilterMarks([new MinimapMark(line + 1, MinimapMarkKind.Warning)]);
+        shot = Capture();
+        Assert.True(Matching(shot, strip, [yellow], 4) > 0, "warning over match");
+        Assert.Equal(0, Matching(shot, strip, [blue], 4));
     }
 
     [AvaloniaFact]
