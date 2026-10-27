@@ -50,6 +50,9 @@ sealed class Handler(int api) : IRpcHandler
     readonly List<string> _tabs = [];
     volatile bool _tabHandled, _tabError;
     volatile int _tabDelayMs;
+    readonly List<string> _completions = [];
+    volatile string _completionAnswer = "{\"revision\":0,\"items\":[]}";
+    volatile int _completionDelayMs;
 
     static byte[] Raw(string json) => Encoding.UTF8.GetBytes(json);
     static string Str(JsonElement p, string name) => p.GetProperty(name).GetString()!;
@@ -159,6 +162,16 @@ sealed class Handler(int api) : IRpcHandler
                 _tabDelayMs = p.TryGetProperty("delayMs", out var delay) ? delay.GetInt32() : 0;
                 _tabError = p.TryGetProperty("error", out var err) && err.GetBoolean();
                 return Raw("true");
+            case DocumentRequests.Completion:
+                lock (_completions) _completions.Add(p.GetRawText());
+                if (_completionDelayMs > 0) await Task.Delay(_completionDelayMs, ct);
+                return Raw(_completionAnswer);
+            case "setCompletion":
+                _completionAnswer = p.GetProperty("answer").GetRawText();
+                _completionDelayMs = p.TryGetProperty("delayMs", out var cd) ? cd.GetInt32() : 0;
+                return Raw("true");
+            case "completionRequests":
+                lock (_completions) return Raw("[" + string.Join(",", _completions) + "]");
             case "tabRequests":
                 lock (_tabs) return Raw("[" + string.Join(",", _tabs) + "]");
             default:

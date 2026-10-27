@@ -41,6 +41,10 @@ public partial class DocumentApiTests
         }
 
         public bool OpenDiff(DiffRequest request) { lock (Diffs) Diffs.Add(request); return DiffShown; }
+
+        public readonly List<Guid> DiagnosticsNotified = [];
+
+        public void DiagnosticsChanged(Guid document) { lock (DiagnosticsNotified) DiagnosticsNotified.Add(document); }
     }
 
     static string Symbol(string id, string name, long start, long end, string? parent = null) =>

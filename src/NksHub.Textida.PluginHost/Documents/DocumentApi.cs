@@ -31,7 +31,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
             || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
             || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
-            || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1)
+            || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1
+            || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero)
             throw new ArgumentException("Every document API limit must be positive.", nameof(options));
         _options = options;
         _owner = owner;
@@ -99,6 +100,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         document.Changed -= e.Handler;
         ForgetVirtual(document.Id);
         ClearSymbols(key => key.Document == document.Id);
+        ClearDiagnostics(key => key.Document == document.Id);
         var payload = Obj(w => w.WriteString("document", document.Id));
         foreach (var plugin in subscribers) Enqueue(plugin, document.Id, DocumentEvents.Withdrawn, payload);
     }
@@ -184,6 +186,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.DiffStage: return await DiffStageAsync(pluginId, p, cancellation);
             case DocumentMethods.VirtualOpen: return await VirtualOpenAsync(pluginId, p);
             case DocumentMethods.VirtualUpdate: return await VirtualUpdateAsync(pluginId, p);
+            case DocumentMethods.DiagnosticsPublish: return await PublishDiagnosticsAsync(pluginId, p);
+            case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
             default: throw new RpcException(RpcErrorCodes.MethodNotFound, $"The editor has no method '{method}'.");
         }
     }
@@ -638,10 +642,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         ClearOutbox(pluginId);
         ClearSymbols(key => key.Plugin == pluginId);
+        ClearDiagnostics(key => key.Plugin == pluginId);
         lock (_gate)
         {
             _snapshots.Remove(pluginId);
             _tabProviders.Remove(pluginId);
+            _completionProviders.Remove(pluginId);
             var buffer = new ArrayBufferWriter<byte>();
             using (var w = new Utf8JsonWriter(buffer))
             {

@@ -54,6 +54,10 @@ public static class DocumentMethods
     public const string VirtualOpen = "virtual/open";
     /// <summary>Gives a virtual document new content (a new revision), optionally only if it is still at the revision the plugin last saw.</summary>
     public const string VirtualUpdate = "virtual/update";
+    /// <summary>The plugin publishes the diagnostics of one source for one revision of a document; an empty list takes that source's diagnostics away.</summary>
+    public const string DiagnosticsPublish = "diagnostics/publish";
+    /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
+    public const string CompletionRegister = "editor/completionProvider";
 }
 
 /// <summary>Requests the editor sends to a plugin (the plugin answers them).</summary>
@@ -61,6 +65,8 @@ public static class DocumentRequests
 {
     /// <summary>Tab was pressed in a document; the answer is <c>{"handled":bool}</c>. An error, a timeout or <c>false</c> leaves Tab to the editor.</summary>
     public const string Tab = "editor/tab";
+    /// <summary>Completion at a caret: params <c>document</c>, <c>revision</c>, <c>offset</c> (byte), optional <c>language</c>; the answer holds the <c>revision</c> it was computed for and the <c>items</c>.</summary>
+    public const string Completion = "completion/request";
 }
 
 /// <summary>Names of the events (<c>$/event</c> payloads) the editor sends for subscribed documents. They carry ranges and revisions, never text.</summary>
@@ -113,6 +119,7 @@ public static class DocumentErrorCodes
     /// <summary>The document is not one this plugin provided, so it cannot update it or stage into it.</summary>
     public const int NotProvider = -32032;
     public const int VirtualQuotaExceeded = -32033;
+    public const int DiagnosticsQuotaExceeded = -32034;
 }
 
 /// <summary>
@@ -157,6 +164,14 @@ public sealed record DocumentApiOptions
     public required int MaxVirtualDocumentsPerPlugin { get; init; }
     /// <summary>Largest content of a virtual document, in bytes; also the largest an update may make it.</summary>
     public required long MaxVirtualBytes { get; init; }
+    /// <summary>Diagnostics one plugin may publish for one source of one document.</summary>
+    public required int MaxDiagnosticsPerDocument { get; init; }
+    /// <summary>Completion items taken from one plugin's answer; the rest is dropped.</summary>
+    public required int MaxCompletionItems { get; init; }
+    /// <summary>Additional edits one completion item may carry.</summary>
+    public required int MaxCompletionEdits { get; init; }
+    /// <summary>How long the editor waits for a plugin's completion answer; a plugin that is later contributes nothing.</summary>
+    public required TimeSpan CompletionTimeout { get; init; }
 }
 
 /// <summary>One cell of the table selection: its value as the table shows it and the bytes it occupies in the document (empty at the end of a short row).</summary>
@@ -176,6 +191,26 @@ public sealed record SymbolInfo(string Id, string Name, string Kind, string? Par
 
 /// <summary>The symbols a plugin published for <paramref name="Revision"/> of a document.</summary>
 public sealed record SymbolSet(string PluginId, Guid Document, long Revision, IReadOnlyList<SymbolInfo> Symbols);
+
+public enum DiagnosticSeverity { Error, Warning, Information, Hint }
+
+/// <summary>A finding a plugin published: a range of the revision it was published for.</summary>
+public sealed record Diagnostic(DiagnosticSeverity Severity, string Message, string? Code, ByteRange Range);
+
+/// <summary>The diagnostics of one <paramref name="Source"/> (a checker of the plugin) for <paramref name="Revision"/> of a document; the ranges are bytes of that revision.</summary>
+public sealed record DiagnosticSet(string PluginId, Guid Document, string Source, long Revision, IReadOnlyList<Diagnostic> Diagnostics);
+
+/// <summary>A diagnostic with its range moved to the current revision of the document.</summary>
+public sealed record PlacedDiagnostic(string PluginId, string Source, DiagnosticSeverity Severity, string Message, string? Code, ByteRange Range);
+
+/// <summary>An edit that goes with a completion elsewhere in the file (an import, a <c>use</c>): the bytes of <paramref name="Range"/> of the answered revision become <paramref name="Text"/>.</summary>
+public sealed record CompletionEdit(ByteRange Range, string Text);
+
+/// <summary>One offer of a plugin, valid for <paramref name="Revision"/> only: <paramref name="Text"/> replaces <paramref name="Range"/>, the <paramref name="AdditionalEdits"/> go in the same undo step.</summary>
+public sealed record CompletionItem(string PluginId, Guid Document, long Revision, string Label, string? Detail, string? Kind, ByteRange Range, string Text, IReadOnlyList<CompletionEdit> AdditionalEdits);
+
+/// <summary>The plugins' offers for <paramref name="Revision"/>. <paramref name="Stale"/>: the document moved on while the plugins answered, so nothing is offered.</summary>
+public sealed record CompletionAnswer(long Revision, bool Stale, IReadOnlyList<CompletionItem> Items);
 
 /// <summary>
 /// What the editor does for the early tools. The API checks revisions and ranges first; an implementation only draws and moves.
@@ -201,6 +236,11 @@ public interface IEditorTools
     Document OpenVirtual(string pluginId, string name, string? title, ReadOnlyMemory<byte> content, TextCodec codec);
     /// <summary>Shows the comparison of two revisions in a tab of the editor; false when it could not be shown.</summary>
     bool OpenDiff(DiffRequest request);
+    /// <summary>
+    /// The diagnostics of a document changed (published, moved by an edit, dropped, or the document was withdrawn): draw <see cref="DocumentApi.DiagnosticsOf"/> again.
+    /// Called on the thread that owns the documents.
+    /// </summary>
+    void DiagnosticsChanged(Guid document);
 }
 
 /// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
