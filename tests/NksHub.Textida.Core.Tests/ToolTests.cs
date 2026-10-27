@@ -91,13 +91,124 @@ public sealed class ToolTests : IDisposable
         Assert.Contains("does not exist", Assert.Throws<ToolException>(() => Resolve(new ToolSpec("t", Dotnet, [], Path.Combine(_dir, "missing")))).Message);
     }
 
-    [Fact]
-    public void A_batch_file_is_refused_on_windows_because_it_would_split_the_arguments_again()
+    /// <summary>A batch file that hands its arguments, unchanged, to the ToolEcho program (the way vendor/bin/phpstan.bat hands them to php).</summary>
+    private string EchoBatch(string name = "echo-tool.bat", string prefix = "", string before = "")
+    {
+        string bat = Path.Combine(_dir, name);
+        File.WriteAllText(bat, $"@echo off\r\n{before}\"{Dotnet}\" \"{EchoDll}\" {prefix}%*\r\n");
+        return bat;
+    }
+
+    private async Task<List<string>> RunBatch(string bat, params string[] args)
+    {
+        var (result, lines) = await Run(Resolve(new ToolSpec("t", bat, args)));
+        Assert.Equal(ToolEnd.Exited, result.End);
+        return lines;
+    }
+
+    [Theory]
+    [InlineData("plain")]
+    [InlineData("with space and\ttab")]
+    [InlineData("amp & pipe | lt < gt > caret ^ parens ( ) end")]
+    [InlineData("100% %PATH% %%x%% %cd% %~dp0 %1 %*")]
+    [InlineData("say \"hi\" and \"\"double\"\"")]
+    [InlineData("bang ! !PATH! ^! ^^")]
+    [InlineData("trailing backslash\\")]
+    [InlineData("two trailing\\\\")]
+    [InlineData("back\\\"quote")]
+    [InlineData("back\\\\\"quote\\")]
+    [InlineData("\"")]
+    [InlineData("\\")]
+    [InlineData("%")]
+    [InlineData("")]
+    [InlineData("unicode ěščř ü")]
+    [InlineData("a&echo pwned")]
+    [InlineData("\"&calc")]
+    [InlineData("\" & echo pwned & \"")]
+    [InlineData("%PATH%")]
+    [InlineData("^&echo pwned")]
+    [InlineData("|echo pwned")]
+    [InlineData(">pwned.txt")]
+    public async Task A_batch_file_gets_every_argument_back_exactly_and_nothing_is_run_or_expanded(string text)
     {
         if (!OperatingSystem.IsWindows()) return;
-        string bat = Path.Combine(_dir, "run.cmd");
+        var lines = await RunBatch(EchoBatch(), text, "after one", "");
+        Assert.Equal(["[" + text + "]", "[after one]", "[]"], lines);
+        Assert.False(File.Exists(Path.Combine(_dir, "pwned.txt")));
+        Assert.False(File.Exists(Path.Combine(Environment.CurrentDirectory, "pwned.txt")));
+    }
+
+    [Fact]
+    public async Task A_batch_file_in_a_folder_with_special_characters_is_started_and_the_name_may_leave_out_the_extension()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string folder = Directory.CreateDirectory(Path.Combine(_dir, "my tools & (more) 100%")).FullName;
+        string bat = Path.Combine(folder, "tool.cmd");
+        File.WriteAllText(bat, $"@echo off\r\n\"{Dotnet}\" \"{EchoDll}\" %*\r\n");
+        Assert.Equal(["[x y]"], await RunBatch(bat, "x y"));
+        Assert.Equal(bat, Resolve(new ToolSpec("t", Path.Combine(folder, "tool"), [])).Executable);
+    }
+
+    [Fact]
+    public async Task The_exit_code_of_a_batch_file_is_kept_and_a_batch_file_can_be_stopped_by_the_time_limit()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var (failed, _) = await Run(Resolve(new ToolSpec("t", EchoBatch(), ["a", "--exit", "7"])));
+        Assert.Equal(new ToolResult(ToolEnd.Exited, 7), failed);
+        var (slow, lines) = await Run(Resolve(new ToolSpec("t", EchoBatch(), ["--sleep"], null, TimeSpan.FromMilliseconds(3000))));
+        Assert.Equal(ToolEnd.TimedOut, slow.End);
+        Assert.Contains("started", lines);
+    }
+
+    [Theory]
+    [InlineData("one\ntwo")]
+    [InlineData("one\r\ntwo")]
+    [InlineData("tail\r")]
+    [InlineData("esc\u001b[0m")]
+    public async Task An_argument_cmd_exe_cannot_pass_safely_is_refused_before_anything_starts(string text)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string marker = Path.Combine(_dir, "ran.txt");
+        string bat = EchoBatch(before: $"echo ran> \"{marker}\"\r\n");
+        var e = Assert.Throws<ToolException>(() => Resolve(new ToolSpec("t", bat, ["fine", text])));
+        Assert.Contains("control character", e.Message);
+        var invocation = new ToolInvocation("t", bat, ["fine", text], _dir, null, "");
+        await Assert.ThrowsAsync<ToolException>(() => ToolRunner.RunAsync(invocation, _ => { }));
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task A_bang_is_refused_only_when_the_batch_file_turns_delayed_expansion_on()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string marker = Path.Combine(_dir, "ran.txt");
+        string delayed = EchoBatch("delayed.bat", before: $"setlocal EnableDelayedExpansion\r\necho ran> \"{marker}\"\r\n");
+        Assert.Contains("delayed expansion", Assert.Throws<ToolException>(() => Resolve(new ToolSpec("t", delayed, ["a!b"]))).Message);
+        Assert.Contains("delayed expansion", Assert.Throws<ToolException>(() => Resolve(new ToolSpec("t", delayed, ["!PATH!"]))).Message);
+        Assert.False(File.Exists(marker));
+        Assert.Equal(["[a b]"], await RunBatch(delayed, "a b"));
+        Assert.Equal(["[a!b]"], await RunBatch(EchoBatch("plain.bat"), "a!b"));
+    }
+
+    [Fact]
+    public void The_command_line_for_cmd_exe_quotes_every_part_and_neutralises_the_percent_sign()
+    {
+        string bat = Path.Combine(_dir, "none.bat");
         File.WriteAllText(bat, "@echo off\r\n");
-        Assert.Contains("batch file", Assert.Throws<ToolException>(() => Resolve(new ToolSpec("t", bat, []))).Message);
+        string expected = "/d /v:off /s /c \"\"" + bat + "\" \"x y\" \"a&b\" \"50%%cd:~,%\" \"q\\\\\"\"z\" \"end\\\\\" \"\"\"";
+        Assert.Equal(expected, BatchCommandLine.Build(bat, ["x y", "a&b", "50%", "q\\\"z", "end\\", ""]));
+    }
+
+    [Fact]
+    public async Task A_formatter_can_be_a_batch_file()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        string file = Path.Combine(_dir, "my file.txt");
+        File.WriteAllText(file, "alpha\n");
+        var tool = Resolve(new ToolSpec("fmt", EchoBatch(prefix: "--format "), ["${File}"]), ToolVariables.ForDocument(file));
+        var (result, _) = await Run(tool);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("ALPHA\n", File.ReadAllText(file));
     }
 
     [Fact]

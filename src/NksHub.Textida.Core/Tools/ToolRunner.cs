@@ -33,8 +33,8 @@ public sealed record ToolResult(ToolEnd End, int ExitCode);
 
 /// <summary>
 /// Starts external programs with an explicit argument list. No shell is involved: the arguments go to the process one by one, so text from the
-/// document or a variable can hold spaces, quotes or shell operators without changing what runs. Batch files are refused on Windows because the
-/// command interpreter that runs them splits and expands arguments again.
+/// document or a variable can hold spaces, quotes or shell operators without changing what runs. A batch file on Windows is started through
+/// <c>cmd.exe</c> with a command line quoted for it (see <see cref="BatchCommandLine"/>); an argument that cannot be passed safely is refused.
 /// </summary>
 public static class ToolRunner
 {
@@ -51,6 +51,7 @@ public static class ToolRunner
         cwd = Path.GetFullPath(cwd);
         string exe = FindExecutable(ToolVariables.Expand(spec.Executable, variables), cwd);
         var args = spec.Args.Select(a => ToolVariables.Expand(a, variables)).ToArray();
+        if (IsBatch(exe)) BatchCommandLine.Build(exe, args); // an argument cmd.exe cannot pass safely is refused here, before anything is shown or started
         return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe, cwd));
     }
 
@@ -87,15 +88,15 @@ public static class ToolRunner
             }
         }
         if (found is null) throw new ToolException($"The program '{name}' was not found.");
-        if (OperatingSystem.IsWindows() && Path.GetExtension(found) is { } ext && (ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase)))
-            throw new ToolException($"'{Path.GetFileName(found)}' is a batch file; run its program directly, a batch file would split the arguments again.");
         return found;
     }
+
+    private static bool IsBatch(string exe) => OperatingSystem.IsWindows() && BatchCommandLine.IsBatchFile(exe);
 
     private static string? ExistingFile(string path)
     {
         if (OperatingSystem.IsWindows() && Path.GetExtension(path).Length == 0)
-            foreach (var ext in new[] { ".exe", ".com" })
+            foreach (var ext in new[] { ".exe", ".com", ".bat", ".cmd" })
                 if (File.Exists(path + ext)) return path + ext;
         return File.Exists(path) ? path : null;
     }
@@ -106,7 +107,8 @@ public static class ToolRunner
     /// </summary>
     public static async Task<ToolResult> RunAsync(ToolInvocation tool, Action<string> onLine, CancellationToken ct = default)
     {
-        var info = new ProcessStartInfo(tool.Executable)
+        bool batch = IsBatch(tool.Executable);
+        var info = new ProcessStartInfo(batch ? BatchCommandLine.Interpreter : tool.Executable)
         {
             WorkingDirectory = tool.WorkingDirectory,
             UseShellExecute = false,
@@ -117,7 +119,8 @@ public static class ToolRunner
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        foreach (var arg in tool.Args) info.ArgumentList.Add(arg);
+        if (batch) info.Arguments = BatchCommandLine.Build(tool.Executable, tool.Args);
+        else foreach (var arg in tool.Args) info.ArgumentList.Add(arg);
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException) { throw new ToolException(e.Message); }

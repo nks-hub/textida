@@ -34,8 +34,8 @@ public static class PackageManifests
     }
 
     /// <summary>
-    /// On Windows <c>npm</c> and <c>composer</c> are batch files, which the tool runner refuses. This finds the program the batch file starts: Node with the <c>npm-cli.js</c> that sits next to
-    /// <c>npm.cmd</c>, or PHP with the <c>composer.phar</c> next to <c>composer.bat</c>. Null when the layout is not the standard one; the runner then reports the batch file.
+    /// On Windows <c>npm</c> and <c>composer</c> are batch files. The runner can start those through cmd.exe, but this is kept: it avoids cmd.exe, and a script name with a line break or <c>!</c> (refused for a batch file) still runs. This finds the program the batch file starts: Node with the <c>npm-cli.js</c> that sits next to
+    /// <c>npm.cmd</c>, or PHP with the <c>composer.phar</c> next to <c>composer.bat</c>. Null when the layout is not the standard one; the runner then starts the batch file itself.
     /// </summary>
     /// <returns>The program and the arguments that go before the script arguments.</returns>
     public static (string Executable, IReadOnlyList<string> Prefix)? WindowsTarget(string runner, string pathVariable)

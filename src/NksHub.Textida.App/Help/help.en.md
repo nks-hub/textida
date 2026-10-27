@@ -803,7 +803,7 @@ commands: nks.tools.run, nks.tools.stop
 3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or ${File} for a document that has no file, stops the run before anything starts.
 4. A tool whose command and directory have not run before is shown with both and starts only after you confirm. The confirmation is remembered until the definition, or the program it leads to, changes.
 5. The output goes line by line to the Tasks tab of the output window, followed by the exit code and the time. Stop in that window, or Stop Running Tool, ends the program and everything it started; so does the time limit.
-- Batch files (.bat, .cmd) are refused on Windows, because the command interpreter would split and expand the arguments again. Name the program the batch file runs.
+- Batch files (.bat, .cmd) are started through cmd.exe with every argument quoted for it, so spaces, quotes and characters such as & | < > ^ % pass through unchanged. An argument with a line break or another control character is refused before the start, and so is one with ! when the batch file turns delayed expansion on.
 - A program name without a path is looked for in PATH only, never in the working directory.
 - Output is read as UTF-8. One tool runs at a time.
 
@@ -844,7 +844,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 commands: nks.packages.script
 1. With a package.json or composer.json open, Tools, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
 2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
-- npm or Composer has to be installed. On Windows both are batch files, which the runner refuses; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file instead.
+- npm or Composer has to be installed. On Windows both are batch files; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file, so a script name with a line break or ! still works. Without that standard layout the batch file is started through cmd.exe.
 
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop find
 commands: nks.tools.lint
