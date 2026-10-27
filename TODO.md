@@ -1154,12 +1154,14 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Co a proč:** První distribuce pro Windows a macOS. Základní integrace: kontextové menu Průzkumníka a asociace přes registr na Windows, Finder Quick Action nebo Services a Launch Services na macOS. Asociace souborů jsou volitelné.
   - **Funkce:** F112, F113
   - **Hotovo, když:** instalace na čistém Windows a čistém Macu (Apple Silicon i Intel) proběhne na každém systému ze seznamu P1.1.6 včetně Windows 10 22H2 a macOS 14, „Otevřít v …“ z Průzkumníka i Finderu otevře soubor v běžící instanci; odinstalace odebere asociace; vlastní obrazovky instalátoru jsou v jazycích podle P1.1.7 a test pokryje volbu jazyka, chybu, aktualizaci a odinstalaci; balík nese konečné jméno a identifikátory z P3.7.6; záznam uvádí hash balíku a verzi OS.
+  - **Stav 27. 10. 2026:** částečně (Windows): jeden ZIP z AOT publikace je přenosný i instalátor pro jednoho uživatele bez práv správce (`Install.cmd` → `Setup.ps1`: `%LOCALAPPDATA%\Programs\Textida`, zástupce, položka v Aplikace a funkce; texty cs/en/sk/de; `-Uninstall` nechá nastavení), sestavení `dotnet run tools/BuildWindowsPackage.cs -- --version V`, `AotCheck --package` ověří obsah. Příkazy v Nástrojích: „Otevřít v Textidě“ v Průzkumníku, volitelné asociace (nic zapnuto předem), odebrat vše; jen `HKCU\Software\Classes`; odinstalátor volá `--unregister-shell`. Testy: registr v testovacím klíči (uvozovky kolem `%1`, odebrání přesně zapsaného), instalátor nad falešným balíkem (instalace, jazyk, aktualizace, chyba, odinstalace). Neověřeno: čistý Windows 10/11, otevření v běžící instanci, skutečný zápis do registru, Windows 11 menu; macOS chybí; konečné jméno (P3.7.6) otevřené, identifikátory v `ShellIntegration.ProductName`; podpis balíku (PR.3.1).
   - **Závisí na:** PR.1.2, PR.3.1, P1.1.4, P1.1.7, P3.7.6
   - **Odhad:** bez odhadu
 - [ ] **P3.7.2** Aktualizace a návrat verze
   - **Co a proč:** Kontrola aktualizací a bezpečný návrat na předchozí verzi. Původní telemetrie PSPadu se nepřebírá a editor žádnou telemetrii nemá (PR.6.4). Aktualizace chrání program i neuložená data i při chybě. P9.6.1 tentýž aktualizátor rozšíří o pluginy; nový nevznikne.
   - **Funkce:** F001
   - **Hotovo, když:** aktualizace na novější build a návrat na předchozí projdou na každém systému ze seznamu P1.1.6 a na všech třech RID bez ztráty nastavení a žurnálu; po aktualizaci se na macOS ověří podpis, časové razítko a notarizační ticket nového balíku i přibalených procesů, na Windows ověření původu nového balíku; balík s neplatným podpisem nebo neověřeným původem se odmítne; poškozený balík se pozná před výměnou; přerušená výměna se po startu dokončí nebo vrátí; návrat na starší verzi zachová kompatibilitu schématu nastavení a žurnálu podle P1.7.1; editor neposílá nic kromě dotazu na verzi.
+  - **Stav 27. 10. 2026:** částečně (Windows): kontrola jen na příkaz v Nápovědě nebo s `updates.checkOnStart` (výchozí vypnuto), jeden GET podepsaného feedu bez dalších dat; feed podepsaný ECDSA P-256 nese verzi, adresu, SHA-256 a velikost balíku, stažený balík se porovná, starší verze se ignoruje; nová verze se rozbalí do `Textida.new`, přepnutí `Setup.ps1 -ApplyUpdate` po ukončení, stará zůstane jako `Textida.previous`; příkaz „Vrátit se na předchozí verzi“; bez žurnálu se aktualizace s neuloženými dokumenty odmítne, se žurnálem se karty po restartu obnoví; chyba stahování nebo ověření nechá starou verzi. 20 testů (lokální server, falešný balík). Otevřené: adresa feedu a veřejný klíč (prázdné konstanty v `AppUpdater`, do té doby se nic nekontroluje), nástroj na podpis feedu pro vydání. Neověřeno: skutečný restart a reálná AOT instalace; macOS a Authenticode chybí.
   - **Závisí na:** P3.7.1
   - **Odhad:** bez odhadu
 - [ ] **P3.7.3** Ověření cílů MVP
@@ -2029,6 +2031,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.6.1** Panel agenta přes ACP
   - **Co a proč:** Editor spustí agenta jako podproces a mluví s ním JSON-RPC přes stdio. Panel na požádání, jako ostatní panely D5. Položka spojuje transport (P6.6.2), soubory, návrhy a oprávnění (P6.6.3) a adaptéry agentů (P6.6.4).
   - **Funkce:** F180
+  - **Stav 27. 10. 2026:** částečně: panel agenta (Nástroje, Panel agenta) pod editorem ve vzhledu výstupního okna: konverzace s průběhem tahu, nástroje agenta a jejich stav, pole zprávy, Zrušit tah, Zastavit agenta, ovladatelné klávesnicí, se jmény pro čtečku; příkazy Spustit agenta (výběr z tabulky, potvrzení s příkazem, složkou a hranicí záruky), Sdílet kartu s agentem, Zrušit tah, Zastavit. Celý řetěz (čtení neuložené karty, zápis do revize, oprávnění, pád) ověřen jen proti testovacímu agentovi; u žádného adaptéru z P6.6.4 neověřeno. Panel není součást API pluginů (P6.2.5).
   - **Hotovo, když:** u každého adaptéru z tabulky P6.6.4 agent přečte neuloženou kartu, jeho zápis přes `fs/write_text_file` se ukáže jako úseky v revizi a bez potvrzení se přes editor nic nezapíše; text, který uživatel nezpřístupnil, agent nedostane; chybějící běh adaptéru je ve stavu neověřeno.
   - **Závisí na:** P6.6.2, P6.6.3, P6.6.4
   - **Odhad:** F180 3–5 ČT (matice) za P6.6.1–P6.6.4
@@ -2036,6 +2039,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.6.2** ACP relace a transport
   - **Co a proč:** Adaptér ACP z P3b.1.1: řádkové stdio, inicializace, `session/new`, tahy, `session/cancel` a rušení požadavků podle ACP.
   - **Funkce:** F180 (částečně: relace a transport)
+  - **Stav 27. 10. 2026:** částečně: `NksHub.Textida.Acp` (knihovna v aplikaci, ne plugin v procesu): `initialize` (verze 1), `session/new`, tahy s `session/update`, `session/cancel` (otevřené dotazy na oprávnění se odpoví „cancelled“, tah bez odpovědi agenta se po odkladu opustí), pád agenta s kódem a koncem `stderr`, timeout `initialize`/`session/new` a nečinnosti tahu; ověřeno proti testovacímu agentovi `FakeAcp` (skutečný proces). Skutečný agent neověřen. Časové limity a strop čteného souboru zástupné (otevřeno). AOT publish neověřen.
   - **Hotovo, když:** relace se založí, tah se zruší přes `session/cancel`, odpojení a timeout agenta se ohlásí v panelu a editor nespadne.
   - **Závisí na:** P3b.1.1, P6.2.5
   - **Odhad:** v rámci F180 (viz P6.6.1)
@@ -2043,6 +2047,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.6.3** Soubory, návrhy, oprávnění a hranice záruky
   - **Co a proč:** `fs/read_text_file` vrací kartu i s neuloženými změnami; `fs/write_text_file` jde jako návrh do F178. `session/request_permission` se ukáže jako dialog s volbami agenta. Brána API není sandbox: editor hlídá jen zápis, který jde přes něj. Agent jako podproces může zapisovat vlastními nástroji mimo editor. Úkol určí a v UI řekne režim oprávnění každého podporovaného adaptéru a ověří zákaz přímého zápisu jen v rozsahu, který editor skutečně řídí.
   - **Funkce:** F180 (částečně: soubory a oprávnění)
+  - **Stav 27. 10. 2026:** částečně: `fs/read_text_file` vrací text sdílené karty i s neuloženými změnami (maskování `.env` přes `DocumentApi`, jiné karty a soubory jen na disku = chyba -32002); `fs/write_text_file` jde jako úseky do revize změn (`ExternalReview`, stejná fronta jako návrhy pluginů a MCP), odmítnutí, zastaralá revize i částečné použití se vrátí agentovi jako chyba, soubor `.env` se přes agenta nezapisuje; `session/request_permission` je dialog s volbami agenta, Zrušit i zavření okna odpoví „cancelled“; sdílení po kartách (Sdílet kartu s agentem), zastavení agenta sdílení vezme zpět. UI hranici záruky říká v panelu a v potvrzení spuštění. Zápis do souboru, který není otevřený, se přes editor nepodporuje. Editor agentům režim oprávnění nenastavuje (žádné `session/set_mode`).
   - **Hotovo, když:** zápis přes `fs/write_text_file` se nikdy nezapíše na disk bez potvrzení; zamítnutí a zrušení dialogu oprávnění vrátí agentovi určenou odpověď; tabulka P6.6.4 uvádí u každého adaptéru, jaký režim oprávnění editor nastavuje a co jeho vlastní nástroje smějí; UI tuto mez uživateli ukáže.
   - **Závisí na:** P6.6.2, P6.1.2, P4.6.2
   - **Odhad:** v rámci F180 (viz P6.6.1)
@@ -2050,6 +2055,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 - [ ] **P6.6.4** Adaptéry podporovaných agentů
   - **Co a proč:** Verzovaná tabulka podporovaných agentů a jejich adaptérů: Gemini CLI, Codex přes `codex-acp`, Claude přes `claude-agent-acp`, Junie, GitHub Copilot, OpenCode přes `opencode acp`. U každého připnutá verze a výsledek sady scénářů.
   - **Funkce:** F180 (částečně: adaptéry)
+  - **Stav 27. 10. 2026:** částečně: tabulka `AcpAdapters` (Gemini CLI `gemini --acp`, Codex `codex-acp`, Claude `claude-agent-acp`, Junie `junie --acp=true`, Copilot `copilot --acp`, OpenCode `opencode acp`; verze podle veřejného registru ACP 27. 10. 2026) – všechny **neověřeno**, žádný běh se skutečným agentem neproběhl; spouštění přes `.cmd`/`.bat` (npm shimy na Windows) se odmítá, dokud nebude bezpečné spouštění dávek z ToolRunneru.
   - **Hotovo, když:** pro každý adaptér a verzi z tabulky projde čtení neuložené karty, návrh zápisu, zamítnutí, zrušení, odpojení a timeout; adaptér bez běhu má v tabulce „neověřeno“, ne „podporováno“.
   - **Závisí na:** P6.6.3
   - **Odhad:** v rámci F180 (viz P6.6.1)
