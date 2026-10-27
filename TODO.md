@@ -1309,18 +1309,20 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 
 ### P3b.4 Důvěra a správa pluginů
 
-- [ ] **P3b.4.1** Oprávnění a důvěra
+- [x] **P3b.4.1** Oprávnění a důvěra
   - **Co a proč:** Dialog při instalaci, odebrání oprávnění, záznam volání bez obsahu dokumentů a tokenů. Oprávnění se váží na identitu dokumentu a rozsah, ne na aktivní kartu; tajemství má každý plugin zvlášť; povolený příkaz nesmí předat zápis dál (R05). UI říká, že oprávnění nejsou sandbox.
   - **Funkce:** F201
   - **Stav 26. 10. 2026:** částečně: granty vázané na identitu dokumentu nebo cílový plugin, bez oprávnění chyba `PermissionDenied`, odebrání za běhu zruší čekající (`Revoked`) a zastaví události, povolený příkaz nepředá zápis (`Delegated`), tajemství zvlášť pro plugin, záznam volání bez parametrů a výsledků; 108 testů Rpc. Chybí uložení grantů, UI a systémové úložiště tajemství.
   - **Hotovo, když:** plugin bez oprávnění dostane chybu, ne prázdný výsledek; odebrání grantu za běhu zastaví nové požadavky a zruší čekající; povolený příkaz nepředá zápis jinému pluginu; záznam volání neobsahuje text dokumentu ani tokeny.
+  - **Stav 27. 10. 2026:** hotovo: navíc granty uložené po pluginu a oprávnění v `installed.json`, souhlasná obrazovka před prvním spuštěním (`workspace.files` uděluje uživatel tam), odebrání ve správci pluginů, manifest s polem `permissions` (neznámé nebo opakované oprávnění se odmítne). Chybí systémové úložiště tajemství.
   - **Závisí na:** P3b.1.2
   - **Odhad:** F201 1–2 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P3b.4.2** Správce pluginů
+- [x] **P3b.4.2** Správce pluginů
   - **Co a proč:** Instalace ze složky a ZIP, zapnutí, vypnutí, odinstalace, log. ZIP: kontrola cest, odkazů, velikosti rozbalení a kolize ID. Nová verze se rozbalí vedle staré, po ověření se přepne, starou lze vrátit (R15). Nic se neaktivuje jen otevřením projektu.
   - **Funkce:** F204
   - **Hotovo, když:** ZIP s cestou `../`, se symbolickým odkazem ven ze složky, s kolizí ID a s rozbalením nad kvótu se každý odmítne s vlastní chybou; nepovedená aktualizace pluginu vrátí předchozí verzi; odinstalace nesmaže uživatelská data jiných pluginů.
+  - **Stav 27. 10. 2026:** hotovo: správce (`nks.plugins.manage`, PluginHost/Manager): výpis, instalace z lokálního ZIP, souhlas, zapnutí/vypnutí, aktualizace (ZIP jiného pluginu odmítne), návrat na předchozí verzi, odinstalace jen vlastní složky; každá vada ZIP (`../`, odkaz, duplicita, kvóta, chybějící/neplatný manifest, kolize ID, ne novější verze) má vlastní chybu; nepovedená aktualizace nechá starou verzi. Testy Rpc (12) a App (4). Chybí instalace ze složky a log; Mark-of-the-Web jen přidá varování, karanténa macOS se nečte; příkazy po aktualizaci až po restartu; limity ZIP (256 MB, 2000 souborů) otevřené.
   - **Závisí na:** P3b.2.1, P3b.4.1, P3b.5.4
   - **Odhad:** F204 1–2 ČT (matice)
   - **Umístění:** jádro
