@@ -103,6 +103,8 @@ public enum RemoteError
     ConnectionFailed,
     ConnectionLost,
     NotFound,
+    /// <summary>The file on the server is not the version the local copy was made from.</summary>
+    ChangedOnServer,
     Failed,
 }
 
