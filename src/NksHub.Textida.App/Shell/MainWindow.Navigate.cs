@@ -53,7 +53,7 @@ internal sealed partial class MainWindow
             var l = d.GetLineByNumber((int)Math.Clamp(line + 1, 1, d.LineCount));
             surface.SetSelections([Sel.At(l.Offset + (int)Math.Clamp(column, 0, l.Length))]);
         }
-        else tab.GoToLine((int)Math.Max(1, line + 1));
+        else tab.GoToLine((int)Math.Max(1, line + 1), Math.Max(1, column + 1));
     }
 
     /// <summary>Remembers where the caret is before the app moves it somewhere else, so Alt+Left comes back.</summary>

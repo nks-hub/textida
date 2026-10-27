@@ -124,11 +124,11 @@ internal sealed class DocTab
         return Paged is { } p ? (p.CaretLineColumn() is { } c ? (c.Line + 1, c.Column + 1) : (p.TopLine + 1, 1)) : (1, 1);
     }
 
-    /// <summary>False when a paged view cannot find the line yet because its index does not reach it.</summary>
-    public bool GoToLine(int line)
+    /// <summary>False when a paged view cannot find the line yet because its index does not reach it. Only a paged view takes the one-based UTF-16 <paramref name="column"/>.</summary>
+    public bool GoToLine(int line, long column = 1)
     {
         if (Surface is { } s) s.GoToLine(line);
-        else if (Paged is { } p) return p.GoToLine(line);
+        else if (Paged is { } p) return p.GoToLine(line, column);
         return true;
     }
 }
