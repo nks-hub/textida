@@ -236,6 +236,38 @@ public class LogFollowTests
         var follower = new LogFollower(source, codec, LogLevelRules.Default, Errors);
         follower.Poll();
         Assert.Equal([codec.Bom.Length + codec.Encode("INFO a\r\n").Length], follower.Matches());
+        Assert.Equal([new LogMatchLine(1, LogLevel.Error)], follower.MatchLines());
+    }
+
+    [Fact]
+    public void Matches_carry_their_line_and_level_and_a_crlf_split_between_two_polls_is_one_line_break()
+    {
+        var log = new MemoryLog();
+        var follower = Follow(log, new LogFilter([], "db"));
+        log.Append("INFO db up\r\nplain\r\nERROR db down\r");
+        follower.Poll();
+        Assert.Equal([new LogMatchLine(0, LogLevel.Info)], follower.MatchLines());
+        Assert.Equal(19, follower.Consumed); // the CR at the end waits for its LF
+
+        log.Append("\nWARN db slow\n\nno level db\n");
+        follower.Poll();
+        Assert.Equal([new LogMatchLine(0, LogLevel.Info), new(2, LogLevel.Error), new(3, LogLevel.Warning), new(5, null)], follower.MatchLines());
+        Assert.Equal([0L, 19L, 34L, 48L], follower.Matches());
+
+        log.Set("ERROR db gone\n");
+        follower.Poll();
+        Assert.Equal([new LogMatchLine(0, LogLevel.Error)], follower.MatchLines()); // a truncated log is counted from its first line again
+    }
+
+    [Fact]
+    public void A_line_longer_than_a_block_with_its_crlf_across_the_block_edge_counts_once()
+    {
+        var log = new MemoryLog();
+        // the CR is the last byte of the first block, the LF the first byte of the second
+        log.Append("ERROR " + new string('a', LogScan.BlockBytes - 7) + "\r\nERROR next\n");
+        var follower = Follow(log).Tap(f => f.Poll());
+        Assert.Equal([new LogMatchLine(0, LogLevel.Error), new(1, LogLevel.Error)], follower.MatchLines());
+        Assert.Equal([0L, LogScan.BlockBytes + 1L], follower.Matches());
     }
 
     private sealed class FixedLog(byte[] bytes) : ILogSource

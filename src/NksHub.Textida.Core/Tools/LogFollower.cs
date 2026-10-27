@@ -69,6 +69,9 @@ public enum LogFollowChange
     Missing,
 }
 
+/// <summary>A line a log view keeps: its zero-based number in the file and its level (null when the rules give it none).</summary>
+public readonly record struct LogMatchLine(long Line, LogLevel? Level);
+
 /// <param name="Invalidated">Matches that belonged to the old file or content and were dropped (<see cref="LogFollower.Epoch"/> moved).</param>
 /// <param name="BytesRead">Bytes of the log that were examined by this poll (those already read are not examined again, a line still without its terminator excepted).</param>
 public sealed record LogFollowUpdate(LogFollowChange Change, long BytesRead, long NewMatches, long Invalidated, long Consumed);
@@ -91,9 +94,11 @@ public sealed class LogFollower
     private readonly Regex? _regex;
     private readonly HashSet<LogLevel> _levels;
     private readonly List<long> _matches = [];
+    private readonly List<LogMatchLine> _matchLines = [];
     private readonly Lock _gate = new();
     private byte[] _head = [];
     private long _consumed, _length, _identity;
+    private long _line; // number of the line that starts at _consumed
     private bool _known, _missing, _started, _pending;
 
     /// <exception cref="LogPatternException">The filter text is not a valid regular expression.</exception>
@@ -122,6 +127,9 @@ public sealed class LogFollower
     public long MatchCount { get { lock (_gate) return _matches.Count; } }
 
     public long[] Matches() { lock (_gate) return [.. _matches]; }
+
+    /// <summary>The line number and the level of every match, in the order of <see cref="Matches"/>.</summary>
+    public LogMatchLine[] MatchLines() { lock (_gate) return [.. _matchLines]; }
 
     /// <summary>Start of the first match that begins after <paramref name="offset"/>; null when there is none.</summary>
     public long? Next(long offset)
@@ -177,10 +185,12 @@ public sealed class LogFollower
             {
                 invalidated = _matches.Count;
                 _matches.Clear();
+                _matchLines.Clear();
                 if (_started) Epoch++;
             }
             _head = [];
             Volatile.Write(ref _consumed, FirstLineStart());
+            _line = 0;
         }
         _started = true;
         _identity = state.Identity;
@@ -240,12 +250,18 @@ public sealed class LogFollower
                 bool more = _consumed + got < end;
                 int start = 0;
                 for (int i; (i = LineScanner.FindTerminator(span, start, _codec)) >= 0; start = i + w)
+                {
+                    // a CR that ends what was read may be the first half of a CRLF still being written; counted now it would be two line breaks
+                    if (i + w == got && LineScanner.Unit(span, i, _codec) == 13) break;
                     if (i > start && Consider(span[start..i], _consumed + start)) found++;
+                    _line++;
+                }
                 int cut = start;
                 if (cut == 0 && more)
                 {
                     // a line longer than a block is cut where the block ends, like the search for an error does
                     cut = _codec.CompleteLength(span);
+                    if (cut >= w && LineScanner.Unit(span, cut - w, _codec) == 13) cut -= w;
                     if (cut > 0 && Consider(span[..cut], _consumed)) found++;
                 }
                 if (cut <= 0) break;
@@ -263,13 +279,20 @@ public sealed class LogFollower
         if (_filter.IsEmpty) return false;
         string text = _codec.GetString(line).TrimEnd('\r');
         if (text.Length == 0) return false;
+        LogLevel? level = null;
+        if (_levels.Count > 0 && !((level = _rules.Classify(text)) is { } kept && _levels.Contains(kept))) return false;
         try
         {
-            if (_levels.Count > 0 && !(_rules.Classify(text) is { } level && _levels.Contains(level))) return false;
             if (_regex is not null ? !_regex.IsMatch(text) : !string.IsNullOrEmpty(_filter.Text) && !text.Contains(_filter.Text, StringComparison.Ordinal)) return false;
         }
         catch (RegexMatchTimeoutException) { return false; }
-        lock (_gate) _matches.Add(offset);
+        // without a level filter only the kept lines are classified, so a large log is not run through the level rules line by line
+        if (_levels.Count == 0) level = _rules.Classify(text);
+        lock (_gate)
+        {
+            _matches.Add(offset);
+            _matchLines.Add(new LogMatchLine(_line, level));
+        }
         return true;
     }
 }

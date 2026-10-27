@@ -300,6 +300,33 @@ public class LogModeAppTests : IDisposable
         Assert.Equal(0, Matching(shot, PagedRow(log, 2), Highlight));
     }
 
+    private void SaveViewWithFilter(string filter)
+    {
+        var dialogs = (ScriptedDialogs)_app.Dialogs;
+        foreach (string answer in new[] { "kept", filter, "", "" }) dialogs.Prompts.Enqueue(answer);
+        Assert.Equal(CommandOutcome.Handled, _w.SaveLogView());
+    }
+
+    [AvaloniaFact]
+    public void The_lines_a_live_view_keeps_are_marked_in_the_minimap_strip_by_their_level()
+    {
+        var tab = Open("marks.log", "INFO start\nERROR disk full\nINFO fine\nWARN disk slow\nDEBUG disk x\n");
+        SaveViewWithFilter("disk");
+        ToolTestKit.WaitFor(() => tab.Minimap!.FilterMarks.Count == 3, "the kept lines were not marked");
+        Assert.Equal([new MinimapMark(1, MinimapMarkKind.Error), new MinimapMark(3, MinimapMarkKind.Warning), new MinimapMark(4, MinimapMarkKind.Match)], tab.Minimap!.FilterMarks);
+    }
+
+    [AvaloniaFact]
+    public void The_marks_of_a_live_view_on_a_paged_log_are_on_the_lines_of_its_matches()
+    {
+        var log = Open("mbig.log", BigLog(out _), paged: true);
+        SaveViewWithFilter("ERROR");
+        ToolTestKit.WaitFor(() => log.Minimap!.FilterMarks.Count == 3, "the error lines were not marked");
+        Assert.Equal([0L, 20_000L, 45_000L], log.Minimap!.FilterMarks.Select(m => m.Line));
+        Assert.All(log.Minimap.FilterMarks, m => Assert.Equal(MinimapMarkKind.Error, m.Kind));
+        Assert.True(log.Minimap.IsSampled);
+    }
+
     [AvaloniaFact]
     public void Applying_a_view_without_a_highlight_removes_the_marks_and_a_broken_expression_is_refused()
     {

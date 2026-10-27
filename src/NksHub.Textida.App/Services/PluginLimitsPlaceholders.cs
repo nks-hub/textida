@@ -46,6 +46,9 @@ internal static class PluginLimitsPlaceholders
 
     public static LogHeatLimits LogHeat() => new(LogHeatChunkBytes, LogHeatFullScanBytes, LogHeatSampleBytesPerBucket);
 
+    /// <summary>Placeholder, OPEN: rows of consecutive lines in one strip of the sampled minimap of a large file; the picture has as many strips as such runs fit.</summary>
+    public const int MinimapSampleStripRows = 8;
+
     /// <summary>Placeholder, OPEN: bytes from the start of a file that the CSV delimiter detection reads.</summary>
     public const long CsvDetectSampleBytes = 64 * 1024;
 

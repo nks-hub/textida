@@ -573,8 +573,9 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Zvolte Zobrazit a Zobrazit skryté znaky (Ctrl+K, Ctrl+W): vykreslí se mezery, tabulátory a konce řádků CR, LF a CRLF. Dokument se nemění.
 2. Zobrazit čísla řádků (Ctrl+K, Ctrl+N), Zvýraznit aktuální řádek, Zobrazit pravý okraj (svislá čára ve sloupci 80, nastavuje se v nastavení Sloupec pravého okraje) a Klikací odkazy zapínají a vypínají zbytek.
-3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění. Kliknutím nebo tažením se posouvá. U velkého souboru ukazuje jen řádky kolem obrazovky.
-- Shody z lišty hledání jsou označené v úzkém pruhu na pravém okraji minimapy.
+3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění, log v barvách úrovní. Kliknutím nebo tažením se posouvá. Dlouhý soubor v editoru ukazuje jen řádky kolem obrazovky.
+- U velkého souboru (stránkovaný režim) je obraz vzorkovaný: krátké úseky řádků ze začátků stejně velkých částí celého souboru, takže se nikdy nečte celý. Místo obdélníku ukazuje pozici tenká čára. Při indexování řádků pokrývá obraz zatím spočítané řádky, stejně jako posuvník. Počet řádků v úseku je placeholder, není rozhodnutá hodnota.
+- Shody z lišty hledání jsou označené v úzkém pruhu na pravém okraji minimapy. Řádky, které ponechá filtr živého pohledu na log, jsou v pruhu také: chybové červeně, varování žlutě, ostatní modře.
 - Odkazy se otevřou kliknutím s Ctrl a ve stránkovaném režimu nejsou k dispozici.
 - Řádek delší než 50 000 znaků se nikdy nezalomí: Přepnout zalamování to řekne ve stavovém řádku. Stránkovaný režim nezalamuje nikdy.
 - Znaky, které hlavní písmo nemá, se vykreslí písmy z nastavení Náhradní písma.
