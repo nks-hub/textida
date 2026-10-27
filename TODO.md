@@ -1493,7 +1493,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.5.5** Doplňování slov a klipů
   - **Co a proč:** Ctrl+J doplní slova z dokumentu a klipy, funguje hned po instalaci. LSP doplňování je v P8.
   - **Funkce:** F076
-  - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Index slov dokumentu se po úpravě opraví jen v dotčených řádcích (test shody s nově postaveným po náhodných úpravách); řádek nad 64 tis. znaků index zahodí a další Ctrl+J ho postaví znovu. Zástupná hodnota 200 slov v nabídce; Perf po úpravě běží na referenční Windows VM.
+  - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Index slov dokumentu se po úpravě opraví jen v dotčených řádcích (test shody s nově postaveným po náhodných úpravách); řádek nad 64 tis. znaků index zahodí a další Ctrl+J ho postaví znovu. Zástupná hodnota 200 slov v nabídce; Perf na referenční Windows VM 27. 10. prošel (nabídka v souboru 1 MiB i hned po napsaném znaku do 33 ms).
   - **Hotovo, když:** doplnění nabídne slova z otevřených karet a klipy podle jazyka do 33 ms v souboru 1 MiB.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
@@ -1697,13 +1697,15 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 - [ ] **P5.2.1** Porovnání textů
   - **Co a proč:** Soubor proti souboru, disku, výběru nebo schránce; prázdný diff pro dva vložené texty; spuštění z příkazové řádky. Diff je společný podklad pro místní historii, vzdálené změny a revizi F178.
   - **Funkce:** F081
+  - **Stav 26. 10. 2026:** částečně: řádkový diff v jádru (`Core/Compare`), karta porovnání (`DiffView`) pro schránku, výběr, soubor, disk a dva vložené texty, kontextové menu editoru, `textida --diff levý pravý`; přenos úseku na druhou stranu je jedna editace a jeden krok undo (i ve stránkovaném souboru); porovnání s diskem a s revizí historie otevře vestavěné porovnání, když není nastavený externí nástroj. Velké soubory: čte okno řádků, 8 B hash na řádek, test 3M řádků (~150 MB) s alokacemi pod 120 MB; nad 10 000 změněných řádků výsledek správný, ne minimální (lišta to hlásí). Neověřeno: vzhled, časy (Perf), čtečka obrazovky (DiffView nemá automation peer); ignorování mezer a velikosti písmen chybí.
   - **Hotovo, když:** porovnání se schránkou jde z kontextového menu; přenesení úseku na druhou stranu je jeden krok undo; diff stránkovaného souboru nenačte celý soubor.
   - **Závisí na:** P1.2.4
   - **Odhad:** diff se schránkou 1 ČT; jinak bez odhadu
   - **Umístění:** jádro
-- [ ] **P5.2.2** Synchronizované posouvání
+- [x] **P5.2.2** Synchronizované posouvání
   - **Co a proč:** Dva pohledy (dva soubory nebo strany diffu) se posouvají spolu.
   - **Funkce:** F133
+  - **Stav 26. 10. 2026:** hotovo: strany porovnání se posouvají společně přes vložené a odebrané bloky, příkaz „Synchronizovat posouvání“ pro dvě karty ve dvou skupinách; test mapování řádků a že se strany navzájem neodrážejí.
   - **Hotovo, když:** posun jedné strany posune druhou na odpovídající řádek i přes vložené bloky.
   - **Závisí na:** P5.2.1
   - **Odhad:** bez odhadu

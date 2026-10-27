@@ -74,6 +74,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleLinks" => (Options.Links, false),
         "nks.view.toggleMinimap" => (Options.Minimap, false),
         "nks.view.toggleSecrets" => (Active?.Surface?.SecretsRevealed ?? false, false),
+        "nks.view.syncScroll" => (SyncScrollOn, false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),

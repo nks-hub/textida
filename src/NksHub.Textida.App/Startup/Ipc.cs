@@ -18,6 +18,8 @@ public sealed class IpcFile
 public sealed class IpcRequest
 {
     public List<IpcFile> Files { get; set; } = [];
+    /// <summary>The two paths of a comparison (left, right); null when none is asked for.</summary>
+    public List<string>? Diff { get; set; }
     public bool NewWindow { get; set; }
     /// <summary>The reply is sent only after every requested tab has been closed.</summary>
     public bool Wait { get; set; }

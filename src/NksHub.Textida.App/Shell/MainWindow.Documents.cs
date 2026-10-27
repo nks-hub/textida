@@ -111,6 +111,7 @@ internal sealed partial class MainWindow
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
+        AttachEditorMenu(tab);
         group.Add(tab, index);
         _activeGroup = group;
         OnActiveTabChanged();

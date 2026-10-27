@@ -385,12 +385,12 @@ public class FileFlowTests : IDisposable
     // ---- compare ----
 
     [AvaloniaFact]
-    public void Compare_without_a_tool_says_what_is_missing()
+    public void Compare_without_a_tool_opens_the_built_in_comparison()
     {
         var tab = _w.OpenFile(_temp.File("cmp.txt", "x"), null);
         Assert.Null(_w.CompareWithDisk(tab));
-        var notice = Assert.Single(_w.Notices);
-        Assert.Contains("tools.diffTool", notice.Message);
+        Assert.Empty(_w.Notices);
+        Assert.IsType<NksHub.Textida.App.Editing.DiffView>(_w.Active!.Custom);
     }
 
     [AvaloniaFact]

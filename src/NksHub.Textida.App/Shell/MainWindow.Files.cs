@@ -312,7 +312,10 @@ internal sealed partial class MainWindow
         foreach (var tab in od.Views) tab.ShowBar(null);
     }
 
-    /// <summary>Opens the configured external tool on the file on disk and the content of the tab.</summary>
+    /// <summary>
+    /// Compares the content of the tab with the file on disk: in the configured external tool when one is set, else in the built-in comparison
+    /// (then null is returned and a compare tab opens).
+    /// </summary>
     public ExternalDiff.Started? CompareWithDisk(DocTab tab)
     {
         var od = tab.Doc;
@@ -325,7 +328,7 @@ internal sealed partial class MainWindow
         var tool = settings.GetString("tools.diffTool");
         if (string.IsNullOrWhiteSpace(tool))
         {
-            ShowNotice("diff", Loc.Get(K.CompareNoTool), [(Loc.Get(K.CompareOpenSettings), () => { DismissNotice("diff"); _app.OpenSettings("diff"); })], warning: true);
+            CompareWithDiskBuiltIn(tab, path);
             return null;
         }
         var started = ExternalDiff.Compare(od.Doc, path, tool, settings.GetString("tools.diffArguments"));

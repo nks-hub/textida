@@ -1,3 +1,4 @@
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Keys;
@@ -23,6 +24,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),
+            ContextKeys.CompareMode => Bool(tab?.Custom is DiffView),
             ContextKeys.Platform => OperatingSystem.IsMacOS() ? "macos" : OperatingSystem.IsWindows() ? "windows" : "linux",
             ContextKeys.IsDirty => Bool(tab?.Doc.Doc.IsModified == true),
             ContextKeys.HasFolder => Bool(window.HasFolder),
@@ -50,29 +52,35 @@ internal static class MenuBuilder
         var groups = new List<MenuGroup>();
         foreach (var (id, titleKey) in Order)
         {
-            var items = wb.Commands.GetMenu(id, context).Where(i => wb.Commands.HasHandler(i.CommandId)).ToList();
-            if (items.Count == 0) continue;
-            var nodes = new List<MenuNode>();
-            string? group = null;
-            foreach (var item in items)
-            {
-                if (group is not null && item.Group != group) nodes.Add(new MenuSeparator());
-                group = item.Group;
-                wb.Commands.TryGet(item.CommandId, out var command);
-                var shortcut = wb.Keymap.Bindings.FirstOrDefault(b => b.CommandId == item.CommandId && b.Sequence.Chords.Count == 1);
-                var state = checkState(item.CommandId);
-                string commandId = item.CommandId;
-                nodes.Add(new MenuCommand(
-                    wb.Strings.Get(item.TitleKey),
-                    () => run(commandId),
-                    shortcut is null ? null : KeyMapping.ToGesture(shortcut.Sequence.Chords[0]),
-                    state?.On, state?.Radio ?? false, commandId,
-                    () => command.IsEnabled(context),
-                    state is null ? null : () => checkState(commandId)?.On,
-                    item.Enabled));
-            }
-            groups.Add(new MenuGroup(wb.Strings.Get(titleKey), nodes));
+            var nodes = Nodes(wb, context, checkState, run, id);
+            if (nodes.Count > 0) groups.Add(new MenuGroup(wb.Strings.Get(titleKey), nodes));
         }
         return groups;
+    }
+
+    /// <summary>The items of one menu of the manifest (the context menu of the editor is <c>editor.context</c>), with separators between its groups.</summary>
+    public static List<MenuNode> Nodes(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, string menuId)
+    {
+        var items = wb.Commands.GetMenu(menuId, context).Where(i => wb.Commands.HasHandler(i.CommandId)).ToList();
+        var nodes = new List<MenuNode>();
+        string? group = null;
+        foreach (var item in items)
+        {
+            if (group is not null && item.Group != group) nodes.Add(new MenuSeparator());
+            group = item.Group;
+            wb.Commands.TryGet(item.CommandId, out var command);
+            var shortcut = wb.Keymap.Bindings.FirstOrDefault(b => b.CommandId == item.CommandId && b.Sequence.Chords.Count == 1);
+            var state = checkState(item.CommandId);
+            string commandId = item.CommandId;
+            nodes.Add(new MenuCommand(
+                wb.Strings.Get(item.TitleKey),
+                () => run(commandId),
+                shortcut is null ? null : KeyMapping.ToGesture(shortcut.Sequence.Chords[0]),
+                state?.On, state?.Radio ?? false, commandId,
+                () => command.IsEnabled(context),
+                state is null ? null : () => checkState(commandId)?.On,
+                item.Enabled));
+        }
+        return nodes;
     }
 }

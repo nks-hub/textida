@@ -96,7 +96,7 @@ public sealed partial class App : Application
             {
                 first.RestoreFrom(Journal);
                 first.ShowJournalWarnings();
-                if (ctx.Args.Files.Count > 0) RunStartupOpen(ctx.Args);
+                if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
             };
         }
         else if (PagedMeasure.Requested) first.Opened += (_, _) => _ = new PagedMeasure(this, first, desktop).RunAsync();
@@ -177,7 +177,7 @@ public sealed partial class App : Application
 
     private void RunStartupOpen(CommandLineArgs args)
     {
-        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList() };
+        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList(), Diff = args.Diff?.ToList() };
         _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } e) _active?.SetStatusMessage(e.InnerException?.Message ?? e.Message); }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
@@ -274,6 +274,16 @@ public sealed partial class App : Application
                 if (f.Hex) tab = owner.OpenHex(tab, f.Offset);
                 if (!ReferenceEquals(owner, window)) window = owner;
                 if (request.Wait) waits.Add(tab.Closed.Task);
+            }
+            catch (IOException e) { failure ??= e; }
+        }
+
+        if (request.Diff is { Count: 2 } diff)
+        {
+            try
+            {
+                var compare = window.CompareFiles(diff[0], diff[1]);
+                if (request.Wait) waits.Add(compare.Closed.Task);
             }
             catch (IOException e) { failure ??= e; }
         }

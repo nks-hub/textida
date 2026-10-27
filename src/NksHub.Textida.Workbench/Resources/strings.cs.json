@@ -230,7 +230,7 @@
   "setting.search.regexTimeoutMs.title": "Časový limit regulárního výrazu (ms)",
   "setting.search.regexTimeoutMs.description": "Výraz se zpětnými odkazy, lookaroundem nebo atomickými skupinami běží v klasickém enginu a po této době se na jednom textu zastaví. Ostatní výrazy běží v enginu s lineárním časem a nejsou omezeny.",
   "setting.tools.diffTool.title": "Externí porovnávač",
-  "setting.tools.diffTool.description": "Cesta k programu pro porovnání dvou souborů. Prázdné: příkaz Porovnat s diskem řekne, co chybí.",
+  "setting.tools.diffTool.description": "Cesta k programu pro porovnání dvou souborů. Prázdné: příkaz Porovnat s diskem otevře vestavěné porovnání.",
   "setting.tools.diffArguments.title": "Argumenty porovnávače",
   "setting.tools.diffArguments.description": "Šablona argumentů; {left} je soubor na disku, {right} obsah karty.",
   "cmd.edit.addNextOccurrence": "Přidat další výskyt",
@@ -332,5 +332,14 @@
   "setting.sql.dialect.title": "Výchozí dialekt SQL",
   "setting.sql.dialect.description": "Dialekt souborů SQL, pro které ho nenastavil soubor ani složka. Složka: sql_dialect v .editorconfig.",
   "setting.html.tidyPath.title": "Program HTML Tidy",
-  "setting.html.tidyPath.description": "Úplná cesta k programu HTML Tidy. Prázdné: editor hledá vedle pluginu formátovačů, ve složce tools/tidy a v PATH."
+  "setting.html.tidyPath.description": "Úplná cesta k programu HTML Tidy. Prázdné: editor hledá vedle pluginu formátovačů, ve složce tools/tidy a v PATH.",
+  "cmd.compare.clipboard": "Porovnat se schránkou",
+  "cmd.compare.file": "Porovnat se souborem...",
+  "cmd.compare.texts": "Porovnat dva texty",
+  "cmd.compare.next": "Další rozdíl",
+  "cmd.compare.previous": "Předchozí rozdíl",
+  "cmd.compare.copyToRight": "Zkopírovat rozdíl doprava",
+  "cmd.compare.copyToLeft": "Zkopírovat rozdíl doleva",
+  "cmd.view.syncScroll": "Synchronizovat posouvání",
+  "menu.editor.context": "Místní nabídka editoru"
 }

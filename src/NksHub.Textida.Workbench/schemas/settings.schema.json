@@ -285,7 +285,7 @@
         "tools.diffTool": {
           "type": "string",
           "default": "",
-          "description": "External diff tool. Path of a program that compares two files. Empty: Compare with Disk says what is missing.",
+          "description": "External diff tool. Path of a program that compares two files. Empty: Compare with Disk opens the built-in comparison.",
           "x-scope": "application"
         },
         "tools.diffArguments": {

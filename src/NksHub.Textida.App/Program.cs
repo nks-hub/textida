@@ -11,7 +11,7 @@ public static partial class Program
     /// <summary>Single-instance channel; <c>TEXTIDA_CHANNEL</c> separates test runs from a real instance.</summary>
     internal static readonly string MainChannel = Environment.GetEnvironmentVariable("TEXTIDA_CHANNEL") is { Length: > 0 } c ? c : "main";
 
-    private const string Usage = "usage: textida [--new-window] [--wait] [--line N] [--] [path ...]";
+    private const string Usage = "usage: textida [--new-window] [--wait] [--line N] [--diff left right] [--] [path ...]";
 
     [STAThread]
     public static int Main(string[] args)
@@ -42,7 +42,7 @@ public static partial class Program
 
     private static int ForwardToRunningInstance(CommandLineArgs parsed)
     {
-        var request = new IpcRequest { NewWindow = parsed.NewWindow, Wait = parsed.Wait, Files = parsed.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList() };
+        var request = new IpcRequest { NewWindow = parsed.NewWindow, Wait = parsed.Wait, Files = parsed.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList(), Diff = parsed.Diff?.ToList() };
         try
         {
             var reply = IpcClient.SendAsync(MainChannel, request, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();

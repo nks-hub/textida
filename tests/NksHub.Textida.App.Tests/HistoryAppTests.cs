@@ -52,4 +52,17 @@ public class HistoryAppTests : IDisposable
         await Pump(500);
         Assert.Empty(_app.History.List(large));
     }
+
+    [AvaloniaFact]
+    public async Task Without_an_external_tool_a_revision_opens_in_the_built_in_compare_tab()
+    {
+        string path = _temp.File("notes.txt", "first\n");
+        var tab = _w.OpenFile(path, null);
+        for (var sw = Stopwatch.StartNew(); _app.History.List(path).Count == 0 && sw.ElapsedMilliseconds < 10_000;) await Pump(20);
+        var revision = Assert.Single(_app.History.List(path));
+        tab.Editor!.Document.Insert(0, "changed ");
+
+        _w.CompareWithRevision(tab, path, revision);
+        Assert.NotNull(_w.ActiveCompare);
+    }
 }

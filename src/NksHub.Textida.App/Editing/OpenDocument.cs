@@ -105,7 +105,10 @@ internal sealed class OpenDocument : IDisposable
     public bool HasUnsavedWork => !IsResults && _doc.IsModified && !(Path is null && _doc.ByteLength == _doc.BomLength);
     public EolStats Eol => _eol;
 
-    public string Title => IsResults ? Loc.Get(K.ResultsTab) : Path is null ? Loc.Get(K.TabUntitled, ("number", Number)) : System.IO.Path.GetFileName(Path);
+    /// <summary>The title of a tab with a view of its own other than the search results (a comparison); read again each time the tab strip is drawn, so it follows the language.</summary>
+    public Func<string>? TitleOverride { get; set; }
+
+    public string Title => TitleOverride?.Invoke() ?? (IsResults ? Loc.Get(K.ResultsTab) : Path is null ? Loc.Get(K.TabUntitled, ("number", Number)) : System.IO.Path.GetFileName(Path));
 
     /// <summary>True when the encoding was a guess the user should confirm (status bar marks it).</summary>
     public bool EncodingUncertain => Guess is { IsUncertain: true };

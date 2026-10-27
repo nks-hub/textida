@@ -1216,6 +1216,53 @@
       "title": "cmd.table.clearFilter",
       "category": "cat.view",
       "enablement": "tableMode"
+    },
+    {
+      "id": "nks.compare.clipboard",
+      "title": "cmd.compare.clipboard",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !compareMode"
+    },
+    {
+      "id": "nks.compare.file",
+      "title": "cmd.compare.file",
+      "category": "cat.tools",
+      "enablement": "hasDocument && !compareMode"
+    },
+    {
+      "id": "nks.compare.texts",
+      "title": "cmd.compare.texts",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.compare.next",
+      "title": "cmd.compare.next",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.previous",
+      "title": "cmd.compare.previous",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.copyToRight",
+      "title": "cmd.compare.copyToRight",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.copyToLeft",
+      "title": "cmd.compare.copyToLeft",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.view.syncScroll",
+      "title": "cmd.view.syncScroll",
+      "category": "cat.view",
+      "enablement": "hasDocument"
     }
   ],
   "menus": [
@@ -2274,6 +2321,96 @@
       "command": "nks.table.clearFilter",
       "group": "4_table",
       "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.clipboard",
+      "group": "7_compare",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.file",
+      "group": "7_compare",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.texts",
+      "group": "7_compare",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.next",
+      "group": "7_compare",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.previous",
+      "group": "7_compare",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.copyToRight",
+      "group": "7_compare",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.copyToLeft",
+      "group": "7_compare",
+      "order": 70
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.syncScroll",
+      "group": "5_compare",
+      "order": 10
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.cut",
+      "group": "1_clipboard",
+      "order": 10
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.copy",
+      "group": "1_clipboard",
+      "order": 20
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.paste",
+      "group": "1_clipboard",
+      "order": 30
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.selectAll",
+      "group": "1_clipboard",
+      "order": 40
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.compare.clipboard",
+      "group": "2_compare",
+      "order": 10
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.file.compareWithDisk",
+      "group": "2_compare",
+      "order": 20
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.compare.file",
+      "group": "2_compare",
+      "order": 30
     }
   ],
   "keybindings": [
@@ -2634,6 +2771,16 @@
     {
       "key": "mod+k mod+t",
       "command": "nks.view.table"
+    },
+    {
+      "key": "f7",
+      "command": "nks.compare.next",
+      "when": "compareMode"
+    },
+    {
+      "key": "shift+f7",
+      "command": "nks.compare.previous",
+      "when": "compareMode"
     }
   ],
   "settings": [

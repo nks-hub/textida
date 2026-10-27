@@ -41,9 +41,13 @@ internal sealed class DocTab
 
     private readonly EditorAutomationHost? _automation;
 
+    /// <summary>Raised when the tab is closed, before its views are released.</summary>
+    public event Action? ViewClosed;
+
     /// <summary>Releases what the view holds outside the visual tree.</summary>
     public void Close()
     {
+        ViewClosed?.Invoke();
         Table?.Dispose();
         Minimap?.Dispose();
         Syntax?.Dispose();

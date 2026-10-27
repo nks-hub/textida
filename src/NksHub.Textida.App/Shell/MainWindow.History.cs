@@ -99,14 +99,26 @@ internal sealed partial class MainWindow
 
     // ---- compare ----
 
-    /// <summary>The revision goes to a temporary file on the left of the external diff tool, the content of the tab on the right.</summary>
-    private void CompareWithRevision(DocTab tab, string path, HistoryRevision r)
+    /// <summary>
+    /// The revision on the left, the content of the tab on the right: in the built-in compare tab, or in the external diff tool when one is set
+    /// (the revision then goes to a temporary file).
+    /// </summary>
+    internal void CompareWithRevision(DocTab tab, string path, HistoryRevision r)
     {
         var settings = _app.Workbench.Settings;
         var tool = settings.GetString("tools.diffTool");
         if (string.IsNullOrWhiteSpace(tool))
         {
-            ShowNotice("diff", Loc.Get(K.CompareNoTool), [(Loc.Get(K.CompareOpenSettings), () => { DismissNotice("diff"); _app.OpenSettings("diff"); })], warning: true);
+            try
+            {
+                string text = tab.Doc.Doc.Codec.GetString(_app.History.Read(path, r.Id)).TrimStart('﻿');
+                string title = Path.GetFileName(path) + " · " + (r.Label is { Length: > 0 } label ? label : r.TimeUtc.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture));
+                OpenCompare(new CompareSide { Title = title, Text = text }, DocumentSide(tab));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                SetStatusMessage(Loc.Get(K.HistoryFailed, ("reason", e.Message)));
+            }
             return;
         }
         var dir = Path.Combine(Path.GetTempPath(), "textida-revision-" + Guid.NewGuid().ToString("N")[..12]);

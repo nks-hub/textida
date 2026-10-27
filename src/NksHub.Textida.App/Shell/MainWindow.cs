@@ -332,6 +332,7 @@ internal sealed partial class MainWindow : Window
         ApplyFileTexts();
         ApplyHexTexts();
         ApplyTableTexts();
+        ApplyCompareTexts();
         ApplyOutputTexts();
         RefreshPluginUi();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
