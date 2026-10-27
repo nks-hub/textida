@@ -1859,6 +1859,26 @@
       "title": "cmd.tools.shellRemove",
       "category": "cat.tools",
       "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.log.fold",
+      "title": "cmd.log.fold",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.unfold",
+      "title": "cmd.log.unfold",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.openFrame",
+      "title": "cmd.log.openFrame",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.showRaw",
+      "title": "cmd.log.showRaw",
+      "category": "cat.log"
     }
   ],
   "menus": [
@@ -3741,6 +3761,34 @@
       "group": "4_other/13_9_shell",
       "submenu": "shell",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.fold",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 90
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.unfold",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.openFrame",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 110
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.showRaw",
+      "group": "2_run/05_6_log",
+      "submenu": "log",
+      "order": 120
     }
   ],
   "keybindings": [
@@ -4156,6 +4204,16 @@
       "key": "alt+shift+f7",
       "command": "nks.review.previous",
       "when": "editorFocus"
+    },
+    {
+      "key": "shift+tab",
+      "command": "nks.edit.outdent",
+      "when": "editorFocus && !readOnly"
+    },
+    {
+      "key": "tab",
+      "command": "nks.edit.tab",
+      "when": "editorFocus && !readOnly"
     }
   ],
   "settings": [

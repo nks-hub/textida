@@ -968,6 +968,17 @@ public static class K
     public const string ExportNothing = "export.nothing";
     public const string ExportTooLarge = "export.tooLarge";
     public const string ExportCopied = "export.copied";
+    public const string LogFoldTitle = "log.fold.title";
+    public const string LogFoldLevelLabel = "log.fold.level";
+    public const string LogFoldPlaceholder = "log.fold.placeholder";
+    public const string LogFolded = "log.fold.done";
+    public const string LogFoldNothing = "log.fold.nothing";
+    public const string LogFoldDimmed = "log.fold.dimmed";
+    public const string LogUnfolded = "log.fold.cleared";
+    public const string LogStackNone = "log.stack.none";
+    public const string LogStackNotFound = "log.stack.notFound";
+    public const string LogAnsiRaw = "log.ansi.raw";
+    public const string LogAnsiColors = "log.ansi.colors";
     public const string LogPatternFound = "log.pattern.found";
     public const string AiWatermark = "aicontext.watermark";
     public const string A11yAiContext = "a11y.aicontext";

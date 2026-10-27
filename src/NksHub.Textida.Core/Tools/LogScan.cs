@@ -70,7 +70,7 @@ public static class LogScan
     }
 
     /// <summary>Length of the part of <paramref name="span"/> that ends with a line terminator; all of it when it holds none (a line longer than a block is cut where it stands).</summary>
-    private static int WholeLines(ReadOnlySpan<byte> span, TextCodec codec)
+    internal static int WholeLines(ReadOnlySpan<byte> span, TextCodec codec)
     {
         int w = codec.Alignment, last = 0, pos = 0;
         while (LineScanner.FindTerminator(span, pos, codec) is var i && i >= 0)

@@ -79,6 +79,7 @@ internal sealed partial class EditorSurface : TextEditor
         InitCarets();
         InitSecrets();
         InitColors();
+        InitLogFull();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -87,6 +88,7 @@ internal sealed partial class EditorSurface : TextEditor
     {
         _levels.Rules = Doc.IsLog ? Doc.LogLevels : null;
         _highlight.Pattern = Doc.LogHighlight;
+        ApplyAnsi();
     }
 
     public OpenDocument Doc { get; }
@@ -112,6 +114,7 @@ internal sealed partial class EditorSurface : TextEditor
     public void BindDocument()
     {
         TextArea.ClearSelection();
+        ClearFolds();
         Document = Doc.TextBackend!.TextDocument;
         _colorizer.BindDocument(Document);
         CaretOffset = 0;

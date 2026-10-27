@@ -971,6 +971,13 @@ commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.e
 - A text over 8388608 characters is refused with a message; select a part of it. The limit is a placeholder, not a decided value. The work runs in the background, so the window stays usable.
 - HTML is UTF-8. RTF is ASCII: backslash, braces and every character outside ASCII (for example Czech letters) are written as escapes.
 
+## [log.full] Full log mode: folding, stack traces, heatmap, ANSI colors
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Fold Uninteresting Lines asks for a level (lines of at least that level stay: error, warning, info, debug) and a regular expression (lines that match stay). Each run of other lines becomes one placeholder row that a click opens. A line without a level word, such as a stack trace frame, goes with the entry above it. Log: Show All Lines opens everything again. In a paged file (very large) rows cannot be folded; the lines that would be folded are drawn dim instead.
+2. Ctrl+click on a stack trace frame of .NET, Java, Python, PHP or Node.js opens the file at that line; Log: Open File of Stack Trace Frame does the same for the caret line. A relative path is looked for in the folder of the log, then in the workspace folders; a bare file name (Java) is searched below them.
+3. The strip at the right edge of the minimap shows where error lines (red) and warning lines (yellow) are dense. It is counted in the background. A file up to 256 MiB is read whole; a larger one is sampled, so the picture is an estimate. These limits are not decided values.
+4. ANSI escape sequences in a log are hidden and drawn as colors (16, 256 and true colors), bold and underline. The file is never changed, so saving keeps the escapes. Log: Show ANSI Escapes Raw switches between the colors and the plain sequences. A style that a line leaves open does not carry into the next line.
+
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 The commands are in the View menu and in the palette. Each toggles one setting; the settings can also be changed in the settings.

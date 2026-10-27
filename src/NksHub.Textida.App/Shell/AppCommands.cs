@@ -239,6 +239,10 @@ internal static class AppCommands
         On("nks.edit.copyHtmlSource", w => w.CopyHighlighted(htmlSource: true));
         On("nks.log.levels", w => w.ChooseLogLevels());
         On("nks.log.follow", w => w.ToggleLogFollow());
+        On("nks.log.fold", w => w.FoldLog());
+        On("nks.log.unfold", w => w.UnfoldLog());
+        On("nks.log.openFrame", w => w.OpenStackFrame());
+        On("nks.log.showRaw", w => w.ToggleLogRaw());
         On("nks.log.saveView", w => w.SaveLogView());
         On("nks.log.views", w => w.ShowLogViews());
         On("nks.log.nextMatch", w => w.LogViewStep(forward: true));

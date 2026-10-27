@@ -976,6 +976,13 @@ commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.e
 - Text nad 8388608 znakov sa odmietne správou, označte jeho časť. Hranica je placeholder, nie je rozhodnutá hodnota. Práca beží na pozadí, okno zostáva použiteľné.
 - HTML je UTF-8. RTF je ASCII: spätná lomka, zložené zátvorky a každý znak mimo ASCII (napríklad české písmená) sa zapíšu ako escape.
 
+## [log.full] Plný režim logu: zbalenie, stack trace, heatmapa, farby ANSI
+commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
+1. Log: Zbaliť nezaujímavé riadky sa opýta na úroveň (ostanú riadky aspoň tejto úrovne: error, warning, info, debug) a na regulárny výraz (ostanú riadky, ktoré mu vyhovujú). Každý úsek ostatných riadkov sa zmení na jeden zástupný riadok, ktorý sa kliknutím otvorí. Riadok bez slova úrovne, napríklad riadok stack trace, patrí k záznamu nad ním. Log: Zobraziť všetky riadky všetko znova otvorí. V stránkovanom (veľmi veľkom) súbore sa riadky zbaliť nedajú; riadky, ktoré by sa zbalili, sa namiesto toho kreslia tlmene.
+2. Ctrl+kliknutie na riadok stack trace z .NET, Javy, Pythonu, PHP alebo Node.js otvorí súbor na danom riadku; Log: Otvoriť súbor riadku stack trace to urobí pre riadok s kurzorom. Relatívna cesta sa hľadá v priečinku logu, potom v priečinkoch pracovného priestoru; holé meno súboru (Java) sa hľadá pod nimi.
+3. Pruh pri pravom okraji minimapy ukazuje, kde sú husto chybové riadky (červeno) a varovania (žlto). Počíta sa na pozadí. Súbor do 256 MiB sa číta celý, väčší sa vzorkuje, takže obraz je odhad. Tieto medze nie sú rozhodnuté hodnoty.
+4. Escape sekvencie ANSI v logu sa skryjú a kreslia sa ako farby (16, 256 aj true color), tučné písmo a podčiarknutie. Súbor sa nikdy nemení, takže uloženie escape sekvencie zachová. Log: Zobraziť escape sekvencie ANSI nespracované prepína medzi farbami a holými sekvenciami. Štýl, ktorý riadok nechá otvorený, sa do ďalšieho riadku neprenáša.
+
 ## [view.options] Zobrazenie editora
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Príkazy sú v ponuke Zobraziť a v palete. Každý prepína jedno nastavenie; dajú sa zmeniť aj v nastaveniach.

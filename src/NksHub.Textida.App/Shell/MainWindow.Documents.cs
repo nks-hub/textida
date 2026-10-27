@@ -71,6 +71,7 @@ internal sealed partial class MainWindow
         TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);
+        TrackLogHeat(od);
     }
 
     /// <summary>With <c>editor.detectIndentation</c> on, the indentation of a file wins over the configured one for that file.</summary>
@@ -106,6 +107,7 @@ internal sealed partial class MainWindow
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;
+            surface.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }
@@ -115,6 +117,7 @@ internal sealed partial class MainWindow
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
             tab.Paged.Copied += RememberCopy;
+            tab.Paged.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
             AutomationProperties.SetName(tab.Paged, Loc.Get(K.A11yEditor));
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
