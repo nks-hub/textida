@@ -102,8 +102,8 @@ internal sealed partial class MainWindow
         var tab = new DocTab(od, OptionsFor(od));
         if (tab.Surface is { } surface)
         {
-            surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
-            surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) UpdateStatus(); };
+            surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
+            surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));

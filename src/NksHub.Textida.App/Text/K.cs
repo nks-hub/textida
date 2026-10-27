@@ -1120,6 +1120,12 @@ public static class K
     public const string RemoteExported = "remote.exported";
     public const string RemoteImported = "remote.imported";
     public const string RemoteImportFailed = "remote.importFailed";
+    public const string IdeOnTitle = "ide.on.title";
+    public const string IdeOnMessage = "ide.on.message";
+    public const string IdeOnConfirm = "ide.on.confirm";
+    public const string IdeOnStatus = "ide.on.status";
+    public const string IdeOffStatus = "ide.off.status";
+    public const string IdeFailed = "ide.failed";
     public const string McpOnTitle = "mcp.on.title";
     public const string McpOnMessage = "mcp.on.message";
     public const string McpOnConfirm = "mcp.on.confirm";

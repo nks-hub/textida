@@ -1547,6 +1547,11 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.ideBridge",
+      "title": "cmd.tools.ideBridge",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.mcpServers",
       "title": "cmd.tools.mcpServers",
       "category": "cat.tools"
@@ -3086,6 +3091,12 @@
       "command": "nks.tools.mcpTools",
       "group": "8_mcp",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.ideBridge",
+      "group": "8_mcp",
+      "order": 35
     },
     {
       "menu": "tools",

@@ -1226,6 +1226,16 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
+## [tools.ide] The /ide bridge for Claude Code
+commands: nks.tools.ideBridge
+Claude Code that runs in a terminal on this computer can connect to Textida with its /ide command. The agent then learns where your selection is and can propose changes. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
+1. First switch on the MCP server (Tools, MCP Server) and share a tab (Tools, Share This Tab with MCP). The bridge uses the same shared tabs.
+2. Choose Tools, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
+3. In the terminal run /ide in Claude Code. A program without the token from the lock file is refused.
+- The agent is told about the selection and path of a shared tab each time the selection changes. Text of .env values is hidden as in every other read. Withdrawing the tab stops this at once.
+- The agent's changes arrive as proposals through the same change review as for MCP.
+- Not finished: the lock file fields, the WebSocket subprotocol, the selection message and the diff call of Claude Code are not described in its public documentation, so no Claude Code version is confirmed to work with the bridge yet. Diagnostics are an empty list until language servers are connected.
+
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
 1. Tools, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it.
