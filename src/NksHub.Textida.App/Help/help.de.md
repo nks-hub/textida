@@ -208,6 +208,14 @@ commands: nks.file.openPathAtCaret
 - Zeigt der Pfad auf einen Ordner, wird er im Panel Dateien angezeigt.
 - Kein Pfad am Cursor: Am Cursor steht kein Dateipfad. Datei existiert nicht: Der Pfad wird mit dem Hinweis genannt, dass er nicht existiert.
 
+## [file.openSpecial] Spezielles Öffnen
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Wählen Sie Datei und dann Spezielles Öffnen oder starten Sie Spezielles Öffnen in der Palette. Im Dateipanel klicken Sie mit der rechten Maustaste auf eine Datei und wählen Spezielles Öffnen.
+2. Wählen Sie, wie die Datei geöffnet wird. Aus dem Panel wird die gewählte Datei verwendet, sonst die Datei des aktuellen Tabs; gibt es keine, wählen Sie eine aus.
+- Datei in Hex öffnen, Mit Kodierung öffnen (die Kodierungsliste erscheint nach dem Öffnen), Schreibgeschützt öffnen (der Tab speichert nicht), Als neue Kopie öffnen (ein ungespeichertes Dokument mit dem Text der Datei).
+- Mit Kodierung neu öffnen, Pfad am Cursor öffnen und Zugehörige Datei arbeiten mit dem aktuellen Tab.
+- Ordner der Datei öffnen zeigt den Ordner im Dateimanager des Systems; Mit Standard-App öffnen übergibt die Datei dem Programm, das das System dafür festgelegt hat.
+- Zuletzt geschlossenen Tab erneut öffnen öffnet die Datei des zuletzt geschlossenen Tabs; geschlossene Dateien, die nicht mehr existieren, werden übersprungen.
 ## [app.settings] Einstellungen
 commands: nks.app.openSettings
 1. Drücken Sie Strg+Komma oder wählen Sie Einstellungen und dann Einstellungen.

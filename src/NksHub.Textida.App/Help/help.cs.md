@@ -213,6 +213,14 @@ commands: nks.file.openPathAtCaret
 - Míří-li cesta na složku, ukáže se v panelu Soubory.
 - Pod kurzorem není cesta: Pod kurzorem není cesta k souboru. Soubor neexistuje: napíše se cesta a že neexistuje.
 
+## [file.openSpecial] Zvláštní otevření
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Zvolte Soubor a pak Zvláštní otevření, nebo spusťte Zvláštní otevření v paletě. V panelu souborů klikněte na soubor pravým tlačítkem a zvolte Zvláštní otevření.
+2. Vyberte, jak soubor otevřít. Z panelu se použije vybraný soubor, jinak soubor aktuální karty; když žádný není, vyberete ho.
+- Otevřít soubor v hex, Otevřít s kódováním (seznam kódování se otevře po souboru), Otevřít jen pro čtení (karta neukládá), Otevřít jako novou kopii (neuložený dokument s textem souboru).
+- Znovu otevřít s kódováním, Otevřít cestu pod kurzorem a Související soubor pracují s aktuální kartou.
+- Otevřít složku souboru ukáže složku ve správci souborů systému; Otevřít výchozí aplikací předá soubor programu, který mu systém přiřadil.
+- Znovu otevřít naposledy zavřenou kartu otevře soubor karty zavřené jako poslední; zavřené soubory, které už neexistují, se přeskočí.
 ## [app.settings] Nastavení
 commands: nks.app.openSettings
 1. Stiskněte Ctrl+čárka, nebo zvolte Nastavení a Nastavení.

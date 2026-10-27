@@ -281,6 +281,15 @@ public static class K
     public const string FilesOpenPathNone = "files.openPath.none";
     public const string RelatedNone = "related.none";
     public const string RelatedUnsaved = "related.unsaved";
+    public const string SpecialMenu = "special.menu";
+    public const string SpecialWatermark = "special.watermark";
+    public const string SpecialNotFile = "special.notFile";
+    public const string SpecialNoTarget = "special.noTarget";
+    public const string SpecialReadOnly = "special.readOnly";
+    public const string SpecialSaveRefused = "special.saveRefused";
+    public const string SpecialTooLarge = "special.tooLarge";
+    public const string SpecialLaunchFailed = "special.launchFailed";
+    public const string SpecialNoClosed = "special.noClosed";
     public const string NavNoBack = "nav.noBack";
     public const string NavNoForward = "nav.noForward";
     public const string BookmarkAdded = "bookmarks.added";

@@ -213,6 +213,14 @@ commands: nks.file.openPathAtCaret
 - Ak cesta mieri na priečinok, ukáže sa v paneli Súbory.
 - Pod kurzorom nie je cesta: Pod kurzorom nie je cesta k súboru. Súbor neexistuje: napíše sa cesta a že neexistuje.
 
+## [file.openSpecial] Osobitné otvorenie
+commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.reread, nks.open.readOnly, nks.open.newCopy, nks.file.openPathAtCaret, nks.search.relatedFile, nks.open.containingFolder, nks.open.defaultApp, nks.open.lastClosed
+1. Zvoľte Súbor a potom Osobitné otvorenie, alebo spustite Osobitné otvorenie v palete. V paneli súborov kliknite na súbor pravým tlačidlom a zvoľte Osobitné otvorenie.
+2. Vyberte, ako súbor otvoriť. Z panela sa použije vybraný súbor, inak súbor aktuálnej karty; ak žiadny nie je, vyberiete ho.
+- Otvoriť súbor v hex, Otvoriť s kódovaním (zoznam kódovaní sa otvorí po súbore), Otvoriť iba na čítanie (karta neukladá), Otvoriť ako novú kópiu (neuložený dokument s textom súboru).
+- Znova otvoriť s kódovaním, Otvoriť cestu pod kurzorom a Súvisiaci súbor pracujú s aktuálnou kartou.
+- Otvoriť priečinok súboru ukáže priečinok v správcovi súborov systému; Otvoriť predvolenou aplikáciou odovzdá súbor programu, ktorý mu systém priradil.
+- Znova otvoriť naposledy zatvorenú kartu otvorí súbor karty zatvorenej ako posledná; zatvorené súbory, ktoré už neexistujú, sa preskočia.
 ## [app.settings] Nastavenia
 commands: nks.app.openSettings
 1. Stlačte Ctrl+čiarka, alebo zvoľte Nastavenia a Nastavenia.
