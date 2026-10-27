@@ -551,9 +551,10 @@ public class CsvViewTests : IDisposable
         var view = _w.ActiveTable!;
         Assert.Equal(["a;b"], view.Table.Header());
         Assert.NotNull(_w.ShowTableDialectMenu());
+        var documentDialect = tab.Doc.TableDialect;
         view.SetDialect(new CsvDialect(';'));
         Assert.Equal(["a", "b"], view.Table.Header());
-        Assert.Equal(CsvDialect.ForPath(null), tab.Doc.TableDialect);
+        Assert.Equal(documentDialect, tab.Doc.TableDialect);
     }
 
     [AvaloniaFact]

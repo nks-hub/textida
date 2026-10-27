@@ -20,7 +20,7 @@ public readonly record struct CsvDialect(char Delimiter, char Quote = '"', bool 
 
     /// <summary>
     /// Picks the delimiter from the first lines of a text: the candidate (comma, semicolon, tab, pipe) that splits most of them into the same
-    /// number of fields (more than one). Quotes are tracked per line, so a quoted line break may mislead it. Without a clear winner the fallback stays.
+    /// number of fields (more than one); a tie goes to the fallback. Quotes are tracked per line, so a quoted line break may mislead it. Without a clear winner the fallback stays.
     /// </summary>
     public static CsvDialect Detect(string sample, CsvDialect fallback, int maxLines = 20)
     {
@@ -34,7 +34,8 @@ public readonly record struct CsvDialect(char Delimiter, char Quote = '"', bool 
             var counts = lines.Select(l => CountOutsideQuotes(l, candidate, fallback.Quote)).ToList();
             var (fields, hits) = counts.Where(c => c > 0).GroupBy(c => c).Select(g => (g.Key, g.Count())).OrderByDescending(g => g.Item2).ThenByDescending(g => g.Key).FirstOrDefault();
             if (hits * 5 < lines.Count * 4) continue;
-            if ((hits, fields) is var score && (score.hits > bestScore.Lines || (score.hits == bestScore.Lines && score.fields > bestScore.Fields)))
+            bool tie = hits == bestScore.Lines && fields == bestScore.Fields;
+            if ((hits, fields) is var score && (score.hits > bestScore.Lines || (score.hits == bestScore.Lines && score.fields > bestScore.Fields) || (tie && candidate == fallback.Delimiter)))
                 (best, bestScore) = (candidate, score);
         }
         return bestScore.Lines == 0 ? fallback : fallback with { Delimiter = best };

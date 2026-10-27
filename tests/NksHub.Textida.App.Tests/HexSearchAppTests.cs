@@ -93,7 +93,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("41 * 42");
         TestApp.Press(_w, Key.F, TestApp.Mod);
         PumpUntil(() => hex.Editor.HasSelection);
-        Assert.Equal((1L, 5L), (hex.Editor.Selection.Start, hex.Editor.Selection.End));
+        Assert.Equal((1L, 12L), (hex.Editor.Selection.Start, hex.Editor.Selection.End)); // * is greedy up to the default span, so it reaches the last B
 
         _app.Workbench.Set("hex.wildcardMaxBytes", 2);
         _dialogs.Prompts.Enqueue("41 * 42");
