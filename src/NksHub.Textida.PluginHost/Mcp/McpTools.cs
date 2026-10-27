@@ -125,6 +125,10 @@ internal static class McpTools
             "Finds literal, case-sensitive text in one shared document and returns each match with its byte offsets, its line and a short snippet around it. The text itself is not returned beyond the snippets.",
             Schema(DocumentProperty + ",\"text\":{\"type\":\"string\",\"minLength\":1},\"maxResults\":{\"type\":\"integer\",\"minimum\":1}", "\"document\",\"text\""),
             true, Search),
+        new("editor_get_selection", "Cursor and selection",
+            "Tells where the user's cursor and selection are in a shared document: for each selection its byte range (anchor and caret), the line it starts on and its text, which is cut at the size limit. " +
+            "An empty text is a cursor without a selection; 'primary' is the index of the main one. The offsets are valid for the revision reported. Hidden .env values are returned as *.",
+            Schema(DocumentProperty, "\"document\""), true, GetSelection),
         new("editor_prepare_changes", "Propose text changes",
             "Proposes changes to a shared document; nothing is written. The user sees the proposal as a diff and applies or rejects it. 'revision' is required: the proposal is refused if the document has moved on, so read it again then. " +
             "Each edit replaces a range given as start and end (byte offsets of that revision) or the one place where 'find' occurs, with 'text' (empty text deletes; start equal to end inserts). Returns a proposal id for editor_get_change_status.",
@@ -319,6 +323,70 @@ internal static class McpTools
         w.WriteEndArray();
     }
 
+    private static Task<string> GetSelection(McpToolContext c, JsonElement args)
+    {
+        var id = McpToolContext.Document(args);
+        // The selections name the revision they were taken at; when the user types before their text is read, the whole read is repeated against the new revision.
+        return c.AtRevisionAsync(id, McpToolContext.NoArguments, async _ =>
+        {
+            var taken = await c.CallAsync(DocumentMethods.Selections, id);
+            long revision = taken.GetProperty("revision").GetInt64(), budget = c.Options.MaxRangeBytes;
+            bool truncated = false;
+            var rows = new List<(long Anchor, long Caret, long Start, long End, int? Line, string Text, bool Cut)>();
+            foreach (var s in taken.GetProperty("selections").EnumerateArray())
+            {
+                if (rows.Count >= c.Options.MaxItems) { truncated = true; break; }
+                long anchor = s.GetProperty("anchor").GetInt64(), caret = s.GetProperty("caret").GetInt64();
+                long start = Math.Min(anchor, caret), end = Math.Max(anchor, caret), take = Math.Min(end - start, budget);
+                string text = "";
+                if (take > 0)
+                {
+                    var read = await c.CallAsync(DocumentMethods.ReadText, id, w =>
+                    {
+                        w.WriteNumber("revision", revision);
+                        w.WriteNumber("start", start);
+                        w.WriteNumber("end", start + take);
+                        w.WriteBoolean("snap", true);
+                    });
+                    text = read.GetProperty("text").GetString()!;
+                    budget -= take;
+                }
+                truncated |= take < end - start;
+                rows.Add((anchor, caret, start, end, await LineOfAsync(c, id, revision, start), text, take < end - start));
+            }
+            return Json(w =>
+            {
+                WriteId(w, id);
+                w.WriteNumber("revision", revision);
+                w.WriteNumber("primary", taken.GetProperty("primary").GetInt32());
+                w.WriteStartArray("selections");
+                foreach (var (anchor, caret, start, end, line, text, cut) in rows)
+                {
+                    w.WriteStartObject();
+                    w.WriteNumber("anchor", anchor);
+                    w.WriteNumber("caret", caret);
+                    w.WriteNumber("start", start);
+                    w.WriteNumber("end", end);
+                    if (line is { } l) w.WriteNumber("line", l);
+                    w.WriteString("text", text);
+                    w.WriteBoolean("truncated", cut);
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+                w.WriteBoolean("truncated", truncated);
+                if (rows.Count == 0) w.WriteString("note", "The tab has no cursor to report: it is not shown in a text or hex view.");
+            });
+        });
+    }
+
+    /// <summary>Refuses a proposal while as many wait for the user as the limit allows, so an assistant cannot queue reviews without end.</summary>
+    private static void CheckPending(McpToolContext c)
+    {
+        int pending = c.Options.Proposals.PendingCount;
+        if (pending >= c.Options.MaxPendingProposals)
+            throw new ToolFailure($"{pending} proposals are waiting for the decision of the user, which is the limit. Wait until the user has decided on some (editor_get_change_status) before proposing more.");
+    }
+
     private static Task<string> PrepareChanges(McpToolContext c, JsonElement args)
     {
         var id = McpToolContext.Document(args);
@@ -331,6 +399,7 @@ internal static class McpTools
 
     private static async Task<string> PrepareChangesAsync(McpToolContext c, Guid id, long revision, string? title, JsonElement edits)
     {
+        CheckPending(c);
         var resolved = new List<(long Start, long End, string Text)>();
         int index = 0;
         foreach (var edit in edits.EnumerateArray())
@@ -564,7 +633,7 @@ internal static class McpTools
     private sealed record DiagnosticRow(JsonElement Item, (int Line, int Column)? Start, (int Line, int Column)? End);
 
     /// <summary>The stored diagnostics of a shared document at its current revision, each with the 0-based position of its range (null when the revision moved on or the position is unknown).</summary>
-    private static async Task<(long Revision, int Withheld, List<DiagnosticRow> Rows)> DiagnosticsAsync(McpToolContext c, Guid id, int max)
+    private static async Task<(long Revision, int Withheld, List<DiagnosticRow> Rows, bool Truncated)> DiagnosticsAsync(McpToolContext c, Guid id, int max)
     {
         var listed = await c.CallAsync(DocumentMethods.DiagnosticsList, id);
         long revision = listed.GetProperty("revision").GetInt64();
@@ -580,13 +649,13 @@ internal static class McpTools
         var rows = new List<DiagnosticRow>();
         foreach (var item in listed.GetProperty("diagnostics").EnumerateArray().Take(max))
             rows.Add(new(item, await Place(item.GetProperty("start").GetInt64()), await Place(item.GetProperty("end").GetInt64())));
-        return (revision, listed.GetProperty("withheld").GetInt32(), rows);
+        return (revision, listed.GetProperty("withheld").GetInt32(), rows, listed.GetProperty("diagnostics").GetArrayLength() > max);
     }
 
     private static async Task<string> Diagnostics(McpToolContext c, JsonElement args)
     {
         var id = McpToolContext.Document(args);
-        var (revision, withheld, rows) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
+        var (revision, withheld, rows, truncated) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
         return Json(w =>
         {
             WriteId(w, id);
@@ -605,6 +674,7 @@ internal static class McpTools
             }
             w.WriteEndArray();
             w.WriteNumber("withheld", withheld);
+            w.WriteBoolean("truncated", truncated);
         });
     }
 
@@ -623,7 +693,7 @@ internal static class McpTools
             var path = d.GetProperty("path").GetString();
             var fileUri = path is null ? "untitled:" + id.ToString("N") : new Uri(path).AbsoluteUri;
             if (uri is not null && !string.Equals(uri, fileUri, StringComparison.OrdinalIgnoreCase)) continue;
-            var (_, _, rows) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
+            var (_, _, rows, _) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
             if (rows.Count > 0) files.Add((fileUri, rows));
         }
         return Json(w =>
@@ -740,6 +810,7 @@ internal static class McpTools
 
     private static async Task<string> ProposeBytesAsync(McpToolContext c, Guid id, long revision, string? title, List<(long Start, long End, byte[] Bytes)> edits)
     {
+        CheckPending(c);
         var answer = await c.CallAsync(DocumentMethods.EditPropose, id, w =>
         {
             w.WriteNumber("revision", revision);

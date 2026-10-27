@@ -321,6 +321,26 @@
           "description": "Ignore case when comparing. Lines that differ only in letter case count as equal when texts are compared.",
           "x-scope": "application"
         },
+        "tools.makeProgram": {
+          "type": "string",
+          "default": "",
+          "description": "Make program. Program that runs the targets of a Makefile. Empty: make. Use mingw32-make or a full path when make is not in PATH.",
+          "x-scope": "application"
+        },
+        "tools.timeoutSeconds": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 86400,
+          "description": "Default time limit of tools (seconds). Seconds after which a tool whose definition has no timeoutSeconds is ended. 0 means no limit is chosen yet: such a tool runs until it ends or you stop it.",
+          "x-scope": "application"
+        },
+        "tools.outputEncoding": {
+          "type": "string",
+          "default": "",
+          "description": "Default output encoding of tools. Encoding the output of a tool is read in when its definition names none, for example utf-8, windows-1250 or ibm852. Empty: utf-8.",
+          "x-scope": "application"
+        },
         "editor.profile": {
           "type": "string",
           "default": "default",

@@ -1448,6 +1448,11 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.tools.makeRepeat",
+      "title": "cmd.tools.makeRepeat",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.log.nextError",
       "title": "cmd.log.nextError",
       "category": "cat.log"
@@ -1984,6 +1989,12 @@
     {
       "id": "nks.tools.mcpShareTab",
       "title": "cmd.tools.mcpShareTab",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.tools.mcpShareSelection",
+      "title": "cmd.tools.mcpShareSelection",
       "category": "cat.tools",
       "enablement": "hasDocument"
     },
@@ -3766,6 +3777,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.makeRepeat",
+      "group": "2_run/04_5_run",
+      "submenu": "run",
+      "order": 16
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.edit",
       "group": "2_run/04_5_run",
       "submenu": "run",
@@ -4381,6 +4399,13 @@
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpShareSelection",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 25
     },
     {
       "menu": "tools",
@@ -5709,6 +5734,54 @@
         "diff",
         "compare",
         "case"
+      ]
+    },
+    {
+      "key": "tools.makeProgram",
+      "type": "string",
+      "default": "",
+      "title": "setting.tools.makeProgram.title",
+      "description": "setting.tools.makeProgram.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "make",
+        "makefile",
+        "build",
+        "external"
+      ]
+    },
+    {
+      "key": "tools.timeoutSeconds",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.tools.timeoutSeconds.title",
+      "description": "setting.tools.timeoutSeconds.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 86400,
+      "tags": [
+        "tool",
+        "timeout",
+        "external",
+        "limit"
+      ]
+    },
+    {
+      "key": "tools.outputEncoding",
+      "type": "string",
+      "default": "",
+      "title": "setting.tools.outputEncoding.title",
+      "description": "setting.tools.outputEncoding.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "tool",
+        "output",
+        "encoding",
+        "codepage",
+        "external"
       ]
     },
     {

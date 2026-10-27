@@ -80,7 +80,7 @@ public class IdeBridgeTests
             var server = new McpServer(new McpServerOptions
             {
                 Documents = api, Proposals = ledger, Limits = T.Roomy, ServerName = "textida-test", ServerVersion = "0.0.1", MaxResultChars = 200_000, MaxRangeBytes = 4096,
-                MaxItems = 50, SnippetBytes = 12, MaxLineChars = 200,
+                MaxItems = 50, SnippetBytes = 12, MaxLineChars = 200, MaxPendingProposals = 10,
             });
             var rig = new Rig { Api = api, Server = server, Permissions = permissions, Ledger = ledger, Reviewer = reviewer, Owner = owner, LockDirectory = Path.Combine(T.TempDir(), "ide") };
             rig.Bridge = new IdeBridge(new IdeBridgeOptions { Server = server, LockDirectory = rig.LockDirectory, HandshakeTimeout = TimeSpan.FromSeconds(5), MaxHeaderBytes = 8192 });

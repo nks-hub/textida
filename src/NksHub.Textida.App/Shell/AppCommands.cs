@@ -147,6 +147,7 @@ internal static class AppCommands
         On("nks.edit.fragmentWriteBack", w => w.WriteBackFragment());
         On("nks.tools.mcpServer", w => w.ToggleMcpServer());
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
+        On("nks.tools.mcpShareSelection", w => w.ShareSelectionWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
@@ -263,6 +264,7 @@ internal static class AppCommands
         On("nks.file.saveActions", w => w.ShowSaveActions());
         On("nks.file.configFiles", w => w.ShowConfigFiles());
         On("nks.tools.makeTargets", w => w.ShowMakeTargets());
+        On("nks.tools.makeRepeat", w => w.RepeatMakeTarget());
         On("nks.packages.lookup", w => w.PackageLookup(refresh: false));
         On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
         On("nks.packages.revoke", w => w.PackageRevoke());

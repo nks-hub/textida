@@ -269,6 +269,18 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest answer body of one <c>net/request</c>. It travels base64 encoded, so it stays well under the 4 MiB message limit of <see cref="Host"/>. The owner has not decided it.</summary>
     public const int NetworkMaxResponseBytes = 2 << 20;
 
+    /// <summary>Placeholder, OPEN: seconds after which a tool with no <c>timeoutSeconds</c> of its own is ended while the setting <c>tools.timeoutSeconds</c> is 0. 0 means no limit, which is how tools ran before. The owner has not decided it.</summary>
+    public const int ToolDefaultTimeoutSeconds = 0;
+
+    /// <summary>Placeholder, OPEN: the encoding the output of a tool is read in while its definition names none and the setting <c>tools.outputEncoding</c> is empty. The owner has not decided it.</summary>
+    public const string ToolOutputEncoding = "utf-8";
+
+    /// <summary>Placeholder, OPEN: folders looked into for the nearest Makefile, counting the folder of the open file and those above it. The search also stops at the root of the project. The owner has not decided it.</summary>
+    public const int MakefileSearchLevels = 8;
+
+    /// <summary>Placeholder, OPEN: largest Makefile in bytes that is read from disk to list its targets; a larger one is refused with a message. The owner has not decided it.</summary>
+    public const long MakefileMaxBytes = 4L << 20;
+
     public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
 
     public static PluginHostOptions Host() => new()
@@ -364,6 +376,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest log line an MCP result carries, in UTF-16 units.</summary>
     public const int McpMaxLineChars = 2000;
 
+    /// <summary>Placeholder, OPEN: proposals of the MCP assistant that may wait for the decision of the user at once; a further one is refused until the user decides on one. The owner has not decided it.</summary>
+    public const int McpMaxPendingProposals = 10;
+
+    /// <summary>Placeholder, OPEN: most bytes of a selection that Share Selection with MCP copies into its read-only excerpt; a larger selection is refused with a message. The owner has not decided it.</summary>
+    public const int McpMaxSelectionShareBytes = 1 << 20;
+
     public static McpServerOptions Mcp(DocumentApi documents, ProposalLedger ledger, Func<Guid, string?> titleOf, Func<Guid, CancellationToken, Task> ensureOutline) => new()
     {
         Documents = documents,
@@ -376,6 +394,7 @@ internal static class PluginLimitsPlaceholders
         MaxItems = McpMaxItems,
         SnippetBytes = McpSnippetBytes,
         MaxLineChars = McpMaxLineChars,
+        MaxPendingProposals = McpMaxPendingProposals,
         TitleOf = titleOf,
         EnsureOutline = ensureOutline,
     };

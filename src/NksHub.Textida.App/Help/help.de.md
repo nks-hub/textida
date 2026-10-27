@@ -920,12 +920,12 @@ Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Untersch
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.
 2. Ein Werkzeug hat id, title, executable und args (eine Liste: ein Eintrag ist ein Argument). Optional sind cwd (das Verzeichnis, in dem es läuft; ohne Angabe der Ordner der aktuellen Datei), timeoutSeconds (ohne Angabe gibt es kein Zeitlimit) und logPattern (siehe LOG-Muster). Beispiel: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
-3. In executable, args und cwd stehen die Variablen ${File} (vollständiger Pfad), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} und ${Column} für das aktuelle Dokument; $$ ist ein Dollarzeichen. Ein Argument bleibt ein Argument, was auch im Wert steht, Leerzeichen und Anführungszeichen eingeschlossen: Es wird keine Shell verwendet. Eine unbekannte Variable oder ${File} bei einem Dokument ohne Datei stoppt den Start, bevor etwas beginnt. Die Variablen von Clips und Rezepten gelten hier auch (file.path, date, datetime, selection, user.name und Ihre eigenen Variablen), mit demselben Wert wie dort. Eine eigene Variable gleichen Namens geht auch ${File} und den anderen vor. Lässt sich die Datei der eigenen Variablen nicht lesen, startet das Werkzeug nicht und die Ausgabe nennt den Grund.
+3. In executable, args und cwd stehen die Variablen ${File} (vollständiger Pfad), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} und ${Column} für das aktuelle Dokument; ${Selection} ist der markierte Text (er darf mehrere Zeilen haben), ${Word} das Wort unter dem Cursor und ${ProjectRoot} der nächste Ordner über der Datei (oder ihr eigener), der .textida oder .git enthält; $$ ist ein Dollarzeichen. Ein Argument bleibt ein Argument, was auch im Wert steht, Leerzeichen und Anführungszeichen eingeschlossen: Es wird keine Shell verwendet. Eine unbekannte oder nicht passende Variable (${File} bei einem Dokument ohne Datei, ${Selection} ohne Markierung, ${Word} außerhalb eines Wortes) stoppt den Start, bevor etwas beginnt. Die Variablen von Clips und Rezepten gelten hier auch (file.path, date, datetime, selection, user.name und Ihre eigenen Variablen), mit demselben Wert wie dort. Eine eigene Variable gleichen Namens geht auch ${File} und den anderen vor. Lässt sich die Datei der eigenen Variablen nicht lesen, startet das Werkzeug nicht und die Ausgabe nennt den Grund.
 4. Ein Werkzeug, dessen Befehl und Verzeichnis noch nicht gelaufen sind, wird mit beidem angezeigt und startet erst nach Ihrer Bestätigung. Die Bestätigung gilt, bis sich die Definition oder das Programm dahinter ändert.
 5. Die Ausgabe geht Zeile für Zeile in den Reiter Aufgaben des Ausgabefensters, am Ende mit Exitcode und Zeit. Beenden in diesem Fenster oder Laufendes Werkzeug beenden stoppt das Programm und alles, was es gestartet hat; ebenso das Zeitlimit.
 - Batchdateien (.bat, .cmd) werden über cmd.exe gestartet, und jedes Argument wird dafür in Anführungszeichen gesetzt, sodass Leerzeichen, Anführungszeichen und Zeichen wie & | < > ^ % unverändert ankommen. Ein Argument mit Zeilenumbruch oder einem anderen Steuerzeichen wird vor dem Start abgelehnt, ebenso eines mit !, wenn die Batchdatei die verzögerte Erweiterung einschaltet.
 - Ein Programmname ohne Pfad wird nur in PATH gesucht, nie im Arbeitsverzeichnis.
-- Die Ausgabe wird als UTF-8 gelesen. Es läuft immer nur ein Werkzeug.
+- Die Ausgabe wird als UTF-8 gelesen, es sei denn, das Werkzeug nennt eine andere Kodierung ("outputEncoding": "windows-1250") oder die Einstellung Standard-Ausgabekodierung für Werkzeuge ist gesetzt. Ein Werkzeug ohne timeoutSeconds bekommt die Einstellung Standard-Zeitlimit für Werkzeuge (0: kein Limit). Es läuft immer nur ein Werkzeug.
 
 ## [tools.logPattern] LOG-Muster: auf einen Fehler in der Ausgabe klicken
 commands: nks.tools.logPattern
@@ -942,13 +942,15 @@ commands: nks.tools.edit
 3. Ein Text ist eine Zeile. Ein Pfad ist eine nicht leere Zeile ohne die Zeichen * ? " < > | . Ein Wert des falschen Typs stoppt den Lauf, bevor etwas startet, und die Ausgabe nennt die Variable.
 4. Der Ordner der geöffneten Datei oder ein Ordner darüber kann .textida/tools.json mit Werkzeugen gleicher Form enthalten. Sie erscheinen in Werkzeug ausführen, laufen aber erst nach Bestätigung von Befehl und Verzeichnis, auch wenn derselbe Text in Ihrer eigenen Datei steht. Ändert sich die Definition, auch die Variablen, wird erneut gefragt. Diese Werkzeuge lassen sich im Editor nicht bearbeiten.
 - Ein leeres Argument lässt sich im Editor nicht schreiben. Beim Speichern gehen Kommentare in tools.json verloren.
+- Das Feld Kodierung der Ausgabe nennt die Kodierung, in der die Ausgabe gelesen wird (utf-8, windows-1250, ibm852); ein Name, den das System nicht kennt, wird abgelehnt. Leer: der Standard aus den Einstellungen.
 
 ## [tools.make] Makefile: Ziel ausführen
-commands: nks.tools.makeTargets
-1. Bei geöffnetem Makefile (Makefile, GNUmakefile, *.mk, *.mak) listet Werkzeuge, Makefile-Ziel ausführen dessen Ziele aus dem Text des Tabs. Das gewählte Ziel läuft als make -f mit dieser Datei und dem Ziel im Ordner der Datei.
-2. Der Lauf geht über den Werkzeug-Starter: Der Befehl wird gezeigt und beim ersten Mal bestätigt, die Ausgabe geht in den Tab Aufgaben, Stopp beendet make und alles, was es gestartet hat.
-3. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter.
-- Make muss installiert und im PATH sein. Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
+commands: nks.tools.makeTargets, nks.tools.makeRepeat
+1. Werkzeuge, Makefile-Ziel ausführen listet die Ziele des Makefile zur geöffneten Datei: die Datei selbst, wenn sie ein Makefile ist (Makefile, GNUmakefile, *.mk, *.mak), sonst das nächste GNUmakefile, makefile oder Makefile in ihrem Ordner oder in den Ordnern darüber. Die Suche endet an der Wurzel des Projekts (ein Ordner mit .textida oder .git). Ist das Makefile geöffnet, werden die Ziele aus dem Text des Tabs gelesen. Das gewählte Ziel läuft als make -f mit dieser Datei und dem Ziel im Ordner des Makefile.
+2. Letztes Makefile-Ziel wiederholen führt das zuletzt gestartete Ziel noch einmal aus.
+3. Der Lauf geht über den Werkzeug-Starter: Der Befehl wird gezeigt und beim ersten Mal bestätigt, die Ausgabe geht in den Tab Aufgaben, Stopp beendet make und alles, was es gestartet hat.
+4. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter. Ein rekursives make meldet „Entering directory“ und „Leaving directory“; ein relativer Dateiname nach einer solchen Zeile wird in diesem Ordner gesucht.
+- Make muss installiert und im PATH sein oder in der Einstellung Make-Programm stehen (zum Beispiel mingw32-make). Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
 
 ## [packages.registry] Paketmanifeste: Namen, Versionen und Marke für neuere Versionen
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
@@ -1400,16 +1402,18 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 - Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.
 
 ## [tools.mcp] Der Editor als MCP-Server
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
 1. Wählen Sie Extras, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
 2. Richten Sie den Assistenten so ein, dass er das Programm textida-mcp.exe aus dem Ordner mcp neben dem Editor startet (die Statusleiste zeigt den vollständigen Pfad). Es spricht über eine lokale Pipe mit dem Editor, ein Netzwerkport wird nicht geöffnet.
 3. Öffnen Sie einen Tab und wählen Sie Extras, MCP, Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
-4. Mit Extras, MCP, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
-- Der Assistent liest den Text so, wie er im Editor steht, auch ungespeichert, sucht darin, fragt die Gliederung, die Kodierung und die Zeilenenden ab, findet Zeilen einer Stufe in einem Log beliebiger Größe und liest oder durchsucht Bytes (höchstens 64 KiB pro Lesen).
+4. Wollen Sie dem Assistenten nur einen Teil eines Tabs geben, markieren Sie den Text und wählen Sie Extras, MCP, Auswahl mit MCP teilen. Der markierte Text öffnet sich als schreibgeschützter Auszug in einem eigenen Tab: eine Kopie, die dem Original nicht folgt, und der Assistent kann dazu keine Änderungen vorschlagen. Das Schließen dieses Tabs entzieht ihn.
+5. Mit Extras, MCP, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
+- Der Assistent liest den Text so, wie er im Editor steht, auch ungespeichert, sucht darin, fragt ab, wo Ihr Cursor und Ihre Auswahl stehen, liest die Fehler und Warnungen von Plugins und Linter, fragt die Gliederung, die Kodierung und die Zeilenenden ab, findet Zeilen einer Stufe in einem Log beliebiger Größe und liest oder durchsucht Bytes (höchstens 64 KiB pro Lesen).
 - Eine Änderung ist ein Vorschlag für eine Revision des Textes. Hat sich der Text inzwischen geändert, wird der Vorschlag abgelehnt und der Assistent muss neu lesen. Den Vorschlag sehen Sie wie andere Änderungen des ganzen Dokuments und wählen, ob er angewendet wird; der Assistent kann nachfragen, wie er ausging.
 - Werte in .env-Dateien sieht der Assistent als *. Beim Teilen eines solchen Tabs werden Sie gefragt, ob er die echten Werte sehen darf; die Antwort gilt nur für diesen Tab.
-- Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen. Auch das erneute Laden einer Datei entzieht sie.
+- Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen, und ein Vorschlag, der noch auf Ihre Entscheidung wartet, wird zurückgezogen und gilt als abgelehnt. Auch das erneute Laden einer Datei entzieht sie.
+- Nur eine begrenzte Zahl von Vorschlägen kann gleichzeitig auf Ihre Entscheidung warten (das Limit ist vorläufig); ein weiterer wird abgelehnt, bis Sie entschieden haben. Ein Ergebnis über dem Größenlimit wird abgelehnt, und der Assistent erfährt, dass er weniger anfordern soll.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
 
 ## [tools.ide] Die /ide-Brücke für Claude Code
@@ -1420,7 +1424,7 @@ Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mi
 3. Führen Sie im Terminal in Claude Code den Befehl /ide aus. Ein Programm ohne das Token aus der Sperrdatei wird abgewiesen.
 - Der Agent erfährt bei jeder Änderung der Auswahl Auswahl und Pfad eines freigegebenen Tabs. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
 - Änderungen des Agenten kommen als Vorschläge über dieselbe Änderungsvorschau wie bei MCP.
-- Nicht fertig: Die Felder der Sperrdatei, das WebSocket-Subprotokoll, die Auswahlnachricht und der Diff-Aufruf von Claude Code sind in dessen öffentlicher Dokumentation nicht beschrieben, daher ist noch keine Claude-Code-Version bestätigt, mit der die Brücke funktioniert. Die Diagnose ist eine leere Liste, bis Sprachserver angebunden sind.
+- Nicht fertig: Die Felder der Sperrdatei, das WebSocket-Subprotokoll, die Auswahlnachricht und der Diff-Aufruf von Claude Code sind in dessen öffentlicher Dokumentation nicht beschrieben, daher ist noch keine Claude-Code-Version bestätigt, mit der die Brücke funktioniert. Die Form des Ergebnisses von getDiagnostics (die Fehler und Warnungen der geteilten Tabs) ist vorläufig.
 
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

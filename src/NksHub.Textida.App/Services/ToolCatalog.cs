@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using NksHub.Textida.Core.Tools;
@@ -110,6 +111,7 @@ internal sealed class ToolCatalog(string directory)
             if (t.TimeoutSeconds is <= 0) { errors.Add($"{t.Id}: the time limit must be positive."); continue; }
             if (t.LogPattern is { } id && !patterns.Any(p => p.Definition.Id == id && p.Place is not null)) { errors.Add($"{t.Id}: unknown log pattern '{id}'."); continue; }
             if (Declarations(t) is not { } variables) { errors.Add($"{t.Id}: a variable type must be text or path."); continue; }
+            if (t.OutputEncoding is { } encoding && FindEncoding(encoding) is null) { errors.Add($"{t.Id}: unknown output encoding '{encoding}'."); continue; }
             var place = t.LogPattern is { } pid ? patterns.First(p => p.Definition.Id == pid).Place : null;
             tools.Add(new ToolEntry(t, ToSpec(t, variables, source), t.LogPattern, place, source));
         }
@@ -118,7 +120,15 @@ internal sealed class ToolCatalog(string directory)
 
     /// <summary>The spec the launcher runs for a definition; the one place that turns a definition into arguments, so the editor and the menu start the same thing.</summary>
     public static ToolSpec ToSpec(ExternalToolContribution t, IReadOnlyList<ToolVariableDecl> variables, string? source = null) =>
-        new(t.Id, t.Executable, t.Args, t.Cwd, t.TimeoutSeconds is { } s ? TimeSpan.FromSeconds(s) : null, variables, source);
+        new(t.Id, t.Executable, t.Args, t.Cwd, t.TimeoutSeconds is { } s ? TimeSpan.FromSeconds(s) : null, variables, source, t.OutputEncoding is { } name ? FindEncoding(name) : null);
+
+    /// <summary>The encoding with this name or code page, or null when the system does not know it (an empty name too).</summary>
+    public static Encoding? FindEncoding(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        try { return Encoding.GetEncoding(name.Trim()); }
+        catch (ArgumentException) { return null; }
+    }
 
     /// <summary>The declared variables of a definition, or null when one has a type other than text or path.</summary>
     public static List<ToolVariableDecl>? Declarations(ExternalToolContribution t)
@@ -153,6 +163,7 @@ internal sealed class ToolCatalog(string directory)
             if (t.Cwd is { Length: > 0 }) node["cwd"] = t.Cwd;
             if (t.TimeoutSeconds is { } s) node["timeoutSeconds"] = s;
             if (t.LogPattern is { Length: > 0 }) node["logPattern"] = t.LogPattern;
+            if (t.OutputEncoding is { Length: > 0 }) node["outputEncoding"] = t.OutputEncoding;
             if (t.Variables is { Count: > 0 } vars)
                 node["variables"] = new JsonArray([.. vars.Select(v =>
                 {

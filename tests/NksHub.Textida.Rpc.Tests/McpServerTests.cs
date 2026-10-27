@@ -123,6 +123,7 @@ public class McpServerTests
                 MaxItems = 50,
                 SnippetBytes = 12,
                 MaxLineChars = 200,
+                MaxPendingProposals = 10,
                 TitleOf = null,
                 EnsureOutline = (_, _) => { Interlocked.Increment(ref rig!.OutlineRequests); return Task.CompletedTask; },
             };
@@ -180,13 +181,20 @@ public class McpServerTests
             return new ToolReply(reply.Result.GetProperty("isError").GetBoolean(), text);
         }
 
-        public Document NewDocument(byte[] content, TextCodec? codec = null) =>
-            Document.FromBytes(content, PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
+        /// <summary>A document whose line index is complete, so the line numbers the tools report do not depend on how fast the index thread runs.</summary>
+        public Document NewDocument(byte[] content, TextCodec? codec = null)
+        {
+            var doc = Document.FromBytes(content, PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
+            var until = DateTime.UtcNow.AddSeconds(30);
+            while (!doc.LineIndexState.Complete && DateTime.UtcNow < until) Thread.Sleep(1);
+            Assert.True(doc.LineIndexState.Complete);
+            return doc;
+        }
 
         /// <summary>Shows the document to the assistant the way the editor does when the user shares a tab.</summary>
-        public Document Share(Document doc, bool propose = true)
+        public Document Share(Document doc, bool propose = true, Func<SelectionSet?>? selections = null)
         {
-            Owner.Run(() => { Api.Expose(doc); return 0; });
+            Owner.Run(() => { Api.Expose(doc, selections); return 0; });
             Permissions.Grant(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(doc.Id));
             if (propose) Permissions.Grant(McpServer.ClientId, DocumentPermissions.EditPropose, GrantScope.OfDocument(doc.Id));
             return doc;
@@ -223,7 +231,7 @@ public class McpServerTests
         var list = await rig.ModernAsync("tools/list");
         var tools = list.Result.GetProperty("tools").EnumerateArray().ToList();
         Assert.Equal(McpServer.AllTools.Select(t => t.Name), tools.Select(t => t.GetProperty("name").GetString()));
-        Assert.Equal(13, tools.Count);
+        Assert.Equal(14, tools.Count);
         foreach (var tool in tools)
         {
             Assert.Equal("object", tool.GetProperty("inputSchema").GetProperty("type").GetString());
@@ -266,7 +274,7 @@ public class McpServerTests
         Assert.False(init.Result.TryGetProperty("resultType", out _));
         await rig.SendAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         var list = await rig.RequestAsync("tools/list", "{}");
-        Assert.Equal(13,list.Result.GetProperty("tools").GetArrayLength());
+        Assert.Equal(14, list.Result.GetProperty("tools").GetArrayLength());
         Assert.False(list.Result.TryGetProperty("resultType", out _));
         var call = await rig.RequestAsync("tools/call", "{\"name\":\"editor_list_documents\"}");
         Assert.False(call.Result.GetProperty("isError").GetBoolean());
@@ -438,6 +446,98 @@ public class McpServerTests
         rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
     }
 
+    [Fact]
+    public async Task The_selection_tool_reports_each_range_with_its_line_and_text_and_cuts_the_text_at_the_size_limit()
+    {
+        await using var rig = Rig.Create(o => o with { MaxRangeBytes = 8 });
+        var doc = rig.NewDocument(Utf8("alpha beta\ngamma delta\n"));
+        rig.Share(doc, selections: () => SelectionSet.Create([TextSelection.At(0), new TextSelection(6, 10), new TextSelection(11, 22)], 1));
+        long revision = rig.Owner.Run(() => doc.Revision);
+
+        var reply = (await rig.ToolAsync("editor_get_selection", rig.Args(doc))).Json;
+        Assert.Equal(revision, reply.GetProperty("revision").GetInt64());
+        Assert.Equal(1, reply.GetProperty("primary").GetInt32());
+        var rows = reply.GetProperty("selections").EnumerateArray().ToList();
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("", rows[0].GetProperty("text").GetString());
+        Assert.Equal("beta", rows[1].GetProperty("text").GetString());
+        Assert.Equal((6, 10, 1), (rows[1].GetProperty("start").GetInt32(), rows[1].GetProperty("end").GetInt32(), rows[1].GetProperty("line").GetInt32()));
+        Assert.Equal("gamm", rows[2].GetProperty("text").GetString()); // 8 bytes for all: 4 were used by "beta"
+        Assert.True(rows[2].GetProperty("truncated").GetBoolean());
+        Assert.Equal(22, rows[2].GetProperty("end").GetInt64());
+        Assert.Equal(2, rows[2].GetProperty("line").GetInt32());
+        Assert.True(reply.GetProperty("truncated").GetBoolean());
+    }
+
+    [Fact]
+    public async Task The_selection_tool_names_a_tab_without_a_text_view_and_refuses_one_that_is_not_shared()
+    {
+        await using var rig = Rig.Create();
+        var shared = rig.Share(rig.NewDocument(Utf8("no view\n")));
+        var none = (await rig.ToolAsync("editor_get_selection", rig.Args(shared))).Json;
+        Assert.Equal(0, none.GetProperty("selections").GetArrayLength());
+        Assert.Contains("no cursor", none.GetProperty("note").GetString());
+
+        var hidden = rig.NewDocument(Utf8("secret plans\n"));
+        rig.Owner.Run(() => { rig.Api.Expose(hidden, () => SelectionSet.Single(new TextSelection(0, 6))); return 0; });
+        var refused = await rig.ToolAsync("editor_get_selection", rig.Args(hidden));
+        Assert.True(refused.IsError);
+        Assert.DoesNotContain("secret", refused.Text);
+    }
+
+    [Fact]
+    public async Task The_selection_tool_hides_env_values_until_the_user_allows_them()
+    {
+        await using var rig = Rig.Create();
+        var doc = Document.CreateVirtual(".env", Utf8("API_KEY=hunter2\nname=shown\n"), PagedBackendFactory.Instance, TextCodec.Utf8);
+        rig.Share(doc, selections: () => SelectionSet.Single(new TextSelection(0, 15)));
+        var hidden = await rig.ToolAsync("editor_get_selection", rig.Args(doc));
+        Assert.DoesNotContain("hunter2", hidden.Text);
+        Assert.Equal("API_KEY=*******", hidden.Json.GetProperty("selections")[0].GetProperty("text").GetString());
+
+        rig.Permissions.Grant(McpServer.ClientId, DocumentPermissions.SecretsReveal, GrantScope.OfDocument(doc.Id));
+        Assert.Equal("API_KEY=hunter2", (await rig.ToolAsync("editor_get_selection", rig.Args(doc))).Json.GetProperty("selections")[0].GetProperty("text").GetString());
+        rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
+    }
+
+    [Fact]
+    public async Task Proposals_waiting_for_the_user_are_limited_and_a_decision_makes_room()
+    {
+        await using var rig = Rig.Create(o => o with { MaxPendingProposals = 2 });
+        var doc = rig.Share(rig.NewDocument(Utf8("alpha beta gamma\n")));
+        long revision = rig.Owner.Run(() => doc.Revision);
+        string Text(string text) => rig.Args(doc, $"\"revision\":{revision},\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"{text}\"}}]");
+
+        Assert.False((await rig.ToolAsync("editor_prepare_changes", Text("x"))).IsError);
+        Assert.False((await rig.ToolAsync("editor_prepare_byte_changes", rig.Args(doc, $"\"revision\":{revision},\"edits\":[{{\"offset\":0,\"bytes\":\"41\"}}]"))).IsError);
+        Assert.Equal(2, rig.Ledger.PendingCount);
+
+        var refused = await rig.ToolAsync("editor_prepare_changes", Text("y"));
+        Assert.True(refused.IsError);
+        Assert.Contains("limit", refused.Text);
+        Assert.Equal(2, rig.Reviewer.Seen.Count); // the refused proposal never reached the user
+        Assert.True((await rig.ToolAsync("editor_prepare_byte_changes", rig.Args(doc, $"\"revision\":{revision},\"edits\":[{{\"offset\":0,\"bytes\":\"41\"}}]"))).IsError);
+
+        rig.Reviewer.Decision.SetResult(new ReviewOutcome(ProposalStatus.Rejected));
+        await T.Until(() => rig.Ledger.PendingCount == 0);
+        Assert.False((await rig.ToolAsync("editor_prepare_changes", Text("z"))).IsError);
+    }
+
+    [Fact]
+    public async Task A_result_larger_than_the_size_limit_is_refused_with_the_advice_to_ask_for_less()
+    {
+        await using var rig = Rig.Create(o => o with { MaxResultChars = 300 });
+        var doc = rig.Share(rig.NewDocument(Utf8(new string('x', 1000))));
+        var large = await rig.ToolAsync("editor_read_range", rig.Args(doc));
+        Assert.True(large.IsError);
+        Assert.Contains("limit is 300", large.Text);
+        Assert.DoesNotContain("xxxxxxxxxx", large.Text);
+
+        var small = await rig.ToolAsync("editor_read_range", rig.Args(doc, "\"start\":0,\"end\":50"));
+        Assert.False(small.IsError, small.Text);
+        Assert.Equal(new string('x', 50), small.Json.GetProperty("text").GetString());
+    }
+
     // ---- P6.3.2 ----
 
     [Fact]
@@ -520,6 +620,19 @@ public class McpServerTests
 
         Assert.True(rig.Owner.Run(() => doc.Insert(0, Utf8("x")).Applied));
         Assert.Equal(5, (await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json.GetProperty("diagnostics")[0].GetProperty("start").GetInt64());
+    }
+
+    [Fact]
+    public async Task Diagnostics_beyond_the_item_limit_are_cut_and_the_result_says_so()
+    {
+        await using var rig = Rig.Create(o => o with { MaxItems = 2 });
+        var doc = rig.Share(rig.NewDocument(Utf8("one\ntwo\nthree\n")));
+        Publish(rig, doc, (0, 3, "a"), (4, 7, "b"));
+        Assert.False((await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json.GetProperty("truncated").GetBoolean());
+        Publish(rig, doc, (0, 3, "a"), (4, 7, "b"), (8, 13, "c"));
+        var cut = (await rig.ToolAsync("editor_diagnostics", rig.Args(doc))).Json;
+        Assert.Equal(2, cut.GetProperty("diagnostics").GetArrayLength());
+        Assert.True(cut.GetProperty("truncated").GetBoolean());
     }
 
     [Fact]

@@ -920,12 +920,12 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Running Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
 2. A tool has an id, a title, an executable and args (a list: one entry is one argument). Optional are cwd (the directory it runs in; the folder of the current file when missing), timeoutSeconds (without it there is no time limit) and logPattern (see LOG pattern). Example: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
-3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or ${File} for a document that has no file, stops the run before anything starts. The variables of clips and recipes work here too (file.path, date, datetime, selection, user.name and your own variables), with the same value as there. Your own variable of the same name comes before ${File} and the others as well. When the file of your own variables cannot be read, the tool does not start and the output says why.
+3. In executable, args and cwd the variables ${File} (full path), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} and ${Column} stand for the current document; ${Selection} is the selected text (it may span lines), ${Word} the word under the caret and ${ProjectRoot} the nearest folder at or above the file that has .textida or .git; $$ is a dollar sign. An argument stays one argument whatever the value holds, spaces and quotes included: no shell is involved. An unknown variable, or one that does not apply (${File} for a document that has no file, ${Selection} with nothing selected, ${Word} outside a word), stops the run before anything starts. The variables of clips and recipes work here too (file.path, date, datetime, selection, user.name and your own variables), with the same value as there. Your own variable of the same name comes before ${File} and the others as well. When the file of your own variables cannot be read, the tool does not start and the output says why.
 4. A tool whose command and directory have not run before is shown with both and starts only after you confirm. The confirmation is remembered until the definition, or the program it leads to, changes.
 5. The output goes line by line to the Tasks tab of the output window, followed by the exit code and the time. Stop in that window, or Stop Running Tool, ends the program and everything it started; so does the time limit.
 - Batch files (.bat, .cmd) are started through cmd.exe with every argument quoted for it, so spaces, quotes and characters such as & | < > ^ % pass through unchanged. An argument with a line break or another control character is refused before the start, and so is one with ! when the batch file turns delayed expansion on.
 - A program name without a path is looked for in PATH only, never in the working directory.
-- Output is read as UTF-8. One tool runs at a time.
+- Output is read as UTF-8 unless the tool names another encoding ("outputEncoding": "windows-1250") or the setting Default output encoding of tools is set. A tool without timeoutSeconds gets the setting Default time limit of tools (0: no limit). One tool runs at a time.
 
 ## [tools.logPattern] LOG pattern: click an error in the output
 commands: nks.tools.logPattern
@@ -942,13 +942,15 @@ commands: nks.tools.edit
 3. A text is one line. A path is one line, not empty, without the characters * ? " < > | . A value of the wrong type stops the run before anything starts and the output names the variable.
 4. The folder of the open file, or a folder above it, may hold .textida/tools.json with tools of the same shape. They are listed in Run Tool, but they run only after you confirm the command and the directory, even when the same text is in your own file. A definition that changes, including its variables, is asked again. These tools cannot be edited in the editor.
 - An empty argument cannot be written in the editor. Saving drops comments in tools.json.
+- The field Output encoding names the encoding the output is read in (utf-8, windows-1250, ibm852); a name the system does not know is refused. Empty: the default of the settings.
 
 ## [tools.make] Makefile: run a target
-commands: nks.tools.makeTargets
-1. With a Makefile open (Makefile, GNUmakefile, *.mk, *.mak), Tools, Running Tools, Run Makefile Target lists its targets, read from the text of the tab. Choose one to run make -f with that file and the target, in the folder of the file.
-2. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
-3. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter.
-- Make has to be installed and found in PATH. Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
+commands: nks.tools.makeTargets, nks.tools.makeRepeat
+1. Tools, Running Tools, Run Makefile Target lists the targets of the Makefile for the open file: the file itself when it is a Makefile (Makefile, GNUmakefile, *.mk, *.mak), otherwise the nearest GNUmakefile, makefile or Makefile in its folder or the folders above it. The search stops at the root of the project (a folder with .textida or .git). The list is read from the text of the tab when the Makefile is open. Choose one to run make -f with that file and the target, in the folder of the Makefile.
+2. Repeat Last Makefile Target runs the target started last once more.
+3. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
+4. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter. A recursive make says "Entering directory" and "Leaving directory"; a relative file name after such a line is looked for in that folder.
+- Make has to be installed and found in PATH, or named in the setting Make program (for example mingw32-make). Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
@@ -1400,16 +1402,18 @@ Two tabs scroll together, so equal text of two files stays side by side.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
 
 ## [tools.mcp] The editor as an MCP server
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
 1. Choose Tools, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
 3. Open a tab and choose Tools, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
-4. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
-- The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
+4. To give the assistant only a part of a tab, select the text and choose Tools, MCP, Share Selection with MCP. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
+5. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+- The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks where your cursor and selection are, reads the errors and warnings of plugins and the linter, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
 - A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
-- Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
+- Withdrawing a tab or switching the server off stops the requests that are running, and a proposal that still waits for your decision is withdrawn and counts as rejected. A reload of a file also withdraws it.
+- Only a limited number of proposals can wait for your decision at once (the limit is provisional); a further one is refused until you have decided. A result larger than the size limit is refused, and the assistant is told to ask for less.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
 ## [tools.ide] The /ide bridge for Claude Code
@@ -1420,7 +1424,7 @@ Claude Code that runs in a terminal on this computer can connect to Textida with
 3. In the terminal run /ide in Claude Code. A program without the token from the lock file is refused.
 - The agent is told about the selection and path of a shared tab each time the selection changes. Text of .env values is hidden as in every other read. Withdrawing the tab stops this at once.
 - The agent's changes arrive as proposals through the same change review as for MCP.
-- Not finished: the lock file fields, the WebSocket subprotocol, the selection message and the diff call of Claude Code are not described in its public documentation, so no Claude Code version is confirmed to work with the bridge yet. Diagnostics are an empty list until language servers are connected.
+- Not finished: the lock file fields, the WebSocket subprotocol, the selection message and the diff call of Claude Code are not described in its public documentation, so no Claude Code version is confirmed to work with the bridge yet. The result of getDiagnostics (the errors and warnings of the shared tabs) has a provisional shape.
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

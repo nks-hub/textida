@@ -1309,6 +1309,10 @@ public static class K
     public const string McpShareOff = "mcp.share.off";
     public const string McpShareNeedServer = "mcp.share.needServer";
     public const string McpShareUnavailable = "mcp.share.unavailable";
+    public const string McpShareSelectionOn = "mcp.share.selectionOn";
+    public const string McpShareSelectionEmpty = "mcp.share.selectionEmpty";
+    public const string McpShareSelectionTooLarge = "mcp.share.selectionTooLarge";
+    public const string McpSelectionTab = "mcp.selection.tab";
     public const string McpSecretsTitle = "mcp.secrets.title";
     public const string McpSecretsMessage = "mcp.secrets.message";
     public const string McpSecretsShow = "mcp.secrets.show";
@@ -1416,6 +1420,7 @@ public static class K
     public const string McpToolListDocuments = "mcp.tool.listDocuments";
     public const string McpToolReadRange = "mcp.tool.readRange";
     public const string McpToolSearch = "mcp.tool.search";
+    public const string McpToolGetSelection = "mcp.tool.getSelection";
     public const string McpToolPrepareChanges = "mcp.tool.prepareChanges";
     public const string McpToolChangeStatus = "mcp.tool.changeStatus";
     public const string McpToolOutline = "mcp.tool.outline";
@@ -1472,6 +1477,8 @@ public static class K
     public const string ToolEditCwd = "tool.edit.cwd";
     public const string ToolEditTimeout = "tool.edit.timeout";
     public const string ToolEditPattern = "tool.edit.pattern";
+    public const string ToolEditEncoding = "tool.edit.encoding";
+    public const string ToolEditEncodingBad = "tool.edit.encodingBad";
     public const string ToolEditVariables = "tool.edit.variables";
     public const string ToolEditPreview = "tool.edit.preview";
     public const string ToolEditPreviewFailed = "tool.edit.previewFailed";
@@ -1488,6 +1495,8 @@ public static class K
     public const string A11yMake = "a11y.make";
     public const string MakeNotMakefile = "make.notMakefile";
     public const string MakeNoTargets = "make.noTargets";
+    public const string MakeTooBig = "make.tooBig";
+    public const string MakeNoneYet = "make.noneYet";
     public const string MakeDetail = "make.detail";
     public const string MakeTitle = "make.title";
     public const string PackagesConsentTitle = "packages.consent.title";

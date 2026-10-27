@@ -501,8 +501,8 @@ public class SettingsSearchTests
     public void Values_are_searchable()
     {
         var (host, stack, index, keymap) = Setup();
-        stack.SetLayer(SettingSource.User, new JsonObject { ["files.encoding"] = "windows-1250" }, null, "user");
-        var hits = index.Search("1250", stack, host.Commands, keymap);
+        stack.SetLayer(SettingSource.User, new JsonObject { ["files.encoding"] = "windows-1252" }, null, "user");
+        var hits = index.Search("1252", stack, host.Commands, keymap);
         Assert.Equal(["files.encoding"], hits.Select(h => h.Id));
     }
 
