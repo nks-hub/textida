@@ -24,28 +24,30 @@ internal sealed partial class RecentJson : JsonSerializerContext;
 /// </summary>
 internal sealed class RecentFiles
 {
-    public const int Capacity = 50;
     private const string FileName = "recent.json";
 
     private readonly string _path;
     private readonly RecentData _data;
+    private readonly Func<int> _capacity;
 
-    private RecentFiles(string directory, RecentData data)
+    private RecentFiles(string directory, RecentData data, Func<int> capacity)
     {
         _path = System.IO.Path.Combine(directory, FileName);
         _data = data;
+        _capacity = capacity;
     }
 
     public IReadOnlyList<string> Files => _data.Files;
 
     public string? Folder => _data.Folder;
 
-    public static RecentFiles Load(string directory)
+    /// <param name="capacity">How many files the list keeps (the <c>advanced.recentFilesCount</c> setting), read whenever a file is added.</param>
+    public static RecentFiles Load(string directory, Func<int> capacity)
     {
         RecentData? data = null;
         try { data = JsonSerializer.Deserialize(File.ReadAllText(System.IO.Path.Combine(directory, FileName)), RecentJson.Default.RecentData); }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { /* a missing or damaged list starts empty */ }
-        return new RecentFiles(directory, data ?? new RecentData());
+        return new RecentFiles(directory, data ?? new RecentData(), capacity);
     }
 
     public void Add(string path)
@@ -54,7 +56,8 @@ internal sealed class RecentFiles
         path = UriMask.IsUri(path) ? UriMask.Mask(path) : System.IO.Path.GetFullPath(path);
         _data.Files.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
         _data.Files.Insert(0, path);
-        if (_data.Files.Count > Capacity) _data.Files.RemoveRange(Capacity, _data.Files.Count - Capacity);
+        int capacity = _capacity();
+        if (_data.Files.Count > capacity) _data.Files.RemoveRange(capacity, _data.Files.Count - capacity);
         Save();
     }
 

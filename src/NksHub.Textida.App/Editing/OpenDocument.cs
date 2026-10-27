@@ -103,8 +103,8 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>Indentation detected from the content of the file when it was opened; replaces the configured one for this document.</summary>
     public IndentSettings? IndentOverride { get; set; }
     public AutosaveService? Autosave { get; set; }
-    /// <summary>How often a document with autosave on is written to its own file.</summary>
-    public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.FromSeconds(30);
+    /// <summary>Overrides the interval of the <c>advanced.autosaveIntervalSeconds</c> setting when above zero (tests use it for a short wait).</summary>
+    public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.Zero;
     public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public List<DocTab> Views { get; } = [];
 

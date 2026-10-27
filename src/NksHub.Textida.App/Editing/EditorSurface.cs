@@ -208,6 +208,11 @@ internal sealed partial class EditorSurface : TextEditor
         Options.ShowTabs = o.ShowWhitespace;
         Options.EnableTextDragDrop = !SecretsHidden;
         Options.AcceptsTab = false;
+        Options.AllowScrollBelowDocument = o.ScrollPastEnd;
+        Options.CutCopyWholeLine = o.CutCopyWholeLine;
+        Options.HideCursorWhileTyping = o.HideMouseWhileTyping;
+        Options.RequireControlModifierForHyperlinkClick = o.LinkNeedsCtrl;
+        Options.WordWrapIndentation = o.WrapIndent * TextArea.TextView.WideSpaceWidth;
         ApplyViewOptions(o);
     }
 

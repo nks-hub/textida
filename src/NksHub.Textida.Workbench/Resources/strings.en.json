@@ -475,5 +475,20 @@
   "cmd.help.updateCheck": "Check for Updates...",
   "cmd.help.updateReturn": "Return to the Previous Version...",
   "setting.updates.checkOnStart.title": "Check for updates at start",
-  "setting.updates.checkOnStart.description": "Asks the update address for the newest version when Textida starts, and shows a bar when there is one. Off by default; nothing else is sent."
+  "setting.updates.checkOnStart.description": "Asks the update address for the newest version when Textida starts, and shows a bar when there is one. Off by default; nothing else is sent.",
+  "cat.advanced": "Advanced",
+  "setting.advanced.scrollPastEnd.title": "Scroll past the end of the text",
+  "setting.advanced.scrollPastEnd.description": "Lets the last line scroll up to the top of the editor, leaving empty space below the text.",
+  "setting.advanced.cutCopyWholeLine.title": "Cut and copy the whole line without a selection",
+  "setting.advanced.cutCopyWholeLine.description": "With nothing selected, Cut and Copy take the line of the caret including its line break.",
+  "setting.advanced.hideMouseWhileTyping.title": "Hide the mouse pointer while typing",
+  "setting.advanced.hideMouseWhileTyping.description": "The mouse pointer disappears over the text while you type and returns when you move the mouse.",
+  "setting.advanced.linkNeedsCtrl.title": "Open links only with Ctrl+click",
+  "setting.advanced.linkNeedsCtrl.description": "On: a link opens with Ctrl+click. Off: a plain click opens it. Applies only when links are turned on.",
+  "setting.advanced.wrapIndent.title": "Indent of wrapped lines (columns)",
+  "setting.advanced.wrapIndent.description": "How many columns the continuation of a wrapped line is indented, on top of the indentation of the line itself. Applies with word wrap on.",
+  "setting.advanced.recentFilesCount.title": "Recent files kept",
+  "setting.advanced.recentFilesCount.description": "How many recently opened files the list keeps. 0 keeps none. A lower number cuts the list the next time a file is opened.",
+  "setting.advanced.autosaveIntervalSeconds.title": "Autosave interval (seconds)",
+  "setting.advanced.autosaveIntervalSeconds.description": "How often a document with changes is written to its own file when Autosave is on."
 }
