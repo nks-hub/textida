@@ -385,7 +385,7 @@ public static class MultiEdit
         carets = new List<Sel>(plan.Count);
         primary = 0;
         int delta = 0, end = -1;
-        foreach (var p in plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index < 0 ? int.MaxValue : p.Index))
+        foreach (var p in IsInPlanOrder(plan) ? (IEnumerable<Planned>)plan : plan.OrderBy(p => p.Edit.Start).ThenBy(p => p.Index < 0 ? int.MaxValue : p.Index))
         {
             if (p.Edit.Start < end) continue;
             end = p.Edit.Start + p.Edit.Length;
@@ -398,6 +398,16 @@ public static class MultiEdit
             delta += p.Edit.Text.Length - p.Edit.Length;
         }
         return kept;
+    }
+
+    private static bool IsInPlanOrder(IReadOnlyList<Planned> plan)
+    {
+        for (int i = 1; i < plan.Count; i++)
+        {
+            var (a, b) = (plan[i - 1], plan[i]);
+            if (a.Edit.Start > b.Edit.Start || (a.Edit.Start == b.Edit.Start && (a.Index < 0 ? int.MaxValue : a.Index) > (b.Index < 0 ? int.MaxValue : b.Index))) return false;
+        }
+        return true;
     }
 
     /// <summary>The carets after an edit, as the text view knows them and as byte positions of the new revision, one per selection in the same order.</summary>
@@ -417,14 +427,18 @@ public static class MultiEdit
         var text = backend.TextDocument;
         var codec = doc.Codec;
 
-        var wanted = new SortedSet<int>();
-        foreach (var s in before.Items) { wanted.Add(s.Start); wanted.Add(s.End); }
-        foreach (var p in kept) { wanted.Add(p.Edit.Start); wanted.Add(p.Edit.Start + p.Edit.Length); }
-        var offsets = wanted.ToArray();
+        // every offset the edit needs in bytes, ascending and without repeats
+        var offsets = new int[2 * (before.Items.Count + kept.Count)];
+        int count = 0;
+        foreach (var s in before.Items) { offsets[count++] = s.Start; offsets[count++] = s.End; }
+        foreach (var p in kept) { offsets[count++] = p.Edit.Start; offsets[count++] = p.Edit.Start + p.Edit.Length; }
+        Array.Sort(offsets);
+        int distinct = 0;
+        for (int i = 0; i < count; i++)
+            if (distinct == 0 || offsets[i] != offsets[distinct - 1]) offsets[distinct++] = offsets[i];
         long tBytes = Core.TypingTrace.Begin();
-        var bytesAt = new Dictionary<int, long>(offsets.Length);
-        var converted = backend.ToByteOffsets(offsets);
-        for (int i = 0; i < offsets.Length; i++) bytesAt[offsets[i]] = converted[i];
+        var converted = backend.ToByteOffsets(offsets.AsSpan(0, distinct));
+        long BytesAt(int offset) => converted[Array.BinarySearch(offsets, 0, distinct, offset)];
         Core.TypingTrace.End("multi.toBytes", tBytes);
 
         // new carets in bytes: where the edit starts (shifted by the edits before it) plus the bytes of the text up to the caret
@@ -434,7 +448,7 @@ public static class MultiEdit
         for (int i = 0; i < kept.Count; i++)
         {
             var e = kept[i].Edit;
-            long b0 = bytesAt[e.Start], b1 = bytesAt[e.Start + e.Length];
+            long b0 = BytesAt(e.Start), b1 = BytesAt(e.Start + e.Length);
             var bytes = codec.EncodeLossy(e.Text);
             if (e.Length > 0 || e.Text.Length > 0) byteEdits.Add(new(new(b0, b1), bytes));
             long Position(int localOffset)
@@ -453,7 +467,7 @@ public static class MultiEdit
         var afterBytes = afterSet.Items;
 
         IReadOnlyList<ByteRange> Ranges(IEnumerable<TextSelection> sels) => [.. sels.Select(s => s.ToRange())];
-        var beforeRanges = Ranges(before.PrimaryLast().Select(s => new TextSelection(bytesAt[s.Start], bytesAt[s.End])));
+        var beforeRanges = Ranges(before.PrimaryLast().Select(s => new TextSelection(BytesAt(s.Start), BytesAt(s.End))));
         var afterRanges = Ranges(afterBytes.Where((_, i) => i != afterSet.Primary).Append(afterBytes[afterSet.Primary]));
 
         EditResult result;

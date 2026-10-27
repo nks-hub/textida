@@ -210,7 +210,8 @@ public sealed class JournalWriter : IDisposable
     private readonly object _gate = new();
     private readonly object _io = new();
     private readonly FileStream _file;
-    private readonly Timer? _timer;
+    private readonly Thread? _flusher;
+    private readonly ManualResetEventSlim _stop = new();
     private MemoryStream _pending = new();
     private long _seq;
     private bool _disposed;
@@ -231,7 +232,17 @@ public sealed class JournalWriter : IDisposable
         _file.Write(JournalFormat.FileHeader());
         _file.Flush(true);
         Length = JournalFormat.FileHeaderSize;
-        if (_options.Fsync == FsyncPolicy.Interval) _timer = new Timer(_ => Flush(), null, _options.FlushInterval, _options.FlushInterval);
+        if (_options.Fsync == FsyncPolicy.Interval)
+        {
+            // a thread of its own: a busy or starved thread pool (parallel scans, map builds) must not hold back the 2 s loss limit
+            _flusher = new Thread(FlushLoop) { IsBackground = true, Name = "Journal flush", Priority = ThreadPriority.AboveNormal };
+            _flusher.Start();
+        }
+    }
+
+    private void FlushLoop()
+    {
+        while (!_stop.Wait(_options.FlushInterval)) Flush();
     }
 
     public string Path { get; internal set; }
@@ -285,7 +296,8 @@ public sealed class JournalWriter : IDisposable
             if (_disposed) return;
             _disposed = true;
         }
-        _timer?.Dispose();
+        _stop.Set();
+        if (_flusher is not null && _flusher != Thread.CurrentThread) _flusher.Join();
         lock (_io)
         {
             MemoryStream batch;
