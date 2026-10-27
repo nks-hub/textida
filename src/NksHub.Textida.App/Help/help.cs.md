@@ -1099,7 +1099,6 @@ Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává pro
 - Řádky se přiřazují porovnáním z tématu Porovnání textů: druhý soubor se posune na odpovídající řádek, i přes vložené nebo odebrané bloky. Než se porovnání dopočítá, platí stejné číslo řádku.
 - Skončí, když se zavře jedna ze dvou karet. Hexadecimální a tabulkový pohled se neúčastní.
 
-<<<<<<< HEAD
 ## [tools.mcp] Editor jako server MCP
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 Asistent s umělou inteligencí, kterého na tomto počítači spustíte (například programovací agent), může Textidu používat přes Model Context Protocol. Vidí jen karty, které mu sdílíte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
@@ -1112,7 +1111,7 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 - Hodnoty v souborech .env vidí asistent jako *. Při sdílení takové karty se zeptáme, jestli smí vidět skutečné hodnoty; odpověď platí jen pro tu kartu.
 - Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží. Odvolá ji i znovunačtení souboru.
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
-=======
+
 ## [review.external] Kontrola změn zvenku
 commands: nks.review.open, nks.review.next, nks.review.previous
 Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.
@@ -1124,4 +1123,3 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 - Pokud během kontroly v kartě píšete, změny se ukážou znovu z nového textu.
 - Soubory s tajnými hodnotami (.env) a soubory s neuloženými úpravami zůstávají u staršího panelu: Znovu načíst, Ponechat moje, Porovnat.
 - S volbou Ponechat změny zvenku bez kontroly v nastavení karta převezme nový obsah hned. Ve výchozím stavu je vypnuta.
->>>>>>> worktree-agent-a2c693abd3ed51248

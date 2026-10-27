@@ -1094,7 +1094,6 @@ Two tabs scroll together, so equal text of two files stays side by side.
 - The lines are matched with the comparison of Comparing texts: the other file scrolls to the line that corresponds, also across inserted or removed blocks. While that comparison is being made, the same line number is used.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
 
-<<<<<<< HEAD
 ## [tools.mcp] The editor as an MCP server
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
@@ -1107,7 +1106,7 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
 - Withdrawing a tab or switching the server off stops the requests that are running. A reload of a file also withdraws it.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
-=======
+
 ## [review.external] Review changes from outside
 commands: nks.review.open, nks.review.next, nks.review.previous
 When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.
@@ -1119,4 +1118,3 @@ When another program (a script, an assistant, a build tool) changes the file of 
 - If you type in the tab during the review, the changes are shown again from the new text.
 - Files that hold secret values (.env) and files with unsaved edits keep the older bar: Reload, Keep Mine, Compare.
 - With Keep changes from outside without review in the settings, such a tab takes the new content at once. It is off by default.
->>>>>>> worktree-agent-a2c693abd3ed51248

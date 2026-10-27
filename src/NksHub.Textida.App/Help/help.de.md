@@ -1094,7 +1094,6 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 - Die Zeilen werden mit dem Vergleich aus dem Thema Texte vergleichen zugeordnet: Die andere Datei scrollt zur entsprechenden Zeile, auch über eingefügte oder entfernte Blöcke hinweg. Solange der Vergleich berechnet wird, gilt dieselbe Zeilennummer.
 - Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.
 
-<<<<<<< HEAD
 ## [tools.mcp] Der Editor als MCP-Server
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpTools
 Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
@@ -1107,7 +1106,7 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Werte in .env-Dateien sieht der Assistent als *. Beim Teilen eines solchen Tabs werden Sie gefragt, ob er die echten Werte sehen darf; die Antwort gilt nur für diesen Tab.
 - Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen. Auch das erneute Laden einer Datei entzieht sie.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
-=======
+
 ## [review.external] Änderungen von außen prüfen
 commands: nks.review.open, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.
@@ -1119,4 +1118,3 @@ commands: nks.review.open, nks.review.next, nks.review.previous
 - Tippen Sie während der Prüfung im Tab, werden die Änderungen aus dem neuen Text erneut angezeigt.
 - Dateien mit geheimen Werten (.env) und Dateien mit ungespeicherten Änderungen behalten die ältere Leiste: Neu laden, Meine behalten, Vergleichen.
 - Mit Änderungen von außen ohne Prüfung behalten in den Einstellungen übernimmt der Tab den neuen Inhalt sofort. Standardmäßig ist es aus.
->>>>>>> worktree-agent-a2c693abd3ed51248
