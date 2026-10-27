@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Hex;
+using NksHub.Textida.Core.Journal;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -120,6 +121,39 @@ public sealed class HexFillLargeTests : IDisposable
         Assert.Equal(FiveGiB, d.ByteLength);
         d.Read(FiveGiB / 2, one);
         Assert.Equal(0x22, one[0]);
+    }
+
+    [Fact]
+    [Trait("Category", "Large")]
+    public void The_journal_records_a_large_fill_as_its_pattern_and_recovery_replays_it_with_undo_and_redo()
+    {
+        using var dir = new JournalTempDir();
+        using var session = JournalSession.Start(dir.Combine("journal"), JournalFormatTests.ReferenceResolver, new JournalOptions { Fsync = FsyncPolicy.Manual });
+        const long fill = 300L << 20; // over the size of a patch, so the fill is kept as a pattern
+        byte[] pattern = [1, 2, 3, 4, 5, 6, 7];
+        using var doc = Doc.FromBytes(Enumerable.Range(0, 5000).Select(i => (byte)(i * 7)).ToArray(), new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Cp1252 });
+        session.Track(doc);
+        Assert.True(doc.Fill(new ByteRange(1000, 2000), pattern, fill, new() { RawBytes = true }).Applied);
+        doc.Replace(new ByteRange(0, 1), new byte[] { 0xEE }, new() { RawBytes = true });
+        doc.Undo();
+        doc.Undo();
+        doc.Redo();
+        doc.Redo();
+        session.Flush();
+        Assert.True(new FileInfo(session.JournalPath!).Length < 1 << 20, "The journal holds the pattern, not the bytes of the fill.");
+
+        var recovery = JournalRecovery.Recover(session.JournalPath!, JournalFormatTests.ReferenceResolver);
+        var back = Assert.Single(recovery.Documents);
+        Assert.Equal(RecoveryStatus.Restored, back.Status);
+        using var restored = back.Document!;
+        Assert.Equal(doc.ByteLength, restored.ByteLength);
+        var sha = Checksums.Find("sha256")!;
+        var all = new ByteRange(0, doc.ByteLength);
+        Assert.Equal(Checksums.Compute(sha, doc.GetSnapshot(), all), Checksums.Compute(sha, restored.GetSnapshot(), all));
+        // the recovered document undoes the fill like the original
+        Assert.NotNull(restored.Undo());
+        Assert.NotNull(restored.Undo());
+        Assert.Equal(5000, restored.ByteLength);
     }
 
     [Fact]

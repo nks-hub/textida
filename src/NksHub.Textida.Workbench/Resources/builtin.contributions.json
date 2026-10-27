@@ -740,6 +740,42 @@
       "title": "cmd.hex.inspectChanges",
       "category": "cat.hex",
       "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.copyAs",
+      "title": "cmd.hex.copyAs",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.pasteAs",
+      "title": "cmd.hex.pasteAs",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.exportSelection",
+      "title": "cmd.hex.exportSelection",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.fill",
+      "title": "cmd.hex.fill",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.operate",
+      "title": "cmd.hex.operate",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.checksum",
+      "title": "cmd.hex.checksum",
+      "category": "cat.hex",
+      "enablement": "hexMode"
     }
   ],
   "menus": [
@@ -874,6 +910,42 @@
       "command": "nks.edit.lowerCase",
       "group": "6_case",
       "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.copyAs",
+      "group": "7_hex",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.pasteAs",
+      "group": "7_hex",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.exportSelection",
+      "group": "7_hex",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.fill",
+      "group": "7_hex",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.operate",
+      "group": "7_hex",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.checksum",
+      "group": "7_hex",
+      "order": 60
     },
     {
       "menu": "search",

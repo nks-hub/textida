@@ -507,6 +507,31 @@ commands: nks.hex.inspectChanges
 - Ändert sich die Länge, wird eine neue Datei geschrieben und atomar ausgetauscht.
 - Bevor eine kleinere Datei überschrieben wird, entsteht eine Sicherung; misslingt sie, bleibt die Datei unverändert.
 
+## [hex.copyAs] Hex: Kopieren, Einfügen und Exportieren als
+commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
+1. Bearbeiten und dann Hex: Auswahl kopieren als legt die ausgewählten Bytes als Text in die Zwischenablage: Hex-Zeichenfolge, Array für C, C#, Java, Python, Rust, Go, JavaScript oder Pascal, Base64, Intel HEX, Motorola S-Record oder Hexdump.
+2. Hex: Einfügen als liest die Zwischenablage als Hex-Text, Base64 oder Array aus Quellcode und fügt die Bytes wie Strg+V ein.
+3. Hex: Auswahl exportieren schreibt die Auswahl in eine Datei, binär oder in einer der Textformen. Es läuft im Hintergrund, und Esc bricht es ab.
+- Intel HEX, S-Record und Hexdump tragen den Offset jedes Bytes in der Datei als Adresse; Intel HEX und S-Record kennen nur 32-Bit-Adressen, eine Auswahl über 4 GiB wird deshalb abgelehnt.
+- Eine Auswahl, deren Text nicht in die Zwischenablage passt, wird mit dem Hinweis auf den Export abgelehnt.
+- Ein aus Quellcode eingefügtes Array darf Dezimalzahlen, Hex als 0x und $ sowie Binärzahlen als 0b enthalten; eine Zahl außerhalb von -128 bis 255 stoppt das Einfügen.
+
+## [hex.fill] Hex: Füllen und Operationen auf der Auswahl
+commands: nks.hex.fill, nks.hex.operate
+1. Hex: Auswahl füllen füllt die Auswahl mit einem Muster aus Hex-Bytes oder Text, wiederholt die Auswahl hinter sich, schreibt Zufallsbytes oder Zahlen mit Schrittweite. Ohne Auswahl füllt ein Muster mit * und einer Anzahl so viele Bytes am Cursor (im Einfügemodus werden sie eingefügt).
+2. Hex: Operationen auf der Auswahl führt XOR, AND, OR, NOT, Addieren, eine Verschiebung oder Rotation um 1 bis 7 Bit (je Byte) oder einen Tausch der Bytereihenfolge in Gruppen zu 2, 4 oder 8 aus. Operanden wiederholen sich über die Auswahl.
+3. Der Dialog zeigt vor der Bestätigung, wie viele Bytes sich ändern. Jedes Füllen und jede Operation ist ein Schritt für Rückgängig, und die gefüllten Bytes bleiben ausgewählt.
+- Ein Füllen von mehr als 256 MiB wird als Muster und Länge gehalten, nicht als Bytes, kostet also selbst bei 5 GiB weder Speicher noch Zeit; das Speichern schreibt es als neue Datei. Rückgängig für ein solches Füllen und die Schritte davor gilt bis die Datei überschrieben gespeichert wird.
+- Zufallsbytes, Zahlen mit Schrittweite und die Operationen halten die Auswahl im Speicher und lehnen mehr als 2 GiB ab.
+
+## [hex.checksum] Hex: Prüfsummen und Hashes
+commands: nks.hex.checksum
+1. Hex: Prüfsummen und Hashes rechnet über die Auswahl oder, wenn nichts ausgewählt ist, über die ganze Datei: CRC-16, CRC-32, CRC-64 in mehreren Varianten, CRC mit eigenem Polynom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 und SHA-512.
+2. Die Berechnung läuft im Hintergrund, der Fortschritt steht in der Statuszeile; Esc bricht sie ab.
+3. Das Ergebnis lässt sich kopieren oder mit einem eingefügten Wert vergleichen; Leerzeichen, Doppelpunkte, 0x und Groß- und Kleinschreibung spielen keine Rolle.
+- Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.
+- Ein CRC mit eigenem Polynom nimmt die Breite in Bit und hex das Polynom (ungerade), den Startwert, die zwei Spiegelungsflags (0 oder 1) und das End-XOR.
+
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Die Befehle stehen im Menü Ansicht und in der Palette. Jeder schaltet eine Einstellung um; die Einstellungen lassen sich auch in den Einstellungen ändern.

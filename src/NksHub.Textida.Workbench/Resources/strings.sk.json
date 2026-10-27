@@ -238,6 +238,12 @@
   "cmd.hex.bytesPerRow.64": "64 bajtov na riadok",
   "cmd.hex.offsetFormat": "Prepnúť offsety desiatkovo a hexadecimálne",
   "cmd.hex.inspectChanges": "Zmeny pred uložením...",
+  "cmd.hex.copyAs": "Hex: Kopírovať výber ako...",
+  "cmd.hex.pasteAs": "Hex: Vložiť ako...",
+  "cmd.hex.exportSelection": "Hex: Exportovať výber...",
+  "cmd.hex.fill": "Hex: Vyplniť výber...",
+  "cmd.hex.operate": "Hex: Operácie nad výberom...",
+  "cmd.hex.checksum": "Hex: Kontrolné súčty a hashe...",
   "setting.files.binaryAsHex.title": "Binárne súbory v hexe",
   "setting.files.binaryAsHex.description": "Čo sa stane, keď má súbor v prvých 8 000 bajtoch bajt NUL: opýtať sa v lište, vždy otvoriť v hexe, alebo nikdy neprepínať."
 }

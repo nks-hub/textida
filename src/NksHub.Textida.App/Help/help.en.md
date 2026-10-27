@@ -507,6 +507,31 @@ commands: nks.hex.inspectChanges
 - If the length changes, a new file is written and swapped in atomically.
 - Before a smaller file is overwritten a backup is made; if it fails, the file stays unchanged.
 
+## [hex.copyAs] Hex: copy, paste and export as
+commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
+1. Edit and then Hex: Copy Selection As puts the selected bytes on the clipboard as text: hex string, an array for C, C#, Java, Python, Rust, Go, JavaScript or Pascal, Base64, Intel HEX, Motorola S-record or a hexdump.
+2. Hex: Paste As reads the clipboard as hex text, Base64 or an array from source code and pastes the bytes like Ctrl+V does.
+3. Hex: Export Selection writes the selection to a file, as a binary file or in one of the text forms. It runs in the background and Esc cancels it.
+- Intel HEX, S-record and hexdump carry the offset of each byte in the file as its address; Intel HEX and S-record hold 32-bit addresses, so a selection beyond 4 GiB is refused.
+- A selection whose text would not fit on the clipboard is refused with a hint to export it.
+- An array pasted from source code may hold decimal, 0x hex, $ hex and 0b binary numbers; a number outside -128 to 255 stops the paste.
+
+## [hex.fill] Hex: fill and operations on the selection
+commands: nks.hex.fill, nks.hex.operate
+1. Hex: Fill Selection fills the selection with a pattern of hex bytes or text, repeats the selection behind itself, writes random bytes or writes numbers with a step. Without a selection, a pattern followed by * and a count fills that many bytes at the caret (they are inserted in insert mode).
+2. Hex: Operations on Selection applies XOR, AND, OR, NOT, Add, a shift or rotation by 1 to 7 bits (of each byte) or a swap of the byte order in groups of 2, 4 or 8 bytes. Operands repeat over the selection.
+3. The dialog shows how many bytes will change before you confirm. Every fill or operation is one undo step and the filled bytes stay selected.
+- A fill larger than 256 MiB is kept as a pattern and a length, not as bytes, so even 5 GiB costs no memory and no time; saving writes it as a new file. Undo of such a fill, and of the steps before it, lasts until the file is saved over.
+- Random bytes, numbers with a step and the operations hold the selection in memory and refuse more than 2 GiB.
+
+## [hex.checksum] Hex: checksums and hashes
+commands: nks.hex.checksum
+1. Hex: Checksums and Hashes calculates over the selection, or over the whole file when nothing is selected: CRC-16, CRC-32, CRC-64 in several variants, a CRC with your own polynomial, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 and SHA-512.
+2. The calculation runs in the background and shows its progress in the status line; Esc cancels it.
+3. The result can be copied, or compared with a pasted value; spaces, colons, 0x and case do not matter.
+- Every CRC variant has a fixed polynomial and parameters (width, start value, reflected input and result, final xor), the same as in the catalogue of CRC algorithms.
+- A CRC with your own polynomial takes the width in bits and, in hex, the polynomial (odd), the start value, the two reflection flags (0 or 1) and the final xor.
+
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 The commands are in the View menu and in the palette. Each toggles one setting; the settings can also be changed in the settings.

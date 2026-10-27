@@ -145,6 +145,12 @@ internal static class AppCommands
         foreach (int size in HexView.Sizes) On("nks.hex.bytesPerRow" + size, w => w.HexCommand(h => h.SetBytesPerRow(size)));
         On("nks.hex.offsetFormat", w => w.HexCommand(h => h.ToggleOffsetFormat()));
         On("nks.hex.inspectChanges", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.ShowHexChangesAsync(tab); return CommandOutcome.Handled; });
+        On("nks.hex.copyAs", w => w.HexToolMenu(w.HexCopyAsItems));
+        On("nks.hex.pasteAs", w => w.HexToolMenu(w.HexPasteAsItems));
+        On("nks.hex.exportSelection", w => w.HexToolMenu(w.HexExportItems));
+        On("nks.hex.fill", w => w.HexToolMenu(w.HexFillItems));
+        On("nks.hex.operate", w => w.HexToolMenu(w.HexOperateItems));
+        On("nks.hex.checksum", w => w.HexChecksumMenu());
         Do("nks.view.toggleOutput", w => w.ToggleOutput());
         Do("nks.view.fullScreen", w => w.ToggleFullScreen());
 

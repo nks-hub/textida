@@ -87,6 +87,15 @@ internal sealed class ScriptedDialogs : IDialogs
 
     public Task<string?> PickFolderAsync(Window owner) => Task.FromResult(Folders.Count > 0 ? Folders.Dequeue() : null);
 
+    public Queue<string?> SaveFiles { get; } = new();
+    public List<string> SaveFileNames { get; } = [];
+
+    public Task<string?> PickSaveFileAsync(Window owner, string title, string suggestedName)
+    {
+        SaveFileNames.Add(suggestedName);
+        return Task.FromResult(SaveFiles.Count > 0 ? SaveFiles.Dequeue() : null);
+    }
+
     /// <summary>What the preview of the prompt showed for the scripted answer, for tests of the preview.</summary>
     public List<string> Previews { get; } = [];
     public Queue<TextCodec?> Encodings { get; } = new();

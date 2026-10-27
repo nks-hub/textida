@@ -238,6 +238,12 @@
   "cmd.hex.bytesPerRow.64": "64 Bytes pro Zeile",
   "cmd.hex.offsetFormat": "Offsets dezimal und hexadezimal umschalten",
   "cmd.hex.inspectChanges": "Änderungen vor dem Speichern...",
+  "cmd.hex.copyAs": "Hex: Auswahl kopieren als...",
+  "cmd.hex.pasteAs": "Hex: Einfügen als...",
+  "cmd.hex.exportSelection": "Hex: Auswahl exportieren...",
+  "cmd.hex.fill": "Hex: Auswahl füllen...",
+  "cmd.hex.operate": "Hex: Operationen auf der Auswahl...",
+  "cmd.hex.checksum": "Hex: Prüfsummen und Hashes...",
   "setting.files.binaryAsHex.title": "Binärdateien im Hex-Editor",
   "setting.files.binaryAsHex.description": "Was passiert, wenn eine Datei in den ersten 8.000 Bytes ein NUL-Byte hat: in der Leiste nachfragen, immer in Hex öffnen oder nie umschalten."
 }
