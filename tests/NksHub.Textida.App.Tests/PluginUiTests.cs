@@ -249,6 +249,27 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Esc_in_the_panel_returns_the_keyboard_to_the_text_while_Esc_in_the_text_leaves_the_panel_open()
+    {
+        _w.Show();
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = "text";
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel");
+
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        await Until(() => !_w.PluginPanelOpen && tab.Editor.IsKeyboardFocusWithin, "the keyboard back in the text");
+
+        _w.ShowPluginPanel("p", "todo");
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel again");
+        tab.Editor.TextArea.Focus();
+        await Until(() => tab.Editor.IsKeyboardFocusWithin, "the keyboard in the text");
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        Assert.True(_w.PluginPanelOpen);
+    }
+
+    [AvaloniaFact]
     public async Task F1_in_the_open_panel_opens_the_help_topic_of_plugin_panels()
     {
         _w.Show();
