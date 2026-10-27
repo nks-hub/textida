@@ -2222,6 +2222,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Stage vybraného úseku přes kontrakt z P6.2.2 a předání konfliktu. Ne vlastní náhrada celého Git klienta. Stav a diff jsou v P8.6.2.
   - **Funkce:** F158
   - **Hotovo, když:** stage jednoho úseku ze souboru se třemi změnami přidá do indexu jen ten úsek (ověřeno `git diff --cached`); změna indexu jiným programem mezi náhledem a stage skončí konfliktem.
+  - **Stav 27. 10. 2026:** částečně: vestavěný plugin `textida.git` (`plugins/git`), příkaz „Git: připravit úsek pod kurzorem“ přes `diff/stage`; před zápisem ověří, že se index nezměnil, jinak nezapíše a ohlásí konflikt. Testy na skutečných repozitářích: stage jednoho ze tří úseků (`git diff --cached`), konflikt po změně indexu zvenku. Chybí unstage, `autocrlf` neřešen, mezi kontrolou a zápisem indexu zůstává krátké okno. UI neověřeno spuštěním.
   - **Závisí na:** P8.6.2, P6.2.2
   - **Odhad:** F158 3–5 ČT (matice) za P8.6.1 a P8.6.2
   - **Umístění:** vestavěný plugin
@@ -2229,6 +2230,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Stav souborů v panelu a diff proti indexu a `HEAD` přes diff API.
   - **Funkce:** F158 (částečně: stav a diff)
   - **Hotovo, když:** stav souboru v panelu odpovídá `git status` i po změně zvenku; diff proti indexu a proti `HEAD` ukáže stejné úseky jako `git diff`.
+  - **Stav 27. 10. 2026:** částečně: „Git: stav souborů“ plní panel z `git status` při každém spuštění (změna zvenku se ukáže), „porovnat s indexem / s HEAD“ otevře diff přes virtuální dokumenty; úseky odpovídají `git diff -U0` (test). Položky panelu zatím nic neotevírají, bez automatického obnovení. UI neověřeno spuštěním.
   - **Závisí na:** P8.4.1, P6.2.2
   - **Odhad:** v rámci F158 (viz P8.6.1)
   - **Umístění:** vestavěný plugin
@@ -2239,6 +2241,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Co a proč:** Mapování schématu (JSON Schema Store) na soubor, složku nebo masku, kontrola a doplňování. Přibalená schémata běžných konfigurací, stahování jen po svolení a jedním přepínačem vypnutelné. TOML a soubory bez přípony podle jména. Dialekt podle souboru (striktní JSON, JSONC).
   - **Funkce:** F181
   - **Hotovo, když:** chyba v `package.json` proti schématu se podtrhne; doplňování klíčů podle schématu projde přes API doplňování (P8.4.2) a odpověď pro starší revizi se nezobrazí; každý přibalený formát (JSON, JSONC, YAML, TOML) má test platného souboru, syntaktické chyby a chyby proti schématu; bez svolení editor schéma nestáhne (síťový test PR.6.4); stavový řádek ukáže „bez schématu / schéma X“.
+  - **Stav 27. 10. 2026:** částečně: engine v pluginu Json (`Schema/`): čtečky JSON, JSONC, TOML s offsety, validátor podmnožiny JSON Schema (typy, enum, required, properties, items, oneOf/anyOf/allOf, if/then, lokální $ref, pattern s timeoutem), katalog s přibalenými `package.json`, `Cargo.toml` a nastavením Textidy, mapování podle souboru/složky/masky, doplňování klíčů; 16 testů (platný soubor, syntaktická chyba, chyba proti schématu pro JSON, JSONC, TOML). Chybí: podtržení a doplňování v editoru (čeká na P8.4.1/P8.4.2), YAML (parser v repu není), stahování schémat, stavový řádek, lokalizace hlášek. Limity hloubky a timeoutu regexu otevřené.
   - **Závisí na:** P8.4.1, P8.4.2
   - **Odhad:** F181 2–4 ČT (matice); TOML a další schémata 0,5–1 ČT
   - **Umístění:** vestavěný plugin, schémata jako data
