@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.PluginHost.Conversions;
 using NksHub.Textida.Workbench.Clips;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Contributions;
 
@@ -177,7 +178,7 @@ public static class PluginManifestLoader
         foreach (var p in c.LogPatterns)
         {
             Item("log pattern", p.Id, p.Title, null);
-            CheckRegex(errors, $"log pattern '{p.Id}'", p.Pattern);
+            CheckLogPattern(errors, p);
         }
 
         CheckUnique("external tool", c.ExternalTools.Select(x => x.Id), errors);
@@ -185,6 +186,8 @@ public static class PluginManifestLoader
         {
             Item("external tool", t.Id, t.Title, t.Command);
             if (string.IsNullOrWhiteSpace(t.Executable)) errors.Add($"external tool '{t.Id}' needs an executable.");
+            if (t.TimeoutSeconds is <= 0) errors.Add($"external tool '{t.Id}' has a time limit that is not positive.");
+            if (t.LogPattern is { } pattern && !c.LogPatterns.Any(x => x.Id == pattern)) errors.Add($"external tool '{t.Id}' names the unknown log pattern '{pattern}'.");
         }
 
         return data;
@@ -235,6 +238,22 @@ public static class PluginManifestLoader
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in ids)
             if (!seen.Add(id)) errors.Add($"Duplicate {what} id '{id}'.");
+    }
+
+    private static void CheckLogPattern(List<string> errors, LogPatternContribution p)
+    {
+        var what = $"log pattern '{p.Id}'";
+        if (p.Syntax is not (null or "regex" or "mask")) errors.Add($"{what}: syntax must be 'mask' or 'regex'.");
+        else if (p.Pattern.Length == 0 && p.Levels is { Count: > 0 }) { /* levels only */ }
+        else if (p.Syntax == "mask")
+        {
+            try { _ = LogPattern.Compile(p.Pattern, LogPatternSyntax.Mask); }
+            catch (LogPatternException e) { errors.Add($"{what}: {e.Message}"); }
+        }
+        else CheckRegex(errors, what, p.Pattern);
+        if (p.Levels is null) return;
+        try { _ = LogLevelRules.Create(p.Levels); }
+        catch (LogPatternException e) { errors.Add($"{what}: {e.Message}"); }
     }
 
     private static void CheckRegex(List<string> errors, string what, string pattern)

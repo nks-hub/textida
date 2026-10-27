@@ -14,6 +14,7 @@ using NksHub.Textida.Core.Conversions;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Clips;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App;
@@ -38,6 +39,8 @@ public sealed partial class App : Application
     internal ClipLibrary Clips { get; private set; } = null!;
     /// <summary>The special conversions the conversion list offers next to the converters of data plugins; tests replace the list.</summary>
     internal IReadOnlyList<SpecialConversion> SpecialConversions { get; set; } = NksHub.Textida.Core.Conversions.SpecialConversions.All;
+    internal ToolCatalog Tools { get; private set; } = null!;
+    internal ToolApprovals ToolApprovals { get; private set; } = null!;
     /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
     internal LastParameters LastParameters { get; private set; } = new();
@@ -122,6 +125,8 @@ public sealed partial class App : Application
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
         LastParameters = new LastParameters();
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
+        Tools = new ToolCatalog(ProfileDirectory);
+        ToolApprovals = new ToolApprovals(Path.Combine(ProfileDirectory, "tool-approvals.txt"));
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands);

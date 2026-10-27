@@ -25,6 +25,7 @@ internal sealed partial class MainWindow
     {
         if (e.Key == Key.Escape)
         {
+            if (!IsPaletteOpen && CancelLogSearch()) { e.Handled = true; return; }
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
             if (CloseLeftPanel()) { e.Handled = true; return; }
             if (_find.IsVisible) { HideFind(); e.Handled = true; return; }

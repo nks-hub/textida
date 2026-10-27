@@ -149,6 +149,13 @@ internal static class AppCommands
         Do("nks.tools.goToKey", w => w.ShowQuickOpen("@"));
         Fire("nks.tools.compareKeys", (w, t) => w.CompareKeysAsync(t));
 
+        On("nks.tools.run", w => w.ShowToolMenu());
+        On("nks.tools.stop", w => w.StopTool());
+        Do("nks.tools.logPattern", w => w.ShowLogPatternTester());
+        On("nks.log.nextError", w => w.LogStep(forward: true));
+        On("nks.log.previousError", w => w.LogStep(forward: false));
+        On("nks.log.levels", w => w.ChooseLogLevels());
+
         // search
         On("nks.search.find", w => w.ShowFind(replace: false));
         On("nks.search.replace", w => w.ShowFind(replace: true));

@@ -153,12 +153,18 @@ public sealed class TemplateContribution
     public List<ClipField> Fields { get; set; } = [];
 }
 
-/// <summary>Pattern that recognises a line of a log; named groups become fields.</summary>
+/// <summary>
+/// Pattern that finds the place of an error in a line of tool output. <see cref="Syntax"/> <c>mask</c> is the language of PSPad (<c>* %F %L %C %S %E %D</c>);
+/// <c>regex</c> (the default) is a regular expression with the groups <c>file</c>, <c>line</c> and <c>column</c>.
+/// </summary>
 public sealed class LogPatternContribution
 {
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
     public string Pattern { get; set; } = "";
+    public string? Syntax { get; set; }
+    /// <summary>Regular expressions that give a line its level, keyed <c>error</c>, <c>warning</c>, <c>info</c> or <c>debug</c>.</summary>
+    public Dictionary<string, string>? Levels { get; set; }
 }
 
 /// <summary>Program the editor runs on the current file or selection.</summary>
@@ -170,6 +176,10 @@ public sealed class ExternalToolContribution
     public List<string> Args { get; set; } = [];
     public string? Cwd { get; set; }
     public string? Command { get; set; }
+    /// <summary>Seconds after which the program is ended; none when absent.</summary>
+    public int? TimeoutSeconds { get; set; }
+    /// <summary>Id of the log pattern that makes the output clickable.</summary>
+    public string? LogPattern { get; set; }
 }
 
 [JsonSourceGenerationOptions(
@@ -180,4 +190,5 @@ public sealed class ExternalToolContribution
     AllowTrailingCommas = true,
     WriteIndented = true)]
 [JsonSerializable(typeof(PluginManifest))]
+[JsonSerializable(typeof(PluginContributions))]
 public sealed partial class PluginManifestJson : JsonSerializerContext;

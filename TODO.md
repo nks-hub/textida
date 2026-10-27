@@ -735,7 +735,7 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
 - [ ] **P2.2.1** Víc kurzorů: integrace, IME a výkon
   - **Co a proč:** Přepis vrstvy `MultiCaret` z P0 nad kotvami P1.2.5, rozdělený na P2.2.3–P2.2.5. Tahle položka spojuje části, ověří IME a výkon. Přidat a přeskočit výskyt, sloupcové kurzory, vložení schránky po kurzorech, undo jako celek.
   - **Funkce:** F149
-  - **Stav 26. 10. 2026:** částečně: výběry přežijí změnu z jiného zdroje i reload v jiném kódování, 1 000 kurzorů dá správný výsledek i undo. Výkonové kritérium **nesplněno**: referenční Windows VM p95 35,6 ms (10 kurzorů), 41,9 ms (100), 146 ms (1 000) proti 33 ms; test hlídá změřenou cenu 0,12 ms na kurzor jako regresi, ne kritérium. Živé IME na CJK klávesnici neověřeno; rozpracovaný text IME se nekreslí v řádku (P1.8.2).
+  - **Stav 27. 10. 2026:** částečně: výběry přežijí změnu z jiného zdroje i reload v jiném kódování, 1 000 kurzorů dá správný výsledek i undo. Po opravách rychlosti psaní (kotvy binárním hledáním, slučování běhů, stavový řádek) na referenční Windows VM 10 a 100 kurzorů v limitu 33 ms prošly; 1 000 kurzorů p95 58–80 ms, p99 70–89 ms – **nesplněno** (zbytek je ~12 µs na kurzor v `TextDocument.Replace` AvaloniaEdit a ~19 ms mimo obsluhu vstupu). Živé IME na CJK klávesnici neověřeno.
   - **Hotovo, když:** všechny případy z tabulky v měření procházejí a k nim nové zkratky; změna dokumentu z jiného zdroje (náhrada, reload) výběry nezahodí; 1 000 kurzorů v souboru 1 MiB: všechna vložení i undo dají očekávaný výsledek a vstup → prezentace má p95 ≤ 33 ms a p99 ≤ 80 ms; když cíl neplatí, rozpor se předloží s naměřenými čísly a schopnost se vymezí, samotný záznam čísla nestačí; IME s více kurzory projde scénářem z P1.8.2.
   - **Závisí na:** P2.2.3, P2.2.4, P2.2.5, P1.8.2
   - **Odhad:** F149 4–7 ČT (matice) za P2.2.1 a P2.2.3–P2.2.5
@@ -914,15 +914,17 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Hotovo, když:** výřez na náhodném offsetu 10GiB souboru vykreslí stejné znaky jako referenční dekódování a nečte víc než určený počet bloků.
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
-- [ ] **P3.1.7** Navigace a výběr ve stránkované ploše
+- [x] **P3.1.7** Navigace a výběr ve stránkované ploše
   - **Co a proč:** Kurzor, výběr, klávesy a myš nad bajtovými pozicemi bez materializace řádku.
   - **Funkce:** F153 (částečně: navigace a výběr)
+  - **Stav 26. 10. 2026:** hotovo: výběr na stránkované ploše (Shift+šipky, Home/End, PageUp/PageDown, Ctrl+Home/End, myš, Shift+klik, Ctrl+A), přepis a mazání výběru jako jeden krok undo; testy přesných bajtů přes hranici bloků a CRLF a pozic Home/End a stránkování proti naivnímu průchodu. Neověřen vzhled.
   - **Hotovo, když:** výběr přes hranici bloků a přes CRLF dá přesně určené bajty; Home/End a stránkování trefí pozice z testu.
   - **Závisí na:** P3.1.6
   - **Odhad:** v rámci F153 (viz P3.1.1)
 - [ ] **P3.1.8** Líný index řádků a skoky
   - **Co a proč:** Index řádků na pozadí, skok na offset a na řádek, označení neúplného indexu „≈“. Úplný index 50GiB souboru trval na referenční Windows VM 3,7 minuty. Plán pro úplnou indexaci časový limit nemá a nový se nevymýšlí; UI ale musí celou dobu fungovat.
   - **Funkce:** F153 (částečně: index a skoky)
+  - **Stav 26. 10. 2026:** částečně: index řádků na pozadí s „≈“; už zaindexovaný začátek jde zobrazit a posouvat s přesnými čísly řádků; skok na offset za indexem (`@N`, procenta, Ctrl+End) trefí bajty s odhadem čísla řádku „≈“ (do 2 %), po doběhnutí indexu přesná čísla se zachovanou pozicí; řádek za indexem vrátí hlášení; opravený pád UI po zavření karty během indexace. Large test na 400 MB prošel; 50GiB soubor a odezva UI neměřeny; obejití počítá s jednobajtovými konci řádků (UTF-8).
   - **Hotovo, když:** skok na offset i na řádek trefí stejné místo jako naivní výpočet; během několikaminutové indexace 50GiB souboru: průběh je vidět, posun splní limity PR.2.3, skok za hotový prefix indexu trefí správný offset a číslo řádku nese „≈“, dokud není přesné; zavření karty, reload a zrušení indexaci ukončí a uvolní zdroje; private commit i working set během indexace jsou zapsané (P3.1.9).
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
@@ -930,18 +932,21 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Co a proč:** Které části výřezu se po změně podkladu nebo revize překreslí; strop paměti cache bloků. Na referenční Windows VM měl 50GiB soubor po indexu 109,3 MiB private, ale working set při indexaci přibližně 12 297 MiB; sledují se obě veličiny. Schválený limit private commit se tím nemění.
   - **Funkce:** F153 (částečně: invalidace a limity)
   - **Před zahájením:** strop cache bloků v MiB se zapíše jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026:** částečně: po úpravě zůstanou v mezipaměti řádky před první změnou, ostatní se načtou znovu; index sloupců se po úpravě a změně kódování zahodí. Strop paměti mezipaměti pohledu v MiB zůstává otevřený (dnes jen 400 řádků).
   - **Hotovo, když:** po změně revize se překreslí jen dotčené řádky výřezu; cache bloků nepřekročí zapsaný strop ani při rychlém posunu přes celý 10GiB soubor ani během úplné indexace 50GiB souboru; záznam uvádí private commit i working set.
   - **Závisí na:** P3.1.6
   - **Odhad:** v rámci F153 (viz P3.1.1)
-- [ ] **P3.1.2** Stránkovaný zdroj UTF-16 a UTF-32
+- [x] **P3.1.2** Stránkovaný zdroj UTF-16 a UTF-32
   - **Co a proč:** `MappedFileSource` dnes UTF-16 a UTF-32 odmítne, protože hledá konce řádků po bajtech. Korpus má UTF-16 LE 100 MiB. Je to samostatný adaptér zdroje nad P1.2.8, nečeká na hotové UI.
   - **Funkce:** F153 (částečně: UTF-16 a UTF-32)
+  - **Stav 26. 10. 2026:** hotovo: stránkovaný backend drží UTF-16 a UTF-32 (LE/BE, s BOM i bez), index řádků po kódových jednotkách, změna kódování přes jinou šířku jednotky přestaví index, kontraktová sada i nad UTF-32; na referenční Windows VM Core 1079/1079 včetně Large (řídký soubor 4,5 GiB) na commitu před posledním sloučením.
   - **Hotovo, když:** pro UTF-16 i UTF-32, LE i BE, s BOM i bez: počet řádků souhlasí s generátorem korpusu, text výřezu, skok a hledání vrátí očekávané offsety; lichý konec, znak rozdělený přes blok a CRLF přes blok se zpracují podle testu; stejné případy projdou v běžném backendu (P1.3.2).
   - **Závisí na:** P1.2.8, PR.2.1
   - **Odhad:** bez odhadu
 - [ ] **P3.1.3** Dlouhé řádky: náhled
   - **Co a proč:** Horizontální výřezy bez materializace řádku, žádné změny obsahu kvůli zobrazení. Čas výřezu roste lineárně se sloupcem: na referenčním referenční Windows VM trvá výřez od sloupce 90 000 000 p95 117,25 ms, od 50 000 000 p95 74,2 ms; vývojové PC dávalo ~47 ms. Samotný výpočet výřezu tedy překračuje limit 33/80 ms. Sloupcový index nebo cache posledního bodu je nutnost.
   - **Funkce:** F155
+  - **Stav 26. 10. 2026:** částečně: `ColumnIndex` (bod po ~1M sloupcích, strop 16 384 bodů), řádek nad 16 KiB jde posouvat vodorovně, kreslí se jen viditelné sloupce; daleký skok bez indexu se čte mimo vlákno UI (značka „…“, novější skok starší čtení zruší), rozsah posuvníku podle délky ve znacích; Large test 100 MiB řádku prošel. Perf na referenční Windows VM 27. 10.: posun po vytvoření indexu na sloupcích 0, 50M a 90M a první skok na 50M a 90M v limitu; první skok na sloupec 0 p95 34,8 ms (po zvýšení na 100 vzorků, aby p95 nebylo nejhorším vzorkem, všech 6 testů dlouhého řádku na referenční Windows VM prošlo; ojedinělý výkyv kolem 36 ms zůstává). Otevřené: zda limit 33/80 ms platí pro snímek se značkou, nebo i pro dokreslení okna (~117 ms na VM); barvy syntaxe ve vzdáleném okně nejdou bez stavu od začátku řádku; upravený dokument čte první daleký skok synchronně; proporcionální písmo.
   - **Hotovo, když:** jeden řádek 100 MiB z korpusu se zobrazí; regresní scénáře skoků na sloupec 0, 50 000 000 a 90 000 000 na obou strojích R8, každý jako první skok bez připraveného sloupcového indexu a pak jako posun po vytvoření indexu, mají vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms; přírůstek paměti ≤ 16 MiB.
   - **Závisí na:** P3.1.1
   - **Odhad:** F155 3–5 ČT za náhled i editaci (matice); editace v P7.1.5; podíl P3 určí PR.8.2
@@ -955,6 +960,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
 - [ ] **P3.1.5** Přístupnost a IME stránkované plochy
   - **Co a proč:** Vrstva UIA a AX z P1.8.1 nad stránkovanou plochou; IME nad stejnou plochou. Bez toho P1 nemůže ověřit druhou plochu, která vzniká až tady. Od spiku měření sem patří i přístupnost a IME při editaci textu do 100 MiB, dřív P7.1.7; nad 10 GiB zůstávají v P7.1.7.
   - **Funkce:** F154 (částečně: přístupnost a IME editace do 100 MiB)
+  - **Stav 26. 10. 2026:** částečně: stránkovaná plocha má automation model editoru (`ITextAutomationSurface`, host sdílený s editorem na Windows i macOS) nad oknem celých řádků kolem zobrazené části; text, výběr a kurzor sedí s naivním dekódováním přes hranice 128 KiB a 1 MiB bloků, CRLF a vícebajtové znaky; IME kreslí kompozici inline s podtržením, commit je jeden krok undo, přesun kurzoru kompozici zruší, rekonverze nastaví výběr. Neověřeno: NVDA, VoiceOver a skutečné IME (TSF, macOS) – potřebují člověka; výběr mimo okno čtečky se ořízne.
   - **Hotovo, když:** v matici R10 (PR.4) NVDA i VoiceOver přečtou ve stránkovaném 10GiB souboru řádek, slovo, výběr, pozici kurzoru a změnu fokusu podle očekávání; v textu do 100 MiB editovaném přes P3.1.11 a P3.1.12 přečtou vložený text, výběr a novou pozici kurzoru a scénář IME z P1.8.2 včetně přepnutí karty, DPI, více kurzorů a undo projde bez zdvojení i ztráty textu. Důkazy z běžného editoru (P1.8.1) se nepřebírají.
   - **Závisí na:** P3.1.1, P3.1.11, P3.1.12, P1.8.1, P1.8.2
   - **Odhad:** bez odhadu
@@ -967,7 +973,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
 - [ ] **P3.1.11** Psaní a mazání na stránkované ploše
   - **Co a proč:** Hlavní nová práce MVP podle spiku: stránkovaná plocha musí text nad hranicí přepnutí upravovat, ne jen číst. Kurzor podle čísla řádku a sloupce v aktuální revizi, psaní, Backspace, Delete, Enter a Tab, přepsání výběru psaním a seskupení undo (souvislé psaní je jeden krok). Výpočet za úpravou trval v jádře na referenční Windows VM p95 0,80 ms bez vykreslení; vstup → prezentace změřený není. Sloupec se dnes zjišťuje dekódováním celého řádku, proto MVP editaci řádku nad limitem odmítne; lokální editace dlouhých řádků zůstává v P7.1.5.
   - **Funkce:** F154 (částečně: psaní a mazání v textu do 100 MiB)
-  - **Stav 26. 10. 2026:** prototyp z P1.2.9 umí psát a mazat; test `Typing_on_the_paged_surface_stays_within_33_ms_at_p95` na referenční Windows VM (4 jádra, přihlášená relace ABF, headless) dává p95 56,3 ms, medián 37,7 ms, tedy cíl 33 ms **nesplněn**; na vývojovém PC prošel. Potřeba profilovat cestu úhozu stránkované plochy.
+  - **Stav 27. 10. 2026:** částečně: psaní, Backspace, Delete, Enter, Tab a přepsání výběru (P3.1.7); po opravách rychlosti (záznam míst bez dotazu do indexu řádků, kurzor nastaven před úpravou, stavový řádek) test `Typing_on_the_paged_surface_stays_within_33_ms_at_p95` na referenční Windows VM prošel (dřív p95 56 ms). Vstupní rozhodnutí o limitu délky řádku zůstává otevřené; scénář s SHA-256 po uložení a druhý stroj R8 neověřeny.
   - **Před zahájením:** limit délky řádku, nad kterým se editace odmítne, se zapíše jako vstupní rozhodnutí (úvod TODO).
   - **Hotovo, když:** v čistém ASCII souboru 100 MiB i v UTF-8 logu 100 MiB z korpusu (PR.2.1) dá předem zapsaná sekvence kláves (psaní včetně českých znaků, Backspace, Delete, Enter, Tab, přepsání výběru, úpravy u CRLF) po uložení soubor se stejným SHA-256 jako nezávislý výpočet; kurzor stojí po každém kroku na zapsaném řádku a sloupci; souvislé psaní slova je jeden krok undo a 500 kroků undo a redo vrátí obsah okna podle očekávání; úprava řádku delšího než zapsaný limit se odmítne s hlášením v liště stránkovaného režimu a dokument se nezmění; psaní má na obou strojích R8 vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms.
   - **Závisí na:** P3.1.7, P3.1.8, P1.2.6, P1.2.8
@@ -976,12 +982,14 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Co a proč:** Kopírovat, vyjmout a vložit v textu do 100 MiB bez `.Text` a bez druhé úplné kopie obsahu. Výběr se převádí na bajty aktuální revize. Velké vložení (desítky MiB) spike neměřil; přepočet řádků projde vložený blok jednou.
   - **Funkce:** F154 (částečně: schránka v textu do 100 MiB)
   - **Před zahájením:** největší vložení ze schránky, které se v MVP měří, a jeho časový limit se zapíšou jako vstupní rozhodnutí.
+  - **Stav 26. 10. 2026:** částečně: kopírovat, vyjmout a vložit na stránkované ploše (konce řádků podle dokumentu), každé jeden krok undo, test kopie přes CRLF a vložený úsek. Vstupní rozhodnutí (největší měřené vložení a jeho limit) zůstává otevřené, čas a private commit neměřeny.
   - **Hotovo, když:** kopie výběru přes hranici bloků, přes CRLF a přes úsek vložený úpravou dá do schránky přesně očekávaný text; vyjmutí i vložení jsou každé jeden krok undo; vložení zapsané velikosti do souboru 100 MiB skončí v zapsaném čase, počet a začátky řádků pak souhlasí s úplným průchodem a přírůstek private commit celé aplikace zůstane u ASCII ≤ 350 MiB (kap. 3); u většího vložení UI nezamrzne a dokument zůstane celý: vložení buď projde, nebo se s hlášením odmítne.
   - **Závisí na:** P3.1.11
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
 - [ ] **P3.1.13** Undo po uložení na místo ve stránkovaném režimu
   - **Co a proč:** Rozhodnutí majitele 26. 10. 2026: undo musí přežít uložení na místo i ve stránkovaném režimu MVP, bez viditelného omezení. Dnes `SaveAsync` na stejnou cestu undo smaže, protože úseky historie ukazují do nahrazeného originálu. Ukládá se přes společnou službu P3.5.5, která pro hex původní bajty pro undo už zachová. Tady se totéž zajistí pro textovou editaci do 100 MiB, i když se délka změní a ukládá se streamem. Zbytek P7.1.3, tedy soubory větší než RAM, zůstává v P7.
   - **Funkce:** F154 (částečně: undo po uložení na místo do 100 MiB)
+  - **Stav 26. 10. 2026:** částečně: `PagedSaveUndoTests` (100 MiB, ASCII a UTF-8 log, 5000 úprav): uložení streamem, SHA-256 proti modelu, 500 kroků undo/redo, undo všech úprav na originál prošly na referenční Windows VM. Zápis na místo po zvětšení logu změn na 8192 neověřen; pád během streamového uložení textu nepokryt.
   - **Hotovo, když:** v čistém ASCII souboru 100 MiB i v UTF-8 logu 100 MiB proběhne po 5 000 úpravách uložení na stejnou cestu streamem i zápisem na místo bez změny délky; disk pak obsahuje přesně uloženou revizi (SHA-256 proti nezávislému výpočtu); 500 kroků undo a 500 redo po uložení dá v každém kontrolním bodě očekávaný obsah a undo všech úprav vrátí obsah se SHA-256 originálu; další uložení zapíše revizi po undo; přírůstek private commit u ASCII zůstane ≤ 350 MiB (kap. 3); pád injektovaný během uložení nechá na disku celý originál, nebo celou uloženou revizi, a obnova podle P1.5.1 vrátí neuloženou práci; lišta stránkovaného režimu undo po uložení neuvádí jako omezení.
   - **Závisí na:** P3.5.5, P3.1.11, P1.5.1
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
@@ -990,28 +998,29 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
 
 TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad viditelnou částí. Stavový tokenizér a formát gramatiky vznikají v P2.7.1; tady se napojí renderer, přibudou gramatiky MVP a checkpointy stavu pro velké soubory.
 
-- [ ] **P3.2.1** Vlastní inkrementální zvýrazňovač
+- [x] **P3.2.1** Vlastní inkrementální zvýrazňovač
   - **Co a proč:** Napojení tokenizéru z P2.7.1 na obě textové plochy, přeskenování od změny jen do ustálení stavu. Princip uživatelských zvýrazňovačů a multi-zvýrazňovače HTML z `09` kap. 1–6 slouží jako reference, ne jako kód. Gramatiky běžných jazyků včetně C#, Razor a souborů `.sln`, `.csproj`, `.props`; další jazyky v P8.8.2. Ruční volba jazyka má přednost před automatikou.
   - **Funkce:** F121, F067
   - **Kroky:**
     - napojení rendereru běžné i stránkované plochy
     - gramatiky MVP a snapshot testy podle případů z `09` kap. 12
     - checkpointy stavu z P3.2.3
-  - **Stav 26. 10. 2026:** částečně: barvy v běžném editoru (`SyntaxColorizer`) i ve stránkované ploše z jednoho `SyntaxFeeder`, palety světlá a tmavá podle D5, ruční volba jazyka přežije reload, neúplný výřez se ohlásí po 150 ms, dlouhé řádky přes streamovací sken (Codex), úprava řádku přetokenizuje jen ten řádek. Měření na referenční Windows VM (starší build): psaní v 1 MiB `.cs` p95 36–37 ms proti 33 ms, skok za 8MiB komentář 327 ms proti 250 ms – **nesplněno**; po posledních úpravách neměřeno. Snímky D5 z dřívějšího buildu (`p3/ui-review-d5-syntax.md`).
+  - **Stav 26. 10. 2026:** hotovo: barvy v běžném editoru i stránkované ploše z jednoho `SyntaxFeeder`, palety D5, ruční volba jazyka přežije reload; gramatiky MVP včetně C#, Razor (`.cshtml`, `.razor`), `.sln` a `.csproj`/`.props` (XML) se snapshot testy tokenů; NEON, Latte, Razor a `.sln` se v editoru barví podle přípony (dřív chyběly v seznamu jazyků). Win11lite2 27. 10.: `Typing_in_a_highlighted_one_mebibyte_file_stays_within_33_ms_at_p95` prošel. Razor: výrazy uvnitř hodnot atributů HTML a uvnitř `<script>` se nebarví jako Razor.
   - **Hotovo, když:** psaní v souboru 1 MiB se zvýrazněním má vstup → prezentace p95 ≤ 33 ms (cíl, který TextMate nesplnil); snapshot testy tokenů všech gramatik MVP procházejí; ruční volba jazyka přežije reload.
   - **Závisí na:** P2.7.1, P3.2.3
   - **Odhad:** bez odhadu
-- [ ] **P3.2.3** Checkpointy stavu zvýraznění a invalidace
+- [x] **P3.2.3** Checkpointy stavu zvýraznění a invalidace
   - **Co a proč:** „Jen viditelná část“ nezajistí správné tokeny po skoku doprostřed souboru. Stav tokenizéru se ukládá v checkpointech; po skoku za nezpracovanou část se doplní s omezeným rozpočtem skenování a neúplný výsledek se pozná. Změna komentáře mimo viewport zneplatní checkpointy za ní.
   - **Funkce:** F121 (částečně: checkpointy)
   - **Před zahájením:** rozpočet času a paměti dopočtu (ms, MiB) a velikost testovacího komentáře se zapíšou jako vstupní rozhodnutí (úvod TODO).
-  - **Stav 26. 10. 2026:** částečně: checkpointy a dopočet (Codex 344b9ee, 6d67600), rozpočet schválen majitelem (250 ms, 16 MiB, komentář 8 MiB); jádro na referenční Windows VM prošlo 8MiB testem, v aplikaci skok za komentář 327 ms (starší build) – brána zatím nesplněna.
+  - **Stav 26. 10. 2026:** hotovo: checkpointy a dopočet (Codex 344b9ee, 6d67600), rozpočet majitele 250 ms, 16 MiB, komentář 8 MiB; jádro i aplikace na referenční Windows VM 27. 10. prošly (`A_jump_past_an_eight_mebibyte_comment_is_colored_within_250_ms`), shoda tokenů s plným průchodem po skoku i po editaci začátku komentáře mimo viewport v testech jádra.
   - **Hotovo, když:** po skoku za několikamegabajtový komentář nebo řetězec a po editaci jeho začátku mimo viewport se tokeny výřezu po dopočtu shodují s plným referenčním průchodem; dopočet nepřekročí zapsaný rozpočet času a paměti a do jeho konce je výřez označený jako neúplný.
   - **Závisí na:** P2.7.1, P3.1.8
   - **Odhad:** bez odhadu
-- [ ] **P3.2.2** Komentování a chytré výběry podle jazyka
+- [x] **P3.2.2** Komentování a chytré výběry podle jazyka
   - **Co a proč:** Přidat a odebrat komentář podle jazykového profilu. Výběr slova, řádku, obsahu závorky a rozšiřování výběru; sémantické výběry až později.
   - **Funkce:** F073, F051
+  - **Stav 26. 10. 2026:** hotovo: gramatiky mají pole `comments`, Ctrl+/ přepne komentář nad více výběry podle jazyka na řádku (HTML, skript a styl uvnitř HTML, PHP, CSS, JSON, NEON), jeden krok undo; Shift+Alt+→ rozšíří výběr: slovo, obsah závorky, závorka, další pár, řádky, celý text; závorky v řetězcích a komentářích se nepočítají. Testy v jádru i v aplikaci. Sémantické výběry později.
   - **Hotovo, když:** přepnutí komentáře nad více výběry v HTML, PHP, CSS a JSON-like jazyce použije správnou značku komentáře; rozšíření výběru v závorkách vybere obsah, pak i závorky.
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
@@ -1021,16 +1030,17 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
 - [ ] **P3.3.1** Minimapa D5
   - **Co a proč:** Vpravo zmenšený obraz textu v barvách zvýraznění, průhledný obdélník viditelné části, posun tažením. U velkého souboru vzorkovaný obraz a značky shod filtrů v celém souboru (ERROR červeně, timeout žlutě). Značky změn až později. Prototyp je `src/NksHub.Textida.P0.App/Minimap.cs`.
   - **Funkce:** F161
+  - **Stav 26. 10. 2026:** částečně: minimapa na editoru i stránkované ploše v barvách zvýraznění, posun klikem i tažením, pruh se značkami shod z lišty hledání, ve velkém souboru čte jen řádky kolem obrazovky. Neověřeno: tažení ≤ 33 ms a 10GiB mapa na referenční Windows VM (testy napsané, Perf/Large), vzhled. Stránkované UTF-16/32 zatím bez mapy.
   - **Hotovo, když:** tažení v minimapě posouvá editor bez zpoždění nad cíl 33 ms; u 10GiB souboru se ukáže vzorkovaná mapa se značkami filtrů a nenačítá se celý soubor.
   - **Závisí na:** P3.1.1, P3.2.1
   - **Odhad:** F161 2–4 ČT (matice)
 
 ### P3.4 Inspektor bajtů
 
-- [ ] **P3.4.1** Základ inspektoru před uložením
+- [x] **P3.4.1** Základ inspektoru před uložením
   - **Co a proč:** Před uložením ukáže, co se v souboru skutečně změní: změněné rozsahy, zachované kódování a konce řádků, znaky, které v cílovém kódování nejdou zapsat. Rozšiřuje malý náhled z P1.3.3, nevytváří druhý. Plný inspektor je v P5.5.1.
   - **Funkce:** F169
-  - **Stav 26. 10. 2026:** částečně: pro hex příkaz „Změny před uložením…“ (rozsahy, staré a nové bajty, způsob uložení). Chybí varianta pro text s nezapsatelnými znaky (bajtový rozdíl a volba změnit kódování).
+  - **Stav 26. 10. 2026:** hotovo (2e5ac7c): inspektor ztrát vypíše znaky, řádky, sloupce, bajtové pozice, náhradní bajty a velikost před a po; volby zrušit / změnit kódování / náhrada, test se třemi znaky v CP1250. Neověřen vzhled dialogu.
   - **Hotovo, když:** u uložení do CP1250 se třemi nezapsatelnými znaky inspektor vypíše tyto znaky, jejich řádky a bajtový rozdíl a nabídne tři volby, každou s přesně určeným výsledkem: zrušit (nic se nezapíše), změnit kódování (zápis v nově zvoleném kódování) a výslovná náhrada (zápis s určenými náhradními bajty); tichý best-fit nenastane nikdy.
   - **Závisí na:** P1.3.4
   - **Odhad:** F169 2–4 ČT navíc za základ i plnou verzi (matice); podíl P3 určí PR.8.2
@@ -1055,10 +1065,10 @@ Hotovo celku (kap. 6 P3): 10GiB soubor v hexu: skok na `end-512`, přepis 4 B, v
   - **Hotovo, když:** výřez 64 × 16 B na náhodném místě 50GiB souboru má posun vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms, měřeno až po prezentaci v Avalonii na obou strojích R8 (v P0 změřené není); znaková část v UTF-8 ukáže neplatný bajt jako zvýrazněný `�`.
   - **Závisí na:** P1.2.8
   - **Odhad:** F230 2–3 ČT (matice)
-- [ ] **P3.5.3** Přepínání text ↔ hex
+- [x] **P3.5.3** Přepínání text ↔ hex
   - **Co a proč:** Přepnutí aktivní karty nic nenačítá znovu, kurzor a výběr se převedou přes bajtový offset. *Otevřít v hex*, `--hex` a `--offset`, nabídka u binárního souboru v liště, ne dialog. Karta AvaloniaEdit se převede na bajtový dokument v paměti nad původními bajty podle kontraktu P1.2.1; přepnutí není příkaz Uložit a nic nezapisuje na disk. Nezapsatelný text otevře inspektor F169.
   - **Funkce:** F231
-  - **Stav 26. 10. 2026:** částečně: Ctrl+K Ctrl+H, převod výběru přes bajtové offsety se zachovanou identitou, revizí, undo a stavem „neuloženo“, `--hex` a `--offset`, nabídka u souboru s NUL v prvních 8 000 B. Chybí volba „vždy / zeptat se / nikdy“ a otevření inspektoru F169 u nezapsatelného textu.
+  - **Stav 26. 10. 2026:** hotovo (2e5ac7c): Ctrl+K Ctrl+H s převodem výběru přes bajty, `--hex`/`--offset`, nastavení `files.binaryAsHex` (ask/always/never), nezapsatelný text otevře inspektor F169. Neověřen vzhled lišty.
   - **Hotovo, když:** výběr v textu se po přepnutí do hexu a zpět vrátí na stejné bajty; nepojmenovaný neuložený dokument s BOM, smíšenými EOL a vadným UTF-8 projde text → hex → text, nic se nezapíše na disk a zachová se identita, revize, stav „neuloženo“, undo i neplatné bajty; `--hex --offset 0x1F40` otevře soubor na offsetu; soubor s NUL v prvních 8 000 B nabídne hex lištou.
   - **Závisí na:** P3.5.2, P1.1.4, P3.4.1, P1.2.10
   - **Odhad:** F231 1–2 ČT (matice)
@@ -1083,10 +1093,10 @@ Hotovo celku (kap. 6 P3): 10GiB soubor v hexu: skok na `end-512`, přepis 4 B, v
   - **Hotovo, když:** každý deklarovaný typ má test s krajními hodnotami v LE i BE; hodnota uint32 BE zapsaná Enterem se objeví v mřížce a jde vrátit jedním undo; chyba rozsahu se ukáže hned; neúplná hodnota na konci souboru se ukáže jako neúplná, ne jako nula.
   - **Závisí na:** P3.5.4
   - **Odhad:** F234 1,5–2 ČT (matice)
-- [ ] **P3.5.7** Skok na offset s výrazy
+- [x] **P3.5.7** Skok na offset s výrazy
   - **Co a proč:** Ctrl+G v hex kartě: `0x1F40`, `1F40h`, `$1F40`, `+0x100`, `end-512`, `50%`, `4K`, závorky a `+ - * /`, `sel`, `val`. Náhled cíle před potvrzením, historie skoků sdílená s F174.
   - **Funkce:** F236
-  - **Stav 26. 10. 2026:** částečně: `OffsetExpression` (Codex 994147a, `end` = délka, EOF platný, procenta dolů, K/M/G = 1024^n) a Ctrl+G v hex pohledu s `Alt+←`. Chybí náhled cíle před potvrzením.
+  - **Stav 26. 10. 2026:** hotovo (2e5ac7c): `OffsetExpression`, Ctrl+G s náhledem cíle (offset, desítkově, bajt nebo důvod neplatnosti), Alt+← zpět.
   - **Hotovo, když:** každý zápis z analýzy konkurence má test; `end-512` u 10GiB souboru skočí přesně; Alt+← vrátí předchozí místo.
   - **Závisí na:** P3.5.2, P2.1.4
   - **Odhad:** F236 0,5–1 ČT (matice)
@@ -1100,6 +1110,7 @@ Hotovo celku (kap. 6 P3): 10GiB soubor v hexu: skok na `end-512`, přepis 4 B, v
 - [ ] **P3.5.9** Text nad upraveným bajtovým stromem
   - **Co a proč:** Po hex úpravě jde přepnout na text. Textový pohled i textové hledání musí číst aktuální revizi, ne původní obsah disku. Tady vzniká čtecí textový adaptér nad stromem úseků a hledání nad aktuální revizí. Od spiku měření platí totéž i po textové editaci do 100 MiB (P3.1.11): hledání najde vložený text a čísla řádků shod bere z indexu po úpravě (P1.2.8). P7.1.6 to ověří nad 10 GiB; P7 nesmí být podmínkou pravdivého textového náhledu v MVP.
   - **Funkce:** F231 (částečně: text po hex úpravě), F154 (částečně: hledání po textové úpravě do 100 MiB)
+  - **Stav 26. 10. 2026:** částečně: textový pohled i hledání čtou aktuální revizi; test po přepisech, vloženích a mazáních (bajty, řádky, offsety a čísla řádků shod proti naivnímu průchodu). Large varianta 5 000 úprav 100 MiB napsaná, 10GiB hex úpravy neověřeny.
   - **Hotovo, když:** po přepisu a vložení bajtů v 10GiB souboru ukáže textový pohled nové bajty a textové hledání najde vložený text; offsety shod souhlasí s naivním průchodem nad výsledkem; po 5 000 textových úpravách souboru 100 MiB najde hledání i vložený text, offsety shod souhlasí s naivním průchodem a čísla řádků shod s úplným průchodem výsledku.
   - **Závisí na:** P3.5.4, P3.1.4, P3.1.11
   - **Odhad:** bez odhadu
@@ -1111,6 +1122,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.1** Přepínače zobrazení, zalamování a písmo
   - **Co a proč:** Skryté znaky, čísla řádků, odkazy, aktuální řádek. Zalamování a pravý okraj pro běžné soubory, obří řádky bez automatického zalamování. Písmo, zoom a náhradní písmo pro Unicode.
   - **Funkce:** F065, F066, F069
+  - **Stav 26. 10. 2026:** částečně: příkazy `nks.view.*` v menu Zobrazit se zaškrtnutím a klávesami (skryté znaky, čísla řádků, aktuální řádek, pravý okraj, odkazy, minimapa), nastavení s původem, zalamování vypnuté nad 50 000 znaků s hlášením ve stavovém řádku, náhradní písma, zoom Ctrl+kolečkem. Neověřeno: 100MiB řádek na referenční Windows VM a vzhled.
   - **Hotovo, když:** zapnutí skrytých znaků ukáže CR, LF, tabulátor a mezery bez změny dokumentu; řádek 100 MiB se nikdy automaticky nezalomí; znak mimo hlavní písmo se vykreslí náhradním písmem.
   - **Závisí na:** P1.4.1, P3.1.1
   - **Odhad:** bez odhadu
@@ -1202,6 +1214,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
     - testy: vadný rámec, EOF, částečný a slepený rámec, souběžná obousměrná volání, zahlcení `stderr`, časový limit
     - obě strany současně volají se stejným číselným ID, přijde zrušení a pozdní odpověď, pak restart
     - adaptéry LSP, MCP, ACP a pluginů nad stejným dispatcherem
+  - **Stav 26. 10. 2026:** částečně: dispatcher a adaptéry LSP, MCP, ACP a pluginů (`NksHub.Textida.Rpc`), 87 testů rámování, rušení a souběhu. Neověřeno: běh pod NativeAOT a macOS; ACP `$/cancel_request` podle návrhu, ne specifikace.
   - **Hotovo, když:** testy z kroků procházejí pod NativeAOT na Windows i macOS pro všechny čtyři adaptéry; žádná odpověď se nepřiřadí cizímu požadavku a žádný zápis se po restartu nezopakuje.
   - **Závisí na:** P1.1.2
   - **Odhad:** v rámci F196
@@ -1209,6 +1222,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.1.2** Hostitel pluginů: pády, restart a resynchronizace
   - **Co a proč:** Proces na plugin nebo balíček vestavěných pluginů, hlídání, restart a vypnutí po opakovaném pádu, log. Ping je oddělený od čekání na rozhodnutí uživatele. Automatický restart nezopakuje zápis ani nahrání (R10). Po restartu se stav dokumentů a čekajících návrhů znovu synchronizuje. Spojuje části P3b.1.3 a P3b.1.4.
   - **Funkce:** F196
+  - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.PluginHost` s testy reálných podprocesů (pád, restart s prodlevou, vypnutí po pádech, zamrznutí, čekání na uživatele, resynchronizace, žádné opakování zápisu). Hodnoty restartu a časových limitů nejsou určené (povinné parametry), hostitel není zapojený do aplikace.
   - **Hotovo, když:** pád i zamrznutí pluginu editor přežije a ukáže, který plugin to byl; plugin, který čeká na rozhodnutí uživatele, hlídání neukončí; po restartu proběhne nový handshake, ztracené události se pluginu ohlásí a žádný zápis ani nahrání se nezopakuje.
   - **Závisí na:** P3b.1.3, P3b.1.4
   - **Odhad:** F196 4–6 ČT (matice) za P3b.1.1–P3b.1.4
@@ -1216,6 +1230,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.1.3** Inicializace a životní cyklus procesů pluginů
   - **Co a proč:** Líná aktivace (`onCommand`, `onLanguage`, `onFileType`, `onPanel`), handshake s verzí API, ukončení a čerpání `stderr`.
   - **Funkce:** F196 (částečně: aktivace a procesy)
+  - **Stav 26. 10. 2026:** částečně: líná aktivace, handshake s chybou verze, vyčerpání `stderr`, vypnutí bez osiřelých procesů. Chybí zapojení do aplikace.
   - **Hotovo, když:** plugin se spustí až při prvním spouštěči aktivace; nesouhlasná verze API v handshaku skončí srozumitelnou chybou; zavření editoru ukončí všechny procesy pluginů bez osiřelých procesů.
   - **Závisí na:** P3b.1.1
   - **Odhad:** v rámci F196 (viz P3b.1.2)
@@ -1224,6 +1239,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Co a proč:** Limity velikosti zpráv, souběhu, počtu výsledků a paměti relace se zpětným tlakem (R08); rušení požadavků podle adaptéru z P3b.1.1.
   - **Funkce:** F196 (částečně: kvóty a rušení)
   - **Před zahájením:** hodnoty všech limitů se zapíšou jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026:** částečně: limity zpráv, souběhu, výsledků a paměti relace se zpětným tlakem a vlastní chybou, testy. Hodnoty limitů nejsou zapsané (vstupní rozhodnutí z „Před zahájením“ zůstává otevřené).
   - **Hotovo, když:** překročení každého limitu má vlastní test a vrátí určenou chybu, editor nezamrzne a ostatní pluginy běží dál; zrušený požadavek uvolní své zdroje.
   - **Závisí na:** P3b.1.3
   - **Odhad:** v rámci F196 (viz P3b.1.2)
@@ -1234,6 +1250,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.2.1** Manifest a deklarativní příspěvky
   - **Co a proč:** `nkspad-plugin.json` s JSON Schema, validace před spuštěním kódu. Příspěvky: příkazy, menu (Nástroje › Pluginy a kontextová menu), klávesy, nastavení, jazyky a gramatiky, převodníky, klipy, LOG vzory, externí nástroje. Bez `main` se plugin načte bez procesu. `executable`, `args` a pracovní adresář pro skript bez kompilace.
   - **Funkce:** F197
+  - **Stav 26. 10. 2026:** částečně: `nkspad-plugin.json` se kontroluje před spuštěním, datový plugin přidá gramatiku a příkaz bez procesu, příklad v Pythonu `samples/plugins/python-hello` ověřený testem. Chybí: napojení kláves a nastavení pluginu do aplikace, spouštění datových příkazů, `maxGrammarBytes` a schválení tvaru převodníků a klipů.
   - **Hotovo, když:** neplatný manifest se odmítne s chybou před spuštěním čehokoli; datový plugin přidá gramatiku a příkaz bez procesu; dokumentace má příklad pluginu v Pythonu s výslovnou cestou k interpretu, ověřený spuštěním.
   - **Závisí na:** P1.6.1, P3.2.1
   - **Odhad:** F197 2–3 ČT (matice)
@@ -1241,6 +1258,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.2.2** UI příspěvky ve vzhledu D5
   - **Co a proč:** Editor kreslí z dat pluginu panel se stromem nebo seznamem, nejvýš jednu položku stavového řádku na plugin, výběr ze seznamu, vstup, potvrzení, oznámení a úlohy s průběhem a zrušením. Plugin nekreslí vlastní UI, nemá webview ani příspěvek do horní lišty.
   - **Funkce:** F200
+  - **Stav 26. 10. 2026:** částečně: panel se stromem nebo seznamem, jedna položka stavového řádku na plugin, výběr ze seznamu (paleta), vstup a potvrzení (stávající dialogy), oznámení jako lišta, úlohy s průběhem a zrušením; po konci procesu vše zmizí; testy protokolu i headless testy aplikace s reálným procesem pluginu. Limity a časové limity jsou zástupné hodnoty v `PluginLimitsPlaceholders.cs` (rozhodnutí majitele otevřené); UI volání bez kontroly oprávnění; vzhled neověřen.
   - **Hotovo, když:** panel pluginu jde otevřít z palety, je ovladatelný klávesnicí a čtečkou; zrušení úlohy pluginu uvolní její zdroje.
   - **Závisí na:** P3b.1.2, P3.6.3
   - **Odhad:** F200 2–3 ČT (matice)
@@ -1251,6 +1269,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.3.1** API dokumentů v1: čtení a revize
   - **Co a proč:** Seznam dokumentů, revize, čtení rozsahů po bajtech, převod pozic, hledání jádrem, výběr. Čtení se váže na revizi; nedostupná revize vrátí konflikt. Surové bajty odděleně od dekódovaného textu s hranicemi znaků, nikdy tichý průchod přes náhradní znaky (R01). 64bitové pozice, částečný index se nehlásí jako řádek nula. Snapshoty jsou v P3b.3.3, události v P3b.3.4.
   - **Funkce:** F198
+  - **Stav 26. 10. 2026:** částečně: `DocumentApi` v PluginHost – seznam dokumentů, čtení bajtů a textu po revizi, převod pozic, hledání, výběr; stará revize = konflikt, neplatné UTF-8 v `invalid`, neúplný index = `PositionUnknown`; 101 testů Rpc. Neověřeno nad 10GiB stránkovaným dokumentem, nezapojeno do aplikace; limity v `DocumentApiOptions` bez hodnot.
   - **Hotovo, když:** plugin přečte rozsah stránkovaného 10GiB dokumentu bez načtení celého souboru; čtení nad starou revizí vrátí konflikt; soubor s neplatným UTF-8 projde čtením a návratem úpravy bez změny okolních bajtů.
   - **Závisí na:** P3b.1.2, P1.2.4
   - **Odhad:** F198 2–3 ČT (matice) za P3b.3.1, P3b.3.3 a P3b.3.4; revize ho považuje za optimistický, rozpad může odhad zvýšit
@@ -1258,6 +1277,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.3.3** Snapshoty a mapování pozic v API
   - **Co a proč:** Omezené snapshoty revize s expirací a převod pozic mezi revizemi přes záznam změn z P1.2.4.
   - **Funkce:** F198 (částečně: snapshoty)
+  - **Stav 26. 10. 2026:** částečně: snapshoty s expirací a kvótou na plugin, převod pozic z revize N na aktuální, nejednoznačné = konflikt. Hodnoty kvóty a doby života otevřené.
   - **Hotovo, když:** čtení z prošlého snapshotu vrátí určenou chybu; pozice z revize N se převede na N+k, a když to nejde jednoznačně, vrátí konflikt; překročení počtu snapshotů na plugin vrátí chybu kvóty.
   - **Závisí na:** P3b.3.1
   - **Odhad:** v rámci F198 (viz P3b.3.1)
@@ -1265,6 +1285,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.3.4** Události dokumentů a jejich obnova
   - **Co a proč:** Události s rozsahy a revizemi, ne s textem. Plugin, který události nestíhá nebo je ztratil po restartu, dostane signál k nové synchronizaci.
   - **Funkce:** F198 (částečně: události)
+  - **Stav 26. 10. 2026:** částečně: události s rozsahy a revizemi bez textu, při přetečení fronty jedna `document/eventsLost`, po restartu resync revizí. Kapacita fronty otevřená; zahlcení ověřeno pozdrženým odesíláním.
   - **Hotovo, když:** pomalý plugin dostane po přetečení fronty událost „ztracené události“ s aktuální revizí; po restartu hostitele plugin zjistí aktuální revize všech zpřístupněných dokumentů.
   - **Závisí na:** P3b.3.1, P3b.1.2
   - **Odhad:** v rámci F198 (viz P3b.3.1)
@@ -1272,6 +1293,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.3.5** API pro časné nástroje: symboly, reveal, snippety, kurzory a `Tab`
   - **Co a proč:** Code Explorer (P4.4.1), Emmet (P4.5.2) a cesta klíče (P4.6.4) mají být skutečné pluginy od začátku. Chybí jim poskytovatel symbolů a reveal (skok a zvýraznění místa), vložení snippetu s kurzory a předání neobslouženého `Tab` zpět jádru. Každý kontrakt nese revizi.
   - **Funkce:** žádná (infrastruktura API)
+  - **Stav 26. 10. 2026:** částečně: `symbols/publish` jen pro aktuální revizi (starší = konflikt), zastaralá osnova označená a klik najde text, kde je teď; `editor/reveal` i klik v osnově přes `MainWindow.RevealBytes` (test shody bajtů s „é“); `snippet/insert` s kurzory do všech výběrů jako jeden krok undo; `editor/tabHandler` – nezpracovaný, chybný nebo pomalý Tab odsadí jako bez pluginu. Limity jsou zástupné hodnoty v `PluginLimitsPlaceholders.cs`. Chybí: přeskakování zástupných míst snippetu, odsazení dalších řádků snippetu; Tab a klik v běžící aplikaci neověřeny. Nález agenta o tichém nepoužití úpravy bez platné hranice znaku se nepotvrdil: jádro vrací `ConflictReason.InvalidRange` a obě cesty úprav z pluginu (`edit/apply`, `snippet/insert`) ho hlásí chybou.
   - **Hotovo, když:** testovací plugin publikuje symboly pro revizi a starší odpověď se nezobrazí jako aktuální; reveal trefí stejné bajty jako klik v osnově; snippet vloží text s kurzory do všech výběrů jako jeden krok undo; neobsloužený `Tab` odsadí jako bez pluginu.
   - **Závisí na:** P3b.3.1, P3b.2.1, P1.6.2
   - **Odhad:** bez odhadu; podíl ze zbytku rozpočtu P3b u P3b.5.4 určí PR.8.2 před zahájením P3b; že se do zbytku vejde vedle distribuce, SDK a prvního pluginu, doložené není
@@ -1279,6 +1301,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.3.2** Úpravy z pluginu
   - **Co a proč:** `edit/propose` jde do služby náhledu změn z P2.5.2 (revize F178 přijde v P6). `edit/apply` jen s oprávněním `document.edit.direct`, jako jeden krok undo. Úpravy v dávce atomicky a bez překryvů.
   - **Funkce:** F199
+  - **Stav 26. 10. 2026:** částečně: `edit/apply` s oprávněním `document.edit.direct` proti revizi jako jedna transakce a jeden krok undo, překryv odmítne dávku, `batchId` brání opakování po pádu; `edit/propose` končí na `IEditProposals` (náhled změn P2.5.2 v repu není).
   - **Hotovo, když:** návrh ze zastaralé revize se odmítne; dávka s překryvem se odmítne celá; přímá úprava bez oprávnění vrátí chybu JSON-RPC; dávka přerušená restartem hostitele se nepoužije napůl ani dvakrát.
   - **Závisí na:** P3b.3.1, P2.5.2
   - **Odhad:** F199 1–2 ČT (matice)
@@ -1289,6 +1312,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.4.1** Oprávnění a důvěra
   - **Co a proč:** Dialog při instalaci, odebrání oprávnění, záznam volání bez obsahu dokumentů a tokenů. Oprávnění se váží na identitu dokumentu a rozsah, ne na aktivní kartu; tajemství má každý plugin zvlášť; povolený příkaz nesmí předat zápis dál (R05). UI říká, že oprávnění nejsou sandbox.
   - **Funkce:** F201
+  - **Stav 26. 10. 2026:** částečně: granty vázané na identitu dokumentu nebo cílový plugin, bez oprávnění chyba `PermissionDenied`, odebrání za běhu zruší čekající (`Revoked`) a zastaví události, povolený příkaz nepředá zápis (`Delegated`), tajemství zvlášť pro plugin, záznam volání bez parametrů a výsledků; 108 testů Rpc. Chybí uložení grantů, UI a systémové úložiště tajemství.
   - **Hotovo, když:** plugin bez oprávnění dostane chybu, ne prázdný výsledek; odebrání grantu za běhu zastaví nové požadavky a zruší čekající; povolený příkaz nepředá zápis jinému pluginu; záznam volání neobsahuje text dokumentu ani tokeny.
   - **Závisí na:** P3b.1.2
   - **Odhad:** F201 1–2 ČT (matice)
@@ -1313,6 +1337,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.5.1** Vnitřní základ C# SDK
   - **Co a proč:** Interní knihovna pro vlastní pluginy: AOT, System.Text.Json se source generatorem, bez reflexe. Plugin v C# má asi 2,7 MB a startuje za 7 ms (spike). Veřejné SDK je až v P8b.
   - **Funkce:** F202 (částečně: vnitřní základ)
+  - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.PluginSdk` (source generator, bez reflexe) a `samples/csharp-hello`; test publikuje NativeAOT win-x64 a ověří odpověď na `initialize`. osx-arm64 a osx-x64 na Windows AOT publikovat nejde, neověřeno.
   - **Hotovo, když:** ukázkový plugin z interní knihovny se publikuje AOT pro win-x64, osx-arm64 a osx-x64 a na každém RID odpoví na `initialize`.
   - **Závisí na:** P3b.1.1
   - **Odhad:** v rámci zbytku rozpočtu P3b (viz P3b.5.4); cena F202 v matici patří veřejnému SDK (P8b.2.1)
@@ -1327,6 +1352,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 - [ ] **P3b.5.3** JSON formátovač jako první vestavěný plugin
   - **Co a proč:** První ověření veřejného API: příkaz na vyžádání, syntaktická chyba, náhled, zastaralá revize, jeden krok undo, více výběrů, odmítnutí příliš velkého vstupu. Nejdřív malé UTF-8 soubory, pak kódování a EOL.
   - **Funkce:** F074, F205 (částečně: první plugin ověřovací sady)
+  - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.Plugins.Json` – formátování na vyžádání, náhled ve stávajícím dialogu změn, syntaktická chyba s řádkem a sloupcem, zastaralá revize odmítnuta, více výběrů jako jeden krok undo, příliš velký vstup odmítnut s oběma velikostmi; nad CP1250 se smíšenými EOL se změní jen vybrané rozsahy (test end-to-end). Neověřeno: AOT publikace s přibaleným pluginem a běh na macOS.
   - **Hotovo, když:** formátovač běží jako vestavěný plugin proti AOT buildu na obou OS; nad souborem CP1250 se smíšenými EOL změní jen formátovaný rozsah; vstup nad limit odmítne s hlášením.
   - **Závisí na:** P3b.3.2, P3b.5.1, P3b.2.2
   - **Odhad:** v rámci zbytku rozpočtu P3b (viz P3b.5.4)
@@ -1340,32 +1366,32 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 - [x] **P4.1.1** Klipy jako data
   - **Co a proč:** Klipy jsou deklarativní knihovny (`contributes.clips`), vkládací engine je v jádře. Náhled výsledku. Nastavení klipů jako běžné nastavení, ne původní layout dialogu.
-  - **Stav 27. 10. 2026:** hotovo: datové pluginy ze složky `plugins` v profilu (bez procesu; plugin s procesem se tam odmítne), Úpravy → „Vložit klip…“ se seznamem a náhledem, vložení do všech kurzorů jako jeden krok undo, klip může mít vlastní příkaz. Formát klipu je vlastní: text s `${proměnná}`, `$|` (kurzor) a `$$`. Zvláštní nastavení klipů nevzniklo, nic se nenastavuje. Gramatiky z uživatelských pluginů se zatím nenačítají. Limity délky a počtu kurzorů přebírají zástupné hodnoty z `PluginLimitsPlaceholders` (rozhodnutí majitele čeká).
   - **Funkce:** F023, F130
+  - **Stav 26. 10. 2026:** hotovo: klipy jako data v datových pluginech (složka `plugins` v profilu, bez procesu), Úpravy › „Vložit klip…“ se seznamem a náhledem, vložení do všech kurzorů jako jeden krok undo; vlastní formát `${proměnná}`, `$|` kurzor, `$$`. Limity délky a kurzorů jsou zástupné hodnoty.
   - **Hotovo, když:** vlastní knihovna klipů se nainstaluje jako datový plugin bez procesu, klip se vloží s náhledem a do všech kurzorů.
   - **Závisí na:** P3b.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** data (F023), jádro (F130)
 - [x] **P4.1.2** Interaktivní klipy a klip z bloku
   - **Co a proč:** Formulář klipu (barva, soubor, datum…) s typovým ověřením vstupů a atomickým vložením. Uložení výběru jako klip do vlastní knihovny.
-  - **Stav 27. 10. 2026:** hotovo: pole `fields` (text, integer, number, color, date, choice, file) s živým náhledem a označením špatné hodnoty; hodnoty se po formuláři kontrolují znovu, špatná nic nezmění. Úpravy → „Uložit výběr jako klip…“ zapíše výběr doslova do pluginu `user.clips` (složka `user-clips`) a klip je hned v seznamu; poškozenou knihovnu nepřepíše. Tlačítko Procházet u pole `file` je jen v kódu dialogu, systémový výběr souboru tu neprošel testem.
   - **Funkce:** F024, F025
+  - **Stav 26. 10. 2026:** hotovo: pole formuláře typů text, integer, number, color, date, choice, file; špatná hodnota se označí a nic se nevloží; „Uložit výběr jako klip…“ uloží text doslova do vlastní knihovny. Systémový výběr souboru a náhled barvy neověřeny testem.
   - **Hotovo, když:** klip s formulářem odmítne neplatný vstup a vloží výsledek jako jeden krok undo; výběr uložený jako klip jde hned vložit.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [x] **P4.1.3** Uživatelské proměnné
+- [ ] **P4.1.3** Uživatelské proměnné
   - **Co a proč:** Proměnné pro klipy a nástroje s jedním významem všude a s pravidly přednosti. `%File%` znamená v klipu PSPadu něco jiného než v nástroji; tady se významy oddělí.
-  - **Stav 27. 10. 2026:** hotovo kromě odběratelů: jedno místo (`VariableScope`, `Variables.Expand`, `App.VariableContextFor`) a pořadí hodnota z formuláře, pak uživatelské proměnné (`variables.json` v profilu, Úpravy → „Upravit uživatelské proměnné“), pak vestavěné (`file.*`, `date`, `time`, `datetime`, `guid`, `selection`, `user.name`). Test pokrývá pořadí a stejný výsledek pro text klipu, náhradu receptu a argumenty nástroje. Recept (P4.11.1) ani spouštěč nástrojů (P4.3.3) ještě neexistují, takže tam zatím nic proměnné nevolá.
   - **Funkce:** F127
+  - **Stav 26. 10. 2026:** částečně: jedno místo pro proměnné s pořadím formulář › uživatelské (`variables.json` v profilu) › vestavěné, příkaz „Upravit uživatelské proměnné“, test pořadí. Shoda hodnoty s receptem ověřena testem (P4.11.1); se spouštěčem nástrojů čeká na P4.3.3.
   - **Hotovo, když:** stejná proměnná dá v klipu, receptu i externím nástroji stejnou hodnotu; test pokrývá pořadí přednosti.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
 - [x] **P4.1.4** Šablony souborů
   - **Co a proč:** Uživatelské šablony nových souborů jako data načítaná jádrem F029.
-  - **Stav 27. 10. 2026:** hotovo: `contributes.templates` v datovém pluginu, Soubor → „Nový ze šablony…“ otevře novou kartu s obsahem a kurzory na značkách `$|` (na začátku, když žádnou nemá); šablona může mít formulář. Nový soubor nemá proměnné `file.*`.
   - **Funkce:** F022
+  - **Stav 26. 10. 2026:** hotovo: Soubor › „Nový ze šablony…“ otevře kartu s obsahem šablony a kurzory na `$|`; šablony dodává datový plugin.
   - **Hotovo, když:** „Nový ze šablony“ vytvoří kartu s obsahem šablony a kurzorem na značce; šablony dodá datový plugin.
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
@@ -1373,9 +1399,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.2 Převodníky a konverze
 
-- [ ] **P4.2.1** Uživatelské převodníky
+- [x] **P4.2.1** Uživatelské převodníky
   - **Co a proč:** Převodní tabulky (entity, znaky, regexy) jako data se zkušebním textem a náhledem výsledku; formát, limity a náhled určí jádro.
   - **Funkce:** F095
+  - **Stav 26. 10. 2026:** hotovo: převodník z datového pluginu nad všemi výběry (bez výběru nad souborem) s náhledem, jeden krok undo, výběry zůstanou na novém textu, příkaz „Převést…“ opakovatelný; zkušební vzorky převodníku se při načtení pluginu ověří a vadný převodník (chybný vzorek, prázdné hledání, chybný regex) se odmítne. Limity (počet pravidel) neurčeny.
   - **Hotovo, když:** vlastní převodník z datového pluginu se použije nad výběrem s náhledem a jedním krokem undo; neplatný převodník se odmítne při instalaci.
   - **Závisí na:** P3b.2.1, P2.5.2
   - **Odhad:** bez odhadu
@@ -1384,6 +1411,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Co a proč:** Užitečné textové konverze z PSPadu jako příkazy v paletě nad více výběry.
   - **Funkce:** F048
   - **Před zahájením:** seznam ID konverzí se zapíše jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026:** částečně: mechanismus speciálních konverzí v témže seznamu jako převodníky, nad více výběry jako jeden krok undo, brána v testu vyžaduje pro každou konverzi uzavřený seznam a vzorek. Seznam ID konverzí (vstupní rozhodnutí) chybí, proto zatím žádná konverze.
   - **Hotovo, když:** seznam ID konverzí v testu je uzavřený; každá má vstup, očekávaný výstup a undo, funguje nad více výběry jako jeden krok undo a výběry po ní zůstanou na převedeném textu; nová konverze bez testovacího případu bránou neprojde.
   - **Závisí na:** P2.2.1
   - **Odhad:** bez odhadu
@@ -1391,23 +1419,26 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.3 LOG parser a režim logu
 
-- [ ] **P4.3.3** Minimální spouštěč nástrojů, argumenty a proměnné
+- [x] **P4.3.3** Minimální spouštěč nástrojů, argumenty a proměnné
   - **Co a proč:** LOG parser už v P4 spouští nástroj, ale editor definic, akce při uložení a katalog nástrojů jsou až v P8 (P8.2.1). Proto tady vzniká základ jednoho spouštěče: příkaz, argumenty jako pole, pracovní adresář, proměnné z P4.1.3, časový limit a zachycení výstupu. Příkaz se ukáže předem. P8 ho rozšíří, druhý spouštěč nevznikne.
   - **Funkce:** F124 (částečně: základ spouštěče)
+  - **Stav 27. 10. 2026:** hotovo: `ToolRunner` v jádru předává argumenty jako pole bez shellu (test s mezerami, uvozovkami, `&`, `%`, `$`), proměnné `${File}`, `${FileDir}`, `${FileName}`, `${FileBase}`, `${FileExt}`, `${Line}`, `${Column}`, časový limit a Zastavit ukončí celý strom procesů, první spuštění ukáže příkaz a adresář a čeká na potvrzení (otisk definice v profilu), výstup jde po řádcích do karty Úlohy. Definice jsou v `tools.json` v profilu ve tvaru `externalTools` z manifestu pluginu. Dávkové soubory ve Windows se odmítají, holý název se hledá jen v PATH. Chybí: uživatelské proměnné z P4.1.3 (spouštěč bere jejich vyhledání, zatím dodává jen proměnné dokumentu); výchozí časový limit a kódování výstupu jsou vstupní rozhodnutí, otevřená: bez `timeoutSeconds` limit není, výstup se čte jako UTF-8.
   - **Hotovo, když:** proměnná s mezerou v cestě se předá jako jeden argument; nástroj se poprvé spustí až po potvrzení příkazu a adresáře; překročení časového limitu proces ukončí a ohlásí; výstup jde zrušit.
   - **Závisí na:** P4.1.3, P3.6.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.3.1** LOG parser kompilátoru
+- [x] **P4.3.1** LOG parser kompilátoru
   - **Co a proč:** Spustí nástroj přes spouštěč z P4.3.3, zachytí výstup, klik na chybu skočí do souboru. LOG vzory jsou data s náhledem vzoru; jazyk vzorů `* %F %L %C %S %E %D` je popsaný v rozboru PSPadu. Podtržení v textu přijde v P8.8.1.
   - **Funkce:** F125
+  - **Stav 27. 10. 2026:** hotovo: jazyk masek podle rozboru PSPadu (zleva, bez rozlišení velikosti, bez zpětného prohledávání) a regulární výraz se skupinami `file`, `line`, `column`; okno „Vzor LOGu pro výstup“ ukáže na ukázkovém výstupu soubor, řádek a sloupec každého řádku; klik nebo Enter v kartě Úlohy otevře místo (relativní cesta: adresář nástroje, složka otevřeného souboru, otevřené dokumenty podle názvu). Vzory jsou data v `tools.json`; manifest pluginu má u vzoru `syntax` a `levels`, u nástroje `timeoutSeconds` a `logPattern`. Chybí: načítání pluginů z disku do aplikace (P3b.2.1), takže vzory pluginů se zatím jen ověřují; podtržení v textu (P8.8.1); předvolby kompilátorů jako hotová nabídka.
   - **Hotovo, když:** vlastní vzor s náhledem nad ukázkovým výstupem najde soubor, řádek a sloupec; klik v okně výstupu otevře místo.
   - **Závisí na:** P3b.2.1, P3.6.3, P4.3.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro, vzory jako data
-- [ ] **P4.3.2** Režim logu: základ
+- [x] **P4.3.2** Režim logu: základ
   - **Co a proč:** Úrovně podle vlastního vzoru, další a předchozí chyba, i ve stránkovaném režimu. Sbalení řádků, odkazy ze stack trace, heatmapa a ANSI barvy jsou v P9.4.2.
   - **Funkce:** F187
+  - **Stav 27. 10. 2026:** hotovo: jazyk Log barví řádky podle úrovně (chyba, varování, informace, ladění) v editoru i ve stránkovaném zobrazení (test vykreslení); Log: další a předchozí chyba čte soubor po blocích po 1 MiB a končí u prvního nálezu, Esc ruší; test Large na vygenerovaných 10 GiB a na skutečném 10GiB řídkém souboru (25 s, paměť pod 256 MiB), v UTF-8, UTF-16 a jednobajtovém kódování s CR, LF i CRLF proti ručnímu průchodu. Úrovně dává výraz na úroveň z `levels` vzoru v `tools.json`. Neověřeno: 10GiB soubor přes celé okno aplikace na stránkovaném povrchu. Vstupní rozhodnutí otevřené: výchozí slova úrovní (ERROR, WARN, INFO, DEBUG a příbuzná velkými písmeny) jsou jen výchozí volba, řádek delší než 8192 znaků se v editoru posuzuje podle začátku, volba pravidel se neukládá do relace.
   - **Hotovo, když:** v 10GiB logu skok na další ERROR funguje bez načtení celého souboru a řádky jsou obarvené podle úrovně.
   - **Závisí na:** P3.1.4, P4.3.1
   - **Odhad:** F187 2–3 ČT za základ i plný režim (matice)
@@ -1425,9 +1456,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.5 Psaní a schránka
 
-- [ ] **P4.5.1** Historie schránky
+- [x] **P4.5.1** Historie schránky
   - **Co a proč:** Ctrl+Shift+V seznam posledních kopií s náhledem, vložení i do všech kurzorů. Monitor systémové schránky F088 je jiná funkce (později).
   - **Funkce:** F173
+  - **Stav 26. 10. 2026:** hotovo: Ctrl+Shift+V otevře historii schránky s náhledem a filtrem, vybraný text se vloží do všech kurzorů jako jeden krok undo, funguje i ve stránkovaném režimu, v read-only odmítnuto; historie jen v paměti. Zástupné hodnoty: 20 položek, max. 1 048 576 znaků na položku.
   - **Hotovo, když:** po pěti kopiích seznam ukáže pět položek a vybraná se vloží do všech kurzorů jako jeden krok undo.
   - **Závisí na:** P2.2.1
   - **Odhad:** F173 0,5–1 ČT (matice)
@@ -1443,13 +1475,15 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Co a proč:** Speciální vložení včetně sloupcové sémantiky, vkládání a číslování řádků s více výběry, řazení s náhledem a pravidly, výběr řádků podle rozsahů jako filtr, formátování bloku. Externí řazení obřích dat až později.
   - **Funkce:** F045 (částečně: speciální vložení mimo vložení do sloupce), F047, F052, F061, F071
   - **Před zahájením:** seznam ID příkazů a voleb se zapíše jako vstupní rozhodnutí (úvod TODO).
+  - **Stav 26. 10. 2026:** částečně: vložit bez posunu kurzoru, vložit do řádků (text, čísla, odrážky), seřadit řádky s náhledem a pravidly, vybrat řádky podle rozsahu (více výběrů), přeformátovat odstavec na pravý okraj, zarovnat vlevo, vpravo, na střed a do bloku; každý s testem vstupu, výstupu a undo. Vstupní rozhodnutí (seznam ID příkazů a voleb) čeká na schválení; chybí Vložit jako HTML, Vložit ze souboru a zalamování podle krátkého řádku (F071).
   - **Hotovo, když:** seznam ID příkazů a voleb v testu je uzavřený a každá položka má vstup, očekávaný výstup a undo; řazení ukáže náhled a provede se jako jeden krok undo; číslování vloží čísla do každého kurzoru; výběr řádků 10–20 a 40–50 vytvoří dva výběry.
   - **Závisí na:** P2.2.1, P2.5.2
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.5.4** Malé vkládací příkazy
+- [x] **P4.5.4** Malé vkládací příkazy
   - **Co a proč:** Datum a čas v uživatelském formátu, GUID, opakování posledního vhodného příkazu. Jsou příliš malé na vlastní proces.
   - **Funkce:** F049, F050, F077
+  - **Stav 26. 10. 2026:** hotovo: datum a čas podle nastavení a GUID do každého kurzoru zvlášť, Opakovat poslední příkaz pro příkazy označené `repeatable` se stejnými parametry bez dialogu. Zástupné hodnoty: formát `yyyy-MM-dd HH:mm`, GUID malými písmeny s pomlčkami.
   - **Hotovo, když:** každý příkaz vloží do všech kurzorů; „Opakovat poslední příkaz“ zopakuje poslední opakovatelný příkaz z registru se stejnými parametry.
   - **Závisí na:** P1.6.1, P2.2.1
   - **Odhad:** bez odhadu
@@ -1464,9 +1498,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.6 Web, barvy a data
 
-- [ ] **P4.6.1** Barvy u hodnoty
+- [x] **P4.6.1** Barvy u hodnoty
   - **Co a proč:** Náhled barvy u hodnoty v textu, klik otevře výběr barvy, převod HEX / RGB / HSL / oklch.
   - **Funkce:** F085, F086
+  - **Stav 26. 10. 2026:** hotovo: vzorek barvy u hodnoty v CSS a webových jazycích, klik otevře výběr, nová barva přepíše hodnotu ve stejném zápisu jako jeden krok undo; převod HEX/RGB/HSL/oklch tam a zpět dá stejnou 8bitovou barvu (ověřeno na stovkách tisíc barev), plugin `NksHub.Textida.Plugins.WebData`. Otevřené: které jazyky vzorky ukazují (dnes CSS, HTML, XML, JS, TS, PHP, Razor, Latte). Skutečný klik myší neověřen.
   - **Hotovo, když:** u `#ff8800` v CSS je vidět barva, výběr nové barvy přepíše hodnotu a převod na `oklch()` zachová barvu.
   - **Závisí na:** P3.2.1, P3b.3.2
   - **Odhad:** 1–2 ČT
@@ -1474,6 +1509,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.6.2** Skryté hodnoty v `.env`
   - **Co a proč:** Hodnoty jako `••••`, ukázat najetím nebo přepínačem; obsah se nemění. Maskování je jeden sdílený filtr jádra pro vykreslení, minimapu, schránku, hledání, kopírování jako kontext (F254), přepisy agentů (F257) a API pluginů. Pravidlo pro agenty (hodnoty jen po potvrzení) platí od P6.
   - **Funkce:** F184
+  - **Stav 26. 10. 2026:** částečně: hodnoty `.env` skryté `••••` ve vykreslení, minimapě, náhledech hledání, Přejít na cokoli, výsledcích hledání, schránce i historii schránky (test); odhalení přepínačem nebo najetím myši; plugin bez potvrzení čte jen `*`, vestavěné příkazy se ptají; soubor se nemění, záznam volání bez hodnot. Čtečka obrazovky dostane místo hodnoty značku „[skrytá hodnota]“ (cs/sk/en/de, test), po odkrytí skutečný text. Chybí: stránkovaný a hex pohled ukazují surové bajty; NVDA a VoiceOver neověřeny. Otevřené: které soubory jsou „tajné“ (dnes `.env`, `.env.*`, `*.env`).
   - **Hotovo, když:** hodnoty `.env` jsou skryté ve vykreslení, v minimapě, ve výsledcích hledání a ve schránce při kopírování skrytého pohledu; plugin bez výslovného potvrzení dostane jen maskovanou hodnotu; uložení nezmění bajty souboru.
   - **Závisí na:** P3.2.1
   - **Odhad:** F184 0,5–1 ČT (matice)
@@ -1485,9 +1521,10 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3b.5.3
   - **Odhad:** F185 1–3 ČT (matice)
   - **Umístění:** vestavěný plugin (balíček formátovačů)
-- [ ] **P4.6.4** Cesta klíče v YAML a JSON
+- [x] **P4.6.4** Cesta klíče v YAML a JSON
   - **Co a proč:** Stavový řádek ukáže cestu klíče pod kurzorem (`cs.app.title`), kopírování cesty, Goto Anything podle cesty, porovnání klíčů dvou překladových souborů.
   - **Funkce:** F212
+  - **Stav 26. 10. 2026:** hotovo: stavový řádek ukazuje cestu klíče pod kurzorem (stará revize nebo posunutý kurzor se zahodí), porovnání `en.yml` a `cs.yml` vypíše chybějící klíče na obou stranách do okna výstupu, Přejít na cokoli `@cesta` i klik v osnově vyberou stejné bajty; kopírovat cestu a osnova. Limity jsou zástupné hodnoty.
   - **Hotovo, když:** porovnání `en.yml` a `cs.yml` vypíše chybějící klíče na obou stranách; cesta klíče patří ke konkrétní revizi a zpožděná odpověď pro starší revizi se nezobrazí; Goto Anything s cestou i klik trefí stejné bajty klíče.
   - **Závisí na:** P2.1.2, P3.2.1, P3b.3.5
   - **Odhad:** F212 1–2 ČT (matice)
@@ -1522,6 +1559,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.8.1** Balík textových nástrojů: statistika
   - **Co a proč:** Jeden balík vestavěných pluginů, jeden proces pro statistiku (tady), hashe (P4.8.2) a výrazy se soustavami (P4.8.3). Statistika asynchronně po blocích s viditelnou neúplností.
   - **Funkce:** F036
+  - **Stav 26. 10. 2026:** částečně: vestavěný plugin `NksHub.Textida.Plugins.TextTools` počítá statistiku celého dokumentu po 1MiB blocích na pozadí s průběhem a zrušením (zrušený běh ukáže počet spočtených bajtů); Large test 10 GiB drží živou paměť pod 64 MiB. Otevřená rozhodnutí: definice slova (dnes písmena a číslice); chybí tabulky četností; limity jsou zástupné hodnoty.
   - **Hotovo, když:** statistika 10GiB souboru běží na pozadí se zrušením a pracovní paměť úlohy zůstane ≤ 64 MiB; všechny tři části běží v jednom procesu.
   - **Závisí na:** P3b.3.1, P3b.2.2
   - **Odhad:** bez odhadu
@@ -1529,6 +1567,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.8.2** Hashe po blocích
   - **Co a proč:** Hashe po blocích nad surovými bajty; společný dialog s hex hashi F242.
   - **Funkce:** F090
+  - **Stav 26. 10. 2026:** částečně: MD5, SHA-1, SHA-256, SHA-384, SHA-512 nad bajty souboru nebo výběru proudem ze snapshotu, SHA-256 se shoduje s `certutil`, zrušení nedá výsledek. Otevřené: seznam algoritmů; chybí porovnání s vloženým hashem a tlačítko kopírovat.
   - **Hotovo, když:** SHA-256 souboru se shoduje s externím SHA nástrojem (`certutil` na Windows, `shasum` na macOS); výpočet jde zrušit.
   - **Závisí na:** P4.8.1
   - **Odhad:** bez odhadu
@@ -1536,6 +1575,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 - [ ] **P4.8.3** Výrazy, výpočet bloku a soustavy
   - **Co a proč:** Součet výběru s formátem čísel, převod soustav, vyhodnocení výrazu bez spouštění kódu.
   - **Funkce:** F092, F093, F094
+  - **Stav 26. 10. 2026:** částečně: součet bloku, výpočet výrazu bez spouštění kódu a převod soustav (-2^63 až 2^64-1), součty sloupců v cs, sk, de a en formátu, dokument se nemění. Otevřené: volba formátu čísel výběru, nečíselné tokeny (dnes přeskočeny a spočteny), rozsah převodu; chybí vložení výsledku, římská čísla a ms na datum.
   - **Hotovo, když:** součet sloupce čísel ve formátu cs, sk, de i en dá očekávaný výsledek a zobrazí se ve formátu jazyka UI; změna jazyka UI nezmění bajty dokumentu; převod soustav projde krajní hodnoty; výraz s voláním funkce systému se odmítne.
   - **Závisí na:** P4.8.1
   - **Odhad:** bez odhadu
@@ -1557,24 +1597,24 @@ Hotovo celku podle analýzy konkurence, upřesněné podle revize: výběr 1 GiB
 
 - [x] **P4.10.1** Kopírovat a vložit jako
   - **Co a proč:** Hex řetězec, pole pro C, C#, Java, Python, Rust, Go, JavaScript, Pascal, Base64, Intel HEX, S-record, hexdump. Vložit jako hex text, Base64, pole C. Export výběru do souboru. Formáty jdou rozšířit jako převodník F095.
-  - **Stav 27. 10. 2026:** hotovo: Úpravy → „Kopírovat výběr jako…“ (14 podob), „Vložit jako…“ (hex text, Base64, pole ze zdrojového kódu) a „Exportovat výběr…“ (binárně nebo v textové podobě, na pozadí, Esc zruší). Test přeloží zkopírované pole C# Roslynem a porovná bajty; Base64 a pole všech jazyků vrací tam a zpět stejné bajty. Rozšíření o převodník F095 chybí, protože převodníky F095 ještě neexistují.
   - **Funkce:** F240
+  - **Stav 26. 10. 2026:** hotovo: „Kopírovat výběr jako“ (14 podob), „Vložit jako“ a „Exportovat výběr“; pole C# zkopírované z výběru test přeloží Roslynem a bajty se shodují, Base64 a pole všech jazyků tam a zpět beze změny bajtů.
   - **Hotovo, když:** „kopírovat jako C#“ vložené do programu se zkompiluje a obsahuje stejné bajty; Base64 tam a zpět vrátí stejné bajty.
   - **Závisí na:** P3.5.4, P4.2.1
   - **Odhad:** F240 1–1,5 ČT (matice)
   - **Umístění:** jádro (hex, kap. 5.5)
-- [ ] **P4.10.2** Vyplnit a operace nad výběrem
+- [x] **P4.10.2** Vyplnit a operace nad výběrem
   - **Co a proč:** Vzor, opakování výběru, náhodně, čísla s krokem; XOR, AND, OR, NOT, posun, rotace, prohození endianity. Velké vyplnění přes nový druh úseku „opakovaný vzor“ ve stromu úseků, ne přes add buffer.
-  - **Stav 27. 10. 2026:** hotovo kromě měření času: strom úseků má úsek „opakovaný vzor“ (vzor a délka, bez paměti navíc), `Document.Fill` a Úpravy → „Vyplnit výběr…“ a „Operace nad výběrem…“; vyplnění 5 GiB alokuje ≤ 16 MiB a uložený soubor se shoduje s nezávislým výpočtem bajtů i SHA-256 (test Large). Čas do 1 s měří test kategorie Perf (`HexFillLargeTests`) na referenčním VM, tady neměřeno. Meze: vyplnění nad 256 MiB (`InPlacePatch.MaxPatchBytes`) drží undo jako odkaz do mapování, takže uložení přes soubor jeho undo i kroky před ním uvolní (diskové undo je P7.1.2); menší vyplnění se chovají jako běžné úpravy. Náhodné bajty, čísla s krokem a operace drží výběr v paměti, nejvýše 2 GiB. Otevřené: od jaké velikosti vyplnění ztrácí undo po uložení (dnes 256 MiB).
   - **Funkce:** F241
+  - **Stav 26. 10. 2026:** hotovo: nový druh úseku „opakovaný vzor“ (`Document.Fill`), „Vyplnit výběr“ a „Operace nad výběrem“; vyplnění 5 GiB alokuje ≤ 16 MiB, uložení se shoduje s nezávislým výpočtem a SHA-256; žurnál ukládá vzor (rozložení záznamu 4). Perf test `Filling_5_GiB_with_zeros_takes_under_a_second_and_16_MiB` na referenční Windows VM 27. 10. prošel (do 1 s). Otevřené: od jaké velikosti vyplnění se undo po uložení přes soubor uvolní (dnes nad 256 MiB, `InPlacePatch.MaxPatchBytes`).
   - **Hotovo, když:** vyplnění 5 GiB opakovaným vzorem trvá do 1 s, přírůstek paměti ≤ 16 MiB a následné uložení se porovná nezávislým výpočtem bajtů.
   - **Závisí na:** P3.5.4
   - **Odhad:** F241 1,5–2 ČT (matice)
   - **Umístění:** jádro (hex, kap. 5.5)
 - [x] **P4.10.3** Kontrolní součty a hashe
   - **Co a proč:** CRC-32, CRC-64, xxHash, CRC-16 a vlastní polynom, Adler-32, součty, MD5, SHA-1, SHA-256/384/512 nad výběrem i souborem; porovnání s vloženou hodnotou. Společný dialog s F090.
-  - **Stav 27. 10. 2026:** hotovo: Úpravy → „Kontrolní součty a hashe…“ nad výběrem, bez výběru nad celým souborem; na pozadí s průběhem ve stavovém řádku, Esc zruší; výsledek jde zkopírovat nebo porovnat s vloženou hodnotou. 13 variant CRC s polynomem a parametry (CRC-16, CRC-32, CRC-64) a CRC s vlastním polynomem šířky 1 až 64 bitů, vlastní kód bez balíčku; každá varianta projde publikovaným vektorem a bitovou definicí, CRC-32 a Adler-32 i trailerem gzip a zlib. SHA-256 a CRC-32 výběru 1 GiB se shodují s výpočtem, který čte soubor sám (test Large). xxHash je XXH32 a XXH64, XXH3 chybí. Společný dialog s F090 čeká na P4.8.2, dialog je zatím jen hexový.
   - **Funkce:** F242
+  - **Stav 26. 10. 2026:** hotovo: „Kontrolní součty a hashe“ nad výběrem nebo souborem na pozadí se zrušením Esc; SHA-256 i CRC-32 výběru 1 GiB se shodují s nezávislým čtením souboru, 13 variant CRC s publikovaným vektorem a bitovou definicí jako druhou implementací, vlastní polynom, XXH32 a XXH64. Chybí XXH3 a společný dialog s P4.8.2.
   - **Hotovo, když:** SHA-256 výběru 1 GiB se shoduje s externím SHA nástrojem (`certutil`, `shasum`); každá CRC varianta má určený polynom a parametry a projde známým ověřovacím vektorem i porovnáním s druhou implementací; výpočet jde zrušit.
   - **Závisí na:** P3.5.2, P4.8.2
   - **Odhad:** F242 0,5–1 ČT (matice)
@@ -1582,9 +1622,10 @@ Hotovo celku podle analýzy konkurence, upřesněné podle revize: výběr 1 GiB
 
 ### P4.11 Malé recepty
 
-- [ ] **P4.11.1** Recept úprav nad otevřeným souborem
+- [x] **P4.11.1** Recept úprav nad otevřeným souborem
   - **Co a proč:** Řetězec najdi → vyber → převeď → nahraď → náhled → použij nad otevřeným souborem, s návratem. Plné recepty nad sadou souborů v P8.1.2. Ověřit uživatelským scénářem (kap. 9).
   - **Funkce:** F165
+  - **Stav 26. 10. 2026:** hotovo: „Spustit recept úprav…“ (opakovatelný) – kroky výběru `matches` a `columns`, změny `convert`, `replace`, `set`; náhled změn, jeden krok undo vrátí původní soubor; `set` bere proměnné ze stejného místa jako klip (test shody s klipem včetně přebití uživatelskou proměnnou); nic se nezapíše, když se soubor mezitím změnil; neplatný recept se odmítne při načtení. Krok `convert` jen z vlastního pluginu; ověřeno jen headless.
   - **Hotovo, když:** recept „vyber sloupec → uprav → náhled → použij“ projde i s návratem do původního stavu jedním undo.
   - **Závisí na:** P2.5.2, P4.2.1
   - **Odhad:** F165 3–5 ČT navíc za malé i plné recepty (matice)

@@ -1024,6 +1024,36 @@
       "enablement": "!readOnly",
       "undo": "transaction",
       "repeatable": true
+    },
+    {
+      "id": "nks.tools.run",
+      "title": "cmd.tools.run",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.stop",
+      "title": "cmd.tools.stop",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.logPattern",
+      "title": "cmd.tools.logPattern",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.log.nextError",
+      "title": "cmd.log.nextError",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.previousError",
+      "title": "cmd.log.previousError",
+      "category": "cat.log"
+    },
+    {
+      "id": "nks.log.levels",
+      "title": "cmd.log.levels",
+      "category": "cat.log"
     }
   ],
   "menus": [
@@ -1896,6 +1926,42 @@
       "command": "nks.edit.justifyBlock",
       "group": "5_block",
       "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.run",
+      "group": "5_run",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.stop",
+      "group": "5_run",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.logPattern",
+      "group": "5_run",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.nextError",
+      "group": "6_log",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.previousError",
+      "group": "6_log",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.levels",
+      "group": "6_log",
+      "order": 30
     }
   ],
   "keybindings": [

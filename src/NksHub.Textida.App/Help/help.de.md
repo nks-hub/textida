@@ -634,6 +634,33 @@ commands: nks.hex.checksum
 - Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.
 - Ein CRC mit eigenem Polynom nimmt die Breite in Bit und hex das Polynom (ungerade), den Startwert, die zwei Spiegelungsflags (0 oder 1) und das End-XOR.
 
+## [tools.run] Werkzeuge: externes Programm starten
+commands: nks.tools.run, nks.tools.stop
+1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.
+2. Ein Werkzeug hat id, title, executable und args (eine Liste: ein Eintrag ist ein Argument). Optional sind cwd (das Verzeichnis, in dem es läuft; ohne Angabe der Ordner der aktuellen Datei), timeoutSeconds (ohne Angabe gibt es kein Zeitlimit) und logPattern (siehe LOG-Muster). Beispiel: {"externalTools": [{"id": "build", "title": "Build", "executable": "dotnet", "args": ["build", "${File}"], "cwd": "${FileDir}", "timeoutSeconds": 120}]}
+3. In executable, args und cwd stehen die Variablen ${File} (vollständiger Pfad), ${FileDir}, ${FileName}, ${FileBase}, ${FileExt}, ${Line} und ${Column} für das aktuelle Dokument; $$ ist ein Dollarzeichen. Ein Argument bleibt ein Argument, was auch im Wert steht, Leerzeichen und Anführungszeichen eingeschlossen: Es wird keine Shell verwendet. Eine unbekannte Variable oder ${File} bei einem Dokument ohne Datei stoppt den Start, bevor etwas beginnt.
+4. Ein Werkzeug, dessen Befehl und Verzeichnis noch nicht gelaufen sind, wird mit beidem angezeigt und startet erst nach Ihrer Bestätigung. Die Bestätigung gilt, bis sich die Definition oder das Programm dahinter ändert.
+5. Die Ausgabe geht Zeile für Zeile in den Reiter Aufgaben des Ausgabefensters, am Ende mit Exitcode und Zeit. Beenden in diesem Fenster oder Laufendes Werkzeug beenden stoppt das Programm und alles, was es gestartet hat; ebenso das Zeitlimit.
+- Batchdateien (.bat, .cmd) werden unter Windows abgelehnt, weil der Befehlsinterpreter die Argumente erneut zerlegen und auflösen würde. Geben Sie das Programm an, das die Batchdatei startet.
+- Ein Programmname ohne Pfad wird nur in PATH gesucht, nie im Arbeitsverzeichnis.
+- Die Ausgabe wird als UTF-8 gelesen. Es läuft immer nur ein Werkzeug.
+
+## [tools.logPattern] LOG-Muster: auf einen Fehler in der Ausgabe klicken
+commands: nks.tools.logPattern
+1. LOG-Muster für die Ausgabe öffnet einen Test des Musters mit der letzten Ausgabe der Werkzeuge als Beispiel. Jede Zeile des Beispiels zeigt Datei, Zeile und Spalte, die das Muster darin gefunden hat, oder dass es nichts gefunden hat.
+2. Die Maske wird von links und ohne Beachtung der Groß- und Kleinschreibung verglichen. * überspringt beliebigen Text bis zum nächsten festen Teil der Maske. %F ist der Dateiname, bis zum nächsten festen Teil. %D ist ein Laufwerk (C: gefolgt von einem Schrägstrich) davor. %L ist die Zeile und %C die Spalte (Ziffern). %S überspringt Leerzeichen und Tabulatoren. %E beendet die Maske. Eine Maske braucht %L; ohne %F zeigt sie auf die Datei, die geöffnet war. Beispiele: %F:%L:%C:* für main.c:12:5: error, *] %F(%L) für [Error] a.pas(346): text.
+3. Die andere Sprache ist ein regulärer Ausdruck mit den Gruppen line (erforderlich), file und column.
+4. Für die Ausgabe verwenden sorgt dafür, dass das Muster für die Zeilen im Ausgabefenster gilt: Ein Klick auf eine Zeile oder Enter öffnet die Datei an dieser Zeile. Ein relativer Dateiname wird im Verzeichnis gesucht, in dem das Werkzeug lief, dann im Ordner der beim Start geöffneten Datei, dann unter den offenen Dokumenten nach Namen.
+- Ein Werkzeug kann ein eigenes Muster mitbringen: in tools.json "logPatterns": [{"id": "gcc", "title": "gcc", "syntax": "mask", "pattern": "%F:%L:%C:*"}] und im Werkzeug "logPattern": "gcc". Ohne "syntax" ist das Muster ein regulärer Ausdruck.
+
+## [log.mode] Log-Modus: Stufen und nächster Fehler
+commands: nks.log.nextError, nks.log.previousError, nks.log.levels
+1. Ein Dokument in der Sprache Log (Dateien auf .log, oder Format, Sprache) färbt jede Zeile nach ihrer Stufe: Fehler, Warnung, Information oder Debug. Die schwerste in einer Zeile gefundene Stufe entscheidet.
+2. Log: nächster Fehler und Log: vorheriger Fehler springen vom Cursor zur nächsten oder vorherigen Zeile der Stufe Fehler. Die Datei wird blockweise gelesen und die Suche endet beim ersten Treffer, sie funktioniert also bei jeder Dateigröße; die Statuszeile zeigt den Fortschritt, Esc bricht ab.
+3. Log: Stufen wählt die Regeln für das Dokument. Die Standardregeln suchen die in Großbuchstaben geschriebenen Wörter ERROR, ERR, FATAL, CRITICAL, SEVERE, WARN, WARNING, INFO, DEBUG und TRACE als ganze Wörter. Eigene Regeln kommen aus tools.json: "logPatterns": [{"id": "mine", "title": "Mein Log", "levels": {"error": "\\|E\\|", "warning": "\\|W\\|"}}]. Die Schlüssel sind error, warning, info und debug; jeder Wert ist ein regulärer Ausdruck. Der Befehl schaltet für das Dokument auch den Log-Modus ein.
+- Die Regeln gelten, solange das Dokument geöffnet ist, und werden nicht gespeichert.
+- Eine Zeile mit mehr als 8192 Zeichen wird im Editor nach ihren ersten 8192 Zeichen beurteilt.
+
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 Die Befehle stehen im Menü Ansicht und in der Palette. Jeder schaltet eine Einstellung um; die Einstellungen lassen sich auch in den Einstellungen ändern.

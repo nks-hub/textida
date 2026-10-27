@@ -35,6 +35,7 @@ internal sealed partial class EditorSurface : TextEditor
     private TextViewPosition _blockAnchor;
     private TextViewPosition _blockEnd;
     private readonly SyntaxColorizer _colorizer;
+    private readonly LogLevelColorizer _levels;
     private bool _syntaxViewQueued;
 
     public EditorSurface(OpenDocument doc, EditorOptions options) : base(new EditorTextArea())
@@ -59,6 +60,11 @@ internal sealed partial class EditorSurface : TextEditor
         _colorizer = new SyntaxColorizer(TextArea.TextView);
         _colorizer.BindDocument(Document);
         TextArea.TextView.LineTransformers.Add(_colorizer);
+        _levels = new LogLevelColorizer(TextArea.TextView);
+        TextArea.TextView.LineTransformers.Add(_levels);
+        doc.LanguageChanged += ApplyLogLevels;
+        doc.LogLevelsChanged += ApplyLogLevels;
+        ApplyLogLevels();
         Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount, () => OnVisualLinesChanged(null, EventArgs.Empty));
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
         TextArea.TextView.ScrollOffsetChanged += (_, _) => QueueSyntaxView();
@@ -72,6 +78,8 @@ internal sealed partial class EditorSurface : TextEditor
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
+
+    private void ApplyLogLevels() => _levels.Rules = Doc.IsLog ? Doc.LogLevels : null;
 
     public OpenDocument Doc { get; }
     /// <summary>Keeps the syntax colors of this view current.</summary>
@@ -208,7 +216,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.SelectionBorder = null;
         _caretBrush = Find("Fg");
         UpdateNativeCaret();
-        _colorizer.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+        _colorizer.Palette = _levels.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
     }
 
     // ---- selections ----

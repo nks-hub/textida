@@ -55,6 +55,19 @@ public class PluginManifestTests
         Assert.NotEmpty(again);
     }
 
+    [Fact]
+    public void ALogPatternInMaskSyntaxWithLevelsAndAToolThatUsesItAreAccepted()
+    {
+        var manifest = "{" + Header + ",\"contributes\":{\"logPatterns\":[{\"id\":\"gcc\",\"title\":\"gcc\",\"syntax\":\"mask\",\"pattern\":\"%F:%L:%C:*\"," +
+            "\"levels\":{\"error\":\"\\\\|E\\\\|\"}}]," +
+            "\"externalTools\":[{\"id\":\"build\",\"title\":\"Build\",\"executable\":\"make\",\"args\":[\"-j\"],\"timeoutSeconds\":60,\"logPattern\":\"gcc\"}]}}";
+        var result = Load(Plugin(manifest));
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        var contributes = result.Plugin!.Manifest.Contributes;
+        Assert.Equal("mask", contributes.LogPatterns.Single().Syntax);
+        Assert.Equal((60, "gcc"), (contributes.ExternalTools.Single().TimeoutSeconds, contributes.ExternalTools.Single().LogPattern));
+    }
+
     [Theory]
     [InlineData("{ not json", "Invalid")]
     [InlineData("{\"schemaVersion\":1,\"surprise\":true}", "Invalid")]
@@ -66,6 +79,11 @@ public class PluginManifestTests
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"grammars\":[\"missing.json\"]}}", "does not exist")]
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"grammars\":[\"..\\\\..\\\\outside.json\"]}}", "leaves the plugin folder")]
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"logPatterns\":[{\"id\":\"p\",\"title\":\"P\",\"pattern\":\"(\"}]}}", "regular expression")]
+    [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"logPatterns\":[{\"id\":\"p\",\"title\":\"P\",\"syntax\":\"mask\",\"pattern\":\"%F\"}]}}", "needs %L")]
+    [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"logPatterns\":[{\"id\":\"p\",\"title\":\"P\",\"syntax\":\"glob\",\"pattern\":\"x\"}]}}", "syntax must be")]
+    [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"logPatterns\":[{\"id\":\"p\",\"title\":\"P\",\"pattern\":\"(?<line>[0-9]+)\",\"levels\":{\"fatal\":\"x\"}}]}}", "Unknown level")]
+    [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"externalTools\":[{\"id\":\"t\",\"title\":\"T\",\"executable\":\"x\",\"logPattern\":\"nope\"}]}}", "unknown log pattern")]
+    [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"contributes\":{\"externalTools\":[{\"id\":\"t\",\"title\":\"T\",\"executable\":\"x\",\"timeoutSeconds\":0}]}}", "time limit")]
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"main\":{\"executable\":\"python\",\"args\":[\"x.py\"]},\"contributes\":{\"commands\":[{\"id\":\"acme.demo.a\",\"title\":\"x\"}]}}", "bare name")]
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"main\":{\"executable\":\"./nothing.exe\"},\"contributes\":{\"commands\":[{\"id\":\"acme.demo.a\",\"title\":\"x\"}]}}", "does not exist")]
     [InlineData("{\"schemaVersion\":1,\"id\":\"acme.demo\",\"name\":\"D\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"main\":{\"executable\":\"./run.cmd\",\"activationEvents\":[\"sometime\"]}}", "Activation event")]

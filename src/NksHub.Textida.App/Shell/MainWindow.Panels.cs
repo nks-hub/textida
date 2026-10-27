@@ -52,7 +52,7 @@ internal sealed partial class MainWindow
         _outputClear.Click += (_, _) => _app.Output.Clear(_outputChannel);
         _outputClose.Classes.Add("outputaction");
         _outputClose.Click += (_, _) => ToggleOutput(false);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), Children = { _outputClear, _outputClose } };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), Children = { _outputStop, _outputClear, _outputClose } };
         var header = new DockPanel { Height = 30, LastChildFill = false };
         header.Children.Add(Dock(actions, Avalonia.Controls.Dock.Right));
         header.Children.Add(Dock(tabs, Avalonia.Controls.Dock.Left));
@@ -60,10 +60,16 @@ internal sealed partial class MainWindow
         _outputText.Classes.Add("outputtext");
         _outputPanel.AddHandler(KeyDownEvent, (_, e) =>
         {
+            if (e.Key == Key.Enter && e.Source == _outputText)
+            {
+                e.Handled = OpenOutputLineAt(_outputText.CaretIndex);
+                return;
+            }
             if (e.Key != Key.Escape) return;
             ToggleOutput(false);
             e.Handled = true;
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        WireOutputClicks();
 
         _outputPanel.Classes.Add("outputpanel");
         _outputPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), _outputText } };
@@ -82,6 +88,8 @@ internal sealed partial class MainWindow
     {
         _outputTabs[OutputChannel.Tasks].Content = Loc.Get(K.PanelOutputTasks);
         _outputTabs[OutputChannel.Search].Content = Loc.Get(K.PanelOutputSearch);
+        _outputStop.Content = Loc.Get(K.PanelOutputStop);
+        AutomationProperties.SetName(_outputStop, Loc.Get(K.PanelOutputStop));
         _outputClear.Content = Loc.Get(K.PanelOutputClear);
         _outputClose.Content = Loc.Get(K.PanelOutputClose);
         _outputText.PlaceholderText = Loc.Get(K.PanelOutputEmpty);
@@ -129,7 +137,8 @@ internal sealed partial class MainWindow
     {
         _outputDirty = false;
         var sb = new StringBuilder();
-        foreach (var line in _app.Output.Read(_outputChannel))
+        _outputShown = [.. _app.Output.Read(_outputChannel)];
+        foreach (var line in _outputShown)
         {
             if (line.Time != default) sb.Append(line.Time.ToString("HH:mm:ss", CultureInfo.InvariantCulture)).Append("  ");
             if (line.Source.Length > 0) sb.Append(line.Source).Append("  ");

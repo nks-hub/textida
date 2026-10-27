@@ -45,6 +45,10 @@ public sealed class SyntaxPalette
         Add("#001080", "#9CDCFE", "variable", "property");
         Add("#AF00DB", "#C586C0", "preprocessor", "meta");
         Add("#0000FF", "#569CD6", "heading", "link");
+        Add("#C0392B", "#F47067", "log.error");
+        Add("#9A6700", "#D29922", "log.warning");
+        Add("#0451A5", "#79C0FF", "log.info");
+        Add("#6E7781", "#8B949E", "log.debug");
         return new SyntaxPalette(colors);
     }
 }
