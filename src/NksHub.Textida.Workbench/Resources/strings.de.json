@@ -154,6 +154,7 @@
   "cmd.format.eolCr": "Zeilenenden auf CR",
   "cmd.format.normalizeNfc": "Unicode nach NFC normalisieren",
   "cmd.format.normalizeNfd": "Unicode nach NFD normalisieren",
+  "cmd.format.applyEditorConfig": "Kodierung und Zeilenenden aus EditorConfig anwenden...",
   "cmd.format.language": "Sprachmodus...",
   "cmd.view.toggleDocumentList": "Liste der geöffneten Dokumente",
   "cmd.search.gotoAnything": "Gehe zu Beliebigem...",

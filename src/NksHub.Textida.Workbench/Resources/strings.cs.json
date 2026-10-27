@@ -154,6 +154,7 @@
   "cmd.format.eolCr": "Konce řádků na CR",
   "cmd.format.normalizeNfc": "Normalizovat Unicode na NFC",
   "cmd.format.normalizeNfd": "Normalizovat Unicode na NFD",
+  "cmd.format.applyEditorConfig": "Použít kódování a konce řádků z EditorConfig...",
   "cmd.format.language": "Režim jazyka...",
   "cmd.view.toggleDocumentList": "Seznam otevřených dokumentů",
   "cmd.search.gotoAnything": "Přejít na cokoli...",

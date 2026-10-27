@@ -277,7 +277,11 @@ internal sealed partial class MainWindow
     /// <summary>Shows what a plugin proposes in the preview of the other whole-document actions and applies it when the user agrees.</summary>
     internal async Task ReviewPluginProposalAsync(EditProposal proposal, DocTab tab)
     {
-        var preview = new ChangePreview(proposal.Revision, "plugin:" + proposal.PluginId, proposal.Edits, LossReport.None, false);
-        if (await ConfirmPreviewAsync(tab, preview, Loc.Get(K.PluginProposal, ("title", proposal.Title ?? proposal.PluginId), ("changes", proposal.Edits.Count)))) Apply(tab, preview);
+        var report = tab.Doc.Doc.InspectEdits(proposal.Edits, "plugin:" + proposal.PluginId, proposal.Revision);
+        if (report is null) { SetStatusMessage(Loc.Get(K.StatusChangeConflict)); return; }
+        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, Loc.Get(K.PluginProposal, ("title", proposal.Title ?? proposal.PluginId), ("changes", proposal.Edits.Count)), Loc.Get(K.PreviewApply));
+        if (answer != LossAnswer.Replace) return;
+        report.Confirm();
+        if (!tab.Doc.Doc.Apply(report).Applied) SetStatusMessage(Loc.Get(K.StatusChangeConflict));
     }
 }

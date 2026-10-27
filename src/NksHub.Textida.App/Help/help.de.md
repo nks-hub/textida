@@ -515,6 +515,15 @@ Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem g
 - Ließe sich nach dem Normalisieren ein Zeichen nicht in der Codierung der Datei schreiben, lehnt das Programm die Änderung ab und sagt es.
 - Gab es nichts zu ändern, meldet die Statusleiste Nichts zu ändern.
 
+## [format.inspector] Byte-Inspektor
+commands: nks.format.applyEditorConfig
+Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Kodierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Kodierung und EditorConfig anwenden.
+- Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Kodierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
+- Kann die Zielkodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Kodierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
+- Der Befehl Kodierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
+- Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
+- Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
+
 ## [format.language] Sprachmodus
 commands: nks.format.language
 1. Wählen Sie Format und dann Sprachmodus oder klicken Sie in der Statusleiste auf die Sprache.

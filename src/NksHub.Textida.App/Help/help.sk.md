@@ -515,6 +515,15 @@ Znaky s diakritikou môžu byť zapísané jedným znakom (NFC) alebo písmenom 
 - Ak by sa po normalizácii niektorý znak nedal zapísať v kódovaní súboru, program zmenu odmietne a napíše to.
 - Ak nebolo čo meniť, stavový riadok napíše Nie je čo meniť.
 
+## [format.inspector] Inšpektor bajtov
+commands: nks.format.applyEditorConfig
+Každá akcia, ktorá prepisuje bajty, ktoré ste neupravili, najprv ukáže, čo zmení, a nič nezapíše, kým ju nepotvrdíte: Previesť do kódovania, Konce riadkov, Normalizovať Unicode, Uložiť ako s iným kódovaním a Použiť EditorConfig.
+- Okno uvádza počet zmenených úsekov a bajtov, veľkosť pred a po, kódovanie a konce riadkov pred a po a jeden riadok na úsek: kde leží, pôvodná a nová dĺžka a prvé bajty (najviac 500 riadkov, zvyšok je započítaný).
+- Keď cieľové kódovanie niektoré znaky nepojme, to isté okno vypíše každý z nich s riadkom, stĺpcom a bajtom a ponúkne tri odpovede: zrušiť (nič sa nezapíše), zmeniť kódovanie, alebo každý znak nahradiť otáznikom.
+- Príkaz Použiť kódovanie a konce riadkov z EditorConfig v ponuke Formát prevedie súbor na znakovú sadu a koniec riadka, ktoré nastavuje jeho .editorconfig; každý krok otvorí inšpektor. Vlastnosť, ktorú súbor nenastavuje, sa nechá tak.
+- Úseky platia pre revíziu, ktorú ste videli; ak sa dokument medzitým zmení, akcia sa odmietne.
+- Súbor a potom Zmeny pred uložením ukáže rovnaký výpis pre budúce uloženie.
+
 ## [format.language] Režim jazyka
 commands: nks.format.language
 1. Zvoľte Formát a Režim jazyka, alebo kliknite na jazyk v stavovom riadku.

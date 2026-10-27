@@ -58,10 +58,12 @@ public class FileFlowTests : IDisposable
         var tab = NewWith("ahoj čau");
         var path = Path.Combine(_temp.Path, "new.html");
         _dialogs.SaveAs.Enqueue(new SaveAsChoice(path, TextCodec.Cp1250));
+        _dialogs.Answers.Enqueue(0); // the inspector lists the changed bytes of the conversion
 
         Assert.True(await _w.SaveAsync(tab));
 
         Assert.Equal(Encoding.GetEncoding(1250).GetBytes("ahoj čau"), File.ReadAllBytes(path));
+        Assert.Equal(Loc.Get(K.InspectTitle), Assert.Single(_dialogs.Asked).Title);
         var asked = Assert.Single(_dialogs.SaveAsAsked);
         Assert.Contains(asked.Targets, t => t.Codec == TextCodec.Utf8 && t.Lost == 0);
         Assert.Contains(asked.Targets, t => t.Codec == TextCodec.Cp1250 && t.Lost == 0);
@@ -152,6 +154,7 @@ public class FileFlowTests : IDisposable
         tab.Editor!.Document.Insert(1, "č");
         _dialogs.Answers.Enqueue(1);
         _dialogs.Encodings.Enqueue(TextCodec.Utf8);
+        _dialogs.Answers.Enqueue(0); // the inspector of the conversion to the picked encoding
 
         Assert.True(await _w.SaveAsync(tab));
         Assert.Equal(Encoding.UTF8.GetBytes("ačb"), File.ReadAllBytes(path));
@@ -165,6 +168,7 @@ public class FileFlowTests : IDisposable
         var tab = NewWith("řč😀");
         _dialogs.Answers.Enqueue(1);
         _dialogs.Encodings.Enqueue(TextCodec.Utf16LE);
+        _dialogs.Answers.Enqueue(0); // the inspector of the picked encoding
         Assert.True(await _w.ConvertToAsync(tab, TextCodec.Cp1250));
         Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
         Assert.Equal("řč😀", Text(tab));

@@ -39,8 +39,8 @@ internal sealed partial class MainWindow
         SetStatusMessage(Loc.Get(K.StatusRereadAs, ("encoding", codec.Name)));
     }
 
-    /// <summary>"Convert to": rewrites the bytes. A target that would lose characters needs the user's explicit replacement first.</summary>
-    public async Task<bool> ConvertToAsync(DocTab tab, TextCodec codec)
+    /// <summary>"Convert to": rewrites the bytes after the inspector listed what changes. A target that would lose characters needs the user's explicit replacement first.</summary>
+    public async Task<bool> ConvertToAsync(DocTab tab, TextCodec codec, string? headline = null)
     {
         var od = tab.Doc;
         var doc = od.Doc;
@@ -48,16 +48,12 @@ internal sealed partial class MainWindow
         var before = doc.Codec;
         if (!await ConfirmTypedLossAsync(tab)) return false;
         if (doc.Codec != before) return true; // the inspector already converted to the encoding the user picked
-        var preview = doc.PreviewConvert(codec);
-        string? replacement = null;
-        if (preview.Loss.HasLoss)
-        {
-            var (answer, other) = await ConfirmLossAsync(od, preview.Loss, codec, Loc.Get(K.LossConvertReplaced));
-            if (answer == LossAnswer.ChangeEncoding) return await ConvertToAsync(tab, other!);
-            if (answer != LossAnswer.Replace) return false;
-            replacement = "?";
-        }
-        var result = doc.ConvertTo(codec, replacement);
+        var report = doc.InspectConvert(codec);
+        var (answer, other) = await ConfirmInspectionAsync(od, report, headline ?? Loc.Get(K.InspectConvert, ("encoding", codec.Name)), Loc.Get(K.LossConvertReplaced));
+        if (answer == LossAnswer.ChangeEncoding) return await ConvertToAsync(tab, other!, headline);
+        if (answer != LossAnswer.Replace) return false;
+        report.Confirm(report.HasLoss ? "?" : null);
+        var result = doc.Apply(report);
         if (!result.Applied)
         {
             SetStatusMessage(Loc.Get(K.StatusConvertFailed, ("encoding", codec.Name)));
@@ -69,63 +65,91 @@ internal sealed partial class MainWindow
         return true;
     }
 
-    /// <summary>Unifies the line endings after showing exactly how many change. One undo step.</summary>
+    /// <summary>Unifies the line endings after the inspector listed every ending that changes. One undo step.</summary>
     public async Task<bool> UnifyEolAsync(DocTab tab, EolStyle target)
     {
         var doc = tab.Doc.Doc;
         if (tab.Doc.IsLarge) return false;
-        var preview = doc.PreviewUnifyEol(target);
-        string name = target switch { EolStyle.CrLf => "CRLF", EolStyle.Cr => "CR", _ => "LF" };
-        if (preview.Count == 0)
+        var report = doc.InspectUnifyEol(target);
+        if (report.RangeCount == 0)
         {
             SetStatusMessage(Loc.Get(K.StatusNothingToChange));
             return false;
         }
-        if (!await ConfirmPreviewAsync(tab, preview, Loc.Plural(K.PreviewEol, preview.Count, ("style", name)))) return false;
-        return Apply(tab, preview);
+        return await ApplyInspectedAsync(tab, report, Loc.Plural(K.PreviewEol, report.RangeCount, ("style", EolName(target))));
     }
 
-    /// <summary>NFC or NFD, only on request and only after showing how many places change.</summary>
+    private static string EolName(EolStyle target) => target switch { EolStyle.CrLf => "CRLF", EolStyle.Cr => "CR", _ => "LF" };
+
+    /// <summary>NFC or NFD, only on request and only after the inspector listed the places that change.</summary>
     public async Task<bool> NormalizeAsync(DocTab tab, NormalizationForm form)
     {
         var doc = tab.Doc.Doc;
         if (tab.Doc.IsLarge) return false;
-        var preview = doc.PreviewNormalize(form);
-        if (preview.Count == 0)
+        var report = doc.InspectNormalize(form);
+        if (report.RangeCount == 0)
         {
             SetStatusMessage(Loc.Get(K.StatusNothingToChange));
             return false;
         }
-        if (preview.IsBlocked)
+        if (report.IsBlocked)
         {
             SetStatusMessage(Loc.Get(K.StatusNormalizeBlocked, ("encoding", doc.Codec.Name)));
             return false;
         }
-        if (!await ConfirmPreviewAsync(tab, preview, Loc.Plural(K.PreviewNormalize, preview.Count, ("form", FormName(form))))) return false;
-        return Apply(tab, preview);
+        return await ApplyInspectedAsync(tab, report, Loc.Plural(K.PreviewNormalize, report.RangeCount, ("form", FormName(form))));
     }
 
     private static string FormName(NormalizationForm form) => form switch { NormalizationForm.FormC => "NFC", NormalizationForm.FormD => "NFD", NormalizationForm.FormKC => "NFKC", _ => "NFKD" };
 
-    private bool Apply(DocTab tab, ChangePreview preview)
+    /// <summary>Shows the report and applies it when the user confirms; the one place where a line-ending or normalisation action reaches the bytes.</summary>
+    private async Task<bool> ApplyInspectedAsync(DocTab tab, ByteInspection report, string headline)
     {
-        var result = tab.Doc.Doc.ApplyPreview(preview);
+        var (answer, _) = await ConfirmInspectionAsync(tab.Doc, report, headline, Loc.Get(K.PreviewApply));
+        if (answer != LossAnswer.Replace) return false;
+        report.Confirm(report.HasLoss ? "?" : null);
+        var result = tab.Doc.Doc.Apply(report);
         if (!result.Applied) SetStatusMessage(Loc.Get(K.StatusChangeConflict));
         return result.Applied;
     }
 
-    private async Task<bool> ConfirmPreviewAsync(DocTab tab, ChangePreview preview, string message)
+    /// <summary>The encoding the <c>charset</c> property names, with a BOM only for <c>utf-8-bom</c> as the EditorConfig specification says; null for a value this editor has no encoding for.</summary>
+    internal static TextCodec? EditorConfigCodec(string? charset) => charset switch
     {
-        var doc = tab.Doc.Doc;
-        var lines = new List<string>();
-        foreach (var edit in preview.Edits.Take(50))
-            lines.Add(doc.TryGetPosition(edit.Range.Start, out var p)
-                ? Loc.Get(K.PreviewLine, ("line", p.Line + 1), ("column", p.Column + 1), ("bytes", edit.Range.Length))
-                : Loc.Get(K.PreviewBytes, ("start", edit.Range.Start), ("bytes", edit.Range.Length)));
-        if (preview.Count > lines.Count) lines.Add(Loc.Get(K.PreviewMore, ("count", preview.Count - lines.Count)));
-        var request = new ChoiceRequest(Loc.Get(K.PreviewTitle), message,
-            [new DialogButton(Loc.Get(K.PreviewApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], lines);
-        return await _app.Dialogs.ChooseAsync(this, request) == 0;
+        "utf-8" => TextCodec.Utf8,
+        "utf-8-bom" => TextCodec.Utf8Bom,
+        "utf-16le" => TextCodec.Utf16LE,
+        "utf-16be" => TextCodec.Utf16BE,
+        "latin1" => TextCodec.Cp1252,
+        _ => null,
+    };
+
+    /// <summary>
+    /// Brings the file to what its <c>.editorconfig</c> says: the <c>charset</c> first, then <c>end_of_line</c>, each through the inspector. Properties the
+    /// file does not set are left alone, and nothing happens on open or save without being asked.
+    /// </summary>
+    public async Task<bool> ApplyEditorConfigFormatAsync(DocTab tab)
+    {
+        var od = tab.Doc;
+        if (od.IsLarge || od.IsResults) return false;
+        od.RefreshEditorConfig();
+        var codec = EditorConfigCodec(od.EditorConfig.Get("charset"));
+        bool hasCharset = codec is not null;
+        EolStyle? eol = od.EditorConfig.Get("end_of_line") switch { "lf" => EolStyle.Lf, "crlf" => EolStyle.CrLf, "cr" => EolStyle.Cr, _ => null };
+        if (!hasCharset && eol is null)
+        {
+            SetStatusMessage(Loc.Get(K.InspectEditorConfigNone));
+            return false;
+        }
+        bool changed = false;
+        if (codec is not null && codec != od.Doc.Codec)
+        {
+            if (!await ConvertToAsync(tab, codec, Loc.Get(K.InspectEditorConfig, ("encoding", codec.Name)))) return false;
+            changed = true;
+        }
+        if (eol is { } style && od.Doc.InspectUnifyEol(style).RangeCount > 0) changed |= await UnifyEolAsync(tab, style);
+        if (!changed) SetStatusMessage(Loc.Get(K.InspectEditorConfigDone));
+        return changed;
     }
 
     // ---- the menu of the encoding item ----

@@ -515,6 +515,15 @@ A character with an accent can be written as one character (NFC) or as a letter 
 - If after normalizing some character could not be written in the file encoding, the program refuses the change and says so.
 - If there was nothing to change, the status bar says Nothing to change.
 
+## [format.inspector] Byte inspector
+commands: nks.format.applyEditorConfig
+Every action that rewrites bytes you did not edit shows what it changes first, and writes nothing until you confirm: Convert to Encoding, Line Endings, Normalize Unicode, Save As with another encoding and Apply EditorConfig.
+- The window gives the number of changed ranges and bytes, the size before and after, the encoding and the line endings before and after, and one line per range: where it is, the old and the new length and the first bytes (up to 500 lines; the rest is counted).
+- When the target encoding cannot hold some characters, the same window lists each one with its line, column and byte, and offers three answers: cancel (nothing is written), change the encoding, or replace each with a question mark.
+- Apply EditorConfig Encoding and Line Endings in the Format menu converts the file to the charset and line ending its .editorconfig sets; each step opens the inspector. A property the file does not set is left alone.
+- The ranges are those of the revision you looked at; if the document changed meanwhile, the action is refused.
+- File and then Changes Before Saving shows the same list for the next save.
+
 ## [format.language] Language mode
 commands: nks.format.language
 1. Choose Format and then Language Mode, or click the language in the status bar.

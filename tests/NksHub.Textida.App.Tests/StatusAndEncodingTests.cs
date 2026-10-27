@@ -204,13 +204,27 @@ public class StatusAndEncodingTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task Convert_without_loss_does_not_ask()
+    public async Task Convert_without_loss_lists_the_changed_range_and_writes_only_after_confirmation()
     {
         var tab = _w.NewDocument();
         tab.Editor!.Document.Text = "řč";
+        var utf8 = DocBytes(tab);
+
+        _dialogs.Answers.Enqueue(1); // cancel
+        Assert.False(await _w.ConvertToAsync(tab, TextCodec.Cp1250));
+        Assert.Equal(utf8, DocBytes(tab));
+        Assert.Equal(TextCodec.Utf8, tab.Doc.Doc.Codec);
+        var ask = Assert.Single(_dialogs.Asked);
+        Assert.Equal(Loc.Get(K.InspectTitle), ask.Title);
+        Assert.Contains("UTF-8", ask.Message);
+        Assert.Contains("Windows-1250", ask.Message);
+        var range = Assert.Single(ask.Details!);
+        Assert.Contains("C5 99 C4 8D", range); // old bytes
+        Assert.Contains("F8 E8", range);       // new bytes
+
+        _dialogs.Answers.Enqueue(0);
         Assert.True(await _w.ConvertToAsync(tab, TextCodec.Cp1250));
         Assert.Equal(new byte[] { 0xF8, 0xE8 }, DocBytes(tab));
-        Assert.Empty(_dialogs.Asked);
         Assert.Contains("Windows-1250", _w.StatusRightText);
     }
 

@@ -73,7 +73,7 @@ public sealed class SavePlan
     public long Length => Segments.Sum(s => s.Length);
 
     /// <summary>Output assembled from the segments; with an unchosen replacement the lost characters show as '?' and the plan is blocked.</summary>
-    private byte[] Assemble()
+    internal byte[] Assemble()
     {
         var ms = new MemoryStream(checked((int)Length));
         WriteSegments(ms);

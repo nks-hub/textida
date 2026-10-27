@@ -560,33 +560,14 @@ internal sealed partial class MainWindow
     {
         var doc = tab.Doc.Doc;
         var plan = doc.PlanSave();
-        var ranges = doc.ChangedRangesSince(doc.SavedRevision);
-        var details = new List<string>();
-        if (ranges is not null)
-        {
-            using var disk = plan.Mode == SaveMode.InPlace && tab.Path is { } p && File.Exists(p) ? new FileStream(p, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete) : null;
-            foreach (var r in ranges.Take(500))
-            {
-                var now = doc.ReadBytes(new ByteRange(r.Start, Math.Min(r.End, r.Start + 16)));
-                string line = Loc.Get(K.HexChangeEntry, ("offset", $"0x{r.Start:X8}"), ("length", r.Length), ("new", HexEditor.ToHexText(now)));
-                if (disk is not null)
-                {
-                    var old = new byte[now.Length];
-                    disk.Position = r.Start;
-                    int n = disk.Read(old);
-                    line += " ← " + HexEditor.ToHexText(old.AsSpan(0, n));
-                }
-                details.Add(line);
-            }
-            if (ranges.Count > 500) details.Add(Loc.Get(K.LossMore));
-        }
+        var report = doc.InspectUnsaved();
         long original = doc.Fingerprint?.Size ?? doc.ByteLength;
         string message = plan.Mode == SaveMode.InPlace
             ? Loc.Get(K.HexChangesInPlace, ("bytes", plan.ChangedBytes), ("ranges", plan.Ranges.Count))
             : Loc.Get(K.HexChangesStream, ("old", original), ("new", doc.ByteLength));
         if (!doc.IsModified) message = Loc.Get(K.HexChangesNone);
         var request = new ChoiceRequest(Loc.Get(K.HexChangesTitle), message,
-            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], details);
+            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], InspectionDetails(doc, report));
         if (await _app.Dialogs.ChooseAsync(this, request) == 0 && doc.IsModified) await SaveAsync(tab);
     }
 }

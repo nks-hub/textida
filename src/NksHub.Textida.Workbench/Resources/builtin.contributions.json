@@ -518,6 +518,12 @@
       "enablement": "hasDocument && !readOnly"
     },
     {
+      "id": "nks.format.applyEditorConfig",
+      "title": "cmd.format.applyEditorConfig",
+      "category": "cat.format",
+      "enablement": "hasDocument && !readOnly && !largeFileMode"
+    },
+    {
       "id": "nks.format.language",
       "title": "cmd.format.language",
       "category": "cat.format",
@@ -1662,6 +1668,12 @@
       "command": "nks.format.convert",
       "group": "1_encoding",
       "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.applyEditorConfig",
+      "group": "1_encoding",
+      "order": 30
     },
     {
       "menu": "format",

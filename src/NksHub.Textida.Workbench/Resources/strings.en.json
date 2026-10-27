@@ -154,6 +154,7 @@
   "cmd.format.eolCr": "Line Endings to CR",
   "cmd.format.normalizeNfc": "Normalize Unicode to NFC",
   "cmd.format.normalizeNfd": "Normalize Unicode to NFD",
+  "cmd.format.applyEditorConfig": "Apply EditorConfig Encoding and Line Endings...",
   "cmd.format.language": "Language Mode...",
   "cmd.view.toggleDocumentList": "Open Documents List",
   "cmd.search.gotoAnything": "Go to Anything...",

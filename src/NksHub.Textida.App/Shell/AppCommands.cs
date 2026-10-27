@@ -233,6 +233,7 @@ internal static class AppCommands
         Fire("nks.format.eolCr", (w, t) => w.UnifyEolAsync(t, EolStyle.Cr));
         Fire("nks.format.normalizeNfc", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormC));
         Fire("nks.format.normalizeNfd", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormD));
+        Fire("nks.format.applyEditorConfig", (w, t) => w.ApplyEditorConfigFormatAsync(t));
         Do("nks.format.language", w => _ = w.ShowLanguageMenu());
 
         // window
