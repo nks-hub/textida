@@ -51,10 +51,11 @@ public class SyntaxStreamingStateTests
         using var document = Doc.FromBytes(Encoding.UTF8.GetBytes(text), PagedBackendFactory.Instance,
             new DocumentOptions { Format = TextCodec.Utf8 });
         using var session = new StreamingSyntaxSession(document, BuiltinGrammars.Tokenizer("json"));
-        var pending = session.TokenizeWindow(0, 1, 0, 32, TimeSpan.FromMilliseconds(1));
+        SyntaxWindow pending;
+        do pending = session.TokenizeWindow(0, 1, 0, 32, TimeSpan.FromMilliseconds(1)); // a loaded machine can use the whole slice before the first step
+        while (session.BytesRead == 0);
         Assert.Equal(SyntaxViewportStatus.Pending, pending.Status);
         Assert.Empty(pending.Lines);
-        Assert.True(session.BytesRead > 0);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         long read = session.BytesRead;

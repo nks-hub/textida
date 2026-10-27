@@ -26,7 +26,7 @@ public static class Texts
         ["statusRunning"] = ["LSP: běží", "LSP: running", "LSP: beží", "LSP: läuft"],
         ["statusNotFound"] = ["LSP: nenalezen", "LSP: not found", "LSP: nenájdený", "LSP: nicht gefunden"],
         ["statusStopped"] = ["LSP: vypnut", "LSP: off", "LSP: vypnutý", "LSP: aus"],
-        ["statusTip"] = ["Jazykový server pro {language}", "Language server for {language}", "Jazykový server pre {language}", "Sprachserver für {language}"],
+        ["statusTip"] = ["Jazykový server pro {language}, projekt {root}", "Language server for {language}, project {root}", "Jazykový server pre {language}, projekt {root}", "Sprachserver für {language}, Projekt {root}"],
         ["renameTitle"] = ["Přejmenovat symbol", "Rename Symbol", "Premenovať symbol", "Symbol umbenennen"],
         ["renameLabel"] = ["Nový název", "New name", "Nový názov", "Neuer Name"],
         ["renameBatch"] = ["Přejmenovat {old} na {new}", "Rename {old} to {new}", "Premenovať {old} na {new}", "{old} in {new} umbenennen"],

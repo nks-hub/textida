@@ -1286,21 +1286,23 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
 3. Language Server: Rename Symbol asks for the new name of the word at the caret. The server's changes in all files, with the creating, renaming and deleting of files it asks for, are shown together in the change review; what you accept is applied as one step. A new file is shown with its first lines as added text. The tab of an open file moves with the file when it is renamed; the tab of a deleted file is closed, and when it has unsaved changes the editor asks whether to close it or keep it open. A file that is open in another tab must have been started with the first command too, otherwise the rename is refused as a whole.
 4. Ctrl+J (Edit, Insert, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
-5. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down.
+5. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down. Restart and Stop act on the server of the project the current document belongs to; the servers of other projects keep running.
 - The editor does not start a server on its own: nothing runs until the first command of this group, and a server is not told about a file until then.
 - Large files shown in pages and files over the size limit never go to a server.
 - The server is looked up by name on the PATH. If it is not found, a notice names the program that was looked for.
-- The status bar shows LSP: running, LSP: not found or LSP: off for the language of the last command.
-- Not there yet: the choice of the project folder (the folder of the first document is used), and a rename in files that are not UTF-8.
+- The status bar shows LSP: running, LSP: not found or LSP: off for the server of the last command; its tooltip names the language and the project folder.
+- A server runs for one project folder. It is the nearest folder above the file that has a marker file of the language (C#: a solution `.sln` or `.slnx` first, then `.csproj`; Rust: `Cargo.toml`; PHP: `composer.json`; Dart: `pubspec.yaml`; JavaScript and TypeScript: `tsconfig.json` or `package.json`; C and C++: `compile_commands.json` or `CMakeLists.txt`), otherwise the nearest folder with `.git` or `.textida`, otherwise the folder of the file. A marker above a repository does not count. Only a limited number of folders is searched upwards. Documents of two projects get two server processes; documents of one project share one.
+- Not there yet: choosing the project folder by hand, and a rename in files that are not UTF-8.
 
 ## [tools.lspPlugin] Language servers from a plugin
 1. A plugin lists its servers under `languageServers` in `nkspad-plugin.json` and asks for the permission `language.server`. Each server has an `id`, `languages` (language mode ids, at least one), optional `globs` (such as `*.foo` or `src/**/*.fx`), `command`, `args`, optional `initializationOptions` (an object sent to the server in `initialize`) and `locate`.
 2. `locate` is `path` (the default): `command` is a bare program name looked up on the PATH. With `plugin`, `command` is a path inside the plugin folder.
 3. When you install the plugin, the editor shows the permission and waits for your answer. Without it the server is never started.
 4. The server is used by the Language Server commands for every document whose language is listed or whose file name matches a glob. A server of a plugin is chosen before the one that comes with the editor.
-- One server process runs per language and is shared by all open documents of it. A document that matches only by glob is served for the first language of the server.
+- One server process runs per language, project folder and server setup (program, arguments, environment and `initializationOptions`) and is shared by all open documents of that project. A document that matches only by glob is served for the first language of the server.
 - If the program is missing or cannot start, one notice names it and editing goes on. If it stops by itself, run any command of the group to start it again.
-- A server with no open document is stopped after a time and started again by the next command.
+- A server with no open document of its project is stopped after a time and started again by the next command. The servers of other projects keep running.
+- When the server asks for settings (`workspace/configuration`), it gets the part of `initializationOptions` that the requested section names: `a.b` is the object `b` inside `a`, and a request without a section gets the whole object. Anything else is answered with `null`.
 - A manifest with a wrong entry is refused as a whole, with the reason.
 
 ## [edit.complete] Completion of words and clips

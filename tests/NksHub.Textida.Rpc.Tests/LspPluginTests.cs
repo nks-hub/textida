@@ -112,7 +112,7 @@ public class LspPluginTests
             Assert.True(File.Exists(dll), dll);
             host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost,
                 [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", "20000", "--request-timeout-ms", "10000", "--stop-timeout-ms", "3000", "--max-locations", "50",
-                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString()], ["onCommand:lsp"]));
+                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"], ["onCommand:lsp"]));
             await host.ActivateAsync("onCommand:lsp");
             return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools, Launch = launch };
         }
@@ -129,9 +129,11 @@ public class LspPluginTests
             return doc;
         }
 
-        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null)
+        /// <param name="launch">The launch description to send instead of <see cref="Launch"/>, as the editor does when the server a document is served by changes.</param>
+        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null, string? launch = null)
         {
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(Launch is null ? "" : ",\"lspServer\":" + Launch)}}}";
+            launch ??= Launch;
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}}}";
             return (await Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
@@ -602,6 +604,197 @@ public class LspPluginTests
         var second = rig.Add("idle2.fake", "y\n");
         Assert.Equal("ok", (await rig.RunAsync(second, LspPlugin.StartCommand)).GetProperty("status").GetString());
         Assert.Equal(2, Processes(rig));
+    }
+
+    // ---- P8.5.1: one server per project ----
+
+    /// <summary>A project folder below the rig folder (a <c>.git</c> folder marks it) with a file in its <c>src</c> folder.</summary>
+    static Document AddProject(Rig rig, string project, string file, string content)
+    {
+        Directory.CreateDirectory(Path.Combine(rig.Folder, project, ".git"));
+        Directory.CreateDirectory(Path.Combine(rig.Folder, project, "src"));
+        return rig.Add(Path.Combine(project, "src", file), content);
+    }
+
+    sealed record FakeServer(int Pid, string Root, string Cwd, List<string> Events);
+
+    static string ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream, new UTF8Encoding(false));
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>What each fake server process wrote about itself: the root it was given, its working folder and the <c>open</c> and <c>close</c> of documents, in order.</summary>
+    static List<FakeServer> Servers(Rig rig)
+    {
+        var result = new List<FakeServer>();
+        foreach (var file in Directory.GetFiles(rig.Dump, "process-*"))
+        {
+            var lines = ReadShared(file).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            result.Add(new FakeServer(int.Parse(Path.GetFileName(file)["process-".Length..]), lines.FirstOrDefault(l => l.StartsWith("root=", StringComparison.Ordinal))?[5..] ?? "",
+                lines.FirstOrDefault(l => l.StartsWith("cwd=", StringComparison.Ordinal))?[4..] ?? "",
+                [.. lines.Where(l => l.StartsWith("open ", StringComparison.Ordinal) || l.StartsWith("close ", StringComparison.Ordinal))]));
+        }
+        return result;
+    }
+
+    static string RootUri(Rig rig, string project) => PathUri.FromPath(Path.Combine(rig.Folder, project));
+
+    static bool Running(int pid)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException) { return false; }
+    }
+
+    [Fact]
+    public async Task Two_projects_of_one_language_get_two_server_processes_each_with_its_own_root_and_only_its_own_documents()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true);
+        var a = AddProject(rig, "projA", "a.fake", "def foo = 1\n");
+        var b = AddProject(rig, "projB", "b.fake", "use foo\n");
+
+        Assert.Equal("ok", (await rig.RunAsync(a, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        Assert.Equal("ok", (await rig.RunAsync(b, LspPlugin.StartCommand)).GetProperty("status").GetString());
+
+        await T.Until(() => Servers(rig).Count(s => s.Events.Count == 1) == 2);
+        var servers = Servers(rig);
+        var forA = Assert.Single(servers, s => s.Root == RootUri(rig, "projA"));
+        var forB = Assert.Single(servers, s => s.Root == RootUri(rig, "projB"));
+        Assert.Equal([$"open {PathUri.FromPath(a.FilePath!)}"], forA.Events);
+        Assert.Equal([$"open {PathUri.FromPath(b.FilePath!)}"], forB.Events);
+        Assert.True(PathUri.SamePath(Path.Combine(rig.Folder, "projA"), forA.Cwd));
+        Assert.True(PathUri.SamePath(Path.Combine(rig.Folder, "projB"), forB.Cwd));
+
+        // the server of projB never saw the file of projA, so the definition that lives there is not found
+        var none = await rig.RunAsync(b, LspPlugin.DefinitionCommand, Bytes("use f"));
+        Assert.Equal("none", none.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Switching_between_two_projects_keeps_each_document_on_its_own_server()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true);
+        var a = AddProject(rig, "projA", "a.fake", "a\n");
+        var b = AddProject(rig, "projB", "b.fake", "b\n");
+
+        foreach (var doc in new[] { a, b, a, b, a })
+            Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        await rig.Edit(b, 1, 1, "B");
+        Assert.Equal("bB\n", await rig.ServerTextAsync(b));
+        await rig.Edit(a, 0, 0, "A");
+        Assert.Equal("Aa\n", await rig.ServerTextAsync(a));
+
+        Assert.Equal(2, Processes(rig));
+        Assert.All(Servers(rig), s => Assert.Single(s.Events));
+    }
+
+    [Fact]
+    public async Task Two_files_of_one_project_in_different_folders_share_one_server_process_rooted_at_the_project()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true);
+        var first = AddProject(rig, "projA", "a.fake", "a\n");
+        Directory.CreateDirectory(Path.Combine(rig.Folder, "projA", "lib", "deep"));
+        var second = rig.Add(Path.Combine("projA", "lib", "deep", "b.fake"), "b\n");
+
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+
+        await T.Until(() => Servers(rig).Sum(s => s.Events.Count) == 2);
+        var server = Assert.Single(Servers(rig));
+        Assert.Equal(RootUri(rig, "projA"), server.Root);
+    }
+
+    [Fact]
+    public async Task A_restart_replaces_only_the_server_of_the_project_it_was_run_for()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true);
+        var a = AddProject(rig, "projA", "a.fake", "a\n");
+        var b = AddProject(rig, "projB", "b.fake", "b\n");
+        await rig.RunAsync(a, LspPlugin.StartCommand);
+        await rig.RunAsync(b, LspPlugin.StartCommand);
+        await T.Until(() => Servers(rig).Count(s => s.Events.Count == 1) == 2);
+        var before = Servers(rig);
+        var oldForA = before.Single(s => s.Root == RootUri(rig, "projA"));
+        var forB = before.Single(s => s.Root == RootUri(rig, "projB"));
+
+        Assert.Equal("restarted", (await rig.RunAsync(a, LspPlugin.RestartCommand)).GetProperty("status").GetString());
+
+        await T.Until(() => Servers(rig).Count(s => s.Root == RootUri(rig, "projA") && s.Events.Count == 1) == 2);
+        await T.Until(() => !Running(oldForA.Pid));
+        Assert.True(Running(forB.Pid));
+        var after = Servers(rig);
+        Assert.Equal(3, after.Count);
+        Assert.Equal(forB.Events, after.Single(s => s.Pid == forB.Pid).Events); // projB neither closed nor reopened anything
+        Assert.Equal("ok", (await rig.RunAsync(b, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        Assert.Equal(3, Processes(rig));
+    }
+
+    [Fact]
+    public async Task The_idle_stop_of_one_project_leaves_the_server_of_the_other_running()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, idleStopMs: 300);
+        var a = AddProject(rig, "projA", "a.fake", "a\n");
+        var b = AddProject(rig, "projB", "b.fake", "b\n");
+        await rig.RunAsync(a, LspPlugin.StartCommand);
+        await rig.RunAsync(b, LspPlugin.StartCommand);
+        await T.Until(() => Servers(rig).Count(s => s.Events.Count == 1) == 2);
+        var forA = Servers(rig).Single(s => s.Root == RootUri(rig, "projA"));
+        var forB = Servers(rig).Single(s => s.Root == RootUri(rig, "projB"));
+
+        await rig.Owner.InvokeAsync(() => { rig.Docs.Withdraw(a); return 0; });
+
+        await T.Until(() => !Running(forA.Pid));
+        Assert.True(Running(forB.Pid));
+        Assert.Equal("ok", (await rig.RunAsync(b, LspPlugin.StartCommand)).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_document_that_comes_with_another_server_configuration_moves_to_a_server_of_that_configuration()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, initializationOptions: "{\"mode\":\"one\"}");
+        var doc = AddProject(rig, "projA", "m.fake", "m\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        var uri = PathUri.FromPath(doc.FilePath!);
+        await T.Until(() => Servers(rig).Any(s => s.Events.SequenceEqual([$"open {uri}"])));
+
+        var other = rig.Launch!.Replace("\"mode\":\"one\"", "\"mode\":\"two\"");
+        Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand, launch: other)).GetProperty("status").GetString());
+
+        await T.Until(() => Servers(rig).Count(s => s.Events.SequenceEqual([$"open {uri}", $"close {uri}"])) == 1 && Servers(rig).Count(s => s.Events.SequenceEqual([$"open {uri}"])) == 1);
+        Assert.Equal("{\"mode\":\"two\"}", ReadShared(Path.Combine(rig.Dump, "init-options.json")));
+    }
+
+    [Fact]
+    public async Task The_server_gets_the_matching_part_of_its_initialization_options_when_it_asks_for_the_configuration()
+    {
+        await using var rig = await Rig.CreateAsync(["--config", "fake,fake.level,mode,*,missing,mode.deeper"], declared: true,
+            initializationOptions: "{\"mode\":\"strict\",\"fake\":{\"level\":3}}");
+        var doc = rig.Add("config.fake", "x\n");
+
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        var answer = Path.Combine(rig.Dump, "config-answer.json");
+        await T.Until(() => File.Exists(answer) && ReadShared(answer).Length > 0);
+        Assert.Equal("[{\"level\":3},3,\"strict\",{\"mode\":\"strict\",\"fake\":{\"level\":3}},null,null]", ReadShared(answer));
+        Assert.Contains("configuration=yes", ReadShared(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")))); // the client announces that it answers workspace/configuration
+    }
+
+    [Fact]
+    public async Task A_server_without_initialization_options_gets_nothing_for_every_item_it_asks_about()
+    {
+        await using var rig = await Rig.CreateAsync(["--config", "fake,*"], declared: true);
+        var doc = rig.Add("bare.fake", "x\n");
+
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        var answer = Path.Combine(rig.Dump, "config-answer.json");
+        await T.Until(() => File.Exists(answer) && ReadShared(answer).Length > 0);
+        Assert.Equal("[null,null]", ReadShared(answer));
     }
 
     // ---- the pieces without a process ----
