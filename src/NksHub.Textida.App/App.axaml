@@ -372,6 +372,12 @@
             <Setter Property="BorderThickness" Value="3,0,0,0" />
             <Setter Property="Padding" Value="10,0,0,0" />
         </Style>
+        <Style Selector="Button.previewlink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        </Style>
         <Style Selector="Border.previewrule">
             <Setter Property="Background" Value="{DynamicResource Border}" />
             <Setter Property="Height" Value="1" />

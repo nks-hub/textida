@@ -211,6 +211,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest text of one preview a plugin shows, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int PreviewMaxChars = 1 << 20;
 
+    /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImageMaxBytes = 1 << 20;
+
     /// <summary>Placeholder: longest text of one update, tool title or permission question a plugin sends to the agent panel, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int AgentUpdateMaxChars = 64 * 1024;
 

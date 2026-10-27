@@ -6,6 +6,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost;
@@ -166,6 +167,73 @@ public class PluginPanelsTests : IDisposable
         // plain text is shown as it is, Markdown marks included
         await Editor(DocumentMethods.PreviewShow, Show(tab, "# not a heading", "text"));
         Assert.Contains("# not a heading", TextOf(_w.PreviewBody!));
+    }
+
+    private const string OnePixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    [AvaloniaFact]
+    public void The_policy_takes_an_image_only_from_a_small_data_URI_and_a_link_only_to_the_web_or_mail()
+    {
+        Assert.NotNull(PreviewPolicy.ImageBytes("data:image/png;base64," + OnePixelPng));
+        Assert.Null(PreviewPolicy.ImageBytes("https://remote.example/a.png"));
+        Assert.Null(PreviewPolicy.ImageBytes("file:///C:/private/a.png"));
+        Assert.Null(PreviewPolicy.ImageBytes("data:image/svg+xml;base64," + OnePixelPng)); // svg can carry script and references
+        Assert.Null(PreviewPolicy.ImageBytes("data:image/png,rawtext"));
+        Assert.Null(PreviewPolicy.ImageBytes("data:image/png;base64,@@@@"));
+        Assert.Null(PreviewPolicy.ImageBytes("data:image/png;base64," + new string('A', (PluginLimitsPlaceholders.PreviewImageMaxBytes / 3 + 2) * 4)));
+
+        Assert.NotNull(PreviewPolicy.LinkTarget("https://docs.example.org/a"));
+        Assert.NotNull(PreviewPolicy.LinkTarget("mailto:dev@example.org"));
+        foreach (var refused in new[] { "file:///C:/private/notes.txt", "javascript:alert(1)", "notes.md", "\\\\server\\share\\a.txt", "ms-settings:network", "data:text/html,<script>1</script>" })
+            Assert.Null(PreviewPolicy.LinkTarget(refused));
+    }
+
+    [AvaloniaFact]
+    public async Task A_preview_draws_a_data_image_and_a_broken_or_remote_image_stays_a_note()
+    {
+        await StartPluginAsync();
+        var tab = Shared("x");
+        Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
+
+        await Editor(DocumentMethods.PreviewShow, Show(tab, $"![dot](data:image/png;base64,{OnePixelPng})\n\n![broken](data:image/png;base64,AAAA)\n\n![far](https://remote.example/a.png)\n"));
+        var body = _w.PreviewBody!;
+        var images = Tree(body).OfType<Image>().ToList();
+        Assert.Single(images);
+        Assert.Equal("dot", Avalonia.Automation.AutomationProperties.GetName(images[0]));
+        var text = TextOf(body);
+        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "broken")), text);
+        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "far")), text);
+    }
+
+    [AvaloniaFact]
+    public async Task A_web_link_in_a_preview_opens_only_after_the_user_confirms()
+    {
+        await StartPluginAsync();
+        var tab = Shared("x");
+        Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
+        var opened = new List<Uri>();
+        _app.UriOpener = uri => { opened.Add(uri); return Task.FromResult(true); };
+
+        await Editor(DocumentMethods.PreviewShow, Show(tab, "See [the manual](https://docs.example.org/a) or [local](file:///C:/private/notes.txt)."));
+        var buttons = Tree(_w.PreviewBody!).OfType<Button>().ToList();
+        var link = Assert.Single(buttons);
+
+        _dialogs.Answers.Enqueue(1);
+        link.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        await Until(() => _dialogs.Asked.Count == 1, "the question");
+        Assert.Contains("https://docs.example.org/a", _dialogs.Asked[0].Message);
+        Assert.Empty(opened);
+
+        _dialogs.Answers.Enqueue(0);
+        await _w.OpenPreviewLinkAsync(new Uri("https://docs.example.org/a"));
+        Assert.Equal([new Uri("https://docs.example.org/a")], opened);
+
+        // a target the policy never opens is not even asked about
+        await _w.OpenPreviewLinkAsync(new Uri("file:///C:/private/notes.txt"));
+        Assert.Single(opened);
+        Assert.Equal(2, _dialogs.Asked.Count);
     }
 
     [AvaloniaFact]

@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Ui;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -74,12 +75,21 @@ internal sealed partial class MainWindow
         if (_preview is not { } content) return;
         var offset = _previewScroll.Offset;
         var mono = new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily"));
-        _previewScroll.Content = PreviewRenderer.Render(content.Format, content.Text, mono);
+        _previewScroll.Content = PreviewRenderer.Render(content.Format, content.Text, new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri)));
         if (keepScroll) Dispatcher.UIThread.Post(() => _previewScroll.Offset = offset, DispatcherPriority.Background);
         var title = content.Title ?? Loc.Get(K.PreviewPanelTitle);
         _previewStatus.Text = _previewOutdatedBy is { } current
             ? Loc.Get(K.PreviewPanelOutdated, ("title", title), ("revision", content.Revision), ("current", current))
             : Loc.Get(K.PreviewPanelStatus,("title", title), ("revision", content.Revision));
+    }
+
+    /// <summary>Opens a link of a preview after the user confirmed it; the policy has already limited the target to the web and mail.</summary>
+    internal async Task OpenPreviewLinkAsync(Uri uri)
+    {
+        if (PreviewPolicy.LinkTarget(uri.OriginalString) is null) return;
+        if (!await PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PreviewLinkTitle), Loc.Get(K.PreviewLinkMessage, ("url", uri.AbsoluteUri))))) return;
+        bool opened = _app.UriOpener is { } open ? await open(uri) : await Launcher.LaunchUriAsync(uri);
+        if (!opened) SetStatusMessage(Loc.Get(K.PreviewLinkFailed, ("url", uri.AbsoluteUri)));
     }
 
     internal void MarkPreviewOutdated(string pluginId, Guid document, long currentRevision)
