@@ -72,6 +72,23 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         Assert.Contains(Colors(tab, 1), c => c == light.Color || c == dark.Color);
     }
 
+    [AvaloniaTheory]
+    [InlineData("services.neon", "# comment\n", "neon")]
+    [InlineData("layout.latte", "{* comment *}\n", "latte")]
+    [InlineData("Index.cshtml", "@* comment *@\n", "razor")]
+    [InlineData("App.sln", "# comment\n", "sln")]
+    public void Neon_latte_razor_and_solution_files_are_colored_by_their_extension(string name, string text, string language)
+    {
+        var w = Window();
+        var tab = w.OpenFile(_temp.File(name, text), null);
+        w.UpdateLayout();
+        Settle();
+        Assert.Equal(language, tab.Doc.Language.Id);
+        var light = (ISolidColorBrush)SyntaxPalette.Light.GetBrush("comment")!;
+        var dark = (ISolidColorBrush)SyntaxPalette.Dark.GetBrush("comment")!;
+        Assert.Contains(Colors(tab, 1), c => c == light.Color || c == dark.Color);
+    }
+
     [AvaloniaFact]
     public void The_editor_colors_the_columns_it_is_scrolled_to()
     {
