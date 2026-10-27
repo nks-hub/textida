@@ -1263,10 +1263,12 @@ commands: nks.table.copyAs
 Select cells in the table view and choose View, Table, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.
 - Markdown table: a pipe table with the header (or the column letters A, B, ... when there is no header). Special characters such as the pipe, the backslash, asterisks, underscores and angle brackets get a backslash, and a line break in a cell becomes `<br>`.
 - SQL INSERT: one statement per row with the values as text in single quotes (a quote is doubled). The header gives the column names. You are asked for the table name, starting with the file name.
+- The SQL dialect decides the quoting: `sql_dialect` in an `.editorconfig` of the folder, else the setting Default SQL dialect (topic SQL: dialect and formatting). MySQL puts names in backticks and doubles a backslash in a value; T-SQL puts names in square brackets and writes values as N'...'; the other dialects use double quotes for names and leave a backslash as it is.
 - JSON: an array of objects named by the header, or an array of arrays when the header is missing, has an empty name or repeats a name. All values are text.
 - HTML table: a table element with entities for `& < > " '`; the clipboard holds the HTML as source text and as HTML for pasting into a document.
 - A hidden value of a .env file is copied as stars, not as its text. Copy and cut with Ctrl+C and Ctrl+X put the placeholder in its place too, and a cut that touches one deletes nothing.
 - If the file changes while the command runs, nothing is copied and a notice asks you to run it again.
+- Your own form is a converter of a data plugin with "table": true (topic Convert text). It appears below the built-in forms. It gets the selected cells as Copy writes them: tab-separated, one row per line, the header row when it is selected, and a value with a tab, a quote or a line break in double quotes. Its result goes to the clipboard; if it fails, the clipboard is not changed.
 
 ## [table.region] Editing selected text as a table
 commands: nks.table.editRegion

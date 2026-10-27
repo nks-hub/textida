@@ -62,18 +62,30 @@ public static class TableExport
     // ---- SQL ----
 
     /// <summary>
-    /// One <c>INSERT</c> per row, values as string literals (a quote doubled, nothing else changed) and names as quoted identifiers (standard SQL double quotes).
-    /// The column list is the header; without a header, or with a column that has no name, the values go in column order.
+    /// One <c>INSERT</c> per row, values as string literals with a quote doubled and names as quoted identifiers. The column list is the header; without a header,
+    /// or with a column that has no name, the values go in column order. <paramref name="dialect"/> is an id of the <c>sql.dialect</c> setting: <c>mysql</c> quotes
+    /// names with backticks and doubles a backslash (MySQL reads one as an escape), <c>tsql</c> quotes names with brackets and writes <c>N'...'</c> so Unicode text
+    /// survives; any other id writes standard SQL (double quotes, nothing else changed).
     /// </summary>
-    public static string Sql(TableData t, string table)
+    public static string Sql(TableData t, string table, string dialect = "generic")
     {
-        var head = $"INSERT INTO {Identifier(table)}" + (t.Header is null || t.Header.Any(h => h.Length == 0) ? "" : " (" + string.Join(", ", t.Header.Select(Identifier)) + ")") + " VALUES (";
+        Func<string, string> identifier = dialect switch
+        {
+            "mysql" => n => "`" + n.Replace("`", "``") + "`",
+            "tsql" => n => "[" + n.Replace("]", "]]") + "]",
+            _ => n => "\"" + n.Replace("\"", "\"\"") + "\"",
+        };
+        Func<string, string> literal = dialect switch
+        {
+            "mysql" => v => "'" + v.Replace("\\", "\\\\").Replace("'", "''") + "'",
+            "tsql" => v => "N'" + v.Replace("'", "''") + "'",
+            _ => v => "'" + v.Replace("'", "''") + "'",
+        };
+        var head = $"INSERT INTO {identifier(table)}" + (t.Header is null || t.Header.Any(h => h.Length == 0) ? "" : " (" + string.Join(", ", t.Header.Select(identifier)) + ")") + " VALUES (";
         var text = new StringBuilder();
-        foreach (var row in t.Rows) text.Append(head).AppendJoin(", ", row.Select(v => "'" + v.Replace("'", "''") + "'")).Append(");\n");
+        foreach (var row in t.Rows) text.Append(head).AppendJoin(", ", row.Select(literal)).Append(");\n");
         return text.ToString();
     }
-
-    private static string Identifier(string name) => "\"" + name.Replace("\"", "\"\"") + "\"";
 
     // ---- JSON ----
 

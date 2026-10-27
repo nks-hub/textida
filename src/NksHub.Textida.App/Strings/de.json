@@ -1051,6 +1051,8 @@
   "table.copyAs.sql": "SQL INSERT",
   "table.copyAs.json": "JSON",
   "table.copyAs.html": "HTML-Tabelle",
+  "table.copyAs.copied": "Die markierten Zellen wurden als {title} kopiert.",
+  "table.copyAs.failed": "Der Konverter {title} lief nicht: {reason}. Die Zwischenablage wurde nicht geändert.",
   "a11y.compare": "Vergleich",
   "compare.tab": "Vergleich: {left} / {right}",
   "compare.side.clipboard": "Zwischenablage",

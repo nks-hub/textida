@@ -1268,10 +1268,12 @@ commands: nks.table.copyAs
 Označte bunky v tabuľkovom zobrazení a zvoľte Zobrazenie, Kopírovať tabuľku ako a potom podobu. Do schránky sa uložia označené stĺpce a riadky v tej podobe.
 - Tabuľka Markdown: tabuľka s oddeľovačmi zvislíc, s hlavičkou (alebo s písmenami stĺpcov A, B, ... bez hlavičky). Zvláštne znaky, napríklad zvislica, spätná lomka, hviezdičky, podčiarkovníky a špicaté zátvorky, dostanú spätnú lomku a koniec riadka v bunke sa zmení na `<br>`.
 - SQL INSERT: jeden príkaz na riadok, hodnoty ako text v jednoduchých úvodzovkách (úvodzovka sa zdvojí). Názvy stĺpcov sú z hlavičky. Program sa spýta na názov tabuľky, ponúkne názov súboru.
+- Úvodzovanie určuje dialekt SQL: `sql_dialect` v `.editorconfig` priečinka, inak nastavenie Predvolený dialekt SQL (téma SQL: dialekt a formátovanie). MySQL dá názvy do spätných apostrofov a spätnú lomku v hodnote zdvojí; T-SQL dá názvy do hranatých zátvoriek a hodnoty píše ako N'...'; ostatné dialekty dajú názvy do dvojitých úvodzoviek a spätnú lomku nechajú, ako je.
 - JSON: pole objektov pomenovaných podľa hlavičky, alebo pole polí, keď hlavička chýba, má prázdny názov alebo sa názov opakuje. Všetky hodnoty sú text.
 - Tabuľka HTML: prvok table s entitami pre `& < > " '`; schránka drží HTML ako zdrojový text aj ako HTML na vloženie do dokumentu.
 - Skrytá hodnota súboru .env sa skopíruje ako hviezdičky, nie ako jej text. Kopírovanie a vystrihnutie klávesmi Ctrl+C a Ctrl+X dá na jej miesto tiež zástupný znak a vystrihnutie, ktoré sa jej dotkne, nič nezmaže.
 - Ak sa súbor počas príkazu zmení, nič sa neskopíruje a oznámenie vyzve na nové spustenie.
+- Vlastná podoba je prevodník dátového pluginu s "table": true (téma Prevod textu). Objaví sa pod vstavanými podobami. Dostane označené bunky tak, ako ich zapíše Kopírovať: oddelené tabulátorom, riadok tabuľky na riadok textu, riadok hlavičky, keď je označený, a hodnota s tabulátorom, úvodzovkou alebo koncom riadka v dvojitých úvodzovkách. Výsledok ide do schránky; keď prevod zlyhá, schránka sa nezmení.
 
 ## [table.region] Úprava vybraného textu ako tabuľky
 commands: nks.table.editRegion

@@ -1077,6 +1077,8 @@
   "table.copyAs.sql": "SQL INSERT",
   "table.copyAs.json": "JSON",
   "table.copyAs.html": "Tabulka HTML",
+  "table.copyAs.copied": "Vybrané buňky jsou zkopírované jako {title}.",
+  "table.copyAs.failed": "Převodník {title} neproběhl: {reason}. Schránka zůstala beze změny.",
   "a11y.compare": "Porovnání",
   "compare.tab": "Porovnání: {left} / {right}",
   "compare.side.clipboard": "Schránka",

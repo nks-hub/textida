@@ -8,6 +8,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Secrets;
+using NksHub.Textida.PluginHost.Conversions;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -199,10 +200,14 @@ internal sealed partial class MainWindow
         ("table.copyAs.markdown", K.TableCopyAsMarkdown), ("table.copyAs.sql", K.TableCopyAsSql), ("table.copyAs.json", K.TableCopyAsJson), ("table.copyAs.html", K.TableCopyAsHtml),
     ];
 
-    /// <summary>The command <c>nks.table.copyAs</c>: a menu of the forms the selected cells are copied as (Markdown table, SQL INSERT, JSON, HTML).</summary>
+    /// <summary>
+    /// The command <c>nks.table.copyAs</c>: a menu of the forms the selected cells are copied as (Markdown table, SQL INSERT, JSON, HTML), then the converters of the
+    /// data plugins that are marked for tables.
+    /// </summary>
     internal MenuFlyout? ShowTableCopyAsMenu()
     {
         if (ActiveTable is not { } table) return null;
+        ReportLibraryProblems();
         var flyout = new MenuFlyout();
         foreach (var (command, name) in TableCopyForms)
         {
@@ -211,8 +216,34 @@ internal sealed partial class MainWindow
             item.Click += (_, _) => _ = CopyTableAsAsync(run);
             flyout.Items.Add(item);
         }
+        var exporters = _app.Clips.Converters.Where(e => e.Converter.Table).ToList();
+        if (exporters.Count > 0) flyout.Items.Add(new Separator());
+        foreach (var entry in exporters)
+        {
+            var item = new MenuItem { Header = entry.Converter.Title };
+            item.Click += (_, _) => CopyTableAs(entry);
+            flyout.Items.Add(item);
+        }
         flyout.ShowAt(table);
         return flyout;
+    }
+
+    /// <summary>
+    /// Copies the selected cells through a converter of a data plugin: it converts the text Copy would write (hidden values already as the placeholder) and the
+    /// result replaces the clipboard. A conversion that fails leaves the clipboard as it was.
+    /// </summary>
+    internal bool CopyTableAs(ConverterEntry entry)
+    {
+        if (ActiveTable is not { } table || Active is not { } tab) return false;
+        var result = TextConversion.Apply(entry.Converter, table.SelectedText(HiddenValues(tab), out _));
+        if (result.Problem is { } why)
+        {
+            SetStatusMessage(Loc.Get(K.TableCopyAsFailed, ("title", entry.Converter.Title), ("reason", why)));
+            return false;
+        }
+        WriteClipboard(result.Text!, null);
+        SetStatusMessage(Loc.Get(K.TableCopyAsCopied, ("title", entry.Converter.Title)));
+        return true;
     }
 
     /// <summary>Copies the selected cells through the text tools plugin, which reads them with the table API and writes the clipboard. Hidden values of a secrets file reach it only as <c>*</c>.</summary>
