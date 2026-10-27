@@ -3550,7 +3550,8 @@
     {
       "menu": "view",
       "command": "nks.hex.template",
-      "group": "3_hex",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
       "order": 140
     },
     {
