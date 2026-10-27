@@ -419,7 +419,8 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Nothing was written. The user looks at the differences, uploads anyway against exactly the version that was found, or leaves it.</summary>
-    private async Task ResolveUploadConflictAsync(DocTab tab, RemoteConnection connection, IRemoteClient client, UploadOutcome outcome)
+    /// <param name="again">The upload to repeat after "upload anyway"; the upload of the copy opened from the server when null.</param>
+    private async Task ResolveUploadConflictAsync(DocTab tab, RemoteConnection connection, IRemoteClient client, UploadOutcome outcome, Func<Task>? again = null)
     {
         var od = tab.Doc;
         bool deleted = outcome.ServerContent is null;
@@ -441,7 +442,8 @@ internal sealed partial class MainWindow
                 break;
             case 1:
                 _acceptedServerVersion[od] = outcome.Server ?? RemoteRevision.None;
-                await UploadRemoteAsync(tab);
+                if (again is null) await UploadRemoteAsync(tab);
+                else await again();
                 break;
             default:
                 ShowRemoteBarOffline(tab);

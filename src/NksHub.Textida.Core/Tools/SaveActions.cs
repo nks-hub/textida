@@ -14,9 +14,32 @@ public enum SaveActionSource { Profile, Project }
 
 /// <param name="Id">The formatter (<see cref="ConfigFormatters"/>), the linter of <see cref="LanguageCatalog"/> or the tool; empty for an upload.</param>
 /// <param name="OnlyManual">The action does not run after an autosave.</param>
-public sealed record SaveAction(SaveActionKind Kind, string Id, bool OnlyManual, bool Enabled, SaveActionSource Source = SaveActionSource.Profile)
+/// <param name="Server">For an upload of a project file: the server of the project. Null for the upload of a file opened from a server, which goes back where it came from.</param>
+public sealed record SaveAction(SaveActionKind Kind, string Id, bool OnlyManual, bool Enabled, SaveActionSource Source = SaveActionSource.Profile, ServerTarget? Server = null)
 {
     public string Key => Kind + ":" + Id;
+}
+
+/// <summary>
+/// The default server of a project: a saved connection (its name or id) and the folder on the server that stands for <paramref name="ProjectFolder"/>, the folder that holds <c>.textida</c>.
+/// A file of the project goes to the same relative path under <paramref name="RemoteFolder"/>.
+/// </summary>
+public sealed record ServerTarget(string Connection, string RemoteFolder, string ProjectFolder)
+{
+    /// <summary>The server path of <paramref name="localPath"/>, or null for a file outside the project folder or inside its <c>.textida</c> folder.</summary>
+    public string? RemotePathOf(string localPath)
+    {
+        string relative;
+        try { relative = Path.GetRelativePath(ProjectFolder, Path.GetFullPath(localPath)); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException) { return null; }
+        string first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        if (Path.IsPathRooted(relative) || first is "." or ".." || string.Equals(first, SaveActionConfig.ProjectFolderName, StringComparison.OrdinalIgnoreCase)) return null;
+        return RemoteFolder.TrimEnd('/') + "/" + relative.Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+    /// <summary>What the consent of the user is tied to: this project folder, the connection it resolved to and the server folder. A project file that names another server asks again.</summary>
+    public string ApprovalKey(string connectionId) =>
+        "upload:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(ProjectFolder) + "\0" + connectionId + "\0" + RemoteFolder)));
 }
 
 /// <param name="FormatTimeout">The time a formatter has before the file is saved unformatted; null while nobody has set it (the product has not decided a value), and then a formatter does not run.</param>
@@ -30,6 +53,10 @@ public sealed class SaveActionEntry
     public string? Id { get; set; }
     public bool OnlyManual { get; set; }
     public bool Enabled { get; set; } = true;
+    /// <summary>An upload in a project file: the name or id of the saved connection that is the default server of the project.</summary>
+    public string? Server { get; set; }
+    /// <summary>With <see cref="Server"/>: the folder on the server that stands for the project folder, starting with <c>/</c>.</summary>
+    public string? RemoteFolder { get; set; }
 }
 
 public sealed class SaveActionsFile
@@ -77,19 +104,104 @@ public static class SaveActionConfig
         File.WriteAllText(path, JsonSerializer.Serialize(file, SaveActionsJson.Default.SaveActionsFile) + "\n");
     }
 
-    /// <summary>Changes the entry of <paramref name="kind"/> and <paramref name="id"/> in a file, adding it when it is not there, and writes the file. Comments in the file are not kept.</summary>
+    /// <summary>
+    /// Changes <c>enabled</c> and <c>onlyManual</c> of the entry of <paramref name="kind"/> and <paramref name="id"/> in a file, adding the entry at the end of the list when it is not there, and writes the file.
+    /// Only the changed values (or the added entry) are written into the text, so comments and the layout of the rest of the file stay.
+    /// </summary>
     public static void Edit(string path, SaveActionKind kind, string id, Action<SaveActionEntry> change)
     {
         var file = Read(path);
         string name = kind.ToString();
-        var entry = file.Actions.FirstOrDefault(e => string.Equals(e.Kind, name, StringComparison.OrdinalIgnoreCase) && (kind == SaveActionKind.Upload || e.Id == id));
-        if (entry is null)
-        {
-            entry = new SaveActionEntry { Kind = name.ToLowerInvariant(), Id = kind == SaveActionKind.Upload ? null : id, Enabled = false };
-            file.Actions.Add(entry);
-        }
+        int index = file.Actions.FindIndex(e => string.Equals(e.Kind, name, StringComparison.OrdinalIgnoreCase) && (kind == SaveActionKind.Upload || e.Id == id));
+        var before = index >= 0 ? file.Actions[index] : null;
+        var entry = before is null
+            ? new SaveActionEntry { Kind = name.ToLowerInvariant(), Id = kind == SaveActionKind.Upload ? null : id, Enabled = false }
+            : new SaveActionEntry { Kind = before.Kind, Id = before.Id, OnlyManual = before.OnlyManual, Enabled = before.Enabled, Server = before.Server, RemoteFolder = before.RemoteFolder };
         change(entry);
+        if (File.Exists(path) && Patch(File.ReadAllBytes(path), index, before, entry) is { } patched)
+        {
+            File.WriteAllBytes(path, patched);
+            return;
+        }
+        if (before is null) file.Actions.Add(entry);
+        else file.Actions[index] = entry;
         Write(path, file);
+    }
+
+    /// <summary>The text of a valid file with the entry at <paramref name="index"/> changed to <paramref name="after"/> (or appended when <paramref name="before"/> is null); null when the text has no object to edit in place.</summary>
+    internal static byte[]? Patch(byte[] text, int index, SaveActionEntry? before, SaveActionEntry after)
+    {
+        int bom = text is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0;
+        var reader = new Utf8JsonReader(text.AsSpan(bom), new JsonReaderOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+        int root = -1, list = -1, listEnd = -1, element = -1, open = -1, lastEnd = -1;
+        bool rootHasProperties = false, inList = false;
+        var values = new Dictionary<string, (int Start, int Length)>();
+        try
+        {
+            while (reader.Read())
+            {
+                int at = bom + (int)reader.TokenStartIndex;
+                switch (reader.TokenType, reader.CurrentDepth)
+                {
+                    case (JsonTokenType.StartObject, 0): root = at; break;
+                    case (JsonTokenType.PropertyName, 1):
+                        rootHasProperties = true;
+                        inList = list < 0 && reader.ValueTextEquals("actions"u8);
+                        break;
+                    case (JsonTokenType.StartArray, 1) when inList: list = at; break;
+                    case (JsonTokenType.EndArray, 1) when inList: listEnd = at; inList = false; break;
+                    case (JsonTokenType.StartObject, 2) when inList:
+                        if (++element == index) open = at;
+                        break;
+                    case (JsonTokenType.EndObject, 2) when inList: lastEnd = at + 1; break;
+                    case (JsonTokenType.PropertyName, 3) when inList && element == index && open >= 0:
+                        string property = reader.GetString()!;
+                        reader.Read();
+                        if (reader.TokenType is JsonTokenType.True or JsonTokenType.False) values[property] = (bom + (int)reader.TokenStartIndex, reader.ValueSpan.Length);
+                        else reader.Skip();
+                        break;
+                }
+            }
+        }
+        catch (JsonException) { return null; } // not UTF-8 text the reader takes: the caller writes the file anew
+        if (root < 0) return null;
+
+        var edits = new List<(int At, int Remove, string Insert)>();
+        static string Bool(bool value) => value ? "true" : "false";
+        if (before is not null)
+        {
+            if (open < 0) return null;
+            foreach (var (property, was, now) in new[] { ("enabled", before.Enabled, after.Enabled), ("onlyManual", before.OnlyManual, after.OnlyManual) })
+            {
+                if (was == now) continue;
+                edits.Add(values.TryGetValue(property, out var value) ? (value.Start, value.Length, Bool(now)) : (open + 1, 0, $"\"{property}\": {Bool(now)}, "));
+            }
+        }
+        else
+        {
+            var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+            using (var w = new Utf8JsonWriter(buffer))
+            {
+                w.WriteStartObject();
+                w.WriteString("kind", after.Kind);
+                if (after.Id is not null) w.WriteString("id", after.Id);
+                if (after.OnlyManual) w.WriteBoolean("onlyManual", true);
+                w.WriteBoolean("enabled", after.Enabled);
+                w.WriteEndObject();
+            }
+            string json = System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+            if (list >= 0 && listEnd > list) edits.Add(lastEnd > list ? (lastEnd, 0, ", " + json) : (list + 1, 0, json));
+            else if (list < 0) edits.Add((root + 1, 0, $"\"actions\": [{json}]" + (rootHasProperties ? ", " : "")));
+            else return null;
+        }
+
+        var result = new List<byte>(text);
+        foreach (var (at, remove, insert) in edits.OrderByDescending(e => e.At))
+        {
+            result.RemoveRange(at, remove);
+            result.InsertRange(at, System.Text.Encoding.UTF8.GetBytes(insert));
+        }
+        return [.. result];
     }
 
     public static SaveActionSet Load(string profileFile, string? projectFile)
@@ -115,7 +227,15 @@ public static class SaveActionConfig
                 if (!Enum.TryParse<SaveActionKind>(entry.Kind, ignoreCase: true, out var kind) || !Enum.IsDefined(kind)) { errors.Add($"{entry.Kind}: the kind must be format, tool, upload or lint."); continue; }
                 string id = entry.Id?.Trim() ?? "";
                 if (kind != SaveActionKind.Upload && id.Length == 0) { errors.Add($"{entry.Kind}: the id is needed."); continue; }
-                var action = new SaveAction(kind, kind == SaveActionKind.Upload ? "" : id, entry.OnlyManual, entry.Enabled, source);
+                ServerTarget? server = null;
+                if (kind == SaveActionKind.Upload && entry.Server?.Trim() is { Length: > 0 } connection)
+                {
+                    // the server folder stands for the folder of the project file, so a server can only be named there
+                    if (source != SaveActionSource.Project) { errors.Add($"{entry.Kind}: a server is named in the .textida/{FileName} of a project, not in the profile."); continue; }
+                    if (entry.RemoteFolder?.Trim() is not ['/', ..] remote) { errors.Add($"{entry.Kind}: remoteFolder must be a folder on the server that starts with /."); continue; }
+                    server = new ServerTarget(connection, remote, Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(path)))!);
+                }
+                var action = new SaveAction(kind, kind == SaveActionKind.Upload ? "" : id, entry.OnlyManual, entry.Enabled, source, server);
                 int same = actions.FindIndex(a => a.Key == action.Key);
                 if (same >= 0) actions[same] = action;
                 else actions.Add(action);

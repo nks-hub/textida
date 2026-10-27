@@ -23,6 +23,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: seconds a formatter of the save actions (and a format step of a recipe) has when <c>formatTimeoutSeconds</c> in saveActions.json is not set; then the file is saved unformatted.</summary>
+    public const int FormatOnSaveTimeoutSeconds = 10;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

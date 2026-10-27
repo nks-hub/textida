@@ -180,6 +180,28 @@ public sealed class WorkingCopyStore(string root)
 
     private static bool SameTime(DateTime? a, DateTime? b) => a is null || b is null || RemoteRevision.Whole(a.Value) == RemoteRevision.Whole(b.Value);
 
+    /// <summary>
+    /// Puts the bytes of <paramref name="source"/>, a file that lives outside the store (a file of a project with a default server), into the copy of <paramref name="remotePath"/>, for <see cref="RemoteSync.UploadAsync"/>.
+    /// The base stays what the last upload left. A first copy has the base <see cref="RemoteRevision.None"/>: the project never sent the file, so a file already on the server is a conflict until the user accepts it.
+    /// </summary>
+    public WorkingCopy Stage(string connectionId, string remotePath, string source)
+    {
+        string folder = FolderOf(connectionId, remotePath);
+        Directory.CreateDirectory(folder);
+        var meta = ReadMeta(folder) ?? new WorkingCopyMeta { ConnectionId = connectionId, RemotePath = remotePath, FileName = FileNameOf(remotePath), Size = RemoteRevision.None.Size, Sha256 = RemoteRevision.None.Sha256 };
+        meta.LastUsedUtc = DateTime.UtcNow;
+        string local = Path.Combine(folder, meta.FileName);
+        string temp = local + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        try
+        {
+            File.Copy(source, temp);
+            FileSwap.Replace(temp, local);
+        }
+        finally { FileSwap.TryDelete(temp); }
+        WriteMeta(folder, meta);
+        return ToCopy(folder, meta);
+    }
+
     /// <summary>Records a new base after an upload: the copy now equals what the server holds.</summary>
     internal WorkingCopy Rebase(WorkingCopy copy, RemoteRevision revision)
     {

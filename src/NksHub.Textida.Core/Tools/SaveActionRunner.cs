@@ -26,7 +26,8 @@ public sealed class SaveActionRunner
 
     /// <param name="save">Does the save and says whether it went through; it may itself call <see cref="RunAsync"/> again (a conflict that is answered with a second try).</param>
     /// <param name="after">Runs a tool or an upload for the saved file; returns null when it went well, otherwise why not.</param>
-    public async Task<SaveActionReport> RunAsync(Document doc, SaveActionSet set, SaveOrigin origin, Func<Task<bool>> save, Func<SaveAction, Task<string?>> after, CancellationToken ct = default)
+    /// <param name="path">The file <paramref name="save"/> writes when it is not the file of the document (Save As); the formatters work for that file.</param>
+    public async Task<SaveActionReport> RunAsync(Document doc, SaveActionSet set, SaveOrigin origin, Func<Task<bool>> save, Func<SaveAction, Task<string?>> after, CancellationToken ct = default, string? path = null)
     {
         var chosen = origin == SaveOrigin.Plugin || _inside.Value == doc
             ? []
@@ -38,15 +39,15 @@ public sealed class SaveActionRunner
         {
             var notes = new List<SaveActionNote>();
             foreach (var action in chosen.Where(a => a.Kind == SaveActionKind.Format))
-                notes.Add(await FormatAsync(doc, action, set, ct));
+                notes.Add(await FormatAsync(doc, action, set, path, ct));
 
             if (!await save()) return new SaveActionReport(false, notes);
 
             var written = doc.Fingerprint;
-            string? path = doc.FilePath;
+            string? saved = doc.FilePath;
             foreach (var action in chosen.Where(a => a.Kind != SaveActionKind.Format))
             {
-                if (action.Kind == SaveActionKind.Upload && (path is null || written is null || FileFingerprint.TryRead(path)?.Sha256 != written.Sha256))
+                if (action.Kind == SaveActionKind.Upload && (saved is null || written is null || FileFingerprint.TryRead(saved)?.Sha256 != written.Sha256))
                 {
                     notes.Add(new SaveActionNote(action, SaveActionState.Skipped, "The file on disk is no longer what this save wrote, so it was not sent."));
                     continue;
@@ -62,12 +63,12 @@ public sealed class SaveActionRunner
         }
     }
 
-    private async Task<SaveActionNote> FormatAsync(Document doc, SaveAction action, SaveActionSet set, CancellationToken ct)
+    private async Task<SaveActionNote> FormatAsync(Document doc, SaveAction action, SaveActionSet set, string? path, CancellationToken ct)
     {
         if (_formatters(action.Id) is not { } def) return new(action, SaveActionState.Skipped, $"Unknown formatter '{action.Id}'.");
         if (set.FormatTimeout is not { } timeout) return new(action, SaveActionState.Skipped, "No time limit is set for formatters (formatTimeoutSeconds in saveActions.json).");
         if (!doc.IsModified) return new(action, SaveActionState.Skipped, "");
-        var outcome = await ConfigFormatters.FormatAsync(doc, def, timeout, ct);
+        var outcome = await ConfigFormatters.FormatAsync(doc, def, timeout, ct, path);
         var state = outcome.Result switch
         {
             FormatResult.Formatted => SaveActionState.Done,

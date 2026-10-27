@@ -17,8 +17,8 @@ public sealed record CatalogMode(string Id, IReadOnlyList<string> Extensions, IR
 /// </summary>
 public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Shipped = false, bool Verified = false);
 
-/// <summary>A formatter that rewrites <c>${File}</c> in place. <paramref name="OnSave"/> is whether Save Actions offers it today.</summary>
-public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool OnSave = false, bool Verified = false);
+/// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
+public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
 
 /// <summary>A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.</summary>
 public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
@@ -44,13 +44,14 @@ public sealed record LanguageGroup(
 /// The versioned table of language tools: one record per language group (the 17 groups of the plan). It is the single source of the file extensions and names of the language modes,
 /// the grammars, the language server launch lines, the formatters of Save Actions, the linters, the configuration files shown in the status bar and the package manifests.
 /// Nothing here runs a program or reaches the network; <see cref="ToolLocator"/> only looks for a program on disk.
-/// OPEN: no tool version is pinned (<c>Version</c> is null everywhere), because no tool was installed to read it from. Only <c>gofmt</c> is marked verified; the other command lines come from
+/// OPEN: no tool version is pinned (<c>Version</c> is null everywhere). Marked verified are the formatters whose command line was run against the real program: <c>gofmt</c>, <c>clang-format</c> 19.1.5
+/// (it formats code that does not parse and fails only on a broken configuration) and <c>dart format</c> of Dart 3.12.2 (exit code 65 for code that does not parse). The other command lines come from
 /// the documentation of the tools and have not been run.
 /// </summary>
 public static class LanguageCatalog
 {
     /// <summary>Version of the table layout and content; raised when an entry changes in a way a consumer can see.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     /// <summary>The configuration that applies to every file.</summary>
     public static readonly CatalogConfig EditorConfig = new([".editorconfig"], "root = true\n\n[*]\n");
@@ -93,7 +94,7 @@ public static class LanguageCatalog
         new("shell", "Bash, PowerShell",
             [M("shell", [".sh", ".bash", ".zsh"], "shell"), M("powershell", [".ps1", ".psm1", ".psd1"], "powershell")],
             [new("shell", "bash-language-server", ["start"])],
-            [new("shfmt", "shfmt", "shfmt", ["-w", "${File}"], [], [".sh", ".bash"])],
+            [new("shfmt", "shfmt", "shfmt", ["-w", "${File}"], [".editorconfig"], [".sh", ".bash"])],
             [new("shellcheck", "ShellCheck", "shellcheck", ["--format=json", "${File}"], "shellcheck-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), new("style", ToolSeverity.Hint)], [".shellcheckrc"], [".sh", ".bash"])],
             [C([".shellcheckrc"], "# ShellCheck options, one per line.\n")],
@@ -111,7 +112,7 @@ public static class LanguageCatalog
             [M("c", [".c"], "c"), M("cpp", [".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"], "cpp"), M("cmake", [".cmake"], "cmake", ["CMakeLists.txt"]),
                 M("makefile", [".mk", ".mak", ".make"], "makefile", ["Makefile", "makefile", "GNUmakefile"]), M("meson", [], "meson", ["meson.build", "meson_options.txt", "meson.options"])],
             [new("c", "clangd", []), new("cpp", "clangd", [])],
-            [new("clang-format", "clang-format", "clang-format", ["-i", "${File}"], [".clang-format", "_clang-format"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".m", ".mm", ".cs", ".java"], OnSave: true)],
+            [new("clang-format", "clang-format", "clang-format", ["-i", "${File}"], [".clang-format", "_clang-format"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".m", ".mm", ".cs", ".java"], Verified: true)],
             [new("clang-tidy", "clang-tidy", "clang-tidy", ["${File}"], "gcc-text",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info)], [".clang-tidy"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx"])],
             [C([".clang-format", "_clang-format"], "BasedOnStyle: LLVM\n"), C([".clang-tidy"], "Checks: 'clang-diagnostic-*'\n")],
@@ -129,7 +130,7 @@ public static class LanguageCatalog
         new("go", "Go",
             [M("go", [".go"], "go"), M("gomod", [], "gomod", ["go.mod", "go.work"]), M("gotmpl", [".gohtml", ".gotmpl"], "gotmpl")],
             [new("go", "gopls", [])],
-            [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], OnSave: true, Verified: true)],
+            [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], Verified: true)],
             [new("golangci-lint", "golangci-lint", "golangci-lint", ["run", "--output.json.path=stdout", "${File}"], "golangci-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"])],
             [C([".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], "version: \"2\"\n")],
@@ -137,7 +138,7 @@ public static class LanguageCatalog
         new("rust", "Rust",
             [M("rust", [".rs"], "rust"), M("toml", [".toml"], "toml", ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"])],
             [new("rust", "rust-analyzer", [])],
-            [new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"], OnSave: true)],
+            [new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"])],
             [new("clippy", "Clippy", "cargo", ["clippy", "--message-format=json", "--quiet"], "cargo-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info), new("help", ToolSeverity.Hint), AnyWarning], ["clippy.toml", ".clippy.toml"], [".rs"])],
             [C(["rustfmt.toml", ".rustfmt.toml"], "# rustfmt uses its defaults while this file is empty.\n"), C(["clippy.toml", ".clippy.toml"], "# Clippy uses its defaults while this file is empty.\n")],
@@ -162,7 +163,7 @@ public static class LanguageCatalog
                     ["Gemfile", "Rakefile", "Guardfile", "Capfile", "Vagrantfile", "Podfile", "Brewfile", "Berksfile", "Fastfile", "Appfile"]),
                 M("erb", [".erb", ".rhtml"], "erb"), M("haml", [".haml"], "haml"), M("slim", [".slim"], "slim"), M("rbs", [".rbs"], "rbs")],
             [new("ruby", "ruby-lsp", [])],
-            [new("rubocop", "RuboCop", "rubocop", ["-a", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"], OnSave: true)],
+            [new("rubocop", "RuboCop", "rubocop", ["-a", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"])],
             [new("rubocop-lint", "RuboCop", "rubocop", ["--format", "json", "${File}"], "rubocop-json",
                 [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("convention", ToolSeverity.Info), new("refactor", ToolSeverity.Info), new("info", ToolSeverity.Info)], [".rubocop.yml"], [".rb", ".rake"])],
             [C([".rubocop.yml"], "AllCops:\n  NewCops: disable\n")],
@@ -170,7 +171,7 @@ public static class LanguageCatalog
         new("dart", "Dart",
             [M("dart", [".dart"], "dart")],
             [new("dart", "dart", ["language-server"])],
-            [new("dart-format", "dart format", "dart", ["format", "${File}"], [], [".dart"])],
+            [new("dart-format", "dart format", "dart", ["format", "${File}"], ["analysis_options.yaml"], [".dart"], Verified: true)],
             [],
             [C(["analysis_options.yaml"])],
             [new("pubspec.yaml", "pub.dev")]),

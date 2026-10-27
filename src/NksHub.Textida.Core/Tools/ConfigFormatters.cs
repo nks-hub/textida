@@ -13,14 +13,14 @@ public enum FormatResult { Formatted, Unchanged, Skipped, Failed, TimedOut, Miss
 public sealed record FormatOutcome(FormatResult Result, string Reason = "");
 
 /// <summary>
-/// Formatters that run only where the project has their configuration (<c>gofmt</c>, <c>rustfmt</c>, <c>clang-format</c>, RuboCop). They go through <see cref="ToolRunner"/>.
-/// None of them is on until the user turns it on.
+/// Formatters that run only where the project has their configuration (every formatter of <see cref="LanguageCatalog"/>: <c>gofmt</c>, <c>rustfmt</c>, <c>clang-format</c>, RuboCop, Prettier and the others).
+/// They go through <see cref="ToolRunner"/>. None of them is on until the user turns it on.
 /// </summary>
 public static class ConfigFormatters
 {
-    /// <summary>The formatters of <see cref="LanguageCatalog"/> that Save Actions offers.</summary>
+    /// <summary>The formatters Save Actions offers: all of <see cref="LanguageCatalog"/>.</summary>
     public static readonly IReadOnlyList<FormatterDef> All =
-        [.. LanguageCatalog.Formatters.Where(f => f.OnSave).Select(f => new FormatterDef(f.Id, f.Title, f.Executable, f.Args, f.ConfigFiles, f.Extensions))];
+        [.. LanguageCatalog.Formatters.Select(f => new FormatterDef(f.Id, f.Title, f.Executable, f.Args, f.ConfigFiles, f.Extensions))];
 
     public static FormatterDef? Find(string id) => All.FirstOrDefault(f => f.Id == id);
 
@@ -46,9 +46,11 @@ public static class ConfigFormatters
     /// <paramref name="timeout"/>, and only a clean exit with a changed result edits the document, as one undo step. A document that changed while the program ran is left as it is. The continuations stay on the thread that called, because the document belongs to it.
     /// A timeout, a failing exit, a program that is not found or a changed byte order mark leave the document untouched.
     /// </summary>
-    public static async Task<FormatOutcome> FormatAsync(Document doc, FormatterDef def, TimeSpan timeout, CancellationToken ct = default)
+    /// <param name="path">The file the next save writes when it is not the file of the document (Save As); its folder holds the copy and gives the configuration.</param>
+    public static async Task<FormatOutcome> FormatAsync(Document doc, FormatterDef def, TimeSpan timeout, CancellationToken ct = default, string? path = null)
     {
-        if (doc.FilePath is not { } path) return new(FormatResult.Skipped, "The document has no file name yet.");
+        path ??= doc.FilePath;
+        if (path is null) return new(FormatResult.Skipped, "The document has no file name yet.");
         if (doc.ByteLength > SaveTransforms.MaxBytes) return new(FormatResult.Skipped, "The document is too large to format on save.");
         long revision = doc.Revision;
         byte[] before = doc.ReadBytes(new ByteRange(0, doc.ByteLength));

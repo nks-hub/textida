@@ -1523,6 +1523,15 @@ public static class K
     public const string SaveActionsToolFailed = "saveActions.toolFailed";
     public const string SaveActionsLint = "saveActions.lint";
     public const string SaveActionsOfferedLint = "saveActions.offeredLint";
+    public const string SaveActionsUploadTo = "saveActions.uploadTo";
+    public const string SaveActionsServerOutside = "saveActions.serverOutside";
+    public const string SaveActionsServerUnknown = "saveActions.serverUnknown";
+    public const string SaveActionsServerNotApproved = "saveActions.serverNotApproved";
+    public const string SaveActionsServerConfirmTitle = "saveActions.serverConfirmTitle";
+    public const string SaveActionsServerConfirm = "saveActions.serverConfirm";
+    public const string SaveActionsServerConfirmUpload = "saveActions.serverConfirmUpload";
+    public const string SaveActionsServerConfirmFile = "saveActions.serverConfirmFile";
+    public const string SaveActionsUploadChanged = "saveActions.uploadChanged";
     public const string LintNone = "lint.none";
     public const string LintNoLimit = "lint.noLimit";
     public const string LintFailed = "lint.failed";
