@@ -14,14 +14,18 @@ public class PluginHostTests
             Restart = new RestartPolicy(3, TimeSpan.FromMinutes(5), TimeSpan.FromMilliseconds(300), TimeSpan.FromSeconds(5)),
             ApiVersion = 1,
             HandshakeTimeout = TimeSpan.FromSeconds(30),
-            PingInterval = TimeSpan.FromMilliseconds(150),
-            PingTimeout = TimeSpan.FromMilliseconds(250),
+            PingInterval = TimeSpan.FromSeconds(2),
+            PingTimeout = TimeSpan.FromSeconds(10),
             MissedPingsBeforeKill = 3,
             ShutdownGrace = TimeSpan.FromSeconds(5),
             StderrTailLines = 10,
+            DefaultCallTimeout = TimeSpan.FromSeconds(90), // a stuck call fails the test with its name instead of hanging the run
         };
         return change?.Invoke(o) ?? o;
     }
+
+    /// <summary>Quick pings for the tests of a frozen plugin only; a loaded machine can stall a healthy plugin process for longer than these allow.</summary>
+    static PluginHostOptions FastPings(PluginHostOptions o) => o with { PingInterval = TimeSpan.FromMilliseconds(150), PingTimeout = TimeSpan.FromMilliseconds(500) };
 
     static PluginSpec Spec(string id, params string[] args) =>
         new(id, "Plugin " + id, T.DotnetHost, [T.PluginDll, .. args], ["onCommand:" + id]);
@@ -165,7 +169,7 @@ public class PluginHostTests
     public async Task AFrozenPluginIsKilledNamedAndRestarted()
     {
         var crashed = new List<PluginCrashInfo>();
-        await using var host = await Started(Options(), null, null, Spec("hang"));
+        await using var host = await Started(Options(FastPings), null, null, Spec("hang"));
         host.Crashed += i => { lock (crashed) crashed.Add(i); };
         var pid = await Pid(host, "hang");
         await host.CallAsync("hang", "freeze");
@@ -180,7 +184,7 @@ public class PluginHostTests
     public async Task APluginWaitingForTheUserIsNotKilledEvenIfItAnswersNoPings()
     {
         var crashed = 0;
-        await using var host = await Started(Options(), null, null, Spec("ask"));
+        await using var host = await Started(Options(FastPings), null, null, Spec("ask"));
         host.Crashed += _ => Interlocked.Increment(ref crashed);
         var answer = await host.CallAsync("ask", "awaitFrozen", Args("{\"ms\":2000}"));
         Assert.Equal("decided", answer.GetString());
@@ -194,11 +198,11 @@ public class PluginHostTests
         var decision = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var crashed = 0;
         PluginApiCallback api = (_, method, _, _) => method == "edit/propose" ? new ValueTask<byte[]?>(decision.Task) : throw new RpcException(RpcErrorCodes.MethodNotFound, method);
-        await using var host = await Started(Options(), api, null, Spec("ask"));
+        await using var host = await Started(Options(FastPings), api, null, Spec("ask"));
         host.Crashed += _ => Interlocked.Increment(ref crashed);
         await host.CallAsync("ask", "freeze");
         var pending = host.CallAsync("ask", "callEditor", Args("{\"method\":\"edit/propose\",\"params\":{}}"));
-        await Task.Delay(2500); // far past three missed pings (150 ms interval, 250 ms timeout)
+        await Task.Delay(3500); // far past three missed pings (150 ms interval, 500 ms timeout)
         Assert.False(pending.IsCompleted);
         Assert.Equal(0, crashed);
         Assert.Equal(PluginState.Running, host.GetState("ask"));
