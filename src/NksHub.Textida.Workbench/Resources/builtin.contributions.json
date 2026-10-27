@@ -390,6 +390,11 @@
       "category": "cat.file"
     },
     {
+      "id": "nks.remote.pairCache",
+      "title": "cmd.remote.pairCache",
+      "category": "cat.file"
+    },
+    {
       "id": "nks.remote.proxy",
       "title": "cmd.remote.proxy",
       "category": "cat.file"
@@ -403,6 +408,16 @@
       "id": "nks.remote.importConnections",
       "title": "cmd.remote.importConnections",
       "category": "cat.file"
+    },
+    {
+      "id": "nks.settings.backup",
+      "title": "cmd.settings.backup",
+      "category": "cat.app"
+    },
+    {
+      "id": "nks.settings.restore",
+      "title": "cmd.settings.restore",
+      "category": "cat.app"
     },
     {
       "id": "nks.edit.selectLine",
@@ -2669,6 +2684,13 @@
     },
     {
       "menu": "file",
+      "command": "nks.remote.pairCache",
+      "group": "4_remote",
+      "submenu": "remote",
+      "order": 55
+    },
+    {
+      "menu": "file",
       "command": "nks.remote.proxy",
       "group": "4_remote",
       "submenu": "remote",
@@ -2687,6 +2709,18 @@
       "group": "4_remote",
       "submenu": "remote",
       "order": 80
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.backup",
+      "group": "4_backup",
+      "order": 10
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.restore",
+      "group": "4_backup",
+      "order": 20
     },
     {
       "menu": "edit",

@@ -279,6 +279,43 @@ public class RemoteFileTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task After_a_restart_the_cache_is_paired_with_the_server_by_the_stored_revision_and_nothing_is_downloaded()
+    {
+        foreach (var name in new[] { "a", "b", "c" }) File.WriteAllText(Path.Combine(_server.Path, name + ".txt"), "server " + name);
+        var connection = await StartServerAndSaveConnectionAsync(trusted: true);
+        foreach (var name in new[] { "a", "b", "c" }) await _w.CloseTabAsync(await OpenRemoteAsync($"/{name}.txt"));
+        File.WriteAllText(_app.Remote.Copies.Find(connection.Id, "/a.txt")!.LocalPath, "local a");
+        string serverB = Path.Combine(_server.Path, "b.txt");
+        File.WriteAllText(serverB, "server b changed by a colleague");
+        File.SetLastWriteTimeUtc(serverB, DateTime.UtcNow.AddMinutes(10));
+        _app.Remote = new RemoteServices(_app.ProfileDirectory, _secrets); // the next start knows the copies only from the disk
+
+        _w.PairCache();
+        await Until(() => _w.QuickResults.Count > 0, "the list of connections");
+        _w.QuickResults[0].Run();
+        await Until(() => _w.QuickResults.Count == 3 && _w.QuickResults[0].Title == "a.txt", "the copies paired with the server");
+
+        var rows = _w.QuickResults.ToDictionary(r => r.Title, r => r.Detail!);
+        Assert.StartsWith(Loc.Get(K.RemoteBarUnsent), rows["a.txt"]);
+        Assert.StartsWith(Loc.Get(K.RemoteBarServerChanged), rows["b.txt"]);
+        Assert.StartsWith(Loc.Get(K.RemoteBarInSync), rows["c.txt"]);
+        Assert.Equal("server b", File.ReadAllText(_app.Remote.Copies.Find(connection.Id, "/b.txt")!.LocalPath));
+        Assert.Equal("local a", File.ReadAllText(_app.Remote.Copies.Find(connection.Id, "/a.txt")!.LocalPath));
+
+        _w.QuickResults.Single(r => r.Title == "b.txt").Run();
+        await Until(() => _w.Tabs.Any(t => t.Doc.RemoteCopy?.RemotePath == "/b.txt" && BarOf(t) == Loc.Get(K.RemoteBarServerChanged)), "the bar of the opened copy");
+    }
+
+    [AvaloniaFact]
+    public void Comparing_the_cache_says_so_when_no_connection_has_copies()
+    {
+        _w.PairCache();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(Loc.Get(K.RemoteCacheEmpty), _w.StatusMessageText);
+        Assert.Empty(_w.QuickResults);
+    }
+
+    [AvaloniaFact]
     public async Task A_proxy_is_saved_without_its_password_in_the_policy_file()
     {
         _dialogs.Answers.Enqueue(3); // SOCKS5

@@ -73,6 +73,8 @@ public sealed partial class App : Application
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
     internal string ProfileDirectory { get; private set; } = "";
+    /// <summary>What the restore of a configuration backup staged before this start did; null when none was staged.</summary>
+    internal ConfigRestoreResult? ConfigRestore { get; private set; }
 
     private readonly List<MainWindow> _windows = [];
     private MainWindow? _active;
@@ -115,6 +117,7 @@ public sealed partial class App : Application
             {
                 first.RestoreFrom(Journal);
                 first.ShowJournalWarnings();
+                first.ShowConfigRestore();
                 first.StartWorkspace();
                 first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
@@ -136,6 +139,7 @@ public sealed partial class App : Application
         var ctx = Startup;
         Journal?.Dispose();
         ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
+        ConfigRestore = ConfigBackup.ApplyPending(ProfileDirectory, Clock()); // before any service reads the files it puts back
         Workbench = new AppWorkbench(ProfileDirectory, Loc.DefaultLanguage);
         AppCommands.Register(this);
         Workbench.SettingChanged += OnSettingChanged;

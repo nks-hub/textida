@@ -147,6 +147,14 @@ commands: nks.remote.unsent
 Änderungen an einer Remote-Datei werden zuerst auf diesem Computer gespeichert. Die Liste zeigt die Remote-Dateien, deren Kopie geändert und nicht gesendet wurde, auch nach dem Schließen oder einem Absturz des Programms. Wählen Sie eine aus, dann öffnet sich die Kopie; die Leiste bietet Hochladen an.
 - Das Bearbeiten braucht keine Verbindung. Nicht gesendete Änderungen bleiben, bis Sie sie hochladen.
 
+## [remote.cache] Cache mit dem Server abgleichen
+commands: nks.remote.pairCache
+Die Kopien von Remote-Dateien bleiben auf diesem Computer mit der Serverversion, aus der sie entstanden sind, auch nach dem Schließen des Programms.
+1. Wählen Sie Datei und dann Remotedateien und dann Cache mit dem Server abgleichen, und wählen Sie eine Verbindung.
+2. Das Programm verbindet sich und vergleicht jede Kopie dieser Verbindung anhand der gespeicherten Version mit dem Server. Die Liste sagt zu jeder Datei: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert, oder nicht mehr auf dem Server.
+3. Wählen Sie eine Datei, dann öffnet sich ihre Kopie. Die Leiste prüft sie noch einmal und bietet Hochladen, Unterschiede zeigen oder Vom Server neu laden an.
+- Nichts wird heruntergeladen oder überschrieben. Die Liste bietet nur Verbindungen an, die Kopien haben.
+
 ## [source.open] Aus einer Plugin-Quelle öffnen
 commands: nks.source.open
 1. Wählen Sie Datei und dann Aus Quelle öffnen. Die Liste zeigt die Quellen, die Plugins anbieten, und was jede kann: ob sie schreibt, ob eine geänderte Datei geschützt ist und ob sie Ordner auflistet.
@@ -164,6 +172,7 @@ commands: nks.remote.exportConnections, nks.remote.importConnections
 2. Wählen Sie Datei und dann Remotedateien und dann Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
 - Die Datei enthält keine Passwörter, Passphrasen oder Token und kann daher weitergegeben werden. Wählen Sie nach dem Import eine Verbindung und dann Passwort setzen.
 - Eine importierte Verbindung ersetzt eine Verbindung mit derselben internen Kennung.
+- Die ganze Konfiguration samt Verbindungen übertragen Sie mit Einstellungen und dann Konfiguration sichern (Thema Konfiguration sichern).
 
 ## [remote.proxy] Netzwerk-Proxy
 commands: nks.remote.proxy
@@ -743,6 +752,15 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 1. Wählen Sie Einstellungen und dann Verhaltensprofil: Standard oder Verhaltensprofil: PSPad.
 - Das Profil PSPad ändert: Pos1 und Ende springen zwischen dem ersten Zeichen und dem Zeilenrand, die Rücktaste im Einzug löscht bis zum Tabstopp, Alt+Ziehen macht eine Blockauswahl, Zeichenpaare werden wie in PSPad ergänzt, und einige Kürzel (Zeile löschen Strg+Y, Rückgängig Alt+Rücktaste, Zeilenumbruch Strg+W, F8 Marke, Strg+Umschalt+C Blockauswahl, Einzug Strg+Umschalt+I und U).
 - Eigene Kürzel in den Einstellungen haben Vorrang vor dem Profil.
+
+## [settings.backup] Konfiguration sichern
+commands: nks.settings.backup, nks.settings.restore
+1. Wählen Sie Einstellungen und dann Konfiguration sichern und benennen Sie die Datei. Die ZIP-Datei hat das Datum im Namen. Sie enthält die Einstellungen, Tastenkürzel, Benutzervariablen, externen Werkzeuge, Aktionen beim Speichern, Logansichten, Makros, Rezepte, Clips und Datenplugins, Arbeitsbereiche, Remote-Verbindungen und den Proxy.
+2. Auf einem anderen Computer oder nach einer Neuinstallation wählen Sie Einstellungen und dann Konfiguration wiederherstellen und wählen die Datei. Die Dateien kommen beim nächsten Start zurück: Wählen Sie Beenden und wiederherstellen oder Beim nächsten Start.
+- Eine Sicherung enthält keine Passwörter oder Token. Passwörter bleiben im Anmeldeinformationsspeicher des Betriebssystems. Ein Wert in den Dateien, der ein gespeichertes Passwort enthält oder dessen Name sagt, dass er ein Passwort, ein Token oder ein Schlüssel ist, wird ausgelassen, und die Statusleiste sagt, wie viele. Geben Sie die Passwörter nach einer Wiederherstellung neu ein (Remote-Verbindungen und dann Passwort setzen).
+- Eine Wiederherstellung ersetzt nur die Dateien, die in der Sicherung sind. Die Konfiguration von vorher wird zuerst im Ordner config-backups des Profils gespeichert.
+- Nicht in einer Sicherung: das Journal, der lokale Verlauf, die Sicherungen von Dateien, die Kopien von Remote-Dateien, Sitzungen, Logs und installierte Plugins.
+- Eine Sicherung aus einer neueren Version des Programms wird abgelehnt.
 
 ## [view.output] Ausgabefenster
 commands: nks.view.toggleOutput

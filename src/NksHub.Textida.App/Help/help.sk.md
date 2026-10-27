@@ -148,6 +148,14 @@ commands: nks.remote.unsent
 Zmeny vzdialeného súboru sa najprv uložia v tomto počítači. Zoznam ukáže vzdialené súbory, ktorých kópia je zmenená a neodoslaná, aj po zatvorení programu alebo po páde. Vyberte jeden a otvorí sa kópia; lišta ponúkne Nahrať.
 - Úpravy nepotrebujú pripojenie. Neodoslané zmeny zostanú, kým ich nenahráte.
 
+## [remote.cache] Porovnať vyrovnávaciu pamäť so serverom
+commands: nks.remote.pairCache
+Kópie vzdialených súborov zostávajú v tomto počítači s verziou zo servera, z ktorej vznikli, aj po zatvorení programu.
+1. Zvoľte Súbor a potom Vzdialené súbory a potom Porovnať vyrovnávaciu pamäť so serverom a vyberte pripojenie.
+2. Program sa pripojí a porovná každú kópiu toho pripojenia so serverom podľa uloženej verzie. Zoznam pri každom súbore povie: zhodné so serverom, zmenené tu a neodoslané, zmenené na serveri, zmenené na oboch miestach, alebo súbor už na serveri nie je.
+3. Vyberte súbor a otvorí sa jeho kópia. Lišta ju ešte raz skontroluje a ponúkne Nahrať, Zobraziť rozdiely alebo Znova načítať zo servera.
+- Nič sa nesťahuje ani neprepisuje. Zoznam ponúka len pripojenia, ktoré majú kópie.
+
 ## [source.open] Otvoriť zo zdroja pluginu
 commands: nks.source.open
 1. Zvoľte Súbor a potom Otvoriť zo zdroja. Zoznam ukazuje zdroje, ktoré pluginy ponúkajú, a čo každý vie: či zapisuje, či chráni zmenený súbor a či vypisuje priečinky.
@@ -165,6 +173,7 @@ commands: nks.remote.exportConnections, nks.remote.importConnections
 2. Zvoľte Súbor a potom Vzdialené súbory a potom Importovať pripojenia a načítate taký súbor na inom počítači alebo po preinštalovaní.
 - Súbor neobsahuje heslá, prístupové frázy ani tokeny, takže ho možno zdieľať. Po importe vyberte pripojenie a zvoľte Nastaviť heslo.
 - Importované pripojenie nahradí pripojenie s rovnakým vnútorným identifikátorom.
+- Celú konfiguráciu vrátane pripojení prenesiete cez Nastavenia a potom Zálohovať konfiguráciu (téma Záloha konfigurácie).
 
 ## [remote.proxy] Sieťový proxy
 commands: nks.remote.proxy
@@ -748,6 +757,15 @@ commands: nks.settings.profile.default, nks.settings.profile.pspad
 1. Zvoľte Nastavenia a Profil správania: predvolený, alebo Profil správania: PSPad.
 - Profil PSPad mení: Home a End preskakujú medzi prvým znakom a krajom riadka, Backspace v odsadení maže po tabulačnú zarážku, Alt+ťahanie robí blokový výber, párové znaky sa dopĺňajú podľa PSPadu a niekoľko skratiek (Odstrániť riadok Ctrl+Y, Späť Alt+Backspace, Zalamovanie Ctrl+W, F8 značka, Ctrl+Shift+C blokový výber, Odsadenie Ctrl+Shift+I a U).
 - Vlastné skratky v nastaveniach majú prednosť pred profilom.
+
+## [settings.backup] Záloha konfigurácie
+commands: nks.settings.backup, nks.settings.restore
+1. Zvoľte Nastavenia a potom Zálohovať konfiguráciu a pomenujte súbor. Súbor ZIP má v názve dátum. Obsahuje nastavenia, klávesové skratky, používateľské premenné, externé nástroje, akcie pri uložení, pohľady na logy, makrá, recepty, klipy a dátové pluginy, pracovné priestory, vzdialené pripojenia a proxy.
+2. Na inom počítači alebo po preinštalovaní zvoľte Nastavenia a potom Obnoviť konfiguráciu a vyberte súbor. Súbory sa vrátia pri ďalšom spustení: zvoľte Ukončiť a obnoviť, alebo Pri ďalšom spustení.
+- Záloha neobsahuje heslá ani tokeny. Heslá zostávajú v systémovej kľúčenke. Hodnota v súboroch, ktorá obsahuje uložené heslo alebo ktorej názov hovorí, že ide o heslo, token alebo kľúč, sa vynechá a stavový riadok povie koľko. Po obnovení zadajte heslá znova (Vzdialené pripojenia a potom Nastaviť heslo).
+- Obnovenie nahradí len súbory, ktoré záloha obsahuje. Konfigurácia z doby predtým sa najprv uloží do priečinka config-backups v profile.
+- V zálohe nie je: žurnál, miestna história, zálohy súborov, kópie vzdialených súborov, relácie, logy a nainštalované pluginy.
+- Zálohu z novšej verzie programu program odmietne.
 
 ## [view.output] Okno výstupu
 commands: nks.view.toggleOutput
