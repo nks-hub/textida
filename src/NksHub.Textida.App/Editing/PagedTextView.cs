@@ -72,6 +72,7 @@ internal sealed partial class PagedTextView : Grid
     {
         _doc = doc;
         _options = options;
+        EditorFontFallbacks.Shared.Use(options.FullFontFamily);
         _caret = doc.Doc.BomLength;
         Focusable = true;
         ColumnDefinitions = new ColumnDefinitions("*,Auto");
@@ -165,6 +166,7 @@ internal sealed partial class PagedTextView : Grid
     public void ApplyOptions(EditorOptions o)
     {
         _options = o;
+        EditorFontFallbacks.Shared.Use(o.FullFontFamily);
         _lines.Clear();
         _truncatedColumns = -1; // the next draw sets the sideways range again: the cell width or the room for the line end mark may have changed
         _canvas.InvalidateMeasure();

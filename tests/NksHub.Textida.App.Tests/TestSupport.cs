@@ -17,7 +17,7 @@ namespace NksHub.Textida.App.Tests;
 public static class TestAppBuilder
 {
     public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
+        AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).With(Editing.EditorFontFallbacks.Options);
 }
 
 internal static class Repo

@@ -200,6 +200,7 @@ internal sealed partial class EditorSurface : TextEditor
     public void ApplyOptions(EditorOptions o)
     {
         Settings = o;
+        EditorFontFallbacks.Shared.Use(o.FullFontFamily);
         FontFamily = new FontFamily(o.FullFontFamily);
         FontSize = o.FontSize;
         Options.IndentationSize = o.TabSize;

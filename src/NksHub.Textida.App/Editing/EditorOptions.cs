@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Settings;
@@ -92,4 +93,34 @@ internal sealed record EditorOptions(
             FallbackFontFamily: s.GetString("editor.fallbackFontFamily"),
             TabsOnly: tabsOnly);
     }
+}
+
+/// <summary>
+/// The fonts Avalonia tries, in order, for a character the first font of a family lacks. Avalonia asks the system for such a character
+/// and ignores the other names of the family, so <see cref="Options"/> hands this list to the font manager and the surfaces fill it from <see cref="EditorOptions.FullFontFamily"/>.
+/// </summary>
+internal sealed class EditorFontFallbacks : IReadOnlyList<FontFallback>
+{
+    public static readonly EditorFontFallbacks Shared = new();
+
+    /// <summary>The font manager options of the app, read once when the font manager is created.</summary>
+    public static FontManagerOptions Options => new() { FontFallbacks = Shared };
+
+    private string _family = "";
+    private FontFallback[] _fonts = [];
+
+    /// <summary>Takes the fonts of a comma-separated family. A name that is not installed is left out, as Avalonia would draw it with its default font.</summary>
+    public void Use(string family)
+    {
+        if (family == _family) return;
+        _family = family;
+        _fonts = [.. family.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(name => FontManager.Current.TryGetGlyphTypeface(new Typeface(name), out var face) && string.Equals(face.FamilyName, name, StringComparison.OrdinalIgnoreCase))
+            .Select(name => new FontFallback { FontFamily = new FontFamily(name) })];
+    }
+
+    public FontFallback this[int index] => _fonts[index];
+    public int Count => _fonts.Length;
+    public IEnumerator<FontFallback> GetEnumerator() => ((IEnumerable<FontFallback>)_fonts).GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
