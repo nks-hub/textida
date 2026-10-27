@@ -316,27 +316,30 @@ internal sealed partial class HexView
         {
             var run = new StringBuilder(n);
             int runStart = 0;
-            void Flush(int upTo)
+            IBrush? runBrush = null;
+            void Flush()
             {
-                if (run.Length > 0) context.DrawText(Format(run.ToString(), fore), new Point(_charLeft + runStart * _cw, y + 1));
+                if (run.Length > 0) context.DrawText(Format(run.ToString(), runBrush!), new Point(_charLeft + runStart * _cw, y + 1));
                 run.Clear();
-                runStart = upTo;
             }
             for (int i = 0; i < n; i++)
             {
                 var cell = cells[i];
                 if (cell.Kind == HexCellKind.Invalid) context.FillRectangle(warn, new Rect(_charLeft + i * _cw, y, _cw, _rh));
-                if (cell.Glyph.Length == 1 && cell.Kind is HexCellKind.Normal)
+                // one-unit glyphs of the same colour are drawn as one run: a stretch of zeros or control bytes is a run of dots, not one text per byte
+                IBrush? simple = cell.Glyph.Length == 1 ? cell.Kind switch { HexCellKind.Normal => fore, HexCellKind.Control or HexCellKind.Continuation => dim, _ => null } : null;
+                if (simple is not null)
                 {
-                    if (run.Length == 0) runStart = i;
+                    if (run.Length > 0 && !ReferenceEquals(simple, runBrush)) Flush();
+                    if (run.Length == 0) (runStart, runBrush) = (i, simple);
                     run.Append(cell.Glyph);
                     continue;
                 }
-                Flush(i + 1);
+                Flush();
                 var brush = cell.Kind switch { HexCellKind.Invalid => danger, HexCellKind.Normal => fore, _ => dim };
                 context.DrawText(Format(cell.Glyph, brush), new Point(_charLeft + i * _cw, y + 1));
             }
-            Flush(n);
+            Flush();
         }
 
         private void DrawCaret(DrawingContext context, IBrush accent, IBrush muted, double y, int col, bool onByte)
