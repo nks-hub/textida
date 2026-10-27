@@ -34,6 +34,8 @@ internal sealed partial class PagedTextView : Grid
 {
     public const int MaxLineBytes = 16 * 1024;
     private const int TextPadding = 4;
+    /// <summary>Cells the sideways bar scrolls past the end of a long line while line endings are shown, so the CRLF mark fits on screen.</summary>
+    private const int LineEndMarkColumns = 4;
 
     private readonly OpenDocument _doc;
     private readonly LinesSurface _canvas;
@@ -164,6 +166,7 @@ internal sealed partial class PagedTextView : Grid
     {
         _options = o;
         _lines.Clear();
+        _truncatedColumns = -1; // the next draw sets the sideways range again: the cell width or the room for the line end mark may have changed
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
     }
@@ -757,7 +760,7 @@ internal sealed partial class PagedTextView : Grid
     {
         double cell = _canvas.CharWidth, columns = _canvas.TextWidth / cell;
         _hBar.IsVisible = _truncatedColumns > 0;
-        _hBar.Maximum = Math.Max(0, _truncatedColumns - columns);
+        _hBar.Maximum = Math.Max(0, _truncatedColumns + (_options.ShowLineEndings ? LineEndMarkColumns : 0) - columns);
         _hBar.ViewportSize = columns;
         _hBar.LargeChange = Math.Max(1, columns - 1);
     }
@@ -1374,6 +1377,28 @@ internal sealed partial class PagedTextView : Grid
             if (x2 > x1) context.FillRectangle(brush, new Rect(TextLeft - owner._hScroll + x1, y, x2 - x1, _lineHeight));
         }
 
+        /// <summary>Dims the space and tab marks of <paramref name="shown"/>, so they stand back from the text.</summary>
+        private static void DimMarks(FormattedText text, string shown, IBrush dim)
+        {
+            for (int k = 0; k < shown.Length;)
+            {
+                if (shown[k] is not ('·' or '→')) { k++; continue; }
+                int end = k + 1;
+                while (end < shown.Length && shown[end] is '·' or '→') end++;
+                text.SetForegroundBrush(dim, k, end - k);
+                k = end;
+            }
+        }
+
+        /// <summary>Draws CR, LF or CRLF after the last character of <paramref name="line"/>, which ends at <paramref name="x"/>; nothing for the last line.</summary>
+        private void DrawLineEnding(DrawingContext context, long line, double x, double y, IBrush dim)
+        {
+            if (LineEndingRenderer.Label(owner.LineEndingOf(line)) is not { } label) return;
+            var mark = Format(label, dim);
+            mark.SetFontSize(owner._options.FontSize * 0.7);
+            context.DrawText(mark, new Point(x + _digitWidth * 0.5, y + Math.Max(0, (_lineHeight - mark.Height) / 2)));
+        }
+
         private void Draw(DrawingContext context)
         {
             IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
@@ -1419,9 +1444,13 @@ internal sealed partial class PagedTextView : Grid
                             if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
                             else
                             {
-                                window = window.Replace('\t', ' ');
                                 if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window.Length, selection);
-                                context.DrawText(Format(window, fore), new Point(x, y));
+                                string drawn = options.ShowWhitespace ? window.Replace(' ', '·').Replace('\t', '→') : window.Replace('\t', ' ');
+                                var windowText = Format(drawn, fore);
+                                if (options.ShowWhitespace) DimMarks(windowText, drawn, dim);
+                                context.DrawText(windowText, new Point(x, y));
+                                // a window shorter than asked for holds the end of the line; an empty one starts after it
+                                if (options.ShowLineEndings && window.Length > 0 && window.Length < WindowColumns) DrawLineEnding(context, line, x + window.Length * _digitWidth, y, dim);
                             }
                             continue;
                         }
@@ -1447,15 +1476,7 @@ internal sealed partial class PagedTextView : Grid
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
                     if (insertLength > 0) text.SetTextDecorations(TextDecorations.Underline, insertAt, insertLength);
-                    if (options.ShowWhitespace)
-                        for (int k = 0; k < shown.Length;)
-                        {
-                            if (shown[k] is not ('·' or '→')) { k++; continue; }
-                            int end = k + 1;
-                            while (end < shown.Length && shown[end] is '·' or '→') end++;
-                            text.SetForegroundBrush(dim, k, end - k);
-                            k = end;
-                        }
+                    if (options.ShowWhitespace) DimMarks(text, shown, dim);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
                     {
                         string searched = view.Map.Text.Length > LogLevelColorizer.MaxClassifiedChars ? view.Map.Text[..LogLevelColorizer.MaxClassifiedChars] : view.Map.Text;
@@ -1466,12 +1487,7 @@ internal sealed partial class PagedTextView : Grid
                         }
                     }
                     context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
-                    if (options.ShowLineEndings && !view.Truncated && owner.LineEndingOf(line) is { Length: > 0 } ending)
-                    {
-                        var mark = Format(ending, dim);
-                        mark.SetFontSize(options.FontSize * 0.7);
-                        context.DrawText(mark, new Point(TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length) + _digitWidth * 0.5, y + Math.Max(0, (_lineHeight - mark.Height) / 2)));
-                    }
+                    if (options.ShowLineEndings && !view.Truncated) DrawLineEnding(context, line, TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length), y, dim);
                 }
                 if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
                 if (widest != owner._truncatedColumns)

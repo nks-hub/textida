@@ -73,6 +73,9 @@ internal sealed partial class EditorSurface : IMinimapHost
         ApplyWrap(o);
     }
 
+    /// <summary>Applies the wrap setting again: a wrap held back by a giant line that an edit has removed comes back.</summary>
+    public void RefreshWrap() => ApplyWrap(Settings);
+
     private void ApplyWrap(EditorOptions o)
     {
         WrapSuppressed = o.WordWrap && HasGiantLine();
@@ -171,6 +174,9 @@ internal sealed class LineEndingRenderer(TextEditor owner) : IBackgroundRenderer
 
     public KnownLayer Layer => KnownLayer.Text;
 
+    /// <summary>The mark drawn for a line break: CRLF, CR or LF; null for anything else.</summary>
+    public static string? Label(string lineBreak) => lineBreak switch { "\r\n" => "CRLF", "\r" => "CR", "\n" => "LF", _ => null };
+
     public void Draw(TextView textView, DrawingContext drawingContext)
     {
         if (!Enabled || !textView.VisualLinesValid || textView.Document is not { } document) return;
@@ -182,8 +188,7 @@ internal sealed class LineEndingRenderer(TextEditor owner) : IBackgroundRenderer
         {
             var last = line.LastDocumentLine;
             if (last.DelimiterLength == 0) continue;
-            string? name = document.GetText(last.EndOffset, last.DelimiterLength) switch { "\r\n" => "CRLF", "\r" => "CR", "\n" => "LF", _ => null };
-            if (name is null) continue;
+            if (Label(document.GetText(last.EndOffset, last.DelimiterLength)) is not { } name) continue;
             var textLine = line.TextLines[^1];
             double x = line.GetTextLineVisualXPosition(textLine, line.VisualLength) - textView.ScrollOffset.X;
             double y = line.GetTextLineVisualYPosition(textLine, VisualYPosition.TextTop) - textView.ScrollOffset.Y;
