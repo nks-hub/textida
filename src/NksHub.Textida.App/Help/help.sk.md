@@ -1227,13 +1227,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Odsadenie (4 medzery) a veľkosť kľúčových slov (veľké) sú zatiaľ pevné; nastavenie to ešte nie je.
 
 ## [edit.html] HTML: entity a HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Úpravy, Formátovanie, Previesť na entity HTML nahradí v označených častiach (v celom súbore, keď nie je nič vybrané) znaky & < > " ' entitami. Previesť z entít HTML prečíta pomenované, desiatkové aj šestnástkové entity späť. Zakódovaný text prevedený späť dá pôvodný text. Každé je jeden krok späť.
 2. Úpravy, Formátovanie, Formátovať pomocou HTML Tidy pošle HTML programu HTML Tidy a výsledok ukáže v náhľade zmien. Správy Tidy idú do okna výstupu.
 3. Tidy je samostatný program. Editor ho hľadá na ceste z nastavenia Program HTML Tidy, v priečinku `tidy` vedľa pluginu formátovačov, v priečinku `tools/tidy` aplikácie a v priečinkoch z PATH. Keď ho nenájde, správa vypíše všetky miesta.
 - Tidy nie je súčasťou tohto zostavenia: nainštalujte ho a nastavte cestu, alebo ho dajte na niektoré z tých miest.
 - Čísla riadkov v správach sa počítajú od začiatku textu, ktorý sa Tidy poslal.
-- Písmená mimo ASCII sa ako entity nepíšu; drží ich kódovanie súboru.
+- Previesť na entity HTML vrátane znakov mimo ASCII zapíše aj každý znak mimo ASCII ako číselnú entitu (`&#233;`); prevod späť dá text znova.
+4. Nástroje na tagy (súbory HTML, XML a PHP): Úpravy, Formátovanie, Zatvoriť otvorený tag zapíše koncový tag najbližšieho tagu, ktorý je pri kurzore ešte otvorený. Prejsť na párový tag presunie kurzor na pár tagu pri kurzore. Vybrať element vyberie element okolo výberu; opakovaním sa vyberie ďalší nadradený. Odstrániť tag zmaže začiatočný a koncový tag elementu pri kurzore a obsah nechá. Obaliť tagom sa spýta na názov a obalí ním každý výber. Odstrániť všetky tagy zmaže z označených častí všetky tagy a komentáre (z celého súboru, keď nie je nič vybrané).
+- Tagy sa párujú podľa vnorenia. Komentáre a obsah `script` a `style` tagy neobsahujú. Nepovinné koncové tagy HTML (`li`, `p`) sa nedomýšľajú, taký tag sa teda počíta ako otvorený.
+- Vloženie obrázka alebo odkazu s rozmermi zatiaľ nie je.
 
 ## [help.language] Pomocník k jazyku
 commands: nks.help.languageHelp

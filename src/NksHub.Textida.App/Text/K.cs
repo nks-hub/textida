@@ -408,6 +408,11 @@ public static class K
     public const string StatusTrimSkipped = "status.trimSkipped";
     public const string GoToNotIndexed = "goToLine.notIndexed";
     public const string BracketNone = "bracket.none";
+    public const string HtmlNoOpenTag = "html.noOpenTag";
+    public const string HtmlNoTag = "html.noTag";
+    public const string HtmlWrapTitle = "html.wrap.title";
+    public const string HtmlWrapLabel = "html.wrap.label";
+    public const string HtmlWrapInvalid = "html.wrap.invalid";
     public const string BatchPending = "batch.pending";
     public const string BatchFinish = "batch.finish";
     public const string BatchRollBack = "batch.rollBack";

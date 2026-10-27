@@ -1222,13 +1222,16 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Einrückung (4 Leerzeichen) und Schreibung der Schlüsselwörter (Großbuchstaben) sind vorerst fest; es sind noch keine Einstellungen.
 
 ## [edit.html] HTML: Entitäten und HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlDecode, nks.edit.htmlTidy
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
 1. Bearbeiten, Formatierung, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
 2. Bearbeiten, Formatierung, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
 3. Tidy ist ein eigenes Programm. Der Editor sucht es am Pfad der Einstellung HTML-Tidy-Programm, im Ordner `tidy` neben dem Formatierer-Plugin, in `tools/tidy` des Programmordners und in den Ordnern von PATH. Wird es nicht gefunden, nennt die Meldung alle Orte.
 - Tidy gehört nicht zu diesem Build: Installieren Sie es und setzen Sie den Pfad, oder legen Sie es an einen dieser Orte.
 - Zeilennummern in den Meldungen zählen ab dem Anfang des Textes, der an Tidy geschickt wurde.
-- Buchstaben außerhalb von ASCII werden nicht als Entitäten geschrieben; die Kodierung der Datei trägt sie.
+- In HTML-Entitäten umwandeln, auch Nicht-ASCII schreibt zusätzlich jedes Zeichen außerhalb von ASCII als numerische Entität (`&#233;`); die Rückwandlung ergibt wieder den Text.
+4. Tag-Werkzeuge (HTML-, XML- und PHP-Dateien): Bearbeiten, Formatierung, Offenes Tag schließen schreibt das End-Tag des nächsten Tags, das am Cursor noch offen ist. Zum Gegen-Tag springen setzt den Cursor auf den Partner des Tags am Cursor. Element auswählen wählt das Element um die Auswahl; wiederholt wählt es das nächste äußere. Tag entfernen löscht Start- und End-Tag des Elements am Cursor und behält den Inhalt. In Tag einschließen fragt nach einem Namen und umschließt jede Auswahl damit. Alle Tags entfernen löscht aus den Auswahlen alle Tags und Kommentare (aus der ganzen Datei, wenn nichts markiert ist).
+- Tags werden nach Verschachtelung gepaart. Kommentare und der Inhalt von `script` und `style` enthalten keine Tags. Die optionalen End-Tags von HTML (`li`, `p`) werden nicht ergänzt; ein solches Tag gilt also als offen.
+- Das Einfügen eines Bildes oder Links mit Größe gibt es noch nicht.
 
 ## [help.language] Hilfe zu einer Sprache
 commands: nks.help.languageHelp

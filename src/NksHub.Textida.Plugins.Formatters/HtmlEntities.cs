@@ -28,5 +28,21 @@ public static class HtmlEntities
         return sb.ToString();
     }
 
+    /// <summary>Like <see cref="Encode"/>, and every character outside ASCII as a decimal numeric entity (a surrogate pair as one entity), so <c>Decode</c> still gives the text back.</summary>
+    public static string EncodeAll(string text)
+    {
+        var sb = new StringBuilder(text.Length + text.Length / 4);
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] < 128) sb.Append(Encode(text[i].ToString()));
+            else
+            {
+                int code = char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]) ? char.ConvertToUtf32(text[i], text[++i]) : text[i];
+                sb.Append("&#").Append(code).Append(';');
+            }
+        }
+        return sb.ToString();
+    }
+
     public static string Decode(string text) => WebUtility.HtmlDecode(text);
 }

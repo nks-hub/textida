@@ -312,8 +312,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     }
 
     /// <summary>Converts the selections (the whole text when nothing is selected) to HTML entities or back, as one undo step. False when nothing was started.</summary>
-    public async Task<bool> RunHtmlEntitiesAsync(MainWindow window, DocTab tab, bool encode) =>
-        tab.Surface is not null && (await RunFormatterAsync(window, tab, encode ? "html.encode" : "html.decode", "")).Started;
+    public async Task<bool> RunHtmlEntitiesAsync(MainWindow window, DocTab tab, bool encode, bool nonAscii = false) =>
+        tab.Surface is not null && (await RunFormatterAsync(window, tab, encode ? (nonAscii ? "html.encodeAll" : "html.encode") : "html.decode", "")).Started;
 
     /// <summary>
     /// Formats the HTML of the tab with HTML Tidy and proposes the result in the change preview; the messages of Tidy go to the output window.
