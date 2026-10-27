@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using NksHub.Textida.App.Profile;
 using NksHub.Textida.App.Services;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.Core.Encodings;
@@ -106,6 +107,28 @@ internal sealed class ScriptedDialogs : IDialogs
     }
 
     public Task ShowAboutAsync(Window owner) => Task.CompletedTask;
+
+    public Queue<LineInsertOptions?> InsertOptions { get; } = new();
+    public Queue<SortOptions?> SortOptionsAnswers { get; } = new();
+    /// <summary>What the preview of the insert and sort dialogs showed for the scripted answers.</summary>
+    public List<string> LinePreviews { get; } = [];
+    public int LineDialogsAsked { get; private set; }
+
+    public Task<LineInsertOptions?> InsertIntoLinesAsync(Window owner, LineInsertOptions initial, Func<LineInsertOptions, string> preview)
+    {
+        LineDialogsAsked++;
+        var answer = InsertOptions.Count > 0 ? InsertOptions.Dequeue() : null;
+        if (answer is not null) LinePreviews.Add(preview(answer));
+        return Task.FromResult(answer);
+    }
+
+    public Task<SortOptions?> SortLinesAsync(Window owner, SortOptions initial, Func<SortOptions, string> preview)
+    {
+        LineDialogsAsked++;
+        var answer = SortOptionsAnswers.Count > 0 ? SortOptionsAnswers.Dequeue() : null;
+        if (answer is not null) LinePreviews.Add(preview(answer));
+        return Task.FromResult(answer);
+    }
 }
 
 internal static class TestApp

@@ -239,5 +239,22 @@
   "cmd.hex.offsetFormat": "Offsets dezimal und hexadezimal umschalten",
   "cmd.hex.inspectChanges": "Änderungen vor dem Speichern...",
   "setting.files.binaryAsHex.title": "Binärdateien im Hex-Editor",
-  "setting.files.binaryAsHex.description": "Was passiert, wenn eine Datei in den ersten 8.000 Bytes ein NUL-Byte hat: in der Leiste nachfragen, immer in Hex öffnen oder nie umschalten."
+  "setting.files.binaryAsHex.description": "Was passiert, wenn eine Datei in den ersten 8.000 Bytes ein NUL-Byte hat: in der Leiste nachfragen, immer in Hex öffnen oder nie umschalten.",
+  "cmd.edit.clipboardHistory": "Zwischenablage-Verlauf...",
+  "cmd.edit.pasteKeepCaret": "Einfügen ohne den Cursor zu bewegen",
+  "cmd.edit.insertIntoLines": "In Zeilen einfügen...",
+  "cmd.edit.sortLines": "Zeilen sortieren...",
+  "cmd.search.selectLinesByRange": "Zeilen nach Bereich auswählen...",
+  "cmd.edit.reformatParagraph": "Absatz neu umbrechen",
+  "cmd.edit.justifyLeft": "Zeilen linksbündig",
+  "cmd.edit.justifyRight": "Zeilen rechtsbündig",
+  "cmd.edit.justifyCenter": "Zeilen zentrieren",
+  "cmd.edit.justifyBlock": "Zeilen im Blocksatz",
+  "cmd.edit.insertDateTime": "Datum und Uhrzeit einfügen",
+  "cmd.edit.insertGuid": "GUID einfügen",
+  "cmd.edit.repeatLast": "Letzten Befehl wiederholen",
+  "setting.editor.clipboardHistorySize.title": "Größe des Zwischenablage-Verlaufs",
+  "setting.editor.clipboardHistorySize.description": "Wie viele kopierte Texte der Verlauf behält. Er liegt nur im Speicher und wird beim Beenden vergessen.",
+  "setting.editor.dateTimeFormat.title": "Datums- und Zeitformat",
+  "setting.editor.dateTimeFormat.description": ".NET-Format, zum Beispiel yyyy-MM-dd HH:mm. Wird von Datum und Uhrzeit einfügen benutzt; Monats- und Tagesnamen folgen der Sprache der Oberfläche."
 }

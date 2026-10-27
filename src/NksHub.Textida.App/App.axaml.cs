@@ -31,6 +31,10 @@ public sealed partial class App : Application
     internal OutputChannels Output { get; private set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
+    internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
+    /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
+    internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
+    internal LastParameters LastParameters { get; private set; } = new();
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
     internal string ProfileDirectory { get; private set; } = "";
@@ -109,6 +113,8 @@ public sealed partial class App : Application
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
         Recent = RecentFiles.Load(ProfileDirectory);
+        ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
+        LastParameters = new LastParameters();
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);

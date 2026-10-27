@@ -225,11 +225,13 @@ internal sealed partial class MainWindow
         if (ActiveEditor is not { } surface) return CommandOutcome.NotHandled;
         if (!surface.IsMulti)
         {
+            RememberCopy(surface.SelectedText);
             if (cut) surface.Cut(); else surface.Copy();
             return CommandOutcome.Handled;
         }
         if (surface.SelectedTexts(surface.Doc.NewLine(surface.Settings.ConfiguredEol)) is { } text && Clipboard is { } clipboard)
         {
+            RememberCopy(text);
             _ = clipboard.SetTextAsync(text);
             if (cut && !surface.IsReadOnly) surface.DeleteSelected();
         }

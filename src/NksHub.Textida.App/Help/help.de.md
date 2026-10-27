@@ -188,6 +188,62 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Strg+K und dann Strg+U macht die Buchstaben groß, Strg+K und dann Strg+L klein.
 - Ohne Auswahl sind die Befehle abgeblendet. Sie stehen auch im Menü Bearbeiten.
 
+## [edit.clipboardHistory] Zwischenablage-Verlauf
+commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
+1. Drücken Sie Strg+Umschalt+V (Menü Bearbeiten, Zwischenablage-Verlauf). Die Liste zeigt die zuletzt kopierten oder ausgeschnittenen Texte, den neuesten zuerst, mit einer Vorschau des markierten Eintrags.
+2. Durch Tippen grenzen Sie die Liste ein, wählen mit den Pfeiltasten einen Text und drücken die Eingabetaste.
+- Der Text wird wie bei Strg+V eingefügt: bei mehreren Cursorn in jeden Cursor (eine Zeile pro Cursor, wenn die Zeilenzahl der Cursorzahl entspricht), als ein Rückgängig-Schritt. Es funktioniert auch im seitenweisen Modus.
+- Der Verlauf hält so viele Texte, wie die Einstellung Größe des Zwischenablage-Verlaufs sagt. Er liegt nur im Speicher und wird beim Beenden vergessen. Ein Text mit mehr als 1.048.576 Zeichen wird nicht gespeichert.
+- Einfügen ohne den Cursor zu bewegen (Menü Bearbeiten) fügt den Text aus der Zwischenablage ein und lässt den Cursor, wo er war, vor dem neuen Text. In einer Blockauswahl kehrt der Cursor in die linke obere Ecke zurück.
+- Einfügen funktioniert nicht in einem schreibgeschützten Dokument; Einfügen ohne den Cursor zu bewegen auch nicht im seitenweisen Modus (Thema Große Dateien).
+
+## [edit.insertLines] In Zeilen einfügen
+commands: nks.edit.insertIntoLines
+Der Befehl schreibt Text, Nummern oder Aufzählungszeichen in die Zeilen der Auswahl, oder in alle Zeilen, wenn nur ein Cursor da ist.
+1. Wählen Sie Bearbeiten, In Zeilen einfügen. Die Vorschau zeigt die ersten Zeilen so, wie sie aussehen werden.
+2. Wählen Sie Text, Nummern oder Aufzählungszeichen und wohin geschrieben wird: Anfang jeder Zeile, Ende jeder Zeile, vor eine Spalte oder in jeden Cursor.
+3. Drücken Sie OK. Das Ergebnis ist ein Rückgängig-Schritt.
+- Nummern: Erste Nummer, Stellen (die Nummer wird links mit Nullen auf diese Breite aufgefüllt) und Trenner, der zwischen Nummer und Zeilentext steht (am Zeilenanfang nach der Nummer, am Zeilenende vor der Nummer). In jeden Cursor wird nur die Nummer geschrieben, drei Cursor bekommen also 1, 2 und 3.
+- Anfang jeder Zeile schreibt an den Zeilenanfang; Einrückung überspringen schreibt vor das erste sichtbare Zeichen. Vor Spalte zählt Zeichen ab 1, und eine kürzere Zeile bekommt den Text an ihrem Ende. Leere Zeilen überspringen überspringt auch Zeilen nur mit Leerzeichen, sie verbrauchen keine Nummer.
+- Die Zeilenenden des Dokuments ändern sich nicht. Es funktioniert nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus (Thema Große Dateien).
+- Letzten Befehl wiederholen führt ihn mit denselben Einstellungen erneut aus. Im Profil PSPad ist es Alt+I.
+
+## [edit.sort] Zeilen sortieren
+commands: nks.edit.sortLines
+1. Markieren Sie die Zeilen (oder setzen Sie den Cursor irgendwohin, um alle Zeilen zu sortieren) und wählen Sie Bearbeiten, Zeilen sortieren.
+2. Wählen Sie auf- oder absteigend, ob die Groß-/Kleinschreibung zählt, ob doppelte Zeilen entfernt werden und wonach verglichen wird. Die Vorschau zeigt die ersten Zeilen des Ergebnisses.
+3. Drücken Sie OK. Das Ergebnis ist ein Rückgängig-Schritt, und die sortierten Zeilen bleiben markiert.
+- Zeichencode ordnet nach dem Code der Zeichen. Gebietsschema nutzt die Regeln einer Sprache, angegeben als Kürzel wie cs-CZ oder als Hexadezimalzahl wie 0405 (leer heißt sprachneutral). Zahl am Anfang liest die Zahl, mit der eine Zeile beginnt; Zeilen ohne Zahl kommen zuerst.
+- Ab Spalte und Bis Spalte vergleichen nur diesen Teil jeder Zeile (0 bedeutet die ganze Zeile).
+- Das Entfernen doppelter Zeilen vergleicht ganze Zeilen und behält die erste.
+- Mehrere Auswahlen werden jede für sich sortiert. Die Zeilenenden ändern sich nicht. Es funktioniert nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+
+## [search.selectLines] Zeilen nach Bereich auswählen
+commands: nks.search.selectLinesByRange
+1. Wählen Sie Suchen, Zeilen nach Bereich auswählen.
+2. Geben Sie Zeilennummern und Bereiche ein, zum Beispiel 10-20, 40-50, getrennt durch Kommas, Semikolons oder Leerzeichen. Die Zeile unter dem Feld sagt, wie viele Auswahlen entstehen.
+3. Drücken Sie OK. Jeder Bereich wird zu einer eigenen Auswahl mit eigenem Cursor, und Kopieren kopiert dann die Zeilen aller Bereiche.
+- Bereiche, die sich überlappen oder aneinanderstoßen, werden verbunden. Zeilennummern beginnen bei 1; Zeilen hinter dem Dokumentende werden ignoriert.
+- Letzten Befehl wiederholen wählt dieselben Zeilen erneut aus.
+- Es funktioniert nicht im seitenweisen Modus.
+
+## [format.block] Zeilen ausrichten und umbrechen
+commands: nks.edit.reformatParagraph, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
+Diese Befehle stehen im Menü Format. Sie wirken auf die markierten Zeilen, oder auf alle Zeilen, wenn nur ein Cursor da ist (Absatz neu umbrechen: auf den Absatz mit dem Cursor). Jeder ist ein Rückgängig-Schritt.
+- Absatz neu umbrechen bricht den Text an der Spalte der Einstellung Spalte des rechten Rands um, verbindet die Zeilen eines Absatzes und entfernt überzählige Leerzeichen. Absätze trennt eine Leerzeile, und jede Zeile eines Absatzes bekommt die Einrückung der ersten. Ist kein rechter Rand eingestellt, sagt es die Statusleiste.
+- Zeilen linksbündig entfernt die Leerzeichen am Anfang und Ende der Zeilen.
+- Zeilen rechtsbündig und Zeilen zentrieren richten sich nach der Breite der längsten Zeile.
+- Zeilen im Blocksatz vergrößert die Lücken zwischen den Wörtern, bis jede Zeile so breit ist wie die längste; eine Zeile mit einem Wort bleibt.
+- Im Profil PSPad liegen Zeilen linksbündig und Zeilen rechtsbündig auf Strg+Alt+Pfeil links und Strg+Alt+Pfeil rechts.
+- Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+
+## [edit.insertSmall] Datum, GUID und Wiederholen
+commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+- Datum und Uhrzeit einfügen schreibt Datum und Uhrzeit in jeden Cursor, im Format der Einstellung Datums- und Zeitformat (ein benutzerdefiniertes .NET-Format wie yyyy-MM-dd HH:mm; Monats- und Tagesnamen folgen der Sprache der Oberfläche). Eine Auswahl wird ersetzt. Im Profil PSPad ist es Alt+D.
+- GUID einfügen schreibt in jeden Cursor eine neue GUID, jeder seine eigene: klein geschrieben, mit Bindestrichen, ohne geschweifte Klammern.
+- Letzten Befehl wiederholen führt den zuletzt ausgeführten Befehl, der Text ändert, erneut aus: Zeile löschen, Zeile duplizieren, Zeile verschieben, Zeilen verbinden, Einzug vergrößern, Einzug verkleinern, Groß-/Kleinschreibung, Kommentar umschalten, In Zeilen einfügen, Zeilen sortieren, Absatz neu umbrechen und die Ausrichtungsbefehle, Datum und Uhrzeit einfügen, GUID einfügen. Ein Befehl mit Dialog wird mit den Einstellungen des letzten Laufs ohne Nachfrage wiederholt. Im Profil PSPad ist es Alt+Q.
+- Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+
 ## [edit.json] JSON formatieren
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.

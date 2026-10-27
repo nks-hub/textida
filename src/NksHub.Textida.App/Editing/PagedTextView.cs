@@ -111,6 +111,8 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>Raised with a localised sentence when an edit was refused.</summary>
     public event Action<string>? Refused;
+    /// <summary>Raised with the text that Copy or Cut put on the clipboard.</summary>
+    public event Action<string>? Copied;
 
     /// <summary>Keeps the syntax colors of this view current.</summary>
     public SyntaxFeeder Syntax { get; }
@@ -825,7 +827,9 @@ internal sealed partial class PagedTextView : Grid
     public async Task CopyAsync(bool cut)
     {
         if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _, out _)) return;
-        await clipboard.SetTextAsync(SelectedText());
+        string text = SelectedText();
+        await clipboard.SetTextAsync(text);
+        Copied?.Invoke(text);
         if (cut) DeleteSelection();
     }
 

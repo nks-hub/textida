@@ -92,7 +92,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.duplicateLine",
@@ -100,7 +101,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.moveLineUp",
@@ -108,7 +110,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.moveLineDown",
@@ -116,7 +119,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.indent",
@@ -124,7 +128,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.outdent",
@@ -132,7 +137,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.tab",
@@ -156,7 +162,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "hasSelection && !readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.lowerCase",
@@ -164,7 +171,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "hasSelection && !readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.search.find",
@@ -328,7 +336,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.toggleComment",
@@ -336,7 +345,8 @@
       "category": "cat.edit",
       "when": "editorFocus",
       "enablement": "!readOnly && !largeFileMode",
-      "undo": "transaction"
+      "undo": "transaction",
+      "repeatable": true
     },
     {
       "id": "nks.edit.expandSelection",
@@ -740,6 +750,115 @@
       "title": "cmd.hex.inspectChanges",
       "category": "cat.hex",
       "enablement": "hexMode"
+    },
+    {
+      "id": "nks.edit.clipboardHistory",
+      "title": "cmd.edit.clipboardHistory",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly || largeFileMode"
+    },
+    {
+      "id": "nks.edit.pasteKeepCaret",
+      "title": "cmd.edit.pasteKeepCaret",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertIntoLines",
+      "title": "cmd.edit.insertIntoLines",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.sortLines",
+      "title": "cmd.edit.sortLines",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.search.selectLinesByRange",
+      "title": "cmd.search.selectLinesByRange",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly"
+    },
+    {
+      "id": "nks.edit.reformatParagraph",
+      "title": "cmd.edit.reformatParagraph",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.justifyLeft",
+      "title": "cmd.edit.justifyLeft",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.justifyRight",
+      "title": "cmd.edit.justifyRight",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.justifyCenter",
+      "title": "cmd.edit.justifyCenter",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.justifyBlock",
+      "title": "cmd.edit.justifyBlock",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.insertDateTime",
+      "title": "cmd.edit.insertDateTime",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.insertGuid",
+      "title": "cmd.edit.insertGuid",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction",
+      "repeatable": true
+    },
+    {
+      "id": "nks.edit.repeatLast",
+      "title": "cmd.edit.repeatLast",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly"
     }
   ],
   "menus": [
@@ -1372,6 +1491,84 @@
       "command": "nks.hex.layout",
       "group": "3_hex",
       "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clipboardHistory",
+      "group": "2_clip",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.pasteKeepCaret",
+      "group": "2_clip",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertIntoLines",
+      "group": "8_insert",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.sortLines",
+      "group": "8_insert",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertDateTime",
+      "group": "8_insert",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertGuid",
+      "group": "8_insert",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.repeatLast",
+      "group": "8_insert",
+      "order": 50
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.selectLinesByRange",
+      "group": "3_goto",
+      "order": 30
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.reformatParagraph",
+      "group": "5_block",
+      "order": 10
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.justifyLeft",
+      "group": "5_block",
+      "order": 20
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.justifyRight",
+      "group": "5_block",
+      "order": 30
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.justifyCenter",
+      "group": "5_block",
+      "order": 40
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.justifyBlock",
+      "group": "5_block",
+      "order": 50
     }
   ],
   "keybindings": [
@@ -1713,6 +1910,11 @@
       "key": "mod+k mod+i",
       "command": "nks.hex.inspector",
       "when": "hexMode"
+    },
+    {
+      "key": "mod+shift+v",
+      "command": "nks.edit.clipboardHistory",
+      "when": "editorFocus"
     }
   ],
   "settings": [
@@ -2444,6 +2646,38 @@
         "hex",
         "binary",
         "nul"
+      ]
+    },
+    {
+      "key": "editor.clipboardHistorySize",
+      "type": "integer",
+      "default": 20,
+      "title": "setting.editor.clipboardHistorySize.title",
+      "description": "setting.editor.clipboardHistorySize.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "minimum": 1,
+      "maximum": 100,
+      "tags": [
+        "clipboard",
+        "history",
+        "copy",
+        "paste"
+      ]
+    },
+    {
+      "key": "editor.dateTimeFormat",
+      "type": "string",
+      "default": "yyyy-MM-dd HH:mm",
+      "title": "setting.editor.dateTimeFormat.title",
+      "description": "setting.editor.dateTimeFormat.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "date",
+        "time",
+        "format",
+        "insert"
       ]
     }
   ]

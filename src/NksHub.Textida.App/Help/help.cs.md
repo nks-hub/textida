@@ -188,6 +188,62 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Ctrl+K a potom Ctrl+U změní písmena na velká, Ctrl+K a potom Ctrl+L na malá.
 - Bez výběru jsou příkazy ztlumené. Jsou také v nabídce Úpravy.
 
+## [edit.clipboardHistory] Historie schránky
+commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
+1. Stiskněte Ctrl+Shift+V (menu Úpravy, Historie schránky). Seznam ukáže naposledy zkopírované nebo vyjmuté texty, nejnovější první, s náhledem označené položky.
+2. Psaním seznam zúžíte, šipkami vyberete text a stisknete Enter.
+- Text se vloží jako při Ctrl+V: při více kurzorech do každého kurzoru (jeden řádek na kurzor, když se počet řádků rovná počtu kurzorů), jako jeden krok zpět. Funguje i ve stránkovaném režimu.
+- Historie drží tolik textů, kolik říká nastavení Velikost historie schránky. Je jen v paměti a po zavření programu se zapomene. Text delší než 1 048 576 znaků se neukládá.
+- Vložit bez posunu kurzoru (menu Úpravy) vloží text ze schránky a kurzor nechá tam, kde byl, před novým textem. V blokovém výběru se kurzor vrátí do levého horního rohu.
+- Vložení nefunguje v dokumentu jen pro čtení; Vložit bez posunu kurzoru nefunguje ani ve stránkovaném režimu (téma Velké soubory).
+
+## [edit.insertLines] Vložení do řádků
+commands: nks.edit.insertIntoLines
+Příkaz zapíše text, čísla nebo odrážky do řádků výběru, nebo do všech řádků, když je jen kurzor.
+1. Zvolte Úpravy, Vložit do řádků. Náhled ukáže první řádky, jak budou vypadat.
+2. Zvolte Text, Čísla nebo Odrážky a kam psát: začátek každého řádku, konec každého řádku, před sloupec, nebo do každého kurzoru.
+3. Stiskněte OK. Výsledek je jeden krok zpět.
+- Čísla: První číslo, Počet číslic (číslo se zleva doplní nulami na tuto šířku) a Oddělovač, který leží mezi číslem a textem řádku (na začátku řádku za číslem, na konci před číslem). Do každého kurzoru se zapíše jen číslo, takže tři kurzory dostanou 1, 2 a 3.
+- Začátek každého řádku píše na začátek řádku; Přeskočit odsazení píše před první viditelný znak. Před sloupec počítá znaky od 1 a kratší řádek dostane text na konec. Přeskočit prázdné řádky přeskočí i řádky jen z mezer a ty nespotřebují číslo.
+- Konce řádků dokumentu se nemění. Nefunguje v dokumentu jen pro čtení ani ve stránkovaném režimu (téma Velké soubory).
+- Opakovat poslední příkaz ho spustí znovu se stejnou volbou. V profilu PSPad je to Alt+I.
+
+## [edit.sort] Řazení řádků
+commands: nks.edit.sortLines
+1. Vyberte řádky (nebo dejte kurzor kamkoli, aby se seřadily všechny) a zvolte Úpravy, Seřadit řádky.
+2. Zvolte vzestupně nebo sestupně, zda záleží na velikosti písmen, zda odstranit duplicitní řádky a podle čeho porovnávat. Náhled ukáže první řádky výsledku.
+3. Stiskněte OK. Výsledek je jeden krok zpět a seřazené řádky zůstanou vybrané.
+- Kód znaků řadí podle kódu znaků. Jazykové pravidla použijí pravidla jazyka zadaného značkou, třeba cs-CZ, nebo šestnáctkovým číslem, třeba 0405 (prázdné znamená bez jazyka). Číslo na začátku čte číslo, kterým řádek začíná; řádky bez čísla jsou první.
+- Od sloupce a Do sloupce porovnají jen tu část každého řádku (0 znamená celý řádek).
+- Odstranění duplicit porovnává celé řádky a nechá první z nich.
+- Více výběrů se řadí každý zvlášť. Konce řádků se nemění. Nefunguje v dokumentu jen pro čtení ani ve stránkovaném režimu.
+
+## [search.selectLines] Výběr řádků podle rozsahu
+commands: nks.search.selectLinesByRange
+1. Zvolte Hledat, Vybrat řádky podle rozsahu.
+2. Napište čísla řádků a rozsahy, třeba 10-20, 40-50, oddělené čárkami, středníky nebo mezerami. Řádek pod polem říká, kolik výběrů vznikne.
+3. Stiskněte OK. Každý rozsah se stane vlastním výběrem s vlastním kurzorem a Kopírovat pak zkopíruje řádky všech rozsahů.
+- Rozsahy, které se překrývají nebo na sebe navazují, se spojí. Čísla řádků začínají od 1; řádky za koncem dokumentu se ignorují.
+- Opakovat poslední příkaz vybere stejné řádky znovu.
+- Nefunguje ve stránkovaném režimu.
+
+## [format.block] Zarovnání a zalomení řádků
+commands: nks.edit.reformatParagraph, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
+Tyto příkazy jsou v menu Formát. Působí na vybrané řádky, nebo na všechny řádky, když je jen kurzor (Přeformátovat odstavec: na odstavec s kurzorem). Každý je jeden krok zpět.
+- Přeformátovat odstavec zalomí text na sloupci z nastavení Sloupec pravého okraje, spojí řádky odstavce a odstraní nadbytečné mezery. Odstavce odděluje prázdný řádek a každý řádek odstavce dostane odsazení prvního řádku. Když není pravý okraj nastaven, řekne to stavový řádek.
+- Zarovnat řádky vlevo odstraní mezery na začátku a na konci řádků.
+- Zarovnat řádky vpravo a Vycentrovat řádky zarovnají na šířku nejdelšího řádku.
+- Zarovnat řádky do bloku rozšíří mezery mezi slovy, až je každý řádek tak široký jako nejdelší; řádek s jedním slovem zůstane.
+- V profilu PSPad je Zarovnat řádky vlevo na Ctrl+Alt+šipka vlevo a Zarovnat řádky vpravo na Ctrl+Alt+šipka vpravo.
+- Nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu.
+
+## [edit.insertSmall] Datum, GUID a opakování
+commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+- Vložit datum a čas zapíše aktuální datum a čas do každého kurzoru ve formátu z nastavení Formát data a času (vlastní formát .NET, třeba yyyy-MM-dd HH:mm; názvy měsíců a dnů podle jazyka rozhraní). Výběr se nahradí. V profilu PSPad je to Alt+D.
+- Vložit GUID zapíše nový GUID do každého kurzoru, každý jiný: malými písmeny, s pomlčkami, bez složených závorek.
+- Opakovat poslední příkaz spustí znovu poslední příkaz, který měnil text: Smazat řádek, Duplikovat řádek, Přesunout řádek, Spojit řádky, Zvětšit odsazení, Zmenšit odsazení, změna velikosti písmen, Zakomentovat / odkomentovat, Vložit do řádků, Seřadit řádky, Přeformátovat odstavec a příkazy zarovnání, Vložit datum a čas, Vložit GUID. Příkaz s dialogem se zopakuje s volbou z posledního spuštění, bez ptaní. V profilu PSPad je to Alt+Q.
+- Nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu.
+
 ## [edit.json] Formátování JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Označte text JSON, nebo neoznačujte nic a naformátuje se celý dokument.

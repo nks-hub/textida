@@ -188,6 +188,62 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 2. Ctrl+K then Ctrl+U turns the letters to upper case, Ctrl+K then Ctrl+L to lower case.
 - Without a selection the commands are dimmed. They are also in the Edit menu.
 
+## [edit.clipboardHistory] Clipboard history
+commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
+1. Press Ctrl+Shift+V (Edit menu, Clipboard History). The list shows the texts you copied or cut last, newest first, with a preview of the highlighted one.
+2. Type to filter the list, pick a text with the arrow keys and press Enter.
+- The text is pasted like Ctrl+V: with several carets it goes into every caret (one line per caret when the number of lines equals the number of carets), as one Undo step. It also works in paged mode.
+- The history holds as many texts as the setting Clipboard history size says. It is kept in memory only and forgotten when the program closes. A text longer than 1,048,576 characters is not kept.
+- Paste Without Moving the Caret (Edit menu) pastes the clipboard text and leaves the caret where it was, in front of the new text. In a block selection the caret returns to the top left corner.
+- Pasting does not work in a read-only document; Paste Without Moving the Caret does not work in paged mode either (topic Large files).
+
+## [edit.insertLines] Insert into lines
+commands: nks.edit.insertIntoLines
+The command writes text, numbers or bullets into the lines of the selection, or into all lines when there is only a caret.
+1. Choose Edit, Insert into Lines. The preview shows the first lines as they will look.
+2. Choose Text, Numbers or Bullets, and where to write: start of each line, end of each line, before a column, or at each caret.
+3. Press OK. The result is one Undo step.
+- Numbers: First number, Digits (the number is padded with zeros to that width) and Separator, which goes between the number and the text of the line (after the number at the start of a line, before it at the end). At each caret only the number is written, so three carets get 1, 2 and 3.
+- Start of each line writes at the line start; Skip the indentation writes before the first visible character instead. Before column counts characters from 1, and a shorter line gets the text at its end. Skip empty lines also skips lines with only blanks, and they do not use up a number.
+- The line endings of the document do not change. It does not work in a read-only document or in paged mode (topic Large files).
+- Repeat Last Command runs it again with the same choices. In the PSPad profile it is Alt+I.
+
+## [edit.sort] Sorting lines
+commands: nks.edit.sortLines
+1. Select the lines (or put the caret anywhere to sort all lines) and choose Edit, Sort Lines.
+2. Choose ascending or descending, whether letter case matters, whether to remove duplicate lines, and what to compare by. The preview shows the first lines of the result.
+3. Press OK. The result is one Undo step and the sorted lines stay selected.
+- Character code orders by the code of the characters. Locale uses the rules of a language, given as a tag such as cs-CZ or a hexadecimal id such as 0405 (empty means language-neutral). Number at the start reads the number a line starts with; lines without a number come first.
+- From column and To column compare only that part of every line (0 means the whole line).
+- Removing duplicates compares whole lines and keeps the first one.
+- Several selections are sorted each on its own. The line endings do not change. It does not work in a read-only document or in paged mode.
+
+## [search.selectLines] Select lines by range
+commands: nks.search.selectLinesByRange
+1. Choose Search, Select Lines by Range.
+2. Type line numbers and ranges, for example 10-20, 40-50, separated by commas, semicolons or spaces. The line under the box tells how many selections it makes.
+3. Press OK. Each range becomes its own selection with its own caret, and Copy then copies the lines of all ranges.
+- Ranges that overlap or touch are joined. Line numbers start at 1; lines after the end of the document are ignored.
+- Repeat Last Command selects the same lines again.
+- It does not work in paged mode.
+
+## [format.block] Aligning and wrapping lines
+commands: nks.edit.reformatParagraph, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
+These commands are in the Format menu. They act on the selected lines, or on all lines when there is only a caret (Reformat Paragraph: on the paragraph with the caret). Each is one Undo step.
+- Reformat Paragraph wraps the text at the column of the setting Right margin column, joins the lines of a paragraph and removes extra blanks. Paragraphs are separated by blank lines, and every line of a paragraph gets the indentation of its first line. When no right margin is set, the status bar says so.
+- Align Lines Left removes the blanks at the start and end of the lines.
+- Align Lines Right and Center Lines align to the width of the longest line.
+- Justify Lines widens the gaps between words until every line is as wide as the longest one; a line of one word stays.
+- In the PSPad profile Align Lines Left and Align Lines Right are Ctrl+Alt+Left arrow and Ctrl+Alt+Right arrow.
+- They do not work in a read-only document or in paged mode.
+
+## [edit.insertSmall] Date, GUID and repeat
+commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+- Insert Date and Time writes the current date and time at every caret, in the format of the setting Date and time format (a .NET custom format such as yyyy-MM-dd HH:mm; month and day names follow the interface language). A selection is replaced. In the PSPad profile it is Alt+D.
+- Insert GUID writes a new GUID at every caret, each caret its own: lower case, with hyphens, without braces.
+- Repeat Last Command runs the last text-changing command again: Delete Line, Duplicate Line, Move Line, Join Lines, Indent, Outdent, letter case, Toggle Comment, Insert into Lines, Sort Lines, Reformat Paragraph and the alignment commands, Insert Date and Time, Insert GUID. A command with a dialog repeats with the choices of its last run, without asking. In the PSPad profile it is Alt+Q.
+- They do not work in a read-only document or in paged mode.
+
 ## [edit.json] Format JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
 1. Select JSON text, or select nothing to format the whole document.

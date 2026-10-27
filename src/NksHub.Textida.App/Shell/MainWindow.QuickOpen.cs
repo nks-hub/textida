@@ -155,7 +155,7 @@ internal sealed partial class MainWindow
 
     private void UpdatePalettePreview()
     {
-        bool show = _paletteMode == PaletteMode.Files && _paletteList.SelectedIndex is >= 0 and var i && i < _quickRows.Count && _quickRows[i].Preview is not null;
+        bool show = _paletteMode is PaletteMode.Files or PaletteMode.Choice && _paletteList.SelectedIndex is >= 0 and var i && i < _quickRows.Count && _quickRows[i].Preview is not null;
         _palettePreviewHost.IsVisible = show;
         _palettePreview.Text = show ? _quickRows[_paletteList.SelectedIndex].Preview!() : "";
     }

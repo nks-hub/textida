@@ -239,5 +239,22 @@
   "cmd.hex.offsetFormat": "Přepnout offsety dekadicky a hexadecimálně",
   "cmd.hex.inspectChanges": "Změny před uložením...",
   "setting.files.binaryAsHex.title": "Binární soubory v hexu",
-  "setting.files.binaryAsHex.description": "Co se stane, když má soubor v prvních 8 000 bajtech bajt NUL: zeptat se v liště, vždy otevřít v hexu, nebo nikdy nepřepínat."
+  "setting.files.binaryAsHex.description": "Co se stane, když má soubor v prvních 8 000 bajtech bajt NUL: zeptat se v liště, vždy otevřít v hexu, nebo nikdy nepřepínat.",
+  "cmd.edit.clipboardHistory": "Historie schránky...",
+  "cmd.edit.pasteKeepCaret": "Vložit bez posunu kurzoru",
+  "cmd.edit.insertIntoLines": "Vložit do řádků...",
+  "cmd.edit.sortLines": "Seřadit řádky...",
+  "cmd.search.selectLinesByRange": "Vybrat řádky podle rozsahu...",
+  "cmd.edit.reformatParagraph": "Přeformátovat odstavec",
+  "cmd.edit.justifyLeft": "Zarovnat řádky vlevo",
+  "cmd.edit.justifyRight": "Zarovnat řádky vpravo",
+  "cmd.edit.justifyCenter": "Vycentrovat řádky",
+  "cmd.edit.justifyBlock": "Zarovnat řádky do bloku",
+  "cmd.edit.insertDateTime": "Vložit datum a čas",
+  "cmd.edit.insertGuid": "Vložit GUID",
+  "cmd.edit.repeatLast": "Opakovat poslední příkaz",
+  "setting.editor.clipboardHistorySize.title": "Velikost historie schránky",
+  "setting.editor.clipboardHistorySize.description": "Kolik zkopírovaných textů si historie schránky pamatuje. Je jen v paměti a po zavření programu se zapomene.",
+  "setting.editor.dateTimeFormat.title": "Formát data a času",
+  "setting.editor.dateTimeFormat.description": "Vlastní formát .NET, například yyyy-MM-dd HH:mm. Používá ho Vložit datum a čas; názvy měsíců a dnů podle jazyka rozhraní."
 }

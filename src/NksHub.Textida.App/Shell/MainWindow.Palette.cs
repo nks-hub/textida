@@ -35,7 +35,7 @@ internal sealed partial class MainWindow
     private List<QuickRow> _quickRows = [];
     private IReadOnlyList<QuickRow> _choiceRows = [];
     private PaletteMode _paletteMode;
-    private string _choiceWatermark = "", _choiceName = "";
+    private string _choiceWatermark = "", _choiceName = "", _choiceEmpty = "";
     private DocTab? _paletteReturnTo;
     private Action? _choiceDismissed;
 
@@ -47,6 +47,7 @@ internal sealed partial class MainWindow
     /// <summary>The rows of any mode, in the order they are shown.</summary>
     internal IReadOnlyList<QuickRow> QuickResults => _quickRows;
     internal string PalettePreviewText => _palettePreview.Text ?? "";
+    internal string PaletteEmptyText => _paletteEmpty.IsVisible ? _paletteEmpty.Text ?? "" : "";
     internal CheckBox PaletteOnlyModified => _paletteOnlyModified;
 
     private Control BuildPalette()
@@ -82,7 +83,7 @@ internal sealed partial class MainWindow
         {
             PaletteMode.Files => (Loc.Get(K.PaletteFilesWatermark), Loc.Get(K.A11yQuickOpen), Loc.Get(K.A11yQuickOpenResults), Loc.Get(K.PaletteFilesNoResults)),
             PaletteMode.Edits => (Loc.Get(K.PaletteEditsWatermark), Loc.Get(K.A11yEdits), Loc.Get(K.A11yEditsResults), Loc.Get(K.PaletteEditsNoResults)),
-            PaletteMode.Choice => (_choiceWatermark, _choiceName, _choiceName, Loc.Get(K.PaletteFilesNoResults)),
+            PaletteMode.Choice => (_choiceWatermark, _choiceName, _choiceName, _choiceEmpty.Length > 0 ? _choiceEmpty : Loc.Get(K.PaletteFilesNoResults)),
             _ => (Loc.Get(K.PaletteWatermark), Loc.Get(K.A11yPalette), Loc.Get(K.A11yPaletteResults), Loc.Get(K.PaletteNoResults)),
         };
         _paletteOnlyModified.Content = Loc.Get(K.PaletteOnlyModified);
@@ -102,12 +103,13 @@ internal sealed partial class MainWindow
     public void ShowEditLocations() => OpenPalette(PaletteMode.Edits, "");
 
     /// <summary>A short list to choose from, such as the candidates of "related file".</summary>
-    internal void ShowChoice(string watermark, string name, IReadOnlyList<QuickRow> rows, Action? onDismissed = null)
+    internal void ShowChoice(string watermark, string name, IReadOnlyList<QuickRow> rows, Action? onDismissed = null, string emptyText = "")
     {
         DismissChoice();
         _choiceDismissed = onDismissed;
         _choiceWatermark = watermark;
         _choiceName = name;
+        _choiceEmpty = emptyText;
         _choiceRows = rows;
         OpenPalette(PaletteMode.Choice, "");
     }
@@ -174,6 +176,7 @@ internal sealed partial class MainWindow
                 break;
             default:
                 _quickRows = [.. _choiceRows.Where(r => Matches(query, r.Title + " " + r.Detail))];
+                if (_choiceRows.Count > 0) emptyText = Loc.Get(K.PaletteFilesNoResults);
                 break;
         }
         RenderRows(highlight);

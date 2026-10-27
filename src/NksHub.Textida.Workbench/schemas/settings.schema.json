@@ -348,6 +348,20 @@
           ],
           "description": "Binary files in hex. What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch.",
           "x-scope": "application"
+        },
+        "editor.clipboardHistorySize": {
+          "type": "integer",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Clipboard history size. How many copied texts the clipboard history keeps. It is kept in memory only and forgotten when the program closes.",
+          "x-scope": "application"
+        },
+        "editor.dateTimeFormat": {
+          "type": "string",
+          "default": "yyyy-MM-dd HH:mm",
+          "description": "Date and time format. .NET custom format, for example yyyy-MM-dd HH:mm. Used by Insert Date and Time; month and day names follow the interface language.",
+          "x-scope": "application"
         }
       },
       "additionalProperties": true

@@ -260,6 +260,35 @@ public class RegistryTests
     }
 
     [Fact]
+    public async Task Repeat_runs_the_last_handled_repeatable_command_again_and_tells_it_so()
+    {
+        var registry = Host.Commands;
+        var log = new List<string>();
+        CommandHandler Log(string name) => (_, _) => { log.Add(name + (registry.IsRepeating ? "*" : "")); return ValueTask.FromResult(CommandOutcome.Handled); };
+        registry.SetHandler("nks.edit.deleteLine", Log("delete"));
+        registry.SetHandler("nks.edit.joinLines", Log("join"));
+        registry.SetHandler("nks.edit.copy", Log("copy"));
+        registry.SetHandler("nks.edit.moveLineUp", (_, _) => ValueTask.FromResult(CommandOutcome.NotHandled));
+        var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false);
+
+        Assert.Equal(CommandOutcome.NotHandled, await registry.RepeatLastAsync(ctx));
+        Assert.True(registry.TryGet("nks.edit.deleteLine", out var delete) && delete.Repeatable);
+        Assert.True(registry.TryGet("nks.edit.copy", out var copy) && !copy.Repeatable);
+
+        await registry.ExecuteAsync("nks.edit.deleteLine", ctx);
+        await registry.ExecuteAsync("nks.edit.copy", ctx);
+        await registry.ExecuteAsync("nks.edit.moveLineUp", ctx);
+        Assert.Equal("nks.edit.deleteLine", registry.LastRepeatable);
+
+        Assert.Equal(CommandOutcome.Handled, await registry.RepeatLastAsync(ctx));
+        await registry.ExecuteAsync("nks.edit.joinLines", ctx);
+        await registry.RepeatLastAsync(ctx);
+        Assert.Equal(["delete", "copy", "delete*", "join", "join*"], log);
+        Assert.False(registry.IsRepeating);
+        Assert.Equal("nks.edit.joinLines", registry.LastRepeatable);
+    }
+
+    [Fact]
     public async Task Declined_command_runs_its_fallback()
     {
         var registry = Host.Commands;
