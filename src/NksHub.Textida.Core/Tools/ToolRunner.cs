@@ -8,16 +8,16 @@ namespace NksHub.Textida.Core.Tools;
 /// <summary>
 /// A tool as its definition states it: variables are still in the text. <paramref name="Timeout"/> is null for no limit. <paramref name="Variables"/> are the
 /// typed variables the definition declares. <paramref name="Origin"/> names the config file of a tool that does not come from the profile (null for the profile);
-/// the approval of such a tool is tied to that file and to the directory it runs in.
+/// the approval of such a tool is tied to that file and to the directory it runs in. <paramref name="OutputEncoding"/> is how the output is read; null for UTF-8.
 /// </summary>
 public sealed record ToolSpec(string Id, string Executable, IReadOnlyList<string> Args, string? Cwd = null, TimeSpan? Timeout = null,
-    IReadOnlyList<ToolVariableDecl>? Variables = null, string? Origin = null);
+    IReadOnlyList<ToolVariableDecl>? Variables = null, string? Origin = null, Encoding? OutputEncoding = null);
 
 /// <summary>
 /// A tool with every variable replaced: the program (a full path), one entry per argument and the directory it runs in. This is exactly what is shown
 /// before the first run and what is started; nothing is joined into a command line.
 /// </summary>
-public sealed record ToolInvocation(string ToolId, string Executable, IReadOnlyList<string> Args, string WorkingDirectory, TimeSpan? Timeout, string Fingerprint)
+public sealed record ToolInvocation(string ToolId, string Executable, IReadOnlyList<string> Args, string WorkingDirectory, TimeSpan? Timeout, string Fingerprint, Encoding? OutputEncoding = null)
 {
     /// <summary>The command for the eyes of the user. Arguments with spaces or quotes are put in quotes here only; the process gets the plain list.</summary>
     public string CommandLine => string.Join(' ', new[] { Quote(Executable) }.Concat(Args.Select(Quote)));
@@ -52,7 +52,7 @@ public static class ToolRunner
         string exe = FindExecutable(ToolVariables.Expand(spec.Executable, variables), cwd);
         var args = spec.Args.Select(a => ToolVariables.Expand(a, variables)).ToArray();
         ProcessLaunch.CreateStartInfo(exe, args); // an argument cmd.exe cannot pass safely is refused here, before anything is shown or started
-        return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe, cwd));
+        return new ToolInvocation(spec.Id, exe, args, cwd, spec.Timeout, Fingerprint(spec, exe, cwd), spec.OutputEncoding);
     }
 
     /// <summary>
@@ -112,8 +112,7 @@ public static class ToolRunner
         info.RedirectStandardInput = true;
         info.RedirectStandardOutput = true;
         info.RedirectStandardError = true;
-        info.StandardOutputEncoding = Encoding.UTF8;
-        info.StandardErrorEncoding = Encoding.UTF8;
+        info.StandardOutputEncoding = info.StandardErrorEncoding = tool.OutputEncoding ?? Encoding.UTF8;
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException) { throw new ToolException(e.Message); }

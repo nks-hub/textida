@@ -26,11 +26,11 @@ internal sealed class ToolEditorWindow : Window
 
     private readonly ListBox _list = new() { Background = Brushes.Transparent };
     private readonly TextBox _id = new() { FontFamily = Mono }, _title = new(), _program = new() { FontFamily = Mono }, _cwd = new() { FontFamily = Mono },
-        _timeout = new() { FontFamily = Mono }, _pattern = new() { FontFamily = Mono };
+        _timeout = new() { FontFamily = Mono }, _pattern = new() { FontFamily = Mono }, _encoding = new() { FontFamily = Mono };
     private readonly TextBox _args = new() { FontFamily = Mono, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, MinHeight = 90 };
     private readonly TextBox _variables = new() { FontFamily = Mono, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, MinHeight = 70 };
     private readonly TextBlock _listLabel = new(), _idLabel = new(), _titleLabel = new(), _programLabel = new(), _argsLabel = new(), _cwdLabel = new(),
-        _timeoutLabel = new(), _patternLabel = new(), _variablesLabel = new();
+        _timeoutLabel = new(), _patternLabel = new(), _encodingLabel = new(), _variablesLabel = new();
     private readonly TextBlock _previewLine = new() { TextWrapping = TextWrapping.Wrap, FontFamily = Mono, FontSize = 12 };
     private readonly TextBlock _note = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Button _new = new() { MinWidth = 84 }, _delete = new() { MinWidth = 84 }, _save = new() { IsDefault = true, MinWidth = 100 }, _close = new() { IsCancel = true, MinWidth = 84 };
@@ -45,12 +45,12 @@ internal sealed class ToolEditorWindow : Window
         MinWidth = 640;
         MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        foreach (var label in new[] { _listLabel, _idLabel, _titleLabel, _programLabel, _argsLabel, _cwdLabel, _timeoutLabel, _patternLabel, _variablesLabel }) label.FontWeight = FontWeight.SemiBold;
+        foreach (var label in new[] { _listLabel, _idLabel, _titleLabel, _programLabel, _argsLabel, _cwdLabel, _timeoutLabel, _patternLabel, _encodingLabel, _variablesLabel }) label.FontWeight = FontWeight.SemiBold;
 
         var form = new StackPanel { Spacing = 4 };
         foreach (var (label, box) in new (TextBlock, Control)[]
         {
-            (_idLabel, _id), (_titleLabel, _title), (_programLabel, _program), (_argsLabel, _args), (_cwdLabel, _cwd), (_timeoutLabel, _timeout), (_patternLabel, _pattern), (_variablesLabel, _variables),
+            (_idLabel, _id), (_titleLabel, _title), (_programLabel, _program), (_argsLabel, _args), (_cwdLabel, _cwd), (_timeoutLabel, _timeout), (_patternLabel, _pattern), (_encodingLabel, _encoding), (_variablesLabel, _variables),
         })
         {
             form.Children.Add(label);
@@ -73,7 +73,7 @@ internal sealed class ToolEditorWindow : Window
         DockPanel.SetDock(footer, Dock.Bottom);
         Content = root;
 
-        foreach (var box in new[] { _id, _title, _program, _cwd, _timeout, _pattern, _args, _variables }) box.TextChanged += (_, _) => RefreshPreview();
+        foreach (var box in new[] { _id, _title, _program, _cwd, _timeout, _pattern, _encoding, _args, _variables }) box.TextChanged += (_, _) => RefreshPreview();
         _list.SelectionChanged += (_, _) => { if (!_loading && _list.SelectedIndex >= 0) Select(_list.SelectedIndex); };
         _new.Click += (_, _) => NewNow();
         _delete.Click += (_, _) => DeleteNow();
@@ -94,12 +94,12 @@ internal sealed class ToolEditorWindow : Window
         get => new()
         {
             Id = _id.Text ?? "", Title = _title.Text ?? "", Executable = _program.Text ?? "", Args = _args.Text ?? "", Cwd = _cwd.Text ?? "",
-            Timeout = _timeout.Text ?? "", LogPattern = _pattern.Text ?? "", Variables = _variables.Text ?? "",
+            Timeout = _timeout.Text ?? "", LogPattern = _pattern.Text ?? "", OutputEncoding = _encoding.Text ?? "", Variables = _variables.Text ?? "",
         };
         set
         {
             _id.Text = value.Id; _title.Text = value.Title; _program.Text = value.Executable; _args.Text = value.Args; _cwd.Text = value.Cwd;
-            _timeout.Text = value.Timeout; _pattern.Text = value.LogPattern; _variables.Text = value.Variables;
+            _timeout.Text = value.Timeout; _pattern.Text = value.LogPattern; _encoding.Text = value.OutputEncoding; _variables.Text = value.Variables;
         }
     }
 
@@ -231,6 +231,7 @@ internal sealed class ToolEditorWindow : Window
         _cwdLabel.Text = Loc.Get(K.ToolEditCwd);
         _timeoutLabel.Text = Loc.Get(K.ToolEditTimeout);
         _patternLabel.Text = Loc.Get(K.ToolEditPattern);
+        _encodingLabel.Text = Loc.Get(K.ToolEditEncoding);
         _variablesLabel.Text = Loc.Get(K.ToolEditVariables);
         _new.Content = Loc.Get(K.ToolEditNew);
         _delete.Content = Loc.Get(K.ToolEditDelete);
@@ -244,6 +245,7 @@ internal sealed class ToolEditorWindow : Window
         AutomationProperties.SetName(_cwd, Loc.Get(K.ToolEditCwd));
         AutomationProperties.SetName(_timeout, Loc.Get(K.ToolEditTimeout));
         AutomationProperties.SetName(_pattern, Loc.Get(K.ToolEditPattern));
+        AutomationProperties.SetName(_encoding, Loc.Get(K.ToolEditEncoding));
         AutomationProperties.SetName(_variables, Loc.Get(K.ToolEditVariables));
         RefreshPreview();
     }

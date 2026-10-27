@@ -1,3 +1,4 @@
+using System.Text;
 using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.Core.Tests;
@@ -383,5 +384,83 @@ public sealed class ToolTests : IDisposable
         Assert.Equal(new LogLocation("Makefile", 7, null), errors.Match("make: *** [Makefile:7: all] Error 1"));
         Assert.Equal(new LogLocation(@"C:\src\a.c", 3, 1), errors.Match(@"C:\src\a.c:3:1: warning"));
         Assert.Null(errors.Match("nothing here"));
+    }
+
+    // ---- P8.2.1: selection, word, project root, output encoding ----
+
+    [Fact]
+    public async Task The_selection_the_word_and_the_project_root_are_variables_that_exist_only_when_they_apply()
+    {
+        string root = Directory.CreateDirectory(Path.Combine(_dir, "proj")).FullName;
+        Directory.CreateDirectory(Path.Combine(root, ".git"));
+        string file = Path.Combine(Directory.CreateDirectory(Path.Combine(root, "src")).FullName, "a.txt");
+        var lookup = ToolVariables.ForDocument(file, selection: () => "two words", word: () => "words");
+        var (_, lines) = await Run(Resolve(Echo(["${Selection}", "${Word}", "${ProjectRoot}"]), lookup));
+        Assert.Equal(["[two words]", "[words]", $"[{root}]"], lines);
+
+        var bare = ToolVariables.ForDocument(file);
+        Assert.Contains("Selection", Assert.Throws<ToolException>(() => Resolve(Echo(["${Selection}"]), bare)).Message, StringComparison.Ordinal);
+        Assert.Throws<ToolException>(() => Resolve(Echo(["${Word}"]), bare));
+        Assert.Throws<ToolException>(() => Resolve(Echo(["${ProjectRoot}"]), ToolVariables.ForDocument(null)));
+        Assert.Equal(root, ToolVariables.FindProjectRoot(Path.GetDirectoryName(file)));
+    }
+
+    [Fact]
+    public void A_selection_with_a_line_break_is_refused_where_a_text_variable_is_declared_from_it()
+    {
+        var lookup = ToolVariables.ForDocument(null, selection: () => "a\nb");
+        Assert.Equal("a\nb", lookup("Selection"));
+        var spec = Echo(["${Sel}"]) with { Variables = [new ToolVariableDecl("Sel", ToolVariableType.Text, "${Selection}")] };
+        Assert.Contains("${Sel}", Assert.Throws<ToolException>(() => Resolve(spec, lookup)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_output_is_read_in_the_encoding_the_tool_names()
+    {
+        var latin1 = Resolve(Echo(["\u00E9"]) with { OutputEncoding = Encoding.Latin1 });
+        Assert.Equal(Encoding.Latin1, latin1.OutputEncoding);
+        Assert.Equal(["[\u00C3\u00A9]"], (await Run(latin1)).Lines); // the UTF-8 bytes of the letter, read as Latin-1
+        Assert.Equal(["[\u00E9]"], (await Run(Resolve(Echo(["\u00E9"])))).Lines);
+    }
+
+    // ---- P8.2.2: nearest Makefile and folders of a recursive make ----
+
+    [Fact]
+    public void The_nearest_makefile_is_found_above_the_file_but_not_past_the_project_or_the_limit()
+    {
+        string outer = Directory.CreateDirectory(Path.Combine(_dir, "mk")).FullName;
+        string project = Directory.CreateDirectory(Path.Combine(outer, "proj")).FullName;
+        Directory.CreateDirectory(Path.Combine(project, ".git"));
+        string src = Directory.CreateDirectory(Path.Combine(project, "src")).FullName;
+        string deep = Directory.CreateDirectory(Path.Combine(src, "deep")).FullName;
+        File.WriteAllText(Path.Combine(outer, "Makefile"), "outside:\n");
+        Assert.Null(MakefileTargets.FindNearest(deep, 8)); // the root of the project ends the search
+
+        File.WriteAllText(Path.Combine(project, "Makefile"), "top:\n");
+        Assert.Equal(Path.Combine(project, "Makefile"), MakefileTargets.FindNearest(deep, 8));
+        Assert.Null(MakefileTargets.FindNearest(deep, 2)); // only deep and src are looked into
+
+        File.WriteAllText(Path.Combine(src, "Makefile"), "mid:\n");
+        File.WriteAllText(Path.Combine(src, "GNUmakefile"), "gnu:\n");
+        Assert.Equal(Path.Combine(src, "GNUmakefile"), MakefileTargets.FindNearest(deep, 8)); // the name make prefers
+        Assert.Null(MakefileTargets.FindNearest(null, 8));
+    }
+
+    [Fact]
+    public void A_recursive_make_names_the_folder_a_relative_error_belongs_to()
+    {
+        string[] lines =
+        [
+            "make[1]: Entering directory '/work/sub'",
+            "make[2]: Entering directory `/work/sub/inner'",
+            "make[2]: Leaving directory '/work/sub/inner'",
+            "a.c:1:1: error: x",
+        ];
+        Assert.Equal("/work/sub/inner", MakefileTargets.DirectoryAt(lines[..2], "base"));
+        Assert.Equal("/work/sub", MakefileTargets.DirectoryAt(lines[..3], "base"));
+        Assert.Equal("base", MakefileTargets.DirectoryAt(["a.c:1:1: error: x", "make: Nothing to be done for 'all'."], "base"));
+        Assert.Equal("base", MakefileTargets.DirectoryAt(["make[1]: Leaving directory '/work/sub'"], "base")); // a leave with no enter before it changes nothing
+        Assert.Equal("/work/my dir", MakefileTargets.DirectoryAt(["mingw32-make[1]: Entering directory '/work/my dir'"], "base"));
+        if (OperatingSystem.IsWindows()) Assert.Equal(@"C:\work\sub\", MakefileTargets.DirectoryAt(["make[1]: Entering directory '/c/work/sub'"], "base"));
     }
 }

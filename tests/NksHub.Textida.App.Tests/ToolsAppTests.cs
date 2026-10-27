@@ -518,10 +518,6 @@ public class ToolLauncherTests : IDisposable
         string makefile = Path.Combine(folder, "Makefile");
         File.WriteAllText(makefile, ".PHONY: build\nbuild: a.c\n\techo hi\ntest:\n\techo t\n");
 
-        _w.OpenFile(Path.Combine(folder, "a.c"), null);
-        _w.ShowMakeTargets();
-        Assert.Equal(Loc.Get(K.MakeNotMakefile), _w.StatusMessageText);
-
         _w.OpenFile(makefile, null);
         _w.ShowMakeTargets();
         Assert.Equal(["build", "test"], _w.QuickResults.Select(r => r.Title));
@@ -546,6 +542,147 @@ public class ToolLauncherTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_targets_of_the_nearest_makefile_are_listed_for_any_file_and_a_folder_without_one_says_so()
+    {
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        Directory.CreateDirectory(Path.Combine(project, ".git"));
+        string src = Directory.CreateDirectory(Path.Combine(project, "src")).FullName;
+        string source = Path.Combine(src, "a.c");
+        File.WriteAllText(source, "int x;\n");
+        _w.OpenFile(source, null);
+
+        _w.ShowMakeTargets();
+        Assert.Equal(Loc.Get(K.MakeNotMakefile), _w.StatusMessageText);
+
+        File.WriteAllText(Path.Combine(project, "Makefile"), "all: a.o\nclean:\n\trm -f a.o\n");
+        _w.ShowMakeTargets();
+        Assert.Equal(["all", "clean"], _w.QuickResults.Select(r => r.Title));
+
+        string big = Path.Combine(src, "makefile");
+        File.WriteAllText(big, "x:\n" + new string('#', (int)PluginLimitsPlaceholders.MakefileMaxBytes + 1));
+        _w.ShowMakeTargets();
+        Assert.Equal(Loc.Get(K.MakeTooBig, ("file", big), ("bytes", PluginLimitsPlaceholders.MakefileMaxBytes)), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void The_last_makefile_target_is_run_again_with_the_program_of_the_setting()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Makefile");
+        File.WriteAllText(makefile, "build:\n\techo hi\n");
+
+        _w.RepeatMakeTarget();
+        Assert.Equal(Loc.Get(K.MakeNoneYet), _w.StatusMessageText);
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll]));
+        Assert.Single(_dialogs.Asked);
+
+        _app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.User, new JsonObject { ["tools.makeProgram"] = ToolTestKit.Dotnet });
+        _dialogs.Answers.Enqueue(1); // a different command than before, so it asks; no is enough to see it
+        _w.RepeatMakeTarget();
+        ToolTestKit.WaitFor(() => _dialogs.Asked.Count == 2, "the repeated run did not ask");
+        var details = _dialogs.Asked[1].Details!;
+        Assert.Contains(details, d => d.Contains("-f", StringComparison.Ordinal) && d.Contains("Makefile", StringComparison.Ordinal) && d.Contains("build", StringComparison.Ordinal) && !d.Contains(ToolTestKit.EchoDll, StringComparison.Ordinal));
+        Assert.Contains(details, d => d.Contains(folder, StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public void A_relative_file_in_the_output_of_a_recursive_make_is_looked_for_in_the_folder_it_entered()
+    {
+        if (!OperatingSystem.IsWindows()) return; // the stand-in for make is a batch file
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "tree")).FullName;
+        string sub = Directory.CreateDirectory(Path.Combine(project, "sub")).FullName;
+        File.WriteAllText(Path.Combine(sub, "b.c"), "one\ntwo\nthree\n");
+        string script = Path.Combine(project, "emit.cmd");
+        File.WriteAllText(script, "@echo off\r\necho make[1]: Entering directory '%~dp0sub'\r\necho b.c:2:1: error: x\r\necho make[1]: Leaving directory '%~dp0sub'\r\necho b.c:3:1: error: y\r\n");
+        var tool = new JsonObject { ["id"] = "mk", ["title"] = "Make", ["executable"] = script, ["args"] = new JsonArray(), ["cwd"] = project, ["logPattern"] = "mk" };
+        Define([tool], [new JsonObject { ["id"] = "mk", ["title"] = "mk", ["syntax"] = "regex", ["pattern"] = MakefileTargets.ErrorPattern }]);
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("mk"));
+
+        // after "Leaving directory" the name is relative to the folder of the tool again, where there is no b.c (and b.c is not open yet)
+        Assert.False(_w.OpenOutputLine(OutputLineIndex("b.c:3:1: error: y")));
+        Assert.Equal(Loc.Get(K.LogFileMissing, ("file", "b.c")), _w.StatusMessageText);
+
+        Assert.True(_w.OpenOutputLine(OutputLineIndex("b.c:2:1: error: x")));
+        Assert.Equal(Path.Combine(sub, "b.c"), _w.Active!.Path);
+        Assert.Equal((2L, 1L), _w.Active.CaretPosition());
+    }
+
+    // ---- P8.2.1: selection, word, project root, defaults from the settings ----
+
+    [AvaloniaFact]
+    public void The_selection_the_word_and_the_project_root_reach_the_tool_and_no_selection_stops_it()
+    {
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        Directory.CreateDirectory(Path.Combine(project, ".git"));
+        string file = Path.Combine(Directory.CreateDirectory(Path.Combine(project, "src")).FullName, "a.txt");
+        File.WriteAllText(file, "alpha beta\ngamma\n");
+        _w.OpenFile(file, null);
+        Define([ToolTestKit.Tool("vars", "Vars", ["${Selection}", "${Word}", "${ProjectRoot}"], cwd: "${ProjectRoot}")]);
+
+        _w.Active!.Surface!.SetSelections([new Sel(0, 4)]);
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("vars"));
+        var lines = Lines();
+        Assert.Contains("[alph]", lines);
+        Assert.Contains("[alpha]", lines);
+        Assert.Contains($"[{project}]", lines);
+
+        _w.Active.Surface!.SetSelections([Sel.At(3)]);
+        Finish(Run("vars"));
+        Assert.Single(_dialogs.Asked);
+        Assert.Contains(Lines(), l => l.Contains("Selection", StringComparison.Ordinal) && l.Contains(Entry("vars").Title, StringComparison.Ordinal));
+        Assert.False(_w.ToolRunningNow);
+    }
+
+    [AvaloniaFact]
+    public void The_settings_give_a_tool_the_time_limit_and_the_output_encoding_its_definition_leaves_out()
+    {
+        Define([ToolTestKit.Tool("own", "Own", ["x"], timeout: 3), ToolTestKit.Tool("plain", "Plain", ["\u00E9"])]);
+        Assert.Null(_w.ResolveTool(Entry("plain").Spec).Timeout); // 0: no limit chosen, as before
+        Assert.Equal(65001, _w.ResolveTool(Entry("plain").Spec).OutputEncoding!.CodePage);
+
+        _app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.User,
+            new JsonObject { ["tools.timeoutSeconds"] = 7, ["tools.outputEncoding"] = "iso-8859-1" });
+        Assert.Equal(TimeSpan.FromSeconds(7), _w.ResolveTool(Entry("plain").Spec).Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(3), _w.ResolveTool(Entry("own").Spec).Timeout); // the definition wins
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("plain"));
+        Assert.Contains("[\u00C3\u00A9]", Lines()); // read as Latin-1
+
+        var named = ToolTestKit.Tool("named", "Named", ["\u00E9"]);
+        named["outputEncoding"] = "utf-8";
+        Define([named]);
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("named"));
+        Assert.Contains("[\u00E9]", Lines());
+
+        var unknown = ToolTestKit.Tool("bad", "Bad", ["x"]);
+        unknown["outputEncoding"] = "no-such-encoding";
+        Define([unknown]);
+        Assert.Empty(_app.Tools.Load().Tools);
+        Assert.Contains("no-such-encoding", Assert.Single(_app.Tools.Load().Errors), StringComparison.Ordinal);
+    }
+
+    [AvaloniaFact]
+    public void The_editor_keeps_the_output_encoding_and_refuses_one_the_system_does_not_know()
+    {
+        var editor = new ToolEditorWindow(_app.Tools, _w.PreviewTool);
+        editor.NewNow();
+        editor.Draft = new ToolDraft { Id = "e", Title = "E", Executable = ToolTestKit.Dotnet, OutputEncoding = "no-such-encoding" };
+        Assert.False(editor.SaveNow());
+        Assert.Equal(Loc.Get(K.ToolEditEncodingBad, ("name", "no-such-encoding")), editor.NoteText);
+
+        editor.Draft = new ToolDraft { Id = "e", Title = "E", Executable = ToolTestKit.Dotnet, OutputEncoding = "iso-8859-1" };
+        Assert.True(editor.SaveNow());
+        Assert.Equal("iso-8859-1", _app.Tools.LoadDefinitions().Single().OutputEncoding);
+        Assert.Equal(Encoding.Latin1.CodePage, _app.Tools.Load().Tools.Single().Spec.OutputEncoding!.CodePage);
+    }
+
+    [AvaloniaFact]
     public void The_commands_are_in_the_tools_menu()
     {
         var tools = _w.MenuModel.Single(g => g.Label == "Nástroje");
@@ -555,6 +692,7 @@ public class ToolLauncherTests : IDisposable
         Assert.Contains("nks.tools.logPattern", ids);
         Assert.Contains("nks.tools.edit", ids);
         Assert.Contains("nks.tools.makeTargets", ids);
+        Assert.Contains("nks.tools.makeRepeat", ids);
         Assert.Contains("nks.log.nextError", ids);
         Assert.Contains("nks.log.previousError", ids);
         Assert.Contains("nks.log.levels", ids);

@@ -21,14 +21,17 @@ public sealed record ToolVariableDecl(string Name, ToolVariableType Type, string
 public static class ToolVariables
 {
     /// <summary>Names the editor itself provides; user variables (P4.1.3) are added through the lookup of <see cref="Expand"/>.</summary>
-    public static readonly IReadOnlyList<string> BuiltIn = ["File", "FileDir", "FileName", "FileBase", "FileExt", "Line", "Column"];
+    public static readonly IReadOnlyList<string> BuiltIn = ["File", "FileDir", "FileName", "FileBase", "FileExt", "Line", "Column", "Selection", "Word", "ProjectRoot"];
 
     /// <summary>
-    /// The built-in variables for a document; those that do not apply (no file yet) are left out, so using them is an error before anything runs.
-    /// <paramref name="user"/> are the user's own variables (P4.1.3); they come before the built-in ones.
+    /// The built-in variables for a document; those that do not apply (no file yet, no selection) are left out, so using them is an error before anything runs.
+    /// <paramref name="user"/> are the user's own variables (P4.1.3); they come before the built-in ones. <paramref name="selection"/> and <paramref name="word"/> (the selected text
+    /// and the word under the caret) are asked for only when a tool uses them. <c>ProjectRoot</c> is the nearest folder at or above the file that has <c>.textida</c> or <c>.git</c>.
     /// </summary>
-    public static Func<string, string?> ForDocument(string? path, long line = 1, long column = 1, IReadOnlyDictionary<string, string>? user = null)
+    public static Func<string, string?> ForDocument(string? path, long line = 1, long column = 1, IReadOnlyDictionary<string, string>? user = null,
+        Func<string?>? selection = null, Func<string?>? word = null)
     {
+        Lazy<string?> root = new(() => path is null ? null : FindProjectRoot(Path.GetDirectoryName(Path.GetFullPath(path))));
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Line"] = line.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -43,7 +46,29 @@ public static class ToolVariables
             values["FileBase"] = Path.GetFileNameWithoutExtension(full);
             values["FileExt"] = Path.GetExtension(full);
         }
-        return name => user is not null && user.TryGetValue(name, out var own) ? own : values.GetValueOrDefault(name);
+        return name => user is not null && user.TryGetValue(name, out var own) ? own : name switch
+        {
+            "Selection" => selection?.Invoke(),
+            "Word" => word?.Invoke(),
+            "ProjectRoot" => root.Value,
+            _ => values.GetValueOrDefault(name),
+        };
+    }
+
+    /// <summary>A folder that marks the root of a project: it has a <c>.textida</c> folder or a <c>.git</c> folder or file.</summary>
+    public static bool IsProjectRoot(string directory) =>
+        Directory.Exists(Path.Combine(directory, ".textida")) || Directory.Exists(Path.Combine(directory, ".git")) || File.Exists(Path.Combine(directory, ".git"));
+
+    /// <summary>The nearest folder at or above <paramref name="fromDirectory"/> for which <see cref="IsProjectRoot"/> is true, or null.</summary>
+    public static string? FindProjectRoot(string? fromDirectory)
+    {
+        try
+        {
+            for (var dir = fromDirectory is null ? null : new DirectoryInfo(Path.GetFullPath(fromDirectory)); dir is not null; dir = dir.Parent)
+                if (IsProjectRoot(dir.FullName)) return dir.FullName;
+        }
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { /* no project root */ }
+        return null;
     }
 
     /// <summary>Why <paramref name="value"/> is not a <paramref name="type"/>, or null when it is.</summary>

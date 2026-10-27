@@ -239,6 +239,18 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
     public const int RegistryMaxLookups = 50;
 
+    /// <summary>Placeholder, OPEN: seconds after which a tool with no <c>timeoutSeconds</c> of its own is ended while the setting <c>tools.timeoutSeconds</c> is 0. 0 means no limit, which is how tools ran before. The owner has not decided it.</summary>
+    public const int ToolDefaultTimeoutSeconds = 0;
+
+    /// <summary>Placeholder, OPEN: the encoding the output of a tool is read in while its definition names none and the setting <c>tools.outputEncoding</c> is empty. The owner has not decided it.</summary>
+    public const string ToolOutputEncoding = "utf-8";
+
+    /// <summary>Placeholder, OPEN: folders looked into for the nearest Makefile, counting the folder of the open file and those above it. The search also stops at the root of the project. The owner has not decided it.</summary>
+    public const int MakefileSearchLevels = 8;
+
+    /// <summary>Placeholder, OPEN: largest Makefile in bytes that is read from disk to list its targets; a larger one is refused with a message. The owner has not decided it.</summary>
+    public const long MakefileMaxBytes = 4L << 20;
+
     public static PluginHostOptions Host() => new()
     {
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),

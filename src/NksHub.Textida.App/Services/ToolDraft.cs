@@ -17,13 +17,15 @@ internal sealed class ToolDraft
     public string Cwd { get; set; } = "";
     public string Timeout { get; set; } = "";
     public string LogPattern { get; set; } = "";
+    /// <summary>The encoding the output is read in; empty for the one of the setting <c>tools.outputEncoding</c>.</summary>
+    public string OutputEncoding { get; set; } = "";
     /// <summary>One variable per line: <c>Name:text</c>, <c>Name:path</c>, optionally followed by <c>=value</c>.</summary>
     public string Variables { get; set; } = "";
 
     public static ToolDraft From(ExternalToolContribution t) => new()
     {
         Id = t.Id, Title = t.Title, Executable = t.Executable, Args = string.Join('\n', t.Args), Cwd = t.Cwd ?? "",
-        Timeout = t.TimeoutSeconds?.ToString(CultureInfo.InvariantCulture) ?? "", LogPattern = t.LogPattern ?? "",
+        Timeout = t.TimeoutSeconds?.ToString(CultureInfo.InvariantCulture) ?? "", LogPattern = t.LogPattern ?? "", OutputEncoding = t.OutputEncoding ?? "",
         Variables = string.Join('\n', (t.Variables ?? []).Select(v => v.Value is null ? $"{v.Name}:{v.Type}" : $"{v.Name}:{v.Type}={v.Value}")),
     };
 
@@ -46,6 +48,11 @@ internal sealed class ToolDraft
             }
             seconds = value;
         }
+        if (OutputEncoding.Trim().Length > 0 && ToolCatalog.FindEncoding(OutputEncoding) is null)
+        {
+            error = Loc.Get(K.ToolEditEncodingBad, ("name", OutputEncoding.Trim()));
+            return null;
+        }
         var variables = new List<ToolVariableContribution>();
         int number = 0;
         foreach (var raw in Lines(Variables))
@@ -67,6 +74,7 @@ internal sealed class ToolDraft
             Id = Id.Trim(), Title = Title.Trim(), Executable = Executable.Trim(), Args = [.. Lines(Args)],
             Cwd = Cwd.Trim().Length == 0 ? null : Cwd.Trim(), TimeoutSeconds = seconds,
             LogPattern = LogPattern.Trim().Length == 0 ? null : LogPattern.Trim(),
+            OutputEncoding = OutputEncoding.Trim().Length == 0 ? null : OutputEncoding.Trim(),
             Variables = variables.Count == 0 ? null : variables,
         };
     }
