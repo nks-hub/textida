@@ -273,6 +273,7 @@ public sealed class LargeChangeJournalTests : IDisposable
 
             doc.StreamSaveStep = (step, temp) =>
             {
+                if (step == "temp-writing") return; // the temp file is still open for writing, only the later steps are crash points here
                 if (step == "temp-written") gate.Wait();
                 session.Flush();
                 string snap = Path.Combine(_dir, "snap-" + step);
@@ -339,6 +340,7 @@ public sealed class LargeChangeJournalTests : IDisposable
             saved = model.Clone();
             doc.StreamSaveStep = (step, temp) =>
             {
+                if (step == "temp-writing") return; // the temp file is still open for writing, only the later steps are crash points here
                 if (step == "temp-written") gate.Wait();
                 session.Flush();
             };
