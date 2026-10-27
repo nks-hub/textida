@@ -135,6 +135,36 @@ public class PagedEditTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_screen_of_lines_that_alone_exceeds_the_budget_stays_decoded_and_is_not_decoded_again_by_every_draw()
+    {
+        // 300 lines of 20 000 characters: a screen of them decodes to far more than the budget, and one miss decodes only a few lines
+        string longLine = new string('x', 20_000) + "\n";
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat(longLine, 300))));
+        var view = tab.Paged!;
+        view.LineCacheBudget = 256;
+        _w.CaptureRenderedFrame();
+        Assert.True(view.CachedLineBytes > 100 * view.LineCacheBudget, "the lines on screen must not fit the budget, or the test proves nothing");
+        int decoded = view.DecodedLines;
+        for (int i = 0; i < 5; i++)
+        {
+            Press(Key.Right); // a new frame of the same screen
+            _w.CaptureRenderedFrame();
+        }
+        Assert.Equal(decoded, view.DecodedLines);
+
+        // after a page down the lines of the new screen stay as well
+        for (int k = 0; k < 3; k++) Press(Key.PageDown);
+        _w.CaptureRenderedFrame();
+        decoded = view.DecodedLines;
+        for (int i = 0; i < 3; i++)
+        {
+            Press(Key.Right); // a new frame of the same screen
+            _w.CaptureRenderedFrame();
+        }
+        Assert.Equal(decoded, view.DecodedLines);
+    }
+
+    [AvaloniaFact]
     public async Task Typing_moving_deleting_undo_redo_and_save_keep_the_bytes_exact()
     {
         var original = Rows(150_000);
