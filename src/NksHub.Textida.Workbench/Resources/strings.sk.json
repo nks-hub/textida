@@ -280,6 +280,7 @@
   "cmd.file.newFromTemplate": "Nový zo šablóny...",
   "cmd.edit.convert": "Previesť...",
   "cmd.edit.runRecipe": "Spustiť recept úprav...",
+  "cmd.edit.copyAiContext": "Kopírovať ako kontext pre AI...",
   "cmd.edit.repeatLast": "Opakovať posledný príkaz",
   "setting.editor.clipboardHistorySize.title": "Veľkosť histórie schránky",
   "setting.editor.clipboardHistorySize.description": "Koľko skopírovaných textov si história schránky pamätá. Je len v pamäti a po zatvorení programu sa zabudne.",

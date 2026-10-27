@@ -1024,6 +1024,11 @@
       "enablement": "!readOnly",
       "undo": "transaction",
       "repeatable": true
+    },
+    {
+      "id": "nks.edit.copyAiContext",
+      "title": "cmd.edit.copyAiContext",
+      "category": "cat.edit"
     }
   ],
   "menus": [
@@ -1896,6 +1901,12 @@
       "command": "nks.edit.justifyBlock",
       "group": "5_block",
       "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyAiContext",
+      "group": "2_clip",
+      "order": 60
     }
   ],
   "keybindings": [
