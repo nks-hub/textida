@@ -249,6 +249,49 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task F1_in_the_open_panel_opens_the_help_topic_of_plugin_panels()
+    {
+        _w.Show();
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel");
+
+        TestApp.Press(_w, Avalonia.Input.Key.F1);
+        Assert.Equal("view.pluginPanels", _app.HelpView!.CurrentTopic);
+        _app.HelpView.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task The_panel_its_items_and_the_status_item_carry_names_for_a_screen_reader_and_the_command_is_in_the_view_menu_and_the_palette()
+    {
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"tree\",\"reveal\":true,\"items\":[{\"id\":\"a\",\"label\":\"first\",\"detail\":\"open\",\"children\":[{\"id\":\"b\",\"label\":\"second\"}]}]}"));
+        await Until(() => _w.PluginPanelOpen, "the panel");
+        await Pump(Editor(UiMethods.StatusSet, "{\"text\":\"JSON ok\",\"tooltip\":\"valid\"}"));
+        await Until(() => ((Panel)_w.PluginStatusHost).Children.Count == 1, "the status item");
+
+        var name = Loc.Get(K.A11yPluginPanel, ("title", "Todo"));
+        Assert.Equal(name, Avalonia.Automation.AutomationProperties.GetName(_w.PluginTree));
+        var first = Assert.IsType<TreeViewItem>(Assert.Single(_w.PluginTree.Items));
+        Assert.Equal("first, open", Avalonia.Automation.AutomationProperties.GetName(first));
+        Assert.Equal("second", Avalonia.Automation.AutomationProperties.GetName(Assert.IsType<TreeViewItem>(Assert.Single(first.Items))));
+        var status = Assert.IsType<TextBlock>(Assert.Single(((Panel)_w.PluginStatusHost).Children));
+        Assert.Equal("JSON ok", Avalonia.Automation.AutomationProperties.GetName(status));
+
+        // the next report changes the same item, it is not replaced by another one
+        await Pump(Editor(UiMethods.StatusSet, "{\"text\":\"JSON error\"}"));
+        await Until(() => status.Text == "JSON error", "the new status text");
+        Assert.Same(status, Assert.Single(((Panel)_w.PluginStatusHost).Children));
+        Assert.Equal("JSON error", Avalonia.Automation.AutomationProperties.GetName(status));
+
+        var inMenu = _w.MenuModel.Single(g => g.Label == "Zobrazit").Items.AllCommands().Select(c => c.CommandId);
+        Assert.Contains("nks.view.pluginPanels", inMenu);
+        _w.ShowPalette();
+        _w.SetPaletteQuery(_app.Workbench.Strings.Get(_app.Workbench.Commands.TryGet("nks.view.pluginPanels", out var command) ? command.TitleKey : ""));
+        Assert.Contains(_w.PaletteResults, r => r.CommandId == "nks.view.pluginPanels" && r.Enabled);
+    }
+
+    [AvaloniaFact]
     public async Task A_task_row_is_kept_while_progress_comes_and_says_it_cancels_once_Cancel_was_pressed()
     {
         await StartPluginAsync();
