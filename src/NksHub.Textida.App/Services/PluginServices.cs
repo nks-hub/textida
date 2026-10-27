@@ -113,6 +113,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped) Dispatcher.UIThread.Post(() => UiApi.PluginEnded(id));
             if (id == CodeExplorerPluginId && state == PluginState.Running) Dispatcher.UIThread.Post(RefreshOutlines); // a restarted process has lost the symbols it published
         };
+        _host.Crashed += info => Dispatcher.UIThread.Post(() => ReportCrash(info));
+        _host.Log += line => _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.PluginLogSource), line);
 
         var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
@@ -339,6 +341,28 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     }
 
     internal Host HostForTests => _host;
+
+    /// <summary>A plugin process ended or was ended for not answering: a notice names the plugin and says whether it comes back, its last error output goes to the output window.</summary>
+    private void ReportCrash(PluginCrashInfo info)
+    {
+        if (info.StderrTail.Count > 0) _app.Output.Append(OutputChannel.Tasks, info.DisplayName, string.Join('\n', info.StderrTail));
+        if (_app.ActiveWindow is not { } window) return;
+        window.ShowNotice("plugin:" + info.PluginId, CrashMessage(info), [(Loc.Get(K.PluginCrashLog), () => window.ShowOutput(OutputChannel.Tasks))], warning: true);
+    }
+
+    internal static string CrashMessage(PluginCrashInfo info)
+    {
+        var reason = Loc.Get(info.Reason switch
+        {
+            PluginEndReason.Unresponsive => K.PluginCrashUnresponsive,
+            PluginEndReason.ProtocolViolation => K.PluginCrashProtocol,
+            PluginEndReason.HandshakeFailed => K.PluginCrashStart,
+            _ => K.PluginCrashExited,
+        });
+        return info.NextRestartIn is { } delay
+            ? Loc.Get(K.PluginCrashRestart, ("name", info.DisplayName), ("reason", reason), ("seconds", (int)Math.Ceiling(delay.TotalSeconds)))
+            : Loc.Get(K.PluginCrashDisabled, ("name", info.DisplayName), ("reason", reason));
+    }
 
     /// <summary>Starts the plugins that serve file sources, so their schemes are registered before the editor looks for one. A plugin that cannot start is passed over; its scheme is then simply not offered.</summary>
     public async Task ActivateSourcesAsync()
@@ -674,7 +698,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
         {
-            if (notify) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
+            // a crash has its own notice (ReportCrash), whether a command was running or not
+            if (notify && e is not PluginCrashedException) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
         }
         finally
         {

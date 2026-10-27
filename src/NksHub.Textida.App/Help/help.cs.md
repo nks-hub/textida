@@ -922,6 +922,7 @@ commands: nks.plugins.manage
 4. Po výběru nainstalovaného pluginu ho můžete zapnout nebo vypnout, aktualizovat z novějšího ZIP, vrátit na předchozí verzi, změnit jeho oprávnění nebo odinstalovat. Nová verze se rozbalí vedle staré a aktivní je, až když se načte; stará zůstane pro návrat. Aktualizace se ptá jen na oprávnění, na která jste se dosud nebyli dotázáni; dřívější odpovědi platí dál.
 5. Odebrané oprávnění hned zastaví nové požadavky pluginu a zruší ty, které čekají. Plugin bez oprávnění dostane chybu, ne prázdný výsledek. Vypnutí ukončí proces; odinstalace smaže jen složku daného pluginu.
 - Oprávnění jsou záznam toho, co jste povolili, ne izolace: plugin je program, který běží s právy vašeho uživatele. Instalujte jen pluginy, kterým věříte. Podpisy se zatím nekontrolují. Limity velikosti a počtu souborů ve ZIP jsou provizorní. Nové příkazy aktualizovaného pluginu se objeví po restartu.
+- Každý plugin běží jako samostatný proces. Když skončí nebo přestane odpovídat, editor ho ukončí, lišta řekne, o který plugin jde a kdy se znovu spustí; po opakovaných pádech zůstane vypnutý. Tlačítko Zobrazit výstup na liště otevře okno výstupu s posledními chybovými řádky pluginu. Plugin, který čeká na vaši odpověď (kontrolu změn, otázku), se kvůli neodpovídání neukončí. Příkaz, který zrovna běžel, se po restartu nezopakuje, takže se nic nezapíše ani nenahraje dvakrát. Počet pádů, prodlevy a časové limity jsou provizorní.
 
 ## [tools.lint] Lintery: podtržení nálezů PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy a RuboCopu
 commands: nks.tools.lint
