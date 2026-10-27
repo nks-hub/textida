@@ -1524,6 +1524,12 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.template",
+      "title": "cmd.hex.template",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.compare.file",
       "title": "cmd.hex.compare.file",
       "category": "cat.hex",
@@ -3075,6 +3081,12 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.template",
+      "group": "3_hex",
+      "order": 140
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.minimap.mode",
       "group": "3_hex",
       "order": 120
@@ -3625,6 +3637,11 @@
     {
       "key": "mod+k mod+s",
       "command": "nks.hex.statistics",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+j",
+      "command": "nks.hex.template",
       "when": "hexMode"
     },
     {

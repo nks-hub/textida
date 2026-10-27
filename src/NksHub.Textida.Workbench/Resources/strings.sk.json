@@ -318,6 +318,7 @@
   "cmd.hex.minimap": "Hex: mapa súboru",
   "cmd.hex.minimap.mode": "Hex: mapa podľa entropie alebo druhu bajtov",
   "cmd.hex.statistics": "Hex: štatistika bajtov",
+  "cmd.hex.template": "Hex: šablóna štruktúry",
   "cmd.hex.compare.file": "Hex: porovnať so súborom...",
   "cmd.hex.compare.saved": "Hex: porovnať s uloženým súborom",
   "setting.files.binaryAsHex.title": "Binárne súbory v hexe",

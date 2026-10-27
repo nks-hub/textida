@@ -51,23 +51,26 @@ internal sealed partial class HexView : Grid
         _options = options;
         Editor = new HexEditor(doc.Doc, _lastCharset ?? HexCharset.For(doc.Doc.Codec));
         Focusable = true;
-        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto,Auto");
+        ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto,Auto,Auto");
         _canvas = new HexSurface(this);
         Inspector = new HexInspectorPanel(this) { IsVisible = false };
         BookmarkList = new HexBookmarksPanel(this) { IsVisible = false };
         Statistics = new HexStatsPanel(this) { IsVisible = false };
+        Structure = new HexTemplatePanel(this) { IsVisible = false };
         Minimap = new HexMinimap(this) { IsVisible = LastMinimap };
         SetColumn(Minimap, 1);
         SetColumn(_bar, 2);
         SetColumn(BookmarkList, 3);
         SetColumn(Statistics, 4);
         SetColumn(Inspector, 5);
+        SetColumn(Structure, 6);
         Children.Add(_canvas);
         Children.Add(Minimap);
         Children.Add(_bar);
         Children.Add(BookmarkList);
         Children.Add(Statistics);
         Children.Add(Inspector);
+        Children.Add(Structure);
         _bar.ValueChanged += (_, _) =>
         {
             if (_syncingBar) return;
@@ -80,6 +83,8 @@ internal sealed partial class HexView : Grid
 
     public HexEditor Editor { get; }
     public HexInspectorPanel Inspector { get; }
+    /// <summary>The tree of fields a structure template finds in the file.</summary>
+    internal HexTemplatePanel Structure { get; }
     /// <summary>The map of the whole file beside the scroll bar.</summary>
     internal HexMinimap Minimap { get; }
 

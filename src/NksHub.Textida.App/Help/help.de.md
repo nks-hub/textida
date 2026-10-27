@@ -796,6 +796,16 @@ Die Karte ist ein Streifen neben der Bildlaufleiste, der die ganze Datei auf ein
 - Die Statistik einer ganzen Datei über 1 GiB wird nicht auf einmal gezählt: Wählen Sie einen Bereich.
 - Karte und Zählen laufen neben dem Fenster und werden bei einer Änderung der Datei neu gemacht.
 
+## [hex.template] Hex: Strukturvorlage
+commands: nks.hex.template
+Das Strukturpanel liest die Datei mit einer Vorlage und zeigt ihre Felder als Baum. Ein gewähltes Feld markiert seine Bytes im Raster.
+1. Hex: Strukturvorlage (Strg+J) öffnet das Panel oder schließt es, wenn es schon den Fokus hat. Die Vorlage wird nach der Magic Number gewählt, danach nach der Dateiendung; die Liste über dem Baum erlaubt eine andere Wahl, die für diese Endung bis zum Programmende gilt.
+2. Ein Feld mit Teilen (Struktur oder Liste) wird erst beim Aufklappen gelesen, daher öffnet sich auch eine große Datei sofort. Jede Zeile zeigt den Namen, den Wert und grau den Offset und die Länge in Bytes.
+3. Ein Feld, das sich nicht lesen lässt, steht rot mit dem Grund da, zum Beispiel weil es über das Ende der Daten hinausreicht oder von den erwarteten Bytes abweicht. Die Felder dahinter erscheinen nicht, weil ihre Lage unbekannt ist.
+- Vorlagen sind eine Teilmenge des Formats Kaitai Struct .ksy: Ganzzahlen, Gleitkommazahlen, Zeichenketten, rohe Bytes, feste Bytes (contents), Aufzählungen, verschachtelte Typen, size, size-eos und repeat (eos oder Anzahl). Größe oder Anzahl ist eine Zahl oder ein früheres Ganzzahlfeld. Ausdrücke, if, switch-on, instances und process werden nicht unterstützt.
+- Das Lesen endet mit einer Meldung, wenn eine Vorlage zu tief verschachtelt, ein Feld zu oft wiederholt oder eine Zeichenkette oder Arbeitsmenge über einem festen Limit liest.
+- Mitgelieferte Vorlagen: BMP-Header und PNG-Chunkliste. Eine eigene .ksy-Datei zu öffnen ist noch nicht möglich.
+
 ## [hex.compare] Hex: Binärvergleich
 commands: nks.hex.compare.file, nks.hex.compare.saved
 Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Unterschieden und einer Liste darunter.

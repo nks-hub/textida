@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 
+using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary>Reads JSON (strict) or JSONC (comments and trailing commas) into <see cref="DataNode"/>s with offsets.</summary>

@@ -1,5 +1,6 @@
 using System.Reflection;
 
+using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary><see cref="Markdown"/> is a Markdown file whose YAML frontmatter is the data.</summary>

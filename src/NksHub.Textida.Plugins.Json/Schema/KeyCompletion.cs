@@ -1,3 +1,4 @@
+using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary>

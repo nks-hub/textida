@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary>One finding of a check against a schema. <see cref="Code"/> is the keyword that failed; <see cref="Detail"/> is English text for logs.</summary>

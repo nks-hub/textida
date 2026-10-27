@@ -318,6 +318,7 @@
   "cmd.hex.minimap": "Hex: File Map",
   "cmd.hex.minimap.mode": "Hex: Map by Entropy or Kind of Byte",
   "cmd.hex.statistics": "Hex: Byte Statistics",
+  "cmd.hex.template": "Hex: Structure Template",
   "cmd.hex.compare.file": "Hex: Compare with File...",
   "cmd.hex.compare.saved": "Hex: Compare with Saved File",
   "setting.files.binaryAsHex.title": "Binary files in hex",

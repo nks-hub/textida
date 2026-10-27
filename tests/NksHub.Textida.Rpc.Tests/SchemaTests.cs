@@ -1,3 +1,4 @@
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Plugins.Json.Schema;
 
 namespace NksHub.Textida.Rpc.Tests;
