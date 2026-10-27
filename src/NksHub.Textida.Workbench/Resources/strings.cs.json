@@ -385,5 +385,6 @@
   "cmd.macro.save": "Uložit poslední makro jako...",
   "cmd.macro.run": "Spustit uložené makro...",
   "cmd.tools.edit": "Upravit definice nástrojů...",
-  "cmd.tools.makeTargets": "Spustit cíl Makefile..."
+  "cmd.tools.makeTargets": "Spustit cíl Makefile...",
+  "cmd.file.saveActions": "Akce při uložení..."
 }

@@ -835,6 +835,16 @@ commands: nks.tools.makeTargets
 3. Riadok výstupu, ktorý menuje súbor a riadok (main.c:12:5: error, Makefile:7:), otvorí to miesto klikom alebo Enterom.
 - Make musí byť nainštalovaný a v PATH. Zvláštne ciele (.PHONY), vzorové pravidlá a názvy s premennou alebo zástupným znakom sa nevypisujú. Potvrdenie sa viaže na príkaz, nie na obsah Makefile, pretože spustiť Makefile znamená spustiť, čo hovorí.
 
+## [file.saveActions] Akcie pri uložení: formátovať, spustiť nástroj, nahrať
+commands: nks.file.saveActions
+1. Súbor, Akcie pri uložení vypíše, čo beží okolo uloženia: formátovanie, nástroj, nahratie na server. Riadok akciu zapne alebo vypne; riadok pod ním prepína „len pri ručnom uložení“. Formátovač (gofmt, rustfmt, clang-format, RuboCop) sa ponúkne len vtedy, keď jeho konfigurácia (go.mod, rustfmt.toml, .clang-format, .rubocop.yml) leží v priečinku súboru alebo vyššie, a je vypnutý, kým ho nezapnete.
+2. Poradie je dané: najprv formátovače, potom uloženie, potom nástroje a nahratie. Formátovač pracuje na kópii textu a po uplynutí časového limitu sa zastaví. Keď vyprší, skončí chybou (napríklad syntaktickou) alebo nie je nainštalovaný, súbor sa uloží tak, ako je, a stavový riadok aj karta Úlohy povedia prečo. Text, ktorý ste medzitým napísali, sa nikdy neprepíše. Formátuje sa len dokument s neuloženými zmenami.
+3. Nahratie pošle presne bajty, ktoré toto uloženie zapísalo, nikdy staršie ani novšie. Ak sa súbor na disku po uložení zmenil, nič sa neodošle. Funguje pre súbor otvorený zo servera a ide na ten istý server.
+4. Autosave spúšťa akcie, ktoré nie sú označené „len pri ručnom uložení“. Uloženie z pluginu nespustí žiadnu akciu, takže akcia, ktorá ukladá, nespôsobí slučku. Uložiť ako nespúšťa žiadnu akciu.
+5. Akcie sú v saveActions.json v profile (Otvoriť súbor akcií pri uložení) a pre projekt v .textida/saveActions.json v priečinku súboru alebo vyššie. Položka projektu nahradí položku profilu s rovnakým druhom a identifikátorom. Príklad: {"formatTimeoutSeconds": 10, "actions": [{"kind": "format", "id": "gofmt"}, {"kind": "tool", "id": "lint", "onlyManual": true}, {"kind": "upload"}]}. Nástroj je jeden z ponuky Spustiť nástroj, podľa identifikátora.
+- Časový limit nie je predvolený: kým chýba formatTimeoutSeconds, formátovač nebeží a stavový riadok to povie. Hodnota v príklade je len príklad.
+- Po autosave nemá kto odpovedať: nástroj, ktorý nebol nikdy potvrdený, sa nespustí, a novšia verzia na serveri sa ukáže v lište karty namiesto dialógu.
+- Prepnutie akcie v zozname prepíše saveActions.json v profile a zahodí v ňom komentáre. Akcie z projektu sa vypíšu, ale menia sa v súbore projektu.
 ## [log.mode] Režim logu: úrovne a ďalšia chyba
 commands: nks.log.nextError, nks.log.previousError, nks.log.levels
 1. Dokument v jazyku Log (súbory .log, alebo Formát, Jazyk) zafarbí každý riadok podľa jeho úrovne: chyba, varovanie, informácia alebo ladenie. Rozhoduje najzávažnejšia úroveň nájdená v riadku.

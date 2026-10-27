@@ -91,7 +91,10 @@ internal sealed partial class MainWindow
             od.Autosave = null;
             return;
         }
-        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = OpenDocument.AutosaveInterval }, _app.Backups, a => Dispatcher.UIThread.Post(a));
+        od.Autosave ??= new AutosaveService(od.Doc, new AutosaveOptions { Enabled = true, Interval = OpenDocument.AutosaveInterval }, _app.Backups, a => Dispatcher.UIThread.Post(a))
+        {
+            Pipeline = () => AutosaveWithActionsAsync(od),
+        };
     }
 
     private DocTab AddView(OpenDocument od, TabGroup group, int? index = null)

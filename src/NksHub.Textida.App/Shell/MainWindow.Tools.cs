@@ -77,36 +77,41 @@ internal sealed partial class MainWindow
     /// Resolves the variables for the document in front, asks once for a command and a directory that were not run before, and runs the tool.
     /// Everything it has to say goes to the Tasks channel, whatever happens.
     /// </summary>
-    internal async Task RunToolAsync(ToolEntry entry)
+    internal async Task<bool> RunToolAsync(ToolEntry entry, DocTab? document = null, bool interactive = true)
     {
         if (_toolJob is not null)
         {
             SetStatusMessage(Loc.Get(K.ToolBusy, ("title", _toolRunning)));
-            return;
+            return false;
         }
-        var tab = Active is { Custom: null } active ? active : null;
+        var tab = document ?? (Active is { Custom: null } active ? active : null);
         string source = entry.Spec.Id;
         ToolInvocation tool;
-        try { tool = ResolveTool(entry.Spec); }
+        try { tool = ResolveTool(entry.Spec, tab); }
         catch (ToolException e)
         {
             ReportToolFailure(entry, e.Message);
-            return;
+            return false;
         }
 
         if (!_app.ToolApprovals.IsApproved(tool))
         {
+            if (!interactive)
+            {
+                ReportToolFailure(entry, Loc.Get(K.SaveActionsToolNotApproved)); // nobody is there to answer after an autosave
+                return false;
+            }
             var details = new List<string> { Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory)) };
             if (entry.Source is { } origin) details.Add(Loc.Get(K.ToolConfirmSource, ("source", origin)));
             var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(entry.Foreign ? K.ToolConfirmForeign : K.ToolConfirmMessage, ("title", entry.Title)),
                 [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], details);
-            if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
+            if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
             _app.ToolApprovals.Approve(tool);
         }
         if (_toolJob is not null)
         {
             SetStatusMessage(Loc.Get(K.ToolBusy, ("title", _toolRunning)));
-            return;
+            return false;
         }
 
         var cts = _toolJob = new CancellationTokenSource();
@@ -118,6 +123,7 @@ internal sealed partial class MainWindow
         _app.Output.Append(OutputChannel.Tasks, source, "> " + tool.CommandLine);
         _app.Output.Append(OutputChannel.Tasks, source, Loc.Get(K.ToolOutDirectory, ("directory", tool.WorkingDirectory)));
         ShowOutput(OutputChannel.Tasks);
+        bool succeeded = false;
         long started = Stopwatch.GetTimestamp();
         string seconds() => Stopwatch.GetElapsedTime(started).TotalSeconds.ToString("0.0", CultureInfo.CurrentCulture);
         try
@@ -131,6 +137,7 @@ internal sealed partial class MainWindow
             };
             _app.Output.Append(OutputChannel.Tasks, source, summary);
             SetStatusMessage(summary);
+            succeeded = result is { End: ToolEnd.Exited, ExitCode: 0 };
         }
         catch (ToolException e)
         {
@@ -142,6 +149,7 @@ internal sealed partial class MainWindow
             cts.Dispose();
             _outputStop.IsVisible = false;
         }
+        return succeeded;
     }
 
     /// <summary>The folder of the open file, or null; the project tools of tools.json files in a folder are looked for from here.</summary>
@@ -152,12 +160,13 @@ internal sealed partial class MainWindow
     /// The one place that turns a tool definition into the program, the arguments and the directory: the variables of the open document and the user's own variables
     /// come in here. The launcher and the definition editor both call it, so the editor shows what the menu starts.
     /// </summary>
-    internal ToolInvocation ResolveTool(ToolSpec spec)
+    internal ToolInvocation ResolveTool(ToolSpec spec, DocTab? document = null)
     {
-        var tab = Active is { Custom: null } active ? active : null;
+        var tab = document ?? (Active is { Custom: null } active ? active : null);
         var (line, column) = tab?.CaretPosition() ?? (1, 1);
         var (user, _) = UserVariables.Load(Path.Combine(_app.ProfileDirectory, UserVariables.FileName));
-        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, user), ActiveDirectory() ?? Environment.CurrentDirectory);
+        return ToolRunner.Resolve(spec, ToolVariables.ForDocument(tab?.Path, line, column, user),
+            (tab?.Path is { } own ? Path.GetDirectoryName(Path.GetFullPath(own)) : ActiveDirectory()) ?? Environment.CurrentDirectory);
     }
 
     // ---- editor of the definitions ----
