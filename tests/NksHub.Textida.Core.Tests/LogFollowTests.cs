@@ -270,6 +270,26 @@ public class LogFollowTests
         Assert.Equal([0L, LogScan.BlockBytes + 1L], follower.Matches());
     }
 
+    [Fact]
+    public void The_matches_found_so_far_can_be_read_while_a_large_log_is_still_being_examined()
+    {
+        var log = new MemoryLog();
+        string filler = string.Concat(Enumerable.Repeat("INFO filler line\n", 70_000)); // a little more than a block
+        for (int section = 0; section < 4; section++) log.Append($"ERROR in section {section}\n" + filler);
+        var follower = Follow(log);
+
+        var seen = new List<(long Reached, int Matches)>();
+        var update = follower.Poll(default, reached => seen.Add((reached, follower.MatchLines().Length)));
+
+        Assert.True(seen.Count >= 4, $"{seen.Count} progress reports");
+        Assert.Equal(seen.Order(), seen); // the offset and the matches only grow
+        Assert.Equal(log.Bytes.Length, seen[^1].Reached);
+        Assert.InRange(seen[0].Matches, 1, 3); // the first report comes before the last section was examined
+        Assert.Equal(4, seen[^1].Matches);
+        Assert.Equal(4, update.NewMatches);
+        Assert.Equal([0L, 70_001L, 140_002L, 210_003L], follower.MatchLines().Select(m => m.Line));
+    }
+
     private sealed class FixedLog(byte[] bytes) : ILogSource
     {
         public LogSourceState? Probe() => new LogSourceState(bytes.Length, 1);

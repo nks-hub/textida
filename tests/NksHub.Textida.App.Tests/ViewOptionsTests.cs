@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -307,6 +308,29 @@ public class ViewOptionsTests : IDisposable
         Assert.Equal(("CRLF", "CR", "LF"), (LineEndingRenderer.Label("\r\n"), LineEndingRenderer.Label("\r"), LineEndingRenderer.Label("\n")));
     }
 
+    [AvaloniaFact]
+    public void Each_kind_of_line_break_is_named_and_drawn_on_the_paged_surface()
+    {
+        Set("editor.renderLineEndings", JsonValue.Create(true));
+        var marked = new List<(string Ending, Shot Shot)>();
+        var paged = new List<DocTab>();
+        foreach (string ending in new[] { "\r\n", "\r", "\n" })
+        {
+            var tab = Open($"eol-{marked.Count}.txt", "ab" + ending + "cd\n" + CodeLines(45_000), paged: true);
+            Assert.Equal(ending, tab.Paged!.LineEndingOf(0));
+            Assert.Equal("", tab.Paged.LineEndingOf(tab.Paged.Index.Lines - 1));
+            marked.Add((ending, Capture()));
+            paged.Add(tab);
+        }
+        var band = PagedBand(paged[^1]); // only the tab on top is in the window
+        Assert.True(Differences(marked[0].Shot, marked[1].Shot, band) > 5, "CRLF and CR look alike");
+        Assert.True(Differences(marked[1].Shot, marked[2].Shot, band) > 5, "CR and LF look alike");
+        Assert.True(Differences(marked[0].Shot, marked[2].Shot, band) > 5, "CRLF and LF look alike");
+        Set("editor.renderLineEndings", JsonValue.Create(false));
+        var plain = Capture();
+        Assert.True(Differences(marked[2].Shot, plain, band) > 5, "no mark for the LF");
+    }
+
     /// <summary>Captures once the window of the long first line at the current sideways position has been read.</summary>
     private Shot CaptureWindow(DocTab tab)
     {
@@ -362,6 +386,27 @@ public class ViewOptionsTests : IDisposable
         var lines = _w.Active!.Paged!.Children[0]; // the lines surface without the bars: at the end of the range the mark sits at its right edge
         var row = InWindow(lines, new Rect(0, 0, lines.Bounds.Width, 17));
         Assert.True(Differences(ended, last, row) > 10, "no CRLF mark at the end of the long line");
+    }
+
+    [AvaloniaFact]
+    public void The_sideways_range_of_a_long_line_follows_a_change_of_the_font_size_and_of_the_line_end_marks()
+    {
+        var tab = OpenLong("range.txt", new string('x', 1_100_000) + "\nnext\n" + CodeLines(10));
+        Settle();
+        var paged = tab.Paged!;
+        double plain = paged.HorizontalMaximum;
+        Assert.InRange(plain, 1_000_000, 1_100_000);
+
+        Set("editor.renderLineEndings", JsonValue.Create(true));
+        Capture();
+        Settle();
+        Assert.True(paged.HorizontalMaximum > plain + 2, $"room for the line end mark: {plain} -> {paged.HorizontalMaximum}");
+
+        double small = paged.HorizontalMaximum;
+        _w.Zoom(8);
+        Capture();
+        Settle();
+        Assert.True(paged.HorizontalMaximum > small + 5, $"fewer columns fit after the zoom: {small} -> {paged.HorizontalMaximum}");
     }
 
     // ---- line numbers, current line, margin, links ----
@@ -767,6 +812,23 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_map_of_a_paged_utf32_file_reads_its_lines()
+    {
+        string path = Path.Combine(_temp.Path, "wide32.cs");
+        string text = string.Concat(Enumerable.Range(0, 30_000).Select(i => $"line {i} ěšč\n"));
+        File.WriteAllBytes(path, [.. Encoding.UTF32.GetPreamble(), .. Encoding.UTF32.GetBytes(text)]);
+        Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        WaitForIndex(tab);
+        var host = (IMinimapHost)tab.Paged!;
+        Assert.Equal("line 0 ěšč", host.LineText(0));
+        Assert.Equal("line 1234 ěšč", host.LineText(1234));
+        Assert.Equal("line 29999 ěšč", host.LineText(29_999));
+        Assert.Equal("line 1 ěšč", host.LineText(1));
+    }
+
+    [AvaloniaFact]
     public void Marks_in_the_strip_are_drawn_over_the_whole_file()
     {
         var tab = Open("k.cs", KeywordFile(3000));
@@ -793,6 +855,90 @@ public class ViewOptionsTests : IDisposable
         Assert.True(Matching(shot, strip, [Color.Parse("#3B82F6")], 4) > 0, "find mark");
         map.SetFilterMarks([]);
         Assert.Equal(0, Matching(Capture(), strip, [red], 4));
+    }
+
+    private static uint PixelAt(Shot shot, int x, int y) => BitConverter.ToUInt32(shot.Data, y * shot.Stride + x * 4);
+
+    /// <summary>Whether the minimap tints its right edge inside the viewport rectangle: the picture of the text never reaches that edge, so below the rectangle it is bare.</summary>
+    private bool DrawsViewportRectangle(DocTab tab)
+    {
+        var map = tab.Minimap!;
+        var shot = Capture();
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        int x = (int)(origin.X + map.Bounds.Width) - 1;
+        return PixelAt(shot, x, (int)origin.Y + 2) != PixelAt(shot, x, (int)origin.Y + 300);
+    }
+
+    [AvaloniaFact]
+    public void The_viewport_rectangle_is_drawn_only_for_a_file_that_does_not_fit_on_the_screen()
+    {
+        foreach (bool paged in new[] { false, true })
+        {
+            // the paged surface starts above 1 MiB: three lines of 400 kB still fit on the screen
+            string fewLines = paged ? string.Join('\n', Enumerable.Repeat(new string('x', 400_000), 3)) + "\n" : "var a = 1;\nvar b = 2;\n";
+            var fits = Open($"fits-{paged}.cs", fewLines, paged);
+            Assert.False(DrawsViewportRectangle(fits), $"a file that fits has nothing to scroll to (paged: {paged})");
+            string manyLines = paged ? string.Concat(Enumerable.Repeat(new string('y', 3000) + "\n", 400)) : KeywordFile(400);
+            var longer = Open($"longer-{paged}.cs", manyLines, paged);
+            Assert.True(DrawsViewportRectangle(longer), $"the rectangle of a file that scrolls is missing (paged: {paged})");
+        }
+    }
+
+    [AvaloniaFact]
+    public void The_left_edge_of_the_minimap_is_a_line_in_the_border_color_of_the_theme()
+    {
+        var tab = Open("edge.cs", KeywordFile(400));
+        var map = tab.Minimap!;
+        Assert.True(map.TryFindResource("Border", map.ActualThemeVariant, out var found) && found is ISolidColorBrush);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var edge = new Rect(origin.X, origin.Y + 200, 1, 40);
+        Assert.Equal(40, Matching(Capture(), edge, [((ISolidColorBrush)found!).Color], 2));
+    }
+
+    [AvaloniaFact]
+    public void Dragging_the_pointer_of_the_sampled_minimap_moves_the_paged_surface_by_the_share_of_the_file()
+    {
+        var tab = Open("sd.cs", KeywordFile(120_000), paged: true);
+        var map = tab.Minimap!;
+        Assert.True(map.IsSampled);
+        long lines = ((IMinimapHost)tab.Paged!).LineCount;
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 1); // on the pointer at the top, so the press itself scrolls nothing
+        _w.MouseDown(start, MouseButton.Left);
+        Assert.Equal(0, tab.Paged.TopLine);
+
+        int height = (int)map.Bounds.Height, rowPx = Math.Max(2, (int)Math.Ceiling(height / 500.0));
+        double mapped = height / rowPx * rowPx;
+        _w.MouseMove(new Point(start.X, start.Y + 200));
+        _w.UpdateLayout();
+        long expected = (long)Math.Round(200 * lines / mapped);
+        Assert.InRange(tab.Paged.TopLine, expected * 0.95, expected * 1.05);
+
+        _w.MouseMove(new Point(start.X, start.Y + 100));
+        _w.UpdateLayout();
+        Assert.InRange(tab.Paged.TopLine, expected / 2 * 0.95, expected / 2 * 1.05);
+        _w.MouseUp(new Point(start.X, start.Y + 100), MouseButton.Left);
+    }
+
+    [AvaloniaFact]
+    public void The_sampled_minimap_of_a_paged_log_draws_its_lines_in_the_colors_of_their_levels()
+    {
+        var tab = Open("levels-big.log", string.Concat(Enumerable.Range(0, 60_000).Select(i => $"2026-01-01 ERROR request {i} failed\n")), paged: true);
+        Assert.True(tab.Doc.IsLog);
+        Assert.True(tab.Minimap!.IsSampled);
+        Assert.True(WaitForColors(tab, ["log.error"]), "no error color in the sampled map of the log");
+    }
+
+    [AvaloniaFact]
+    public void The_sampled_minimap_reads_a_few_blocks_of_the_file_and_not_the_file()
+    {
+        var tab = Open("blocks.cs", KeywordFile(400_000), paged: true);
+        Assert.True(tab.Minimap!.IsSampled);
+        Assert.True(WaitForColors(tab, ["keyword", "comment"]), "no colors in the map");
+        Settle();
+        long file = tab.Doc.Doc.ByteLength;
+        Assert.True(file > 12_000_000, $"{file} bytes");
+        Assert.InRange(tab.Paged!.MapBytesRead, 1, file / 4);
     }
 
     [AvaloniaFact]
@@ -894,5 +1040,6 @@ public class ViewOptionsTests : IDisposable
         Assert.True(tab.Minimap!.IsSampled);
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed}");
         Assert.Equal(length, tab.Doc.Doc.ByteLength);
+        Assert.InRange(tab.Paged!.MapBytesRead, 1, 64L << 20);
     }
 }
