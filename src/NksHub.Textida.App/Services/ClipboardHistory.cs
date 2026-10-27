@@ -34,4 +34,7 @@ internal sealed class LastParameters
     public LineInsertOptions? Insert { get; set; }
     public SortOptions? Sort { get; set; }
     public string? Ranges { get; set; }
+    /// <summary>Key of the last conversion and of the last edit recipe that ran, for "repeat last command".</summary>
+    public string? Conversion { get; set; }
+    public string? Recipe { get; set; }
 }

@@ -691,5 +691,19 @@
   "color.picker.value": "Wert",
   "color.picker.hint": "Außerhalb klicken übernimmt die Farbe, Esc verwirft sie.",
   "a11y.color.picker": "Farbauswahl",
-  "color.none.status": "Am Cursor steht keine Farbe."
+  "color.none.status": "Am Cursor steht keine Farbe.",
+  "convert.watermark": "Umwandlung wählen",
+  "a11y.convert": "Umwandlungen",
+  "convert.empty": "Noch keine Umwandlungen. Ein Datenplugin mit Konvertern in den Ordner plugins des Profils legen.",
+  "convert.failed": "Die Umwandlung {title} lief nicht: {reason}. Nichts wurde geändert.",
+  "convert.origin.builtin": "Eingebaut",
+  "recipes.watermark": "Bearbeitungsrezept wählen",
+  "a11y.recipes": "Bearbeitungsrezepte",
+  "recipes.empty": "Noch keine Bearbeitungsrezepte. Ein Datenplugin mit Rezepten in den Ordner plugins des Profils legen.",
+  "recipes.failed": "Das Rezept {title} lief nicht: {reason}. Nichts wurde geändert.",
+  "recipes.stale": "Die Datei hat sich geändert, während die Vorschau offen war. Nichts wurde geändert; das Rezept erneut ausführen.",
+  "recipes.changes.one": "{title}: {count} Teil wird geändert.",
+  "recipes.changes.other": "{title}: {count} Teile werden geändert.",
+  "recipes.line": "Z {line}, Sp {column}: {before} → {after}",
+  "recipes.linePlain": "{before} → {after}"
 }

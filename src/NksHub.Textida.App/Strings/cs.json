@@ -709,5 +709,20 @@
   "color.picker.value": "Hodnota",
   "color.picker.hint": "Kliknutím mimo se barva použije, Esc ji zahodí.",
   "a11y.color.picker": "Výběr barvy",
-  "color.none.status": "U kurzoru není žádná barva."
+  "color.none.status": "U kurzoru není žádná barva.",
+  "convert.watermark": "Vyberte převod",
+  "a11y.convert": "Převody",
+  "convert.empty": "Zatím nejsou žádné převody. Dejte do složky plugins v profilu datový plugin s převodníky.",
+  "convert.failed": "Převod {title} neproběhl: {reason}. Nic se nezměnilo.",
+  "convert.origin.builtin": "Vestavěný",
+  "recipes.watermark": "Vyberte recept úprav",
+  "a11y.recipes": "Recepty úprav",
+  "recipes.empty": "Zatím nejsou žádné recepty úprav. Dejte do složky plugins v profilu datový plugin s recepty.",
+  "recipes.failed": "Recept {title} neproběhl: {reason}. Nic se nezměnilo.",
+  "recipes.stale": "Soubor se změnil, zatímco byl otevřený náhled. Nic se nezměnilo; spusťte recept znovu.",
+  "recipes.changes.one": "{title}: změní se {count} část.",
+  "recipes.changes.few": "{title}: změní se {count} části.",
+  "recipes.changes.other": "{title}: změní se {count} částí.",
+  "recipes.line": "Ř {line}, Sl {column}: {before} → {after}",
+  "recipes.linePlain": "{before} → {after}"
 }

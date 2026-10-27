@@ -766,3 +766,25 @@ commands: nks.file.newFromTemplate
 1. Choose File, New from Template and pick a template. A template with a form asks for its values like a clip does.
 2. A new tab opens with the text of the template and the carets at its marks $| (at the start when it has none).
 - Templates are data too: contributes.templates in nkspad-plugin.json, with id, title, text, fields and optionally command. They use the template language and the variables of the topic Clips; a new file has no file.* variables.
+
+## [edit.convert] Convert text
+commands: nks.edit.convert
+A conversion changes the text of every selection at once, or of the whole file when nothing is selected. The new text stays selected.
+1. Choose Edit, Convert. The list shows the conversions with a preview on the selected text (on the first sample of the converter when nothing is selected).
+2. Pick one. All selections change as one Undo step. If one of them cannot be converted, nothing is changed and the status bar says why.
+- Repeat Last Command runs the conversion that ran last, without the list.
+- Converters are data: contributes.converters in nkspad-plugin.json, with id, title, rules and optionally samples and command. A rule is {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Rules run in order, each on the result of the one before. With regex on, the dialect of the search applies: replace may use $1, ${name}, $& and the case codes \U \L \E \u \l.
+- A sample is {"input": "...", "expected": "..."}. When the plugin is read, every sample is converted. A converter whose sample gives another text, one with no rules, with an empty find or with a wrong regular expression is refused, and the plugin is skipped with the reason in the status bar.
+- A converter with "command" also gets a command of that name that converts at once, without the list.
+- The special conversions of the editor itself are in the same list. This version has none yet.
+
+## [edit.recipes] Edit recipes
+commands: nks.edit.runRecipe
+A recipe chooses parts of the open file, changes them and shows the result before anything is written.
+1. Choose Edit, Run Edit Recipe. The list shows each recipe with the changes it would make in this file.
+2. Pick one. The preview window lists every change: line, column, old text and new text. Choose Apply to write them.
+3. All changes are one Undo step; Undo brings the file back exactly as it was. The changed parts stay selected. Nothing is written when the file changed meanwhile or when the recipe cannot run (a variable without a value, a pattern that takes too long).
+- A recipe works on the selections, or on the whole file when nothing is selected. Repeat Last Command applies the last recipe without the preview.
+- Recipes are data: contributes.recipes in nkspad-plugin.json, with id, title, steps and optionally command. Steps that choose come first. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} keeps the matches inside the current parts. {"kind": "columns", "from": 3, "to": 5} keeps columns 3 to 5 of every line (counted in characters from 1; to 0 or left out means up to the end of the line; a shorter line gives nothing).
+- Steps that change: {"kind": "convert", "converter": "id"} (a converter of the same plugin), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} and {"kind": "set", "text": "..."}, which replaces the part with a text in the template language of clips. In it ${selection} is the part itself, and the variables have the same values as in a clip (topic Clips); carets $| are ignored.
+- A recipe with no steps, an unknown kind, a bad pattern, an unknown converter, a choosing step after a changing one or no changing step is refused when the plugin is read.

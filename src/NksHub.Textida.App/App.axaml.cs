@@ -10,6 +10,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Conversions;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Clips;
@@ -35,6 +36,8 @@ public sealed partial class App : Application
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
     /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>
     internal ClipLibrary Clips { get; private set; } = null!;
+    /// <summary>The special conversions the conversion list offers next to the converters of data plugins; tests replace the list.</summary>
+    internal IReadOnlyList<SpecialConversion> SpecialConversions { get; set; } = NksHub.Textida.Core.Conversions.SpecialConversions.All;
     /// <summary>The time source of the commands that insert the date; tests replace it.</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.Now;
     internal LastParameters LastParameters { get; private set; } = new();

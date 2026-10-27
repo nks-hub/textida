@@ -59,13 +59,18 @@ public sealed class PluginContributions
     public List<string> Grammars { get; set; } = [];
 
     public List<ConverterContribution> Converters { get; set; } = [];
+    public List<RecipeContribution> Recipes { get; set; } = [];
     public List<ClipContribution> Clips { get; set; } = [];
     public List<TemplateContribution> Templates { get; set; } = [];
     public List<LogPatternContribution> LogPatterns { get; set; } = [];
     public List<ExternalToolContribution> ExternalTools { get; set; } = [];
 }
 
-/// <summary>Text converter made of ordered find and replace rules.</summary>
+/// <summary>
+/// Text converter made of ordered find and replace rules; each rule works on the result of the one before. Entity and character tables are rules with literal
+/// text, the rest are regular expressions of the dialect of the search. <see cref="Samples"/> are test texts that are converted when the plugin is installed
+/// (a converter whose sample gives another result is refused); the first one is what the list shows when nothing is selected.
+/// </summary>
 public sealed class ConverterContribution
 {
     public string Id { get; set; } = "";
@@ -73,14 +78,55 @@ public sealed class ConverterContribution
     /// <summary>Command id that runs this item.</summary>
     public string? Command { get; set; }
     public List<ConverterRule> Rules { get; set; } = [];
+    public List<ConverterSample> Samples { get; set; } = [];
 }
 
 public sealed class ConverterRule
 {
     public string Find { get; set; } = "";
     public string Replace { get; set; } = "";
-    /// <summary>Find is a regular expression instead of literal text.</summary>
+    /// <summary>Find is a regular expression instead of literal text; Replace then may use <c>$1</c>, <c>${name}</c>, <c>$&amp;</c> and the case codes of the search.</summary>
     public bool Regex { get; set; }
+    public bool IgnoreCase { get; set; }
+}
+
+public sealed class ConverterSample
+{
+    public string Input { get; set; } = "";
+    public string Expected { get; set; } = "";
+}
+
+/// <summary>
+/// An edit recipe: steps that first choose parts of the open file and then change each chosen part. Step kinds, selecting ones first:
+/// <c>matches</c> (keep the matches of <c>find</c> inside the current parts), <c>columns</c> (keep columns <c>from</c> to <c>to</c> of every line, counted in
+/// characters from 1; <c>to</c> 0 or missing means the end of the line); changing ones: <c>convert</c> (the converter of the same plugin named in
+/// <c>converter</c>), <c>replace</c> (find and replace like a converter rule), <c>set</c> (the part becomes <c>text</c> in the template language of clips,
+/// where <c>${selection}</c> is the part itself). Without a selection the recipe works on the whole file.
+/// </summary>
+public sealed class RecipeContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string? Command { get; set; }
+    public List<RecipeStep> Steps { get; set; } = [];
+}
+
+public sealed class RecipeStep
+{
+    public const string Matches = "matches", Columns = "columns", Convert = "convert", Replace = "replace", Set = "set";
+
+    public string Kind { get; set; } = "";
+    public string Find { get; set; } = "";
+    public string Replacement { get; set; } = "";
+    public bool Regex { get; set; }
+    public bool IgnoreCase { get; set; }
+    public bool WholeWord { get; set; }
+    public int From { get; set; }
+    public int To { get; set; }
+    public string Converter { get; set; } = "";
+    public string Text { get; set; } = "";
+
+    public bool Selects => Kind is Matches or Columns;
 }
 
 /// <summary>

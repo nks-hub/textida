@@ -510,9 +510,9 @@ public class LineCommandTests : IDisposable
         string[] repeatable = [.. wb.Commands.Commands.Where(c => c.Repeatable).Select(c => c.Id).Order()];
         string[] expected =
         [
-            "nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.indent", "nks.edit.insertDateTime", "nks.edit.insertGuid", "nks.edit.insertIntoLines",
+            "nks.edit.convert", "nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.indent", "nks.edit.insertDateTime", "nks.edit.insertGuid", "nks.edit.insertIntoLines",
             "nks.edit.joinLines", "nks.edit.justifyBlock", "nks.edit.justifyCenter", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.lowerCase",
-            "nks.edit.moveLineDown", "nks.edit.moveLineUp", "nks.edit.outdent", "nks.edit.reformatParagraph", "nks.edit.sortLines", "nks.edit.toggleComment",
+            "nks.edit.moveLineDown", "nks.edit.moveLineUp", "nks.edit.outdent", "nks.edit.reformatParagraph", "nks.edit.runRecipe", "nks.edit.sortLines", "nks.edit.toggleComment",
             "nks.edit.upperCase",
         ];
         Assert.Equal(expected, repeatable);

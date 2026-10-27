@@ -766,3 +766,25 @@ commands: nks.file.newFromTemplate
 1. Zvoľte Súbor, Nový zo šablóny a vyberte šablónu. Šablóna s formulárom sa pýta na hodnoty rovnako ako klip.
 2. Otvorí sa nová karta s textom šablóny a kurzormi na jej značkách $| (na začiatku, keď žiadnu nemá).
 - Šablóny sú tiež dáta: contributes.templates v nkspad-plugin.json, s id, title, text, fields a voliteľne command. Používajú jazyk šablón a premenné z témy Klipy; nový súbor nemá premenné file.*.
+
+## [edit.convert] Prevod textu
+commands: nks.edit.convert
+Prevod zmení text všetkých výberov naraz, alebo celého súboru, keď nič nie je označené. Nový text zostane označený.
+1. Zvoľte Úpravy, Previesť. Zoznam ukáže prevody s náhľadom na označenom texte (keď nič nie je označené, na prvej vzorke prevodníka).
+2. Vyberte jeden. Všetky výbery sa zmenia jedným krokom Späť. Keď sa niektorý nedá previesť, nič sa nezmení a stavový riadok povie prečo.
+- Zopakovať posledný príkaz spustí posledný prevod bez zoznamu.
+- Prevodníky sú dáta: contributes.converters v nkspad-plugin.json, s id, title, rules a voliteľne samples a command. Pravidlo je {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Pravidlá bežia v poradí, každé nad výsledkom predchádzajúceho. So zapnutým regex platí dialekt hľadania: replace smie používať $1, ${name}, $& a kódy veľkosti písmen \U \L \E \u \l.
+- Vzorka je {"input": "...", "expected": "..."}. Pri čítaní pluginu sa každá vzorka prevedie. Prevodník, ktorého vzorka dá iný text, ktorý nemá pravidlá, má prázdne find alebo chybný regulárny výraz, sa odmietne a plugin sa preskočí s dôvodom v stavovom riadku.
+- Prevodník s "command" dostane aj príkaz toho mena, ktorý prevádza hneď, bez zoznamu.
+- Špeciálne prevody samotného editora sú v tom istom zozname. Táto verzia zatiaľ žiadne nemá.
+
+## [edit.recipes] Recepty úprav
+commands: nks.edit.runRecipe
+Recept vyberie časti otvoreného súboru, zmení ich a pred zápisom ukáže výsledok.
+1. Zvoľte Úpravy, Spustiť recept úprav. Zoznam ukáže každý recept so zmenami, ktoré by v tomto súbore urobil.
+2. Vyberte jeden. Okno náhľadu vypíše každú zmenu: riadok, stĺpec, starý a nový text. Tlačidlom Použiť ich zapíšete.
+3. Všetky zmeny sú jeden krok Späť; Späť vráti súbor presne do pôvodného stavu. Zmenené časti zostanú označené. Nič sa nezapíše, keď sa súbor medzitým zmenil alebo recept nejde spustiť (premenná bez hodnoty, príliš pomalý vzor).
+- Recept pracuje s výbermi, alebo s celým súborom, keď nič nie je označené. Zopakovať posledný príkaz použije posledný recept bez náhľadu.
+- Recepty sú dáta: contributes.recipes v nkspad-plugin.json, s id, title, steps a voliteľne command. Kroky, ktoré vyberajú, idú prvé. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} ponechá zhody vo vnútri doterajších častí. {"kind": "columns", "from": 3, "to": 5} ponechá stĺpce 3 až 5 každého riadku (počíta sa v znakoch od 1; to 0 alebo vynechané znamená do konca riadku; kratší riadok nedá nič).
+- Kroky, ktoré menia: {"kind": "convert", "converter": "id"} (prevodník rovnakého pluginu), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} a {"kind": "set", "text": "..."}, ktorý nahradí časť textom v jazyku šablón klipov. V ňom je ${selection} samotná časť a premenné majú rovnaké hodnoty ako v klipe (téma Klipy); kurzory $| sa ignorujú.
+- Recept bez krokov, s neznámym druhom, chybným vzorom, neznámym prevodníkom, vyberajúcim krokom po meniacom alebo bez meniaceho kroku sa pri čítaní pluginu odmietne.

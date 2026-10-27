@@ -691,5 +691,19 @@
   "color.picker.value": "Value",
   "color.picker.hint": "Click outside to apply, Esc to cancel.",
   "a11y.color.picker": "Colour picker",
-  "color.none.status": "There is no colour at the caret."
+  "color.none.status": "There is no colour at the caret.",
+  "convert.watermark": "Choose a conversion",
+  "a11y.convert": "Conversions",
+  "convert.empty": "No conversions yet. Put a data plugin with converters into the plugins folder of the profile.",
+  "convert.failed": "The conversion {title} did not run: {reason}. Nothing was changed.",
+  "convert.origin.builtin": "Built in",
+  "recipes.watermark": "Choose an edit recipe",
+  "a11y.recipes": "Edit recipes",
+  "recipes.empty": "No edit recipes yet. Put a data plugin with recipes into the plugins folder of the profile.",
+  "recipes.failed": "The recipe {title} did not run: {reason}. Nothing was changed.",
+  "recipes.stale": "The file changed while the preview was open. Nothing was changed; run the recipe again.",
+  "recipes.changes.one": "{title}: {count} part will change.",
+  "recipes.changes.other": "{title}: {count} parts will change.",
+  "recipes.line": "Ln {line}, Col {column}: {before} → {after}",
+  "recipes.linePlain": "{before} → {after}"
 }

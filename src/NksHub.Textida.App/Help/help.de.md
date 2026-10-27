@@ -766,3 +766,25 @@ commands: nks.file.newFromTemplate
 1. Datei, Neu aus Vorlage wählen und eine Vorlage aussuchen. Eine Vorlage mit Formular fragt die Werte wie ein Clip ab.
 2. Ein neuer Tab öffnet sich mit dem Text der Vorlage und den Eingabemarken an ihren Marken $| (am Anfang, wenn sie keine hat).
 - Vorlagen sind ebenfalls Daten: contributes.templates in nkspad-plugin.json, mit id, title, text, fields und optional command. Sie nutzen die Vorlagensprache und die Variablen aus dem Thema Clips; eine neue Datei hat keine file.*-Variablen.
+
+## [edit.convert] Text umwandeln
+commands: nks.edit.convert
+Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Datei, wenn nichts markiert ist. Der neue Text bleibt markiert.
+1. Bearbeiten, Umwandeln wählen. Die Liste zeigt die Umwandlungen mit einer Vorschau am markierten Text (am ersten Beispiel des Konverters, wenn nichts markiert ist).
+2. Eine wählen. Alle Auswahlen ändern sich in einem Schritt für Rückgängig. Lässt sich eine nicht umwandeln, wird nichts geändert und die Statuszeile nennt den Grund.
+- Letzten Befehl wiederholen führt die zuletzt gelaufene Umwandlung ohne die Liste aus.
+- Konverter sind Daten: contributes.converters in nkspad-plugin.json, mit id, title, rules und optional samples und command. Eine Regel ist {"find": "&", "replace": "&amp;", "regex": false, "ignoreCase": false}. Die Regeln laufen der Reihe nach, jede auf dem Ergebnis der vorigen. Mit regex gilt der Dialekt der Suche: replace darf $1, ${name}, $& und die Groß-/Kleinschreibungs-Codes \U \L \E \u \l nutzen.
+- Ein Beispiel ist {"input": "...", "expected": "..."}. Beim Lesen des Plugins wird jedes Beispiel umgewandelt. Ein Konverter, dessen Beispiel einen anderen Text ergibt, der keine Regeln hat, ein leeres find oder einen falschen regulären Ausdruck, wird abgelehnt und das Plugin mit dem Grund in der Statuszeile übersprungen.
+- Ein Konverter mit "command" bekommt auch einen Befehl dieses Namens, der sofort umwandelt, ohne Liste.
+- Die speziellen Umwandlungen des Editors selbst stehen in derselben Liste. Diese Version hat noch keine.
+
+## [edit.recipes] Bearbeitungsrezepte
+commands: nks.edit.runRecipe
+Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebnis, bevor etwas geschrieben wird.
+1. Bearbeiten, Bearbeitungsrezept ausführen wählen. Die Liste zeigt jedes Rezept mit den Änderungen, die es in dieser Datei machen würde.
+2. Eines wählen. Das Vorschaufenster listet jede Änderung: Zeile, Spalte, alter und neuer Text. Mit Anwenden werden sie geschrieben.
+3. Alle Änderungen sind ein Schritt für Rückgängig; Rückgängig bringt die Datei genau in den alten Zustand zurück. Die geänderten Teile bleiben markiert. Es wird nichts geschrieben, wenn sich die Datei inzwischen geändert hat oder das Rezept nicht laufen kann (Variable ohne Wert, zu langsames Muster).
+- Ein Rezept arbeitet mit den Auswahlen, oder mit der ganzen Datei, wenn nichts markiert ist. Letzten Befehl wiederholen wendet das letzte Rezept ohne Vorschau an.
+- Rezepte sind Daten: contributes.recipes in nkspad-plugin.json, mit id, title, steps und optional command. Wählende Schritte kommen zuerst. {"kind": "matches", "find": "...", "regex": false, "ignoreCase": false, "wholeWord": false} behält die Treffer innerhalb der bisherigen Teile. {"kind": "columns", "from": 3, "to": 5} behält die Spalten 3 bis 5 jeder Zeile (in Zeichen ab 1 gezählt; to 0 oder weggelassen heißt bis zum Zeilenende; eine kürzere Zeile ergibt nichts).
+- Ändernde Schritte: {"kind": "convert", "converter": "id"} (ein Konverter desselben Plugins), {"kind": "replace", "find": "...", "replacement": "...", "regex": false} und {"kind": "set", "text": "..."}, der den Teil durch einen Text in der Vorlagensprache der Clips ersetzt. Darin ist ${selection} der Teil selbst, und die Variablen haben dieselben Werte wie in einem Clip (Thema Clips); Einfügemarken $| werden ignoriert.
+- Ein Rezept ohne Schritte, mit unbekannter Art, falschem Muster, unbekanntem Konverter, einem wählenden Schritt nach einem ändernden oder ohne ändernden Schritt wird beim Lesen des Plugins abgelehnt.

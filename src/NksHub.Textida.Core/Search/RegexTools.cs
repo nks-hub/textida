@@ -101,14 +101,7 @@ public static class RegexTools
         {
             try
             {
-                var sb = new StringBuilder();
-                int at = 0;
-                foreach (var (start, end, text) in ReplacementEdits(regex, sample, replacement, pattern.IsRegex))
-                {
-                    sb.Append(sample, at, start - at).Append(text);
-                    at = end;
-                }
-                replaced = sb.Append(sample, at, sample.Length - at).ToString();
+                replaced = Apply(regex, sample, replacement, pattern.IsRegex);
             }
             catch (RegexMatchTimeoutException)
             {
@@ -116,6 +109,40 @@ public static class RegexTools
             }
         }
         return new RegexTestResult(matches, null, false, truncated, replaced);
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> with every match of <paramref name="pattern"/> replaced, exactly as Replace in Files would write it. Null with the reason in
+    /// <paramref name="problem"/> when the pattern is invalid or took longer than the match timeout.
+    /// </summary>
+    public static string? ReplaceAll(SearchPattern pattern, string text, string replacement, out string? problem)
+    {
+        problem = null;
+        try
+        {
+            return Apply(Create(pattern), text, replacement, pattern.IsRegex);
+        }
+        catch (ArgumentException e)
+        {
+            problem = e.Message;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            problem = "The pattern took too long on this text.";
+        }
+        return null;
+    }
+
+    private static string Apply(Regex regex, string text, string replacement, bool isRegex)
+    {
+        var sb = new StringBuilder();
+        int at = 0;
+        foreach (var (start, end, piece) in ReplacementEdits(regex, text, replacement, isRegex))
+        {
+            sb.Append(text, at, start - at).Append(piece);
+            at = end;
+        }
+        return sb.Append(text, at, text.Length - at).ToString();
     }
 
     /// <summary>
