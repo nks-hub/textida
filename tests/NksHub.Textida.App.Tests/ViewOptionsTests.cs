@@ -300,7 +300,7 @@ public class ViewOptionsTests : IDisposable
     [AvaloniaFact]
     public void Hidden_characters_are_drawn_in_the_far_part_of_a_long_line()
     {
-        var tab = OpenLong("wide.txt", string.Concat(Enumerable.Repeat("ab  c\t\td ", 6000)) + "\r\nnext\n");
+        var tab = OpenLong("wide.txt", string.Concat(Enumerable.Repeat("ab  c\t\td ", 6000)) + "\r\nnext\n" + CodeLines(45_000));
         long revision = tab.Doc.Doc.Revision;
         tab.Paged!.ScrollToColumn(40_000);
         var plain = CaptureWindow(tab);
@@ -326,11 +326,11 @@ public class ViewOptionsTests : IDisposable
             tab.Paged!.ScrollToColumn(double.MaxValue);
             return CaptureWindow(tab);
         }
-        string line = new('x', 40_000);
+        string line = new('x', 1_100_000); // above the 1 MiB threshold on its own, so the file opens paged with the long line last
         var ended = AtEnd("ended.txt", line + "\r\n");
         var last = AtEnd("last.txt", line); // the last line has no line end, so nothing is drawn after it
-        var paged = _w.Active!.Paged!;
-        var row = InWindow(paged, new Rect(0, 0, paged.Bounds.Width - 40, 17));
+        var lines = _w.Active!.Paged!.Children[0]; // the lines surface without the bars: at the end of the range the mark sits at its right edge
+        var row = InWindow(lines, new Rect(0, 0, lines.Bounds.Width, 17));
         Assert.True(Differences(ended, last, row) > 10, "no CRLF mark at the end of the long line");
     }
 
