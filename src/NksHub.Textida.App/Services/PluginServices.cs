@@ -381,8 +381,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         public bool Delete(string pluginId, string name) => store.Delete(Key(pluginId, name));
     }
 
-    /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile).</summary>
-    public bool IsBusy => _running.Values.Any(r => !r.Background);
+    /// <summary>A plugin command is running (the document is exposed to plugins only meanwhile) or waits for a background query on its document to end.</summary>
+    public bool IsBusy => _queued > 0 || _running.Values.Any(r => !r.Background);
+
+    private int _queued;
 
     /// <summary>A plugin command is running on the document, which therefore has to stay visible to plugins until it ends.</summary>
     internal bool IsRunningOn(Guid document) => _running.ContainsKey(document);
@@ -676,8 +678,12 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         var otherDocument = other?.Doc.Doc;
         Run? Blocking() => _running.TryGetValue(document.Id, out var first) ? first : otherDocument is not null && _running.TryGetValue(otherDocument.Id, out var second) ? second : null;
         bool Busy() => Blocking() is not null;
-        if (!background)
-            while (Blocking() is { Background: true } asking) await asking.Done.Task;
+        if (!background && Blocking() is { Background: true })
+        {
+            _queued++;
+            try { while (Blocking() is { Background: true } asking) await asking.Done.Task; }
+            finally { _queued--; }
+        }
         if (Busy()) return default;
         // a plugin reads stars in place of the values of a secrets file unless the user allows it, for this document and this run
         bool reveal = !keepHidden && SecretValues.IsSecretFile(document.SecretsPath);
