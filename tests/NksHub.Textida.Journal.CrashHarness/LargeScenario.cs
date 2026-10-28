@@ -103,6 +103,25 @@ public sealed class LargeModel
         return -1;
     }
 
+    /// <summary>The same for the bytes of a file.</summary>
+    public long FirstDifferenceInFile(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20, FileOptions.SequentialScan);
+        if (fs.Length != Length) return Math.Min(fs.Length, Length);
+        var actual = new byte[1 << 20];
+        var expected = new byte[1 << 20];
+        for (long at = 0; at < Length;)
+        {
+            int n = (int)Math.Min(actual.Length, Length - at);
+            fs.ReadExactly(actual, 0, n);
+            Read(at, expected.AsSpan(0, n));
+            int same = actual.AsSpan(0, n).CommonPrefixLength(expected.AsSpan(0, n));
+            if (same < n) return at + same;
+            at += n;
+        }
+        return -1;
+    }
+
     /// <summary>The bytes of the model from <paramref name="offset"/>, as many as <paramref name="destination"/> holds and the model has.</summary>
     public int Read(long offset, Span<byte> destination)
     {

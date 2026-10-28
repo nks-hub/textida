@@ -565,8 +565,8 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
 
     /// <summary>
     /// The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file. The file and the expected
-    /// bytes come from the fast generator of <see cref="HugeText"/>, with the plain one the test does not end in the 20 minutes the test machine gives a test. It needs about 110 GiB of free
-    /// disk, so it runs only where <c>TEXTIDA_HUGE=1</c> is set.
+    /// bytes come from the fast generator of <see cref="HugeText"/>. It needs about 110 GiB of free disk, so it runs only where <c>TEXTIDA_HUGE=1</c> is set. On the test machine the save alone
+    /// takes longer than the 20 minutes a test gets there (it hashes the file twice while it writes, at about 130 MiB/s each), so it is the next test that runs there.
     /// </summary>
     [Fact]
     [Trait("Category", "Large")]
@@ -578,6 +578,19 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
             return;
         }
         OnOwnerThread(() => SaveWhileEditingAsync(HugeText.Size(50L << 30), fast: true));
+    }
+
+    /// <summary>The same at 20 GiB, which is more than the memory of the test machine (16 GiB), and a save that fits in the time a test gets there; the figures of the 50 GiB file follow from it.</summary>
+    [Fact]
+    [Trait("Category", "Large")]
+    public void A_20_GiB_file_larger_than_the_memory_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot()
+    {
+        if (!HugeText.Enabled)
+        {
+            output.WriteLine("skipped: TEXTIDA_HUGE is not 1");
+            return;
+        }
+        OnOwnerThread(() => SaveWhileEditingAsync(HugeText.Size(20L << 30), fast: true));
     }
 
     private void Say(string line)
@@ -604,6 +617,8 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         Edit(doc, model, size / 3, 0, 41, 80 << 20, fill); // spilled to the scratch file, not held
         Edit(doc, model, size / 2, 1 << 20, 42, 10, fill);
         var snapshot = model.Clone();
+        // the independent SHA-256 of revision N, taken from the edit script and never from the product, runs on a core of its own while the save writes
+        var snapshotHashing = Task.Run(() => snapshot.Sha256());
 
         GC.Collect();
         long before = Process.GetCurrentProcess().PrivateMemorySize64, peak = before, peakSet = 0;
@@ -619,7 +634,12 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
             }
         });
         clock.Restart();
-        var task = doc.SaveAsync();
+        int reported = -1;
+        var task = doc.SaveAsync(progress: new Sink(p =>
+        {
+            int percent = (int)(p.Written * 100 / Math.Max(1, p.Total));
+            if (percent / 5 != Interlocked.Exchange(ref reported, percent / 5)) Say($"save {percent} % after {clock.Elapsed.TotalSeconds:F0} s");
+        }));
         int edits = 0;
         for (int i = 0; !task.IsCompleted; i++)
         {
@@ -633,17 +653,17 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         long grown = peak - before;
         Say($"save of {size / 1073741824.0:F1} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
         Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
-        // SHA-256 runs at about 130 MiB/s on the test machine, so the two hashes go side by side
+        // what the save hashed while it wrote against the independent hash of revision N, and the bytes of the file and of the editor against the edit script
         clock.Restart();
-        var fileHashing = Task.Run(() => HashFile(path));
-        var snapshotHashing = Task.Run(() => snapshot.Sha256());
-        string fileHash = await fileHashing, expected = await snapshotHashing;
-        Say($"SHA-256 of the saved file {fileHash} and the independent SHA-256 of the snapshot {expected}, both in {clock.Elapsed.TotalSeconds:F0} s");
-        Assert.Equal(expected, fileHash);
+        string expected = await snapshotHashing, written = doc.Fingerprint!.Sha256;
+        Say($"SHA-256 of the saved file {written} (taken while it was written) against the independent {expected}; waited {clock.Elapsed.TotalSeconds:F0} s for the second");
+        Assert.Equal(expected, written);
         clock.Restart();
-        if (fast) Assert.Equal(-1, model.FirstDifferenceIn(doc)); // the editor holds the newer revision, byte by byte
-        else Assert.Equal(model.Sha256(), HashOf(doc));
-        Say($"the editor holds the newer revision: compared in {clock.Elapsed.TotalSeconds:F0} s");
+        var fileComparing = Task.Run(() => snapshot.FirstDifferenceInFile(path));
+        var editorComparing = Task.Run(() => fast ? model.FirstDifferenceIn(doc) : (model.Sha256() == HashOf(doc) ? -1 : 0));
+        Assert.Equal(-1, await fileComparing); // the file holds exactly revision N
+        Assert.Equal(-1, await editorComparing); // the editor holds revision N plus what was typed meanwhile
+        Say($"the file holds revision N and the editor revision N+{edits}, byte by byte: compared in {clock.Elapsed.TotalSeconds:F0} s");
         Assert.True(doc.IsModified);
         Assert.NotNull(doc.Undo()); // undo after the save
         Assert.True(doc.IsModified);
