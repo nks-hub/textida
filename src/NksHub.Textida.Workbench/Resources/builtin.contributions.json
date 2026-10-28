@@ -2540,6 +2540,38 @@
       "hidden": true
     },
     {
+      "id": "nks.edit.cursorPageUp",
+      "title": "cmd.edit.cursorPageUp",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageUpSelect",
+      "title": "cmd.edit.cursorPageUpSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDown",
+      "title": "cmd.edit.cursorPageDown",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDownSelect",
+      "title": "cmd.edit.cursorPageDownSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
       "id": "nks.edit.deleteLeft",
       "title": "cmd.edit.deleteLeft",
       "category": "cat.edit",
