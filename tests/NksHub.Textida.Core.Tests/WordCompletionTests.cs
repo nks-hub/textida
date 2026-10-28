@@ -57,6 +57,89 @@ public class WordCompletionTests
         Assert.Equal(["Apple", "apple2", "banana"], Words("", new CompletionSource("banana Apple apple2")));
     }
 
+    private static CompletionSource Around(string text, int caret, bool cutStart = false, bool cutEnd = false) =>
+        new(text, caret, null, new CompletionNear(text, caret, cutStart, cutEnd));
+
+    [Fact]
+    public void Words_nearest_to_the_caret_come_before_the_more_frequent_ones()
+    {
+        string text = "alpha alpha alpha alpha " + new string('.', 50) + " alps alpine al";
+        Assert.Equal(["alpha", "alpine", "alps"], Words("al", new CompletionSource(text, text.Length)));
+        Assert.Equal(["alpine", "alps", "alpha"], Words("al", Around(text, text.Length)));
+    }
+
+    [Fact]
+    public void Distance_counts_in_both_directions_from_the_caret()
+    {
+        // "fooA fooB |fooC fooD": the word right behind the caret is the nearest, then the one right in front of it
+        string text = "fooA fooB fooC fooD";
+        Assert.Equal(["fooC", "fooB", "fooD", "fooA"], Words("foo", Around(text, 10)));
+    }
+
+    [Fact]
+    public void A_word_that_occurs_near_and_far_counts_by_its_nearest_occurrence()
+    {
+        string text = "xyz_a " + new string('.', 40) + " xyz_b xyz_b xyz_b xyz_a xy";
+        Assert.Equal(["xyz_b", "xyz_a"], Words("xy", new CompletionSource(text, text.Length)));
+        Assert.Equal(["xyz_a", "xyz_b"], Words("xy", Around(text, text.Length)));
+    }
+
+    [Fact]
+    public void A_word_outside_the_stretch_around_the_caret_ranks_by_how_often_it_occurs()
+    {
+        string text = "comma comma comma " + new string('.', 100) + " comet com";
+        var near = new CompletionNear(text[^30..], 30, CutStart: true);
+        Assert.Equal(["comma", "comet"], Words("com", new CompletionSource(text, text.Length)));
+        Assert.Equal(["comet", "comma"], Words("com", new CompletionSource(text, text.Length, null, near)));
+    }
+
+    [Fact]
+    public void A_word_cut_short_by_the_edge_of_the_stretch_is_not_taken_for_a_shorter_word()
+    {
+        string text = "comm " + new string('.', 40) + " comet com commerce";
+        int caret = text.IndexOf(" commerce", StringComparison.Ordinal);
+        int end = text.IndexOf("commerce", StringComparison.Ordinal) + 4; // the stretch ends in "comm", the start of "commerce"
+        string stretch = text[(caret - 9)..end];
+        Assert.Equal(["comet", "comm", "commerce"], Words("com", new CompletionSource(text, caret, null, new CompletionNear(stretch, 9, CutStart: true, CutEnd: true))));
+        // the same stretch without the cut flag would count the fragment as the word "comm", which stands right behind the caret
+        Assert.Equal(["comm", "comet", "commerce"], Words("com", new CompletionSource(text, caret, null, new CompletionNear(stretch, 9))));
+    }
+
+    private static List<string> ScanNear(string text, int caret, string prefix, int max)
+    {
+        var words = new Dictionary<string, (int Total, int Near)>(StringComparer.Ordinal);
+        for (int i = 0; i < text.Length;)
+        {
+            if (!WordCompletion.IsWordChar(text[i])) { i++; continue; }
+            int start = i;
+            while (i < text.Length && WordCompletion.IsWordChar(text[i])) i++;
+            if (i - start <= prefix.Length || (caret > start && caret <= i)) continue;
+            string word = text[start..i];
+            if (!word.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+            int distance = i <= caret ? caret - i : start - caret;
+            words.TryGetValue(word, out var seen);
+            words[word] = (seen.Total + 1, seen.Total == 0 ? distance : Math.Min(seen.Near, distance));
+        }
+        return words.OrderBy(p => p.Value.Near).ThenByDescending(p => p.Value.Total)
+            .ThenBy(p => p.Key, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Key, StringComparer.Ordinal).Take(max).Select(p => p.Key).ToList();
+    }
+
+    [Fact]
+    public void The_ranking_by_distance_equals_a_plain_scan_on_random_text()
+    {
+        var rng = new Random(23);
+        string[] prefixes = ["", "f", "fo", "F", "b", "é", "x"];
+        for (int round = 0; round < 80; round++)
+        {
+            string text = RandomText(rng, 60);
+            int caret = rng.Next(text.Length + 1);
+            var source = new CompletionSource(text, caret, WordIndex.Build(text), new CompletionNear(text, caret));
+            foreach (var prefix in prefixes)
+                foreach (int max in new[] { 2, 100 })
+                    Assert.Equal(ScanNear(text, caret, prefix, max), WordCompletion.Words([source], prefix, max));
+        }
+    }
+
     [Fact]
     public void Without_a_prefix_every_word_is_a_candidate_and_the_list_is_cut_to_the_best()
     {

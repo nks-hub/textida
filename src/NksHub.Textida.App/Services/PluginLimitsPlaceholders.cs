@@ -212,6 +212,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: most words the completion list (Ctrl+J) holds; the best ranked are kept.</summary>
     public const int CompletionMaxWords = 200;
 
+    /// <summary>Placeholder, OPEN: characters on each side of the caret in which the completion list (Ctrl+J) ranks the words of the document being edited by their distance from the caret; a word that occurs only farther away ranks by how often it occurs. The owner has not decided it.</summary>
+    public const int CompletionNearChars = 20_000;
+
     /// <summary>Placeholder: longest text (and HTML) one plugin write puts on the clipboard, in UTF-16 units; the same provisional bound the clipboard history uses.</summary>
     public const int ClipboardMaxChars = ClipboardHistory.MaxItemLength;
 

@@ -1465,7 +1465,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 commands: nks.edit.complete
 1. Press Ctrl+J (Edit, Insert, Complete Word or Clip). The list offers the words that continue the word in front of the caret, then the clips that fit the language of the document.
 2. Pick an entry. A word replaces the word in front of every caret; a clip is inserted like in the topic Clips and replaces that word. It is one Undo step.
-- The words are taken from all open text tabs. The word that is being typed is not offered, and a word is offered only when it is longer than what is typed. Words of the document being edited come first, then the more frequent ones.
+- The words are taken from all open text tabs. The word that is being typed is not offered, and a word is offered only when it is longer than what is typed. Words of the document being edited come first, those that stand nearest to the caret before the others (within a limited number of characters on each side of it), then the more frequent ones.
 - Clips come from the library of the topic Clips. A clip with no language fits every document; a clip with a language fits only documents of that language.
 - The values of a secrets file (`.env`) are never offered while they are hidden. They are offered only in the file itself and only while shown.
 - The list holds a limited number of words; type in the box to narrow it. Entries of a running language server come with them, see the topic Language server.

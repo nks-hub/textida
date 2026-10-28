@@ -3,9 +3,16 @@ namespace NksHub.Textida.Core.Completion;
 /// <summary>
 /// The text of one open document for word completion. <paramref name="Caret"/> is the offset of the caret in <paramref name="Text"/> when this is the document being
 /// edited, otherwise -1; the word the caret is in is the one being typed, so it is not offered. <paramref name="Index"/> is the index of <paramref name="Text"/> when the caller
-/// keeps one between offers; without it the text is scanned (and <paramref name="Text"/> is not needed when there is no caret).
+/// keeps one between offers; without it the text is scanned (and <paramref name="Text"/> is not needed when there is no caret). <paramref name="Near"/> is the text around the
+/// caret of the document being edited; with it the words that stand nearest to the caret come first.
 /// </summary>
-public readonly record struct CompletionSource(string Text, int Caret = -1, WordIndex? Index = null);
+public readonly record struct CompletionSource(string Text, int Caret = -1, WordIndex? Index = null, CompletionNear? Near = null);
+
+/// <summary>
+/// A stretch of the document being edited: <paramref name="Caret"/> is the offset of the caret in <paramref name="Text"/>. <paramref name="CutStart"/> and <paramref name="CutEnd"/>
+/// tell that the stretch begins or ends inside the document, so a word touching that edge may be cut short and is left out.
+/// </summary>
+public readonly record struct CompletionNear(string Text, int Caret, bool CutStart = false, bool CutEnd = false);
 
 /// <summary>
 /// Completion of words from the text of open documents. A word is letters, digits and underscores, as everywhere else in the editor. The text a caller gives is
@@ -37,11 +44,14 @@ public static class WordCompletion
     {
         public int Total;
         public bool InFirstSource;
+        /// <summary>Characters from the caret to the nearest occurrence in the stretch around it, plus one; 0 when the word does not occur there.</summary>
+        public int Nearness;
     }
 
     /// <summary>
     /// The words that start with <paramref name="prefix"/> (ignoring case) and are longer than it, from all the sources, at most <paramref name="max"/>. The first
-    /// source is the document being edited: its words come first; then the more often a word occurs, the sooner it comes; then alphabetical.
+    /// source is the document being edited: its words come first, those nearest to the caret before the others (when the source tells the text around the caret);
+    /// then the more often a word occurs, the sooner it comes; then alphabetical.
     /// </summary>
     public static List<string> Words(IReadOnlyList<CompletionSource> sources, string prefix, int max)
     {
@@ -50,6 +60,7 @@ public static class WordCompletion
         {
             var index = sources[k].Index ?? WordIndex.Build(sources[k].Text);
             string? typed = TypedWord(sources[k].Text, sources[k].Caret);
+            var nearest = k == 0 && sources[k].Near is { } near ? Nearest(near, prefix) : null;
             index.ForEachStartingWith(prefix, (word, total) =>
             {
                 if (word.Length <= prefix.Length) return;
@@ -58,6 +69,7 @@ public static class WordCompletion
                 ref var count = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(counts, word, out _);
                 count.Total += total;
                 if (k == 0) count.InFirstSource = true;
+                if (nearest is not null && nearest.TryGetValue(word, out int nearness)) count.Nearness = nearness;
             });
         }
         // the best `max` of possibly very many words: a heap that keeps the worst on top is cheaper than sorting them all
@@ -84,9 +96,37 @@ public static class WordCompletion
         return prefix.Skip(1).Any(char.IsUpper) ? word : char.ToUpperInvariant(word[0]) + word[1..];
     }
 
+    /// <summary>
+    /// The words of the stretch around the caret that start with <paramref name="prefix"/> and are longer than it, each with the number of characters between the caret and
+    /// its nearest occurrence, plus one. The word being typed is not an occurrence of itself, and a word touching a cut edge of the stretch is left out.
+    /// </summary>
+    private static Dictionary<string, int> Nearest(CompletionNear near, string prefix)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        var lookup = result.GetAlternateLookup<ReadOnlySpan<char>>();
+        var text = near.Text.AsSpan();
+        for (int i = 0; i < text.Length;)
+        {
+            if (!IsWordChar(text[i])) { i++; continue; }
+            int start = i;
+            while (i < text.Length && IsWordChar(text[i])) i++;
+            if (i - start <= prefix.Length || (near.CutStart && start == 0) || (near.CutEnd && i == text.Length)) continue;
+            if (near.Caret > start && near.Caret <= i) continue;
+            if (!text.Slice(start, prefix.Length).Equals(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+            int nearness = (i <= near.Caret ? near.Caret - i : start - near.Caret) + 1;
+            ref int best = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(lookup, text[start..i], out _);
+            if (best == 0 || nearness < best) best = nearness;
+        }
+        return result;
+    }
+
+    private static int Far(int nearness) => nearness == 0 ? int.MaxValue : nearness;
+
     private static int Rank(KeyValuePair<string, Count> a, KeyValuePair<string, Count> b)
     {
         int c = b.Value.InFirstSource.CompareTo(a.Value.InFirstSource);
+        if (c != 0) return c;
+        c = Far(a.Value.Nearness).CompareTo(Far(b.Value.Nearness));
         if (c != 0) return c;
         c = b.Value.Total.CompareTo(a.Value.Total);
         if (c != 0) return c;
