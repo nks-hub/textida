@@ -26,7 +26,7 @@ public static class LinterOutput
     {
         "phpstan-json" => Json(lines, PhpStan),
         "psalm-json" => Json(lines, Psalm),
-        "golangci-json" => Json(lines, GolangCi),
+        "golangci-json" => GolangCiOutput(lines),
         "rubocop-json" => Json(lines, RuboCop),
         "eslint-json" => Json(lines, EsLint),
         "ruff-json" => Json(lines, Ruff),
@@ -90,7 +90,39 @@ public static class LinterOutput
         return new LintParse(true, found);
     }
 
-    /// <summary>golangci-lint: <c>{"Issues":[{"FromLinter":…,"Text":…,"Severity":"","Pos":{"Filename":…,"Line":5,"Column":2}}]}</c>; <c>Issues</c> is null when nothing was found. Go counts columns in bytes.</summary>
+    private static readonly Regex GolangCiTypeError = new(@"^level=error msg=""\[linters_context\] typechecking error: (?<text>.*)""\s*$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+    private static readonly Regex GolangCiPlace = new(@"^(?<file>.+?):(?<line>\d+):(?<column>\d+): (?<message>.*)$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+    /// <summary>
+    /// The JSON of golangci-lint, and the type errors it logs instead of reporting as issues (on Windows a file that does not compile gives <c>level=error msg="[linters_context] typechecking error: C:\\p\\main.go:4:2: undefined: x"</c>,
+    /// empty <c>Issues</c> and exit code 7; macOS reports the same error as an issue of the linter <c>typecheck</c>).
+    /// </summary>
+    private static LintParse GolangCiOutput(IReadOnlyList<string> lines)
+    {
+        var parsed = Json(lines, GolangCi);
+        if (!parsed.Readable) return parsed;
+        var found = parsed.Findings.ToList();
+        foreach (var line in lines)
+        {
+            Match log, place;
+            try
+            {
+                log = GolangCiTypeError.Match(line);
+                if (!log.Success) continue;
+                place = GolangCiPlace.Match(log.Groups["text"].Value.Replace("\\\\", "\\", StringComparison.Ordinal).Replace("\\\"", "\"", StringComparison.Ordinal));
+            }
+            catch (RegexMatchTimeoutException) { continue; }
+            if (!place.Success) continue;
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            int row = int.Parse(place.Groups["line"].Value, culture), column = int.Parse(place.Groups["column"].Value, culture);
+            string message = place.Groups["message"].Value;
+            if (found.Any(f => f.Line == row && f.Column == column && f.Message == message)) continue;
+            found.Add(new LintFinding(place.Groups["file"].Value, row, column, null, null, null, null, true, "error", message, "typecheck"));
+        }
+        return new LintParse(true, found);
+    }
+
+    /// <summary>golangci-lint: <c>{"Issues":[{"FromLinter":…,"Text":…,"Severity":"","Pos":{"Filename":…,"Line":5,"Column":2}}]}</c>; <c>Issues</c> is null when nothing was found. Go counts columns in bytes. A type error (linter <c>typecheck</c>) has no severity and is an error.</summary>
     private static LintParse GolangCi(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("Issues", out var issues)) return new LintParse(false, [], "No \"Issues\" member.");
@@ -99,7 +131,8 @@ public static class LinterOutput
         var found = issues.EnumerateArray().Select(i =>
         {
             var pos = Prop(i, "Pos");
-            return new LintFinding(Str(pos, "Filename"), Int(pos, "Line") ?? 1, Int(pos, "Column"), null, null, null, null, true, Str(i, "Severity"), Str(i, "Text"), NullIfEmpty(Str(i, "FromLinter")));
+            string linter = Str(i, "FromLinter");
+            return new LintFinding(Str(pos, "Filename"), Int(pos, "Line") ?? 1, Int(pos, "Column"), null, null, null, null, true, linter == "typecheck" ? "error" : Str(i, "Severity"), Str(i, "Text"), NullIfEmpty(linter));
         }).ToList();
         return new LintParse(true, found);
     }

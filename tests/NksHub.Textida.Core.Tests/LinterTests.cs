@@ -539,6 +539,28 @@ public sealed class LinterTests : IDisposable
     }
 
     [Fact]
+    public void GolangciLint_reads_a_type_error_both_as_an_issue_of_typecheck_and_as_the_log_line_it_writes_on_Windows()
+    {
+        var issue = Findings("golangci-json", """{"Issues":[{"FromLinter":"typecheck","Text":"undefined: x","Severity":"","Pos":{"Filename":"bad.go","Line":4,"Column":2}}],"Report":{}}""");
+        Assert.Equal(("error", 4, 2, "typecheck"), (issue[0].SeverityWord, issue[0].Line, issue[0].Column, issue[0].Code));
+
+        string[] windows =
+        [
+            """level=error msg="[linters_context] typechecking error: F:\\p\\go\\bad.go:4:2: undefined: x" """.TrimEnd(),
+            """{"Issues":[],"Report":{"Linters":[{"Name":"errcheck"}]}}""",
+            "0 issues.",
+        ];
+        var parsed = LinterOutput.Parse("golangci-json", windows);
+        Assert.True(parsed.Readable);
+        var log = Assert.Single(parsed.Findings);
+        Assert.Equal((@"F:\p\go\bad.go", 4, 2, "error", "undefined: x"), (log.File, log.Line, log.Column, log.SeverityWord, log.Message));
+
+        // an issue and the same error as a log line are one finding
+        string[] both = [windows[0].Replace(@"F:\\p\\go\\bad.go", "bad.go", StringComparison.Ordinal), """{"Issues":[{"FromLinter":"typecheck","Text":"undefined: x","Severity":"","Pos":{"Filename":"bad.go","Line":4,"Column":2}}]}"""];
+        Assert.Single(LinterOutput.Parse("golangci-json", both).Findings);
+    }
+
+    [Fact]
     public void ShellCheck_reads_both_the_array_of_json_and_the_wrapped_object_of_json1()
     {
         const string item = """{"file":"a.sh","line":4,"endLine":4,"column":3,"endColumn":9,"level":"style","code":2250,"message":"Prefer putting braces around variable references.","fix":null}""";
