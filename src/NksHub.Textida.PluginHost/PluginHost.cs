@@ -73,6 +73,8 @@ public sealed class PluginHost : IAsyncDisposable
         public bool IdleStop;
         /// <summary>The process is being ended on purpose (a stop), so a call that finds it gone is not told of a crash.</summary>
         public volatile bool Intentional;
+        /// <summary>The process ended before any stop was asked for: a crash, even when a stop comes before the supervisor sees it.</summary>
+        public volatile bool EndedOnItsOwn;
         public JsonRpcDispatcher Rpc = null!;
         public Task StderrTask = Task.CompletedTask;
         public readonly CancellationTokenSource Cts = new();
@@ -479,9 +481,10 @@ public sealed class PluginHost : IAsyncDisposable
                 return;
             }
             PluginCrashInfo info;
+            Run? run = null;
             try
             {
-                var run = await LaunchAsync(p, restarted).ConfigureAwait(false);
+                run = await LaunchAsync(p, restarted).ConfigureAwait(false);
                 if (p.StopRequested || _shuttingDown)
                 {
                     // a stop, or the end of the host, came while the plugin started: it never counts as running
@@ -520,7 +523,13 @@ public sealed class PluginHost : IAsyncDisposable
             }
             if (p.StopRequested)
             {
-                // the user or the idle timer ended it: no crash, no restart; the next activation event starts it again
+                // the user or the idle timer ended it: no restart; the next activation event starts it again.
+                // A crash that came just before the stop stays on record.
+                if (run is { EndedOnItsOwn: true })
+                {
+                    RegisterCrash(p);
+                    p.LastCrash = info;
+                }
                 first?.TrySetException(new PluginUnavailableException(p.Spec.Id, PluginState.Stopping));
                 SetState(p, PluginState.Inactive);
                 return;
@@ -755,7 +764,11 @@ public sealed class PluginHost : IAsyncDisposable
         lock (_gate) _live.Remove(pid);
         await Task.WhenAny(run.StderrTask, Task.Delay(1000)).ConfigureAwait(false);
         run.Cts.Cancel();
-        if (!_shuttingDown && !p.StopRequested) p.State = PluginState.WaitingRestart;
+        if (!_shuttingDown && !p.StopRequested)
+        {
+            run.EndedOnItsOwn = true;
+            p.State = PluginState.WaitingRestart;
+        }
         List<string> tail;
         lock (p.Stderr) tail = [.. p.Stderr];
         if (detail.Length == 0) detail = tail.Count > 0 ? "Last stderr line: " + tail[^1] : "The process exited.";
