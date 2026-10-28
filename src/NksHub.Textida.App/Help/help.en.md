@@ -1854,12 +1854,14 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 2. Choose Tools, System Integration, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
 4. Choose Tools, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
+5. The same switches are in Settings, under System integration (search for "integration" or "shortcut"): the menu entry, the file types, a shortcut in the Start menu and on the desktop, and a button that opens the default apps page of Windows. A switch writes the registry at once and shows what the registry says.
+- The setup program TextidaSetup.exe offers the same choices when it installs and takes them back when it uninstalls.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
 
 ## [help.updates] Updates and return to the previous version
 commands: nks.help.updateCheck, nks.help.updateReturn
-Windows only, in the installed Textida (the folder made by Setup.ps1). Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
+Windows only, in the installed Textida (the folder made by TextidaSetup.exe or Setup.ps1). Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
 1. Choose Help, Check for Updates. If a newer version is offered, Textida asks before it does anything.
 2. Install and restart downloads the package, checks its checksum against the signed file, and unpacks it next to the current version. Only then Textida closes, the folders are switched and Textida starts again with your tabs. Unsaved text is kept by the journal; with the journal off, save or close the documents first.
 3. If anything is wrong (signature, checksum, a package that does not match), nothing is installed and the current version keeps running.
@@ -1867,7 +1869,7 @@ Windows only, in the installed Textida (the folder made by Setup.ps1). Textida n
 - The settings of Textida and the journal stay where they are, and a portable profile folder is carried over.
 - This build checks only when it has an update address and a signing key; a build without them says so.
 ### Messages
-- Updates work only in an installed Textida (Setup.ps1 next to Textida.exe on Windows). Updating works only on Windows, in the installed Textida. Elsewhere install the new version yourself (topic What this version cannot do).
+- Updates work only in an installed Textida (TextidaSetup.exe or Setup.ps1 next to Textida.exe on Windows). Updating works only on Windows, in the installed Textida. Elsewhere install the new version yourself (topic What this version cannot do).
 - This build has no update address or signing key set, so it cannot check for updates. Use a build that comes with the update address and the signing key, or install the new version yourself.
 - Update failed: reason. Nothing was installed and the current version keeps running. The reason names the cause (a signature or checksum that does not fit, a package that does not match, a network error); try again later.
 - Save or close the documents with unsaved changes first: the journal is off, so an update could lose them. Save the documents, or turn on crash recovery (topic Crash recovery), then choose the update again.

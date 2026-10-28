@@ -26,6 +26,7 @@ Check(UnicodeNormalizer.Preview(TextCodec.Utf8.Decode(TextCodec.Utf8.Encode("é
 await RemoteChecks.RunAsync(args, Check);
 await RpcChecks.RunAsync(Check);
 PublishChecks.Run(args, Check);
+SetupChecks.Run(args, Check);
 
 Console.WriteLine(failures == 0 ? "AOT check OK" : $"AOT check FAILED ({failures})");
 return failures;

@@ -1854,12 +1854,14 @@ Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho 
 2. Zvoľte Nástroje, Integrácia do systému, Asociácie súborov a vyberte prípony. Voľba prípony v zozname pridá alebo odoberie Textidu v jej zozname Otvoriť v programe; Escape zoznam zavrie. Kým príponu nevyberiete, žiadna asociácia sa nevytvorí.
 3. Aby bola Textida predvoleným programom prípony, použite v Prieskumníku Otvoriť v programe, Vybrať inú aplikáciu. Túto voľbu si Windows drží sám.
 4. Zvoľte Nástroje, Integrácia do systému, Odobrať Textidu z Prieskumníka: zmaže položku ponuky a všetky asociácie, ktoré Textida pridala. To isté urobí odinštalátor.
+5. Rovnaké prepínače sú v Nastaveniach v oddiele Integrácia so systémom (hľadajte „integrácia“ alebo „zástupca“): položka v ponuke Prieskumníka, typy súborov, zástupca v ponuke Štart a na ploche a tlačidlo, ktoré vo Windows otvorí stránku s predvolenými aplikáciami. Prepínač zapíše register hneď a ukazuje, čo v registri je.
+- Inštalátor TextidaSetup.exe ponúka tie isté voľby pri inštalácii a pri odinštalovaní ich vráti.
 - Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
 - Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.
 
 ## [help.updates] Aktualizácie a návrat na predchádzajúcu verziu
 commands: nks.help.updateCheck, nks.help.updateReturn
-Len Windows, v nainštalovanej Textide (priečinok vytvorený cez Setup.ps1). Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.
+Len Windows, v nainštalovanej Textide (priečinok vytvorený cez TextidaSetup.exe alebo Setup.ps1). Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.
 1. Zvoľte Pomocník, Zistiť aktualizácie. Ak sa ponúka novšia verzia, Textida sa pred čímkoľvek opýta.
 2. Nainštalovať a reštartovať stiahne balík, overí jeho kontrolný súčet podľa podpísaného súboru a rozbalí ho vedľa súčasnej verzie. Až potom sa Textida zatvorí, priečinky sa prepnú a Textida sa spustí znova s vašimi kartami. Neuložený text drží žurnál; pri vypnutom žurnáli dokumenty najprv uložte alebo zatvorte.
 3. Ak čokoľvek nesedí (podpis, kontrolný súčet, balík, ktorý nezodpovedá), nič sa nenainštaluje a súčasná verzia beží ďalej.
@@ -1867,7 +1869,7 @@ Len Windows, v nainštalovanej Textide (priečinok vytvorený cez Setup.ps1). Te
 - Nastavenia Textidy a žurnál zostávajú, priečinok prenosného profilu sa prenesie.
 - Tento build zisťuje aktualizácie len vtedy, ak má adresu aktualizácií a podpisový kľúč; build bez nich to povie.
 ### Hlásenia
-- Aktualizácie fungujú len v nainštalovanej Textide (Setup.ps1 vedľa Textida.exe vo Windows). Aktualizácie fungujú len vo Windows, v nainštalovanej Textide. Inde novú verziu nainštalujete sami (téma Čo táto verzia nevie).
+- Aktualizácie fungujú len v nainštalovanej Textide (TextidaSetup.exe alebo Setup.ps1 vedľa Textida.exe vo Windows). Aktualizácie fungujú len vo Windows, v nainštalovanej Textide. Inde novú verziu nainštalujete sami (téma Čo táto verzia nevie).
 - Tento build nemá nastavenú adresu aktualizácií ani podpisový kľúč, aktualizácie preto nemožno zistiť. Použite zostavenie, ktoré má adresu aktualizácií a podpisový kľúč, alebo novú verziu nainštalujte sami.
 - Aktualizácia zlyhala: dôvod. Nič sa nenainštalovalo a beží ďalej súčasná verzia. Dôvod uvádza príčinu (nesedí podpis alebo kontrolný súčet, balík, ktorý nesúhlasí, chyba siete); skúste to neskôr.
 - Najprv uložte alebo zatvorte dokumenty s neuloženými zmenami: žurnál je vypnutý, aktualizácia by ich mohla stratiť. Dokumenty uložte, alebo zapnite obnovu po páde (téma Obnova po páde), a potom aktualizáciu zvoľte znova.
