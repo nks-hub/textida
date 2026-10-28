@@ -56,6 +56,8 @@ internal sealed partial class EditorSurface : TextEditor
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Antialias);
         TuneGutter();
         TextArea.LeftMargins.Insert(0, new BookmarkMargin(doc.Bookmarks));
+        _gitMargin.Clicked += mark => GitMarkClicked?.Invoke(mark);
+        TextArea.LeftMargins.Insert(1, _gitMargin);
         Settings = options;
         ApplyOptions(options);
         _colorizer = new SyntaxColorizer(TextArea.TextView);
@@ -93,6 +95,14 @@ internal sealed partial class EditorSurface : TextEditor
     }
 
     public OpenDocument Doc { get; }
+
+    private readonly GitMargin _gitMargin = new();
+
+    /// <summary>A mark of the Git gutter was clicked: the window stages the change, or takes it back from the index when it is staged.</summary>
+    public event Action<GitMark>? GitMarkClicked;
+
+    /// <summary>The changes Git reports for this file, shown in the gutter; null or none clears it.</summary>
+    public void SetGitMarks(IReadOnlyList<GitMark>? marks) => _gitMargin.SetMarks(marks);
 
     /// <summary>Spaces the line numbers and draws the gutter edge as the same solid line as the edge of the minimap (AvaloniaEdit draws it dotted); again after the line numbers are switched back on, which rebuilds the margins.</summary>
     private void TuneGutter()

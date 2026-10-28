@@ -55,7 +55,7 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Equal(ids.Count, ids.Distinct().Count());
         var extensions = LanguageCatalog.Groups.SelectMany(g => g.Modes).SelectMany(m => m.Extensions).ToList();
         Assert.Equal(extensions.Count, extensions.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(2, LanguageCatalog.Version);
+        Assert.Equal(3, LanguageCatalog.Version);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class LanguageCatalogTests : IDisposable
         var formatters = LanguageCatalog.Formatters.Select(f => f.Id).ToHashSet();
         Assert.Superset(new HashSet<string> { "gofmt", "rustfmt", "clang-format", "rubocop", "prettier", "biome", "ruff-format", "shfmt", "sqlfluff-fix", "stylua", "dart-format" }, formatters);
         var linters = LanguageCatalog.Linters.Select(l => l.Id).ToHashSet();
-        Assert.Superset(new HashSet<string> { "phpstan", "psalm", "golangci-lint", "clippy", "clang-tidy", "rubocop-lint", "ruff", "shellcheck", "sqlfluff" }, linters);
+        Assert.Superset(new HashSet<string> { "phpstan", "psalm", "golangci-lint", "clippy", "clang-tidy", "rubocop-lint", "ruff", "shellcheck", "sqlfluff", "eslint", "dart-analyze" }, linters);
         Assert.All(LanguageCatalog.Linters, l =>
         {
             Assert.False(string.IsNullOrWhiteSpace(l.OutputFormat), l.Id);
@@ -75,6 +75,8 @@ public sealed class LanguageCatalogTests : IDisposable
         // no version is pinned and only gofmt, clang-format and dart format were run for real: the table says so instead of claiming more
         Assert.All(LanguageCatalog.Lsp, l => Assert.Null(l.Version));
         Assert.Equal(["clang-format", "dart-format", "gofmt"], LanguageCatalog.Formatters.Where(f => f.Verified).Select(f => f.Id).Order());
+        Assert.Equal(["dart-analyze"], LanguageCatalog.Linters.Where(l => l.Verified).Select(l => l.Id));
+        Assert.All(LanguageCatalog.Linters.Where(l => l.Id != "clippy"), l => Assert.Contains("${File}", l.Args)); // Clippy checks the crate
     }
 
     [Fact]
@@ -119,7 +121,7 @@ public sealed class LanguageCatalogTests : IDisposable
         string installed = InstallFakeTool(Path.Combine(project, projectFolder), tool);
         string start = Path.Combine(project, "src", "deep");
         Directory.CreateDirectory(start);
-        Assert.Equal(installed, ToolLocator.Find(tool, start), ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(Path.GetFullPath(installed), ToolLocator.Find(tool, start), ignoreCase: OperatingSystem.IsWindows());
         Assert.Null(ToolLocator.Find(tool)); // without a folder to start from only the PATH counts
         Assert.Null(ToolLocator.Find(tool, Path.Combine(_dir, "elsewhere")));
     }
@@ -137,10 +139,60 @@ public sealed class LanguageCatalogTests : IDisposable
     }
 
     [Fact]
+    public void On_Windows_the_batch_file_of_a_project_wins_over_the_script_without_extension_next_to_it()
+    {
+        if (!OperatingSystem.IsWindows()) return; // vendor/bin and node_modules/.bin hold both files only for Windows
+        string tool = Unique("fake-bat-");
+        string project = Path.Combine(_dir, "project");
+        foreach (var (folder, extension) in new[] { ("vendor/bin", ".bat"), ("node_modules/.bin", ".cmd") })
+        {
+            string bin = Directory.CreateDirectory(Path.Combine(project, folder)).FullName;
+            File.WriteAllText(Path.Combine(bin, tool), "#!/usr/bin/env php\n");
+            File.WriteAllText(Path.Combine(bin, tool + extension), "@echo off\r\n");
+            Assert.Equal(Path.Combine(bin, tool + extension), ToolLocator.Find(tool, project), ignoreCase: true);
+            File.Delete(Path.Combine(bin, tool + extension));
+            Assert.Null(ToolLocator.Find(tool, project)); // a script without an extension cannot be started by Windows
+            File.Delete(Path.Combine(bin, tool));
+        }
+    }
+
+    [Fact]
     public void Nothing_in_the_catalog_or_the_discovery_can_reach_the_network()
     {
         var referenced = typeof(ToolLocator).Assembly.GetReferencedAssemblies().Select(a => a.Name!).ToList();
         Assert.DoesNotContain(referenced, n => n.StartsWith("System.Net.Http", StringComparison.Ordinal) || n.StartsWith("System.Net.Sockets", StringComparison.Ordinal));
+    }
+
+    // ---- the matrix: group, kind, tool and version, scenarios, systems ----
+
+    [Fact]
+    public void The_matrix_has_rows_for_all_17_groups_and_derives_every_tool_of_the_catalog()
+    {
+        Assert.Equal(GroupIds, LanguageCatalog.Matrix.Select(r => r.Group).Distinct());
+        Assert.Equal(LanguageCatalog.Formatters.Select(f => f.Id).Order(), LanguageCatalog.Matrix.Where(r => r.Kind == ToolKind.Format).Select(r => r.Tool).Order());
+        Assert.Equal(LanguageCatalog.Linters.Select(l => l.Id).Order(), LanguageCatalog.Matrix.Where(r => r.Kind == ToolKind.Lint).Select(r => r.Tool).Order());
+        Assert.Equal(LanguageCatalog.Lsp.Count(), LanguageCatalog.Matrix.Count(r => r.Kind == ToolKind.Lsp));
+        Assert.Equal(LanguageCatalog.Groups.Sum(g => g.Modes.Count), LanguageCatalog.Matrix.Count(r => r.Kind == ToolKind.Grammar));
+        Assert.All(LanguageCatalog.Matrix, r => Assert.Equal(ToolSystem.Windows | ToolSystem.MacOS, r.Systems));
+    }
+
+    [Fact]
+    public void Every_formatter_and_linter_promises_the_five_scenarios_and_each_has_a_test_for_it()
+    {
+        var runs = LanguageCatalog.Matrix.Where(r => r.Kind is ToolKind.Format or ToolKind.Lint).ToList();
+        const ToolScenario all = ToolScenario.Success | ToolScenario.SyntaxError | ToolScenario.MissingTool | ToolScenario.Timeout | ToolScenario.NoNetwork;
+        Assert.All(runs, r => Assert.Equal(all, r.Scenarios));
+        // success, syntax error, missing program and timeout: a theory over the ids of these data sets, so a tool added to the catalog without a case fails here
+        Assert.Equal(runs.Where(r => r.Kind == ToolKind.Format).Select(r => r.Tool).Order(), SaveActionsTests.FormatterCaseIds.Order());
+        Assert.Equal(runs.Where(r => r.Kind == ToolKind.Lint).Select(r => r.Tool).Order(), LinterTests.CaseIds.Order());
+    }
+
+    [Fact]
+    public void No_tool_is_pinned_to_a_version_yet_and_the_rows_say_which_ones_were_run_for_real()
+    {
+        Assert.All(LanguageCatalog.Matrix, r => Assert.Null(r.Version)); // OPEN: the versions to pin are the owner's to choose
+        Assert.Equal(["clang-format", "dart-analyze", "dart-format", "gofmt"], LanguageCatalog.Matrix.Where(r => r.Kind is ToolKind.Format or ToolKind.Lint && r.Verified).Select(r => r.Tool).Order());
+        Assert.All(LanguageCatalog.Matrix.Where(r => r.Kind == ToolKind.Grammar), r => Assert.Null(r.Executable));
     }
 
     // ---- the generic scenarios, through ToolEcho (success, syntax error, missing tool, timeout) ----

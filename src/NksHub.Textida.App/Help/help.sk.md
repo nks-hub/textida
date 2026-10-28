@@ -1008,14 +1008,15 @@ commands: nks.plugins.manage
 - Plugin môže priniesť klávesy a nastavenia. Jeho klávesy (contributes.keybindings, voliteľne s podmienkou "when") fungujú ako klávesy editora, ale kláves editora, profilu alebo vášho keymap.json vždy vyhrá nad klávesom pluginu; kolízia sa vypíše pri plugine v Správcovi pluginov. Jeho nastavenia (contributes.settings, kľúče začínajú id pluginu) sú v Nastaveniach pod názvom pluginu, s predvolenou hodnotou z manifestu, a bežiaci plugin dostane hodnoty pri štarte a potom znova ako udalosť settings.changed. Príkaz, ktorý v manifeste pomenuje nástroj (contributes.externalTools), ho spustí bez kódu pluginu, až po vašom potvrdení príkazu a adresára.
 - Každý plugin beží ako samostatný proces. Keď skončí alebo prestane odpovedať, editor ho ukončí, lišta povie, o ktorý plugin ide a kedy sa znova spustí; po opakovaných pádoch zostane vypnutý. Tlačidlo Zobraziť výstup na lište otvorí okno výstupu s poslednými chybovými riadkami pluginu. Plugin, ktorý čaká na vašu odpoveď (kontrolu zmien, otázku), sa pre neodpovedanie neukončí. Príkaz, ktorý práve bežal, sa po reštarte nezopakuje, takže sa nič nezapíše ani nenahrá dvakrát. Počet pádov, prestávky a časové limity sú provizórne.
 
-## [tools.lint] Lintery: podčiarknutie nálezov PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy a RuboCopu
+## [tools.lint] Lintery: podčiarknutie nálezov PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy, RuboCopu, ESLintu, Ruffu, ShellChecku, SQLFluffu a dart analyze
 commands: nks.tools.lint
-1. Nástroje, Spúšťanie nástrojov, Skontrolovať súbor linterom spustí linter, ktorý sa na otvorený súbor hodí: PHPStan alebo Psalm pre PHP, golangci-lint pre Go, Clippy pre Rust (potrebuje Cargo.toml v priečinku súboru alebo nad ním), clang-tidy pre C a C++, RuboCop pre Ruby. Keď súbor spracúvajú dva lintery, použije sa prvý, ktorého konfiguračný súbor (phpstan.neon, psalm.xml) sa nájde, inak prvý nainštalovaný.
-2. Linter kontroluje súbor na disku, takže najprv uložte: dokument s neuloženými zmenami sa nekontroluje. Nálezy sú v texte podčiarknuté (hlásenie sa ukáže po nabehnutí) a vypísané na karte Úlohy, jeden na riadok; klik alebo Enter otvorí miesto. Ďalší beh toho istého linteru ich nahradí, takže opravený problém po ňom zmizne.
-3. Ak chcete kontrolovať po každom uložení, zapnite v Súbor, Akcie pri uložení položku „Skontrolovať nástrojom PHPStan“ (alebo iného linteru), alebo napíšte do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter sa nikdy nespúšťa pri zmene. Identifikátory sú phpstan, psalm, golangci-lint, clippy, clang-tidy a rubocop-lint.
-- Program sa hľadá vo vendor/bin, node_modules/.bin, .venv a v PATH; nič sa nesťahuje. Prvé spustenie vás požiada o potvrdenie príkazu.
-- Žiadny časový limit nie je predvolený: kým v saveActions.json chýba lintTimeoutSeconds, žiadny linter nebeží a stavový riadok to povie. Linter, ktorý limit prekročí, sa zastaví a ohlási; editor medzitým zostáva použiteľný.
-- PHPStan hlási riadok a žiadny stĺpec, preto sa podčiarkne text celého riadku. Program, ktorý je dávkový súbor (phpstan.bat), sa spustí cez cmd.exe, rovnako ako pri každom nástroji.
+1. Nástroje, Spúšťanie nástrojov, Skontrolovať súbor linterom spustí linter, ktorý sa na otvorený súbor hodí: PHPStan alebo Psalm pre PHP, golangci-lint pre Go, Clippy pre Rust (potrebuje Cargo.toml v priečinku súboru alebo nad ním), clang-tidy pre C a C++, RuboCop pre Ruby, ESLint pre JavaScript a TypeScript, Ruff pre Python, ShellCheck pre skripty shellu, SQLFluff pre SQL a dart analyze pre Dart. Keď súbor spracúvajú dva lintery, použije sa prvý, ktorého konfiguračný súbor (phpstan.neon, psalm.xml) sa nájde, inak prvý nainštalovaný.
+2. Linter kontroluje súbor na disku, takže najprv uložte: dokument s neuloženými zmenami sa nekontroluje. Nálezy sú v texte podčiarknuté (hlásenie sa ukáže po nabehnutí) a vypísané na karte Úlohy, jeden na riadok; klik alebo Enter otvorí miesto. Ďalší beh toho istého linteru ich nahradí, takže opravený problém po ňom zmizne. Keď súbor počas kontroly upravíte, nálezy sa posunú s textom a tie, ktorých text ste zmenili, zmiznú.
+3. Ak chcete kontrolovať po každom uložení, zapnite v Súbor, Akcie pri uložení položku „Skontrolovať nástrojom PHPStan“ (alebo iného linteru), alebo napíšte do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter sa nikdy nespúšťa pri zmene. Identifikátory sú phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff a dart-analyze. Kontrola spustená uložením čaká pol sekundy na ďalšie uloženie toho istého súboru; novšie uloženie ju nahradí.
+- Program sa hľadá v ceste, ktorú zadáte, potom vo vendor/bin, node_modules/.bin a .venv (od priečinka súboru smerom nahor) a v PATH; nič sa nesťahuje. Cestu zadáte v saveActions.json profilu: "toolPaths": {"phpstan": "C:\\nastroje\\phpstan.phar"} (súbor, alebo priečinok, kde program je). Platí aj pre formátovače a súbor projektu ju nastaviť nemôže. Cesta, ktorá neexistuje, sa ohlási a nenahradí sa hľadaním. Prvé spustenie vás požiada o potvrdenie príkazu.
+- Bez lintTimeoutSeconds v saveActions.json má linter provizórny limit 60 sekúnd; konečná hodnota nie je rozhodnutá. Linter, ktorý limit prekročí, sa zastaví a ohlási; editor medzitým zostáva použiteľný a nálezy predchádzajúceho behu zostanú.
+- PHPStan hlási riadok a žiadny stĺpec, preto sa podčiarkne text celého riadku. Program, ktorý je dávkový súbor (phpstan.bat, eslint.cmd), sa spustí cez cmd.exe, rovnako ako pri každom nástroji.
+- So skutočným programom bol overený len dart analyze (Dart 3.12.2); ostatné lintery sa čítajú podľa zdokumentovaného formátu výstupu.
 
 ## [file.saveActions] Akcie pri uložení: formátovať, spustiť nástroj, nahrať
 commands: nks.file.saveActions
@@ -1027,11 +1028,11 @@ commands: nks.file.saveActions
 6. Predvolený server projektu sa píše do .textida/saveActions.json projektu: {"kind": "upload", "server": "Web", "remoteFolder": "/var/www/web"}. Server je názov uloženého pripojenia, remoteFolder je priečinok na serveri, ktorý zodpovedá priečinku projektu (tomu, v ktorom leží .textida). Súbor src/a.php tak ide do /var/www/web/src/a.php. Súbory z priečinka .textida sa nenahrávajú a v profile server zapísať nejde.
 - Súbor projektu prichádza s projektom, preto sa prvé nahratie opýta, či súbory projektu na ten server smú. Súhlas platí pre tento priečinok, pripojenie a priečinok na serveri. Po autosave sa nikto neopýta a nič sa neodošle.
 - Editor si pamätá verziu, ktorú projekt na server naposledy poslal. Keď sa súbor na serveri odvtedy zmenil, alebo ho tam projekt nikdy neposlal a je iný, nič sa neprepíše: ručné uloženie ponúkne rozdiely alebo nahratie aj tak, po autosave to ohlási stavový riadok. Rovnaký súbor na serveri sa len zapamätá.
-- Bez formatTimeoutSeconds má formátovač dočasný limit 10 sekúnd; definitívna hodnota zatiaľ nie je rozhodnutá. Hodnota v príklade je len príklad. Program formátovača sa hľadá v PATH a nič sa nesťahuje.
+- Bez formatTimeoutSeconds má formátovač dočasný limit 10 sekúnd; definitívna hodnota zatiaľ nie je rozhodnutá. Hodnota v príklade je len príklad. Program formátovača sa hľadá v PATH alebo sa vezme z toolPaths v saveActions.json profilu a nič sa nesťahuje.
 - clang-format naformátuje aj kód, ktorý nejde preložiť, a chybu hlási len pri poškodenej konfigurácii. dart format pri kóde, ktorý nejde prečítať, skončí kódom 65 a súbor sa uloží neformátovaný.
 - Po autosave nemá kto odpovedať: nástroj, ktorý nebol nikdy potvrdený, sa nespustí, a novšia verzia na serveri sa ukáže v lište karty namiesto dialógu.
 - Prepnutie akcie v zozname zmení v saveActions.json v profile len tú jednu hodnotu, alebo pridá akciu na koniec zoznamu. Komentáre a zvyšok súboru zostanú. Akcie z projektu sa vypíšu, ale menia sa v súbore projektu.
-- Akcie pri uložení ponúkajú aj „Skontrolovať nástrojom ...“ pre lintery, ktoré súbor spracúvajú; je vypnutá, kým ju nezapnete. Kontrola beží po uložení a neblokuje ho; jej časový limit je lintTimeoutSeconds.
+- Akcie pri uložení ponúkajú aj „Skontrolovať nástrojom ...“ pre lintery, ktoré súbor spracúvajú; je vypnutá, kým ju nezapnete. Kontrola beží po uložení a neblokuje ho; jej časový limit je lintTimeoutSeconds (bez neho provizórnych 60 sekúnd).
 ## [file.configFiles] Konfiguračné súbory súboru
 commands: nks.file.configFiles
 1. Stavový riadok ukazuje konfiguračné súbory, ktoré platia pre otvorený súbor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurácie jazyka (napríklad ruff.toml, stylua.toml, .shellcheckrc). Pri každej je to najbližší súbor v priečinku súboru alebo nad ním. Kliknite na položku, alebo použite Súbor, Konfiguračné súbory tohto súboru.
@@ -1295,18 +1296,23 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Proces Emmet sa spustí prvým Tabom v súbore HTML alebo CSS.
 
 ## [tools.git] Git: stav, porovnanie a príprava úseku
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
-1. Otvorte súbor z repozitára Git a v ponuke Nástroje zvoľte Git: stav súborov. Panel ukáže, čo `git status` hlási pre celý repozitár: čo je v indexe a čo je zmenené v strome. Príkaz spustite znova, keď sa repozitár zmení zvonka.
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+1. Otvorte súbor z repozitára Git a v ponuke Nástroje zvoľte Git: stav súborov. Panel ukáže, čo `git status` hlási pre celý repozitár: čo je v indexe a čo je zmenené v strome. Panel aj stavový riadok sa po zmene zvonka obnovia samy krátko po poslednej zmene.
 2. Git: porovnať s indexom a Git: porovnať s HEAD otvoria kartu porovnania otvoreného textu s verziou v indexe alebo v HEAD. Úseky sú rovnaké ako v `git diff`.
 3. Git: pripraviť úsek pod kurzorom pridá do indexu iba zmenu, v ktorej stojí kurzor. Ostatné zmeny súboru ostanú len v strome. Súbor na disku sa nemení.
 4. Ak sa index medzitým zmenil iným programom, nič sa nezapíše. Plugin index načíta znova a oznámi konflikt; skontrolujte zmeny a príkaz zopakujte.
-- Plugin zapisuje do repozitára iba pri Git: pripraviť úsek. Stav a porovnanie iba čítajú a nemenia ani súbor index.
+- Plugin zapisuje do repozitára iba keď pripravíte alebo vrátite úsek, alebo vyriešite konflikt. Stav a porovnanie iba čítajú a nemenia ani súbor index.
 - Pripravuje sa text otvorený v editore, aj keď nie je uložený. Súbor s nevyriešeným konfliktom zlučovania sa nepripravuje.
 5. Git: vrátiť úsek pod kurzorom z indexu vezme späť do HEAD iba pripravenú zmenu, v ktorej kurzor stojí (alebo na ňu v súbore ukazuje). Ostatné pripravené zmeny zostanú.
 6. Pri konflikte zlučovania umiestnite kurzor do bloku medzi `<<<<<<<` a `>>>>>>>` a zvoľte Git: konflikt, vziať naše zmeny / ich zmeny / obe strany. Blok sa nahradí zvolenou stranou. Keď nezostane žiadny blok a súbor je uložený, zvoľte Git: označiť súbor ako vyriešený; súbor sa pridá do indexu.
 7. Panel stavu otvorí súbor dvojklikom alebo Enterom. V stavovom riadku je vetva a počty: `+` v indexe, `~` zmenené, `?` nesledované, `!` konflikty; aktualizuje sa po každom príkaze Git.
-- Zatiaľ chýba: commit a vetvy. Súbor s prevodom koncov riadkov (`autocrlf`) sa môže s indexom líšiť v každom riadku.
-- Proces Git sa spustí prvým príkazom. Program `git` musí byť v PATH.
+8. V súbore z repozitára Git značí ľavý okraj riadky, ktoré sa líšia od indexu, plným pásikom (modrý zmenené, zelený pridané, krátky červený pásik tam, kde riadky ubudli) a riadky už pripravené obrysom. Kliknutie na značku zmenu pripraví, kliknutie na obrysovú značku ju vráti z indexu. Nastavenie Značky zmien Gitu v ľavom okraji značky vypne. Súbor nad limitom veľkosti a súbor so skrytými hodnotami (.env) značky nemá.
+9. Karty Git: porovnať s indexom a Git: porovnať s HEAD majú tlačidlá Pripraviť úsek a Vrátiť úsek z indexu pre rozdiel, na ktorom karta stojí (z klávesnice rovnako fungujú príkazy Porovnanie: prvá a druhá akcia zásuvného modulu v ponuke Nástroje). Po tlačidle sa porovnanie otvorí znova na mieste karty.
+10. Konflikt, v ktorom jedna strana súbor zmazala (panel píše „konflikt: zmazané nami“ alebo „zmazané nimi“) alebo ho obe pridali a nedá sa zlúčiť, nemá žiadne značky. Git: konflikt, vziať naše zmeny / ich zmeny / obe strany to vtedy povie. Súbor ponecháte príkazom Git: označiť súbor ako vyriešený, zmažete ho príkazom Git: konflikt, zmazať súbor. Súbor zmazaný oboma stranami panel ukáže, ale nemá sa v čom otvoriť; vyriešte ho príkazom `git rm`.
+11. Bloky konfliktu sa nájdu aj v súboroch uložených ako UTF-16 a UTF-32.
+12. S `core.autocrlf` (alebo atribútom `eol`) sa úsek súboru s koncami riadkov CRLF uloží s LF, ako ho ukladá `git add`.
+- Zatiaľ chýba: commit a vetvy.
+- Proces Git sa spustí prvým príkazom, alebo keď sa otvorí súbor a značky v ľavom okraji sú zapnuté. Program `git` musí byť v PATH.
 
 ## [tools.lsp] Jazykový server: definícia, odkazy, premenovanie, dopĺňanie a diagnostika
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1413,12 +1419,13 @@ Vyberte časť textu, napríklad blok riadkov oddelených čiarkami v poznámke 
 - Riadky pridané na koniec patria do výberu. Prepnúť tabuľku a text vráti text; ďalšie Prepnúť tabuľku a text ukáže ako tabuľku celý súbor.
 
 ## [compare.text] Porovnanie textov
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2
 Dva texty sa porovnajú po riadkoch v samostatnej karte. Rovnaké riadky stoja oproti sebe, zmenený blok je na oboch stranách podfarbený a označený v strednom pruhu a lišta hore hovorí, koľko je rozdielov.
 1. Porovnať so schránkou (ponuka Nástroje alebo kontextová ponuka editora) porovná kartu s textom v schránke. Ak je v editore vybraný text, porovná sa len výber.
 2. Porovnať so súborom sa opýta na súbor a porovná s ním kartu. Porovnať s diskom je v ponuke Súbor a porovná kartu s jej súborom.
 3. Porovnať dva texty otvorí dve prázdne strany. Tlačidlá Vložiť ľavý text a Vložiť pravý text vložia do strany obsah schránky.
 - Z príkazového riadka otvorí textida --diff ľavý pravý porovnanie dvoch súborov: ľavý súbor sa otvorí v karte a môže prijímať bloky z pravého, ktorý je len na čítanie.
+- Zásuvný modul môže do karty porovnania, ktorú otvorí, pridať tlačidlá (Git pridáva Pripraviť úsek a Vrátiť úsek z indexu). Tlačidlo pôsobí na rozdiel, na ktorom karta stojí; z klávesnice rovnako fungujú príkazy Porovnanie: prvá a druhá akcia zásuvného modulu v ponuke Nástroje. Tlačidlá fungujú, kým sa dokument pravej strany od vzniku porovnania nezmenil; inak porovnanie otvorte znova.
 - Strana s kartou je samotný dokument: keď sa zmení, porovná sa znova po krátkej pauze. Schránka, výber a súbor na disku sú strany len na čítanie.
 - Iný koniec riadku (CR, LF, CRLF) riadok nezmení. Medzery a veľkosť písmen áno, kým v ponuke Nástroje a Porovnanie nezapnete Nerozlišovať medzery alebo Nerozlišovať veľkosť písmen. Potom sú rovnaké riadky, ktoré sa líšia len medzerami a tabulátormi (kdekoľvek v riadku), alebo len veľkosťou písmen. Voľba platí pre všetky porovnania, otvorené sa hneď porovnajú znova a lišta hore ju pripomenie. Rovnaké riadky sa potom nepodfarbia, aj keď sa v medzerách líšia, a kopírovanie doľava aj doprava prenáša riadky tak, ako sú.
 - Veľký súbor v stránkovanom režime sa porovnáva bez načítania: čítajú sa len riadky na obrazovke.

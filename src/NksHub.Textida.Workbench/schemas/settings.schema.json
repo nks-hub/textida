@@ -321,6 +321,12 @@
           "description": "Ignore case when comparing. Lines that differ only in letter case count as equal when texts are compared.",
           "x-scope": "application"
         },
+        "git.gutter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Git changes in the gutter. Marks the lines of a file in a Git repository that differ from the index (filled bar) or are staged already (outlined bar). A click on a mark stages the change or takes it back from the index. A file above the size limit gets no marks.",
+          "x-scope": "application"
+        },
         "tools.makeProgram": {
           "type": "string",
           "default": "",

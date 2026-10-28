@@ -13,12 +13,14 @@ public sealed record LintFinding(string? File, int Line, int? Column, int? EndLi
 public sealed record LintParse(bool Readable, IReadOnlyList<LintFinding> Findings, string Problem = "");
 
 /// <summary>
-/// The parsers of the output formats named in <see cref="CatalogLinter.OutputFormat"/>. They read the machine-readable output of PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop
-/// from the lines a tool wrote (standard output and error mixed, so a JSON value is looked for at the start of a line). The shapes come from the documentation of the tools; no real tool was run.
+/// The parsers of the output formats named in <see cref="CatalogLinter.OutputFormat"/>. They read the machine-readable output of PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff,
+/// ShellCheck, SQLFluff and <c>dart analyze</c> from the lines a tool wrote (standard output and error mixed, so a JSON value is looked for at the start of a line). The shapes come from the documentation
+/// of the tools; only the one of <c>dart analyze</c> was checked against the real program (Dart 3.12.2).
 /// </summary>
 public static class LinterOutput
 {
-    public static readonly IReadOnlyList<string> Formats = ["phpstan-json", "psalm-json", "golangci-json", "cargo-json", "gcc-text", "rubocop-json"];
+    public static readonly IReadOnlyList<string> Formats =
+        ["phpstan-json", "psalm-json", "golangci-json", "cargo-json", "gcc-text", "rubocop-json", "eslint-json", "ruff-json", "shellcheck-json", "sqlfluff-json", "dart-machine"];
 
     public static LintParse Parse(string format, IReadOnlyList<string> lines) => format switch
     {
@@ -26,8 +28,13 @@ public static class LinterOutput
         "psalm-json" => Json(lines, Psalm),
         "golangci-json" => Json(lines, GolangCi),
         "rubocop-json" => Json(lines, RuboCop),
+        "eslint-json" => Json(lines, EsLint),
+        "ruff-json" => Json(lines, Ruff),
+        "shellcheck-json" => Json(lines, ShellCheck),
+        "sqlfluff-json" => Json(lines, SqlFluff),
         "cargo-json" => CargoJson(lines),
         "gcc-text" => GccText(lines),
+        "dart-machine" => DartMachine(lines),
         _ => new LintParse(false, [], $"No parser for the format '{format}'."),
     };
 
@@ -114,6 +121,106 @@ public static class LinterOutput
                 found.Add(new LintFinding(Str(file, "path"), line, column, endLine, endColumn, null, null, false, Str(o, "severity"), Str(o, "message"), NullIfEmpty(Str(o, "cop_name"))));
             }
         return new LintParse(true, found);
+    }
+
+    /// <summary>
+    /// ESLint <c>--format json</c>: an array of <c>{"filePath":…,"messages":[{"ruleId":"no-undef","severity":2,"message":…,"line":3,"column":5,"endLine":3,"endColumn":8}]}</c>. A parse error has <c>"fatal":true</c> and no rule;
+    /// severity 2 is an error and 1 a warning. The end column is the one after the text.
+    /// </summary>
+    private static LintParse EsLint(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Array) return new LintParse(false, [], "The output is not an array.");
+        var found = new List<LintFinding>();
+        foreach (var file in root.EnumerateArray())
+            foreach (var m in Items(file, "messages"))
+            {
+                string word = Prop(m, "fatal").ValueKind == JsonValueKind.True ? "fatal" : Int(m, "severity") == 2 ? "error" : "warning";
+                found.Add(new LintFinding(Str(file, "filePath"), Int(m, "line") ?? 1, Int(m, "column"), Int(m, "endLine"), Int(m, "endColumn"), null, null, false, word, Str(m, "message"), NullIfEmpty(Str(m, "ruleId"))));
+            }
+        return new LintParse(true, found);
+    }
+
+    /// <summary>
+    /// Ruff <c>--output-format=json</c>: an array of <c>{"code":"F401","message":…,"filename":…,"location":{"row":1,"column":8},"end_location":{"row":1,"column":10}}</c>. A syntax error has <c>"code":null</c>;
+    /// it counts as an error and every rule as a warning. The end column is the one after the text.
+    /// </summary>
+    private static LintParse Ruff(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Array) return new LintParse(false, [], "The output is not an array.");
+        var found = root.EnumerateArray().Select(i =>
+        {
+            var at = Prop(i, "location");
+            var end = Prop(i, "end_location");
+            string code = Str(i, "code");
+            return new LintFinding(Str(i, "filename"), Int(at, "row") ?? 1, Int(at, "column"), Int(end, "row"), Int(end, "column"), null, null, false, code.Length == 0 ? "error" : "warning", Str(i, "message"), NullIfEmpty(code));
+        }).ToList();
+        return new LintParse(true, found);
+    }
+
+    /// <summary>ShellCheck <c>--format=json</c>: an array of <c>{"file":…,"line":3,"endLine":3,"column":6,"endColumn":8,"level":"warning","code":2086,"message":…}</c> (the <c>json1</c> format wraps it in <c>{"comments":[…]}</c>, which is read too).</summary>
+    private static LintParse ShellCheck(JsonElement root)
+    {
+        var comments = root.ValueKind == JsonValueKind.Object ? Prop(root, "comments") : root;
+        if (comments.ValueKind != JsonValueKind.Array) return new LintParse(false, [], "No array of comments.");
+        var found = comments.EnumerateArray().Select(c => new LintFinding(Str(c, "file"), Int(c, "line") ?? 1, Int(c, "column"), Int(c, "endLine"), Int(c, "endColumn"), null, null, false,
+            Str(c, "level"), Str(c, "message"), Long(c, "code") is { } number ? "SC" + number : null)).ToList();
+        return new LintParse(true, found);
+    }
+
+    /// <summary>
+    /// SQLFluff <c>lint --format json</c>: an array of <c>{"filepath":…,"violations":[{"start_line_no":1,"start_line_pos":8,"end_line_no":1,"end_line_pos":9,"code":"LT01","description":…}]}</c>; versions before 2 write
+    /// <c>line_no</c> and <c>line_pos</c>. The codes <c>PRS</c>, <c>LXR</c> and <c>TMP</c> are the ones for text SQLFluff could not read, and count as errors; every rule is a warning.
+    /// </summary>
+    private static LintParse SqlFluff(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Array) return new LintParse(false, [], "The output is not an array.");
+        var found = new List<LintFinding>();
+        foreach (var file in root.EnumerateArray())
+            foreach (var v in Items(file, "violations"))
+            {
+                string code = Str(v, "code");
+                found.Add(new LintFinding(Str(file, "filepath"), Int(v, "start_line_no") ?? Int(v, "line_no") ?? 1, Int(v, "start_line_pos") ?? Int(v, "line_pos"), Int(v, "end_line_no"), Int(v, "end_line_pos"), null, null, false,
+                    code is "PRS" or "LXR" or "TMP" ? "error" : "warning", Str(v, "description"), NullIfEmpty(code)));
+            }
+        return new LintParse(true, found);
+    }
+
+    /// <summary>
+    /// <c>dart analyze --format=machine</c> (checked with Dart 3.12.2): one line per problem, <c>SEVERITY|TYPE|CODE|FILE|LINE|COLUMN|LENGTH|MESSAGE</c>, a backslash escapes the next character (a path is written with doubled backslashes).
+    /// A clean run prints nothing. Columns and the length count characters. Text that is not such a line is ignored where lines were found, and unreadable where none was.
+    /// </summary>
+    private static LintParse DartMachine(IReadOnlyList<string> lines)
+    {
+        var found = new List<LintFinding>();
+        bool noise = false;
+        foreach (var line in lines)
+        {
+            if (line.Trim().Length == 0) continue;
+            if (DartLine(line) is { } finding) found.Add(finding);
+            else noise = true;
+        }
+        return found.Count == 0 && noise ? new LintParse(false, [], "No lines in the machine format.") : new LintParse(true, found);
+    }
+
+    private static LintFinding? DartLine(string line)
+    {
+        var fields = new List<string>(8);
+        var field = new System.Text.StringBuilder();
+        for (int i = 0; i < line.Length; i++)
+        {
+            if (line[i] == '\\' && i + 1 < line.Length) field.Append(line[++i]);
+            else if (line[i] == '|' && fields.Count < 7)
+            {
+                fields.Add(field.ToString());
+                field.Clear();
+            }
+            else field.Append(line[i]);
+        }
+        fields.Add(field.ToString());
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        if (fields.Count != 8 || !int.TryParse(fields[4], culture, out int row) || !int.TryParse(fields[5], culture, out int column)) return null;
+        int length = int.TryParse(fields[6], culture, out int width) ? width : 0;
+        return new LintFinding(fields[3], row, column, null, length > 0 ? column + length : null, null, null, false, fields[0].ToLowerInvariant(), fields[7], fields[2].Length == 0 ? null : fields[2].ToLowerInvariant());
     }
 
     /// <summary>

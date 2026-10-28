@@ -43,8 +43,9 @@ public sealed record ServerTarget(string Connection, string RemoteFolder, string
 }
 
 /// <param name="FormatTimeout">The time a formatter has before the file is saved unformatted; null while nobody has set it (the product has not decided a value), and then a formatter does not run.</param>
-/// <param name="LintTimeout">The same for a linter: the time before its run is stopped and reported; null while it is not set, and then a linter does not run.</param>
-public sealed record SaveActionSet(IReadOnlyList<SaveAction> Actions, TimeSpan? FormatTimeout, IReadOnlyList<string> Errors, TimeSpan? LintTimeout = null);
+/// <param name="LintTimeout">The same for a linter: the time before its run is stopped and reported; null while it is not set (the app then applies its provisional limit).</param>
+/// <param name="ToolPaths">The program (or the folder holding it) the user chose for a formatter or linter, by its id in <see cref="LanguageCatalog"/>. Only the profile file can set it: a project must not name the program that runs.</param>
+public sealed record SaveActionSet(IReadOnlyList<SaveAction> Actions, TimeSpan? FormatTimeout, IReadOnlyList<string> Errors, TimeSpan? LintTimeout = null, IReadOnlyDictionary<string, string>? ToolPaths = null);
 
 /// <summary>One entry of <c>saveActions.json</c>; <see cref="Kind"/> is <c>format</c>, <c>tool</c>, <c>upload</c> or <c>lint</c>.</summary>
 public sealed class SaveActionEntry
@@ -63,6 +64,8 @@ public sealed class SaveActionsFile
 {
     public int? FormatTimeoutSeconds { get; set; }
     public int? LintTimeoutSeconds { get; set; }
+    /// <summary>Program paths by formatter or linter id, for example <c>{"phpstan": "C:\tools\phpstan.phar"}</c>; read from the profile file only.</summary>
+    public Dictionary<string, string>? ToolPaths { get; set; }
     public List<SaveActionEntry> Actions { get; set; } = [];
 }
 
@@ -209,6 +212,7 @@ public static class SaveActionConfig
         var errors = new List<string>();
         var actions = new List<SaveAction>();
         TimeSpan? timeout = null, lintTimeout = null;
+        Dictionary<string, string> toolPaths = [];
         foreach (var (path, source) in new (string? Location, SaveActionSource Source)[] { (profileFile, SaveActionSource.Profile), (projectFile, SaveActionSource.Project) })
         {
             if (path is null || (source == SaveActionSource.Project && string.Equals(Path.GetFullPath(path), Path.GetFullPath(profileFile), StringComparison.OrdinalIgnoreCase))) continue;
@@ -222,6 +226,11 @@ public static class SaveActionConfig
             // the user's own limit wins over the limit a project file brings
             if (timeout is null && file.FormatTimeoutSeconds is > 0) timeout = TimeSpan.FromSeconds(file.FormatTimeoutSeconds.Value);
             if (lintTimeout is null && file.LintTimeoutSeconds is > 0) lintTimeout = TimeSpan.FromSeconds(file.LintTimeoutSeconds.Value);
+            if (file.ToolPaths is { Count: > 0 } paths)
+            {
+                if (source == SaveActionSource.Project) errors.Add($"{Path.GetFileName(path)}: toolPaths is read from the profile file only, not from a project.");
+                else foreach (var (tool, program) in paths.Where(p => !string.IsNullOrWhiteSpace(p.Value))) toolPaths[tool] = program.Trim();
+            }
             foreach (var entry in file.Actions)
             {
                 if (!Enum.TryParse<SaveActionKind>(entry.Kind, ignoreCase: true, out var kind) || !Enum.IsDefined(kind)) { errors.Add($"{entry.Kind}: the kind must be format, tool, upload or lint."); continue; }
@@ -241,6 +250,6 @@ public static class SaveActionConfig
                 else actions.Add(action);
             }
         }
-        return new SaveActionSet(actions, timeout, errors, lintTimeout);
+        return new SaveActionSet(actions, timeout, errors, lintTimeout, toolPaths);
     }
 }
