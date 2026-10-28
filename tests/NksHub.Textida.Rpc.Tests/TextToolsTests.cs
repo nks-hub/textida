@@ -45,7 +45,7 @@ public partial class TextToolsTests
             await CreateAsync(Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec }), selections, chunk);
 
         /// <summary>The rig over a document the test opened itself (a file); <paramref name="maxRead"/> is what one read of the document API may return, the chunk must not exceed it.</summary>
-        public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null)
+        public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null, TimeSpan? callTimeout = null)
         {
             var recorded = new UiApiTests.RecordingUi();
             PluginHost.PluginHost? host = null;
@@ -61,7 +61,7 @@ public partial class TextToolsTests
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(limits is null ? null : o => o with { Limits = limits }), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
+            host = new PluginHost.PluginHost(PluginHostTests.Options(limits is null && callTimeout is null ? null : o => o with { Limits = limits ?? o.Limits, DefaultCallTimeout = callTimeout ?? o.DefaultCallTimeout }), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
             Assert.True(File.Exists(dll), dll);
             host.Register(new PluginSpec("tools", "Tools", T.DotnetHost, [dll, "--chunk-bytes", chunk.ToString(), "--progress-ms", "0"], ["onCommand:tools"]));

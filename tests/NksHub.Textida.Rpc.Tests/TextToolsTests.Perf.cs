@@ -124,7 +124,7 @@ public partial class TextToolsTests(ITestOutputHelper output)
         try
         {
             using var doc = Document.Open(path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
-            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits);
+            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30));
             int plugin = rig.Host.ProcessIds().Single();
 
             using var watch = new MemoryWatch(plugin);
@@ -165,7 +165,7 @@ public partial class TextToolsTests(ITestOutputHelper output)
         try
         {
             using var doc = Document.Open(path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
-            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits);
+            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30));
 
             var run = rig.RunAsync(TextToolsPlugin.Statistics, "en");
             await Task.Delay(TimeSpan.FromSeconds(3));
