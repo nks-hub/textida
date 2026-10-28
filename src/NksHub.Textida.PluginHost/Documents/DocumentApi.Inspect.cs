@@ -199,13 +199,17 @@ public sealed partial class DocumentApi
         });
     }
 
-    /// <summary>Every symbol set published for the document, by plugin; <c>current</c> is false once the document moved past the revision of a set.</summary>
-    private async Task<byte[]> SymbolsListAsync(JsonElement p)
+    /// <summary>
+    /// Every symbol set published for the document, by plugin; <c>current</c> is false once the document moved past the revision of a set. A symbol whose range touches a hidden
+    /// secret value is counted in <c>withheld</c> and not returned, as its name could quote the value.
+    /// </summary>
+    private async Task<byte[]> SymbolsListAsync(string pluginId, JsonElement p)
     {
         var e = Find(NeedDocumentId(p));
-        var revision = await _owner.InvokeAsync(() => e.Doc.Revision);
+        var (revision, hidden) = await _owner.InvokeAsync(() => (e.Doc.Revision, Hidden(pluginId, e.Doc.Id, SecretsOf(e.Doc, e.Doc.GetSnapshot(), e.Doc.BomLength))));
         List<(SymbolSet Set, bool Current)> sets;
         lock (_gate) sets = [.. _symbols.Where(x => x.Key.Document == e.Doc.Id).OrderBy(x => x.Key.Plugin, StringComparer.Ordinal).Select(x => (x.Value.Set, x.Value.Current))];
+        int withheld = 0;
         return Obj(w =>
         {
             w.WriteNumber("revision", revision);
@@ -219,6 +223,7 @@ public sealed partial class DocumentApi
                 w.WriteStartArray("symbols");
                 foreach (var s in set.Symbols)
                 {
+                    if (hidden is not null && SecretValues.Overlaps(hidden, s.Range.Start, s.Range.End)) { withheld++; continue; }
                     w.WriteStartObject();
                     w.WriteString("id", s.Id);
                     w.WriteString("name", s.Name);
@@ -232,6 +237,7 @@ public sealed partial class DocumentApi
                 w.WriteEndObject();
             }
             w.WriteEndArray();
+            w.WriteNumber("withheld", withheld);
         });
     }
 
