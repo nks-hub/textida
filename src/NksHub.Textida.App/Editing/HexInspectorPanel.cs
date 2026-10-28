@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
@@ -34,6 +35,7 @@ internal sealed class HexInspectorPanel : Border
 
     public HexInspectorPanel(HexView owner)
     {
+        HelpContext.Set(this, "hex.inspector");
         _owner = owner;
         Classes.Add("sidepanel");
         Width = 260;

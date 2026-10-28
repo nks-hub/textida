@@ -21,6 +21,7 @@ public static class Loc
 
     private static readonly Dictionary<string, IReadOnlyDictionary<string, string>> Catalogs = LoadAll();
     private static IReadOnlyDictionary<string, string> _current = Catalogs[DefaultLanguage];
+    private static bool _transformed;
 
     public static string Language { get; private set; } = DefaultLanguage;
 
@@ -35,11 +36,24 @@ public static class Loc
     public static string SetLanguage(string tag)
     {
         var use = Catalogs.ContainsKey(tag) ? tag : DefaultLanguage;
-        if (use == Language) return use;
+        if (use == Language && !_transformed) return use;
+        _transformed = false;
         Language = use;
         _current = Catalogs[use];
         Changed?.Invoke();
         return use;
+    }
+
+    /// <summary>
+    /// Uses the texts of <paramref name="language"/> run through <paramref name="transform"/> until the next <see cref="SetLanguage"/>, which restores the real ones.
+    /// The layout checks lengthen the texts with it to find labels that a longer translation would clip. The plural rules stay those of the language.
+    /// </summary>
+    internal static void UseTransformed(string language, Func<string, string> transform)
+    {
+        _current = Catalogs[language].ToDictionary(kv => kv.Key, kv => transform(kv.Value), StringComparer.Ordinal);
+        Language = language;
+        _transformed = true;
+        Changed?.Invoke();
     }
 
     public static string Get(string key, params (string Name, object Value)[] args) => Format(Lookup(key), args);

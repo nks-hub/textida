@@ -6,8 +6,8 @@ namespace NksHub.Textida.App.Shell;
 internal sealed partial class MainWindow
 {
     /// <summary>
-    /// The help topic for F1: the command selected in the palette, else the panel that has the keyboard (find bar, file list, document list, search results),
-    /// else the start page.
+    /// The help topic for F1: the command selected in the palette, else the part of the window that has the keyboard (find bar, a panel or view that names its topic with
+    /// <see cref="HelpContext.Set"/>, file list, document list, search results), else the start page.
     /// </summary>
     internal string HelpContextTopic()
     {
@@ -20,6 +20,7 @@ internal sealed partial class MainWindow
             return _paletteMode switch { PaletteMode.Files => "search.gotoAnything", PaletteMode.Edits => "search.jump", _ => "view.palette" };
         }
         if (_find.IsVisible && _find.IsKeyboardFocusWithin) return _find.FilesMode ? "search.inFiles" : _find.ReplaceShown ? "search.replace" : "search.find";
+        if (HelpContext.Focused(this) is { } named) return named;
         if (FilePanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.files";
         if (DocumentsPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.documents";
         if (PluginPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.pluginPanels";

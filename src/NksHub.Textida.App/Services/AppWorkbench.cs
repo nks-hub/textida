@@ -130,9 +130,12 @@ internal sealed class AppWorkbench
     public IReadOnlyList<KeyConflict> KeyConflictsOf(string pluginId) =>
         [.. Keymap.Conflicts.Where(c => c.Winner is { Layer: KeymapLayerKind.Plugin } w && w.Source == pluginId || c.Loser is { Layer: KeymapLayerKind.Plugin } l && l.Source == pluginId)];
 
-    public void SetLanguage(string language)
+    public void SetLanguage(string language) => UseStrings(StringTable.LoadBuiltin(language));
+
+    /// <summary>Uses a prepared table of texts (the layout checks lengthen them); <see cref="SetLanguage"/> brings the real ones back.</summary>
+    internal void UseStrings(StringTable strings)
     {
-        Strings = StringTable.LoadBuiltin(language);
+        Strings = strings;
         SearchIndex = new SettingsSearchIndex(Host.Settings, Strings);
     }
 

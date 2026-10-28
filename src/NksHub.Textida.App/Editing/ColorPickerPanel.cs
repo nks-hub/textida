@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Colors;
 
@@ -23,6 +24,7 @@ internal sealed class ColorPickerPanel : StackPanel
 
     public ColorPickerPanel(ColorMatch match)
     {
+        HelpContext.Set(this, "tools.colors");
         Match = match;
         Width = 270;
         Spacing = 8;
@@ -33,7 +35,7 @@ internal sealed class ColorPickerPanel : StackPanel
         _lightness = Row(K.ColorPickerLightness, 100);
         _opacity = Row(K.ColorPickerOpacity, 100);
         Children.Insert(0, _preview);
-        var label = new TextBlock { Text = Loc.Get(K.ColorPickerValue), Width = 82, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = Loc.Get(K.ColorPickerValue), MinWidth = 82, VerticalAlignment = VerticalAlignment.Center };
         AutomationProperties.SetName(_value, label.Text);
         DockPanel.SetDock(label, Avalonia.Controls.Dock.Left);
         Children.Add(new DockPanel { Children = { label, _value } });
@@ -74,7 +76,7 @@ internal sealed class ColorPickerPanel : StackPanel
     private Slider Row(string labelKey, double maximum)
     {
         var slider = new Slider { Minimum = 0, Maximum = maximum, Height = 22, VerticalAlignment = VerticalAlignment.Center };
-        var label = new TextBlock { Text = Loc.Get(labelKey), Width = 82, VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { Text = Loc.Get(labelKey), MinWidth = 82, VerticalAlignment = VerticalAlignment.Center };
         AutomationProperties.SetName(slider, label.Text);
         DockPanel.SetDock(label, Avalonia.Controls.Dock.Left);
         Children.Add(new DockPanel { Children = { label, slider } });

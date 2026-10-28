@@ -1,6 +1,6 @@
 ## [start] Erste Schritte
 commands: nks.help.contents
-Diese Hilfe ist Teil des Programms und braucht keine Internetverbindung. Sie öffnen sie mit F1 oder über das Menü Hilfe. Drücken Sie F1 bei einem markierten Befehl in der Befehlspalette oder in einem geöffneten Bereich (Suche, Dateien, Dokumente, Einstellungen, Regex-Tester), öffnet sich gleich dessen Thema.
+Diese Hilfe ist Teil des Programms und braucht keine Internetverbindung. Sie öffnen sie mit F1 oder über das Menü Hilfe. F1 funktioniert in jedem Fenster, Dialog und Bereich: Drücken Sie es bei einem markierten Befehl in der Befehlspalette, in einem Bereich (Suche, Dateien, Dokumente, Ausgabe, Vorschau, Agent, Hex-Bereiche), in einer Leiste über dem Dokument, in einem Dialog oder in einem anderen Fenster des Programms, und das passende Thema öffnet sich gleich.
 ### In der Hilfe suchen
 - Links steht die Themenliste. Tippen Sie ein Wort in das Feld darüber; es bleiben nur Themen, die alle eingegebenen Wörter enthalten. Groß- und Kleinschreibung und Akzente spielen keine Rolle.
 - Die Pfeiltasten nach oben und unten im Feld wechseln die Themen, Esc schließt die Hilfe.
@@ -26,8 +26,8 @@ Die Palette ist eine durchsuchbare Liste aller Befehle des Programms.
 commands: nks.help.contents
 Öffnet dieses Hilfefenster.
 1. Drücken Sie F1 oder wählen Sie Hilfe und dann Hilfe.
-2. Das Fenster öffnet sich bei dem Thema, das zu Ihrer Situation passt: bei einem markierten Befehl in der Palette bei dessen Thema, in der Suchleiste, im Dateipanel oder in der Dokumentliste beim Thema dieses Bereichs, sonst auf der Startseite.
-3. F1 in den Einstellungen öffnet das Thema über die Einstellungen, F1 im Regex-Tester das Thema über den Tester.
+2. Das Fenster öffnet sich bei dem Thema, das zu Ihrer Situation passt: bei einem markierten Befehl in der Palette bei dessen Thema, in der Suchleiste, in einem Bereich, in einer Ansicht (Hex, Tabelle, Vergleich, große Datei) oder in einer Leiste über dem Dokument beim Thema dieses Teils, in einem Dialog beim Thema des Befehls, der ihn geöffnet hat, sonst auf der Startseite.
+3. F1 in den Einstellungen, im Regex-Tester, im Werkzeug-Editor, im LOG-Muster-Tester, im Binärvergleich und in diesem Hilfefenster öffnet das Thema über dieses Fenster.
 - Die Hilfe ist ein einziges Fenster. Ein weiteres F1 schaltet es nur auf ein anderes Thema um.
 
 ## [help.about] Info
@@ -103,7 +103,6 @@ Der Tab und die Datei auf dem Datenträger werden nebeneinander in einem eigenen
 2. Ist in den Einstellungen ein Externes Vergleichsprogramm eingetragen, startet stattdessen Ihr Programm: links die Datei auf dem Datenträger, rechts der Inhalt des Tabs. In der Argumentvorlage ist {left} die Datei auf dem Datenträger und {right} der Inhalt des Tabs. Die dem Programm übergebene Kopie des Tabs wird gelöscht, wenn es endet.
 - Ein Tab ohne Datei auf dem Datenträger meldet: Der Tab hat keine Datei auf dem Datenträger, mit der verglichen werden kann.
 - Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
-- Ein eigenes Vergleichsfenster hat das Programm nicht; es verwendet das von Ihnen eingestellte Programm.
 
 ## [remote.connections] Remote-Verbindungen
 commands: nks.remote.connections
@@ -206,7 +205,7 @@ Eine Datei wird schreibgeschützt geöffnet, wenn ein anderes Programm sie geöf
 commands: nks.file.history
 Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein anderes Programm eine Revision der Datei. Es braucht weder ein Projekt noch Git.
 1. Wählen Sie Datei und dann Verlauf und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
-2. Wählen Sie eine Revision. Vergleichen öffnet sie in Ihrem Vergleichsprogramm (dem von Mit Datenträger vergleichen) links und den Tab rechts. Datei wiederherstellen setzt die ganze Revision in den Tab. Auswahl wiederherstellen ersetzt nur die ausgewählten Zeilen durch die passenden Zeilen der Revision. Bezeichnung gibt der Revision einen Namen.
+2. Wählen Sie eine Revision. Vergleichen zeigt sie links und den Tab rechts in einem Vergleichs-Tab (Thema Mit Datenträger vergleichen); ist ein Externes Vergleichsprogramm eingetragen, startet stattdessen dieses. Datei wiederherstellen setzt die ganze Revision in den Tab. Auswahl wiederherstellen ersetzt nur die ausgewählten Zeilen durch die passenden Zeilen der Revision. Bezeichnung gibt der Revision einen Namen.
 - Das Wiederherstellen ist eine Änderung im Tab; Rückgängig nimmt sie zurück, und nichts wird geschrieben, bis Sie speichern. Der Text, der im Tab stand, bleibt als Revision erhalten.
 - Die Revisionen liegen im Profilordner, ein Update des Programms löscht sie also nicht.
 - Dateien mit geheimen Werten, etwa .env, werden nicht gespeichert, solange Sie in den Einstellungen nicht Verlauf von Dateien mit geheimen Werten führen einschalten.
@@ -226,7 +225,6 @@ commands: nks.file.historySearch
 2. Die Liste zeigt die Revisionen der Datei, die den Text enthalten, mit der Zahl der Treffer und der ersten Zeile. Wählen Sie eine aus, dann öffnen sich die Aktionen, zum Beispiel Vergleichen.
 - Revisionen von Dateien mit geheimen Werten werden nicht durchsucht.
 
-- Startet Ihr Programm nicht, schreibt die Statusleiste Das Vergleichsprogramm ist nicht gestartet und nennt den Grund.
 ## [file.openPath] Pfad am Cursor öffnen
 commands: nks.file.openPathAtCaret
 1. Setzen Sie den Cursor auf einen Dateipfad im Text, zum Beispiel src/a.cs:12.
@@ -950,7 +948,7 @@ Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Untersch
 - Das Scrollen eines Rasters scrollt das andere an dieselbe Stelle der anderen Datei; bei eingefügten Bytes ist das die entsprechende Stelle, nicht derselbe Offset.
 - Die Raster sind schreibgeschützt. Die Karte neben jedem Raster markiert die Unterschiede.
 - Die Liste endet bei 1.000.000 Unterschieden (das Fenster sagt es); zwei unabhängige Dateien würden sonst den Speicher füllen.
-- Zwei Revisionen einer Datei aus dem lokalen Verlauf werden noch nicht angeboten, weil es den lokalen Verlauf noch nicht gibt.
+- Zwei Revisionen einer Datei aus dem lokalen Verlauf lassen sich im Hex-Editor nicht vergleichen. Vergleichen im lokalen Verlauf vergleicht Text (Thema Lokaler Verlauf).
 
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
@@ -1155,7 +1153,7 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 Ändert ein anderes Programm die Datei, erscheint über dem Dokument eine Leiste: Die Datei wurde auf dem Datenträger geändert.
 - Neu laden verwirft Ihre Änderungen und lädt die Datei vom Datenträger.
 - Meine behalten behält Ihre Änderungen; das nächste Speichern fragt nach, bevor es die Datei überschreibt.
-- Vergleichen öffnet das Vergleichsprogramm (Thema Mit Datenträger vergleichen).
+- Vergleichen zeigt die Unterschiede zwischen Ihrem Tab und der Datei auf dem Datenträger (Thema Mit Datenträger vergleichen).
 Wurde die Datei gelöscht oder umbenannt, sagt die Leiste, dass sie nicht mehr da ist. Behalten lässt den Tab, Tab schließen schließt ihn.
 Beim Speichern bekommen Sie dieselbe Frage im Fenster Datei geändert: Überschreiben, Vergleichen, Abbrechen. Ohne Zustimmung wird nichts überschrieben.
 
@@ -1203,13 +1201,101 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 - Das Wiederherstellungsjournal ist nicht verfügbar: Das Ersetzen in Dateien läuft ohne die Sicherheit, dass es sich nach einem Absturz abschließen oder zurücksetzen lässt; starten Sie es besser, wenn das Journal funktioniert.
 - „...“ ist keine Zeilennummer: Tippen Sie im Fenster Gehe zu Zeile eine Zahl, Zeile:Spalte, einen Prozentwert oder @Byte (Thema Gehe zu Zeile).
 
+## [errors.remote] Fehlermeldungen: Remote-Dateien und Quellen
+Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleiste, in der Leiste über dem Text oder in einem Dialog. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
+- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy).
+- ACHTUNG: Die Identität von Server ist nicht die, der Sie zuvor vertraut haben. Das Programm verbindet sich erst, wenn Sie die neue Identität bestätigen. Fragen Sie den Serveradministrator, ob der Server neu installiert wurde, und verbinden Sie sich nur, wenn Sie wissen, warum sie sich geändert hat (Thema Remote-Verbindungen).
+- Der Port muss eine Zahl von 1 bis 65535 sein. Geben Sie eine ganze Zahl von 1 bis 65535 ein oder lassen Sie das Feld leer, dann gilt der übliche Port des Protokolls.
+- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher für Anmeldedaten (er funktioniert nur unter Windows, Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
+- Pfad gibt es auf dem Server nicht. Prüfen Sie den Pfad. Ein Pfad zu einem Ordner zeigt dessen Inhalt, so können Sie ab / zur Datei blättern.
+- Pfad kann nicht geöffnet werden: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund (eine Berechtigung auf dem Server, eine unterbrochene Verbindung) und öffnen Sie die Datei erneut.
+- Das Hochladen von Titel ist fehlgeschlagen: Grund. Der Server behält seine vorherige Version; Ihre Änderungen bleiben hier gespeichert. Beheben Sie den Grund und wählen Sie erneut Auf Server hochladen; eine teilweise gesendete Datei wird fortgesetzt (Thema Auf Server hochladen).
+- Der Abgleich mit dem Server ist fehlgeschlagen: Grund. Es wurde nichts heruntergeladen oder geändert. Wenn die Verbindung wieder funktioniert, wählen Sie in der Leiste Erneut prüfen oder Serverversion prüfen.
+- Die lokale Kopie von Pfad wurde gelöscht. Öffnen Sie die Datei erneut vom Server (Remote-Datei öffnen).
+- Die Datei ist keine brauchbare Liste von Verbindungen: Grund. Wählen Sie eine Datei, die Verbindungen exportieren erzeugt hat (Thema Verbindungen sichern).
+- Kein Plugin bedient Adresse. Vergleichen Sie das Schema am Anfang der Adresse mit der Liste unter Aus Plugin-Quelle öffnen. Ein ausgeschaltetes Plugin liefert nichts (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen).
+- Adresse kann nicht geöffnet werden: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund und versuchen Sie es erneut.
+- Titel kann nicht gespeichert werden: Grund. Ihr Text bleibt im Tab. Beheben Sie den Grund und speichern Sie erneut, oder schreiben Sie mit Speichern unter eine Kopie auf die Festplatte; das beendet die Verbindung zur Quelle.
+- Name nimmt keine Schreibvorgänge an. Diese Quelle kann nur lesen. Behalten Sie mit Speichern unter eine Kopie auf der Festplatte; das beendet die Verbindung zur Quelle.
+- Name hat Titel nicht angenommen: Grund. Die Änderungen bleiben im Tab. Beheben Sie den Grund und speichern Sie erneut. Das Plugin muss laufen (Thema Tabs, die ein Plugin liefert).
+- Dieser Tab ist schreibgeschützt, weil die Datei gesperrt ist. Nutzen Sie in der Leiste Trotzdem bearbeiten oder Speichern unter. Wählen Sie in der Leiste Trotzdem bearbeiten: Jedes Speichern prüft dann zuerst die Datei auf der Festplatte. Oder verwenden Sie Speichern unter (Thema Gesperrte Dateien).
+
+## [errors.plugins] Fehlermeldungen: Plugins
+Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem Dialog, in einer Leiste über dem Text oder in der Statusleiste gemeldet. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
+- Die Datei ist keine lesbare ZIP-Datei. Es wurde nichts installiert. Laden Sie die ZIP-Datei des Plugins erneut herunter oder bitten Sie den Autor um eine neue.
+- Die ZIP-Datei enthält einen Pfad, der außerhalb des Plugin-Ordners geschrieben würde. Es wurde nichts installiert. Der Autor muss das Plugin neu packen.
+- Die ZIP-Datei entpackt sich auf mehr als erlaubt (vorläufiges Limit). Es wurde nichts installiert. Bitten Sie den Autor um ein kleineres Paket; die Grenze ist vorläufig.
+- Die ZIP-Datei hat im Stammordner keine nkspad-plugin.json. Die Datei muss direkt im Stammverzeichnis der ZIP-Datei liegen, nicht in einem Unterordner.
+- Das Manifest wird abgelehnt: Die Zeilen danach sagen, welcher Eintrag falsch ist; der Autor muss nkspad-plugin.json korrigieren.
+- Die Plugin-ID gehört zu einem eingebauten Plugin. Die Kennung eines eingebauten Plugins kann nicht verwendet werden; der Autor muss eine andere Kennung wählen.
+- Eine gleiche oder neuere Version dieses Plugins ist bereits installiert. Es wurde nichts installiert. Der Manager kann nur auf die vorherige Version zurücksetzen, die er behalten hat.
+- Dieses ZIP enthält ein anderes Plugin (Kennung), kein Update des ausgewählten. Wählen Sie das Plugin, zu dem die ZIP-Datei gehört, oder installieren Sie sie mit Plugin aus ZIP installieren als neues Plugin.
+- Das Plugin konnte nicht installiert werden: Der Grund folgt der Meldung. Es wurde nichts installiert.
+- Das Plugin Name konnte nicht ausgeführt werden: Grund. Lesen Sie den Grund. Fehlt das Programm des Plugins, installieren Sie das Plugin erneut aus seiner ZIP-Datei.
+- Das Plugin Name läuft nicht mehr (Grund). Es startet in N s neu. Warten Sie: Das Plugin startet von selbst neu. Ausgabe anzeigen in der Leiste öffnet die letzten Fehlerzeilen des Plugins.
+- Das Plugin Name läuft nicht mehr (Grund). Nach wiederholten Abstürzen ist es ausgeschaltet. Es bleibt ausgeschaltet. Ausgabe anzeigen in der Leiste sagt, warum; aktualisieren oder installieren Sie das Plugin neu und schalten Sie es im Plugin-Manager wieder ein.
+- Titel wurde geschlossen: Das Plugin hat ihn geschlossen oder wurde beendet. Nicht gespeicherte Änderungen sind verloren. Speichern Sie den Tab, bevor das Plugin endet: Speichern sendet den Text an das Plugin (Thema Tabs, die ein Plugin liefert).
+
+## [errors.agents] Fehlermeldungen: MCP, /ide und Agenten
+Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in der Statusleiste, in Dialogen und im Agent-Bereich. Jede Zeile zitiert die Meldung und sagt, was zu tun ist. Ohne Ihre Bestätigung wird nichts auf Ihre Tabs angewendet, ein fehlgeschlagener Schritt lässt sie also unverändert.
+- Der MCP-Server konnte nicht gestartet werden: Grund. Beheben Sie den Grund und wählen Sie MCP-Server erneut. Bis dahin wird nichts geteilt.
+- Schalten Sie zuerst den MCP-Server ein (Extras, MCP-Server). Schalten Sie den Server ein und teilen Sie den Tab dann erneut (Thema Der Editor als MCP-Server).
+- Dieser Tab kann nicht geteilt werden. Nur Text-Tabs lassen sich teilen. Ein Vergleich oder eine Liste von Suchergebnissen nicht.
+- Die Auswahl ist größer als N Bytes. Wählen Sie weniger aus oder teilen Sie den ganzen Tab. Wählen Sie weniger aus oder teilen Sie den ganzen Tab.
+- Die /ide-Brücke konnte nicht starten: Grund. Beheben Sie den Grund und wählen Sie /ide-Brücke erneut.
+- Die /ide-Brücke wurde ausgeschaltet: Grund. Der Agent spricht eine Protokollversion, die Textida nicht kennt. An Ihren Tabs wurde nichts geändert. Verwenden Sie eine Version von Claude Code, die ein Protokoll spricht, das Textida kennt, und schalten Sie die Brücke dann wieder ein (Thema Die /ide-Brücke für Claude Code).
+- An der /ide-Brücke ist kein Agent verbunden. Führen Sie /ide in Claude Code aus, in einem Terminal in einem Ordner dieses Fensters.
+- Name ließ sich nicht ausprobieren: Grund. Der Grund nennt den Fehler und die letzten Zeilen, die das Programm auf seine Standardfehlerausgabe geschrieben hat. Korrigieren Sie die Einrichtung des Servers in der Datei seines Agenten (Textida ändert diese Datei nie) und versuchen Sie es erneut.
+- Keine Antwort innerhalb von N s. Dem Server wurde gesagt, die Anfrage abzubrechen. Prüfen Sie, ob der Server außerhalb von Textida startet und antwortet, und versuchen Sie es erneut.
+- Der Ausschnitt für Agent besteht die Formatprüfung nicht: Grund. Es wurde nichts geschrieben. Der Eintrag verwendet etwas, das das Format des anderen Agenten nicht fassen kann; korrigieren Sie ihn in seiner Quelldatei und konvertieren Sie erneut.
+- Name ist fehlgeschlagen: Grund. Die Liste schließt sich. Die letzten Zeilen des Programms stehen in der Ausgabe Aufgaben.
+- Für Name wurde kein Wert eingegeben, nichts wurde gestartet. Verbinden Sie sich erneut und geben Sie den Wert ein; er wird im Anmeldeinformationsspeicher abgelegt und nirgendwo sonst.
+- Name hat den Schlüssel abgelehnt. Der gespeicherte Wert von Variablen wurde verworfen, Sie werden erneut gefragt. Geben Sie den neuen Schlüssel ein, wenn Sie gefragt werden.
+- Name hat den Schlüssel abgelehnt. Er stammt nicht aus dem Anmeldeinformationsspeicher von Textida (er steht in der Umgebung oder in der Konfiguration); ändern Sie ihn dort. Ändern Sie den Schlüssel dort, wo er steht, in der Umgebung oder in der Konfigurationsdatei; Textida ändert ihn dort nicht.
+- Kein JSON-Objekt. Schreiben Sie die Argumente als JSON-Objekt, zum Beispiel {"name": "value"}; {} bedeutet keine.
+- Angezeigt werden die ersten N von N Zeichen. Der Rest ist abgeschnitten. Fragen Sie das Werkzeug nach weniger (Thema MCP-Server der Agenten).
+- Agent konnte nicht gestartet werden: Grund. Prüfen Sie, ob das Programm installiert ist und in einem Terminal startet; Textida installiert keine Agenten.
+- Öffnen Sie zuerst eine Datei oder einen Ordner; der Agent arbeitet in dessen Ordner. Öffnen Sie zuerst eine Datei oder einen Ordner und starten Sie dann den Agenten.
+- Ein Agent läuft bereits. Beenden Sie ihn zuerst mit Agent beenden.
+- Starten Sie zuerst einen Agenten. Starten Sie einen Agenten mit Agent starten und teilen Sie dann den Tab (Thema Agent über ACP).
+- Dieser Tab kann nicht mit dem Agenten geteilt werden. Ein Agent benennt eine Datei über ihren Pfad: Speichern Sie den Tab zuerst. Ein Vergleich oder eine Liste von Suchergebnissen lässt sich nicht teilen.
+- Ein Zug läuft noch. Brechen Sie ihn zuerst ab. Wählen Sie Zug des Agenten abbrechen oder warten Sie, bis der Zug endet.
+- Der Agent hat nicht rechtzeitig geantwortet: Grund. Der Zug ist beendet. Senden Sie die Nachricht erneut oder beenden Sie den Agenten und starten Sie ihn neu.
+- Der Agent ist fehlgeschlagen: Grund. Lesen Sie den Grund im Bereich; läuft der Agent nicht mehr, starten Sie ihn neu.
+
+## [errors.tools] Fehlermeldungen: Werkzeuge, Linter, Sprachserver und Git
+Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie erscheinen in der Statusleiste, in der Ausgabe Aufgaben oder in einer Leiste über dem Text. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
+- Titel läuft noch. Beenden Sie es zuerst. Es läuft immer nur ein Werkzeug. Warten Sie darauf oder wählen Sie Laufendes Werkzeug beenden.
+- Titel kann nicht ausgeführt werden: Grund. Der Grund nennt die Variable oder das Programm. Eine unbekannte Variable oder eine, die für dieses Dokument nicht gilt, stoppt den Lauf, bevor etwas startet (Thema Werkzeuge: externes Programm starten).
+- Beendet: Das Zeitlimit von N s wurde erreicht. Erhöhen Sie timeoutSeconds in der Definition des Werkzeugs oder die Einstellung Standard-Zeitlimit für Werkzeuge.
+- Name lief nicht: Programm wurde weder in vendor/bin, node_modules/.bin, .venv noch im PATH gefunden. Installieren Sie es dort oder tragen Sie seinen Pfad unter toolPaths in saveActions.json ein. Installieren Sie das Programm oder geben Sie seinen Pfad als toolPaths in saveActions.json an (Thema Linter).
+- Name wurde nach N s nicht fertig und gestoppt. Funde eines früheren Laufs bleiben. Erhöhen Sie lintTimeoutSeconds in saveActions.json.
+- Ohne Formatierung gespeichert: Grund. Die Datei wurde so gespeichert, wie sie war. Beheben Sie den Grund und speichern Sie erneut oder schalten Sie das Formatieren aus (Thema Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen).
+- Dieses Werkzeug wurde noch nicht bestätigt; führen Sie es einmal über Werkzeug ausführen aus. Führen Sie das Werkzeug einmal mit Werkzeug ausführen aus und bestätigen Sie Befehl und Ordner; danach kann es beim Speichern laufen.
+- Das Hochladen der Dateien aus folder auf Name ist nicht erlaubt; speichern Sie eine Datei des Projekts von Hand und erlauben Sie es. Speichern Sie eine Datei des Projekts von Hand: Das Programm fragt, und Sie können das Hochladen für dieses Projekt erlauben.
+- Abfragen bei Register sind nicht möglich: nicht erlaubt, oder der Proxy braucht eine Anmeldung. Wählen Sie Extras, Pakete, Paketversionen prüfen und stimmen Sie für das Register zu. Ein Proxy mit Benutzernamen kann für Abfragen nicht verwendet werden (Thema Paketmanifeste: Namen, Versionen und Marke für neuere Versionen).
+- Schema Name: Download nicht erlaubt. Wählen Sie Extras, Pakete, Schema-Download erlauben und stimmen Sie für den Server zu (Thema Schemas für JSON, YAML und TOML: Prüfung, Vervollständigung und Beschreibungen).
+- Weder neben der geöffneten Datei noch in einem übergeordneten Ordner gibt es ein Makefile. Öffnen Sie eine Datei in einem Ordner mit Makefile oder das Makefile selbst (Thema Makefile: Ziel ausführen).
+- Ein Sprachserver arbeitet nur mit Textdokumenten, nicht mit großen Dateien, die seitenweise angezeigt werden. Eine Datei im Seitenmodus geht nie an einen Sprachserver (Thema Große Dateien (Seitenmodus)).
+- Für Sprache wurde kein Sprachserver gefunden: Programm. Installieren Sie den Server so, dass sein Programm im PATH gefunden wird (Thema Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose).
+- Der Sprachserver für Sprache konnte nicht gestartet werden: Grund. Lesen Sie den Grund, beheben Sie ihn und führen Sie erneut einen Befehl der Gruppe aus.
+- Der Sprachserver für Sprache wurde unerwartet beendet (Detail). Führen Sie erneut einen beliebigen Befehl der Gruppe aus: Der Server startet und erhält die offenen Dokumente erneut.
+- Git konnte nicht gestartet werden: Grund. Das Programm git muss installiert und im PATH zu finden sein (Thema Git: Status, Vergleich und Abschnitt vormerken).
+- Die Datei liegt in keinem Git-Repository. Öffnen Sie eine Datei aus einem Git-Repository.
+- Der Index von Datei hat sich seit dem letzten Lesen geändert (durch ein anderes Programm). Es wurde nichts geschrieben. Prüfen Sie die Änderungen und merken Sie den Abschnitt erneut vor.
+- Die Datei hat einen ungelösten Merge-Konflikt. Lösen Sie ihn, bevor Sie Abschnitte vormerken. Lösen Sie den Konflikt mit Git: Konflikt, unsere Änderungen nehmen / ihre Änderungen nehmen / beide Seiten nehmen, speichern Sie die Datei und wählen Sie dann Git: Datei als gelöst markieren.
+
 ## [limits] Was diese Version nicht kann
-Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge sind noch nicht darin:
-- Programmaktualisierung: Das Programm aktualisiert sich nicht selbst und sucht nicht nach neuen Versionen. Eine neue Version installieren Sie selbst.
-- Der Hex-Editor hat keine Minimap, sammelt nicht alle Treffer in einem Tab und ersetzt keine Bytes; Gehe zu Offset zeigt keine Vorschau des Ziels; eine Einstellung, die Dateien immer in Hex öffnet, fehlt.
-- Ein eigenes Vergleichsfenster: Es wird ein externes Vergleichsprogramm verwendet (Thema Mit Datenträger vergleichen).
-- Bearbeiten sehr großer Dateien: nur eingeschränkt, siehe Thema Große Dateien.
-- Erweiterungen (Plugins), entfernte Dateien und weitere Funktionen aus dem Plan für Version 1.0: nicht in dieser Version.
+Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
+- Updates: Das Programm aktualisiert sich nur unter Windows selbst, im installierten Textida (Thema Updates und Rückkehr zur vorherigen Version). Unter macOS und Linux installieren Sie eine neue Version selbst. Ein Build ohne Update-Adresse und Signaturschlüssel sucht nicht nach Updates und sagt das.
+- Gespeicherte Passwörter: Der Speicher für Anmeldedaten funktioniert nur unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
+- Plugins: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Seine Berechtigungen halten fest, was Sie erlaubt haben, sie sind keine Sandbox, und die Signaturen von Plugins werden nicht geprüft (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen). Installieren Sie nur Plugins, denen Sie vertrauen.
+- Assistenten: Die /ide-Brücke und der Agent über ACP sind nicht mit den echten Programmen geprüft (Themen Die /ide-Brücke für Claude Code und Agent über ACP). Eine Verbindung, die nicht klappt, meldet das Programm mit dem Grund in der Statusleiste oder in der Ausgabe Aufgaben.
+- Große Dateien: Das Bearbeiten im Seitenmodus ist eingeschränkt (Thema Große Dateien (Seitenmodus)). Ein Sprachserver, das Formatieren und die meisten Befehle, die Text ändern, funktionieren dort nicht. Die Bytes einer Datei beliebiger Größe ändern Sie im Hex-Editor.
+- Hex: Zwei Revisionen aus dem lokalen Verlauf lassen sich nicht Byte für Byte vergleichen, und Strukturvorlagen sind eine Teilmenge des Formats .ksy (Thema Hex: Strukturvorlage).
+- Programme, die der Editor nur startet (git, Linter, Formatierer, Sprachserver, make, npm, Composer, HTML Tidy): Sie müssen installiert und im PATH zu finden sein. Der Editor lädt keines davon herunter.
+- Das Explorer-Menü und die Dateizuordnungen: nur unter Windows.
+- Sprachen der Oberfläche: Tschechisch, Englisch, Slowakisch und Deutsch. Alte PSPad-Übersetzungen lassen sich nicht übernehmen.
 
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1538,6 +1624,12 @@ Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). 
 4. Hilfe, Zur vorherigen Version zurückkehren bringt Sie zu der Version, die vor dem letzten Update installiert war. Die neuere Version ist dann die, zu der Sie zurückkehren können.
 - Die Einstellungen von Textida und das Journal bleiben, ein portabler Profilordner wird übernommen.
 - Dieser Build sucht nur, wenn er eine Update-Adresse und einen Signaturschlüssel hat; ohne beide sagt er das.
+### Meldungen
+- Updates funktionieren nur in einer installierten Textida (Setup.ps1 neben Textida.exe unter Windows). Updates funktionieren nur unter Windows, im installierten Textida. Anderswo installieren Sie die neue Version selbst (Thema Was diese Version nicht kann).
+- In diesem Build sind weder Update-Adresse noch Signaturschlüssel gesetzt, daher kann er nicht nach Updates suchen. Verwenden Sie einen Build mit Update-Adresse und Signaturschlüssel oder installieren Sie die neue Version selbst.
+- Update fehlgeschlagen: Grund. Es wurde nichts installiert, die aktuelle Version läuft weiter. Der Grund nennt die Ursache (eine nicht passende Signatur oder Prüfsumme, ein nicht passendes Paket, ein Netzwerkfehler); versuchen Sie es später erneut.
+- Speichern oder schließen Sie zuerst die Dokumente mit ungespeicherten Änderungen: Das Journal ist aus, ein Update könnte sie verlieren. Speichern Sie die Dokumente oder schalten Sie die Wiederherstellung nach Absturz ein (Thema Wiederherstellung nach Absturz) und wählen Sie das Update dann erneut.
+- Es gibt keine vorherige Version, zu der man zurückkehren könnte. Eine vorherige Version gibt es nur nach einem Update.
 
 ## [review.external] Änderungen von außen prüfen
 commands: nks.review.open, nks.review.next, nks.review.previous

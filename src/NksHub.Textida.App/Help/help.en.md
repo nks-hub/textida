@@ -1,6 +1,6 @@
 ## [start] Getting started
 commands: nks.help.contents
-This help is part of the program and needs no internet connection. Open it with F1 or from the Help menu. Press F1 on a selected command in the command palette or inside an open panel (search, files, documents, settings, regular expression tester) and its topic opens directly.
+This help is part of the program and needs no internet connection. Open it with F1 or from the Help menu. F1 works in every window, dialog and panel: press it on a selected command in the command palette, inside a panel (search, files, documents, output, preview, agent, hex panels), in a bar above a document, in a dialog or in another window of the program, and the topic that fits opens directly.
 ### Searching the help
 - The topic list is on the left. Type a word in the box above it; only topics that contain all the words you typed stay in the list. Case and accents do not matter.
 - The Up and Down arrows in the box switch topics, Esc closes the help.
@@ -26,8 +26,8 @@ The palette is a searchable list of all commands of the program.
 commands: nks.help.contents
 Opens this help window.
 1. Press F1, or choose Help and then Help.
-2. The window opens at the topic that fits where you are: with a command selected in the palette at that command's topic, in the find bar, the file panel or the document list at the topic of that panel, otherwise at the start page.
-3. F1 in the settings opens the topic about the settings, F1 in the regular expression tester the topic about the tester.
+2. The window opens at the topic that fits where you are: with a command selected in the palette at that command's topic, in the find bar, a panel, a view (hex, table, comparison, large file) or a bar above a document at the topic of that part, in a dialog at the topic of the command that opened it, otherwise at the start page.
+3. F1 in the settings, the regular expression tester, the tool editor, the LOG pattern tester, the binary comparison and this help window opens the topic about that window.
 - The help is one window. Another F1 only switches it to a different topic.
 
 ## [help.about] About
@@ -103,7 +103,6 @@ The tab and the file on disk are shown side by side in a tab of their own. The t
 2. If External diff tool is set in the settings, your own program is started instead: the file on disk on the left, the content of the tab on the right. In the argument template {left} is the file on disk and {right} is the content of the tab. The copy of the tab handed to the program is deleted when it ends.
 - A tab without a file on disk says: The tab has no file on disk to compare with.
 - If the program does not start, the status bar says The diff tool did not start and gives the reason.
-- The program has no comparison window of its own; it uses the one you set.
 
 ## [remote.connections] Remote connections
 commands: nks.remote.connections
@@ -206,7 +205,7 @@ A file opens read only when another program has it open and does not let others 
 commands: nks.file.history
 The program keeps a revision of a file at every save and at every change another program makes to it. It needs no project and no Git.
 1. Choose File and then History and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
-2. Choose a revision. Compare opens it in your comparison program (the one from Compare with Disk) on the left and the tab on the right. Restore File puts the whole revision into the tab. Restore Selection replaces only the selected lines with the matching lines of the revision. Label adds a name to the revision.
+2. Choose a revision. Compare shows it on the left and the tab on the right in a comparison tab (topic Compare with disk); if External diff tool is set, that program is started instead. Restore File puts the whole revision into the tab. Restore Selection replaces only the selected lines with the matching lines of the revision. Label adds a name to the revision.
 - A restore is an edit in the tab; undo takes it back and nothing is written until you save. The text that was in the tab is kept as a revision.
 - Revisions are stored in the profile folder, so an update of the program does not remove them.
 - Files that hold secret values, such as .env, are not stored unless you turn on Keep history of secrets files in the settings.
@@ -226,7 +225,6 @@ commands: nks.file.historySearch
 2. The list shows the revisions of the file that contain the text, with the number of matches and the first line. Choose one to open the actions for it, for example Compare.
 - Revisions of secrets files are not searched.
 
-- If your program does not start, the status bar says The diff tool did not start and gives the reason.
 ## [file.openPath] Open path at caret
 commands: nks.file.openPathAtCaret
 1. Put the caret on a file path in the text, for example src/a.cs:12.
@@ -950,7 +948,7 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 - Scrolling one grid scrolls the other to the same place in the other file; with inserted bytes that is the corresponding place, not the same offset.
 - The grids are read-only. The map beside each grid marks the differences.
 - The list stops at 1,000,000 differences (the window says so); two unrelated files would otherwise fill the memory.
-- Two revisions of a file from the local history are not offered yet, because the local history does not exist.
+- Two revisions of a file from the local history cannot be compared in hex. Compare in the local history compares text (topic Local history).
 
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
@@ -1155,7 +1153,7 @@ The status bar then shows Large file, its size and the revision.
 If another program changes the file, a bar appears above the document: The file changed on disk.
 - Reload discards your changes and loads the file from disk.
 - Keep Mine keeps your changes; the next save asks before it overwrites the file.
-- Compare opens the diff tool (topic Compare with disk).
+- Compare shows the differences between your tab and the file on disk (topic Compare with disk).
 If the file was deleted or renamed, the bar says it is no longer there. Keep leaves the tab, Close Tab closes it.
 When you save, you get the same question in the window File Changed: Overwrite File, Compare, Cancel. Nothing is overwritten without consent.
 
@@ -1203,13 +1201,101 @@ When an operation on a file fails, a bar above the document says The operation f
 - The recovery journal is not available: replacing in files runs without the certainty that it can be finished or rolled back after a crash; better start it when the journal works.
 - “...” is not a line number: in the Go to Line window type a number, line:column, a percentage or @byte (topic Go to line).
 
+## [errors.remote] Error messages: remote files and sources
+A message about a remote file or a source appears in the status bar, in the bar above the text or in a dialog. Each line quotes the message and says what to do.
+- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy).
+- WARNING: the identity of host is not the one you trusted before. The program does not connect until you confirm the new identity. Ask the server administrator whether the server was reinstalled, and connect only if you know why it changed (topic Remote connections).
+- The port must be a number from 1 to 65535. Type a whole number from 1 to 65535, or leave the box empty and the usual port of the protocol is used.
+- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store (it works on Windows only, topic What this version cannot do). Fix it and save again.
+- path does not exist on the server. Check the path. A path to a folder shows its content, so you can browse from / to the file.
+- Cannot open path: reason. Nothing was opened. Fix the reason (a permission on the server, a lost connection) and open the file again.
+- Upload of title failed: reason. The server keeps its previous version; your changes stay saved here. Fix the reason and choose Upload to Server again; a partly sent file is continued (topic Upload to the server).
+- The check against the server failed: reason. Nothing was downloaded or changed. When the connection works again, choose Check Again in the bar, or Check Server Version.
+- The local copy of path was deleted. Open the file from the server again (Open Remote File).
+- The file is not a usable list of connections: reason. Choose a file made by Export Connections (topic Back up connections).
+- No plugin serves address. Compare the scheme at the start of the address with the list in Open from Source. A plugin that is turned off serves nothing (topic Plugin manager: install, update, roll back and remove plugins).
+- Cannot open address: reason. Nothing was opened. Fix the reason and try again.
+- Cannot save title: reason. Your text stays in the tab. Fix the reason and save again, or use Save As to write a copy to disk; that ends the link to the source.
+- name does not accept writes. This source only reads. Use Save As to keep a copy on disk; that ends the link to the source.
+- name did not take title: reason. The changes stay in the tab. Fix the reason and save again. The plugin has to be running (topic Tabs that a plugin supplies).
+- This tab is read only because the file is locked. Use Edit Anyway on the bar, or Save As. Choose Edit Anyway on the bar: every save then checks the file on disk first. Or use Save As (topic Locked files).
+
+## [errors.plugins] Error messages: plugins
+A plugin that cannot be installed or does not run is reported in a dialog, in a bar above the text or in the status bar. Each line quotes the message and says what to do.
+- The file is not a readable ZIP. Nothing was installed. Download the ZIP of the plugin again or ask its author for a new one.
+- The ZIP has a path that would be written outside the plugin folder. Nothing was installed. The author has to pack the plugin again.
+- The ZIP unpacks to more than the allowed size (provisional limit). Nothing was installed. Ask the author for a smaller package; the limit is provisional.
+- The ZIP has no nkspad-plugin.json in its root folder. The file has to lie directly in the root of the ZIP, not in a subfolder.
+- The manifest is refused: The lines after it say which entry is wrong; the author has to fix nkspad-plugin.json.
+- The plugin id belongs to a built-in plugin. A built-in id cannot be used; the author has to choose another id.
+- A version of this plugin that is the same or newer is installed already. Nothing was installed. The manager can only roll back to the previous version it kept.
+- This ZIP holds a different plugin (id), not an update of the selected one. Choose the plugin that the ZIP belongs to, or install the ZIP as a new plugin with Install plugin from ZIP.
+- The plugin could not be installed: The reason follows the message. Nothing was installed.
+- The plugin name could not be run: reason. Read the reason. If the program of the plugin is gone, install the plugin again from its ZIP.
+- The plugin name stopped (reason). It starts again in N s. Wait: the plugin starts again by itself. Show output in the bar opens the last error lines of the plugin.
+- The plugin name stopped (reason). After repeated crashes it is turned off. It stays turned off. Show output in the bar tells why; update or reinstall the plugin and turn it on again in the Plugin Manager.
+- title was closed: its plugin closed it or stopped. Changes that were not saved are lost. Save the tab before the plugin stops: Save sends the text to the plugin (topic Tabs that a plugin supplies).
+
+## [errors.agents] Error messages: MCP, /ide and agents
+The messages of the MCP server, the /ide bridge and the agents appear in the status bar, in dialogs and in the agent panel. Each line quotes the message and says what to do. Nothing is applied to your tabs without your confirmation, so a failed step leaves them as they were.
+- The MCP server could not start: reason. Fix the reason and choose MCP Server again. Nothing is shared meanwhile.
+- Switch on the MCP server first (Tools, MCP Server). Switch the server on, then share the tab again (topic The editor as an MCP server).
+- This tab cannot be shared. Only text tabs can be shared. A comparison or a list of search results cannot.
+- The selection is larger than N bytes. Select less, or share the whole tab. Select less, or share the whole tab.
+- The /ide bridge could not start: reason. Fix the reason and choose IDE Bridge /ide again.
+- The /ide bridge was switched off: reason. The agent speaks a version of the protocol that Textida does not know. Nothing was changed in your tabs. Use a version of Claude Code that speaks a protocol Textida knows, then switch the bridge on again (topic The /ide bridge for Claude Code).
+- No agent is connected to the /ide bridge. Run /ide in Claude Code, in a terminal in a folder of this window.
+- name could not be tried: reason. The reason names the error and the last lines the program wrote to its standard error. Fix the setup of the server in the file of its agent (Textida never changes that file) and try again.
+- No answer within N s. The server was told to stop that request. Check that the server starts and answers outside Textida, then try again.
+- The snippet for agent does not pass the format check: reason. Nothing was written. The entry uses something the format of the other agent cannot hold; fix the entry in its source file and convert again.
+- name failed: reason. The list closes. The last lines of the program are in the Tasks output.
+- No value was entered for name; nothing was started. Connect again and type the value; it is kept in the credential store and nowhere else.
+- name refused the key. The stored value of variables was dropped; you are asked again. Type the new key when you are asked.
+- name refused the key. It does not come from the credential store of Textida (it is in the environment or written in the configuration); change it there. Change the key where it is, in the environment or in the configuration file; Textida does not change it there.
+- Not a JSON object. Write the arguments as a JSON object, for example {"name": "value"}; {} means none.
+- Shown are the first N of N characters. The rest is cut. Ask the tool for less (topic MCP servers of agents).
+- agent could not be started: reason. Check that the program is installed and starts in a terminal; Textida installs no agents.
+- Open a file or folder first; the agent works in its folder. Open a file or a folder first, then start the agent.
+- An agent is already running. Stop it first with Stop Agent.
+- Start an agent first. Start an agent with Start Agent, then share the tab (topic Agent over ACP).
+- This tab cannot be shared with the agent. An agent names a file by its path: save the tab first. A comparison or a list of search results cannot be shared.
+- A turn is still running. Cancel it first. Choose Cancel Agent Turn, or wait until the turn ends.
+- The agent did not answer in time: reason. The turn ended. Send the message again, or stop the agent and start it again.
+- The agent failed: reason. Read the reason in the panel; if the agent no longer runs, start it again.
+
+## [errors.tools] Error messages: tools, linters, language servers and Git
+These messages come from programs the editor starts for you. They appear in the status bar, in the Tasks output or in a bar above the text. Each line quotes the message and says what to do.
+- title is still running. Stop it first. One tool runs at a time. Wait for it, or choose Stop Running Tool.
+- title cannot run: reason. The reason names the variable or the program. An unknown variable, or one that does not apply to this document, stops the run before anything starts (topic Tools: run an external program).
+- Stopped: the time limit of N s was reached. Raise timeoutSeconds in the definition of the tool, or the setting Default time limit of tools.
+- name did not run: program was not found in vendor/bin, node_modules/.bin, .venv or PATH. Install it there or set its path as toolPaths in saveActions.json. Install the program, or give its path as toolPaths in saveActions.json (topic Linters).
+- name did not finish in N s and was stopped. Findings of an earlier run stay. Raise lintTimeoutSeconds in saveActions.json.
+- Saved without formatting: reason. The file was saved as it was. Fix the reason and save again, or switch the formatting off (topic Save actions: format, run a tool, upload).
+- This tool has not been confirmed yet; run it once from Run Tool. Run the tool once with Run Tool and confirm its command and directory; then it can run on save.
+- Uploading the files of folder to name has not been allowed; save a file of the project by hand and allow it. Save a file of the project by hand: the program asks, and you can allow the upload for that project.
+- Lookups at registry are not possible: they are not allowed, or the network proxy needs a login. Choose Tools, Packages, Check Package Versions and agree for the registry. A proxy with a user name cannot be used for lookups (topic Package manifests: names, versions and newer-version marks).
+- schema name: download not allowed. Choose Tools, Packages, Allow Schema Download and agree for the server (topic Schemas for JSON, YAML and TOML: check, completion and descriptions).
+- No Makefile next to the open file or in a folder above it. Open a file in a folder that has a Makefile, or the Makefile itself (topic Makefile: run a target).
+- A language server works with text documents only, not with large files shown in pages. A file in paged mode never goes to a language server (topic Large files (paged mode)).
+- No language server for language was found: program. Install the server so that its program is found on the PATH (topic Language server: definition, references, rename, completion and diagnostics).
+- The language server for language could not be started: reason. Read the reason, fix it and run a command of the group again.
+- The language server for language stopped unexpectedly (detail). Run any command of the group again: the server starts and gets the open documents again.
+- Git could not be started: reason. The git program has to be installed and found on the PATH (topic Git: status, compare and stage a hunk).
+- The file is not in a Git repository. Open a file from a Git repository.
+- The index of file changed since it was last read (by another program). Nothing was written. Check the changes and stage the hunk again.
+- The file has an unresolved merge conflict. Resolve it before staging hunks. Resolve the conflict with Git: Conflict, Take Ours / Take Theirs / Take Both, save the file, then choose Git: Mark File Resolved.
+
 ## [limits] What this version cannot do
-This help describes only what this version can do. These things are not in it yet:
-- Program update: the program does not update itself and does not check for new versions. You install a new version yourself.
-- The hex editor has no minimap, does not collect all matches into a tab and does not replace bytes; go to offset shows no preview of the target; a setting that would always open files in hex is missing.
-- A comparison window of its own: an external diff tool is used (topic Compare with disk).
-- Editing very large files: only limited, see the topic Large files.
-- Plugins, remote files and other functions planned for version 1.0: not in this version.
+This help describes only what this version can do. These things are not in it, and this is what to do instead:
+- Updates: the program updates itself only on Windows, in the installed Textida (topic Updates and return to the previous version). On macOS and Linux you install a new version yourself. A build without an update address and a signing key cannot look for updates and says so.
+- Saved passwords: the credential store works on Windows only (Credential Manager). On macOS and Linux the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
+- Plugins: a plugin is a program that runs with your user rights. Its permissions record what you allowed, they are not a sandbox, and the signatures of plugins are not checked (topic Plugin manager: install, update, roll back and remove plugins). Install only plugins you trust.
+- Assistants: the /ide bridge and the agent over ACP have not been verified against the real programs (topics The /ide bridge for Claude Code and Agent over ACP). A connection that does not work is reported with its reason in the status bar or the Tasks output.
+- Large files: editing in paged mode is limited (topic Large files (paged mode)). A language server, formatting and most commands that change text do not work there. To change the bytes of a file of any size, open it in hex.
+- Hex: two revisions from the local history cannot be compared byte by byte, and structure templates are a subset of the .ksy format (topic Hex: structure template).
+- Programs the editor only starts (git, linters, formatters, language servers, make, npm, Composer, HTML Tidy): they must be installed and found in PATH. The editor downloads none of them.
+- The Explorer menu and the file associations: Windows only.
+- Interface languages: Czech, English, Slovak and German. Old PSPad translation files cannot be imported.
 
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1538,6 +1624,12 @@ Windows only, in the installed Textida (the folder made by Setup.ps1). Textida n
 4. Choose Help, Return to the Previous Version to go back to the version that was installed before the last update. The newer version then becomes the one you can return to.
 - The settings of Textida and the journal stay where they are, and a portable profile folder is carried over.
 - This build checks only when it has an update address and a signing key; a build without them says so.
+### Messages
+- Updates work only in an installed Textida (Setup.ps1 next to Textida.exe on Windows). Updating works only on Windows, in the installed Textida. Elsewhere install the new version yourself (topic What this version cannot do).
+- This build has no update address or signing key set, so it cannot check for updates. Use a build that comes with the update address and the signing key, or install the new version yourself.
+- Update failed: reason. Nothing was installed and the current version keeps running. The reason names the cause (a signature or checksum that does not fit, a package that does not match, a network error); try again later.
+- Save or close the documents with unsaved changes first: the journal is off, so an update could lose them. Save the documents, or turn on crash recovery (topic Crash recovery), then choose the update again.
+- There is no previous version to return to. There is a previous version only after an update.
 
 ## [review.external] Review changes from outside
 commands: nks.review.open, nks.review.next, nks.review.previous

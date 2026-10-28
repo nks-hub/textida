@@ -23,6 +23,18 @@ internal sealed partial class AvaloniaDialogs
         return new Grid { ColumnDefinitions = new ColumnDefinitions("150,*"), ColumnSpacing = 10, Children = { text, input } };
     }
 
+    /// <summary>Check boxes side by side; a longer text moves one to the next line instead of clipping it.</summary>
+    private static WrapPanel SideBySide(params CheckBox[] boxes)
+    {
+        var panel = new WrapPanel();
+        foreach (var box in boxes)
+        {
+            box.Margin = new Thickness(0, 0, 16, 0);
+            panel.Children.Add(box);
+        }
+        return panel;
+    }
+
     private static RadioButton Choice(string group, string label, bool on) =>
         new() { GroupName = group, Content = label, IsChecked = on, Margin = new Thickness(0, 0, 12, 0) };
 
@@ -99,17 +111,17 @@ internal sealed partial class AvaloniaDialogs
             Margin = new Thickness(20), Spacing = 10,
             Children =
             {
-                Row(Loc.Get(K.LinesInsertMode), new StackPanel { Orientation = Orientation.Horizontal, Children = { modeText, modeNumbering, modeBullets } }),
+                Row(Loc.Get(K.LinesInsertMode), new WrapPanel { Children = { modeText, modeNumbering, modeBullets } }),
                 textRow, startRow, widthRow, separatorRow,
                 Row(Loc.Get(K.LinesInsertPlace), new WrapPanel { Children = { placeStart, placeEnd, placeColumn, placeCarets } }),
                 columnRow,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { skipIndent, skipEmpty } },
+                SideBySide(skipIndent, skipEmpty),
                 new TextBlock { Text = Loc.Get(K.LinesPreview), Opacity = 0.7 },
                 previewFrame,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(Loc.Get(K.LinesInsertTitle), panel, 560);
+        var dialog = Frame(Loc.Get(K.LinesInsertTitle), panel, 560, "edit.insertLines");
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); (text.IsVisible ? text : start).Focus(); };
@@ -164,7 +176,7 @@ internal sealed partial class AvaloniaDialogs
                 new WrapPanel { Children = { up, down } },
                 Row(Loc.Get(K.LinesSortBy), new WrapPanel { Children = { byCode, byLocale, byNumber } }),
                 localeRow,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { matchCase, duplicates } },
+                SideBySide(matchCase, duplicates),
                 Row(Loc.Get(K.LinesSortFrom), from),
                 Row(Loc.Get(K.LinesSortTo), to),
                 new TextBlock { Text = Loc.Get(K.LinesSortColumnsHint), TextWrapping = TextWrapping.Wrap, Opacity = 0.7, FontSize = 12 },
@@ -173,7 +185,7 @@ internal sealed partial class AvaloniaDialogs
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(Loc.Get(K.LinesSortTitle), panel, 560);
+        var dialog = Frame(Loc.Get(K.LinesSortTitle), panel, 560, "edit.sort");
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); up.Focus(); };

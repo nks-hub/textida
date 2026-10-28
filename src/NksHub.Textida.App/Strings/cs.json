@@ -754,7 +754,7 @@
   "hex.format.address": "{format} má 32bitové adresy; výběr sahá za 4 GiB.",
   "hex.copyAs.done": "Zkopírováno {bytes} B jako {format}.",
   "hex.copyAs.tooLarge": "Text by byl pro schránku příliš dlouhý. Exportujte výběr do souboru.",
-  "hex.pasteAs.hex": "Hex text",
+  "hex.pasteAs.hex": "Text v hexu",
   "hex.pasteAs.base64": "Base64",
   "hex.pasteAs.c": "Pole ze zdrojového kódu (C, C#, Java, ...)",
   "hex.pasteAs.invalid": "Nelze vložit jako {kind}: {reason}",

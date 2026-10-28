@@ -28,11 +28,24 @@ internal sealed partial class MainWindow
     internal InfoBar ShowNotice(string key, string message, IReadOnlyList<(string Label, Action Click)>? actions = null, bool warning = false)
     {
         DismissNotice(key);
-        var bar = new InfoBar(message, actions ?? [], warning, () => DismissNotice(key));
+        var bar = new InfoBar(message, actions ?? [], warning, () => DismissNotice(key), NoticeTopic(key));
         _noticeByKey[key] = bar;
         _notices.Children.Add(bar);
         return bar;
     }
+
+    /// <summary>The help topic of a window-level bar, by its key (the part before a colon names the kind).</summary>
+    private static string? NoticeTopic(string key) => key.Split(':')[0] switch
+    {
+        "restore" or "journal" or "batch" => "recovery",
+        "update" => "help.updates",
+        "fileop" => "errors.files",
+        "ide" => "tools.ide",
+        "configRestore" => "settings.backup",
+        "workspace" => "workspace.projects",
+        "plugin" or "plugin.crash" => "errors.plugins",
+        _ => null,
+    };
 
     internal void DismissNotice(string key)
     {
@@ -54,7 +67,7 @@ internal sealed partial class MainWindow
         }
         buttons.Add(new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true));
         map.Add(UnsavedAnswer.Cancel);
-        var request = new ChoiceRequest(Loc.Get(K.DialogUnsavedTitle), Loc.Get(K.DialogUnsavedMessage, ("title", od.Title)), buttons);
+        var request = new ChoiceRequest(Loc.Get(K.DialogUnsavedTitle), Loc.Get(K.DialogUnsavedMessage, ("title", od.Title)), buttons, HelpTopic: "file.close");
         int index = await _app.Dialogs.ChooseAsync(this, request);
         return index < 0 || index >= map.Count ? UnsavedAnswer.Cancel : map[index];
     }
@@ -245,7 +258,7 @@ internal sealed partial class MainWindow
     {
         var message = change.Kind == ExternalChangeKind.Missing ? Loc.Get(K.ConflictMissing, ("path", change.Path)) : Loc.Get(K.ConflictModified, ("path", change.Path));
         var request = new ChoiceRequest(Loc.Get(K.ConflictTitle), message,
-            [new DialogButton(Loc.Get(K.ConflictOverwrite)), new DialogButton(Loc.Get(K.ConflictCompare)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
+            [new DialogButton(Loc.Get(K.ConflictOverwrite)), new DialogButton(Loc.Get(K.ConflictCompare)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], HelpTopic: "conflict");
         switch (await _app.Dialogs.ChooseAsync(this, request))
         {
             case 0: return await SaveCoreAsync(tab, overwrite: true);
@@ -412,7 +425,7 @@ internal sealed partial class MainWindow
             var message = change.Kind == ExternalChangeKind.Missing
                 ? Loc.Get(K.BarMissing, ("title", od.Title))
                 : Loc.Get(K.BarChanged, ("title", od.Title));
-            t.ShowBar(new InfoBar(message, actions, warning: true, onClose: () => DismissBars(od)));
+            t.ShowBar(new InfoBar(message, actions, warning: true, onClose: () => DismissBars(od), helpTopic: "conflict"));
         }
     }
 

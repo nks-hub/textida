@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Tools;
 
@@ -31,6 +32,7 @@ internal sealed class LogPatternWindow : Window
     public LogPatternWindow(string pattern, LogPatternSyntax syntax, string sample)
     {
         Classes.Add("shell");
+        HelpContext.OnF1(this, "tools.logPattern");
         Width = 920;
         Height = 640;
         MinWidth = 600;

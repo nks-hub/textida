@@ -5,6 +5,8 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using NksHub.Textida.App.Help;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Encodings;
@@ -13,8 +15,11 @@ namespace NksHub.Textida.App.Services;
 
 internal sealed record DialogButton(string Label, bool IsDefault = false, bool IsCancel = false);
 
-/// <summary>A question with a few answers; <paramref name="Details"/> is an optional scrolling list under the message.</summary>
-internal sealed record ChoiceRequest(string Title, string Message, IReadOnlyList<DialogButton> Buttons, IReadOnlyList<string>? Details = null);
+/// <summary>
+/// A question with a few answers; <paramref name="Details"/> is an optional scrolling list under the message. <paramref name="HelpTopic"/> is the topic F1 opens;
+/// without one it is the topic of the command that asked, or of where the user is.
+/// </summary>
+internal sealed record ChoiceRequest(string Title, string Message, IReadOnlyList<DialogButton> Buttons, IReadOnlyList<string>? Details = null, string? HelpTopic = null);
 
 internal sealed record SaveAsRequest(string? SuggestedPath, TextCodec Current, IReadOnlyList<(TextCodec Codec, int Lost)> Targets);
 
@@ -55,12 +60,26 @@ internal interface IDialogs
 
 internal sealed partial class AvaloniaDialogs : IDialogs
 {
-    private static Window Frame(string title, Control content, double width = 460) => new()
+    /// <summary>Raised for every dialog window, before it is shown. The UI checks read the window from here.</summary>
+    internal static event Action<Window>? DialogCreated;
+
+    /// <summary>
+    /// A dialog window. F1 opens <paramref name="helpTopic"/>; without one, the topic of the command that opened the dialog (known now, while the command's flow is current),
+    /// else the topic of where the user is in the window that owns the dialog.
+    /// </summary>
+    private static Window Frame(string title, Control content, double width = 460, string? helpTopic = null)
     {
-        Title = title, Width = width, SizeToContent = SizeToContent.Height, CanResize = false,
-        WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
-        Classes = { "shell", "dialog" }, Content = content,
-    };
+        var dialog = new Window
+        {
+            Title = title, Width = width, SizeToContent = SizeToContent.Height, CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+            Classes = { "shell", "dialog" }, Content = content,
+        };
+        var topic = helpTopic ?? HelpContext.OfRunningCommand();
+        HelpContext.OnF1(dialog, () => topic ?? (dialog.Owner as MainWindow)?.HelpContextTopic() ?? HelpCatalog.StartTopic);
+        DialogCreated?.Invoke(dialog);
+        return dialog;
+    }
 
     /// <summary>Called with a dialog window just before it is shown; tests use it to drive the real controls.</summary>
     internal Action<Window>? Shown { get; set; }
@@ -87,7 +106,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
 
     private static Button MakeButton(DialogButton b, Window dialog, int index)
     {
-        var button = new Button { Content = b.Label, IsDefault = b.IsDefault, IsCancel = b.IsCancel, MinWidth = 84, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var button = new Button { Content = b.Label, IsDefault = b.IsDefault, IsCancel = b.IsCancel, MinWidth = 84, Margin = new Thickness(8, 0, 0, 6), HorizontalContentAlignment = HorizontalAlignment.Center };
         button.Click += (_, _) => dialog.Close(index);
         return button;
     }
@@ -104,9 +123,9 @@ internal sealed partial class AvaloniaDialogs : IDialogs
             AutomationProperties.SetName(list, request.Title);
             panel.Children.Add(list);
         }
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var row = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right }; // many or long buttons go to a second line
         panel.Children.Add(row);
-        var dialog = Frame(request.Title, panel, request.Details is null ? 460 : 560);
+        var dialog = Frame(request.Title, panel, request.Details is null ? 460 : 560, request.HelpTopic);
         for (int i = 0; i < request.Buttons.Count; i++) row.Children.Add(MakeButton(request.Buttons[i], dialog, i));
         using var closer = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close(null)));
         var result = await ShowAsync<int?>(dialog, owner);
@@ -148,7 +167,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(title, panel, 420);
+        var dialog = Frame(title, panel, 420, "format.encoding");
         ok.Click += (_, _) => dialog.Close(combo.SelectedIndex >= 0 ? targets[combo.SelectedIndex].Codec : null);
         cancel.Click += (_, _) => dialog.Close(null);
         return await ShowAsync<TextCodec?>(dialog, owner);
@@ -165,7 +184,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
             Margin = new Thickness(20), Spacing = 10,
             Children =
             {
-                new TextBlock { Text = label },
+                new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap },
                 input,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
@@ -234,7 +253,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0), Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(Loc.Get(K.DialogSaveAsTitle), panel, 520);
+        var dialog = Frame(Loc.Get(K.DialogSaveAsTitle), panel, 520, "file.saveAs");
         browse.Click += async (_, _) =>
         {
             var file = await dialog.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -262,7 +281,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
             Margin = new Thickness(20), Spacing = 10,
             Children = { new TextBlock { Text = Loc.Get(K.AppName), FontSize = 20, FontWeight = FontWeight.SemiBold }, new TextBlock { Text = Loc.Get(K.DialogAboutVersion, ("version", version)) }, close },
         };
-        var dialog = Frame(Loc.Get(K.DialogAboutTitle, ("name", Loc.Get(K.AppName))), panel, 340);
+        var dialog = Frame(Loc.Get(K.DialogAboutTitle, ("name", Loc.Get(K.AppName))), panel, 340, "help.about");
         close.Click += (_, _) => dialog.Close();
         await ShowAsync(dialog, owner);
     }

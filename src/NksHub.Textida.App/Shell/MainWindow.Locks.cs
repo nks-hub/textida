@@ -40,7 +40,7 @@ internal sealed partial class MainWindow
         IReadOnlyList<(string, Action)> actions = lck.IsReadOnly
             ? [(Loc.Get(K.LockTryAgain), () => RetryLock(od)), (Loc.Get(K.LockEditAnyway), () => ChooseConcurrentWrite(od))]
             : [];
-        foreach (var tab in od.Views.ToList()) tab.ShowBar(new InfoBar(message, actions, warning: true, onClose: () => DismissBars(od)));
+        foreach (var tab in od.Views.ToList()) tab.ShowBar(new InfoBar(message, actions, warning: true, onClose: () => DismissBars(od), helpTopic: "file.locks"));
     }
 
     private void RetryLock(OpenDocument od)

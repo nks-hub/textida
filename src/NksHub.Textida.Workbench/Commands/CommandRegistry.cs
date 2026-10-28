@@ -195,6 +195,10 @@ public sealed class CommandRegistry
     private List<MacroStep>? _recording;
     private string? _argument;
     private int _depth;
+    private static readonly AsyncLocal<string?> s_running = new();
+
+    /// <summary>Id of the command whose handler started the current flow of work, also after its awaits; null outside a command. A dialog the command opens uses it to offer the help of that command.</summary>
+    public static string? Running => s_running.Value;
 
     public bool IsRecording => _recording is not null;
 
@@ -346,6 +350,7 @@ public sealed class CommandRegistry
             else
             {
                 // back on the caller's thread: a macro step is recorded there in the order the UI thread sees it, next to the typed text
+                s_running.Value = command.Id;
                 outcome = await handler(context, cancellationToken).ConfigureAwait(true);
             }
 

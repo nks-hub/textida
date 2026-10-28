@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Manifest;
@@ -37,6 +38,7 @@ internal sealed class ToolEditorWindow : Window
 
     public ToolEditorWindow(ToolCatalog catalog, Func<ExternalToolContribution, string> preview)
     {
+        HelpContext.OnF1(this, "tools.edit");
         _catalog = catalog;
         _preview = preview;
         Classes.Add("shell");
