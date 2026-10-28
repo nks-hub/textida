@@ -38,6 +38,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most bytes that the unsaved edits of one large file may insert for a named session to keep them in its file; a larger change is left out and the session says so. The owner has not decided it.</summary>
     public const int SessionLargeEditsMaxBytes = 16 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: a file longer than this many bytes opens at once and gets its SHA-256 and block digests from a pass on the thread pool; until the pass ends only size and write time vouch for the file and a save writes the whole file. A shorter file is hashed before it opens.</summary>
+    public const long OpenHashInBackgroundBytes = 64L << 20;
+
     /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 

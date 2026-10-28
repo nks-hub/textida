@@ -14,6 +14,10 @@ public sealed partial class Document
     private FileFingerprint? _fingerprint;
     private string? _fileId;
     private CancellationTokenSource? _hashCancel;
+    private readonly object _hashGate = new();
+
+    /// <summary>Raised on a thread-pool thread when a file opened without its hash (<see cref="DocumentOptions.HashInBackgroundAboveBytes"/>) has its hash and block digests; <see cref="Fingerprint"/> then has a hash. Not raised when a save came first.</summary>
+    public event EventHandler? FingerprintHashed;
 
     /// <summary>
     /// What the file looked like when it was loaded or saved by this document. After an in-place save the hash is empty (<see cref="FileFingerprint.HasHash"/>)
@@ -153,7 +157,7 @@ public sealed partial class Document
             if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
             else FileSwap.Replace(temp, target);
 
-            _hashCancel?.Cancel();
+            CancelHashing();
             FilePath = target;
             _baseline = blocks;
             _fileId = FileIdentity.TryGet(target);

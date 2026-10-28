@@ -335,6 +335,15 @@ internal static class JournalCompactor
         public JournalRecord? Session { get; } = session;
     }
 
+    /// <summary>A second open record of a document brings the hash of a file that was opened without one. It counts only before the first save, which replaces the fingerprint anyway, and only for a file of the same size.</summary>
+    private static void AddHash(DocLog log, JournalRecord later)
+    {
+        if (log.Rest.Any(r => r.Type is RecordType.DocSave or RecordType.DocSaveIntent)) return;
+        var open = JournalRecords.DecodeOpen(log.Open.Payload);
+        if (open.Fingerprint is not { HasHash: false } old || JournalRecords.DecodeOpen(later.Payload).Fingerprint is not { HasHash: true } hashed || hashed.Size != old.Size) return;
+        log.Open = log.Open with { Payload = JournalRecords.Encode(open with { Fingerprint = hashed }) };
+    }
+
     /// <param name="verifyIntent">Reads the file named by a save intent. An intent after the last save whose file has the intended hash counts as a save: the process died after the swap but before the save record was written.</param>
     public static CompactionPlan Plan(IEnumerable<JournalRecord> records, Func<SaveIntentRecord, FileFingerprint?>? verifyIntent = null)
     {
@@ -349,9 +358,12 @@ internal static class JournalCompactor
                 var id = JournalRecords.DocOf(rec)!.Value;
                 if (rec.Type == RecordType.DocOpen)
                 {
-                    if (logs.ContainsKey(id)) continue;
-                    logs[id] = new DocLog { Open = rec };
-                    order.Add(id);
+                    if (logs.TryGetValue(id, out var known)) AddHash(known, rec);
+                    else
+                    {
+                        logs[id] = new DocLog { Open = rec };
+                        order.Add(id);
+                    }
                 }
                 else if (logs.TryGetValue(id, out var log))
                 {

@@ -314,7 +314,7 @@ internal sealed class OpenDocument : IDisposable
             if (!info.Exists) throw new FileNotFoundException(null, path);
             IBackendFactory factory = info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
             var guess = GuessFile(path, info.Length);
-            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec }), guess); }
+            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes }), guess); }
             catch (NotSupportedException) when (factory is PagedBackendFactory)
             {
                 throw new IOException(Loc.Get(K.ErrorOpenLargeEncoding, ("path", path), ("encoding", guess.Codec.Name)));
