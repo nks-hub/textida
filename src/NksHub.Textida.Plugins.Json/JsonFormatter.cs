@@ -177,7 +177,16 @@ public static class JsonFormatter
             start = next + 1;
         }
         int upTo = (int)Math.Min(bytes.Length - start, byteColumn);
-        long column = Encoding.UTF8.GetCharCount(bytes, start, upTo) + 1;
+        // the reader ends a line at a line feed only; the editor ends it at a lone carriage return as well, so the place is counted again here
+        int at = start + upTo, lineStart = 0;
+        line = 0;
+        for (int i = 0; i < at; i++)
+        {
+            if (bytes[i] != '\n' && !(bytes[i] == '\r' && (i + 1 == bytes.Length || bytes[i + 1] != '\n'))) continue;
+            line++;
+            lineStart = i + 1;
+        }
+        long column = Encoding.UTF8.GetCharCount(bytes, lineStart, at - lineStart) + 1;
         var message = e.Message;
         // the framework appends "Path: ... | LineNumber: ... | BytePositionInLine: ..."; the place is reported on its own
         foreach (var marker in new[] { " Path:", " LineNumber:" })

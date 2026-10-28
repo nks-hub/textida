@@ -282,6 +282,17 @@ public class JsonFormatterTests
         Assert.Equal((line, column), (error.Line, error.Column));
     }
 
+    [Theory]
+    [InlineData("[1,\n2,\n3 4]", 3, 3)]
+    [InlineData("[1,\r\n2,\r\n3 4]", 3, 3)]
+    [InlineData("[1,\r2,\r3 4]", 3, 3)]
+    [InlineData("[1,\r2,\n3,\r\n4 5]", 4, 3)]
+    public void A_line_ending_of_any_kind_ends_a_line_in_the_place_of_an_error_as_it_does_in_the_editor(string input, int line, int column)
+    {
+        Assert.False(JsonFormatter.TryFormat(input, Strict, out _, out var error));
+        Assert.Equal((line, column), (error.Line, error.Column));
+    }
+
     // ---- minify, sort keys, trailing commas ----
 
     [Fact]
