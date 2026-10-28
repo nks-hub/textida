@@ -305,14 +305,17 @@ public class UiLanguageGateTests : IDisposable
     // ---- a switch of the language with the panels open ----
 
     /// <summary>Every text a screen shows right now: labels, button texts, hints, tooltips and the names a screen reader reads.</summary>
-    private static IEnumerable<(string Control, string Text)> ShownTexts(Visual root)
+    private IEnumerable<(string Control, string Text)> ShownTexts(Visual root)
     {
+        // a settings combo shows the literals of settings.json (off, none, default), the same in every language; they are no text that could be stale
+        var literals = _app.Workbench.Host.Settings.Definitions.SelectMany(d => d.Values ?? []).ToHashSet(StringComparer.Ordinal);
         foreach (var visual in root.GetSelfAndVisualDescendants())
         {
             if (visual is not Control c || !c.IsEffectivelyVisible) continue;
             string where = A11yAudit.Describe(c);
-            if (c is TextBlock block) yield return (where, TextOf(block));
-            else if (c is ContentControl { Content: string content }) yield return (where, content);
+            bool Literal(string text) => literals.Contains(text) && c.FindAncestorOfType<ComboBox>() is not null;
+            if (c is TextBlock block) { if (!Literal(TextOf(block))) yield return (where, TextOf(block)); }
+            else if (c is ContentControl { Content: string content }) { if (!Literal(content)) yield return (where, content); }
             else if (c is MenuItem { Header: string header }) yield return (where, header);
             if (c is TextBox { PlaceholderText: { Length: > 0 } hint }) yield return (where, hint);
             if (ToolTip.GetTip(c) is string tip) yield return (where, tip);

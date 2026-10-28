@@ -73,6 +73,7 @@ public class PagedLongSelectionTests : IDisposable
         var paged = tab.Paged!;
         int from = 1_000_000, to = 1_800_000; // 800 000 characters, more than a MiB of bytes
         paged.SelectBytes(ByteOffset(model, from), ByteOffset(model, to));
+        TestApp.Settle(paged);
         Draw();
         Assert.True(paged.SelectionRange.Length > 1 << 20);
         string expected = model.Substring(from, to - from);
@@ -119,6 +120,7 @@ public class PagedLongSelectionTests : IDisposable
         var paged = tab.Paged!;
         int to = 1_500_000 * Unit.Length;
         paged.SelectBytes(0, ByteOffset(model, to));
+        TestApp.Settle(paged); // an end beyond the far-move distance waits for the column count on the pool
         Draw();
 
         var copying = paged.CopyAsync(cut: false);
@@ -135,6 +137,7 @@ public class PagedLongSelectionTests : IDisposable
         var tab = OpenLine(model);
         var paged = tab.Paged!;
         paged.SelectBytes(0, ByteOffset(model, 5_000_000));
+        TestApp.Settle(paged);
         Draw();
 
         var cutting = paged.CopyAsync(cut: true);

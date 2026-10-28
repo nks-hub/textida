@@ -7,7 +7,13 @@ namespace NksHub.Textida.Core.Tests;
 /// <summary>P9.2.1: the most undo steps a document keeps.</summary>
 public class UndoLimitTests
 {
-    private static Doc Open(string text = "") => Doc.FromBytes(System.Text.Encoding.UTF8.GetBytes(text), ReferenceBackendFactory.Instance);
+    /// <summary>A document as a file leaves it: a document made from bytes counts as unsaved, and these tests start from a saved one.</summary>
+    private static Doc Open(string text = "")
+    {
+        var d = Doc.FromBytes(System.Text.Encoding.UTF8.GetBytes(text), ReferenceBackendFactory.Instance);
+        d.MarkClean();
+        return d;
+    }
 
     private static string Text(Doc d) => d.ReadText(new ByteRange(0, d.ByteLength));
 
