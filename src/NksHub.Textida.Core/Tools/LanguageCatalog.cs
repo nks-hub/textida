@@ -29,7 +29,7 @@ public sealed record CatalogVersionRange(string Min, string? Below);
 /// <summary>
 /// A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.
 /// <paramref name="Environment"/> are variables set for the run; the catalog uses them to keep a linter that would fetch packages (Cargo crates, Go modules) off the network.
-/// <paramref name="Supported"/> are the versions the arguments and the parser were written for, null where the output does not depend on the version of the tool;
+/// <paramref name="Supported"/> are the versions the arguments and the parser were written for (placeholder, OPEN: taken from the documentation of the tools, the owner has not decided them; the upper ends are the next major version), null where no window is claimed;
 /// <paramref name="VersionArgs"/> are the arguments that make the program print its version (null: <c>--version</c>).
 /// </summary>
 public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions,
