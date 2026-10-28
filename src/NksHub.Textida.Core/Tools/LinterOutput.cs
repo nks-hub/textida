@@ -220,7 +220,7 @@ public static class LinterOutput
         var culture = System.Globalization.CultureInfo.InvariantCulture;
         if (fields.Count != 8 || !int.TryParse(fields[4], culture, out int row) || !int.TryParse(fields[5], culture, out int column)) return null;
         int length = int.TryParse(fields[6], culture, out int width) ? width : 0;
-        return new LintFinding(fields[3], row, column, null, length > 0 ? column + length : null, null, null, false, fields[0], fields[7], fields[2].Length == 0 ? null : fields[2].ToLowerInvariant());
+        return new LintFinding(fields[3], row, column, null, length > 0 ? column + length : null, null, null, false, fields[0].ToLowerInvariant(), fields[7], fields[2].Length == 0 ? null : fields[2].ToLowerInvariant());
     }
 
     /// <summary>
