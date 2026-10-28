@@ -1213,7 +1213,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Co a proč:** Obrázek (PNG, JPEG, GIF, BMP, WebP, ICO, rozpoznané podle začátku souboru) se dnes otevře jako binární text. Má se otevřít jako obrázek: přizpůsobit oknu, 100 %, lupa a posun, šachovnice pod průhledností, rozměry, formát a velikost souboru ve stavovém řádku; lišta nabídne „Zobrazit jako text“ a „Zobrazit jako hex“ a volba se dá změnit i v nastavení. Jen prohlížení, žádné úpravy; SVG je text a otevře se jako text. Dekódování s limity bajtů a pixelů (stávající kód obrázků náhledu), aby obří nebo poškozený soubor nezahltil paměť.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
   - **Hotovo, když:** každý podporovaný formát se otevře jako obrázek a přepne na text i hex a zpět bez znovuotevření; poškozený nebo obří soubor ukáže hlášku a nabídne text/hex, editor nepadne a paměť nepřeroste limit; obrázek se po změně na disku obnoví; ovládání z klávesnice a čtečka hlásí rozměry a formát; headless testy pro všechny formáty.
-  - **Závisí na:** P3.5.1
+  - **Závisí na:** P3.5.2, P3.5.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
@@ -2755,6 +2755,14 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Umístění:** vestavěný plugin (balíček Markdown a osnova)
   - **Stav 27. 10. 2026:** částečně. Příkazy Zarovnat tabulku pod kurzorem a Aktualizovat obsah v `<!-- TOC -->` (Nástroje → Markdown, 4 jazyky, testy). Večer doplněno: `Tab`/`Shift+Tab` mezi buňkami se zarovnáním, `Shift+Enter` nový řádek, oprava rozbité tabulky, šířka CJK a emoji. Chybí: Mermaid.
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. Mermaid (graph/flowchart) se kreslí v náhledu bez skriptu a bez sítě; testy prošly.
+- [ ] **P9.3.4** Markdown: výchozí náhled, úpravy a zdroj
+  - **Co a proč:** Soubor `.md` se má ve výchozím stavu otevřít jako vykreslený náhled (čtení), s přepínačem do úprav a do surového zdroje, jako „Čtení / Úpravy / Zdroj“. Úpravy = editor s živým náhledem vedle a synchronizovaným posunem (stávající P9.3.1); zdroj = jen text bez náhledu. Režim se pamatuje pro soubor v relaci a výchozí režim jde změnit v nastavení. Přímé úpravy uvnitř vykresleného náhledu (WYSIWYG) jsou větší krok a zůstávají mimo tento úkol. Náhled je stejný bezpečný renderer bez skriptů a bez sítě bez souhlasu (P6.2.7).
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:** `.md` se otevře v režimu Čtení; přepnutí do Úprav a Zdroje a zpět je jedním příkazem i klávesou a zachová polohu; neuložené změny se ukážou v náhledu; výchozí režim jde změnit v nastavení a platí pro nově otevřené soubory; velký soubor nad limitem náhledu se otevře jako zdroj s hláškou; čtečka hlásí režim; headless testy.
+  - **Závisí na:** P9.3.1, P9.3.3
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
 
 ### P9.4 Logy
 
@@ -3115,10 +3123,10 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P7 | 1 | 7 | 16–24 (neúplné) |
 | P8 | 10 | 28 | 38–64,5 |
 | P8b | 3 | 10 | 12,5–20 |
-| P9 | 6 | 16 | 10,5–16 (neúplné, bez R10) |
+| P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **329** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **330** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
