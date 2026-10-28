@@ -367,7 +367,7 @@ internal sealed partial class MainWindow : Window
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
         foreach (var splitter in _groupsGrid.Children.OfType<GridSplitter>()) AutomationProperties.SetName(splitter, Loc.Get(K.A11yGroupsSplitter));
         foreach (var tab in Tabs) tab.Minimap?.UpdateName();
-        ApplyPaletteTexts();
+        RetranslatePalette();
         ApplyFindTexts();
         _menuModel = BuildMenuModel();
         foreach (var g in _groups) g.Refresh();

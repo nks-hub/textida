@@ -139,7 +139,16 @@ internal sealed class SearchResultsView : DockPanel
         AutomationProperties.SetName(_list, Loc.Get(K.A11yResultsList));
         AutomationProperties.SetLiveSetting(_summary, AutomationLiveSetting.Polite);
         AutomationProperties.SetLiveSetting(_limit, AutomationLiveSetting.Polite);
+        if (_rowsLanguage == Loc.Language) return;
+        // the names of the rows are written when a row is drawn: draw them again in the new language
+        _rowsLanguage = Loc.Language;
+        int selected = _list.SelectedIndex;
+        _list.ItemsSource = null;
+        _list.ItemsSource = _rows;
+        _list.SelectedIndex = selected;
     }
+
+    private string _rowsLanguage = Loc.Language;
 
     public void Clear()
     {

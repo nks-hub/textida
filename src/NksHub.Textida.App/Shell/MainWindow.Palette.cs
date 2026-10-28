@@ -99,6 +99,13 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_palettePreview, Loc.Get(K.A11yPreview));
     }
 
+    /// <summary>The language changed: the texts of the palette and, when it is open on a list the program builds, its rows are written again.</summary>
+    private void RetranslatePalette()
+    {
+        ApplyPaletteTexts();
+        if (IsPaletteOpen && _paletteMode != PaletteMode.Choice) RefreshPalette();
+    }
+
     // ---- opening in a mode ----
 
     public void ShowPalette() => OpenPalette(PaletteMode.Commands, "");
