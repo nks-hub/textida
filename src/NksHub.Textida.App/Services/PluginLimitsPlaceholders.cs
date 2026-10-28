@@ -144,6 +144,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: seconds a linter run has when <c>lintTimeoutSeconds</c> in saveActions.json is not set; then the run is stopped and reported, and the findings of the earlier run stay. The owner has not decided it.</summary>
     public const int LintTimeoutSeconds = 60;
 
+    /// <summary>Placeholder, OPEN: milliseconds the structure panel of the hex view waits on the UI thread for the nodes of a tree to be read; a longer read shows a "Reading" row and ends later without holding the window. The owner has not decided it.</summary>
+    public const int StructureReadGraceMilliseconds = 40;
+
     /// <summary>Placeholder, OPEN: seconds a linter's program has to print its version before the run (once per program file); then the version counts as unreadable and the run goes on. The owner has not decided it.</summary>
     public const int LintVersionTimeoutSeconds = 10;
 

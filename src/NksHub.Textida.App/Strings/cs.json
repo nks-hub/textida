@@ -707,6 +707,7 @@
   "ksy.err.limitWork": "{subject}: čtení by trvalo příliš dlouho",
   "ksy.err.expression": "{subject}: nelze vypočítat",
   "ksy.err.limitTime": "{subject}: čtení trvalo příliš dlouho",
+  "ksy.reading": "Čte se...",
   "ksy.open": "Otevřít soubor šablony…",
   "ksy.open.failed": "Soubor {file} nejde přečíst: {reason}",
   "ksy.refused": "Šablona {file} se nepoužila: {reason}",

@@ -687,6 +687,7 @@
   "ksy.err.limitWork": "{subject}: Lesen würde zu lange dauern",
   "ksy.err.expression": "{subject}: lässt sich nicht berechnen",
   "ksy.err.limitTime": "{subject}: Lesen dauerte zu lange",
+  "ksy.reading": "Wird gelesen...",
   "ksy.open": "Vorlagendatei öffnen…",
   "ksy.open.failed": "{file} kann nicht gelesen werden: {reason}",
   "ksy.refused": "Vorlage {file} nicht verwendet: {reason}",

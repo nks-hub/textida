@@ -173,6 +173,52 @@ public class KsyLimitsTests
         Assert.Null(recursive.ElementSize(recursive.Root.Seq[0]));
     }
 
+    // ---- memory ----
+
+    private sealed class Filled(long length, byte value) : IByteSnapshot
+    {
+        public long ByteLength => length;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            int n = (int)Math.Min(destination.Length, Math.Max(0, length - offset));
+            destination[..n].Fill(value);
+            return n;
+        }
+    }
+
+    // every length field of this data reads 0x4040, so each element keeps 16448 characters of text
+    private const string Texts = "meta:\n  id: m\n  endian: le\nseq:\n  - id: items\n    type: item\n    repeat: eos\ntypes:\n  item:\n    seq:\n      - id: len\n        type: u2\n      - id: text\n        type: str\n        size: len\n        encoding: UTF-8\n";
+
+    [Fact]
+    public void An_array_whose_elements_keep_more_than_the_memory_limit_ends_in_a_size_error_after_tens_of_elements()
+    {
+        var items = new KsyReader(new Filled(200_000_000, 0x40), Parse(Texts), new KsyLimits(MaxRetainedBytes: 1 << 20)).Root.Children.Single();
+        Assert.Equal(KsyErrorKind.LimitSize, items.Error!.Kind);
+        Assert.InRange(items.Length, 10 * 16_450L, 40 * 16_450L); // a megabyte holds about 31 of them: the walk stopped there, not at the end of the data
+    }
+
+    [Fact]
+    public void The_same_array_under_the_default_limit_is_read_to_its_end()
+    {
+        var items = new KsyReader(new Filled(40 * 16_450L, 0x40), Parse(Texts)).Root.Children.Single();
+        Assert.Null(items.Error);
+        Assert.Equal("item[40]", items.TypeName);
+    }
+
+    [Fact]
+    public void The_children_of_a_node_count_as_read_only_after_they_were_asked_for()
+    {
+        var root = new KsyReader(new ArraySnapshot([1, 1, 0]), Parse(Untilled)).Root;
+        Assert.False(root.ChildrenRead);
+        var items = root.Children.Single();
+        Assert.True(root.ChildrenRead);
+        Assert.False(items.ChildrenRead);
+        _ = items.Children;
+        Assert.True(items.ChildrenRead);
+        Assert.True(items.Children[0].ChildrenRead); // a field with no children has nothing to read
+    }
+
     // ---- time ----
 
     [Fact]

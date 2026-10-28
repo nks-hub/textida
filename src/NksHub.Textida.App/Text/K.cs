@@ -686,6 +686,7 @@ public static class K
     public const string KsyErrLimitWork = "ksy.err.limitWork";
     public const string KsyErrExpression = "ksy.err.expression";
     public const string KsyErrLimitTime = "ksy.err.limitTime";
+    public const string KsyReading = "ksy.reading";
     public const string KsyOpen = "ksy.open";
     public const string KsyOpenFailed = "ksy.open.failed";
     public const string KsyRefused = "ksy.refused";

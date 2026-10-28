@@ -687,6 +687,7 @@
   "ksy.err.limitWork": "{subject}: too much work to read",
   "ksy.err.expression": "{subject}: cannot be computed",
   "ksy.err.limitTime": "{subject}: reading took too long",
+  "ksy.reading": "Reading...",
   "ksy.open": "Open template file…",
   "ksy.open.failed": "Cannot read {file}: {reason}",
   "ksy.refused": "Template {file} not used: {reason}",
