@@ -25,11 +25,11 @@ public static class UiEvents
     public const string TaskCancelled = "ui/taskCancelled";
 }
 
-/// <summary>JSON-RPC error codes of the UI API (implementation-defined range -32000..-32099).</summary>
+/// <summary>JSON-RPC error codes of the UI API (implementation-defined range -32050..-32059; the document API owns -32020..-32049, so no number is shared).</summary>
 public static class UiErrorCodes
 {
-    public const int QuotaExceeded = -32030;
-    public const int UnknownTask = -32031;
+    public const int QuotaExceeded = -32050;
+    public const int UnknownTask = -32051;
 }
 
 public enum PanelKind { List, Tree }

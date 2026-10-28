@@ -10,7 +10,10 @@ public readonly record struct RpcId(long Number, string? Text)
     public override string ToString() => Text ?? Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
-/// <summary>JSON-RPC 2.0 error codes plus the implementation-defined quota codes (range -32000..-32099).</summary>
+/// <summary>
+/// JSON-RPC 2.0 error codes plus the implementation-defined codes of the shared layer (-32011..-32019). The document API uses -32020..-32049, the UI API -32050..-32059,
+/// the HTTP transport of the MCP client -32061..-32062; no number is used twice (a test reads the constants and checks it).
+/// </summary>
 public static class RpcErrorCodes
 {
     public const int ParseError = -32700;
@@ -23,6 +26,8 @@ public static class RpcErrorCodes
     public const int TooManyRequests = -32012;
     public const int TooManyResults = -32013;
     public const int SessionMemoryExceeded = -32014;
+    /// <summary>A handler gave up waiting (a <see cref="TimeoutException"/>, such as <see cref="RpcTimeoutException"/> of a call it forwarded); the peer is told this instead of an internal error.</summary>
+    public const int RequestTimeout = -32015;
 }
 
 /// <summary>An error that travels as a JSON-RPC error object.</summary>
