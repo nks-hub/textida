@@ -104,6 +104,10 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>Indentation detected from the content of the file when it was opened; replaces the configured one for this document.</summary>
     public IndentSettings? IndentOverride { get; set; }
     public AutosaveService? Autosave { get; set; }
+    /// <summary>The save that runs on a worker now (the hex view, or text in paged mode), with what the app does after it; null when none. Closing the tab or the window waits for it, because the document cannot be disposed under it.</summary>
+    public Task? BackgroundSave { get; set; }
+    /// <summary>True from the start of a background save (the copy of the old file included) to the end of its write, so a second save is refused instead of queued.</summary>
+    public bool SaveInFlight { get; set; }
     /// <summary>Overrides the interval of the <c>advanced.autosaveIntervalSeconds</c> setting when above zero (tests use it for a short wait).</summary>
     public static TimeSpan AutosaveInterval { get; set; } = TimeSpan.Zero;
     public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

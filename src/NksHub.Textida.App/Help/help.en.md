@@ -1133,6 +1133,7 @@ The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
+- Save (Ctrl+S) runs in the background: the window stays usable, the status bar shows how many percent of the new file are written, and Esc cancels the save before the data is committed (the file stays unchanged). You can keep typing meanwhile: the file gets the text as it was when you pressed Save, your later edits stay unsaved, and the tab shows them as unsaved changes. Undo and Redo work during the save and after it. A save that only overwrites bytes of the same length writes just those bytes and takes no edits for its short time. A file larger than 1 GiB (a provisional limit) is saved without a copy of the old version in the backup folder; the old file stays untouched until the new one is complete.
 - Find (Ctrl+F). Find in Files.
 - Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
@@ -1149,7 +1150,8 @@ The status bar then shows Large file, its size and the revision.
 - The selection is larger than the copy limit: select less; the clipboard stays as it was.
 - The edit is too large to be undone: remove or insert less text at once; the document does not change.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
-- Saving a large file holds up the window.
+- The file is being saved, try again when the save ends: you tried something while a save that overwrites bytes in place was running, or reloaded the file during any save.
+- Closing the tab or the window during a save waits for the end of the save; Esc cancels the save.
 
 ## [conflict] File changed outside
 If another program changes the file, a bar appears above the document: The file changed on disk.

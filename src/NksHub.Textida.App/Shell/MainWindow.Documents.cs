@@ -194,6 +194,11 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         bool keep = false;
+        if (od.Views.Count == 1 && od.BackgroundSave is { IsCompleted: false } running)
+        {
+            SetStatusMessage(Loc.Get(K.StatusSaveWaiting)); // the document goes away with its last tab, and a save cannot run on a closed one
+            await Task.WhenAny(running); // returns when the save ends, whatever its outcome
+        }
         if (od.Views.Count == 1 && od.HasUnsavedWork)
         {
             switch (await AskUnsavedAsync(od))

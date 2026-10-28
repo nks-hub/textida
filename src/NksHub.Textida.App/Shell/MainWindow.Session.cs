@@ -217,6 +217,16 @@ internal sealed partial class MainWindow
     private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closeApproved) return;
+        var running = _docs.Select(d => d.BackgroundSave).Where(t => t is { IsCompleted: false }).Select(t => Task.WhenAny(t!)).ToList();
+        if (running.Count > 0)
+        {
+            // a save writes from the documents, which close with the window: wait for it, then go through the close again
+            e.Cancel = true;
+            SetStatusMessage(Loc.Get(K.StatusSaveWaiting));
+            await Task.WhenAll(running);
+            Close();
+            return;
+        }
         bool askFirst = !_app.Journal.IsActive && _docs.Any(d => d.HasUnsavedWork);
         if (!askFirst)
         {

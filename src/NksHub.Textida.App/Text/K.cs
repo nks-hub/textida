@@ -46,6 +46,9 @@ public static class K
     public const string StatusSavedNoBackup = "status.savedNoBackup";
     public const string StatusBackupFailed = "status.backupFailed";
     public const string StatusSaveFailed = "status.saveFailed";
+    public const string StatusSaveProgress = "status.saveProgress";
+    public const string StatusSaveBusy = "status.saveBusy";
+    public const string StatusSaveWaiting = "status.saveWaiting";
     public const string StatusReloaded = "status.reloaded";
     public const string StatusKeptMine = "status.keptMine";
     public const string StatusRereadAs = "status.rereadAs";

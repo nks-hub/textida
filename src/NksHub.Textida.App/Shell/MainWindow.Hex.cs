@@ -626,53 +626,118 @@ internal sealed partial class MainWindow
     // ---- save ----
 
     /// <summary>
-    /// Saves a hex tab: the bytes are written on a worker from a snapshot, in place when only same-length changes happened and as a new file otherwise.
-    /// The window stays usable meanwhile and Esc in the view cancels before the data is committed.
+    /// Saves a tab whose bytes are written on a worker from a snapshot, the hex view or text in paged mode: in place when only same-length changes happened and as
+    /// a new file otherwise. The window stays usable meanwhile, the status bar shows how far the new file is and Esc in the view cancels before the data is committed.
+    /// Edits made meanwhile stay unsaved.
     /// </summary>
-    private async Task<bool> SaveHexAsync(DocTab tab, bool overwrite, string? path = null)
+    private async Task<bool> SaveBackgroundAsync(DocTab tab, bool overwrite, string? path = null)
     {
         var od = tab.Doc;
         var doc = od.Doc;
-        if (doc.IsSaving) return false;
+        var plan = doc.PlanSave();
+        if (await RunBackgroundSaveAsync(tab, overwrite, path) is not { } outcome) return false;
+        var result = outcome.Result;
+        if (result.Saved)
+        {
+            od.NotifyChanged();
+            tab.ShowBar(null);
+            SetStatusMessage(outcome.BackupProblem is { } problem ? Loc.Get(K.StatusSavedNoBackup, ("reason", problem))
+                : doc.IsModified ? Loc.Get(K.HexSavedEditsPending)
+                : path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("bytes", plan.ChangedBytes))
+                : Loc.Get(K.StatusSaved));
+            _app.SessionChanged();
+            return true;
+        }
+        if (result.Conflict is { } change) return await ResolveSaveConflictAsync(tab, change);
+        return false;
+    }
+
+    /// <summary>What a background save did: the result of the document, and why the copy of the old file failed when the policy lets the save go on without it.</summary>
+    private sealed record BackgroundSaveOutcome(SaveResult Result, string? BackupProblem);
+
+    /// <summary>
+    /// Runs <see cref="SaveToDiskAsync"/> as the one background save of the document: a second one is refused while it runs. Null when nothing was saved
+    /// and the status bar says why (busy, cancelled, failed); otherwise the outcome, whose result may be a conflict.
+    /// </summary>
+    private async Task<BackgroundSaveOutcome?> RunBackgroundSaveAsync(DocTab tab, bool overwrite, string? path)
+    {
+        var od = tab.Doc;
+        if (od.Doc.IsSaving || od.SaveInFlight)
+        {
+            SetStatusMessage(Loc.Get(K.StatusSaveBusy));
+            return null;
+        }
+        od.SaveInFlight = true;
+        try { return await SaveToDiskAsync(tab, overwrite, path); }
+        finally { od.SaveInFlight = false; }
+    }
+
+    /// <summary>
+    /// Runs a save together with what the app does after it, and registers it as <see cref="OpenDocument.BackgroundSave"/>, so closing the tab or the window waits
+    /// for all of it. A save that comes from inside another one (a conflict answered with "overwrite") is covered by the outer one.
+    /// </summary>
+    private async Task<bool> TrackedSaveAsync(OpenDocument od, Func<Task<bool>> save)
+    {
+        if (od.BackgroundSave is { IsCompleted: false }) return await save();
+        var run = save();
+        od.BackgroundSave = run;
+        try { return await run; }
+        finally { od.BackgroundSave = null; }
+    }
+
+    private async Task<BackgroundSaveOutcome?> SaveToDiskAsync(DocTab tab, bool overwrite, string? path)
+    {
+        var od = tab.Doc;
+        var doc = od.Doc;
         string? target = path ?? od.Path;
+        string? backupProblem = null;
         try
         {
-            if (target is not null && File.Exists(target) && new FileInfo(target).Length <= LargeFileBytes)
+            _message = Loc.Get(K.HexSaving);
+            UpdateStatus();
+            if (target is not null && File.Exists(target))
             {
-                var backup = _app.Backups.BackupBeforeSave(target);
+                var backup = await BackupBeforeSaveAsync(tab, target);
                 if (backup.Status == BackupStatus.Failed && _app.Backups.Policy.RequireBackup)
                 {
                     SetStatusMessage(Loc.Get(K.StatusBackupFailed, ("reason", backup.Problem ?? "")));
-                    return false;
+                    return null;
                 }
+                if (backup.Status == BackupStatus.Failed) backupProblem = backup.Problem ?? "";
             }
-            var plan = doc.PlanSave();
-            _message = Loc.Get(K.HexSaving);
-            UpdateStatus();
-            var result = await doc.SaveAsync(path, overwrite);
-            _message = "";
-            if (result.Saved)
+            var progress = new Progress<SaveProgress>(p =>
             {
-                od.NotifyChanged();
-                tab.ShowBar(null);
-                SetStatusMessage(doc.IsModified ? Loc.Get(K.HexSavedEditsPending) : path is null && plan.Mode == SaveMode.InPlace ? Loc.Get(K.HexSavedInPlace, ("bytes", plan.ChangedBytes)) : Loc.Get(K.StatusSaved));
-                _app.SessionChanged();
-                return true;
-            }
+                if (!doc.IsSaving || p.Total <= 0) return; // a report that arrives after the save ended must not bring the message back
+                _message = Loc.Get(K.StatusSaveProgress, ("percent", (int)(p.Written * 100 / p.Total)));
+                UpdateStatus();
+            });
+            var result = await doc.SaveAsync(path, overwrite, progress: progress);
+            _message = "";
             UpdateStatus();
-            if (result.Conflict is { } change) return await ResolveSaveConflictAsync(tab, change);
-            return false;
+            return new(result, backupProblem);
         }
         catch (OperationCanceledException)
         {
             SetStatusMessage(Loc.Get(K.HexSaveCancelled));
-            return false;
+            return null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             SetStatusMessage(Loc.Get(K.StatusSaveFailed, ("reason", e.Message)));
-            return false;
+            return null;
         }
+    }
+
+    /// <summary>
+    /// The copy of the file that a save replaces, made on a worker because the copy of a large file takes a while. A hex tab copies files up to the large file threshold,
+    /// text in paged mode files up to <see cref="Core.PagedSpillPlaceholders.SaveBackupMaxBytes"/>; a larger file is saved without a copy.
+    /// </summary>
+    private Task<BackupResult> BackupBeforeSaveAsync(DocTab tab, string target)
+    {
+        long limit = tab.Hex is not null ? LargeFileBytes : Core.PagedSpillPlaceholders.SaveBackupMaxBytes;
+        return new FileInfo(target).Length <= limit
+            ? Task.Run(() => _app.Backups.BackupBeforeSave(target))
+            : Task.FromResult(new BackupResult(BackupStatus.Skipped, null, null));
     }
 
     // ---- what a save would write ----
