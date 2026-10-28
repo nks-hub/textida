@@ -357,8 +357,17 @@ public class HighlightExportWindowTests : IDisposable
         Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _w.ExportHighlighted(MainWindow.ExportForm.Html));
         ToolTestKit.WaitFor(() => _w.ExportReading, "the colors were not being read");
         Assert.Contains("%", _w.StatusMessageText);
-        TestApp.Press(_w, Avalonia.Input.Key.Escape);
-        ToolTestKit.WaitFor(() => !_w.ExportReading && _w.StatusMessageText == Loc.Get(K.ExportCancelled), "the reading did not end", 6000);
+        // With TestApp.Press the reading ran to its end and the export was written before the key had any effect: the test host drains the dispatcher when it sends a key, and the slices of
+        // the reading keep queueing the next one. A person's Esc has the priority of input and comes between two slices. So the key is raised on the window directly, without running any job.
+        _w.RaiseEvent(new Avalonia.Input.KeyEventArgs
+        {
+            RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent, Key = Avalonia.Input.Key.Escape, PhysicalKey = Avalonia.Input.PhysicalKey.Escape,
+            KeyModifiers = Avalonia.Input.KeyModifiers.None, Source = _w,
+        });
+        var clock = Stopwatch.StartNew();
+        bool Ended() => !_w.ExportReading && _w.StatusMessageText == Loc.Get(K.ExportCancelled);
+        while (!Ended() && clock.Elapsed < TimeSpan.FromSeconds(20)) ToolTestKit.Pump();
+        Assert.True(Ended(), $"the reading did not end: reading={_w.ExportReading}, status='{_w.StatusMessageText}', after {clock.Elapsed.TotalSeconds:F1} s");
 
         Assert.False(File.Exists(path));
         Assert.Empty(_dialogs.SaveFileNames);

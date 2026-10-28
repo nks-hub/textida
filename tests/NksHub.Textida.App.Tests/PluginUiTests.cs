@@ -752,7 +752,8 @@ public class PluginUiTests : IDisposable
         Assert.Equal(["MD5"], _w.QuickResults.Select(r => r.Title));
         _w.RunPaletteSelection();
         await Until(() => run.IsCompleted, "the command");
-        await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
+        // the command returns at once (it is started, not awaited); the dialog comes when the plugin has hashed
+        await Until(() => _dialogs.Asked.Count == 1 && !_app.Plugins.IsBusy, "the dialog with the hash");
 
         // the result is in the dialog of the hex view for its checksums, not in a notice of its own
         string md5 = Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(bytes));
@@ -782,14 +783,14 @@ public class PluginUiTests : IDisposable
         Assert.Equal(["SHA-1"], _w.QuickResults.Select(r => r.Title));
         _w.RunPaletteSelection();
         await Until(() => run.IsCompleted, "the command");
+        // the command returns at once (it is started, not awaited): the dialog comes when the plugin has hashed, and once more after Compare
+        await Until(() => _dialogs.Asked.Count == 2 && _w.StatusMessageText == Loc.Get(K.HexSumCopied, ("name", "SHA-1")), "the dialog twice and the copy");
 
-        Assert.Equal(2, _dialogs.Asked.Count);
         Assert.Equal([Sha1("ab"), Sha1("de")], _dialogs.Asked[0].Details);
         Assert.Contains(Loc.Plural(K.HexSumScopeParts, 2, ("bytes", 4)), _dialogs.Asked[0].Message);
         // the second time the dialog says, for each part, whether the pasted value is its hash
         Assert.EndsWith(Loc.Get(K.HexSumPart, ("number", 1), ("result", Loc.Get(K.HexSumDiffers))) + "\n" + Loc.Get(K.HexSumPart, ("number", 2), ("result", Loc.Get(K.HexSumMatch))), _dialogs.Asked[1].Message);
         Assert.Equal(Sha1("ab") + "\n" + Sha1("de"), await _w.Clipboard!.TryGetTextAsync());
-        Assert.Equal(Loc.Get(K.HexSumCopied, ("name", "SHA-1")), _w.StatusMessageText);
     }
 
     [AvaloniaFact]
