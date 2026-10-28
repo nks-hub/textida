@@ -101,6 +101,9 @@ public class SchemaTests
         Assert.False(TomlDataReader.TryParse("a = \"\\U00110000\"\n", 8, out _, out _));
         Assert.True(TomlDataReader.TryParse("a = \"\\U0001F600\"\n", 8, out var emoji, out _));
         Assert.Equal("\U0001F600", emoji!.Get("a")!.Text);
+        Assert.True(TomlDataReader.TryParse("a = \"\"\"\nx\"\"\"\"\"\nb = '''y'''''\n", 8, out var quotes, out var quoteError), quoteError?.Message); // one or two quotes may touch the closing three
+        Assert.Equal(("x\"\"", "y''"), (quotes!.Get("a")!.Text, quotes.Get("b")!.Text));
+        Assert.False(TomlDataReader.TryParse("a = \"\"\"x\"\"\"\"\"\"\n", 8, out _, out _)); // six quotes are too many
     }
 
     [Fact]

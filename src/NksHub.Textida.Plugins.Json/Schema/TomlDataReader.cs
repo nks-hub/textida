@@ -279,6 +279,14 @@ public static class TomlDataReader
             }
         }
 
+        /// <summary>Quotes (at most two) that the run of <paramref name="quote"/> characters starting at <paramref name="at"/> holds in front of the closing three.</summary>
+        private int ExtraQuotes(int at, char quote)
+        {
+            int run = 0;
+            while (at + run < s.Length && s[at + run] == quote) run++;
+            return Math.Clamp(run - 3, 0, 2);
+        }
+
         private string ParseLiteralString()
         {
             int open = _i;
@@ -289,6 +297,7 @@ public static class TomlDataReader
                 if (!End && Cur == '\n') _i++;
                 int close = s.IndexOf("'''", _i, StringComparison.Ordinal);
                 if (close < 0) throw new DataSyntaxException("The multi-line string is not closed.", open, s.Length);
+                close += ExtraQuotes(close, '\''); // one or two quotes in front of the closing three belong to the text
                 var text = s[_i..close].Replace("\r\n", "\n", StringComparison.Ordinal);
                 _i = close + 3;
                 return text;
@@ -318,7 +327,9 @@ public static class TomlDataReader
                 char c = Cur;
                 if (multi ? string.CompareOrdinal(s, _i, "\"\"\"", 0, 3) == 0 : c == '"')
                 {
-                    _i += multi ? 3 : 1;
+                    int extra = multi ? ExtraQuotes(_i, '"') : 0;
+                    sb.Append('"', extra);
+                    _i += extra + (multi ? 3 : 1);
                     return sb.ToString();
                 }
                 if (c == '\n' && !multi) throw new DataSyntaxException("The string is not closed.", open, _i);
