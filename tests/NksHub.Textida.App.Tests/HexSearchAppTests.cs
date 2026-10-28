@@ -120,7 +120,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("C1 C2 C3");
         _dialogs.Answers.Enqueue(0);
 
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => tab.Doc.Doc.ByteLength == 10);
 
         var ask = Assert.Single(_dialogs.Asked);
@@ -144,7 +144,7 @@ public class HexSearchAppTests : IDisposable
         Assert.False(hex.Insert);
         _dialogs.Prompts.Enqueue("AA BB");
         _dialogs.Prompts.Enqueue("C1 C2 C3");
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexReplaceOverwrite)));
         Assert.Empty(_dialogs.Asked);
         Assert.Equal(Data(), tab.Doc.Doc.ReadBytes(new(0, 8)));
@@ -153,7 +153,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("DD EE");
         _dialogs.Answers.Enqueue(0);
         _dialogs.WhileAsking = () => { _dialogs.WhileAsking = null; Assert.True(hex.Editor.Write(new(0, 1), [0x7F]).Applied); }; // the file changes while the preview is open
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexReplaceStale)));
         Assert.Equal([0x7F, 0x01, 0xAA, 0xBB, 0x02, 0xAA, 0xBB, 0x03], tab.Doc.Doc.ReadBytes(new(0, 8)));
     }

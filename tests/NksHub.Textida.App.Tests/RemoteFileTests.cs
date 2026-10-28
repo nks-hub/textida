@@ -409,9 +409,10 @@ public class LockedFileTests : IDisposable
     [AvaloniaFact]
     public async Task A_file_another_program_forbids_writing_to_opens_read_only_with_the_reason_and_cannot_be_saved()
     {
+        // FileShare.Read lets others read but not write only on Windows; elsewhere .NET takes advisory flocks, and an exclusive one keeps readers out too
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "a share mode that forbids writing but allows reading exists on Windows only");
         string path = _temp.File("locked.txt", "content");
-        // Windows enforces FileShare.Read against writers; elsewhere only FileShare.None (an exclusive flock) refuses a second open
-        using var other = new FileStream(path, FileMode.Open, FileAccess.Read, OperatingSystem.IsWindows() ? FileShare.Read : FileShare.None);
+        using var other = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         var tab = _w.OpenFile(path, null);
 
@@ -420,7 +421,6 @@ public class LockedFileTests : IDisposable
         Assert.Equal(Loc.Get(K.LockSystem, ("title", tab.Title)), ((InfoBar)tab.Bar!).Message);
         Assert.False(await _w.SaveAsync(tab));
         Assert.Equal(Loc.Get(K.LockSaveRefused), _w.StatusMessageText);
-        other.Dispose(); // an exclusive flock would refuse the read below
         Assert.Equal("content", File.ReadAllText(path));
     }
 
