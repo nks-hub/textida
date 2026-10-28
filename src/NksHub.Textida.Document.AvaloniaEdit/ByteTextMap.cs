@@ -266,7 +266,7 @@ internal sealed class ByteTextMap
     public byte[] Replace(int c0, int c1, byte[] bytes, string? text, int chars)
     {
         int i0 = SplitAt(c0);
-        int i1 = SplitAt(c1);
+        int i1 = c1 == c0 ? i0 : SplitAt(c1);
         byte[] removed = [];
         if (i1 > i0)
         {
