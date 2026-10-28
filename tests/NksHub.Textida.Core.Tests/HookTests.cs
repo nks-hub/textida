@@ -530,4 +530,25 @@ public class HookTests
         Assert.Equal("{ \"a\": 1, \"b\": [1, 2, 3], \"c\": {} }", JsonSplice.RemoveMember(root.Get("c")!, 0).ApplyTo(text));
         Assert.Equal("\"a\\\"b\\n\"", JsonSplice.Quote("a\"b\n"));
     }
+
+    [Theory]
+    [InlineData("/home/u/.claude/settings.json", HookProduct.ClaudeCode)]
+    [InlineData("C:\\proj\\.claude\\settings.local.json", HookProduct.ClaudeCode)]
+    [InlineData("/plugin/hooks/hooks.json", HookProduct.ClaudeCode)]
+    [InlineData("/home/u/.codex/hooks.json", HookProduct.Codex)]
+    [InlineData("C:\\repo\\.CODEX\\hooks.json", HookProduct.Codex)]
+    [InlineData(null, HookProduct.ClaudeCode)]
+    public void The_product_of_a_hooks_file_follows_its_folder(string? path, HookProduct expected)
+    {
+        Assert.Equal(expected, HookFiles.ProductOf(path));
+    }
+
+    [Fact]
+    public void Only_a_toml_file_is_left_to_the_text_editor()
+    {
+        Assert.True(HookFiles.IsToml("/home/u/.codex/config.toml"));
+        Assert.True(HookFiles.IsToml("C:\\x\\CONFIG.TOML"));
+        Assert.False(HookFiles.IsToml("/home/u/.codex/hooks.json"));
+        Assert.False(HookFiles.IsToml(null));
+    }
 }

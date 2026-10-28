@@ -23,7 +23,7 @@ public sealed class HookDraft
     public Dictionary<string, HookValue?> Fields { get; } = new(StringComparer.Ordinal);
 }
 
-public enum HookEditError { None, Syntax, NoEvent, NotObject, HooksNotObject, EventNotArray, GroupNotObject, HandlersNotArray, NoSuchHook }
+public enum HookEditError { None, Syntax, NoEvent, NotObject, HooksNotObject, EventNotArray, HandlersNotArray, NoSuchHook }
 
 /// <summary>The text after the edit, or the reason there is none (<see cref="Text"/> is then the text as it was).</summary>
 public sealed record HookEditResult(string Text, HookEditError Error)

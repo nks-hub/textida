@@ -25,6 +25,8 @@ public sealed class TranscriptIndex : IDisposable
         public bool Continued { get; } = continued;
     }
 
+    private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
+
     private readonly SafeFileHandle _handle;
     private readonly object _gate = new();
     private readonly List<long> _starts = [];
@@ -130,7 +132,7 @@ public sealed class TranscriptIndex : IDisposable
         long number;
         lock (_gate) number = _kinds.Count;
         var bytes = kept;
-        if (number == 0 && bytes.Span.StartsWith("﻿"u8)) bytes = bytes[3..];
+        if (number == 0 && bytes.Span.StartsWith(Utf8Bom)) bytes = bytes[3..];
         if (bytes.Length > 0 && length == kept.Length && bytes.Span[^1] == (byte)'\r') bytes = bytes[..^1];
 
         var kind = TranscriptKind.Other;
