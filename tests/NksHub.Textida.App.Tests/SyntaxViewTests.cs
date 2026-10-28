@@ -3,11 +3,13 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Syntax;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -31,7 +33,11 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
 
     public void Dispose()
     {
-        if (_app is not null) TestApp.Cleanup(_app);
+        if (_app is not null)
+        {
+            _app.RequestedThemeVariant = ThemeVariant.Default;
+            TestApp.Cleanup(_app);
+        }
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
     }
@@ -88,6 +94,55 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         var dark = (ISolidColorBrush)SyntaxPalette.Dark.GetBrush("comment")!;
         Assert.Contains(Colors(tab, 1), c => c == light.Color || c == dark.Color);
     }
+
+    private const string PhpConsole = "<?php\n\nrequire __DIR__ . '/app/bootstrap.php';\n\nApp\\Bootstrap::boot()\n    ->createContainer()\n    ->getByType(Contributte\\Console\\Application::class)\n    ->run();\n";
+
+    /// <summary>
+    /// Each character on screen has the color of the token the grammar gives it: read from the visual lines the editor paints after the window
+    /// opened the file, not from the tokenizer (P3.2.4: a PHP file was colored only in its first two columns).
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData("console.php", PhpConsole, "Dark")]
+    [InlineData("console.php", PhpConsole, "Light")]
+    [InlineData("a.cs", "using System;\n\nnamespace App;\n\npublic sealed class Program\n{\n    public static string Name { get; } = \"some text\"; // a note\n}\n", "Dark")]
+    [InlineData("a.js", "import { readFile } from 'node:fs';\n\nexport function load(path) {\n    return readFile(path, \"utf8\"); // a note\n}\n", "Light")]
+    [InlineData("a.json", "{\n  \"name\": \"some text\",\n  \"count\": 12,\n  \"enabled\": true\n}\n", "Dark")]
+    [InlineData("a.md", "# A title\n\nSome **bold** words and `code` after them.\n", "Light")]
+    public async Task Every_character_on_screen_has_the_color_of_its_token(string name, string text, string theme)
+    {
+        var w = Window();
+        _app!.RequestedThemeVariant = theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        var palette = theme == "Dark" ? SyntaxPalette.Dark : SyntaxPalette.Light;
+        var tab = w.OpenFile(_temp.File(name, text), null);
+        var tokenizer = LanguageModes.Tokenizer(LanguageModes.GrammarId(tab.Doc)!);
+        var lines = text.TrimEnd('\n').Split('\n');
+        var expected = new List<(int Line, int Column, Color Color)>();
+        var state = tokenizer.InitialState;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var tokens = new List<Token>();
+            state = tokenizer.TokenizeLine(lines[i], state, tokens);
+            foreach (var token in tokens)
+                if (palette.GetBrush(token.Kind) is ISolidColorBrush brush)
+                    for (int c = token.Start; c < token.End; c++) expected.Add((i, c, brush.Color));
+        }
+        Assert.True(expected.Count > 10, "the grammar colors almost nothing");
+
+        List<string> wrong = [];
+        for (int round = 0; round < 100; round++)
+        {
+            await Task.Delay(20); // the dispatcher runs meanwhile: layout, the feeder's slices and its timers
+            var view = tab.Editor!.TextArea.TextView;
+            if (!view.VisualLinesValid) continue;
+            wrong = [.. expected.Where(e => PaintedAt(view, e.Line, e.Column) != e.Color).Select(e => $"{e.Line + 1}:{e.Column + 1} '{lines[e.Line][e.Column]}' {PaintedAt(view, e.Line, e.Column)} != {e.Color}")];
+            if (wrong.Count == 0) break;
+        }
+        Assert.True(wrong.Count == 0, $"{wrong.Count} of {expected.Count} characters wrong (window {tab.Syntax!.Requested}, width {tab.Editor!.TextArea.TextView.Bounds.Width}), first: {string.Join("; ", wrong.Take(12))}");
+    }
+
+    private static Color? PaintedAt(AvaloniaEdit.Rendering.TextView view, int line, int column) =>
+        view.GetVisualLine(line + 1)?.Elements.FirstOrDefault(e => e.RelativeTextOffset <= column && column < e.RelativeTextOffset + e.DocumentLength)
+            ?.TextRunProperties.ForegroundBrush is ISolidColorBrush b ? b.Color : null;
 
     [AvaloniaFact]
     public void The_editor_colors_the_columns_it_is_scrolled_to()
