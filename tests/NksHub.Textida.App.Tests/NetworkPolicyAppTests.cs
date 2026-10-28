@@ -83,6 +83,45 @@ public class NetworkPolicyAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_client_of_the_update_check_goes_through_the_proxy_saved_in_the_policy_with_its_password()
+    {
+        var web = new TcpListener(IPAddress.Loopback, 0);
+        web.Start();
+        var (port, serving) = Serve(web, 2);
+        using var proxy = new TestProxy(ProxyType.Socks5, "pu", "proxy-secret-4411");
+
+        using (var direct = _w.CreateUpdateHttpClient()) Assert.Equal("ok", await direct.GetStringAsync($"http://127.0.0.1:{port}/feed"));
+        Assert.Equal(0, proxy.Tunnels);
+
+        NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, proxy.Settings, "proxy-secret-4411", _app.Remote.Secrets);
+        using (var proxied = _w.CreateUpdateHttpClient()) Assert.Equal("ok", await proxied.GetStringAsync($"http://127.0.0.1:{port}/feed"));
+
+        Assert.Equal(1, proxy.Tunnels);
+        web.Stop();
+        await serving;
+    }
+
+    [AvaloniaFact]
+    public async Task Remote_files_of_the_editor_connect_through_the_proxy_saved_in_the_policy()
+    {
+        string root = Directory.CreateDirectory(Path.Combine(_temp.Path, "server")).FullName;
+        File.WriteAllText(Path.Combine(root, "a.txt"), "x");
+        await using var server = await FtpsServer.StartAsync(root);
+        using var proxy = new TestProxy(ProxyType.Socks5, "pu", "proxy-secret-4412");
+        NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, proxy.Settings, "proxy-secret-4412", _app.Remote.Secrets);
+        var connection = server.Connection(trusted: server.Identity);
+        _secrets.Set(connection.SecretKey, server.Password);
+
+        await using var client = _app.Remote.CreateClient(connection, DenyUnknownServers.Instance);
+        await client.ConnectAsync(default);
+        var downloaded = new MemoryStream();
+        await client.DownloadAsync("/a.txt", downloaded, default);
+
+        Assert.Equal("x", Encoding.UTF8.GetString(downloaded.ToArray()));
+        Assert.True(proxy.Tunnels >= 2, $"only {proxy.Tunnels} connection(s) of the FTPS session used the proxy"); // the control connection and the one of the transfer
+    }
+
+    [AvaloniaFact]
     public async Task A_policy_file_the_editor_cannot_read_stops_plugin_requests_and_the_update_check()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_app.Remote.NetworkPolicyPath)!);
