@@ -43,12 +43,8 @@ internal static class Texts
     }
 
     /// <summary>The wording of one operation (<c>format</c>, <c>minify</c>, <c>sortKeys</c>, <c>fixCommas</c>) for the messages of the range flow that differ from the standard ones.</summary>
-    public static IReadOnlyDictionary<string, string[]> ForOperation(string operation) => new Dictionary<string, string[]>
-    {
-        ["unchanged"] = Table["unchanged." + operation],
-        ["doneOne"] = Table["doneOne." + operation],
-        ["doneMany"] = Table["doneMany." + operation],
-    };
+    public static IReadOnlyDictionary<string, string[]> ForOperation(string operation) =>
+        new[] { "unchanged", "doneOne", "doneMany" }.ToDictionary(key => key, key => Table[key + "." + operation]);
 
     /// <summary>The message for a text that failed to read, or whose result failed its check. <paramref name="inSelection"/>: the line and column count from the start of the text that was read, not of the document.</summary>
     public static string Syntax(string language, JsonFormatter.SyntaxError error, bool inSelection, int maxDepth)
