@@ -442,6 +442,23 @@ public sealed class HugeFileTests : IDisposable
         TestApp.Press(_w, Key.End, TestApp.Mod);
         if (paged.CaretOffset != size) problems.Add($"Ctrl+End landed on byte {paged.CaretOffset}, not {size}");
 
+        // the same keys with the index finished: what the steps above cost on this machine when no worker competes with them
+        HugeText.Log("spans while the index ran (ms):\n" + string.Join('\n', TypingTrace.Summary().Split('\n').Take(10)));
+        TypingTrace.Reset();
+        TestApp.Press(_w, Key.Home, TestApp.Mod);
+        List<double> finished = [];
+        for (int step = 0; step < 150; step++)
+        {
+            var timer = Stopwatch.StartNew();
+            TestApp.Press(_w, step % 80 < 60 ? Key.PageDown : Key.PageUp);
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            if (step >= 30) finished.Add(timer.Elapsed.TotalMilliseconds);
+            Thread.Sleep(25);
+        }
+        finished.Sort();
+        _output.WriteLine($"{finished.Count} PageDown/PageUp with the index finished: p50 {Percentile(finished, 0.5):F1} ms, p95 {Percentile(finished, 0.95):F1} ms, p99 {Percentile(finished, 0.99):F1} ms, max {finished[^1]:F1} ms");
+
         foreach (var (what, times) in new[] { ("PageDown/PageUp from the top of the file", scroll), ("wheel steps around the target of the jump, in front of the index", scrollAhead) })
         {
             times.Sort();
@@ -452,7 +469,7 @@ public sealed class HugeFileTests : IDisposable
             if (p99 > 80) problems.Add($"{what}: p99 {p99:F1} ms");
         }
         _output.WriteLine($"the minimap started its picture {tab.Minimap?.BuildsStarted} times while the index ran");
-        HugeText.Log("spans (ms):\n" + TypingTrace.Summary());
+        HugeText.Log("spans with the index finished (ms):\n" + string.Join('\n', TypingTrace.Summary().Split('\n').Take(10)));
         TypingTrace.Enabled = false;
         Assert.True(problems.Count == 0, string.Join("; ", problems));
     }
