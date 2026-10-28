@@ -176,6 +176,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** běh editoru bez aktivace síťových funkcí nezaznamená žádné odchozí spojení kromě dotazu na verzi z P3.7.2, a ten jen se zapnutou kontrolou aktualizací; test běží v CI na Windows i macOS. Záznam se vede po vydáních: pro MVP nad buildem MVP bez pluginů, pro 1.0 znovu nad buildem 1.0 se všemi přibalenými pluginy.
   - **Závisí na:** PR.1.1
   - **Odhad:** bez odhadu; účtuje se v P3, rozšíření o pluginy v P10
+  - **Stav 28. 10. 2026 (večer):** částečně. Automatický síťový test (`Category=Network`, 47 testů) sleduje spojení, DNS a HTTP v editoru i v každém procesu pluginu, LSP a ACP; bez souhlasu žádné odchozí spojení, po souhlasu jen očekávané hosty; plugin s vlastním socketem se pozná. Opraveno: zpožděná synchronizace proxy, přesměrování registru a vzdáleného MCP (s API klíčem) na jiný host. Prošlo na Windows nad JIT buildem; zbývá macOS, AOT build vydání a CI.
 - [ ] **PR.6.2** Kontrola licencí a čistého přepisu
   - **Co a proč:** Nic z reverzní analýzy ani z PSPadu nesmí do repozitáře a balíku. GPL a AGPL jen jako cizí proces. Šablony struktur jen CC0, MIT, BSD; schémata jen s ověřenou licencí.
   - **Funkce:** žádná (infrastruktura)
@@ -2395,7 +2396,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
 
 ### P8.7 Schémata a manifesty
 
-- [ ] **P8.7.1** Schémata pro JSON, YAML a TOML
+- [x] **P8.7.1** Schémata pro JSON, YAML a TOML
   - **Co a proč:** Mapování schématu (JSON Schema Store) na soubor, složku nebo masku, kontrola a doplňování. Přibalená schémata běžných konfigurací, stahování jen po svolení a jedním přepínačem vypnutelné. TOML a soubory bez přípony podle jména. Dialekt podle souboru (striktní JSON, JSONC).
   - **Funkce:** F181
   - **Hotovo, když:** chyba v `package.json` proti schématu se podtrhne; doplňování klíčů podle schématu projde přes API doplňování (P8.4.2) a odpověď pro starší revizi se nezobrazí; každý přibalený formát (JSON, JSONC, YAML, TOML) má test platného souboru, syntaktické chyby a chyby proti schématu; bez svolení editor schéma nestáhne (síťový test PR.6.4); stavový řádek ukáže „bez schématu / schéma X“.
@@ -2405,6 +2406,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin, schémata jako data
   - **Stav 28. 10. 2026:** částečně. `$schema` a modelines, výřez katalogu SchemaStore, stažení po souhlasu s cache, syntaxe YAML/TOML, doplňování hodnot, hover. Kontrola YAML bez falešných poplachů na 5517 souborech. Chybí `$ref` na jiné soubory a uživatelské mapování v nastavení.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. `$ref` na místní soubory (hloubka, cykly) a vzdálené jen přes souhlas, uživatelské mapování `schema.mappings`; testy prošly. Zbývá síťový test PR.6.4.
+  - **Ověření 28. 10. 2026 (večer):** hotovo. síťový test PR.6.4 prošel na referenční Windows VM: bez svolení se schéma nestáhne, po svolení jen z povoleného hostu.
 - [x] **P8.7.2** Soubory agentů a kontrola frontmatteru
   - **Co a proč:** Mapování „cesta → schéma → dialekt“ pro `.claude/settings*.json` (striktní JSON), `.mcp.json`, Codex `config.toml`, `opencode.json(c)` (JSONC); vlastní malé schéma pro `.mcp.json`. Kontrola YAML frontmatteru `SKILL.md`, `agents/*.md`, `rules/*.md`, `.mdc` v profilech Agent Skills a Claude Code.
   - **Funkce:** F250, F251
@@ -2413,7 +2415,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.7.1
   - **Odhad:** F250 1–2 ČT, F251 1–2 ČT (matice)
   - **Umístění:** data nad F181 (F250); vestavěný plugin spolu s F181 a datovým profilem (F251), podle plánu
-- [ ] **P8.7.3** Manifesty balíčků: společný klient, souhlas a cache
+- [x] **P8.7.3** Manifesty balíčků: společný klient, souhlas a cache
   - **Co a proč:** V manifestech doplnění názvu a verze z registru na vyžádání, značka novější verze, spuštění skriptu přes F124. Společný klient registru se souhlasem a cache; jednotlivé registry jsou adaptéry v P8.7.5. Síť jen po svolení, bez kontroly zranitelností a bez automatického `go mod download`.
   - **Funkce:** F183
   - **Hotovo, když:** bez svolení editor nepošle žádný dotaz do registru (ověřeno síťovým testem PR.6.4); po svolení se u starší verze ukáže značka novější verze; odpověď z cache se pozná a jde obnovit.
@@ -2423,6 +2425,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Limit a životnost cache registrů, adaptér pub.dev.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Nový adaptér Maven Central (pom.xml, Gradle). Zbývá síťový test PR.6.4 a proxy s přihlášením.
+  - **Ověření 28. 10. 2026 (večer):** hotovo. síťový test PR.6.4 prošel: bez svolení žádný dotaz do registru, po svolení jen povolený host; proxy s přihlášením přes editor; opravena chyba, kdy registr následoval přesměrování na jiný host.
 - [x] **P8.7.5** Adaptéry registrů balíčků
   - **Co a proč:** Adaptéry ve skupinách s vlastními testy: `composer.json`, `package.json`, `requirements.txt`, `.csproj`, `go.mod`, `Cargo.toml`, `Gemfile`.
   - **Funkce:** F183 (částečně: adaptéry registrů)
@@ -2589,6 +2592,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** F255 1–1,5 ČT (matice)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Odhad ≈ ve stavovém řádku a dialogu s pravidly a zdroji; přesný tokenizér a „Spočítat přesně“ nejsou (nic se neodesílá).
+  - **Stav 28. 10. 2026 (večer):** částečně. Síťový test potvrdil, že odhad tokenů nic neodesílá. Přesný tokenizér a „Spočítat přesně“ nejsou.
 - [ ] **P8b.3.3** Prohlížeč přepisů agentů: panel tahů
   - **Co a proč:** `*.jsonl` z `~/.claude/projects/` a `~/.codex/sessions/` jako relace: panel tahů, tokeny, hledání, skok do surového řádku. Editor kreslí panel a virtuální dokument z P6.2.6. Neznámý záznam jako surový JSON. Jen pro čtení. Parsery a index jsou v P8b.3.4, maskování a limity v P8b.3.5.
   - **Funkce:** F257
