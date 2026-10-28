@@ -506,6 +506,8 @@
   "cmd.edit.htmlRemoveTag": "Remove Tag",
   "cmd.edit.htmlWrapTag": "Wrap in Tag...",
   "cmd.edit.htmlStripTags": "Strip Tags",
+  "cmd.edit.htmlInsertImage": "Insert Image...",
+  "cmd.edit.htmlInsertLink": "Insert Link...",
   "cmd.tools.sqlDialect": "SQL Dialect...",
   "cmd.help.languageHelp": "Language Help",
   "setting.sql.dialect.title": "Default SQL dialect",

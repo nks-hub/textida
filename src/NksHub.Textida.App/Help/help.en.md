@@ -1481,7 +1481,7 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Indentation (4 spaces) and keyword case (upper) are fixed for now; they are not settings yet.
 
 ## [edit.html] HTML: entities and HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags, nks.edit.htmlInsertImage, nks.edit.htmlInsertLink
 1. Edit, Formatting, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
 2. Edit, Formatting, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
 3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
@@ -1490,7 +1490,8 @@ commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.
 - Convert to HTML Entities Including Non-ASCII also writes every character outside ASCII as a numeric entity (`&#233;`); converting back gives the text again.
 4. Tag tools (HTML, XML and PHP files): Edit, Formatting, Close Open Tag writes the end tag of the nearest tag that is still open at the caret. Go to Matching Tag moves the caret to the partner of the tag at the caret. Select Element selects the element around the selection; repeat it to select the next one out. Remove Tag deletes the start and end tag of the element at the caret and keeps its content. Wrap in Tag asks for a name and wraps each selection in it. Strip Tags removes all tags and comments from the selections (the whole file when nothing is selected).
 - Tags are paired by nesting. Comments and the content of `script` and `style` hold no tags. The optional end tags of HTML (`li`, `p`) are not inferred, so such a tag counts as open.
-- Inserting an image or link with its size is not available.
+5. Edit, Formatting, Insert Image asks for an image file and writes `<img src="…" width="…" height="…" alt="">` in place of every selection. The address is relative to the document (a file on another drive, or an unsaved document, gets a `file:///` address). The width and height are read from the header of PNG, GIF, JPEG, BMP and WebP files; for any other file, such as SVG, the tag has no size. Selected text on one line becomes the alt text; with nothing selected the caret stands in the empty alt.
+6. Insert Link asks for an address and writes `<a href="…">` around every selection. When nothing is selected the link shows the address, or, for an image file, the picture with its width and height. An address that is the path of an existing file is written relative to the document.
 
 ## [help.language] Help for a language
 commands: nks.help.languageHelp

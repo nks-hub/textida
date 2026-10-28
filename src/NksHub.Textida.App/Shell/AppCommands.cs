@@ -208,6 +208,8 @@ internal static class AppCommands
         On("nks.edit.htmlRemoveTag", w => w.HtmlRemoveTag());
         On("nks.edit.htmlStripTags", w => w.HtmlStripTags());
         Do("nks.edit.htmlWrapTag", w => _ = w.HtmlWrapTagAsync());
+        Do("nks.edit.htmlInsertImage", w => _ = w.HtmlInsertImageAsync());
+        Do("nks.edit.htmlInsertLink", w => _ = w.HtmlInsertLinkAsync());
         Fire("nks.edit.htmlTidy", (w, t) => app.Plugins.RunTidyAsync(w, t));
 
         // tools

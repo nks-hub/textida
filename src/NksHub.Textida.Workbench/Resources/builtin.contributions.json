@@ -1818,6 +1818,20 @@
       "undo": "transaction"
     },
     {
+      "id": "nks.edit.htmlInsertImage",
+      "title": "cmd.edit.htmlInsertImage",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlInsertLink",
+      "title": "cmd.edit.htmlInsertLink",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
       "id": "nks.tools.sqlDialect",
       "title": "cmd.tools.sqlDialect",
       "category": "cat.tools",
@@ -4250,6 +4264,20 @@
       "group": "3_text/5_format",
       "submenu": "format",
       "order": 120
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertImage",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertLink",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 140
     },
     {
       "menu": "tools",

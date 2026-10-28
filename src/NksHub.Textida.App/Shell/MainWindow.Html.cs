@@ -75,6 +75,73 @@ internal sealed partial class MainWindow
         return [Sel.At(first)];
     });
 
+    /// <summary>The pixel size of an image file, or null when its header does not tell it. Throws <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> for a file that cannot be read.</summary>
+    internal static (int Width, int Height)? ImageSizeOf(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return HtmlInsert.TryImageSize(stream, out int width, out int height) ? (width, height) : null;
+    }
+
+    /// <summary>
+    /// Writes <paramref name="piece"/> (text and caret offset in it) for every selection, one after the other in document order. <paramref name="pieceFor"/> gets the text of the
+    /// selection as it was before anything was written.
+    /// </summary>
+    private void InsertPieces(Func<string, HtmlInsert.Piece> pieceFor) => RunEdit((s, sels) =>
+    {
+        var ordered = sels.OrderBy(x => x.Start).ToList();
+        var pieces = ordered.Select(x => pieceFor(s.Document.GetText(x.Start, x.Length))).ToList();
+        return LineOperations.ReplaceSelectionsWithCarets(s.Document, ordered, i => (pieces[i].Text, [pieces[i].Caret]));
+    });
+
+    /// <summary>The text that goes into an attribute for a selection: a selection on one line, none otherwise.</summary>
+    private static string SingleLine(string selected) => selected.Contains('\n') || selected.Contains('\r') ? "" : selected;
+
+    /// <summary>Asks for an image file and writes its <c>img</c> tag, with the size of the picture, in place of every selection; a selected text becomes the alt text.</summary>
+    internal async Task HtmlInsertImageAsync()
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface) return;
+        var path = await _app.Dialogs.PickFileAsync(this, Loc.Get(K.HtmlImageTitle), Loc.Get(K.HtmlImageFilter), HtmlInsert.ImagePatterns);
+        if (path is null || !ReferenceEquals(ActiveEditor, surface)) return;
+        (int Width, int Height)? size;
+        try { size = ImageSizeOf(path); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            SetStatusMessage(Loc.Get(K.HtmlImageUnreadable, ("reason", e.Message)));
+            return;
+        }
+        string reference = HtmlInsert.RelativeReference(ActiveDirectory(), path);
+        InsertPieces(selected => HtmlInsert.Image(reference, size, SingleLine(selected)));
+        if (size is null) SetStatusMessage(Loc.Get(K.HtmlImageNoSize));
+    }
+
+    /// <summary>
+    /// Asks for an address and writes a link to it around every selection. A file that exists is written as a reference relative to the document; with nothing selected
+    /// the link of an image file holds the picture, with its width and height, and any other link shows its address.
+    /// </summary>
+    internal async Task HtmlInsertLinkAsync()
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface) return;
+        var typed = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.HtmlLinkTitle), Loc.Get(K.HtmlLinkLabel), ""))?.Trim();
+        if (string.IsNullOrEmpty(typed) || !ReferenceEquals(ActiveEditor, surface)) return;
+        string? directory = ActiveDirectory();
+        string? file = HtmlInsert.LocalFile(typed, directory);
+        string reference = file is null ? typed : HtmlInsert.RelativeReference(directory, file);
+        string shown = typed.Replace("&", "&amp;", StringComparison.Ordinal).Replace("<", "&lt;", StringComparison.Ordinal);
+        if (file is not null && HtmlInsert.IsImageFile(file))
+        {
+            (int Width, int Height)? size = null;
+            try { size = ImageSizeOf(file); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                SetStatusMessage(Loc.Get(K.HtmlImageUnreadable, ("reason", e.Message)));
+                return;
+            }
+            shown = HtmlInsert.Image(reference, size).Text;
+            if (size is null) SetStatusMessage(Loc.Get(K.HtmlImageNoSize));
+        }
+        InsertPieces(selected => HtmlInsert.Link(reference, selected.Length > 0 ? selected : shown));
+    }
+
     /// <summary>Asks for a tag name and wraps the selection in it.</summary>
     internal async Task HtmlWrapTagAsync()
     {

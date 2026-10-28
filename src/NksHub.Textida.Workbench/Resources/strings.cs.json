@@ -506,6 +506,8 @@
   "cmd.edit.htmlRemoveTag": "Odstranit tag",
   "cmd.edit.htmlWrapTag": "Obalit tagem...",
   "cmd.edit.htmlStripTags": "Odstranit všechny tagy",
+  "cmd.edit.htmlInsertImage": "Vložit obrázek...",
+  "cmd.edit.htmlInsertLink": "Vložit odkaz...",
   "cmd.tools.sqlDialect": "Dialekt SQL...",
   "cmd.help.languageHelp": "Nápověda k jazyku",
   "setting.sql.dialect.title": "Výchozí dialekt SQL",

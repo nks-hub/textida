@@ -448,6 +448,12 @@ public static class K
     public const string HtmlWrapTitle = "html.wrap.title";
     public const string HtmlWrapLabel = "html.wrap.label";
     public const string HtmlWrapInvalid = "html.wrap.invalid";
+    public const string HtmlImageTitle = "html.image.title";
+    public const string HtmlImageFilter = "html.image.filter";
+    public const string HtmlImageUnreadable = "html.image.unreadable";
+    public const string HtmlImageNoSize = "html.image.noSize";
+    public const string HtmlLinkTitle = "html.link.title";
+    public const string HtmlLinkLabel = "html.link.label";
     public const string BatchPending = "batch.pending";
     public const string BatchFinish = "batch.finish";
     public const string BatchRollBack = "batch.rollBack";
