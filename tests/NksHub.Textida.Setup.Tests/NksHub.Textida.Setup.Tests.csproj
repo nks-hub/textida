@@ -23,5 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Install\NksHub.Textida.Install.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Setup\NksHub.Textida.Setup.csproj" />
   </ItemGroup>
 </Project>

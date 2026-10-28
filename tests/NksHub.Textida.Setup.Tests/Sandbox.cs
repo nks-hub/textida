@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Win32;
 using NksHub.Textida.Install;
+using NksHub.Textida.Setup;
 
 namespace NksHub.Textida.Setup.Tests;
 
@@ -39,6 +40,19 @@ internal sealed class Sandbox : IDisposable
     }
 
     public Installer Installer(Action<SetupStage, double>? progress = null) => new(Locations) { IsRunning = _ => Running, Progress = progress };
+
+    /// <summary>The world as the setup sees it: this sandbox, a package built from <paramref name="package"/>, and the actions recorded instead of done.</summary>
+    internal SetupEnvironment Env(Recorder recorder, string language = "en", Func<Stream?>? package = null, string? setupExe = null) => new()
+    {
+        Locations = Locations,
+        OpenPackage = package ?? (() => Package()),
+        SetupExe = setupExe ?? FakeSetup(),
+        UiLanguage = language,
+        IsRunning = _ => Running,
+        Launch = (exe, dir) => recorder.Launched.Add((exe, dir)),
+        RemoveSelf = (program, dir) => recorder.Removed.Add((program, dir)),
+        WaitForProcess = pid => { recorder.Waited.Add(pid); return true; },
+    };
 
     public RegistryKey? UninstallEntry() => Registry.CurrentUser.OpenSubKey(_keyPath + @"\Uninstall");
 
