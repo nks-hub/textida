@@ -447,7 +447,7 @@ public class PagedLongLineTests : IDisposable
         using var gate = new ManualResetEventSlim();
         paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
         TestApp.Press(_w, Key.Down);
-        Assert.True(paged.CaretMovePending);
+        Assert.True(paged.CaretMovePending, $"caret {paged.CaretOffset} at {paged.CaretLineColumn()}");
         Assert.Equal(5_000_000, paged.CaretOffset);
         gate.Set();
         await Eventually(() => !paged.CaretMovePending);

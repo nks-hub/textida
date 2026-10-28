@@ -660,7 +660,7 @@ public class PagedSurfaceTests : IDisposable
             _w.UpdateLayout();
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB ({jumped} before the draw)");
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB ({jumped} before the draw): {string.Join(',', file.BlockNumbersTouched())}");
             Assert.False(paged.LinesExact);
             Assert.Equal(caret, paged.CaretOffset);
 

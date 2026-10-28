@@ -126,6 +126,16 @@ public sealed unsafe class MappedFile : IDisposable
     /// <summary>Distinct 1 MiB blocks read since <see cref="BeginBlockCount"/>.</summary>
     public int BlocksTouched => Volatile.Read(ref _countedBlocks);
 
+    /// <summary>The numbers of the blocks counted by <see cref="BlocksTouched"/>, ascending; for a test that wants to see where a read went.</summary>
+    internal int[] BlockNumbersTouched()
+    {
+        var counted = Volatile.Read(ref _counted);
+        var numbers = new List<int>();
+        for (int c = 0; counted is not null && c < counted.Length * 64; c++)
+            if ((Volatile.Read(ref counted[c >> 6]) & (1L << (c & 63))) != 0) numbers.Add(c);
+        return [.. numbers];
+    }
+
     /// <summary>Notes the chunks of a read; the read that takes the count over the budget starts a trim.</summary>
     private void Touch(long offset, long length)
     {

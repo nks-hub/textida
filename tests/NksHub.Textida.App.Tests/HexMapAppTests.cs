@@ -340,8 +340,9 @@ public class HexMapAppTests : IDisposable
         NksHub.Textida.Core.TypingTrace.Enabled = false;
         _output.WriteLine("50 GiB hex, spans of the open:\n" + NksHub.Textida.Core.TypingTrace.Summary());
         _w.UpdateLayout();
+        double laidOut = clock.Elapsed.TotalMilliseconds;
         PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
-        _output.WriteLine($"50 GiB hex: open {opened:0} ms, map {clock.Elapsed.TotalMilliseconds:0} ms");
+        _output.WriteLine($"50 GiB hex: open {opened:0} ms, layout done {laidOut:0} ms, map {clock.Elapsed.TotalMilliseconds:0} ms");
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(1), $"the map showed {clock.Elapsed.TotalMilliseconds:0} ms after the open started (the open took {opened:0} ms)");
         Assert.Equal(length, hex.Document.ByteLength);
         Assert.False(hex.Minimap.Map!.IsExact);
