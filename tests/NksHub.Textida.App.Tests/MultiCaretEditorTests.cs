@@ -268,7 +268,7 @@ public class MultiCaretEditorTests : IDisposable
         Assert.Equal(["0:0", "8:8", "19:19"], Carets(tab));
         Press(Key.End);
         Assert.Equal(["7:7", "18:18", "27:27"], Carets(tab));
-        Press(Key.Left, TestApp.Mod);
+        Press(Key.Left, TestApp.Word);
         Assert.Equal(["4:4", "14:14", "24:24"], Carets(tab));
         Press(Key.Right, RawInputModifiers.Shift);
         Press(Key.Left, RawInputModifiers.Shift);
@@ -285,7 +285,7 @@ public class MultiCaretEditorTests : IDisposable
     {
         var tab = Open("one two three\nfour five six");
         PlaceCarets(tab, 0, 14);
-        Press(Key.Right, TestApp.Mod);
+        Press(Key.Right, TestApp.Word);
         Assert.Equal(["4:4", "19:19"], Carets(tab));
     }
 
@@ -320,7 +320,7 @@ public class MultiCaretEditorTests : IDisposable
         Mod(Key.Z);
 
         PlaceCarets(tab, 7, 15);
-        Press(Key.Back, TestApp.Mod);
+        Press(Key.Back, TestApp.Word);
         Assert.Equal("abc \nxyz ", Text(tab));
         Assert.Equal("abc |\nxyz |", Marked(tab));
     }

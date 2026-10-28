@@ -239,6 +239,9 @@ internal static class TestApp
     private static readonly bool Mac = OperatingSystem.IsMacOS();
     private const RawInputModifiers Cmd = RawInputModifiers.Meta;
 
+    /// <summary>The modifier of the word keys: Ctrl, Option on macOS.</summary>
+    public static RawInputModifiers Word => Mac ? RawInputModifiers.Alt : RawInputModifiers.Control;
+
     /// <summary>Ctrl+Y, Command+Shift+Z on macOS.</summary>
     public static void Redo(Window w) => Press(w, Mac ? Key.Z : Key.Y, Mac ? Cmd | RawInputModifiers.Shift : RawInputModifiers.Control);
 
