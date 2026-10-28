@@ -374,6 +374,14 @@ public sealed class PagedDocument : IPagedTextSource
     public bool IsColumnNear(long lineStart, long column) =>
         IsModified ? _editedColumns.IsNear(lineStart, column) : _source.IsColumnNear(lineStart, column);
 
+    /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted, or the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsColumnNear(long lineStart, long column, long within) =>
+        IsModified ? _editedColumns.IsNear(lineStart, column, within) : _source.IsColumnNear(lineStart, column, within);
+
+    /// <summary>True when <see cref="ColumnOf"/> at <paramref name="offset"/> resumes from a point noted, or the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsOffsetNear(long lineStart, long offset, long within) =>
+        IsModified ? _editedColumns.IsNearPosition(lineStart, offset, within) : _source.IsOffsetNear(lineStart, offset, within);
+
     /// <summary>
     /// A reader of the columns of the current revision for another thread, so that a far read does not hold up this one. The points it notes on an
     /// edited document come back with <see cref="KeepColumns"/>; on an unedited one they go straight to the index of the file.

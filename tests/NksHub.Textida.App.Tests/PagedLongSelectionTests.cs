@@ -155,6 +155,7 @@ public class PagedLongSelectionTests : IDisposable
         var tab = Open(path);
         var paged = tab.Paged!;
         paged.SelectBytes(start, start + length);
+        TestApp.Settle(paged);
         Draw();
 
         await paged.CopyAsync(cut: false);
@@ -168,7 +169,7 @@ public class PagedLongSelectionTests : IDisposable
 
 /// <summary>
 /// P7.1.5 gates for selecting and copying inside a 100 MiB line: how long the UI thread is held by Copy of a 64 MiB selection (budget as the typing gate,
-/// p95 33 ms and p99 80 ms), and how long the first Shift+End takes to count the characters of the line (reported, not gated: it is the one move that still counts on the UI thread).
+/// p95 33 ms and p99 80 ms), and how long the UI thread is held by the first Shift+End, which waits for the characters of the line to be counted on the pool (reported, not gated).
 /// </summary>
 [Collection("LocState")]
 [Trait("Category", "Perf")]
@@ -223,6 +224,7 @@ public class PagedLongSelectionPerfTests(ITestOutputHelper output) : IDisposable
         for (int i = 0; i < 20; i++)
         {
             paged.SelectBytes(1_000_000 + i, 1_000_000 + i + (64 << 20));
+            TestApp.Settle(paged); // the first one counts the columns of the line on the pool; the others find the points it noted
             Present(w);
             long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             var copying = paged.CopyAsync(cut: false);
@@ -243,12 +245,16 @@ public class PagedLongSelectionPerfTests(ITestOutputHelper output) : IDisposable
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         TestApp.Press(w, Key.End, RawInputModifiers.Shift);
         Present(w);
+        double held = Since(t0);
+        bool waited = paged.CaretMovePending;
+        TestApp.Settle(paged);
+        Present(w);
         double first = Since(t0);
         t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         TestApp.Press(w, Key.Home, RawInputModifiers.Shift);
         Present(w);
         double second = Since(t0);
-        output.WriteLine($"Shift+End from the start of a 100 MiB line: first {first:0.0} ms (counts the characters), then Shift+Home {second:0.0} ms (the count is known)");
+        output.WriteLine($"Shift+End from the start of a 100 MiB line: the UI thread was held {held:0.0} ms (the move waited for the count on the pool: {waited}), the selection stood after {first:0.0} ms, then Shift+Home {second:0.0} ms (the count is known)");
         Assert.True(paged.HasSelection || paged.CaretOffset == 0);
     }
 }

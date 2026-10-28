@@ -81,6 +81,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most bytes a paste inserts over all carets of a large file in the paged view together (the text times the number of carets); a larger paste is refused with a message and the document stays as it was. The owner has not decided it.</summary>
     public const long PagedMultiPasteMaxBytes = 64L << 20;
 
+    /// <summary>Placeholder, OPEN: bytes (columns for a column) of a long line in the paged view that the UI thread counts to put the caret in it; a place farther than this from the nearest known point of the line is reached by a count on the thread pool, and the caret moves when it ends. The owner has not decided it.</summary>
+    public const long PagedFarMoveBytes = 16L << 20;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 

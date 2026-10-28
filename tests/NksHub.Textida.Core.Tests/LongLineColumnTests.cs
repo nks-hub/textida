@@ -325,6 +325,66 @@ public class LongLineColumnTests
     }
 
     [Fact]
+    public void AColdLongLineIsFarFromItsMiddleAndNearAfterTheColumnsWereCounted()
+    {
+        string line = LongLine(400_000);
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { StartIndexing = false });
+        const long within = 1 << 20;
+        long offset = ByteOffset(line, 3_000_000);
+
+        Assert.True(doc.IsOffsetNear(0, 100, within));
+        Assert.True(doc.IsColumnNear(0, 100, within));
+        Assert.False(doc.IsOffsetNear(0, offset, within));
+        Assert.False(doc.IsColumnNear(0, 3_000_000, within));
+
+        Assert.Equal(3_000_000, doc.ColumnOf(0, offset));
+        Assert.True(doc.IsOffsetNear(0, offset, within));
+        Assert.True(doc.IsOffsetNear(0, offset + 5000, within));
+        Assert.True(doc.IsColumnNear(0, 3_000_000, within));
+        Assert.False(doc.IsOffsetNear(0, ByteOffset(line, 3_500_000), 1000)); // a point 500 000 columns back is not near for a limit of 1000
+    }
+
+    [Fact]
+    public void ASnapshotOfTheColumnsCountsLikeTheDocumentAndHandsItsPointsBack()
+    {
+        string line = LongLine(400_000);
+        using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
+        using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { StartIndexing = false });
+        const long within = 1 << 20;
+        long offset = ByteOffset(line, 2_500_000);
+
+        var cold = doc.SnapshotColumns();
+        Assert.Equal(2_500_000, cold.ColumnOf(0, offset));
+        Assert.Equal(offset, cold.OffsetOfColumn(0, 2_500_000));
+        Assert.True(doc.IsOffsetNear(0, offset, within)); // an unedited document shares the index of its file, so the points are there at once
+
+        doc.Insert(ByteOffset(line, 1_000_000), "ZZ"u8);
+        string edited = line.Insert(1_000_000, "ZZ");
+        long editedOffset = ByteOffset(edited, 3_000_000);
+        Assert.False(doc.IsOffsetNear(0, editedOffset, within));
+
+        var snapshot = doc.SnapshotColumns();
+        Assert.Equal(3_000_000, snapshot.ColumnOf(0, editedOffset));
+        Assert.Equal(editedOffset, snapshot.OffsetOfColumn(0, 3_000_000));
+        Assert.False(doc.IsOffsetNear(0, editedOffset, within)); // the points are in the copy of the snapshot until the document takes them
+        doc.KeepColumns(snapshot);
+        Assert.True(doc.IsOffsetNear(0, editedOffset, within));
+        Assert.Equal(3_000_000, doc.ColumnOf(0, editedOffset));
+
+        doc.Insert(ByteOffset(edited, 10), "Y"u8); // an edit near the start drops the points behind it
+        string current = edited.Insert(10, "Y");
+        long far = ByteOffset(current, 3_000_000);
+        Assert.False(doc.IsOffsetNear(0, far, within));
+
+        var stale = doc.SnapshotColumns();
+        Assert.Equal(3_000_000, stale.ColumnOf(0, far));
+        doc.Delete(ByteOffset(current, 3), 1); // an edit after the snapshot: the points it noted do not describe the text any more
+        doc.KeepColumns(stale);
+        Assert.False(doc.IsOffsetNear(0, far, within));
+    }
+
+    [Fact]
     [Trait("Category", "Large")]
     public void TypingInAHundredMiBLineKeepsTheColumnsRightAndTheAllocationsSmall()
     {

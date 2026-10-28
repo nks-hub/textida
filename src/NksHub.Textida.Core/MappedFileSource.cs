@@ -304,6 +304,12 @@ public sealed class MappedFileSource : IPagedTextSource
     /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
     public bool IsColumnNear(long lineStart, long column) => _columns.IsNear(lineStart, column);
 
+    /// <summary>True when a read at <paramref name="column"/> resumes from a known point, or the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsColumnNear(long lineStart, long column, long within) => _columns.IsNear(lineStart, column, within);
+
+    /// <summary>True when <see cref="PagedDocument.ColumnOf"/> at <paramref name="offset"/> resumes from a known point, or the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsOffsetNear(long lineStart, long offset, long within) => _columns.IsNearPosition(lineStart, offset, within);
+
     internal ColumnIndex Columns => _columns;
     internal int BomLength => _bomLength;
 
