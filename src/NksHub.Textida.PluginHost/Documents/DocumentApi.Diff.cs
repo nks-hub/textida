@@ -83,13 +83,41 @@ public sealed partial class DocumentApi
         });
     }
 
+    /// <summary>
+    /// The optional <c>key</c> and <c>actions</c> (<c>[{"command","title","refresh"}]</c>) of <see cref="DiffOpenAsync"/>. An editor that takes none (<see cref="DocumentApiOptions.DiffActions"/> is null) leaves them out.
+    /// </summary>
+    private (string? Key, IReadOnlyList<DiffAction>? Actions) DiffActionsOf(JsonElement p)
+    {
+        if (_options.DiffActions is not { } limits) return (null, null);
+        string Text(JsonElement e, string name, bool required)
+        {
+            if (!e.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null) return required ? throw Invalid($"'{name}' is required.") : "";
+            var text = v.ValueKind == JsonValueKind.String ? v.GetString()! : throw Invalid($"'{name}' must be a string.");
+            return text.Length is > 0 && text.Length <= limits.MaxTextLength ? text : throw Invalid($"'{name}' must have 1 to {limits.MaxTextLength} characters.");
+        }
+        var key = Text(p, "key", required: false);
+        var list = new List<DiffAction>();
+        if (p.TryGetProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
+        {
+            if (actions.GetArrayLength() > limits.MaxActions) throw Invalid($"A comparison takes at most {limits.MaxActions} actions.");
+            foreach (var a in actions.EnumerateArray())
+            {
+                if (a.ValueKind != JsonValueKind.Object) throw Invalid("Every action must be an object.");
+                var refresh = Text(a, "refresh", required: false);
+                list.Add(new DiffAction(Text(a, "command", required: true), Text(a, "title", required: true), refresh.Length == 0 ? null : refresh));
+            }
+        }
+        return (key.Length == 0 ? null : key, list.Count == 0 ? null : list);
+    }
+
     /// <summary>Shows the diff of two revisions in a comparison tab. Both revisions stay as they were asked for, whatever the documents do afterwards.</summary>
     private async Task<byte[]> DiffOpenAsync(string pluginId, JsonElement p, CancellationToken ct)
     {
         var left = await ResolveSideAsync(pluginId, p, "left");
         var right = await ResolveSideAsync(pluginId, p, "right");
         string? Title(string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-        var request = new DiffRequest(Title("title"), new DiffInput(left.Snap, left.Bom, Title("leftTitle")), new DiffInput(right.Snap, right.Bom, Title("rightTitle")));
+        var (key, actions) = DiffActionsOf(p);
+        var request = new DiffRequest(Title("title"), new DiffInput(left.Snap, left.Bom, Title("leftTitle")), new DiffInput(right.Snap, right.Bom, Title("rightTitle")), pluginId, key, actions);
         bool opened = await _owner.InvokeAsync(() => _options.Tools.OpenDiff(request));
         return Obj(w => w.WriteBoolean("opened", opened));
     }

@@ -324,6 +324,71 @@ public class PluginDiffVirtualTests : IDisposable
         Assert.Equal(["a"], view.Session.Diff.B.ReadLines(0, 1));
     }
 
+    private async Task<List<JsonElement>> CommandsAsync(int atLeast)
+    {
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var commands = new List<JsonElement>((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray().Select(e => e.Clone()));
+            if (commands.Count >= atLeast) return commands;
+            Assert.True(sw.ElapsedMilliseconds < 30_000, "The plugin got no command.");
+            await Task.Delay(20);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task The_buttons_a_plugin_adds_to_a_comparison_run_its_command_for_the_right_side_and_a_comparison_with_the_same_key_takes_the_place_of_the_tab()
+    {
+        await StartPluginAsync();
+        var tree = _w.NewDocument();
+        tree.Editor!.Document.Text = "a\nb\nc\n";
+        _app.Plugins.Documents.Expose(tree.Doc.Doc, tree.Editor.ByteSelections);
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        var snapshot = (await Editor(DocumentMethods.SnapshotCreate, $"{{\"document\":\"{tree.Doc.Doc.Id}\"}}")).GetProperty("snapshot").GetString();
+        tree.Editor.Document.Replace(4, 1, "C");
+        long revision = tree.Doc.Doc.Revision;
+        string Open() => $"{{\"left\":{{\"snapshot\":\"{snapshot}\"}},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{revision}}},\"key\":\"k\"," +
+            "\"actions\":[{\"command\":\"x.stage\",\"title\":\"Stage\",\"refresh\":\"x.show\"}]}";
+
+        Assert.True((await Editor(DocumentMethods.DiffOpen, Open())).GetProperty("opened").GetBoolean());
+        var tab = _w.Active!;
+        var view = (DiffView)tab.Custom!;
+        await view.Session.RefreshAsync();
+        var button = Assert.Single(view.ActionButtons);
+        Assert.Equal("Stage", button.Content);
+        Assert.False(button.IsEnabled); // no difference is chosen yet
+        Assert.False(view.RunAction(0));
+        view.SelectHunk(0);
+        Assert.True(button.IsEnabled);
+
+        // the command goes to the plugin for the document of the right side, at the byte where the difference starts there; the refresh command follows
+        Assert.True(view.RunAction(0));
+        var commands = await CommandsAsync(2);
+        var stage = commands[0].GetProperty("params");
+        Assert.Equal(("x.stage", tree.Doc.Doc.Id.ToString(), 4L), (stage.GetProperty("command").GetString(), stage.GetProperty("document").GetString(), stage.GetProperty("offset").GetInt64()));
+        Assert.Equal(revision, stage.GetProperty("revision").GetInt64());
+        var refresh = commands[1].GetProperty("params");
+        Assert.Equal("x.show", refresh.GetProperty("command").GetString());
+        Assert.False(refresh.TryGetProperty("offset", out _));
+
+        // the same comparison opened again replaces the tab in its place
+        var group = tab.Group!;
+        int at = group.Tabs.ToList().IndexOf(tab);
+        Assert.True((await Editor(DocumentMethods.DiffOpen, Open())).GetProperty("opened").GetBoolean());
+        Assert.DoesNotContain(tab, _w.Tabs);
+        var replaced = Assert.Single(_w.Tabs, t => t.Custom is DiffView);
+        Assert.Equal(at, group.Tabs.ToList().IndexOf(replaced));
+
+        // the document changed after the comparison: the button does nothing but say so
+        var again = (DiffView)replaced.Custom!;
+        await again.Session.RefreshAsync();
+        again.SelectHunk(0);
+        tree.Editor.Document.Replace(0, 1, "X");
+        Assert.True(again.RunAction(0));
+        Assert.Equal(Loc.Get(K.CompareActionStale), _w.StatusMessageText);
+        Assert.Equal(2, (await CommandsAsync(2)).Count);
+    }
+
     [AvaloniaFact]
     public async Task Staging_one_hunk_changes_the_index_tab_and_an_index_that_moved_is_a_conflict()
     {

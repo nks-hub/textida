@@ -1149,6 +1149,13 @@ public static class K
     public const string CompareReadOnly = "compare.readOnly";
     public const string CompareLossy = "compare.lossy";
     public const string CompareCopyFailed = "compare.copyFailed";
+    public const string CompareActionGone = "compare.actionGone";
+    public const string CompareActionStale = "compare.actionStale";
+    public const string GitGutterAdded = "git.gutter.added";
+    public const string GitGutterModified = "git.gutter.modified";
+    public const string GitGutterRemoved = "git.gutter.removed";
+    public const string GitGutterTipStage = "git.gutter.tipStage";
+    public const string GitGutterTipUnstage = "git.gutter.tipUnstage";
     public const string CompareClipboardEmpty = "compare.clipboardEmpty";
     public const string CompareNoDocument = "compare.noDocument";
     public const string CompareSyncOn = "compare.sync.on";

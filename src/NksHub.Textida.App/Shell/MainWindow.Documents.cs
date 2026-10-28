@@ -111,6 +111,9 @@ internal sealed partial class MainWindow
             surface.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
             surface.SnippetChoicesRequested += choices => { if (tab == Active) ShowSnippetChoices(surface, choices); };
             surface.KeyCommand = RunKeyCommand;
+            surface.GitMarkClicked += mark => _ = ClickGitMarkAsync(tab, mark);
+            tab.ViewClosed += () => _gitGutterDirty.Remove(tab);
+            ScheduleGitGutter(tab);
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
         }
@@ -146,6 +149,7 @@ internal sealed partial class MainWindow
         od.EnsureWatching();
         if (od.Autosave is null) ConfigureAutosave(od);
         Core.TypingTrace.End("win.watchAutosave", t);
+        foreach (var view in od.Views) ScheduleGitGutter(view);
     }
 
     /// <summary>The document under the tabs was swapped (reload). A view of the other kind (text or paged) is rebuilt in place.</summary>

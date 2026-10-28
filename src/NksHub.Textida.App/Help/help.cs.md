@@ -1295,18 +1295,23 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Proces Emmet se spustí prvním Tabem v souboru HTML nebo CSS.
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
-1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Příkaz spusťte znovu, až se repozitář změní zvenku.
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
 4. Když se index mezitím změnil jiným programem, nic se nezapíše. Plugin index načte znovu a oznámí konflikt; zkontrolujte změny a příkaz zopakujte.
-- Plugin zapisuje do repozitáře jen při Git: připravit úsek. Stav a porovnání jen čtou a nemění ani soubor index.
+- Plugin zapisuje do repozitáře jen když připravíte nebo vrátíte úsek, nebo vyřešíte konflikt. Stav a porovnání jen čtou a nemění ani soubor index.
 - Připravuje se text otevřený v editoru, i když není uložený. Soubor s nevyřešeným konfliktem slučování se nepřipravuje.
 5. Git: vrátit úsek pod kurzorem z indexu vezme zpět do HEAD jen přípravenou změnu, ve které kurzor stojí (nebo na ni v souboru ukazuje). Ostatní připravené změny zůstanou.
 6. Při konfliktu slučování umístěte kurzor do bloku mezi `<<<<<<<` a `>>>>>>>` a zvolte Git: konflikt, vzít naše změny / jejich změny / obě strany. Blok se nahradí zvolenou stranou. Až žádný blok nezbyde a soubor je uložený, zvolte Git: označit soubor jako vyřešený; soubor se přidá do indexu.
 7. Panel stavu otevře soubor dvojklikem nebo Enterem. Ve stavovém řádku je větev a počty: `+` v indexu, `~` změněno, `?` nesledováno, `!` konflikty; aktualizuje se po každém příkazu Git.
-- Chybí zatím: commit a větve. Soubor s převodem konců řádků (`autocrlf`) se může s indexem lišit v každém řádku.
-- Proces Git se spustí prvním příkazem. Program `git` musí být v PATH.
+8. V souboru z repozitáře Git značí levý okraj řádky, které se liší od indexu, plným proužkem (modrý změněné, zelený přidané, krátký červený proužek tam, kde řádky ubyly) a řádky už připravené obrysem. Kliknutí na značku změnu připraví, kliknutí na obrysovou značku ji vrátí z indexu. Nastavení Značky změn Gitu v levém okraji značky vypne. Soubor nad limitem velikosti a soubor se skrytými hodnotami (.env) značky nemá.
+9. Karty Git: porovnat s indexem a Git: porovnat s HEAD mají tlačítka Připravit úsek a Vrátit úsek z indexu pro rozdíl, na kterém karta stojí (z klávesnice stejně fungují příkazy Porovnání: první a druhá akce zásuvného modulu v nabídce Nástroje). Po tlačítku se porovnání otevře znovu na místě karty.
+10. Konflikt, ve kterém jedna strana soubor smazala (panel píše „konflikt: smazáno námi“ nebo „smazáno jimi“) nebo ho obě přidaly a nejde sloučit, nemá žádné značky. Git: konflikt, vzít naše změny / jejich změny / obě strany to pak řekne. Soubor ponecháte příkazem Git: označit soubor jako vyřešený, smažete ho příkazem Git: konflikt, smazat soubor. Soubor smazaný oběma stranami panel ukáže, ale nemá se v čem otevřít; vyřešte ho příkazem `git rm`.
+11. Bloky konfliktu se najdou i v souborech uložených jako UTF-16 a UTF-32.
+12. S `core.autocrlf` (nebo atributem `eol`) se úsek souboru s konci řádků CRLF uloží s LF, jak ho ukládá `git add`.
+- Chybí zatím: commit a větve.
+- Proces Git se spustí prvním příkazem, nebo když se otevře soubor a značky v levém okraji jsou zapnuté. Program `git` musí být v PATH.
 
 ## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1413,12 +1418,13 @@ Vyberte část textu, například blok řádků oddělených čárkami v poznám
 - Řádky přidané na konec patří do výběru. Přepnout tabulku a text vrátí text; další Přepnout tabulku a text ukáže jako tabulku celý soubor.
 
 ## [compare.text] Porovnání textů
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2
 Dva texty se porovnají po řádcích v samostatné kartě. Stejné řádky stojí proti sobě, změněný blok je na obou stranách podbarvený a označený ve střední liště a lišta nahoře říká, kolik je rozdílů.
 1. Porovnat se schránkou (menu Nástroje nebo místní nabídka editoru) porovná kartu s textem ve schránce. Je-li v editoru vybraný text, porovná se jen výběr.
 2. Porovnat se souborem se zeptá na soubor a porovná s ním kartu. Porovnat s diskem je v menu Soubor a porovná kartu s jejím souborem.
 3. Porovnat dva texty otevře dvě prázdné strany. Tlačítka Vložit levý text a Vložit pravý text vloží do strany obsah schránky.
 - Z příkazového řádku otevře textida --diff levý pravý porovnání dvou souborů: levý soubor se otevře v kartě a může přijímat bloky z pravého, který je jen pro čtení.
+- Zásuvný modul může do karty porovnání, kterou otevře, přidat tlačítka (Git přidává Připravit úsek a Vrátit úsek z indexu). Tlačítko působí na rozdíl, na kterém karta stojí; z klávesnice stejně fungují příkazy Porovnání: první a druhá akce zásuvného modulu v nabídce Nástroje. Tlačítka fungují, dokud se dokument pravé strany od vzniku porovnání nezměnil; jinak porovnání otevřete znovu.
 - Strana s kartou je samotný dokument: když se změní, porovná se znovu po krátké pauze. Schránka, výběr a soubor na disku jsou strany jen pro čtení.
 - Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano, dokud v menu Nástroje a Porovnání nezapnete Nerozlišovat mezery nebo Nerozlišovat velikost písmen. Pak jsou stejné řádky, které se liší jen mezerami a tabulátory (kdekoli v řádku), nebo jen velikostí písmen. Volba platí pro všechna porovnání, otevřená se hned porovnají znovu a lišta nahoře ji připomene. Stejné řádky se pak nepodbarví, i když se v mezerách liší, a Kopírovat doleva i doprava přenáší řádky tak, jak jsou.
 - Velký soubor ve stránkovaném režimu se porovnává bez načtení: čtou se jen řádky na obrazovce.

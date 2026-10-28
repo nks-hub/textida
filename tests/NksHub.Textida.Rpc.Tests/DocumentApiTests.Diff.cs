@@ -131,6 +131,47 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task ADiffTabCarriesTheKeyAndTheButtonsOfThePluginAndTheyAreChecked()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("a\n"), o => o with { DiffActions = new DiffActionOptions(2, 20) }, codec: TextCodec.Utf8);
+        var snapshot = (await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D())).GetProperty("snapshot").GetString()!;
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("x")));
+        string Open(string more) => Compute(SnapshotSide(snapshot), Side(rig.Doc.Id, rig.Revision), more);
+
+        await rig.CallAsync(DocumentMethods.DiffOpen, Open(",\"key\":\"k\",\"actions\":[{\"command\":\"x.stage\",\"title\":\"Stage\",\"refresh\":\"x.show\"},{\"command\":\"x.undo\",\"title\":\"Undo\"}]"));
+        var request = Assert.Single(rig.Tools.Diffs);
+        Assert.Equal(("p", "k"), (request.PluginId, request.Key));
+        Assert.Equal([("x.stage", "Stage", "x.show"), ("x.undo", "Undo", (string?)null)], request.Actions!.Select(a => (a.Command, a.Title, a.Refresh)));
+
+        foreach (var bad in new[]
+        {
+            ",\"actions\":[{\"command\":\"a\",\"title\":\"A\"},{\"command\":\"b\",\"title\":\"B\"},{\"command\":\"c\",\"title\":\"C\"}]", // more than the editor takes
+            ",\"actions\":[{\"command\":\"a\"}]",                                                                                    // no title
+            ",\"actions\":[{\"command\":\"a\",\"title\":\"\"}]",
+            ",\"actions\":[{\"command\":\"" + new string('c', 21) + "\",\"title\":\"A\"}]",                                         // too long
+            ",\"actions\":[3]",
+            ",\"key\":\"" + new string('k', 21) + "\"",
+            ",\"key\":7",
+        })
+            await rig.ErrorAsync(DocumentMethods.DiffOpen, Open(bad), RpcErrorCodes.InvalidParams);
+        Assert.Single(rig.Tools.Diffs); // a refused request opens nothing
+    }
+
+    [Fact]
+    public async Task AnEditorThatTakesNoButtonsOpensTheDiffTabWithoutThem()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("a\n"), codec: TextCodec.Utf8);
+        var snapshot = (await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D())).GetProperty("snapshot").GetString()!;
+
+        var opened = await rig.CallAsync(DocumentMethods.DiffOpen, Compute(SnapshotSide(snapshot), Side(rig.Doc.Id, rig.Revision), ",\"key\":\"k\",\"actions\":[{\"command\":\"a\",\"title\":\"A\"}]"));
+
+        Assert.True(opened.GetProperty("opened").GetBoolean());
+        var request = Assert.Single(rig.Tools.Diffs);
+        Assert.Null(request.Key);
+        Assert.Null(request.Actions);
+    }
+
+    [Fact]
     public async Task StagingOneHunkTakesThatHunkIntoTheIndexAndLeavesTheOthers()
     {
         var (rig, index, indexRevision) = await RepositoryAsync("a\nB\nc\nD\ne\n", "a\nb\nc\nd\ne\n");

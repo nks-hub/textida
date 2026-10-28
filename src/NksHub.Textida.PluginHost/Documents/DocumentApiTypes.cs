@@ -47,7 +47,10 @@ public static class DocumentMethods
     public const string SymbolsList = "symbols/list";
     /// <summary>The line diff of two revisions (documents at their current revision or snapshots): hunks as lines and byte ranges.</summary>
     public const string DiffCompute = "diff/compute";
-    /// <summary>Shows the diff of two revisions in a comparison tab.</summary>
+    /// <summary>
+    /// Shows the diff of two revisions in a comparison tab. Optional: <c>key</c>, so that opening the comparison again takes the place of the tab, and <c>actions</c>, buttons (<c>command</c>, <c>title</c>, optional
+    /// <c>refresh</c>) that run the plugin's command on the difference the tab is on (see <see cref="DiffAction"/>).
+    /// </summary>
     public const string DiffOpen = "diff/open";
     /// <summary>Takes one hunk of a diff into a virtual document the plugin provides (the index of a repository), unless that document moved on.</summary>
     public const string DiffStage = "diff/stage";
@@ -267,7 +270,12 @@ public sealed record DocumentApiOptions
     public PreviewOptions? Preview { get; init; }
     /// <summary>The agent panel for plugins (<see cref="DocumentMethods.AgentOpen"/>); null means the editor takes none.</summary>
     public AgentPanelOptions? Agent { get; init; }
+    /// <summary>Actions and the key of a comparison tab a plugin opens (<see cref="DocumentMethods.DiffOpen"/>); null means the editor takes neither and opens the tab without them.</summary>
+    public DiffActionOptions? DiffActions { get; init; }
 }
+
+/// <summary>Limits of the actions a plugin offers in a comparison tab: how many, and the longest key, command and title, in UTF-16 code units.</summary>
+public sealed record DiffActionOptions(int MaxActions, int MaxTextLength);
 
 /// <summary>Formats of <see cref="DocumentMethods.PreviewShow"/>. HTML is left out until the renderer and its policy (P6.2.7) are chosen.</summary>
 public static class PreviewFormats
@@ -428,8 +436,17 @@ public sealed record VirtualInfo(string Key, string? Uri, bool Editable);
 /// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
 public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title);
 
-/// <summary>The comparison of two revisions the editor shows as a tab. <paramref name="Title"/> is null when the editor names it after its sides.</summary>
-public sealed record DiffRequest(string? Title, DiffInput Left, DiffInput Right);
+/// <summary>
+/// A button the plugin that opened a comparison adds to it. Pressed on a hunk, the editor sends the plugin <c>command/execute</c> with <paramref name="Command"/> for the document of the right side
+/// (its path and revision, and <c>offset</c>, the byte offset where the hunk starts on that side). When that went through, it sends <paramref name="Refresh"/> (null: nothing) the same way, without the offset.
+/// </summary>
+public sealed record DiffAction(string Command, string Title, string? Refresh);
+
+/// <summary>
+/// The comparison of two revisions the editor shows as a tab. <paramref name="Title"/> is null when the editor names it after its sides. A tab opened with a <paramref name="Key"/> takes the place of
+/// the tab the same plugin opened with that key before. <paramref name="PluginId"/> is the plugin that asked, <paramref name="Actions"/> the buttons it adds.
+/// </summary>
+public sealed record DiffRequest(string? Title, DiffInput Left, DiffInput Right, string? PluginId = null, string? Key = null, IReadOnlyList<DiffAction>? Actions = null);
 
 /// <summary>Sends a request to a plugin and waits for its answer (<see cref="PluginHost.CallAsync"/> with the timeout).</summary>
 public delegate Task<JsonElement> PluginRequestSender(string pluginId, string method, ReadOnlyMemory<byte> paramsJson, TimeSpan timeout, CancellationToken cancellation);
