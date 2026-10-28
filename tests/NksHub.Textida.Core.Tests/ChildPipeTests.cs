@@ -5,7 +5,7 @@ using NksHub.Textida.Core.Tools;
 namespace NksHub.Textida.Core.Tests;
 
 /// <summary>The pipes of child processes are read on threads of their own, so a plugin, a language server or an agent that stays silent holds no thread of the pool.</summary>
-public class ChildPipeTests
+public class ChildPipeTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     /// <summary>A source whose reads block like those of a pipe: it gives the chunks it is handed and waits for more.</summary>
     private sealed class BlockingSource : Stream
@@ -180,6 +180,22 @@ public class ChildPipeTests
     [Fact]
     public async Task ManyChildProcessesWithSilentPipesDoNotHoldUpTheThreadPool()
     {
+        const int count = 16;
+        var slowest = await SlowestTaskWithSilentChildren(count, viaChildPipe: true);
+        Assert.True(slowest < TimeSpan.FromSeconds(1), $"a task waited {slowest.TotalMilliseconds:0} ms for a thread with {count} silent children");
+    }
+
+    /// <summary>The same with the pipes read the way they were before (the output and error streams of the process): prints how long a task waits then, to show what the test above guards against. Asserts nothing.</summary>
+    [Fact]
+    public async Task ForComparisonThePipesOfTheProcessClassHoldAThreadEach()
+    {
+        var raw = await SlowestTaskWithSilentChildren(16, viaChildPipe: false);
+        var own = await SlowestTaskWithSilentChildren(16, viaChildPipe: true);
+        output.WriteLine($"16 silent children on {Environment.ProcessorCount} cores: slowest Task.Run {raw.TotalMilliseconds:0} ms with the pipes of the process class, {own.TotalMilliseconds:0} ms with ChildPipe");
+    }
+
+    private static async Task<TimeSpan> SlowestTaskWithSilentChildren(int count, bool viaChildPipe)
+    {
         ThreadPool.GetMinThreads(out int workerFloor, out int ioFloor);
         ThreadPool.SetMinThreads(Environment.ProcessorCount, ioFloor);
         var children = new List<Process>();
@@ -187,12 +203,11 @@ public class ChildPipeTests
         var streams = new List<IDisposable>();
         try
         {
-            const int count = 16;
             for (int i = 0; i < count; i++) children.Add(StartSleeper());
             foreach (var child in children)
             {
-                var output = ChildPipe.Output(child);
-                var error = ChildPipe.Error(child, new UTF8Encoding(false));
+                var output = viaChildPipe ? ChildPipe.Output(child) : child.StandardOutput.BaseStream;
+                var error = viaChildPipe ? ChildPipe.Error(child, new UTF8Encoding(false)) : child.StandardError;
                 streams.Add(output);
                 var said = new StringBuilder();
                 var first = new byte[64];
@@ -209,14 +224,14 @@ public class ChildPipeTests
             Assert.All(pending, t => Assert.False(t.IsCompleted));
 
             var slowest = TimeSpan.Zero;
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < (viaChildPipe ? 20 : 3); i++) // a starved pool answers in seconds
             {
                 var clock = Stopwatch.StartNew();
                 await Task.Run(() => i);
                 if (clock.Elapsed > slowest) slowest = clock.Elapsed;
                 await Task.Delay(20);
             }
-            Assert.True(slowest < TimeSpan.FromSeconds(1), $"a task waited {slowest.TotalMilliseconds:0} ms for a thread with {count} silent children");
+            return slowest;
         }
         finally
         {

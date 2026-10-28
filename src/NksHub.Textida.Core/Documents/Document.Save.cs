@@ -258,7 +258,8 @@ public sealed partial class Document
     /// <summary>
     /// The pass of a file opened with <see cref="DocumentOptions.HashInBackgroundAboveBytes"/>: hash and block digests come from one read of the file by a
     /// reader of its own. They are taken over only when size and write time are the ones the file had at open before and after the pass and no save
-    /// replaced the fingerprint meanwhile, so the digests describe the bytes the document was opened on, never bytes somebody wrote later.
+    /// replaced the fingerprint meanwhile, so the digests describe the bytes the document was opened on, never bytes somebody wrote later. Limit: a writer
+    /// that changes the bytes and restores size and write time during the pass is not seen, as it is not by the quick check that stands in until the pass ends.
     /// </summary>
     private void HashOpenedFileInBackground(string path, FileFingerprint pending, Task? gate)
     {
