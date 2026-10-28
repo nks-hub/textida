@@ -1858,7 +1858,7 @@ Jen Windows, v nainstalované Textidě (složka vytvořená přes Setup.ps1). Te
 - Není žádná předchozí verze, na kterou by se šlo vrátit. Předchozí verze existuje jen po aktualizaci.
 
 ## [review.external] Kontrola změn zvenku
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.
 1. Zvolte Zkontrolovat změny. Karta převezme nový obsah, dřívější obsah zůstane v místní historii a po dobu kontroly se nesmaže a karta Výsledky hledání vypíše změny po řádcích.
 2. Zaškrtněte změny, které chcete ponechat. Nezaškrtnuté, nebo celý soubor s nezaškrtnutým polem, se po volbě Použít vrátí na dřívější obsah.
@@ -1868,3 +1868,6 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 - Pokud během kontroly v kartě píšete, změny se ukážou znovu z nového textu.
 - Soubory s tajnými hodnotami (.env) a soubory s neuloženými úpravami zůstávají u staršího panelu: Znovu načíst, Ponechat moje, Porovnat.
 - S volbou Ponechat změny zvenku bez kontroly v nastavení karta převezme nový obsah hned. Ve výchozím stavu je vypnuta.
+- Sledují se i soubory otevřené složky, které žádná karta neukazuje. Když takový soubor změní jiný program a místní historie má jeho dřívější obsah (soubor se tu jednou otevřel nebo uložil), tento obsah se uchová jako základ a soubor čeká na kontrolu. Soubor a Zkontrolovat změny zvenku ve složce vypíše čekající soubory; vybraný se otevře se štítkem a změnami po úsecích, jako výše. Čekající soubory přežijí restart.
+- Sledování vynechá .git, .codegraph, co ignorují soubory .gitignore a .ignore ve složce (ignorovaná složka vezme s sebou svůj obsah) a přepisy agentů (složku projects pod .claude* a složku sessions pod .codex*). Vynechá také soubory s tajnými hodnotami (.env), soubory příliš velké pro kartu, binární soubory, soubory, jejichž nový obsah historie už zná, soubory, které vytvořil jiný program (nemají dřívější obsah), a soubory, které editor zapsal sám, několik sekund po Nahradit v souborech nebo po dávce kódování.
+- Naráz čeká nejvýš 200 souborů a jedno prohlédnutí zahrne nejvýš 500 souborů; stavový řádek řekne, když se mez dosáhne. Tyto meze, půl sekundy před prohlédnutím změněného souboru a několik sekund po vlastních zápisech editoru nejsou rozhodnuté hodnoty.

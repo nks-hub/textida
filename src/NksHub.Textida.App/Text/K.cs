@@ -1624,6 +1624,14 @@ public static class K
     public const string ReviewAutoKept = "review.autoKept";
     public const string ReviewSame = "review.same";
     public const string ReviewBusy = "review.busy";
+    public const string ReviewFolderNoFolder = "review.folder.noFolder";
+    public const string ReviewFolderNone = "review.folder.none";
+    public const string ReviewFolderWaiting = "review.folder.waiting";
+    public const string ReviewFolderFull = "review.folder.full";
+    public const string ReviewFolderDropped = "review.folder.dropped";
+    public const string ReviewFolderWatermark = "review.folder.watermark";
+    public const string ReviewFolderDetail = "review.folder.detail";
+    public const string A11yReviewFolder = "a11y.review.folder";
     public const string MacroRecording = "macro.recording";
     public const string MacroStopped = "macro.stopped";
     public const string MacroStoppedEmpty = "macro.stoppedEmpty";

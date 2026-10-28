@@ -573,6 +573,7 @@
   "cmd.tools.shellAssociate": "Asociácie súborov...",
   "cmd.tools.shellRemove": "Odobrať Textidu z Prieskumníka",
   "cmd.review.open": "Skontrolovať zmeny zvonka",
+  "cmd.review.folder": "Skontrolovať zmeny zvonka v priečinku",
   "cmd.review.next": "Ďalšia zmena zvonka",
   "cmd.review.previous": "Predchádzajúca zmena zvonka",
   "setting.review.autoKeep.title": "Ponechať zmeny zvonka bez kontroly",

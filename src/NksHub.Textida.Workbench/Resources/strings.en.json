@@ -573,6 +573,7 @@
   "cmd.tools.shellAssociate": "File Associations...",
   "cmd.tools.shellRemove": "Remove Textida from Explorer",
   "cmd.review.open": "Review Changes from Outside",
+  "cmd.review.folder": "Review Changes from Outside in Folder",
   "cmd.review.next": "Next Change from Outside",
   "cmd.review.previous": "Previous Change from Outside",
   "setting.review.autoKeep.title": "Keep changes from outside without review",

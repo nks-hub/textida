@@ -1858,7 +1858,7 @@ Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). 
 - Es gibt keine vorherige Version, zu der man zurückkehren könnte. Eine vorherige Version gibt es nur nach einem Update.
 
 ## [review.external] Änderungen von außen prüfen
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.
 1. Wählen Sie Änderungen prüfen. Der Tab übernimmt den neuen Inhalt, der frühere Inhalt bleibt im lokalen Verlauf und wird während der Prüfung nicht gelöscht, und der Tab Suchergebnisse listet die Änderungen zeilenweise auf.
 2. Haken Sie die Änderungen an, die bleiben sollen. Nicht angehakte, oder die ganze Datei bei nicht angehaktem Feld, gehen mit Anwenden auf den früheren Inhalt zurück.
@@ -1868,3 +1868,6 @@ commands: nks.review.open, nks.review.next, nks.review.previous
 - Tippen Sie während der Prüfung im Tab, werden die Änderungen aus dem neuen Text erneut angezeigt.
 - Dateien mit geheimen Werten (.env) und Dateien mit ungespeicherten Änderungen behalten die ältere Leiste: Neu laden, Meine behalten, Vergleichen.
 - Mit Änderungen von außen ohne Prüfung behalten in den Einstellungen übernimmt der Tab den neuen Inhalt sofort. Standardmäßig ist es aus.
+- Auch Dateien des geöffneten Ordners, die kein Tab zeigt, werden beobachtet. Ändert ein anderes Programm eine solche Datei und hat der lokale Verlauf den früheren Inhalt (die Datei wurde hier einmal geöffnet oder gespeichert), wird dieser Inhalt als Basis behalten und die Datei wartet auf Prüfung. Datei und Änderungen von außen im Ordner prüfen listet die wartenden Dateien auf; die gewählte öffnet sich mit Marke und Änderungen nach Abschnitten, wie oben. Die wartenden Dateien überstehen einen Neustart.
+- Die Beobachtung lässt .git, .codegraph, was die Dateien .gitignore und .ignore des Ordners ignorieren (ein ignorierter Ordner nimmt seinen Inhalt mit) und die Protokolle von Agenten aus (einen Ordner projects unter .claude* und einen Ordner sessions unter .codex*). Ausgelassen werden auch Dateien mit geheimen Werten (.env), für einen Tab zu große Dateien, Binärdateien, Dateien, deren neuen Inhalt der Verlauf schon kennt, von einem anderen Programm erzeugte Dateien (es gibt keinen früheren Inhalt) und Dateien, die der Editor selbst geschrieben hat, einige Sekunden nach In Dateien ersetzen oder nach einem Stapel von Kodierungen.
+- Es warten höchstens 200 Dateien gleichzeitig, und ein Blick erfasst höchstens 500 Dateien; die Statuszeile sagt es, wenn eine Grenze erreicht ist. Diese Grenzen, die halbe Sekunde vor dem Ansehen einer geänderten Datei und die paar Sekunden nach eigenen Schreibvorgängen des Editors sind keine entschiedenen Werte.

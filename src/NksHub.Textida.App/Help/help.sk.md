@@ -1858,7 +1858,7 @@ Len Windows, v nainštalovanej Textide (priečinok vytvorený cez Setup.ps1). Te
 - Nie je žiadna predchádzajúca verzia, na ktorú by sa dalo vrátiť. Predchádzajúca verzia existuje len po aktualizácii.
 
 ## [review.external] Kontrola zmien zvonka
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty bez neuložených úprav, panel ponúkne Skontrolovať zmeny.
 1. Zvoľte Skontrolovať zmeny. Karta prevezme nový obsah, skorší obsah zostane v miestnej histórii a po dobu kontroly sa nezmaže a karta Výsledky hľadania vypíše zmeny po riadkoch.
 2. Zaškrtnite zmeny, ktoré chcete ponechať. Nezaškrtnuté, alebo celý súbor s nezaškrtnutým poľom, sa po voľbe Použiť vrátia na skorší obsah.
@@ -1868,3 +1868,6 @@ Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty be
 - Ak počas kontroly v karte píšete, zmeny sa ukážu znova z nového textu.
 - Súbory s tajnými hodnotami (.env) a súbory s neuloženými úpravami zostávajú pri staršom paneli: Načítať znova, Ponechať moje, Porovnať.
 - S voľbou Ponechať zmeny zvonka bez kontroly v nastaveniach karta prevezme nový obsah hneď. V predvolenom stave je vypnutá.
+- Sledujú sa aj súbory otvoreného priečinka, ktoré žiadna karta neukazuje. Keď taký súbor zmení iný program a miestna história má jeho skorší obsah (súbor sa tu raz otvoril alebo uložil), tento obsah sa uchová ako základ a súbor čaká na kontrolu. Súbor a Skontrolovať zmeny zvonka v priečinku vypíše čakajúce súbory; vybraný sa otvorí so štítkom a zmenami po úsekoch, ako vyššie. Čakajúce súbory prežijú reštart.
+- Sledovanie vynechá .git, .codegraph, čo ignorujú súbory .gitignore a .ignore v priečinku (ignorovaný priečinok vezme so sebou svoj obsah) a prepisy agentov (priečinok projects pod .claude* a priečinok sessions pod .codex*). Vynechá aj súbory s tajnými hodnotami (.env), súbory príliš veľké pre kartu, binárne súbory, súbory, ktorých nový obsah história už pozná, súbory, ktoré vytvoril iný program (nemajú skorší obsah), a súbory, ktoré editor zapísal sám, niekoľko sekúnd po Nahradiť v súboroch alebo po dávke kódovania.
+- Naraz čaká najviac 200 súborov a jedno prezretie zahrnie najviac 500 súborov; stavový riadok povie, keď sa hranica dosiahne. Tieto hranice, pol sekundy pred prezretím zmeneného súboru a niekoľko sekúnd po vlastných zápisoch editora nie sú rozhodnuté hodnoty.

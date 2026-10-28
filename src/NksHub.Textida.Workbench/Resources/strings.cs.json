@@ -573,6 +573,7 @@
   "cmd.tools.shellAssociate": "Asociace souborů...",
   "cmd.tools.shellRemove": "Odebrat Textidu z Průzkumníka",
   "cmd.review.open": "Zkontrolovat změny zvenku",
+  "cmd.review.folder": "Zkontrolovat změny zvenku ve složce",
   "cmd.review.next": "Další změna zvenku",
   "cmd.review.previous": "Předchozí změna zvenku",
   "setting.review.autoKeep.title": "Ponechat změny zvenku bez kontroly",

@@ -17,6 +17,18 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds between two looks at a followed log for new lines, truncation or rotation. The owner has not decided it.</summary>
     public const int LogFollowPollMilliseconds = 1000;
 
+    /// <summary>Placeholder, OPEN: milliseconds a watched folder stays quiet before the files that another program changed in it are looked at for review.</summary>
+    public const int ReviewFolderDelayMilliseconds = 500;
+
+    /// <summary>Placeholder, OPEN: most files one look at a watched folder takes in; more changed at once are only counted, and the status bar says so.</summary>
+    public const int ReviewFolderMaxFiles = 500;
+
+    /// <summary>Placeholder, OPEN: most files of the opened folder that wait for the review of a change from outside at once; each holds a pinned revision of the local history.</summary>
+    public const int ReviewFolderMaxWaiting = 200;
+
+    /// <summary>Placeholder, OPEN: seconds after the editor wrote files itself (Replace in Files, a batch of encodings) in which the watched folder takes no change for a change from outside.</summary>
+    public const int ReviewFolderOwnWriteSeconds = 3;
+
     /// <summary>Placeholder, OPEN: most matches a live log view keeps in memory (about 24 bytes each); beyond it the oldest are dropped and the status bar says so.</summary>
     public const int LogFollowMaxMatches = 1_000_000;
 

@@ -233,6 +233,7 @@ internal sealed partial class MainWindow
         tree.Changed += () => SyncFileList();
         tree.DiskChanged += OnFolderChangedOnDisk;
         tree.Watch();
+        StartFolderReview(tree);
         _app.Recent.SetFolder(tree.Root);
         ApplyFileTexts();
         _menuModel = BuildMenuModel();

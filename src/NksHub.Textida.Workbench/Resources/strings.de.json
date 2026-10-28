@@ -573,6 +573,7 @@
   "cmd.tools.shellAssociate": "Dateizuordnungen...",
   "cmd.tools.shellRemove": "Textida aus dem Explorer entfernen",
   "cmd.review.open": "Änderungen von außen prüfen",
+  "cmd.review.folder": "Änderungen von außen im Ordner prüfen",
   "cmd.review.next": "Nächste Änderung von außen",
   "cmd.review.previous": "Vorherige Änderung von außen",
   "setting.review.autoKeep.title": "Änderungen von außen ohne Prüfung behalten",

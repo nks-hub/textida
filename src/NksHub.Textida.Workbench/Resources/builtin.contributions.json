@@ -2191,6 +2191,12 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.review.folder",
+      "title": "cmd.review.folder",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
       "id": "nks.review.next",
       "title": "cmd.review.next",
       "category": "cat.file",
@@ -4794,6 +4800,12 @@
       "command": "nks.review.open",
       "group": "2_disk",
       "order": 75
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.folder",
+      "group": "2_disk",
+      "order": 76
     },
     {
       "menu": "tools",

@@ -262,7 +262,8 @@ internal sealed partial class MainWindow
         }
         string? journal = BatchJournalDirectory;
         if (journal is not null) Directory.CreateDirectory(journal);
-        var report = new ChangeApplier(FindOpenDocument, journal).Apply(plan, selection);
+        ApplyReport report;
+        using (OwnWrite()) report = new ChangeApplier(FindOpenDocument, journal).Apply(plan, selection);
         FollowFileOperations(plan, report);
 
         var rows = new List<SearchResultsView.Row>();

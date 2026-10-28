@@ -1858,7 +1858,7 @@ Windows only, in the installed Textida (the folder made by Setup.ps1). Textida n
 - There is no previous version to return to. There is a previous version only after an update.
 
 ## [review.external] Review changes from outside
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 When another program (a script, an assistant, a build tool) changes the file of a tab that has no unsaved edits, the bar offers Review changes.
 1. Choose Review changes. The tab takes the new content, the earlier content is kept in the local history and cannot be deleted while the review waits, and the Search Results tab lists the changes line by line.
 2. Tick the changes you want to keep. Unticked ones, or the whole file when its box is unticked, go back to the earlier content when you choose Apply.
@@ -1868,3 +1868,6 @@ When another program (a script, an assistant, a build tool) changes the file of 
 - If you type in the tab during the review, the changes are shown again from the new text.
 - Files that hold secret values (.env) and files with unsaved edits keep the older bar: Reload, Keep Mine, Compare.
 - With Keep changes from outside without review in the settings, such a tab takes the new content at once. It is off by default.
+- Files of the opened folder that no tab shows are watched too. When another program changes such a file and the local history holds the content from before (the file was opened or saved here once), that content is kept as the base and the file waits for review. File, Review Changes from Outside in Folder lists the waiting files; the chosen one opens with its badge and its changes by hunks, as above. The waiting files survive a restart.
+- The watch leaves out .git, .codegraph, what the .gitignore and .ignore files of the folder ignore (an ignored folder takes its content with it) and the transcripts of agents (a projects folder below .claude* and a sessions folder below .codex*). It also leaves out files that hold secret values (.env), files too large for a tab, binary files, files whose new content the history already knows, files created by another program (there is no earlier content), and the files the editor wrote itself, for a few seconds after Replace in Files or a batch of encodings.
+- At most 200 files wait at once and one look takes in at most 500 files; the status bar says when a limit is reached. These limits, the half second before a changed file is looked at and the few seconds after the editor's own writes are not decided values.

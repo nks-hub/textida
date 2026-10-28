@@ -186,7 +186,7 @@ internal static class CodexTranscript
     private static string OutputText(JsonElement output)
     {
         if (output.ValueKind == JsonValueKind.String) return output.GetString()!;
-        if (output.ValueKind != JsonValueKind.Array) return output.ValueKind == JsonValueKind.Undefined ? "" : output.GetRawText();
+        if (output.ValueKind != JsonValueKind.Array) return output.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? "" : output.GetRawText();
         var parts = new List<string>();
         foreach (var block in output.EnumerateArray())
             parts.Add(Str(block, "type") == "input_text" && Str(block, "text") is { } text ? text : block.ValueKind == JsonValueKind.Object ? block.GetRawText() : "");
