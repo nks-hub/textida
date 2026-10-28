@@ -1355,11 +1355,17 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     }
 
     private long _proxySyncedAt = long.MinValue;
+    private DateTime _policyStamp;
 
-    /// <summary>Writes the proxy of the network policy to the file the plugin reads its consent from. With <paramref name="throttle"/> it is not done again within <see cref="PluginLimitsPlaceholders.RegistryProxySyncMilliseconds"/>.</summary>
+    /// <summary>
+    /// Writes the proxy of the network policy to the file the plugin reads its consent from. With <paramref name="throttle"/> it is not done again within <see cref="PluginLimitsPlaceholders.RegistryProxySyncMilliseconds"/>,
+    /// unless the policy file changed since the last time: a proxy the user has just set must not wait for the interval, or the plugin would go around it.
+    /// </summary>
     internal void SyncRegistryProxy(bool throttle = false)
     {
-        if (throttle && _proxySyncedAt != long.MinValue && Environment.TickCount64 - _proxySyncedAt < PluginLimitsPlaceholders.RegistryProxySyncMilliseconds) return;
+        var stamp = File.GetLastWriteTimeUtc(_app.Remote.NetworkPolicyPath);
+        if (throttle && stamp == _policyStamp && _proxySyncedAt != long.MinValue && Environment.TickCount64 - _proxySyncedAt < PluginLimitsPlaceholders.RegistryProxySyncMilliseconds) return;
+        _policyStamp = stamp;
         _proxySyncedAt = Environment.TickCount64;
         NksHub.Textida.Remote.NetworkPolicy? policy;
         try { policy = _app.Remote.Policy(); }
