@@ -602,6 +602,6 @@ internal sealed partial class MainWindow
         if (!selection) return Loc.Get(K.HexSumScopeFile, ("bytes", bytes));
         return parts.Count == 1
             ? Loc.Get(K.HexSumScopeSelection, ("bytes", bytes), ("start", parts[0].Start))
-            : Loc.Get(K.HexSumScopeParts, ("count", parts.Count), ("bytes", bytes));
+            : Loc.Plural(K.HexSumScopeParts, parts.Count, ("bytes", bytes));
     }
 }

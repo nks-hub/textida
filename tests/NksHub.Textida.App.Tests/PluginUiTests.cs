@@ -785,7 +785,7 @@ public class PluginUiTests : IDisposable
 
         Assert.Equal(2, _dialogs.Asked.Count);
         Assert.Equal([Sha1("ab"), Sha1("de")], _dialogs.Asked[0].Details);
-        Assert.Contains(Loc.Get(K.HexSumScopeParts, ("count", 2), ("bytes", 4)), _dialogs.Asked[0].Message);
+        Assert.Contains(Loc.Plural(K.HexSumScopeParts, 2, ("bytes", 4)), _dialogs.Asked[0].Message);
         // the second time the dialog says, for each part, whether the pasted value is its hash
         Assert.EndsWith(Loc.Get(K.HexSumPart, ("number", 1), ("result", Loc.Get(K.HexSumDiffers))) + "\n" + Loc.Get(K.HexSumPart, ("number", 2), ("result", Loc.Get(K.HexSumMatch))), _dialogs.Asked[1].Message);
         Assert.Equal(Sha1("ab") + "\n" + Sha1("de"), await _w.Clipboard!.TryGetTextAsync());
