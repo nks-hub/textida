@@ -3,6 +3,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Agents;
 using NksHub.Textida.Core.AiContext;
 using NksHub.Textida.Workbench.Commands;
 
@@ -67,6 +68,7 @@ internal sealed partial class MainWindow
             : Loc.Get(K.AiOmitCount, ("number", o.Count), ("reason", ReasonText(o.Reason)))).Take(AiPreviewLines).ToList();
         if (markdown.Omissions.Count > details.Count) details.Add(Loc.Get(K.PreviewMore, ("count", markdown.Omissions.Count - details.Count)));
         var message = Loc.Get(K.AiPreview, ("files", markdown.Files), ("markdown", OpenDocument.FormatSize(markdown.Bytes)), ("xml", OpenDocument.FormatSize(xml.Bytes)))
+            + (markdown.Files > 0 ? " " + Loc.Get(K.AiTokens, ("markdown", FormatTokens(TokenEstimator.Estimate(markdown.Text.Length, _tokenRule))), ("xml", FormatTokens(TokenEstimator.Estimate(xml.Text.Length, _tokenRule))), ("rule", TokenRuleName(_tokenRule))) : "")
             + (details.Count > 0 ? " " + Loc.Get(K.AiLeftOut) : "");
         var buttons = markdown.Files == 0
             ? new List<DialogButton> { new(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true) }

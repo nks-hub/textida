@@ -157,6 +157,9 @@ internal static class AppCommands
         On("nks.agent.shareTab", w => w.ShareTabWithAgent());
         On("nks.agent.cancel", w => w.CancelAgentTurn());
         On("nks.agent.stop", w => w.StopAgent());
+        On("nks.agent.hooks", w => w.ShowHooksEditor());
+        On("nks.agent.transcript", w => w.ShowTranscript());
+        On("nks.agent.tokens", w => w.ShowTokenEstimate());
         On("nks.tools.shellMenuAdd", w => w.AddShellMenu());
         On("nks.tools.shellAssociate", w => w.ShowShellAssociations());
         On("nks.tools.shellRemove", w => w.RemoveShellIntegration());

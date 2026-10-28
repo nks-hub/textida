@@ -609,6 +609,66 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest file of a saved macro that is read, in bytes; a larger one is listed as damaged with the reason and not read. The owner has not decided it.</summary>
     public const int MacroMaxFileBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: largest hooks file, in bytes, that the hooks editor reads; a larger one is refused with a message. The owner has not decided it.</summary>
+    public const int HooksMaxFileBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: deepest JSON nesting the hooks editor reads. The owner has not decided it.</summary>
+    public const int HooksMaxDepth = 32;
+
+    /// <summary>Placeholder, OPEN: milliseconds a matcher pattern of a hook may take on one value in the hooks editor before it counts as invalid. The owner has not decided it.</summary>
+    public const int HooksRegexTimeoutMilliseconds = 100;
+
+    public static NksHub.Textida.Core.Agents.Hooks.HookLimits Hooks() => new(HooksMaxDepth, TimeSpan.FromMilliseconds(HooksRegexTimeoutMilliseconds));
+
+    /// <summary>Placeholder, OPEN: bytes of a selection in paged mode that are decoded to count its tokens for the status bar; a larger selection is counted by its bytes. The owner has not decided it.</summary>
+    public const long TokenEstimateMaxSelectionBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: largest line of an agent transcript, in bytes, that is read and parsed whole while the index is built; a longer one is classified from its start and read only when it is shown. The owner has not decided it.</summary>
+    public const int TranscriptWholeLineBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: bytes from the start of a longer transcript line that decide what kind of record it is. The owner has not decided it.</summary>
+    public const int TranscriptPeekBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN (input decision of P8b.3.5): memory, in bytes, that the index of one agent transcript may use; past it the index stops and the list says so. The owner has not decided it.</summary>
+    public const long TranscriptIndexMaxBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: lines of a transcript after which a turn goes on in the next one, so no turn needs more than this to be shown. The owner has not decided it.</summary>
+    public const int TranscriptMaxLinesPerTurn = 200;
+
+    /// <summary>Placeholder, OPEN: characters of one row of a transcript turn (a message, a tool result, a diff) that are shown; the rest is cut. The owner has not decided it.</summary>
+    public const int TranscriptMaxRowChars = 20_000;
+
+    /// <summary>Placeholder, OPEN: bytes of one transcript line that the raw view opens; a longer line is cut. The owner has not decided it.</summary>
+    public const int TranscriptMaxRawBytes = 8 << 20;
+
+    /// <summary>Placeholder, OPEN: hits after which a search of a transcript stops. The owner has not decided it.</summary>
+    public const int TranscriptMaxSearchHits = 1000;
+
+    /// <summary>Placeholder, OPEN: characters of a prompt that are the title of its turn. The owner has not decided it.</summary>
+    public const int TranscriptPreviewChars = 120;
+
+    /// <summary>Placeholder, OPEN: deepest JSON nesting read in a transcript line. The owner has not decided it.</summary>
+    public const int TranscriptMaxDepth = 64;
+
+    /// <summary>Placeholder, OPEN: shortest value of a secrets file that is hidden wherever it appears in a transcript; a shorter one would hide ordinary text. The owner has not decided it.</summary>
+    public const int TranscriptMinSecretLength = 6;
+
+    /// <summary>Placeholder, OPEN: tool calls of a transcript that are remembered while they wait for their result. The owner has not decided it.</summary>
+    public const int TranscriptMaxPendingTools = 1000;
+
+    /// <summary>Placeholder, OPEN: secrets files of the opened folder whose values are hidden in a transcript from the start. The owner has not decided it.</summary>
+    public const int TranscriptSeedMaxFiles = 20;
+
+    /// <summary>Placeholder, OPEN: largest secrets file, in bytes, read to learn its values for a transcript. The owner has not decided it.</summary>
+    public const int TranscriptSeedMaxFileBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: milliseconds between two looks of the transcript window at the growing index. The owner has not decided it.</summary>
+    public const int TranscriptRefreshMilliseconds = 250;
+
+    public static NksHub.Textida.Core.Agents.Transcripts.TranscriptLimits Transcript() => new(
+        TranscriptWholeLineBytes, TranscriptPeekBytes, TranscriptIndexMaxBytes, TranscriptMaxLinesPerTurn, TranscriptMaxRowChars, TranscriptMaxRawBytes, TranscriptMaxSearchHits,
+        TranscriptPreviewChars, TranscriptMaxDepth, TranscriptMinSecretLength, TranscriptMaxPendingTools);
+
     public static UiApiOptions Ui() => new()
     {
         MaxPanelsPerPlugin = 4,
