@@ -409,7 +409,11 @@ public class SetupWindowTests : IDisposable
         Assert.False(new SystemIntegration(_box.Locations, _box.Exe).HasDesktopShortcut());
         Assert.False(File.Exists(_box.Exe));
         Assert.Equal("mine", File.ReadAllText(Path.Combine(_box.Locations.UserDataDir, "settings.json")));
+        Assert.Empty(_recorder.Removed); // the running setup is removed when the program ends, not while its window is still open
+        Assert.Equal([(uninstaller, _box.Dir)], window.Model.Env.PendingRemoval);
+        window.Model.Env.RunPendingRemoval();
         Assert.Equal([(uninstaller, _box.Dir)], _recorder.Removed);
+        Assert.Empty(window.Model.Env.PendingRemoval);
     }
 
     [AvaloniaFact]

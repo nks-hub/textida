@@ -30,12 +30,12 @@ public static partial class Program
             {
                 SetupApp.Startup = (command, env);
                 NativeBundle.Prepare(env.SetupExe);
-                return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                var result = BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                env.RunPendingRemoval(); // the window is closed, so the uninstaller is about to end
+                return result;
             }
             if (RelocateIfInside(command, env, args)) return 0;
-            var code = SetupRunner.Run(command, env, Console.Out, Console.Error);
-            if (command.TempCopy && env.SetupExe is { } self) env.RemoveSelf(self, Path.GetDirectoryName(self)!);
-            return code;
+            return SetupRunner.Run(command, env, Console.Out, Console.Error);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

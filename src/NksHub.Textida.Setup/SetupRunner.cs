@@ -19,13 +19,16 @@ internal static class SetupRunner
         }
         var model = new SetupModel(env, new SetupText(command.Language ?? env.UiLanguage));
         model.Apply(command);
-        return command.Mode switch
+        var code = command.Mode switch
         {
             SetupMode.Check => Check(model, output, error),
             SetupMode.Uninstall => Uninstall(model, output, error),
             SetupMode.ApplyUpdate or SetupMode.Rollback => Switch(command, model, output, error),
             _ => Install(model, output, error),
         };
+        if (command.TempCopy && env.SetupExe is { } self) env.PendingRemoval.Add((self, Path.GetDirectoryName(self)!)); // the copy the updater started from a temporary folder
+        env.RunPendingRemoval();
+        return code;
     }
 
     private static int Check(SetupModel model, TextWriter output, TextWriter error)

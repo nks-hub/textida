@@ -27,6 +27,15 @@ internal sealed class SetupEnvironment
     /// <summary>Removes the setup program that ran the uninstall and the folder, once it ended.</summary>
     public Action<string, string> RemoveSelf { get; init; } = SelfRemoval.Schedule;
 
+    /// <summary>Setup programs and folders to remove when the program is about to end; a program cannot delete its own file, and the window may stay open after the work.</summary>
+    public List<(string Program, string Dir)> PendingRemoval { get; } = [];
+
+    public void RunPendingRemoval()
+    {
+        foreach (var (program, dir) in PendingRemoval) RemoveSelf(program, dir);
+        PendingRemoval.Clear();
+    }
+
     /// <summary>Waits for the process of the editor to end before the folders are switched; true when it has.</summary>
     public Func<int, bool> WaitForProcess { get; init; } = pid =>
     {
@@ -144,7 +153,7 @@ internal sealed class SetupModel
         var installer = NewInstaller(progress);
         var data = installer.UserDataLocation(Dir);
         installer.Uninstall(Dir, DeleteSettings, Env.SetupExe);
-        if (Env.SetupExe is { } self && File.Exists(self) && IsInside(self, Dir)) Env.RemoveSelf(self, Dir);
+        if (Env.SetupExe is { } self && File.Exists(self) && IsInside(self, Dir)) Env.PendingRemoval.Add((self, Dir));
         return data;
     }
 

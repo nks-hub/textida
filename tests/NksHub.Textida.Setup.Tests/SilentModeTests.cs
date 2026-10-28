@@ -196,6 +196,15 @@ public class SilentModeTests : IDisposable
     }
 
     [Fact]
+    public void A_copy_of_the_setup_in_a_temporary_folder_removes_itself_after_its_work()
+    {
+        Assert.Equal(0, Run(["--check", "--temp-copy"]));
+
+        var self = Path.Combine(_box.Root, "TextidaSetup.exe");
+        Assert.Equal([(self, _box.Root)], _recorder.Removed);
+    }
+
+    [Fact]
     public void Uninstalling_what_is_not_installed_fails_without_changes()
     {
         Assert.Equal(1, Run(["--uninstall", "--silent", "--dir", _box.Dir]));
