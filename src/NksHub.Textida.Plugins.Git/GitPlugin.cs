@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Files;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.PluginSdk;
@@ -15,7 +16,8 @@ namespace NksHub.Textida.Plugins.Git;
 /// <param name="MaxEntries">Files listed in the status panel.</param>
 /// <param name="ChunkBytes">Bytes read from a document per request; must not exceed what the document API returns in one read.</param>
 /// <param name="WatchDebounceMs">Quiet time after a change in the repository before the status is read again; 0 does not watch the repository.</param>
-public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0);
+/// <param name="MaxTreeEntries">Entries <see cref="GitPlugin.TreeStatusCommand"/> answers with; 0 takes <paramref name="MaxEntries"/>.</param>
+public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0, int MaxTreeEntries = 0);
 
 /// <summary>
 /// The built-in Git: the status of the working tree in a panel (read again when files change outside the editor, in every repository that has an open file), the file against the index or against <c>HEAD</c> in a comparison tab,
@@ -39,6 +41,8 @@ public sealed class GitPlugin : PluginBase
     /// <summary>The editor sends it when the last tab of a document closed; nothing else is asked or done.</summary>
     public const string ClosedCommand = "git.closed";
     public const string StatusPanel = "git:status";
+    /// <summary>Asked for a folder, not a document: the state of the files below it, for the file tree. Nothing is shown to the user and nothing is watched.</summary>
+    public const string TreeStatusCommand = "git.treeStatus";
 
     private readonly GitSettings _settings;
 
@@ -81,6 +85,7 @@ public sealed class GitPlugin : PluginBase
 
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
+        if (p.TryGetProperty("command", out var first) && first.GetString() == TreeStatusCommand) return await TreeStatusAsync(p, ct);
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en",
             p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null,
@@ -174,6 +179,29 @@ public sealed class GitPlugin : PluginBase
             await CallAsync(UiMethods.StatusSet, $"{{\"text\":\"{Quote(string.Join(' ', parts))}\",\"tooltip\":\"{Quote(tip)}\"}}", ct);
         }
         catch (Exception e) when (e is RpcException or GitException or IOException) { }
+    }
+
+    // ---- state of the files of a folder, for the file tree ----
+
+    /// <summary>
+    /// The state of the files below the folder <c>path</c>: <c>{"status":"tree","count":N,"entries":[["M","dir/a.txt"],["I","bin/"]]}</c>, a letter of <see cref="GitFileStatus.Code"/> and a path relative to
+    /// that folder; a path with a closing slash is a folder Git names whole. The heaviest states come first when there are more than the limit. A folder outside a repository, and a failure, are an answer
+    /// without entries: the tree asks in the background and says nothing to the user.
+    /// </summary>
+    private async Task<byte[]> TreeStatusAsync(JsonElement p, CancellationToken ct)
+    {
+        var folder = p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null;
+        if (string.IsNullOrEmpty(folder)) return Status("noFile");
+        try
+        {
+            if (await GitRepository.OpenAsync(folder, _settings.TimeoutMs, _settings.MaxBytes, ct) is not { } repo) return Status("noRepository");
+            var shown = TreeStatus.Of(await repo.TreeStatusAsync(ct), repo.Prefix);
+            int limit = _settings.MaxTreeEntries > 0 ? _settings.MaxTreeEntries : _settings.MaxEntries;
+            if (shown.Count > limit) shown = [.. shown.OrderByDescending(e => (int)e.State).Take(limit)];
+            var items = string.Join(',', shown.Select(e => $"[\"{GitFileStatus.Code(e.State)}\",\"{Quote(e.Path)}\"]"));
+            return Encoding.UTF8.GetBytes($"{{\"status\":\"tree\",\"count\":{shown.Count},\"entries\":[{items}]}}");
+        }
+        catch (GitException) { return Status("failed"); }
     }
 
     // ---- files changed outside the editor ----

@@ -806,6 +806,52 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.files.toggleHidden",
+      "title": "cmd.files.toggleHidden",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.panel.dockLeft",
+      "title": "cmd.panel.dockLeft",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.dockRight",
+      "title": "cmd.panel.dockRight",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.dockBottom",
+      "title": "cmd.panel.dockBottom",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.grow",
+      "title": "cmd.panel.grow",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.shrink",
+      "title": "cmd.panel.shrink",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.hide",
+      "title": "cmd.panel.hide",
+      "category": "cat.view",
+      "enablement": "panelOpen"
+    },
+    {
+      "id": "nks.panel.resetLayout",
+      "title": "cmd.panel.resetLayout",
+      "category": "cat.view"
+    },
+    {
       "id": "nks.view.toggleOutput",
       "title": "cmd.view.toggleOutput",
       "category": "cat.view"
@@ -2956,18 +3002,21 @@
       "menu": "view",
       "command": "nks.view.zoomIn",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 20
     },
     {
       "menu": "view",
       "command": "nks.view.zoomOut",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 30
     },
     {
       "menu": "view",
       "command": "nks.view.zoomReset",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 40
     },
     {
@@ -3498,6 +3547,62 @@
       "command": "nks.view.toggleFilePanel",
       "group": "3_panels/4_panels",
       "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.files.toggleHidden",
+      "group": "3_panels/6_layout",
+      "submenu": "panels",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockLeft",
+      "group": "3_panels/7_dock",
+      "submenu": "panels",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockRight",
+      "group": "3_panels/7_dock",
+      "submenu": "panels",
+      "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockBottom",
+      "group": "3_panels/7_dock",
+      "submenu": "panels",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.grow",
+      "group": "3_panels/8_size",
+      "submenu": "panels",
+      "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.shrink",
+      "group": "3_panels/8_size",
+      "submenu": "panels",
+      "order": 60
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.hide",
+      "group": "3_panels/8_size",
+      "submenu": "panels",
+      "order": 70
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.resetLayout",
+      "group": "3_panels/8_size",
+      "submenu": "panels",
+      "order": 80
     },
     {
       "menu": "view",
@@ -5287,6 +5392,26 @@
       "command": "nks.view.toggleOutput"
     },
     {
+      "key": "mod+k mod+left",
+      "command": "nks.panel.dockLeft"
+    },
+    {
+      "key": "mod+k mod+right",
+      "command": "nks.panel.dockRight"
+    },
+    {
+      "key": "mod+k mod+down",
+      "command": "nks.panel.dockBottom"
+    },
+    {
+      "key": "mod+k mod+equal",
+      "command": "nks.panel.grow"
+    },
+    {
+      "key": "mod+k mod+minus",
+      "command": "nks.panel.shrink"
+    },
+    {
       "key": "f11",
       "command": "nks.view.fullScreen"
     },
@@ -5781,6 +5906,36 @@
         "newline",
         "save",
         "eol"
+      ]
+    },
+    {
+      "key": "files.showHidden",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.files.showHidden.title",
+      "description": "setting.files.showHidden.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "hidden",
+        "dot",
+        "files panel",
+        "tree"
+      ]
+    },
+    {
+      "key": "files.gitStatus",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.files.gitStatus.title",
+      "description": "setting.files.gitStatus.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "git",
+        "status",
+        "files panel",
+        "tree"
       ]
     },
     {

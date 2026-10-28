@@ -12,15 +12,11 @@ using NksHub.Textida.Core.Files;
 
 namespace NksHub.Textida.App.Shell;
 
-internal enum LeftPanel { Documents, Files, Plugin }
-
 /// <summary>
-/// The panels on the left, one at a time, hidden until asked for: the open documents (Ctrl+B) and the files of a folder on disk (Ctrl+Shift+E).
+/// The side panels, hidden until asked for: the open documents (Ctrl+B) and the files of a folder on disk (Ctrl+Shift+E). Where they are docked is in <c>MainWindow.PanelLayout.cs</c>.
 /// </summary>
 internal sealed partial class MainWindow
 {
-    private static readonly Geometry FolderGlyph = Geometry.Parse("M2,4.5 L6,4.5 L7.5,6 L14,6 L14,12.5 L2,12.5 Z");
-    private static readonly Geometry FileGlyph = Geometry.Parse("M4,2.5 L9.5,2.5 L12,5 L12,13.5 L4,13.5 Z M9.5,2.5 L9.5,5 L12,5");
     private static readonly Geometry ChevronGlyph = Geometry.Parse("M5.5,3.5 L10,8 L5.5,12.5");
 
     private readonly DockPanel _docPanel = new();
@@ -34,10 +30,9 @@ internal sealed partial class MainWindow
     private readonly Button _filesOpenButton = new();
     private readonly Button _filesFavoritesButton = new();
     private FileTree? _fileTree;
-    private Border _leftHost = null!;
 
-    public bool DocumentsPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _docPanel.IsVisible;
-    public bool FilePanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _filePanel.IsVisible;
+    public bool DocumentsPanelOpen => IsOpen(SidePanel.Documents);
+    public bool FilePanelOpen => IsOpen(SidePanel.Files);
 
     internal FileTree? Files => _fileTree;
     internal Control FilePanelControl => _filePanel;
@@ -48,13 +43,14 @@ internal sealed partial class MainWindow
     /// <summary>The row selected in the file panel, or null.</summary>
     internal FileTreeRow? SelectedFileRow => _fileList.SelectedItem is FileTreeRow row ? row : null;
 
-    private Border BuildLeftColumn()
+    /// <summary>Builds the contents of the three side panels; <see cref="BuildPanelHosts"/> puts them on their sides.</summary>
+    private void BuildSidePanels()
     {
         _docList.Classes.Add("doclist");
         _docFilter.Classes.Add("panelfilter");
         _docFilter.TextChanged += (_, _) => RefreshDocList();
         _docFilter.AddHandler(KeyDownEvent, OnDocFilterKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        _docPanel.Children.Add(Dock(_docListTitle, Avalonia.Controls.Dock.Top));
+        _docPanel.Children.Add(Dock(DraggableTitle(_docListTitle, SidePanel.Documents), Avalonia.Controls.Dock.Top));
         _docPanel.Children.Add(Dock(_docFilter, Avalonia.Controls.Dock.Top));
         _docPanel.Children.Add(Dock(_docListEmpty, Avalonia.Controls.Dock.Bottom));
         _docPanel.Children.Add(_docList);
@@ -74,14 +70,11 @@ internal sealed partial class MainWindow
         _filesFavoritesButton.Click += (_, _) => ShowFavorites();
         _filesEmpty.Children.Add(_filesOpenButton);
         _filesEmpty.Children.Add(_filesFavoritesButton);
-        _filePanel.Children.Add(Dock(_filesTitle, Avalonia.Controls.Dock.Top));
+        _filePanel.Children.Add(Dock(DraggableTitle(_filesTitle, SidePanel.Files), Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(Dock(_filesEmpty, Avalonia.Controls.Dock.Top));
         _filePanel.Children.Add(_fileList);
 
-        // hidden as a whole while closed: a zero-width column still draws children with a minimum width, such as the filter box, over the editor
-        _leftHost = new Border { Child = new Panel { Children = { _docPanel, _filePanel, BuildPluginPanel() } }, IsVisible = false, ClipToBounds = true };
-        _leftHost.Classes.Add("sidepanel");
-        return _leftHost;
+        BuildPluginPanel();
     }
 
     private void ApplyFileTexts()
@@ -131,41 +124,9 @@ internal sealed partial class MainWindow
 
     // ---- showing the panels ----
 
-    public void ToggleDocuments(bool? open = null) => ToggleLeft(LeftPanel.Documents, open);
+    public void ToggleDocuments(bool? open = null) => TogglePanel(SidePanel.Documents, open);
 
-    public void ToggleFiles(bool? open = null) => ToggleLeft(LeftPanel.Files, open);
-
-    private void ToggleLeft(LeftPanel which, bool? open)
-    {
-        bool isOpen = which switch { LeftPanel.Documents => DocumentsPanelOpen, LeftPanel.Files => FilePanelOpen, _ => PluginPanelOpen };
-        bool show = open ?? !isOpen;
-        if (show)
-        {
-            _docPanel.IsVisible = which == LeftPanel.Documents;
-            _filePanel.IsVisible = which == LeftPanel.Files;
-            _pluginPanel.IsVisible = which == LeftPanel.Plugin;
-            if (which == LeftPanel.Files) RestoreFolder();
-        }
-        _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
-        _leftHost.IsVisible = show;
-        _menuModel = BuildMenuModel();
-        if (show && which == LeftPanel.Plugin) Dispatcher.UIThread.Post(FocusPluginTree, DispatcherPriority.Input);
-        else if (show) Dispatcher.UIThread.Post(() => (which == LeftPanel.Documents ? (Control)_docFilter : _fileTree is null ? _filesOpenButton : _fileList).Focus(), DispatcherPriority.Input);
-        else if (Active is { } tab) FocusView(tab);
-    }
-
-    /// <summary>Closes whichever left panel is open; false when none was. A plugin panel closes only from inside: it stays beside the text while you type.</summary>
-    private bool CloseLeftPanel()
-    {
-        if (PluginPanelOpen && _pluginPanel.IsKeyboardFocusWithin)
-        {
-            ToggleLeft(LeftPanel.Plugin, false);
-            return true;
-        }
-        if (!DocumentsPanelOpen && !FilePanelOpen) return false;
-        ToggleLeft(DocumentsPanelOpen ? LeftPanel.Documents : LeftPanel.Files, false);
-        return true;
-    }
+    public void ToggleFiles(bool? open = null) => TogglePanel(SidePanel.Files, open);
 
     // ---- the list of open documents with its filter ----
 
@@ -221,7 +182,7 @@ internal sealed partial class MainWindow
             return false;
         }
         SetFileTree(tree);
-        ToggleLeft(LeftPanel.Files, true);
+        TogglePanel(SidePanel.Files, true);
         return true;
     }
 
@@ -229,10 +190,14 @@ internal sealed partial class MainWindow
     {
         _fileTree?.Dispose();
         _fileTree = tree;
+        _gitFiles = [];
+        tree.ShowHidden = ShowHiddenFiles;
         InvalidateWorkspaceIndex();
         tree.Changed += () => SyncFileList();
         tree.DiskChanged += OnFolderChangedOnDisk;
+        tree.ContentChanged += () => Dispatcher.UIThread.Post(() => OnTreeContentChanged(tree));
         tree.Watch();
+        ApplyFileLookSettings("files.gitStatus");
         StartFolderReview(tree);
         _app.Recent.SetFolder(tree.Root);
         ApplyFileTexts();
@@ -298,25 +263,6 @@ internal sealed partial class MainWindow
         _fileList.IsVisible = !noFolder;
     }
 
-    private Control BuildFileRow(FileTreeRow row)
-    {
-        var entry = row.Entry;
-        var chevron = new Avalonia.Controls.Shapes.Path { Data = ChevronGlyph, Width = 16, Height = 16, Stretch = Stretch.None, IsVisible = entry.IsDirectory, RenderTransform = new RotateTransform(row.Expanded ? 90 : 0) };
-        chevron.Classes.Add("fileglyph");
-        chevron.PointerPressed += (_, e) => { _ = ToggleFolderAsync(entry.Path); e.Handled = true; };
-        var icon = new Avalonia.Controls.Shapes.Path { Data = entry.IsDirectory ? FolderGlyph : FileGlyph, Width = 16, Height = 16, Stretch = Stretch.None, Margin = new Thickness(2, 0, 6, 0) };
-        icon.Classes.Add("fileglyph");
-        var name = new TextBlock { Text = entry.Name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"), Margin = new Thickness(row.Depth * 14, 0, 4, 0), Height = 24 };
-        Grid.SetColumn(icon, 1);
-        Grid.SetColumn(name, 2);
-        grid.Children.Add(chevron);
-        grid.Children.Add(icon);
-        grid.Children.Add(name);
-        AutomationProperties.SetName(grid, Loc.Get(!entry.IsDirectory ? K.A11yFilesFile : row.Expanded ? K.A11yFilesFolderOpen : K.A11yFilesFolderClosed, ("name", entry.Name)));
-        return grid;
-    }
-
     private async Task ToggleFolderAsync(string directory)
     {
         if (_fileTree is not { } tree) return;
@@ -353,7 +299,7 @@ internal sealed partial class MainWindow
             case Key.F2: _ = RunFileCommand("nks.files.rename"); break;
             case Key.Delete: _ = RunFileCommand("nks.files.delete"); break;
             case Key.F5: _ = RunFileCommand("nks.files.refresh"); break;
-            case Key.Escape: CloseLeftPanel(); break;
+            case Key.Escape: CloseSidePanel(); break;
             default: return;
         }
         e.Handled = true;

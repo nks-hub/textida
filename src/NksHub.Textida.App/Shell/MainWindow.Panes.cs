@@ -31,8 +31,10 @@ internal sealed partial class MainWindow
     private List<(Control Part, Func<bool> Focus)> Panes()
     {
         var panes = new List<(Control, Func<bool>)>();
-        if (_leftHost.IsVisible) panes.Add((_leftHost, FocusLeftPanel));
+        if (_hosts[PanelDock.Left].IsVisible) panes.Add((_hosts[PanelDock.Left], () => FocusSidePanel(PanelDock.Left)));
         panes.Add((_groupsGrid, () => { FocusActiveView(); return Active is not null; }));
+        if (_hosts[PanelDock.Right].IsVisible) panes.Add((_hosts[PanelDock.Right], () => FocusSidePanel(PanelDock.Right)));
+        if (_hosts[PanelDock.Bottom].IsVisible) panes.Add((_hosts[PanelDock.Bottom], () => FocusSidePanel(PanelDock.Bottom)));
         if (_previewPanel.IsVisible) panes.Add((_previewPanel, () => _previewScroll.Focus()));
         if (_agentPanel.IsVisible) panes.Add((_agentPanel, () => _agentInput.Focus()));
         if (_outputPanel.IsVisible) panes.Add((_outputPanel, () => _outputText.Focus()));
@@ -41,13 +43,17 @@ internal sealed partial class MainWindow
         return panes;
     }
 
-    private bool FocusLeftPanel()
+    private bool FocusSidePanel(PanelDock dock)
     {
-        if (_docPanel.IsVisible) return _docFilter.Focus();
-        if (_filePanel.IsVisible) return (_fileTree is null ? (Control)_filesOpenButton : _fileList).Focus();
-        if (!_pluginPanel.IsVisible) return false;
-        FocusPluginTree();
-        return true;
+        switch (_shown[dock])
+        {
+            case SidePanel.Documents: return _docFilter.Focus();
+            case SidePanel.Files: return (_fileTree is null ? (Control)_filesOpenButton : _fileList).Focus();
+            case SidePanel.Plugin:
+                FocusPluginTree();
+                return true;
+            default: return false;
+        }
     }
 
     /// <summary>F6 and Shift+F6: the keyboard goes to the next (or previous) part of the window and wraps around. From a part that is not in the list, such as the menu, it goes to the editor.</summary>

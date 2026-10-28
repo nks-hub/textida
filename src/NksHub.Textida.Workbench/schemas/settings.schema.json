@@ -155,6 +155,18 @@
           "description": "Insert final newline. Adds a line ending at the end of the file when saving.",
           "x-scope": "document"
         },
+        "files.showHidden": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hidden items in the Files panel. Entries whose name starts with a dot, or that have the hidden attribute, are shown dimmed in the Files panel. Turn it off to leave them out of the tree.",
+          "x-scope": "application"
+        },
+        "files.gitStatus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Git status in the Files panel. For a folder in a Git repository, colours the names of the files by their state (modified, new, deleted, ignored, in conflict) and adds a letter after the name; a folder shows the heaviest state below it. The Git plugin supplies the state, and it is asked only for a folder that lies in a repository.",
+          "x-scope": "application"
+        },
         "files.autoSave": {
           "type": "string",
           "default": "off",

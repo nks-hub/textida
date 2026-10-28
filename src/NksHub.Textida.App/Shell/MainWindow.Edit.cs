@@ -29,7 +29,7 @@ internal sealed partial class MainWindow
         {
             if (!IsPaletteOpen && (CancelLogSearch() || CancelExport())) { e.Handled = true; return; }
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
-            if (CloseLeftPanel()) { e.Handled = true; return; }
+            if (CloseSidePanel()) { e.Handled = true; return; }
             if (_find.IsVisible) { HideFind(); e.Handled = true; return; }
         }
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
@@ -81,6 +81,7 @@ internal sealed partial class MainWindow
         "nks.compare.ignoreCase" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Case), false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
+        "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
         "nks.view.fullScreen" => (IsFullScreen, false),
         _ => null,

@@ -141,6 +141,22 @@ public sealed class GitRepository
     public async Task<IReadOnlyList<StatusEntry>> StatusAsync(CancellationToken ct)
     {
         var raw = await RunOrThrowAsync(["status", "--porcelain=v1", "-z", "--untracked-files=all"], null, readOnly: true, ct).ConfigureAwait(false);
+        return ParseStatus(raw);
+    }
+
+    /// <summary>
+    /// The status of the folder this repository was opened from, for the file tree: an untracked folder is one entry (its path ends with a slash), and ignored files and folders are listed too
+    /// (<c>!!</c>, a folder that matches an ignore pattern as one entry). Paths are relative to the top of the working tree.
+    /// </summary>
+    public async Task<IReadOnlyList<StatusEntry>> TreeStatusAsync(CancellationToken ct)
+    {
+        List<string> args = ["status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignored=matching"];
+        if (Prefix.Length > 0) args.AddRange(["--", Prefix]);
+        return ParseStatus(await RunOrThrowAsync(args, null, readOnly: true, ct).ConfigureAwait(false));
+    }
+
+    private static List<StatusEntry> ParseStatus(byte[] raw)
+    {
         var fields = Encoding.UTF8.GetString(raw).Split('\0');
         var list = new List<StatusEntry>();
         for (int i = 0; i < fields.Length; i++)

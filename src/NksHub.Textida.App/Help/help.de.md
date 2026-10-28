@@ -710,11 +710,27 @@ commands: nks.view.toggleDocumentList
 - Esc schließt das Panel.
 
 ## [view.files] Panel Dateien
-commands: nks.view.toggleFilePanel
+commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Strg+Umschalt+E öffnet oder schließt das Panel Dateien. Ohne geöffneten Ordner bietet es Ordner öffnen an.
 2. Die Pfeile gehen durch den Baum, Pfeil nach rechts und links klappen einen Ordner auf und zu, die Eingabetaste oder ein Doppelklick öffnet eine Datei.
 3. Die rechte Maustaste bietet Dateivorgänge an (Thema Dateivorgänge). F2 benennt um, Entf verschiebt in den Papierkorb, F5 aktualisiert.
+4. Ansicht, Versteckte Elemente im Dateipanel anzeigen blendet die Einträge aus oder ein, deren Name mit einem Punkt beginnt oder die das Attribut „versteckt“ haben.
 - Der Baum folgt Änderungen auf dem Datenträger selbstständig.
+- Jeder Eintrag hat ein Symbol und eine Farbe nach seinem Typ: Ordner, Text, Quellcode, Auszeichnung, Daten, Stylesheet, Bild, Archiv oder Binärdatei. Versteckte Einträge erscheinen abgeblendet.
+- Bei einem Ordner in einem Git-Repository hat der Name die Farbe des Zustands, den Git der Datei gibt, und dahinter steht ein Buchstabe: M geändert, N neu, D gelöscht, I ignoriert, ! Konflikt. Ein Ordner zeigt den schwersten Zustand darunter. Die Einstellung Git-Status im Dateipanel schaltet das aus; außerhalb eines Repositorys wird Git nicht gestartet.
+- Ein Zeichen, das keine Schrift zeichnet, etwa ein Zeichen aus dem privaten Bereich, das ein anderes Werkzeug in einen Namen gesetzt hat, erscheint als seine Nummer, zum Beispiel ‹U+F03A›. Ein Screenreader liest Typ, Versteckt und Git-Zustand eines Eintrags vor.
+
+## [view.panelLayout] Panels verschieben und in der Größe ändern
+commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.panel.grow, nks.panel.shrink, nks.panel.hide, nks.panel.resetLayout
+Die Panels Offene Dokumente, Dateien und die Plugin-Panels können links, rechts oder unten im Fenster stehen. Eine Seite zeigt immer ein Panel.
+1. Die Größe ändern Sie, indem Sie den schmalen Griff zwischen Panel und Text ziehen, oder Sie setzen die Tastatur mit Tab auf den Griff und drücken die Pfeiltasten; Umschalt macht fünf Schritte, Pos1 und Ende die kleinste und die größte Größe. Strg+K, Strg+= und Strg+K, Strg+- vergrößern und verkleinern das Panel.
+2. Ein Panel verschieben Sie, indem Sie seinen Titel an den linken, rechten oder unteren Rand des Fensters ziehen; eine Markierung zeigt, wo es landet. Mit der Tastatur dienen Strg+K, Strg+Pfeil nach links, Strg+K, Strg+Pfeil nach rechts und Strg+K, Strg+Pfeil nach unten oder Ansicht, Panel-Layout. Dasselbe bietet die rechte Maustaste auf dem Titel.
+3. Ein Panel blenden Sie mit seinem Umschalter, mit Esc oder mit Ansicht, Panel-Layout, Panel ausblenden aus.
+4. Ansicht, Panel-Layout, Panel-Layout zurücksetzen stellt alle Panels links in der Standardgröße wieder her.
+- Das Layout wird mit dem Fenster gespeichert und kommt nach einem Neustart zurück; welche Panels offen sind, wird nicht gespeichert.
+- Ein Panel ist mindestens 140 Pixel breit (unten 80 hoch) und höchstens halb so breit wie das Fenster; an einer Grenze sagt das Programm es an.
+- Ein Screenreader erfährt nach jeder Änderung die Seite und die Größe.
+- Die Befehle wirken auf das Panel mit der Tastatur, sonst auf das zuletzt geöffnete; ohne offenes Panel sind sie ausgeschaltet.
 
 ## [files.create] Neue Datei und neuer Ordner
 commands: nks.files.newFile, nks.files.newFolder

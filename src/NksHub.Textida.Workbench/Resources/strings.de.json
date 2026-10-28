@@ -631,5 +631,20 @@
   "setting.advanced.highlightMaxLines.title": "Farbig dargestellte Zeilen um den Bildschirm",
   "setting.advanced.highlightMaxLines.description": "Die meisten Zeilen, für die die Syntaxfarben auf einmal berechnet werden, einschließlich der über und unter dem Bildschirm. Eine kleinere Zahl schont einen langsamen Rechner: Die Zeilen auf dem Bildschirm sind immer farbig, aber der farbige Rand darüber und darunter wird kleiner, sodass Zeilen, zu denen Sie scrollen, kurz ohne Farbe erscheinen können.",
   "setting.advanced.highlightMaxColumns.title": "Farbig dargestellte Spalten pro Zeile",
-  "setting.advanced.highlightMaxColumns.description": "Die meisten Zeichen einer Zeile um den sichtbaren Teil, für die die Syntaxfarben auf einmal berechnet werden. Eine kleinere Zahl schont einen langsamen Rechner bei sehr langen Zeilen."
+  "setting.advanced.highlightMaxColumns.description": "Die meisten Zeichen einer Zeile um den sichtbaren Teil, für die die Syntaxfarben auf einmal berechnet werden. Eine kleinere Zahl schont einen langsamen Rechner bei sehr langen Zeilen.",
+  "cmd.files.toggleHidden": "Versteckte Elemente im Dateipanel anzeigen",
+  "setting.files.showHidden.title": "Versteckte Elemente im Dateipanel",
+  "setting.files.showHidden.description": "Einträge, deren Name mit einem Punkt beginnt oder die das Attribut „versteckt“ haben, werden im Dateipanel abgeblendet gezeigt. Ausgeschaltet fehlen sie im Baum.",
+  "setting.files.gitStatus.title": "Git-Status im Dateipanel",
+  "setting.files.gitStatus.description": "Färbt bei einem Ordner in einem Git-Repository die Dateinamen nach ihrem Zustand (geändert, neu, gelöscht, ignoriert, Konflikt) und setzt einen Buchstaben hinter den Namen; ein Ordner zeigt den schwersten Zustand darunter. Den Zustand liefert das Git-Plugin, und es wird nur für einen Ordner gefragt, der in einem Repository liegt.",
+  "submenu.zoom": "Vergrößerung",
+  "submenu.panels": "Panel-Layout",
+  "cmd.panel.dockLeft": "Panel links andocken",
+  "cmd.panel.dockRight": "Panel rechts andocken",
+  "cmd.panel.dockBottom": "Panel unten andocken",
+  "cmd.panel.grow": "Panel vergrößern",
+  "cmd.panel.shrink": "Panel verkleinern",
+  "cmd.panel.hide": "Panel ausblenden",
+  "cmd.panel.resetLayout": "Panel-Layout zurücksetzen",
+  "reason.panelOpen.false": "Kein Panel geöffnet"
 }
