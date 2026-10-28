@@ -86,17 +86,11 @@ public sealed class HugeFileTests : IDisposable
         Assert.True(done(), $"{what} (waited {clock.Elapsed.TotalSeconds:F0} s)");
     }
 
-    /// <summary>
-    /// Opens the file in the window like the app does and says how long the call held the window. The open reads and hashes the whole file first (<see cref="NksHub.Textida.Core.Documents.Document.Open"/>), which
-    /// holds the window for minutes at 10 GiB; <paramref name="skipHash"/> opens without that read for the tests of what comes after it.
-    /// </summary>
-    private DocTab Open(string path, out double callMs, bool skipHash = true)
+    /// <summary>Opens the file in the window like the app does and says how long the call held the window.</summary>
+    private DocTab Open(string path, out double callMs)
     {
         var clock = Stopwatch.StartNew();
-        NksHub.Textida.Core.Documents.Document.SkipHashOnOpen = skipHash;
-        DocTab tab;
-        try { tab = _w.OpenFile(path, null); }
-        finally { NksHub.Textida.Core.Documents.Document.SkipHashOnOpen = false; }
+        var tab = _w.OpenFile(path, null);
         callMs = clock.Elapsed.TotalMilliseconds;
         Assert.True(tab.Doc.IsLarge);
         _w.UpdateLayout();
@@ -127,12 +121,13 @@ public sealed class HugeFileTests : IDisposable
         long size = HugeText.Size(10L << 30);
         string path = Files.Get("view.txt", size, null, _output);
 
-        var tab = Open(path, out double callMs, skipHash: false); // the open as the app does it: the number is the first frame of P3.1.1
+        var tab = Open(path, out double callMs); // the number is what P3.1.1 asks 1 s for
         var paged = tab.Paged!;
         var file = PagedOf(tab).Source.File;
         var clock = Stopwatch.StartNew();
         PumpUntil(() => paged.Index.Complete, "the index of the file", TimeSpan.FromMinutes(15));
-        _output.WriteLine($"OpenFile held the window for {callMs / 1000:F1} s (the whole file is read and hashed first; P3.1.1 asks for 1 s); the index was complete {clock.Elapsed.TotalSeconds:F0} s after that");
+        _output.WriteLine($"OpenFile held the window for {callMs:F0} ms (P3.1.1 asks for 1 s); the index was complete {clock.Elapsed.TotalSeconds:F0} s after that");
+        if (callMs > 1000) Assert.Fail($"OpenFile held the window for {callMs:F0} ms");
 
         long lines = size / HugeText.LineBytes;
         var random = new Random(3109);

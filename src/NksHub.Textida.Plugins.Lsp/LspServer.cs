@@ -63,7 +63,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         // a document of the largest size, written as JSON, can be six times its text
         var limits = new RpcLimits((int)Math.Min(int.MaxValue / 2, Math.Max(4L << 20, settings.MaxBytes * 6 + (64 << 10))), 8, 16, 100_000, 64L << 20, 64L << 20);
         _rpc = new JsonRpcDispatcher(input, output, RpcProtocols.Lsp, limits, this);
-        _ = StderrPump.RunAsync(process.StandardError, _stderr, settings.StderrLines);
+        _ = StderrPump.RunAsync(ChildPipe.Error(process, new UTF8Encoding(false)), _stderr, settings.StderrLines);
         _ = WatchAsync();
     }
 
@@ -80,7 +80,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { throw new ServerStartException(e.Message); }
         ProcessLaunch.Track(process);
         var rootUri = PathUri.FromPath(root);
-        var server = new LspServer(process, process.StandardOutput.BaseStream, process.StandardInput.BaseStream, settings, rootUri, launch.InitializationOptions, onNotification);
+        var server = new LspServer(process, ChildPipe.Output(process), process.StandardInput.BaseStream, settings, rootUri, launch.InitializationOptions, onNotification);
         try
         {
             await server.InitializeAsync(root, launch.InitializationOptions, ct).ConfigureAwait(false);

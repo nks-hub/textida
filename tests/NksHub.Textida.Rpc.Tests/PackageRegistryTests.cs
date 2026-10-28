@@ -322,6 +322,129 @@ public class PackageRegistryTests
         Assert.Equal(asked, rig.Registry.Requests.Count);
     }
 
+    // ---- P8.7.3: a network proxy that needs a login ----
+
+    /// <summary>Stands for the editor: every request that reaches it is kept, and the function gives the answer.</summary>
+    sealed class FakeEditor(Func<HttpRequestMessage, HttpResponseMessage> answer) : HttpMessageHandler
+    {
+        public readonly List<Uri> Seen = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            lock (Seen) Seen.Add(request.RequestUri!);
+            return Task.FromResult(answer(request));
+        }
+    }
+
+    private static RegistryClient ClientFor(string config, int redirects = 0)
+    {
+        string path = Path.Combine(Path.GetTempPath(), "textida-registry-" + Guid.NewGuid().ToString("N") + ".json");
+        File.WriteAllText(path, config);
+        return new RegistryClient(new RegistrySettings(path, 5000, 100_000, 20, 50, 65536, 0, 0, redirects));
+    }
+
+    private static RegistryAdapter Npm(string baseUrl)
+    {
+        var adapter = RegistryAdapter.CreateAll().First(a => a.Id == "npm");
+        adapter.Override(baseUrl);
+        return adapter;
+    }
+
+    private const string Lodash = """{"name":"lodash"}""";
+
+    [Fact]
+    public async Task A_proxy_with_a_login_sends_the_requests_through_the_editor_and_follows_the_redirects_it_hands_back()
+    {
+        using var stub = new Stub(); // a request that went directly would arrive here
+        var adapter = Npm(stub.Url);
+        var editor = new FakeEditor(request => request.RequestUri!.AbsolutePath == "/lodash"
+            ? new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("/moved/lodash", UriKind.Relative) } }
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Lodash) });
+        using var client = ClientFor("""{"allowed":["npm"],"proxy":"http://127.0.0.1:9","viaEditor":true,"blocked":false}""", redirects: 2);
+        client.UseEditor(() => editor);
+
+        var answer = await client.GetAsync(adapter, adapter.VersionsUrl("lodash"));
+
+        Assert.Equal((Lodash, false), (answer.Body, answer.Cached));
+        Assert.Equal(["/lodash", "/moved/lodash"], editor.Seen.Select(u => u.AbsolutePath));
+        Assert.Empty(stub.Requests);
+        Assert.Equal(2, client.Requests);
+        Assert.True((await client.GetAsync(adapter, adapter.VersionsUrl("lodash"))).Cached); // the answer is cached as any other
+
+        // with no redirect allowed the 302 is the answer, as for a request that does not go through the editor
+        using var strict = ClientFor("""{"allowed":["npm"],"viaEditor":true}""");
+        strict.UseEditor(() => new FakeEditor(_ => new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("http://elsewhere.test/x") } }));
+        Assert.Equal(302, (await Assert.ThrowsAsync<RegistryException>(() => strict.GetAsync(adapter, adapter.VersionsUrl("lodash")))).Status);
+    }
+
+    [Fact]
+    public async Task A_login_the_proxy_refuses_and_a_proxy_that_asks_for_a_login_nobody_gave_are_told_apart()
+    {
+        using var stub = new Stub();
+        stub.Serve("/lodash", "", 407); // the proxy of a direct request
+        var adapter = Npm(stub.Url);
+
+        using var direct = ClientFor("""{"allowed":["npm"]}""");
+        var asked = await Assert.ThrowsAsync<RegistryException>(() => direct.GetAsync(adapter, adapter.VersionsUrl("lodash")));
+        Assert.Equal((RegistryProblem.ProxyNeedsLogin, 407), (asked.Problem, asked.Status));
+
+        using var refused = ClientFor("""{"allowed":["npm"],"viaEditor":true}""");
+        refused.UseEditor(() => new FakeEditor(_ => new HttpResponseMessage(HttpStatusCode.ProxyAuthenticationRequired)));
+        Assert.Equal(RegistryProblem.ProxyLoginRefused, (await Assert.ThrowsAsync<RegistryException>(() => refused.GetAsync(adapter, adapter.VersionsUrl("lodash")))).Problem);
+
+        // a secure address reaches the proxy with CONNECT: the login that is wanted is the failure of the tunnel, not an answer
+        using var tunnel = ClientFor("""{"allowed":["npm"],"viaEditor":true}""");
+        tunnel.UseEditor(() => new FakeEditor(_ => throw new HttpRequestException("The proxy tunnel request to proxy 'http://proxy.test:3128/' failed with status code '407'.")));
+        Assert.Equal(RegistryProblem.ProxyLoginRefused, (await Assert.ThrowsAsync<RegistryException>(() => tunnel.GetAsync(adapter, adapter.VersionsUrl("lodash")))).Problem);
+    }
+
+    [Theory]
+    [InlineData("""{"allowed":["npm"],"blocked":true,"blockedReason":"password"}""", RegistryProblem.ProxyNoPassword)]
+    [InlineData("""{"allowed":["npm"],"blocked":true,"blockedReason":"policy"}""", RegistryProblem.ProxyUnavailable)]
+    [InlineData("""{"allowed":["npm"],"blocked":true}""", RegistryProblem.ProxyUnavailable)]
+    public async Task A_proxy_that_cannot_be_used_stops_every_request_before_one_is_sent_and_names_the_reason(string config, RegistryProblem expected)
+    {
+        using var stub = new Stub();
+        var adapter = Npm(stub.Url);
+        using var client = ClientFor(config);
+
+        Assert.Equal(expected, (await Assert.ThrowsAsync<RegistryException>(() => client.GetAsync(adapter, adapter.VersionsUrl("lodash")))).Problem);
+        Assert.Equal(expected, (await Assert.ThrowsAsync<RegistryException>(() => client.FetchAsync("npm", null, new Uri(stub.Url + "/x"), 1000))).Problem);
+        Assert.Empty(stub.Requests);
+        Assert.Equal(0, client.Requests);
+        Assert.True(client.IsAllowed("npm")); // the consent is the user's and stays
+
+        using var notAllowed = ClientFor(config.Replace("npm", "pypi"));
+        await Assert.ThrowsAsync<ConsentRequiredException>(() => notAllowed.GetAsync(adapter, adapter.VersionsUrl("lodash"))); // without consent the first thing said is the consent
+    }
+
+    [Fact]
+    public async Task A_request_that_has_to_go_through_the_editor_fails_with_a_reason_when_there_is_no_way_to_the_editor()
+    {
+        using var stub = new Stub();
+        var adapter = Npm(stub.Url);
+        using var client = ClientFor("""{"allowed":["npm"],"viaEditor":true}""");
+
+        var failure = await Assert.ThrowsAsync<RegistryException>(() => client.GetAsync(adapter, adapter.VersionsUrl("lodash")));
+
+        Assert.Equal(RegistryProblem.ProxyUnavailable, failure.Problem);
+        Assert.Empty(stub.Requests);
+    }
+
+    [Fact]
+    public void Every_problem_of_the_proxy_has_its_own_text_in_each_language_of_the_editor()
+    {
+        RegistryProblem[] problems = [RegistryProblem.ProxyNeedsLogin, RegistryProblem.ProxyLoginRefused, RegistryProblem.ProxyUnavailable, RegistryProblem.ProxyNoPassword];
+        foreach (var language in new[] { "cs", "en", "sk", "de" })
+        {
+            var texts = problems.Select(p => PackageTexts.For(language).Failure(RegistryException.Proxy(p))).ToList();
+            Assert.Equal(4, texts.Distinct().Count());
+            Assert.All(texts, t => Assert.False(string.IsNullOrWhiteSpace(t)));
+        }
+        Assert.All(problems, p => Assert.Equal(RegistryException.Proxy(p).Message, PackageTexts.For("en").Failure(RegistryException.Proxy(p)))); // the English text is the one of the exception
+        Assert.Equal("any other failure", PackageTexts.For("cs").Failure(new RegistryException("any other failure")));
+    }
+
     [Fact]
     public void Versions_are_ordered_by_number_and_a_pre_release_is_older_than_its_release()
     {

@@ -19,6 +19,7 @@ public sealed class JournalSession : IDisposable
     private readonly Timer? _compactTimer;
     private FileStream? _lock;
     private Func<string, IBackendFactory?>? _backends;
+    private RecoveryOptions? _recoveryOptions;
     private JournalWriter? _writer;
     private long _lengthAfterCompaction;
     private Exception? _broken;
@@ -70,7 +71,7 @@ public sealed class JournalSession : IDisposable
         Directory.CreateDirectory(directory);
         foreach (var stale in Directory.GetFiles(directory, "session-*.njl.tmp")) TryDelete(stale);
 
-        var session = new JournalSession(directory, options) { _backends = backends };
+        var session = new JournalSession(directory, options) { _backends = backends, _recoveryOptions = recovery };
         var combined = new RecoveryResult();
         var seen = new HashSet<Guid>();
         var done = new List<(string Journal, FileStream Lock)>();
@@ -154,7 +155,7 @@ public sealed class JournalSession : IDisposable
         RecoveredDocument pending;
         lock (_gate) pending = Recovery.Documents.Find(d => d.DocId == docId && d.Status == RecoveryStatus.Pending) ?? throw new InvalidOperationException("No change of this document waits for a decision.");
         var log = new JournalCompactor.DocLog { Open = pending.Records[0], Rest = pending.Records.GetRange(1, pending.Records.Count - 1) };
-        var rebuilt = JournalRecovery.ReplayDocument(log, backends, JournalPayloads.DirectoryOf(_dir));
+        var rebuilt = JournalRecovery.ReplayDocument(log, backends, JournalPayloads.DirectoryOf(_dir), _recoveryOptions);
         lock (_gate)
         {
             int at = Recovery.Documents.IndexOf(pending);
@@ -216,14 +217,14 @@ public sealed class JournalSession : IDisposable
                 }
             }
         }
-        Attach(doc, id, 0);
+        Attach(doc, id, 0, awaitsHash: doc.FilePath is not null && doc.Fingerprint is { HasHash: false });
         return id;
     }
 
-    private void Attach(Document doc, Guid id, long baseRevision)
+    private void Attach(Document doc, Guid id, long baseRevision, bool awaitsHash = false)
     {
         if (_dir is not null) doc.Backend.UseDurableSpill(JournalPayloads.DirectoryOf(_dir), JournalPayloads.Prefix(_id!, id));
-        var tracker = new DocTracker(this, doc, id, baseRevision);
+        var tracker = new DocTracker(this, doc, id, baseRevision) { AwaitsHash = awaitsHash };
         lock (_gate)
         {
             _trackers[doc] = tracker;
@@ -400,12 +401,18 @@ public sealed class JournalSession : IDisposable
         public Guid Id => id;
         public long BaseRevision => baseRevision;
 
+        /// <summary>True while the open record holds a fingerprint without a hash (a file opened with <see cref="DocumentOptions.HashInBackgroundAboveBytes"/>); the hash is journaled once it is known.</summary>
+        public bool AwaitsHash { get => _awaitsHash == 1; init => _awaitsHash = value ? 1 : 0; }
+        private int _awaitsHash;
+
         public void Start()
         {
             doc.Changed += OnChanged;
             doc.Saving += OnSaving;
             doc.Saved += OnSaved;
             doc.Moved += OnMoved;
+            doc.FingerprintHashed += OnHashed;
+            OnHashed(null, EventArgs.Empty); // the pass may have ended before the subscription
         }
 
         public void Stop()
@@ -414,6 +421,14 @@ public sealed class JournalSession : IDisposable
             doc.Saving -= OnSaving;
             doc.Saved -= OnSaved;
             doc.Moved -= OnMoved;
+            doc.FingerprintHashed -= OnHashed;
+        }
+
+        /// <summary>A second open record of the same document carries the hash that was not known when the first was written; recovery takes only its fingerprint (see <see cref="JournalCompactor.Plan"/>).</summary>
+        private void OnHashed(object? sender, EventArgs e)
+        {
+            if (_awaitsHash == 0 || doc.Fingerprint is not { HasHash: true } print || doc.FilePath is not { } path || Interlocked.Exchange(ref _awaitsHash, 0) == 0) return;
+            Append(RecordType.DocOpen, JournalRecords.Encode(new OpenRecord(id, path, print, doc.Codec.Name, doc.Capabilities.Name, 0, 0)));
         }
 
         private void Append(RecordType type, byte[] payload) => owner.Append(type, payload, id);

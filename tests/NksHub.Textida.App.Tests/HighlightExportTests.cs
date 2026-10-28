@@ -306,6 +306,64 @@ public class HighlightExportWindowTests : IDisposable
         Assert.Null(await SyntaxFeeder.StartStateOfLineAsync(doc, tokenizer, 1000)); // past the end: no state to give
     }
 
+    /// <summary>Calls the function with each value it is given, at once and on the thread that reports (what <see cref="Progress{T}"/> does later).</summary>
+    private sealed class SyncProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
+
+    /// <summary>C# of about the given size, one short statement per line; <paramref name="lines"/> is how many lines it has.</summary>
+    private static string FarCSharp(int megabytes, out int lines)
+    {
+        var sb = new StringBuilder();
+        int i = 0;
+        for (; sb.Length < megabytes * 1_000_000; i++) sb.Append("int value").Append(i).Append(" = ").Append(i).Append("; // line ").Append(i).Append('\n');
+        lines = i;
+        return sb.ToString();
+    }
+
+    [AvaloniaFact]
+    public async Task Reading_the_state_of_a_far_line_reports_how_far_it_is_and_ends_between_two_slices_when_it_is_cancelled()
+    {
+        var tokenizer = LanguageModes.Tokenizer("csharp");
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(FarCSharp(12, out int lines)), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        using var cts = new CancellationTokenSource();
+        var first = new List<long>();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            SyntaxFeeder.StartStateOfLineAsync(doc, tokenizer, lines - 5, cts.Token, new SyncProgress<long>(scanned => { first.Add(scanned); cts.Cancel(); })));
+
+        Assert.Single(first); // it ended at the next check, not at the end of the file
+        Assert.True(first[0] > 0);
+
+        // a read that nobody cancels reports growing numbers and gives the state
+        var all = new List<long>();
+        var state = await SyntaxFeeder.StartStateOfLineAsync(doc, tokenizer, lines - 5, default, new SyncProgress<long>(all.Add));
+        Assert.NotNull(state);
+        Assert.True(all.Count > 1);
+        Assert.Equal(all.Order(), all);
+    }
+
+    [AvaloniaFact]
+    public void Esc_ends_the_reading_of_the_colors_of_a_large_file_for_an_export_and_nothing_is_asked_or_written()
+    {
+        string text = FarCSharp(12, out _);
+        var tab = OpenPagedCs(text, "far.cs");
+        int start = text.LastIndexOf("int value", StringComparison.Ordinal); // the text is ASCII: characters are bytes
+        tab.Paged!.SelectBytes(start, start + 9);
+        string path = Path.Combine(_temp.Path, "far.html");
+        _dialogs.SaveFiles.Enqueue(path);
+
+        Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _w.ExportHighlighted(MainWindow.ExportForm.Html));
+        ToolTestKit.WaitFor(() => _w.ExportReading, "the colors were not being read");
+        Assert.Contains("%", _w.StatusMessageText);
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        ToolTestKit.WaitFor(() => !_w.ExportReading && _w.StatusMessageText == Loc.Get(K.ExportCancelled), "the reading did not end", 6000);
+
+        Assert.False(File.Exists(path));
+        Assert.Empty(_dialogs.SaveFileNames);
+    }
+
     [AvaloniaFact]
     public void A_large_document_is_colored_off_the_UI_thread_and_the_command_returns_at_once()
     {

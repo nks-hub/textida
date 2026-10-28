@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -51,11 +52,25 @@ internal sealed partial class MainWindow
         return new ExportSource(text, surface.SelectionLength > 0 ? (surface.SelectionStart, surface.SelectionLength) : null, tokenizer, levels, title);
     }
 
+    private CancellationTokenSource? _exportJob;
+
+    /// <summary>True while the colors of a large file are being read for an export.</summary>
+    internal bool ExportReading => _exportJob is not null;
+
+    /// <summary>Esc ends the reading of the colors of a large file for an export.</summary>
+    private bool CancelExport()
+    {
+        if (_exportJob is not { } job) return false;
+        job.Cancel();
+        return true;
+    }
+
     /// <summary>
     /// The selection of a large file with what the colors depend on: the text in front of it on its first line, and the grammar state at the start of that
-    /// line, so that it is colored as the whole document is. The state is read from the file up to the line, in slices on the UI thread.
+    /// line, so that it is colored as the whole document is. The state is read from the file up to the line, in slices on the UI thread; the status bar shows
+    /// how far it is, and Esc ends it.
     /// </summary>
-    private static async Task<ExportSource?> ReadPagedExportSourceAsync(PagedTextView paged, OpenDocument od, Tokenizer? tokenizer, LogLevelRules? levels, string title)
+    private async Task<ExportSource?> ReadPagedExportSourceAsync(PagedTextView paged, OpenDocument od, Tokenizer? tokenizer, LogLevelRules? levels, string title)
     {
         string selected = paged.SelectedText();
         if (selected.Length == 0) return null;
@@ -66,7 +81,23 @@ internal sealed partial class MainWindow
         if (from - at.Start > PagedExportHeadMaxBytes) return new ExportSource(selected, null, tokenizer, levels, title);
         string head = paged.TextOfRange(at.Start, from);
         long revision = od.Doc.Revision;
-        var state = tokenizer is null ? null : await SyntaxFeeder.StartStateOfLineAsync(od.Doc, tokenizer, at.Line);
+        LineState? state = null;
+        if (tokenizer is not null)
+        {
+            if (_exportJob is not null) return new ExportSource("", null, null, null, title, Problem: Loc.Get(K.ExportBusy));
+            using var cts = _exportJob = new CancellationTokenSource();
+            var shown = Stopwatch.StartNew();
+            var progress = new Progress<long>(scanned =>
+            {
+                if (_exportJob != cts || shown.ElapsedMilliseconds < PluginLimitsPlaceholders.HighlightExportProgressMilliseconds) return;
+                shown.Restart();
+                SetStatusMessage(Loc.Get(K.ExportReading, ("percent", Math.Clamp(scanned * 100 / Math.Max(1, at.Start), 0, 99))));
+            });
+            SetStatusMessage(Loc.Get(K.ExportReading, ("percent", 0)));
+            try { state = await SyntaxFeeder.StartStateOfLineAsync(od.Doc, tokenizer, at.Line, cts.Token, progress); }
+            catch (OperationCanceledException) { return new ExportSource("", null, null, null, title, Problem: Loc.Get(K.ExportCancelled)); }
+            finally { _exportJob = null; }
+        }
         if (od.Doc.Revision != revision) return new ExportSource("", null, null, null, title, Problem: Loc.Get(K.ExportChanged));
         return new ExportSource(head + selected, (head.Length, selected.Length), tokenizer, levels, title, state);
     }

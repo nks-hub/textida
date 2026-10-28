@@ -52,12 +52,18 @@ public sealed class TextToolsPlugin : PluginBase
 
     private sealed record Range(long Start, long End);
 
+    /// <summary>What a command answers: the status, and more members of the result object already written as JSON (starting with a comma) for the commands that hand data back to the editor.</summary>
+    private readonly record struct Answer(string Status, string? Json = null)
+    {
+        public static implicit operator Answer(string status) => new(status);
+    }
+
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
         var command = p.GetProperty("command").GetString();
         var context = new Context(p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en", p);
-        string status;
+        Answer status;
         try
         {
             status = command switch
@@ -83,7 +89,7 @@ public sealed class TextToolsPlugin : PluginBase
         {
             status = await ReportAsync("failed", NoticeLevel.Error, e.Message, ct);
         }
-        return Encoding.UTF8.GetBytes($"{{\"status\":\"{status}\"}}");
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"{status.Status}\"{status.Json}}}");
     }
 
     // ---- editor calls ----
@@ -218,11 +224,16 @@ public sealed class TextToolsPlugin : PluginBase
         return await ReportAsync("incomplete", NoticeLevel.Warning, partial + text, ct);
     }
 
-    private async Task<string> RunHashAsync(Context c, CancellationToken ct)
+    /// <summary>
+    /// The hash of the selections (or of the document). With <c>dialog</c> the editor shows the result in its own dialog (the one the hex view uses for its checksums, with Copy and Compare),
+    /// so nothing is shown, copied or compared here; the answer carries <c>algorithm</c>, <c>selection</c> and <c>blocks</c> (<c>start</c>, <c>end</c> and <c>hash</c> of each part) for it.
+    /// </summary>
+    private async Task<Answer> RunHashAsync(Context c, CancellationToken ct)
     {
         var info = await InfoAsync(c, ct);
-        var expected = Text(c, "expected");
-        if (Flag(c, "compare") && expected is null)
+        bool dialog = Flag(c, "dialog");
+        var expected = dialog ? null : Text(c, "expected");
+        if (!dialog && Flag(c, "compare") && expected is null)
         {
             expected = await AskHashAsync(c, ct);
             if (expected is null) return "cancelled";
@@ -242,6 +253,7 @@ public sealed class TextToolsPlugin : PluginBase
         var format = NumberFormat.For(c.Language);
         var lines = new List<string>();
         var hashes = new List<string>();
+        var blocks = new List<string>();
         bool allMatch = true;
         foreach (var range in ranges)
         {
@@ -260,14 +272,17 @@ public sealed class TextToolsPlugin : PluginBase
             }
             lines.Add(line);
             hashes.Add(hex);
+            blocks.Add($"{{\"start\":{range.Start},\"end\":{range.End},\"hash\":\"{Quote(hex)}\"}}");
         }
+        string data = $",\"algorithm\":\"{Quote(algorithm.Name)}\",\"selection\":{(selected.Count > 0 ? "true" : "false")},\"blocks\":[{string.Join(',', blocks)}]";
+        if (dialog) return new Answer("completed", data);
         var message = string.Join('\n', lines);
         if (Flag(c, "copy"))
         {
             await CallAsync(DocumentMethods.ClipboardWrite, $"{{\"document\":\"{c.Document}\",\"text\":\"{Quote(string.Join('\n', hashes))}\"}}", ct);
             message += Texts.Get(c.Language, "hash.copied");
         }
-        return await ReportAsync(allMatch ? "completed" : "mismatch", allMatch ? NoticeLevel.Info : NoticeLevel.Warning, message, ct);
+        return new Answer(await ReportAsync(allMatch ? "completed" : "mismatch", allMatch ? NoticeLevel.Info : NoticeLevel.Warning, message, ct), data);
     }
 
     /// <summary>Asks for the hash to compare with; null when the user dismisses the question.</summary>

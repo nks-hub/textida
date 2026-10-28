@@ -113,6 +113,20 @@ public sealed class DocumentOptions
     public int ChangeLogCapacity { get; init; } = 4096;
     /// <summary>Forces the encoding instead of detecting it.</summary>
     public TextCodec? Format { get; init; }
+    /// <summary>
+    /// A file longer than this is not hashed while it opens: the fingerprint has size and time only (<see cref="FileFingerprint.HasHash"/> is false) and a
+    /// pass over the file on the thread pool fills in the hash and the block digests; <see cref="Document.FingerprintHashed"/> tells when. Until then a
+    /// save writes the whole file instead of patching it. The default hashes every file before <see cref="Document.Open"/> returns.
+    /// </summary>
+    public long HashInBackgroundAboveBytes { get; init; } = long.MaxValue;
+    /// <summary>Test seam: the pass of <see cref="HashInBackgroundAboveBytes"/> waits for this task before it reads the file.</summary>
+    internal Task? HashPassGate { get; init; }
+    /// <summary>
+    /// What the file has to be, when the caller knows it from somewhere else (a journal that recorded it): the pass of <see cref="HashInBackgroundAboveBytes"/> compares its hash with this one. A
+    /// difference raises <see cref="Document.ExternalChangeDetected"/> and a guarded save answers with it until the user overwrites; the hash and the block digests of the file are not taken over.
+    /// Ignored when the fingerprint has no hash or the file is hashed before the open returns.
+    /// </summary>
+    internal FileFingerprint? ExpectedFingerprint { get; init; }
 }
 
 public enum AnchorGravity

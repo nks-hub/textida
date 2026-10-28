@@ -127,6 +127,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.HexBusy));
             return false;
         }
+        long t = Core.TypingTrace.Begin();
         var views = od.Views.ToList();
         var from = Active is { } a && a.Doc == od ? a : views[0];
         var (anchor, caret) = CaptureOffsets(from);
@@ -138,6 +139,8 @@ internal sealed partial class MainWindow
             v.Close();
             v.ShowBar(null);
         }
+        Core.TypingTrace.End("hex.switch.close", t);
+        t = Core.TypingTrace.Begin();
         Exception? failure = null;
         try
         {
@@ -147,6 +150,8 @@ internal sealed partial class MainWindow
         {
             failure = e;
         }
+        Core.TypingTrace.End("hex.switch.enter", t);
+        t = Core.TypingTrace.Begin();
         DocTab? activeTab = null, source = null;
         foreach (var slot in slots)
         {
@@ -154,10 +159,17 @@ internal sealed partial class MainWindow
             if (slot.Active) activeTab = fresh;
             if (slot.Source) source = fresh;
         }
+        Core.TypingTrace.End("hex.switch.addViews", t);
+        t = Core.TypingTrace.Begin();
         if (failure is null && source is not null) ApplyOffsets(source, offset ?? anchor, offset ?? caret);
         if (activeTab is not null) SelectTab(activeTab);
+        Core.TypingTrace.End("hex.switch.offsets", t);
+        t = Core.TypingTrace.Begin();
         od.NotifyChanged();
+        Core.TypingTrace.End("hex.switch.notify", t);
+        t = Core.TypingTrace.Begin();
         OnDocReplacedRefresh(od);
+        Core.TypingTrace.End("hex.switch.refresh", t);
         if (failure is not null) SetStatusMessage(Loc.Get(K.HexSwitchFailed, ("reason", failure.Message)));
         if (activeTab is not null)
         {

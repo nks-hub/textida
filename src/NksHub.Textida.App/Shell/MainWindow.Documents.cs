@@ -38,10 +38,18 @@ internal sealed partial class MainWindow
         _app.Recent.Add(path);
         if (tab is null)
         {
+            long t = Core.TypingTrace.Begin();
             var od = OpenDocument.Open(path, LargeFileBytes);
+            Core.TypingTrace.End("open.document", t);
+            t = Core.TypingTrace.Begin();
             Adopt(od);
+            Core.TypingTrace.End("open.adopt", t);
+            t = Core.TypingTrace.Begin();
             tab = AddView(od, _activeGroup);
+            Core.TypingTrace.End("open.addView", t);
+            t = Core.TypingTrace.Begin();
             tab = OfferHex(tab);
+            Core.TypingTrace.End("open.offerHex", t);
         }
         else SelectTab(tab);
         if (line is { } l) tab.GoToLine(l);
@@ -67,15 +75,27 @@ internal sealed partial class MainWindow
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         od.HistoryProblem += ReportHistory;
+        long t = Core.TypingTrace.Begin();
         AcquireLock(od);
+        Core.TypingTrace.End("open.adopt.lock", t);
+        t = Core.TypingTrace.Begin();
         if (od.Path is { } localPath) od.RemoteCopy ??= _app.Remote.Copies.FindByLocalPath(localPath);
+        Core.TypingTrace.End("open.adopt.remoteCopy", t);
+        t = Core.TypingTrace.Begin();
         _app.Journal.Track(od);
+        Core.TypingTrace.End("open.adopt.journal", t);
+        t = Core.TypingTrace.Begin();
         od.EnsureWatching();
+        Core.TypingTrace.End("open.adopt.watching", t);
+        t = Core.TypingTrace.Begin();
         AttachReview(od);
+        Core.TypingTrace.End("open.adopt.review", t);
+        t = Core.TypingTrace.Begin();
         TrackEdits(od);
         DetectIndentation(od);
         ConfigureAutosave(od);
         TrackLogHeat(od);
+        Core.TypingTrace.End("open.adopt.rest", t);
     }
 
     /// <summary>With <c>editor.detectIndentation</c> on, the indentation of a file wins over the configured one for that file.</summary>

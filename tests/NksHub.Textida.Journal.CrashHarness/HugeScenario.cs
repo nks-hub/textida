@@ -21,6 +21,8 @@ public static class HugeScenario
 {
     public const int PasteChunk = 4 << 20;
     public const long LossLimitMs = 2000;
+    /// <summary>The size above which the app hashes a file in the background (<c>PluginLimitsPlaceholders.OpenHashInBackgroundBytes</c>), which the child and the recovery of this scenario do as well.</summary>
+    public const long BackgroundHashAbove = 64L << 20;
     public static readonly string[] Points = ["edit", "paste", "save", "cancel"];
 
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -73,10 +75,10 @@ public static class HugeScenario
         }) { IsBackground = true };
         watch.Start();
 
-        Doc.SkipHashOnOpen = true; // see RunAll
         var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillPlaceholders.MemoryBudgetBytes, spillDirectory: Path.Combine(dir, "spill"));
         using var session = JournalSession.Start(Path.Combine(dir, "journal"), name => name == "paged" ? factory : null);
-        using var doc = Doc.Open(Path.Combine(dir, "data", "doc.txt"), factory);
+        // as the app opens a big file: size and time now, the hash from a pass in the background
+        using var doc = Doc.Open(Path.Combine(dir, "data", "doc.txt"), factory, new DocumentOptions { HashInBackgroundAboveBytes = BackgroundHashAbove });
         session.Track(doc);
         session.Flush();
         var stdout = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
@@ -269,7 +271,7 @@ public static class HugeScenario
         string journalPath = Directory.GetFiles(journal, "session-*.njl").Single();
         var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillPlaceholders.MemoryBudgetBytes, spillDirectory: spill);
         clock.Restart();
-        var recovery = JournalRecovery.Recover(journalPath, name => name == "paged" ? factory : null);
+        var recovery = JournalRecovery.Recover(journalPath, name => name == "paged" ? factory : null, new RecoveryOptions { HashInBackgroundAboveBytes = BackgroundHashAbove });
         double recoverSeconds = clock.Elapsed.TotalSeconds;
         try
         {
@@ -315,9 +317,6 @@ public static class HugeScenario
 
     public static int RunAll(string work, long size, int pasteChunks, string[]? points)
     {
-        // Opening a document, the child's and the one that recovery rebuilds, reads and hashes the whole file; for 50 GiB that is a measurement of its own (see HugeCalibrationTests) and
-        // longer than the 20 minutes a test gets. What is measured here is what comes after it, so the read is switched off on this thread, the thread that recovers.
-        Doc.SkipHashOnOpen = true;
         Directory.CreateDirectory(work);
         var failures = new List<string>();
         foreach (var point in points ?? Points)

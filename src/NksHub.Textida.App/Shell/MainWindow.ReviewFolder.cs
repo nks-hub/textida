@@ -16,7 +16,8 @@ namespace NksHub.Textida.App.Shell;
 /// Review of changes from outside for the opened folder (P6.1.1): a file of the folder that another program changed while no tab shows it gets a review of its own, with the last content the user
 /// saw or saved (a revision of the local history, pinned) as the base. The record is the same as that of a tab, so the file shows the marker and the changes by hunks when it is opened, and the
 /// record survives a restart. The watch leaves out <c>.git</c>, <c>.codegraph</c>, what the ignore files of the folder ignore and the transcripts of agents (<see cref="ReviewIgnore"/>), and
-/// files that hold secret values, files too large for a tab, binary files and files the history knows no content of.
+/// files that hold secret values, files too large for a tab and binary files. A file created in the folder is reviewed as a whole-file addition; a changed file the history has no content of takes
+/// the content it has at first sight as its base, and the status bar says so.
 /// </summary>
 internal sealed partial class MainWindow
 {
@@ -88,43 +89,73 @@ internal sealed partial class MainWindow
             return;
         }
         long largest = LargeFileBytes;
-        var started = await Task.Run(() => candidates.Select(p => BeginFolderReview(p, largest)).OfType<ReviewState>().Take(room).ToList());
-        if (started.Count > 0 && WaitingFolderReviews().Count is > 0 and var waiting) SetStatusMessage(Loc.Plural(K.ReviewFolderWaiting, waiting));
+        var (started, taken) = await Task.Run(() =>
+        {
+            int waiting = 0, firstSight = 0;
+            foreach (var p in candidates)
+                switch (BeginFolderReview(p, largest, batch.IsCreated(p), waiting < room))
+                {
+                    case FolderSight.Waiting: waiting++; break;
+                    case FolderSight.BaseTaken: firstSight++; break;
+                }
+            return (waiting, firstSight);
+        });
+        if (started > 0 && WaitingFolderReviews().Count is > 0 and var waitingNow) SetStatusMessage(Loc.Plural(K.ReviewFolderWaiting, waitingNow));
+        else if (taken > 0) SetStatusMessage(Loc.Plural(K.ReviewFolderBaseTaken, taken));
     }
 
-    /// <summary>Works on a pool thread. The review of a file starts when a base exists and the file differs from every content the history holds; null when it does not.</summary>
-    private ReviewState? BeginFolderReview(string path, long largest)
+    private enum FolderSight { Skipped, Waiting, BaseTaken }
+
+    private static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
+
+    /// <summary>
+    /// Works on a pool thread. A review starts when a base exists and the file differs from every content the history holds. A file created in the folder that the history has never seen is a
+    /// whole-file addition: its base is empty (only a byte order mark stays), so every line is a change. A changed file the history has never seen takes the content it has now as its base, which
+    /// the next change is measured against.
+    /// </summary>
+    private FolderSight BeginFolderReview(string path, long largest, bool created, bool room)
     {
         try
         {
-            if (_app.Reviews.Find(path) is not null) return null;
+            if (_app.Reviews.Find(path) is not null) return FolderSight.Skipped;
             var info = new FileInfo(path);
-            if (!info.Exists || info.Length > largest) return null;
+            if (!info.Exists || info.Length > largest) return FolderSight.Skipped;
             var revisions = _app.History.List(path);
-            if (revisions.FirstOrDefault(r => r.Source != HistorySource.External) is not { } baseRevision) return null;
 
             string sha;
+            byte[] head;
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             {
-                var head = new byte[Math.Min(8192, fs.Length)];
-                int read = fs.Read(head, 0, head.Length);
-                if (head.AsSpan(0, read).Contains((byte)0)) return null; // a binary file has no lines to review
+                head = new byte[Math.Min(8192, fs.Length)];
+                head = head[..fs.Read(head, 0, head.Length)];
+                if (head.AsSpan().Contains((byte)0)) return FolderSight.Skipped; // a binary file has no lines to review
                 fs.Position = 0;
                 sha = Convert.ToHexString(SHA256.HashData(fs));
             }
-            if (revisions.Any(r => string.Equals(r.Sha256, sha, StringComparison.OrdinalIgnoreCase))) return null; // content the history knows was seen before
 
-            if (!TryPin(path, baseRevision.Id)) return null;
-            var state = new ReviewState(path, baseRevision.Id, DateTime.UtcNow);
-            try { _app.Reviews.Save(state); }
+            bool Same(HistoryRevision r) => string.Equals(r.Sha256, sha, StringComparison.OrdinalIgnoreCase);
+            var baseRevision = revisions.FirstOrDefault(r => r.Source != HistorySource.External);
+            if (baseRevision is null)
+            {
+                bool added = created && revisions.Count == 0;
+                var recorded = added ? _app.History.Record(path, head.AsSpan().StartsWith(Utf8Bom) ? Utf8Bom : [], HistorySource.Initial) : _app.History.RecordFile(path, HistorySource.Initial);
+                if (recorded.Revision is not { } first) return FolderSight.Skipped; // the history is off, the file is a secrets file or too large for it, or the write failed
+                if (!added) return recorded.Status == HistoryStatus.Recorded ? FolderSight.BaseTaken : FolderSight.Skipped;
+                if (Same(first)) return FolderSight.Skipped; // an empty new file: nothing to review yet, and the next write is measured against the empty base
+                baseRevision = first;
+            }
+            else if (revisions.Any(Same)) return FolderSight.Skipped; // content the history knows was seen before
+
+            if (!room || !TryPin(path, baseRevision.Id)) return FolderSight.Skipped;
+            try { _app.Reviews.Save(new ReviewState(path, baseRevision.Id, DateTime.UtcNow)); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 TryUnpin(path, baseRevision.Id);
-                return null;
+                return FolderSight.Skipped;
             }
-            return state;
+            return FolderSight.Waiting;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return FolderSight.Skipped; }
     }
 
     /// <summary>Lists the files of the opened folder that wait for the review of a change from outside; the chosen one opens with its changes.</summary>

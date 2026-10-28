@@ -810,6 +810,8 @@ public static class K
     public const string HexSumCancelled = "hex.sum.cancelled";
     public const string HexSumScopeSelection = "hex.sum.scope.selection";
     public const string HexSumScopeFile = "hex.sum.scope.file";
+    public const string HexSumScopeParts = "hex.sum.scope.parts";
+    public const string HexSumPart = "hex.sum.part";
     public const string HexSumResult = "hex.sum.result";
     public const string HexSumCopy = "hex.sum.copy";
     public const string HexSumCompare = "hex.sum.compare";
@@ -1088,6 +1090,9 @@ public static class K
     public const string ExportCopied = "export.copied";
     public const string ExportIndexPending = "export.indexPending";
     public const string ExportChanged = "export.changed";
+    public const string ExportReading = "export.reading";
+    public const string ExportCancelled = "export.cancelled";
+    public const string ExportBusy = "export.busy";
     public const string LogFoldTitle = "log.fold.title";
     public const string LogFoldLevelLabel = "log.fold.level";
     public const string LogFoldPlaceholder = "log.fold.placeholder";
@@ -1628,6 +1633,7 @@ public static class K
     public const string ReviewBar = "review.bar";
     public const string ReviewTitle = "review.title";
     public const string ReviewHint = "review.hint";
+    public const string ReviewNewHint = "review.newHint";
     public const string ReviewBadge = "review.badge";
     public const string ReviewNone = "review.none";
     public const string ReviewNoBase = "review.noBase";
@@ -1640,6 +1646,7 @@ public static class K
     public const string ReviewFolderNoFolder = "review.folder.noFolder";
     public const string ReviewFolderNone = "review.folder.none";
     public const string ReviewFolderWaiting = "review.folder.waiting";
+    public const string ReviewFolderBaseTaken = "review.folder.baseTaken";
     public const string ReviewFolderFull = "review.folder.full";
     public const string ReviewFolderDropped = "review.folder.dropped";
     public const string ReviewFolderWatermark = "review.folder.watermark";

@@ -88,6 +88,24 @@ public class MultiCaretPerfTests(ITestOutputHelper output) : IDisposable
             rounds.Add($"p50 {p50:0.0}, p95 {p95:0.0}, p99 {p99:0.0} ms");
             output.WriteLine($"carets {carets}, round {round + 1}: {rounds[^1]}");
         }
+        if (carets >= 100)
+        {
+            // where the time goes: the spans of the typing path over 100 more keys (the measured rounds above run without them)
+            NksHub.Textida.Core.TypingTrace.Reset();
+            NksHub.Textida.Core.TypingTrace.Enabled = true;
+            try
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    TestApp.Type(w, "x");
+                    w.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                }
+            }
+            finally { NksHub.Textida.Core.TypingTrace.Enabled = false; }
+            output.WriteLine($"carets {carets}, spans of 100 more keys:\n" + NksHub.Textida.Core.TypingTrace.Summary());
+            NksHub.Textida.Core.TypingTrace.Reset();
+        }
         Assert.Equal(carets, tab.Editor!.CaretCount);
         Assert.Equal(1, tab.Doc.Doc.UndoDepth); // one typing run is one undo step
         Assert.True(p95 <= 33 && p99 <= 80, $"{carets} carets: " + string.Join("; ", rounds));

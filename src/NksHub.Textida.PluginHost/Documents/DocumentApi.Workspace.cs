@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Changes;
@@ -12,7 +13,7 @@ namespace NksHub.Textida.PluginHost.Documents;
 /// <summary>
 /// The API for a workspace edit: one batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review as one
 /// proposal and applied all or nothing. The whole batch is checked before anything is shown: an entry the plugin may not touch (no grant for the document or for files, a path outside
-/// the workspace, a text edit by path of a file that is open and so has to be named as a document) or an entry that does not match the revision or hash it names refuses the whole batch.
+/// the workspace, a text edit by path of a file that is open in a tab the editor cannot hand over as a document) or an entry that does not match the revision or hash it names refuses the whole batch.
 /// A rename or delete of an open file is allowed: the editor moves the tab with the file, or closes it (and asks first when the tab holds unsaved work).
 /// </summary>
 public sealed partial class DocumentApi
@@ -144,8 +145,8 @@ public sealed partial class DocumentApi
                 return ChangeBuilder.ForDocument(d, edits);
             }
             var path = WorkspacePath(pluginId, item, "path", roots);
-            if (ws.IsOpen(path)) throw Invalid($"Change {index}: '{path}' is open in the editor; name its document instead of its path.");
             if (SecretValues.IsSecretFile(path)) throw Denied(DocumentPermissions.SecretsReveal, "Secret", $"'{path}' is a secrets file; a plugin cannot edit it without seeing it.");
+            if (ws.IsOpen(path)) return WorkspaceEditOfOpenFile(pluginId, item, index, ws, path, edits);
             if (!File.Exists(path)) throw Invalid($"Change {index}: '{path}' does not exist.");
             var change = ChangeBuilder.ForFile(path, edits);
             if (!string.Equals(change.BaseFingerprint!.Sha256, Sha(item), StringComparison.OrdinalIgnoreCase)) throw HashMismatch(index, path);
@@ -154,6 +155,27 @@ public sealed partial class DocumentApi
         catch (ArgumentException) { throw EditFailure(ConflictReason.InvalidRange, 0); }
         catch (UnrepresentableCharactersException) { throw Invalid($"Change {index}: the text cannot be written in the encoding of the file."); }
         catch (Exception e) when (e is NotSupportedException or InvalidOperationException or IOException or UnauthorizedAccessException) { throw Invalid($"Change {index}: {e.Message}"); }
+    }
+
+    /// <summary>
+    /// A text edit by path of a file a tab shows. It goes through the open document, as an edit by document does (one undo step, checked against the revision), but only while the tab holds the
+    /// content the plugin read from the file: the byte ranges are those of that content. A tab with unsaved changes is therefore refused with the reason <c>UnsavedTab</c>.
+    /// </summary>
+    private FileChange WorkspaceEditOfOpenFile(string pluginId, JsonElement item, int index, WorkspaceEditOptions ws, string path, List<TextReplacement> edits)
+    {
+        var d = ws.OpenDocument?.Invoke(path) ?? throw Invalid($"Change {index}: '{path}' is open in the editor; name its document instead of its path.");
+        GuardSecrets(pluginId, d, [.. edits.Select(e => new ByteEdit(e.Range, Array.Empty<byte>()))]);
+        var snapshot = d.GetSnapshot();
+        if (snapshot.ByteLength > ChangeBuilder.MaxPlanBytes) throw Invalid($"Change {index}: the open document of '{path}' is too large for a change preview.");
+        string sha = Convert.ToHexString(SHA256.HashData(snapshot.ReadBytes(new ByteRange(0, snapshot.ByteLength))));
+        if (!string.Equals(sha, Sha(item), StringComparison.OrdinalIgnoreCase))
+            throw Fail(DocumentErrorCodes.RevisionConflict, $"Change {index}: the tab of '{path}' is not the content the plugin saw (it has unsaved changes, or the file changed).", w =>
+            {
+                w.WriteString("reason", "UnsavedTab");
+                w.WriteNumber("index", index);
+            });
+        foreach (var edit in edits) d.Codec.Encode(edit.NewText);
+        return ChangeBuilder.ForDocument(d, edits);
     }
 
     private FileChange Operation(string path, FileOperation operation, FileFingerprint? fingerprint) =>

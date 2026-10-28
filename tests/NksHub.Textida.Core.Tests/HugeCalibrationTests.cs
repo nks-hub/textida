@@ -79,18 +79,17 @@ public sealed class HugeCalibrationTests(ITestOutputHelper output)
                 while (stream.Read(buffer, 0, buffer.Length) > 0) { }
             Say("read it back (it may still be in the cache): " + Rate(size, clock));
             clock.Restart();
-            Doc.SkipHashOnOpen = false;
             using (var doc = Doc.Open(small, new PagedBackendFactory(startIndexing: false)))
-                Say("Document.Open, which reads and hashes the whole file: " + Rate(size, clock));
-            Doc.SkipHashOnOpen = true;
+                Say("Document.Open that hashes the whole file before it returns: " + Rate(size, clock));
             clock.Restart();
-            using (var doc = Doc.Open(small, PagedBackendFactory.Instance))
+            using (var doc = Doc.Open(small, PagedBackendFactory.Instance, new DocumentOptions { HashInBackgroundAboveBytes = 64L << 20 }))
             {
-                Say("Document.Open without the hash, line index started: " + Rate(size, clock));
+                Say("Document.Open with the hash in the background, line index started, returned after " + $"{clock.Elapsed.TotalMilliseconds:F0} ms");
                 while (!doc.LineIndexState.Complete) Thread.Sleep(10);
                 Say("the line index complete after: " + Rate(size, clock));
+                doc.HashPass!.Wait();
+                Say("the pass with the hash and the block digests ended after: " + Rate(size, clock));
             }
-            Doc.SkipHashOnOpen = false;
             File.Delete(small);
 
             // more than the memory of the machine: the first GiBs go into the file cache, the later ones show the disk
@@ -122,7 +121,6 @@ public sealed class HugeCalibrationTests(ITestOutputHelper output)
         }
         finally
         {
-            Doc.SkipHashOnOpen = false;
             clock.Restart();
             try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
             Say($"clean-up {clock.Elapsed.TotalSeconds:F1} s");

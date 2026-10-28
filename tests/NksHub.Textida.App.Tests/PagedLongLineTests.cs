@@ -358,14 +358,20 @@ public class PagedLongLineTests : IDisposable
     {
         var (_, paged) = OpenFarLine(new string('a', FarLine));
         int walks = 0;
+        using var firstWaits = new ManualResetEventSlim();
         paged.FarMoveHook = token =>
         {
-            if (Interlocked.Increment(ref walks) == 1) token.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)); // ends when the second move cancels it
+            if (Interlocked.Increment(ref walks) == 1)
+            {
+                firstWaits.Set();
+                token.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)); // ends when the second move cancels it
+            }
             token.ThrowIfCancellationRequested();
         };
 
         paged.GoToOffset(5_000_000);
         Assert.True(paged.CaretMovePending);
+        Assert.True(firstWaits.Wait(TimeSpan.FromSeconds(10)), "the first count did not start"); // a count that was cancelled before the pool started it never runs the hook, and the second would take its place
         paged.GoToOffset(4_000_000);
         await Eventually(() => !paged.CaretMovePending);
         await Task.Delay(100);
@@ -391,6 +397,33 @@ public class PagedLongLineTests : IDisposable
 
         Assert.Equal(1, paged.CaretOffset);
         Assert.True("x" + line + "\nnext\n" == Text(tab), "the typed character is not at the start of the line");
+    }
+
+    [AvaloniaFact]
+    public async Task The_column_of_a_caret_that_an_undo_left_far_from_every_known_point_is_counted_on_the_pool()
+    {
+        var (tab, paged) = OpenFarLine(new string('a', FarLine));
+        var document = ((PagedBackend)tab.Doc.Doc.Backend).Paged;
+        paged.GoToOffset(100);
+        TestApp.Type(_w, "x");
+        paged.GoToOffset(5_000_000);
+        await Eventually(() => !paged.CaretMovePending);
+        Assert.True(document.ColumnPointCount >= 4, $"{document.ColumnPointCount} points after the walk to the caret");
+        paged.ScrollToColumn(0); // the draw then reads no far window of the line, which would note points of its own
+        Draw();
+
+        // the undo comes from outside the view: the caret keeps its offset, which is far from the points that the edit before it dropped
+        using var gate = new ManualResetEventSlim();
+        paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
+        Assert.NotNull(tab.Doc.Doc.Undo());
+        var meanwhile = paged.CaretLineColumn();
+        Draw();
+        Assert.NotNull(meanwhile);
+        Assert.True(document.ColumnPointCount <= 1, $"the UI thread counted the columns of the caret ({document.ColumnPointCount} points)");
+
+        gate.Set();
+        await Eventually(() => document.ColumnPointCount >= 4);
+        await Eventually(() => paged.CaretLineColumn() is { Column: 5_000_000 });
     }
 
     [AvaloniaFact]
@@ -423,13 +456,30 @@ public class PagedLongLineTests : IDisposable
         using var gate = new ManualResetEventSlim();
         paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
         TestApp.Press(_w, Key.Down);
-        Assert.True(paged.CaretMovePending);
+        Assert.True(paged.CaretMovePending, $"caret {paged.CaretOffset} at {paged.CaretLineColumn()}");
         Assert.Equal(5_000_000, paged.CaretOffset);
         gate.Set();
         await Eventually(() => !paged.CaretMovePending);
 
         Assert.Equal(FarLine + 1 + 5_000_000, paged.CaretOffset);
         Assert.Equal((1L, 5_000_000L), paged.CaretLineColumn());
+    }
+
+    [AvaloniaFact]
+    public void Down_and_then_up_between_two_long_lines_come_back_to_the_first_line()
+    {
+        string first = new('a', 600_000), second = new('b', 600_000); // above the threshold of a large file, which the tests set to 1 MiB
+        var tab = OpenBytes(Encoding.UTF8.GetBytes(first + "\n" + second + "\n"));
+        var paged = tab.Paged!;
+        paged.GoToOffset(300_000);
+        TestApp.Settle(paged);
+
+        TestApp.Press(_w, Key.Down);
+        TestApp.Settle(paged);
+        Assert.Equal(600_001 + 300_000, paged.CaretOffset);
+        TestApp.Press(_w, Key.Up); // the column of the first line is not the offset that the second line gave for the same column
+        TestApp.Settle(paged);
+        Assert.Equal(300_000, paged.CaretOffset);
     }
 
     [AvaloniaFact]

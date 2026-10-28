@@ -60,7 +60,10 @@ public sealed record FileFingerprint(long Size, DateTime LastWriteUtc, string Sh
     /// Like <see cref="TryRead(string)"/>, but cancellable; null also when the write time moved while the file was read, because then the hash
     /// may mix two states of the file.
     /// </summary>
-    public static FileFingerprint? TryRead(string path, CancellationToken ct)
+    public static FileFingerprint? TryRead(string path, CancellationToken ct) => TryRead(path, ct, null);
+
+    /// <summary>The same pass; <paramref name="blocks"/>, when given, receives the bytes in order and is sealed when the whole file was read and nothing moved meanwhile.</summary>
+    internal static FileFingerprint? TryRead(string path, CancellationToken ct, OriginalBlockHashes? blocks)
     {
         try
         {
@@ -68,12 +71,17 @@ public sealed record FileFingerprint(long Size, DateTime LastWriteUtc, string Sh
             var before = File.GetLastWriteTimeUtc(path);
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             var buf = new byte[1 << 20];
+            long total = 0;
             for (int n; (n = fs.Read(buf)) > 0;)
             {
                 ct.ThrowIfCancellationRequested();
                 hash.AppendData(buf, 0, n);
+                blocks?.Append(buf.AsSpan(0, n));
+                total += n;
             }
-            return File.GetLastWriteTimeUtc(path) == before ? new(fs.Length, before, Convert.ToHexString(hash.GetHashAndReset())) : null;
+            if (File.GetLastWriteTimeUtc(path) != before || (blocks is not null && total != fs.Length)) return null;
+            blocks?.Seal(total);
+            return new(fs.Length, before, Convert.ToHexString(hash.GetHashAndReset()));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

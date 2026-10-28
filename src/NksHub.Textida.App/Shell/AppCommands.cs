@@ -228,7 +228,7 @@ internal static class AppCommands
 
         // tools
         Fire("nks.tools.statistics", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.stats"));
-        Fire("nks.tools.hash", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash"));
+        Fire("nks.tools.hash", (w, t) => app.Plugins.RunHashDialogAsync(w, t));
         Fire("nks.tools.hashCopy", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"copy\":true"));
         Fire("nks.tools.hashCompare", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.hash", ",\"compare\":true"));
         Fire("nks.tools.insertExpression", (w, t) => app.Plugins.RunTextToolAsync(w, t, "text.expression", ",\"insert\":true"));

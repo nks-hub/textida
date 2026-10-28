@@ -597,13 +597,9 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         else path = NewFile(size);
         Say($"{size / 1073741824.0:F1} GiB file written in {clock.Elapsed.TotalSeconds:F0} s; the machine has {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes >> 20} MiB of memory");
         clock.Restart();
-        // Open reads and hashes the whole file; at this size that is a test of its own, and what is tested here comes after it
-        Doc.SkipHashOnOpen = fast;
-        Doc doc;
-        try { doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes)); }
-        finally { Doc.SkipHashOnOpen = false; }
-        using var open = doc;
-        Say($"opened{(fast ? " without the read of the whole file for its fingerprint" : "")} in {clock.Elapsed.TotalSeconds:F0} s");
+        // as the app opens a big file: the hash and the block digests come from a pass in the background, which reads the file while this test goes on
+        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes), fast ? new DocumentOptions { HashInBackgroundAboveBytes = 64L << 20 } : null);
+        Say($"opened in {clock.Elapsed.TotalSeconds:F1} s");
         var model = new LargeModel(size, fill);
         Edit(doc, model, size / 3, 0, 41, 80 << 20, fill); // spilled to the scratch file, not held
         Edit(doc, model, size / 2, 1 << 20, 42, 10, fill);

@@ -227,7 +227,7 @@ public sealed partial class Document
         _baseline = baseline;
         _snapshot = null; // the cached snapshot predates the write; dropping it lets the preserved old bytes go
         FilePath = target;
-        _hashCancel?.Cancel();
+        CancelHashing();
         _fileId = FileIdentity.TryGet(target);
         var print = Fingerprint = new FileFingerprint(mark?.Length ?? ByteLength, File.GetLastWriteTimeUtc(target), hash);
         _lastReported = null;
@@ -242,16 +242,105 @@ public sealed partial class Document
     /// </summary>
     private void HashInBackground(string target, FileFingerprint pending)
     {
-        var cts = _hashCancel = new CancellationTokenSource();
+        var cts = NewHashing();
         _ = Task.Run(() =>
         {
             try
             {
                 if (FileFingerprint.TryRead(target, cts.Token) is { } full && full.Size == pending.Size && full.LastWriteUtc == pending.LastWriteUtc)
-                    Interlocked.CompareExchange(ref _fingerprint, pending with { Sha256 = full.Sha256 }, pending);
+                    lock (_hashGate)
+                        if (!cts.IsCancellationRequested) Interlocked.CompareExchange(ref _fingerprint, pending with { Sha256 = full.Sha256 }, pending);
             }
             catch (OperationCanceledException) { }
         });
+    }
+
+    /// <summary>
+    /// The pass of a file opened with <see cref="DocumentOptions.HashInBackgroundAboveBytes"/>: hash and block digests come from one read of the file by a
+    /// reader of its own. They are taken over only when size and write time are the ones the file had at open before and after the pass and no save
+    /// replaced the fingerprint meanwhile, so the digests describe the bytes the document was opened on, never bytes somebody wrote later. Limit: a writer
+    /// that changes the bytes and restores size and write time during the pass is not seen, as it is not by the quick check that stands in until the pass ends.
+    /// </summary>
+    private void HashOpenedFileInBackground(string path, FileFingerprint pending, Task? gate, FileFingerprint? expected)
+    {
+        var cts = NewHashing();
+        lock (_hashGate) _expectedBase = expected is { HasHash: true } ? expected : null;
+        HashPass = Task.Run(() =>
+        {
+            try
+            {
+                gate?.Wait();
+                var blocks = new OriginalBlockHashes();
+                if (FileFingerprint.TryRead(path, cts.Token, blocks) is not { } full || full.Size != pending.Size || full.LastWriteUtc != pending.LastWriteUtc) return;
+                ExternalChange? wrong = null;
+                lock (_hashGate)
+                {
+                    if (cts.IsCancellationRequested || !ReferenceEquals(_fingerprint, pending)) return;
+                    if (_expectedBase is { } want && want.Sha256 != full.Sha256)
+                    {
+                        // the bytes under the document are not the ones its edits were made on: nothing of this pass is taken over
+                        wrong = _baseMismatch = new ExternalChange(Id, _revision, path, want, full, ExternalChangeKind.Modified);
+                        _lastReported = (wrong.Kind, full.Sha256);
+                    }
+                    else
+                    {
+                        _baseline = blocks;
+                        _fingerprint = pending with { Sha256 = full.Sha256 };
+                    }
+                    _expectedBase = null;
+                }
+                if (wrong is not null) ExternalChangeDetected?.Invoke(this, wrong);
+                else FingerprintHashed?.Invoke(this, EventArgs.Empty);
+            }
+            catch (OperationCanceledException) { }
+        });
+    }
+
+    /// <summary>Test seam: the pass of a file opened with <see cref="DocumentOptions.HashInBackgroundAboveBytes"/>.</summary>
+    internal Task? HashPass;
+
+    /// <summary>The fingerprint the pass of an opened file has to find (<see cref="DocumentOptions.ExpectedFingerprint"/>) while it has not; guarded by <c>_hashGate</c>.</summary>
+    private FileFingerprint? _expectedBase;
+
+    /// <summary>What the pass found when the file was not the expected one; it stays until a save replaced the file, and a guarded save returns it.</summary>
+    private ExternalChange? _baseMismatch;
+
+    /// <summary>
+    /// Waits for the pass of a file opened with an expected fingerprint and says what it found: the change when the file is not the expected one, else null. Returns at once when no
+    /// expectation is pending. A save waits here before it writes over the file of a document whose edits were made on a base that has not been confirmed yet.
+    /// </summary>
+    private ExternalChange? BaseConflict(CancellationToken ct)
+    {
+        bool pending;
+        lock (_hashGate) pending = _expectedBase is not null;
+        if (pending && HashPass is { } pass) pass.Wait(ct);
+        lock (_hashGate) return _baseMismatch;
+    }
+
+    /// <summary>
+    /// Waits for the pass of a file opened with <see cref="DocumentOptions.ExpectedFingerprint"/>; true only when it ended with the hash of the expected file. A pass that ended
+    /// without a hash (the file moved while it was read, or the document was disposed) is not a confirmation.
+    /// </summary>
+    internal bool ConfirmExpectedBase()
+    {
+        HashPass?.Wait();
+        lock (_hashGate) return _baseMismatch is null && _expectedBase is null && _fingerprint is { HasHash: true };
+    }
+
+    private CancellationTokenSource NewHashing()
+    {
+        lock (_hashGate) return _hashCancel = new CancellationTokenSource();
+    }
+
+    /// <summary>Stops a running pass for good: once this returns, no pass publishes a hash or digests any more. The file is then the document's own, so nothing is expected of it.</summary>
+    private void CancelHashing()
+    {
+        lock (_hashGate)
+        {
+            _hashCancel?.Cancel();
+            _expectedBase = null;
+            _baseMismatch = null;
+        }
     }
 
     /// <summary>
@@ -286,7 +375,7 @@ public sealed partial class Document
                 _editsDuringSave = true;
             }
             // an in-place save checks the file once, cheaply, before the blocks it overwrites; a new file checks before and after it is written
-            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } early) return new(false, early);
+            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(() => BaseConflict(ct) ?? CheckExternalChangeCore(ct), CancellationToken.None) is { } early) return new(false, early);
             ct.ThrowIfCancellationRequested();
 
             string hash;

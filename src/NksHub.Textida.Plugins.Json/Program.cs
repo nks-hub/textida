@@ -10,6 +10,7 @@ using NksHub.Textida.Rpc;
 // Package registry lookups need all of: --registry-config FILE (the consent the editor keeps), --registry-timeout-ms N, --registry-max-bytes N, --registry-page-size N,
 // --registry-max-lookups N, --registry-manifest-max-bytes N; --registry-url ID=URL (repeatable) sends one registry's requests elsewhere (a mirror, a test);
 // --registry-cache-max-bytes N and --registry-cache-seconds N bound the cache of registry answers (without them it is not bounded and does not expire).
+// --registry-max-redirects N is how many redirects a request that goes through the editor (a proxy with a login) follows; without it none is followed.
 // Schemas from the network (a $schema address, the catalog of known schemas) need the registry options and all of: --schema-cache DIR, --schema-cache-max-bytes N, --schema-download-max-bytes N,
 // --schema-cache-max-age-seconds N, --schema-retry-seconds N; without them only carried schemas and schema files on disk are used.
 // A $ref to another document is followed only with both --schema-ref-depth N and --schema-ref-documents N (0 follows none).
@@ -21,7 +22,7 @@ int schemaDepth = -1, schemaRegexMs = -1;
 string? registryConfig = null;
 int registryTimeout = -1, registryPage = -1, registryLookups = -1;
 long registryBytes = -1, registryManifestBytes = -1, registryCacheBytes = 0;
-int registryCacheSeconds = 0;
+int registryCacheSeconds = 0, registryRedirects = 0;
 string? schemaCache = null;
 long schemaCacheBytes = -1, schemaDownloadBytes = -1;
 int schemaCacheAge = -1, schemaRetry = -1, schemaRefDepth = 0, schemaRefDocuments = 0;
@@ -43,6 +44,7 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--registry-manifest-max-bytes") registryManifestBytes = long.Parse(args[i + 1]);
     else if (args[i] == "--registry-cache-max-bytes") registryCacheBytes = long.Parse(args[i + 1]);
     else if (args[i] == "--registry-cache-seconds") registryCacheSeconds = int.Parse(args[i + 1]);
+    else if (args[i] == "--registry-max-redirects") registryRedirects = int.Parse(args[i + 1]);
     else if (args[i] == "--schema-cache") schemaCache = args[i + 1];
     else if (args[i] == "--schema-cache-max-bytes") schemaCacheBytes = long.Parse(args[i + 1]);
     else if (args[i] == "--schema-download-max-bytes") schemaDownloadBytes = long.Parse(args[i + 1]);
@@ -63,11 +65,15 @@ RegistryClient? registryClient = null;
 Func<JsonRpcDispatcher, PackageService>? packages = null;
 if (registryConfig is not null && registryTimeout > 0 && registryBytes > 0 && registryPage > 0 && registryLookups > 0 && registryManifestBytes > 0)
 {
-    var registrySettings = new RegistrySettings(registryConfig, registryTimeout, registryBytes, registryPage, registryLookups, registryManifestBytes, Math.Max(registryCacheBytes, 0), Math.Max(registryCacheSeconds, 0));
+    var registrySettings = new RegistrySettings(registryConfig, registryTimeout, registryBytes, registryPage, registryLookups, registryManifestBytes, Math.Max(registryCacheBytes, 0), Math.Max(registryCacheSeconds, 0), Math.Max(registryRedirects, 0));
     var adapters = RegistryAdapter.CreateAll();
     foreach (var adapter in adapters) if (registryUrls.TryGetValue(adapter.Id, out var url)) adapter.Override(url);
     registryClient = new RegistryClient(registrySettings);
-    packages = rpc => new PackageService(rpc, registryClient, registrySettings, adapters);
+    packages = rpc =>
+    {
+        registryClient.UseEditor(() => new EditorHttpHandler(rpc));
+        return new PackageService(rpc, registryClient, registrySettings, adapters);
+    };
 }
 Func<JsonRpcDispatcher, SchemaService>? schema = null;
 if (schemaMaxBytes > 0 && schemaDepth > 0 && schemaRegexMs > 0)
@@ -76,7 +82,11 @@ if (schemaMaxBytes > 0 && schemaDepth > 0 && schemaRegexMs > 0)
     var cache = schemaCache is not null && schemaCacheBytes > 0 && schemaDownloadBytes > 0 && schemaCacheAge >= 0 && schemaRetry >= 0
         ? new SchemaCacheSettings(schemaCache, schemaCacheBytes, schemaDownloadBytes, TimeSpan.FromSeconds(schemaCacheAge), TimeSpan.FromSeconds(schemaRetry))
         : null;
-    schema = rpc => new SchemaService(rpc, schemaSettings, new SchemaCatalog([]), new SchemaLoader(registryClient, cache, schemaSettings), schemaMappings is null ? null : new SchemaMappingFile(schemaMappings, schemaMaxBytes));
+    schema = rpc =>
+    {
+        registryClient?.UseEditor(() => new EditorHttpHandler(rpc));
+        return new SchemaService(rpc, schemaSettings, new SchemaCatalog([]), new SchemaLoader(registryClient, cache, schemaSettings), schemaMappings is null ? null : new SchemaMappingFile(schemaMappings, schemaMaxBytes));
+    };
 }
 
 var plugin = new JsonPlugin(new FormatSettings(maxBytes, indent, maxDepth), schema, packages);

@@ -373,6 +373,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     private void Pump()
     {
+        long trace = Core.TypingTrace.Begin();
+        try { PumpCore(); }
+        finally { Core.TypingTrace.End("minimap.pump", trace); }
+    }
+
+    private void PumpCore()
+    {
         // a job queued before the window closed runs after its documents were disposed; a minimap that left the visual tree has nothing to draw
         if (_disposed || !_attached || Wanted() is not { } first) return;
         if (!first.Layout.Sampled) RequestColors(first.Layout, first.Key.Width); // the colors may arrive at once and change the version
@@ -490,6 +497,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
     // ---- drawing ----
 
     public override void Render(DrawingContext context)
+    {
+        long trace = Core.TypingTrace.Begin();
+        try { RenderCore(context); }
+        finally { Core.TypingTrace.End("minimap.render", trace); }
+    }
+
+    private void RenderCore(DrawingContext context)
     {
         var bounds = new Rect(Bounds.Size);
         var plain = Resource("Fg", Dark ? Colors.White : Colors.Black);

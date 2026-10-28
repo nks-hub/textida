@@ -146,6 +146,28 @@ public class ReviewFolderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_batch_names_the_files_the_folder_reported_as_created_and_not_the_ones_that_were_only_written()
+    {
+        string written = Put("old.txt", "one");
+        using var watcher = new FolderChangeWatcher([_dir], TimeSpan.FromMilliseconds(150), 100);
+        var batches = new List<FolderChangeBatch>();
+        watcher.Changed += batch => { lock (batches) batches.Add(batch); };
+        watcher.Start();
+
+        File.WriteAllText(written, "two");
+        string created = Put("fresh.txt", "x");
+
+        Assert.True(await Until(() => { lock (batches) return batches.SelectMany(b => b.Files).Contains(written) && batches.SelectMany(b => b.Files).Contains(created); }), "both files were not reported");
+        await Task.Delay(500);
+        lock (batches)
+        {
+            Assert.Contains(batches, b => b.IsCreated(created));
+            Assert.DoesNotContain(batches, b => b.IsCreated(written));
+        }
+        Assert.False(new FolderChangeBatch([created], 0).IsCreated(created)); // a batch built without the information names nothing as created
+    }
+
+    [Fact]
     public async Task A_batch_holds_at_most_the_given_number_of_files_and_counts_what_did_not_fit()
     {
         using var watcher = new FolderChangeWatcher([_dir], TimeSpan.FromMilliseconds(400), 3);

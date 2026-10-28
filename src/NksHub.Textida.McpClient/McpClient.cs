@@ -198,8 +198,9 @@ public sealed class McpClient : IAsyncDisposable
         }
         ProcessLaunch.Track(process);
         var client = new McpClient(launch.Mask, options, process, null);
-        client._stderrPump = Task.Run(() => StderrPump.RunAsync(process.StandardError, client._tail, options.StderrTailLines, onStderr, launch.Mask));
-        client._rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Mcp, options.Limits, new Handler());
+        var stderr = ChildPipe.Error(process, new UTF8Encoding(false)); // the pipes are read on threads of their own, not on the pool
+        client._stderrPump = Task.Run(() => StderrPump.RunAsync(stderr, client._tail, options.StderrTailLines, onStderr, launch.Mask));
+        client._rpc = new JsonRpcDispatcher(ChildPipe.Output(process), process.StandardInput.BaseStream, RpcProtocols.Mcp, options.Limits, new Handler());
         client._watch = client.WatchAsync();
         return await client.FinishStartAsync(ct).ConfigureAwait(false);
     }

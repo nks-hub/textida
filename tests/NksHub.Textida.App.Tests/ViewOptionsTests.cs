@@ -115,8 +115,11 @@ public class ViewOptionsTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
-    public ViewOptionsTests()
+    private readonly ITestOutputHelper _output;
+
+    public ViewOptionsTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp);
         _w = _app.CreateWindow(null);
         _w.Width = 1200;
@@ -931,6 +934,42 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_text_and_the_map_get_their_colors_once_a_fast_drag_of_the_sampled_minimap_has_ended()
+    {
+        var tab = Open("drag-colors.cs", KeywordFile(400_000), paged: true);
+        var map = tab.Minimap!;
+        Assert.True(map.IsSampled);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 2);
+        var colors = SyntaxColors(["keyword", "comment"]).ToList();
+        var text = InWindow(tab.Paged!, new Rect(60, 0, Math.Max(100, tab.Paged!.Bounds.Width - 120), tab.Paged.Bounds.Height));
+        async Task<bool> TextColored() // awaits, so that the timer that waits for the jumps to stop can tick
+        {
+            var clock = Stopwatch.StartNew();
+            while (clock.Elapsed.TotalSeconds < 10)
+            {
+                Dispatcher.UIThread.RunJobs();
+                if (Matching(Capture(), text, colors) > 20) return true;
+                await Task.Delay(50);
+            }
+            return false;
+        }
+        Assert.True(await TextColored(), "the first screen of the file has no colors before the drag");
+        _w.MouseDown(start, MouseButton.Left);
+        for (int i = 0; i < 120; i++)
+        {
+            _w.MouseMove(new Point(start.X, start.Y + i * 3));
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+        }
+        _w.MouseUp(new Point(start.X, start.Y + 360), MouseButton.Left);
+        Assert.True(tab.Paged!.TopLine > 100_000, $"the drag moved the text to line {tab.Paged.TopLine}");
+
+        Assert.True(await TextColored(), "the lines where the drag ended stayed without colors");
+        Assert.True(WaitForColors(tab, ["keyword"]), "the map lost its colors after the drag");
+    }
+
+    [AvaloniaFact]
     public void The_sampled_minimap_of_a_paged_log_draws_its_lines_in_the_colors_of_their_levels()
     {
         var tab = Open("levels-big.log", string.Concat(Enumerable.Range(0, 60_000).Select(i => $"2026-01-01 ERROR request {i} failed\n")), paged: true);
@@ -1061,19 +1100,46 @@ public class ViewOptionsTests : IDisposable
         var start = new Point(origin.X + 40, origin.Y + 2);
         _w.MouseDown(start, MouseButton.Left);
         var times = new List<double>();
+        List<double> moves = [], layouts = [], jobs = [];
         long before = tab.Paged!.TopLine;
         for (int i = 0; i < 200; i++)
         {
             var clock = Stopwatch.StartNew();
             _w.MouseMove(new Point(start.X, start.Y + i * 2.5));
+            double afterMove = clock.Elapsed.TotalMilliseconds;
             _w.UpdateLayout();
+            double afterLayout = clock.Elapsed.TotalMilliseconds;
             Dispatcher.UIThread.RunJobs();
             times.Add(clock.Elapsed.TotalMilliseconds);
+            moves.Add(afterMove);
+            layouts.Add(afterLayout - afterMove);
+            jobs.Add(times[^1] - afterLayout);
         }
         _w.MouseUp(new Point(start.X, start.Y + 500), MouseButton.Left);
         Assert.True(tab.Paged.TopLine > before + 100_000, $"{before} -> {tab.Paged.TopLine}");
+        static string Spread(List<double> v) { var s = v.Order().ToArray(); return $"p50 {s[s.Length / 2]:0.0}, p95 {s[(int)(s.Length * 0.95)]:0.0}"; }
+        _output.WriteLine($"sampled minimap drag, parts: move [{Spread(moves)}], layout [{Spread(layouts)}], jobs [{Spread(jobs)}] ms");
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)];
+        _output.WriteLine($"sampled minimap drag: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, max {times[^1]:0.0} ms");
+
+        // where the time goes: the spans over a second drag back (the measured one above runs without them)
+        _w.MouseDown(new Point(start.X, start.Y + 500), MouseButton.Left);
+        NksHub.Textida.Core.TypingTrace.Reset();
+        NksHub.Textida.Core.TypingTrace.Enabled = true;
+        try
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                _w.MouseMove(new Point(start.X, start.Y + 500 - i * 2.5));
+                _w.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+            }
+        }
+        finally { NksHub.Textida.Core.TypingTrace.Enabled = false; }
+        _w.MouseUp(new Point(start.X, start.Y), MouseButton.Left);
+        _output.WriteLine("sampled minimap drag, spans of 200 moves:\n" + NksHub.Textida.Core.TypingTrace.Summary());
+        NksHub.Textida.Core.TypingTrace.Reset();
         Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
     }
 
