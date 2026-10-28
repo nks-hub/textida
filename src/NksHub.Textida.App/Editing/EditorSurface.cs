@@ -193,6 +193,8 @@ internal sealed partial class EditorSurface : TextEditor
         var lines = view.VisualLines;
         if (lines.Count == 0) return;
         double scrolled = view.ScrollOffset.X;
+        // the lines change during the measure, before the arrange: Bounds still hold the last width (none before the first arrange), the viewport the one being laid out
+        double width = ((Avalonia.Controls.Primitives.ILogicalScrollable)view).Viewport.Width;
         int first = int.MaxValue, last = 0;
         int step = Math.Max(1, lines.Count / 8);
         for (int i = 0; i < lines.Count; i += step)
@@ -209,10 +211,10 @@ internal sealed partial class EditorSurface : TextEditor
             int left = ColumnAt(view, scrolled, y, 0);
             if (left >= length) continue; // scrolled past the end of this line: nothing of it is visible
             first = Math.Min(first, left);
-            last = Math.Max(last, ColumnAt(view, scrolled + view.Bounds.Width, y, length) + 1);
+            last = Math.Max(last, ColumnAt(view, scrolled + width, y, length) + 1);
         }
         if (first == int.MaxValue) first = last = 0;
-        if (scrolled == 0 && !WordWrap) last = (int)Math.Min(last, Math.Ceiling(view.Bounds.Width / (Math.Max(1, view.WideSpaceWidth) * 0.3)));
+        if (scrolled == 0 && !WordWrap) last = (int)Math.Min(last, Math.Ceiling(width / (Math.Max(1, view.WideSpaceWidth) * 0.3)));
         Syntax.SetVisible(lines[0].FirstDocumentLine.LineNumber - 1, lines[^1].LastDocumentLine.LineNumber - 1, first, Math.Max(first + 1, last));
     }
 
