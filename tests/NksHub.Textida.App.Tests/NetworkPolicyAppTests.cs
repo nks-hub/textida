@@ -38,8 +38,8 @@ public class NetworkPolicyAppTests : IDisposable
         _temp.Dispose();
     }
 
-    /// <summary>A web server on loopback that answers <c>ok</c> to each request.</summary>
-    private static (int Port, Task Serving) Serve(TcpListener web, int requests) => (((IPEndPoint)web.LocalEndpoint).Port, Task.Run(async () =>
+    /// <summary>A web server on loopback that answers <c>ok</c> to each request, or a redirect to the address <paramref name="redirectTo"/> gives for the request (counted from 0).</summary>
+    private static (int Port, Task Serving) Serve(TcpListener web, int requests, Func<int, string?>? redirectTo = null) => (((IPEndPoint)web.LocalEndpoint).Port, Task.Run(async () =>
     {
         for (int i = 0; i < requests; i++)
         {
@@ -48,7 +48,10 @@ public class NetworkPolicyAppTests : IDisposable
             var head = new StringBuilder();
             var one = new byte[1];
             while (!head.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal) && await s.ReadAsync(one) > 0) head.Append((char)one[0]);
-            await s.WriteAsync("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"u8.ToArray());
+            string? location = redirectTo?.Invoke(i);
+            await s.WriteAsync(location is null
+                ? "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"u8.ToArray()
+                : Encoding.ASCII.GetBytes($"HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"));
         }
     }));
 
@@ -99,6 +102,36 @@ public class NetworkPolicyAppTests : IDisposable
         Assert.Equal(1, proxy.Tunnels);
         web.Stop();
         await serving;
+    }
+
+    [AvaloniaFact]
+    public async Task The_client_of_the_update_check_follows_a_redirect_to_a_page_of_the_same_host()
+    {
+        var web = new TcpListener(IPAddress.Loopback, 0);
+        web.Start();
+        var (port, serving) = Serve(web, 2, i => i == 0 ? $"http://127.0.0.1:{((IPEndPoint)web.LocalEndpoint).Port}/moved" : null);
+
+        using (var http = _w.CreateUpdateHttpClient()) Assert.Equal("ok", await http.GetStringAsync($"http://127.0.0.1:{port}/feed"));
+
+        await serving;
+        web.Stop();
+    }
+
+    [AvaloniaFact]
+    public async Task The_client_of_the_update_check_does_not_follow_a_redirect_to_another_host()
+    {
+        var web = new TcpListener(IPAddress.Loopback, 0);
+        web.Start();
+        var (port, serving) = Serve(web, 1, _ => $"http://localhost:{((IPEndPoint)web.LocalEndpoint).Port}/elsewhere");
+
+        using (var http = _w.CreateUpdateHttpClient())
+        {
+            using var answer = await http.GetAsync($"http://127.0.0.1:{port}/feed");
+            Assert.Equal(HttpStatusCode.Found, answer.StatusCode); // handed back, not followed
+        }
+
+        await serving;
+        web.Stop();
     }
 
     [AvaloniaFact]
