@@ -518,6 +518,34 @@ public class JsonFormatterTests
         Assert.Equal("\n  [1,{\"k\":\"v w\"}]  \n", outer);
     }
 
+    /// <summary>The check every result passes. No input makes the printers go wrong today, so it is tested with the results a bug could produce.</summary>
+    [Theory]
+    [InlineData("{\"a\":1}", "{\"a\":1", false)]            // no longer valid
+    [InlineData("{\"a\":1}", "{\"a\":2}", false)]           // a value changed
+    [InlineData("{\"a\":1}", "{\"a\":\"1\"}", false)]       // a number became a string
+    [InlineData("{\"a\":1}", "{\"a\":1,\"b\":2}", false)]   // a member appeared
+    [InlineData("[1,2]", "[2,1]", false)]                   // order changed where it must not
+    [InlineData("{\"a\":1}", "{ \"a\" : 1 }", true)]        // white space only
+    public void A_result_that_is_not_valid_or_not_the_same_tokens_is_not_taken(string before, string after, bool taken)
+    {
+        Assert.Equal(taken, JsonFormatter.Accept(before, after, Strict, sorted: false, comments: true, out var result, out var error));
+
+        Assert.Equal(taken ? after : before, result);
+        Assert.Equal(taken ? JsonErrorKind.Syntax : JsonErrorKind.SelfCheck, error.Kind);
+    }
+
+    [Fact]
+    public void The_check_lets_sorting_reorder_tokens_and_a_comment_move_but_not_vanish()
+    {
+        Assert.False(JsonFormatter.Accept("{\"b\":1,\"a\":2}", "{\"a\":2,\"b\":1}", Strict, sorted: false, comments: true, out _, out _));
+        Assert.True(JsonFormatter.Accept("{\"b\":1,\"a\":2}", "{\"a\":2,\"b\":1}", Strict, sorted: true, comments: true, out _, out _));
+
+        Assert.False(JsonFormatter.Accept("[1, /* c */ 2]", "[1,2]", Jsonc, sorted: false, comments: true, out _, out var lost));
+        Assert.Equal(JsonErrorKind.SelfCheck, lost.Kind);
+        Assert.True(JsonFormatter.Accept("[1, /* c */ 2]", "[1,\n/* c */ 2]", Jsonc, sorted: false, comments: true, out _, out _));
+        Assert.True(JsonFormatter.Accept("[1, /* c */ 2]", "[1,2]", Strict, sorted: false, comments: false, out _, out _)); // minify drops comments on purpose
+    }
+
     [Fact]
     public void Removing_trailing_commas_touches_only_those_commas_also_next_to_a_comment()
     {

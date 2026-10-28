@@ -101,7 +101,7 @@ public static class JsonFormatter
     }
 
     /// <summary>The result is taken when it reads as valid text of the same language and holds the same tokens (the same set of them after sorting) as the text it came from.</summary>
-    private static bool Accept(string before, string after, JsonStyle style, bool sorted, bool comments, out string result, out SyntaxError error)
+    internal static bool Accept(string before, string after, JsonStyle style, bool sorted, bool comments, out string result, out SyntaxError error)
     {
         result = before;
         error = default;
