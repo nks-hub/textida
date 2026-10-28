@@ -146,7 +146,7 @@ public static class LanguageCatalog
             [new("clang-format", "clang-format", "clang-format", ["-i", "${File}"], [".clang-format", "_clang-format"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".m", ".mm", ".cs", ".java"], Verified: true)],
             [new("clang-tidy", "clang-tidy", "clang-tidy", ["${File}"], "gcc-text",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info)], [".clang-tidy"], [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx"])],
-            [C([".clang-format", "_clang-format"], "BasedOnStyle: LLVM\n"), C([".clang-tidy"], "Checks: 'clang-diagnostic-*'\n")],
+            [C([".clang-format", "_clang-format"], "BasedOnStyle: LLVM\n"), C([".clang-tidy"], "Checks: 'clang-diagnostic-*,clang-analyzer-*'\n")], // the default checks; with the diagnostics alone clang-tidy says "no checks enabled" and prints its usage
             []),
         new("php", "PHP",
             [M("php", [".php"], "php"), M("latte", [".latte"], "latte"), M("neon", [".neon"], "neon"), M("blade", [".blade.php"], "blade"), M("twig", [".twig"], "twig")],
