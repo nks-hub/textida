@@ -28,6 +28,14 @@ internal sealed class SinkholeProxy : IDisposable
 
     public NksHub.Textida.Remote.ProxySettings Settings => new(NksHub.Textida.Remote.ProxyType.Http, "127.0.0.1", Port);
 
+    /// <summary>When set, a request without this Basic login is answered 407 and not counted in <see cref="Targets"/>.</summary>
+    public (string User, string Password)? Login { get; set; }
+
+    private int _challenged;
+
+    /// <summary>How many requests were turned away for want of the login.</summary>
+    public int Challenged => Volatile.Read(ref _challenged);
+
     /// <summary>Each request in arrival order as <c>host:port</c>.</summary>
     public IReadOnlyList<string> Targets => [.. _targets];
 
@@ -57,8 +65,15 @@ internal sealed class SinkholeProxy : IDisposable
                     if (read == 0) return;
                     head.Append(Encoding.ASCII.GetString(buffer, 0, read));
                 }
-                var line = head.ToString().Split("\r\n")[0].Split(' ');
+                var lines = head.ToString().Split("\r\n");
+                var line = lines[0].Split(' ');
                 if (line.Length < 2) return;
+                if (Login is { } login && !lines.Contains("Proxy-Authorization: Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{login.User}:{login.Password}")), StringComparer.OrdinalIgnoreCase))
+                {
+                    Interlocked.Increment(ref _challenged);
+                    await stream.WriteAsync("HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"sinkhole\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"u8.ToArray());
+                    return;
+                }
                 if (line[0] == "CONNECT")
                 {
                     _targets.Enqueue(line[1]);

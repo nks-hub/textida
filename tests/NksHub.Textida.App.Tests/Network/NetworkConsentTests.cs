@@ -8,6 +8,7 @@ using Avalonia.LogicalTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.NetWatch;
 using NksHub.Textida.Remote;
 using NksHub.Textida.Workbench.Settings;
 
@@ -82,6 +83,31 @@ public class NetworkConsentTests
         await rig.App.Plugins.CheckSchemaAsync(rig.Window, composer);
 
         await AssertOnlyAsync(rig, "registry.npmjs.org:443");
+    }
+
+    [AvaloniaFact]
+    public async Task With_a_proxy_that_asks_for_a_login_the_registry_lookups_go_through_the_editor_which_logs_in_and_the_JSON_plugin_connects_nowhere()
+    {
+        using var rig = new NetworkRig(proxy: false);
+        const string password = "proxy-secret-7731";
+        var port = rig.Net.Sinkhole.Port;
+        rig.Net.Sinkhole.Login = ("proxy-user", password);
+        rig.Net.AllowLoopback(port, "network proxy of the policy, with a login");
+        NetworkPolicy.Save(rig.App.Remote.NetworkPolicyPath, new ProxySettings(ProxyType.Http, "127.0.0.1", port, "proxy-user"), password, rig.Secrets);
+        var tab = rig.Window.OpenFile(rig.ProjectFile("package.json", "{ \"dependencies\": { \"left-pad\": \"1.0.0\" } }\n"), null);
+        await rig.Until(() => rig.App.Plugins.SchemaResultOf(tab) is not null, "the first check of package.json");
+
+        rig.Dialogs.Answers.Enqueue(0);
+        await rig.Window.PackageLookupAsync(tab, refresh: false);
+
+        var report = await rig.Net.FinishAsync();
+        Assert.True(report.Forbidden.Count == 0, report.ToString());
+        Assert.Equal(["registry.npmjs.org:443"], rig.Net.Sinkhole.Targets.Distinct());
+        Assert.True(rig.Net.Sinkhole.Challenged > 0, "the proxy never asked for the login");
+        // the plugin never held the password or a connection: the editor made the requests
+        NetworkNoConsentTests.AssertWatched(report, "NksHub.Textida.Plugins.Json");
+        Assert.DoesNotContain(report.Ipc, e => e.Process == "NksHub.Textida.Plugins.Json" && e.Kind == NetKind.Connect);
+        Assert.DoesNotContain(password, File.ReadAllText(rig.App.Plugins.Registries.FilePath), StringComparison.Ordinal);
     }
 
     /// <param name="viaDialog">The proxy is saved through File, Remote Files, Network Proxy; otherwise the policy file is written by something else and only its timestamp tells.</param>
