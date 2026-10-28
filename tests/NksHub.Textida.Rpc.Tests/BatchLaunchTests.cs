@@ -18,10 +18,7 @@ public sealed class BatchLaunchTests : IDisposable
 
     private static string[] Brackets(IEnumerable<string> args) => [.. args.Select(a => "[" + a + "]")];
 
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
-    }
+    public void Dispose() => T.DeleteFolder(_dir);
 
     /// <summary>A batch file that prints its arguments, one per line in brackets, to standard output (or to <paramref name="outFile"/>).</summary>
     private string EchoBatch(string name, string? outFile = null)

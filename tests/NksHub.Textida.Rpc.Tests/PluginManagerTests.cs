@@ -26,8 +26,7 @@ public sealed class PluginManagerTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _host.DisposeAsync();
-        foreach (var folder in new[] { _root, _zips })
-            try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+        foreach (var folder in new[] { _root, _zips }) T.DeleteFolder(folder);
     }
 
     /// <summary>A plugin package whose process is the test plugin: its files from the test output folder, started by the dotnet host.</summary>
