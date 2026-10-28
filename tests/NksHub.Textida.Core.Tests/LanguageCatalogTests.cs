@@ -72,10 +72,10 @@ public sealed class LanguageCatalogTests : IDisposable
             Assert.NotEmpty(l.Extensions); // Clippy checks the whole crate, so a linter need not take the file as an argument
         });
         Assert.All(LanguageCatalog.Formatters, f => Assert.Contains("${File}", f.Args));
-        // no version is pinned and only gofmt, clang-format and dart format were run for real: the table says so instead of claiming more
+        // no version is pinned; every formatter and linter was run against the real program (RealToolsTests, category RealTools), which is what Verified says
         Assert.All(LanguageCatalog.Lsp, l => Assert.Null(l.Version));
-        Assert.Equal(["clang-format", "dart-format", "gofmt"], LanguageCatalog.Formatters.Where(f => f.Verified).Select(f => f.Id).Order());
-        Assert.Equal(["dart-analyze"], LanguageCatalog.Linters.Where(l => l.Verified).Select(l => l.Id));
+        Assert.All(LanguageCatalog.Formatters, f => Assert.True(f.Verified, f.Id));
+        Assert.All(LanguageCatalog.Linters, l => Assert.True(l.Verified, l.Id));
         Assert.All(LanguageCatalog.Linters.Where(l => l.Id != "clippy"), l => Assert.Contains("${File}", l.Args)); // Clippy checks the crate
     }
 
@@ -91,8 +91,8 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Contains(".cs", ConfigFormatters.Find("clang-format")!.Extensions);
         Assert.Equal([".editorconfig"], ConfigFormatters.Find("shfmt")!.ConfigFiles); // shfmt reads its options from EditorConfig
         Assert.Equal(["analysis_options.yaml"], ConfigFormatters.Find("dart-format")!.ConfigFiles);
-        // C#: Roslyn first, csharp-ls as the fallback
-        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
+        // C#: Roslyn first (the executable of the C# extension, then the command of the .NET tool), csharp-ls as the fallback
+        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "roslyn-language-server", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
         Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Language == "csharp").Arguments);
     }
 
@@ -195,13 +195,16 @@ public sealed class LanguageCatalogTests : IDisposable
         // success, syntax error, missing program and timeout: a theory over the ids of these data sets, so a tool added to the catalog without a case fails here
         Assert.Equal(runs.Where(r => r.Kind == ToolKind.Format).Select(r => r.Tool).Order(), SaveActionsTests.FormatterCaseIds.Order());
         Assert.Equal(runs.Where(r => r.Kind == ToolKind.Lint).Select(r => r.Tool).Order(), LinterTests.CaseIds.Order());
+        // and the same cases again with the real program (category RealTools; skipped where the program is not installed)
+        Assert.Equal(runs.Where(r => r.Kind == ToolKind.Format).Select(r => r.Tool).Order(), RealToolsTests.FormatCaseIds.Order());
+        Assert.Equal(runs.Where(r => r.Kind == ToolKind.Lint).Select(r => r.Tool).Order(), RealToolsTests.LintCaseIds.Order());
     }
 
     [Fact]
     public void No_tool_is_pinned_to_a_version_yet_and_the_rows_say_which_ones_were_run_for_real()
     {
         Assert.All(LanguageCatalog.Matrix, r => Assert.Null(r.Version)); // OPEN: the versions to pin are the owner's to choose
-        Assert.Equal(["clang-format", "dart-analyze", "dart-format", "gofmt"], LanguageCatalog.Matrix.Where(r => r.Kind is ToolKind.Format or ToolKind.Lint && r.Verified).Select(r => r.Tool).Order());
+        Assert.All(LanguageCatalog.Matrix.Where(r => r.Kind is ToolKind.Format or ToolKind.Lint), r => Assert.True(r.Verified, r.Tool));
         Assert.All(LanguageCatalog.Matrix.Where(r => r.Kind == ToolKind.Grammar), r => Assert.Null(r.Executable));
     }
 

@@ -128,6 +128,7 @@ public class LintAppTests : IDisposable
     [AvaloniaFact]
     public async Task A_missing_program_is_reported_and_the_save_is_not_held_up()
     {
+        Assert.SkipWhen(ToolLocator.Find("phpstan") is not null, "PHPStan is installed in PATH here, so it is not missing.");
         Configure(60);
         File.Delete(_tool);
         var tab = _w.OpenFile(_php, null);

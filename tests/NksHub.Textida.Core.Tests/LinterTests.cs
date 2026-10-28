@@ -10,8 +10,8 @@ namespace NksHub.Textida.Core.Tests;
 
 /// <summary>
 /// P8.8.1: the linters of the catalog through the real runner. A copy of ToolEcho named like the linter stands in for it and prints a recorded sample (written here in my own words after the documented
-/// output shape of each tool). The real PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck and SQLFluff are not installed, so their command lines and output are not verified against the programs;
-/// the sample of <c>dart analyze</c> is the output of the real Dart 3.12.2 (see <see cref="The_real_dart_analyze_reports_what_the_machine_format_parser_reads"/>).
+/// output shape of each tool). These tests need no linter installed. The same cases against the real programs (PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck, SQLFluff, dart analyze)
+/// are in <see cref="RealToolsTests"/> (category RealTools); the sample of <c>dart analyze</c> is the output of the real Dart 3.12.2 (see <see cref="The_real_dart_analyze_reports_what_the_machine_format_parser_reads"/>).
 /// </summary>
 public sealed class LinterTests : IDisposable
 {
@@ -221,7 +221,10 @@ public sealed class LinterTests : IDisposable
     [InlineData("golangci-lint", "golangci-lint has version 1.64.8 built with go1.24.2 from 8f1a2b3 on 2025-03-01T12:00:00Z", LinterVersionState.TooOld, "1.64.8")]
     [InlineData("eslint", "v9.12.0", LinterVersionState.Supported, "9.12.0")]
     [InlineData("eslint", "v7.32.0", LinterVersionState.TooOld, "7.32.0")]
-    [InlineData("eslint", "v10.0.0", LinterVersionState.TooNew, "10.0.0")]
+    [InlineData("eslint", "v10.13.0", LinterVersionState.Supported, "10.13.0")]
+    [InlineData("eslint", "v11.0.0", LinterVersionState.TooNew, "11.0.0")]
+    [InlineData("sqlfluff", "sqlfluff, version 4.4.0", LinterVersionState.Supported, "4.4.0")]
+    [InlineData("sqlfluff", "sqlfluff, version 5.0.0", LinterVersionState.TooNew, "5.0.0")]
     [InlineData("ruff", "ruff 0.6.9", LinterVersionState.Supported, "0.6.9")]
     [InlineData("ruff", "ruff 0.0.292", LinterVersionState.TooOld, "0.0.292")]
     [InlineData("shellcheck", "ShellCheck - shell script analysis tool\nversion: 0.10.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net", LinterVersionState.Supported, "0.10.0")]
@@ -529,6 +532,35 @@ public sealed class LinterTests : IDisposable
         Assert.Equal(["warning", "error"], found.Select(f => f.SeverityWord));
         Assert.Equal(("E501", 3, 89, 3, 120), (found[0].Code, found[0].Line, found[0].Column, found[0].EndLine, found[0].EndColumn));
         Assert.Null(found[1].Code);
+    }
+
+    [Fact]
+    public void Ruff_0_17_names_a_syntax_error_invalid_syntax_and_it_is_an_error_like_the_nameless_one_of_older_versions()
+    {
+        var found = Findings("ruff-json", """[{"code":"F401","message":"x","filename":"a.py","location":{"row":1,"column":8},"end_location":{"row":1,"column":10},"severity":"error"},{"code":"invalid-syntax","message":"unexpected EOF while parsing","filename":"a.py","location":{"row":2,"column":1},"end_location":{"row":2,"column":1},"severity":"error"}]""");
+        Assert.Equal(["warning", "error"], found.Select(f => f.SeverityWord));
+    }
+
+    [Fact]
+    public void GolangciLint_reads_a_type_error_both_as_an_issue_of_typecheck_and_as_the_log_line_it_writes_on_Windows()
+    {
+        var issue = Findings("golangci-json", """{"Issues":[{"FromLinter":"typecheck","Text":"undefined: x","Severity":"","Pos":{"Filename":"bad.go","Line":4,"Column":2}}],"Report":{}}""");
+        Assert.Equal(("error", 4, 2, "typecheck"), (issue[0].SeverityWord, issue[0].Line, issue[0].Column, issue[0].Code));
+
+        string[] windows =
+        [
+            """level=error msg="[linters_context] typechecking error: F:\\p\\go\\bad.go:4:2: undefined: x" """.TrimEnd(),
+            """{"Issues":[],"Report":{"Linters":[{"Name":"errcheck"}]}}""",
+            "0 issues.",
+        ];
+        var parsed = LinterOutput.Parse("golangci-json", windows);
+        Assert.True(parsed.Readable);
+        var log = Assert.Single(parsed.Findings);
+        Assert.Equal((@"F:\p\go\bad.go", 4, 2, "error", "undefined: x"), (log.File, log.Line, log.Column, log.SeverityWord, log.Message));
+
+        // an issue and the same error as a log line are one finding
+        string[] both = [windows[0].Replace(@"F:\\p\\go\\bad.go", "bad.go", StringComparison.Ordinal), """{"Issues":[{"FromLinter":"typecheck","Text":"undefined: x","Severity":"","Pos":{"Filename":"bad.go","Line":4,"Column":2}}]}"""];
+        Assert.Single(LinterOutput.Parse("golangci-json", both).Findings);
     }
 
     [Fact]

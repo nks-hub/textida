@@ -130,7 +130,7 @@ public static class Linters
         int dropped = 0;
         foreach (var f in findings)
         {
-            if (f.File is { Length: > 0 } file && linter.OutputFormat is "cargo-json" or "gcc-text" or "dart-machine" && !SameFile(file, workingDirectory, documentPath)) { dropped++; continue; }
+            if (f.File is { Length: > 0 } file && linter.OutputFormat is "cargo-json" or "gcc-text" or "dart-machine" or "golangci-json" && !SameFile(file, workingDirectory, documentPath)) { dropped++; continue; }
             if (f.Line < 1 || f.Line > starts.Count) { dropped++; continue; }
             int lineStart = starts[f.Line - 1], lineEnd = LineEnd(f.Line);
             int start, end;

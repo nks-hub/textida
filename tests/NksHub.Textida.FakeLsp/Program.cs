@@ -9,6 +9,8 @@
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
 // rename of a word changes its whole-word occurrences in every open document (documentChanges with the version the server holds); with --fileops it also creates
 // created.fake, deletes doomed.fake, renames moveme.fake to moved.fake (all next to the first open document) and edits the external file on disk.
+// --load-ms N: like Roslyn, it knows the document of a request only until it is told to open a solution or projects (solution/open, project/open, noted in the process file); it says it loaded them with workspace/projectInitializationComplete N ms later,
+// and renames in the document of the request only until then.
 using System.Text;
 using System.Text.Json;
 
@@ -20,6 +22,8 @@ string? configSections = args.SkipWhile(a => a != "--config").Skip(1).FirstOrDef
 string? processFile = null;
 // TEXTIDA_FAKELSP_ARGV names a file that gets the command line of each start, so a test can see how the editor launches a server from the catalog.
 if (Environment.GetEnvironmentVariable("TEXTIDA_FAKELSP_ARGV") is { Length: > 0 } argvFile) File.AppendAllText(argvFile, string.Join('\n', args) + "\n--\n");
+int loadMs = int.TryParse(args.SkipWhile(a => a != "--load-ms").Skip(1).FirstOrDefault(), out var loadValue) ? loadValue : -1;
+var loading = new int[] { loadMs >= 0 ? 1 : 0 }; // until it is told to open a project, a server of this kind knows the document of the request only
 if (dump is not null)
 {
     Directory.CreateDirectory(dump);
@@ -208,6 +212,7 @@ string? Rename(JsonElement p)
     var changes = new List<string>();
     foreach (var (otherUri, text) in texts)
     {
+        if (Volatile.Read(ref loading[0]) == 1 && otherUri != uri) continue;
         var edits = new List<string>();
         for (int at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
             if ((at == 0 || !IsWord(text[at - 1])) && (at + word.Length == text.Length || !IsWord(text[at + word.Length])))
@@ -264,6 +269,20 @@ while (ReadMessage() is { } body)
             {
                 var items = string.Join(',', configSections.Split(',').Select(section => section == "*" ? "{}" : $"{{\"section\":{Quote(section)}}}"));
                 Send($"{{\"jsonrpc\":\"2.0\",\"id\":7001,\"method\":\"workspace/configuration\",\"params\":{{\"items\":[{items}]}}}}");
+            }
+            break;
+        case "solution/open":
+        case "project/open":
+            Note("workspace " + method + " " + p.GetRawText());
+            if (loadMs >= 0)
+            {
+                Volatile.Write(ref loading[0], 1);
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(loadMs);
+                    Volatile.Write(ref loading[0], 0);
+                    Send("{\"jsonrpc\":\"2.0\",\"method\":\"workspace/projectInitializationComplete\"}");
+                });
             }
             break;
         case "shutdown":

@@ -115,6 +115,7 @@ public class LspLocateAppTests : IDisposable
     [AvaloniaFact]
     public async Task A_program_of_the_second_entry_is_found_when_the_first_is_not_there()
     {
+        Assert.SkipWhen(ToolLocator.Find("Microsoft.CodeAnalysis.LanguageServer") is not null || ToolLocator.Find("roslyn-language-server") is not null, "A Roslyn server is installed in PATH here, so csharp-ls is not the first one found.");
         string only = Fake(Path.Combine(_temp.Path, "bin"), "csharp-ls"); // Roslyn is not installed, csharp-ls is
         SaveActionConfig.Write(ActionsFile, new SaveActionsFile { ToolPaths = new Dictionary<string, string> { ["lsp:csharp"] = Path.GetDirectoryName(only)! } });
         var tab = _w.OpenFile(_temp.File("Program.cs", "class C {}\n"), null);
