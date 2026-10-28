@@ -15,7 +15,7 @@ public sealed record LintParse(bool Readable, IReadOnlyList<LintFinding> Finding
 /// <summary>
 /// The parsers of the output formats named in <see cref="CatalogLinter.OutputFormat"/>. They read the machine-readable output of PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff,
 /// ShellCheck, SQLFluff and <c>dart analyze</c> from the lines a tool wrote (standard output and error mixed, so a JSON value is looked for at the start of a line). The shapes come from the documentation
-/// of the tools; only the one of <c>dart analyze</c> was checked against the real program (Dart 3.12.2).
+/// of the tools and were checked against the real programs (see <see cref="LanguageCatalog"/> for the versions): what they printed on the two systems is what the parsers and the tests read.
 /// </summary>
 public static class LinterOutput
 {

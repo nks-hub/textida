@@ -10,8 +10,8 @@ namespace NksHub.Textida.Core.Tests;
 
 /// <summary>
 /// P8.8.1: the linters of the catalog through the real runner. A copy of ToolEcho named like the linter stands in for it and prints a recorded sample (written here in my own words after the documented
-/// output shape of each tool). The real PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck and SQLFluff are not installed, so their command lines and output are not verified against the programs;
-/// the sample of <c>dart analyze</c> is the output of the real Dart 3.12.2 (see <see cref="The_real_dart_analyze_reports_what_the_machine_format_parser_reads"/>).
+/// output shape of each tool). These tests need no linter installed. The same cases against the real programs (PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck, SQLFluff, dart analyze)
+/// are in <see cref="RealToolsTests"/> (category RealTools); the sample of <c>dart analyze</c> is the output of the real Dart 3.12.2 (see <see cref="The_real_dart_analyze_reports_what_the_machine_format_parser_reads"/>).
 /// </summary>
 public sealed class LinterTests : IDisposable
 {
@@ -221,7 +221,10 @@ public sealed class LinterTests : IDisposable
     [InlineData("golangci-lint", "golangci-lint has version 1.64.8 built with go1.24.2 from 8f1a2b3 on 2025-03-01T12:00:00Z", LinterVersionState.TooOld, "1.64.8")]
     [InlineData("eslint", "v9.12.0", LinterVersionState.Supported, "9.12.0")]
     [InlineData("eslint", "v7.32.0", LinterVersionState.TooOld, "7.32.0")]
-    [InlineData("eslint", "v10.0.0", LinterVersionState.TooNew, "10.0.0")]
+    [InlineData("eslint", "v10.13.0", LinterVersionState.Supported, "10.13.0")]
+    [InlineData("eslint", "v11.0.0", LinterVersionState.TooNew, "11.0.0")]
+    [InlineData("sqlfluff", "sqlfluff, version 4.4.0", LinterVersionState.Supported, "4.4.0")]
+    [InlineData("sqlfluff", "sqlfluff, version 5.0.0", LinterVersionState.TooNew, "5.0.0")]
     [InlineData("ruff", "ruff 0.6.9", LinterVersionState.Supported, "0.6.9")]
     [InlineData("ruff", "ruff 0.0.292", LinterVersionState.TooOld, "0.0.292")]
     [InlineData("shellcheck", "ShellCheck - shell script analysis tool\nversion: 0.10.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net", LinterVersionState.Supported, "0.10.0")]
