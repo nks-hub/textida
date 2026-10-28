@@ -964,10 +964,12 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     private long ColumnOnThePool(LineView line, long offset)
     {
+        bool reveal = _revealing;
         if (_farMove is null)
             StartFarWalk(line.Start, offset, null, () =>
             {
                 ColumnOfOffset(line, offset); // the points the walk kept are near now: this finds the column and remembers it
+                if (reveal && offset == _caret) Reveal(); // the place it scrolled to was worked out from the estimate
                 _canvas.InvalidateVisual();
                 RaiseViewChanged();
             });
@@ -1067,13 +1069,19 @@ internal sealed partial class PagedTextView : Grid
         int visible = Math.Max(1, _canvas.VisibleLines - 1);
         if (c.Line < TopLine) _bar.Value = c.Line;
         else if (c.Line >= TopLine + visible) _bar.Value = Math.Min(_bar.Maximum, c.Line - visible + 1);
-        double x = _canvas.XOfColumn(c.View, CaretColumn(c.View)), width = _canvas.TextWidth;
+        _revealing = true;
+        double x, width = _canvas.TextWidth;
+        try { x = _canvas.XOfColumn(c.View, CaretColumn(c.View)); }
+        finally { _revealing = false; }
         if (x < _hScroll) _hScroll = Math.Max(0, x - 24);
         else if (x > _hScroll + width - 8) _hScroll = x - width + 32;
         if (_hBar.IsVisible) _hBar.Value = Math.Clamp(_hScroll / _canvas.CharWidth, 0, _hBar.Maximum);
         FeedSyntax();
         _canvas.InvalidateVisual();
     }
+
+    /// <summary>True while <see cref="Reveal"/> asks for the column of the caret: a column counted on the pool then scrolls to the caret again when it is known.</summary>
+    private bool _revealing;
 
     // ---- far moves ----
 
