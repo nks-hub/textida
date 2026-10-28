@@ -195,9 +195,10 @@ public sealed class PagedSaveUndoJournalTests : IDisposable
             steps.Do(70_000, 400, 84, 400);
             Assert.Equal(SaveMode.InPlace, doc.PlanSave().Mode);
 
-            // the write is cut at each of its steps; before the commit mark recovery puts the old bytes back, after it the new ones stay
+            // the write is cut at each of its steps; before the commit mark recovery puts the old bytes back, after it the new ones stay.
+            // commit-partial is left out: the writer still holds the patch journal exclusively there, so it is cut by a real crash in the test below
             string saved = models[4].Sha256();
-            doc.InPlaceHooks = new PatchHooks { AfterStep = step => Capture(session, "in-place-" + step, models[4], step == "commit" ? saved : original) };
+            doc.InPlaceHooks = new PatchHooks { AfterStep = step => { if (step != "commit-partial") Capture(session, "in-place-" + step, models[4], step == "commit" ? saved : original); } };
             Assert.True(doc.Save().Saved);
             doc.InPlaceHooks = null;
             Assert.Equal(saved, HashFile(Data));
@@ -225,6 +226,27 @@ public sealed class PagedSaveUndoJournalTests : IDisposable
             while (doc.CanUndo) Assert.NotNull(doc.Undo());
             Assert.Equal(models[0].Sha256(), HashOf(doc));
             Capture(session, "undo-all", models[0], savedAgain);
+        }
+        AssertEveryCrashRecovers(factory);
+    }
+
+    [Fact]
+    public void A_crash_between_the_halves_of_the_commit_mark_of_an_in_place_save_gives_the_edited_document_and_the_old_file()
+    {
+        string original = NewFile();
+        var factory = Factory();
+        using (var session = JournalSession.Start(Journal, Backends(factory), new JournalOptions { Fsync = FsyncPolicy.Manual }))
+        using (var doc = Doc.Open(Data, factory))
+        {
+            session.Track(doc);
+            var steps = new Steps(doc, new LargeModel(Size));
+            steps.Do(100, 5, 81, 5);
+            steps.Do(Size / 2, 40, 82, 40);
+            Assert.Equal(SaveMode.InPlace, doc.PlanSave().Mode);
+
+            doc.InPlaceHooks = new PatchHooks { AfterStep = step => { if (step == "commit-partial") throw new PatchCrash(); } };
+            Assert.Throws<PatchCrash>(() => doc.Save());
+            Capture(session, "in-place-commit-partial", steps.Models[2], original); // the handles of the dead writer are closed, as a crash leaves them
         }
         AssertEveryCrashRecovers(factory);
     }
