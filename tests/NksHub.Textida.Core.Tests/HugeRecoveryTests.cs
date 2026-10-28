@@ -55,4 +55,8 @@ public sealed class HugeRecoveryTests(ITestOutputHelper output)
 
     [Fact]
     public void Killing_the_process_when_the_save_of_a_50_GiB_document_is_half_written_recovers_all_but_the_last_two_seconds_and_leaves_the_file_whole() => KillAt("save");
+
+    /// <summary>No kill: the save is cancelled at half, the edits go on, and the file is still the original with no temporary file beside it.</summary>
+    [Fact]
+    public void Cancelling_the_save_of_a_50_GiB_document_at_half_leaves_the_file_unchanged_and_the_edits_in_place() => KillAt("cancel");
 }

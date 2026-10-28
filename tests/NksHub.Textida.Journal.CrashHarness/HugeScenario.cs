@@ -21,7 +21,7 @@ public static class HugeScenario
 {
     public const int PasteChunk = 4 << 20;
     public const long LossLimitMs = 2000;
-    public static readonly string[] Points = ["edit", "paste", "save"];
+    public static readonly string[] Points = ["edit", "paste", "save", "cancel"];
 
     private static long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -45,7 +45,7 @@ public static class HugeScenario
         return ops;
     }
 
-    private sealed class Percent(StreamWriter stdout) : IProgress<SaveProgress>
+    private sealed class Percent(StreamWriter stdout, CancellationTokenSource? cancelAtHalf) : IProgress<SaveProgress>
     {
         private int _last = -1;
 
@@ -55,6 +55,7 @@ public static class HugeScenario
             if (percent == _last) return;
             _last = percent;
             lock (stdout) stdout.WriteLine($"save {percent} {Now()}");
+            if (percent >= 50) cancelAtHalf?.Cancel();
         }
     }
 
@@ -82,24 +83,36 @@ public static class HugeScenario
 
         var ops = Script(count, pasteAt, pasteChunks);
         Task<SaveResult>? save = null;
+        using var cancel = new CancellationTokenSource();
         for (int i = 0; i < ops.Count; i++)
         {
-            if (point == "save" && i == saveAt)
+            if (point is "save" or "cancel" && i == saveAt)
             {
                 doc.ProgressIntervalMs = 0; // a report after every MiB; the line is printed only when the whole percent changes
-                save = doc.SaveAsync(progress: new Percent(stdout));
+                save = doc.SaveAsync(cancellationToken: cancel.Token, progress: new Percent(stdout, point == "cancel" ? cancel : null));
             }
             var (offset, delete, insert) = ops[i].Resolve(doc.ByteLength);
             var bytes = new byte[insert];
             HugeText.Fill(ops[i].Seed, 0, bytes);
             if (!doc.Replace(new ByteRange(offset, offset + delete), bytes).Applied) throw new InvalidOperationException($"edit {i} was refused");
             lock (stdout) stdout.WriteLine($"{i} {Now()}");
-            if (ops[i].Name != "paste") Thread.Sleep(point == "save" ? 50 : 10);
+            if (ops[i].Name != "paste") Thread.Sleep(point is "save" or "cancel" ? 50 : 10);
         }
-        save?.GetAwaiter().GetResult();
+        try { save?.GetAwaiter().GetResult(); }
+        catch (OperationCanceledException) when (point == "cancel") { lock (stdout) stdout.WriteLine($"cancelled {Now()}"); }
         lock (stdout) stdout.WriteLine($"end {Now()}"); // the script ran out before the parent's trigger: the parent kills now
         Thread.Sleep(TimeSpan.FromMinutes(20));
         return 3;
+    }
+
+    /// <summary>Where the lines of the run go: the console, which the test shows when the run is over, and the file of <c>TEXTIDA_HUGE_LOG</c> at once, which stays when a run is killed.</summary>
+    public sealed class Report
+    {
+        public void AppendLine(string line)
+        {
+            Console.WriteLine(line);
+            HugeText.Log(line);
+        }
     }
 
     private static ProcessStartInfo ChildStart(string dir, string point, int count, int pasteAt, int pasteChunks, int saveAt)
@@ -146,7 +159,7 @@ public static class HugeScenario
     }
 
     /// <summary>Runs one kill point on a fresh file; returns null when the recovery was whole and in time, else what was wrong. The numbers go to <paramref name="report"/>.</summary>
-    public static string? RunPoint(string dir, string point, long size, int pasteChunks, StringBuilder report)
+    public static string? RunPoint(string dir, string point, long size, int pasteChunks, Report report)
     {
         string data = Path.Combine(dir, "data"), journal = Path.Combine(dir, "journal"), spill = Path.Combine(dir, "spill");
         Directory.CreateDirectory(data);
@@ -155,16 +168,20 @@ public static class HugeScenario
         HugeText.WriteFile(file, size);
         report.AppendLine($"[{point}] {size / 1073741824.0:F1} GiB written in {clock.Elapsed.TotalSeconds:F0} s");
 
+        int small = Math.Max(2, pasteChunks / 8);
         (int count, int pasteAt, int chunks, int saveAt, int killOp) = point switch
         {
             "edit" => (600, -1, 0, -1, 300),
             "paste" => (600, 100, pasteChunks, -1, 100 + pasteChunks / 2),
-            _ => (3000, 10, Math.Max(2, pasteChunks / 8), 10 + Math.Max(2, pasteChunks / 8) + 20, -1),
+            "cancel" => (1500, 10, small, 10 + small + 20, -1),
+            _ => (3000, 10, small, 10 + small + 20, -1),
         };
         var ops = Script(count, pasteAt, chunks);
         var acks = new ConcurrentDictionary<int, long>();
+        var events = new ConcurrentDictionary<string, long>();
         long readyAt = -1, killAt = 0;
         int savePercent = -1;
+        bool cancelled = false;
         var trigger = new ManualResetEventSlim();
 
         using var proc = Process.Start(ChildStart(dir, point, count, pasteAt, chunks, saveAt))!;
@@ -176,9 +193,11 @@ public static class HugeScenario
             {
                 var parts = line.Split(' ');
                 if (parts[0] == "ready") Volatile.Write(ref readyAt, long.Parse(parts[1]));
-                else if (parts[0] == "end") trigger.Set();
+                else if (parts[0] == "cancelled") { Volatile.Write(ref cancelled, true); events["cancelled"] = long.Parse(parts[1]); }
+                else if (parts[0] == "end") { events["end"] = long.Parse(parts[1]); trigger.Set(); }
                 else if (parts[0] == "save")
                 {
+                    events.TryAdd("save " + (int.Parse(parts[1]) / 25 * 25), long.Parse(parts[2]));
                     Volatile.Write(ref savePercent, int.Parse(parts[1]));
                     if (point == "save" && savePercent >= 50) trigger.Set();
                 }
@@ -214,7 +233,16 @@ public static class HugeScenario
         }
 
         int acked = acks.Count == 0 ? 0 : acks.Keys.Max() + 1; // edits that returned in the child before the kill
-        report.AppendLine($"[{point}] killed {killAt - readyAt} ms after ready, {acked} of {ops.Count} edits had returned{(point == "save" ? $", the save had written {savePercent} %" : "")}");
+        report.AppendLine($"[{point}] killed {killAt - readyAt} ms after ready, {acked} of {ops.Count} edits had returned{(point is "save" or "cancel" ? $", the save had written {savePercent} %" : "")}{(cancelled ? ", the save was cancelled" : "")}");
+        if (events.Count > 0) report.AppendLine($"[{point}] timeline after ready, ms: " + string.Join(", ", events.OrderBy(e => e.Value).Select(e => $"{e.Key} at {e.Value - readyAt}")));
+        if (saveAt >= 0 && acks.ContainsKey(saveAt) && acks.ContainsKey(saveAt - 1))
+        {
+            long Median(IEnumerable<long> gaps) { var list = gaps.Order().ToList(); return list.Count == 0 ? 0 : list[list.Count / 2]; }
+            var gapsBefore = Enumerable.Range(1, saveAt - 1).Where(i => acks.ContainsKey(i) && acks.ContainsKey(i - 1)).Select(i => acks[i] - acks[i - 1]);
+            var gapsAfter = Enumerable.Range(saveAt + 1, Math.Max(0, acked - saveAt - 1)).Where(i => acks.ContainsKey(i) && acks.ContainsKey(i - 1)).Select(i => acks[i] - acks[i - 1]);
+            report.AppendLine($"[{point}] time between two edits: median {Median(gapsBefore)} ms before the save started, {Median(gapsAfter)} ms after (max {gapsAfter.DefaultIfEmpty().Max()} ms)");
+        }
+        if (point == "cancel" && !cancelled) return "the save was not cancelled";
 
         // the states of the model: after k edits, and its lengths
         var lengths = new long[ops.Count + 1];
@@ -291,7 +319,7 @@ public static class HugeScenario
         foreach (var point in points ?? Points)
         {
             string dir = Path.Combine(work, point);
-            var report = new StringBuilder();
+            var report = new Report();
             string? problem;
             try
             {
@@ -299,8 +327,7 @@ public static class HugeScenario
                 problem = RunPoint(dir, point, size, pasteChunks, report);
             }
             catch (Exception e) { problem = "harness error: " + e; }
-            Console.Write(report);
-            Console.WriteLine($"[{point}] {(problem is null ? "ok" : "FAIL " + problem)}");
+            report.AppendLine($"[{point}] {(problem is null ? "ok" : "FAIL " + problem)}");
             if (problem is not null) failures.Add($"{point}: {problem}");
             try { Directory.Delete(dir, recursive: true); }
             catch (IOException) { }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Tests;
 using Xunit.Abstractions;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
@@ -32,10 +33,10 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
 
     private PagedBackendFactory Factory(long budget = 64 << 10) => new(startIndexing: false, spillBudgetBytes: budget, spillDirectory: Path.Combine(_dir, "spill"));
 
-    private static void Edit(Doc doc, LargeModel model, long offset, long delete, long seed, long length)
+    private static void Edit(Doc doc, LargeModel model, long offset, long delete, long seed, long length, FillBytes? fill = null)
     {
         var bytes = new byte[length];
-        LargeText.Fill(seed, 0, bytes);
+        (fill ?? LargeText.Fill)(seed, 0, bytes);
         Assert.True(doc.Replace(new ByteRange(offset, offset + delete), bytes).Applied);
         model.Replace(offset, delete, seed, length);
     }
@@ -562,22 +563,45 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
     [Trait("Category", "Large")]
     public void Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => OnOwnerThread(() => SaveWhileEditingAsync(3L << 30));
 
-    /// <summary>The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file.</summary>
+    /// <summary>
+    /// The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file. The file and the expected
+    /// bytes come from the fast generator of <see cref="HugeText"/>, with the plain one the test does not end in the 20 minutes the test machine gives a test. It needs about 110 GiB of free
+    /// disk, so it runs only where <c>TEXTIDA_HUGE=1</c> is set.
+    /// </summary>
     [Fact]
     [Trait("Category", "Large")]
-    public void A_50_GiB_file_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot() => OnOwnerThread(() => SaveWhileEditingAsync(50L << 30));
+    public void A_50_GiB_file_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot()
+    {
+        if (!HugeText.Enabled)
+        {
+            output.WriteLine("skipped: TEXTIDA_HUGE is not 1");
+            return;
+        }
+        OnOwnerThread(() => SaveWhileEditingAsync(HugeText.Size(50L << 30), fast: true));
+    }
 
-    private async Task SaveWhileEditingAsync(long size)
+    private void Say(string line)
+    {
+        output.WriteLine(line);
+        HugeText.Log(line);
+    }
+
+    private async Task SaveWhileEditingAsync(long size, bool fast = false)
     {
         long room = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(_dir))!).AvailableFreeSpace;
         Assert.True(room > 2 * size + size / 5, $"{room >> 30} GiB are free; a file of {size >> 30} GiB and its saved copy need {2 * size >> 30} GiB");
+        FillBytes fill = fast ? HugeText.Fill : LargeText.Fill;
         var clock = Stopwatch.StartNew();
-        string path = NewFile(size);
-        output.WriteLine($"{size >> 30} GiB file written in {clock.Elapsed.TotalSeconds:F0} s; the machine has {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes >> 20} MiB of memory");
+        string path = Path.Combine(_dir, "doc.txt");
+        if (fast) HugeText.WriteFile(path, size);
+        else path = NewFile(size);
+        Say($"{size / 1073741824.0:F1} GiB file written in {clock.Elapsed.TotalSeconds:F0} s; the machine has {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes >> 20} MiB of memory");
+        clock.Restart();
         using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
-        var model = new LargeModel(size);
-        Edit(doc, model, size / 3, 0, 41, 80 << 20); // spilled to the scratch file, not held
-        Edit(doc, model, size / 2, 1 << 20, 42, 10);
+        Say($"opened (the whole file is read for its fingerprint) in {clock.Elapsed.TotalSeconds:F0} s");
+        var model = new LargeModel(size, fill);
+        Edit(doc, model, size / 3, 0, 41, 80 << 20, fill); // spilled to the scratch file, not held
+        Edit(doc, model, size / 2, 1 << 20, 42, 10, fill);
         var snapshot = model.Clone();
 
         GC.Collect();
@@ -598,7 +622,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         int edits = 0;
         for (int i = 0; !task.IsCompleted; i++)
         {
-            if (i < 300) { Edit(doc, model, 4096L * i, 0, 100 + i, 64); edits++; } // typing and pasting while the file streams; few enough that the model stays small
+            if (i < 300) { Edit(doc, model, 4096L * i, 0, 100 + i, 64, fill); edits++; } // typing and pasting while the file streams; few enough that the model stays small
             await Task.Delay(20);
         }
         Assert.True((await task).Saved);
@@ -606,13 +630,18 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         await watcher;
 
         long grown = peak - before;
-        output.WriteLine($"save of {size >> 30} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
+        Say($"save of {size / 1073741824.0:F1} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
         Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
         clock.Restart();
-        string fileHash = HashFile(path), expected = snapshot.Sha256();
-        output.WriteLine($"SHA-256 of the saved file {fileHash} against the independent {expected}, both in {clock.Elapsed.TotalSeconds:F0} s");
+        string fileHash = HashFile(path);
+        Say($"SHA-256 of the saved file {fileHash} read in {clock.Elapsed.TotalSeconds:F0} s");
+        clock.Restart();
+        string expected = snapshot.Sha256();
+        Say($"independent SHA-256 of the snapshot {expected} computed in {clock.Elapsed.TotalSeconds:F0} s");
         Assert.Equal(expected, fileHash);
+        clock.Restart();
         Assert.Equal(model.Sha256(), HashOf(doc));
+        Say($"the editor holds the newer revision: both hashes {clock.Elapsed.TotalSeconds:F0} s");
         Assert.True(doc.IsModified);
         Assert.NotNull(doc.Undo()); // undo after the save
         Assert.True(doc.IsModified);

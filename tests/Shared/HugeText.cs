@@ -23,6 +23,16 @@ internal static class HugeText
     /// <summary>The factor of <c>TEXTIDA_HUGE_SCALE</c>, 1 when it is not set.</summary>
     public static double Scale => double.TryParse(Environment.GetEnvironmentVariable("TEXTIDA_HUGE_SCALE"), NumberStyles.Float, CultureInfo.InvariantCulture, out double s) && s > 0 ? s : 1;
 
+    /// <summary>
+    /// Appends a line with the time to the file named by <c>TEXTIDA_HUGE_LOG</c>, if there is one. A test that is killed after 20 minutes loses its output; this file is what is left.
+    /// </summary>
+    public static void Log(string line)
+    {
+        if (Environment.GetEnvironmentVariable("TEXTIDA_HUGE_LOG") is not { Length: > 0 } path) return;
+        try { File.AppendAllText(path, $"{DateTime.Now:HH:mm:ss} {line}{Environment.NewLine}"); }
+        catch (IOException) { }
+    }
+
     /// <summary>A size scaled for a dry run, whole MiB, at least 2 MiB.</summary>
     public static long Size(long bytes) => Math.Max(2L * BlockBytes, (long)(bytes * Scale) / BlockBytes * BlockBytes);
 
