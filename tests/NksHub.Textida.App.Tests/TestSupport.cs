@@ -202,6 +202,8 @@ internal static class TestApp
         PluginLimitsPlaceholders.HandshakeTimeout = TimeSpan.FromSeconds(60);
         app.Configure();
         app.Dialogs = dialogs ?? new ScriptedDialogs();
+        // a Markdown file opens in reading by default (P9.3.4); the tests of the other features open .md files and work in the editor, the tests of the modes choose their own
+        app.Workbench.Set("markdown.defaultMode", "source");
         return app;
     }
 
