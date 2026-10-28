@@ -833,6 +833,7 @@
   "hex.goto.previewA11y": "Cieľ skoku",
   "plugin.panel.close": "Zavrieť panel",
   "a11y.plugin.panel": "Panel zásuvného modulu: {title}",
+  "a11y.plugin.currentItem": "{name}, aktuálna položka",
   "plugin.task.cancel": "Zrušiť",
   "a11y.plugin.task.cancel": "Zrušiť úlohu: {title}",
   "a11y.plugin.task": "{title}, {percent} %",

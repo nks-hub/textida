@@ -46,6 +46,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private const string GitActivation = "onCommand:git";
     /// <summary>The panel of the Git status; its items are the full paths of the files, a click opens the file.</summary>
     public const string GitStatusPanel = "git:status";
+    /// <summary>The command that tells the Git plugin a document is closed, so it can stop watching a repository.</summary>
+    public const string GitClosedCommand = "git.closed";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -244,7 +246,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
-             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString()],
+             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
+             "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
+             "--restart-max-delay-ms", PluginLimitsPlaceholders.LspRestartMaxDelayMilliseconds.ToString(), "--restart-stable-ms", PluginLimitsPlaceholders.LspRestartStableMilliseconds.ToString()],
             [LspActivation], lspFolder));
 
         Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,
@@ -738,7 +742,10 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private DocTab? _symbolWanted;
     private bool _symbolShown;
 
-    /// <summary>Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents), while the tab has an outline.</summary>
+    /// <summary>
+    /// Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents) and the outline marks it as its current item,
+    /// while the tab has an outline.
+    /// </summary>
     public void TrackSymbol(DocTab? tab)
     {
         if (tab is null || !_outlineWanted.Contains(tab.Doc.Doc.Id) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId)
@@ -754,7 +761,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             _symbolTimer.Tick += (_, _) =>
             {
                 _symbolTimer.Stop();
-                if (_symbolWanted is { } wanted) ShowSymbol(SymbolPathAtCaret(wanted));
+                if (_symbolWanted is { } wanted) FollowSymbol(wanted);
             };
         }
         _symbolTimer.Stop();
@@ -774,16 +781,34 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         Ui.SetStatus(CodeExplorerPluginId, new StatusModel(path, Loc.Get(K.SymbolPathTip)));
     }
 
-    /// <summary>The symbol the caret is in or after, with its parents, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
-    private string? SymbolPathAtCaret(DocTab tab)
+    private static long? CaretOf(DocTab tab) => tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
+
+    /// <summary>The symbol the caret is in or after (the last one that starts at or before it); null when there is none.</summary>
+    private static SymbolInfo? SymbolAt(IReadOnlyList<SymbolInfo> symbols, long caret)
     {
-        long? caret = tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
-        var symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
-        if (caret is not { } at || !current) return null;
         SymbolInfo? found = null;
         foreach (var s in symbols)
-            if (s.Range.Start <= at && (found is null || s.Range.Start >= found.Range.Start)) found = s;
-        if (found is null) return null;
+            if (s.Range.Start <= caret && (found is null || s.Range.Start >= found.Range.Start)) found = s;
+        return found;
+    }
+
+    /// <summary>The symbol the caret is in or after, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
+    private SymbolInfo? SymbolAtCaret(DocTab tab, out IReadOnlyList<SymbolInfo> symbols)
+    {
+        symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
+        return CaretOf(tab) is { } at && current ? SymbolAt(symbols, at) : null;
+    }
+
+    /// <summary>The status bar names the symbol the caret is in, with its parents, and the outline of the document marks it as its current item.</summary>
+    private void FollowSymbol(DocTab tab)
+    {
+        var found = SymbolAtCaret(tab, out var symbols);
+        ShowSymbol(found is null ? null : SymbolPath(found, symbols));
+        Ui.SetCurrentItem(CodeExplorerPluginId, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), found?.Id);
+    }
+
+    private static string SymbolPath(SymbolInfo found, IReadOnlyList<SymbolInfo> symbols)
+    {
         var byId = symbols.ToDictionary(s => s.Id);
         var parts = new List<string> { found.Name };
         for (var parent = found.ParentId; parent is not null && byId.TryGetValue(parent, out var p) && parts.Count < 8; parent = p.ParentId)
@@ -955,8 +980,24 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _outlineWanted.Remove(document.Id);
         _schemaChecked.Remove(document.Id);
         _activatedFor.RemoveWhere(x => x.Document == document.Id);
+        ReleaseGitWatch(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
+    }
+
+    /// <summary>
+    /// The last tab of a document closed: tells the Git plugin, if it runs, which stops watching the repository of the file when no other open file of it is left. A command that is still
+    /// running on the document is waited for first, so that it cannot start the watch again afterwards.
+    /// </summary>
+    private void ReleaseGitWatch(Guid document)
+    {
+        if (!_host.IsRegistered(GitPluginId) || _host.GetState(GitPluginId) != PluginState.Running) return;
+        var running = _running.TryGetValue(document, out var run) ? run.Done.Task : Task.CompletedTask;
+        _ = running.ContinueWith(async _ =>
+        {
+            try { await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes($"{{\"command\":\"{GitClosedCommand}\",\"document\":\"{document}\",\"revision\":0}}")); }
+            catch (Exception e) when (e is PluginUnavailableException or PluginCrashedException or NksHub.Textida.Rpc.RpcException or IOException or TimeoutException) { /* the plugin is gone: its watches went with it */ }
+        }, TaskScheduler.Default);
     }
 
     // ---- early tools: outline, reveal, snippets, Tab ----
@@ -985,7 +1026,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             ? [.. list.Select(s => new PanelItem(s.Id, s.Name, s.Kind.Length == 0 ? null : s.Kind, Level(s.Id)))]
             : [];
         var title = Loc.Get(current ? K.PluginSymbolsTitle : K.PluginSymbolsOutdated);
-        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline)));
+        // a new set of the code outline, also the outdated one carried over an edit, keeps the mark of the item the caret is in
+        string? caretItem = set.PluginId == CodeExplorerPluginId && TabOf(set.Document) is { } found && CaretOf(found.Tab) is { } at ? SymbolAt(set.Symbols, at)?.Id : null;
+        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline), Current: caretItem));
     });
 
     public void SymbolsCleared(string pluginId, Guid document) => OnUi(() =>

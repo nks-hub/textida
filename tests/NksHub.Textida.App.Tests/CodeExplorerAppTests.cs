@@ -169,6 +169,32 @@ public class CodeExplorerAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_outline_marks_the_item_the_caret_is_in_moves_the_mark_with_the_caret_and_keeps_it_over_an_edit()
+    {
+        var tab = Open("a.cs", "namespace N;\npublic class Box\n{\n    public void Run(int a) { }\n    public void Stop() { }\n}\n");
+        Assert.Equal(["N", "Box", "Run(int a)", "Stop()"], await IndexedAsync(tab));
+        var panel = PluginServices.SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N");
+        string? Marked() => _app.Plugins.Ui.Panels.Single(p => p.Model.Id == panel).Model.Current;
+        string IdOf(string name) => _app.Plugins.TabSymbols(tab, out _).Single(s => s.Name == name).Id;
+        var text = tab.Editor!.Document;
+
+        // the caret rests in Stop(): once it has rested, the outline marks that item
+        tab.Editor.CaretOffset = text.Text.IndexOf("Stop", StringComparison.Ordinal) + 2;
+        await Until(() => Marked() == IdOf("Stop()"), "the mark on Stop");
+        tab.Editor.CaretOffset = text.Text.IndexOf("Run", StringComparison.Ordinal);
+        await Until(() => Marked() == IdOf("Run(int a)"), "the mark on Run");
+        tab.Editor.CaretOffset = 0; // before the first symbol there is no current item
+        await Until(() => Marked() is null, "the mark going");
+
+        // an edit makes the set outdated and then new; the mark stays with the symbol the caret is in
+        tab.Editor.CaretOffset = text.Text.IndexOf("Stop", StringComparison.Ordinal) + 2;
+        await Until(() => Marked() == IdOf("Stop()"), "the mark on Stop again");
+        text.Insert(0, "// first\n");
+        await Until(() => Names(tab, out bool now) is ["N", "Box", "Run(int a)", "Stop()"] && now && Marked() == IdOf("Stop()"), "the mark after the new outline");
+        Assert.Equal("Stop", text.GetText(tab.Editor.CaretOffset - 2, 4));
+    }
+
+    [AvaloniaFact]
     public async Task The_outline_survives_a_restart_of_the_plugin_process()
     {
         var tab = Open("a.php", "<?php\nclass Box { public function area() {} }\n");

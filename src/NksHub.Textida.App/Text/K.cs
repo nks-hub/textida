@@ -800,6 +800,7 @@ public static class K
     public const string HexSumCopied = "hex.sum.copied";
     public const string PluginPanelClose = "plugin.panel.close";
     public const string A11yPluginPanel = "a11y.plugin.panel";
+    public const string A11yPluginCurrentItem = "a11y.plugin.currentItem";
     public const string PluginTaskCancel = "plugin.task.cancel";
     public const string A11yPluginTaskCancel = "a11y.plugin.task.cancel";
     public const string A11yPluginTask = "a11y.plugin.task";

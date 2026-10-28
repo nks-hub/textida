@@ -118,6 +118,40 @@ public class PluginUiTests : IDisposable
         Assert.Empty(_w.PluginTree.Items);
     }
 
+    private static bool IsBold(TreeViewItem node) => ((TextBlock)((StackPanel)node.Header!).Children[0]).FontWeight == Avalonia.Media.FontWeight.Bold;
+
+    [AvaloniaFact]
+    public async Task The_current_item_of_a_panel_is_drawn_in_bold_named_so_and_moves_without_the_tree_being_built_again()
+    {
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"Outline\",\"kind\":\"tree\",\"reveal\":true,\"current\":\"b\",\"items\":[{\"id\":\"a\",\"label\":\"first\",\"detail\":\"class\",\"children\":[{\"id\":\"b\",\"label\":\"second\"}]},{\"id\":\"c\",\"label\":\"third\"}]}"));
+        await Until(() => _w.PluginPanelOpen, "the revealed panel");
+        var a = OutlineItem("a");
+        var b = a.Items.OfType<TreeViewItem>().Single();
+        var c = OutlineItem("c");
+        Assert.Equal([false, true, false], new[] { IsBold(a), IsBold(b), IsBold(c) });
+        Assert.Equal(("second, current item", "first, class", "third"), (Avalonia.Automation.AutomationProperties.GetName(b), Avalonia.Automation.AutomationProperties.GetName(a), Avalonia.Automation.AutomationProperties.GetName(c)));
+
+        // the mark is no selection: the item the user walked to stays selected, and the nodes stay the very same ones
+        _w.PluginTree.SelectedItem = a;
+        await Pump(Editor(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":\"c\"}"));
+        await Until(() => IsBold(c), "the mark moving to the last item");
+        Assert.Equal([false, false, true], new[] { IsBold(a), IsBold(b), IsBold(c) });
+        Assert.Equal("second", Avalonia.Automation.AutomationProperties.GetName(b));
+        Assert.Same(a, _w.PluginTree.SelectedItem);
+        Assert.Same(a, OutlineItem("a"));
+        Assert.Same(c, OutlineItem("c"));
+
+        await Pump(Editor(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":null}"));
+        await Until(() => !IsBold(c), "the mark going");
+        Assert.DoesNotContain(true, new[] { IsBold(a), IsBold(b), IsBold(c) });
+
+        // new items without a current item draw none
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"Outline\",\"kind\":\"tree\",\"items\":[{\"id\":\"a\",\"label\":\"first\"},{\"id\":\"c\",\"label\":\"third\"}]}"));
+        await Until(() => !ReferenceEquals(OutlineItem("c"), c), "the new items");
+        Assert.False(IsBold(OutlineItem("a")) || IsBold(OutlineItem("c")));
+    }
+
     [AvaloniaFact]
     public async Task A_plugin_has_one_status_item_and_a_task_with_progress_and_a_cancel_button()
     {
