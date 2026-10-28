@@ -516,7 +516,7 @@ public class SecretsViewTests : IDisposable
         _dialogs.Prompts.Enqueue("\"hunter2\"");
         _dialogs.Prompts.Enqueue("\"zzzzzzz\"");
         _dialogs.Answers.Enqueue(1); // cancel the replacement
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         await PumpUntilAsync(() => _dialogs.Asked.Count == 1, "the preview of the replacement");
         var line = Assert.Single(_dialogs.Asked[0].Details!);
         Assert.Contains(stars, line);

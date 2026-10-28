@@ -293,7 +293,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("01");
         _dialogs.Prompts.Enqueue("09");
         _dialogs.Answers.Enqueue(0);
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => hex.Editor.Document.ReadBytes(new(0, 1))[0] == 9);
         Assert.False(_w.FindBar.IsVisible);
     }
