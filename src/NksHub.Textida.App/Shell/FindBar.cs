@@ -22,6 +22,7 @@ internal sealed class FindBar : Border
     private readonly WrapPanel _row = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 4) };
     private readonly Grid _folderRow = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), Margin = new Thickness(12, 0, 12, 4), IsVisible = false };
     private readonly TextBlock _folderLabel = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+    private readonly TextBlock _modeText = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), FontWeight = FontWeight.SemiBold, IsVisible = false };
 
     public FindBar()
     {
@@ -48,7 +49,7 @@ internal sealed class FindBar : Border
         CountText.Classes.Add("findcount");
 
         FindBox.InnerLeftContent = new Avalonia.Controls.Shapes.Path { Data = SearchGlyph, Stroke = Brushes.Gray, StrokeThickness = 1.3, Width = 14, Height = 14, Stretch = Stretch.Uniform, Margin = new Thickness(8, 0, 0, 0) };
-        foreach (var c in new Control[] { FindBox, CountText, StopButton, CaseToggle, RegexToggle, WordToggle, SelectionToggle, TryButton, GoButton, ListButton, ReplaceBox, ReplaceOneButton, ReplaceAllButton, CloseButton })
+        foreach (var c in new Control[] { _modeText, FindBox, CountText, StopButton, CaseToggle, RegexToggle, WordToggle, SelectionToggle, TryButton, GoButton, ListButton, ReplaceBox, ReplaceOneButton, ReplaceAllButton, CloseButton })
         {
             c.Margin = c is TextBlock ? c.Margin : new Thickness(0, 2, 4, 2);
             _row.Children.Add(c);
@@ -101,6 +102,8 @@ internal sealed class FindBar : Border
     public bool ReplaceShown { get; private set; }
     /// <summary>True when the search runs over a folder and the open documents instead of the current document.</summary>
     public bool FilesMode { get; private set; }
+    /// <summary>True when the bar searches the bytes of a hex view: the query is a hex pattern, text in quotes, a number or a regular expression over bytes, and the text switches are not shown.</summary>
+    public bool HexMode { get; private set; }
 
     public event Action? CloseRequested;
     public event Action? QueryChanged;
@@ -115,11 +118,12 @@ internal sealed class FindBar : Border
     public event Action? TryRequested;
     public event Action? BrowseRequested;
 
-    /// <summary>Shows the bar for the current document or for files; <paramref name="replace"/> adds the replacement field.</summary>
-    public void Open(bool files, bool replace)
+    /// <summary>Shows the bar for the current document or for files; <paramref name="replace"/> adds the replacement field and <paramref name="hex"/> makes it the byte search of a hex view (not for files, not with a replacement).</summary>
+    public void Open(bool files, bool replace, bool hex = false)
     {
         FilesMode = files;
-        ReplaceShown = replace;
+        HexMode = hex && !files;
+        ReplaceShown = replace && !HexMode;
         IsVisible = true;
         UpdateVisibility();
         ApplyTexts();
@@ -141,18 +145,22 @@ internal sealed class FindBar : Border
         ReplaceBox.IsVisible = ReplaceShown;
         ReplaceOneButton.IsVisible = ReplaceShown && !FilesMode;
         ReplaceAllButton.IsVisible = ReplaceShown && !FilesMode;
-        SelectionToggle.IsVisible = !FilesMode;
+        SelectionToggle.IsVisible = !FilesMode && !HexMode;
         GoButton.IsVisible = FilesMode;
-        ListButton.IsVisible = !FilesMode;
-        StopButton.IsVisible = _running && !FilesMode;
-        TryButton.IsVisible = RegexToggle.IsChecked == true;
+        ListButton.IsVisible = !FilesMode && !HexMode;
+        StopButton.IsVisible = _running && !FilesMode && !HexMode;
+        TryButton.IsVisible = RegexToggle.IsChecked == true && !HexMode;
+        CaseToggle.IsVisible = RegexToggle.IsVisible = WordToggle.IsVisible = !HexMode;
+        _modeText.IsVisible = HexMode;
+        FindBox.Width = HexMode ? 380 : 220; // the hint of the byte search is longer
         _folderRow.IsVisible = FilesMode;
         CountText.IsVisible = !FilesMode;
     }
 
     public void ApplyTexts()
     {
-        FindBox.PlaceholderText = Loc.Get(K.FindWatermark);
+        FindBox.PlaceholderText = Loc.Get(HexMode ? K.FindHexWatermark : K.FindWatermark);
+        _modeText.Text = Loc.Get(K.FindHexMode);
         ReplaceBox.PlaceholderText = Loc.Get(K.FindReplaceWatermark);
         FolderBox.PlaceholderText = Loc.Get(K.FindFolderWatermark);
         CaseToggle.Content = Loc.Get(K.FindCase);
@@ -172,8 +180,8 @@ internal sealed class FindBar : Border
         ToolTip.SetTip(WordToggle, Loc.Get(K.FindWordTip));
         ToolTip.SetTip(SelectionToggle, Loc.Get(K.FindSelectionTip));
         ToolTip.SetTip(TryButton, Loc.Get(K.FindTryTip));
-        AutomationProperties.SetName(this, Loc.Get(K.A11yFindBar));
-        AutomationProperties.SetName(FindBox, Loc.Get(K.A11yFindInput));
+        AutomationProperties.SetName(this, Loc.Get(HexMode ? K.HexFindTitle : K.A11yFindBar));
+        AutomationProperties.SetName(FindBox, Loc.Get(HexMode ? K.A11yFindHexInput : K.A11yFindInput));
         AutomationProperties.SetName(ReplaceBox, Loc.Get(K.A11yReplaceInput));
         AutomationProperties.SetName(FolderBox, Loc.Get(K.A11yFindFolder));
         AutomationProperties.SetName(CaseToggle, Loc.Get(K.FindCaseTip));
@@ -219,6 +227,7 @@ internal sealed class FindBar : Border
                 else ReplaceAllRequested?.Invoke();
                 e.Handled = true;
                 break;
+            case Key.C or Key.R or Key.W when alt && HexMode: break; // the text switches are not part of the byte search
             case Key.C when alt: CaseToggle.IsChecked = CaseToggle.IsChecked != true; e.Handled = true; break;
             case Key.R when alt: RegexToggle.IsChecked = RegexToggle.IsChecked != true; e.Handled = true; break;
             case Key.W when alt: WordToggle.IsChecked = WordToggle.IsChecked != true; e.Handled = true; break;

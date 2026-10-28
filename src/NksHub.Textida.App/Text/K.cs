@@ -368,6 +368,9 @@ public static class K
     public const string A11yWorkspace = "a11y.workspace";
     public const string A11yGroupsSplitter = "a11y.groups.splitter";
     public const string FindWatermark = "find.watermark";
+    public const string FindHexWatermark = "find.hexWatermark";
+    public const string FindHexMode = "find.hexMode";
+    public const string A11yFindHexInput = "a11y.find.hexInput";
     public const string FindReplaceWatermark = "find.replaceWatermark";
     public const string FindFolderWatermark = "find.folderWatermark";
     public const string FindCase = "find.case";

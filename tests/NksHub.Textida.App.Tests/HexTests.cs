@@ -440,8 +440,11 @@ public class HexTests : IDisposable
             if (bytes[i] == 0x50 && bytes[i + 1] == 0x4B && bytes[i + 3] == 0x04) expected.Add(i);
         var tab = OpenHex(bytes);
         var hex = tab.Hex!;
-        _dialogs.Prompts.Enqueue("50 4B ?? 04");
         Press(Key.F, TestApp.Mod);
+        Assert.True(_w.FindBar.IsVisible && _w.FindBar.HexMode);
+        _w.FindBar.FindBox.Text = "50 4B ?? 04";
+        Dispatcher.UIThread.RunJobs();
+        Press(Key.F3);
         // the count comes after the selection; a bare digit would already match the caret status ("výběr 4 B")
         PumpUntil(() => hex.Editor.HasSelection && _w.StatusLeftText.Contains($"1 z {expected.Count}"));
         Assert.Equal(expected[0], hex.Editor.Selection.Start);

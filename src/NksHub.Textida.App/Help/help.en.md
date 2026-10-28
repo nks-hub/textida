@@ -838,8 +838,8 @@ Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It r
 - Cut, Copy and Paste work with bytes; between two hex views they transfer exactly.
 
 ## [hex.find] Hex: finding and go to offset
-- Ctrl+F opens the Find bytes window. Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, or a number with a type (0x1F40 i32).
-- F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit.
+- Ctrl+F opens the find bar in byte mode (marked Hex, without the text switches). Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, a number with a type (0x1F40 i32) or a regular expression between slashes. While you type, the counter says how long a match may be, or why the entry is refused. Enter finds the next match, Shift+Enter the previous one, Esc closes the bar. Switching to a tab that is not hex (or the other way) closes the bar. Ctrl+H still opens the replace windows.
+- F3 and Shift+F3 find the next and previous match, with the bar open or closed. The status bar and the counter of the bar say Match 1 of 4, or At least N matches when the search hit its limit.
 - Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
 - Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
 - The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the built-in default of 256 bytes is used. *{2,8} writes a range of your own and needs no setting.

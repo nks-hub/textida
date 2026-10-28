@@ -838,8 +838,8 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 - Vyjmout, Kopírovat a Vložit pracují s bajty; mezi dvěma hexy se přenesou přesně.
 
 ## [hex.find] Hex: hledání a skok na offset
-- Ctrl+F otevře okno Hledat bajty. Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, nebo číslo s typem (0x1F40 i32).
-- F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
+- Ctrl+F otevře vyhledávací lištu v režimu bajtů (označená Hex, bez přepínačů pro text). Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, číslo s typem (0x1F40 i32) nebo regulární výraz mezi lomítky. Při psaní počítadlo říká, jak dlouhá shoda může být, nebo proč je zadání odmítnuto. Enter najde další shodu, Shift+Enter předchozí, Esc lištu zavře. Přepnutí na kartu, která není hex (nebo naopak), lištu zavře. Ctrl+H dál otevírá okna nahrazení.
+- F3 a Shift+F3 najdou další a předchozí shodu, s lištou otevřenou i zavřenou. Stavový řádek i počítadlo lišty napíšou Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
 - Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.

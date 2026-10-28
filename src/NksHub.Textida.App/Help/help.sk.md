@@ -838,8 +838,8 @@ Hex zobrazuje súbor po bajtoch: offset, bajty šestnástkovo a znaky. Číta le
 - Vystrihnúť, Kopírovať a Vložiť pracujú s bajtmi; medzi dvoma hexmi sa prenesú presne.
 
 ## [hex.find] Hex: hľadanie a skok na offset
-- Ctrl+F otvorí okno Hľadať bajty. Zadajte bajty šestnástkovo (50 4B ?? 04, ?? je ľubovoľný bajt), text v úvodzovkách, alebo číslo s typom (0x1F40 i32).
-- F3 a Shift+F3 nájdu ďalšiu a predchádzajúcu zhodu. Stavový riadok napíše Zhoda 1 z 4, alebo Aspoň N zhôd, keď hľadanie došlo na limit.
+- Ctrl+F otvorí vyhľadávací panel v režime bajtov (označený Hex, bez prepínačov pre text). Zadajte bajty šestnástkovo (50 4B ?? 04, ?? je ľubovoľný bajt), text v úvodzovkách, číslo s typom (0x1F40 i32) alebo regulárny výraz medzi lomkami. Pri písaní počítadlo hovorí, aká dlhá môže byť zhoda, alebo prečo je zadanie odmietnuté. Enter nájde ďalšiu zhodu, Shift+Enter predchádzajúcu, Esc panel zavrie. Prepnutie na kartu, ktorá nie je hex (alebo naopak), panel zavrie. Ctrl+H ďalej otvára okná nahradenia.
+- F3 a Shift+F3 nájdu ďalšiu a predchádzajúcu zhodu, s panelom otvoreným aj zavretým. Stavový riadok aj počítadlo panela napíšu Zhoda 1 z 4, alebo Aspoň N zhôd, keď hľadanie došlo na limit.
 - Ctrl+G otvorí Prejsť na offset. Zápis: 0x1F40, +0x100 (od kurzora), end-512, 50%, 4K, sel (začiatok výberu), val (štvorbajtová hodnota pod kurzorom).
 - Nenájdené: zhoda nie je. Neplatný vzor alebo Neplatný výraz: opravte zápis. Offset leží mimo súboru: zadajte menšiu hodnotu. Súbor sa medzitým zmenil na disku, výsledok hľadania sa zahodil: hľadanie zopakujte.
 - Zástupný znak *: 50 4B * 04 znamená 0 až N bajtov medzi 4B a 04. N je nastavenie Najdlhší zástupný znak * v hex hľadaní; kým je 0 (nezvolené), platí vstavená predvolená hodnota 256 bajtov. *{2,8} zapíše vlastný rozsah a nastavenie nepotrebuje.
