@@ -25,6 +25,7 @@ internal sealed partial class MainWindow
         foreach (var tab in od.Views)
         {
             if (tab.Surface is { } surface) surface.IsReadOnly = od.ReadOnly;
+            if (tab.Hex is { } hex) hex.ReadOnly = od.ReadOnly; // typing, delete, paste and undo are refused with a message
             if (tab.Paged is { } paged) paged.ReadOnlyReason = od.IsVirtual && od.ReadOnly ? Loc.Get(K.VirtualReadOnly) : od.LockedReadOnly ? Loc.Get(K.LockSaveRefused) : od.UserReadOnly ? Loc.Get(K.SpecialSaveRefused) : null;
         }
         if (od.Lock is not { State: not LockState.Writable } lck) return;

@@ -953,6 +953,23 @@ Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Untersch
 - Die Liste endet bei 1.000.000 Unterschieden (das Fenster sagt es); zwei unabhängige Dateien würden sonst den Speicher füllen.
 - Zwei Revisionen einer Datei aus dem lokalen Verlauf lassen sich im Hex-Editor nicht vergleichen. Vergleichen im lokalen Verlauf vergleicht Text (Thema Lokaler Verlauf).
 
+## [hex.access] Hex: Tastatur und Screenreader
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Alles im Hex lässt sich mit der Tastatur bedienen. Dieses Thema nennt, was nicht offensichtlich ist, und was ein Screenreader bekommt. Geprüft ist es über den Zugänglichkeitsbaum des Programms, mit NVDA und VoiceOver selbst noch nicht.
+### Tastatur
+- Die Pfeile bewegen um ein Byte oder eine Zeile, Strg+Links und Strg+Rechts um eine Gruppe, Bild auf und Bild ab um eine Bildschirmseite, Pos1 und Ende innerhalb der Zeile, Strg+Pos1 und Strg+Ende durch die ganze Datei. Umschalt erweitert die Auswahl. Strg+A wählt alles aus.
+- Tab wechselt zwischen der Bytespalte und der Zeichenspalte und bleibt im Raster (dasselbe tut aus der Palette Hex: Zwischen Hex- und Zeichenspalte wechseln). F6 verlässt das Raster und geht zum nächsten Teil des Fensters, Umschalt+F6 geht zurück. In einem Bereich neben dem Raster bewegt Tab zwischen dessen Bedienelementen und Esc führt zum Raster zurück.
+- Strg+G springt zu einem Offset. Hex: Bis Offset auswählen (Strg+K, dann Strg+A) wählt die Bytes vom Cursor bis zu einem Offset aus: +0x100 wählt 256 Bytes, end wählt bis zum Dateiende. Strg+F sucht Bytes und F3 sucht weiter.
+- Die Einfg-Taste wechselt zwischen Überschreiben und Einfügen (auf macOS ⌥⌘I). Jede Hex-Aktion steht in der Befehlspalette (Strg+Umschalt+P) und, wenn sie eines hat, in einem Menü.
+- Die Bereiche öffnen sich per Tastatur: Dateninspektor mit Strg+K, dann Strg+I, Lesezeichen mit Strg+K, dann Strg+B, Strukturvorlage mit Strg+J, Dateikarte mit Strg+K, dann Strg+G. Strg+K, dann Strg+F legt die Tastatur auf die Karte: Pfeil nach oben und Pfeil nach unten bewegen den Cursor um eine Bildschirmseite, Bild auf und Bild ab um ein Zehntel der Datei, Pos1 und Ende zu den Enden, Esc zurück zum Raster.
+### Screenreader
+- Das Raster ist ein einziges bearbeitbares Element. Sein Wert ist das Byte unter dem Cursor: der Offset, das Byte hexadezimal, sein Wert dezimal und das Zeichen; eine Auswahl fügt ihre Länge sowie ihren ersten und letzten Offset hinzu, ein seit dem letzten Speichern geändertes Byte wird als geändert gemeldet. Die Beschreibung nennt die Zeile, die Position in der Zeile, die Spalte und den Bearbeitungsmodus.
+- Ein verborgener Wert einer .env-Datei wird als verborgener Wert gelesen, nie als Bytes.
+- Ein Wechsel von Modus oder Spalte, das Ergebnis einer Suche und eine Änderung, die abgelehnt wurde, weil die Ansicht schreibgeschützt ist, werden angesagt, ohne dass sich die Tastatur bewegt.
+- Die Karte ist ein Schieberegler, dessen Wert die Stelle des Rasters in der Datei in Prozent ist. Die Beschreibung sagt, was die Zellen zeigen und wie viele Treffer, Lesezeichen und geänderte Stellen die Karte markiert.
+### Hoher Kontrast
+- Geänderte Bytes sind getönt und unterstrichen, ein Lesezeichen hat einen Balken darüber und die Karte behält ihren Rahmen. Bei hohem Kontrast unterscheiden sich die Bytearten nicht nur durch Farbe: 00 ist unterstrichen, FF fett und ein Steuerbyte kursiv.
+
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
 1. Werkzeuge, Werkzeug ausführen zeigt die Werkzeuge aus der Datei tools.json im Profilordner. Die letzte Zeile öffnet diese Datei; beim ersten Mal schreibt sie eine leere Datei, die Sie ausfüllen.

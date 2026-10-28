@@ -2037,6 +2037,24 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.minimap.focus",
+      "title": "cmd.hex.minimap.focus",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.toggleColumn",
+      "title": "cmd.hex.toggleColumn",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.selectTo",
+      "title": "cmd.hex.selectTo",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.statistics",
       "title": "cmd.hex.statistics",
       "category": "cat.hex",
@@ -3661,6 +3679,13 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.toggleColumn",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 25
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.inspector",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -3679,6 +3704,13 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.offsetFormat",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 55
     },
     {
       "menu": "edit",
@@ -4475,6 +4507,13 @@
     },
     {
       "menu": "edit",
+      "command": "nks.hex.selectTo",
+      "group": "4_more/7_hex",
+      "submenu": "hex",
+      "order": 65
+    },
+    {
+      "menu": "edit",
       "command": "nks.hex.bookmarks.panel",
       "group": "4_more/7_hex",
       "submenu": "hex",
@@ -4533,6 +4572,13 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 130
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap.focus",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 115
     },
     {
       "menu": "view",
@@ -5241,6 +5287,16 @@
     {
       "key": "mod+k mod+g",
       "command": "nks.hex.minimap",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+f",
+      "command": "nks.hex.minimap.focus",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+a",
+      "command": "nks.hex.selectTo",
       "when": "hexMode"
     },
     {

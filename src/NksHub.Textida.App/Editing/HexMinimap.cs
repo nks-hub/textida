@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -42,9 +43,50 @@ internal sealed class HexMinimap : Control
         _owner = owner;
         Width = MapWidth;
         ClipToBounds = true;
-        Focusable = false;
+        Focusable = true;
         _timer.Tick += (_, _) => { _timer.Stop(); Rebuild(); };
         AutomationProperties.SetName(this, Loc.Get(K.HexMapA11y));
+    }
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new HexMinimapAutomationPeer(this);
+
+    /// <summary>Where the grid is in the file, in percent: the value a screen reader reads for the map.</summary>
+    internal double Percent => Math.Round(_owner.FirstByte * 100.0 / Math.Max(1, _owner.Document.ByteLength));
+
+    /// <summary>Scrolls the grid to a share of the file, 0 to 100 percent.</summary>
+    internal void ScrollToPercent(double percent) =>
+        _owner.ScrollToOffset((long)(Math.Clamp(percent, 0, 100) / 100 * _owner.Document.ByteLength));
+
+    /// <summary>What the map shows, in words: what the cells mean, the part on screen and how many matches, bookmarks and changed places it marks.</summary>
+    internal string Describe()
+    {
+        long length = _owner.Document.ByteLength, first = _owner.FirstByte, last = Math.Min(length, first + _owner.VisibleBytes);
+        return Loc.Get(K.HexMapHelp, ("mode", Loc.Get(_mode == ByteMapMode.Entropy ? K.HexMapEntropy : K.HexMapClass)), ("start", _owner.OffsetText(first)),
+            ("end", _owner.OffsetText(Math.Max(first, last - 1))), ("size", length), ("matches", _matches.Count), ("bookmarks", _owner.Marks.Items.Count), ("changes", _owner.ChangedRanges().Count));
+    }
+
+    /// <summary>The keyboard moves the caret, and the grid follows: a screen up or down, a tenth of the file, the start or the end. Esc and Enter give the keyboard back to the grid.</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        long caret = _owner.Caret, screen = Math.Max(1, _owner.VisibleBytes), tenth = Math.Max(screen, _owner.Document.ByteLength / 10);
+        long? target = e.Key switch
+        {
+            Key.Up => caret - screen,
+            Key.Down => caret + screen,
+            Key.PageUp => caret - tenth,
+            Key.PageDown => caret + tenth,
+            Key.Home => 0,
+            Key.End => _owner.LastIndex,
+            _ => null,
+        };
+        if (target is { } to) _owner.MoveTo(Math.Clamp(to, 0, _owner.LastIndex));
+        else if (e.Key is Key.Escape or Key.Enter) _owner.Focus();
+        else
+        {
+            base.OnKeyDown(e);
+            return;
+        }
+        e.Handled = true;
     }
 
     /// <summary>The map as it is now; null before the first pass.</summary>
@@ -105,6 +147,7 @@ internal sealed class HexMinimap : Control
     internal void NoteView()
     {
         if (_owner.FirstByte != _thumbFirst || _owner.VisibleBytes != _thumbCount) InvalidateVisual();
+        (ControlAutomationPeer.FromElement(this) as HexMinimapAutomationPeer)?.Moved();
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -233,8 +276,9 @@ internal sealed class HexMinimap : Control
         var highlight = Brush("Highlight", Brushes.Gold);
         double x = mapWidth + 2, w = Lane - 4;
         foreach (var r in _owner.ChangedRanges()) context.FillRectangle(accent, new Rect(x + w / 2, Y(r.Start), w / 2, 2));
+        var fore = Brush("Fg", Brushes.Black);
         foreach (var b in _owner.Marks.Items)
-            context.FillRectangle(b.Color is { } c ? new SolidColorBrush(Color.Parse(c)) : highlight, new Rect(x, Y(b.Range.Start), w / 2, 2));
+            context.FillRectangle(HexView.HighContrast ? fore : b.Color is { } c ? new SolidColorBrush(Color.Parse(c)) : highlight, new Rect(x, Y(b.Range.Start), w / 2, 2));
         foreach (long match in _matches) context.FillRectangle(Brush("Danger", Brushes.Red), new Rect(x, Y(match), w, 1));
     }
 
@@ -267,6 +311,7 @@ internal sealed class HexMinimap : Control
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         e.Pointer.Capture(this);
         _dragging = true;
+        _owner.Focus(); // a click scrolls the grid and leaves the keyboard where it was; the map takes it only from its command
         ScrollAt(e.GetPosition(this).Y);
         e.Handled = true;
     }

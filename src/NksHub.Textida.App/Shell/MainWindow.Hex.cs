@@ -63,6 +63,7 @@ internal sealed partial class MainWindow
     {
         hex.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
         hex.Refused += SetStatusMessage;
+        hex.Announced += text => Announce(text);
         hex.Choose = async (title, message, labels) => await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(title, message,
             [.. labels.Select((label, i) => new DialogButton(label, IsDefault: i == 0, IsCancel: i == labels.Count - 1))]));
         hex.TemplateHost = _app.HexTemplates;
@@ -372,7 +373,7 @@ internal sealed partial class MainWindow
     // ---- go to offset ----
 
     /// <summary>The target of a go-to expression, or the sentence that says why there is none; the preview and the jump share it.</summary>
-    internal static (long? Target, string? Problem) ResolveOffset(HexView hex, string expression)
+    internal static (long? Target, string? Problem) ResolveOffset(HexView hex, string expression, bool select = false)
     {
         var doc = hex.Editor.Document;
         Span<byte> four = stackalloc byte[4];
@@ -386,7 +387,7 @@ internal sealed partial class MainWindow
         try
         {
             long target = OffsetExpression.Evaluate(expression, new OffsetContext(doc.ByteLength, hex.Caret, selection, value));
-            if (target < 0 || target > doc.ByteLength || (target == doc.ByteLength && !hex.Insert && doc.ByteLength > 0))
+            if (target < 0 || target > doc.ByteLength || (target == doc.ByteLength && !select && !hex.Insert && doc.ByteLength > 0)) // a selection may end at the end of the file
                 return (null, Loc.Get(K.HexGotoOutside, ("size", doc.ByteLength)));
             return (target, null);
         }
@@ -397,10 +398,10 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>What Ctrl+G would do with the expression typed so far: the offset it reaches and the byte there, or why it does not.</summary>
-    internal static string PreviewOffset(HexView hex, string expression)
+    internal static string PreviewOffset(HexView hex, string expression, bool select = false)
     {
         if (string.IsNullOrWhiteSpace(expression)) return "";
-        var (target, problem) = ResolveOffset(hex, expression);
+        var (target, problem) = ResolveOffset(hex, expression, select);
         if (target is not { } at) return problem!;
         string offset = hex.OffsetText(at), decimalText = at.ToString(CultureInfo.InvariantCulture);
         if (at >= hex.Editor.Document.ByteLength) return Loc.Get(K.HexGotoPreviewEnd, ("offset", offset), ("decimal", decimalText));
@@ -408,18 +409,19 @@ internal sealed partial class MainWindow
         return Loc.Get(K.HexGotoPreview, ("offset", offset), ("decimal", decimalText), ("value", info.Hidden ? Loc.Get(K.SecretHiddenValue) : $"{info.Value:X2}"));
     }
 
-    internal async Task GoToOffsetAsync(HexView hex)
+    /// <summary>Asks for an offset and moves the caret there; with <paramref name="select"/> the caret goes there from where it is and the bytes in between are selected (<c>+0x100</c> selects 256 bytes).</summary>
+    internal async Task GoToOffsetAsync(HexView hex, bool select = false)
     {
-        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "", text => PreviewOffset(hex, text));
+        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(select ? K.HexSelectToTitle : K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "", text => PreviewOffset(hex, text, select));
         if (answer is null) return;
-        var (target, problem) = ResolveOffset(hex, answer);
+        var (target, problem) = ResolveOffset(hex, answer, select);
         if (target is not { } at)
         {
             SetStatusMessage(problem!);
             return;
         }
         RecordJump();
-        hex.MoveTo(at);
+        hex.MoveTo(at, extend: select);
         hex.CenterIfOutside(at);
         hex.Focus();
     }
