@@ -65,6 +65,8 @@ internal sealed partial class MainWindow
         hex.Refused += SetStatusMessage;
         hex.Choose = async (title, message, labels) => await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(title, message,
             [.. labels.Select((label, i) => new DialogButton(label, IsDefault: i == 0, IsCancel: i == labels.Count - 1))]));
+        hex.TemplateHost = _app.HexTemplates;
+        hex.PickTemplateFile = async () => (await _app.Dialogs.PickFilesAsync(this)).FirstOrDefault();
         AutomationProperties.SetName(hex, Loc.Get(K.A11yHexEditor));
         WireHexBookmarks(hex);
     }
