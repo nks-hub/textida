@@ -175,8 +175,9 @@ public sealed class AcpClient : IAsyncDisposable
         }
         ProcessLaunch.Track(process);
         var client = new AcpClient(options, host, process);
-        client._stderrPump = Task.Run(() => StderrPump.RunAsync(process.StandardError, client._tail, options.StderrTailLines, onStderr));
-        client._rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Acp, options.Limits, new Handler(client));
+        var stderr = ChildPipe.Error(process, new UTF8Encoding(false)); // the pipes are read on threads of their own, not on the pool
+        client._stderrPump = Task.Run(() => StderrPump.RunAsync(stderr, client._tail, options.StderrTailLines, onStderr));
+        client._rpc = new JsonRpcDispatcher(ChildPipe.Output(process), process.StandardInput.BaseStream, RpcProtocols.Acp, options.Limits, new Handler(client));
         client._watch = client.WatchAsync();
         try
         {
