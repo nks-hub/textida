@@ -2009,6 +2009,11 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.ideDisconnect",
+      "title": "cmd.tools.ideDisconnect",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.mcpServers",
       "title": "cmd.tools.mcpServers",
       "category": "cat.tools"
@@ -4420,6 +4425,13 @@
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
       "order": 35
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.ideDisconnect",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 36
     },
     {
       "menu": "tools",

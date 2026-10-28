@@ -253,6 +253,7 @@ internal sealed partial class MainWindow : Window
         RefreshTitle();
         _menuModel = BuildMenuModel();
         var tab = Active;
+        _app.Plugins.Mcp.ActiveTabChanged(this, tab);
         Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_body.Children[0].IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
@@ -344,6 +345,7 @@ internal sealed partial class MainWindow : Window
         ApplyAgentTexts();
         ApplyPreviewTexts();
         RefreshPluginUi();
+        RefreshIdeItem();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
@@ -389,6 +391,7 @@ internal sealed partial class MainWindow : Window
         ReleaseOutput();
         ReleaseLogFollow();
         ReleaseAgent();
+        ReleaseIde();
         ReleasePlugins();
         bool others = _app.Windows.Count > 1;
         foreach (var doc in _docs.ToList())
