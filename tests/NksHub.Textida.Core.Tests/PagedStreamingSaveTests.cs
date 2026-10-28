@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using CrashHarness;
@@ -524,14 +525,47 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
     }
 
+    /// <summary>
+    /// Runs <paramref name="body"/> on the calling thread and resumes its awaits there, like the UI thread of the app. A document is edited and swapped by one
+    /// thread; without this the end of the save runs on a pool thread while the test thread still edits, and an edit meets the replaced file.
+    /// </summary>
+    private static void OnOwnerThread(Func<Task> body)
+    {
+        var previous = SynchronizationContext.Current;
+        var context = new OwnerThreadContext();
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            var task = body();
+            _ = task.ContinueWith(_ => context.Complete(), TaskScheduler.Default);
+            context.Run();
+            task.GetAwaiter().GetResult();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    private sealed class OwnerThreadContext : SynchronizationContext
+    {
+        private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _work = new();
+
+        public override void Post(SendOrPostCallback d, object? state) => _work.Add((d, state));
+
+        public void Complete() => _work.CompleteAdding();
+
+        public void Run()
+        {
+            foreach (var (callback, state) in _work.GetConsumingEnumerable()) callback(state);
+        }
+    }
+
     [Fact]
     [Trait("Category", "Large")]
-    public Task Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => SaveWhileEditingAsync(3L << 30);
+    public void Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => OnOwnerThread(() => SaveWhileEditingAsync(3L << 30));
 
     /// <summary>The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file.</summary>
     [Fact]
     [Trait("Category", "Large")]
-    public Task A_50_GiB_file_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot() => SaveWhileEditingAsync(50L << 30);
+    public void A_50_GiB_file_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot() => OnOwnerThread(() => SaveWhileEditingAsync(50L << 30));
 
     private async Task SaveWhileEditingAsync(long size)
     {
@@ -573,7 +607,9 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
     [Fact]
     [Trait("Category", "Large")]
     [Trait("Category", "Perf")]
-    public async Task Edits_and_the_end_of_a_multi_GiB_streaming_save_do_not_hold_the_caller_longer_than_the_limits()
+    public void Edits_and_the_end_of_a_multi_GiB_streaming_save_do_not_hold_the_caller_longer_than_the_limits() => OnOwnerThread(EditsAndTheEndOfTheSaveAsync);
+
+    private async Task EditsAndTheEndOfTheSaveAsync()
     {
         const long size = 3L << 30;
         string path = NewFile(size);
