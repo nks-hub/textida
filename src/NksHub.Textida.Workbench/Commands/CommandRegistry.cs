@@ -200,6 +200,9 @@ public sealed class CommandRegistry
 
     public bool IsPlaying { get; private set; }
 
+    /// <summary>True while a command runs; a command started meanwhile runs inside it and is not recorded as a step of its own.</summary>
+    public bool IsExecuting => _depth > 0;
+
     /// <summary>While a macro plays a command step, the argument recorded with it; the command uses it instead of asking (Find Next takes its search from here).</summary>
     public string? StepArgument { get; private set; }
 
