@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NksHub.Textida.NetWatch;
 
 namespace NksHub.Textida.App.Tests;
@@ -40,6 +42,7 @@ internal sealed class NetworkHarness : IDisposable
         Directory.CreateDirectory(LogFolder);
         var hook = typeof(NetRecorder).Assembly.Location;
         Assert.True(File.Exists(hook), "the hook assembly is missing: " + hook);
+        SwitchOnWatching();
         if (s_recorder is null)
         {
             s_recorder = new NetRecorder(e => (s_current?._inProcess ?? s_none).Enqueue(e), freshProcess: false);
@@ -51,6 +54,33 @@ internal sealed class NetworkHarness : IDisposable
         Environment.SetEnvironmentVariable("DOTNET_STARTUP_HOOKS", hook);
         Environment.SetEnvironmentVariable(NetLog.FolderVariable, LogFolder);
         Sinkhole = new SinkholeProxy();
+    }
+
+    /// <summary>
+    /// The plugins are built for NativeAOT, and the SDK writes that into their runtimeconfig.json even for a plain build: no startup hooks and no EventSource, so nothing could watch them.
+    /// The copies in the test folder get both switched back on; the network code of a program does not depend on either.
+    /// </summary>
+    private static void SwitchOnWatching()
+    {
+        var folders = new List<string> { AppContext.BaseDirectory };
+        foreach (var parent in new[] { "plugins", "mcp" }.Select(d => Path.Combine(AppContext.BaseDirectory, d)).Where(Directory.Exists))
+        {
+            folders.Add(parent);
+            folders.AddRange(Directory.GetDirectories(parent));
+        }
+        foreach (var file in folders.SelectMany(f => Directory.GetFiles(f, "*.runtimeconfig.json")))
+        {
+            var root = JsonNode.Parse(File.ReadAllText(file));
+            if (root?["runtimeOptions"]?["configProperties"] is not JsonObject properties) continue;
+            bool changed = false;
+            foreach (var knob in new[] { "System.StartupHookProvider.IsSupported", "System.Diagnostics.Tracing.EventSource.IsSupported" })
+                if (properties[knob] is JsonValue { } value && value.TryGetValue<bool>(out var on) && !on)
+                {
+                    properties[knob] = true;
+                    changed = true;
+                }
+            if (changed) File.WriteAllText(file, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        }
     }
 
     public string LogFolder { get; }
