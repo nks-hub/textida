@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- a test library: it runs under the JIT of a test process, never under NativeAOT -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <RootNamespace>NksHub.Textida.Plugin.Testing</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackageId>NksHub.Textida.Plugin.TestHost</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>NKS Hub</Authors>
+    <Description>A Textida editor without a window for tests of plugins: the real document, UI, network and secret APIs of the editor over in-memory documents, and a replay of recorded editor events against a plugin.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>textida;plugin;test</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
+  </ItemGroup>
+
+</Project>
