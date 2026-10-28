@@ -195,7 +195,7 @@ public class HexTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         hex.MoveTo(starts[1]);
         TestApp.Type(_w, "6E6565646C65"); // "needle" over "row 1 "
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         hex.MoveTo(starts[3]);
         Press(Key.Tab);
         TestApp.Type(_w, "needle");
@@ -251,7 +251,7 @@ public class HexTests : IDisposable
 
         Press(Key.Z, TestApp.Mod);
         Assert.Equal(bytes, Bytes(tab));
-        Press(Key.Y, TestApp.Mod);
+        TestApp.Redo(_w);
         Assert.Equal([0x4E, 0x4B, 0x50], Bytes(tab)[..3]);
     }
 
@@ -260,12 +260,12 @@ public class HexTests : IDisposable
     {
         var bytes = Sample();
         var tab = OpenHex(bytes);
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         Assert.Contains("VKLÁDÁNÍ", _w.HexStatusRightText);
         TestApp.Type(_w, "A5");
         Assert.Equal(bytes.Length + 1, tab.Doc.Doc.ByteLength);
         Assert.Equal(0xA5, Bytes(tab)[0]);
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         Assert.Contains("PŘEPIS", _w.HexStatusRightText);
     }
 
@@ -450,14 +450,14 @@ public class HexTests : IDisposable
         for (int i = 1; i < expected.Count; i++)
         {
             long previous = hex.Editor.Selection.Start;
-            Press(Key.F3);
+            TestApp.FindNext(_w);
             PumpUntil(() => hex.Editor.Selection.Start != previous);
             seen.Add(hex.Editor.Selection.Start);
         }
         Assert.Equal(expected, seen);
-        Press(Key.F3);
+        TestApp.FindNext(_w);
         PumpUntil(() => hex.Editor.Selection.Start == expected[0]);
-        Press(Key.F3, RawInputModifiers.Shift);
+        TestApp.FindNext(_w, backwards: true);
         PumpUntil(() => hex.Editor.Selection.Start == expected[^1]);
     }
 
@@ -542,7 +542,7 @@ public class HexTests : IDisposable
         PumpUntil(() => _w.StatusLeftText.Contains("2 B"));
         Assert.False(File.Exists(path + ".textida-patch"));
 
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         tab.Hex!.MoveTo(10);
         TestApp.Type(_w, "A5");
         Press(Key.S, TestApp.Mod);
@@ -585,7 +585,7 @@ public class HexTests : IDisposable
         var original = Sample(3 << 20);
         var tab = OpenHex(original);
         var doc = tab.Doc.Doc;
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         tab.Hex!.MoveTo(10);
         TestApp.Type(_w, "A5");
         var saved = Bytes(tab);
@@ -648,7 +648,7 @@ public class HexTests : IDisposable
         Assert.Equal(original, Bytes(tab));
         Assert.True(doc.IsModified);
 
-        Press(Key.Y, TestApp.Mod);
+        TestApp.Redo(_w);
         Assert.Equal(saved, Bytes(tab));
         Assert.False(doc.IsModified);
         Press(Key.Z, TestApp.Mod);

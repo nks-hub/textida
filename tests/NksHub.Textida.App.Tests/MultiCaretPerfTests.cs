@@ -106,7 +106,7 @@ public class MultiCaretPerfTests(ITestOutputHelper output) : IDisposable
         double undo = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
         Assert.Equal(original, tab.Editor.Document.Text);
         t0 = Stopwatch.GetTimestamp();
-        TestApp.Press(w, Key.Y, TestApp.Mod);
+        TestApp.Redo(w);
         double redo = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
         output.WriteLine($"1000 carets: undo {undo:0.0} ms, redo {redo:0.0} ms");
         Assert.Equal(1000, tab.Editor.CaretCount);

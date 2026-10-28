@@ -80,7 +80,7 @@ public class FindTests : IDisposable
         await OpenAndFind("produkt a produkt\n", "produkt");
         Assert.Equal("produkt", Selected(_w.Active!));
         _w.FindBar.CaseToggle.IsChecked = false;
-        TestApp.Press(_w, Key.H, RawInputModifiers.Control);
+        TestApp.Replace(_w);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("produkt", _w.FindBar.FindBox.Text);
         Assert.True(_w.FindBar.ReplaceShown);
@@ -94,7 +94,7 @@ public class FindTests : IDisposable
         var starts = new List<int>();
         for (int i = 0; i < 4; i++)
         {
-            TestApp.Press(_w, Key.F3);
+            TestApp.FindNext(_w);
             await Settle(() => !_w.FindIsRunning);
             starts.Add(tab.Editor!.GetSelections()[0].Start);
         }
@@ -104,7 +104,7 @@ public class FindTests : IDisposable
         var back = new List<int>();
         for (int i = 0; i < 3; i++)
         {
-            TestApp.Press(_w, Key.F3, RawInputModifiers.Shift);
+            TestApp.FindNext(_w, backwards: true);
             await Settle(() => !_w.FindIsRunning);
             back.Add(tab.Editor!.GetSelections()[0].Start);
         }
@@ -172,7 +172,7 @@ public class FindTests : IDisposable
     {
         var tab = _w.OpenFile(_temp.File("s.txt", "foo\nfoo\nfoo\nfoo\n"), null);
         tab.Editor!.SetSelections([new NksHub.Textida.AvaloniaEditAdapter.Sel(4, 12)]);
-        TestApp.Press(_w, Key.H, RawInputModifiers.Control);
+        TestApp.Replace(_w);
         Assert.True(_w.FindBar.ReplaceShown);
         _w.FindBar.SelectionToggle.IsChecked = true;
         Query("foo");
@@ -215,7 +215,7 @@ public class FindTests : IDisposable
     {
         var tab = _w.OpenFile(_temp.File("w.txt", "alpha beta alpha gamma alpha"), null);
         tab.Editor!.CaretOffset = 2;
-        TestApp.Press(_w, Key.F3, RawInputModifiers.Control);
+        TestApp.FindWord(_w);
         await Settle(() => !_w.FindIsRunning && Selected(tab) == "alpha" && tab.Editor.GetSelections()[0].Start == 11);
         Assert.Equal("alpha", _w.FindBar.FindBox.Text);
         TestApp.Press(_w, Key.Escape);
@@ -233,7 +233,7 @@ public class FindTests : IDisposable
         await Settle(() => !_w.FindIsRunning);
         Assert.Equal(Loc.Get(K.FindLimit, ("total", 150_000L), ("listed", 100_000)), _w.FindBar.CountText.Text);
         Assert.Equal(_w.FindHits[0].Range, tab.Paged!.SelectionRange);
-        TestApp.Press(_w, Key.F3);
+        TestApp.FindNext(_w);
         await Settle(() => tab.Paged!.SelectionRange == _w.FindHits[1].Range);
 
         var run = _w.FindRun;
@@ -276,7 +276,7 @@ public class FindTests : IDisposable
         Assert.Same(run.Completion, await Task.WhenAny(run.Completion, Task.Delay(1000)));
         Assert.True(Stopwatch.GetElapsedTime(t0).TotalMilliseconds <= 1000, "the worker must end within a second of the cancel");
 
-        TestApp.Press(_w, Key.F3); // a stopped search has no matches to step through, so the next step searches again
+        TestApp.FindNext(_w); // a stopped search has no matches to step through, so the next step searches again
         Assert.NotSame(run, _w.FindRun);
         await Settle(() => !_w.FindIsRunning, 30_000);
     }
@@ -296,7 +296,7 @@ public class FindTests : IDisposable
         Assert.True(_w.FindIsRunning);
         var run = _w.FindRun!;
 
-        TestApp.Press(_w, Key.F3);
+        TestApp.FindNext(_w);
         TestApp.Press(_w, Key.Enter); // in the field of the bar
         Assert.Same(run, _w.FindRun);
         _w.FindBar.ListButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
@@ -532,10 +532,11 @@ public class FindTests : IDisposable
     public void Search_commands_have_keys_and_menu_entries()
     {
         var keys = _app.Workbench.Keymap.Bindings.GroupBy(b => b.CommandId).ToDictionary(g => g.Key, g => g.First().Sequence.Display(_app.Workbench.Platform), StringComparer.Ordinal);
-        Assert.Equal("Ctrl+F", keys["nks.search.find"]);
-        Assert.Equal("Ctrl+H", keys["nks.search.replace"]);
-        Assert.Equal("Ctrl+Shift+F", keys["nks.search.findInFiles"]);
-        Assert.Equal("F3", keys["nks.search.findNext"]);
+        bool mac = OperatingSystem.IsMacOS();
+        Assert.Equal(mac ? "⌘F" : "Ctrl+F", keys["nks.search.find"]);
+        Assert.Equal(mac ? "⌥⌘F" : "Ctrl+H", keys["nks.search.replace"]);
+        Assert.Equal(mac ? "⇧⌘F" : "Ctrl+Shift+F", keys["nks.search.findInFiles"]);
+        Assert.Equal(mac ? "⌘G" : "F3", keys["nks.search.findNext"]);
         Assert.Contains("nks.search.regexTester", _w.MenuModel.SelectMany(g => g.Items).OfType<MenuCommand>().Select(c => c.CommandId));
     }
 

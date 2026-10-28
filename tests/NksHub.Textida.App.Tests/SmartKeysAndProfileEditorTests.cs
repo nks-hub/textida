@@ -229,7 +229,7 @@ public class SmartKeysAndProfileEditorTests : IDisposable
         _app.Workbench.Set("editor.profile", BehaviourProfiles.Default);
         Mod(Key.Z);
         Assert.Equal("one\ntwo\nthree", Text(tab));
-        Mod(Key.Y); // and is redo again
+        TestApp.Redo(_w); // and is redo again
         Assert.Equal("one\nthree", Text(tab));
         Assert.Equal(BehaviourProfiles.Default, _app.Workbench.Profile);
     }

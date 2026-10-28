@@ -139,7 +139,7 @@ public class MultiCaretEditorTests : IDisposable
         Mod(Key.Z);
         Assert.Equal("foo bar foo food foo", Text(tab));
         Assert.Equal("«foo» bar «foo» food «foo»", Marked(tab));
-        Mod(Key.Y);
+        TestApp.Redo(_w);
         Assert.Equal("X bar X food X", Text(tab));
         Assert.Equal(3, tab.Editor.CaretCount);
     }

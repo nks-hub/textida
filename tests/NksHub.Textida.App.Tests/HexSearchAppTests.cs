@@ -77,7 +77,7 @@ public class HexSearchAppTests : IDisposable
         for (int i = 1; i < expected.Count; i++)
         {
             long previous = hex.Editor.Selection.Start;
-            TestApp.Press(_w, Key.F3);
+            TestApp.FindNext(_w);
             PumpUntil(() => hex.Editor.Selection.Start != previous);
             seen.Add(hex.Editor.Selection.Start);
         }
