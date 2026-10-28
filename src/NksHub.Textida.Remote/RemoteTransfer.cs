@@ -143,8 +143,9 @@ public static class RemoteTransfer
         if (File.Exists(part))
         {
             long have = new FileInfo(part).Length;
-            if (have > 0 && have <= size) offset = have;
-            else FileSwap.TryDelete(part); // empty, or longer than the server file: it cannot be a part of it
+            // without a server time the size alone cannot tell a changed file from the same one, so such a part starts over
+            if (have > 0 && have <= size && server.ModifiedUtc is not null) offset = have;
+            else FileSwap.TryDelete(part);
         }
 
         var progress = options.Progress is { } sink ? new ProgressReporter(sink, false, remotePath, size) : null;
