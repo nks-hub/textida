@@ -160,6 +160,45 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         Assert.Equal(model.Sha256(), HashFile(path));
     }
 
+    /// <summary>A save to another path has no check of the file on disk, so only the checks of the save itself can stop it.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Cancelling_a_streaming_save_to_another_path_leaves_no_file_there_and_the_original_untouched(bool whileWriting)
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        string original = HashFile(path);
+        string copy = Path.Combine(_dir, "copy.txt");
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 100, 0, 21, 1 << 20);
+
+        using var held = new ManualResetEventSlim();
+        using var proceed = new ManualResetEventSlim();
+        string holdAt = whileWriting ? "temp-writing" : "temp-written";
+        bool fileComplete = false;
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "temp-written") fileComplete = true;
+            if (step != holdAt) return;
+            held.Set();
+            proceed.Wait();
+        };
+        var task = doc.SaveAsync(copy);
+        Assert.True(held.Wait(20_000));
+        doc.CancelSave();
+        proceed.Set();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+        if (whileWriting) Assert.False(fileComplete, "the write went on to the end after the cancel");
+        Assert.False(File.Exists(copy));
+        Assert.Equal(original, HashFile(path));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+        Assert.Equal(model.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+    }
+
     [Theory]
     [InlineData("throw")]
     [InlineData("temp-gone")]
