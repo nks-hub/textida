@@ -263,6 +263,22 @@ public partial class TextToolsTests
     }
 
     [Fact]
+    public async Task A_form_longer_than_the_clipboard_limit_copies_nothing_and_the_host_refuses_with_the_limit()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"), TextCodec.Utf8);
+        var rows = Enumerable.Range(0, 200).Select(i => (IReadOnlyList<string>)[new string('x', 10)]).ToList();
+        rig.Tools.Table = () => Selected(new TableData(0, 1, ["v"], rows));
+
+        var refused = await Assert.ThrowsAsync<NksHub.Textida.Rpc.RpcException>(() => rig.RunAsync("table.copyAs.markdown"));
+        Assert.Contains("at most 1000 characters", refused.Message);
+        Assert.Empty(rig.Tools.Clipboard);
+
+        rig.Tools.Table = () => Selected(new TableData(0, 1, ["v"], [["short"]]));
+        Assert.Equal("completed", await rig.RunAsync("table.copyAs.markdown"));
+        Assert.Single(rig.Tools.Clipboard);
+    }
+
+    [Fact]
     public async Task A_selection_of_an_older_revision_copies_nothing_and_a_document_without_a_table_says_so()
     {
         await using var rig = await Rig.CreateAsync(Utf8("x"), TextCodec.Utf8);

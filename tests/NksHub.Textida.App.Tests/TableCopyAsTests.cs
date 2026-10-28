@@ -214,6 +214,38 @@ public class TableCopyAsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_selection_with_more_values_than_the_table_api_gives_copies_nothing_and_the_window_names_the_limit()
+    {
+        static string Row(int i) => $"{i},{new string('a', 55)},{new string('b', 55)}\n";
+        var (_, view) = OpenTable("big.csv", "id,name,note\n" + string.Concat(Enumerable.Range(1, 10_000).Select(Row)));
+        view.SelectAll();
+        await _w.Clipboard!.SetTextAsync("before");
+
+        await _w.CopyTableAsAsync("table.copyAs.markdown");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
+        Assert.Contains(_w.Notices, n => n.Message.Contains("at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters of values", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public async Task A_form_longer_than_the_clipboard_limit_from_a_small_selection_copies_nothing_and_the_window_names_the_limit()
+    {
+        // 550 000 asterisks are under the limit of the selection and of one message, but Markdown writes a backslash before each: 1.1 million characters
+        var (_, view) = OpenTable("cells.csv", "a\n" + new string('*', 550_000) + "\n");
+        view.SelectAll();
+        await _w.Clipboard!.SetTextAsync("before");
+
+        await _w.CopyTableAsAsync("table.copyAs.markdown");
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(300);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
+        Assert.Contains(_w.Notices, n => n.Message.Contains("clipboard takes at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
     public async Task Three_columns_of_a_wider_table_are_copied_in_all_four_forms_and_nothing_of_the_other_columns()
     {
         var (tab, view) = OpenTable("wide.csv", "a,b,c,d,e\n1,\"x<y & 'z'\",3,\"4|4\",5\n6,7,8,9,10\n");
