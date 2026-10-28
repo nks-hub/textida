@@ -406,7 +406,10 @@ public class PagedLongLineTests : IDisposable
         string first = new('a', FarLine), second = new('b', FarLine);
         var tab = OpenBytes(Encoding.UTF8.GetBytes(first + "\n" + second + "\n"));
         var paged = tab.Paged!;
-        paged.FarMoveBytes = 1 << 20;
+        // the caret scrolls every long line sideways, and the window read of the second line would note a column point at 5 000 000 and make that column near; the stub reads nothing,
+        // and the points of the background index lie a mebi-column apart, farther than the limit
+        paged.WindowRead = (_, _, columns, _) => new string('b', columns);
+        paged.FarMoveBytes = 1 << 16;
         paged.GoToOffset(5_000_000);
         await Eventually(() => !paged.CaretMovePending);
 

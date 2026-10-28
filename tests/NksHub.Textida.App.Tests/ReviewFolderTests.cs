@@ -91,8 +91,8 @@ public class ReviewFolderTests : IDisposable
         row.Run();
         Dispatcher.UIThread.RunJobs();
 
-        var tab = _w.Active!;
-        Assert.Equal(path, tab.Path);
+        var tab = Assert.Single(_w.Tabs, t => t.Path == path); // the changes are listed in the results tab, which is the active one
+        Assert.True(_w.Active!.Doc.IsResults);
         Assert.Equal("± 2", tab.Doc.ReviewBadge);
         Assert.Equal(2, _w.ResultsView!.Rows.OfType<SearchResultsView.HunkRow>().Count());
 

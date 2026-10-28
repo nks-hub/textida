@@ -154,6 +154,15 @@ public class PluginManagerAppTests : IDisposable
         "clips":[{"id":"hi","title":"Hi","text":"hi","command":"acme.kit.hi"}]
         """;
 
+    /// <summary>The same without the command that only a process runs: every command of a data plugin is run by a clip.</summary>
+    private const string KitDataCommands = """
+        "commands":[{"id":"acme.kit.hi","title":"Hi"}],
+        "menus":[{"menu":"tools","command":"acme.kit.hi","group":"9_plugins"}],
+        "keybindings":[{"key":"mod+alt+shift+j","command":"acme.kit.hi"}],
+        "settings":[{"key":"acme.kit.width","type":"integer","default":7,"title":"Width"}],
+        "clips":[{"id":"hi","title":"Hi","text":"hi","command":"acme.kit.hi"}]
+        """;
+
     /// <summary>A ZIP with the manifest of the plugin <c>acme.kit</c>: a data plugin, or with <paramref name="process"/> one that has the test plugin as its process.</summary>
     private string KitZip(string version, string contributes = KitCommands, bool process = false)
     {
@@ -192,8 +201,14 @@ public class PluginManagerAppTests : IDisposable
     [AvaloniaFact]
     public void Switching_off_or_removing_a_data_plugin_takes_its_commands_menu_items_keys_and_settings_away_without_a_restart()
     {
+        // a plugin without a process whose command nothing runs is refused when it is installed
+        _dialogs.Answers.Enqueue(0); // OK on the error
+        Finish(_w.InstallPluginAsync(KitZip("1.0.0")), expected: false);
+        Assert.Contains(Assert.Single(_dialogs.Asked).Details!, d => d.Contains("acme.kit.run", StringComparison.Ordinal) && d.Contains("runs nothing", StringComparison.Ordinal));
+        Assert.Empty(_app.Plugins.Manager.Installed());
+
         _dialogs.Answers.Enqueue(0);
-        Finish(_w.InstallPluginAsync(KitZip("1.0.0")), expected: true);
+        Finish(_w.InstallPluginAsync(KitZip("1.0.0", KitDataCommands)), expected: true);
         AssertKitShown(true, "acme.kit.hi");
         Assert.Equal(7, _app.Workbench.Settings.GetInt("acme.kit.width"));
 
@@ -210,7 +225,6 @@ public class PluginManagerAppTests : IDisposable
         Finish(_w.ManagePluginAsync("acme.kit"));
         Assert.Empty(_app.Plugins.Manager.Installed());
         AssertKitShown(false, "acme.kit.hi");
-        Assert.False(_app.Workbench.Commands.TryGet("acme.kit.run", out _)); // it had no handler, but it was registered
         Assert.Empty(_app.Clips.Problems);
     }
 

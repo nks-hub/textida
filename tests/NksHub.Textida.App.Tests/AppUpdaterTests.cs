@@ -38,10 +38,15 @@ internal sealed class FeedServer : IDisposable
                 HttpListenerContext context;
                 try { context = await _listener.GetContextAsync(); }
                 catch (Exception e) when (e is HttpListenerException or ObjectDisposedException) { return; }
-                lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
-                if (Routes.TryGetValue(context.Request.Url!.AbsolutePath, out var body)) await context.Response.OutputStream.WriteAsync(body);
-                else context.Response.StatusCode = 404;
-                context.Response.Close();
+                try
+                {
+                    lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
+                    if (Routes.TryGetValue(context.Request.Url!.AbsolutePath, out var body)) await context.Response.OutputStream.WriteAsync(body);
+                    else context.Response.StatusCode = 404;
+                    context.Response.Close();
+                }
+                // a client that cuts the download off, or the end of the test closing the listener under a response that is still being written
+                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException) { }
             }
         });
     }

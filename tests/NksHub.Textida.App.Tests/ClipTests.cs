@@ -202,16 +202,32 @@ public class ClipTests : IDisposable
     [AvaloniaFact]
     public void A_clip_with_a_transform_that_runs_too_long_is_refused_with_a_message_and_writes_nothing()
     {
+        // the slow text is the selection, so the plugin is read without a complaint and only the insertion meets the transform
+        Install("acme", Manifest("""
+            "clips":[{"id":"slow","title":"Slow","text":"a ${selection/^(x+)+$/_/}"}]
+            """));
+        const string slow = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!";
+        Assert.Empty(_app.Clips.Problems);
+        var tab = Open(slow);
+        tab.Editor!.Select(0, slow.Length);
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal(slow, Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Contains(Loc.Get(K.ClipBadText, ("reason", "")).Split(':')[0], _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public void A_clip_whose_default_text_makes_a_transform_run_too_long_is_refused_when_the_plugin_is_read()
+    {
         Install("acme", Manifest("""
             "clips":[{"id":"slow","title":"Slow","text":"${1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!} ${1/^(x+)+$/_/}"}]
             """));
+        Assert.Contains("took too long", Assert.Single(_app.Clips.Problems));
+        Assert.Empty(_app.Clips.Clips);
         var tab = Open("keep");
-        tab.Editor!.CaretOffset = 4;
         Run("nks.edit.insertClip");
-        _w.RunPaletteSelection();
         Assert.Equal("keep", Text(tab));
-        Assert.False(tab.Editor.InSnippet);
-        Assert.Contains(Loc.Get(K.ClipBadText, ("reason", "")).Split(':')[0], _w.StatusLeftText);
     }
 
     [AvaloniaFact]

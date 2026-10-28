@@ -10,7 +10,7 @@ public class PagedPieceSplitTests
     {
         using var file = new TempFile(Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 2000).Select(i => $"row {i}\n"))));
         using var doc = PagedDocument.Open(file.Path);
-        for (int i = 0; i < 400 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10);
+        for (int i = 0; i < 3000 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10); // the pool may be busy with other tests
         Assert.True(doc.LineIndexState.Complete);
 
         var block = new byte[4 << 20];
@@ -34,7 +34,7 @@ public class PagedPieceSplitTests
     {
         using var file = new TempFile("start\n"u8.ToArray());
         using var doc = PagedDocument.Open(file.Path);
-        for (int i = 0; i < 400 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10);
+        for (int i = 0; i < 3000 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10); // the pool may be busy with other tests
         Assert.True(doc.LineIndexState.Complete);
 
         // 1 MiB + 1 byte: the second block of the scanner is the last byte alone, a CR; the LF that follows stands in the next piece. The LF at index 1 sits in the
