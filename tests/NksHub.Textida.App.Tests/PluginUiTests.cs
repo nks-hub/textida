@@ -643,6 +643,33 @@ public class PluginUiTests : IDisposable
         Assert.True(_w.Notices.Any(n => n.Message.Contains("JSON") && n.Message.Contains("8:")), string.Join(" | ", _w.Notices.Select(n => n.Message)));
     }
 
+    [AvaloniaFact]
+    public async Task Remove_commas_sort_keys_and_minify_run_through_the_plugin_process_each_as_one_undo_step()
+    {
+        const string original = "{\"b\": 1,\r\n \"a\": [1, 2,],\r\n}";
+        var tab = _w.OpenFile(_temp.File("m.json", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        await RunAsync("nks.edit.fixJsonCommas");
+        const string repaired = "{\"b\": 1,\r\n \"a\": [1, 2]\r\n}";
+        Assert.Equal(repaired, Utf8(tab));
+
+        await RunAsync("nks.edit.sortJsonKeys");
+        const string sorted = "{\r\n  \"a\": [\r\n    1,\r\n    2\r\n  ],\r\n  \"b\": 1\r\n}";
+        Assert.Equal(sorted, Utf8(tab));
+
+        await RunAsync("nks.edit.minifyJson");
+        Assert.Equal("{\"a\":[1,2],\"b\":1}", Utf8(tab));
+
+        _w.Undo();
+        Assert.Equal(sorted, Utf8(tab));
+        _w.Undo();
+        Assert.Equal(repaired, Utf8(tab));
+        _w.Undo();
+        Assert.Equal(original, Utf8(tab));
+    }
+
     // ---- text tools inside the app ----
 
     private bool HasNotice(string text) => _w.Notices.Any(n => n.Message.Contains(text, StringComparison.Ordinal));
