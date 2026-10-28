@@ -1506,7 +1506,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
 1. Ctrl+K then Ctrl+T (View menu, Table, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
-2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first lines of the file (the extension decides when they are unclear).
+2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first rows of the file (the extension decides when they are unclear). A cell in double quotes that holds line breaks counts as part of its row, and a row cut off by the end of the examined part of a long file is left out.
 - A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
 - Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
 - A quoted cell may hold line breaks; the table shows its first line and the mark ↵.
