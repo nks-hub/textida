@@ -145,7 +145,7 @@ public class AccessibilityGateTests : IDisposable
 
         // a large file, shown by the paged view
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
-        var big = _w.OpenFile(_temp.Bytes("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 50).Select(i => $"line {i}\n")))), null);
+        var big = _w.OpenFile(_temp.Bytes("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 150_000).Select(i => $"line {i}\n")))), null); // the threshold is in MiB
         Assert.True(big.Doc.IsLarge);
         for (int i = 0; i < 400 && !big.Paged!.Index.Complete; i++) { await Task.Delay(25); Dispatcher.UIThread.RunJobs(); }
         Walk(run, "main:paged", () => _w);
@@ -178,9 +178,9 @@ public class AccessibilityGateTests : IDisposable
         Walk(run, "palette:edits", () => _w.PaletteHost);
         _w.ClosePalette();
 
-        _w.ShowChoice(Loc.Get(K.PaletteWatermark), Loc.Get(K.A11yPalette),
-            [new QuickRow(Loc.Get(K.DialogOk), null, null, null, true, null, Loc.Get(K.DialogOk), () => { }), new QuickRow(Loc.Get(K.DialogCancel), null, null, null, true, null, Loc.Get(K.DialogCancel), () => { })]);
-        Walk(run, "palette:choice", () => _w.PaletteHost);
+        // the texts of a choice are the caller's, written in the language of the moment they are asked, so each language asks again
+        Walk(run, "palette:choice", () => _w.PaletteHost, _ => _w.ShowChoice(Loc.Get(K.PaletteWatermark), Loc.Get(K.A11yPalette),
+            [new QuickRow(Loc.Get(K.DialogOk), null, null, null, true, null, Loc.Get(K.DialogOk), () => { }), new QuickRow(Loc.Get(K.DialogCancel), null, null, null, true, null, Loc.Get(K.DialogCancel), () => { })]));
         _w.ClosePalette();
 
         run.AssertClean();
@@ -472,9 +472,10 @@ public class AccessibilityGateTests : IDisposable
         Assert.NotEmpty(wb.Keymap.ShortcutsFor("nks.view.nextPane"));
         Assert.NotEmpty(wb.Keymap.ShortcutsFor("nks.view.previousPane"));
 
-        // a hidden command is in no list, so only a key or a menu reaches it
+        // a hidden command is in no list, so only a key or a menu reaches it; the caret and delete keys are the keys of the editor itself, not entries of the keymap
+        var editorKeys = Editing.EditorSurface.StepCommands.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
         var lost = wb.Commands.Commands
-            .Where(c => c.Hidden && wb.Commands.HasHandler(c.Id) && !wb.Keymap.ShortcutsFor(c.Id).Any() && !inMenu.Contains(c.Id))
+            .Where(c => c.Hidden && wb.Commands.HasHandler(c.Id) && !wb.Keymap.ShortcutsFor(c.Id).Any() && !inMenu.Contains(c.Id) && !editorKeys.Contains(c.Id))
             .Select(c => c.Id).ToList();
         Assert.True(lost.Count == 0, "hidden commands that no key and no menu reaches: " + string.Join(", ", lost));
 
@@ -601,7 +602,7 @@ public class AccessibilityGateTests : IDisposable
 
     // ---- the help ----
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData("cs")]
     [InlineData("en")]
     [InlineData("sk")]
