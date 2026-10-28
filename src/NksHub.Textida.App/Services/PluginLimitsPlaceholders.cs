@@ -58,8 +58,17 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: bytes a wildcard <c>*</c> or an open repeat of a hex search may stand for while the setting <c>hex.wildcardMaxBytes</c> is 0. The owner has not decided it.</summary>
     public const int HexWildcardDefaultMaxBytes = 256;
 
-    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
-    public const long HistoryRevisionMaxBytes = 32L << 20;
+    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes (a file of the large file view too: its first revision is a whole copy of it); a larger one gets none and the status bar says so.</summary>
+    public const long HistoryRevisionMaxBytes = 1L << 30;
+
+    /// <summary>Placeholder, OPEN: a file larger than this, in bytes, is kept in the local history as a patch against its newest whole copy instead of another whole copy, when the patch is short enough (<see cref="HistoryPatchMaxPercent"/>).</summary>
+    public const long HistoryPatchAboveBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: longest patch the local history keeps instead of a whole copy of a large file, in percent of the file; a longer one makes a new whole copy that the following patches are made against.</summary>
+    public const int HistoryPatchMaxPercent = 50;
+
+    /// <summary>Placeholder, OPEN: largest revision, in bytes, that Compare and Restore read into memory for a text tab; a larger one is compared in the external diff tool or saved as a copy.</summary>
+    public const long HistoryTextRevisionMaxBytes = 32L << 20;
 
     /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
     public const long PagedCopyMaxBytes = 256L << 20;

@@ -233,12 +233,16 @@ Program uchovává revizi souboru při každém uložení a při každé změně
 - Limity (revizí na soubor, dny, MiB na soubor, MiB celkem) se nastavují v nastavení; 0 znamená bez omezení. Nejnovější revize souboru se nikdy nesmaže.
 - Když je disk plný, stavový řádek to oznámí a žádná revize se nepoškodí.
 - Připnutou revizi limity nikdy nesmažou; Připnout v nabídce revize ji drží, Odepnout ji uvolní. Soubor nad limitem velikosti revize nedostane a stavový řádek to oznámí. Staré revize se uklízejí na pozadí.
+- Velký soubor, tedy takový, který se otevře v zobrazení velkých souborů, se uchovává také. Při první změně se celý zkopíruje jednou a každá další revize je malá záplata proti této kopii, pokud je záplata kratší než polovina souboru; seznam takovou revizi označí slovem záplata a velikostí záplaty. Celá kopie zůstává, dokud ji nějaká záplata potřebuje, takže revizí může být víc, než říká limit.
+- U velkého souboru Porovnat potřebuje Externí porovnávač z nastavení, Obnovit soubor a Obnovit výběr se nenabízejí a Označit revizi chce soubor nejdřív uložit. Uložit jako kopii zapíše jakoukoli revizi vedle souboru jako název (datum čas).přípona a otevře ji; funguje pro každý soubor.
+- Revize uchované jako záplata Hledat v historii nenajde.
 
 ## [file.historyMark] Označit revizi
 commands: nks.file.historyMark
 1. Zvolte Soubor a pak Historie a pak Označit revizi a napište štítek, například Před refaktorem.
 2. Současný text karty se uloží jako revize s tímto štítkem. Pokud poslední revize už obsahuje stejný text, štítek dostane ona.
 - Revizi později najdete v Místní historii podle štítku.
+- U velkého souboru je revizí uložený soubor na disku, takže soubor nejdřív uložte.
 
 ## [file.historySearch] Hledat v historii
 commands: nks.file.historySearch

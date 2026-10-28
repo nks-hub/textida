@@ -23,6 +23,7 @@ public class PagedLongSelectionTests : IDisposable
     public PagedLongSelectionTests()
     {
         _app = TestApp.Prepare(_temp);
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false }; // the first edit of a large file would copy it into the history, which these tests do not look at and the measurements must not feel
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
     }
@@ -189,6 +190,7 @@ public class PagedLongSelectionPerfTests(ITestOutputHelper output) : IDisposable
     private (MainWindow Window, DocTab Tab) Open()
     {
         _app = TestApp.Prepare(_temp);
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false }; // the first edit of a large file would copy it into the history, which these tests do not look at and the measurements must not feel
         var w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
         string path = Path.Combine(_temp.Path, "line.txt");

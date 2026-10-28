@@ -37,16 +37,22 @@ public enum HistoryStatus
 }
 
 /// <param name="Pins">Names of the owners that need this revision to stay (for example a pending change review). Retention never deletes a revision with a pin.</param>
-public sealed record HistoryRevision(string Id, DateTime TimeUtc, HistorySource Source, long Size, string Sha256, string? Label, IReadOnlyList<string> Pins)
+/// <param name="BaseId">For a revision of a large file that is kept as a patch: the whole copy it is a patch against. Null for a whole copy.</param>
+/// <param name="PatchBytes">Bytes the patch takes on disk; 0 for a whole copy.</param>
+public sealed record HistoryRevision(string Id, DateTime TimeUtc, HistorySource Source, long Size, string Sha256, string? Label, IReadOnlyList<string> Pins, string? BaseId = null, long PatchBytes = 0)
 {
     public bool Pinned => Pins.Count > 0;
+    /// <summary>True when the revision is kept as a patch against the whole copy named by <see cref="BaseId"/>.</summary>
+    public bool IsPatch => BaseId is not null;
+    /// <summary>Bytes the revision takes on disk: its size for a whole copy, the patch for a patched one.</summary>
+    public long StoredBytes => IsPatch ? PatchBytes : Size;
 }
 
 public sealed record HistoryRecordResult(HistoryStatus Status, HistoryRevision? Revision, string? Problem = null, bool NoSpace = false);
 
 /// <summary>
 /// Limits of the history. A null limit is not applied. Which values ship as defaults is an open product decision, so none is invented here.
-/// The newest revision of a file is never deleted by retention, and neither is a pinned one.
+/// The newest revision of a file is never deleted by retention, and neither is a pinned one, nor a whole copy that a kept patch is made against.
 /// </summary>
 public sealed class HistoryPolicy
 {
@@ -58,10 +64,18 @@ public sealed class HistoryPolicy
     public bool StoreSecretFiles { get; init; }
     public TimeSpan? MaxAge { get; init; }
     public int? MaxRevisionsPerFile { get; init; }
+    /// <summary>Bytes the revisions of one file may take on disk (a patch counts as its own size).</summary>
     public long? MaxBytesPerFile { get; init; }
     public long? MaxTotalBytes { get; init; }
     /// <summary>Files larger than this get no revisions.</summary>
     public long? MaxRevisionBytes { get; init; }
+    /// <summary>
+    /// A file larger than this is kept as a patch against the newest whole copy that is still there, when a patch is possible and shorter than
+    /// <see cref="MaxPatchPercent"/> percent of the file; else as a new whole copy. Null: every revision is a whole copy.
+    /// </summary>
+    public long? PatchAboveBytes { get; init; }
+    /// <summary>Largest patch, in percent of the file, that is kept instead of a whole copy.</summary>
+    public int MaxPatchPercent { get; init; } = 50;
 }
 
 public sealed class HistoryFormatException(string message) : Exception(message);
@@ -69,13 +83,16 @@ public sealed class HistoryFormatException(string message) : Exception(message);
 public sealed record HistorySearchHit(HistoryRevision Revision, long Matches, int FirstLine, string Preview);
 
 /// <summary>
-/// Local history of files. Layout under the root: <c>format</c> (the version), then a folder per file with <c>path.txt</c>, <c>blobs/&lt;id&gt;.rev</c> (the bytes)
-/// and <c>&lt;id&gt;.json</c> (label, pins, hash). A revision exists once its .json is in place, and that is written after the blob; a crash leaves at most
+/// Local history of files. Layout under the root: <c>format</c> (the version), then a folder per file with <c>path.txt</c>, <c>blobs/&lt;id&gt;.rev</c> (the bytes of a whole copy),
+/// <c>blobs/&lt;id&gt;.dlt</c> (a patch of a large file against a whole copy, see <see cref="BinaryDelta"/>) and <c>&lt;id&gt;.json</c> (label, pins, hash, the copy a patch is made against).
+/// A revision exists once its .json is in place, and that is written after the blob; a crash leaves at most
 /// an orphan blob or a temp file, which the next access of that file removes. There is no shared index to corrupt. Deleting writes in the opposite order.
+/// A patch is always against a whole copy, never against another patch, so a revision is read with one patch; the whole copy stays as long as a patch needs it.
 /// </summary>
 public sealed partial class FileHistory
 {
-    public const int FormatVersion = 1;
+    /// <summary>Version 2 added the patches; an editor of version 1 would not know that a whole copy is needed and would delete it.</summary>
+    public const int FormatVersion = 2;
 
     private readonly string _root;
     private volatile HistoryPolicy _policy;
@@ -106,12 +123,14 @@ public sealed partial class FileHistory
         public string Sha256 { get; set; } = "";
         public string? Label { get; set; }
         public List<string> Pins { get; set; } = [];
+        public string? BaseId { get; set; }
+        public long PatchBytes { get; set; }
     }
 
     [JsonSerializable(typeof(MetaDto))]
     internal sealed partial class MetaContext : JsonSerializerContext;
 
-    private static HistoryRevision ToRevision(MetaDto m) => new(m.Id, new DateTime(m.Ticks, DateTimeKind.Utc), m.Source, m.Size, m.Sha256, m.Label, m.Pins.ToArray());
+    private static HistoryRevision ToRevision(MetaDto m) => new(m.Id, new DateTime(m.Ticks, DateTimeKind.Utc), m.Source, m.Size, m.Sha256, m.Label, m.Pins.ToArray(), m.BaseId, m.BaseId is null ? 0 : m.PatchBytes);
 
     // ---- paths ----
 
@@ -123,6 +142,8 @@ public sealed partial class FileHistory
     }
 
     private static string BlobOf(string folder, string id) => Path.Combine(folder, "blobs", id + ".rev");
+    private static string PatchOf(string folder, string id) => Path.Combine(folder, "blobs", id + ".dlt");
+    private static string BlobOf(string folder, HistoryRevision r) => r.IsPatch ? PatchOf(folder, r.Id) : BlobOf(folder, r.Id);
     private static string MetaOf(string folder, string id) => Path.Combine(folder, id + ".json");
 
     // ---- format ----
@@ -141,6 +162,7 @@ public sealed partial class FileHistory
                 throw new HistoryFormatException($"The history was written by a newer version of the editor (format {found}); this one reads format {FormatVersion}. Nothing was changed.");
         }
         // Migrations go here, one step per version, each written so that a crash in the middle can be repeated: for (v = found; v < FormatVersion; v++) ...
+        // 1 to 2: nothing to convert, every revision of version 1 is a whole copy and version 2 reads those.
         if (found != FormatVersion) WriteAtomic(file, Encoding.ASCII.GetBytes(FormatVersion.ToString()));
         _rootChecked = true;
     }
@@ -173,7 +195,7 @@ public sealed partial class FileHistory
     {
         try
         {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.RandomAccess);
             return Record(path, fs, source, label);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -206,38 +228,51 @@ public sealed partial class FileHistory
                 Directory.CreateDirectory(Path.Combine(folder, "blobs"));
                 if (!File.Exists(Path.Combine(folder, "path.txt"))) WriteAtomic(Path.Combine(folder, "path.txt"), Encoding.UTF8.GetBytes(Path.GetFullPath(path)));
                 Sweep(folder);
+                var existing = ListFolder(folder);
 
                 temp = Path.Combine(folder, "." + Guid.NewGuid().ToString("N")[..12] + ".tmp");
                 string hash;
-                long size;
-                using (var fs = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
-                using (var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
-                {
-                    var buf = new byte[1 << 16];
-                    size = 0;
-                    for (int n; (n = content.Read(buf, 0, buf.Length)) > 0;)
-                    {
-                        if (_policy.MaxRevisionBytes is { } cap && size + n > cap) { fs.Dispose(); FileSwap.TryDelete(temp); return new(HistoryStatus.TooLarge, null); }
-                        fs.Write(buf, 0, n);
-                        sha.AppendData(buf, 0, n);
-                        size += n;
-                    }
-                    fs.Flush(true);
-                    hash = Convert.ToHexString(sha.GetHashAndReset());
-                }
-
-                var existing = ListFolder(folder);
-                if (existing.Count > 0 && existing[0].Sha256 == hash)
+                long size, patchBytes = 0;
+                string? baseId = null;
+                var patched = TryMakePatch(content, existing, folder, temp);
+                if (patched is { Unchanged: not null } same)
                 {
                     FileSwap.TryDelete(temp);
-                    return new(HistoryStatus.Unchanged, existing[0]);
+                    return new(HistoryStatus.Unchanged, same.Unchanged);
+                }
+                if (patched is { } made)
+                {
+                    (hash, size, patchBytes, baseId) = (made.Hash, made.Size, made.PatchBytes, made.BaseId);
+                }
+                else
+                {
+                    using (var fs = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+                    using (var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+                    {
+                        var buf = new byte[1 << 16];
+                        size = 0;
+                        for (int n; (n = content.Read(buf, 0, buf.Length)) > 0;)
+                        {
+                            if (_policy.MaxRevisionBytes is { } cap && size + n > cap) { fs.Dispose(); FileSwap.TryDelete(temp); return new(HistoryStatus.TooLarge, null); }
+                            fs.Write(buf, 0, n);
+                            sha.AppendData(buf, 0, n);
+                            size += n;
+                        }
+                        fs.Flush(true);
+                        hash = Convert.ToHexString(sha.GetHashAndReset());
+                    }
+                    if (existing.Count > 0 && existing[0].Sha256 == hash)
+                    {
+                        FileSwap.TryDelete(temp);
+                        return new(HistoryStatus.Unchanged, existing[0]);
+                    }
                 }
 
                 var now = _clock.GetUtcNow().UtcDateTime;
                 string id = NewId(now, existing.Count > 0 ? existing[0].Id : null);
                 for (; ; id = Bump(id))
                 {
-                    blob = BlobOf(folder, id);
+                    blob = baseId is null ? BlobOf(folder, id) : PatchOf(folder, id);
                     if (File.Exists(MetaOf(folder, id))) continue;
                     try { File.Move(temp, blob); break; }
                     catch (IOException) when (File.Exists(blob)) { /* another instance took this id */ }
@@ -245,7 +280,7 @@ public sealed partial class FileHistory
                 temp = null;
                 Stage?.Invoke("blob");
 
-                var meta = new MetaDto { Id = id, Ticks = now.Ticks, Source = source, Size = size, Sha256 = hash, Label = label };
+                var meta = new MetaDto { Id = id, Ticks = now.Ticks, Source = source, Size = size, Sha256 = hash, Label = label, BaseId = baseId, PatchBytes = patchBytes };
                 Stage?.Invoke("meta");
                 WriteAtomic(MetaOf(folder, id), JsonSerializer.SerializeToUtf8Bytes(meta, MetaContext.Default.MetaDto));
                 blob = null;
@@ -259,6 +294,99 @@ public sealed partial class FileHistory
                 if (blob is not null) FileSwap.TryDelete(blob);
                 return new(HistoryStatus.Failed, null, e.Message, e is IOException io && IsNoSpace(io));
             }
+        }
+    }
+
+    private sealed record PatchMade(string Hash, long Size, long PatchBytes, string? BaseId, HistoryRevision? Unchanged);
+
+    /// <summary>
+    /// For a large file: the patch against the newest whole copy, written to <paramref name="temp"/>, or the newest revision when it already holds the bytes. Null when the
+    /// file is not large enough, is not a file, has no whole copy to be a patch against, differs too much, or changed while it was read; the caller then keeps a whole copy.
+    /// </summary>
+    private PatchMade? TryMakePatch(Stream content, List<HistoryRevision> existing, string folder, string temp)
+    {
+        if (_policy.PatchAboveBytes is not { } above || content is not FileStream { CanSeek: true } file || file.Position != 0 || file.Length <= above) return null;
+        var anchor = existing.FirstOrDefault(r => !r.IsPatch);
+        if (anchor is null || anchor.Size < BinaryDelta.BlockFor(anchor.Size)) return null;
+        long length = file.Length;
+        string hash = HashOf(file, length);
+        file.Position = 0;
+        if (existing.Count > 0 && existing[0].Sha256 == hash) return new(hash, length, 0, null, existing[0]);
+
+        long limit = length / 100 * Math.Clamp(_policy.MaxPatchPercent, 1, 100);
+        long patchBytes;
+        using (var anchorFile = File.OpenHandle(BlobOf(folder, anchor.Id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess))
+        {
+            using (var patch = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.WriteThrough))
+            {
+                patchBytes = BinaryDelta.Create(anchorFile, anchor.Size, file.SafeFileHandle, length, patch, limit);
+                patch.Flush(true);
+            }
+            if (patchBytes >= 0)
+            {
+                // the patch must make exactly the bytes that were hashed: a file that changed between the two readings, or a damaged whole copy, gives a whole copy instead
+                using var read = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
+                using var sink = new HashingStream(Stream.Null);
+                try { BinaryDelta.Apply(anchorFile, anchor.Size, read, sink); }
+                catch (InvalidDataException) { patchBytes = -1; }
+                if (patchBytes >= 0 && (sink.Written != length || sink.Hash != hash)) patchBytes = -1;
+            }
+        }
+        if (patchBytes < 0)
+        {
+            FileSwap.TryDelete(temp);
+            file.Position = 0;
+            return null;
+        }
+        return new(hash, length, patchBytes, anchor.Id, null);
+    }
+
+    private static string HashOf(Stream stream, long length)
+    {
+        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buf = new byte[1 << 20];
+        for (long left = length; left > 0;)
+        {
+            int n = stream.Read(buf, 0, (int)Math.Min(buf.Length, left));
+            if (n <= 0) throw new IOException("The file became shorter while the revision was taken.");
+            sha.AppendData(buf, 0, n);
+            left -= n;
+        }
+        return Convert.ToHexString(sha.GetHashAndReset());
+    }
+
+    /// <summary>A write-only stream that passes everything on and keeps the length and the SHA-256 of it.</summary>
+    private sealed class HashingStream(Stream inner) : Stream
+    {
+        private readonly IncrementalHash _sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        private string? _hash;
+
+        /// <summary>Bytes written so far.</summary>
+        public long Written { get; private set; }
+        public string Hash => _hash ??= Convert.ToHexString(_sha.GetHashAndReset());
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => Written;
+        public override long Position { get => Written; set => throw new NotSupportedException(); }
+        public override void Flush() => inner.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            _sha.AppendData(buffer);
+            Written += buffer.Length;
+            inner.Write(buffer);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _sha.Dispose();
+            base.Dispose(disposing);
         }
     }
 
@@ -283,8 +411,8 @@ public sealed partial class FileHistory
             if (File.GetLastWriteTimeUtc(tmp) < fresh) FileSwap.TryDelete(tmp);
         var blobs = Path.Combine(folder, "blobs");
         if (!Directory.Exists(blobs)) return;
-        foreach (var b in Directory.EnumerateFiles(blobs, "*.rev"))
-            if (!File.Exists(MetaOf(folder, Path.GetFileNameWithoutExtension(b))) && File.GetLastWriteTimeUtc(b) < fresh) FileSwap.TryDelete(b);
+        foreach (var b in Directory.EnumerateFiles(blobs))
+            if (Path.GetExtension(b) is ".rev" or ".dlt" && !File.Exists(MetaOf(folder, Path.GetFileNameWithoutExtension(b))) && File.GetLastWriteTimeUtc(b) < fresh) FileSwap.TryDelete(b);
     }
 
     // ---- reading ----
@@ -298,7 +426,9 @@ public sealed partial class FileHistory
             try
             {
                 var m = JsonSerializer.Deserialize(File.ReadAllBytes(json), MetaContext.Default.MetaDto);
-                if (m is not null && m.Id == Path.GetFileNameWithoutExtension(json) && File.Exists(BlobOf(folder, m.Id))) list.Add(ToRevision(m));
+                if (m is null || m.Id != Path.GetFileNameWithoutExtension(json)) continue;
+                var revision = ToRevision(m);
+                if (File.Exists(BlobOf(folder, revision))) list.Add(revision);
             }
             catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { /* an unreadable entry is not a revision */ }
         }
@@ -322,6 +452,13 @@ public sealed partial class FileHistory
     {
         string folder = FolderOf(path);
         var rev = List(path).FirstOrDefault(r => r.Id == id) ?? throw new FileNotFoundException("No such revision: " + id);
+        if (rev.IsPatch)
+        {
+            if (rev.Size > Array.MaxLength) throw new IOException("The revision is larger than 2 GiB; export it to a file instead.");
+            using var ms = new MemoryStream((int)rev.Size);
+            Materialize(folder, rev, ms);
+            return ms.ToArray();
+        }
         var bytes = File.ReadAllBytes(BlobOf(folder, id));
         if (bytes.Length != rev.Size || Convert.ToHexString(SHA256.HashData(bytes)) != rev.Sha256)
             throw new InvalidDataException("The stored revision " + id + " does not match its hash.");
@@ -331,14 +468,71 @@ public sealed partial class FileHistory
     /// <summary>The first bytes of a revision, for a preview; the hash is not checked.</summary>
     public byte[] ReadPrefix(string path, string id, int max)
     {
-        using var fs = new FileStream(BlobOf(FolderOf(path), id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        string folder = FolderOf(path);
+        var rev = List(path).FirstOrDefault(r => r.Id == id) ?? throw new FileNotFoundException("No such revision: " + id);
+        if (rev.IsPatch)
+        {
+            using var ms = new MemoryStream();
+            Materialize(folder, rev, ms, max);
+            return ms.ToArray();
+        }
+        using var fs = new FileStream(BlobOf(folder, id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         var buf = new byte[(int)Math.Min(max, fs.Length)];
         fs.ReadExactly(buf);
         return buf;
     }
 
-    /// <summary>Copies a revision to <paramref name="destination"/> (for handing it to a compare tool).</summary>
-    public void Export(string path, string id, string destination) => File.WriteAllBytes(destination, Read(path, id));
+    /// <summary>Copies a revision to <paramref name="destination"/> (for handing it to a compare tool, or to keep it as a file); a revision is never held in memory. The file is removed when the copy fails.</summary>
+    public void Export(string path, string id, string destination)
+    {
+        string folder = FolderOf(path);
+        var rev = List(path).FirstOrDefault(r => r.Id == id) ?? throw new FileNotFoundException("No such revision: " + id);
+        using var fs = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16);
+        try
+        {
+            Materialize(folder, rev, fs);
+            fs.Flush(true);
+        }
+        catch
+        {
+            fs.Dispose();
+            FileSwap.TryDelete(destination);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Writes the bytes of a revision, or its first <paramref name="limit"/> bytes, to <paramref name="output"/>. A whole revision is checked against its size and hash
+    /// (<see cref="InvalidDataException"/>); a patch is applied to the whole copy it was made against.
+    /// </summary>
+    private void Materialize(string folder, HistoryRevision rev, Stream output, long limit = long.MaxValue)
+    {
+        bool whole = limit >= rev.Size;
+        using var sink = whole ? new HashingStream(output) : null;
+        Stream target = sink ?? output;
+        if (!rev.IsPatch)
+        {
+            using var fs = new FileStream(BlobOf(folder, rev.Id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+            var buf = new byte[1 << 16];
+            for (long copied = 0, end = Math.Min(limit, rev.Size); copied < end;)
+            {
+                int n = fs.Read(buf, 0, (int)Math.Min(buf.Length, end - copied));
+                if (n <= 0) break;
+                target.Write(buf, 0, n);
+                copied += n;
+            }
+        }
+        else
+        {
+            var anchor = ListFolder(folder).FirstOrDefault(r => r.Id == rev.BaseId && !r.IsPatch)
+                ?? throw new InvalidDataException("The whole copy that the revision " + rev.Id + " is a patch against is gone.");
+            using var source = File.OpenHandle(BlobOf(folder, anchor.Id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
+            using var patch = new FileStream(PatchOf(folder, rev.Id), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+            BinaryDelta.Apply(source, RandomAccess.GetLength(source), patch, target, limit);
+        }
+        if (sink is not null && (sink.Written != rev.Size || sink.Hash != rev.Sha256))
+            throw new InvalidDataException("The stored revision " + rev.Id + " does not match its hash.");
+    }
 
     // ---- labels and pins ----
 
@@ -368,22 +562,26 @@ public sealed partial class FileHistory
     private void Delete(string folder, HistoryRevision r)
     {
         FileSwap.TryDelete(MetaOf(folder, r.Id));
-        FileSwap.TryDelete(BlobOf(folder, r.Id));
+        FileSwap.TryDelete(BlobOf(folder, r));
     }
 
     private void PruneFolder(string folder)
     {
         var revs = ListFolder(folder); // newest first
         var drop = new List<HistoryRevision>();
-        bool Candidate(HistoryRevision r) => !r.Pinned && r.Id != revs[0].Id && !drop.Contains(r);
+        // a whole copy stays as long as a patch that is kept is made against it; the patches are newer, so they are decided first
+        bool Needed(HistoryRevision r) => revs.Any(x => x.BaseId == r.Id && !drop.Contains(x));
+        bool Candidate(HistoryRevision r) => !r.Pinned && r.Id != revs[0].Id && !drop.Contains(r) && !Needed(r);
         var now = _clock.GetUtcNow().UtcDateTime;
 
-        if (_policy.MaxAge is { } age) drop.AddRange(revs.Where(r => Candidate(r) && now - r.TimeUtc > age));
+        if (_policy.MaxAge is { } age)
+            foreach (var r in revs.Where(r => now - r.TimeUtc > age).ToList())
+                if (Candidate(r)) drop.Add(r);
         if (_policy.MaxRevisionsPerFile is { } count)
             for (int excess = revs.Count - drop.Count - Math.Max(1, count); excess > 0; excess--)
                 if (revs.LastOrDefault(Candidate) is { } oldest) drop.Add(oldest); else break;
         if (_policy.MaxBytesPerFile is { } cap)
-            while (revs.Where(r => !drop.Contains(r)).Sum(r => r.Size) > cap && revs.LastOrDefault(Candidate) is { } oldest) drop.Add(oldest);
+            while (revs.Where(r => !drop.Contains(r)).Sum(r => r.StoredBytes) > cap && revs.LastOrDefault(Candidate) is { } oldest) drop.Add(oldest);
 
         foreach (var r in drop) Delete(folder, r);
     }
@@ -409,19 +607,27 @@ public sealed partial class FileHistory
             if (_policy.MaxTotalBytes is { } total)
             {
                 var all = Directory.EnumerateDirectories(_root).SelectMany(f => ListFolder(f).Select((r, i) => (Folder: f, Rev: r, Newest: i == 0))).ToList();
-                long sum = all.Sum(x => x.Rev.Size);
-                foreach (var x in all.Where(x => !x.Rev.Pinned && !x.Newest).OrderBy(x => x.Rev.Id, StringComparer.Ordinal))
+                long sum = all.Sum(x => x.Rev.StoredBytes);
+                // a pass goes from the oldest on; a whole copy that a patch still needs is passed over and found free by a later pass
+                for (bool deleted = true; deleted && sum > total;)
                 {
-                    if (sum <= total) break;
-                    Delete(x.Folder, x.Rev);
-                    sum -= x.Rev.Size;
+                    deleted = false;
+                    foreach (var x in all.Where(x => !x.Rev.Pinned && !x.Newest).OrderBy(x => x.Rev.Id, StringComparer.Ordinal).ToList())
+                    {
+                        if (sum <= total) break;
+                        if (all.Any(y => y.Folder == x.Folder && y.Rev.BaseId == x.Rev.Id)) continue;
+                        Delete(x.Folder, x.Rev);
+                        all.Remove(x);
+                        sum -= x.Rev.StoredBytes;
+                        deleted = true;
+                    }
                 }
             }
             return before - TotalBytesCore();
         }
     }
 
-    private long TotalBytesCore() => Directory.Exists(_root) ? Directory.EnumerateDirectories(_root).Sum(f => ListFolder(f).Sum(r => r.Size)) : 0;
+    private long TotalBytesCore() => Directory.Exists(_root) ? Directory.EnumerateDirectories(_root).Sum(f => ListFolder(f).Sum(r => r.StoredBytes)) : 0;
 
     public long TotalBytes()
     {
@@ -430,18 +636,21 @@ public sealed partial class FileHistory
 
     // ---- search ----
 
-    /// <summary>Looks for text in the older revisions of a file; newest revision first. Revisions of a secrets file are not searched.</summary>
+    /// <summary>
+    /// Looks for text in the older revisions of a file; newest revision first. Revisions of a secrets file are not searched, and neither are the revisions of a large file that
+    /// are kept as patches (their bytes are not text on disk).
+    /// </summary>
     public async Task<IReadOnlyList<HistorySearchHit>> SearchAsync(string path, SearchPattern pattern, CancellationToken ct = default)
     {
         if (SecretValues.IsSecretFile(path)) return [];
-        IReadOnlyList<HistoryRevision> revisions = List(path);
+        IReadOnlyList<HistoryRevision> revisions = [.. List(path).Where(r => !r.IsPatch)];
         if (revisions.Count == 0) return [];
         var blobs = Path.Combine(FolderOf(path), "blobs");
         var settings = new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Walk = new FileWalkOptions { UseIgnoreFiles = false, IncludeHidden = true } };
         var (hits, _) = await SearchWorker.CollectAsync(pattern, new SearchScope([blobs]), settings, ct);
         var byId = revisions.ToDictionary(r => r.Id);
         return hits
-            .Where(h => h.Source.Path is not null && byId.ContainsKey(Path.GetFileNameWithoutExtension(h.Source.Path)))
+            .Where(h => h.Source.Path is not null && Path.GetExtension(h.Source.Path) == ".rev" && byId.ContainsKey(Path.GetFileNameWithoutExtension(h.Source.Path)))
             .GroupBy(h => Path.GetFileNameWithoutExtension(h.Source.Path!))
             .Select(g => new HistorySearchHit(byId[g.Key], g.LongCount(), g.Min(h => h.Line), g.OrderBy(h => h.Line).First().Preview))
             .OrderByDescending(h => h.Revision.Id, StringComparer.Ordinal)
