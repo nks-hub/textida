@@ -4811,13 +4811,15 @@
       "menu": "file",
       "command": "nks.review.open",
       "group": "2_disk",
-      "order": 75
+      "submenu": "history",
+      "order": 90
     },
     {
       "menu": "file",
       "command": "nks.review.folder",
       "group": "2_disk",
-      "order": 76
+      "submenu": "history",
+      "order": 91
     },
     {
       "menu": "tools",
