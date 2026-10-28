@@ -28,6 +28,18 @@ public sealed class RecoveryOptions
 {
     /// <summary>Changes of one document (bytes inserted and removed, copied from the journal or its payload files) above which the document is left as <see cref="RecoveryStatus.Pending"/>; 0 replays everything.</summary>
     public long DeferAboveBytes { get; init; }
+
+    /// <summary>
+    /// A file longer than this is not hashed while its document is rebuilt (<see cref="DocumentOptions.HashInBackgroundAboveBytes"/>), so a crash in front of a file of tens of GiB does not make the
+    /// recovery read all of it first. The file still has to be the one the journal recorded: a different size is a <see cref="RecoveryStatus.Conflict"/> at once, the same size and write time are taken
+    /// for the same file and the pass over the file compares its hash with the recorded one later (a difference raises <see cref="Document.ExternalChangeDetected"/>, and a save that is not an
+    /// explicit overwrite returns it), and a different write time with the same size, where only the content can tell a touched file from a changed one, waits for the pass.
+    /// The default hashes every file before the document is rebuilt.
+    /// </summary>
+    public long HashInBackgroundAboveBytes { get; init; } = long.MaxValue;
+
+    /// <summary>Test seam: the passes of <see cref="HashInBackgroundAboveBytes"/> wait for this task before they read a file.</summary>
+    internal Task? HashPassGate { get; init; }
 }
 
 public sealed class RecoveredDocument
@@ -126,8 +138,8 @@ public static class JournalRecovery
     }
 
     /// <summary>Replays one document whatever its changes weigh; this is what settles a <see cref="RecoveryStatus.Pending"/> document once the user chose to restore it.</summary>
-    internal static RecoveredDocument ReplayDocument(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads) =>
-        Replay(log, backends, payloads, new RecoveryOptions());
+    internal static RecoveredDocument ReplayDocument(JournalCompactor.DocLog log, Func<string, IBackendFactory?> backends, string payloads, RecoveryOptions? like = null) =>
+        Replay(log, backends, payloads, new RecoveryOptions { HashInBackgroundAboveBytes = like?.HashInBackgroundAboveBytes ?? long.MaxValue });
 
     /// <summary>Bytes a replay of these records has to copy out of the journal and its payload files, and bytes it removes; a fill costs nothing, whatever its length.</summary>
     private static long ChangeWeight(List<JournalRecord> records)
@@ -174,7 +186,7 @@ public static class JournalRecovery
         if (factory is null) return Make(RecoveryStatus.Failed, error: $"Backend '{open.Backend}' is not available.");
         var codec = TextCodec.ByName(open.Codec);
         if (codec is null) return Make(RecoveryStatus.Failed, error: $"Codec '{open.Codec}' is not known.");
-        var options = new DocumentOptions { Format = codec };
+        var options = new DocumentOptions { Format = codec, HashInBackgroundAboveBytes = recovery.HashInBackgroundAboveBytes, HashPassGate = recovery.HashPassGate, ExpectedFingerprint = edits.Count > 0 ? open.Fingerprint : null };
         Document? document = null;
         try
         {
@@ -187,7 +199,7 @@ public static class JournalRecovery
                 {
                     return Make(RecoveryStatus.Missing, error: "The file no longer exists.");
                 }
-                if (open.Fingerprint is { } expected && edits.Count > 0 && !document.Fingerprint!.SameContent(expected))
+                if (open.Fingerprint is { } expected && edits.Count > 0 && !BaseMatches(document, expected))
                 {
                     var change = new ExternalChange(open.DocId, 0, path, expected, document.Fingerprint, ExternalChangeKind.Modified);
                     document.Dispose();
@@ -216,6 +228,19 @@ public static class JournalRecovery
         {
             document?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Whether the file under a document that was just opened is the one the journal recorded. A document that was hashed while it opened answers by the hash. One whose hash is still being taken
+    /// answers by size, and by write time: equal both is taken for the same file (the pass compares the hash later, see <see cref="RecoveryOptions.HashInBackgroundAboveBytes"/>); the same size with
+    /// another write time, when the journal knows the hash, is settled by the pass, which is waited for.
+    /// </summary>
+    private static bool BaseMatches(Document document, FileFingerprint expected)
+    {
+        var actual = document.Fingerprint!;
+        if (actual.HasHash || !expected.HasHash) return actual.SameContent(expected);
+        if (actual.Size != expected.Size) return false;
+        return actual.LastWriteUtc == expected.LastWriteUtc || document.ConfirmExpectedBase();
     }
 
     private static byte[] AssembleSeeds(JournalCompactor.DocLog log, OpenRecord open)

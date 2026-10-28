@@ -136,7 +136,7 @@ public sealed partial class Document
             try { return SaveInPlace(target, plan, guard); }
             catch (SnapshotInvalidatedException) { } // the file was touched (same content, new write time): the whole file is written below instead
         }
-        if (guard && CheckExternalChange() is { } early) return AdoptOrConflict(early);
+        if (guard && (BaseConflict(CancellationToken.None) ?? CheckExternalChange()) is { } early) return AdoptOrConflict(early);
 
         string temp =target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try

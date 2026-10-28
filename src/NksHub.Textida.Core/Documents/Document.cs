@@ -67,7 +67,7 @@ public sealed partial class Document : IDisposable
             var blocks = later ? null : new OriginalBlockHashes();
             var print = new FileFingerprint(backend.ByteLength, time, later ? "" : HashBackend(backend, blocks!));
             var doc = new Document(backend, options, path, print, unsaved: false) { _baseline = blocks, _fileId = FileIdentity.TryGet(path) };
-            if (later) doc.HashOpenedFileInBackground(path, print, options!.HashPassGate);
+            if (later) doc.HashOpenedFileInBackground(path, print, options!.HashPassGate, options.ExpectedFingerprint);
             return doc;
         }
         catch

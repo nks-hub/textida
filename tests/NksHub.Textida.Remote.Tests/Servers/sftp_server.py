@@ -188,6 +188,15 @@ sock.listen(20)
 fp = base64.b64encode(hashlib.sha256(host_key.asbytes()).digest()).decode().rstrip("=")
 print(json.dumps({"pid": os.getpid(), "port": sock.getsockname()[1], "sha256": fp}), flush=True)
 
+# The test host keeps the other end of stdin open for as long as it lives. When it is gone (crashed, killed) the read ends and so does this server, which has no end of its own.
+def end_with_the_host():
+    try:
+        sys.stdin.buffer.read()
+    finally:
+        os._exit(0)
+
+threading.Thread(target=end_with_the_host, daemon=True).start()
+
 def serve(conn):
     t = paramiko.Transport(conn)
     t.add_server_key(host_key)

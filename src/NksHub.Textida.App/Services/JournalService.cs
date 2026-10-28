@@ -71,7 +71,7 @@ internal sealed class JournalService : IDisposable
             try { File.Delete(flag); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { clean = false; }
         }
-        var session = JournalSession.Start(location.Directory, BackendByName, recovery: new RecoveryOptions { DeferAboveBytes = AskBeforeRecoverBytes });
+        var session = JournalSession.Start(location.Directory, BackendByName, recovery: new RecoveryOptions { DeferAboveBytes = AskBeforeRecoverBytes, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes });
         return new JournalService(session, location, clean, location.Directory);
     }
 

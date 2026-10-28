@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using FubarDev.FtpServer;
 using FubarDev.FtpServer.AccountManagement;
+using FubarDev.FtpServer.Commands;
+using FubarDev.FtpServer.Features;
 using FubarDev.FtpServer.FileSystem.DotNet;
 using Microsoft.Extensions.DependencyInjection;
 using NksHub.Textida.Remote;
@@ -30,6 +32,28 @@ public sealed class FtpsServer : IServerFixture
 {
     private readonly ServiceProvider _provider;
     private readonly IFtpServerHost _host;
+    private static int _held;
+
+    /// <summary>
+    /// FubarDev.FtpServer 3.1.2 starts a connection service with a local <c>SemaphoreSlim</c> that a <c>Progress&lt;T&gt;</c> callback releases on the thread pool; when the connection is cancelled while it starts, the method
+    /// has returned and disposed the semaphore before the callback runs, and the <see cref="ObjectDisposedException"/> has no catcher. That ended the whole test host in the middle of a run (a log of a run on a slow machine
+    /// stopped after 54 of 82 tests and said "Test host process crashed"). The runtime ends the process only after the handlers of <c>UnhandledException</c> have returned, so a handler that knows this one holds its thread for good
+    /// (one pool thread per occurrence) and leaves every other unhandled exception alone.
+    /// </summary>
+    internal static Func<Exception, bool> IsKnownServerRace { get; set; } = e =>
+        e is ObjectDisposedException { ObjectName: "System.Threading.SemaphoreSlim" } && e.StackTrace?.Contains("FubarDev.FtpServer.Networking.PausableFtpService", StringComparison.Ordinal) == true;
+
+    /// <summary>How many times <see cref="IsKnownServerRace"/> held an exception in this process.</summary>
+    internal static int HeldServerRaces => Volatile.Read(ref _held);
+
+    static FtpsServer() =>
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is not Exception exception || !IsKnownServerRace(exception)) return;
+            Interlocked.Increment(ref _held);
+            Console.Error.WriteLine("The FTP test server hit its known shutdown race (" + exception.GetType().Name + " in " + exception.TargetSite?.DeclaringType?.Name + "); the thread is held so that the test host stays up.");
+            Thread.Sleep(Timeout.Infinite);
+        };
 
     public RemoteProtocol Protocol => RemoteProtocol.Ftps;
     public string Root { get; }
@@ -69,7 +93,7 @@ public sealed class FtpsServer : IServerFixture
         try { return ((IPEndPoint)l.LocalEndpoint).Port; } finally { l.Stop(); }
     }
 
-    public static async Task<FtpsServer> StartAsync(string root, bool isImplicit = false, X509Certificate2? certificate = null, int? port = null, bool plain = false, string password = "p")
+    public static async Task<FtpsServer> StartAsync(string root, bool isImplicit = false, X509Certificate2? certificate = null, int? port = null, bool plain = false, string password = "p", TimeSpan? commandLag = null)
     {
         certificate ??= NewCertificate();
         int p = port ?? FreePort();
@@ -80,6 +104,8 @@ public sealed class FtpsServer : IServerFixture
         services.AddSingleton(new FixedMembership(password));
         services.AddSingleton<IMembershipProvider>(sp => sp.GetRequiredService<FixedMembership>());
         services.AddSingleton<IMembershipProviderAsync>(sp => sp.GetRequiredService<FixedMembership>());
+        if (commandLag is { } lag) services.AddSingleton<IFtpCommandMiddleware>(new LagAfterTheResponse(lag));
+        services.AddSingleton<IFtpMiddleware, WaitForTheRunningCommand>();
         services.AddFtpServer(b => b.UseDotNetFileSystem().UseSingleRoot());
         var provider = services.BuildServiceProvider();
         var host = provider.GetRequiredService<IFtpServerHost>();
@@ -91,6 +117,36 @@ public sealed class FtpsServer : IServerFixture
     {
         await _host.StopAsync(CancellationToken.None);
         await _provider.DisposeAsync();
+    }
+
+    /// <summary>
+    /// FubarDev runs RNFR, RNTO and the other commands it declares abortable as a background task and answers the next such command with
+    /// "503 Parallel commands aren't allowed" until its dispatcher noticed that the task ended. The task ends a moment after the reply is
+    /// queued, so a client that sends RNTO the instant it has read the 350 of RNFR (as every client must) is refused on a loaded machine.
+    /// This waits for that task before the next command is dispatched; ABOR is the one command that is meant to arrive meanwhile.
+    /// </summary>
+    private sealed class WaitForTheRunningCommand : IFtpMiddleware
+    {
+        public async Task InvokeAsync(FtpContext context, FtpRequestDelegate next)
+        {
+            var features = context.Connection.Features;
+            if (features.Get<IBackgroundTaskLifetimeFeature?>() is { } running && !context.Command.Name.Equals("ABOR", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.WhenAny(running.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                if (running.Task.IsCompleted) features.Set<IBackgroundTaskLifetimeFeature?>(null);
+            }
+            await next(context);
+        }
+    }
+
+    /// <summary>Keeps every command running for a while after its reply was queued, which widens the window of the race <see cref="WaitForTheRunningCommand"/> closes.</summary>
+    private sealed class LagAfterTheResponse(TimeSpan lag) : IFtpCommandMiddleware
+    {
+        public async Task InvokeAsync(FtpExecutionContext context, FtpCommandExecutionDelegate next)
+        {
+            await next(context);
+            await Task.Delay(lag);
+        }
     }
 
     private sealed class FixedMembership(string password) : IMembershipProviderAsync, IMembershipProvider

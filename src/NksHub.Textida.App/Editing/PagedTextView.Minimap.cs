@@ -21,6 +21,9 @@ internal sealed partial class PagedTextView : IMinimapHost
     /// <summary>Bytes of the file the minimap has read so far, for tests: a few blocks, never the file.</summary>
     internal long MapBytesRead => Interlocked.Read(ref _mapBytesRead);
 
+    /// <summary>Lines a view beyond the index has scanned for their starts so far, for tests; 0 outside such a view.</summary>
+    internal int DetourLinesScanned => _detour?.Starts.Count ?? 0;
+
     event Action? IMinimapHost.MapChanged
     {
         add => _mapChanged += value;
@@ -37,6 +40,8 @@ internal sealed partial class PagedTextView : IMinimapHost
 
     bool IMinimapHost.Sampled => true;
 
+    bool IMinimapHost.IndexComplete => Indexed;
+
     (long First, long Count) IMinimapHost.Visible => (TopLine, Math.Max(1, _canvas.VisibleLines));
 
     void IMinimapHost.ScrollToLine(long line) => _bar.Value = Math.Clamp(line, 0, _bar.Maximum);
@@ -44,6 +49,8 @@ internal sealed partial class PagedTextView : IMinimapHost
     string? IMinimapHost.LineText(long line)
     {
         if (line < 0 || line >= LineCount) return null;
+        // a view beyond the index finds line starts by scanning forward from where it began; a picture spread over the whole file would scan the file (gigabytes, a minute)
+        if (_detour is { } d && line - d.BaseLine >= d.Starts.Count) return null;
         if (_mapBlock.Revision != Doc.Revision || line < _mapBlock.First || line >= _mapBlock.First + _mapBlock.Lines.Length)
             _mapBlock = (Doc.Revision, line, ReadMapLines(line));
         long at = line - _mapBlock.First;

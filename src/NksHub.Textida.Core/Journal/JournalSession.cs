@@ -19,6 +19,7 @@ public sealed class JournalSession : IDisposable
     private readonly Timer? _compactTimer;
     private FileStream? _lock;
     private Func<string, IBackendFactory?>? _backends;
+    private RecoveryOptions? _recoveryOptions;
     private JournalWriter? _writer;
     private long _lengthAfterCompaction;
     private Exception? _broken;
@@ -70,7 +71,7 @@ public sealed class JournalSession : IDisposable
         Directory.CreateDirectory(directory);
         foreach (var stale in Directory.GetFiles(directory, "session-*.njl.tmp")) TryDelete(stale);
 
-        var session = new JournalSession(directory, options) { _backends = backends };
+        var session = new JournalSession(directory, options) { _backends = backends, _recoveryOptions = recovery };
         var combined = new RecoveryResult();
         var seen = new HashSet<Guid>();
         var done = new List<(string Journal, FileStream Lock)>();
@@ -154,7 +155,7 @@ public sealed class JournalSession : IDisposable
         RecoveredDocument pending;
         lock (_gate) pending = Recovery.Documents.Find(d => d.DocId == docId && d.Status == RecoveryStatus.Pending) ?? throw new InvalidOperationException("No change of this document waits for a decision.");
         var log = new JournalCompactor.DocLog { Open = pending.Records[0], Rest = pending.Records.GetRange(1, pending.Records.Count - 1) };
-        var rebuilt = JournalRecovery.ReplayDocument(log, backends, JournalPayloads.DirectoryOf(_dir));
+        var rebuilt = JournalRecovery.ReplayDocument(log, backends, JournalPayloads.DirectoryOf(_dir), _recoveryOptions);
         lock (_gate)
         {
             int at = Recovery.Documents.IndexOf(pending);
