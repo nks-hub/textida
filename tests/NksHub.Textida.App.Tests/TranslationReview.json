@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "meaning": "Reviewer OPEN or empty: nobody who speaks the language has read the texts of this area; the gates only prove what a program can prove. A name needs reviewedOn (yyyy-MM-dd). Never enter a reviewer who did not read the texts.",
+  "areas": [
+    {
+      "id": "menus",
+      "title": "Menu bar, submenus and the menu of a tab",
+      "rules": [
+        {
+          "catalogue": "workbench",
+          "prefixes": ["menu.", "submenu."]
+        },
+        {
+          "catalogue": "app",
+          "prefixes": ["tab.menu."]
+        }
+      ]
+    },
+    {
+      "id": "palette",
+      "title": "Command titles, categories and palette texts",
+      "rules": [
+        {
+          "catalogue": "workbench",
+          "prefixes": ["cmd.", "cat.", "reason."]
+        },
+        {
+          "catalogue": "app",
+          "prefixes": ["palette."]
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings, their search and the configuration files",
+      "rules": [
+        {
+          "catalogue": "workbench",
+          "prefixes": ["setting."]
+        },
+        {
+          "catalogue": "app",
+          "prefixes": ["settings.", "config.", "configFiles.", "keys.", "key."]
+        }
+      ]
+    },
+    {
+      "id": "status-bar",
+      "title": "Status bar, its menus and its messages",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["status.", "encoding.", "eol.", "indent.", "language.", "view."]
+        }
+      ]
+    },
+    {
+      "id": "accessible-names",
+      "title": "Names and descriptions a screen reader reads",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["a11y."]
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "title": "Error and refusal messages",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["error.", "conflict.", "lock.", "lint."]
+        }
+      ]
+    },
+    {
+      "id": "recovery-and-updates",
+      "title": "Crash recovery, the journal and the updater",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["restore.", "journal.", "update."]
+        }
+      ]
+    },
+    {
+      "id": "dialogs",
+      "title": "Dialogs and questions",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["dialog.", "loss.", "session.", "lines.", "batch.", "special.", "shell."]
+        }
+      ]
+    },
+    {
+      "id": "panels",
+      "title": "Panels, views and bars that can be hidden",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["panel.", "files.", "results.", "agent.", "aicontext.", "ide.", "mcp.", "hex.", "inspect.", "bookmarks.", "table.", "log.", "compare.", "review.", "history.", "find.", "bar.", "preview.", "schema.", "workspace.", "project.", "favorite.", "favorites.", "paged.", "virtual.", "ksy."]
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "title": "The plugin manager and the texts bundled plugins contribute",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["plugins.", "plugin.", "packages.", "source."]
+        },
+        {
+          "catalogue": "plugin",
+          "prefixes": ["*"]
+        }
+      ]
+    },
+    {
+      "id": "windows-and-tools",
+      "title": "All other windows and tools",
+      "rules": [
+        {
+          "catalogue": "app",
+          "prefixes": ["*"]
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    { "language": "cs", "area": "menus", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "palette", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "settings", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "status-bar", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "accessible-names", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "errors", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "recovery-and-updates", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "dialogs", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "panels", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "plugins", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "cs", "area": "windows-and-tools", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "menus", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "palette", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "settings", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "status-bar", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "accessible-names", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "errors", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "recovery-and-updates", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "dialogs", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "panels", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "plugins", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "en", "area": "windows-and-tools", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "menus", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "palette", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "settings", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "status-bar", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "accessible-names", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "errors", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "recovery-and-updates", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "dialogs", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "panels", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "plugins", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "sk", "area": "windows-and-tools", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "menus", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "palette", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "settings", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "status-bar", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "accessible-names", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "errors", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "recovery-and-updates", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "dialogs", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "panels", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "plugins", "reviewer": "OPEN", "reviewedOn": "" },
+    { "language": "de", "area": "windows-and-tools", "reviewer": "OPEN", "reviewedOn": "" }
+  ]
+}
