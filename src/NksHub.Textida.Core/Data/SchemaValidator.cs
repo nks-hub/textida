@@ -7,7 +7,7 @@ namespace NksHub.Textida.Core.Data;
 public sealed record SchemaIssue(string Code, string Detail, int Start, int End, string Pointer, string[]? Args = null);
 
 /// <summary>
-/// Limits the caller decides; there are no defaults. <see cref="Links"/> is what <see cref="SchemaRefs"/> resolved: for the value node of each <c>$ref</c> of the schema and of the documents it pulled in,
+/// Limits the caller decides; there are no defaults. <see cref="Links"/> is what <c>SchemaRefs</c> of the JSON plugin resolved: for the value node of each <c>$ref</c> of the schema and of the documents it pulled in,
 /// the schema it points to. Without links only references inside the one schema (<c>#</c>, <c>#/...</c>) are followed.
 /// </summary>
 public sealed record SchemaOptions(int MaxDepth, TimeSpan RegexTimeout, IReadOnlyDictionary<DataNode, DataNode>? Links = null);
@@ -15,7 +15,7 @@ public sealed record SchemaOptions(int MaxDepth, TimeSpan RegexTimeout, IReadOnl
 /// <summary>
 /// Checks a <see cref="DataNode"/> against a JSON Schema (draft-07 / 2019-09 / 2020-12 subset): type, enum, const, properties, patternProperties, additionalProperties,
 /// required, propertyNames, min/maxProperties, items (schema or array), prefixItems, additionalItems, contains, min/maxItems, uniqueItems, min/maxLength, pattern,
-/// minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, allOf, anyOf, oneOf, not, if/then/else and <c>$ref</c> (<c>#</c>, <c>#/...</c>, and, linked by <see cref="SchemaRefs"/>, other documents).
+/// minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, allOf, anyOf, oneOf, not, if/then/else and <c>$ref</c> (<c>#</c>, <c>#/...</c>, and, linked by <c>SchemaRefs</c> of the JSON plugin, other documents).
 /// A reference that leads back to a schema already being applied to the same value counts as met. <c>format</c>, anchors and <c>unevaluated*</c> are ignored.
 /// </summary>
 public sealed class SchemaValidator(DataNode root, SchemaOptions options)
@@ -32,7 +32,7 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
     private readonly HashSet<(DataNode Schema, DataNode Data)> _active = [];
 
     /// <summary>The node a JSON pointer fragment (<c>#</c> or <c>#/a/b</c>, or just <c>/a/b</c>) leads to inside <paramref name="document"/>, or null.</summary>
-    internal static DataNode? Pointer(DataNode document, string reference)
+    public static DataNode? Pointer(DataNode document, string reference)
     {
         if (reference is "#" or "") return document;
         if (reference.StartsWith('#')) reference = reference[1..];
@@ -48,7 +48,7 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
     }
 
     /// <summary>The schema a <c>$ref</c> value node points to: its link when links were made, else a reference inside <paramref name="root"/>. Null when it leads nowhere (it then asks nothing).</summary>
-    internal static DataNode? TargetOf(DataNode root, DataNode reference, SchemaOptions options) =>
+    public static DataNode? TargetOf(DataNode root, DataNode reference, SchemaOptions options) =>
         options.Links is { } links ? links.GetValueOrDefault(reference) : reference.Text.StartsWith('#') ? Pointer(root, reference.Text) : null;
 
     private void Add(List<SchemaIssue> issues, string code, string detail, int start, int end, string pointer, params string[] args) => issues.Add(new(code, detail, start, end, pointer, args.Length == 0 ? null : args));
