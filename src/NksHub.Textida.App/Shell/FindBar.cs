@@ -129,7 +129,11 @@ internal sealed class FindBar : Border
         ApplyTexts();
     }
 
-    public void Close() => IsVisible = false;
+    public void Close()
+    {
+        IsVisible = false;
+        HexMode = false;
+    }
 
     private bool _running;
 

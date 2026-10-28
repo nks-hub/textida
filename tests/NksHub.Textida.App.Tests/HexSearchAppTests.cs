@@ -244,16 +244,29 @@ public class HexSearchAppTests : IDisposable
         Assert.Empty(_dialogs.Prompts);
 
         bar.FindBox.Text = "";
-        Assert.Equal("", bar.CountText.Text);
+        Assert.Equal("", bar.CountText.Text ?? "");
         Assert.DoesNotContain("error", bar.CountText.Classes);
     }
 
     [AvaloniaFact]
     public void The_bar_is_the_byte_search_only_in_a_hex_view_and_closes_when_the_view_changes_kind()
     {
+        _w.OpenFile(_temp.File("first.txt", "abc abc"), null);
+        Dispatcher.UIThread.RunJobs();
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        _w.FindBar.FindBox.Text = "abc";
+        Assert.False(_w.FindBar.HexMode);
+
         OpenHex([0, 1, 2, 3]);
+        Assert.False(_w.FindBar.IsVisible); // a bar for text does not follow the tab to a hex view
         TestApp.Press(_w, Key.F, TestApp.Mod);
         Assert.True(_w.FindBar.IsVisible && _w.FindBar.HexMode);
+        Assert.Equal("", _w.FindBar.FindBox.Text ?? ""); // the text query is not the byte query
+        _w.FindBar.FindBox.Text = "00 01";
+        TestApp.Press(_w, Key.Escape);
+        Assert.False(_w.FindBar.IsVisible);
+        TestApp.Press(_w, Key.F, TestApp.Mod);
+        Assert.Equal("00 01", _w.FindBar.FindBox.Text); // the byte search keeps its query for the next time
 
         _w.OpenFile(_temp.File("plain.txt", "abc abc"), null);
         Dispatcher.UIThread.RunJobs();
@@ -261,6 +274,7 @@ public class HexSearchAppTests : IDisposable
         TestApp.Press(_w, Key.F, TestApp.Mod);
         Assert.True(_w.FindBar.IsVisible);
         Assert.False(_w.FindBar.HexMode);
+        Assert.Equal("abc", _w.FindBar.FindBox.Text); // and the text search its own
         Assert.True(_w.FindBar.RegexToggle.IsVisible);
 
         _w.SelectTab(_w.Tabs.First(t => t.Hex is not null));

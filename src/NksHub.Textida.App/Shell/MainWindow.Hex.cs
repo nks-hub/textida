@@ -31,6 +31,7 @@ internal sealed partial class MainWindow
     private ByteQuery? _hexPattern;
     private string _hexQuery = "";
     private bool _hexFresh;
+    private string _textQuery = "";
     private string _hexReplacement = "";
 
     internal HexView? ActiveHex => Active?.Hex;
@@ -466,6 +467,7 @@ internal sealed partial class MainWindow
     internal void OpenHexFind(HexView hex)
     {
         bool wasOpen = _find.IsVisible && _find.HexMode;
+        if (!_find.HexMode) _textQuery = _find.FindBox.Text ?? ""; // the field is the byte query while this bar is open
         CancelFind();
         ShowFindMarks(null, null);
         DropScope();

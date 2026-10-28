@@ -145,8 +145,16 @@ internal sealed partial class MainWindow
         CancelFind();
         ShowFindMarks(null, null);
         DropScope();
-        _find.Close();
+        CloseFindBar();
         if (Active is { } tab) FocusView(tab);
+    }
+
+    /// <summary>Hides the bar; after the byte search the field holds the text query again that it held before.</summary>
+    private void CloseFindBar()
+    {
+        bool bytes = _find.HexMode;
+        _find.Close();
+        if (bytes) SetFindText(_textQuery);
     }
 
     /// <summary>Called when the active tab changed: follows the document with the search and forgets the selection scope of the old one.</summary>
@@ -158,7 +166,7 @@ internal sealed partial class MainWindow
             CancelFind();
             ShowFindMarks(null, null);
             DropScope();
-            _find.Close();
+            CloseFindBar();
         }
         var od = Active?.Doc is { IsResults: false } d ? d : null;
         if (ReferenceEquals(_findSubscribed, od)) return;
