@@ -197,6 +197,25 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
                 {
                     return Raw($"{{\"error\":{e.Code},\"data\":{e.DataJson ?? "null"}}}");
                 }
+            case "ownNetwork":
+                {
+                    // what a plugin does that goes around net/request: a socket, a name for the resolver and an HttpClient of its own, each given 500 ms
+                    using var limit = new CancellationTokenSource(500);
+                    async Task<string> Try(Func<Task> attempt)
+                    {
+                        try { await attempt(); return "answered"; }
+                        catch (Exception e) when (e is OperationCanceledException or System.Net.Sockets.SocketException or HttpRequestException) { return "failed"; }
+                    }
+                    var attempts = new List<Task<string>>();
+                    if (p.TryGetProperty("socket", out var socket))
+                    {
+                        var parts = socket.GetString()!.Split(':');
+                        attempts.Add(Try(async () => { using var tcp = new System.Net.Sockets.TcpClient(); await tcp.ConnectAsync(System.Net.IPAddress.Parse(parts[0]), int.Parse(parts[1]), limit.Token); }));
+                    }
+                    if (p.TryGetProperty("dns", out var name)) attempts.Add(Try(async () => await System.Net.Dns.GetHostAddressesAsync(name.GetString()!, limit.Token)));
+                    if (p.TryGetProperty("http", out var url)) attempts.Add(Try(async () => { using var http = new HttpClient(); await http.GetAsync(url.GetString()!, limit.Token); }));
+                    return Raw("[" + string.Join(",", (await Task.WhenAll(attempts)).Select(Q)) + "]");
+                }
             case "callEditorThenCrash":
                 await Rpc.RequestAsync(Str(p, "method"), Raw(p.GetProperty("params").GetRawText()));
                 Environment.Exit(43);

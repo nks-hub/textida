@@ -825,6 +825,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.RemoteSaveFailed, ("reason", ReasonOf(e))));
             return;
         }
+        _app.Plugins.SyncRegistryProxy(); // the JSON plugin reads the proxy from a file of its own, which must not keep the old one
         SetStatusMessage(Loc.Get(kind == ProxyType.None ? K.RemoteProxyOff : K.RemoteProxySaved));
     }
 }

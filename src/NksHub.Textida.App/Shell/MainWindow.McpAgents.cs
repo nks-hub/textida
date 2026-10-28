@@ -170,7 +170,10 @@ internal sealed partial class MainWindow
     private async Task<Client> StartMcpAsync(McpTarget target, McpClientOptions options, string source, CancellationToken ct)
     {
         if (target.Launch is { } launch) return await Client.StartAsync(launch, options, line => _app.Output.Append(OutputChannel.Tasks, source, line), ct);
-        var http = new HttpClient(_app.Remote.Policy().CreateHttpHandler()) { Timeout = Timeout.InfiniteTimeSpan };
+        // the key in the headers belongs to the address the user saw, so a redirect may lead to another page of that host and nowhere else
+        var handler = _app.Remote.Policy().CreateHttpHandler();
+        handler.AllowAutoRedirect = false;
+        var http = new HttpClient(new SameHostRedirectHandler(handler)) { Timeout = Timeout.InfiniteTimeSpan };
         return await Client.StartRemoteAsync(target.Remote!, options, http, ct);
     }
 
