@@ -10,8 +10,11 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
+using Doc = NksHub.Textida.Core.Documents.Document;
 using static NksHub.Textida.App.Tests.HighlightExportTests;
 
 namespace NksHub.Textida.App.Tests;
@@ -86,6 +89,20 @@ public class HighlightExportTests
         var comment = ((ISolidColorBrush)theme.Palette.GetBrush("comment")!).Color;
         Assert.Equal(7, colors.Length);
         Assert.All(colors, c => Assert.Equal(comment, c));
+    }
+
+    [Fact]
+    public void A_text_taken_from_the_middle_of_a_document_is_colored_from_the_state_given_for_its_start()
+    {
+        var tokenizer = LanguageModes.Tokenizer("csharp");
+        var theme = Theme();
+        const string before = "int a; /* open\n", tail = "  inside */ int b;\n";
+        var state = tokenizer.TokenizeLine("int a; /* open", tokenizer.InitialState, []);
+        var expected = EditorColors(before + tail, "csharp", theme.Palette)[before.Length..];
+        Assert.Equal(expected, HtmlColors(HighlightExport.Html(tail, tokenizer, null, theme, startState: state)));
+        Assert.Equal(expected, HtmlColors(HighlightExport.Html(tail, tokenizer, null, theme, startState: state, range: (0, tail.Length))));
+        Assert.NotEqual(expected, HtmlColors(HighlightExport.Html(tail, tokenizer, null, theme)));
+        Assert.Contains($"\\red{((ISolidColorBrush)theme.Palette.GetBrush("comment")!).Color.R}", HighlightExport.Rtf(tail, tokenizer, null, theme, startState: state));
     }
 
     [Fact]
@@ -243,6 +260,50 @@ public class HighlightExportWindowTests : IDisposable
         _w.ExportHighlighted(MainWindow.ExportForm.Html);
         ToolTestKit.WaitFor(() => _w.StatusMessageText == Loc.Get(K.ExportNothing), "no message");
         Assert.False(File.Exists(Path.Combine(_temp.Path, "no.html")));
+    }
+
+    private DocTab OpenPagedCs(string text, string name = "p.cs")
+    {
+        // the setting files.largeFileThreshold cannot go below 1 MiB, so a small text is opened in the paged backend directly
+        var tab = _w.AddRecovered(OpenDocument.Open(_temp.Bytes(name, Encoding.UTF8.GetBytes(text)), 0), _w.ActiveGroup);
+        Assert.True(tab.Doc.IsLarge);
+        _w.SelectTab(tab);
+        _w.UpdateLayout();
+        ToolTestKit.WaitFor(() => tab.Paged!.Index.Complete, "the line index did not finish");
+        return tab;
+    }
+
+    private static (long Start, long End) Bytes(string text, int from, int length) =>
+        (Encoding.UTF8.GetByteCount(text.AsSpan(0, from)), Encoding.UTF8.GetByteCount(text.AsSpan(0, from + length)));
+
+    [AvaloniaTheory]
+    [InlineData("line */", 7)] // inside a block comment that opens on an earlier line
+    [InlineData("line */ void M() { }", 20)] // the comment ends inside the selection
+    [InlineData("y&z\\n\"; int n", 13)] // starts in the middle of a string: the quote that follows closes it
+    public async Task A_selection_in_a_large_file_is_colored_as_the_whole_document(string selected, int length)
+    {
+        var tab = OpenPagedCs(CSharp);
+        int from = CSharp.IndexOf(selected, StringComparison.Ordinal);
+        Assert.True(from >= 0);
+        var (start, end) = Bytes(CSharp, from, length);
+        tab.Paged!.SelectBytes(start, end);
+        string html = await ExportToFile(tab, MainWindow.ExportForm.Html);
+        Assert.Equal(EditorColors(CSharp, "csharp", SyntaxPalette.Light)[from..(from + length)], HtmlColors(html)); // as many characters as selected: the head is not exported
+    }
+
+    [AvaloniaFact]
+    public async Task The_start_state_of_a_line_is_the_state_the_whole_document_leaves_before_it()
+    {
+        var tokenizer = LanguageModes.Tokenizer("csharp");
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(CSharp), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        string[] lines = CSharp.Split('\n');
+        var expected = tokenizer.InitialState;
+        for (int line = 0; line < lines.Length; line++)
+        {
+            Assert.Same(expected, await SyntaxFeeder.StartStateOfLineAsync(doc, tokenizer, line));
+            expected = tokenizer.TokenizeLine(lines[line], expected, []);
+        }
+        Assert.Null(await SyntaxFeeder.StartStateOfLineAsync(doc, tokenizer, 1000)); // past the end: no state to give
     }
 
     [AvaloniaFact]

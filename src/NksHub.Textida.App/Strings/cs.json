@@ -1122,6 +1122,8 @@
   "export.nothing": "Není co exportovat. Velký soubor se exportuje podle výběru: nejdřív text označte.",
   "export.tooLarge": "Text má {chars} znaků, export jich vezme nejvýš {limit}. Označte jeho část.",
   "export.copied": "Zkopírováno se zvýrazněním.",
+  "export.indexPending": "Barvy závisí na textu před výběrem a číslování řádků k němu ještě nedošlo. Zkuste to znovu, až doběhne.",
+  "export.changed": "Dokument se změnil, zatímco se připravovaly barvy. Spusťte export znovu.",
   "log.fold.title": "Sbalit řádky logu",
   "log.fold.level": "Ponechat řádky aspoň této úrovně: error, warning, info, debug (prázdné ponechá všechny úrovně)",
   "log.fold.placeholder": "... skryto řádků: {count} (kliknutím zobrazíte)",

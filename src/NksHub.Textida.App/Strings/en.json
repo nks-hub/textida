@@ -1097,6 +1097,8 @@
   "export.nothing": "Nothing to export. A large file is exported by its selection: select the text first.",
   "export.tooLarge": "The text has {chars} characters; the export takes at most {limit}. Select a part of it.",
   "export.copied": "Copied with formatting.",
+  "export.indexPending": "The colors depend on the text before the selection, and the line numbering has not reached it yet. Try again when it is done.",
+  "export.changed": "The document changed while the colors were being prepared. Run the export again.",
   "log.fold.title": "Fold log lines",
   "log.fold.level": "Keep lines of at least this level: error, warning, info, debug (empty keeps all levels)",
   "log.fold.placeholder": "... {count} lines hidden (click to show)",

@@ -19,21 +19,24 @@ internal sealed partial class MainWindow
 {
     internal enum ExportForm { Html, Rtf }
 
-    /// <summary>What an export takes: the text, the part of it chosen (null for all), and what colors it. A large file is taken by its selection alone.</summary>
-    private sealed record ExportSource(string Text, (int Start, int Length)? Range, Tokenizer? Tokenizer, LogLevelRules? Levels, string Title);
+    /// <summary>
+    /// What an export takes: the text, the part of it chosen (null for all), and what colors it. A large file is taken by its selection and the start of the
+    /// line the selection begins on, which <paramref name="StartState"/> (the grammar state at that line) is for. <paramref name="Problem"/> is a message
+    /// that says why nothing can be exported.
+    /// </summary>
+    private sealed record ExportSource(string Text, (int Start, int Length)? Range, Tokenizer? Tokenizer, LogLevelRules? Levels, string Title, LineState? StartState = null, string? Problem = null);
 
-    private ExportSource? ReadExportSource()
+    /// <summary>Longest stretch of a line, in bytes, that is read in front of a selection of a large file to color it; with more the selection is colored from its own start.</summary>
+    private const long PagedExportHeadMaxBytes = 4L * PluginLimitsPlaceholders.HighlightExportMaxChars;
+
+    private async Task<ExportSource?> ReadExportSourceAsync()
     {
         if (Active is not { Custom: null, Hex: null } tab) return null;
         var od = tab.Doc;
         var tokenizer = LanguageModes.GrammarId(od) is { } id ? LanguageModes.Tokenizer(id) : null;
         var levels = od.IsLog ? od.LogLevels : null;
         string title = od.Title;
-        if (tab.Paged is { } paged)
-        {
-            string selected = paged.SelectedText();
-            return selected.Length == 0 ? null : new ExportSource(selected, null, tokenizer, levels, title);
-        }
+        if (tab.Paged is { } paged) return await ReadPagedExportSourceAsync(paged, od, tokenizer, levels, title);
         if (tab.Surface is not { } surface || tab.TableShown) return null;
         string newLine = od.NewLine(surface.Settings.ConfiguredEol);
         if (surface.IsMulti || surface.IsBlockSelection)
@@ -46,6 +49,26 @@ internal sealed partial class MainWindow
             return new ExportSource(shown, null, tokenizer, levels, title);
         }
         return new ExportSource(text, surface.SelectionLength > 0 ? (surface.SelectionStart, surface.SelectionLength) : null, tokenizer, levels, title);
+    }
+
+    /// <summary>
+    /// The selection of a large file with what the colors depend on: the text in front of it on its first line, and the grammar state at the start of that
+    /// line, so that it is colored as the whole document is. The state is read from the file up to the line, in slices on the UI thread.
+    /// </summary>
+    private static async Task<ExportSource?> ReadPagedExportSourceAsync(PagedTextView paged, OpenDocument od, Tokenizer? tokenizer, LogLevelRules? levels, string title)
+    {
+        string selected = paged.SelectedText();
+        if (selected.Length == 0) return null;
+        if (tokenizer is null && levels is null) return new ExportSource(selected, null, null, null, title);
+        long from = paged.SelectionRange.Start;
+        if (paged.ExactLineAt(from) is not { } at) return new ExportSource("", null, null, null, title, Problem: Loc.Get(K.ExportIndexPending));
+        // shortcut: a head over PagedExportHeadMaxBytes is not read, the selection is colored from its own start; upgrade with a streaming export
+        if (from - at.Start > PagedExportHeadMaxBytes) return new ExportSource(selected, null, tokenizer, levels, title);
+        string head = paged.TextOfRange(at.Start, from);
+        long revision = od.Doc.Revision;
+        var state = tokenizer is null ? null : await SyntaxFeeder.StartStateOfLineAsync(od.Doc, tokenizer, at.Line);
+        if (od.Doc.Revision != revision) return new ExportSource("", null, null, null, title, Problem: Loc.Get(K.ExportChanged));
+        return new ExportSource(head + selected, (head.Length, selected.Length), tokenizer, levels, title, state);
     }
 
     private ExportTheme CurrentExportTheme()
@@ -61,9 +84,9 @@ internal sealed partial class MainWindow
     /// <summary>Writes the export of the source; the work runs off the UI thread. Null (with the reason in the status bar) when there is nothing to export or the text is over the limit.</summary>
     private async Task<(string Html, string Rtf)?> BuildExportAsync(ExportSource? source, ExportForm? only)
     {
-        if (source is null)
+        if (source is null || source.Problem is not null)
         {
-            SetStatusMessage(Loc.Get(K.ExportNothing));
+            SetStatusMessage(source?.Problem ?? Loc.Get(K.ExportNothing));
             return null;
         }
         if (source.Text.Length > PluginLimitsPlaceholders.HighlightExportMaxChars)
@@ -73,8 +96,8 @@ internal sealed partial class MainWindow
         }
         var theme = CurrentExportTheme();
         return await Task.Run(() => (
-            only == ExportForm.Rtf ? "" : HighlightExport.Html(source.Text, source.Tokenizer, source.Levels, theme, only == ExportForm.Html ? source.Title : null, source.Range),
-            only == ExportForm.Html ? "" : HighlightExport.Rtf(source.Text, source.Tokenizer, source.Levels, theme, source.Range)));
+            only == ExportForm.Rtf ? "" : HighlightExport.Html(source.Text, source.Tokenizer, source.Levels, theme, only == ExportForm.Html ? source.Title : null, source.Range, default, source.StartState),
+            only == ExportForm.Html ? "" : HighlightExport.Rtf(source.Text, source.Tokenizer, source.Levels, theme, source.Range, default, source.StartState)));
     }
 
     /// <summary>File → Export as HTML / RTF: asks for the file and writes the selection, or the whole document, with the colors of the editor.</summary>
@@ -88,7 +111,7 @@ internal sealed partial class MainWindow
     private async Task ExportHighlightedAsync(ExportForm form)
     {
         string stem = Path.GetFileNameWithoutExtension(Active?.Doc.Title ?? "export");
-        if (await BuildExportAsync(ReadExportSource(), form) is not { } built) return;
+        if (await BuildExportAsync(await ReadExportSourceAsync(), form) is not { } built) return;
         string? path = await _app.Dialogs.PickSaveFileAsync(this, Loc.Get(K.ExportTitle), stem + (form == ExportForm.Html ? ".html" : ".rtf"));
         if (path is null) return;
         try
@@ -114,7 +137,7 @@ internal sealed partial class MainWindow
 
     private async Task CopyHighlightedAsync(bool htmlSource)
     {
-        var source = ReadExportSource();
+        var source = await ReadExportSourceAsync();
         if (await BuildExportAsync(source, null) is not { } built || source is null) return;
         string plain = source.Range is { } r ? source.Text.Substring(r.Start, r.Length) : source.Text;
         if (htmlSource) WriteClipboard(built.Html, null);

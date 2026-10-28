@@ -1122,6 +1122,8 @@
   "export.nothing": "Nie je čo exportovať. Veľký súbor sa exportuje podľa výberu: najprv text označte.",
   "export.tooLarge": "Text má {chars} znakov, export ich vezme najviac {limit}. Označte jeho časť.",
   "export.copied": "Skopírované so zvýraznením.",
+  "export.indexPending": "Farby závisia od textu pred výberom a číslovanie riadkov k nemu ešte nedošlo. Skúste to znova, keď dobehne.",
+  "export.changed": "Dokument sa zmenil, kým sa pripravovali farby. Spustite export znova.",
   "log.fold.title": "Zbaliť riadky logu",
   "log.fold.level": "Ponechať riadky aspoň tejto úrovne: error, warning, info, debug (prázdne ponechá všetky úrovne)",
   "log.fold.placeholder": "... skrytých riadkov: {count} (kliknutím zobrazíte)",

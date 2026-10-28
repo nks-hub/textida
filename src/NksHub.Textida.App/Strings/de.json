@@ -1097,6 +1097,8 @@
   "export.nothing": "Nichts zu exportieren. Eine große Datei wird nach ihrer Auswahl exportiert: zuerst Text markieren.",
   "export.tooLarge": "Der Text hat {chars} Zeichen, der Export nimmt höchstens {limit}. Markieren Sie einen Teil.",
   "export.copied": "Mit Formatierung kopiert.",
+  "export.indexPending": "Die Farben hängen vom Text vor der Auswahl ab, und die Zeilennummerierung hat ihn noch nicht erreicht. Versuchen Sie es erneut, wenn sie fertig ist.",
+  "export.changed": "Das Dokument hat sich geändert, während die Farben vorbereitet wurden. Starten Sie den Export erneut.",
   "log.fold.title": "Logzeilen einklappen",
   "log.fold.level": "Zeilen mindestens dieser Stufe behalten: error, warning, info, debug (leer behält alle Stufen)",
   "log.fold.placeholder": "... {count} Zeilen ausgeblendet (Klick zum Anzeigen)",
