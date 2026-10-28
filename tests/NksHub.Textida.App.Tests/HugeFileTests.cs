@@ -371,14 +371,27 @@ public sealed class HugeFileTests : IDisposable
         bool jumped = false;
         double jumpMs = 0;
         var next = TimeSpan.Zero;
+        long stepStart = 0;
+        using var watchdog = new Timer(_ =>
+        {
+            long started = Interlocked.Read(ref stepStart);
+            if (started != 0 && Environment.TickCount64 - started > 3000)
+                HugeText.Log($"a step has been running for {(Environment.TickCount64 - started) / 1000} s; pool threads {ThreadPool.ThreadCount}, queued {ThreadPool.PendingWorkItemCount}; indexed {document.IndexedBytes >> 20} MiB");
+        }, null, 5000, 10000);
         for (int step = 0; !paged.Index.Complete && clock.Elapsed < TimeSpan.FromMinutes(25); step++)
         {
+            Interlocked.Exchange(ref stepStart, Environment.TickCount64);
             var timer = Stopwatch.StartNew();
             // before the jump the keys move the view and the caret from the top of the file; after it the wheel moves the view around the target and the caret stays on it
             if (!jumped) TestApp.Press(_w, step % 80 < 60 ? Key.PageDown : Key.PageUp);
             else _w.MouseWheel(inside, new Vector(0, step % 80 < 60 ? -3 : 3), RawInputModifiers.None);
+            double pressMs = timer.Elapsed.TotalMilliseconds;
             _w.UpdateLayout();
+            double layoutMs = timer.Elapsed.TotalMilliseconds - pressMs;
             Dispatcher.UIThread.RunJobs();
+            if (timer.Elapsed.TotalMilliseconds > 100)
+                HugeText.Log($"step {step}: key {pressMs:F0} ms, layout {layoutMs:F0} ms, posted jobs {timer.Elapsed.TotalMilliseconds - pressMs - layoutMs:F0} ms; pool threads {ThreadPool.ThreadCount}, queued {ThreadPool.PendingWorkItemCount}; indexed {document.IndexedBytes >> 20} MiB");
+            Interlocked.Exchange(ref stepStart, 0);
             if (step >= 30) (jumped ? scrollAhead : scroll).Add(timer.Elapsed.TotalMilliseconds);
             if (clock.Elapsed >= next)
             {
