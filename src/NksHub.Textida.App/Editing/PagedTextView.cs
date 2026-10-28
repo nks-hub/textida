@@ -491,15 +491,22 @@ internal sealed partial class PagedTextView : Grid
         return d.BaseLine + Math.Max(0, i >= 0 ? i : ~i - 1);
     }
 
+    /// <summary>Mean bytes of a line in <paramref name="sample"/>, which starts on a code unit; line ends are found per code unit, so UTF-16 and UTF-32 count like UTF-8 and a lone CR counts too.</summary>
+    internal static double BytesPerLine(ReadOnlySpan<byte> sample, TextCodec codec)
+    {
+        long breaks = LineScanner.CountTerminators(sample, sample.Length, codec);
+        return Math.Max(1.0, breaks > 0 ? (double)sample.Length / breaks : sample.Length);
+    }
+
     private void EnterDetour(long offset, bool keepSelection = false)
     {
         if (!keepSelection) DropOthers();
         long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
-        var sample = new byte[(int)Math.Min(Doc.ByteLength, 64 * 1024)];
-        long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length);
+        int w = Doc.Codec.Alignment;
+        var sample = new byte[(int)(Math.Min(Doc.ByteLength, 64 * 1024) / w * w)];
+        long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length) / w * w;
         Doc.Read(from, sample);
-        int breaks = sample.AsSpan().Count((byte)10);
-        double perLine = breaks > 0 ? Math.Max(1.0, (double)sample.Length / breaks) : Math.Max(1.0, sample.Length);
+        double perLine = BytesPerLine(sample, Doc.Codec);
         // the gap between the indexed part and the target is counted with the mean of the density at both ends
         var (prefixLines, _) = Doc.LineIndexState;
         long indexed = Paged.IndexedBytes;

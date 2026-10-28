@@ -11,6 +11,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -538,6 +539,73 @@ public class PagedSurfaceTests : IDisposable
     public void Jumps_to_an_offset_and_a_line_work_while_the_index_is_being_built()
     {
         JumpsWhileTheIndexIsBeingBuilt(rows: 700_000, gateBlock: 3, farRow: 500_000);
+    }
+
+    /// <summary>"ĊĊ" is U+010A twice: the byte 0A, the line feed of UTF-8, lies inside it in either byte order, so a count of 0A bytes finds three line ends per row instead of one.</summary>
+    private const string WideRow = "ĊĊ řádek ";
+
+    [AvaloniaTheory]
+    [InlineData("utf-16", "\n")]
+    [InlineData("utf-16BE", "\r")]
+    [InlineData("utf-32", "\r\n")]
+    [InlineData("utf-32BE", "\n")]
+    public void Bytes_per_line_of_a_sample_are_counted_by_code_unit(string name, string eol)
+    {
+        var enc = Encoding.GetEncoding(name);
+        var codec = name switch { "utf-16" => TextCodec.Utf16LE, "utf-16BE" => TextCodec.Utf16BE, "utf-32" => TextCodec.Utf32LE, _ => TextCodec.Utf32BE };
+        string row = WideRow + "123456" + eol;
+        byte[] sample = enc.GetBytes(string.Concat(Enumerable.Repeat(row, 2000)));
+
+        Assert.Equal(enc.GetByteCount(row), PagedTextView.BytesPerLine(sample, codec), precision: 3);
+    }
+
+    /// <summary>A jump beyond the indexed part of a UTF-16 or UTF-32 file numbers the lines from the density of its line ends in code units, so the estimate is as good as for UTF-8.</summary>
+    [AvaloniaTheory]
+    [InlineData("utf-16", "\n")]
+    [InlineData("utf-16BE", "\r")]
+    [InlineData("utf-32", "\r\n")]
+    [InlineData("utf-32BE", "\n")]
+    public void A_jump_beyond_the_indexed_part_of_a_wide_file_estimates_the_line_by_code_units(string name, string eol)
+    {
+        const int rows = 150_000;
+        const long farRow = 100_000;
+        var enc = Encoding.GetEncoding(name);
+        var text = new StringBuilder();
+        int farChar = 0;
+        for (int i = 0; i < rows; i++)
+        {
+            if (i == farRow) farChar = text.Length;
+            text.Append(WideRow).Append(i.ToString("D6")).Append(eol);
+        }
+        string all = text.ToString();
+        string path = _temp.Bytes("wide-rows.txt", [.. enc.GetPreamble(), .. enc.GetBytes(all)]);
+        long far = enc.GetPreamble().Length + enc.GetByteCount(all.AsSpan(0, farChar)) + enc.GetByteCount("ĊĊ");
+        using var gate = new ManualResetEventSlim();
+        MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= 1) gate.Wait(); };
+        try
+        {
+            var tab = Open(path);
+            var paged = tab.Paged!;
+            WaitFor(() => PagedOf(tab).IndexedBytes == Mib, "index held at the gate");
+            Assert.False(paged.Index.Complete);
+
+            paged.GoToOffset(far);
+            _w.UpdateLayout();
+            Assert.False(paged.LinesExact);
+            Assert.Equal(far, paged.CaretOffset);
+            Assert.InRange(paged.CaretLineColumn()!.Value.Line, farRow * 99 / 100, farRow * 101 / 100);
+            Assert.Contains("≈", _w.StatusLeftText);
+
+            gate.Set();
+            WaitFor(() => paged.Index.Complete && paged.LinesExact, "exact numbers after the index");
+            Assert.Equal(far, paged.CaretOffset);
+            Assert.Equal((farRow, 2L), paged.CaretLineColumn());
+        }
+        finally
+        {
+            gate.Set();
+            MappedFileSource.IndexBlockHook = null;
+        }
     }
 
     [AvaloniaFact]
