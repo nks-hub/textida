@@ -268,10 +268,10 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         tab.Editor!.Document.Text = "a-a";
         tab.Editor.CaretOffset = 3;
         Check(window.RunDataCommand("smoke.data", "up", "converter") == NksHub.Textida.Workbench.Commands.CommandOutcome.Handled && tab.Editor.Document.Text == "b-b", "the converter of the package converts the text");
-        tab.Editor.CaretOffset = 3;
+        tab.Editor.Select(3, 0); // the converter left its result selected
         window.RunDataCommand("smoke.data", "hi", "clip");
         for (int i = 0; i < 100 && tab.Editor.Document.Text == "b-b"; i++) await Task.Delay(50);
-        Check(tab.Editor.Document.Text == "b-bhi", "the clip of the package is inserted at the caret");
+        Check(tab.Editor.Document.Text == "b-bhi", $"the clip of the package is inserted at the caret (text '{tab.Editor.Document.Text}')");
 
         await manager.UninstallAsync("smoke.data");
         app.Plugins.SyncInstalled("smoke.data");
