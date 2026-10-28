@@ -322,6 +322,8 @@ public class NetworkNoConsentTests
         var bridge = mcp.IdeOf(rig.Window)!;
         rig.Net.AllowLoopback(bridge.Port, "IDE bridge of the editor, the door of a CLI agent");
         using (var agent = new System.Net.Sockets.TcpClient()) await agent.ConnectAsync(System.Net.IPAddress.Loopback, bridge.Port);
+        // the door of textida-mcp: a named pipe on Windows, a Unix socket elsewhere (the only connect the watch lists for it)
+        await using (await NksHub.Textida.App.Startup.IpcEndpoint.ConnectAsync(NksHub.Textida.App.Startup.IpcEndpoint.McpChannel(App.Startup.Channel), TimeSpan.FromSeconds(5), default)) { }
 
         await rig.App.Workbench.Commands.ExecuteAsync("nks.tools.mcpServers", new ShellContext(rig.Window, forMenu: false)).AsTask();
         await rig.Until(() => rig.Window.IsPaletteOpen && rig.Window.PaletteModeNow == PaletteMode.Choice && rig.Window.QuickResults.Count == 1, "the list of servers");
