@@ -401,6 +401,22 @@ public class CompareTests : IDisposable
         Assert.Equal("Difference 1 of 1, left no lines, right line 2. Right: b", other.Value);
     }
 
+    [AvaloniaFact]
+    public async Task The_screen_reader_is_told_of_each_new_current_difference()
+    {
+        var tab = NewWith("a\nb\nc\nd\n");
+        var view = await OpenWithClipboard(tab, "a\nB\nc\nD\n");
+        var peer = (DiffAutomationPeer)ControlAutomationPeer.CreatePeerForElement(view);
+        string Announced() => (string)typeof(DiffAutomationPeer).GetField("_last", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(peer)!;
+
+        view.NextDifference();
+        Assert.StartsWith("Rozdíl 1 z 2", Announced());
+        Assert.Equal(peer.Value, Announced());
+        view.NextDifference();
+        Assert.StartsWith("Rozdíl 2 z 2", Announced());
+        Assert.Equal(peer.Value, Announced());
+    }
+
     // ---- synchronized scrolling of two tabs ----
 
     private sealed class FakeHost(long lines) : IMinimapHost
