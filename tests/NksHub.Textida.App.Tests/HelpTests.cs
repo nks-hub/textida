@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
@@ -365,21 +366,19 @@ public class HelpEverywhereTests : IDisposable
     [AvaloniaFact]
     public void F1_in_each_window_opens_the_topic_about_that_window()
     {
-        _app.OpenSettings();
-        var windows = new List<(string Topic, Window Window)>
+        // one window at a time: the keyboard belongs to the window shown last, so a key pressed "in" an older window would reach the newest one
+        var windows = new List<(string Topic, Func<Window> Open)>
         {
-            ("app.settings", _app.SettingsView!),
-            ("search.regex", Show(new RegexTesterWindow(new SearchPattern(@"(\w+) (\w+)", true)))),
-            ("tools.logPattern", Show(new LogPatternWindow("%F(%L,%C)", LogPatternSyntax.Mask, "a.cs(1,2): error"))),
-            ("tools.edit", Show(new ToolEditorWindow(_app.Tools, _w.PreviewTool))),
+            ("app.settings", () => { _app.OpenSettings(); return _app.SettingsView!; }),
+            ("search.regex", () => Show(new RegexTesterWindow(new SearchPattern(@"(\w+) (\w+)", true)))),
+            ("tools.logPattern", () => Show(new LogPatternWindow("%F(%L,%C)", LogPatternSyntax.Mask, "a.cs(1,2): error"))),
+            ("tools.edit", () => Show(new ToolEditorWindow(_app.Tools, _w.PreviewTool))),
         };
-        try
+        foreach (var (topic, open) in windows)
         {
-            foreach (var (topic, window) in windows) Assert.Equal(topic, F1In(window));
-        }
-        finally
-        {
-            foreach (var (_, window) in windows) window.Close();
+            var window = open();
+            try { Assert.Equal(topic, F1In(window)); }
+            finally { window.Close(); }
         }
     }
 
@@ -494,12 +493,12 @@ public class HelpEverywhereTests : IDisposable
         var compare = _w.CompareFiles(_temp.File("left.txt", "one\ntwo\n"), _temp.File("right.txt", "one\n2\n"));
         Assert.Equal("compare.text", HelpContext.Of((Control)compare.Custom!));
 
-        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
-        var paged = _w.OpenFile(_temp.File("big.log", "line 1\nline 2\nline 3\n"), null);
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1)); // MiB: the file below is larger
+        var paged = _w.OpenFile(_temp.Bytes("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 150_000).Select(i => $"line {i}\n")))), null);
         Assert.NotNull(paged.Paged);
         Assert.Equal("paged", HelpContext.Of(paged.Paged!));
 
-        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(6 * 1024 * 1024));
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(6));
         var csv = _w.OpenFile(_temp.File("data.csv", "id,name\n1,Ann\n"), null);
         Assert.Equal(CommandOutcome.Handled, Run("nks.view.table"));
         Assert.Equal("table.view", HelpContext.Of(_w.ActiveTable!));
