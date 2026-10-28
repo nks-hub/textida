@@ -136,7 +136,7 @@ public static class LanguageCatalog
             [], [], [], [new("pom.xml", "Maven Central"), new("build.gradle", "Maven Central")]),
         new("csharp", "C#",
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
-            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
+            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
             [], [], [],
             [new("*.csproj", "NuGet")]),
         new("c-cpp", "C, C++",

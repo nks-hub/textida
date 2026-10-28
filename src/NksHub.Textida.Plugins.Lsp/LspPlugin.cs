@@ -757,10 +757,22 @@ public sealed class LspPlugin : PluginBase
         return ($"\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"position\":{{\"line\":{line},\"character\":{character}}}", caret);
     }
 
+    /// <summary>
+    /// A server that is still loading its solution answers for the files it has seen so far, and a rename or a list of references would miss every other file without a word.
+    /// A request that needs the whole solution waits for the server to say it is loaded, for the request time at most, and then ends with a timeout.
+    /// </summary>
+    private async Task WaitForLoadAsync(LspServer server, CancellationToken ct)
+    {
+        if (!server.Loading) return;
+        try { await server.Loaded.WaitAsync(TimeSpan.FromMilliseconds(_settings.RequestTimeoutMs), ct).ConfigureAwait(false); }
+        catch (TimeoutException) { throw new RpcTimeoutException("workspace load", TimeSpan.FromMilliseconds(_settings.RequestTimeoutMs)); }
+    }
+
     private async Task<byte[]> NavigateAsync(Slot slot, LspServer server, Doc d, Request r, bool references, CancellationToken ct)
     {
         if (!(references ? server.References : server.Definition)) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
         var (position, _) = await PositionAtAsync(d, r.Revision, r.Offset, ct).ConfigureAwait(false);
+        await WaitForLoadAsync(server, ct).ConfigureAwait(false);
         var answer = await server.RequestAsync(references ? "textDocument/references" : "textDocument/definition",
             references ? $"{{{position},\"context\":{{\"includeDeclaration\":true}}}}" : $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
         var raw = Locations(answer);
@@ -825,7 +837,7 @@ public sealed class LspPlugin : PluginBase
     {
         long asked = p.GetProperty("revision").GetInt64();
         byte[] Nothing(long revision) => Encoding.UTF8.GetBytes($"{{\"revision\":{revision},\"items\":[]}}");
-        if (!Guid.TryParse(Text(p, "document"), out var id) || !_docs.TryGetValue(id, out var d) || d.Slot.Server is not { Alive: true, Completion: true } server) return Nothing(asked);
+        if (!Guid.TryParse(Text(p, "document"), out var id) || !_docs.TryGetValue(id, out var d) || d.Slot.Server is not { Alive: true, Completion: true, Loading: false } server) return Nothing(asked);
         try
         {
             await SyncAsync(d, ct).ConfigureAwait(false);
@@ -906,6 +918,7 @@ public sealed class LspPlugin : PluginBase
             $"{{\"title\":\"{Quote(Texts.Get(_ui, "renameTitle"))}\",\"label\":\"{Quote(Texts.Get(_ui, "renameLabel"))}\",\"value\":\"{Quote(current)}\"}}", ct).ConfigureAwait(false);
         if (asked.GetProperty("value").ValueKind != JsonValueKind.String || asked.GetProperty("value").GetString()!.Trim() is not { Length: > 0 } name || name == current) return Status("cancelled");
 
+        await WaitForLoadAsync(server, ct).ConfigureAwait(false);
         var answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
         if (answer.ValueKind != JsonValueKind.Object) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
         var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
@@ -962,7 +975,7 @@ public sealed class LspPlugin : PluginBase
                         var document = item.GetProperty("textDocument");
                         var uri = Text(document, "uri") ?? throw new Withheld("unreadable");
                         // a version other than the one the server was told means the text it renamed in is not the text of the editor
-                        var followed = _docs.Values.FirstOrDefault(x => x.Open && x.Uri == uri);
+                        var followed = _docs.Values.FirstOrDefault(x => x.Open && (x.Uri == uri || (PathUri.ToPath(uri) is { } edited && x.Path is not null && PathUri.SamePath(edited, x.Path))));
                         if (followed is not null && document.TryGetProperty("version", out var version) && version.ValueKind == JsonValueKind.Number && version.GetInt64() != followed.Version)
                             throw new RpcException(DocumentErrorCodes.RevisionConflict, "stale");
                         Add(uri, item.GetProperty("edits"));

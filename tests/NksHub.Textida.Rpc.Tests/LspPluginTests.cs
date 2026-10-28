@@ -15,7 +15,7 @@ namespace NksHub.Textida.Rpc.Tests;
 /// P8.5.4 and P8.5.5: the LSP plugin as a real process against the real host and document API, talking to a small fake language server (a second real process)
 /// that keeps its own copy of every text. Roslyn and csharp-ls are not needed and not started.
 /// </summary>
-public class LspPluginTests
+public partial class LspPluginTests
 {
     sealed class Owner : IDocumentOwnerThread
     {
@@ -1088,9 +1088,8 @@ public class LspPluginTests
     public void The_catalog_names_the_roslyn_launch_line_without_telemetry_and_every_text_has_four_languages()
     {
         // data only: no Roslyn or csharp-ls server is started by any test
-        var roslyn = ServerCatalog.BuiltIn.Resolve("csharp", out _)!;
-        Assert.StartsWith("Microsoft.CodeAnalysis.LanguageServer", Path.GetFileName(roslyn.Program));
-        Assert.Equal(new[] { "--stdio", "--telemetryLevel", "off" }, roslyn.Arguments.ToArray());
+        foreach (var program in new[] { "Microsoft.CodeAnalysis.LanguageServer", "roslyn-language-server" }) // the executable of the C# extension and the command of the .NET tool
+            Assert.Equal(new[] { "--stdio", "--telemetryLevel", "off" }, ServerCatalog.BuiltIn.Entry("csharp", program)!.Arguments.ToArray());
         Assert.Null(ServerCatalog.BuiltIn.Resolve("nothing", out var found));
         Assert.False(found);
         Assert.True(Texts.Complete);

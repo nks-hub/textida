@@ -41,6 +41,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     private readonly string? _options;
     private int _stopping;
     private int _ended;
+    private TaskCompletionSource? _loading;
 
     /// <summary>Raised once when the server went away without a <see cref="StopAsync"/>; the text says how.</summary>
     public event Action<string>? Ended;
@@ -52,6 +53,12 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool Completion { get; private set; }
     public bool Rename { get; private set; }
     public bool Alive => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _stopping) == 0 && !_rpc.IsClosed;
+
+    /// <summary>The server was told to open a solution or projects and has not said yet that it loaded them: what it answers now covers the files it has seen so far, not the solution.</summary>
+    public bool Loading => _loading is { Task.IsCompleted: false };
+
+    /// <summary>Completes when the solution or projects the server was told to open are loaded; completed at once for a server that was told to open nothing.</summary>
+    public Task Loaded => _loading?.Task ?? Task.CompletedTask;
 
     private LspServer(Process process, Stream input, Stream output, LspSettings settings, string rootUri, string? options, Func<string, JsonElement, ValueTask> onNotification)
     {
@@ -84,6 +91,11 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         try
         {
             await server.InitializeAsync(root, launch.InitializationOptions, ct).ConfigureAwait(false);
+            if (RoslynWorkspace.IsRoslyn(launch.Program) && RoslynWorkspace.Open(root) is { } open)
+            {
+                server._loading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                await server.NotifyAsync(open.Method, open.Params).ConfigureAwait(false);
+            }
             return server;
         }
         catch (Exception e) when (e is RpcException or RpcTimeoutException or IOException)
@@ -172,7 +184,11 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         return node.GetRawText();
     }
 
-    ValueTask IRpcHandler.HandleNotificationAsync(string method, JsonElement p) => _onNotification(method, p.Clone());
+    ValueTask IRpcHandler.HandleNotificationAsync(string method, JsonElement p)
+    {
+        if (method == RoslynWorkspace.LoadedNotification) _loading?.TrySetResult();
+        return _onNotification(method, p.Clone());
+    }
 
     // ---- the end of the process ----
 
@@ -246,8 +262,16 @@ public static class PathUri
 {
     public static string FromPath(string path) => new Uri(Path.GetFullPath(path)).AbsoluteUri;
 
-    /// <summary>The local path of a <c>file:</c> URI, or null for any other URI.</summary>
-    public static string? ToPath(string uri) => Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && parsed.IsFile ? parsed.LocalPath : null;
+    /// <summary>
+    /// The local path of a <c>file:</c> URI, or null for any other URI. Roslyn writes the drive of a Windows path as <c>file:///c%3A/dir</c>, with the colon escaped and the letter in lower case;
+    /// .NET reads a drive only in front of a plain colon, so the escape is undone first (on Windows, where a drive can be).
+    /// </summary>
+    public static string? ToPath(string uri)
+    {
+        if (OperatingSystem.IsWindows() && uri.Length >= 12 && uri.StartsWith("file:///", StringComparison.OrdinalIgnoreCase) && char.IsAsciiLetter(uri[8]) && uri.AsSpan(9, 3).Equals("%3A", StringComparison.OrdinalIgnoreCase))
+            uri = string.Concat(uri.AsSpan(0, 9), ":", uri.AsSpan(12));
+        return Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && parsed.IsFile ? parsed.LocalPath : null;
+    }
 
     public static bool SamePath(string a, string b) =>
         string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);

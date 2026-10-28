@@ -91,8 +91,8 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Contains(".cs", ConfigFormatters.Find("clang-format")!.Extensions);
         Assert.Equal([".editorconfig"], ConfigFormatters.Find("shfmt")!.ConfigFiles); // shfmt reads its options from EditorConfig
         Assert.Equal(["analysis_options.yaml"], ConfigFormatters.Find("dart-format")!.ConfigFiles);
-        // C#: Roslyn first, csharp-ls as the fallback
-        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
+        // C#: Roslyn first (the executable of the C# extension, then the command of the .NET tool), csharp-ls as the fallback
+        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "roslyn-language-server", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
         Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Language == "csharp").Arguments);
     }
 
