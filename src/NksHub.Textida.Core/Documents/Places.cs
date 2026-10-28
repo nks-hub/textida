@@ -97,7 +97,7 @@ public sealed class Place
     {
         bool same = _document is not null ? ReferenceEquals(_document, other._document) : other._document is null && Path is not null && string.Equals(Path, other.Path, StringComparison.OrdinalIgnoreCase);
         if (!same) return false;
-        if (_document is { } doc && _anchor is { IsValid: true } a && other._anchor is { IsValid: true } b && doc.NoLineBreakBetween(a.Offset, b.Offset)) return true;
+        if (_document is { } doc && _anchor is { IsValid: true } a && other._anchor is { IsValid: true } b && doc.OnOneLine(a.Offset, b.Offset) is { } onOneLine) return onOneLine;
         Refresh();
         other.Refresh();
         return Line == other.Line;

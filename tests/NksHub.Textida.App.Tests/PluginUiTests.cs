@@ -624,7 +624,8 @@ public class PluginUiTests : IDisposable
 
         await RunAsync("nks.edit.formatJson");
 
-        Assert.Equal("head ě\r\n{\n  \"a\": [\n    1,\n    2\n  ],\n  \"b\": \"č\"\n}\r\ntail\r\n", Utf8(tab));
+        // the selection holds no line break, so the lines the formatter breaks take the line ending of the file (all three are CRLF)
+        Assert.Equal("head ě\r\n{\r\n  \"a\": [\r\n    1,\r\n    2\r\n  ],\r\n  \"b\": \"č\"\r\n}\r\ntail\r\n", Utf8(tab));
         _w.Undo();
         Assert.Equal("head ě\r\n{\"a\":[1,2],\"b\":\"č\"}\r\ntail\r\n", Utf8(tab));
     }
@@ -640,6 +641,33 @@ public class PluginUiTests : IDisposable
 
         Assert.Equal("{\"a\":1,}", Utf8(tab));
         Assert.True(_w.Notices.Any(n => n.Message.Contains("JSON") && n.Message.Contains("8:")), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+    }
+
+    [AvaloniaFact]
+    public async Task Remove_commas_sort_keys_and_minify_run_through_the_plugin_process_each_as_one_undo_step()
+    {
+        const string original = "{\"b\": 1,\r\n \"a\": [1, 2,],\r\n}";
+        var tab = _w.OpenFile(_temp.File("m.json", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        await RunAsync("nks.edit.fixJsonCommas");
+        const string repaired = "{\"b\": 1,\r\n \"a\": [1, 2]\r\n}";
+        Assert.Equal(repaired, Utf8(tab));
+
+        await RunAsync("nks.edit.sortJsonKeys");
+        const string sorted = "{\r\n  \"a\": [\r\n    1,\r\n    2\r\n  ],\r\n  \"b\": 1\r\n}";
+        Assert.Equal(sorted, Utf8(tab));
+
+        await RunAsync("nks.edit.minifyJson");
+        Assert.Equal("{\"a\":[1,2],\"b\":1}", Utf8(tab));
+
+        _w.Undo();
+        Assert.Equal(sorted, Utf8(tab));
+        _w.Undo();
+        Assert.Equal(repaired, Utf8(tab));
+        _w.Undo();
+        Assert.Equal(original, Utf8(tab));
     }
 
     // ---- text tools inside the app ----

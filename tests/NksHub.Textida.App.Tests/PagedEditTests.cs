@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Headless;
@@ -9,6 +11,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -16,14 +19,16 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public class PagedEditTests : IDisposable
 {
+    private readonly ITestOutputHelper _output;
     private readonly TempDir _temp = new();
     private readonly App _app;
     private readonly MainWindow _w;
 
     static PagedEditTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    public PagedEditTests()
+    public PagedEditTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp);
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
@@ -470,6 +475,196 @@ public class PagedEditTests : IDisposable
         Assert.True(await condition(), state?.Invoke());
     }
 
+    private static string Sha(Document doc)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1 << 20];
+        for (long at = 0; at < doc.ByteLength;)
+        {
+            int n = doc.Read(at, buffer);
+            hash.AppendData(buffer, 0, n);
+            at += n;
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    [AvaloniaFact]
+    public void A_line_over_the_edit_limit_is_refused_with_a_message_and_the_document_stays_the_same()
+    {
+        byte[] content = [.. "short\n"u8, .. Encoding.ASCII.GetBytes(new string('x', 20_000) + "\n"), .. "tail\n"u8, .. Rows(100_000)];
+        var tab = OpenPaged(content);
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        view.EditLineLimitBytes = 10_000;
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+        string TooLong(long line) => Loc.Get(K.PagedLineTooLong, ("line", line.ToString("N0", CultureInfo.CurrentCulture)),
+            ("size", OpenDocument.FormatSize(20_000)), ("limit", OpenDocument.FormatSize(10_000)));
+
+        Press(Key.Down); // the long line, second in the file
+        TestApp.Type(_w, "q");
+        Press(Key.Back);
+        Press(Key.Delete);
+        Press(Key.Enter);
+        Press(Key.Tab);
+        Assert.False(view.PasteText("pasted"));
+        Assert.Equal(Enumerable.Repeat(TooLong(2), 6), refused);
+        Assert.False(doc.IsModified);
+        Assert.Equal(content.Length, doc.ByteLength);
+
+        // a join with the long line from either side is an edit of it
+        refused.Clear();
+        Press(Key.Down);
+        Press(Key.Back); // the start of "tail" joins it to the long line
+        Press(Key.Up);
+        Press(Key.Up);
+        Press(Key.End);
+        Press(Key.Delete); // the end of "short" joins the long line to it
+        Assert.Equal([TooLong(2), TooLong(2)], refused);
+        Assert.False(doc.IsModified);
+
+        // the short line next to it is edited as ever, and the long one again once the limit allows it
+        refused.Clear();
+        TestApp.Type(_w, "!");
+        Assert.Equal("short!\n", Head(tab, 7));
+        view.EditLineLimitBytes = 1 << 20;
+        Press(Key.Down); // column 6 of the long line
+        TestApp.Type(_w, "q");
+        Assert.Empty(refused);
+        Assert.Equal((byte)'q', doc.ReadBytes(new ByteRange(13, 14))[0]);
+    }
+
+    [AvaloniaFact]
+    public async Task A_paste_over_the_limit_is_refused_and_a_large_one_is_prepared_on_the_pool_and_is_one_undo_step()
+    {
+        var tab = OpenPaged(Rows(200_000, "\r\n"));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+
+        view.PasteLimitChars = 3_000_000;
+        Assert.False(await view.PasteTextAsync(new string('a', 3_000_001)));
+        Assert.Equal([Loc.Get(K.PagedPasteTooLarge, ("size", 3_000_001.ToString("N0", CultureInfo.CurrentCulture)), ("limit", 3_000_000.ToString("N0", CultureInfo.CurrentCulture)))], refused);
+        Assert.False(doc.IsModified);
+
+        // 300 000 lines with a character outside ASCII
+        string block = string.Concat(Enumerable.Range(0, 100_000).Select(i => $"ř{i}\n"));
+        string text = block + block + block;
+        Assert.InRange(text.Length, (1 << 20) + 1, 3_000_000); // over the size that is encoded on the UI thread, under the limit set above
+        string original = Encoding.UTF8.GetString(Rows(200_000, "\r\n"));
+        Press(Key.Down);
+        Press(Key.Right);
+        Press(Key.Right);
+        int at = "line 1\r\n".Length + 2;
+        int depth = doc.UndoDepth;
+        Assert.True(await view.PasteTextAsync(text));
+
+        string expected = original[..at] + text.Replace("\n", "\r\n") + original[at..];
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(expected))), Sha(doc));
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        Assert.Equal(expected.Count(c => c == '\n') + 1L, view.Index.Lines);
+        Assert.Equal((2L + 300_000, 1L), tab.CaretPosition()); // behind the last pasted break, in front of the rest of "line 2"
+
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(before, Sha(doc));
+        Assert.Equal(depth, doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task A_multi_line_paste_into_the_middle_of_a_long_line_splits_it_and_counts_lines_and_columns_exactly()
+    {
+        string line = new('a', 3_000_000);
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(line + "\nnext\n"));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        view.GoToOffset(1_500_000);
+        Assert.Equal((1L, 1_500_001L), tab.CaretPosition());
+
+        string pasted = "one\r\ntwo\rthree\n" + new string('b', 1_100_000); // over the size that is prepared on the UI thread
+        Assert.True(await view.PasteTextAsync(pasted));
+
+        string newLine = tab.Doc.NewLine(null);
+        string expected = line[..1_500_000] + "one" + newLine + "two" + newLine + "three" + newLine + new string('b', 1_100_000) + line[1_500_000..] + "\nnext\n";
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(expected))), Sha(doc));
+        Assert.Equal((4L, 1_100_001L), tab.CaretPosition());
+        Assert.Equal(6L, view.Index.Lines); // three line breaks pasted: the three lines of the file are six
+        Press(Key.Down);
+        Assert.Equal((5L, 5L), tab.CaretPosition()); // "next" is shorter than the column the caret came from, so it ends it
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(before, Sha(doc));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("", "\n")]
+    [InlineData("no break", "\r\n")]
+    [InlineData("a\nb\n", "\n")]
+    [InlineData("a\r\nb\r\n", "\r\n")]
+    [InlineData("a\rb\r", "\r")]
+    [InlineData("a\r\nb", "\n")]
+    [InlineData("a\nb", "\r\n")]
+    [InlineData("a\rb", "\n")]
+    [InlineData("a\r", "\r\n")]
+    [InlineData("a\n\r", "\n")]
+    [InlineData("a\r\n\nb", "\r\n")]
+    [InlineData("a\u2028b\u0085c", "\n")]
+    public void Text_that_uses_the_line_break_of_the_document_is_told_so_exactly_when_normalizing_leaves_it_as_it_is(string text, string newLine) =>
+        Assert.Equal(AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, newLine) == text, PagedTextView.UsesLineBreak(text, newLine));
+
+    [AvaloniaFact]
+    public async Task A_paste_prepared_while_the_encoding_changes_is_refused_and_the_document_stays_the_same()
+    {
+        var tab = OpenPaged(Rows(150_000));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+
+        var pasting = view.PasteTextAsync(new string('a', (1 << 20) + 1)); // over the size that is prepared on the UI thread: the work is on the pool
+        doc.ReinterpretAs(doc.Codec == TextCodec.Cp1250 ? TextCodec.Cp1252 : TextCodec.Cp1250); // the continuation of the paste cannot run before this ends
+        Assert.False(await pasting);
+        Assert.Equal([Loc.Get(K.PagedPasteEncoding)], refused);
+        Assert.Equal(before, Sha(doc));
+    }
+
+    [AvaloniaFact]
+    public void An_edit_that_makes_a_lone_CR_and_an_LF_one_line_break_keeps_the_caret_behind_the_pair_on_its_own_line()
+    {
+        // lines: "A" (ended by a lone CR), "xyz", "B", then the rows
+        var tab = OpenPaged([.. "A\rxyz\nB\n"u8, .. Rows(100_000)]);
+        var view = tab.Paged!;
+        Assert.Equal(100_004L, view.Index.Lines);
+
+        Press(Key.Down);
+        Press(Key.End, Shift);
+        Assert.Equal(new ByteRange(2, 5), view.SelectionRange);
+        Press(Key.Delete); // the CR now stands in front of the LF of "xyz"
+        Assert.Equal("A\r\nB\nli", Head(tab, 7));
+        Assert.Equal(3L, view.CaretOffset);
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+        Assert.Equal(100_003L, view.Index.Lines);
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("A\rxyz\nB\n", Head(tab, 8));
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+
+        Assert.True(view.InsertText("\n", typing: false)); // an LF behind the lone CR
+        Assert.Equal("A\r\nxyz\nB", Head(tab, 8));
+        Assert.Equal(3L, view.CaretOffset);
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+        Assert.Equal(100_004L, view.Index.Lines);
+        Press(Key.Z, TestApp.Mod);
+
+        Press(Key.End); // the end of "xyz"
+        Assert.True(view.InsertText("\r", typing: false)); // a CR in front of the LF
+        Assert.Equal("A\rxyz\r\nB\n", Head(tab, 9));
+        Assert.Equal(7L, view.CaretOffset);
+        Assert.Equal((3L, 1L), tab.CaretPosition());
+        Assert.Equal(100_004L, view.Index.Lines);
+    }
+
     [AvaloniaFact]
     [Trait("Category", "Perf")]
     public void Typing_on_the_paged_surface_stays_within_33_ms_at_p95()
@@ -531,6 +726,216 @@ public class PagedEditTests : IDisposable
             Assert.Same(tab.Paged, provider.Asked);
         }
         finally { EditorAutomationHook.Provider = null; }
+    }
+
+    // ---- save in the background ----
+
+    private static void PumpUntil(Func<bool> condition, int seconds = 10)
+    {
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        while (!condition() && DateTime.UtcNow < until)
+        {
+            Thread.Sleep(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(condition());
+    }
+
+    private static byte[] Whole(DocTab tab) => tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength));
+
+    /// <summary>Types two characters, so that the next save writes a new file, and starts the save with Ctrl+S; it stops where the worker is about to write the first byte.</summary>
+    private (DocTab Tab, byte[] Original, byte[] AtSave, ManualResetEventSlim Gate) StreamedSaveHeldOpen()
+    {
+        var original = Rows(150_000);
+        var tab = OpenPaged(original);
+        TestApp.Type(_w, "ab");
+        var atSave = Whole(tab);
+        var reached = new ManualResetEventSlim();
+        var gate = new ManualResetEventSlim();
+        tab.Doc.Doc.StreamSaveStep = (step, _) =>
+        {
+            if (step != "temp-writing") return; // runs on the worker, so the window stays usable
+            reached.Set();
+            gate.Wait(20_000);
+        };
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => reached.IsSet);
+        return (tab, original, atSave, gate);
+    }
+
+    [AvaloniaFact]
+    public void Saving_a_large_file_runs_in_the_background_and_typing_meanwhile_stays_unsaved()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Assert.True(doc.IsSaving);
+        Assert.True(doc.EditsDuringSave);
+        Assert.Contains(Loc.Get(K.HexSaving), _w.StatusLeftText);
+
+        long savedRevision = doc.Revision;
+        TestApp.Type(_w, "XY");
+        var edited = Whole(tab);
+        Assert.NotEqual(atSave, edited);
+        Press(Key.S, TestApp.Mod); // a second save while one runs is refused, not queued
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.StatusSaveBusy)));
+
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(atSave, File.ReadAllBytes(tab.Path!));
+        Assert.Equal(edited, Whole(tab));
+        Assert.True(doc.IsModified);
+        Assert.Equal(savedRevision, doc.SavedRevision);
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexSavedEditsPending)));
+
+        WaitIndexed(tab); // the new file is indexed again
+        for (int i = 0; i < 5 && doc.IsModified; i++) Press(Key.Z, TestApp.Mod);
+        Assert.Equal(atSave, Whole(tab));
+        Assert.False(doc.IsModified);
+    }
+
+    [AvaloniaFact]
+    public void Escape_cancels_a_running_save_of_a_large_file_and_leaves_the_file_as_it_was()
+    {
+        var (tab, original, _, gate) = StreamedSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Press(Key.Escape);
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+        Assert.True(doc.IsModified);
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexSaveCancelled)));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(tab.Path!)!, "*.tmp"));
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_the_tab_or_reloading_during_a_save_waits_or_is_refused()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        string path = tab.Path!;
+        Assert.False(await _w.ReloadAsync(tab));
+        Assert.Contains(Loc.Get(K.StatusSaveBusy), _w.StatusLeftText);
+
+        var close = _w.CloseTabAsync(tab);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(close.IsCompleted);
+        Assert.Single(_w.Tabs);
+        Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => close.IsCompleted);
+        Assert.True(await close); // nothing was typed after the snapshot, so nothing is left to ask about
+        Assert.Empty(_w.Tabs);
+        Assert.Equal(atSave, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public void Closing_the_window_during_a_save_waits_for_the_save_and_then_closes()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        string path = tab.Path!;
+        _w.Close();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains(_w, _app.Windows); // the window stays while the worker writes from its document
+        Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => !_app.Windows.Contains(_w));
+        Assert.Equal(atSave, File.ReadAllBytes(path));
+    }
+
+    private string[] BackupCopies() => Directory.Exists(_app.Backups.Policy.Directory) ? Directory.GetFiles(_app.Backups.Policy.Directory!, "*.bak", SearchOption.AllDirectories) : [];
+
+    private static long WriteRows(string path, long atLeast)
+    {
+        byte[] unit = Rows(100_000);
+        long length = 0;
+        using var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20);
+        for (; length < atLeast; length += unit.Length) fs.Write(unit);
+        return length;
+    }
+
+    private static string HashOfFile(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20, FileOptions.SequentialScan);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fs));
+    }
+
+    [AvaloniaFact]
+    public void A_streamed_save_first_copies_the_old_file_and_then_replaces_it()
+    {
+        string path = Path.Combine(_temp.Path, "backed.log");
+        long length = WriteRows(path, 4L << 20);
+        string oldHash = HashOfFile(path);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 120);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 120);
+
+        var copy = Assert.Single(BackupCopies());
+        Assert.Equal(oldHash, HashOfFile(copy));
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_file_over_the_backup_limit_is_saved_without_a_copy_and_without_an_error()
+    {
+        string path = Path.Combine(_temp.Path, "over.log");
+        long length = WriteRows(path, Core.PagedSpillPlaceholders.SaveBackupMaxBytes + 1);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 300);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 600);
+
+        Assert.Empty(BackupCopies());
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    [Trait("Category", "Perf")]
+    public void Typing_during_the_save_of_a_multi_GiB_file_stays_within_the_limits()
+    {
+        string path = Path.Combine(_temp.Path, "huge.log");
+        long length = WriteRows(path, 3L << 30);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 600);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab"); // a length change: the save writes a new file
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => doc.IsSaving);
+        var times = new List<double>();
+        while (doc.IsSaving && times.Count < 3000)
+        {
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            TestApp.Type(_w, "x");
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+        }
+        PumpUntil(() => !doc.IsSaving, seconds: 900);
+
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)], p99 = times[(int)(times.Count * 0.99)];
+        _output.WriteLine($"Typing during a 3 GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
+        Assert.True(times.Count >= 100, $"only {times.Count} keystrokes fitted in the save");
+        Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms during the save");
+        Assert.True(p99 <= Core.PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");
+        Assert.Equal(length + 2, new FileInfo(path).Length); // the file is the revision of the save: the two characters, not the "x" typed after
+        Assert.True(doc.IsModified);
     }
 
     private sealed class RecordingProvider : IEditorAutomationProvider

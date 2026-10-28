@@ -40,7 +40,6 @@ public static class PluginManifestLoader
 {
     private static readonly Regex VersionPattern = new(@"^\d+\.\d+\.\d+([-+][0-9A-Za-z.\-+]+)?$", RegexOptions.CultureInvariant);
     private static readonly Regex ItemIdPattern = new(@"^[a-z][a-z0-9-]*$", RegexOptions.CultureInvariant);
-    private static readonly Regex ActivationPattern = new(@"^(onCommand|onLanguage|onFileType|onPanel):\S+$", RegexOptions.CultureInvariant);
 
     /// <param name="directory">The plugin folder with <c>nkspad-plugin.json</c>.</param>
     /// <param name="hostApiVersion">Plugin API version the editor provides.</param>
@@ -302,7 +301,7 @@ public static class PluginManifestLoader
         var events = main.ActivationEvents ?? [.. m.Contributes.Commands.Select(c => "onCommand:" + c.Id)];
         if (events.Count == 0) errors.Add("The plugin has a main but nothing that activates it: add activationEvents or a command.");
         foreach (var e in events)
-            if (!ActivationPattern.IsMatch(e)) errors.Add($"Activation event '{e}' must be onCommand:, onLanguage:, onFileType: or onPanel: followed by a value.");
+            if (!ActivationEvents.IsValid(e)) errors.Add($"Activation event '{e}' must be onStartup, or onCommand:, onLanguage:, onFileType:, onPanel: or workspaceContains: followed by a value (a usable glob for workspaceContains).");
 
         return errors.Count > 0 || exe is null ? null : new PluginSpec(m.Id, m.Name, exe, main.Args, events, cwd);
     }

@@ -28,7 +28,11 @@ public sealed record InitializeParams(int ApiVersion, bool Restarted, string Hos
 /// The plugin acknowledges every handled event with <see cref="PluginMethods.EventsHandled"/>. The editor then holds document events back once
 /// <see cref="PluginHostOptions.EventWindow"/> are unhandled, so a slow plugin gets <c>document/eventsLost</c> instead of a backlog in its own memory.
 /// </param>
-public sealed record InitializeResult(int ApiVersion, string? Name, bool EventAcks = false);
+/// <param name="IdleStop">
+/// The plugin keeps nothing in the editor that cannot be set up again, so the editor may end its process after <see cref="PluginHostOptions.IdleStopAfter"/> without work;
+/// the next activation event starts it again with a new handshake.
+/// </param>
+public sealed record InitializeResult(int ApiVersion, string? Name, bool EventAcks = false, bool IdleStop = false);
 public sealed record AwaitingUserParams(bool Awaiting);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
@@ -66,11 +70,46 @@ public sealed record PluginHostOptions
 
     /// <summary>Events a plugin with <see cref="InitializeResult.EventAcks"/> may have unhandled before a paced <see cref="PluginHost.SendEventAsync"/> waits. Null never waits.</summary>
     public int? EventWindow { get; init; }
+
+    /// <summary>A plugin that declared <see cref="InitializeResult.IdleStop"/> is ended after this long without a call, a request of its own or a wait for the user. Null never ends one.</summary>
+    public TimeSpan? IdleStopAfter { get; init; }
+
+    /// <summary>The whole shutdown (every plugin at once) may take this long; whatever still lives then is killed by its process id. Null waits as long as the plugins need.</summary>
+    public TimeSpan? ShutdownTotal { get; init; }
+
+    /// <summary>Tells whether a plugin holds something in the editor that is lost when its process ends (a virtual tab, a panel, a registered source); such a plugin is not ended for being idle.</summary>
+    public Func<string, bool>? HoldsEditorState { get; init; }
+
+    /// <summary>How far the search for <c>workspaceContains</c> events goes. Null: that event never fires.</summary>
+    public WorkspaceScanLimits? WorkspaceScan { get; init; }
+
+    /// <summary>
+    /// Asks a plugin process to end by itself when the editor is gone (the SDK runner does it). Every plugin process gets the id of the editor in <c>TEXTIDA_PARENT_PID</c>;
+    /// this adds how often the plugin looks. Null: the plugin is not asked to look.
+    /// </summary>
+    public ParentCheckPolicy? ParentCheck { get; init; }
 }
 
-public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped }
+/// <param name="Interval">Time between two looks of a plugin at the editor.</param>
+/// <param name="StartTolerance">How far apart two readings of the start time of one process may be; a process of the same id that started later than this is another process.</param>
+public sealed record ParentCheckPolicy(TimeSpan Interval, TimeSpan StartTolerance);
 
-public enum PluginEndReason { Exited, Unresponsive, ProtocolViolation, HandshakeFailed }
+/// <param name="MaxEntries">Files and folders looked at over all open folders.</param>
+/// <param name="MaxDepth">Folders deeper than this below an open folder are not entered.</param>
+/// <param name="SkipFolders">Names of folders that are passed over (version control and package folders).</param>
+public sealed record WorkspaceScanLimits(int MaxEntries, int MaxDepth, IReadOnlyList<string> SkipFolders);
+
+/// <summary>
+/// <see cref="Stopping"/>: the user or the idle timer asked for the end and the process is on its way out; after it the plugin is <see cref="Inactive"/> again and starts at its next activation event.
+/// </summary>
+public enum PluginState { Inactive, Starting, Running, WaitingRestart, Disabled, Stopped, Stopping }
+
+/// <param name="Stopped">The user or the idle timer ended the process; not a failure.</param>
+public enum PluginEndReason { Exited, Unresponsive, ProtocolViolation, HandshakeFailed, Stopped }
+
+/// <summary>What the plugin manager shows about a plugin: its state, the process id while one runs, the last crash and why it is turned off.</summary>
+/// <param name="Crashes">Crashes inside the window of the restart policy; the plugin is turned off when they reach <see cref="RestartPolicy.MaxCrashes"/>.</param>
+public sealed record PluginStatus(string Id, string DisplayName, PluginState State, int? ProcessId, PluginCrashInfo? LastCrash, string? DisabledReason, int Crashes, bool IdleStop);
 
 /// <param name="NextRestartIn">Null when the plugin is not restarted (disabled or editor shutting down).</param>
 public sealed record PluginCrashInfo(string PluginId, string DisplayName, PluginEndReason Reason, int? ExitCode, string Detail, IReadOnlyList<string> StderrTail, TimeSpan? NextRestartIn);

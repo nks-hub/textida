@@ -20,6 +20,28 @@ public sealed record FileFingerprint(long Size, DateTime LastWriteUtc, string Sh
         }
     }
 
+    /// <summary>Like <see cref="TryRead(string)"/>, but the pass over the file stops with <see cref="OperationCanceledException"/> when <paramref name="ct"/> is cancelled.</summary>
+    internal static FileFingerprint? TryReadCancellable(string path, CancellationToken ct)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+            var time = File.GetLastWriteTimeUtc(path);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var buf = new byte[1 << 20];
+            for (int n; (n = fs.Read(buf)) > 0;)
+            {
+                ct.ThrowIfCancellationRequested();
+                hash.AppendData(buf, 0, n);
+            }
+            return new(fs.Length, time, Convert.ToHexString(hash.GetHashAndReset()));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Size and write time only; the hash is empty. Cheap at any file size.</summary>
     public static FileFingerprint? TryReadQuick(string path)
     {

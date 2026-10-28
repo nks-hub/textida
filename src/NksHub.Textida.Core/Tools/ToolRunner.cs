@@ -120,6 +120,7 @@ public static class ToolRunner
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException) { throw new ToolException(e.Message); }
+        ProcessLaunch.Track(process);
 
         process.StandardInput.Close();
         var gate = new object();

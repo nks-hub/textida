@@ -157,16 +157,26 @@ public sealed partial class Document : IDisposable
 
     public bool TryGetOffset(LinePosition position, out long offset) => _backend.TryGetOffset(position, out offset);
 
+    /// <summary>Longest stretch, in bytes, that <see cref="OnOneLine"/> reads.</summary>
+    private const long OnOneLineScanBytes = 64 * 1024;
+
     /// <summary>
-    /// True when the bytes between two offsets hold no CR or LF byte, so both are on one line. Only a short stretch is read, and false means
-    /// "unknown" (a line break, or too far apart): the caller then asks <see cref="TryGetPosition"/>, which can cost a scan of the line index.
+    /// Whether two offsets are on one line, told by the bytes between them: true when none is a CR or LF, false when one is. Null means "unknown"
+    /// (the stretch is long, or the encoding is not ASCII-compatible, so a CR or LF byte may belong to another character): the caller then asks
+    /// <see cref="TryGetPosition"/>, which can cost a scan of the line index. The scan stops at the first CR or LF, so two offsets on different lines cost one short read.
     /// </summary>
-    public bool NoLineBreakBetween(long a, long b)
+    public bool? OnOneLine(long a, long b)
     {
         long from = Math.Min(a, b), to = Math.Max(a, b);
-        if (from < 0 || to > ByteLength || to - from > 4096) return false;
-        Span<byte> bytes = stackalloc byte[(int)(to - from)];
-        return Read(from, bytes) == bytes.Length && bytes.IndexOfAny((byte)10, (byte)13) < 0;
+        if (from < 0 || to > ByteLength) return null;
+        Span<byte> buffer = stackalloc byte[512];
+        for (long at = from; at < to; at += buffer.Length)
+        {
+            var bytes = buffer[..(int)Math.Min(buffer.Length, to - at)];
+            if (at - from >= OnOneLineScanBytes || Read(at, bytes) != bytes.Length) return null;
+            if (bytes.IndexOfAny((byte)10, (byte)13) >= 0) return _codec.Alignment == 1 ? false : null;
+        }
+        return true;
     }
 
     // ---- snapshots ----
@@ -204,6 +214,7 @@ public sealed partial class Document : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _saveCancel?.Cancel(); // a running save stops before it commits; the file stays as it was
         StopWatching();
         _hashCancel?.Cancel();
         _backend.EditedByBackend -= OnBackendEdit;

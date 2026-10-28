@@ -113,7 +113,8 @@ A connection holds the server, the user and the protocol. The password is kept i
 - FTPS and SFTP are the normal choices. Plain FTP sends the password and the files unencrypted and is used only after you allow it for that connection.
 - The first time you connect, the program shows the identity of the server (an SSH host key or a TLS certificate) and asks you to trust it. Compare it with the one the server administrator gave you.
 - If the identity of a server you trusted changes, the program does not connect until you confirm the new one. Read the warning before you do.
-- Saving a password works on Windows (Credential Manager). On macOS and Linux the credential store is not supported yet, and the program says so instead of keeping the password anywhere else.
+- A password is saved in the credential store of the system: Credential Manager on Windows, the Keychain on macOS, the Secret Service (through libsecret, for example GNOME Keyring or KWallet) on Linux. If that store is missing, the program says so instead of keeping the password anywhere else. The macOS and Linux stores have not been tried on a real system yet.
+- ssh-rsa: some old SFTP servers accept an RSA key, or show their host key, only with the weak SHA-1 signature called ssh-rsa. The program never offers it by itself. If such a server refuses the connection, choose the connection and then Old RSA Signature (ssh-rsa), read the warning and allow it for that connection only. The Remote output warns at every connection that allows it; turn it off as soon as the server is updated.
 
 ## [remote.open] Open a remote file
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - The bar above the text says whether the copy is the same as on the server. The editor itself works without a connection.
 - Opening a remote file that already has a copy shows the copy, including changes you did not send yet. The server version is never fetched over your work.
 - The log of the transfers is in the Remote tab of the output window.
+- A download shows its percent in the status bar and in the Remote output. Cancel Transfer stops it. What has arrived is kept, and the next open or reload of the same server version continues at that byte. If the size or the time of the file on the server changed meanwhile, the partial file is dropped and the download starts again. When the connection is lost, the program repeats the download a few times with growing pauses.
 
 ## [remote.upload] Upload to the server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
 - Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
 - When the connection is lost during an upload, the program tries again a few times with growing pauses. Every try checks the server version again first, and a partly sent temporary file is continued where it stopped after its content was compared with your file. If the server refuses the rename that puts the file in place, the old file is set aside, the new one is moved in, and the old one is restored if that fails.
+- The status bar shows the percent of the upload, and the Remote output a line for every tenth of it (the step is provisional). The percent counts the bytes the connection has taken, so it can run a little ahead of the server.
 
 ## [remote.cancel] Cancel the transfer
 commands: nks.remote.cancel
-Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
+Choose File and then Remote Files and then Cancel Transfer. The running upload or download stops. After an upload the server keeps its previous version, and a partly sent temporary file is continued by the next upload. After a download, what has arrived is kept, and the next download of the same server version continues there.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
@@ -410,11 +413,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - The file of a saved macro larger than 1 MB (placeholder limit, OPEN) is not read; the list reports it as damaged.
 
 ## [edit.json] Format JSON
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Select JSON text, or select nothing to format the whole document.
-2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Select JSON text, or select nothing to work on the whole document.
+2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings and the encoding.
 3. Preview JSON Formatting shows the change as a proposal first. Apply it from the bar above the editor, or discard it.
-- A syntax error is reported with its line and column and nothing is changed. Text larger than the limit is refused with a message.
+4. Minify JSON writes the value on one line without white space and removes comments. Sort JSON Keys orders the members of every object by name (a comment moves with its member) and lays the text out like Format JSON. Remove JSON Trailing Commas removes only the commas in front of a closing bracket and changes nothing else.
+- Comments and trailing commas are part of JSONC files (.jsonc, tsconfig.json and the like). Format JSON and Sort JSON Keys keep both there. In a plain JSON file they are reported as errors; Remove JSON Trailing Commas repairs the commas.
+- A syntax error is reported with its line and column in the document, and nothing is changed. Text larger than the limit, or nested deeper than the limit, is refused with a message.
+- A selection without a line break takes the line ending that most lines of the file use.
 - If the document changed after the command started, the command stops and asks you to run it again.
 
 ## [tools.stats] Document statistics and hashes
@@ -1023,6 +1029,14 @@ commands: nks.plugins.manage
 - A plugin can bring keys and settings. Its keys (contributes.keybindings, with an optional "when") work like the keys of the editor, but a key of the editor, of the profile or your own keymap.json always wins over a plugin key; the clash is listed under the plugin in the Plugin Manager. Its settings (contributes.settings, keys that start with the plugin id) appear in Settings under the name of the plugin, with the default from the manifest, and a running plugin gets the values at its start and again as the event settings.changed. A command that names a tool in the manifest (contributes.externalTools) runs it without any plugin code, after you confirmed its command and directory.
 - Every plugin runs as its own process. If it ends or stops answering, the editor ends it, a bar names the plugin and says when it starts again; after repeated crashes it stays turned off. Show output in the bar opens the Output window with the last error lines of the plugin. A plugin that waits for your answer (a change review, a question) is not ended for not answering. A command that was running is not repeated after the restart, so nothing is written or uploaded twice. The number of crashes, the waits and the time limits are provisional.
 
+## [plugins.lifecycle] Plugin processes: when they start, how to see them and how they end
+1. A plugin that runs a program starts only when something asks for it. What asks is its activation events in nkspad-plugin.json (main.activationEvents): onCommand:id (the command runs), onLanguage:id (a document in that language mode is shown), onFileType:.ext (a file with that extension is shown), workspaceContains:glob (an open folder holds a file that matches the glob), onStartup (the editor has started) and onPanel:id. Without activationEvents a plugin starts when one of its commands runs.
+2. Tools, Plugin Manager shows the state of every plugin process: running, starting, not running (it starts when needed), stopped after a crash and waiting for its restart, or turned off. Choose a plugin to see the actions that fit: Start, Stop, Restart. Start on a plugin that was turned off clears its crashes and tries again; Stop on a plugin that waits for its restart cancels the restart.
+3. Stop and Restart ask the plugin to leave, close its input and end the process if it has not gone within the grace time. A plugin that was stopped is not a crash: no notice appears and it starts again at its next activation event. A call that was running when it was stopped ends with an error and is not repeated.
+4. A plugin may ask in its handshake to be ended when it has no work. The editor then ends its process after a quiet time, unless the plugin shows a panel, a task, a virtual tab or a source, or a call is running, and starts it again at the next activation event.
+5. When you close the editor every plugin is asked to leave at the same time. Whatever is still alive after a short time is killed by its process id, so no plugin program stays behind.
+- The glob of workspaceContains matches the name of a file at any depth when it has no slash, otherwise the end of the path below the folder; the search is limited in entries and depth and passes over .git and node_modules. The times (restart, quiet time, closing) and the limits of the search are provisional.
+
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck, SQLFluff and dart analyze find
 commands: nks.tools.lint
 1. Tools, Running Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby, ESLint for JavaScript and TypeScript, Ruff for Python, ShellCheck for shell scripts, SQLFluff for SQL, dart analyze for Dart. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
@@ -1131,10 +1145,14 @@ The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
+- Save (Ctrl+S) runs in the background: the window stays usable, the status bar shows how many percent of the new file are written, and Esc cancels the save before the data is committed (the file stays unchanged). You can keep typing meanwhile: the file gets the text as it was when you pressed Save, your later edits stay unsaved, and the tab shows them as unsaved changes. Undo and Redo work during the save and after it. A save that only overwrites bytes of the same length writes just those bytes and takes no edits for its short time. A file larger than 1 GiB (a provisional limit) is saved without a copy of the old version in the backup folder; the old file stays untouched until the new one is complete.
+
+- Undo and Redo also work after Save: the steps made before the save can still be undone, and the next save writes the state after the undo. Typing a word without moving the caret is one step.
 - Find (Ctrl+F). Find in Files.
 - Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
+- Paste takes at most 32 Mi characters (a provisional value); a longer text is not pasted and the status bar says so. A text over 1 Mi characters is prepared in the background and goes in where the caret is when that is done.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
-- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves.
+- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves. A line longer than 1 GiB (a provisional value) is not edited; the status bar says so and the document does not change.
 ### What does not work
 - Block selection, multiple carets.
 - Commands for lines, indentation, letter case, replacing.
@@ -1146,8 +1164,12 @@ The status bar then shows Large file, its size and the revision.
 - The character cannot be written in the file encoding: type another character.
 - The selection is larger than the copy limit: select less; the clipboard stays as it was.
 - The edit is too large to be undone: remove or insert less text at once; the document does not change.
+- A line is longer than the limit that can be edited in paged mode: edit it in the hex view; the document does not change.
+- The clipboard text is larger than the paste limit: paste it in parts; the document does not change.
+- The encoding of the document changed while the text was being prepared: paste again.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
-- Saving a large file holds up the window.
+- The file is being saved, try again when the save ends: you tried something while a save that overwrites bytes in place was running, or reloaded the file during any save.
+- Closing the tab or the window during a save waits for the end of the save; Esc cancels the save.
 
 ## [conflict] File changed outside
 If another program changes the file, a bar appears above the document: The file changed on disk.
@@ -1203,10 +1225,10 @@ When an operation on a file fails, a bar above the document says The operation f
 
 ## [errors.remote] Error messages: remote files and sources
 A message about a remote file or a source appears in the status bar, in the bar above the text or in a dialog. Each line quotes the message and says what to do.
-- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy).
+- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy). If an old SFTP server refuses a key or shares no key algorithm, see Old RSA Signature (ssh-rsa) in the topic Remote connections.
 - WARNING: the identity of host is not the one you trusted before. The program does not connect until you confirm the new identity. Ask the server administrator whether the server was reinstalled, and connect only if you know why it changed (topic Remote connections).
 - The port must be a number from 1 to 65535. Type a whole number from 1 to 65535, or leave the box empty and the usual port of the protocol is used.
-- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store (it works on Windows only, topic What this version cannot do). Fix it and save again.
+- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store of the system (topic What this version cannot do). Fix it and save again.
 - path does not exist on the server. Check the path. A path to a folder shows its content, so you can browse from / to the file.
 - Cannot open path: reason. Nothing was opened. Fix the reason (a permission on the server, a lost connection) and open the file again.
 - Upload of title failed: reason. The server keeps its previous version; your changes stay saved here. Fix the reason and choose Upload to Server again; a partly sent file is continued (topic Upload to the server).
@@ -1288,7 +1310,7 @@ These messages come from programs the editor starts for you. They appear in the 
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it, and this is what to do instead:
 - Updates: the program updates itself only on Windows, in the installed Textida (topic Updates and return to the previous version). On macOS and Linux you install a new version yourself. A build without an update address and a signing key cannot look for updates and says so.
-- Saved passwords: the credential store works on Windows only (Credential Manager). On macOS and Linux the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
+- Saved passwords: Windows (Credential Manager), macOS (Keychain) and Linux (Secret Service through libsecret). The macOS and Linux stores have not been tried on a real system yet. Where the store of the system is missing, the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
 - Plugins: a plugin is a program that runs with your user rights. Its permissions record what you allowed, they are not a sandbox, and the signatures of plugins are not checked (topic Plugin manager: install, update, roll back and remove plugins). Install only plugins you trust.
 - Assistants: the /ide bridge and the agent over ACP have not been verified against the real programs (topics The /ide bridge for Claude Code and Agent over ACP). A connection that does not work is reported with its reason in the status bar or the Tasks output.
 - Large files: editing in paged mode is limited (topic Large files (paged mode)). A language server, formatting and most commands that change text do not work there. To change the bytes of a file of any size, open it in hex.

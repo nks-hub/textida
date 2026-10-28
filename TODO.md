@@ -1806,6 +1806,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Funkce:** F009, F010
   - **Stav 26. 10. 2026:** částečně: FTPS (FluentFTP 55.1, MIT) a SFTP (SSH.NET 2026.0.0, MIT), prosté FTP jen výslovnou volbou, nepodporovaná kombinace jasnou chybou; připnutý klíč SFTP a certifikát FTPS, změněná identita se nepřipojí bez potvrzení (test obou protokolů); hesla ve Windows Credential Manageru, test je nenajde v souboru spojení, exportu, profilu ani logu; testy proti skutečným serverům (FubarDev.FtpServer v procesu, paramiko); NativeAOT publish prošel i živě proti oběma serverům. Chybí: macOS Keychain a Linux (hlásí chybu, neověřitelné tady); RSA klíče se SHA-1 podpisem (ed25519 otestován).
   - **Hotovo, když:** matice testů pokryje FTPS i SFTP: platná a neplatná identita serveru, přihlášení, přerušení spojení a konflikt; spojení se změněným klíčem serveru se nepřipojí bez potvrzení; heslo není v souboru nastavení; prosté FTP vyžaduje výslovnou volbu; nepodporovaná kombinace skončí jasnou chybou.
+  - **Stav 28. 10. 2026 (dopoledne):** částečně. Podpis `ssh-rsa` (SHA-1) je ve výchozím stavu vypnutý a zapíná se u jednoho spojení s varováním, otestováno proti starému serveru. Úložiště hesel pro macOS Keychain a Linux libsecret je napsané; na macOS a Linuxu zatím neověřené.
   - **Závisí na:** P1.7.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
@@ -1825,7 +1826,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Závisí na:** P5.4.1, P1.5.1
   - **Odhad:** v rámci F162 (viz P5.4.2)
   - **Umístění:** jádro
-- [ ] **P5.4.7** Přerušení, opakování a obnova přenosu
+- [x] **P5.4.7** Přerušení, opakování a obnova přenosu
   - **Co a proč:** Nahrání přes dočasné jméno na serveru, kde to protokol dovolí; přerušení nenechá na serveru poškozený soubor.
   - **Funkce:** F162 (částečně: přenos)
   - **Stav 26. 10. 2026:** částečně: přerušení a opakování přenosu (opakování vždy znovu a po nové kontrole verze); přerušení FTPS uprostřed přenosu simulované obalem nad skutečným serverem, SFTP server spojení opravdu utne. Obnova rozpracovaného nahrání chybí.
@@ -1835,6 +1836,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Pokračování přerušeného nahrání (SFTP offset, FTP resume) s ověřením obsahu, 3 pokusy s rostoucí pauzou (placeholdery), příkaz Zrušit přenos. Chybí: stahování, průběh v procentech.
   - **Stav 28. 10. 2026:** částečně. Pokračování a opakování nahrání, Zrušit přenos. Chybí stahování a průběh v procentech.
+  - **Ověření 28. 10. 2026:** hotovo. Stahování jde zrušit a naváže od bajtu, kde skončilo, jen u stejné verze na serveru (velikost a čas; bez času serveru začne znovu); opakování po ztrátě spojení i u stahování; procenta nahrávání i stahování ve stavovém řádku a ve výstupu. Testy proti skutečnému FTPS a SFTP serveru (Remote 116/116). Opraveno: zrušené nahrání přes SFTP nechalo na serveru otevřený soubor a další nahrání pak nešlo přejmenovat.
 - [ ] **P5.4.3** Vzdálená cache a záloha konfigurace
   - **Co a proč:** Lokální cache vzdálených souborů s životním cyklem a vzdálenou revizí; zálohy nastavení bez tajných údajů.
   - **Funkce:** F111

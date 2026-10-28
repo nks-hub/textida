@@ -194,6 +194,9 @@ internal static class AppCommands
         On("nks.edit.expandSelection", w => w.ExpandSelection());
         Fire("nks.edit.formatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: false));
         Fire("nks.edit.previewFormatJson", (w, t) => app.Plugins.RunJsonAsync(w, t, preview: true));
+        Fire("nks.edit.minifyJson", (w, t) => app.Plugins.RunJsonAsync(w, t, "json.minify"));
+        Fire("nks.edit.sortJsonKeys", (w, t) => app.Plugins.RunJsonAsync(w, t, "json.sortKeys"));
+        Fire("nks.edit.fixJsonCommas", (w, t) => app.Plugins.RunJsonAsync(w, t, "json.fixCommas"));
         Fire("nks.edit.formatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: false));
         Fire("nks.edit.previewFormatSql", (w, t) => app.Plugins.RunSqlAsync(w, t, preview: true));
         Fire("nks.edit.htmlEncode", (w, t) => app.Plugins.RunHtmlEntitiesAsync(w, t, encode: true));

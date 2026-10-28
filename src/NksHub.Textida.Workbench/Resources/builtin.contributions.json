@@ -496,6 +496,30 @@
       "enablement": "!readOnly && !largeFileMode"
     },
     {
+      "id": "nks.edit.minifyJson",
+      "title": "cmd.edit.minifyJson",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.sortJsonKeys",
+      "title": "cmd.edit.sortJsonKeys",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.fixJsonCommas",
+      "title": "cmd.edit.fixJsonCommas",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode",
+      "undo": "transaction"
+    },
+    {
       "id": "nks.tools.statistics",
       "title": "cmd.tools.statistics",
       "category": "cat.tools"
@@ -3060,6 +3084,27 @@
       "group": "3_text/5_format",
       "submenu": "format",
       "order": 6
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.minifyJson",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 7
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.sortJsonKeys",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 8
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.fixJsonCommas",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 9
     },
     {
       "menu": "tools",

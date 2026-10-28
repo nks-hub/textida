@@ -120,7 +120,7 @@ public sealed partial class App : Application
         desktop.Exit += (_, _) =>
         {
             Journal.Shutdown();
-            Plugins.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+            Plugins.Shutdown();
             if (!ctx.Args.Smoke) return;
             try { Directory.Delete(ProfileDirectory, recursive: true); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a check leaves nothing in the profile it ran in */ }
@@ -136,6 +136,7 @@ public sealed partial class App : Application
                 first.ShowJournalWarnings();
                 first.ShowConfigRestore();
                 first.StartWorkspace();
+                Plugins.ActivateStartup();
                 first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
                 else if (first.Active is null) first.NewDocument(); // nothing to open or restore: start with an empty document, not an empty window
@@ -157,6 +158,11 @@ public sealed partial class App : Application
         Journal?.Dispose();
         ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
         ConfigRestore = ConfigBackup.ApplyPending(ProfileDirectory, Clock()); // before any service reads the files it puts back
+        if (!OperatingSystem.IsWindows()) // Windows ends the children of a killed editor with a job object, see ProcessLaunch.Track
+        {
+            ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimitsPlaceholders.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.StartTimeToleranceMilliseconds));
+            ChildProcessGuard.SweepLeftovers();
+        }
         Workbench = new AppWorkbench(ProfileDirectory, Loc.DefaultLanguage);
         AppCommands.Register(this);
         Workbench.SettingChanged += OnSettingChanged;

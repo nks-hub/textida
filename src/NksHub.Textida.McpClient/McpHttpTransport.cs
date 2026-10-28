@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.McpClient;
 
@@ -19,7 +20,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
     public const int AuthErrorCode = -32061;
     public const int FailedErrorCode = -32062;
 
-    private readonly record struct Peeked(string? Id, string? Method, string? CancelTarget)
+    private readonly record struct Peeked(RpcId? Id, string? Method, RpcId? CancelTarget)
     {
         public bool IsRequest => Id is not null && Method is not null;
     }
@@ -37,7 +38,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
     private readonly TimeSpan _grace;
     private readonly Channel<byte[]> _incoming = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(64) { SingleReader = true });
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly Dictionary<string, CancellationTokenSource> _inFlight = [];
+    private readonly Dictionary<RpcId, CancellationTokenSource> _inFlight = [];
     private readonly HashSet<Task> _posts = [];
     private readonly object _gate = new();
     private volatile string? _sessionId;
@@ -73,7 +74,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
         Task post;
         lock (_gate)
         {
-            if (sent.IsRequest) _inFlight[sent.Id!] = exchange.Cts;
+            if (sent.IsRequest) _inFlight[sent.Id!.Value] = exchange.Cts;
             if (sent.CancelTarget is { } target && _inFlight.Remove(target, out var stale)) Cancel(stale);
             post = Task.Run(() => PostAsync(message, exchange));
             _posts.Add(post);
@@ -127,7 +128,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
         {
             lock (_gate)
             {
-                if (sent.Id is not null && _inFlight.TryGetValue(sent.Id, out var own) && ReferenceEquals(own, exchange.Cts)) _inFlight.Remove(sent.Id);
+                if (sent.Id is { } id && _inFlight.TryGetValue(id, out var own) && ReferenceEquals(own, exchange.Cts)) _inFlight.Remove(id);
             }
             exchange.Cts.Dispose();
         }
@@ -221,20 +222,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
     private async Task FailAsync(Peeked sent, int code, string message)
     {
         if (!sent.IsRequest) return;
-        var buffer = new ArrayBufferWriter<byte>();
-        using (var w = new Utf8JsonWriter(buffer))
-        {
-            w.WriteStartObject();
-            w.WriteString("jsonrpc", "2.0");
-            w.WritePropertyName("id");
-            w.WriteRawValue(sent.Id!);
-            w.WriteStartObject("error");
-            w.WriteNumber("code", code);
-            w.WriteString("message", message);
-            w.WriteEndObject();
-            w.WriteEndObject();
-        }
-        await DeliverAsync(buffer.WrittenMemory).ConfigureAwait(false);
+        await DeliverAsync(RpcWire.Error(sent.Id, code, message)).ConfigureAwait(false);
     }
 
     private async Task DeliverAsync(ReadOnlyMemory<byte> json)
@@ -246,19 +234,16 @@ internal sealed class McpHttpTransport : IAsyncDisposable
         catch (Exception e) when (e is ChannelClosedException or OperationCanceledException) { /* disposed meanwhile */ }
     }
 
+    /// <summary>Reads id, method and cancel target with the same parser and the same MCP rules the JSON-RPC layer uses; anything it would refuse is unknown here too.</summary>
     private static Peeked Peek(ReadOnlyMemory<byte> json)
     {
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return default;
-            string? id = root.TryGetProperty("id", out var i) && i.ValueKind is JsonValueKind.Number or JsonValueKind.String ? i.GetRawText() : null;
-            string? method = root.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
-            string? target = method == "notifications/cancelled" && root.TryGetProperty("params", out var p) && p.ValueKind == JsonValueKind.Object && p.TryGetProperty("requestId", out var r) ? r.GetRawText() : null;
-            return new Peeked(id, method, target);
+            using var message = RpcMessage.Parse(json.ToArray());
+            RpcId? target = message.Method is { } method && RpcProtocols.Mcp.TryParseCancel(method, message.Params, out var cancelled) ? cancelled : null;
+            return new Peeked(message.Id, message.Method, target);
         }
-        catch (JsonException) { return default; }
+        catch (RpcException) { return default; }
     }
 
     // ---- the end ----

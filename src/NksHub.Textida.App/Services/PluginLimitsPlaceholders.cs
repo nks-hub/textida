@@ -20,11 +20,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
-    /// <summary>Placeholder, OPEN: how many times an upload is repeated after the connection was lost (each repeat checks the server version again and continues a partial temporary file).</summary>
+    /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 
-    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload; every further repeat waits twice as long.</summary>
+    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload or download; every further repeat waits twice as long.</summary>
     public const int RemoteRetryBaseDelayMilliseconds = 2000;
+
+    /// <summary>Placeholder, OPEN: a transfer writes a line to the Remote output each time its progress passes a multiple of this many percent (the status bar shows every whole percent).</summary>
+    public const int RemoteProgressLogStepPercent = 10;
 
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
@@ -61,6 +64,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
     public const long PagedCopyMaxBytes = 256L << 20;
 
+    /// <summary>Placeholder, OPEN: longest line of a large file in the paged view that can be edited, in bytes; typing, deleting or pasting in a longer one is refused with a message and the document does not change. The owner has not decided it.</summary>
+    public const long PagedEditLineMaxBytes = 1L << 30;
+
+    /// <summary>Placeholder, OPEN: most UTF-16 characters of clipboard text that Paste takes into the paged view (its encoded copy and the clipboard string are both in memory at once); a longer text is refused with a message and the document does not change. The owner has not decided it.</summary>
+    public const long PagedPasteMaxChars = 32L << 20;
+
+    /// <summary>Placeholder, OPEN: milliseconds in which the largest measured paste (<see cref="PagedPasteMaxChars"/> characters into a file of 100 MiB) must end on a development PC; only the measuring test reads it. The owner has not decided it.</summary>
+    public const int PagedPasteMeasureMilliseconds = 5000;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
@@ -82,11 +94,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds a linter run started by a save waits for a further save of the same file before it starts; a newer save replaces the waiting run. The owner has not decided it.</summary>
     public const int LintOnSaveDebounceMilliseconds = 500;
 
-    /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    /// <summary>Placeholder, OPEN: largest JSON range the built-in formatter handles (format, minify, sort keys, remove trailing commas); a larger one is refused with a message. Also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>. The owner has not decided it.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 
-    /// <summary>Placeholder: spaces per level of the built-in formatter.</summary>
+    /// <summary>Placeholder, OPEN: spaces per level of the built-in formatter. The owner has not decided it.</summary>
     public const int JsonFormatterIndent = 2;
+
+    /// <summary>Placeholder, OPEN: deepest nesting of arrays and objects the built-in JSON formatter accepts; a deeper text is refused with a message. The formatter never goes deeper than 512 whatever is set. The owner has not decided it.</summary>
+    public const int JsonFormatterMaxDepth = 64;
 
     /// <summary>Placeholder: bytes the text tools (statistics, hashes) read per request; the one chunk is their working memory. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int TextToolsChunkBytes = 1 << 20;
@@ -370,8 +385,38 @@ internal static class PluginLimitsPlaceholders
 
     public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
 
+    /// <summary>Placeholder, OPEN: seconds a plugin that asked for it (idle stop) may have no work before the editor ends its process; the next activation event starts it again. The owner has not decided it.</summary>
+    public const int IdleStopSeconds = 300;
+
+    /// <summary>Placeholder, OPEN: seconds all plugins together may take to leave when the editor closes; a process still alive then is killed by its process id. The owner has not decided it.</summary>
+    public const int ShutdownTotalSeconds = 4;
+
+    /// <summary>Placeholder, OPEN: seconds the exit of the editor waits for the plugin services (agents, the MCP server, the plugins) to finish before it kills the plugin processes that are left. The owner has not decided it.</summary>
+    public const int ExitWaitSeconds = 8;
+
+    /// <summary>Placeholder, OPEN: seconds between two looks of a plugin process at the editor that started it; a plugin ends by itself when the editor is gone (the system ends the child processes of a killed editor on Windows; on macOS and Linux this is what is left). The owner has not decided it.</summary>
+    public const int ParentCheckSeconds = 2;
+
+    /// <summary>Placeholder, OPEN: milliseconds two readings of the start time of one process may differ by and still be that process. A process id whose start time is farther off belongs to another program and is never killed or waited for. The owner has not decided it.</summary>
+    public const int StartTimeToleranceMilliseconds = 2000;
+
+    /// <summary>Placeholder, OPEN: the subfolder of the profile where macOS and Linux list the child processes of the editor, so the next start can end the ones a killed editor left behind. The owner has not decided it.</summary>
+    public const string ChildListFolder = "children";
+
+    /// <summary>Placeholder, OPEN: files and folders looked at over all open folders to see whether a plugin's <c>workspaceContains</c> event fires. The owner has not decided it.</summary>
+    public const int WorkspaceScanEntries = 20_000;
+
+    /// <summary>Placeholder, OPEN: how many folders deep below an open folder the <c>workspaceContains</c> search goes. The owner has not decided it.</summary>
+    public const int WorkspaceScanDepth = 6;
+
+    /// <summary>Placeholder, OPEN: folder names the <c>workspaceContains</c> search passes over. The owner has not decided it.</summary>
+    public static readonly string[] WorkspaceScanSkippedFolders = [".git", ".hg", ".svn", "node_modules"];
+
     public static PluginHostOptions Host() => new()
     {
+        IdleStopAfter = TimeSpan.FromSeconds(IdleStopSeconds),
+        ShutdownTotal = TimeSpan.FromSeconds(ShutdownTotalSeconds),
+        WorkspaceScan = new WorkspaceScanLimits(WorkspaceScanEntries, WorkspaceScanDepth, WorkspaceScanSkippedFolders),
         EventWindow = EventWindow,
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
         Restart = new RestartPolicy(MaxCrashes: 3, Window: TimeSpan.FromMinutes(5), BaseDelay: TimeSpan.FromSeconds(1), MaxDelay: TimeSpan.FromSeconds(30)),
@@ -382,6 +427,7 @@ internal static class PluginLimitsPlaceholders
         MissedPingsBeforeKill = 3,
         ShutdownGrace = TimeSpan.FromSeconds(3),
         StderrTailLines = 20,
+        ParentCheck = new ParentCheckPolicy(TimeSpan.FromSeconds(ParentCheckSeconds), TimeSpan.FromMilliseconds(StartTimeToleranceMilliseconds)),
     };
 
     /// <summary>Placeholder: entries kept in the plugin call log.</summary>

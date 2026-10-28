@@ -113,7 +113,8 @@ Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im
 - Üblich sind FTPS und SFTP. Einfaches FTP sendet Passwort und Dateien unverschlüsselt und wird erst benutzt, wenn Sie es für diese Verbindung ausdrücklich erlauben.
 - Bei der ersten Verbindung zeigt das Programm die Identität des Servers (einen SSH-Hostschlüssel oder ein TLS-Zertifikat) und fragt, ob Sie ihr vertrauen. Vergleichen Sie sie mit der, die Ihnen der Serveradministrator gegeben hat.
 - Ändert sich die Identität eines Servers, dem Sie vertraut haben, verbindet sich das Programm erst, wenn Sie die neue bestätigen. Lesen Sie vorher die Warnung.
-- Das Speichern von Passwörtern funktioniert unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux wird der Anmeldeinformationsspeicher noch nicht unterstützt; das Programm sagt das, statt das Passwort anderswo abzulegen.
+- Ein Passwort wird im Anmeldeinformationsspeicher des Systems abgelegt: unter Windows in der Anmeldeinformationsverwaltung, unter macOS im Schlüsselbund (Keychain), unter Linux im Secret Service über libsecret (zum Beispiel GNOME Keyring oder KWallet). Fehlt dieser Speicher, sagt das Programm das, statt das Passwort anderswo abzulegen. Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert.
+- ssh-rsa: Manche alten SFTP-Server akzeptieren einen RSA-Schlüssel oder zeigen ihren Hostschlüssel nur mit der schwachen SHA-1-Signatur namens ssh-rsa. Das Programm bietet sie nie von selbst an. Lehnt ein solcher Server die Verbindung ab, wählen Sie die Verbindung und dann Alte RSA-Signatur (ssh-rsa), lesen Sie die Warnung und erlauben Sie sie nur für diese Verbindung. Die Remote-Ausgabe warnt bei jeder Verbindung, die sie erlaubt; schalten Sie sie ab, sobald der Server aktualisiert ist.
 
 ## [remote.open] Remote-Datei öffnen
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Die Leiste über dem Text sagt, ob die Kopie dem Stand auf dem Server entspricht. Der Editor selbst arbeitet ohne Verbindung.
 - Eine Remote-Datei, die schon eine Kopie hat, wird aus der Kopie geöffnet, auch mit Änderungen, die Sie noch nicht gesendet haben. Die Serverversion wird nie über Ihre Arbeit geladen.
 - Das Protokoll der Übertragungen steht im Tab Remote des Ausgabefensters.
+- Ein Download zeigt seinen Fortschritt in Prozent in der Statusleiste und in der Remote-Ausgabe. Übertragung abbrechen stoppt ihn. Was angekommen ist, bleibt erhalten, und das nächste Öffnen oder Neuladen derselben Serverversion macht bei diesem Byte weiter. Haben sich Größe oder Zeit der Datei auf dem Server inzwischen geändert, wird der angefangene Teil verworfen und der Download beginnt von vorn. Bricht die Verbindung ab, wiederholt das Programm den Download einige Male mit wachsenden Pausen.
 
 ## [remote.upload] Auf Server hochladen
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
 - Grenze: Prüfung und Austausch sind zwei Schritte, weil FTP und SFTP kein bedingtes Schreiben kennen. Eine Änderung, die jemand in diesem letzten Moment macht, wird nicht bemerkt. Die Prüfung läuft erst nach dem vollständigen Upload, der Moment ist also kurz.
 - Bricht die Verbindung beim Hochladen ab, versucht das Programm es einige Male mit wachsenden Pausen erneut. Jeder Versuch prüft zuerst wieder die Serverversion, und eine teilweise gesendete temporäre Datei wird erst fortgesetzt, wenn ihr Inhalt mit Ihrer Datei übereinstimmt. Verweigert der Server das Umbenennen, das die Datei an ihren Platz setzt, wird die alte Datei beiseitegelegt, die neue verschoben und bei einem Fehler die alte zurückgeholt.
+- Die Statusleiste zeigt den Fortschritt des Uploads in Prozent und die Remote-Ausgabe eine Zeile je Zehntel (die Schrittweite ist vorläufig). Die Prozent zählen die Bytes, die die Verbindung übernommen hat, und können dem Server etwas voraus sein.
 
 ## [remote.cancel] Übertragung abbrechen
 commands: nks.remote.cancel
-Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen stoppt, der Server behält seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort.
+Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen oder Herunterladen stoppt. Nach einem Upload behält der Server seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort. Nach einem Download bleibt, was angekommen ist, und der nächste Download derselben Serverversion macht dort weiter.
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
@@ -410,11 +413,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - Die Datei eines gespeicherten Makros über 1 MB (Platzhalter-Grenze, OPEN) wird nicht gelesen; die Liste meldet sie als beschädigt.
 
 ## [edit.json] JSON formatieren
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.
-2. Menü Bearbeiten, Formatierung, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu bearbeiten.
+2. Menü Bearbeiten, Formatierung, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden und die Kodierung.
 3. Vorschau der JSON-Formatierung zeigt die Änderung zuerst als Vorschlag. Wenden Sie ihn in der Leiste über dem Editor an oder verwerfen Sie ihn.
-- Ein Syntaxfehler wird mit Zeile und Spalte gemeldet, und nichts wird geändert. Text über dem Limit wird mit einer Meldung abgelehnt.
+4. JSON verdichten schreibt den Wert in eine Zeile ohne Leerraum und entfernt Kommentare. JSON-Schlüssel sortieren ordnet die Member jedes Objekts nach Namen (ein Kommentar wandert mit seinem Member) und legt den Text wie JSON formatieren aus. Abschließende Kommas in JSON entfernen löscht nur die Kommas vor einer schließenden Klammer und ändert sonst nichts.
+- Kommentare und abschließende Kommas gehören zu JSONC-Dateien (.jsonc, tsconfig.json und ähnliche). JSON formatieren und JSON-Schlüssel sortieren behalten beides dort bei. In einer normalen JSON-Datei werden sie als Fehler gemeldet; die Kommas repariert Abschließende Kommas in JSON entfernen.
+- Ein Syntaxfehler wird mit Zeile und Spalte im Dokument gemeldet, und nichts wird geändert. Text über dem Limit oder tiefer verschachtelt als das Limit wird mit einer Meldung abgelehnt.
+- Eine Auswahl ohne Zeilenumbruch übernimmt das Zeilenende, das die meisten Zeilen der Datei haben.
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
 ## [tools.stats] Dokumentstatistik und Hashes
@@ -1023,6 +1029,14 @@ commands: nks.plugins.manage
 - Ein Plugin kann Tasten und Einstellungen mitbringen. Seine Tasten (contributes.keybindings, optional mit "when") funktionieren wie die Tasten des Editors, aber eine Taste des Editors, des Profils oder Ihrer keymap.json gewinnt immer gegen eine Plugin-Taste; der Konflikt steht beim Plugin im Plugin-Manager. Seine Einstellungen (contributes.settings, Schlüssel beginnen mit der Plugin-ID) erscheinen unter dem Namen des Plugins in den Einstellungen, mit dem Standardwert aus dem Manifest, und ein laufendes Plugin bekommt die Werte beim Start und danach als Ereignis settings.changed. Ein Befehl, der im Manifest ein Werkzeug nennt (contributes.externalTools), startet es ohne Plugin-Code, nachdem Sie Befehl und Verzeichnis bestätigt haben.
 - Jedes Plugin läuft als eigener Prozess. Endet es oder antwortet es nicht mehr, beendet der Editor es, eine Leiste nennt das Plugin und sagt, wann es neu startet; nach wiederholten Abstürzen bleibt es ausgeschaltet. Ausgabe anzeigen in der Leiste öffnet das Ausgabefenster mit den letzten Fehlerzeilen des Plugins. Ein Plugin, das auf Ihre Antwort wartet (eine Änderungsprüfung, eine Frage), wird nicht beendet, weil es nicht antwortet. Ein laufender Befehl wird nach dem Neustart nicht wiederholt, es wird also nichts doppelt geschrieben oder hochgeladen. Die Zahl der Abstürze, die Wartezeiten und die Zeitlimits sind vorläufig.
 
+## [plugins.lifecycle] Plugin-Prozesse: wann sie starten, wie man sie sieht und wie sie enden
+1. Ein Plugin mit eigenem Programm startet erst, wenn etwas es anfordert. Das tun die Aktivierungsereignisse in nkspad-plugin.json (main.activationEvents): onCommand:id (der Befehl läuft), onLanguage:id (ein Dokument in diesem Sprachmodus wird angezeigt), onFileType:.endung (eine Datei mit dieser Endung wird angezeigt), workspaceContains:muster (ein geöffneter Ordner enthält eine Datei, die zum Muster passt), onStartup (der Editor ist gestartet) und onPanel:id. Ohne activationEvents startet ein Plugin beim ersten seiner Befehle.
+2. Extras, Plugin-Manager zeigt den Zustand jedes Plugin-Prozesses: läuft, startet, läuft nicht (startet bei Bedarf), nach einem Absturz im Wartezustand vor dem Neustart oder ausgeschaltet. Wählen Sie ein Plugin, so erscheinen die passenden Aktionen: Starten, Beenden, Neu starten. Starten bei einem ausgeschalteten Plugin löscht seine Abstürze und versucht es erneut; Beenden bei einem Plugin, das auf den Neustart wartet, bricht den Neustart ab.
+3. Beenden und Neu starten bitten das Plugin zu gehen, schließen seine Eingabe und beenden den Prozess, wenn er nicht innerhalb der Frist verschwindet. Ein beendetes Plugin ist kein Absturz: Es erscheint keine Meldung, und es startet beim nächsten Aktivierungsereignis wieder. Ein Aufruf, der beim Beenden lief, endet mit einem Fehler und wird nicht wiederholt.
+4. Ein Plugin kann im Handshake darum bitten, beendet zu werden, wenn es keine Arbeit hat. Der Editor beendet seinen Prozess dann nach einer Ruhezeit, außer das Plugin zeigt ein Panel, eine Aufgabe, einen virtuellen Tab oder eine Quelle oder ein Aufruf läuft, und startet ihn beim nächsten Aktivierungsereignis wieder.
+5. Beim Schließen des Editors werden alle Plugins gleichzeitig gebeten zu gehen. Was nach kurzer Zeit noch lebt, wird über seine Prozess-ID beendet, sodass kein Plugin-Programm zurückbleibt.
+- Das Muster von workspaceContains ohne Schrägstrich passt auf den Namen einer Datei in beliebiger Tiefe, mit Schrägstrich auf das Ende des Pfads unterhalb des Ordners; die Suche ist durch die Zahl der Einträge und die Tiefe begrenzt und überspringt .git und node_modules. Die Zeiten (Neustart, Ruhezeit, Schließen) und die Grenzen der Suche sind vorläufig.
+
 ## [tools.lint] Linter: Funde von PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck, SQLFluff und dart analyze unterstreichen
 commands: nks.tools.lint
 1. Werkzeuge, Datei mit Linter prüfen startet den Linter, der zur geöffneten Datei passt: PHPStan oder Psalm für PHP, golangci-lint für Go, Clippy für Rust (braucht eine Cargo.toml im Ordner der Datei oder darüber), clang-tidy für C und C++, RuboCop für Ruby, ESLint für JavaScript und TypeScript, Ruff für Python, ShellCheck für Shell-Skripte, SQLFluff für SQL und dart analyze für Dart. Verarbeiten zwei Linter die Datei, gilt der erste, dessen Konfigurationsdatei (phpstan.neon, psalm.xml) gefunden wird, sonst der erste installierte.
@@ -1131,10 +1145,14 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Was geht
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
+- Speichern (Strg+S) läuft im Hintergrund: Das Fenster bleibt benutzbar, die Statusleiste zeigt, wie viel Prozent der neuen Datei geschrieben sind, und Esc bricht das Speichern ab, bevor die Daten übernommen werden (die Datei bleibt unverändert). Sie können währenddessen weitertippen: In die Datei kommt der Text, wie er beim Speichern war, spätere Änderungen bleiben ungespeichert, und der Tab zeigt sie als ungespeicherte Änderungen. Rückgängig und Wiederholen funktionieren während des Speicherns und danach. Ein Speichern, das nur Bytes gleicher Länge überschreibt, schreibt nur diese Bytes und nimmt in seiner kurzen Zeit keine Änderungen an. Eine Datei über 1 GiB (vorläufige Grenze) wird ohne Kopie der alten Version im Sicherungsordner gespeichert; die alte Datei bleibt unberührt, bis die neue vollständig ist.
+
+- Rückgängig und Wiederholen funktionieren auch nach dem Speichern: Schritte vor dem Speichern lassen sich weiter zurücknehmen, und das nächste Speichern schreibt den Stand nach dem Zurücknehmen. Ein getipptes Wort ohne Bewegen des Cursors ist ein Schritt.
 - Suchen (Strg+F). In Dateien suchen.
 - Auswählen (Umschalt mit den Pfeilen, Maus, Strg+A), Kopieren, Ausschneiden und Einfügen. Eine Auswahl über dem Kopierlimit (256 MiB, vorläufiger Wert) wird nicht kopiert, und die Statusleiste sagt es. Eine lange Auswahl wird im Hintergrund gelesen, und Ausschneiden löscht nur, wenn sich der Text inzwischen nicht geändert hat.
+- Einfügen nimmt höchstens 32 Mi Zeichen (vorläufiger Wert); ein längerer Text wird nicht eingefügt, und die Statusleiste sagt es. Ein Text über 1 Mi Zeichen wird im Hintergrund vorbereitet und dort eingefügt, wo der Cursor nach dem Fertigwerden steht.
 - Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
-- Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen.
+- Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen. Eine Zeile über 1 GiB (vorläufiger Wert) wird nicht bearbeitet; die Statusleiste sagt es, und das Dokument bleibt unverändert.
 ### Was nicht geht
 - Blockauswahl, mehrere Cursor.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
@@ -1146,8 +1164,12 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
 - Die Auswahl ist größer als das Kopierlimit: Wählen Sie weniger aus; die Zwischenablage blieb, wie sie war.
 - Die Änderung ist zu groß, um rückgängig gemacht zu werden: Entfernen oder fügen Sie weniger Text auf einmal ein; das Dokument wurde nicht verändert.
+- Eine Zeile ist länger als das Limit, das im Seitenmodus bearbeitet wird: Bearbeiten Sie sie in Hex; das Dokument wurde nicht verändert.
+- Der Text in der Zwischenablage ist größer als das Einfügelimit: Fügen Sie ihn in Teilen ein; das Dokument wurde nicht verändert.
+- Die Kodierung des Dokuments hat sich geändert, während der Text vorbereitet wurde: Fügen Sie ihn erneut ein.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
-- Das Speichern einer großen Datei hält das Fenster auf.
+- Die Datei wird gerade gespeichert, später noch einmal versuchen: Sie haben etwas versucht, während ein Speichern lief, das Bytes an Ort und Stelle überschreibt, oder die Datei während eines beliebigen Speicherns neu geladen.
+- Das Schließen eines Tabs oder des Fensters während des Speicherns wartet auf das Ende des Speicherns; Esc bricht das Speichern ab.
 
 ## [conflict] Datei von außen geändert
 Ändert ein anderes Programm die Datei, erscheint über dem Dokument eine Leiste: Die Datei wurde auf dem Datenträger geändert.
@@ -1203,10 +1225,10 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 
 ## [errors.remote] Fehlermeldungen: Remote-Dateien und Quellen
 Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleiste, in der Leiste über dem Text oder in einem Dialog. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
-- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy).
+- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy). Lehnt ein alter SFTP-Server einen Schlüssel ab oder teilen Sie mit ihm keinen Schlüsselalgorithmus, siehe Alte RSA-Signatur (ssh-rsa) im Thema Remote-Verbindungen.
 - ACHTUNG: Die Identität von Server ist nicht die, der Sie zuvor vertraut haben. Das Programm verbindet sich erst, wenn Sie die neue Identität bestätigen. Fragen Sie den Serveradministrator, ob der Server neu installiert wurde, und verbinden Sie sich nur, wenn Sie wissen, warum sie sich geändert hat (Thema Remote-Verbindungen).
 - Der Port muss eine Zahl von 1 bis 65535 sein. Geben Sie eine ganze Zahl von 1 bis 65535 ein oder lassen Sie das Feld leer, dann gilt der übliche Port des Protokolls.
-- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher für Anmeldedaten (er funktioniert nur unter Windows, Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
+- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher des Systems für Anmeldedaten (Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
 - Pfad gibt es auf dem Server nicht. Prüfen Sie den Pfad. Ein Pfad zu einem Ordner zeigt dessen Inhalt, so können Sie ab / zur Datei blättern.
 - Pfad kann nicht geöffnet werden: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund (eine Berechtigung auf dem Server, eine unterbrochene Verbindung) und öffnen Sie die Datei erneut.
 - Das Hochladen von Titel ist fehlgeschlagen: Grund. Der Server behält seine vorherige Version; Ihre Änderungen bleiben hier gespeichert. Beheben Sie den Grund und wählen Sie erneut Auf Server hochladen; eine teilweise gesendete Datei wird fortgesetzt (Thema Auf Server hochladen).
@@ -1288,7 +1310,7 @@ Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie ers
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
 - Updates: Das Programm aktualisiert sich nur unter Windows selbst, im installierten Textida (Thema Updates und Rückkehr zur vorherigen Version). Unter macOS und Linux installieren Sie eine neue Version selbst. Ein Build ohne Update-Adresse und Signaturschlüssel sucht nicht nach Updates und sagt das.
-- Gespeicherte Passwörter: Der Speicher für Anmeldedaten funktioniert nur unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
+- Gespeicherte Passwörter: Windows (Anmeldeinformationsverwaltung), macOS (Schlüsselbund) und Linux (Secret Service über libsecret). Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert. Fehlt der Speicher des Systems, speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
 - Plugins: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Seine Berechtigungen halten fest, was Sie erlaubt haben, sie sind keine Sandbox, und die Signaturen von Plugins werden nicht geprüft (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen). Installieren Sie nur Plugins, denen Sie vertrauen.
 - Assistenten: Die /ide-Brücke und der Agent über ACP sind nicht mit den echten Programmen geprüft (Themen Die /ide-Brücke für Claude Code und Agent über ACP). Eine Verbindung, die nicht klappt, meldet das Programm mit dem Grund in der Statusleiste oder in der Ausgabe Aufgaben.
 - Große Dateien: Das Bearbeiten im Seitenmodus ist eingeschränkt (Thema Große Dateien (Seitenmodus)). Ein Sprachserver, das Formatieren und die meisten Befehle, die Text ändern, funktionieren dort nicht. Die Bytes einer Datei beliebiger Größe ändern Sie im Hex-Editor.

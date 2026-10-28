@@ -64,13 +64,18 @@ public sealed class SftpServer : IServerFixture
 
     /// <param name="hostKeyFile">Where the host key lives; an existing file is reused, so two servers with the same file present the same key.</param>
     /// <param name="dropAfterBytes">When set, the server cuts the connection after it received that many bytes of file data.</param>
-    public static SftpServer Start(string root, string hostKeyFile, int port = 0, int? dropAfterBytes = null, bool clientKey = false)
+    /// <param name="dropReadAfterBytes">When set, the server cuts the connection after it sent that many bytes of file data (a download cut in the middle).</param>
+    /// <param name="clientKeyType">"ed25519" or "rsa": the kind of login key <paramref name="clientKey"/> generates.</param>
+    /// <param name="legacyRsa">"userauth", "hostkey" or "both": the server knows only the SHA-1 signature ssh-rsa for the login key, for its host key, or for both, like a server from before 2016.</param>
+    public static SftpServer Start(string root, string hostKeyFile, int port = 0, int? dropAfterBytes = null, bool clientKey = false, string clientKeyType = "ed25519", string? legacyRsa = null, int? dropReadAfterBytes = null)
     {
         string script = Path.Combine(AppContext.BaseDirectory, "Servers", "sftp_server.py");
         string args = $"\"{script}\" --root \"{root}\" --hostkey \"{hostKeyFile}\" --port {port}";
         string? keyPath = null;
         if (dropAfterBytes is { } d) args += $" --drop-after {d}";
-        if (clientKey) { keyPath = hostKeyFile + ".client"; args += $" --gen-client-key \"{keyPath}\""; }
+        if (dropReadAfterBytes is { } r) args += $" --drop-read-after {r}";
+        if (legacyRsa is not null) args += $" --legacy-rsa {legacyRsa}";
+        if (clientKey) { keyPath = hostKeyFile + ".client"; args += $" --gen-client-key \"{keyPath}\" --client-key-type {clientKeyType}"; }
         var psi = new ProcessStartInfo("python", args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
         var process = Process.Start(psi) ?? throw new InvalidOperationException("python did not start");
         var errors = new System.Text.StringBuilder();

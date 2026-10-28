@@ -113,7 +113,8 @@ Připojení si pamatuje server, uživatele a protokol. Heslo je v systémové kl
 - Běžná volba je FTPS a SFTP. Prosté FTP posílá heslo i soubory nešifrovaně a použije se, až když ho pro dané připojení výslovně povolíte.
 - Při prvním připojení program ukáže identitu serveru (klíč SSH nebo certifikát TLS) a zeptá se, zda jí věříte. Porovnejte ji s tou, kterou vám dal správce serveru.
 - Změní-li se identita serveru, kterému jste uvěřili, program se nepřipojí, dokud novou nepotvrdíte. Než to uděláte, přečtěte si varování.
-- Ukládání hesla funguje ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu systémová klíčenka zatím podporovaná není a program to řekne, místo aby heslo uložil jinam.
+- Heslo se ukládá do systémového úložiště: ve Windows do Správce přihlašovacích údajů, v macOS do Klíčenky (Keychain), v Linuxu do Secret Service přes libsecret (například GNOME Keyring nebo KWallet). Chybí-li toto úložiště, program to řekne, místo aby heslo uložil jinam. Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému.
+- ssh-rsa: některé staré servery SFTP berou klíč RSA, nebo ukazují svůj klíč serveru, jen se slabým podpisem SHA-1 zvaným ssh-rsa. Program ho sám nikdy nenabídne. Odmítne-li takový server připojení, vyberte připojení a pak Starý podpis RSA (ssh-rsa), přečtěte si varování a povolte ho jen pro toto připojení. Výstup Vzdálené před každým takovým připojením varuje; vypněte ho, jakmile se server aktualizuje.
 
 ## [remote.open] Otevřít vzdálený soubor
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Lišta nad textem říká, zda je kopie shodná se serverem. Editor sám funguje bez připojení.
 - Vzdálený soubor, který už kopii má, se otevře z kopie, včetně změn, které jste ještě neposlali. Verze ze serveru se nikdy nestáhne přes vaši práci.
 - Záznam přenosů je na kartě Vzdálené v okně výstupu.
+- Stahování ukazuje procenta ve stavovém řádku a ve výstupu Vzdálené. Zrušit přenos ho zastaví. Co už dorazilo, zůstává a další otevření nebo znovunačtení stejné verze ze serveru naváže na tomto bajtu. Změnila-li se mezitím velikost nebo čas souboru na serveru, rozpracovaná část se zahodí a stahuje se znovu. Přeruší-li se spojení, program stahování několikrát zopakuje s rostoucími pauzami.
 
 ## [remote.upload] Nahrát na server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
 - Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
+- Stavový řádek ukazuje procenta nahrávání a výstup Vzdálené řádek za každou desetinu (krok je zatím provizorní). Procenta počítají bajty, které převzalo spojení, takže mohou být o kousek před serverem.
 
 ## [remote.cancel] Zrušit přenos
 commands: nks.remote.cancel
-Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání se zastaví, server si ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání.
+Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání nebo stahování se zastaví. Po nahrávání si server ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání. Po stahování zůstane, co už dorazilo, a další stažení stejné verze ze serveru naváže na tomto místě.
 
 ## [remote.check] Zkontrolovat verzi na serveru
 commands: nks.remote.check
@@ -410,11 +413,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - Soubor uloženého makra větší než 1 MB (zástupný limit, OPEN) se nečte; seznam ho ohlásí jako poškozený.
 
 ## [edit.json] Formátování JSON
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Označte text JSON, nebo neoznačujte nic a naformátuje se celý dokument.
-2. Nabídka Úpravy, Formátování, Formátovat JSON, naformátuje označené části (každý výběr) nebo celý dokument. Všechny části jsou jeden krok Zpět; text mimo ně zůstane bajt po bajtu stejný, včetně konců řádků.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Označte text JSON, nebo neoznačujte nic a příkaz se provede nad celým dokumentem.
+2. Nabídka Úpravy, Formátování, Formátovat JSON, naformátuje označené části (každý výběr) nebo celý dokument. Všechny části jsou jeden krok Zpět; text mimo ně zůstane bajt po bajtu stejný, včetně konců řádků a kódování.
 3. Náhled formátování JSON ukáže změnu nejdřív jako návrh. Použijte ho z lišty nad editorem, nebo ho zahoďte.
-- Chyba syntaxe se ohlásí s řádkem a sloupcem a nic se nezmění. Text větší než limit se odmítne se zprávou.
+4. Sbalit JSON zapíše hodnotu na jeden řádek bez mezer a odstraní komentáře. Seřadit klíče JSON seřadí členy každého objektu podle názvu (komentář se přesune se svým členem) a text rozvrhne jako Formátovat JSON. Odstranit čárky na konci JSON odstraní jen čárky před zavírací závorkou a nic jiného nezmění.
+- Komentáře a čárky na konci patří do souborů JSONC (.jsonc, tsconfig.json a podobné). Formátovat JSON i Seřadit klíče JSON je tam zachovají. V běžném souboru JSON se ohlásí jako chyby; čárky opraví Odstranit čárky na konci JSON.
+- Chyba syntaxe se ohlásí s řádkem a sloupcem v dokumentu a nic se nezmění. Text větší než limit nebo vnořený hlouběji než limit se odmítne se zprávou.
+- Výběr bez zalomení řádku převezme konec řádku, který má většina řádků souboru.
 - Pokud se dokument po spuštění příkazu změnil, příkaz se zastaví a vyzve vás ke spuštění znovu.
 
 ## [tools.stats] Statistika dokumentu a hashe
@@ -1023,6 +1029,14 @@ commands: nks.plugins.manage
 - Plugin může přinést klávesy a nastavení. Jeho klávesy (contributes.keybindings, volitelně s podmínkou "when") fungují jako klávesy editoru, ale klávesa editoru, profilu nebo vašeho keymap.json vždy vyhraje nad klávesou pluginu; kolize se vypíše u pluginu ve Správci pluginů. Jeho nastavení (contributes.settings, klíče začínají id pluginu) jsou v Nastavení pod názvem pluginu, s výchozí hodnotou z manifestu, a běžící plugin dostane hodnoty při startu a pak znovu jako událost settings.changed. Příkaz, který v manifestu pojmenuje nástroj (contributes.externalTools), ho spustí bez kódu pluginu, až po vašem potvrzení příkazu a adresáře.
 - Každý plugin běží jako samostatný proces. Když skončí nebo přestane odpovídat, editor ho ukončí, lišta řekne, o který plugin jde a kdy se znovu spustí; po opakovaných pádech zůstane vypnutý. Tlačítko Zobrazit výstup na liště otevře okno výstupu s posledními chybovými řádky pluginu. Plugin, který čeká na vaši odpověď (kontrolu změn, otázku), se kvůli neodpovídání neukončí. Příkaz, který zrovna běžel, se po restartu nezopakuje, takže se nic nezapíše ani nenahraje dvakrát. Počet pádů, prodlevy a časové limity jsou provizorní.
 
+## [plugins.lifecycle] Procesy pluginů: kdy se spouštějí, jak je vidět a jak končí
+1. Plugin s vlastním programem se spustí, až když o to něco požádá. Žádají události aktivace v nkspad-plugin.json (main.activationEvents): onCommand:id (spustí se příkaz), onLanguage:id (zobrazí se dokument v daném jazykovém režimu), onFileType:.přípona (zobrazí se soubor s touto příponou), workspaceContains:vzor (otevřená složka obsahuje soubor odpovídající vzoru), onStartup (editor se spustil) a onPanel:id. Bez activationEvents se plugin spustí při prvním příkazu.
+2. Nástroje, Správce pluginů ukazuje stav procesu každého pluginu: běží, spouští se, neběží (spustí se, až bude potřeba), přestal běžet a čeká na restart, nebo je vypnutý. Po výběru pluginu nabídne akce, které se hodí: Spustit, Zastavit, Restartovat. Spustit u vypnutého pluginu smaže jeho pády a zkusí to znovu; Zastavit u pluginu, který čeká na restart, restart zruší.
+3. Zastavit i Restartovat požádají plugin, aby skončil, zavřou mu vstup a proces ukončí, pokud neskončí v časové rezervě. Zastavený plugin není pád: neobjeví se upozornění a spustí se znovu při další události aktivace. Volání, které při zastavení běželo, skončí chybou a nezopakuje se.
+4. Plugin se může v úvodní výměně zpráv přihlásit k ukončení, když nemá práci. Editor pak jeho proces po klidové době ukončí, ledaže plugin ukazuje panel, úlohu, virtuální kartu nebo zdroj, anebo běží volání, a při další události aktivace ho spustí znovu.
+5. Při zavření editoru dostanou všechny pluginy najednou žádost, aby skončily. Co po krátké době stále žije, se ukončí násilně podle čísla procesu, takže žádný program pluginu nezůstane.
+- Vzor workspaceContains bez lomítka odpovídá názvu souboru v libovolné hloubce, vzor s lomítkem konci cesty pod složkou; hledání je omezené počtem položek a hloubkou a přeskakuje .git a node_modules. Časy (restart, klidová doba, zavření) i limity hledání jsou provizorní.
+
 ## [tools.lint] Lintery: podtržení nálezů PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy, RuboCopu, ESLintu, Ruffu, ShellChecku, SQLFluffu a dart analyze
 commands: nks.tools.lint
 1. Nástroje, Spouštění nástrojů, Zkontrolovat soubor linterem spustí linter, který se pro otevřený soubor hodí: PHPStan nebo Psalm pro PHP, golangci-lint pro Go, Clippy pro Rust (potřebuje Cargo.toml ve složce souboru nebo nad ní), clang-tidy pro C a C++, RuboCop pro Ruby, ESLint pro JavaScript a TypeScript, Ruff pro Python, ShellCheck pro skripty shellu, SQLFluff pro SQL a dart analyze pro Dart. Když soubor zpracovávají dva lintery, použije se první, jehož konfigurační soubor (phpstan.neon, psalm.xml) se najde, jinak první nainstalovaný.
@@ -1131,10 +1145,14 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Co jde
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).
 - Psát, mazat (Backspace a Delete), Enter a Tab na místě kurzoru. Zpět a Znovu. Uložit.
+- Uložení (Ctrl+S) běží na pozadí: okno zůstává použitelné, stavový řádek ukazuje, kolik procent nového souboru je zapsáno, a Esc uložení zruší dřív, než se data potvrdí (soubor zůstane beze změny). Můžete mezitím psát dál: do souboru se zapíše text, jaký byl ve chvíli stisku Uložit, pozdější úpravy zůstanou neuložené a karta je ukazuje jako neuložené změny. Zpět a Znovu fungují během uložení i po něm. Uložení, které jen přepisuje bajty stejné délky, zapíše jen tyto bajty a po svou krátkou dobu úpravy nepřijímá. Soubor větší než 1 GiB (zatím provizorní limit) se uloží bez kopie staré verze ve složce záloh; starý soubor zůstane nedotčený, dokud není nový celý.
+
+- Zpět a Znovu fungují i po uložení: kroky provedené před uložením jdou dál vrátit a další uložení zapíše stav po vrácení. Napsané slovo bez přesunu kurzoru je jeden krok.
 - Hledat (Ctrl+F). Hledání v souborech.
 - Výběr (Shift se šipkami, myš, Ctrl+A), Kopírovat, Vyjmout a Vložit. Výběr větší než limit kopírování (256 MiB, zatím provizorní hodnota) se nezkopíruje a stavový řádek to řekne. Dlouhý výběr se čte na pozadí a vyjmutí smaže jen tehdy, když se text mezitím nezměnil.
+- Vložit přijme nejvýš 32 Mi znaků (zatím provizorní hodnota); delší text se nevloží a stavový řádek to řekne. Text nad 1 Mi znaků se připraví na pozadí a vloží se tam, kde je kurzor, až bude hotovo.
 - Řádek delší než 16 KiB posunete do stran posuvníkem pod textem. Vzdálená část řádku se na chvíli ukáže jako …, dokud se nenačte. Barvy v ní přibudou, jakmile program přečte řádek až k ní.
-- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny.
+- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny. Řádek delší než 1 GiB (zatím provizorní hodnota) se neupravuje; stavový řádek to řekne a dokument se nezmění.
 ### Co nejde
 - Blokový výběr, více kurzorů.
 - Příkazy nad řádky, odsazením, velikostí písmen, nahrazení.
@@ -1146,8 +1164,12 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 - Znak se nedá zapsat v kódování souboru: napište jiný znak.
 - Výběr je větší než limit kopírování: vyberte méně; schránka zůstala, jak byla.
 - Úprava je příliš velká, než aby šla vrátit zpět: odeberte nebo vložte najednou méně textu; dokument se nezměnil.
+- Řádek je delší než limit, který se ve stránkovaném režimu upravuje: upravte ho v hexu; dokument se nezměnil.
+- Text ve schránce je větší než limit vložení: vložte ho po částech; dokument se nezměnil.
+- Kódování dokumentu se změnilo, zatímco se text připravoval: vložte ho znovu.
 - Velký soubor v kódování ... se zatím nedá otevřít: soubor se neotevře; jiné kódování ve velkém souboru program zatím nepřečte.
-- Ukládání velkého souboru zdrží okno.
+- Soubor se právě ukládá, zkuste to po skončení uložení: zkusili jste něco během uložení, které přepisuje bajty na místě, nebo jste soubor načetli znovu během jakéhokoli uložení.
+- Zavření karty nebo okna během uložení počká na konec uložení; Esc uložení zruší.
 
 ## [conflict] Změna souboru zvenku
 Změní-li soubor jiný program, nad dokumentem se ukáže lišta Soubor se na disku změnil.
@@ -1203,10 +1225,10 @@ Při nepovedené operaci se souborem je nad dokumentem lišta Operace selhala a 
 
 ## [errors.remote] Chybová hlášení: vzdálené soubory a zdroje
 Hlášení o vzdáleném souboru nebo zdroji se objeví ve stavovém řádku, v liště nad textem nebo v dialogu. Každý řádek cituje hlášení a říká, co dělat.
-- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy).
+- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy). Odmítá-li starý server SFTP klíč, nebo s ním nemáte společný klíčový algoritmus, viz Starý podpis RSA (ssh-rsa) v tématu Vzdálená připojení.
 - POZOR: identita serveru server není ta, které jste dříve uvěřili. Program se nepřipojí, dokud novou identitu nepotvrdíte. Zeptejte se správce serveru, zda server nebyl přeinstalován, a připojte se jen tehdy, když víte, proč se změnila (téma Vzdálená připojení).
 - Port musí být číslo od 1 do 65535. Napište celé číslo od 1 do 65535, nebo nechte pole prázdné a použije se obvyklý port protokolu.
-- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo úložiště přihlašovacích údajů (funguje jen ve Windows, téma Co tato verze neumí). Opravte to a uložte znovu.
+- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo systémové úložiště přihlašovacích údajů (téma Co tato verze neumí). Opravte to a uložte znovu.
 - cesta na serveru neexistuje. Zkontrolujte cestu. Cesta ke složce ukáže její obsah, takže k souboru můžete dojít od /.
 - Soubor cesta nelze otevřít: důvod. Nic se neotevřelo. Odstraňte důvod (oprávnění na serveru, přerušené připojení) a otevřete soubor znovu.
 - Nahrání souboru název selhalo: důvod. Server si ponechává předchozí verzi, vaše změny zůstávají uložené tady. Odstraňte důvod a zvolte znovu Nahrát na server; částečně odeslaný soubor se doplní (téma Nahrát na server).
@@ -1288,7 +1310,7 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 ## [limits] Co tato verze neumí
 Nápověda popisuje jen to, co tato verze umí. Tyto věci v ní nejsou a tady je, co dělat místo nich:
 - Aktualizace: program se sám aktualizuje jen ve Windows, v nainstalované Textidě (téma Aktualizace a návrat na předchozí verzi). V macOS a Linuxu novou verzi nainstalujete sami. Sestavení bez adresy aktualizací a podpisového klíče nové verze nehledá a řekne to.
-- Uložená hesla: úložiště přihlašovacích údajů funguje jen ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
+- Uložená hesla: Windows (Správce přihlašovacích údajů), macOS (Klíčenka) a Linux (Secret Service přes libsecret). Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému. Chybí-li systémové úložiště, program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
 - Pluginy: plugin je program, který běží s právy vašeho uživatele. Jeho oprávnění jsou záznam toho, co jste povolili, ne izolace, a podpisy pluginů se nekontrolují (téma Správce pluginů: instalace, aktualizace, návrat a odebrání pluginů). Instalujte jen pluginy, kterým věříte.
 - Asistenti: most /ide a agent přes ACP nejsou ověřené se skutečnými programy (témata Most /ide pro Claude Code a Agent přes ACP). Připojení, které nejde, program ohlásí s důvodem ve stavovém řádku nebo ve výstupu Úlohy.
 - Velké soubory: úpravy ve stránkovaném režimu jsou omezené (téma Velké soubory (stránkovaný režim)). Jazykový server, formátování a většina příkazů, které mění text, tam nefungují. Bajty souboru jakékoli velikosti změníte v hexu.

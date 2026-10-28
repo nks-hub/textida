@@ -7,10 +7,9 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>
-    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-    <EnableAotAnalyzer>true</EnableAotAnalyzer>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
+
+  <Import Project="..\..\src\NksHub.Textida.PluginSdk\Plugin.props" />
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.PluginSdk\NksHub.Textida.PluginSdk.csproj" />
