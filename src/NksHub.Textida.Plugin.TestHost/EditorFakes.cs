@@ -152,6 +152,8 @@ public sealed class RecordingUi : IPluginUi
     public List<PanelModel> Panels { get; } = [];
     /// <summary>Ids of the panels the plugin removed.</summary>
     public List<string> RemovedPanels { get; } = [];
+    /// <summary>Current-item marks the plugin moved, as panel id and item id (null takes the mark away).</summary>
+    public List<(string Panel, string? Item)> CurrentItems { get; } = [];
     /// <summary>Status bar items the plugin set; null for a clear.</summary>
     public List<StatusModel?> Statuses { get; } = [];
     /// <summary>Notices the plugin showed.</summary>
@@ -173,6 +175,8 @@ public sealed class RecordingUi : IPluginUi
     public void SetPanel(string pluginId, PanelModel panel) { lock (Panels) Panels.Add(panel); }
     /// <inheritdoc/>
     public void RemovePanel(string pluginId, string panelId) { lock (RemovedPanels) RemovedPanels.Add(panelId); }
+    /// <inheritdoc/>
+    public void SetCurrentItem(string pluginId, string panelId, string? itemId) { lock (CurrentItems) CurrentItems.Add((panelId, itemId)); }
     /// <inheritdoc/>
     public void SetStatus(string pluginId, StatusModel? status) { lock (Statuses) Statuses.Add(status); }
     /// <inheritdoc/>
