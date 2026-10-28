@@ -104,7 +104,14 @@ internal sealed partial class PagedTextView : Grid
             line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
         Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
         _glide = new Glide(() => _bar.Value, value => _bar.Value = value);
-        _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
+        _bar.ValueChanged += (_, _) =>
+        {
+            long t = TypingTrace.Begin();
+            FeedSyntax();
+            TypingTrace.End("paged.scroll.feedSyntax", t);
+            _canvas.InvalidateVisual();
+            RaiseViewChanged();
+        };
         _indexTimer.Tick += (_, _) =>
         {
             LeaveDetourWhenIndexed();
@@ -125,9 +132,15 @@ internal sealed partial class PagedTextView : Grid
     public event Action? ViewChanged;
     private void RaiseViewChanged()
     {
+        long t = TypingTrace.Begin();
         _inputClient.CaretChanged();
+        TypingTrace.End("paged.raise.inputClient", t);
+        t = TypingTrace.Begin();
         ViewChanged?.Invoke();
+        TypingTrace.End("paged.raise.viewChanged", t);
+        t = TypingTrace.Begin();
         _mapChanged?.Invoke();
+        TypingTrace.End("paged.raise.mapChanged", t);
     }
 
     /// <summary>Raised with a localised sentence when an edit was refused.</summary>
