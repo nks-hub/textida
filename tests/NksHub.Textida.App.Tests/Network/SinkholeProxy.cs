@@ -17,6 +17,9 @@ internal sealed class SinkholeProxy : IDisposable
     /// <summary>The body for a plain request, or null for 404.</summary>
     public Func<Uri, (string Type, byte[] Body)?> Respond { get; set; } = _ => null;
 
+    /// <summary>The address a plain request is sent on to with a 302, or null to answer it from <see cref="Respond"/>.</summary>
+    public Func<Uri, string?> RedirectTo { get; set; } = _ => null;
+
     public SinkholeProxy()
     {
         _listener.Start();
@@ -86,7 +89,8 @@ internal sealed class SinkholeProxy : IDisposable
                     return;
                 }
                 _targets.Enqueue($"{uri.Host}:{uri.Port}");
-                await stream.WriteAsync(Respond(uri) is var (type, body) ? Http.Ok(body, type) : Http.Status(404));
+                if (RedirectTo(uri) is { } location) await stream.WriteAsync(Http.Redirect(location));
+                else await stream.WriteAsync(Respond(uri) is var (type, body) ? Http.Ok(body, type) : Http.Status(404));
             }
         }
         catch (Exception e) when (e is IOException or SocketException or ObjectDisposedException) { }

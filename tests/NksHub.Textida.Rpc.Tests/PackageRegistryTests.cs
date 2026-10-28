@@ -57,6 +57,11 @@ public class PackageRegistryTests
 
         public void Serve(string path, string body, int status = 200) => _routes[path] = (status, body);
 
+        private readonly ConcurrentDictionary<string, string> _redirects = new();
+
+        /// <summary>Answers <paramref name="path"/> with a 302 to <paramref name="location"/>.</summary>
+        public void Redirect(string path, string location) => _redirects[path] = location;
+
         public int Count(string pathPrefix) => Requests.Count(r => r.StartsWith(pathPrefix, StringComparison.Ordinal));
 
         private async Task Serve()
@@ -69,6 +74,11 @@ public class PackageRegistryTests
                 Requests.Enqueue(context.Request.Url!.PathAndQuery);
                 var (status, body) = _routes.TryGetValue(context.Request.Url.AbsolutePath, out var route) ? route : (404, "{}");
                 var bytes = Encoding.UTF8.GetBytes(body);
+                if (_redirects.TryGetValue(context.Request.Url.AbsolutePath, out var location))
+                {
+                    (status, bytes) = (302, []);
+                    context.Response.RedirectLocation = location;
+                }
                 context.Response.StatusCode = status;
                 context.Response.ContentLength64 = bytes.Length;
                 await context.Response.OutputStream.WriteAsync(bytes);
@@ -375,6 +385,32 @@ public class PackageRegistryTests
         using var strict = ClientFor("""{"allowed":["npm"],"viaEditor":true}""");
         strict.UseEditor(() => new FakeEditor(_ => new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("http://elsewhere.test/x") } }));
         Assert.Equal(302, (await Assert.ThrowsAsync<RegistryException>(() => strict.GetAsync(adapter, adapter.VersionsUrl("lodash")))).Status);
+    }
+
+    [Fact]
+    public async Task A_redirect_leads_to_another_page_of_the_allowed_host_and_never_to_another_host_with_or_without_the_editor()
+    {
+        using var stub = new Stub();
+        stub.Redirect("/lodash", "http://elsewhere.test/lodash");
+        stub.Redirect("/inside", "/moved/inside");
+        stub.Serve("/moved/inside", Lodash);
+        var adapter = Npm(stub.Url);
+
+        // straight to the registry: the first answer is the only request, and nothing reaches elsewhere.test
+        using var direct = ClientFor("""{"allowed":["npm"]}""", redirects: 3);
+        var refused = await Assert.ThrowsAsync<RegistryException>(() => direct.GetAsync(adapter, adapter.VersionsUrl("lodash")));
+        Assert.Contains("elsewhere.test", refused.Message);
+        Assert.Equal(["/lodash"], stub.Requests);
+        Assert.Equal(1, direct.Requests);
+        var inside = await direct.GetAsync(adapter, new Uri(stub.Url + "/inside"));
+        Assert.Equal(Lodash, inside.Body);
+
+        // through the editor the same rule holds
+        using var viaEditor = ClientFor("""{"allowed":["npm"],"proxy":"http://127.0.0.1:9","viaEditor":true}""", redirects: 3);
+        var editor = new FakeEditor(_ => new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("http://elsewhere.test/x") } });
+        viaEditor.UseEditor(() => editor);
+        await Assert.ThrowsAsync<RegistryException>(() => viaEditor.GetAsync(adapter, adapter.VersionsUrl("lodash")));
+        Assert.Single(editor.Seen);
     }
 
     [Fact]

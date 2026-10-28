@@ -124,6 +124,33 @@ public class NetworkConsentTests
         await AssertOnlyAsync(rig, "wiki.example.test:80");
     }
 
+    /// <param name="withLogin">The proxy asks for a login, so the JSON plugin sends its requests through the editor instead of to the proxy itself.</param>
+    /// <param name="crossHost">The allowed host answers with a redirect to another host; otherwise to another page of its own.</param>
+    [AvaloniaTheory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task A_redirect_of_an_allowed_host_leads_to_a_page_of_the_same_host_and_never_to_another_host(bool withLogin, bool crossHost)
+    {
+        using var rig = new NetworkRig(proxy: false);
+        var port = rig.Net.Sinkhole.Port;
+        if (withLogin) rig.Net.Sinkhole.Login = ("proxy-user", "proxy-secret-1180");
+        NetworkPolicy.Save(rig.App.Remote.NetworkPolicyPath, withLogin ? new ProxySettings(ProxyType.Http, "127.0.0.1", port, "proxy-user") : rig.Net.Sinkhole.Settings, withLogin ? "proxy-secret-1180" : null, rig.Secrets);
+        rig.Net.AllowLoopback(port, "network proxy of the policy");
+        rig.Net.Sinkhole.RedirectTo = uri => uri.AbsolutePath == "/a.json" ? (crossHost ? "http://tracker.example.test/b.json" : "http://schemas.example.test/b.json") : null;
+        rig.Net.Sinkhole.Respond = _ => ("application/json", """{ "type": "object", "properties": { "name": { "type": "string" } } }"""u8.ToArray());
+        rig.App.Plugins.Registries.Allow(PackageRegistryConsent.SchemaId("schemas.example.test"));
+        var tab = rig.Window.OpenFile(rig.ProjectFile("data.json", "{ \"$schema\": \"http://schemas.example.test/a.json\", \"name\": \"x\" }\n"), null);
+        await rig.Until(() => rig.App.Plugins.SchemaResultOf(tab) is not null, "the schema check");
+
+        var report = await rig.Net.FinishAsync();
+        Assert.True(report.Forbidden.Count == 0, report.ToString());
+        Assert.Equal(crossHost ? "unavailable" : "ready", rig.App.Plugins.SchemaResultOf(tab)!.State);
+        Assert.Equal(["schemas.example.test:80"], report.Hosts);
+        Assert.Equal(["schemas.example.test:80"], rig.Net.Sinkhole.Targets.Distinct());
+    }
+
     [AvaloniaTheory]
     [InlineData(RemoteProtocol.Sftp, 22)]
     [InlineData(RemoteProtocol.Ftps, 21)]
