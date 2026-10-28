@@ -23,6 +23,7 @@ public static class Program
         if (args.Length >= 3 && args[0] == "inplace-child") return InPlaceChild(args[1], args[2]);
         if (args.Length >= 4 && args[0] == "batch-child") return BatchScenario.Child(args[1], int.Parse(args[2]), args[3]);
         if (args.Length >= 6 && args[0] == "large-child") return LargeScenario.Child(args[1], int.Parse(args[2]), args[3], long.Parse(args[4]), int.Parse(args[5]));
+        if (args.Length >= 8 && args[0] == "huge-child") return HugeScenario.Child(args[1], args[2], int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), int.Parse(args[6]), int.Parse(args[7]));
         if (args.Length == 2 && args[0] == "dump")
         {
             using var reader = new JournalReader(args[1]);
@@ -33,12 +34,13 @@ public static class Program
         int iterations = 200, parallel = 4, seed0 = 1000;
         string? work = null;
         long size = 6L << 20;
-        int burst = 0;
+        int burst = 0, paste = 256;
         string[]? points = null;
         for (int i = 1; i + 1 < args.Length; i += 2)
         {
             switch (args[i])
             {
+                case "--paste": paste = int.Parse(args[i + 1]); break;
                 case "--iterations": iterations = int.Parse(args[i + 1]); break;
                 case "--parallel": parallel = int.Parse(args[i + 1]); break;
                 case "--seed": seed0 = int.Parse(args[i + 1]); break;
@@ -52,9 +54,11 @@ public static class Program
             return BatchScenario.RunAll(iterations == 200 ? 20 : iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "nkspad-batch-" + Guid.NewGuid().ToString("N")[..8]));
         if (args.Length > 0 && args[0] == "large")
             return LargeScenario.RunAll(iterations == 200 ? 6 : iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "textida-large-" + Guid.NewGuid().ToString("N")[..8]), size, burst, points);
+        if (args.Length > 0 && args[0] == "huge")
+            return HugeScenario.RunAll(work ?? Path.Combine(Path.GetTempPath(), "textida-huge-" + Guid.NewGuid().ToString("N")[..8]), size, paste, points);
         if (args.Length == 0 || args[0] != "run")
         {
-            Console.Error.WriteLine("usage: run|batch|large [--iterations N] [--parallel N] [--seed N] [--work DIR] [--size BYTES] [--burst N] | child DIR SEED | batch-child DIR SEED POINT | large-child DIR SEED POINT SIZE BURST");
+            Console.Error.WriteLine("usage: run|batch|large|huge [--paste CHUNKS] [--iterations N] [--parallel N] [--seed N] [--work DIR] [--size BYTES] [--burst N] | child DIR SEED | batch-child DIR SEED POINT | large-child DIR SEED POINT SIZE BURST");
             return 2;
         }
         return Verifier.RunAll(iterations, parallel, seed0, work ?? Path.Combine(Path.GetTempPath(), "textida-crash-" + Guid.NewGuid().ToString("N")[..8]));

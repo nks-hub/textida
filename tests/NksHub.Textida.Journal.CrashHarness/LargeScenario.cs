@@ -57,26 +57,52 @@ public static class LargeText
     }
 }
 
+/// <summary>Generates the bytes of the text number <paramref name="seed"/> from <paramref name="offset"/>.</summary>
+public delegate void FillBytes(long seed, long offset, Span<byte> destination);
+
 /// <summary>The content of a document as a list of generated pieces; the independent expectation of a scenario.</summary>
 public sealed class LargeModel
 {
     private List<(long Seed, long Start, long Length)> _segments;
+    private readonly FillBytes _fill;
 
-    public LargeModel(long originalLength)
+    /// <param name="fill">The generator of the texts; <see cref="LargeText.Fill"/> when it is null.</param>
+    public LargeModel(long originalLength, FillBytes? fill = null)
     {
         _segments = originalLength > 0 ? [(0, 0, originalLength)] : [];
         Length = originalLength;
+        _fill = fill ?? LargeText.Fill;
     }
 
-    private LargeModel(List<(long, long, long)> segments, long length)
+    private LargeModel(List<(long, long, long)> segments, long length, FillBytes fill)
     {
         _segments = segments;
         Length = length;
+        _fill = fill;
     }
 
     public long Length { get; private set; }
 
-    public LargeModel Clone() => new([.. _segments], Length);
+    public LargeModel Clone() => new([.. _segments], Length, _fill);
+
+    /// <summary>The bytes of the model from <paramref name="offset"/>, as many as <paramref name="destination"/> holds and the model has.</summary>
+    public int Read(long offset, Span<byte> destination)
+    {
+        int done = 0;
+        long pos = 0;
+        foreach (var (seed, start, length) in _segments)
+        {
+            long from = Math.Max(offset + done, pos), to = Math.Min(offset + destination.Length, pos + length);
+            if (to > from)
+            {
+                _fill(seed, start + (from - pos), destination.Slice((int)(from - offset), (int)(to - from)));
+                done = (int)(to - offset);
+            }
+            pos += length;
+            if (pos >= offset + destination.Length) break;
+        }
+        return done;
+    }
 
     private List<(long Seed, long Start, long Length)> Slice(long from, long to)
     {
@@ -142,7 +168,7 @@ public sealed class LargeModel
             for (long done = 0; done < length;)
             {
                 int n = (int)Math.Min(buffer.Length, length - done);
-                LargeText.Fill(seed, start + done, buffer.AsSpan(0, n));
+                _fill(seed, start + done, buffer.AsSpan(0, n));
                 hash.AppendData(buffer, 0, n);
                 done += n;
             }

@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\HugeText.cs" Link="HugeText.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Document.Contract\NksHub.Textida.Document.Contract.csproj" />
   </ItemGroup>
