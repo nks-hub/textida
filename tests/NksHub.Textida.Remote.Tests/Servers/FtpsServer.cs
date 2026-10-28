@@ -32,6 +32,28 @@ public sealed class FtpsServer : IServerFixture
 {
     private readonly ServiceProvider _provider;
     private readonly IFtpServerHost _host;
+    private static int _held;
+
+    /// <summary>
+    /// FubarDev.FtpServer 3.1.2 starts a connection service with a local <c>SemaphoreSlim</c> that a <c>Progress&lt;T&gt;</c> callback releases on the thread pool; when the connection is cancelled while it starts, the method
+    /// has returned and disposed the semaphore before the callback runs, and the <see cref="ObjectDisposedException"/> has no catcher. That ended the whole test host in the middle of a run (a log of a run on a slow machine
+    /// stopped after 54 of 82 tests and said "Test host process crashed"). The runtime ends the process only after the handlers of <c>UnhandledException</c> have returned, so a handler that knows this one holds its thread for good
+    /// (one pool thread per occurrence) and leaves every other unhandled exception alone.
+    /// </summary>
+    internal static Func<Exception, bool> IsKnownServerRace { get; set; } = e =>
+        e is ObjectDisposedException { ObjectName: "System.Threading.SemaphoreSlim" } && e.StackTrace?.Contains("FubarDev.FtpServer.Networking.PausableFtpService", StringComparison.Ordinal) == true;
+
+    /// <summary>How many times <see cref="IsKnownServerRace"/> held an exception in this process.</summary>
+    internal static int HeldServerRaces => Volatile.Read(ref _held);
+
+    static FtpsServer() =>
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is not Exception exception || !IsKnownServerRace(exception)) return;
+            Interlocked.Increment(ref _held);
+            Console.Error.WriteLine("The FTP test server hit its known shutdown race (" + exception.GetType().Name + " in " + exception.TargetSite?.DeclaringType?.Name + "); the thread is held so that the test host stays up.");
+            Thread.Sleep(Timeout.Infinite);
+        };
 
     public RemoteProtocol Protocol => RemoteProtocol.Ftps;
     public string Root { get; }

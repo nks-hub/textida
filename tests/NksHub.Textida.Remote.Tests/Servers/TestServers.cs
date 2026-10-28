@@ -39,6 +39,9 @@ public sealed class SftpServer : IServerFixture
     public string Identity { get; }
     public string? ClientKeyPath { get; }
 
+    /// <summary>The server process, for the test that looks at how it ends.</summary>
+    internal Process ServerProcess => _process;
+
     private SftpServer(Process process, string root, int port, string identity, string? clientKey)
     {
         _process = process; Root = root; Port = port; Identity = identity; ClientKeyPath = clientKey;
@@ -76,8 +79,11 @@ public sealed class SftpServer : IServerFixture
         if (dropReadAfterBytes is { } r) args += $" --drop-read-after {r}";
         if (legacyRsa is not null) args += $" --legacy-rsa {legacyRsa}";
         if (clientKey) { keyPath = hostKeyFile + ".client"; args += $" --gen-client-key \"{keyPath}\" --client-key-type {clientKeyType}"; }
-        var psi = new ProcessStartInfo("python", args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        // stdin is a pipe of its own: the server ends when it closes, which is when this process is gone (see sftp_server.py), and the server does not inherit the stdin of the test host
+        var psi = new ProcessStartInfo("python", args) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
         var process = Process.Start(psi) ?? throw new InvalidOperationException("python did not start");
+        // a job object that the system closes with this process: a host that crashes or is killed takes the server with it instead of leaving it to hold the pipes of `dotnet test` open
+        NksHub.Textida.Core.Tools.ProcessLaunch.Track(process);
         var errors = new System.Text.StringBuilder();
         process.ErrorDataReceived += (_, e) => { lock (errors) errors.AppendLine(e.Data); };
         process.BeginErrorReadLine();
