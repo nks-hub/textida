@@ -75,7 +75,8 @@ internal sealed partial class MainWindow
         foreach (var view in session.Doc.Views) view.Minimap?.SetFilterMarks(marks);
     }
 
-    private void LogFollowTick()
+    /// <summary>Looks at every followed log for new lines; the timer calls it, and so does a test, which does not wait for the timer.</summary>
+    internal void LogFollowTick()
     {
         foreach (var session in _logSessions.Values.ToList())
         {
