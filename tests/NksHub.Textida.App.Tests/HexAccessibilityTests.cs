@@ -384,6 +384,41 @@ public class HexAccessibilityTests : IDisposable
         Assert.Same(map, _w.FocusManager.GetFocusedElement());
     }
 
+    // ---- the panels ----
+
+    [AvaloniaFact]
+    public void The_inspector_the_bookmarks_and_the_structure_are_named_lists_with_named_rows_in_every_language()
+    {
+        byte[] iend = [0, 0, 0, 0, (byte)'I', (byte)'E', (byte)'N', (byte)'D', 0, 0, 0, 0];
+        var hex = OpenHex([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, .. iend], "pic.png");
+        hex.Marks.Add(new ByteRange(8, 12), "alpha", "#0F7B6C", "the length", "uint32 BE");
+        _w.ToggleInspector();
+        _w.ToggleHexBookmarkPanel();
+        _w.ToggleHexTemplate();
+        Dispatcher.UIThread.RunJobs();
+        hex.MoveTo(8);
+
+        (Avalonia.Controls.Control List, string Key, AutomationControlType Role)[] lists =
+        [
+            (hex.Inspector.Rows, K.HexInspectorTitle, AutomationControlType.List),
+            (hex.BookmarkList.Rows, K.HexBmA11yList, AutomationControlType.List),
+            (hex.Structure.Tree, K.KsyTitle, AutomationControlType.Tree),
+        ];
+        foreach (var language in A11yAudit.Languages)
+        {
+            Loc.SetLanguage(language);
+            Dispatcher.UIThread.RunJobs();
+            foreach (var (list, key, role) in lists)
+            {
+                Assert.True(list.IsEffectivelyVisible && list.Focusable, $"{language}: {key} is not a stop of the keyboard");
+                Assert.Equal((Loc.Get(key), role), A11yAudit.Read(list));
+            }
+            Assert.NotEmpty(hex.Inspector.RowTexts);
+            Assert.NotEmpty(hex.BookmarkList.RowTexts);
+            Assert.All(hex.Inspector.RowTexts.Concat(hex.BookmarkList.RowTexts), text => Assert.False(string.IsNullOrWhiteSpace(text) || text.Contains('{'), $"{language}: row '{text}'"));
+        }
+    }
+
     // ---- high contrast ----
 
     [AvaloniaFact]
