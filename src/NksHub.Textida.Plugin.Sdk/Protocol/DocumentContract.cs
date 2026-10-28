@@ -242,7 +242,7 @@ public static class DocumentErrorCodes
     public const int VirtualQuotaExceeded = -32033;
     /// <summary>The plugin published more diagnostics than it may.</summary>
     public const int DiagnosticsQuotaExceeded = -32034;
-    /// <summary>A workspace edit holds more changes than the editor takes.</summary>
+    /// <summary>A workspace edit holds more changes than the editor takes (<c>limit</c> in the error data), or more bytes of new text and new files together (<c>limitBytes</c>).</summary>
     public const int WorkspaceQuotaExceeded = -32035;
     /// <summary>A source refused a write because the file is not at the expected revision (data: <c>currentRevision</c>, a string, or null when the file is gone).</summary>
     public const int SourceConflict = -32036;

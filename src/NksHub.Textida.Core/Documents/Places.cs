@@ -244,6 +244,39 @@ public static class PathMove
     /// <summary>True when <paramref name="path"/> lies below <paramref name="folder"/> (or is it).</summary>
     public static bool IsInside(string path, string folder) => Rebase(path, folder, "") is not null;
 
+    private const int MaxLinkHops = 16;
+
+    /// <summary>
+    /// The full path with every link on the way followed (a folder that is a link, a file that is a link, links of the targets), so that a link inside a folder cannot make a place outside it look inside.
+    /// A part that does not exist yet is kept as it is. False when the links lead in a circle, are too many to follow or cannot be read.
+    /// </summary>
+    public static bool TryRealPath(string path, out string real) => TryRealPath(path, 0, out real);
+
+    private static bool TryRealPath(string path, int hops, out string real)
+    {
+        real = Path.GetFullPath(path);
+        string root = Path.GetPathRoot(real) ?? "";
+        string current = root;
+        foreach (var part in real[root.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            FileSystemInfo? target;
+            try
+            {
+                FileSystemInfo info = Directory.Exists(current) ? new DirectoryInfo(current) : new FileInfo(current);
+                target = info.LinkTarget is null ? null : info.ResolveLinkTarget(returnFinalTarget: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+            if (target is null) continue;
+            if (hops >= MaxLinkHops || !TryRealPath(target.FullName, hops + 1, out current)) return false;
+        }
+        real = current;
+        return true;
+    }
+
     /// <summary>
     /// The path after <paramref name="oldPath"/> (a file or a folder) was moved to <paramref name="newPath"/>:
     /// the new path itself, the path below the new folder, or null when <paramref name="path"/> is not affected.

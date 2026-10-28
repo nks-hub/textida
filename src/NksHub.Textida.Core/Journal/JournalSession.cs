@@ -17,8 +17,6 @@ public sealed class JournalSession : IDisposable
     private readonly Dictionary<Document, DocTracker> _trackers = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Guid, DocTracker> _byId = [];
     private readonly Timer? _compactTimer;
-    private readonly object _syncGate = new();
-    private readonly Dictionary<string, Action> _syncs = [];
     private FileStream? _lock;
     private Func<string, IBackendFactory?>? _backends;
     private JournalWriter? _writer;
@@ -34,7 +32,7 @@ public sealed class JournalSession : IDisposable
         if (dir is null) return;
         _id = Guid.NewGuid().ToString("N");
         _lock = OpenLock(LockPathOf(JournalPathOf(dir, _id)))!;
-        _writer = new JournalWriter(JournalPathOf(dir, _id), options) { BeforeWrite = SyncPayloads };
+        _writer = new JournalWriter(JournalPathOf(dir, _id), options);
         _compactTimer = new Timer(_ => MaybeCompact(), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
@@ -250,30 +248,11 @@ public sealed class JournalSession : IDisposable
             _byId.Remove(tracker.Id);
         }
         tracker.Stop();
-        lock (_gate) Append(RecordType.DocClose, JournalRecords.EncodeClose(tracker.Id));
+        Append(RecordType.DocClose, JournalRecords.EncodeClose(tracker.Id), tracker.Id);
         if (_dir is null) return;
         Flush(); // the close is durable before the data of its large changes goes
         tracker.CloseBlob();
         JournalPayloads.DeleteAllOf(_dir, tracker.Id);
-    }
-
-    /// <summary>Makes a payload file durable before the next journal write; <paramref name="name"/> keeps one pending sync per file.</summary>
-    private void AddSync(string name, Action sync)
-    {
-        lock (_syncGate) _syncs[name] = sync;
-    }
-
-    private void SyncPayloads()
-    {
-        Action[] todo;
-        lock (_syncGate)
-        {
-            todo = [.. _syncs.Values];
-            _syncs.Clear();
-        }
-        foreach (var sync in todo)
-            try { sync(); }
-            catch (ObjectDisposedException) { } // the file is gone with its document
     }
 
     /// <summary>Stores the tab layout. Revisions in the model are those of the live documents.</summary>
@@ -298,6 +277,26 @@ public sealed class JournalSession : IDisposable
         }
     }
 
+    /// <summary>A record of a document: it waits behind an earlier record of the same document that waits for its payload, and never behind one of another document.</summary>
+    internal void Append(RecordType type, byte[] payload, Guid document)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _broken is not null) return;
+            _writer?.AppendKeyed(type, payload, document);
+        }
+    }
+
+    /// <summary>A record of a document whose payload (<paramref name="build"/>) is made when <paramref name="gate"/> has ended; see <see cref="JournalWriter.AppendDeferred"/>.</summary>
+    internal void AppendDeferred(RecordType type, Func<byte[]> build, Task gate, Guid document)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _broken is not null) return;
+            _writer?.AppendDeferred(type, build, gate, document);
+        }
+    }
+
     /// <summary>A change could not be recorded; the journal no longer matches the document, so it stops promising recovery.</summary>
     private void Break(Exception e)
     {
@@ -306,16 +305,21 @@ public sealed class JournalSession : IDisposable
 
     // ---- durability ----
 
-    /// <summary>Writes and fsyncs everything recorded so far.</summary>
+    /// <summary>
+    /// Writes and fsyncs everything recorded so far, and waits for the payloads that records wait for. The gate of the session is not held meanwhile:
+    /// the editing goes on and its records queue up behind the flush.
+    /// </summary>
     public void Flush()
     {
-        lock (_gate) _writer?.Flush();
+        JournalWriter? writer;
+        lock (_gate) writer = _writer;
+        writer?.Flush();
     }
 
     private void MaybeCompact()
     {
         var w = _writer;
-        if (w is null || w.Fault is not null) return;
+        if (w is null || w.Fault is not null || w.HasWaiting) return; // a compaction would wait for the payloads, and hold back the editing meanwhile
         long len = w.Length;
         if (len > _options.CompactThresholdBytes && len > 2 * _lengthAfterCompaction) Compact();
     }
@@ -337,7 +341,6 @@ public sealed class JournalSession : IDisposable
             foreach (var doc in plan.Docs)
                 foreach (var r in doc.All) next.Append(r.Type, r.Payload, r.TimestampMs);
             if (plan.Session is { } s) next.Append(s.Type, s.Payload, s.TimestampMs);
-            next.BeforeWrite = SyncPayloads;
             next.Flush();
             if (next.Fault is not null)
             {
@@ -413,6 +416,8 @@ public sealed class JournalSession : IDisposable
             doc.Moved -= OnMoved;
         }
 
+        private void Append(RecordType type, byte[] payload) => owner.Append(type, payload, id);
+
         private void OnChanged(object? sender, DocumentChangedEventArgs e)
         {
             try
@@ -424,10 +429,10 @@ public sealed class JournalSession : IDisposable
                 {
                     case ChangeKind.Edit or ChangeKind.Backend:
                         _redoOk.Clear();
-                        owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, c.Kind, undoNow > _undo, e)));
+                        AppendEdit(c, c.Kind, undoNow > _undo, e);
                         break;
                     case ChangeKind.View:
-                        owner.Append(RecordType.DocCodec, JournalRecords.Encode(new CodecRecord(id, revision, doc.Codec.Name)));
+                        Append(RecordType.DocCodec, JournalRecords.Encode(new CodecRecord(id, revision, doc.Codec.Name)));
                         break;
                     case ChangeKind.Undo:
                         if (undoNow < _undo)
@@ -460,15 +465,58 @@ public sealed class JournalSession : IDisposable
 
         private void Replayable(RecordType type, ChangeSet c, long revision)
         {
-            if (_decision) owner.Append(type, JournalRecords.Encode(new UndoRedoRecord(id, revision)));
-            else owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, ChangeKind.Edit, true)));
+            if (_decision) Append(type, JournalRecords.Encode(new UndoRedoRecord(id, revision)));
+            else AppendEdit(c, ChangeKind.Edit, true);
         }
 
-        private EditRecord Edit(ChangeSet c, ChangeKind kind, bool isNew, DocumentChangedEventArgs? args = null)
+        /// <summary>The blocks and the edit list of one record that are still being made durable and checked; the record is written when they are.</summary>
+        private sealed class Waiting
+        {
+            public readonly List<(int Index, Block Block)> Blocks = [];
+            public Task? List;
+            public bool Any => Blocks.Count > 0 || List is not null;
+        }
+
+        /// <summary>A reference to a block and the work that makes the block durable and gives the checksum of every byte of it; the work of all the blocks of a record runs on one thread of its own.</summary>
+        private sealed record Block(PayloadRef Reference, Func<uint> Run);
+
+        private Task<T> Work<T>(Func<T> work) => Task.Factory.StartNew(() =>
+        {
+            owner._options.BeforePayloadWork?.Invoke();
+            return work();
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+        /// <summary>
+        /// Records an edit. When it refers to large blocks the record waits for them to be durable and checked, and the writer goes on with the records of other documents meanwhile;
+        /// the later records of this document queue behind it.
+        /// </summary>
+        private void AppendEdit(ChangeSet c, ChangeKind kind, bool isNew, DocumentChangedEventArgs? args = null)
+        {
+            var waiting = new Waiting();
+            var record = Edit(c, kind, isNew, waiting, args);
+            if (!waiting.Any)
+            {
+                Append(RecordType.DocEdit, JournalRecords.Encode(record));
+                return;
+            }
+            var blocks = waiting.Blocks;
+            var checksums = blocks.Count > 0 ? Work(() => blocks.Select(b => b.Block.Run()).ToArray()) : null;
+            var gate = Task.WhenAll(checksums ?? Task.CompletedTask, waiting.List ?? Task.CompletedTask);
+            owner.AppendDeferred(RecordType.DocEdit, () =>
+            {
+                var edits = record.Edits.ToArray();
+                for (int k = 0; k < blocks.Count; k++)
+                    edits[blocks[k].Index] = edits[blocks[k].Index] with { External = blocks[k].Block.Reference with { FullCrc = checksums!.Result[k] } };
+                return JournalRecords.Encode(record with { Edits = edits });
+            }, gate, id);
+        }
+
+        private EditRecord Edit(ChangeSet c, ChangeKind kind, bool isNew, Waiting waiting, DocumentChangedEventArgs? args = null)
         {
             if (NeedsList(c))
             {
-                var list = WriteList(c);
+                var list = WriteList(c, out var synced);
+                waiting.List = synced;
                 _refs.Add((c.Revision + baseRevision, list.File));
                 return new EditRecord(id, c.Revision + baseRevision, kind, c.Source, isNew, [], doc.Codec.Name, list);
             }
@@ -486,10 +534,11 @@ public sealed class JournalSession : IDisposable
                 // past the inline budget of the document every edit that is more than a keystroke goes to a payload file too, so the records a recovery has to hold stay bounded
                 if (s.Inserted > JournalPlaceholders.MaxInlineEditBytes || (s.Inserted > JournalPlaceholders.SmallEditBytes && _inlineBytes + s.Inserted > JournalPlaceholders.MaxInlineDocumentBytes))
                 {
-                    var reference = Externalize(s.Start + shift, s.Inserted);
-                    _refs.Add((c.Revision + baseRevision, reference.File));
+                    var block = Externalize(s.Start + shift, s.Inserted);
+                    waiting.Blocks.Add((i, block));
+                    _refs.Add((c.Revision + baseRevision, block.Reference.File));
                     shift += s.Inserted - s.Deleted;
-                    edits[i] = new(s.Start, s.Deleted, [], 0, reference);
+                    edits[i] = new(s.Start, s.Deleted, [], 0, block.Reference);
                     continue;
                 }
                 // the step has the inserted bytes already; reading them back from the text costs a lookup for every edit
@@ -522,9 +571,9 @@ public sealed class JournalSession : IDisposable
 
         /// <summary>
         /// Writes the edits of a change set to the payload file of this document, one entry after the other, through a buffer of
-        /// <see cref="SeedChunk"/> bytes: neither the edits nor their text are ever in memory as a whole. The file is synced before the record that names it reaches the disk.
+        /// <see cref="SeedChunk"/> bytes: neither the edits nor their text are ever in memory as a whole. The file is synced, on a thread of its own, before the record that names it reaches the disk.
         /// </summary>
-        private EditListRef WriteList(ChangeSet c)
+        private EditListRef WriteList(ChangeSet c, out Task synced)
         {
             var blob = _blob ??= new PayloadBlob(JournalPayloads.DirectoryOf(owner._dir!), $"{JournalPayloads.Prefix(owner._id!, id)}-blob-{_blobCount++}.payload");
             long at = blob.Length;
@@ -560,15 +609,23 @@ public sealed class JournalSession : IDisposable
                 deleted += s.Deleted;
             }
             Drain();
-            owner.AddSync(blob.Name, blob.Sync);
+            synced = Work(() => SyncBlob(blob));
             return new(blob.Name, at, blob.Length - at, c.Edits.Count, inserted, deleted, Crc32.Finish(crc));
+        }
+
+        /// <summary>The file is gone with its document when a sync finds it closed; nothing is left to make durable then.</summary>
+        private static uint SyncBlob(PayloadBlob blob, uint result = 0)
+        {
+            try { blob.Sync(); }
+            catch (ObjectDisposedException) { }
+            return result;
         }
 
         /// <summary>
         /// The block of a large edit: the durable file the backend holds it in when there is one, else a copy in the payload file of this document.
-        /// Either way the file is synced before the record that names it reaches the disk.
+        /// Either way the file is synced, and the checksum of every byte of the block is made, when the returned work runs (on a thread of its own); the record that names the block is written when both are done.
         /// </summary>
-        private PayloadRef Externalize(long offset, long length)
+        private Block Externalize(long offset, long length)
         {
             int sample = (int)Math.Min(JournalPayloads.SampleBytes, length);
             var head = new byte[sample];
@@ -576,24 +633,29 @@ public sealed class JournalSession : IDisposable
             doc.Read(offset, head);
             doc.Read(offset + length - sample, tail);
             uint headCrc = JournalPayloads.SampleCrc(head), tailCrc = JournalPayloads.SampleCrc(tail);
-            if (doc.Backend.TryGetDurableBytes(offset, length, out var durable))
-            {
-                owner.AddSync(durable.File, durable.Sync);
-                return new(durable.File, durable.Offset, length, headCrc, tailCrc);
-            }
             string dir = JournalPayloads.DirectoryOf(owner._dir!);
+            if (doc.Backend.TryGetDurableBytes(offset, length, out var durable))
+                return new(new PayloadRef(durable.File, durable.Offset, length, headCrc, tailCrc), () =>
+                {
+                    uint whole = JournalPayloads.BlockCrc(dir, durable.File, durable.Offset, length);
+                    try { durable.Sync(); }
+                    catch (ObjectDisposedException) { } // the file is gone with its document
+                    return whole;
+                });
             var blob = _blob ??= new PayloadBlob(dir, $"{JournalPayloads.Prefix(owner._id!, id)}-blob-{_blobCount++}.payload");
             long at = blob.Length;
             var buffer = new byte[(int)Math.Min(SeedChunk, length)];
+            uint crc = Crc32.Initial;
             for (long done = 0; done < length;)
             {
                 int n = doc.Read(offset + done, buffer.AsSpan(0, (int)Math.Min(buffer.Length, length - done)));
                 if (n == 0) throw new EndOfStreamException("The document ended inside a large change.");
                 blob.Append(buffer.AsSpan(0, n));
+                crc = Crc32.Update(crc, buffer.AsSpan(0, n));
                 done += n;
             }
-            owner.AddSync(blob.Name, blob.Sync);
-            return new(blob.Name, at, length, headCrc, tailCrc);
+            uint full = Crc32.Finish(crc);
+            return new(new PayloadRef(blob.Name, at, length, headCrc, tailCrc), () => SyncBlob(blob, full));
         }
 
         public void CloseBlob()
@@ -616,19 +678,19 @@ public sealed class JournalSession : IDisposable
         private void OnSaving(object? sender, SavingEventArgs e)
         {
             long revision = e.Revision >= 0 ? e.Revision : doc.Revision;
-            owner.Append(RecordType.DocSaveIntent, JournalRecords.Encode(new SaveIntentRecord(id, revision + baseRevision, e.Target, e.Size, e.Sha256, doc.Codec.Name)));
+            Append(RecordType.DocSaveIntent, JournalRecords.Encode(new SaveIntentRecord(id, revision + baseRevision, e.Target, e.Size, e.Sha256, doc.Codec.Name)));
             owner.Flush();
         }
 
         private void OnMoved(object? sender, EventArgs e)
         {
-            if (doc.FilePath is { } path) owner.Append(RecordType.DocMove, JournalRecords.Encode(new MoveRecord(id, path)));
+            if (doc.FilePath is { } path) Append(RecordType.DocMove, JournalRecords.Encode(new MoveRecord(id, path)));
         }
 
         private void OnSaved(object? sender, EventArgs e)
         {
             if (doc.FilePath is not { } path || doc.Fingerprint is not { } print) return;
-            owner.Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.SavedRevision + baseRevision, path, print, doc.Codec.Name)));
+            Append(RecordType.DocSave, JournalRecords.Encode(new SaveRecord(id, doc.SavedRevision + baseRevision, path, print, doc.Codec.Name)));
             _floor = doc.SavedUndoDepth;
             _inlineBytes = 0;
             _undo = doc.UndoDepth; // a save over the mapped file drops the undo steps of fills

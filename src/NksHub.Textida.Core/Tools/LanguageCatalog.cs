@@ -21,11 +21,19 @@ public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<s
 public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
 
 /// <summary>
+/// The versions of a tool whose command line and output its parser was written for: <paramref name="Min"/> up to <paramref name="Below"/>, not including it (null: no upper end known).
+/// The editor compares the version the program reports with it and says so when it is outside; it does not stop the run. This is not a pinned version (that stays open, see <see cref="LanguageCatalog"/>).
+/// </summary>
+public sealed record CatalogVersionRange(string Min, string? Below);
+
+/// <summary>
 /// A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.
 /// <paramref name="Environment"/> are variables set for the run; the catalog uses them to keep a linter that would fetch packages (Cargo crates, Go modules) off the network.
+/// <paramref name="Supported"/> are the versions the arguments and the parser were written for (placeholder, OPEN: taken from the documentation of the tools, the owner has not decided them; the upper ends are the next major version), null where no window is claimed;
+/// <paramref name="VersionArgs"/> are the arguments that make the program print its version (null: <c>--version</c>).
 /// </summary>
 public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions,
-    string? Version = null, bool Verified = false, IReadOnlyDictionary<string, string>? Environment = null);
+    string? Version = null, bool Verified = false, IReadOnlyDictionary<string, string>? Environment = null, CatalogVersionRange? Supported = null, IReadOnlyList<string>? VersionArgs = null);
 
 /// <summary>A configuration file of a group: <paramref name="Names"/> are the accepted names (the first one is created), <paramref name="Template"/> the minimal content of a new one, or null where no neutral content exists.</summary>
 public sealed record CatalogConfig(IReadOnlyList<string> Names, string? Template);
@@ -61,7 +69,8 @@ public sealed record LanguageGroup(
 /// The versioned table of language tools: one record per language group (the 17 groups of the plan). It is the single source of the file extensions and names of the language modes,
 /// the grammars, the language server launch lines, the formatters of Save Actions, the linters, the configuration files shown in the status bar and the package manifests.
 /// Nothing here runs a program or reaches the network; <see cref="ToolLocator"/> only looks for a program on disk.
-/// OPEN: no tool version is pinned (<c>Version</c> is null everywhere). Marked verified are the formatters whose command line was run against the real program: <c>gofmt</c>, <c>clang-format</c> 19.1.5
+/// OPEN: no tool version is pinned (<c>Version</c> is null everywhere); what a linter's arguments and parser were written for is <see cref="CatalogLinter.Supported"/>, taken from the documentation of the tools
+/// (Dart: the one version that was run), and checked at run time without stopping the run. Clippy and clang-tidy have none: no version window is claimed for them. Marked verified are the formatters whose command line was run against the real program: <c>gofmt</c>, <c>clang-format</c> 19.1.5
 /// (it formats code that does not parse and fails only on a broken configuration), <c>dart format</c> of Dart 3.12.2 (exit code 65 for code that does not parse) and <c>dart analyze --format=machine</c> of Dart 3.12.2
 /// (pipe separated lines, exit code 3 for errors and warnings, nothing printed when clean). The other command lines and output formats come from the documentation of the tools and have not been run.
 /// <see cref="Matrix"/> lists what the table promises per group, tool and system.
@@ -91,7 +100,7 @@ public static class LanguageCatalog
                 new("prettier", "Prettier", "prettier", ["--write", "${File}"], [".prettierrc", ".prettierrc.json", ".prettierrc.yml", ".prettierrc.yaml", ".prettierrc.toml", "prettier.config.js"], [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".json", ".jsonc", ".css", ".html"]),
                 new("biome", "Biome", "biome", ["format", "--write", "${File}"], ["biome.json", "biome.jsonc"], [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".json", ".jsonc"]),
             ],
-            [new("eslint", "ESLint", "eslint", ["--format", "json", "${File}"], "eslint-json", [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning)], EslintConfigs, [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"])],
+            [new("eslint", "ESLint", "eslint", ["--format", "json", "${File}"], "eslint-json", [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning)], EslintConfigs, [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"], Supported: new("8.0.0", "10.0.0"))],
             [C(["tsconfig.json"], "{\n  \"compilerOptions\": {}\n}\n"), C([".prettierrc"], "{}\n"), C(["biome.json"], "{}\n"),
                 C(EslintConfigs, "// ESLint reports nothing but syntax errors while this list is empty.\nexport default [];\n")],
             [new("package.json", "npm")]),
@@ -103,14 +112,14 @@ public static class LanguageCatalog
             [M("sql", [".sql"], "sql")],
             [new("sql", "sqls", [])],
             [new("sqlfluff-fix", "SQLFluff", "sqlfluff", ["fix", "--force", "${File}"], [".sqlfluff"], [".sql"])],
-            [new("sqlfluff", "SQLFluff", "sqlfluff", ["lint", "--format", "json", "${File}"], "sqlfluff-json", [new("error", ToolSeverity.Error), AnyWarning], [".sqlfluff"], [".sql"])],
+            [new("sqlfluff", "SQLFluff", "sqlfluff", ["lint", "--format", "json", "${File}"], "sqlfluff-json", [new("error", ToolSeverity.Error), AnyWarning], [".sqlfluff"], [".sql"], Supported: new("2.0.0", "4.0.0"))],
             [C([".sqlfluff"], "[sqlfluff]\n")],
             []),
         new("python", "Python",
             [M("python", [".py"], "python")],
             [new("python", "pyright-langserver", ["--stdio"])],
             [new("ruff-format", "Ruff", "ruff", ["format", "${File}"], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"])],
-            [new("ruff", "Ruff", "ruff", ["check", "--output-format=json", "${File}"], "ruff-json", [new("error", ToolSeverity.Error), AnyWarning], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"])],
+            [new("ruff", "Ruff", "ruff", ["check", "--output-format=json", "${File}"], "ruff-json", [new("error", ToolSeverity.Error), AnyWarning], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"], Supported: new("0.1.0", "1.0.0"))],
             [C(["ruff.toml", ".ruff.toml"], "# Ruff uses its defaults while this file is empty.\n"), C(["pyproject.toml"])],
             [new("requirements.txt", "PyPI")]),
         new("shell", "Bash, PowerShell",
@@ -118,7 +127,7 @@ public static class LanguageCatalog
             [new("shell", "bash-language-server", ["start"])],
             [new("shfmt", "shfmt", "shfmt", ["-w", "${File}"], [".editorconfig"], [".sh", ".bash"])],
             [new("shellcheck", "ShellCheck", "shellcheck", ["--format=json", "${File}"], "shellcheck-json",
-                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), new("style", ToolSeverity.Hint)], [".shellcheckrc"], [".sh", ".bash"])],
+                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), new("style", ToolSeverity.Hint)], [".shellcheckrc"], [".sh", ".bash"], Supported: new("0.7.0", "1.0.0"))],
             [C([".shellcheckrc"], "# ShellCheck options, one per line.\n")],
             []),
         new("java", "Java",
@@ -144,8 +153,8 @@ public static class LanguageCatalog
             [new("php", "phpactor", ["language-server"])],
             [],
             [
-                new("phpstan", "PHPStan", "phpstan", ["analyse", "--error-format=json", "--no-progress", "--no-interaction", "${File}"], "phpstan-json", [new("*", ToolSeverity.Error)], ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"], [".php"]),
-                new("psalm", "Psalm", "psalm", ["--output-format=json", "--no-progress", "${File}"], "psalm-json", [new("error", ToolSeverity.Error), new("info", ToolSeverity.Info)], ["psalm.xml", "psalm.xml.dist"], [".php"]),
+                new("phpstan", "PHPStan", "phpstan", ["analyse", "--error-format=json", "--no-progress", "--no-interaction", "${File}"], "phpstan-json", [new("*", ToolSeverity.Error)], ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"], [".php"], Supported: new("1.0.0", "3.0.0")),
+                new("psalm", "Psalm", "psalm", ["--output-format=json", "--no-progress", "${File}"], "psalm-json", [new("error", ToolSeverity.Error), new("info", ToolSeverity.Info)], ["psalm.xml", "psalm.xml.dist"], [".php"], Supported: new("4.0.0", "7.0.0")),
             ],
             [C(["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"]), C(["psalm.xml", "psalm.xml.dist"])],
             [new("composer.json", "Packagist")]),
@@ -155,7 +164,7 @@ public static class LanguageCatalog
             [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], Verified: true)],
             [new("golangci-lint", "golangci-lint", "golangci-lint", ["run", "--output.json.path=stdout", "${File}"], "golangci-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"],
-                Environment: new Dictionary<string, string> { ["GOPROXY"] = "off" })],
+                Environment: new Dictionary<string, string> { ["GOPROXY"] = "off" }, Supported: new("2.0.0", "3.0.0"))],
             [C([".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], "version: \"2\"\n")],
             [new("go.mod", "Go module proxy")]),
         new("rust", "Rust",
@@ -189,7 +198,7 @@ public static class LanguageCatalog
             [new("ruby", "ruby-lsp", [])],
             [new("rubocop", "RuboCop", "rubocop", ["-a", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"])],
             [new("rubocop-lint", "RuboCop", "rubocop", ["--format", "json", "${File}"], "rubocop-json",
-                [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("convention", ToolSeverity.Info), new("refactor", ToolSeverity.Info), new("info", ToolSeverity.Info)], [".rubocop.yml"], [".rb", ".rake"])],
+                [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("convention", ToolSeverity.Info), new("refactor", ToolSeverity.Info), new("info", ToolSeverity.Info)], [".rubocop.yml"], [".rb", ".rake"], Supported: new("1.0.0", "2.0.0"))],
             [C([".rubocop.yml"], "AllCops:\n  NewCops: disable\n")],
             [new("Gemfile", "RubyGems")]),
         new("dart", "Dart",
@@ -197,7 +206,7 @@ public static class LanguageCatalog
             [new("dart", "dart", ["language-server"])],
             [new("dart-format", "dart format", "dart", ["format", "${File}"], ["analysis_options.yaml"], [".dart"], Verified: true)],
             [new("dart-analyze", "dart analyze", "dart", ["analyze", "--format=machine", "${File}"], "dart-machine",
-                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info)], ["analysis_options.yaml"], [".dart"], Verified: true)],
+                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info)], ["analysis_options.yaml"], [".dart"], Verified: true, Supported: new("3.12.2", "4.0.0"))],
             [C(["analysis_options.yaml"])],
             [new("pubspec.yaml", "pub.dev")]),
         new("r", "R",

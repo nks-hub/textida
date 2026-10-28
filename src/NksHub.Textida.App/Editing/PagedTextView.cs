@@ -194,6 +194,20 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     public string SelectedText() => HasSelection && SelectionRange.Length <= CopyLimitBytes ? TextOf(SelectionRange) : "";
 
+    /// <summary>
+    /// The zero-based line that holds <paramref name="offset"/> and the offset where it starts, for a colored export that has to begin at a line start.
+    /// Null while the line numbers are estimates (after a jump past the indexed part) or the line index has not reached the offset yet.
+    /// </summary>
+    internal (long Line, long Start)? ExactLineAt(long offset)
+    {
+        if (_detour is not null || !CanLocate(offset)) return null;
+        long line = LineOf(offset);
+        return LineStart(line) is >= 0 and var start ? (line, start) : null;
+    }
+
+    /// <summary>The text of a byte range, hidden values masked as in <see cref="SelectedText"/>; the length is not checked.</summary>
+    internal string TextOfRange(long start, long end) => TextOf(new ByteRange(start, end));
+
     private string TextOf(ByteRange range) => _secrets.Touches(range.Start, range.End)
         ? MaskedText(Doc.Codec, Doc.ReadBytes(range), range.Start, _secrets.Ranges())
         : Doc.Codec.GetString(Doc.ReadBytes(range));

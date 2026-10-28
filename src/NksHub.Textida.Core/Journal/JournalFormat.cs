@@ -27,26 +27,46 @@ public enum RecordType : byte
 /// <summary>One record read from or written to a journal; <see cref="TimestampMs"/> is Unix time in milliseconds (0 in version 1 files).</summary>
 public readonly record struct JournalRecord(long Seq, long TimestampMs, RecordType Type, byte[] Payload);
 
-/// <summary>CRC-32 (IEEE 802.3, reflected), the checksum of every journal record.</summary>
+/// <summary>
+/// CRC-32 (IEEE 802.3, reflected), the checksum of every journal record and of the large blocks they refer to. Eight bytes at a time (eight tables), as a block of gigabytes is checked with it.
+/// </summary>
 internal static class Crc32
 {
-    private static readonly uint[] Table = Build();
+    private static readonly uint[] Tables = Build();
 
     private static uint[] Build()
     {
-        var table = new uint[256];
+        var tables = new uint[8 * 256];
         for (uint i = 0; i < 256; i++)
         {
             uint c = i;
             for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            table[i] = c;
+            tables[i] = c;
         }
-        return table;
+        for (int i = 0; i < 256; i++)
+        {
+            uint c = tables[i];
+            for (int k = 1; k < 8; k++)
+            {
+                c = tables[(int)(c & 0xFF)] ^ (c >> 8);
+                tables[k * 256 + i] = c;
+            }
+        }
+        return tables;
     }
 
     public static uint Update(uint crc, ReadOnlySpan<byte> data)
     {
-        foreach (byte b in data) crc = Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        var t = Tables;
+        int i = 0;
+        for (; i + 8 <= data.Length; i += 8)
+        {
+            uint low = BinaryPrimitives.ReadUInt32LittleEndian(data[i..]) ^ crc;
+            uint high = BinaryPrimitives.ReadUInt32LittleEndian(data[(i + 4)..]);
+            crc = t[7 * 256 + (int)(low & 0xFF)] ^ t[6 * 256 + (int)((low >> 8) & 0xFF)] ^ t[5 * 256 + (int)((low >> 16) & 0xFF)] ^ t[4 * 256 + (int)(low >> 24)]
+                ^ t[3 * 256 + (int)(high & 0xFF)] ^ t[2 * 256 + (int)((high >> 8) & 0xFF)] ^ t[256 + (int)((high >> 16) & 0xFF)] ^ t[(int)(high >> 24)];
+        }
+        for (; i < data.Length; i++) crc = t[(int)((crc ^ data[i]) & 0xFF)] ^ (crc >> 8);
         return crc;
     }
 
@@ -60,11 +80,12 @@ internal static class Crc32
 /// Record: u32 payload length, u32 CRC, u8 type, u64 sequence, [i64 timestamp, version 2+], payload.
 /// Version 3 differs from 2 only in the payload layout of edit records (a large inserted block may be a reference to a payload file).
 /// Version 4 differs from 3 only in that layout again (the edits of a change set with very many edits may be a list in a payload file).
+/// Version 5 differs from 4 only in that layout once more (a reference to a large block carries a checksum of every byte of it).
 /// The CRC covers every record byte except the CRC field itself.
 /// </summary>
 public static class JournalFormat
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
     public const int OldestReadableVersion = 1;
     public const int FileHeaderSize = 16;
     private static readonly byte[] Magic = "NKSJRNL\0"u8.ToArray();
@@ -192,6 +213,8 @@ public sealed class JournalOptions
     public int MaxBufferedBytes { get; init; } = 1 << 20;
     /// <summary>The journal is compacted when it grows past this size (and past twice its size after the last compaction).</summary>
     public long CompactThresholdBytes { get; init; } = 16L << 20;
+    /// <summary>Runs on the thread that makes a large block durable and checks it, before it starts; a test holds the work here to look at the journal while a record waits for it.</summary>
+    internal Action? BeforePayloadWork { get; init; }
 
     public static readonly TimeSpan MaxFlushInterval = TimeSpan.FromSeconds(1);
 }
@@ -206,16 +229,24 @@ public enum FsyncPolicy
     Manual,
 }
 
-/// <summary>Append-only writer of one journal file. Thread safe. A failed write stops the writer for good (<see cref="Fault"/>): appending after a torn write would hide later records.</summary>
+/// <summary>
+/// Append-only writer of one journal file. Thread safe. A failed write stops the writer for good (<see cref="Fault"/>): appending after a torn write would hide later records.
+/// A record may wait for work that takes long, such as making a gigabyte of payload durable: it is appended with a <c>gate</c>, and the records of other documents go on being written meanwhile.
+/// What is written is a prefix of the records of every key: a record that waits holds back the later ones of its key, never those of another. Sequence numbers are given when a record is written.
+/// </summary>
 public sealed class JournalWriter : IDisposable
 {
+    /// <param name="Build">Makes the payload when the record is written, after <paramref name="Gate"/> has ended; null when <paramref name="Payload"/> is there.</param>
+    private sealed record Entry(RecordType Type, byte[]? Payload, Func<byte[]>? Build, long TimestampMs, Task? Gate, object? Key);
+
     private readonly JournalOptions _options;
     private readonly object _gate = new();
     private readonly object _io = new();
     private readonly FileStream _file;
     private readonly Thread? _flusher;
     private readonly ManualResetEventSlim _stop = new();
-    private MemoryStream _pending = new();
+    private List<Entry> _pending = [];
+    private long _pendingBytes;
     private long _seq;
     private bool _disposed;
 
@@ -245,51 +276,70 @@ public sealed class JournalWriter : IDisposable
 
     private void FlushLoop()
     {
-        while (!_stop.Wait(_options.FlushInterval)) Flush();
+        while (!_stop.Wait(_options.FlushInterval)) Write(waitForGates: false);
     }
 
     public string Path { get; internal set; }
 
     /// <summary>
     /// Runs before every write of records, inside the same failure handling: what the records refer to (payload files) is made durable first.
-    /// A record that refers to data is therefore never on disk before the data is.
+    /// A record that refers to data is therefore never on disk before the data is. Data that takes long to make durable is better a <c>gate</c> of its record.
     /// </summary>
     public Action? BeforeWrite { get; set; }
     /// <summary>Bytes durably written so far.</summary>
     public long Length { get; private set; }
     /// <summary>Set when a write failed; the journal no longer protects the session.</summary>
     public Exception? Fault { get; private set; }
+    /// <summary>A record waits for its gate. Work that would have to wait for the gates too, such as compaction, is better left for later.</summary>
+    public bool HasWaiting
+    {
+        get
+        {
+            lock (_gate) return _pending.Any(e => e.Gate is { IsCompleted: false });
+        }
+    }
     public event Action<Exception>? Faulted;
 
-    public void Append(RecordType type, ReadOnlySpan<byte> payload, long? timestampMs = null)
+    public void Append(RecordType type, ReadOnlySpan<byte> payload, long? timestampMs = null) => Add(new Entry(type, payload.ToArray(), null, timestampMs ?? JournalFormat.NowMs(), null, null));
+
+    /// <summary>A record of the document <paramref name="key"/>: while an earlier record of that key waits for its gate, this one waits behind it.</summary>
+    public void AppendKeyed(RecordType type, byte[] payload, object key, long? timestampMs = null) => Add(new Entry(type, payload, null, timestampMs ?? JournalFormat.NowMs(), null, key));
+
+    /// <summary>
+    /// A record whose payload is made by <paramref name="build"/> once <paramref name="gate"/> has ended (a failed gate faults the writer when the record comes to be written).
+    /// It is written by the next flush that finds the gate ended; <see cref="Flush"/> waits for it. Later records of the same <paramref name="key"/> follow it.
+    /// </summary>
+    public void AppendDeferred(RecordType type, Func<byte[]> build, Task gate, object key, long? timestampMs = null) => Add(new Entry(type, null, build, timestampMs ?? JournalFormat.NowMs(), gate, key));
+
+    private void Add(Entry entry)
     {
         lock (_gate)
         {
             if (_disposed || Fault is not null) return;
-            _pending.Write(JournalFormat.EncodeRecord(++_seq, timestampMs ?? JournalFormat.NowMs(), type, payload));
-            if (_options.Fsync == FsyncPolicy.Manual || (_options.Fsync == FsyncPolicy.Interval && _pending.Length < _options.MaxBufferedBytes)) return;
+            _pending.Add(entry);
+            _pendingBytes += 25 + (entry.Payload?.Length ?? 0);
+            if (_options.Fsync == FsyncPolicy.Manual || (_options.Fsync == FsyncPolicy.Interval && _pendingBytes < _options.MaxBufferedBytes)) return;
         }
-        Flush();
+        Write(waitForGates: false);
     }
 
-    /// <summary>Writes everything appended so far and fsyncs it.</summary>
-    public void Flush()
+    /// <summary>Writes everything appended so far and fsyncs it; waits for the gates of the records that wait for one.</summary>
+    public void Flush() => Write(waitForGates: true);
+
+    private void Write(bool waitForGates)
     {
         lock (_io)
         {
-            MemoryStream batch;
+            List<Entry> batch;
             lock (_gate)
             {
-                if (_disposed || _pending.Length == 0 || Fault is not null) return;
-                batch = _pending;
-                _pending = new();
+                if (_disposed || _pending.Count == 0 || Fault is not null) return;
+                batch = Take(waitForGates);
             }
+            if (batch.Count == 0) return;
             try
             {
-                BeforeWrite?.Invoke();
-                _file.Write(batch.GetBuffer(), 0, (int)batch.Length);
-                _file.Flush(true);
-                Length += batch.Length;
+                Commit(batch);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or ObjectDisposedException)
             {
@@ -297,6 +347,54 @@ public sealed class JournalWriter : IDisposable
                 Faulted?.Invoke(e);
             }
         }
+    }
+
+    /// <summary>The records to write now, in order, and the rest left pending. Called with the gate held.</summary>
+    private List<Entry> Take(bool all)
+    {
+        if (all)
+        {
+            var everything = _pending;
+            _pending = [];
+            _pendingBytes = 0;
+            return everything;
+        }
+        List<Entry> ready = [], kept = [];
+        HashSet<object>? blocked = null;
+        foreach (var entry in _pending)
+        {
+            bool waits = entry.Gate is { IsCompleted: false } || (entry.Key is not null && blocked?.Contains(entry.Key) == true);
+            if (waits)
+            {
+                if (entry.Key is not null) (blocked ??= []).Add(entry.Key);
+                kept.Add(entry);
+            }
+            else ready.Add(entry);
+        }
+        _pending = kept;
+        _pendingBytes = kept.Sum(e => 25L + (e.Payload?.Length ?? 0));
+        return ready;
+    }
+
+    /// <summary>Writes the batch and fsyncs it. Throws what a failed write or a failed gate throws as an <see cref="IOException"/>.</summary>
+    private void Commit(List<Entry> batch)
+    {
+        foreach (var entry in batch)
+            if (entry.Gate is { } gate)
+                try { gate.Wait(); }
+                catch (AggregateException e) { throw new IOException("A large change could not be made durable.", e.InnerException ?? e); }
+        BeforeWrite?.Invoke();
+        var bytes = new MemoryStream();
+        foreach (var entry in batch)
+        {
+            byte[] payload;
+            try { payload = entry.Payload ?? entry.Build!(); }
+            catch (Exception e) when (e is AggregateException or InvalidOperationException) { throw new IOException("A large change could not be recorded.", e); }
+            bytes.Write(JournalFormat.EncodeRecord(++_seq, entry.TimestampMs, entry.Type, payload));
+        }
+        _file.Write(bytes.GetBuffer(), 0, (int)bytes.Length);
+        _file.Flush(true);
+        Length += bytes.Length;
     }
 
     public void Dispose()
@@ -310,19 +408,18 @@ public sealed class JournalWriter : IDisposable
         if (_flusher is not null && _flusher != Thread.CurrentThread) _flusher.Join();
         lock (_io)
         {
-            MemoryStream batch;
-            lock (_gate) batch = _pending;
+            List<Entry> batch;
+            lock (_gate)
+            {
+                batch = _pending;
+                _pending = [];
+                _pendingBytes = 0;
+            }
             try
             {
-                if (Fault is null && batch.Length > 0)
-                {
-                    BeforeWrite?.Invoke();
-                    _file.Write(batch.GetBuffer(), 0, (int)batch.Length);
-                    _file.Flush(true);
-                    Length += batch.Length;
-                }
+                if (Fault is null && batch.Count > 0) Commit(batch);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ObjectDisposedException)
             {
                 Fault = e;
             }

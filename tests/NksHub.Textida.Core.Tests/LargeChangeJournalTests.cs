@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
@@ -149,6 +150,69 @@ public sealed class LargeChangeJournalTests : IDisposable
         Assert.Contains(EditRecords(session.JournalPath!), e => e.Edits.Any(x => x.External is not null));
     }
 
+    [Theory]
+    [InlineData(64 << 10)] // the spill file of the add buffer
+    [InlineData(64 << 20)] // the copy of the journal
+    public void A_bit_flip_in_the_middle_of_a_large_block_is_found_by_the_checksum_of_the_whole_block(long budget)
+    {
+        var (_, journalPath) = EditAndCrash(budget, 2 << 20);
+        string original = HashFile(Data);
+        var reference = EditRecords(journalPath).SelectMany(e => e.Edits).Single(x => x.External is not null).External!;
+        Assert.NotNull(reference.FullCrc);
+        string payload = Path.Combine(Journal, "payload", reference.File);
+        using (var fs = new FileStream(payload, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+        {
+            fs.Position = reference.Offset + reference.Length / 2; // far from the 4 KiB at either end, which the older checks cover
+            fs.WriteByte(0xEE); // the text of the model is ASCII, so the byte differs
+        }
+
+        using var session = JournalSession.Start(Journal, Backends(Factory(budget)));
+        var recovered = Assert.Single(session.Recovery.Documents);
+        Assert.Equal(RecoveryStatus.Failed, recovered.Status);
+        Assert.Null(recovered.Document);
+        Assert.Contains("inside the block", recovered.Error);
+        Assert.Equal(original, HashFile(Data));
+        Assert.True(recovered.PendingRecords > 0);
+    }
+
+    [Fact]
+    public void A_large_paste_still_being_made_durable_holds_back_only_the_later_records_of_its_own_document()
+    {
+        NewFile();
+        string otherPath = Path.Combine(_dir, "data", "other.txt");
+        LargeText.WriteFile(otherPath, 100_000);
+        var factory = Factory(64 << 10);
+        using var release = new ManualResetEventSlim();
+        var options = new JournalOptions { FlushInterval = TimeSpan.FromMilliseconds(50), BeforePayloadWork = () => release.Wait(30_000) };
+        using var session = JournalSession.Start(Journal, Backends(factory), options);
+        using var big = Doc.Open(Data, factory);
+        using var other = Doc.Open(otherPath, factory);
+        var bigId = session.Track(big);
+        var otherId = session.Track(other);
+
+        Edit(big, new LargeModel(Size), Size / 2, 0, 52, 2 << 20); // the paste: the work that makes its block durable is held
+        Assert.True(other.Replace(new ByteRange(0, 0), "x"u8.ToArray()).Applied); // a keystroke in another document
+        Assert.True(big.Replace(new ByteRange(5, 5), "y"u8.ToArray()).Applied); // a keystroke in the same document, after the paste
+        string journalPath = session.JournalPath!;
+
+        WaitFor(() => EditRecords(journalPath).Any(e => e.DocId == otherId), "the record of the other document");
+        Thread.Sleep(200); // a few more flushes
+        Assert.DoesNotContain(EditRecords(journalPath), e => e.DocId == bigId);
+
+        release.Set();
+        WaitFor(() => EditRecords(journalPath).Count(e => e.DocId == bigId) == 2, "the paste and the keystroke behind it");
+        var ofBig = EditRecords(journalPath).Where(e => e.DocId == bigId).ToList();
+        Assert.NotNull(Assert.Single(ofBig[0].Edits).External!.FullCrc); // the checksum of the whole block came with the record
+        Assert.Equal("y"u8.ToArray(), Assert.Single(ofBig[1].Edits).Inserted); // the keystroke came after the paste, as it happened
+        Assert.Equal([1L, 2L], ofBig.Select(e => e.Revision));
+    }
+
+    private static void WaitFor(Func<bool> condition, string what)
+    {
+        for (var sw = Stopwatch.StartNew(); !condition(); Thread.Sleep(10))
+            Assert.True(sw.ElapsedMilliseconds < 20_000, "Waited for " + what);
+    }
+
     [Fact]
     public void A_journal_of_version_2_with_layout_5_records_still_recovers()
     {
@@ -216,7 +280,7 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     [Fact]
-    public void A_journal_of_version_3_with_layout_6_records_and_a_payload_reference_recovers_and_is_rewritten_as_version_4()
+    public void A_journal_of_version_3_with_layout_6_records_and_a_payload_reference_recovers_and_is_rewritten_as_the_current_version()
     {
         string path = NewFile();
         var print = FileFingerprint.TryRead(path)!;

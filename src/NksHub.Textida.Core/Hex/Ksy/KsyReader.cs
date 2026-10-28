@@ -11,8 +11,10 @@ namespace NksHub.Textida.Core.Hex.Ksy;
 /// <c>MaxExprChars</c> and <c>MaxExprDepth</c> bound the text and the nesting of one expression (P8.10.4); computing it counts against <c>MaxWork</c>,
 /// and a chain of instances or of lazily read structures a field refers to is cut at <c>MaxDepth</c>. <c>MaxMilliseconds</c> is the time one expansion of a node may take (0 switches it off);
 /// <c>PageSize</c> is the most children one node shows at once: a longer array is shown as groups of ranges (<c>items[0..255]</c>), so a tree never gets thousands of rows in one step.
+/// <c>MaxRetainedBytes</c> is the memory one expansion may keep for the values of the elements of the arrays it walks (the text of a string counts twice its length, a structure what it holds); past it the array ends in a size error.
 /// </summary>
-public sealed record KsyLimits(int MaxDepth = 32, int MaxRepeat = 10_000, int MaxStringBytes = 65_536, long MaxWork = 1_000_000, int MaxExprChars = 512, int MaxExprDepth = 24, int MaxMilliseconds = 3_000, int PageSize = 256)
+public sealed record KsyLimits(int MaxDepth = 32, int MaxRepeat = 10_000, int MaxStringBytes = 65_536, long MaxWork = 1_000_000, int MaxExprChars = 512, int MaxExprDepth = 24, int MaxMilliseconds = 3_000, int PageSize = 256,
+    long MaxRetainedBytes = 64L << 20)
 {
     public static KsyLimits Default { get; } = new();
 }
@@ -44,14 +46,22 @@ public sealed class KsyNode
     /// <summary>Set when the field could not be read; <see cref="Start"/> and <see cref="Length"/> then cover the bytes that were there.</summary>
     public KsyError? Error { get; }
     public bool HasChildren => _expand is not null;
+    /// <summary>True when asking for <see cref="Children"/> costs nothing: they were read before, or there are none. A view reads the other ones off its own thread.</summary>
+    public bool ChildrenRead => _expand is null || _children is not null;
     public IReadOnlyList<KsyNode> Children => _children ??= _expand?.Invoke() ?? [];
 
     /// <summary>
     /// The nodes from this one down to the deepest one that holds the byte at <paramref name="offset"/>, reading the children on the way; empty when this node does not hold it.
     /// Where a field and an instance overlap, the field wins (instances come last).
     /// </summary>
-    public IReadOnlyList<KsyNode> PathTo(long offset)
+    public IReadOnlyList<KsyNode> PathTo(long offset) => PathOf(offset, read: true, out _);
+
+    /// <summary>As <see cref="PathTo"/>, but reads nothing: <paramref name="complete"/> is false when the path stops at a node whose children are not read yet and may hold the byte.</summary>
+    public IReadOnlyList<KsyNode> PathToRead(long offset, out bool complete) => PathOf(offset, read: false, out complete);
+
+    private List<KsyNode> PathOf(long offset, bool read, out bool complete)
     {
+        complete = true;
         var path = new List<KsyNode>();
         KsyNode? node = this;
         while (node is not null && node.Start <= offset && offset < node.End)
@@ -59,8 +69,15 @@ public sealed class KsyNode
             path.Add(node);
             KsyNode? next = null;
             if (node.HasChildren)
+            {
+                if (!read && !node.ChildrenRead)
+                {
+                    complete = false;
+                    break;
+                }
                 foreach (var child in node.Children)
                     if (child.Start <= offset && offset < child.End) { next = child; break; }
+            }
             node = next;
         }
         return path;
@@ -122,6 +139,7 @@ public sealed class KsyReader
     private sealed class Budget(long deadline)
     {
         public long Work;
+        public long Retained;
         public int Nest;
         public long Deadline { get; } = deadline;
     }
@@ -283,6 +301,8 @@ public sealed class KsyReader
                 end = node.End;
                 if (node.Error is not null) return new ArrayWalk(n + 1, end, i => starts[i / PageSize], values, node.Error);
                 values.Add(value);
+                budget.Retained += Weight(value);
+                if (budget.Retained > _limits.MaxRetainedBytes) return new ArrayWalk(n + 1, end, i => starts[i / PageSize], values, new KsyError(KsyErrorKind.LimitSize, attr.Line, attr.Id));
                 pos = node.End;
                 n++;
                 if (attr.Repeat == KsyRepeat.Until && Cond(attr.RepeatUntil!, scope, pos, budget, n - 1, true, value)) break;
@@ -295,6 +315,15 @@ public sealed class KsyReader
         }
         return new ArrayWalk(n, end, i => starts[i / PageSize], values, null);
     }
+
+    /// <summary>What a value kept by a walk costs in memory, near enough: a string twice its length, a structure what it holds, an array by itself (its elements were counted when they were kept).</summary>
+    private static long Weight(object? value) => value switch
+    {
+        string text => 48 + 2L * text.Length,
+        KsyScope scope => 256 + scope.Values.Values.Sum(v => v is string text ? 48 + 2L * text.Length : 32L),
+        IReadOnlyList<object?> => 64,
+        _ => 24,
+    };
 
     /// <summary>
     /// The children of the elements <paramref name="lo"/> to <paramref name="hi"/> of a walked array: the elements when they are not more than a page, otherwise groups of ranges,

@@ -35,12 +35,12 @@ public partial class DocumentApiTests
 
     static string Sha(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true, Func<string, bool>? isOpen = null)
+    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true, Func<string, bool>? isOpen = null, long totalBytes = long.MaxValue)
     {
         var service = new RecordingWorkspace();
         var root = T.TempDir();
         var outside = T.TempDir();
-        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], isOpen ?? (_ => false), 10, 1 << 20) });
+        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], isOpen ?? (_ => false), 10, 1 << 20, totalBytes) });
         if (filesGranted) rig.Permissions.Grant("p", DocumentPermissions.WorkspaceFiles, GrantScope.All);
         return new WorkspaceRig(rig, service, root, outside);
     }
@@ -117,6 +117,64 @@ public partial class DocumentApiTests
         File.WriteAllText(secrets, "KEY=value\n");
         await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"edit\",\"path\":{J(secrets)},\"sha256\":\"{Sha(secrets)}\",\"edits\":[{{\"start\":4,\"end\":9,\"text\":\"*\"}}]}}]}}", DocumentErrorCodes.PermissionDenied);
         Assert.Empty(w.Service.Items);
+    }
+
+    private static bool TryLinkFolder(string link, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(link, target);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            if (!OperatingSystem.IsWindows()) return false;
+            using var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"") { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true })!;
+            mklink.WaitForExit();
+            return mklink.ExitCode == 0;
+        }
+    }
+
+    [Fact]
+    public async Task AFolderLinkInTheWorkspaceThatLeadsOutRefusesTheWholeBatchAndOneThatStaysInsideDoesNot()
+    {
+        await using var w = await WorkspaceAsync();
+        string inner = Directory.CreateDirectory(Path.Combine(w.Root, "real")).FullName;
+        string toOutside = Path.Combine(w.Root, "out"), toInside = Path.Combine(w.Root, "in");
+        if (!TryLinkFolder(toOutside, w.Outside) || !TryLinkFolder(toInside, inner)) { Assert.False(OperatingSystem.IsWindows()); return; }
+        string document = $"{{\"kind\":\"edit\",\"document\":\"{w.Rig.Doc.Id}\",\"revision\":{w.Rig.Revision},\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"A\"}}]}}";
+
+        // the path is inside the workspace by its name, and outside by where the link leads
+        var escape = await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{document},{{\"kind\":\"create\",\"path\":{J(Path.Combine(toOutside, "e.txt"))},\"text\":\"x\"}}]}}", DocumentErrorCodes.PermissionDenied);
+        Assert.Equal("Link", escape.GetProperty("data").GetProperty("reason").GetString());
+        File.WriteAllText(Path.Combine(w.Outside, "o.txt"), "o");
+        await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"delete\",\"path\":{J(Path.Combine(toOutside, "o.txt"))},\"sha256\":\"{Sha(Path.Combine(w.Outside, "o.txt"))}\"}}]}}", DocumentErrorCodes.PermissionDenied);
+        Assert.Empty(w.Service.Items);
+        Assert.True(File.Exists(Path.Combine(w.Outside, "o.txt")));
+
+        // a link that stays inside the workspace is an ordinary folder
+        var inside = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"create\",\"path\":{J(Path.Combine(toInside, "n.txt"))},\"text\":\"x\"}}]}}");
+        Assert.Equal("applied", inside.GetProperty("decision").GetString());
+        Assert.Single(w.Service.Items);
+    }
+
+    [Fact]
+    public async Task ManyChangesCannotBringMoreNewTextThanTheTotalLimitAndTheWholeBatchIsRefused()
+    {
+        await using var w = await WorkspaceAsync(totalBytes: 100);
+        string at(int n) => Path.Combine(w.Root, $"n{n}.txt");
+        string create(int n, int bytes) => $"{{\"kind\":\"create\",\"path\":{J(at(n))},\"text\":\"{new string('x', bytes)}\"}}";
+
+        var ok = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{create(1, 60)},{create(2, 40)}]}}"); // exactly the limit
+        Assert.Equal("applied", ok.GetProperty("decision").GetString());
+
+        var over = await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{create(3, 60)},{create(4, 41)}]}}", DocumentErrorCodes.WorkspaceQuotaExceeded);
+        Assert.Equal(100, over.GetProperty("data").GetProperty("limitBytes").GetInt64());
+        string replaced = Path.Combine(w.Root, "r.txt");
+        File.WriteAllText(replaced, "abc");
+        // the replacement texts of an edit count as well
+        await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"edit\",\"path\":{J(replaced)},\"sha256\":\"{Sha(replaced)}\",\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"{new string('y', 101)}\"}}]}}]}}", DocumentErrorCodes.WorkspaceQuotaExceeded);
+        Assert.Single(w.Service.Items);
     }
 
     [Fact]

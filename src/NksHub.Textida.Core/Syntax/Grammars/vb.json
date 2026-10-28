@@ -44,11 +44,124 @@
       ]
     }
   ],
+  "repository": {
+    "xml-entity": [
+      {"match": "&(?:#\\d+|#[xX][0-9A-Fa-f]+|[A-Za-z]+);", "token": "string.escape"}
+    ],
+    "xml-embedded": [
+      {
+        "name": "xml-embedded-expression",
+        "begin": "<%=",
+        "end": "%>",
+        "multiline": true,
+        "beginToken": "meta",
+        "endToken": "meta",
+        "embed": "vb"
+      }
+    ],
+    "xml-comment": [
+      {"name": "xml-comment", "begin": "<!--", "end": "-->", "token": "comment", "multiline": true}
+    ],
+    "xml-cdata": [
+      {"name": "xml-cdata", "begin": "<!\\[CDATA\\[", "end": "\\]\\]>", "token": "string", "multiline": true}
+    ],
+    "xml-instruction": [
+      {"name": "xml-instruction", "begin": "<\\?", "end": "\\?>", "token": "meta", "multiline": true}
+    ],
+    "xml-attribute-value": [
+      {
+        "name": "xml-dq",
+        "begin": "\"",
+        "end": "\"",
+        "token": "string",
+        "multiline": true,
+        "rules": [{"include": "#xml-embedded"}, {"include": "#xml-entity"}]
+      },
+      {
+        "name": "xml-sq",
+        "begin": "'",
+        "end": "'",
+        "token": "string",
+        "multiline": true,
+        "rules": [{"include": "#xml-embedded"}, {"include": "#xml-entity"}]
+      }
+    ],
+    "xml-tag-body": [
+      {"include": "#xml-attribute-value"},
+      {"include": "#xml-embedded"},
+      {"match": "[A-Za-z_][\\w:.-]*", "token": "attribute"},
+      {"match": "=", "token": "operator"},
+      {
+        "name": "xml-content",
+        "begin": ">",
+        "end": "(?=</)",
+        "multiline": true,
+        "beginToken": "tag",
+        "rules": [
+          {"include": "#xml-comment"},
+          {"include": "#xml-cdata"},
+          {"include": "#xml-instruction"},
+          {"include": "#xml-embedded"},
+          {"include": "#xml-entity"},
+          {"include": "#xml-element"}
+        ]
+      }
+    ],
+    "xml-element": [
+      {
+        "name": "xml-element",
+        "begin": "<[A-Za-z_][\\w:.-]*",
+        "end": "/>|</[\\w:.-]*[ \\t]*>",
+        "multiline": true,
+        "beginToken": "tag",
+        "endToken": "tag",
+        "rules": [{"include": "#xml-tag-body"}]
+      }
+    ]
+  },
   "rules": [
     {"name": "doc-comment", "begin": "'''", "end": "$", "token": "comment.doc"},
     {"name": "comment-line", "begin": "'", "end": "$", "token": "comment"},
     {"name": "rem-comment", "begin": "(?<=^[ \\t]*)rem(?![\\w])", "end": "$", "token": "comment"},
     {"name": "preprocessor-line", "begin": "(?<=^[ \\t]*)#(?=[A-Za-z])", "end": "$", "token": "preprocessor"},
+    {
+      "name": "xml-document",
+      "begin": "(?<=(?:=|\\b(?:return|yield|await|in)\\b)[ \\t]*)<\\?xml",
+      "end": "(?<=/>|</[\\w:.-]*[ \\t]*>)",
+      "multiline": true,
+      "beginToken": "meta",
+      "rules": [
+        {"match": "\\?>", "token": "meta"},
+        {"include": "#xml-attribute-value"},
+        {"match": "[A-Za-z_][\\w:.-]*", "token": "attribute"},
+        {"match": "=", "token": "operator"},
+        {"include": "#xml-comment"},
+        {"include": "#xml-element"}
+      ]
+    },
+    {"name": "xml-literal-comment", "begin": "(?<=(?:=|\\b(?:return|yield|await|in)\\b)[ \\t]*)<!--", "end": "-->", "token": "comment", "multiline": true},
+    {"name": "xml-literal-cdata", "begin": "(?<=(?:=|\\b(?:return|yield|await|in)\\b)[ \\t]*)<!\\[CDATA\\[", "end": "\\]\\]>", "token": "string", "multiline": true},
+    {
+      "name": "xml-literal",
+      "begin": "(?<=(?:=|\\b(?:return|yield|await|in)\\b)[ \\t]*)<[A-Za-z_][\\w:.-]*",
+      "end": "/>|</[\\w:.-]*[ \\t]*>",
+      "multiline": true,
+      "beginToken": "tag",
+      "endToken": "tag",
+      "rules": [{"include": "#xml-tag-body"}]
+    },
+    {
+      "name": "xml-namespace-import",
+      "begin": "(?<=\\bimports[ \\t]+)<(?=xmlns)",
+      "end": ">",
+      "beginToken": "tag",
+      "endToken": "tag",
+      "rules": [
+        {"include": "#xml-attribute-value"},
+        {"match": "[A-Za-z_][\\w:.-]*", "token": "attribute"},
+        {"match": "=", "token": "operator"}
+      ]
+    },
     {
       "name": "string",
       "begin": "\"",

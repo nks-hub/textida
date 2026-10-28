@@ -22,10 +22,11 @@ internal static class HighlightExport
     /// <summary>
     /// Splits the text into colored stretches, line by line, carrying the grammar state from one line to the next. Equal neighbours are joined.
     /// The whole text is tokenized, so a part taken out of it (<paramref name="range"/>) is colored as the editor colors it.
+    /// <paramref name="startState"/> is the grammar state at the start of <paramref name="text"/> when that is not the start of the document (null: the initial state).
     /// </summary>
-    internal static List<Segment> Segments(string text, Tokenizer? tokenizer, LogLevelRules? levels, SyntaxPalette palette, (int Start, int Length)? range = null, CancellationToken cancel = default)
+    internal static List<Segment> Segments(string text, Tokenizer? tokenizer, LogLevelRules? levels, SyntaxPalette palette, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
     {
-        var all = Tokenized(text, tokenizer, levels, palette, cancel);
+        var all = Tokenized(text, tokenizer, levels, palette, cancel, startState);
         if (range is not { } r) return all;
         var part = new List<Segment>();
         foreach (var s in all)
@@ -36,7 +37,7 @@ internal static class HighlightExport
         return part;
     }
 
-    private static List<Segment> Tokenized(string text, Tokenizer? tokenizer, LogLevelRules? levels, SyntaxPalette palette, CancellationToken cancel)
+    private static List<Segment> Tokenized(string text, Tokenizer? tokenizer, LogLevelRules? levels, SyntaxPalette palette, CancellationToken cancel, LineState? startState)
     {
         var result = new List<Segment>();
         void Add(int start, int end, Color? color)
@@ -47,7 +48,7 @@ internal static class HighlightExport
         }
         Color? Of(string kind) => palette.GetBrush(kind) is ISolidColorBrush solid ? solid.Color : null;
 
-        var state = tokenizer?.InitialState;
+        var state = startState ?? tokenizer?.InitialState;
         var tokens = new List<Token>();
         for (int pos = 0; pos < text.Length;)
         {
@@ -95,7 +96,7 @@ internal static class HighlightExport
     }
 
     /// <summary>The colored text as one <c>pre</c> element: the fragment for the clipboard, or with <paramref name="title"/> a whole page.</summary>
-    public static string Html(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, string? title = null, (int Start, int Length)? range = null, CancellationToken cancel = default)
+    public static string Html(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, string? title = null, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
     {
         var sb = new StringBuilder(text.Length * 2 + 256);
         if (title is not null)
@@ -105,7 +106,7 @@ internal static class HighlightExport
             sb.Append("</title>\n</head>\n<body>\n");
         }
         sb.Append(CultureInfo.InvariantCulture, $"<pre style=\"background-color:{Hex(theme.Background)};color:{Hex(theme.Foreground)};font-family:{theme.FontFamily};font-size:{theme.FontSize}pt;\">");
-        foreach (var segment in Segments(text, tokenizer, levels, theme.Palette, range, cancel))
+        foreach (var segment in Segments(text, tokenizer, levels, theme.Palette, range, cancel, startState))
         {
             var slice = text.AsSpan(segment.Start, segment.Length);
             if (segment.Color is { } color) sb.Append("<span style=\"color:").Append(Hex(color)).Append("\">");
@@ -118,9 +119,9 @@ internal static class HighlightExport
     }
 
     /// <summary>The colored text as RTF: a color table (page, text, then the token colors), a fixed-width font, and every character outside ASCII as a <c>\u</c> escape.</summary>
-    public static string Rtf(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, (int Start, int Length)? range = null, CancellationToken cancel = default)
+    public static string Rtf(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
     {
-        var segments = Segments(text, tokenizer, levels, theme.Palette, range, cancel);
+        var segments = Segments(text, tokenizer, levels, theme.Palette, range, cancel, startState);
         var colors = new List<Color> { theme.Background, theme.Foreground };
         foreach (var segment in segments)
             if (segment.Color is { } c && !colors.Contains(c)) colors.Add(c);
