@@ -22,7 +22,19 @@ public sealed class WorkspaceData
     public string? ActiveProject { get; set; }
 }
 
-/// <summary>A tab of a named session. <see cref="Text"/> is set only when the tab had unsaved work (or has no file), so the work comes back with it.</summary>
+/// <summary>One replacement of the file of a large tab: the <see cref="Deleted"/> bytes at <see cref="Start"/> become the bytes of <see cref="Bytes"/> (base64).</summary>
+public sealed class SessionEditData
+{
+    public long Start { get; set; }
+    public long Deleted { get; set; }
+    public string Bytes { get; set; } = "";
+}
+
+/// <summary>
+/// A tab of a named session. <see cref="Text"/> is set only when the tab had unsaved work (or has no file), so the work comes back with it. A large tab, which has no text of
+/// the whole file, keeps the unsaved work as <see cref="Edits"/> of the file and the place of the caret as a byte offset; both are good only for the file as it was when the session
+/// was saved (<see cref="FileLength"/> and <see cref="FileWriteTicks"/>), and are left out of the opening when it has changed.
+/// </summary>
 public sealed class SessionTabData
 {
     public string? Path { get; set; }
@@ -31,6 +43,10 @@ public sealed class SessionTabData
     public int AnchorColumn { get; set; } = 1;
     public int CaretLine { get; set; } = 1;
     public int CaretColumn { get; set; } = 1;
+    public long? CaretOffset { get; set; }
+    public List<SessionEditData>? Edits { get; set; }
+    public long FileLength { get; set; }
+    public long FileWriteTicks { get; set; }
 }
 
 public sealed class SessionGroupData

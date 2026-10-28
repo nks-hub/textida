@@ -1923,5 +1923,7 @@
   "session.deleted": "Sitzung {name} gelöscht.",
   "session.opened": "Sitzung {name} geöffnet.",
   "session.openedMissing": "Sitzung {name} geöffnet. Nicht gefunden: {missing}",
+  "session.largeLeftOut": "Sitzung {name} ist gespeichert, aber die ungespeicherten Änderungen dieser großen Dateien sind nicht enthalten (zu groß, oder die Datei auf dem Datenträger hat sich geändert): {files}. Speichern Sie die Dateien.",
+  "session.editsNotRestored": "Die ungespeicherten Änderungen der Sitzung {name} wurden für diese Dateien nicht wiederhergestellt: {files}. Die Datei hat sich seit dem Speichern der Sitzung geändert oder ist bereits mit eigenen Änderungen geöffnet.",
   "a11y.sessions": "Sitzungen"
 }

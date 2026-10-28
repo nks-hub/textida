@@ -1956,5 +1956,7 @@
   "session.deleted": "Relácia {name} je zmazaná.",
   "session.opened": "Relácia {name} je otvorená.",
   "session.openedMissing": "Relácia {name} je otvorená. Nenájdené: {missing}",
+  "session.largeLeftOut": "Relácia {name} je uložená, ale neuložené zmeny týchto veľkých súborov v nej nie sú (sú príliš veľké, alebo sa súbor na disku zmenil): {files}. Uložte súbory.",
+  "session.editsNotRestored": "Neuložené zmeny relácie {name} sa neobnovili pri týchto súboroch: {files}. Súbor sa od uloženia relácie zmenil, alebo je už otvorený s vlastnými zmenami.",
   "a11y.sessions": "Relácie"
 }
