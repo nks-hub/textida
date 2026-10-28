@@ -52,6 +52,14 @@ public sealed partial class Document : IDisposable
         return new Document(factory.Create(bytes, format), options, null, null, unsaved: true);
     }
 
+    /// <summary>
+    /// <see cref="Open"/> reads the whole file once, for its fingerprint and for the block digests that let an in-place save check only the blocks it patches. That read costs minutes
+    /// for tens of GiB (190 s for 10 GiB on the test machine, with the window blocked). A test or a measurement of what comes after the open sets this on its own thread to open without it:
+    /// the document then has a fingerprint of size and time only and no baseline, so it is saved by streaming a new file.
+    /// </summary>
+    [ThreadStatic]
+    internal static bool SkipHashOnOpen;
+
     /// <summary>Opens a file and records its fingerprint; the backend decides whether the file is mapped or read.</summary>
     public static Document Open(string path, IBackendFactory factory, DocumentOptions? options = null)
     {
@@ -63,8 +71,8 @@ public sealed partial class Document : IDisposable
         var backend = factory.OpenFile(path, format);
         try
         {
-            var blocks = new OriginalBlockHashes();
-            var print = new FileFingerprint(backend.ByteLength, time, HashBackend(backend, blocks));
+            var blocks = SkipHashOnOpen ? null : new OriginalBlockHashes();
+            var print = new FileFingerprint(backend.ByteLength, time, blocks is null ? "" : HashBackend(backend, blocks));
             return new Document(backend, options, path, print, unsaved: false) { _baseline = blocks, _fileId = FileIdentity.TryGet(path) };
         }
         catch

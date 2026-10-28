@@ -73,6 +73,7 @@ public static class HugeScenario
         }) { IsBackground = true };
         watch.Start();
 
+        Doc.SkipHashOnOpen = true; // see RunAll
         var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillPlaceholders.MemoryBudgetBytes, spillDirectory: Path.Combine(dir, "spill"));
         using var session = JournalSession.Start(Path.Combine(dir, "journal"), name => name == "paged" ? factory : null);
         using var doc = Doc.Open(Path.Combine(dir, "data", "doc.txt"), factory);
@@ -314,6 +315,9 @@ public static class HugeScenario
 
     public static int RunAll(string work, long size, int pasteChunks, string[]? points)
     {
+        // Opening a document, the child's and the one that recovery rebuilds, reads and hashes the whole file; for 50 GiB that is a measurement of its own (see HugeCalibrationTests) and
+        // longer than the 20 minutes a test gets. What is measured here is what comes after it, so the read is switched off on this thread, the thread that recovers.
+        Doc.SkipHashOnOpen = true;
         Directory.CreateDirectory(work);
         var failures = new List<string>();
         foreach (var point in points ?? Points)
