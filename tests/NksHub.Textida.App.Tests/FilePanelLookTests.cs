@@ -303,6 +303,26 @@ public class FilePanelLookTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_folder_inside_a_repository_follows_a_commit_made_outside_of_it()
+    {
+        var repo = NewRepo();
+        repo.Write("sub/c.txt", "c2\n");
+        repo.Write("other.txt", "o\n"); // outside the folder that is opened
+        string folder = repo.PathOf("sub");
+        Assert.True(await _w.ShowFolderAsync(folder));
+        await WaitFor(() => _w.GitFiles.Count > 0, "the state from the Git plugin");
+
+        Assert.Equal(GitFileState.Modified, GitFileStatus.StateOf(_w.GitFiles, repo.PathOf("sub/c.txt"), false).State);
+        Assert.Equal(default, GitFileStatus.StateOf(_w.GitFiles, repo.PathOf("other.txt"), false)); // only the opened folder is asked about
+        Assert.Contains("gitmodified", RowOf("c.txt").Classes);
+
+        repo.Run("add", "-A"); // the index lies in the repository, not in the opened folder
+        repo.Run("commit", "-q", "-m", "second");
+        await WaitFor(() => GitFileStatus.StateOf(_w.GitFiles, repo.PathOf("sub/c.txt"), false).State == GitFileState.None, "the state after a commit made by another program", 60_000);
+        Assert.DoesNotContain("gitmodified", RowOf("c.txt").Classes);
+    }
+
+    [AvaloniaFact]
     public async Task While_the_panel_is_closed_the_state_is_not_read_and_a_change_made_meanwhile_shows_when_it_opens()
     {
         var repo = NewRepo();

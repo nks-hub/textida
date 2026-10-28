@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
@@ -78,6 +79,7 @@ internal sealed partial class MainWindow
             _hosts[dock] = host;
             _hostStacks[dock] = stack;
             _splitters[dock] = splitter;
+            HelpContext.Set(splitter, "view.panelLayout");
         }
         Grid.SetColumn(editorArea, 2);
         Place(_hosts[PanelDock.Left], 0, 0);

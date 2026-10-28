@@ -159,6 +159,8 @@ internal sealed partial class MainWindow
                     foreach (var root in tree.Roots)
                         if (Directory.Exists(root) && await _app.Plugins.GitTreeStatusAsync(root) is { } status) found.Add(status);
                 if (ReferenceEquals(tree, _fileTree)) ApplyGitFiles(found);
+                // files that change all the time (a build) must not keep Git running without a pause
+                if (_gitFilesAgain) await Task.Delay(PluginLimitsPlaceholders.GitWatchDebounceMilliseconds);
             }
             while (_gitFilesAgain);
         }
