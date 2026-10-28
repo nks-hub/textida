@@ -232,6 +232,93 @@ public class JournalFormatTests
         Assert.InRange(sw.ElapsedMilliseconds, 0, 1500);
     }
 
+    private static void WaitFor(Func<bool> condition, string what)
+    {
+        for (var sw = Stopwatch.StartNew(); !condition(); Thread.Sleep(10))
+            Assert.True(sw.ElapsedMilliseconds < 10_000, "Waited for " + what);
+    }
+
+    [Fact]
+    public void ARecordThatWaitsForItsGateHoldsBackTheLaterRecordsOfItsOwnKeyOnlyAndAllFollowInOrderOnceItIsReady()
+    {
+        using var dir = new JournalTempDir();
+        string path = dir.Combine("g.njl");
+        using var writer = new JournalWriter(path, new JournalOptions { FlushInterval = TimeSpan.FromMilliseconds(30) });
+        object held = Guid.NewGuid(), free = Guid.NewGuid();
+        var gate = new TaskCompletionSource();
+        writer.Append(RecordType.DocClose, U("a"));
+        writer.AppendDeferred(RecordType.DocEdit, () => U("b"), gate.Task, held);
+        writer.AppendKeyed(RecordType.DocEdit, U("c"), held);
+        writer.AppendKeyed(RecordType.DocEdit, U("d"), free);
+        writer.Append(RecordType.DocClose, U("e"));
+
+        WaitFor(() => ReadAll(path, out _, out _).Count == 3, "the records that do not wait");
+        Thread.Sleep(150); // several flushes: the held ones stay held
+        Assert.Equal(["a", "d", "e"], ReadAll(path, out _, out _).Select(r => Encoding.UTF8.GetString(r.Payload)));
+
+        gate.SetResult();
+        WaitFor(() => ReadAll(path, out _, out _).Count == 5, "the held records");
+        var records = ReadAll(path, out var tail, out _);
+        Assert.Equal(JournalTail.Clean, tail);
+        Assert.Equal(["a", "d", "e", "b", "c"], records.Select(r => Encoding.UTF8.GetString(r.Payload)));
+        Assert.Equal([1L, 2, 3, 4, 5], records.Select(r => r.Seq)); // the numbers are given when a record is written, so there is no gap
+    }
+
+    [Fact]
+    public void FlushWaitsForTheGateOfARecordAndWritesItWithTheRecordsBehindIt()
+    {
+        using var dir = new JournalTempDir();
+        string path = dir.Combine("w.njl");
+        using var writer = new JournalWriter(path, new JournalOptions { Fsync = FsyncPolicy.Manual });
+        var key = Guid.NewGuid();
+        var late = Task.Run(async () =>
+        {
+            await Task.Delay(250);
+            return (byte)9;
+        });
+        writer.AppendDeferred(RecordType.DocEdit, () => [late.Result], late, key);
+        writer.AppendKeyed(RecordType.DocEdit, [8], key);
+        var sw = Stopwatch.StartNew();
+        writer.Flush();
+        Assert.True(sw.ElapsedMilliseconds >= 200, "Flush did not wait for the gate");
+        Assert.Equal([9, 8], ReadAll(path, out _, out _).Select(r => (int)r.Payload[0]));
+        Assert.Null(writer.Fault);
+    }
+
+    [Fact]
+    public void AGateThatFailedStopsTheWriterInsteadOfWritingARecordWithoutItsData()
+    {
+        using var dir = new JournalTempDir();
+        string path = dir.Combine("f.njl");
+        var writer = new JournalWriter(path, new JournalOptions { Fsync = FsyncPolicy.Manual });
+        writer.AppendDeferred(RecordType.DocEdit, () => [1], Task.FromException(new IOException("disk")), Guid.NewGuid());
+        writer.Flush();
+        Assert.IsType<IOException>(writer.Fault);
+        writer.Append(RecordType.DocClose, U("later"));
+        writer.Dispose();
+        Assert.Empty(ReadAll(path, out _, out _));
+    }
+
+    [Fact]
+    public void TheChecksumOfARecordIsTheCrc32EightBytesAtATimeAndByteByByteAlike()
+    {
+        // a record's checksum covers every byte but its own field; compared with a bitwise reference for every length around the step of eight
+        var random = new Random(7);
+        for (int length = 0; length < 300; length++)
+        {
+            var payload = new byte[length];
+            random.NextBytes(payload);
+            var record = JournalFormat.EncodeRecord(length + 1, 1234, RecordType.DocEdit, payload);
+            uint crc = 0xFFFFFFFFu;
+            foreach (byte b in record.AsSpan(0, 4).ToArray().Concat(record.AsSpan(8).ToArray()))
+            {
+                crc ^= b;
+                for (int k = 0; k < 8; k++) crc = (crc & 1) != 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
+            }
+            Assert.Equal(~crc, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(record.AsSpan(4)));
+        }
+    }
+
     [Fact]
     public void AFailedWriteStopsTheWriterInsteadOfAppendingAfterATornRecord()
     {

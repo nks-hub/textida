@@ -1250,6 +1250,7 @@ Program priebežne zapisuje neuložený text do žurnálu, najneskôr do dvoch s
 - Obnoviť zmeny číta žurnál na pozadí, takže program ďalej pracuje, a potom otvorí kartu s neuloženými zmenami ako po každej inej obnove. Ak sa to nepodarí (súbor sa medzitým zmenil, časť žurnálu chýba alebo je poškodená, nestačí pamäť), lišta povie prečo a zmeny zostanú v žurnále.
 - Zahodiť zmeny sa ešte raz opýta, pretože zmeny už nič nevráti; potom sa zmažú zo žurnálu. Súbor na disku sa žiadnou z volieb nemení.
 - Zatvorenie lišty nič nerozhoduje: lišta sa vráti pri ďalšom spustení.
+- Veľké vloženie (stovky megabajtov a viac) sa na pozadí zapíše na disk a skontroluje skôr, než ho žurnál zaznamená, takže písanie v iných kartách sa nezdržuje a dvojsekundová medza pre ne platí. Keď sa program medzitým zabije, karta sa vráti tak, ako bola pred vložením, a to, čo sa v nej po vložení napísalo, chýba. Poškodená časť veľkého vloženia, aj jediný zmenený bajt vnútri, sa nájde pri obnove zmien; lišta povie, že sa dáta líšia od zaznamenaných, a súbor na disku sa nedotkne. Zmeny zaznamenané staršou verziou programu sa kontrolujú len na koncoch.
 - Nahradiť všetko s veľmi mnohými zhodami sa do žurnálu zapíše ako zoznam v samostatnom súbore, nikdy ako jeden obrovský záznam, takže žurnál funguje, koľko zhôd je. Poškodený alebo chýbajúci zoznam zastaví len návrat toho dokumentu, s dôvodom.
 
 ## [paged] Veľké súbory (stránkovaný režim)
