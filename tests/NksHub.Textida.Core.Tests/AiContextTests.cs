@@ -81,6 +81,20 @@ public class AiContextTests : IDisposable
     }
 
     [Fact]
+    public void The_limit_counts_utf8_bytes_so_five_two_byte_characters_do_not_fit_in_nine()
+    {
+        var five = new[] { Source("a.cs", "žžžžž") };
+        foreach (var format in new[] { AiContextFormat.Markdown, AiContextFormat.Xml })
+        {
+            var tooSmall = AiContextBuilder.Build(five, [], format, maxTextBytes: 9);
+            Assert.Equal(0, tooSmall.Files);
+            Assert.Equal(new AiOmission(AiOmitReason.TotalLimit, "a.cs"), Assert.Single(tooSmall.Omissions));
+            Assert.DoesNotContain("žžžžž", tooSmall.Text);
+            Assert.Equal(1, AiContextBuilder.Build(five, [], format, maxTextBytes: 10).Files);
+        }
+    }
+
+    [Fact]
     public void Stored_bytes_rule_a_text_out_only_when_even_utf32_could_not_fit()
     {
         Assert.False(AiContextBuilder.CannotFit(4 + 4 * 10, 10)); // BOM and ten UTF-32 characters are ten UTF-8 bytes

@@ -222,12 +222,12 @@ public class AiContextCommandTests : IDisposable
         tab.Paged!.SelectAll();
         _w.AiContextMaxBytes = 1000;
         _dialogs.Answers.Enqueue(2);
+
+        // the list, the choice and the preview run on this thread up to the dialog; the selected text alone would be about 4 MB of characters
+        long before = GC.GetAllocatedBytesForCurrentThread();
         _w.ShowAiContext();
         _w.SetPaletteQuery("Selection");
         Assert.True(_w.QuickResults.Single(r => r.Title == "Selection").Enabled);
-
-        // gather and preview run on this thread up to the dialog; the selected text alone would be about 4 MB of characters
-        long before = GC.GetAllocatedBytesForCurrentThread();
         _w.RunPaletteSelection();
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         await _w.AiContextTask;
