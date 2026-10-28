@@ -532,6 +532,13 @@ public sealed class LinterTests : IDisposable
     }
 
     [Fact]
+    public void Ruff_0_17_names_a_syntax_error_invalid_syntax_and_it_is_an_error_like_the_nameless_one_of_older_versions()
+    {
+        var found = Findings("ruff-json", """[{"code":"F401","message":"x","filename":"a.py","location":{"row":1,"column":8},"end_location":{"row":1,"column":10},"severity":"error"},{"code":"invalid-syntax","message":"unexpected EOF while parsing","filename":"a.py","location":{"row":2,"column":1},"end_location":{"row":2,"column":1},"severity":"error"}]""");
+        Assert.Equal(["warning", "error"], found.Select(f => f.SeverityWord));
+    }
+
+    [Fact]
     public void ShellCheck_reads_both_the_array_of_json_and_the_wrapped_object_of_json1()
     {
         const string item = """{"file":"a.sh","line":4,"endLine":4,"column":3,"endColumn":9,"level":"style","code":2250,"message":"Prefer putting braces around variable references.","fix":null}""";

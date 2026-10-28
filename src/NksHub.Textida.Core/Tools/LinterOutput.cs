@@ -152,7 +152,8 @@ public static class LinterOutput
             var at = Prop(i, "location");
             var end = Prop(i, "end_location");
             string code = Str(i, "code");
-            return new LintFinding(Str(i, "filename"), Int(at, "row") ?? 1, Int(at, "column"), Int(end, "row"), Int(end, "column"), null, null, false, code.Length == 0 ? "error" : "warning", Str(i, "message"), NullIfEmpty(code));
+            // a syntax error has no code before ruff 0.17 and the code "invalid-syntax" since
+            return new LintFinding(Str(i, "filename"), Int(at, "row") ?? 1, Int(at, "column"), Int(end, "row"), Int(end, "column"), null, null, false, code is "" or "invalid-syntax" ? "error" : "warning", Str(i, "message"), NullIfEmpty(code));
         }).ToList();
         return new LintParse(true, found);
     }
