@@ -144,8 +144,7 @@ internal sealed partial class MainWindow
         else if (tab.Hex is { } hex) WireHex(tab, hex);
         else
         {
-            // a scroll step raises this too, and it changes nothing the status line shows: the line is written again only when what it shows has moved
-            tab.Paged!.ViewChanged += () => { if (tab == Active && !(_pagedStatus is { } shown && shown.Tab == tab && shown.Stamp == tab.Paged!.CurrentStatus)) UpdateStatus(); };
+            tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
             tab.Paged.Copied += RememberCopy;
             tab.Paged.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
