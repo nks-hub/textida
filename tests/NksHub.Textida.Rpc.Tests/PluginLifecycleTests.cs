@@ -277,17 +277,21 @@ public class PluginLifecycleTests
     public async Task APluginThatAskedForIdleStopEndsAfterTheQuietTimeAndStartsAgainAtTheNextEvent()
     {
         var crashed = new List<PluginCrashInfo>();
-        await using var host = new PluginHost.PluginHost(PluginHostTests.Options(o => o with { IdleStopAfter = TimeSpan.FromMilliseconds(700) }));
+        // the editor holds state of the plugin until the test lets go, so the quiet time cannot run out between a start and the first call to it on a machine that is slow to schedule the test
+        var holds = new[] { true };
+        await using var host = new PluginHost.PluginHost(PluginHostTests.Options(o => o with { IdleStopAfter = TimeSpan.FromMilliseconds(700), HoldsEditorState = _ => Volatile.Read(ref holds[0]) }));
         host.Crashed += i => { lock (crashed) crashed.Add(i); };
         host.Register(Spec("idle", "--idle-stop"));
         await host.ActivateAsync("onCommand:idle");
         var pid = await Pid(host, "idle");
         Assert.True(host.GetStatus("idle").IdleStop);
 
+        Volatile.Write(ref holds[0], false);
         await T.Until(() => host.GetState("idle") == PluginState.Inactive, 30_000);
 
         await T.Until(() => !Alive(pid));
         lock (crashed) Assert.Empty(crashed);
+        Volatile.Write(ref holds[0], true);
         Assert.Equal(["idle"], await host.ActivateAsync("onCommand:idle"));
         Assert.NotEqual(pid, await Pid(host, "idle"));
     }
@@ -295,15 +299,18 @@ public class PluginLifecycleTests
     [Fact]
     public async Task AnIdleStopSparesAPluginThatIsBusyHoldsStateInTheEditorOrDidNotAsk()
     {
-        var holds = new bool[1];
+        var holds = new[] { true }; // held while the plugins start, so no quiet time can run out before the first call
         await using var host = new PluginHost.PluginHost(PluginHostTests.Options(o => o with { IdleStopAfter = TimeSpan.FromMilliseconds(500), HoldsEditorState = _ => Volatile.Read(ref holds[0]) }));
         host.Register(Spec("busy", "--idle-stop"));
         host.Register(Spec("plain"));
-        await host.ActivateAsync("onCommand:busy");
         await host.ActivateAsync("onCommand:plain");
+        await host.ActivateAsync("onCommand:busy");
 
         // a call that lasts longer than the quiet time is not cut off, and the quiet time starts when it ends
-        Assert.Equal("done", (await host.CallAsync("busy", "slow", Args("{\"ms\":2000,\"file\":" + JsonSerializer.Serialize(T.TempFile()) + "}"))).GetString());
+        var slow = host.CallAsync("busy", "slow", Args("{\"ms\":2000,\"file\":" + JsonSerializer.Serialize(T.TempFile()) + "}"));
+        await InFlightAsync(host, "busy", 2);
+        Volatile.Write(ref holds[0], false);
+        Assert.Equal("done", (await slow).GetString());
         Assert.Equal(PluginState.Running, host.GetState("busy"));
 
         Volatile.Write(ref holds[0], true);
