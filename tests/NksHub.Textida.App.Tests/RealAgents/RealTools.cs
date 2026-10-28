@@ -21,6 +21,26 @@ internal static class RealTools
             .Where(e => e.Key is string name && !IsSessionVariable(name) && e.Value is string)
             .ToDictionary(e => (string)e.Key, e => (string)e.Value!, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Removes the variables of a session of an agent from this process for the time of the scope, for code that starts an agent with the environment of the process (the editor does); they come back on dispose.
+    /// Tests that use it must not run beside tests that read these variables: they share a collection.
+    /// </summary>
+    public static IDisposable WithoutSessionVariables()
+    {
+        var removed = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e => e.Key is string name && IsSessionVariable(name) && e.Value is string)
+            .ToDictionary(e => (string)e.Key, e => (string)e.Value!);
+        foreach (var name in removed.Keys) Environment.SetEnvironmentVariable(name, null);
+        return new Restore(removed);
+    }
+
+    private sealed class Restore(Dictionary<string, string> removed) : IDisposable
+    {
+        public void Dispose()
+        {
+            foreach (var (name, value) in removed) Environment.SetEnvironmentVariable(name, value);
+        }
+    }
+
     /// <summary>The full path of a program in PATH, or null. On Windows a <c>.cmd</c> shim is found too.</summary>
     public static string? Find(string name)
     {
@@ -29,6 +49,42 @@ internal static class RealTools
             foreach (var suffix in suffixes)
                 if (Path.Combine(folder, name + suffix) is var candidate && File.Exists(candidate)) return candidate;
         return null;
+    }
+
+    /// <summary>
+    /// Installs an npm package of an adapter at the given version into a folder of its own below the temporary folder (nothing global) and returns the folder with its command shims.
+    /// A package that is there already is not installed again. Skips the test, with the reason, when npm is missing or the installation fails.
+    /// </summary>
+    public static async Task<string> InstallNpmPackageAsync(string package, string version)
+    {
+        var npm = Require("npm");
+        var prefix = Path.Combine(Path.GetTempPath(), "textida-realagents", "npm", package.Replace('/', '-').Replace('@', '_') + "@" + version);
+        var bin = Path.Combine(prefix, "node_modules", ".bin");
+        if (!Directory.Exists(bin) || Directory.GetFiles(bin).Length == 0)
+        {
+            Directory.CreateDirectory(prefix);
+            var run = await RunAsync(npm, ["install", "--prefix", prefix, "--no-audit", "--no-fund", "--loglevel=error", package + "@" + version], prefix, TimeSpan.FromMinutes(5));
+            Assert.SkipUnless(run.ExitCode == 0 && Directory.Exists(bin), $"npm could not install {package}@{version}: {run.Output.Trim()}");
+        }
+        return bin;
+    }
+
+    /// <summary>Programs below <paramref name="folder"/> that are running now (the native programs an adapter starts live in its package folder).</summary>
+    public static List<int> RunningBelow(string folder)
+    {
+        var found = new List<int>();
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                try
+                {
+                    if (process.MainModule?.FileName is { } file && file.StartsWith(folder, StringComparison.OrdinalIgnoreCase)) found.Add(process.Id);
+                }
+                catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException) { /* not ours to look at, or gone */ }
+            }
+        }
+        return found;
     }
 
     /// <summary>Skips the test, with the reason, unless the program is in PATH. Returns its full path.</summary>

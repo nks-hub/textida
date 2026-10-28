@@ -36,7 +36,14 @@ public sealed record AcpAdapter(string Id, string Name, string Command, IReadOnl
     public IReadOnlyList<string> VersionCheckArgs => VersionArgs ?? ["--version"];
 }
 
-/// <summary>The table of supported agents. The agents' own tools can write files without the editor: only <c>fs/write_text_file</c> goes through it.</summary>
+/// <summary>
+/// The table of supported agents. The agents' own tools can write files without the editor: only <c>fs/write_text_file</c> goes through it.
+/// Real runs (Windows, <c>AcpRealAgentsTests</c> in the category <c>RealAgents</c>; the editor sets no mode):
+/// <c>claude-agent-acp</c> 0.98.0 and 0.99.0 start, answer, ask before their Read and Write tools (the answer of the user decides; "No" and a closed dialog write nothing), end a running command on cancel,
+/// are reported when killed and leave no process behind. <c>codex-acp</c> 2.3.0 does all of that except asking: in its workspace sandbox it asked nothing for its reads and writes.
+/// Neither adapter calls <c>fs/read_text_file</c> or <c>fs/write_text_file</c>: they read and write the disk with their own tools, so an unsaved tab is not what they read and a write is not a proposal in the
+/// change review. That is why <see cref="AcpAdapter.VerifiedVersion"/> stays empty for both.
+/// </summary>
 public static class AcpAdapters
 {
     public static IReadOnlyList<AcpAdapter> All { get; } =
