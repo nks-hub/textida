@@ -78,7 +78,7 @@ internal sealed partial class MainWindow
     {
         var context = _app.VariableContextFor(Active?.Path, SelectionTexts().FirstOrDefault() ?? "", out _);
         var scope = new VariableScope(context);
-        var result = Variables.Expand(text, new VariableScope(context, ClipFields.Defaults(fields, scope)));
+        var result = Variables.Expand(text, new VariableScope(context, ClipFields.Defaults(fields, scope)), snippets: PluginLimitsPlaceholders.Snippets());
         return result.Ok ? result.Text : (result.SyntaxError is { } why ? Loc.Get(K.ClipBadText, ("reason", why)) : Loc.Get(K.ClipNoValue, ("names", string.Join(", ", result.Missing))));
     }
 
@@ -105,7 +105,7 @@ internal sealed partial class MainWindow
         ClipFormState Evaluate(IReadOnlyDictionary<string, string> values)
         {
             var problems = ClipFields.Validate(fields, values);
-            var result = Variables.Expand(text, new VariableScope(context, values));
+            var result = Variables.Expand(text, new VariableScope(context, values), snippets: PluginLimitsPlaceholders.Snippets());
             return new ClipFormState(problems, result.Text, ProblemOf(result));
         }
         var answer = await _app.Dialogs.ClipFormAsync(this, formTitle, fields, initial, Evaluate);
@@ -237,7 +237,7 @@ internal sealed partial class MainWindow
         var values = await FillFormAsync(Loc.Get(K.TemplateFormTitle, ("title", template.Title)), template.Text, template.Fields, context);
         if (values is null) return;
         var scope = new VariableScope(context, values);
-        if (ProblemOf(Variables.Expand(template.Text, scope)) is { } problem) { SetStatusMessage(problem); return; }
+        if (ProblemOf(Variables.Expand(template.Text, scope, snippets: PluginLimitsPlaceholders.Snippets())) is { } problem) { SetStatusMessage(problem); return; }
 
         var tab = NewDocument();
         if (tab.Surface is not { } surface) return;
