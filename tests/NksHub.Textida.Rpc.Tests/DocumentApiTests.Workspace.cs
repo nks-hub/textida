@@ -206,8 +206,7 @@ public partial class DocumentApiTests
         await using var w = await WorkspaceAsync(isOpen: path => path == open, openDocument: path => path == open ? shown : null);
         shown = w.Rig.Doc;
         open = Path.Combine(w.Root, "open.txt");
-        File.WriteAllBytes(open, Utf8("alpha beta
-")); // the content the tab holds
+        File.WriteAllBytes(open, Utf8("alpha beta\n")); // the content the tab holds
         var change = $"{{\"kind\":\"edit\",\"path\":{J(open)},\"sha256\":\"{Sha(open)}\",\"edits\":[{{\"start\":0,\"end\":5,\"text\":\"ALPHA\"}}]}}";
 
         var answer = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{change}]}}");
@@ -217,8 +216,7 @@ public partial class DocumentApiTests
         Assert.Equal((w.Rig.Doc.Id, w.Rig.Revision), (file.DocumentId, file.BaseRevision)); // an edit of the document, checked against its revision
         var hunk = Assert.Single(file.Hunks);
         Assert.Equal(("alpha", "ALPHA"), (hunk.OldText, hunk.NewText));
-        Assert.Equal("alpha beta
-", File.ReadAllText(open)); // the review writes it, not the API
+        Assert.Equal("alpha beta\n", File.ReadAllText(open)); // the review writes it, not the API
 
         // the tab has unsaved changes: the bytes the plugin read are no longer what the tab holds
         w.Rig.Owner.Run(() => w.Rig.Doc.Insert(0, Utf8("x")));

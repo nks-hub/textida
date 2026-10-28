@@ -525,10 +525,8 @@ public class LspPluginTests
     [Fact]
     public async Task A_rename_edits_a_file_on_disk_in_an_8_bit_encoding_by_the_bytes_of_that_encoding()
     {
-        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo ž on disk
-", externalCodec: TextCodec.Cp1250);
-        var doc = rig.Add("main.fake", "foo
-");
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo ž on disk\n", externalCodec: TextCodec.Cp1250);
+        var doc = rig.Add("main.fake", "foo\n");
         File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
         File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
         await rig.RunAsync(doc, LspPlugin.StartCommand);
@@ -537,19 +535,16 @@ public class LspPluginTests
         var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
 
         Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
-        Assert.Equal(TextCodec.Cp1250.Encode("é bar ž on disk
-"), File.ReadAllBytes(Path.Combine(rig.Folder, "disk.fake")));
+        Assert.Equal(TextCodec.Cp1250.Encode("é bar ž on disk\n"), File.ReadAllBytes(Path.Combine(rig.Folder, "disk.fake")));
     }
 
     [Fact]
     public async Task A_rename_that_reaches_a_file_open_in_a_tab_the_plugin_does_not_follow_changes_the_tab_and_not_the_file_and_a_tab_with_unsaved_changes_stops_it()
     {
-        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo on disk
-");
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo on disk\n");
         var disk = Path.Combine(rig.Folder, "disk.fake");
         var tab = rig.OpenTab(disk);
-        var doc = rig.Add("main.fake", "foo
-");
+        var doc = rig.Add("main.fake", "foo\n");
         File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
         File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
         await rig.RunAsync(doc, LspPlugin.StartCommand);
@@ -559,8 +554,7 @@ public class LspPluginTests
         var blocked = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
         Assert.Equal("tabUnsaved", blocked.GetProperty("status").GetString());
         Assert.Empty(rig.Review.Shown);
-        Assert.Equal("foo
-", Rig.TextOf(doc));
+        Assert.Equal("foo\n", Rig.TextOf(doc));
 
         await rig.Edit(tab, 0, 1, ""); // the tab holds the content of the file again
         var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
@@ -568,10 +562,8 @@ public class LspPluginTests
         Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
         var files = Assert.Single(rig.Review.Shown).Proposal.Files;
         Assert.Contains(files, f => f.DocumentId == tab.Id);
-        Assert.Equal("é bar on disk
-", Rig.TextOf(tab));
-        Assert.Equal("é foo on disk
-", File.ReadAllText(disk, new UTF8Encoding(false))); // saving the tab writes it, not the rename
+        Assert.Equal("é bar on disk\n", Rig.TextOf(tab));
+        Assert.Equal("é foo on disk\n", File.ReadAllText(disk, new UTF8Encoding(false))); // saving the tab writes it, not the rename
     }
 
     [Theory]
