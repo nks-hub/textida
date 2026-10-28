@@ -116,7 +116,7 @@ public class PackageRegistryTests
             Assert.True(File.Exists(dll), dll);
             var args = new List<string>
             {
-                dll, "--max-bytes", "65536", "--indent", "2", "--schema-max-bytes", "65536", "--schema-depth", "64", "--schema-regex-ms", "200",
+                dll, "--max-bytes", "65536", "--indent", "2", "--max-depth", "64", "--schema-max-bytes", "65536", "--schema-depth", "64", "--schema-regex-ms", "200",
                 "--registry-config", config, "--registry-timeout-ms", "5000", "--registry-max-bytes", "100000", "--registry-page-size", "20", "--registry-max-lookups", "50",
                 "--registry-manifest-max-bytes", "65536",
             };

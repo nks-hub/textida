@@ -91,11 +91,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds a linter run started by a save waits for a further save of the same file before it starts; a newer save replaces the waiting run. The owner has not decided it.</summary>
     public const int LintOnSaveDebounceMilliseconds = 500;
 
-    /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
+    /// <summary>Placeholder, OPEN: largest JSON range the built-in formatter handles (format, minify, sort keys, remove trailing commas); a larger one is refused with a message. Also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>. The owner has not decided it.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 
-    /// <summary>Placeholder: spaces per level of the built-in formatter.</summary>
+    /// <summary>Placeholder, OPEN: spaces per level of the built-in formatter. The owner has not decided it.</summary>
     public const int JsonFormatterIndent = 2;
+
+    /// <summary>Placeholder, OPEN: deepest nesting of arrays and objects the built-in JSON formatter accepts; a deeper text is refused with a message. The formatter never goes deeper than 512 whatever is set. The owner has not decided it.</summary>
+    public const int JsonFormatterMaxDepth = 64;
 
     /// <summary>Placeholder: bytes the text tools (statistics, hashes) read per request; the one chunk is their working memory. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int TextToolsChunkBytes = 1 << 20;
