@@ -311,8 +311,20 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a language server's standard error kept for the report of its end.</summary>
     public const int LspStderrLines = 20;
 
-    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it; a crashed server is not restarted by itself, the next command starts it.</summary>
+    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it.</summary>
     public const int LspIdleStopMilliseconds = 300_000;
+
+    /// <summary>Placeholder, OPEN: how many times in a row a language server that ended unexpectedly is started again by itself before the editor gives up and leaves it to the next command; 0 never starts it by itself. The owner has not decided it.</summary>
+    public const int LspRestartMaxAttempts = 3;
+
+    /// <summary>Placeholder, OPEN: milliseconds before the first automatic start of a language server that ended unexpectedly; every further start waits twice as long, up to <see cref="LspRestartMaxDelayMilliseconds"/>. The owner has not decided it.</summary>
+    public const int LspRestartBaseDelayMilliseconds = 1000;
+
+    /// <summary>Placeholder, OPEN: longest wait between two automatic starts of a language server. The owner has not decided it.</summary>
+    public const int LspRestartMaxDelayMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: milliseconds a language server must have run before it ended for the next crash to count as a first one again. The owner has not decided it.</summary>
+    public const int LspRestartStableMilliseconds = 60_000;
 
     /// <summary>Placeholder: folders searched upwards for the project root of a document for a language server, the folder of the file being the first. OPEN: the owner has not decided it.</summary>
     public const int LspRootSearchLevels = 16;

@@ -1298,7 +1298,8 @@ Tieto hlásenia pochádzajú z programov, ktoré editor spúšťa za vás. Objav
 - Jazykový server pracuje len s textovými dokumentmi, nie s veľkými súbormi zobrazenými po stránkach. Súbor v stránkovanom režime sa jazykovému serveru nikdy nepredá (téma Veľké súbory (stránkovaný režim)).
 - Jazykový server pre jazyk sa nenašiel: program. Nainštalujte server tak, aby sa jeho program našiel v PATH (téma Jazykový server: definícia, odkazy, premenovanie, dopĺňanie a diagnostika).
 - Jazykový server pre jazyk sa nepodarilo spustiť: dôvod. Prečítajte si dôvod, odstráňte ho a spustite príkaz tej skupiny znova.
-- Jazykový server pre jazyk neočakávane skončil (podrobnosť). Spustite ľubovoľný príkaz tej skupiny znova: server sa spustí a dostane otvorené dokumenty znova.
+- Jazykový server pre jazyk neočakávane skončil (podrobnosť). Editor ho spustí znova sám. Keď upozornenie hovorí, že to vzdal, spustite ľubovoľný príkaz tej skupiny znova: server sa spustí a dostane otvorené dokumenty znova.
+- Jazykový server pre jazyk sa ani po počet pokusoch nepodarilo udržať spustený. Editor ho už sám nespúšťa. Spustite ľubovoľný príkaz tej skupiny a skúsi to znova.
 - Program git sa nepodarilo spustiť: dôvod. Program git musí byť nainštalovaný a nájdený v PATH (téma Git: stav, porovnanie a príprava úseku).
 - Súbor nie je v repozitári Git. Otvorte súbor z repozitára Git.
 - Index súboru súbor sa zmenil od posledného načítania (iným programom). Nič sa nezapísalo. Skontrolujte zmeny a pripravte úsek znova.
@@ -1442,7 +1443,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Jazykový server: prejsť na definíciu skočí na definíciu slova pod kurzorom, aj do iného súboru. Jazykový server: nájsť odkazy vypíše všetky miesta v paneli vľavo; Enter alebo dvojklik na položku ju otvorí.
 3. Jazykový server: premenovať symbol sa opýta na nový názov slova pod kurzorom. Zmeny servera vo všetkých súboroch, vrátane vytvorenia, premenovania a zmazania súborov, ktoré žiada, sa ukážu spoločne v náhľade zmien; čo prijmete, sa použije ako jeden krok. Nový súbor sa ukáže prvými riadkami ako pridaný text. Karta otvoreného súboru sa pri premenovaní presunie s ním; karta zmazaného súboru sa zavrie, a ak má neuložené zmeny, editor sa opýta, či ju zavrieť, alebo nechať otvorenú. Súbor otvorený v inej karte musí byť tiež spustený prvým príkazom, inak sa premenovanie odmietne celé.
 4. Ctrl+J (Úpravy, Vložiť, Doplniť slovo alebo klip) ponúkne aj to, čo bežiaci server ponúka pri kurzore. Výber takej položky vykoná v tom istom kroku Späť aj ďalšie zmeny, ktoré server žiada, napríklad pridanie importu. Odpoveď, ktorá príde po zmene textu, sa nezobrazí.
-5. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí znova a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Jazykový server: zastaviť ho vypne. Reštart aj zastavenie platia pre server projektu, do ktorého patrí aktuálny dokument; servery iných projektov bežia ďalej.
+5. Keď server skončí sám, upozornenie to oznámi a podčiarknutia, ktoré nakreslil, zmiznú. Editor ho potom spustí znova sám, po čakaní, ktoré je s každým pokusom dlhšie, a odovzdá mu všetky otvorené dokumenty tak, ako sú teraz. Po niekoľkých pokusoch za sebou to vzdá a upozornenie to oznámi; server, ktorý pred koncom nejaký čas bežal, dostane pokusy späť. Jazykový server: reštartovať (alebo iný príkaz tejto skupiny) ho spustí hneď, aj keď to editor vzdal. Jazykový server: zastaviť ho vypne a zruší čakajúce spustenie. Reštart aj zastavenie platia pre server projektu, do ktorého patrí aktuálny dokument; servery iných projektov bežia ďalej.
 - Editor žiadny server sám nespúšťa: kým nezvolíte prvý príkaz tejto skupiny, nič nebeží a server o súbore nič nevie.
 - Veľké súbory zobrazené po stránkach a súbory nad limitom veľkosti sa serveru nikdy neodovzdajú.
 - Server sa hľadá podľa názvu v PATH. Keď sa nenájde, upozornenie pomenuje program, ktorý sa hľadal.
@@ -1456,7 +1457,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 3. Pri inštalácii pluginu editor oprávnenie ukáže a čaká na vašu odpoveď. Bez neho sa server nikdy nespustí.
 4. Server používajú príkazy skupiny Jazykový server pre každý dokument, ktorého jazyk je uvedený alebo ktorého meno súboru zodpovedá maske. Server z pluginu má prednosť pred serverom dodaným s editorom.
 - Pre jeden jazyk, priečinok projektu a nastavenie servera (program, argumenty, prostredie a `initializationOptions`) beží jeden proces servera, spoločný všetkým otvoreným dokumentom projektu. Dokument, ktorý zodpovedá len maskou, obsluhuje server ako prvý jazyk zo zoznamu.
-- Keď program chýba alebo sa nespustí, jedno oznámenie ho pomenuje a úpravy pokračujú. Keď skončí sám, spustite ľubovoľný príkaz skupiny a spustí sa znova.
+- Keď program chýba alebo sa nespustí, jedno oznámenie ho pomenuje a úpravy pokračujú. Keď skončí sám, editor ho spustí znova, ako popisuje téma Jazykový server; keď to vzdal, spustite ľubovoľný príkaz skupiny.
 - Server bez otvoreného dokumentu svojho projektu sa po čase zastaví a ďalší príkaz ho spustí znova. Servery iných projektov bežia ďalej.
 - Keď sa server opýta na nastavenie (`workspace/configuration`), dostane tú časť `initializationOptions`, ktorú pomenúva požadovaná sekcia: `a.b` je objekt `b` vnútri `a`, dopyt bez sekcie dostane celý objekt. Na všetko ostatné sa odpovie `null`.
 - Manifest s chybným záznamom sa odmietne celý, aj s dôvodom.
