@@ -220,6 +220,9 @@ internal sealed unsafe class Minimap : Control, IDisposable
     /// <summary>The picture covers the whole file with samples, for tests.</summary>
     internal bool IsSampled => Wanted() is { Layout.Sampled: true };
 
+    /// <summary>The heatmap that is shown, for tests.</summary>
+    internal LogHeatmap? Heat => _heat;
+
     /// <summary>Shows the density of error and warning lines of a log along the strip at the right edge, which covers the whole file; null removes it.</summary>
     public void SetHeat(LogHeatmap? heat)
     {

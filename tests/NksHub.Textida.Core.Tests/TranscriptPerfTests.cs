@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using Xunit.Abstractions;
 using NksHub.Textida.Core.Agents.Transcripts;
+using NksHub.Textida.Tests;
 
 namespace NksHub.Textida.Core.Tests;
 
@@ -60,7 +61,16 @@ public class TranscriptPerfTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task The_first_turns_appear_within_two_seconds_the_giant_line_is_not_read_and_the_index_keeps_to_its_limit()
+    public Task The_first_turns_appear_within_a_second_the_giant_line_is_not_read_and_the_index_keeps_to_its_limit() => Measure(cold: false);
+
+    /// <summary>
+    /// The same with the file out of the file cache of the system: after it is written, a file larger than the memory of the machine is written and read, which pushes the transcript out.
+    /// It needs that much disk, so it runs only where <c>TEXTIDA_HUGE=1</c> is set. A cache of the host below a virtual machine stays, as nothing in the machine can empty it.
+    /// </summary>
+    [Fact]
+    public Task The_first_turns_appear_within_two_seconds_with_the_file_out_of_the_cache() => HugeText.Enabled ? Measure(cold: true) : Task.CompletedTask;
+
+    private async Task Measure(bool cold)
     {
         string dir = Directory.CreateTempSubdirectory("textida-perf-").FullName;
         try
@@ -69,6 +79,12 @@ public class TranscriptPerfTests(ITestOutputHelper output)
             var writing = Stopwatch.StartNew();
             long lines = Write(path, out long giantLine);
             output.WriteLine($"{new FileInfo(path).Length >> 20} MiB, {lines} lines written in {writing.Elapsed.TotalSeconds:F1} s");
+            if (cold)
+            {
+                writing.Restart();
+                long pushed = HugeText.EvictFileCache(dir);
+                output.WriteLine($"{pushed >> 30} GiB written and read to push the transcript out of the file cache, {writing.Elapsed.TotalSeconds:F0} s");
+            }
 
             var clock = Stopwatch.StartNew();
             using var index = TranscriptIndex.Open(path, Limits, new TranscriptMasker(Limits.MinSecretLength));
@@ -76,9 +92,10 @@ public class TranscriptPerfTests(ITestOutputHelper output)
             while (index.TurnCount < 2 && clock.Elapsed < TimeSpan.FromSeconds(30)) await Task.Delay(1);
             var first = index.ReadTurn(0);
             var firstImage = clock.Elapsed;
-            output.WriteLine($"first image after {firstImage.TotalMilliseconds:F0} ms with {index.LineCount} lines indexed");
+            output.WriteLine($"{(cold ? "cold" : "warm")}: first image after {firstImage.TotalMilliseconds:F0} ms with {index.LineCount} lines indexed");
             Assert.NotEmpty(first.Rows);
-            Assert.True(firstImage < TimeSpan.FromSeconds(2), $"the first image took {firstImage.TotalSeconds:F2} s");
+            var limit = TimeSpan.FromSeconds(cold ? 2 : 1);
+            Assert.True(firstImage < limit, $"the first image took {firstImage.TotalSeconds:F2} s");
 
             await building;
             output.WriteLine($"index complete after {clock.Elapsed.TotalSeconds:F1} s: {index.LineCount} lines, {index.TurnCount} turns, {index.IndexBytes >> 10} KiB");

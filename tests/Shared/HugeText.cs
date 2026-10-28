@@ -116,6 +116,27 @@ internal static class HugeText
         return System.Text.Encoding.ASCII.GetString(bytes, 0, LineBytes - 1);
     }
 
+    /// <summary>
+    /// Pushes what the system holds in its file cache out of it by writing and reading back a file of 1.3 times the memory of the machine in <paramref name="directory"/>; returns its size.
+    /// What was written before and not touched since is the oldest in the cache, so the next read of it comes from the disk.
+    /// </summary>
+    public static long EvictFileCache(string directory)
+    {
+        long memory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        long bytes = Math.Max(2L * BlockBytes, memory * 13 / 10 / BlockBytes * BlockBytes);
+        string path = Path.Combine(directory, "evict.bin");
+        RequireRoom(path, bytes + (2L << 30));
+        try
+        {
+            WriteFile(path, bytes);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, BlockBytes, FileOptions.SequentialScan);
+            var buffer = new byte[BlockBytes];
+            while (stream.Read(buffer, 0, buffer.Length) > 0) { }
+        }
+        finally { File.Delete(path); }
+        return bytes;
+    }
+
     /// <summary>Writes <paramref name="bytes"/> (whole MiB) of text number 0; <paramref name="levelOfBlock"/> gives the level of every line of a block of 1 MiB, INFO when it is null.</summary>
     public static void WriteFile(string path, long bytes, Func<long, int>? levelOfBlock = null)
     {
