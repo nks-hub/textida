@@ -354,6 +354,8 @@ public sealed class HugeFileTests : IDisposable
         long size = HugeText.Size(50L << 30), lines = size / HugeText.LineBytes;
         string path = Files.Get("index.txt", size, null, _output);
 
+        TypingTrace.Reset();
+        TypingTrace.Enabled = true;
         var tab = Open(path, out double callMs);
         var paged = tab.Paged!;
         var document = PagedOf(tab);
@@ -376,7 +378,10 @@ public sealed class HugeFileTests : IDisposable
         {
             long started = Interlocked.Read(ref stepStart);
             if (started != 0 && Environment.TickCount64 - started > 3000)
+            {
                 HugeText.Log($"a step has been running for {(Environment.TickCount64 - started) / 1000} s; pool threads {ThreadPool.ThreadCount}, queued {ThreadPool.PendingWorkItemCount}; indexed {document.IndexedBytes >> 20} MiB");
+                HugeText.Log("spans so far (ms):\n" + string.Join('\n', TypingTrace.Summary().Split('\n').Take(7)));
+            }
         }, null, 5000, 10000);
         for (int step = 0; !paged.Index.Complete && clock.Elapsed < TimeSpan.FromMinutes(25); step++)
         {
@@ -446,6 +451,9 @@ public sealed class HugeFileTests : IDisposable
             if (p95 > 33) problems.Add($"{what}: p95 {p95:F1} ms");
             if (p99 > 80) problems.Add($"{what}: p99 {p99:F1} ms");
         }
+        _output.WriteLine($"the minimap started its picture {tab.Minimap?.BuildsStarted} times while the index ran");
+        HugeText.Log("spans (ms):\n" + TypingTrace.Summary());
+        TypingTrace.Enabled = false;
         Assert.True(problems.Count == 0, string.Join("; ", problems));
     }
 

@@ -37,6 +37,8 @@ internal sealed partial class PagedTextView : IMinimapHost
 
     bool IMinimapHost.Sampled => true;
 
+    bool IMinimapHost.IndexComplete => Indexed;
+
     (long First, long Count) IMinimapHost.Visible => (TopLine, Math.Max(1, _canvas.VisibleLines));
 
     void IMinimapHost.ScrollToLine(long line) => _bar.Value = Math.Clamp(line, 0, _bar.Maximum);

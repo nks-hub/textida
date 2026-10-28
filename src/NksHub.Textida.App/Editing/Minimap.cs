@@ -40,6 +40,9 @@ internal interface IMinimapHost
 
     /// <summary>The document is a large file: when it is many screens long, the map shows samples spread over the whole file instead of the surroundings of the viewport.</summary>
     bool Sampled => false;
+
+    /// <summary>False while <see cref="LineCount"/> still grows because the line index of a paged document is being built.</summary>
+    bool IndexComplete => true;
 }
 
 internal enum MinimapMarkKind : byte
@@ -64,6 +67,19 @@ internal readonly record struct MinimapLayout(long Top, int Rows, int Capacity, 
 internal static class MinimapGeometry
 {
     public const int Proportional = 4;
+
+    /// <summary>
+    /// The line count a picture is spread over. While the line index of a big file grows, the count changes with every notice of the index, and a sampled picture is built again for each
+    /// new count: it reads a strip from dozens of places of the file, which on a 50 GiB file competes for the disk with the index itself and held the window for seconds at a time.
+    /// An unfinished count is rounded down to its three leading bits, so the picture is built again when the count has grown by an eighth to a quarter (about 70 times for 800 million lines);
+    /// a finished count is exact.
+    /// </summary>
+    public static long MapLines(long lines, bool indexComplete)
+    {
+        if (indexComplete || lines < 4096) return lines;
+        int shift = System.Numerics.BitOperations.Log2((ulong)lines) - 2;
+        return lines >> shift << shift;
+    }
 
     public static MinimapLayout Compute(long lines, long first, long count, int height, int rowPx, bool sampled = false)
     {
@@ -360,13 +376,18 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     // ---- building the picture ----
 
+    private long MapLines() => MinimapGeometry.MapLines(_host.LineCount, _host.IndexComplete);
+
+    /// <summary>How many times the picture was started from its first row, for tests: a growing index must not start it at every notice.</summary>
+    internal int BuildsStarted { get; private set; }
+
     private (BuildKey Key, MinimapLayout Layout, int RowPx)? Wanted()
     {
         int width = PixelWidth, height = PixelHeight;
         if (width < 8 || height < 8 || !IsVisible) return null;
         int rowPx = Math.Max(2, (int)Math.Ceiling(height / (double)MaxRows));
         var (first, count) = _host.Visible;
-        long lines = _host.LineCount;
+        long lines = MapLines();
         var layout = MinimapGeometry.Compute(lines, first, count, height, rowPx, _host.Sampled);
         return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, layout.Sampled ? lines : 0), layout, rowPx);
     }
@@ -390,6 +411,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         {
             _backKey = key;
             _nextRow = 0;
+            BuildsStarted++;
             var size = new PixelSize(key.Width, key.Height);
             if (_back is null || _back.PixelSize != size)
             {
@@ -531,7 +553,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     /// <summary>The strip at the right edge covers the whole file: the marks and, when the picture shows only the surroundings, where they are in the file.</summary>
     private void DrawLane(DrawingContext context, MinimapLayout layout, int width, int height, Color plain)
     {
-        long lines = _host.LineCount;
+        long lines = MapLines();
         if (lines <= 0) return;
         int laneWidth = LaneWidth(width);
         double x = width - laneWidth;
@@ -617,7 +639,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || Wanted() is not { } wanted) return;
         double y = e.GetPosition(this).Y * Scale;
         var (first, count) = _host.Visible;
-        long lines = _host.LineCount;
+        long lines = MapLines();
         var layout = wanted.Layout;
         if (y < layout.ThumbTop || y > layout.ThumbTop + layout.ThumbHeight)
         {
@@ -636,7 +658,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         base.OnPointerMoved(e);
         if (!_dragging || Wanted() is not { } wanted) return;
         var (_, count) = _host.Visible;
-        _host.ScrollToLine(MinimapGeometry.FirstAfterDrag(wanted.Layout, _host.LineCount, count, wanted.RowPx, wanted.Key.Height, _pressFirst, e.GetPosition(this).Y * Scale - _pressY));
+        _host.ScrollToLine(MinimapGeometry.FirstAfterDrag(wanted.Layout, MapLines(), count, wanted.RowPx, wanted.Key.Height, _pressFirst, e.GetPosition(this).Y * Scale - _pressY));
         e.Handled = true;
     }
 

@@ -105,6 +105,25 @@ public class MinimapGeometryTests
         Assert.Equal(lines - 40, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, 1000));
         Assert.Equal(0, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, lines / 2, -500));
     }
+
+    [Fact]
+    public void A_line_count_that_grows_with_the_index_changes_the_picture_only_a_few_dozen_times_and_a_finished_one_is_exact()
+    {
+        // the index of a 50 GiB file of 64-byte lines adds about a thousand lines per notice; a new picture at each notice read a strip from dozens of places of the file every time
+        var counts = new HashSet<long>();
+        long previous = 0;
+        for (long lines = 1; lines <= 800_000_000; lines += Math.Max(1, lines / 2000))
+        {
+            long mapped = MinimapGeometry.MapLines(lines, indexComplete: false);
+            Assert.InRange(mapped, lines - lines / 4, lines); // the picture never reaches past what is indexed and falls short of it by a quarter at most
+            Assert.True(mapped >= previous, $"{mapped} after {previous}");
+            previous = mapped;
+            if (lines >= 4096) counts.Add(mapped);
+        }
+        Assert.InRange(counts.Count, 2, 100);
+        Assert.Equal(12_345_678, MinimapGeometry.MapLines(12_345_678, indexComplete: true));
+        Assert.Equal(4095, MinimapGeometry.MapLines(4095, indexComplete: false)); // a small file is drawn exactly all the way
+    }
 }
 
 /// <summary>P3.6.1 and P3.3.1 on both surfaces: the view switches, the hidden characters, wrapping, the fonts and the minimap.</summary>
