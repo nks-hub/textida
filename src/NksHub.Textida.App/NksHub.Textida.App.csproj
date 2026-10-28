@@ -40,6 +40,7 @@
     <ProjectReference Include="..\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
     <ProjectReference Include="..\NksHub.Textida.McpClient\NksHub.Textida.McpClient.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Acp\NksHub.Textida.Acp.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Install\NksHub.Textida.Install.csproj" />
     <!-- the built-in JSON formatter runs as its own process; it is built first and copied next to the app -->
     <ProjectReference Include="..\NksHub.Textida.Plugins.Json\NksHub.Textida.Plugins.Json.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\NksHub.Textida.Plugins.TextTools\NksHub.Textida.Plugins.TextTools.csproj" ReferenceOutputAssembly="false" />

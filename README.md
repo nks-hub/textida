@@ -67,15 +67,28 @@ dotnet publish tools/NksHub.Textida.AotCheck -c Release -r win-x64 -o ./aotcheck
 ./aotcheck/NksHub.Textida.AotCheck --publish ./dist
 ```
 
-The Windows package is one ZIP built from that output. It is the portable form (unpack, start `Textida.exe`) and the per-user installer: `Install.cmd` runs `Setup.ps1`, which copies the files to `%LOCALAPPDATA%\Programs\Textida`, adds a Start menu shortcut and an Apps & features entry, needs no administrator rights and does not touch PSPad. `Setup.ps1 -Uninstall` removes all of it and keeps the settings in `%APPDATA%\Textida`. The build runs the AOT check on the publish output and on the ZIP, and prints the SHA-256 of the ZIP:
+The Windows package is built from that output in two forms.
+
+- `Textida-<version>-win-x64.zip` is the portable form (unpack, start `Textida.exe`). `Install.cmd` in it runs `Setup.ps1`, a per-user script installer without options.
+- `TextidaSetup-<version>-win-x64.exe` is the installer with options: one NativeAOT file that carries the ZIP and the native libraries of its window. It has four languages (the language of Windows first, switchable), shows the MIT licence, and asks for the install folder, a Start menu shortcut, a desktop shortcut, the Explorer menu entry "Open with Textida", the file types offered under Open with, and whether to start Textida when it is done. It needs no administrator rights and does not touch PSPad.
+
+The setup installs to `%LOCALAPPDATA%\Programs\Textida` by default and keeps a copy of itself there as the uninstaller (`TextidaSetup.exe --uninstall`, the command behind Apps & features). The uninstaller removes the files, shortcuts, menu entry, associations and the Apps & features entry, and keeps the settings in `%APPDATA%\Textida` unless "Delete my settings as well" is ticked. Running the setup over an installed Textida updates it, keeps the previous version in `Textida.previous` and starts with the options as they are now. For scripts there is a silent mode:
+
+```bat
+TextidaSetup.exe --silent --dir "D:\Apps\Textida" --no-menu --desktop --assoc .txt,.md --lang en
+TextidaSetup.exe --uninstall --silent --delete-settings
+TextidaSetup.exe --help
+```
+
+The exit code is 0 when it worked, 1 when it failed (the reason is printed) and 2 for a wrong command line. The build runs the AOT check on the publish output, on the ZIP and on the setup, and prints the SHA-256 of both files:
 
 ```bash
 dotnet run tools/BuildWindowsPackage.cs -- --version <version> --output ./artifacts
 ```
 
-The Explorer menu entry "Open with Textida" and the optional file associations are written by the program itself under `HKCU\Software\Classes` (Tools menu: Add Textida to the Explorer Menu, File Associations, Remove Textida from Explorer). The uninstaller removes them through `Textida.exe --unregister-shell`. There is no macOS package yet.
+The same switches are in the settings under System integration (searchable): the Explorer menu entry, the file types, the Start menu and desktop shortcuts, and a button that opens the default apps page of Windows, where the default program of a file type is chosen. They read the registry and write it at once; the Tools menu has the same commands for the menu entry and the associations. All of it is written by the program itself under `HKCU\Software\Classes`. There is no macOS package yet.
 
-Updates are checked only when you choose Help, Check for Updates, or at start if the setting `updates.checkOnStart` is on (off by default). The check is one GET of a static feed signed with ECDSA P-256; the package must match the SHA-256 and size inside the signed part. The new version is unpacked next to the old one (`Textida.new`), and `Setup.ps1 -ApplyUpdate` switches the folders after Textida has closed; the old version stays as `Textida.previous` and Help, Return to the Previous Version swaps back. The feed address and the public key are still empty constants in `AppUpdater`, so a build checks nothing until they are set.
+Updates are checked only when you choose Help, Check for Updates, or at start if the setting `updates.checkOnStart` is on (off by default). The check is one GET of a static feed signed with ECDSA P-256; the package must match the SHA-256 and size inside the signed part. The new version is unpacked next to the old one (`Textida.new`), and `TextidaSetup.exe --apply-update` (`Setup.ps1 -ApplyUpdate` for an install made by the script) switches the folders after Textida has closed; the old version stays as `Textida.previous` and Help, Return to the Previous Version swaps back. The feed address and the public key are still empty constants in `AppUpdater`, so a build checks nothing until they are set.
 
 Projects and namespaces use the `NksHub.Textida` prefix. The task list for all stages is in [TODO.md](TODO.md) (Czech).
 

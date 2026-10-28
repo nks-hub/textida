@@ -1958,6 +1958,16 @@ public static class K
     public const string ShellAssocWatermark = "shell.assoc.watermark";
     public const string ShellAssocOn = "shell.assoc.on";
     public const string ShellAssocOff = "shell.assoc.off";
+    public const string SettingsSystemTitle = "settings.system.title";
+    public const string SettingsSystemDescription = "settings.system.description";
+    public const string SettingsSystemKeywords = "settings.system.keywords";
+    public const string SettingsSystemMenu = "settings.system.menu";
+    public const string SettingsSystemAssoc = "settings.system.assoc";
+    public const string SettingsSystemStartMenu = "settings.system.startMenu";
+    public const string SettingsSystemDesktop = "settings.system.desktop";
+    public const string SettingsSystemDefaultNote = "settings.system.defaultNote";
+    public const string SettingsSystemDefaultButton = "settings.system.defaultButton";
+    public const string SettingsSystemAssocItem = "settings.system.assocItem";
     public const string UpdateTitle = "update.title";
     public const string UpdateChecking = "update.checking";
     public const string UpdateCurrent = "update.current";

@@ -1860,12 +1860,14 @@ Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers
 2. Wählen Sie Extras, Systemintegration, Dateizuordnungen und dann Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
 3. Damit Textida das Standardprogramm einer Endung wird, nutzen Sie im Explorer Öffnen mit, Andere App auswählen. Diese Wahl verwaltet Windows selbst.
 4. Wählen Sie Extras, Systemintegration, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
+5. Dieselben Schalter finden Sie in den Einstellungen unter Systemintegration (suchen Sie „Integration“ oder „Verknüpfung“): der Eintrag im Explorer-Menü, die Dateitypen, eine Verknüpfung im Startmenü und auf dem Desktop sowie eine Schaltfläche, die in Windows die Seite der Standard-Apps öffnet. Ein Schalter schreibt die Registrierung sofort und zeigt, was dort steht.
+- Das Setup TextidaSetup.exe bietet dieselben Wahlmöglichkeiten bei der Installation an und nimmt sie bei der Deinstallation zurück.
 - Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
 - Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
 
 ## [help.updates] Updates und Rückkehr zur vorherigen Version
 commands: nks.help.updateCheck, nks.help.updateReturn
-Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.
+Nur Windows, in der installierten Textida (der mit TextidaSetup.exe oder Setup.ps1 angelegte Ordner). Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.
 1. Wählen Sie Hilfe, Nach Updates suchen. Wird eine neuere Version angeboten, fragt Textida, bevor es etwas tut.
 2. Installieren und neu starten lädt das Paket herunter, prüft seine Prüfsumme anhand der signierten Datei und entpackt es neben der aktuellen Version. Erst dann schließt Textida, die Ordner werden getauscht und Textida startet mit Ihren Tabs neu. Ungespeicherter Text bleibt im Journal; bei ausgeschaltetem Journal speichern oder schließen Sie die Dokumente zuerst.
 3. Stimmt etwas nicht (Signatur, Prüfsumme, ein Paket, das nicht passt), wird nichts installiert und die aktuelle Version läuft weiter.
@@ -1873,7 +1875,7 @@ Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). 
 - Die Einstellungen von Textida und das Journal bleiben, ein portabler Profilordner wird übernommen.
 - Dieser Build sucht nur, wenn er eine Update-Adresse und einen Signaturschlüssel hat; ohne beide sagt er das.
 ### Meldungen
-- Updates funktionieren nur in einer installierten Textida (Setup.ps1 neben Textida.exe unter Windows). Updates funktionieren nur unter Windows, im installierten Textida. Anderswo installieren Sie die neue Version selbst (Thema Was diese Version nicht kann).
+- Updates funktionieren nur in einer installierten Textida (TextidaSetup.exe oder Setup.ps1 neben Textida.exe unter Windows). Updates funktionieren nur unter Windows, im installierten Textida. Anderswo installieren Sie die neue Version selbst (Thema Was diese Version nicht kann).
 - In diesem Build sind weder Update-Adresse noch Signaturschlüssel gesetzt, daher kann er nicht nach Updates suchen. Verwenden Sie einen Build mit Update-Adresse und Signaturschlüssel oder installieren Sie die neue Version selbst.
 - Update fehlgeschlagen: Grund. Es wurde nichts installiert, die aktuelle Version läuft weiter. Der Grund nennt die Ursache (eine nicht passende Signatur oder Prüfsumme, ein nicht passendes Paket, ein Netzwerkfehler); versuchen Sie es später erneut.
 - Speichern oder schließen Sie zuerst die Dokumente mit ungespeicherten Änderungen: Das Journal ist aus, ein Update könnte sie verlieren. Speichern Sie die Dokumente oder schalten Sie die Wiederherstellung nach Absturz ein (Thema Wiederherstellung nach Absturz) und wählen Sie das Update dann erneut.

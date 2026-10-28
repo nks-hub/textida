@@ -1,0 +1,102 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NksHub.Textida.Setup.SetupApp"
+             RequestedThemeVariant="Default">
+
+    <!-- The D5 tokens of the editor (src/NksHub.Textida.App/App.axaml), the ones the setup uses; a test keeps the values equal. -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Bg0">#EEF0F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="Bg1">#F5F6F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgEditor">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgHover">#E6E9EE</SolidColorBrush>
+                    <SolidColorBrush x:Key="Border">#DCDFE4</SolidColorBrush>
+                    <SolidColorBrush x:Key="Fg">#1B1D21</SolidColorBrush>
+                    <SolidColorBrush x:Key="FgMuted">#565B64</SolidColorBrush>
+                    <SolidColorBrush x:Key="Accent">#0F7B6C</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSoft">#D8EDE9</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarnBg">#FFF4D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="Danger">#B3261E</SolidColorBrush>
+                    <SolidColorBrush x:Key="Good">#1B6E3A</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
+                    <SolidColorBrush x:Key="Bg1">#2A2C30</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgEditor">#1F1F1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="BgHover">#34373C</SolidColorBrush>
+                    <SolidColorBrush x:Key="Border">#3C3F45</SolidColorBrush>
+                    <SolidColorBrush x:Key="Fg">#E6E8EB</SolidColorBrush>
+                    <SolidColorBrush x:Key="FgMuted">#A9AEB7</SolidColorBrush>
+                    <SolidColorBrush x:Key="Accent">#3DC2AC</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentFg">#00201A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentSoft">#1F4A43</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarnBg">#40361A</SolidColorBrush>
+                    <SolidColorBrush x:Key="Danger">#FF8A80</SolidColorBrush>
+                    <SolidColorBrush x:Key="Good">#7FD99A</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <Style Selector="Window">
+            <Setter Property="Icon" Value="/Assets/textida.ico" />
+        </Style>
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light" Accent="#0F7B6C" RegionColor="#FFFFFF" />
+                <ColorPaletteResources x:Key="Dark" Accent="#3DC2AC" RegionColor="#1F1F1F" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+
+        <Style Selector="Window.shell">
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, SF Pro Text, Helvetica Neue, Arial" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Background" Value="{DynamicResource Bg0}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+
+        <!-- D5: the accent marks the keyboard focus -->
+        <Style Selector=":is(Control)">
+            <Setter Property="FocusAdorner">
+                <FocusAdornerTemplate>
+                    <Border BorderBrush="{DynamicResource Accent}" BorderThickness="2" CornerRadius="4" />
+                </FocusAdornerTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.mark">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style Selector="Border.mark TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentFg}" />
+        </Style>
+        <Style Selector="Border.page">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,1" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.title">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.problem">
+            <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+        </Style>
+        <Style Selector="TextBlock.good">
+            <Setter Property="Foreground" Value="{DynamicResource Good}" />
+        </Style>
+    </Application.Styles>
+</Application>

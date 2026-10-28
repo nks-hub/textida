@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Install\NksHub.Textida.Install.csproj" />
   </ItemGroup>
 
 </Project>

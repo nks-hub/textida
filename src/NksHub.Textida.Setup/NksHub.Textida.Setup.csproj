@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- TextidaSetup.exe: the per-user installer. dotnet publish -c Release -r win-x64 gives the program; tools/BuildWindowsPackage.cs appends the package to it. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TextidaSetup</AssemblyName>
+    <RootNamespace>NksHub.Textida.Setup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\NksHub.Textida.App\Assets\textida.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2032;IL2055;IL2057;IL2058;IL2059;IL2060;IL2061;IL2062;IL2063;IL2064;IL2065;IL2066;IL2067;IL2068;IL2069;IL2070;IL2071;IL2072;IL2073;IL2074;IL2075;IL2076;IL2077;IL2078;IL2079;IL2080;IL2081;IL2082;IL2083;IL2084;IL2085;IL2086;IL2087;IL2088;IL2089;IL2090;IL2091;IL3050;IL3051;IL3052</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NksHub.Textida.Install\NksHub.Textida.Install.csproj" />
+    <InternalsVisibleTo Include="NksHub.Textida.Setup.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the window icon is the application icon of Textida.exe -->
+    <AvaloniaResource Include="..\NksHub.Textida.App\Assets\textida.ico" Link="Assets\textida.ico" />
+    <EmbeddedResource Include="Strings\*.json" />
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="LICENSE" />
+  </ItemGroup>
+
+  <!-- the native libraries of the Skia and HarfBuzz packages come with their .pdb files, which the setup does not ship -->
+  <Target Name="DropPackageSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSymbols)' != 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+</Project>

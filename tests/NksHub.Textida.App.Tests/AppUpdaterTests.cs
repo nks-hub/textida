@@ -180,6 +180,64 @@ public class AppUpdaterTests : IDisposable
         Assert.Equal("v1.1.0", Marker(_dir));
     }
 
+    /// <summary>whoami.exe stands in for TextidaSetup.exe: it starts, ends at once and takes any arguments, so the real setup never runs here.</summary>
+    private void AddSetupProgram() => File.Copy(Path.Combine(Environment.SystemDirectory, "whoami.exe"), Path.Combine(_dir, "TextidaSetup.exe"), overwrite: true);
+
+    [Fact]
+    public void An_install_made_by_the_setup_program_updates_through_a_temporary_copy_of_it()
+    {
+        AddSetupProgram();
+        var updater = Updater();
+        var staged = _dir + ".new";
+        Directory.CreateDirectory(staged);
+
+        using var helper = updater.Switch(staged, restart: true);
+        helper.WaitForExit(30_000);
+
+        var copy = helper.StartInfo.FileName;
+        Assert.Equal("TextidaSetup.exe", Path.GetFileName(copy));
+        Assert.StartsWith(Path.Combine(Path.GetTempPath(), "textida-update-"), copy);
+        Assert.NotEqual(Path.Combine(_dir, "TextidaSetup.exe"), copy);
+        Assert.Equal(["--apply-update", staged, "--dir", _dir, "--uninstall-key", @"HKCU:\" + _keyPath + @"\Uninstall", "--restart", "--temp-copy"], helper.StartInfo.ArgumentList);
+    }
+
+    [Fact]
+    public void The_return_and_the_wait_for_the_editor_are_passed_to_the_setup_program()
+    {
+        AddSetupProgram();
+        Directory.CreateDirectory(Path.Combine(_dir + ".previous"));
+        File.Copy(Path.Combine(_dir, "Textida.exe"), Path.Combine(_dir + ".previous", "Textida.exe"));
+        var updater = new AppUpdater(new HttpClient(), _server.Base + "feed.json", PublicKey, _dir) { WaitPid = 4321 };
+
+        using var helper = updater.Rollback(restart: false);
+        helper.WaitForExit(30_000);
+
+        Assert.Equal(["--rollback", "--dir", _dir, "--wait-pid", "4321", "--temp-copy"], helper.StartInfo.ArgumentList);
+    }
+
+    [Fact]
+    public void The_setup_program_alone_is_enough_for_the_update_and_without_either_there_is_none()
+    {
+        File.Delete(Path.Combine(_dir, "Setup.ps1"));
+        Assert.False(Updater().IsInstalled);
+
+        AddSetupProgram();
+        Assert.True(Updater().IsInstalled);
+    }
+
+    [Fact]
+    public async Task An_install_without_the_setup_program_still_uses_the_script()
+    {
+        Publish("1.1.0");
+        var updater = Updater();
+        var staged = await Stage(updater, (await updater.CheckAsync("1.0.0", AppUpdater.CurrentRid, CancellationToken.None))!);
+
+        using var helper = updater.Switch(staged, restart: false);
+        Assert.EndsWith("powershell.exe", helper.StartInfo.FileName);
+        Assert.Equal(0, Run(helper));
+        Assert.Equal("v1.1.0", Marker(_dir));
+    }
+
     [Fact]
     public void Return_without_a_previous_version_is_refused_before_anything_starts()
     {
