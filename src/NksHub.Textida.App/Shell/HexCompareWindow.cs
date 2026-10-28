@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
@@ -47,6 +48,7 @@ internal sealed class HexCompareWindow : Window
         _rightName = rightName;
         _rightIsFile = rightIsFile;
         Classes.Add("shell");
+        HelpContext.OnF1(this, "hex.compare");
         Width = 1280;
         Height = 820;
         MinWidth = 720;

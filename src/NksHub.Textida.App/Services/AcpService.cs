@@ -585,7 +585,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         var notes = new List<string>();
         if (AcpToolKinds.RunsOutsideEditor(toolCall.Kind)) notes.Add(Loc.Get(K.AgentPermissionOutside));
         if (options.Any(o => o.Kind.EndsWith("_always", StringComparison.Ordinal))) notes.Add(Loc.Get(K.AgentPermissionAlways));
-        var request = new ChoiceRequest(Loc.Get(K.AgentPermissionTitle, ("agent", AgentName)), Loc.Get(K.AgentPermissionMessage, ("agent", AgentName), ("tool", tool)), buttons, notes.Count > 0 ? notes : null);
+        var request = new ChoiceRequest(Loc.Get(K.AgentPermissionTitle, ("agent", AgentName)), Loc.Get(K.AgentPermissionMessage, ("agent", AgentName), ("tool", tool)), buttons, notes.Count > 0 ? notes : null, "tools.agent");
         int answer = await await Dispatcher.UIThread.InvokeAsync<Task<int>>(() => _app.Dialogs.ChooseAsync(window, request, cancellation));
         return answer >= 0 && answer < options.Count ? new AcpPermissionChoice(options[answer].Id) : AcpPermissionChoice.Cancelled;
     }

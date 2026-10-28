@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Compare;
@@ -42,6 +43,7 @@ internal sealed partial class DiffView : DockPanel
 
     public DiffView(CompareSession session, EditorOptions options)
     {
+        HelpContext.Set(this, "compare.text");
         _session = session;
         _options = options;
         Focusable = true;

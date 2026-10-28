@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 
@@ -72,6 +73,7 @@ internal sealed partial class MainWindow
         WireOutputClicks();
 
         _outputPanel.Classes.Add("outputpanel");
+        HelpContext.Set(_outputPanel, "view.output");
         _outputPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), _outputText } };
         _app.Output.Appended += OnOutputChanged;
         _app.Output.Cleared += OnOutputCleared;

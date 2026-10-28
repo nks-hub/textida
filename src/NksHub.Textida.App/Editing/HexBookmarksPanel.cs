@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Hex;
 
@@ -28,6 +29,7 @@ internal sealed class HexBookmarksPanel : Border
 
     public HexBookmarksPanel(HexView owner)
     {
+        HelpContext.Set(this, "hex.bookmarks");
         _owner = owner;
         Classes.Add("sidepanel");
         Width = 290;

@@ -31,7 +31,7 @@ internal sealed partial class MainWindow
     {
         if (tab.Doc.Virtual is not { } b) return;
         var message = Loc.Get(tab.Doc.Doc.VirtualEditable ? K.VirtualBarEditable : K.VirtualBarReadOnly, ("name", b.PluginName), ("address", b.Address));
-        tab.ShowBar(new InfoBar(message, [], onClose: () => tab.ShowBar(null)));
+        tab.ShowBar(new InfoBar(message, [], onClose: () => tab.ShowBar(null), helpTopic: "plugins.virtual"));
     }
 
     /// <summary>Closes every view of a virtual document without asking; the plugin closed it or ended, so there is nobody to save it to.</summary>

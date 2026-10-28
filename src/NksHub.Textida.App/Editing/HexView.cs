@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
@@ -51,6 +52,7 @@ internal sealed partial class HexView : Grid
 
     public HexView(OpenDocument doc, EditorOptions options)
     {
+        HelpContext.Set(this, "hex.open");
         _od = doc;
         _options = options;
         Editor = new HexEditor(doc.Doc, _lastCharset ?? HexCharset.For(doc.Doc.Codec));

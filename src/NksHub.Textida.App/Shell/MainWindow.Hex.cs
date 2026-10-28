@@ -236,7 +236,7 @@ internal sealed partial class MainWindow
         if (mode == "never") return tab;
         if (mode == "always" && SetHex(od, true)) return od.Views.FirstOrDefault(v => v.Hex is not null) ?? tab;
         tab.ShowBar(new InfoBar(Loc.Get(K.HexBarBinary),
-            [(Loc.Get(K.HexBarOpen), () => SetHex(od, true)), (Loc.Get(K.HexBarKeep), () => tab.ShowBar(null))], warning: false, onClose: () => tab.ShowBar(null)));
+            [(Loc.Get(K.HexBarOpen), () => SetHex(od, true)), (Loc.Get(K.HexBarKeep), () => tab.ShowBar(null))], warning: false, onClose: () => tab.ShowBar(null), helpTopic: "hex.open"));
         return tab;
     }
 

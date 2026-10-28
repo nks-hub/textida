@@ -12,6 +12,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -73,6 +74,7 @@ internal sealed partial class PagedTextView : Grid
 
     public PagedTextView(OpenDocument doc, EditorOptions options)
     {
+        HelpContext.Set(this, "paged");
         _doc = doc;
         _options = options;
         EditorFontFallbacks.Shared.Use(options.FullFontFamily);

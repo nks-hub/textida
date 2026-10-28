@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Layout;
 using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
@@ -28,6 +29,7 @@ internal sealed class TabGroup : DockPanel
     {
         Strip = new TabStrip { Background = Brushes.Transparent, ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal }), ClipToBounds = true };
         StripHost = new Border { Padding = new Thickness(8, 5, 8, 0), Child = Strip };
+        HelpContext.Set(Strip, "view.tabs");
         StripHost.Classes.Add("tabrow");
         SetDock(StripHost, Dock.Top);
         Children.Add(StripHost);

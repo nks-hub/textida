@@ -78,7 +78,7 @@ internal sealed partial class MainWindow
     private async Task InstallAsync(AppUpdater updater, UpdateRelease release, string current)
     {
         int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.UpdateTitle), Loc.Get(K.UpdateAvailable, ("version", release.Version), ("current", current)),
-            [new DialogButton(Loc.Get(K.UpdateInstall), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)]));
+            [new DialogButton(Loc.Get(K.UpdateInstall), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], HelpTopic: "help.updates"));
         if (answer != 0 || !DocumentsAreSafe()) return;
         var download = Path.Combine(Path.GetTempPath(), "textida-download-" + Guid.NewGuid().ToString("N")[..12]);
         try
@@ -107,7 +107,7 @@ internal sealed partial class MainWindow
         if (!updater.HasPrevious) { SetStatusMessage(Loc.Get(K.UpdateNoPrevious)); return; }
         var previous = AppUpdater.InstalledVersion(updater.PreviousDir);
         int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.UpdateReturnTitle), Loc.Get(K.UpdateReturnAsk, ("version", previous)),
-            [new DialogButton(Loc.Get(K.UpdateReturn), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)]));
+            [new DialogButton(Loc.Get(K.UpdateReturn), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], HelpTopic: "help.updates"));
         if (answer != 0 || !DocumentsAreSafe()) return;
         try { updater.Rollback(restart: true); }
         catch (Exception e) when (e is UpdateException or Win32Exception or IOException)
