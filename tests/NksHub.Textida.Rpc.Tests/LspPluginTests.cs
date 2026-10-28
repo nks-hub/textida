@@ -106,7 +106,10 @@ public class LspPluginTests
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 400, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1),
                 MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
                 MaxDiagnosticsPerDocument = 100, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
-                Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20),
+                Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20)
+                {
+                    OpenDocument = path => review.Open.FirstOrDefault(d => d.FilePath is { } p && PathUri.SamePath(p, path)),
+                },
             }, owner, send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 100, MaxTreeDepth = 3, MaxTextLength = 2000, MaxTasksPerPlugin = 2, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, ui, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
@@ -130,6 +133,14 @@ public class LspPluginTests
             File.WriteAllBytes(path, codec.WithBom(false).Encode(content));
             var doc = Document.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = codec });
             Docs.Expose(doc, null);
+            Documents.Add(doc);
+            return doc;
+        }
+
+        /// <summary>A tab of the editor that shows an existing file but is not handed to plugins: the plugin does not follow it.</summary>
+        public Document OpenTab(string path)
+        {
+            var doc = Document.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
             Documents.Add(doc);
             return doc;
         }
@@ -511,8 +522,60 @@ public class LspPluginTests
         Assert.Equal("😀é bar on disk\n", codec.WithBom(false).Decode(bytes[codec.Bom.Length..]).Text);
     }
 
+    [Fact]
+    public async Task A_rename_edits_a_file_on_disk_in_an_8_bit_encoding_by_the_bytes_of_that_encoding()
+    {
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo ž on disk
+", externalCodec: TextCodec.Cp1250);
+        var doc = rig.Add("main.fake", "foo
+");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        Assert.Equal(TextCodec.Cp1250.Encode("é bar ž on disk
+"), File.ReadAllBytes(Path.Combine(rig.Folder, "disk.fake")));
+    }
+
+    [Fact]
+    public async Task A_rename_that_reaches_a_file_open_in_a_tab_the_plugin_does_not_follow_changes_the_tab_and_not_the_file_and_a_tab_with_unsaved_changes_stops_it()
+    {
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "é foo on disk
+");
+        var disk = Path.Combine(rig.Folder, "disk.fake");
+        var tab = rig.OpenTab(disk);
+        var doc = rig.Add("main.fake", "foo
+");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        await rig.Edit(tab, 0, 0, "x"); // the tab holds more than the file
+        var blocked = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+        Assert.Equal("tabUnsaved", blocked.GetProperty("status").GetString());
+        Assert.Empty(rig.Review.Shown);
+        Assert.Equal("foo
+", Rig.TextOf(doc));
+
+        await rig.Edit(tab, 0, 1, ""); // the tab holds the content of the file again
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var files = Assert.Single(rig.Review.Shown).Proposal.Files;
+        Assert.Contains(files, f => f.DocumentId == tab.Id);
+        Assert.Equal("é bar on disk
+", Rig.TextOf(tab));
+        Assert.Equal("é foo on disk
+", File.ReadAllText(disk, new UTF8Encoding(false))); // saving the tab writes it, not the rename
+    }
+
     [Theory]
-    [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0xFF, 0x0A })] // "foo" and a byte that UTF-8 does not have
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x66, 0x6F, 0x6F, 0x0A, 0xE2, 0x82 })] // a UTF-8 mark, "foo", and a character that is cut short
     [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0x00, 0x0A })] // "foo" and a NUL: how a UTF-16 file without a mark reads as UTF-8
     public async Task A_rename_does_not_edit_a_file_on_disk_it_cannot_read_the_way_the_editor_does(byte[] content)
     {

@@ -37,12 +37,12 @@ public partial class DocumentApiTests
 
     static string Sha(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true, Func<string, bool>? isOpen = null, long totalBytes = long.MaxValue)
+    private static async Task<WorkspaceRig> WorkspaceAsync(bool filesGranted = true, Func<string, bool>? isOpen = null, long totalBytes = long.MaxValue, Func<string, Document?>? openDocument = null)
     {
         var service = new RecordingWorkspace();
         var root = T.TempDir();
         var outside = T.TempDir();
-        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], isOpen ?? (_ => false), 10, 1 << 20, totalBytes) });
+        var rig = await Rig.CreateAsync(Utf8("alpha beta\n"), o => o with { Workspace = new WorkspaceEditOptions(service, () => [root], isOpen ?? (_ => false), 10, 1 << 20, totalBytes) { OpenDocument = openDocument } });
         if (filesGranted) rig.Permissions.Grant("p", DocumentPermissions.WorkspaceFiles, GrantScope.All);
         return new WorkspaceRig(rig, service, root, outside);
     }
@@ -196,6 +196,35 @@ public partial class DocumentApiTests
         await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{{\"kind\":\"edit\",\"path\":{J(open)},\"sha256\":\"{Sha(open)}\",\"edits\":[{{\"start\":0,\"end\":1,\"text\":\"T\"}}]}}]}}", RpcErrorCodes.InvalidParams);
         Assert.Equal(2, w.Service.Items.Count);
         Assert.Equal("text", File.ReadAllText(open));
+    }
+
+    [Fact]
+    public async Task ATextEditByPathOfAFileATabShowsGoesThroughTheOpenDocumentWhileTheTabHoldsTheContentThePluginSaw()
+    {
+        Document? shown = null;
+        string open = "";
+        await using var w = await WorkspaceAsync(isOpen: path => path == open, openDocument: path => path == open ? shown : null);
+        shown = w.Rig.Doc;
+        open = Path.Combine(w.Root, "open.txt");
+        File.WriteAllBytes(open, Utf8("alpha beta
+")); // the content the tab holds
+        var change = $"{{\"kind\":\"edit\",\"path\":{J(open)},\"sha256\":\"{Sha(open)}\",\"edits\":[{{\"start\":0,\"end\":5,\"text\":\"ALPHA\"}}]}}";
+
+        var answer = await w.Rig.CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{change}]}}");
+
+        Assert.Equal("applied", answer.GetProperty("decision").GetString());
+        var file = Assert.Single(Assert.Single(w.Service.Items).Proposal.Files);
+        Assert.Equal((w.Rig.Doc.Id, w.Rig.Revision), (file.DocumentId, file.BaseRevision)); // an edit of the document, checked against its revision
+        var hunk = Assert.Single(file.Hunks);
+        Assert.Equal(("alpha", "ALPHA"), (hunk.OldText, hunk.NewText));
+        Assert.Equal("alpha beta
+", File.ReadAllText(open)); // the review writes it, not the API
+
+        // the tab has unsaved changes: the bytes the plugin read are no longer what the tab holds
+        w.Rig.Owner.Run(() => w.Rig.Doc.Insert(0, Utf8("x")));
+        var unsaved = await w.Rig.ErrorAsync(DocumentMethods.WorkspaceEdit, $"{{\"changes\":[{change}]}}", DocumentErrorCodes.RevisionConflict);
+        Assert.Equal("UnsavedTab", unsaved.GetProperty("data").GetProperty("reason").GetString());
+        Assert.Single(w.Service.Items);
     }
 
     [Fact]

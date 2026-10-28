@@ -584,10 +584,14 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         return await review.ConfigureAwait(false);
     }
 
-    private WorkspaceEditOptions WorkspaceEdits() => new(this,
-        () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])],
-        path => _app.Windows.SelectMany(w => w.Documents).Any(d => string.Equals(d.Path, path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)),
-        PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes, PluginLimitsPlaceholders.WorkspaceEditTotalBytes);
+    private WorkspaceEditOptions WorkspaceEdits()
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        Document? OpenDocumentOf(string path) => _app.Windows.SelectMany(w => w.Documents).FirstOrDefault(d => string.Equals(d.Path, path, comparison))?.Doc;
+        return new(this, () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])], path => OpenDocumentOf(path) is not null,
+            PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes, PluginLimitsPlaceholders.WorkspaceEditTotalBytes)
+        { OpenDocument = OpenDocumentOf };
+    }
 
     /// <summary>The active window shows the workspace edit in the change review and the answer waits for the decision of the user; nothing is written before.</summary>
     public async ValueTask<ProposalDecision> SubmitAsync(WorkspaceEditRequest request, CancellationToken cancellation)

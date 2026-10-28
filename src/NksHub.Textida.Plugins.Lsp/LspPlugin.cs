@@ -192,6 +192,7 @@ public sealed class LspPlugin : PluginBase
         }
         catch (Exception e) when (e is ServerGone or RpcConnectionClosedException) { return Status("crashed"); } // the end of the server is reported by its own handler
         catch (RpcTimeoutException) { return await TellAsync("timeout", NoticeLevel.Warning, "timeout").ConfigureAwait(false); }
+        catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict && e.DataJson?.Contains("\"UnsavedTab\"", StringComparison.Ordinal) == true) { return await TellAsync("tabUnsaved", NoticeLevel.Warning, "tabUnsaved").ConfigureAwait(false); }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict) { return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false); }
         catch (RpcException e) when (e.Code is DocumentErrorCodes.UnknownDocument or DocumentErrorCodes.InvalidRange or DocumentErrorCodes.PermissionDenied or RpcErrorCodes.InvalidParams)
         {
@@ -677,8 +678,9 @@ public sealed class LspPlugin : PluginBase
 
     /// <summary>
     /// The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk; null when it cannot be read or is larger than the limit. A file that starts with a byte order mark is
-    /// read as the encoding the mark names (UTF-8, UTF-16 or UTF-32), any other as UTF-8: <paramref name="strict"/> is null for bytes that are not valid in that encoding, and for a text with a NUL in it
-    /// (UTF-16 without a mark reads as such), so an edit is never built on a reading of the file that the editor would not make.
+    /// read as the encoding the mark names (UTF-8, UTF-16 or UTF-32), any other as UTF-8. With <paramref name="strict"/> (the file is going to be edited) the file is read in the encoding the editor detects for it
+    /// (the same guess it makes when it edits a file by path), and the result is null unless that encoding gives the very same bytes back and the text holds no NUL, so an edit is never built on a reading
+    /// of the file that the editor would not make.
     /// </summary>
     private Loaded? Load(string path, bool strict = false)
     {
@@ -689,12 +691,22 @@ public sealed class LspPlugin : PluginBase
             var info = new FileInfo(path);
             if (!info.Exists || info.Length > _settings.MaxBytes) return null;
             var bytes = File.ReadAllBytes(path);
+            if (strict) return LoadDetected(bytes);
             var (codec, bom, encoding) = Sniff(bytes, strict);
             var text = encoding.GetString(bytes, bom, bytes.Length - bom);
-            if (strict && text.Contains('\0')) return null;
             return new Loaded(text, new LineMap(text), codec, bom, Convert.ToHexString(SHA256.HashData(bytes)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException) { return null; }
+    }
+
+    private static Loaded? LoadDetected(byte[] bytes)
+    {
+        var codec = EncodingGuesser.Guess(bytes, wholeFile: true).Codec;
+        var decoded = codec.Decode(bytes);
+        if (decoded.InvalidCount > 0 || decoded.Text.Contains('\0')) return null;
+        try { if (!codec.Encode(decoded.Text).AsSpan().SequenceEqual(bytes.AsSpan(decoded.BomLength))) return null; }
+        catch (UnrepresentableCharactersException) { return null; }
+        return new Loaded(decoded.Text, new LineMap(decoded.Text), codec, decoded.BomLength, Convert.ToHexString(SHA256.HashData(bytes)));
     }
 
     /// <summary>The encoding a file starts with by its byte order mark (the UTF-32 marks first: the one of UTF-32 LE starts with the one of UTF-16 LE), the length of the mark, and a decoder that throws on invalid bytes when asked.</summary>
