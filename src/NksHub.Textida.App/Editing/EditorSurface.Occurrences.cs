@@ -79,6 +79,7 @@ internal sealed partial class EditorSurface
     /// Counts the other occurrences in the whole document and lists their lines, on the search worker over a snapshot of the text, so the same places are found as by the find bar.
     /// The occurrence that is the selection itself (the one starting at the selection) is not counted. The scan stops at <see cref="PluginLimitsPlaceholders.OccurrenceMaxMarks"/>.
     /// </summary>
+    /// <remarks>shortcut: the search worker numbers lines by line feeds, as it does for the marks of the find bar, so a file with lone carriage returns marks the wrong lines; upgrade by mapping the byte offset of each hit to its line.</remarks>
     private async Task<OccurrenceScan> ScanOccurrencesAsync(OccurrenceTarget target, CancellationToken cancel)
     {
         if (Doc.TextBackend is not { } backend) return OccurrenceScan.None;
@@ -103,7 +104,7 @@ internal sealed partial class EditorSurface
     /// The other occurrences in the lines of the screen, as segments of the text. They are kept while the text, the lines on screen and what is looked for stay as they were, so a
     /// repaint without a change searches nothing.
     /// </summary>
-    private IReadOnlyList<TextSegment> OccurrenceSegments(TextView view)
+    internal IReadOnlyList<TextSegment> OccurrenceSegments(TextView view)
     {
         if (_occ is not { Target: { } target, Matcher: { } regex } || !view.VisualLinesValid || view.VisualLines is not { Count: > 0 } visual) return [];
         int first = visual[0].FirstDocumentLine.LineNumber, last = visual[^1].LastDocumentLine.LineNumber;

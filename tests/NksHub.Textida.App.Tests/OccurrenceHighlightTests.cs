@@ -395,6 +395,48 @@ public class OccurrenceHighlightTests : IDisposable
         Assert.Equal(0, Matching(Capture(), LineBand(tab, 1), fill));
     }
 
+    private static IReadOnlyList<(int Start, int Length)> Segments(DocTab tab)
+    {
+        var view = tab.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        return [.. tab.Editor.OccurrenceSegments(view).Select(s => (s.StartOffset, s.Length))];
+    }
+
+    [AvaloniaFact]
+    public async Task The_places_drawn_are_the_other_occurrences_and_not_the_selection_itself()
+    {
+        var tab = Open("seg.txt", Beta);
+        await Select(tab, 6, 10);
+        Assert.Equal([(11, 4), (33, 4)], Segments(tab)); // not the selected one at 6 and not "Beta" at 22
+    }
+
+    [AvaloniaFact]
+    public async Task The_drawing_covers_the_lines_on_screen_only_and_stops_at_the_limit_while_the_count_goes_on()
+    {
+        string line = string.Join(' ', Enumerable.Repeat("ab", 20)) + "\n";
+        var tab = Open("many.txt", string.Concat(Enumerable.Repeat(line, 3000)));
+        var scan = await Select(tab, 0, 2);
+        var segments = Segments(tab);
+        Assert.Equal(PluginLimitsPlaceholders.OccurrenceMaxDrawn, segments.Count); // 40 lines on screen hold more than that
+        Assert.DoesNotContain(segments, s => s.Start == 0);
+        var view = tab.Editor!.TextArea.TextView;
+        Assert.All(segments, s => Assert.True(s.Start + s.Length <= view.VisualLines[^1].LastDocumentLine.EndOffset, "a place below the screen was drawn"));
+        Assert.True(scan.Limited);
+        Assert.Equal(PluginLimitsPlaceholders.OccurrenceMaxMarks, scan.Count);
+        Assert.Contains(Loc.Get(K.StatusOccurrencesLimit, ("count", PluginLimitsPlaceholders.OccurrenceMaxMarks)), _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public async Task A_line_over_the_length_limit_is_left_plain_but_is_still_counted_and_marked()
+    {
+        string longLine = string.Concat(Enumerable.Repeat("ab ", PluginLimitsPlaceholders.OccurrenceLineMaxChars / 3 + 10)) + "\n";
+        var tab = Open("long.txt", "ab\n" + longLine + "ab\n");
+        var scan = await Select(tab, 0, 2);
+        int lastLine = 3 + longLine.Length;
+        Assert.Equal([(lastLine, 2)], Segments(tab));
+        Assert.Equal([1L, 2L], Lines(scan));
+    }
+
     [AvaloniaFact]
     public async Task Only_the_matching_case_is_drawn_when_the_case_counts()
     {
