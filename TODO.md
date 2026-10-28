@@ -120,11 +120,20 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
     - Testovací proces Core spadl na chybě čtení stránky („In page error“), zatímco paralelně běžely testy s velkými řídkými soubory. Potom vše skončilo na „Na disku není dost místa“.
     - Core před pádem prošlo 68 z 69. Neprošel nezměněný `LogFollowPerfTests` (půl → 1 GiB) s nárůstem paměti o 2 191 MiB.
     - Zda se totéž děje na main, ověřené není.
-    - Další běhy byly na pokyn majitele zrušené. Perf běh téže větve se nechal doběhnout, výsledek nezapsán.
+    - Další běhy byly na pokyn majitele zrušené.
+  - **Perf běh téže větve (23:20–23:36):** 16 min včetně buildu, testy 15,6 min (Core 5,8, App 3,2, Rpc 6,6).
+    - Před → po:
+      - `HugeFileTests`: náhodný pohled 3 min 24 s → 5 s, heatmapa 3 min 45 s → 4 s;
+      - `HexSaveTests`: asi 12 min → 2 min 26 s;
+      - `PagedStreamingSave` (hold the caller): asi 5 min 20 s → 4 min 11 s;
+      - `PagedEditTests`: 44 s, starší údaj chybí.
+    - Neprošel jen nezměněný `LogFollowPerfTests` 5 → 10 GiB: „private memory grew by 2894 MiB“. Měří paměť celého procesu, ve kterém běží i jiné testy. Na main neověřeno.
+    - Nejdelší jsou teď řídké 10GiB testy (čtení trvá minuty): `PagedHugeEditTests` 5 min, `ByteSearchTests` 4,5 min, `TextToolsTests` 4,4 + 2,2 min, `McpServerTests` 2,4 + 2,2 min, `LogFollowPerfTests` 1,9 min.
   - **Další krok:**
     - Na virtuálu zjistit volné místo a velikost složky testů. Projekty s velkými soubory pouštět po jednom (`-m:1` i pro Large).
-    - Ověřit větev běhy Large a Perf (doba před a po) a sloučit ji.
-    - Smazat pomocnou větev `tmp-baseline-1939987f`.
+    - Ověřit větev během Large (doba před a po) a sloučit ji.
+    - U `LogFollowPerfTests` zjistit, jestli padá i na main.
+    - Rozhodnout o zkrácení řídkých 10GiB testů.
   - **Funkce:** žádná (infrastruktura, požadavek majitele 28. 10. 2026)
   - **Hotovo, když:**
     - Bez `TEXTIDA_HUGE` žádný test nezapíše víc než asi 2 GiB skutečných bajtů.
