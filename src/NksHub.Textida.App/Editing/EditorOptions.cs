@@ -39,8 +39,15 @@ internal sealed record EditorOptions(
     bool LinkNeedsCtrl = true,
     int WrapIndent = 0,
     bool MatchBrackets = true,
-    bool Emmet = true)
+    bool Emmet = true,
+    int CaretBlinkMs = EditorOptions.DefaultCaretBlinkMs,
+    bool SmoothScrolling = false,
+    int HighlightMaxLines = SyntaxFeeder.MaxRows,
+    int HighlightMaxColumns = SyntaxFeeder.MaxColumns)
 {
+    /// <summary>The blink time of the text cursor of AvaloniaEdit, which the editor leaves alone as long as the setting <c>advanced.caretBlinkMilliseconds</c> is this.</summary>
+    public const int DefaultCaretBlinkMs = 500;
+
     /// <summary>The configured family followed by the fallback families, so a character the main font lacks is drawn with the next one that has it.</summary>
     public string FullFontFamily => FallbackFontFamily.Length == 0 ? FontFamily : FontFamily + ", " + FallbackFontFamily;
 
@@ -105,7 +112,11 @@ internal sealed record EditorOptions(
             LinkNeedsCtrl: s.GetBool("advanced.linkNeedsCtrl"),
             WrapIndent: (int)s.GetInt("advanced.wrapIndent"),
             MatchBrackets: s.GetBool("editor.matchBrackets"),
-            Emmet: s.GetBool("editor.emmet", l));
+            Emmet: s.GetBool("editor.emmet", l),
+            CaretBlinkMs: (int)s.GetInt("advanced.caretBlinkMilliseconds"),
+            SmoothScrolling: s.GetBool("advanced.smoothScrolling"),
+            HighlightMaxLines: (int)s.GetInt("advanced.highlightMaxLines"),
+            HighlightMaxColumns: (int)s.GetInt("advanced.highlightMaxColumns"));
     }
 }
 

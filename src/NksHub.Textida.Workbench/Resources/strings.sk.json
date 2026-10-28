@@ -607,5 +607,15 @@
   "setting.advanced.recentFilesCount.title": "Počet pamätaných posledných súborov",
   "setting.advanced.recentFilesCount.description": "Koľko naposledy otvorených súborov si zoznam pamätá. 0 znamená žiadny. Nižšie číslo zoznam skráti pri ďalšom otvorení súboru.",
   "setting.advanced.autosaveIntervalSeconds.title": "Interval automatického ukladania (sekundy)",
-  "setting.advanced.autosaveIntervalSeconds.description": "Ako často sa zmenený dokument zapíše do svojho súboru, keď je zapnuté automatické ukladanie."
+  "setting.advanced.autosaveIntervalSeconds.description": "Ako často sa zmenený dokument zapíše do svojho súboru, keď je zapnuté automatické ukladanie.",
+  "setting.advanced.caretBlinkMilliseconds.title": "Doba blikania textového kurzora (milisekundy)",
+  "setting.advanced.caretBlinkMilliseconds.description": "Ako dlho textový kurzor svieti a potom je zhasnutý, keď bliká. 0 ho nechá svietiť bez blikania. Obvyklá hodnota je 500.",
+  "setting.advanced.smoothScrolling.title": "Plynulé rolovanie kolieskom myši",
+  "setting.advanced.smoothScrolling.description": "Text sa k miestu, kam ho koliesko posunie, plynulo dokotúľa namiesto skoku. Posun posuvníkom alebo kurzorom plynulé rolovanie hneď ukončí.",
+  "setting.advanced.undoLimit.title": "Kroky späť držané v dokumente",
+  "setting.advanced.undoLimit.description": "Najviac krokov späť, ktoré dokument drží. 0 drží všetky. Po dosiahnutí limitu sa najstaršie kroky zahodia; dokument, ktorý bol uložený pred nimi, potom platí za zmenený, kým sa znova neuloží.",
+  "setting.advanced.highlightMaxLines.title": "Farbené riadky okolo obrazovky",
+  "setting.advanced.highlightMaxLines.description": "Najviac riadkov, pre ktoré sa naraz počítajú farby syntaxe, vrátane tých nad obrazovkou a pod ňou. Nižšie číslo uľahčí pomalému počítaču: riadky na obrazovke sú zafarbené vždy, ale okraj zafarbený nad nimi a pod nimi sa zmenší, takže riadky, ku ktorým doroluje, môžu chvíľu ostať bez farieb.",
+  "setting.advanced.highlightMaxColumns.title": "Farbené stĺpce v riadku",
+  "setting.advanced.highlightMaxColumns.description": "Najviac znakov riadku okolo viditeľnej časti, pre ktoré sa naraz počítajú farby syntaxe. Nižšie číslo uľahčí pomalému počítaču pri veľmi dlhých riadkoch."
 }

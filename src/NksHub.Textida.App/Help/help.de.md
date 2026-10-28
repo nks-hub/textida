@@ -250,6 +250,7 @@ commands: nks.app.openSettings
 4. Ändern Sie den Wert direkt in der Zeile; er wirkt sofort und wird in die Einstellungsdatei geschrieben. Auf Standard zurücksetzen stellt den ursprünglichen Wert wieder her.
 - Ein unsinniger Wert wird abgelehnt, und die Zeile sagt, was daran nicht stimmt. Lässt sich die Einstellungsdatei nicht schreiben, steht der Grund über der Liste.
 - Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
+- Die Gruppe Erweitert enthält Optionen, die nur wenige brauchen: Scrollen über das Textende hinaus, eine ganze Zeile ohne Auswahl ausschneiden, den Mauszeiger beim Tippen verbergen, Links mit Strg+Klick, den Einzug umbrochener Zeilen, wie viele zuletzt geöffnete Dateien und Rückgängig-Schritte behalten werden, das Intervall der automatischen Speicherung, die Blinkzeit des Textcursors (0: er blinkt nicht), weiches Scrollen mit dem Mausrad und für wie viele Zeilen und Spalten um den Bildschirm die Syntaxfarben auf einmal berechnet werden. Der Textcursor mit der üblichen Blinkzeit ist der des Editors; jede andere Zeit zeichnet den Cursor im Programm, und der Blockauswahlmodus nimmt wieder den des Editors.
 - F1 in diesem Fenster öffnet dieses Thema.
 
 ## [app.accessibility] Barrierefreiheit

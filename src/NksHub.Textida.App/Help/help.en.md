@@ -250,6 +250,7 @@ commands: nks.app.openSettings
 4. Change the value right in the row; it takes effect at once and is written to the settings file. Reset to Default restores the original value.
 - A nonsensical value is refused and the row says what is wrong. If the settings file cannot be written, the reason is above the list.
 - Shortcut conflicts are shown on the rows concerned.
+- The group Advanced holds the options that few people need: scrolling past the end, cutting a whole line without a selection, hiding the mouse pointer while typing, links with Ctrl+click, the indent of wrapped lines, how many recent files and undo steps are kept, the autosave interval, the blink time of the text cursor (0: it does not blink), smooth scrolling with the mouse wheel, and how many lines and columns around the screen get syntax colors at once. The text cursor of the usual blink time is the one of the editor; any other time draws the cursor in the program, and block selection mode uses the editor's again.
 - F1 in this window opens this topic.
 
 ## [app.accessibility] Accessibility

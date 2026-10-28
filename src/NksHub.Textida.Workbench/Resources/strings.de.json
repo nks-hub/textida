@@ -607,5 +607,15 @@
   "setting.advanced.recentFilesCount.title": "Anzahl gemerkter zuletzt geöffneter Dateien",
   "setting.advanced.recentFilesCount.description": "Wie viele zuletzt geöffnete Dateien die Liste behält. 0 behält keine. Eine kleinere Zahl kürzt die Liste beim nächsten Öffnen einer Datei.",
   "setting.advanced.autosaveIntervalSeconds.title": "Intervall der automatischen Speicherung (Sekunden)",
-  "setting.advanced.autosaveIntervalSeconds.description": "Wie oft ein geändertes Dokument in seine eigene Datei geschrieben wird, wenn die automatische Speicherung an ist."
+  "setting.advanced.autosaveIntervalSeconds.description": "Wie oft ein geändertes Dokument in seine eigene Datei geschrieben wird, wenn die automatische Speicherung an ist.",
+  "setting.advanced.caretBlinkMilliseconds.title": "Blinkzeit des Textcursors (Millisekunden)",
+  "setting.advanced.caretBlinkMilliseconds.description": "Wie lange der Textcursor beim Blinken an und dann aus ist. 0 lässt ihn ohne Blinken an. Üblich ist 500.",
+  "setting.advanced.smoothScrolling.title": "Weiches Scrollen mit dem Mausrad",
+  "setting.advanced.smoothScrolling.description": "Der Text gleitet dorthin, wohin ihn das Mausrad schiebt, statt zu springen. Eine Bewegung der Bildlaufleiste oder des Cursors beendet das Gleiten sofort.",
+  "setting.advanced.undoLimit.title": "Rückgängig-Schritte pro Dokument",
+  "setting.advanced.undoLimit.description": "Die meisten Rückgängig-Schritte, die ein Dokument behält. 0 behält alle. Ist das Limit erreicht, werden die ältesten Schritte verworfen; ein Dokument, das davor gespeichert wurde, gilt dann als geändert, bis es erneut gespeichert wird.",
+  "setting.advanced.highlightMaxLines.title": "Farbig dargestellte Zeilen um den Bildschirm",
+  "setting.advanced.highlightMaxLines.description": "Die meisten Zeilen, für die die Syntaxfarben auf einmal berechnet werden, einschließlich der über und unter dem Bildschirm. Eine kleinere Zahl schont einen langsamen Rechner: Die Zeilen auf dem Bildschirm sind immer farbig, aber der farbige Rand darüber und darunter wird kleiner, sodass Zeilen, zu denen Sie scrollen, kurz ohne Farbe erscheinen können.",
+  "setting.advanced.highlightMaxColumns.title": "Farbig dargestellte Spalten pro Zeile",
+  "setting.advanced.highlightMaxColumns.description": "Die meisten Zeichen einer Zeile um den sichtbaren Teil, für die die Syntaxfarben auf einmal berechnet werden. Eine kleinere Zahl schont einen langsamen Rechner bei sehr langen Zeilen."
 }

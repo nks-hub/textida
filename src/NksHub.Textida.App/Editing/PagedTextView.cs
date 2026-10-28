@@ -101,6 +101,8 @@ internal sealed partial class PagedTextView : Grid
         };
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
             line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
+        Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
+        _glide = new Glide(() => _bar.Value, value => _bar.Value = value);
         _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {
@@ -250,6 +252,8 @@ internal sealed partial class PagedTextView : Grid
     public void ApplyOptions(EditorOptions o)
     {
         _options = o;
+        if (!o.SmoothScrolling) _glide.Stop();
+        Syntax.SetLimits(o.HighlightMaxLines, o.HighlightMaxColumns);
         EditorFontFallbacks.Shared.Use(o.FullFontFamily);
         _lines.Clear();
         _truncatedColumns = -1; // the next draw sets the sideways range again: the cell width or the room for the line end mark may have changed
@@ -1398,9 +1402,12 @@ internal sealed partial class PagedTextView : Grid
     {
         if (e.Delta.X != 0 || e.KeyModifiers.HasFlag(KeyModifiers.Shift))
             _hBar.Value = Math.Clamp(_hBar.Value - (e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * 3 * _canvas.WindowColumns / 8, 0, _hBar.Maximum);
-        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * 3, 0, _bar.Maximum);
+        else if (_options.SmoothScrolling && _bar.Maximum > 0) _glide.Push(-e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
+        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
         e.Handled = true;
     }
+
+    private readonly Glide _glide;
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {

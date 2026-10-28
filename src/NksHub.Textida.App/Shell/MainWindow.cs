@@ -389,6 +389,7 @@ internal sealed partial class MainWindow : Window
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
         if (key == "git.gutter") foreach (var tab in Tabs) ScheduleGitGutter(tab);
+        if (key == "advanced.undoLimit") foreach (var od in _docs) od.Doc.UndoLimit = UndoLimit;
         if (key == "files.autoSave") foreach (var od in _docs) ConfigureAutosave(od);
         else if (key == "advanced.autosaveIntervalSeconds")
             foreach (var od in _docs)

@@ -72,6 +72,7 @@ internal sealed partial class EditorSurface : TextEditor
         doc.LogHighlightChanged += ApplyLogLevels;
         ApplyLogLevels();
         Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount, () => OnVisualLinesChanged(null, EventArgs.Empty));
+        Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
         TextArea.TextView.ScrollOffsetChanged += (_, _) => QueueSyntaxView();
         TextArea.TextEntering += OnTextEntering;
@@ -249,6 +250,9 @@ internal sealed partial class EditorSurface : TextEditor
         Options.HideCursorWhileTyping = o.HideMouseWhileTyping;
         Options.RequireControlModifierForHyperlinkClick = o.LinkNeedsCtrl;
         Options.WordWrapIndentation = o.WrapIndent * TextArea.TextView.WideSpaceWidth;
+        ApplyCaretBlink(o.CaretBlinkMs);
+        if (!o.SmoothScrolling) _glide?.Stop();
+        Syntax?.SetLimits(o.HighlightMaxLines, o.HighlightMaxColumns); // the feeder is made after the first call, which comes from the constructor
         ApplyViewOptions(o);
     }
 
@@ -335,9 +339,10 @@ internal sealed partial class EditorSurface : TextEditor
     public void ToggleBlockMode()
     {
         DropOthers();
-        if (BlockMode) { BlockMode = false; Options.EnableVirtualSpace = false; TextArea.ClearSelection(); return; }
+        if (BlockMode) { BlockMode = false; Options.EnableVirtualSpace = false; TextArea.ClearSelection(); RefreshCaretDrawing(); return; }
         BlockMode = true;
         Options.EnableVirtualSpace = true;
+        RefreshCaretDrawing(); // the caret of AvaloniaEdit follows the virtual space; a caret drawn here does not
         _blockAnchor = _blockEnd = TextArea.Caret.Position;
         TextArea.Selection = new RectangleSelection(TextArea, _blockAnchor, _blockEnd);
     }

@@ -73,6 +73,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
+    /// <summary>Placeholder, OPEN: milliseconds between two frames of smooth scrolling (the setting <c>advanced.smoothScrolling</c>). The owner has not decided it.</summary>
+    public const int SmoothScrollFrameMilliseconds = 16;
+
+    /// <summary>Placeholder, OPEN: share of the way to its target that smooth scrolling covers in one frame; the larger it is, the quicker the glide ends. The owner has not decided it.</summary>
+    public const double SmoothScrollShare = 0.3;
+
+    /// <summary>Placeholder, OPEN: lines one notch of the mouse wheel scrolls (smooth or not in the large file view; the editor's own wheel step is AvaloniaEdit's). The owner has not decided it.</summary>
+    public const int WheelLinesPerNotch = 3;
+
     /// <summary>Placeholder, OPEN: largest file Insert from File reads, in bytes; a larger one is refused with a message.</summary>
     public const long InsertFromFileMaxBytes = 16L << 20;
 

@@ -607,5 +607,15 @@
   "setting.advanced.recentFilesCount.title": "Počet pamatovaných posledních souborů",
   "setting.advanced.recentFilesCount.description": "Kolik naposledy otevřených souborů si seznam pamatuje. 0 znamená žádný. Nižší číslo seznam zkrátí při dalším otevření souboru.",
   "setting.advanced.autosaveIntervalSeconds.title": "Interval automatického ukládání (sekundy)",
-  "setting.advanced.autosaveIntervalSeconds.description": "Jak často se změněný dokument zapíše do svého souboru, když je zapnuté automatické ukládání."
+  "setting.advanced.autosaveIntervalSeconds.description": "Jak často se změněný dokument zapíše do svého souboru, když je zapnuté automatické ukládání.",
+  "setting.advanced.caretBlinkMilliseconds.title": "Doba blikání textového kurzoru (milisekundy)",
+  "setting.advanced.caretBlinkMilliseconds.description": "Jak dlouho textový kurzor svítí a pak je zhasnutý, když bliká. 0 ho nechá svítit bez blikání. Obvyklá hodnota je 500.",
+  "setting.advanced.smoothScrolling.title": "Plynulé rolování kolečkem myši",
+  "setting.advanced.smoothScrolling.description": "Text se k místu, kam ho kolečko posune, plynule dokulí místo skoku. Posun posuvníkem nebo kurzorem plynulé rolování hned ukončí.",
+  "setting.advanced.undoLimit.title": "Kroky zpět držené v dokumentu",
+  "setting.advanced.undoLimit.description": "Nejvíc kroků zpět, které dokument drží. 0 drží všechny. Po dosažení limitu se nejstarší kroky zahodí; dokument, který byl uložený před nimi, pak platí za změněný, dokud se znovu neuloží.",
+  "setting.advanced.highlightMaxLines.title": "Barvené řádky kolem obrazovky",
+  "setting.advanced.highlightMaxLines.description": "Nejvíc řádků, pro které se najednou počítají barvy syntaxe, včetně těch nad obrazovkou a pod ní. Nižší číslo ulehčí pomalému počítači: řádky na obrazovce jsou obarvené vždy, ale okraj obarvený nad nimi a pod nimi se zmenší, takže řádky, k nimž doroluje, mohou chvíli zůstat bez barev.",
+  "setting.advanced.highlightMaxColumns.title": "Barvené sloupce v řádku",
+  "setting.advanced.highlightMaxColumns.description": "Nejvíc znaků řádku kolem viditelné části, pro které se najednou počítají barvy syntaxe. Nižší číslo ulehčí pomalému počítači u velmi dlouhých řádků."
 }

@@ -16,8 +16,8 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 internal sealed class SyntaxFeeder : IDisposable
 {
-    private const int MaxRows = 1024;
-    private const int MaxColumns = 65536;
+    /// <summary>Most lines and most columns of a line the syntax session colors in one request; the settings <c>advanced.highlightMaxLines</c> and <c>advanced.highlightMaxColumns</c> can only lower them.</summary>
+    internal const int MaxRows = 1024, MaxColumns = 65536;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(6);
     private static readonly TimeSpan BackgroundSlice = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan ShowPendingAfter = TimeSpan.FromMilliseconds(150);
@@ -42,6 +42,7 @@ internal sealed class SyntaxFeeder : IDisposable
     private bool _lineTooLong;
     private bool _queued;
     private bool _disposed;
+    private int _rowLimit = MaxRows, _columnLimit = MaxColumns;
     private readonly DispatcherTimer? _settleTimer;
 
     /// <param name="apply">Receives the tokens of a complete viewport.</param>
@@ -88,6 +89,31 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>Raised when <see cref="Pending"/> or <see cref="LineTooLong"/> changed.</summary>
     public event Action? PendingChanged;
 
+    /// <summary>Lines colored around the screen in one request (at most <see cref="MaxRows"/>).</summary>
+    public int RowLimit => _rowLimit;
+
+    /// <summary>Columns of a line colored around the screen in one request (at most <see cref="MaxColumns"/>).</summary>
+    public int ColumnLimit => _columnLimit;
+
+    /// <summary>The window the last request asked for: first line, number of lines, first column, number of columns. A test reads it to see the limits at work.</summary>
+    internal (long First, int Count, int Column, int Columns) Requested => (_wanted.First, _wanted.Count, _wanted.Column, _wanted.Columns);
+
+    /// <summary>
+    /// Lowers how much around the screen is colored in one request, for a slow machine; a value above <see cref="MaxRows"/> or <see cref="MaxColumns"/> is brought down to it.
+    /// A change makes the view report what is on screen again, so the colors follow the new limits at once.
+    /// </summary>
+    public void SetLimits(int rows, int columns)
+    {
+        rows = Math.Clamp(rows, 1, MaxRows);
+        columns = Math.Clamp(columns, 1, MaxColumns);
+        if (rows == _rowLimit && columns == _columnLimit) return;
+        (_rowLimit, _columnLimit) = (rows, columns);
+        _wanted = new(-1, 0, 0, 0);
+        _requested = default;
+        _doneRevision = -1;
+        if (!_disposed) _viewRequested();
+    }
+
     /// <summary>
     /// The zero-based lines and UTF-16 columns (<paramref name="lastColumn"/> exclusive) on screen. Scrolling inside the margin of the
     /// last request costs nothing.
@@ -100,7 +126,10 @@ internal sealed class SyntaxFeeder : IDisposable
         int width = Math.Max(1, lastColumn - firstColumn);
         long start = Math.Max(0, first - rows);
         int column = Math.Max(0, firstColumn - width);
-        _wanted = new(start, (int)Math.Min(MaxRows, last + rows - start + 1), column, Math.Min(MaxColumns, lastColumn + width - column));
+        // a limit takes away from the margin around the screen, never from the screen: the part on screen is colored whatever it says
+        long rowsCap = Math.Min(MaxRows, Math.Max(_rowLimit, 2 * rows));
+        int columnsCap = Math.Min(MaxColumns, Math.Max(_columnLimit, 2 * width));
+        _wanted = new(start, (int)Math.Min(rowsCap, last + rows - start + 1), column, Math.Min(columnsCap, lastColumn + width - column));
         Run();
     }
 
@@ -178,7 +207,7 @@ internal sealed class SyntaxFeeder : IDisposable
         // no line break typed, and (same line count) none deleted: only line at.Line changed
         Span<byte> typed = stackalloc byte[(int)edit.Inserted];
         if (_bound.Read(edit.Start, typed) != typed.Length || typed.IndexOfAny((byte)10, (byte)13) >= 0) return false;
-        if (_lineCount() != _knownLines || !_known.TryGetValue(at.Line, out var old) || _lineText(at.Line) is not { Length: <= MaxColumns } text) return false;
+        if (_lineCount() != _knownLines || !_known.TryGetValue(at.Line, out var old) || _lineText(at.Line) is not { } text || text.Length > _columnLimit) return false;
         var all = new List<Token>();
         var end = _tokenizer.TokenizeLine(text, old.StartState, all);
         if (!ReferenceEquals(end, old.EndState)) return false;

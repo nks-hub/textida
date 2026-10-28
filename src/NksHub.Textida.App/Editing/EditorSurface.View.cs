@@ -66,6 +66,23 @@ internal sealed partial class EditorSurface : IMinimapHost
         TextArea.Caret.PositionChanged += (_, _) => InvalidateBrackets();
         TextArea.SelectionChanged += (_, _) => InvalidateBrackets();
         CaretsChanged += InvalidateBrackets;
+        _glide = new Glide(() => VerticalOffset, ScrollToVerticalOffset);
+        AddHandler(PointerWheelChangedEvent, OnWheelTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+    }
+
+    private Glide? _glide;
+
+    /// <summary>True while smooth scrolling is moving the text towards where the wheel sent it.</summary>
+    internal bool Gliding => _glide?.Active == true;
+
+    /// <summary>With smooth scrolling on, a turn of the mouse wheel moves the target of a glide instead of moving the text at once.</summary>
+    private void OnWheelTunnel(object? sender, Avalonia.Input.PointerWheelEventArgs e)
+    {
+        if (!Settings.SmoothScrolling || e.Handled || e.KeyModifiers != Avalonia.Input.KeyModifiers.None || e.Delta.Y == 0 || _glide is null) return;
+        double max = Math.Max(0, ExtentHeight - ViewportHeight);
+        if (max <= 0) return;
+        _glide.Push(-e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch * TextArea.TextView.DefaultLineHeight, 0, max);
+        e.Handled = true;
     }
 
     private void ApplyViewOptions(EditorOptions o)

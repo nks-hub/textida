@@ -250,6 +250,7 @@ commands: nks.app.openSettings
 4. Hodnotu zmeňte priamo v riadku; prejaví sa hneď a uloží sa do súboru nastavení. Tlačidlo Obnoviť predvolené vráti pôvodnú hodnotu.
 - Nezmyselná hodnota sa odmietne a riadok napíše, čo s ňou je. Ak sa súbor nastavení nedá zapísať, nad zoznamom je dôvod.
 - Konflikty skratiek sú vidieť pri príslušných riadkoch.
+- Skupina Pokročilé obsahuje voľby, ktoré potrebuje málo ľudí: rolovanie za koniec textu, vystrihnutie celého riadka bez výberu, skrytie ukazovateľa myši pri písaní, odkazy cez Ctrl+klik, odsadenie zalomených riadkov, koľko posledných súborov a krokov späť sa drží, interval automatického ukladania, dobu blikania textového kurzora (0: neblikne), plynulé rolovanie kolieskom myši a koľko riadkov a stĺpcov okolo obrazovky sa naraz zafarbí. Textový kurzor s obvyklou dobou blikania je kurzor editora; iná doba ho vykreslí v programe a blokový výber používa zase kurzor editora.
 - F1 v tomto okne otvorí túto tému.
 
 ## [app.accessibility] Prístupnosť

@@ -56,9 +56,13 @@ internal sealed partial class MainWindow
         return AddView(od, group);
     }
 
+    /// <summary>The setting <c>advanced.undoLimit</c>: the most undo steps a document keeps; 0 keeps all.</summary>
+    private int UndoLimit => (int)Math.Clamp(_app.Workbench.Settings.GetInt("advanced.undoLimit"), 0, int.MaxValue);
+
     private void Adopt(OpenDocument od)
     {
         _docs.Add(od);
+        od.Doc.UndoLimit = UndoLimit;
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
