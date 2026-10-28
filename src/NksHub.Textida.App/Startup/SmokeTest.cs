@@ -196,7 +196,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         Check(tab.Editor.Document.Text == formatted, "the restarted plugin formats the same way");
         window.CloseTab(tab);
 
-        var bigText = "[\n" + string.Concat(Enumerable.Repeat("1,\n", 350_000)) + "1]";
+        var bigText = "[\n" + string.Concat(Enumerable.Repeat(string.Concat(Enumerable.Repeat("1,", 50)) + "\n", 10_400)) + "1]"; // 1 MiB and a little more, in 10 401 lines
         var bigFile = Path.Combine(temp, "toolarge.json");
         await File.WriteAllTextAsync(bigFile, bigText);
         var big = window.OpenFile(bigFile, null);
