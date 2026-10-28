@@ -172,6 +172,139 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task ADiffSideCanBeTextOrBytesThePluginSuppliesAndAShownOneNeedsTheGrantForOwnContent()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("a\nb\n"), codec: TextCodec.Utf8);
+        var tree = Side(rig.Doc.Id, rig.Revision);
+
+        var diff = await rig.CallAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"a\\nB\\n\",\"name\":\"scratch.txt\"}", tree));
+        Assert.True(diff.GetProperty("left").GetProperty("detached").GetBoolean());
+        Assert.False(diff.GetProperty("left").TryGetProperty("document", out _));
+        Assert.Equal(rig.Doc.Id, diff.GetProperty("right").GetProperty("document").GetGuid()); // a document side keeps its shape
+        var hunk = Assert.Single(diff.GetProperty("hunks").EnumerateArray());
+        Assert.Equal((1, 1, 2, 4), (hunk.GetProperty("left").GetProperty("startLine").GetInt32(), hunk.GetProperty("left").GetProperty("lines").GetInt32(),
+            hunk.GetProperty("left").GetProperty("start").GetInt32(), hunk.GetProperty("left").GetProperty("end").GetInt32()));
+        var bytes = Convert.ToBase64String(Utf8("a\nb\n"));
+        Assert.True((await rig.CallAsync(DocumentMethods.DiffCompute, Compute($"{{\"bytes\":\"{bytes}\"}}", "{\"text\":\"a\\nb\\n\"}"))).GetProperty("identical").GetBoolean());
+        await rig.ErrorAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"x\",\"encoding\":\"no-such-encoding\"}", tree), RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"x\",\"bytes\":\"eA==\"}", tree), RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.DiffCompute, Compute($"{{\"text\":\"x\",\"document\":\"{rig.Doc.Id}\",\"revision\":{rig.Revision}}}", tree), RpcErrorCodes.InvalidParams);
+
+        // the tab shows content the plugin made up, so it needs the grant to provide documents
+        var denied = await rig.ErrorAsync(DocumentMethods.DiffOpen, Compute("{\"text\":\"a\\nB\\n\",\"name\":\"scratch.txt\"}", tree), DocumentErrorCodes.PermissionDenied);
+        Assert.Equal(DocumentPermissions.Virtual, denied.GetProperty("data").GetProperty("permission").GetString());
+        Assert.Empty(rig.Tools.Diffs);
+        rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        Assert.True((await rig.CallAsync(DocumentMethods.DiffOpen, Compute("{\"text\":\"a\\nB\\n\",\"name\":\"scratch.txt\"}", tree))).GetProperty("opened").GetBoolean());
+        var request = Assert.Single(rig.Tools.Diffs);
+        Assert.Equal(("scratch.txt", true, false, (DiffFile?)null), (request.Left.Title, request.Left.Detached, request.Right.Detached, request.Left.File));
+        Assert.Equal("a\nB\n", Encoding.UTF8.GetString(request.Left.Snapshot.ReadBytes(new ByteRange(0, request.Left.Snapshot.ByteLength))));
+        Assert.NotEqual(request.Left.Snapshot.DocumentId, request.Right.Snapshot.DocumentId);
+    }
+
+    [Fact]
+    public async Task APinnedSideIsMarkedSoThatOnlyTheOthersGoOutOfDateWithTheirDocument()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("a\n"), codec: TextCodec.Utf8);
+        var snapshot = (await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D())).GetProperty("snapshot").GetString()!;
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("x")));
+
+        await rig.CallAsync(DocumentMethods.DiffOpen, Compute(SnapshotSide(snapshot), Side(rig.Doc.Id, rig.Revision)));
+
+        var request = Assert.Single(rig.Tools.Diffs);
+        Assert.Equal((true, false, false), (request.Left.Pinned, request.Right.Pinned, request.Right.Detached));
+    }
+
+    [Fact]
+    public async Task ADiffSideCanBeAFileBelowTheWorkspaceAndNothingElse()
+    {
+        await using var w = await WorkspaceAsync();
+        var file = Path.Combine(w.Root, "a.txt");
+        File.WriteAllText(file, "alpha beta\nsecond\n");
+        var tree = Side(w.Rig.Doc.Id, w.Rig.Revision);
+        string Of(string path) => Compute($"{{\"file\":{J(path)}}}", tree);
+
+        var diff = await w.Rig.CallAsync(DocumentMethods.DiffCompute, Of(file));
+        Assert.True(diff.GetProperty("left").GetProperty("detached").GetBoolean());
+        Assert.Equal(1, diff.GetProperty("hunkCount").GetInt32());
+        w.Rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+        await w.Rig.CallAsync(DocumentMethods.DiffOpen, Of(file));
+        var request = Assert.Single(w.Rig.Tools.Diffs);
+        Assert.Equal(("a.txt", file, new FileInfo(file).Length, true), (request.Left.Title, request.Left.File!.Path, request.Left.File.Length, request.Left.Detached));
+        Assert.Equal(new FileInfo(file).LastWriteTimeUtc, request.Left.File.WriteTimeUtc);
+
+        var outside = Path.Combine(w.Outside, "b.txt");
+        File.WriteAllText(outside, "x\n");
+        var elsewhere = await w.Rig.ErrorAsync(DocumentMethods.DiffCompute, Of(outside), DocumentErrorCodes.PermissionDenied);
+        Assert.Equal("OutsideWorkspace", elsewhere.GetProperty("data").GetProperty("reason").GetString());
+        File.WriteAllText(Path.Combine(w.Root, ".env"), "A=1\n");
+        var secret = await w.Rig.ErrorAsync(DocumentMethods.DiffCompute, Of(Path.Combine(w.Root, ".env")), DocumentErrorCodes.PermissionDenied);
+        Assert.Equal("Secret", secret.GetProperty("data").GetProperty("reason").GetString());
+        await w.Rig.ErrorAsync(DocumentMethods.DiffCompute, Of(Path.Combine(w.Root, "missing.txt")), RpcErrorCodes.InvalidParams);
+        await w.Rig.ErrorAsync(DocumentMethods.DiffCompute, Of("a.txt"), RpcErrorCodes.InvalidParams);
+        Assert.Single(w.Rig.Tools.Diffs);
+    }
+
+    [Fact]
+    public async Task AFileSideNeedsTheGrantToTouchFiles()
+    {
+        await using var w = await WorkspaceAsync(filesGranted: false);
+        var file = Path.Combine(w.Root, "a.txt");
+        File.WriteAllText(file, "x\n");
+
+        var denied = await w.Rig.ErrorAsync(DocumentMethods.DiffCompute, Compute($"{{\"file\":{J(file)}}}", Side(w.Rig.Doc.Id, w.Rig.Revision)), DocumentErrorCodes.PermissionDenied);
+
+        Assert.Equal(DocumentPermissions.WorkspaceFiles, denied.GetProperty("data").GetProperty("permission").GetString());
+    }
+
+    [Fact]
+    public async Task ASideOverTheDiffLimitIsRefusedWhateverItIsMadeOf()
+    {
+        var root = T.TempDir();
+        await using var rig = await Rig.CreateAsync(Utf8("0123456789\n"), o => o with
+        {
+            MaxDiffBytes = 16,
+            Workspace = new WorkspaceEditOptions(new RecordingWorkspace(), () => [root], _ => false, 10, 1 << 20),
+        }, codec: TextCodec.Utf8);
+        try
+        {
+            rig.Permissions.Grant("p", DocumentPermissions.WorkspaceFiles, GrantScope.All);
+            rig.Permissions.Grant("p", DocumentPermissions.Virtual, GrantScope.All);
+            var tree = Side(rig.Doc.Id, rig.Revision);
+            var big = Path.Combine(root, "big.txt");
+            File.WriteAllText(big, "0123456789abcdefg");
+
+            // exactly at the limit is allowed
+            Assert.Equal(1, (await rig.CallAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"0123456789abcde\\n\"}", tree))).GetProperty("hunkCount").GetInt32());
+            foreach (var left in new[] { "{\"text\":\"0123456789abcdefg\"}", $"{{\"bytes\":\"{Convert.ToBase64String(new byte[17])}\"}}", $"{{\"file\":{J(big)}}}" })
+            {
+                var refused = await rig.ErrorAsync(DocumentMethods.DiffCompute, Compute(left, tree), DocumentErrorCodes.DiffTooLarge);
+                Assert.Equal((16, 17), (refused.GetProperty("data").GetProperty("limitBytes").GetInt32(), refused.GetProperty("data").GetProperty("bytes").GetInt32()));
+                await rig.ErrorAsync(DocumentMethods.DiffOpen, Compute(left, tree), DocumentErrorCodes.DiffTooLarge);
+            }
+
+            // a document that grew past it is refused too, and so is a snapshot of it
+            var snapshot = (await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D())).GetProperty("snapshot").GetString()!;
+            rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("0123456789")));
+            await rig.ErrorAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"x\"}", Side(rig.Doc.Id, rig.Revision)), DocumentErrorCodes.DiffTooLarge);
+            Assert.True((await rig.CallAsync(DocumentMethods.DiffCompute, Compute("{\"text\":\"x\"}", SnapshotSide(snapshot)))).GetProperty("exact").GetBoolean());
+            Assert.Empty(rig.Tools.Diffs);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task OneHunkOfTextTheEditorWasGivenCanBeStagedAsWell()
+    {
+        var (rig, index, indexRevision) = await RepositoryAsync("x\n", "a\nb\nc\n");
+        await using var _ = rig;
+
+        await rig.CallAsync(DocumentMethods.DiffStage, $"{{\"base\":{Side(index, indexRevision)},\"source\":{{\"text\":\"a\\nB\\nc\\n\"}},\"hunk\":0}}");
+
+        Assert.Equal("a\nB\nc\n", VirtualText(rig, index));
+    }
+
+    [Fact]
     public async Task StagingOneHunkTakesThatHunkIntoTheIndexAndLeavesTheOthers()
     {
         var (rig, index, indexRevision) = await RepositoryAsync("a\nB\nc\nD\ne\n", "a\nb\nc\nd\ne\n");

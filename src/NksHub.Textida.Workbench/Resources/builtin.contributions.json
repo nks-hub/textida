@@ -1922,6 +1922,18 @@
       "enablement": "compareMode"
     },
     {
+      "id": "nks.compare.action3",
+      "title": "cmd.compare.action3",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.action4",
+      "title": "cmd.compare.action4",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
       "id": "nks.compare.ignoreWhitespace",
       "title": "cmd.compare.ignoreWhitespace",
       "category": "cat.tools"
@@ -4329,6 +4341,20 @@
       "group": "2_run/07_7_compare",
       "submenu": "compare",
       "order": 74
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.action3",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 76
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.action4",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 78
     },
     {
       "menu": "tools",

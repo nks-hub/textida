@@ -107,26 +107,50 @@ internal sealed partial class MainWindow
         _gitGutterDirty.Clear();
     }
 
+    private readonly HashSet<DiffView> _diffActing = [];
+
     /// <summary>
-    /// Runs a button of a comparison tab that the plugin added on the difference the tab is on. The command goes to the plugin for the document of the right side, at the byte where the difference
-    /// starts there; when that went through, the plugin's refresh command follows, which opens the comparison again in the place of this tab.
+    /// A side of a comparison is not as it was when the comparison was made: an open document is at another revision, or a file differs on disk. Content the plugin supplied cannot change, and a
+    /// pinned side (an old revision) stays as it is; the right side, the one the command acts on, is pinned to nothing and must be the revision that was compared.
+    /// </summary>
+    private bool DiffSideChanged(DiffInput input, bool acted) =>
+        input.File is { } file ? DiffActionPayload.FileChanged(file)
+        : !input.Detached && (acted || !input.Pinned) && _app.Plugins.OpenTabOf(input.Snapshot.DocumentId) is { } open && open.Tab.Doc.Doc.Revision != input.Snapshot.Revision;
+
+    /// <summary>
+    /// Runs a button of a comparison tab that the plugin added on the difference the tab is on. Nothing is sent once a side changed since the comparison was made. The command goes to the plugin
+    /// for the document of the right side, at the byte where the difference starts there, or, when that side is content the plugin supplied, without a document; the <c>diff</c> member says which
+    /// difference it is (<see cref="DiffActionPayload"/>). When that went through, the plugin's refresh command follows, which opens the comparison again in the place of this tab.
     /// </summary>
     private async Task RunDiffActionAsync(DiffView view, DiffRequest request, DiffAction action, int hunk)
     {
-        if (request.PluginId is not { } plugin || _app.Plugins.OpenTabOf(request.Right.Snapshot.DocumentId) is not { } target)
+        var target = request.Right.Detached ? null : _app.Plugins.OpenTabOf(request.Right.Snapshot.DocumentId);
+        if (request.PluginId is not { } plugin || (target is null && !request.Right.Detached))
         {
             SetStatusMessage(Loc.Get(K.CompareActionGone));
             return;
         }
-        if (target.Tab.Doc.Doc.Revision != request.Right.Snapshot.Revision || view.Session.Diff is not { } diff || hunk < 0 || hunk >= diff.Hunks.Count)
+        if (view.Session.Diff is not { } diff || hunk < 0 || hunk >= diff.Hunks.Count || DiffSideChanged(request.Left, acted: false) || DiffSideChanged(request.Right, acted: true))
         {
             SetStatusMessage(Loc.Get(K.CompareActionStale));
             return;
         }
-        var own = Tabs.FirstOrDefault(t => ReferenceEquals(t.Custom, view));
-        long offset = diff.B.OffsetOf(diff.Hunks[hunk].BStart);
-        bool done = await _app.Plugins.RunDiffActionAsync(target.Window, target.Tab, plugin, action.Command, offset);
-        if (done && action.Refresh is { } refresh) await _app.Plugins.RunDiffActionAsync(target.Window, target.Tab, plugin, refresh, null);
-        else if (own is not null && Active != own) SelectTab(own);
+        if (!_diffActing.Add(view)) return;
+        try
+        {
+            var own = Tabs.FirstOrDefault(t => ReferenceEquals(t.Custom, view));
+            var detail = DiffActionPayload.Json(request, diff, hunk);
+            var refreshDetail = DiffActionPayload.RefreshJson(request);
+            bool done;
+            if (target is { } at) done = await _app.Plugins.RunDiffActionAsync(at.Window, at.Tab, plugin, action.Command, diff.B.OffsetOf(diff.Hunks[hunk].BStart), detail);
+            else done = await _app.Plugins.RunDiffActionAsync(this, plugin, action.Command, detail);
+            if (done && action.Refresh is { } refresh)
+            {
+                if (target is { } to) await _app.Plugins.RunDiffActionAsync(to.Window, to.Tab, plugin, refresh, null, refreshDetail);
+                else await _app.Plugins.RunDiffActionAsync(this, plugin, refresh, refreshDetail);
+            }
+            else if (own is not null && Active != own) SelectTab(own);
+        }
+        finally { _diffActing.Remove(view); }
     }
 }

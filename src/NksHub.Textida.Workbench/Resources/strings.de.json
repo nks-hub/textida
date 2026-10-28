@@ -514,6 +514,8 @@
   "cmd.compare.copyToLeft": "Unterschied nach links kopieren",
   "cmd.compare.action1": "Vergleich: erste Plugin-Aktion",
   "cmd.compare.action2": "Vergleich: zweite Plugin-Aktion",
+  "cmd.compare.action3": "Vergleich: dritte Plugin-Aktion",
+  "cmd.compare.action4": "Vergleich: vierte Plugin-Aktion",
   "cmd.compare.ignoreWhitespace": "Leerraum ignorieren",
   "cmd.compare.ignoreCase": "Groß-/Kleinschreibung ignorieren",
   "cmd.view.syncScroll": "Scrollen synchronisieren",
