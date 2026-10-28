@@ -1209,6 +1209,14 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P2.3.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+- [ ] **P3.6.11** Prohlížení obrázků
+  - **Co a proč:** Obrázek (PNG, JPEG, GIF, BMP, WebP, ICO, rozpoznané podle začátku souboru) se dnes otevře jako binární text. Má se otevřít jako obrázek: přizpůsobit oknu, 100 %, lupa a posun, šachovnice pod průhledností, rozměry, formát a velikost souboru ve stavovém řádku; lišta nabídne „Zobrazit jako text“ a „Zobrazit jako hex“ a volba se dá změnit i v nastavení. Jen prohlížení, žádné úpravy; SVG je text a otevře se jako text. Dekódování s limity bajtů a pixelů (stávající kód obrázků náhledu), aby obří nebo poškozený soubor nezahltil paměť.
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:** každý podporovaný formát se otevře jako obrázek a přepne na text i hex a zpět bez znovuotevření; poškozený nebo obří soubor ukáže hlášku a nabídne text/hex, editor nepadne a paměť nepřeroste limit; obrázek se po změně na disku obnoví; ovládání z klávesnice a čtečka hlásí rozměry a formát; headless testy pro všechny formáty.
+  - **Závisí na:** P3.5.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
 
 ### P3.7 První distribuce
 
@@ -3099,7 +3107,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 43 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 44 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 25 | 24–37 (neúplné) |
@@ -3110,7 +3118,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 16 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **328** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **329** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
