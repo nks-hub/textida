@@ -1763,7 +1763,7 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
 ## [tools.ide] Most /ide pre Claude Code
-commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code bežiaci v termináli na tomto počítači sa príkazom /ide pripojí k oknu Textidy. Agent potom vie, kde máte výber a ktorý súbor je otvorený, a zmeny, ktoré chce v sprístupnenej karte urobiť, sa zobrazia v kontrole zmien. Vidí len karty, ktoré sprístupníte, a Textida použije len to, čo potvrdíte.
 1. Najprv zapnite server MCP (Nástroje, Server MCP) a sprístupnite kartu (Nástroje, Zdieľať túto kartu s MCP). Most používa tie isté sprístupnené karty.
 2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom a priečinkami okna do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
@@ -1772,8 +1772,10 @@ Claude Code bežiaci v termináli na tomto počítači sa príkazom /ide pripoj�
 - Každé okno má svoj most s vlastným portom a tokenom, rovnako ako každá inštancia Textidy. Agent pripojený k oknu vidí len karty sprístupnené v tomto okne. Súbor zámku, ktorý po sebe nechala spadnutá inštancia, sa zmaže pri spustení ďalšieho mosta.
 - Agent sa dozvie výber a cestu sprístupnenej karty pri každej zmene výberu aj pri prepnutí na kartu. Karta, ktorá nie je sprístupnená alebo ešte nemá súbor, sa nehlási. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
 - Zmena, ktorú Claude Code navrhne pre sprístupnenú kartu, sa otvorí v kontrole zmien (karta Výsledky hľadania). Použitie celej zmeny odpovie FILE_SAVED, odmietnutie DIFF_REJECTED; použitie len niektorých úsekov odpovie chybou, aby si agent súbor prečítal znova. Textida použije v karte to, čo potvrdíte, a súbor neuloží. Súbor, ktorý nie je v okne otvorený alebo sprístupnený, a súbor .env sa odmietnu.
-- getDiagnostics vracia chyby a varovania sprístupnených kariet.
-- Neoverené: Claude Code tento protokol nešpecifikuje. Most sa riadi oficiálnou stránkou o vstavanom serveri IDE a popisom komunity (coder/claudecode.nvim) a žiadna verzia Claude Code zatiaľ nebola potvrdená ako funkčná. Nerealizované: otváranie súborov z agenta, zoznam otvorených kariet, ukladanie cez most, spúšťanie buniek notebookov a @-zmienky.
+- getDiagnostics vracia chyby a varovania sprístupnených kariet. getOpenEditors vypíše sprístupnené karty s názvom, jazykom a príznakom neuložených zmien; checkDocumentDirty odpovie to isté pre jeden súbor; getWorkspaceFolders vracia priečinky okna, tie zo súboru zámku.
+- openFile otvorí súbor v karte a môže v ňom vybrať text. Funguje len pre súbor v niektorom priečinku okna alebo v sprístupnenej karte, nikdy pre sieťovú alebo relatívnu cestu. Súbor, ktorý otvorí, sa agentovi nesprístupní: agent dostane odpoveď „Opened file“ a nič o obsahu. Agentovi sa opíše len sprístupnená karta (jazyk, počet riadkov) a text, ktorý pomenuje, sa v súbore .env nehľadá.
+- Príkazom Nástroje, MCP, Most /ide: poslať výber agentovi ako kontext odovzdáte agentovi súbor aktívnej sprístupnenej karty a riadky výberu (@-zmienka). Bez výberu odíde len súbor. Agent dostane cestu a čísla riadkov, nie text.
+- Neoverené: Claude Code tento protokol nešpecifikuje. Most sa riadi oficiálnou stránkou o vstavanom serveri IDE a popisom komunity (coder/claudecode.nvim) a žiadna verzia Claude Code zatiaľ nebola potvrdená ako funkčná. Nerealizované: ukladanie cez most (most nikdy nezapisuje súbor) a spúšťanie buniek notebookov.
 
 ## [tools.agent] Agent cez ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

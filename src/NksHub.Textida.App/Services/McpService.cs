@@ -102,6 +102,8 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
             WorkspaceFolders = window.IdeWorkspaceFolders(),
             Scope = id => WindowOf(id) == window,
             ShowDiff = (request, cancellation) => ShowIdeDiffAsync(window, request, cancellation),
+            Editors = async _ => await Dispatcher.UIThread.InvokeAsync(() => IdeEditorsOf(window)),
+            OpenFile = async (request, _) => await Dispatcher.UIThread.InvokeAsync(() => window.IdeOpenFile(request)),
         });
         bridge.AgentsChanged += () => Dispatcher.UIThread.Post(() => IdeChanged?.Invoke(window));
         bridge.Incompatible += reason => Dispatcher.UIThread.Post(async () =>
@@ -172,6 +174,24 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     {
         try { await ide.PublishSelectionAsync(document, start, end); }
         catch (Exception e) when (e is IOException or ObjectDisposedException or OperationCanceledException) { /* the bridge was switched off meanwhile */ }
+    }
+
+    // ---- getOpenEditors ----
+
+    /// <summary>The tabs of the window that are shared, in the order of the tab strip. UI thread.</summary>
+    private IReadOnlyList<IdeEditor> IdeEditorsOf(MainWindow window)
+    {
+        HashSet<Guid> mine;
+        lock (_gate) mine = [.. _shared.Where(p => p.Value.Window == window).Select(p => p.Key)];
+        return [.. window.Tabs.Where(t => mine.Remove(t.Doc.Doc.Id)).Select(t => new IdeEditor(t.Doc.Doc.Id, t.Doc.Path, t.Title, t.Doc.Language.Id, t.Doc.HasUnsavedWork))]; // Remove: one entry per document
+    }
+
+    /// <summary>The user hands the agent of the window a tab as context: its file, and the lines of the selection when there is one. False when no agent is connected or the tab is not shared. Call on the UI thread.</summary>
+    public Task<bool> MentionAsync(MainWindow window, DocTab tab)
+    {
+        if (IdeOf(window) is not { } bridge || !IsShared(tab)) return Task.FromResult(false);
+        var selection = tab.Surface?.ByteSelections()?.PrimarySelection;
+        return bridge.PublishAtMentionAsync(tab.Doc.Doc.Id, selection?.Start ?? 0, selection?.End ?? 0);
     }
 
     // ---- openDiff ----

@@ -1763,7 +1763,7 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
 
 ## [tools.ide] The /ide bridge for Claude Code
-commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code that runs in a terminal on this computer can connect to a window of Textida with its /ide command. The agent then learns where your selection is and which file is open, and the changes it wants to make to a shared tab appear in the change review. It sees only the tabs you share, and Textida applies only what you accept.
 1. First switch on the MCP server (Tools, MCP Server) and share a tab (Tools, MCP, Share This Tab with MCP). The bridge uses the same shared tabs.
 2. Choose Tools, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token and the folders of the window to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
@@ -1772,8 +1772,10 @@ Claude Code that runs in a terminal on this computer can connect to a window of 
 - Every window has its own bridge with its own port and token, and so has every instance of Textida. An agent connected to a window sees only the tabs shared in that window. A lock file that a crashed instance left behind is deleted when the next bridge starts.
 - The agent is told about the selection and path of a shared tab each time the selection changes or you move to the tab. A tab that is not shared, or has no file yet, is not announced. Values in .env files are hidden as in every other read. Taking the tab back stops this at once.
 - A change that Claude Code proposes for a shared tab opens in the change review (the Search Results tab). Applying all of it answers FILE_SAVED and rejecting it answers DIFF_REJECTED; applying only some hunks answers with an error, so the agent reads the file again. Textida applies what you accept to the tab and does not save the file. A file that is not open in the window, not shared, or an .env file is refused.
-- getDiagnostics gives the errors and warnings of the shared tabs.
-- Not verified: Claude Code does not publish a specification of this protocol. The bridge follows the official page on the built-in IDE server and a community description (coder/claudecode.nvim), and no Claude Code version has been confirmed to work with it yet. Not implemented: opening files from the agent, the list of open tabs, saving through the bridge, running notebook cells and @-mentions.
+- getDiagnostics gives the errors and warnings of the shared tabs. getOpenEditors lists the shared tabs with their name, language and whether they have unsaved changes; checkDocumentDirty answers the same for one file; getWorkspaceFolders gives the folders of the window, the ones in the lock file.
+- openFile opens a file for you in a tab and can select text in it. It works only for a file in one of the folders of the window or in a shared tab, never for a network path or a relative one. A file it opens is not shared with the agent: the agent is told "Opened file" and nothing about its content. Only a shared tab is described to the agent (language, number of lines), and a text it names is not looked for in an .env file.
+- Choose Tools, MCP, IDE Bridge /ide: Send Selection to Agent as Context to hand the agent the file of the active shared tab and the lines of the selection (an @-mention). Without a selection only the file goes. The agent gets the path and the line numbers, not the text.
+- Not verified: Claude Code does not publish a specification of this protocol. The bridge follows the official page on the built-in IDE server and a community description (coder/claudecode.nvim), and no Claude Code version has been confirmed to work with it yet. Not implemented: saving through the bridge (the bridge never writes a file) and running notebook cells.
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

@@ -2137,6 +2137,11 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.ideMention",
+      "title": "cmd.tools.ideMention",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.mcpServers",
       "title": "cmd.tools.mcpServers",
       "category": "cat.tools"
@@ -4693,6 +4698,13 @@
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
       "order": 36
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.ideMention",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 37
     },
     {
       "menu": "tools",
