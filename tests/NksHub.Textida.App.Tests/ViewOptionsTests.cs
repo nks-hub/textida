@@ -934,7 +934,7 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_text_and_the_map_get_their_colors_once_a_fast_drag_of_the_sampled_minimap_has_ended()
+    public async Task The_text_and_the_map_get_their_colors_once_a_fast_drag_of_the_sampled_minimap_has_ended()
     {
         var tab = Open("drag-colors.cs", KeywordFile(400_000), paged: true);
         var map = tab.Minimap!;
@@ -943,18 +943,18 @@ public class ViewOptionsTests : IDisposable
         var start = new Point(origin.X + 40, origin.Y + 2);
         var colors = SyntaxColors(["keyword", "comment"]).ToList();
         var text = InWindow(tab.Paged!, new Rect(60, 0, Math.Max(100, tab.Paged!.Bounds.Width - 120), tab.Paged.Bounds.Height));
-        bool TextColored()
+        async Task<bool> TextColored() // awaits, so that the timer that waits for the jumps to stop can tick
         {
             var clock = Stopwatch.StartNew();
             while (clock.Elapsed.TotalSeconds < 10)
             {
                 Dispatcher.UIThread.RunJobs();
                 if (Matching(Capture(), text, colors) > 20) return true;
-                Thread.Sleep(50);
+                await Task.Delay(50);
             }
             return false;
         }
-        Assert.True(TextColored(), "the first screen of the file has no colors before the drag");
+        Assert.True(await TextColored(), "the first screen of the file has no colors before the drag");
         _w.MouseDown(start, MouseButton.Left);
         for (int i = 0; i < 120; i++)
         {
@@ -965,7 +965,7 @@ public class ViewOptionsTests : IDisposable
         _w.MouseUp(new Point(start.X, start.Y + 360), MouseButton.Left);
         Assert.True(tab.Paged!.TopLine > 100_000, $"the drag moved the text to line {tab.Paged.TopLine}");
 
-        Assert.True(TextColored(), "the lines where the drag ended stayed without colors");
+        Assert.True(await TextColored(), "the lines where the drag ended stayed without colors");
         Assert.True(WaitForColors(tab, ["keyword"]), "the map lost its colors after the drag");
     }
 
