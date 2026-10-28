@@ -157,7 +157,7 @@ internal sealed class OpenDocument : IDisposable
     public bool EncodingUncertain => Guess is { IsUncertain: true };
 
     /// <summary>Size badge for the tab of a large file, like "10 GiB".</summary>
-    public string? SizeBadge => IsHex ? (IsLarge ? "HEX · " + FormatSize(_doc.ByteLength) : "HEX") : IsLarge ? FormatSize(_doc.ByteLength) : null;
+    public string? SizeBadge => Mode == ViewMode.Image ? null : IsHex ? (IsLarge ? "HEX · " + FormatSize(_doc.ByteLength) : "HEX") : IsLarge ? FormatSize(_doc.ByteLength) : null;
 
     /// <summary>Badge for the tab of a virtual document a plugin supplies: says it is a view of plugin data, and whether it can be edited.</summary>
     public string? VirtualBadge => Virtual is null ? null : Loc.Get(_doc.VirtualEditable ? K.VirtualBadgeEditable : K.VirtualBadgeReadOnly);
@@ -200,14 +200,30 @@ internal sealed class OpenDocument : IDisposable
     private static readonly PagedBackendFactory HexBackend = new(startIndexing: false);
     private bool _switchedForHex;
 
-    /// <summary>The hex views show this document: its bytes sit in the byte backend, which takes any byte anywhere.</summary>
+    /// <summary>The bytes of this document sit in the byte backend, which takes any byte anywhere: the hex views and the picture view read them there.</summary>
     public bool IsHex { get; private set; }
 
+    /// <summary>What the tabs of this document show (P3.6.11, P9.3.4). <see cref="ViewMode.Hex"/> and <see cref="ViewMode.Image"/> go with <see cref="IsHex"/>.</summary>
+    public ViewMode Mode { get; private set; }
+
+    /// <summary>The mode before the current one, so leaving the hex view goes back to where the user came from.</summary>
+    public ViewMode PreviousMode { get; private set; }
+
+    /// <summary>The file starts like a picture the viewer draws; the switcher bar then offers the picture next to the text and the hex view.</summary>
+    public bool IsImageFile { get; set; }
+
     /// <summary>
-    /// Moves the bytes of a text document to the byte backend (nothing is written, revision, undo and the unsaved state stay) and marks it as shown in hex.
-    /// The caller has closed the text views first.
+    /// Changes the mode. A mode that shows bytes moves the bytes of a text document to the byte backend (nothing is written, revision, undo and the unsaved state stay), a mode that shows text
+    /// moves them back. The caller has closed the views first.
     /// </summary>
-    public void EnterHex()
+    public void ChooseMode(ViewMode mode)
+    {
+        if (mode is ViewMode.Hex or ViewMode.Image) EnterHex(); else LeaveHex();
+        if (mode != Mode) PreviousMode = Mode;
+        Mode = mode;
+    }
+
+    private void EnterHex()
     {
         if (IsHex) return;
         if (TextBackend is not null)
@@ -220,8 +236,7 @@ internal sealed class OpenDocument : IDisposable
         IsHex = true;
     }
 
-    /// <summary>The inverse of <see cref="EnterHex"/>: the bytes go back to the text backend they came from. The caller has closed the hex views first.</summary>
-    public void LeaveHex()
+    private void LeaveHex()
     {
         if (!IsHex) return;
         if (_switchedForHex)
@@ -297,17 +312,23 @@ internal sealed class OpenDocument : IDisposable
     }
 
     /// <summary>Opens a file; above <paramref name="largeFileBytes"/> (the <c>files.largeFileThreshold</c> setting) it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
-    public static OpenDocument Open(string path, long largeFileBytes)
+    public static OpenDocument Open(string path, long largeFileBytes, ViewMode mode = ViewMode.Text)
     {
-        var (doc, guess) = OpenDocumentOnly(path, largeFileBytes);
+        bool bytes = mode is ViewMode.Hex or ViewMode.Image;
+        var (doc, guess) = OpenDocumentOnly(path, largeFileBytes, bytes);
         long t = Core.TypingTrace.Begin();
         var opened = new OpenDocument(doc, 0, guess, LanguageModes.ForPath(doc.FilePath));
+        if (bytes) (opened._switchedForHex, opened.IsHex) = (true, true);
+        opened.Mode = mode;
         Core.TypingTrace.End("open.document.wrap", t);
         return opened;
     }
 
-    /// <summary>The <see cref="Document"/> of a file and how its encoding was guessed; used to open and to reload.</summary>
-    public static (Document Doc, EncodingGuess Guess) OpenDocumentOnly(string path, long largeFileBytes)
+    /// <summary>
+    /// The <see cref="Document"/> of a file and how its encoding was guessed; used to open and to reload. With <paramref name="bytes"/> the file goes straight to the byte backend, which a picture or a
+    /// file shown in hex needs and which reads nothing but the start of the file; text in a UTF-16 or UTF-32 encoding is read as Windows-1252 there, as when a text document switches to hex.
+    /// </summary>
+    public static (Document Doc, EncodingGuess Guess) OpenDocumentOnly(string path, long largeFileBytes, bool bytes = false)
     {
         path = System.IO.Path.GetFullPath(path);
         try
@@ -317,9 +338,10 @@ internal sealed class OpenDocument : IDisposable
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException(null, path);
             Core.TypingTrace.End("open.document.recover", t);
-            IBackendFactory factory = info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
+            IBackendFactory factory = bytes ? (info.Length <= PluginLimitsPlaceholders.ImageViewMaxBytes ? ResidentBytesFactory.Instance : HexBackend) : info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
             t = Core.TypingTrace.Begin();
             var guess = GuessFile(path, info.Length);
+            if (bytes && guess.Codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) guess = guess with { Codec = TextCodec.Cp1252 };
             Core.TypingTrace.End("open.document.guess", t);
             t = Core.TypingTrace.Begin();
             try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes }), guess); }

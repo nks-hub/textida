@@ -510,6 +510,30 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 - Soubor delší než limit náhledu se nekreslí; stavový řádek to oznámí. Esc nebo Zavřít náhled ukončí. F6 přesune zaměření do náhledu; šipky, Page Up, Page Down, Home a End jím posouvají a Tab dosáhne na jeho odkazy a tlačítka.
 - V osnově jsou jen nadpisy psané přes `#`. Šířka buňky tabulky je šířka na obrazovce: široké východoasijské znaky se počítají za dva sloupce. Svislítko v buňce se píše `\|` nebo musí být v útržku kódu.
 
+## [view.markdownModes] Markdown: čtení, úpravy a zdroj
+commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
+Soubor Markdown (.md, .markdown) má tři režimy. Čtení vykreslí stránku přes celou kartu, úpravy ukážou editor se stránkou vedle něj a zdroj ukáže jen text. Přepíná je lišta nad souborem.
+1. Soubor Markdown se otevře ve čtení. Nastavení Výchozí režim Markdownu (Nastavení, Soubory) vybere čtení, úpravy nebo zdroj pro soubory otevřené od té chvíle.
+2. Stiskněte tlačítko v liště, použijte Nástroje, Markdown, Markdown: čtení, úpravy nebo zdroj, nebo stiskněte Ctrl+K a pak Ctrl+V (Zobrazit, Hex, Přepnout režim zobrazení), což přejde na další režim: čtení, úpravy, zdroj a zase čtení. Stavový řádek i čtečka obrazovky řeknou, který režim je zapnutý.
+3. V úpravách se stránka překreslí chvíli po poslední klávese a posouvá se spolu s editorem; kreslí i neuložené změny. Čtení i úpravy kreslí stejným bezpečným rendererem jako náhled: nespustí se žádný skript a z webu se nic nenačte bez vašeho souhlasu.
+4. Změna režimu drží místo: stránka i editor se posunou na stejný řádek a po návratu do editoru se vrátí kurzor a výběr. Okno si režim souboru pamatuje, dokud se nezavře.
+- Soubor delší než limit náhledu nebo otevřený jako velký soubor se otevře jako zdroj a stavový řádek to řekne; lišta pak nenabízí čtení ani úpravy.
+- Ve čtení klávesy editoru nic nedělají: stránka je jen ke čtení. Pro změnu textu přepněte na úpravy nebo zdroj. F6 přesune fokus na stránku; šipky, Page Up, Page Down, Home a End ji posouvají.
+- Ctrl+K a pak Ctrl+V v souboru v hexu přejde do čtení. Příkazy Markdownu v nabídce Nástroje potřebují editor, použijte pro ně úpravy nebo zdroj.
+- Text nejde měnit přímo ve vykreslené stránce.
+
+## [view.image] Obrázky
+commands: nks.view.modeImage, nks.view.modeText
+Soubor PNG, JPEG, GIF, BMP, WebP nebo ICO, který se pozná podle prvních bajtů a ne podle názvu, se otevře jako obrázek. SVG je text a otevře se jako text. Obrázek se jen prohlíží; nic v něm nejde upravovat.
+1. Obrázek je přizpůsobený kartě. Klávesa 0 ho znovu přizpůsobí, 1 ho ukáže v původní velikosti, plus a mínus přibližují a oddalují a šipky, Page Up, Page Down, Home a End s ním posouvají. Ctrl+kolečko přibližuje kolem ukazatele, tažení myší obrázek posouvá a totéž dělají příkazy Zobrazit, Přiblížit, Oddálit a Původní velikost; Původní velikost obrázek přizpůsobí kartě.
+2. Lišta nad obrázkem nabízí Zobrazit jako obrázek, Zobrazit jako text a Zobrazit jako hex. Paleta příkazů nabízí Zobrazit jako obrázek a Zobrazit obrázek jako text, Ctrl+K a pak Ctrl+V (Zobrazit, Hex, Přepnout režim zobrazení) přejde na další režim a Ctrl+K a pak Ctrl+H přepíná hex. Soubor se nečte znovu, takže se k obrázku můžete kdykoli vrátit.
+3. Stavový řádek ukazuje formát, rozměry v bodech, velikost souboru a přiblížení. Čtečka obrazovky přečte totéž při otevření obrázku a při změně přiblížení a lišta jmenuje zapnutý režim.
+4. Nastavení Soubory obrázků (Nastavení, Soubory) rozhoduje, zda se soubor obrázku otevře jako obrázek, jako text nebo v hexu. Lišta je v každém případě.
+- Kde je obrázek průhledný, prosvítá šachovnice. Animovaný GIF ukáže jen první políčko.
+- Soubor větší než limit prohlížeče, obrázek s víc body než je jeho limit, poškozený soubor a soubor, který není obrázek, ukážou místo obrázku hlášku a lišta nabídne text a hex. Editor nepadne a body takového souboru se nevytvoří.
+- Když se soubor na disku změní, obrázek se hned načte znovu. Když se soubor smaže, objeví se obvyklá lišta chybějícího souboru.
+- Bajty, které změníte v hexu, obrázek ukáže po návratu, ať jsou uložené, nebo ne.
+
 ## [tools.keys] Cesty klíčů v YAML a JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. V souboru YAML nebo JSON ukazuje stavový řádek cestu klíče pod kurzorem, například `cs.app.title`. Položky seznamu se píšou `items[0]` a klíč s tečkou nebo závorkou se píše `["a.b"]`. Cesta se čte pro revizi a kurzor, pro které se zeptalo: když mezitím píšete nebo kurzor přesunete, odpověď se zahodí.

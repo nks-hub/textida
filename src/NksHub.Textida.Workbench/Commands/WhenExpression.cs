@@ -48,9 +48,11 @@ public static class ContextKeys
     public const string InMarkdownTable = "inMarkdownTable";
     /// <summary>A snippet session runs in the active editor: Tab and Shift+Tab walk through its stops.</summary>
     public const string InSnippet = "inSnippet";
+    /// <summary>The file of the active tab starts like a picture the viewer draws, so the tab can be shown as picture, text or hex.</summary>
+    public const string ImageFile = "imageFile";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, ImageFile];
 }
 
 /// <summary>

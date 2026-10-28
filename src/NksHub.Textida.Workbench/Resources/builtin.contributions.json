@@ -1058,6 +1058,42 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.view.cycleMode",
+      "title": "cmd.view.cycleMode",
+      "category": "cat.view",
+      "enablement": "hasDocument && (imageFile || language == 'markdown')"
+    },
+    {
+      "id": "nks.view.modeRead",
+      "title": "cmd.view.modeRead",
+      "category": "cat.view",
+      "enablement": "hasDocument && language == 'markdown'"
+    },
+    {
+      "id": "nks.view.modeEdit",
+      "title": "cmd.view.modeEdit",
+      "category": "cat.view",
+      "enablement": "hasDocument && language == 'markdown'"
+    },
+    {
+      "id": "nks.view.modeSource",
+      "title": "cmd.view.modeSource",
+      "category": "cat.view",
+      "enablement": "hasDocument && language == 'markdown'"
+    },
+    {
+      "id": "nks.view.modeImage",
+      "title": "cmd.view.modeImage",
+      "category": "cat.view",
+      "enablement": "hasDocument && imageFile"
+    },
+    {
+      "id": "nks.view.modeText",
+      "title": "cmd.view.modeText",
+      "category": "cat.view",
+      "enablement": "hasDocument && imageFile"
+    },
+    {
       "id": "nks.file.openAsHex",
       "title": "cmd.file.openAsHex",
       "category": "cat.file"
@@ -3752,6 +3788,34 @@
     },
     {
       "menu": "view",
+      "command": "nks.view.cycleMode",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 12
+    },
+    {
+      "menu": "tools",
+      "command": "nks.view.modeRead",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 1
+    },
+    {
+      "menu": "tools",
+      "command": "nks.view.modeEdit",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 2
+    },
+    {
+      "menu": "tools",
+      "command": "nks.view.modeSource",
+      "group": "1_text/03_6_markdown",
+      "submenu": "markdown",
+      "order": 3
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.toggleInsert",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -5369,6 +5433,10 @@
       "command": "nks.view.hex"
     },
     {
+      "key": "mod+k mod+v",
+      "command": "nks.view.cycleMode"
+    },
+    {
       "key": "insert",
       "command": "nks.hex.toggleInsert",
       "mac": "mod+alt+i",
@@ -6449,6 +6517,48 @@
         "hex",
         "binary",
         "nul"
+      ]
+    },
+    {
+      "key": "files.imageOpen",
+      "type": "string",
+      "default": "image",
+      "title": "setting.files.imageOpen.title",
+      "description": "setting.files.imageOpen.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "image",
+        "text",
+        "hex"
+      ],
+      "tags": [
+        "image",
+        "picture",
+        "png",
+        "jpeg",
+        "viewer"
+      ]
+    },
+    {
+      "key": "markdown.defaultMode",
+      "type": "string",
+      "default": "read",
+      "title": "setting.markdown.defaultMode.title",
+      "description": "setting.markdown.defaultMode.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "read",
+        "edit",
+        "source"
+      ],
+      "tags": [
+        "markdown",
+        "preview",
+        "read",
+        "edit",
+        "source"
       ]
     },
     {

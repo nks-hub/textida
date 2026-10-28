@@ -47,7 +47,7 @@ internal sealed partial class MainWindow
     internal ScrollViewer PreviewScroller => _previewScroll;
 
     /// <summary>The pictures of the previews of this window: local files, web pictures the user allowed, and what has been decoded already.</summary>
-    internal PreviewImages PreviewPictures => _previewImages ??= new PreviewImages(() => _app.Remote.Policy().CreateHttpHandler(), ConfirmImageHostAsync, () => { if (_preview is not null) RenderPreview(keepScroll: true); });
+    internal PreviewImages PreviewPictures => _previewImages ??= new PreviewImages(() => _app.Remote.Policy().CreateHttpHandler(), ConfirmImageHostAsync, () => { if (_preview is not null) RenderPreview(keepScroll: true); RefreshTabPreviews(); });
 
     private Task<bool> ConfirmImageHostAsync(string host) =>
         PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PreviewImageConsentTitle), Loc.Get(K.PreviewImageConsentMessage, ("host", host))));
@@ -247,7 +247,7 @@ internal sealed partial class MainWindow
 
     private PreviewScrollMap? ScrollMap(EditorSurface editor) =>
         _previewAnchors is { Count: > 0 } anchors && _previewScroll.Content is Control body
-            ? new PreviewScrollMap(anchors.Select(a => (a.Line, body.Bounds.Y + a.Control.Bounds.Y)), editor.Document.LineCount, _previewScroll.Extent.Height)
+            ? new PreviewScrollMap(anchors.Select(a => (a.Line, body.Margin.Top + a.Control.Bounds.Y)), editor.Document.LineCount, _previewScroll.Extent.Height)
             : null;
 
     /// <summary>Scrolls the preview to where the top of the editor is.</summary>

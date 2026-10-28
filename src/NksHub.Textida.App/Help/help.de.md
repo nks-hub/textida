@@ -510,6 +510,30 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 - Eine Datei über dem Limit der Vorschau wird nicht gezeichnet; die Statusleiste sagt es. Esc oder Schließen beendet die Vorschau. F6 setzt den Fokus auf die Vorschau; die Pfeiltasten, Bild auf, Bild ab, Pos1 und Ende scrollen sie, und Tab erreicht ihre Links und Schaltflächen.
 - Aufgelistet werden nur mit `#` geschriebene Überschriften. Die Breite einer Tabellenzelle ist ihre Anzeigebreite: breite ostasiatische Zeichen zählen als zwei Spalten. Ein senkrechter Strich in einer Zelle wird als `\|` geschrieben oder steht in einem Code-Ausschnitt.
 
+## [view.markdownModes] Markdown: Lesen, Bearbeiten und Quelltext
+commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
+Eine Markdown-Datei (.md, .markdown) hat drei Modi. Lesen zeichnet die Seite über die ganze Karte, Bearbeiten zeigt den Editor mit der Seite daneben, Quelltext zeigt nur den Text. Eine Leiste über der Datei schaltet um.
+1. Eine Markdown-Datei wird im Lesen geöffnet. Die Einstellung Standardmodus für Markdown (Einstellungen, Dateien) wählt Lesen, Bearbeiten oder Quelltext für Dateien, die ab jetzt geöffnet werden.
+2. Drücken Sie eine Schaltfläche der Leiste, verwenden Sie Extras, Markdown, Markdown: Lesen, Bearbeiten oder Quelltext oder drücken Sie Strg+K und dann Strg+V (Ansicht, Hex, Anzeigemodus wechseln); das wechselt zum nächsten Modus: Lesen, Bearbeiten, Quelltext und wieder Lesen. Die Statusleiste und ein Screenreader nennen den aktiven Modus.
+3. Beim Bearbeiten wird die Seite einen Moment nach der letzten Taste neu gezeichnet und läuft mit dem Editor mit; auch ungespeicherte Änderungen werden gezeichnet. Lesen und Bearbeiten zeichnen mit demselben sicheren Renderer wie die Vorschau: Es läuft kein Skript, und aus dem Web wird ohne Ihre Zustimmung nichts geladen.
+4. Ein Moduswechsel behält die Stelle: Seite und Editor laufen zur selben Zeile, und beim Zurückkehren in den Editor kommen Einfügemarke und Auswahl zurück. Das Fenster merkt sich den Modus einer Datei, bis es geschlossen wird.
+- Eine Datei, die länger als die Grenze der Vorschau ist oder als große Datei geöffnet wurde, wird als Quelltext geöffnet, und die Statusleiste sagt es; die Leiste bietet dann weder Lesen noch Bearbeiten an.
+- Beim Lesen tun die Tasten des Editors nichts: Die Seite ist nur zum Lesen da. Zum Ändern des Textes wechseln Sie zu Bearbeiten oder Quelltext. F6 setzt den Fokus auf die Seite; die Pfeiltasten, Bild auf, Bild ab, Pos1 und Ende scrollen sie.
+- Strg+K und dann Strg+V in einer Datei in Hex wechselt zum Lesen. Die Markdown-Befehle im Menü Extras brauchen den Editor, nutzen Sie dafür Bearbeiten oder Quelltext.
+- Text lässt sich nicht direkt in der gezeichneten Seite ändern.
+
+## [view.image] Bilder
+commands: nks.view.modeImage, nks.view.modeText
+Eine PNG-, JPEG-, GIF-, BMP-, WebP- oder ICO-Datei, die an ihren ersten Bytes und nicht an ihrem Namen erkannt wird, wird als Bild geöffnet. SVG ist Text und wird als Text geöffnet. Ein Bild wird nur angesehen; nichts darin lässt sich bearbeiten.
+1. Das Bild wird an die Karte angepasst. Die Taste 0 passt es wieder an, 1 zeigt es in Originalgröße, Plus und Minus zoomen, und die Pfeiltasten, Bild auf, Bild ab, Pos1 und Ende verschieben es. Strg+Mausrad zoomt um den Zeiger, Ziehen mit der Maus verschiebt das Bild, und dasselbe tun die Befehle Ansicht, Vergrößern, Verkleinern und Originalgröße; Originalgröße passt das Bild an die Karte an.
+2. Die Leiste über dem Bild bietet Als Bild anzeigen, Als Text anzeigen und Als Hex anzeigen. Die Befehlspalette bietet Als Bild anzeigen und Bild als Text anzeigen; Strg+K und dann Strg+V (Ansicht, Hex, Anzeigemodus wechseln) geht zum nächsten Modus, und Strg+K und dann Strg+H schaltet Hex um. Die Datei wird nicht neu gelesen, Sie können also jederzeit zum Bild zurückkehren.
+3. Die Statusleiste zeigt das Format, die Größe in Pixeln, die Dateigröße und die Vergrößerung. Ein Screenreader liest dasselbe, wenn das Bild geöffnet wird und wenn sich die Vergrößerung ändert, und die Leiste nennt den aktiven Modus.
+4. Die Einstellung Bilddateien (Einstellungen, Dateien) bestimmt, ob eine Bilddatei als Bild, als Text oder in Hex geöffnet wird. Die Leiste ist in jedem Fall da.
+- Wo das Bild durchsichtig ist, scheint ein Schachbrett durch. Ein animiertes GIF zeigt nur das erste Bild.
+- Eine Datei über der Grenze des Betrachters, ein Bild mit mehr Pixeln als seine Grenze, eine beschädigte Datei und eine Datei, die kein Bild ist, zeigen anstelle des Bildes eine Meldung, und die Leiste bietet Text und Hex an. Der Editor stürzt nicht ab, und die Pixel einer solchen Datei werden nicht erzeugt.
+- Wenn sich die Datei auf dem Datenträger ändert, wird das Bild sofort neu gelesen. Wird die Datei gelöscht, erscheint die übliche Leiste für eine fehlende Datei.
+- Bytes, die Sie in Hex ändern, zeigt das Bild bei der Rückkehr, gespeichert oder nicht.
+
 ## [tools.keys] Schlüsselpfade in YAML und JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In einer YAML- oder JSON-Datei zeigt die Statusleiste den Pfad des Schlüssels am Cursor, zum Beispiel `cs.app.title`. Listeneinträge werden `items[0]` geschrieben, ein Schlüssel mit Punkt oder Klammer wird `["a.b"]` geschrieben. Der Pfad wird für die Revision und den Cursor gelesen, für die gefragt wurde: Tippen oder bewegen Sie sich inzwischen, wird die Antwort verworfen.

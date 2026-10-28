@@ -25,6 +25,8 @@ internal sealed partial class MainWindow
         if (DocumentsPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.documents";
         if (PluginPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.pluginPanels";
         if (Active?.Custom is Editing.DiffView) return "compare.text";
+        if (Active?.Custom is ImageView) return "view.image";
+        if (Active?.Custom is MarkdownPreview || Active?.SidePreview is not null) return "view.markdownModes";
         if (Active?.Custom is not null) return "search.inFiles";
         if (Active?.Paged is not null) return "paged";
         return HelpCatalog.StartTopic;

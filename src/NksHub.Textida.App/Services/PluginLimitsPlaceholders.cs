@@ -598,6 +598,18 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest text, in characters, that the live preview of the current file draws. OPEN: the owner has not decided it.</summary>
     public const int PreviewLiveMaxChars = 1 << 20;
 
+    /// <summary>Placeholder: largest picture file the picture viewer reads and decodes, in bytes; a larger one shows a message and the bar offers text and hex. The pixel limit is <see cref="PreviewImageMaxPixels"/>. OPEN: the owner has not decided it.</summary>
+    public const long ImageViewMaxBytes = 64L << 20;
+
+    /// <summary>Placeholder: smallest zoom of the picture viewer, as a fraction of the real size. OPEN: the owner has not decided it.</summary>
+    public const double ImageViewMinZoom = 0.02;
+
+    /// <summary>Placeholder: largest zoom of the picture viewer, as a multiple of the real size. OPEN: the owner has not decided it.</summary>
+    public const double ImageViewMaxZoom = 32;
+
+    /// <summary>Placeholder: factor of one zoom step of the picture viewer (a key press or a notch of the wheel). OPEN: the owner has not decided it.</summary>
+    public const double ImageViewZoomStep = 1.25;
+
     /// <summary>Placeholder: longest text of one update, tool title or permission question a plugin sends to the agent panel, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int AgentUpdateMaxChars = 64 * 1024;
 

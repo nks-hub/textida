@@ -409,7 +409,7 @@ internal sealed partial class MainWindow
     {
         try
         {
-            var (fresh, guess) = OpenDocument.OpenDocumentOnly(path, LargeFileBytes);
+            var (fresh, guess) = OpenDocument.OpenDocumentOnly(path, LargeFileBytes, bytes: od.IsHex);
             _app.Journal.Untrack(od);
             od.Replace(fresh, guess);
             _app.Journal.Track(od);
@@ -451,6 +451,12 @@ internal sealed partial class MainWindow
     {
         if (change.Kind == ExternalChangeKind.Modified)
         {
+            // a picture is view only: nothing of the user's is in the tab, so the new file is shown without asking (P3.6.11)
+            if (od.Mode == ViewMode.Image && od.Path is { } picture && change.DocumentId == od.Doc.Id && !od.Doc.IsModified && !od.Doc.IsSaving)
+            {
+                ReloadNow(od, picture);
+                return;
+            }
             if (change.DocumentId != od.Doc.Id) return; // raised by a document that a reload has replaced since
             if (change.Actual is { } actual && _app.Plugins.Acp.TakeWrite(od.Doc.Id, actual.Sha256)) return; // the file an agent was allowed to write: the review closed, the tab took it over
             if (await od.Doc.TryAdoptFileAsync(change))

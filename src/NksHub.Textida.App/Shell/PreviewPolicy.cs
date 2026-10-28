@@ -68,7 +68,8 @@ internal static class PreviewPolicy
 
     /// <summary>Whether the bytes are a raster picture of a kind the preview draws whose size in pixels is known and within the limit.</summary>
     public static bool Drawable(ReadOnlySpan<byte> bytes) =>
-        RasterImage.Size(bytes) is { } size && size.Width > 0 && size.Height > 0 && (long)size.Width * size.Height <= PluginLimitsPlaceholders.PreviewImageMaxPixels;
+        RasterImage.FormatName(bytes) is not (null or "ICO") // an icon is a picture of the viewer, not of a preview
+        && RasterImage.Size(bytes) is { } size && size.Width > 0 && size.Height > 0 && (long)size.Width * size.Height <= PluginLimitsPlaceholders.PreviewImageMaxPixels;
 
     /// <summary>The address of a link the user may be asked to open (http, https or mailto); null when the policy never opens it.</summary>
     public static Uri? LinkTarget(string target) =>

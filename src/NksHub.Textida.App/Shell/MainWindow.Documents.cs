@@ -39,7 +39,15 @@ internal sealed partial class MainWindow
         if (tab is null)
         {
             long t = Core.TypingTrace.Begin();
-            var od = OpenDocument.Open(path, LargeFileBytes);
+            var first = FirstMode(path, out bool picture);
+            if (line is not null && first == ViewMode.Read) first = ViewMode.Text; // a line to go to is a line of the source
+            var od = OpenDocument.Open(path, LargeFileBytes, first is ViewMode.Hex or ViewMode.Image ? first : ViewMode.Text);
+            od.IsImageFile = picture;
+            if (first is ViewMode.Read or ViewMode.Edit)
+            {
+                if (CanShow(od, first)) od.ChooseMode(first);
+                else SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimitsPlaceholders.PreviewLiveMaxChars)));
+            }
             Core.TypingTrace.End("open.document", t);
             t = Core.TypingTrace.Begin();
             Adopt(od);
@@ -52,7 +60,11 @@ internal sealed partial class MainWindow
             Core.TypingTrace.End("open.offerHex", t);
         }
         else SelectTab(tab);
-        if (line is { } l) tab.GoToLine(l);
+        if (line is { } l)
+        {
+            if (tab.Doc.Mode == ViewMode.Read && SetViewMode(tab.Doc, ViewMode.Text)) tab = Active is { } shown && shown.Doc == tab.Doc ? shown : tab.Doc.Views[0];
+            tab.GoToLine(l);
+        }
         FocusView(tab);
         return tab;
     }
@@ -74,6 +86,7 @@ internal sealed partial class MainWindow
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
+        od.LanguageChanged += () => OnLanguageChangedForModes(od);
         od.HistoryProblem += ReportHistory;
         long t = Core.TypingTrace.Begin();
         AcquireLock(od);
@@ -125,7 +138,12 @@ internal sealed partial class MainWindow
 
     private DocTab AddView(OpenDocument od, TabGroup group, int? index = null)
     {
-        var tab = new DocTab(od, OptionsFor(od));
+        var tab = od.Mode switch
+        {
+            ViewMode.Image => new DocTab(od, OptionsFor(od), new ImageView(od)),
+            ViewMode.Read => new DocTab(od, OptionsFor(od), new MarkdownPreview(this, od)),
+            _ => new DocTab(od, OptionsFor(od)),
+        };
         if (tab.Surface is { } surface)
         {
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
@@ -140,9 +158,11 @@ internal sealed partial class MainWindow
             ScheduleGitGutter(tab);
             AutomationProperties.SetName(surface, Loc.Get(K.A11yEditor));
             surface.Watermark = od.Path is null ? Loc.Get(K.EditorPlaceholder) : "";
+            if (od.Mode == ViewMode.Edit) tab.ShowSidePreview(new MarkdownPreview(this, od, surface));
         }
         else if (tab.Hex is { } hex) WireHex(tab, hex);
-        else
+        else if (tab.Custom is ImageView image) WireImage(tab, image);
+        else if (tab.Custom is not MarkdownPreview)
         {
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
             tab.Paged.Refused += SetStatusMessage;
@@ -152,6 +172,7 @@ internal sealed partial class MainWindow
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
         AttachEditorMenu(tab);
+        RefreshModeBar(tab);
         group.Add(tab, index);
         _activeGroup = group;
         if (od.Lock is not null || od.IsVirtual || od.UserReadOnly) ApplyLock(od);
@@ -179,6 +200,7 @@ internal sealed partial class MainWindow
     /// <summary>The document under the tabs was swapped (reload). A view of the other kind (text or paged) is rebuilt in place.</summary>
     private void OnDocReplaced(OpenDocument od)
     {
+        if (od.Mode is ViewMode.Read or ViewMode.Edit && !CanShow(od, od.Mode)) od.ChooseMode(ViewMode.Text); // the file grew past what the page draws
         foreach (var tab in od.Views.ToList())
         {
             var group = tab.Group!;
@@ -186,7 +208,7 @@ internal sealed partial class MainWindow
             bool wasActive = Active == tab;
             tab.ShowBar(null);
             tab.Table?.Rebind();
-            if (tab.Surface is { } s && !od.IsLarge)
+            if (tab.Surface is { } s && !od.IsLarge && (tab.SidePreview is null) == (od.Mode != ViewMode.Edit))
             {
                 s.BindDocument();
                 s.ApplyOptions(OptionsFor(tab));

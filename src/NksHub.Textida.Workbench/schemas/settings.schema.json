@@ -454,6 +454,28 @@
           "description": "Binary files in hex. What happens when a file has a NUL byte in its first 8,000 bytes: ask with a bar, always open in hex, or never switch.",
           "x-scope": "application"
         },
+        "files.imageOpen": {
+          "type": "string",
+          "default": "image",
+          "enum": [
+            "image",
+            "text",
+            "hex"
+          ],
+          "description": "Picture files. How a picture file (PNG, JPEG, GIF, BMP, WebP, ICO) opens: as a picture, as text, or in hex. The bar above the file changes the view at any time.",
+          "x-scope": "application"
+        },
+        "markdown.defaultMode": {
+          "type": "string",
+          "default": "read",
+          "enum": [
+            "read",
+            "edit",
+            "source"
+          ],
+          "description": "Default Markdown mode. How a Markdown file opens: for reading as a rendered page, for editing with the page beside the editor, or as source. Applies to files opened from now on.",
+          "x-scope": "application"
+        },
         "editor.clipboardHistorySize": {
           "type": "integer",
           "default": 20,

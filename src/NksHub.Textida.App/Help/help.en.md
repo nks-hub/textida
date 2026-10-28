@@ -510,6 +510,30 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 - A file longer than the limit of the preview is not drawn; the status bar says so. Esc or Close ends the preview. F6 moves the focus to the preview; the arrow keys, Page Up, Page Down, Home and End scroll it, and Tab reaches its links and buttons.
 - Only headings written with `#` are listed. The width of a table cell is its display width: wide East Asian characters count as two columns. A pipe in a cell must be written `\|` or sit inside an inline code span.
 
+## [view.markdownModes] Markdown: reading, editing and source
+commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
+A Markdown file (.md, .markdown) has three modes. Reading draws the page over the whole tab, editing shows the editor with the page beside it, source shows only the text. A bar above the file switches them.
+1. A Markdown file opens in reading. The setting Default Markdown mode (Settings, Files) chooses reading, editing or source for files opened from now on.
+2. Press a button of the bar, use Tools, Markdown, Markdown: Reading, Editing or Source, or press Ctrl+K and then Ctrl+V (View, Hex, Cycle View Mode), which goes to the next mode: reading, editing, source and reading again. The status bar and a screen reader say which mode is on.
+3. In editing the page is drawn again a moment after the last key and scrolls together with the editor; unsaved changes are drawn too. Reading and editing draw with the same safe renderer as the preview: no script runs and nothing is fetched from the web without your consent.
+4. Changing the mode keeps the place: the page and the editor scroll to the same line, and the caret and the selection come back when you return to the editor. The window remembers the mode of a file until it is closed.
+- A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
+- In reading the keys of the editor do nothing: the page is only for reading. Switch to editing or source to change the text. F6 moves the focus to the page; the arrow keys, Page Up, Page Down, Home and End scroll it.
+- Ctrl+K then Ctrl+V on a file in hex goes to reading. The Markdown commands of the Tools menu need the editor, so use editing or source for them.
+- Text cannot be changed directly in the drawn page.
+
+## [view.image] Pictures
+commands: nks.view.modeImage, nks.view.modeText
+A PNG, JPEG, GIF, BMP, WebP or ICO file, recognised by its first bytes and not by its name, opens as a picture. SVG is text and opens as text. A picture is view only; nothing in it can be edited.
+1. The picture is fitted to the tab. The key 0 fits it again, 1 shows it at its real size, plus and minus zoom, and the arrow keys, Page Up, Page Down, Home and End move it. Ctrl+wheel zooms around the pointer, dragging with the mouse moves the picture, and View, Zoom In, Zoom Out and Reset Zoom do the same; Reset Zoom fits the picture to the tab.
+2. The bar above the picture offers Show as picture, Show as text and Show as hex. The command palette has Show as Picture and Show Picture as Text, Ctrl+K then Ctrl+V (View, Hex, Cycle View Mode) goes to the next mode, and Ctrl+K then Ctrl+H toggles hex. The file is not read again, so you can come back to the picture at any time.
+3. The status bar shows the format, the size in pixels, the size of the file and the zoom. A screen reader reads the same when the picture opens and when the zoom changes, and the bar names the mode that is on.
+4. The setting Picture files (Settings, Files) decides whether a picture file opens as a picture, as text or in hex. The bar is there in each case.
+- Where the picture is transparent a checkerboard shows through. An animated GIF shows its first frame only.
+- A file larger than the limit of the viewer, a picture with more pixels than its limit, a damaged file and a file that is not a picture show a message in place of the picture, and the bar offers text and hex. The editor does not stop, and the pixels of such a file are not made.
+- When the file changes on disk, the picture is read again at once. If the file is deleted, the usual bar of a missing file appears.
+- Bytes you change in hex are what the picture shows when you come back to it, saved or not.
+
 ## [tools.keys] Key paths in YAML and JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In a YAML or JSON file the status bar shows the path of the key under the caret, for example `cs.app.title`. Items of a list are written `items[0]`, and a key that contains a dot or a bracket is written `["a.b"]`. The path is read for the revision and the caret it was asked for: if you type or move meanwhile, the answer is dropped.

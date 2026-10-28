@@ -63,6 +63,7 @@ internal sealed partial class MainWindow
         {
             if (opened.TryGetValue(rd.DocId, out var existing)) return existing;
             var od = OpenDocument.FromRecovered(rd, numbers.TryGetValue(rd.DocId, out var n) ? n : null);
+            od.IsImageFile = od.Path is { } path && Core.Markdown.RasterImage.Detect(ReadHead(path)) is not null; // the restored tab opens as text, and the bar offers the picture
             Adopt(od);
             return opened[rd.DocId] = od;
         }
