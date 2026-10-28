@@ -201,8 +201,10 @@ public class AdvancedOptionsTests : IDisposable
         _w.MouseWheel(inside, new Vector(0, -1), RawInputModifiers.None);
         _w.UpdateLayout();
         Assert.False(surface.Gliding);
-        surface.ScrollToVerticalOffset(0);
+        Assert.True(surface.VerticalOffset > 0, "the scroll viewer must have taken the wheel");
+        surface.ScrollToY(0);
         _w.UpdateLayout();
+        Assert.Equal(0, surface.VerticalOffset);
 
         Assert.Null(_app.Workbench.Set("advanced.smoothScrolling", JsonValue.Create(true)));
         Assert.True(surface.Settings.SmoothScrolling);
@@ -225,7 +227,7 @@ public class AdvancedOptionsTests : IDisposable
         // a notch back, and a key or the scroll bar moving the text ends a glide that is under way
         _w.MouseWheel(inside, new Vector(0, 1), RawInputModifiers.None);
         Assert.True(surface.Gliding);
-        surface.ScrollToVerticalOffset(10 * notch);
+        surface.ScrollToY(10 * notch);
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(10);
@@ -244,14 +246,18 @@ public class AdvancedOptionsTests : IDisposable
         var fresh = _w.NewDocument();
         Assert.Equal(3, fresh.Doc.Doc.UndoLimit);
 
-        for (int i = 0; i < 6; i++) tab.Editor!.Document.Insert(tab.Editor.Document.TextLength, "x");
+        // every insert goes in front of the text: keystrokes in a row at the end of the previous one share an undo step, and these are to be six
+        for (int i = 0; i < 6; i++) tab.Editor!.Document.Insert(0, "x");
         int steps = 0;
         while (tab.Doc.Doc.CanUndo) { tab.Doc.Doc.Undo(); steps++; }
         Assert.Equal(3, steps);
 
         // lowering the limit reaches the documents that are open, and 0 keeps every step again
-        for (int i = 0; i < 3; i++) tab.Editor!.Document.Insert(tab.Editor.Document.TextLength, "y");
+        for (int i = 0; i < 3; i++) tab.Editor!.Document.Insert(0, "y");
         Assert.Null(_app.Workbench.Set("advanced.undoLimit", JsonValue.Create(1)));
+        steps = 0;
+        while (tab.Doc.Doc.CanUndo) { tab.Doc.Doc.Undo(); steps++; }
+        Assert.Equal(1, steps);
         Assert.Equal(1, tab.Doc.Doc.UndoLimit);
         Assert.Equal(1, fresh.Doc.Doc.UndoLimit);
         Assert.Null(_app.Workbench.Set("advanced.undoLimit", JsonValue.Create(0)));
