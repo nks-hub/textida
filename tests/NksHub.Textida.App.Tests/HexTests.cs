@@ -340,21 +340,21 @@ public class HexTests : IDisposable
         var tab = OpenHex(Sample(10_000));
         var hex = tab.Hex!;
         _dialogs.Prompts.Enqueue("end-512");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control); // Ctrl+G on every platform: Command+G finds the next match on macOS
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(10_000 - 512, hex.Caret);
         _dialogs.Prompts.Enqueue("0x1F40");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(0x1F40, hex.Caret);
         Press(Key.Left, RawInputModifiers.Alt);
         Assert.Equal(10_000 - 512, hex.Caret);
         _dialogs.Prompts.Enqueue("50%");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(5000, hex.Caret);
         _dialogs.Prompts.Enqueue("end+1");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(5000, hex.Caret);
         Assert.NotEqual("", _w.StatusMessageText);
@@ -377,7 +377,7 @@ public class HexTests : IDisposable
         Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "0x"));
 
         _dialogs.Prompts.Enqueue("4K");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(4096, hex.Caret);
         Assert.Equal($"→ 0x00001000 (4096) · bajt {bytes[4096]:X2}", Assert.Single(_dialogs.Previews));
