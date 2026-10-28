@@ -37,10 +37,22 @@ public class HtmlInsertAppTests : IDisposable
     {
         string path = Path.Combine(_temp.Path, name);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        using (var bitmap = new RenderTargetBitmap(new PixelSize(width, height))) bitmap.Save(path);
+        using (var bitmap = new RenderTargetBitmap(new PixelSize(width, height))) bitmap.Save(path, PngBitmapEncoderOptions.Default);
         using var decoded = new Bitmap(path);
         Assert.Equal(new PixelSize(width, height), decoded.PixelSize);
         return path;
+    }
+
+    [AvaloniaFact]
+    public void The_size_of_a_jpeg_written_by_the_imaging_library_is_read()
+    {
+        string path = Path.Combine(_temp.Path, "photo.jpg");
+        using (var bitmap = new RenderTargetBitmap(new PixelSize(53, 29))) bitmap.Save(path, new JpegBitmapEncoderOptions());
+        using var decoded = new Bitmap(path);
+        using var file = File.OpenRead(path);
+        Assert.True(HtmlInsert.TryImageSize(file, out int width, out int height));
+        Assert.Equal((decoded.PixelSize.Width, decoded.PixelSize.Height), (width, height));
+        Assert.Equal((53, 29), (width, height));
     }
 
     private DocTab Open(string content, params (int Start, int End)[] selections)

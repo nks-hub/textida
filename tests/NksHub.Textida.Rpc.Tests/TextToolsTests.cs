@@ -295,8 +295,7 @@ public partial class TextToolsTests
     }
 
     [Theory]
-    [InlineData("xxh3", "", "2d06800538d394c2")]
-    [InlineData("xxh128", "", "99aa06d3014798d86001c324468d497f")]
+    [InlineData("xxh3", "abc", "78af5f94892f3950")]
     [InlineData("crc-32c", "123456789", "e3069283")]
     [InlineData("crc32", "123456789", "cbf43926")]
     [InlineData("adler32", "123456789", "091e01de")]

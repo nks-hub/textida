@@ -165,6 +165,7 @@ public class HtmlInsertTests
         Assert.StartsWith("file:///", reference);
         Assert.EndsWith("/a%20b.png", reference);
         Assert.DoesNotContain('\\', reference);
+        if (OperatingSystem.IsWindows()) Assert.Equal("file://server/share/a%20b.png", HtmlInsert.RelativeReference(null, @"\\server\share\a b.png")); // the host of a network path stays the host
     }
 
     [Fact]

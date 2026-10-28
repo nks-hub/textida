@@ -88,7 +88,7 @@ public class WordCompletionTests
     public void A_word_outside_the_stretch_around_the_caret_ranks_by_how_often_it_occurs()
     {
         string text = "comma comma comma " + new string('.', 100) + " comet com";
-        var near = new CompletionNear(text[^30..], 30, CutStart: true);
+        var near = new CompletionNear(text.Substring(text.Length - 30), 30, CutStart: true);
         Assert.Equal(["comma", "comet"], Words("com", new CompletionSource(text, text.Length)));
         Assert.Equal(["comet", "comma"], Words("com", new CompletionSource(text, text.Length, null, near)));
     }

@@ -107,7 +107,7 @@ public static class HtmlInsert
     {
         string full = Path.GetFullPath(file);
         string relative = documentDirectory is null ? full : Path.GetRelativePath(documentDirectory, full);
-        if (Path.IsPathRooted(relative)) return "file:///" + EscapePath(full.Replace('\\', '/').TrimStart('/'));
+        if (Path.IsPathRooted(relative)) return full.StartsWith(@"\\", StringComparison.Ordinal) ? "file:" + EscapePath(full.Replace('\\', '/')) : "file:///" + EscapePath(full.Replace('\\', '/').TrimStart('/'));
         string reference = EscapePath(relative.Replace('\\', '/'));
         int slash = reference.IndexOf('/');
         return reference.AsSpan(0, slash < 0 ? reference.Length : slash).Contains(':') ? "./" + reference : reference; // "a:b" alone would read as a scheme
