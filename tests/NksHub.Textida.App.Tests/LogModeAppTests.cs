@@ -164,6 +164,55 @@ public class LogModeAppTests : IDisposable
         Assert.Equal(0, Matching(shot, PagedRow(log, 1), Level(LogLevel.Error)));
     }
 
+    private static readonly Color AnsiRed = Color.FromRgb(0xCD, 0x31, 0x31); // the standard red of AnsiColor.Indexed(1)
+
+    [AvaloniaFact]
+    public void An_ansi_style_left_open_colors_the_next_lines_of_a_log_in_the_editor_until_a_code_resets_it()
+    {
+        var log = Open("carry.log", "\x1b[31mred starts here\nsecond line goes on\n\x1b[0mthird line is plain\nfourth line is plain\n");
+        var shot = Capture();
+        Assert.True(Matching(shot, EditorRow(log, 0), AnsiRed) > 10, "the line with the code");
+        Assert.True(Matching(shot, EditorRow(log, 1), AnsiRed) > 10, "the line after it, which has no code of its own");
+        Assert.Equal(0, Matching(shot, EditorRow(log, 2), AnsiRed));
+        Assert.Equal(0, Matching(shot, EditorRow(log, 3), AnsiRed));
+        Assert.StartsWith("\x1b[31m", log.Editor!.Document.Text, StringComparison.Ordinal); // the text keeps its escapes
+
+        // the style of a line is read again after an edit: a reset typed at the start of the second line ends the red there
+        log.Editor.Document.Insert(log.Editor.Document.GetLineByNumber(2).Offset, "\x1b[0m");
+        shot = Capture();
+        Assert.True(Matching(shot, EditorRow(log, 0), AnsiRed) > 10);
+        Assert.Equal(0, Matching(shot, EditorRow(log, 1), AnsiRed));
+
+        // the escapes shown as they are in the file: no colors at all
+        log.Editor.AnsiRaw = true;
+        Assert.Equal(0, Matching(Capture(), EditorRow(log, 0), AnsiRed));
+        log.Editor.AnsiRaw = false;
+        Assert.True(Matching(Capture(), EditorRow(log, 0), AnsiRed) > 10);
+    }
+
+    [AvaloniaFact]
+    public void An_ansi_style_left_open_colors_the_next_lines_on_the_paged_surface_whatever_line_the_view_starts_at()
+    {
+        var text = new StringBuilder("\x1b[31mred starts here\n");
+        for (int i = 1; i < 80_000; i++) text.Append(i == 100 ? "\x1b[0mstops here\n" : $"line number {i} goes on\n");
+        var log = Open("carry.log", text.ToString(), paged: true);
+        var shot = Capture();
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10, "the line with the code");
+        Assert.True(Matching(shot, PagedRow(log, 1), AnsiRed) > 10, "the line after it");
+
+        // the first line on screen is far below the code: its style comes from the lines above it
+        ((IMinimapHost)log.Paged!).ScrollToLine(50);
+        shot = Capture();
+        Assert.Equal(50, log.Paged.TopLine);
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10);
+
+        ((IMinimapHost)log.Paged).ScrollToLine(99);
+        shot = Capture();
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10, "the line before the reset");
+        Assert.Equal(0, Matching(shot, PagedRow(log, 1), AnsiRed));
+        Assert.Equal(0, Matching(shot, PagedRow(log, 2), AnsiRed));
+    }
+
     private void Step(bool forward)
     {
         Assert.Equal(CommandOutcome.Handled, _w.LogStep(forward));

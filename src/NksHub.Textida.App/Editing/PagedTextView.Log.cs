@@ -1,4 +1,5 @@
 using Avalonia;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.App.Editing;
@@ -26,6 +27,23 @@ internal sealed partial class PagedTextView
     }
 
     private bool HideAnsi => _doc.IsLog && !_ansiRaw;
+
+    private readonly AnsiCarry _ansiCarry = new(PluginLimitsPlaceholders.AnsiCarryLookbackLines);
+    private (long Revision, bool Exact) _ansiBasis = (-1, false);
+
+    /// <summary>
+    /// The ANSI styles of a line, from the style the lines before it left open. The styles the lines left are remembered while the text and the numbering of the lines
+    /// stay as they are; a line that is not cached is read again from the file, at most <see cref="PluginLimitsPlaceholders.AnsiCarryLookbackLines"/> lines back.
+    /// </summary>
+    private AnsiLine AnsiOf(long line, LineView view)
+    {
+        if (_ansiBasis != (Doc.Revision, LinesExact))
+        {
+            _ansiCarry.Clear();
+            _ansiBasis = (Doc.Revision, LinesExact);
+        }
+        return _ansiCarry.Read(line, view.Map.Text, before => GetLine(before)?.Map.Text);
+    }
 
     /// <summary>Lines that this criteria would fold are drawn dim; null draws every line as usual.</summary>
     public LogFoldCriteria? FoldCriteria { get; private set; }

@@ -1,6 +1,7 @@
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using AvaloniaEdit.Folding;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Tools;
 
@@ -22,7 +23,7 @@ internal sealed partial class EditorSurface
     private void InitLogFull()
     {
         _ansiHide = new AnsiHideGenerator();
-        _ansi = new AnsiColorizer(TextArea.TextView);
+        _ansi = new AnsiColorizer(TextArea.TextView) { Lookback = PluginLimitsPlaceholders.AnsiCarryLookbackLines };
         TextArea.TextView.ElementGenerators.Insert(0, _ansiHide);
         TextArea.TextView.LineTransformers.Add(_ansi);
         TextArea.AddHandler(PointerPressedEvent, OnLogLinkPressed, RoutingStrategies.Tunnel);

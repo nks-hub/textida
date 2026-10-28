@@ -73,6 +73,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
+    /// <summary>Placeholder, OPEN: lines before a line of a log that are read to find the ANSI style the lines above left open; a style that stays open longer than this shows in the default style past it. The owner has not decided it.</summary>
+    public const int AnsiCarryLookbackLines = 200;
+
     /// <summary>Placeholder, OPEN: milliseconds between two frames of smooth scrolling (the setting <c>advanced.smoothScrolling</c>). The owner has not decided it.</summary>
     public const int SmoothScrollFrameMilliseconds = 16;
 

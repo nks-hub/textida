@@ -1803,11 +1803,11 @@ internal sealed partial class PagedTextView : Grid
             }
         }
 
-        /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line; backgrounds are filled now, before the text is drawn over them.</summary>
-        private void DrawAnsi(DrawingContext context, FormattedText text, LineView view, double y)
+        /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line (<paramref name="spans"/>, which include the style the lines before it left open); backgrounds are filled now, before the text is drawn over them.</summary>
+        private void DrawAnsi(DrawingContext context, FormattedText text, LineView view, double y, IReadOnlyList<AnsiSpan> spans)
         {
             int length = view.Map.Text.Length;
-            foreach (var span in AnsiSgr.Parse(view.Map.Text).Spans)
+            foreach (var span in spans)
             {
                 int from = view.DisplayAt[Math.Min(span.Start, length)], to = view.DisplayAt[Math.Min(span.Start + span.Length, length)];
                 if (to <= from) continue;
@@ -1934,7 +1934,7 @@ internal sealed partial class PagedTextView : Grid
                             }
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
-                    if (view.HidesAnsi && insertLength == 0) DrawAnsi(context, text, view, y);
+                    if (owner.HideAnsi && insertLength == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
                     if (insertLength > 0) text.SetTextDecorations(TextDecorations.Underline, insertAt, insertLength);
                     if (options.ShowWhitespace) DimMarks(text, shown, dim);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
