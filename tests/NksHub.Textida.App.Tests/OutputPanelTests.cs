@@ -60,9 +60,13 @@ public class OutputPanelTests : IDisposable
     {
         var channels = new OutputChannels(OutputDir);
         using var reader = new CountdownEvent(3);
-        var psi = new ProcessStartInfo("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-            "[Console]::Out.WriteLine('step one'); [Console]::Out.WriteLine('step two'); [Console]::Out.WriteLine('ERROR: access violation'); Start-Sleep -Seconds 120"])
-        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+        var psi = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+                "[Console]::Out.WriteLine('step one'); [Console]::Out.WriteLine('step two'); [Console]::Out.WriteLine('ERROR: access violation'); Start-Sleep -Seconds 120"])
+            : new ProcessStartInfo("/bin/sh", ["-c", "echo 'step one'; echo 'step two'; echo 'ERROR: access violation'; sleep 120"]);
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
         using var tool = Process.Start(psi)!;
         tool.OutputDataReceived += (_, e) =>
         {
