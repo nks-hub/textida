@@ -46,6 +46,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private const string GitActivation = "onCommand:git";
     /// <summary>The panel of the Git status; its items are the full paths of the files, a click opens the file.</summary>
     public const string GitStatusPanel = "git:status";
+    /// <summary>The command that tells the Git plugin a document is closed, so it can stop watching a repository.</summary>
+    public const string GitClosedCommand = "git.closed";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -957,8 +959,24 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _outlineWanted.Remove(document.Id);
         _schemaChecked.Remove(document.Id);
         _activatedFor.RemoveWhere(x => x.Document == document.Id);
+        ReleaseGitWatch(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
+    }
+
+    /// <summary>
+    /// The last tab of a document closed: tells the Git plugin, if it runs, which stops watching the repository of the file when no other open file of it is left. A command that is still
+    /// running on the document is waited for first, so that it cannot start the watch again afterwards.
+    /// </summary>
+    private void ReleaseGitWatch(Guid document)
+    {
+        if (!_host.IsRegistered(GitPluginId) || _host.GetState(GitPluginId) != PluginState.Running) return;
+        var running = _running.TryGetValue(document, out var run) ? run.Done.Task : Task.CompletedTask;
+        _ = running.ContinueWith(async _ =>
+        {
+            try { await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes($"{{\"command\":\"{GitClosedCommand}\",\"document\":\"{document}\",\"revision\":0}}")); }
+            catch (Exception e) when (e is PluginUnavailableException or PluginCrashedException or NksHub.Textida.Rpc.RpcException or IOException or TimeoutException) { /* the plugin is gone: its watches went with it */ }
+        }, TaskScheduler.Default);
     }
 
     // ---- early tools: outline, reveal, snippets, Tab ----

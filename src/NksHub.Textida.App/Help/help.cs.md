@@ -1420,7 +1420,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
 commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
-1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně.
+1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně. Sleduje se každý repozitář, který má otevřený soubor, i když jsou otevřené soubory z více repozitářů; sledování repozitáře skončí, když se zavře jeho poslední otevřený soubor. Stavový řádek ukazuje repozitář posledního příkazu Git nebo poslední změny zvenku; panel zůstává u repozitáře posledního stavu souborů.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
 4. Když se index mezitím změnil jiným programem, nic se nezapíše. Plugin index načte znovu a oznámí konflikt; zkontrolujte změny a příkaz zopakujte.
