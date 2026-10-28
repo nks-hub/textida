@@ -381,16 +381,20 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
 
 ## [edit.macro] Makros
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Extras, Makros, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makros, Makroaufzeichnung beenden, beendet sie.
 2. Extras, Makros, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
 3. Extras, Makros, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Makros, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
+4. Extras, Makros, Gespeichertes Makro umbenennen, listet die gespeicherten auf und benennt das gewählte um; ein Name, den ein anderes Makro schon hat, wird abgelehnt. Extras, Makros, Gespeichertes Makro löschen, fragt nach und löscht das gewählte endgültig.
 - Ein Makro merkt sich Befehle, keine Tasten: Zeile duplizieren, Groß-/Kleinschreibung, Nächstes Vorkommen hinzufügen und Ähnliches, Ausschneiden, Kopieren, Einfügen sowie getippten Text. Mit mehreren Einfügemarken tut es dasselbe wie die Schritte von Hand.
 - Beim Aufzeichnen werden auch die Pfeiltasten, Pos1, Ende, Strg+Pos1, Strg+Ende, Strg mit den Pfeiltasten (mit oder ohne Umschalt), Rücktaste und Entf als Befehle aufgezeichnet. Sie bewegen und löschen an jeder Einfügemarke.
 - Weitersuchen und Rückwärts suchen (F3, Umschalt+F3, Eingabe in der Suchleiste) speichern mit dem Schritt den Suchtext der Suchleiste, sodass das Makro beim späteren Abspielen denselben Text findet. Öffnen Sie die Suchleiste und tippen Sie den Suchtext vor dem Start der Aufzeichnung; ohne Suchtext wird der Schritt nicht aufgezeichnet.
+- Ersetzen und Alle in der Ersetzen-Leiste (die Befehle Nächstes ersetzen und Alle ersetzen) speichern mit dem Schritt die ganze Leiste: Suchtext, Schalter und Ersatztext. Vor dem Schritt stellt das Makro die Leiste auf diese Werte, sodass das Ergebnis nicht davon abhängt, was die Leiste vorher zeigte. Bei eingeschalteter Auswahl arbeitet der Schritt mit der Auswahl, die das Makro beim Ausführen hat. Ohne Suchtext wird der Schritt nicht aufgezeichnet.
 - Das Abspielen ist ein einziger Rückgängig-Schritt. Läuft ein Schritt nicht, hält das Makro dort an und die Statuszeile nennt den Schritt; was vorher lief, bleibt ein Rückgängig-Schritt.
 - Beim Aufzeichnen wird ein Befehl, den ein Makro nicht abspielen kann, abgelehnt und die Statuszeile sagt es: alles mit Dialog, Dateibefehle, das Öffnen der Suchleiste. Die Aufzeichnung läuft weiter. Mausklicks, Bild auf und Bild ab werden nicht aufgezeichnet.
 - Zum Abspielen ist ein bearbeitbares Textdokument nötig. Der Import von PSPad-Makros ist nicht verfügbar.
+- Standardkürzel, Platzhalter (OPEN, noch nicht entschieden): Strg+K Strg+R zeichnet auf, Strg+K Strg+Umschalt+R beendet, Strg+K Strg+P spielt das letzte Makro ab; auf macOS ⌘ statt Strg. Eigene Kürzel in den Einstellungen haben Vorrang.
+- Die Datei eines gespeicherten Makros über 1 MB (Platzhalter-Grenze, OPEN) wird nicht gelesen; die Liste meldet sie als beschädigt.
 
 ## [edit.json] JSON formatieren
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
@@ -502,12 +506,13 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Schalten Sie den regulären Ausdruck ein, erscheint die Schaltfläche Testen (Thema Regex-Tester).
 
 ## [search.replace] Ersetzen
-commands: nks.search.replace
+commands: nks.search.replace, nks.search.replaceNext, nks.search.replaceAll
 1. Drücken Sie Strg+H oder wählen Sie Suchen und dann Ersetzen. Die Leiste hat zusätzlich das Feld Ersetzen durch.
 2. Tippen Sie den Suchtext und den Ersatztext.
 3. Die Eingabetaste im Ersatzfeld ersetzt einen Treffer, Strg+Alt+Eingabe alle. Dasselbe tun die Schaltflächen Ersetzen und Alle.
 4. Die Statusleiste meldet, wie viele Treffer ersetzt wurden, oder Es wurde nichts ersetzt.
 - Beim Ersetzen mit regulären Ausdrücken gelten $1, $& und die Umwandlung der Schreibweise \U \L \E \u \l.
+- Nächstes ersetzen und Alle ersetzen sind auch Befehle (Befehlspalette). Ein Makro kann sie aufzeichnen (Thema Makros).
 - Es geht nicht in einem schreibgeschützten Dokument und nicht im Seitenmodus.
 
 ## [search.inFiles] In Dateien suchen und ersetzen
@@ -1460,14 +1465,17 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
 
 ## [tools.ide] Die /ide-Brücke für Claude Code
-commands: nks.tools.ideBridge
-Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mit dem Befehl /ide mit Textida. Der Agent weiß dann, wo Ihre Auswahl liegt, und kann Änderungen vorschlagen. Er sieht nur Tabs, die Sie freigeben, und schreibt nie: Jeden Vorschlag sehen Sie als Änderungsvorschau, und Sie entscheiden.
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mit dem Befehl /ide mit einem Fenster von Textida. Der Agent weiß dann, wo Ihre Auswahl liegt und welche Datei offen ist, und Änderungen, die er an einem freigegebenen Tab vornehmen will, erscheinen in der Änderungsprüfung. Er sieht nur Tabs, die Sie freigeben, und Textida übernimmt nur, was Sie bestätigen.
 1. Schalten Sie zuerst den MCP-Server ein (Werkzeuge, MCP-Server) und geben Sie einen Tab frei (Werkzeuge, Diesen Tab mit MCP teilen). Die Brücke nutzt dieselben freigegebenen Tabs.
-2. Wählen Sie Werkzeuge, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
-3. Führen Sie im Terminal in Claude Code den Befehl /ide aus. Ein Programm ohne das Token aus der Sperrdatei wird abgewiesen.
-- Der Agent erfährt bei jeder Änderung der Auswahl Auswahl und Pfad eines freigegebenen Tabs. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
-- Änderungen des Agenten kommen als Vorschläge über dieselbe Änderungsvorschau wie bei MCP.
-- Nicht fertig: Die Felder der Sperrdatei, das WebSocket-Subprotokoll, die Auswahlnachricht und der Diff-Aufruf von Claude Code sind in dessen öffentlicher Dokumentation nicht beschrieben, daher ist noch keine Claude-Code-Version bestätigt, mit der die Brücke funktioniert. Die Form des Ergebnisses von getDiagnostics (die Fehler und Warnungen der geteilten Tabs) ist vorläufig.
+2. Wählen Sie Werkzeuge, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token und den Ordnern des Fensters nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
+3. Führen Sie im Terminal, in einem Ordner dieses Fensters, in Claude Code den Befehl /ide aus. Ein Programm ohne das Token aus der Sperrdatei wird abgewiesen.
+4. Die Statusleiste zeigt den verbundenen Agenten. Ein Klick darauf oder der Befehl Werkzeuge, /ide-Brücke: Agenten trennen trennt ihn. Der Port bleibt offen, der Agent kann sich also mit /ide erneut verbinden; um das zu verhindern, schalten Sie die Brücke aus.
+- Jedes Fenster hat eine eigene Brücke mit eigenem Port und Token, ebenso jede Instanz von Textida. Ein Agent, der mit einem Fenster verbunden ist, sieht nur die in diesem Fenster freigegebenen Tabs. Eine Sperrdatei, die eine abgestürzte Instanz hinterlassen hat, wird beim Start der nächsten Brücke gelöscht.
+- Der Agent erfährt Auswahl und Pfad eines freigegebenen Tabs bei jeder Änderung der Auswahl und beim Wechsel zu dem Tab. Ein Tab, der nicht freigegeben ist oder noch keine Datei hat, wird nicht gemeldet. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
+- Eine Änderung, die Claude Code für einen freigegebenen Tab vorschlägt, öffnet sich in der Änderungsprüfung (Tab Suchergebnisse). Wenden Sie alles an, lautet die Antwort FILE_SAVED, lehnen Sie ab, DIFF_REJECTED; wenden Sie nur einige Abschnitte an, antwortet die Brücke mit einem Fehler, damit der Agent die Datei neu liest. Textida übernimmt im Tab, was Sie bestätigen, und speichert die Datei nicht. Eine Datei, die im Fenster nicht offen oder nicht freigegeben ist, und eine .env-Datei werden abgelehnt.
+- getDiagnostics liefert die Fehler und Warnungen der freigegebenen Tabs.
+- Nicht verifiziert: Claude Code veröffentlicht keine Spezifikation dieses Protokolls. Die Brücke folgt der offiziellen Seite zum eingebauten IDE-Server und einer Beschreibung der Community (coder/claudecode.nvim); bisher ist keine Claude-Code-Version als funktionierend bestätigt. Nicht umgesetzt: Dateien vom Agenten öffnen, die Liste der offenen Tabs, Speichern über die Brücke, Notebook-Zellen ausführen und @-Erwähnungen.
 
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

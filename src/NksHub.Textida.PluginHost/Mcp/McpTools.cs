@@ -12,8 +12,11 @@ internal sealed class ToolFailure(string message) : Exception(message);
 
 internal sealed record McpToolDefinition(string Name, string Title, string Description, string InputSchema, bool ReadOnly, Func<McpToolContext, JsonElement, Task<string>> Run);
 
-/// <summary>What a tool needs while it runs: calls into the document API as the assistant, argument reading and the revision retry.</summary>
-internal sealed class McpToolContext(McpServer server, CancellationToken cancellation)
+/// <summary>
+/// What a tool needs while it runs: calls into the document API as the assistant, argument reading and the revision retry.
+/// <paramref name="scope"/> narrows the documents the client may reach to those it answers true for (one window of the editor); a document outside it is as good as not shared.
+/// </summary>
+internal sealed class McpToolContext(McpServer server, CancellationToken cancellation, Func<Guid, bool>? scope = null)
 {
     private const int RevisionAttempts = 3;
 
@@ -51,6 +54,8 @@ internal sealed class McpToolContext(McpServer server, CancellationToken cancell
     public async Task<JsonElement> CallAsync(string method, Action<Utf8JsonWriter> body)
     {
         using var request = JsonDocument.Parse(DocumentApi.Obj(body));
+        if (scope is not null && request.RootElement.TryGetProperty("document", out var named) && named.ValueKind == JsonValueKind.String && Guid.TryParse(named.GetString(), out var id) && !scope(id))
+            throw new RpcException(DocumentErrorCodes.PermissionDenied, "The document is not shared with this connection.");
         var answer = await Options.Documents.HandleAsync(McpServer.ClientId, method, request.RootElement, cancellation).ConfigureAwait(false);
         using var parsed = JsonDocument.Parse(answer!);
         return parsed.RootElement.Clone();
@@ -59,8 +64,20 @@ internal sealed class McpToolContext(McpServer server, CancellationToken cancell
     /// <summary>The documents shared with the assistant. Without any grant the API refuses the call; that is an empty list here, because nothing is shared.</summary>
     public async Task<JsonElement> ListSharedAsync()
     {
-        try { return await CallAsync(DocumentMethods.List, _ => { }).ConfigureAwait(false); }
+        JsonElement list;
+        try { list = await CallAsync(DocumentMethods.List, _ => { }).ConfigureAwait(false); }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.PermissionDenied) { return NoDocuments; }
+        if (scope is null) return list;
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using (var w = new Utf8JsonWriter(buffer))
+        {
+            w.WriteStartArray();
+            foreach (var d in list.EnumerateArray())
+                if (scope(d.GetProperty("id").GetGuid())) d.WriteTo(w);
+            w.WriteEndArray();
+        }
+        using var filtered = JsonDocument.Parse(buffer.WrittenMemory);
+        return filtered.RootElement.Clone();
     }
 
     private static JsonElement NoDocuments { get; } = JsonDocument.Parse("[]").RootElement.Clone();
@@ -680,7 +697,8 @@ internal static class McpTools
 
     /// <summary>
     /// <c>getDiagnostics</c> of the /ide bridge: per shared document that has diagnostics (or the one whose file URI is given), the same data as editor_diagnostics.
-    /// The result shape is provisional, as the protocol is not specified publicly.
+    /// The result is an array of <c>{uri, diagnostics:[{message, severity, range, source}]}</c>, the shape the community description of the protocol (coder/claudecode.nvim, PROTOCOL.md) gives.
+    /// That description shows only <c>range.start</c>; <c>range.end</c> is added because a range without an end is not a range. The diagnostic code is left out, as it is not part of the shape.
     /// </summary>
     internal static async Task<string> IdeDiagnostics(McpToolContext c, JsonElement args)
     {
@@ -696,9 +714,10 @@ internal static class McpTools
             var (_, _, rows, _) = await DiagnosticsAsync(c, id, c.Options.MaxItems);
             if (rows.Count > 0) files.Add((fileUri, rows));
         }
-        return Json(w =>
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using (var w = new Utf8JsonWriter(buffer))
         {
-            w.WriteStartArray("files");
+            w.WriteStartArray();
             foreach (var (fileUri, rows) in files)
             {
                 w.WriteStartObject();
@@ -710,8 +729,6 @@ internal static class McpTools
                     w.WriteStartObject();
                     w.WriteString("message", x.GetProperty("message").GetString());
                     w.WriteString("severity", x.GetProperty("severity").GetString() switch { "error" => "Error", "warning" => "Warning", "hint" => "Hint", _ => "Information" });
-                    w.WriteString("source", x.GetProperty("source").GetString());
-                    if (x.TryGetProperty("code", out var code)) w.WriteString("code", code.GetString());
                     if (row.Start is { } s && row.End is { } e)
                     {
                         w.WriteStartObject("range");
@@ -719,13 +736,15 @@ internal static class McpTools
                         w.WriteStartObject("end"); w.WriteNumber("line", e.Line); w.WriteNumber("character", e.Column); w.WriteEndObject();
                         w.WriteEndObject();
                     }
+                    w.WriteString("source", x.GetProperty("source").GetString());
                     w.WriteEndObject();
                 }
                 w.WriteEndArray();
                 w.WriteEndObject();
             }
             w.WriteEndArray();
-        });
+        }
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     // ---- P6.3.3 ----

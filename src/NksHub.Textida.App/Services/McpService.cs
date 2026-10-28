@@ -2,7 +2,11 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Startup;
+using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Mcp;
@@ -66,42 +70,157 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
 
     // ---- the /ide bridge ----
 
-    private IdeBridge? _ide;
+    private readonly Dictionary<MainWindow, IdeBridge> _ide = [];
 
-    public bool IdeEnabled => _ide is not null;
+    /// <summary>An agent connected to the bridge of a window, said who it is or went away, or the bridge was switched off. Raised on the UI thread.</summary>
+    public event Action<MainWindow>? IdeChanged;
 
-    public IdeBridge? Ide => _ide;
+    /// <summary>The agent of a window does something the bridge does not know, so the bridge of that window was switched off; the text says what. Raised on the UI thread, after the bridge is closed.</summary>
+    public event Action<MainWindow, string>? IdeIncompatible;
+
+    public bool IdeEnabled(MainWindow window) => IdeOf(window) is not null;
+
+    /// <summary>The bridge of a window; every window has its own port, token and lock file. Null when the user has not switched it on there.</summary>
+    public IdeBridge? IdeOf(MainWindow window)
+    {
+        lock (_gate) return _ide.GetValueOrDefault(window);
+    }
 
     /// <summary>Where the lock file of the bridge goes; tests point it at a folder of their own.</summary>
     public string IdeLockDirectory { get; set; } = IdeBridge.DefaultLockDirectory();
 
-    /// <summary>Opens the port of the bridge and writes the lock file. It serves the tabs shared with MCP, so the MCP server must be on. Throws <see cref="IOException"/> when it cannot start.</summary>
-    public void EnableIde()
+    /// <summary>
+    /// Opens the port of the bridge of <paramref name="window"/> and writes its lock file. The bridge serves the tabs of that window that are shared with MCP, so the MCP server must be on.
+    /// Throws <see cref="IOException"/> when it cannot start. Call on the UI thread.
+    /// </summary>
+    public void EnableIde(MainWindow window)
     {
-        if (_ide is not null) return;
+        if (IdeOf(window) is not null) return;
         if (!Enabled) throw new InvalidOperationException("The MCP server is off.");
-        _ide = new IdeBridge(PluginLimitsPlaceholders.Ide(Server, IdeLockDirectory));
+        var bridge = new IdeBridge(PluginLimitsPlaceholders.Ide(Server, IdeLockDirectory) with
+        {
+            WorkspaceFolders = window.IdeWorkspaceFolders(),
+            Scope = id => WindowOf(id) == window,
+            ShowDiff = (request, cancellation) => ShowIdeDiffAsync(window, request, cancellation),
+        });
+        bridge.AgentsChanged += () => Dispatcher.UIThread.Post(() => IdeChanged?.Invoke(window));
+        bridge.Incompatible += reason => Dispatcher.UIThread.Post(async () =>
+        {
+            if (IdeOf(window) != bridge) return;
+            await DisableIdeAsync(window);
+            IdeIncompatible?.Invoke(window, reason);
+        });
+        lock (_gate) _ide[window] = bridge;
+        ActiveTabChanged(window, window.Active);
     }
 
-    public async Task DisableIdeAsync()
+    /// <summary>Closes the bridge of a window and deletes its lock file. Call on the UI thread.</summary>
+    public async Task DisableIdeAsync(MainWindow window)
     {
-        var ide = _ide;
-        _ide = null;
-        if (ide is not null) await ide.DisposeAsync();
+        IdeBridge? bridge;
+        lock (_gate) _ide.Remove(window, out bridge);
+        if (bridge is null) return;
+        await bridge.DisposeAsync();
+        IdeChanged?.Invoke(window);
     }
+
+    private async Task DisableIdeAsync()
+    {
+        MainWindow[] windows;
+        lock (_gate) windows = [.. _ide.Keys];
+        foreach (var window in windows) await DisableIdeAsync(window);
+    }
+
+    private MainWindow? WindowOf(Guid document)
+    {
+        lock (_gate) return _shared.TryGetValue(document, out var shared) ? shared.Window : null;
+    }
+
+    private IdeBridge? BridgeOf(Guid document)
+    {
+        lock (_gate) return _shared.TryGetValue(document, out var shared) ? _ide.GetValueOrDefault(shared.Window) : null;
+    }
+
+    /// <summary>The lock file of the window lists its folders again after a tab was shared or taken back in it. Call on the UI thread.</summary>
+    private void RefreshIdeFolders(MainWindow window) => IdeOf(window)?.UpdateWorkspaceFolders(window.IdeWorkspaceFolders());
 
     /// <summary>The selection of a tab moved; a connected agent hears about it only when the tab is shared. Call on the UI thread.</summary>
     public void SelectionChanged(DocTab tab)
     {
-        if (_ide is not { } ide || !IsShared(tab) || tab.Surface?.ByteSelections() is not { } selections) return;
+        if (_ide.Count == 0 || BridgeOf(tab.Doc.Doc.Id) is not { } bridge || tab.Surface?.ByteSelections() is not { } selections) return; // the common case, on every caret move, costs one read
         var selection = selections.PrimarySelection;
-        _ = PublishSelectionAsync(ide, tab.Doc.Doc.Id, selection.Start, selection.End);
+        _ = PublishSelectionAsync(bridge, tab.Doc.Doc.Id, selection.Start, selection.End);
+    }
+
+    /// <summary>
+    /// The user moved to another tab of <paramref name="window"/>. A shared tab becomes the one the agent hears about (its selection is the open file, as far as the agent is concerned);
+    /// any other tab leaves the agent without an active editor. Call on the UI thread.
+    /// </summary>
+    public void ActiveTabChanged(MainWindow window, DocTab? tab)
+    {
+        if (IdeOf(window) is not { } bridge) return;
+        if (tab is null || !IsShared(tab) || tab.Surface?.ByteSelections() is not { } selections)
+        {
+            bridge.ClearActive();
+            return;
+        }
+        var selection = selections.PrimarySelection;
+        _ = PublishSelectionAsync(bridge, tab.Doc.Doc.Id, selection.Start, selection.End);
     }
 
     private static async Task PublishSelectionAsync(IdeBridge ide, Guid document, long start, long end)
     {
         try { await ide.PublishSelectionAsync(document, start, end); }
         catch (Exception e) when (e is IOException or ObjectDisposedException or OperationCanceledException) { /* the bridge was switched off meanwhile */ }
+    }
+
+    // ---- openDiff ----
+
+    /// <summary>The agent asks to show a diff: the whole text it wants the file to have goes to the change review of the window, and the answer is the decision of the user.</summary>
+    private async Task<IdeDiffOutcome> ShowIdeDiffAsync(MainWindow window, IdeDiffRequest request, CancellationToken cancellation)
+    {
+        var decision = await await Dispatcher.UIThread.InvokeAsync<Task<ProposalDecision?>>(() => ProposeIdeDiffAsync(window, request, cancellation));
+        return decision?.Outcome switch
+        {
+            null or ProposalOutcome.Applied => IdeDiffOutcome.Saved,
+            ProposalOutcome.Rejected => IdeDiffOutcome.Rejected,
+            ProposalOutcome.Partial => IdeDiffOutcome.Partial,
+            ProposalOutcome.Stale => IdeDiffOutcome.Stale,
+            _ => IdeDiffOutcome.Failed,
+        };
+    }
+
+    /// <summary>Builds the change from the agent's whole new text and shows it. Null when the text is the one the tab has. Only a tab of this window that the user shared for changes is touched. UI thread.</summary>
+    private Task<ProposalDecision?> ProposeIdeDiffAsync(MainWindow window, IdeDiffRequest request, CancellationToken cancellation)
+    {
+        var shared = FindShared(window, request.OldPath) ?? (request.NewPath is { } other ? FindShared(window, other) : null);
+        if (shared is null || !_plugins.Permissions.IsGranted(McpServer.ClientId, DocumentPermissions.EditPropose, GrantScope.OfDocument(shared.Document.Id)))
+            throw new IdeDiffRefusedException("The file is not open in this window of the editor, or the user has not shared it with the agent.");
+        var doc = shared.Document;
+        if (SecretValues.IsSecretFile(doc.SecretsPath)) throw new IdeDiffRefusedException("This file holds secret values that were hidden from the agent; it cannot be changed through the editor.");
+        var codec = doc.Codec;
+        byte[] bytes;
+        try { bytes = codec.Encode(request.NewContents); }
+        catch (UnrepresentableCharactersException) { throw new IdeDiffRefusedException($"The text cannot be written in the encoding of the file ({codec.Name})."); }
+        if (codec.Bom.Length > 0 && !bytes.AsSpan().StartsWith(codec.Bom)) bytes = [.. codec.Bom, .. bytes];
+
+        var current = doc.GetSnapshot();
+        if (current.ByteLength == bytes.Length && current.ReadBytes(new ByteRange(0, current.ByteLength)).AsSpan().SequenceEqual(bytes)) return Task.FromResult<ProposalDecision?>(null);
+        var change = ExternalReview.BuildRevert(doc, bytes) ?? throw new IdeDiffRefusedException("The change cannot be shown as hunks (bytes that are not valid text in the file's encoding).");
+        return Review(shared, change);
+
+        async Task<ProposalDecision?> Review(Shared s, FileChange c) =>
+            await s.Window.ShowProposalAsync(Guid.NewGuid().ToString("N"), Loc.Get(K.IdeProposal, ("file", s.Tab.Title)), "ide:claude", s.Tab, c, cancellation);
+    }
+
+    private Shared? FindShared(MainWindow window, string path)
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        string full;
+        try { full = Path.GetFullPath(path); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return null; }
+        lock (_gate)
+            return _shared.Values.FirstOrDefault(s => s.Window == window && s.Document.FilePath is { } file && string.Equals(Path.GetFullPath(file), full, comparison));
     }
 
     // ---- sharing ----
@@ -135,6 +254,8 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         Action replaced = () => Unshare(document.Id); // a reload makes a new document, which the user has not shared
         tab.Doc.Replaced += replaced;
         lock (_gate) _shared[document.Id] = new Shared(window, tab, tab.Doc, document, own, replaced, new CancellationTokenSource());
+        RefreshIdeFolders(window);
+        if (window.Active == tab) ActiveTabChanged(window, tab);
     }
 
     /// <summary>Takes the tab back: the grants go (a request in flight is stopped) and the document is hidden again unless something else shows it. Call on the UI thread.</summary>
@@ -151,6 +272,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
             _plugins.Permissions.Revoke(McpServer.ClientId, permission, scope);
         shared.Withdrawn.Cancel(); // not disposed: a review that is just starting may still read its token
         if (shared.ExposedByUs && _plugins.Documents.IsExposed(document) && !_plugins.IsRunningOn(document) && !_plugins.Acp.IsSharedDocument(document)) _plugins.Documents.Withdraw(shared.Document);
+        RefreshIdeFolders(shared.Window);
         return true;
     }
 

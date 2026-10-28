@@ -150,6 +150,7 @@ internal static class AppCommands
         On("nks.tools.mcpShareSelection", w => w.ShareSelectionWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
+        On("nks.tools.ideDisconnect", w => w.DisconnectIdeAgent());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
         On("nks.agent.start", w => w.StartAgent());
         On("nks.agent.panel", w => w.ToggleAgentPanelCommand());
@@ -164,6 +165,8 @@ internal static class AppCommands
         On("nks.macro.playLast", w => w.PlayLastMacro());
         On("nks.macro.save", w => w.SaveMacro());
         On("nks.macro.run", w => w.ShowMacros());
+        On("nks.macro.rename", w => w.ShowMacros(MacroAction.Rename));
+        On("nks.macro.delete", w => w.ShowMacros(MacroAction.Delete));
         registry.RecordingRefused += id =>
             app.ActiveWindow?.SetStatusMessage(Loc.Get(K.MacroRefused, ("title", registry.TryGet(id, out var refused) ? Loc.Get(refused.TitleKey) : id)));
         registry.SetHandler("nks.edit.repeatLast",(context, token) => registry.RepeatLastAsync(context, token));
@@ -297,6 +300,8 @@ internal static class AppCommands
         On("nks.search.replace", w => w.ShowFind(replace: true));
         registry.SetHandler("nks.search.findNext", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: true) : done(CommandOutcome.NotHandled));
         registry.SetHandler("nks.search.findPrevious", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: false) : done(CommandOutcome.NotHandled));
+        registry.SetHandler("nks.search.replaceNext", (_, _) => app.ActiveWindow is { } w ? w.ReplaceStepCommandAsync(all: false) : done(CommandOutcome.NotHandled));
+        registry.SetHandler("nks.search.replaceAll", (_, _) => app.ActiveWindow is { } w ? w.ReplaceStepCommandAsync(all: true) : done(CommandOutcome.NotHandled));
         On("nks.search.findWord", w => w.FindWord());
         On("nks.search.findInFiles", w => w.ShowFindInFiles(replace: false));
         On("nks.search.replaceInFiles", w => w.ShowFindInFiles(replace: true));

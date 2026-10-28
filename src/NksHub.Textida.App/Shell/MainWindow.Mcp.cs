@@ -1,3 +1,5 @@
+using Avalonia.Automation;
+using Avalonia.Controls;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -53,13 +55,13 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>Opens the port of the /ide bridge only after the user has been told what the agent gets; the same command closes it.</summary>
+    /// <summary>Opens the port of the /ide bridge of this window only after the user has been told what the agent gets; the same command closes it.</summary>
     private async Task ToggleIdeBridgeAsync()
     {
         var mcp = _app.Plugins.Mcp;
-        if (mcp.IdeEnabled)
+        if (mcp.IdeEnabled(this))
         {
-            await mcp.DisableIdeAsync();
+            await mcp.DisableIdeAsync(this);
             SetStatusMessage(Loc.Get(K.IdeOffStatus));
             return;
         }
@@ -70,14 +72,83 @@ internal sealed partial class MainWindow
         }
         var buttons = new[] { new DialogButton(Loc.Get(K.IdeOnConfirm), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
         int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.IdeOnTitle), Loc.Get(K.IdeOnMessage, ("folder", mcp.IdeLockDirectory)), buttons));
-        if (answer != 0 || !mcp.Enabled || mcp.IdeEnabled) return;
-        try { mcp.EnableIde(); }
+        if (answer != 0 || !mcp.Enabled || mcp.IdeEnabled(this)) return;
+        try { mcp.EnableIde(this); }
         catch (IOException e)
         {
             SetStatusMessage(Loc.Get(K.IdeFailed, ("reason", e.Message)));
             return;
         }
-        SetStatusMessage(Loc.Get(K.IdeOnStatus, ("port", mcp.Ide!.Port)));
+        RefreshIdeItem();
+        SetStatusMessage(Loc.Get(K.IdeOnStatus, ("port", mcp.IdeOf(this)!.Port)));
+    }
+
+    /// <summary>Cuts the agents off the bridge of this window. The bridge stays open, so the agent can connect again with <c>/ide</c>.</summary>
+    internal CommandOutcome DisconnectIdeAgent()
+    {
+        if (_app.Plugins.Mcp.IdeOf(this) is not { } bridge) SetStatusMessage(Loc.Get(K.IdeNotOn));
+        else
+        {
+            var names = string.Join(", ", bridge.Agents.Select(IdeAgentName));
+            SetStatusMessage(bridge.DisconnectAgents() == 0 ? Loc.Get(K.IdeNoAgent) : Loc.Get(K.IdeDisconnected, ("agent", names)));
+        }
+        return CommandOutcome.Handled;
+    }
+
+    private static string IdeAgentName(IdeAgent agent) =>
+        agent.Name is null ? Loc.Get(K.IdeAgentUnnamed) : agent.Version is null ? agent.Name : agent.Name + " " + agent.Version;
+
+    /// <summary>The folders the lock file of this window lists: the folders of the file panel, else the folders of the files shared with the agent.</summary>
+    internal IReadOnlyList<string> IdeWorkspaceFolders()
+    {
+        if (_fileTree is { Roots.Count: > 0 } tree) return [.. tree.Roots];
+        return [.. Tabs.Where(t => t.Path is not null && _app.Plugins.Mcp.IsShared(t)).Select(t => System.IO.Path.GetDirectoryName(t.Path)!).Distinct(StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private readonly Button _ideItem = StatusItem();
+
+    internal Button IdeItem => _ideItem;
+
+    /// <summary>The status bar item of the /ide bridge: it shows the connected agent, and a click disconnects it. Hidden while the bridge of this window is off.</summary>
+    private void StartIdeItem()
+    {
+        _ideItem.IsVisible = false;
+        _ideItem.Click += (_, _) => DisconnectIdeAgent();
+        _app.Plugins.Mcp.IdeChanged += OnIdeChanged;
+        _app.Plugins.Mcp.IdeIncompatible += OnIdeIncompatible;
+    }
+
+    private void ReleaseIde()
+    {
+        _app.Plugins.Mcp.IdeChanged -= OnIdeChanged;
+        _app.Plugins.Mcp.IdeIncompatible -= OnIdeIncompatible;
+        _ = _app.Plugins.Mcp.DisableIdeAsync(this);
+    }
+
+    private void OnIdeChanged(MainWindow window)
+    {
+        if (ReferenceEquals(window, this)) RefreshIdeItem();
+    }
+
+    private void OnIdeIncompatible(MainWindow window, string reason)
+    {
+        if (!ReferenceEquals(window, this)) return;
+        RefreshIdeItem();
+        ShowNotice("ide", Loc.Get(K.IdeIncompatible, ("reason", reason)), warning: true);
+    }
+
+    internal void RefreshIdeItem()
+    {
+        var bridge = _app.Plugins.Mcp.IdeOf(this);
+        _ideItem.IsVisible = bridge is not null;
+        if (bridge is null) return;
+        var agents = bridge.Agents;
+        string text = agents.Count == 0 ? Loc.Get(K.IdeStatusWaiting) : Loc.Get(K.IdeStatusConnected, ("agent", string.Join(", ", agents.Select(IdeAgentName))));
+        string tip = Loc.Get(K.IdeStatusTip, ("port", bridge.Port));
+        _ideItem.Content = text;
+        ToolTip.SetTip(_ideItem, tip);
+        AutomationProperties.SetName(_ideItem, text);
+        AutomationProperties.SetHelpText(_ideItem, tip);
     }
 
     internal CommandOutcome ShareTabWithMcp()

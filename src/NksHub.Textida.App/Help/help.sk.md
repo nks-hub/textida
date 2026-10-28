@@ -386,16 +386,20 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Nefungujú v dokumente len na čítanie ani v stránkovanom režime.
 
 ## [edit.macro] Makrá
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Nástroje, Makrá, Nahrať makro, spustí nahrávanie. Pracujte príkazmi a písaním. Nástroje, Makrá, Zastaviť nahrávanie makra, ho ukončí.
 2. Nástroje, Makrá, Prehrať posledné makro, ho znova prehrá nad aktuálnymi výbermi a kurzormi.
 3. Nástroje, Makrá, Uložiť posledné makro ako, ho uloží pod názvom do priečinka macros v profile. Nástroje, Makrá, Spustiť uložené makro, ukáže uložené makrá a prehrá vybrané.
+4. Nástroje, Makrá, Premenovať uložené makro, ukáže uložené makrá a vybrané premenuje; názov, ktorý už má iné makro, sa odmietne. Nástroje, Makrá, Zmazať uložené makro, sa opýta a vybrané zmaže natálo.
 - Makro si pamätá príkazy, nie klávesy: Duplikovať riadok, veľkosť písmen, Pridať ďalší výskyt a podobné, Vystrihnúť, Kopírovať, Vložiť, a napísaný text. Pri viacerých kurzoroch urobí to isté ako ručný postup.
 - Pri nahrávaní sa ako príkazy zaznamenajú aj šípky, Home, End, Ctrl+Home, Ctrl+End, Ctrl so šípkami (so Shiftom aj bez), Backspace a Delete. Posúvajú a mažú pri všetkých kurzoroch.
 - Nájsť ďalšie a Nájsť predchádzajúce (F3, Shift+F3, Enter v lište hľadania) si s krokom uložia hľadaný text z lišty hľadania, takže makro nájde ten istý text aj pri neskoršom prehratí. Lištu hľadania otvorte a hľadaný text napíšte pred začiatkom nahrávania; bez hľadaného textu sa krok nenahrá.
+- Nahradiť a Všetko v lište nahrádzania (príkazy Nahradiť ďalšie a Nahradiť všetko) si s krokom uložia celu lištu: hľadaný text, prepínače a náhradu. Makro pred krokom lištu nastaví na tieto hodnoty, takže výsledok nezávisí od toho, čo lišta ukazovala predtým. So zapnutým Výberom krok pracuje s výberom, ktorý makro má v okamihu kroku. Bez hľadaného textu sa krok nenahrá.
 - Prehratie je jeden krok Späť. Keď krok neprebehne, makro sa tam zastaví a stavový riadok krok pomenuje; čo prebehlo predtým, zostáva jedným krokom Späť.
 - Pri nahrávaní sa príkaz, ktorý makro nemôže prehrať, odmietne a stavový riadok to povie: všetko s dialógom, príkazy so súbormi, otvorenie lišty hľadania. Nahrávanie pokračuje. Kliknutia myšou, Page Up a Page Down sa nenahrávajú.
 - Prehratie potrebuje upraviteľný textový dokument. Import makier PSPadu nie je k dispozícii.
+- Predvolené skratky sú zástupné (OPEN, zatiaľ nerozhodnuté): Ctrl+K Ctrl+R nahráva, Ctrl+K Ctrl+Shift+R zastaví, Ctrl+K Ctrl+P prehrá posledné makro; na macOS ⌘ namiesto Ctrl. Vaše vlastné skratky v nastaveniach majú prednosť.
+- Súbor uloženého makra väčší ako 1 MB (zástupný limit, OPEN) sa nečíta; zoznam ho ohlási ako poškodený.
 
 ## [edit.json] Formátovanie JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
@@ -507,12 +511,13 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Keď zapnete regulárny výraz, objaví sa tlačidlo Skúsiť (téma Skúška regulárneho výrazu).
 
 ## [search.replace] Nahradenie
-commands: nks.search.replace
+commands: nks.search.replace, nks.search.replaceNext, nks.search.replaceAll
 1. Stlačte Ctrl+H, alebo zvoľte Hľadať a Nahradiť. Lišta má navyše pole Nahradiť čím.
 2. Napíšte hľadaný a náhradný text.
 3. Enter v poli náhrady nahradí jednu zhodu, Ctrl+Alt+Enter všetky. To isté robia tlačidlá Nahradiť a Všetko.
 4. Stavový riadok napíše, koľko zhôd sa nahradilo, alebo Nič sa nenahradilo.
 - V regulárnej náhrade platí $1, $& a zmena veľkosti písmen \U \L \E \u \l.
+- Nahradiť ďalšie a Nahradiť všetko sú aj príkazy (Paleta príkazov). Makro ich vie nahrať (téma Makrá).
 - Nejde pri dokumente len na čítanie ani v stránkovanom režime.
 
 ## [search.inFiles] Hľadanie a nahrádzanie v súboroch
@@ -1465,14 +1470,17 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
 ## [tools.ide] Most /ide pre Claude Code
-commands: nks.tools.ideBridge
-Claude Code bežiaci v termináli na tomto počítači sa k Textide pripojí príkazom /ide. Agent potom vie, kde máte výber, a môže navrhovať zmeny. Vidí len karty, ktoré sprístupníte, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+Claude Code bežiaci v termináli na tomto počítači sa príkazom /ide pripojí k oknu Textidy. Agent potom vie, kde máte výber a ktorý súbor je otvorený, a zmeny, ktoré chce v sprístupnenej karte urobiť, sa zobrazia v kontrole zmien. Vidí len karty, ktoré sprístupníte, a Textida použije len to, čo potvrdíte.
 1. Najprv zapnite server MCP (Nástroje, Server MCP) a sprístupnite kartu (Nástroje, Zdieľať túto kartu s MCP). Most používa tie isté sprístupnené karty.
-2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
-3. V termináli spustite v Claude Code príkaz /ide. Program bez tokenu zo súboru zámku sa odmietne.
-- Agent sa pri každej zmene výberu dozvie výber a cestu sprístupnenej karty. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
-- Zmeny agenta prídu ako návrhy tým istým náhľadom zmien ako pri MCP.
-- Nedokončené: polia súboru zámku, podprotokol WebSocketu, správu o výbere a volanie rozdielu Claude Code verejná dokumentácia neopisuje, takže zatiaľ nie je potvrdená žiadna verzia Claude Code, s ktorou most funguje. Tvar výsledku getDiagnostics (chyby a varovania sprístupnených kariet) je provizórny.
+2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom a priečinkami okna do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
+3. V termináli v priečinku tohto okna spustite v Claude Code príkaz /ide. Program bez tokenu zo súboru zámku sa odmietne.
+4. Stavový riadok ukazuje pripojeného agenta. Kliknutím, alebo príkazom Nástroje, Most /ide: odpojiť agenta ho odpojíte. Port zostane otvorený, takže sa agent môže príkazom /ide pripojiť znova; ak tomu chcete zabrániť, most vypnite.
+- Každé okno má svoj most s vlastným portom a tokenom, rovnako ako každá inštancia Textidy. Agent pripojený k oknu vidí len karty sprístupnené v tomto okne. Súbor zámku, ktorý po sebe nechala spadnutá inštancia, sa zmaže pri spustení ďalšieho mosta.
+- Agent sa dozvie výber a cestu sprístupnenej karty pri každej zmene výberu aj pri prepnutí na kartu. Karta, ktorá nie je sprístupnená alebo ešte nemá súbor, sa nehlási. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
+- Zmena, ktorú Claude Code navrhne pre sprístupnenú kartu, sa otvorí v kontrole zmien (karta Výsledky hľadania). Použitie celej zmeny odpovie FILE_SAVED, odmietnutie DIFF_REJECTED; použitie len niektorých úsekov odpovie chybou, aby si agent súbor prečítal znova. Textida použije v karte to, čo potvrdíte, a súbor neuloží. Súbor, ktorý nie je v okne otvorený alebo sprístupnený, a súbor .env sa odmietnu.
+- getDiagnostics vracia chyby a varovania sprístupnených kariet.
+- Neoverené: Claude Code tento protokol nešpecifikuje. Most sa riadi oficiálnou stránkou o vstavanom serveri IDE a popisom komunity (coder/claudecode.nvim) a žiadna verzia Claude Code zatiaľ nebola potvrdená ako funkčná. Nerealizované: otváranie súborov z agenta, zoznam otvorených kariet, ukladanie cez most, spúšťanie buniek notebookov a @-zmienky.
 
 ## [tools.agent] Agent cez ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
