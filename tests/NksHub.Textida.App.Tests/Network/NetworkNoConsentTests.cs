@@ -176,6 +176,24 @@ public class NetworkNoConsentTests
     }
 
     [AvaloniaFact]
+    public async Task An_agent_the_user_starts_over_ACP_and_a_turn_with_it_make_no_connection_of_the_editor_or_its_client()
+    {
+        using var rig = new NetworkRig();
+        await rig.Pump(rig.App.Workbench.Commands.ExecuteAsync("nks.agent.panel", new ShellContext(rig.Window, forMenu: false)).AsTask());
+        var dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+        var start = rig.App.Plugins.Acp.StartAsync(rig.Window, new NksHub.Textida.Acp.AcpLaunch(dotnet, [Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.FakeAcp.dll")], rig.Temp.Path), "Fake agent");
+        Assert.True(await rig.Pump(start));
+        rig.Window.AgentInputBox.Text = "hello";
+        rig.Window.SendAgentMessage();
+        await rig.Until(() => rig.Window.AgentTask.IsCompleted && rig.Window.AgentPanelText.Contains("Hello world", StringComparison.Ordinal), "the turn to end");
+        await rig.Settle(500);
+
+        var report = await rig.Net.FinishAsync();
+        AssertSilent(report, rig);
+        AssertWatched(report, "dotnet:NksHub.Textida.FakeAcp.dll");
+    }
+
+    [AvaloniaFact]
     public async Task A_wiki_address_with_no_wiki_configured_connects_nowhere()
     {
         using var rig = new NetworkRig();
