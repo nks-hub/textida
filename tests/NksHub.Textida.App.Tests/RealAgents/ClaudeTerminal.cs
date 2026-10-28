@@ -56,6 +56,9 @@ internal sealed class ClaudeTerminal : IDisposable
         _pty.Enter();
     }
 
+    /// <summary>The user presses Escape in the terminal, which answers the question about the edit with no.</summary>
+    public void Escape() => _pty.Type("\u001b");
+
     /// <summary>The debug log the program writes while it runs; empty before the program has made it.</summary>
     public string ReadDebugLog()
     {

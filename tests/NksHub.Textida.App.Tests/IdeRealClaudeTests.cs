@@ -51,11 +51,13 @@ public class IdeRealClaudeTests : IDisposable
         try { Directory.Delete(_folder, true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 
-    private static async Task Pump(Func<bool> done, TimeSpan timeout, string what)
+    private static Task Pump(Func<bool> done, TimeSpan timeout, string what) => Pump(done, timeout, () => what);
+
+    private static async Task Pump(Func<bool> done, TimeSpan timeout, Func<string> what)
     {
         for (var sw = Stopwatch.StartNew(); !done();)
         {
-            Assert.True(sw.Elapsed < timeout, "Not reached: " + what);
+            Assert.True(sw.Elapsed < timeout, "Not reached: " + what());
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(30);
         }
@@ -145,6 +147,17 @@ public class IdeRealClaudeTests : IDisposable
         Assert.Equal("alpha delta\ngamma\n", File.ReadAllText(tab.Path!));
         Assert.Equal("alpha delta\ngamma\n", tab.Editor.Document.Text);
 
+        // a third diff the user answers in the terminal of the program instead: the program closes the tab of the diff (close_tab), the review goes and nothing is written
+        await Wait(TimeSpan.FromSeconds(8));
+        terminal.Say("Use the Edit tool to change the word delta to epsilon in notes.txt. Do nothing else.");
+        await Pump(() => ReviewShown, TimeSpan.FromSeconds(120), "the review of the third diff");
+        await Wait(TimeSpan.FromSeconds(2));
+        terminal.Escape();
+        await Pump(() => !ReviewShown, TimeSpan.FromSeconds(20), () => "the review to close after Escape in the terminal\n" + terminal.Screen);
+        await Wait(TimeSpan.FromSeconds(3));
+        Assert.Equal("alpha delta\ngamma\n", File.ReadAllText(tab.Path!));
+        Assert.Equal("alpha delta\ngamma\n", tab.Editor.Document.Text);
+
         // the program wrote the accepted text to the disk itself, so the tab holds the same text as the file but still counts as unsaved; saving it asks the question of a file that changed on disk
         Assert.True(tab.Doc.Doc.IsModified);
         int before = _dialogs.Asked.Count;
@@ -158,12 +171,33 @@ public class IdeRealClaudeTests : IDisposable
 
         // what the program asked of the bridge: only calls the bridge answers, no tool it does not know (that would have switched the bridge off)
         var calls = terminal.IdeToolCalls();
-        Assert.Equal(2, calls.Count(c => c == "openDiff"));
+        Assert.Equal(3, calls.Count(c => c == "openDiff"));
         Assert.Contains("close_tab", calls);
         TestContext.Current.SendDiagnosticMessage($"Claude Code {version}: the bridge answered {string.Join(", ", calls.Distinct())}");
         Assert.All(calls, c => Assert.Contains(c, new[] { "openDiff", "close_tab", "closeAllDiffTabs", "getDiagnostics" }));
         Assert.NotNull(_app.Plugins.Mcp.IdeOf(_w));
         Assert.DoesNotContain("Failed to show diff", terminal.ReadDebugLog());
+    }
+
+    [AvaloniaFact]
+    public async Task Claude_Code_shows_the_selection_of_the_shared_tab_and_an_at_mention_the_user_sends()
+    {
+        var claude = RealTools.Require("claude");
+        var bridge = await StartBridgeAsync("notes.txt", "alpha beta\ngamma\n");
+        var tab = _w.Active!;
+        using var terminal = await StartClaudeAsync(claude, "selection", bridge, expectConnection: true);
+
+        // every move of the selection of the shared tab reaches the program (the one the editor pushes at the connection is sent before the program listens for it)
+        await Wait(TimeSpan.FromSeconds(4));
+        tab.Editor!.Select(6, 4); // "beta"
+        await Pump(() => terminal.Screen.Contains("1 line selected", StringComparison.Ordinal), TimeSpan.FromSeconds(15), () => "the program to follow the selection\n" + terminal.Screen);
+
+        // the user hands the program the lines of the selection: it puts a reference to them into its input line
+        _w.SendIdeMention();
+        await _w.McpTask;
+        await Pump(() => terminal.Screen.Contains("@notes.txt#L1", StringComparison.Ordinal), TimeSpan.FromSeconds(15), () => "the program to show the mention\n" + terminal.Screen);
+        Assert.Empty(terminal.IdeToolCalls().Except(["closeAllDiffTabs", "getDiagnostics"])); // it asked the bridge for nothing it does not know
+        Assert.NotNull(_app.Plugins.Mcp.IdeOf(_w));
     }
 
     [AvaloniaFact]
@@ -183,6 +217,6 @@ public class IdeRealClaudeTests : IDisposable
         Assert.Empty(bridge.Agents);
         Assert.Equal(Loc.Get(K.IdeStatusWaiting), _w.IdeItem.Content);
         Assert.DoesNotContain(terminal.IdeConnectionLines(), l => l.Contains("Successfully connected", StringComparison.Ordinal));
-        Assert.Contains(terminal.IdeConnectionLines(), l => l.Contains("ide", StringComparison.Ordinal)); // it did try
+        Assert.Contains(terminal.IdeConnectionLines(), l => l.Contains("Expected 101 status code: 401", StringComparison.Ordinal)); // it did try, and the bridge answered 401 Unauthorized
     }
 }
