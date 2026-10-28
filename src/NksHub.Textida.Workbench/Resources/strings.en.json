@@ -510,6 +510,8 @@
   "cmd.help.languageHelp": "Language Help",
   "setting.sql.dialect.title": "Default SQL dialect",
   "setting.sql.dialect.description": "Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
+  "setting.schema.mappings.title": "Schema mappings",
+  "setting.schema.mappings.description": "Rules that choose the schema of a file, written MASK=SCHEMA and separated by semicolons or line breaks, for example *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address (downloaded only after you allow its host) or a file path. The ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas Textida knows; only a $schema written in the file wins over a rule.",
   "setting.html.tidyPath.title": "HTML Tidy program",
   "setting.html.tidyPath.description": "Full path of the HTML Tidy program. Empty: the editor looks next to the formatters plugin, in tools/tidy and in PATH.",
   "cmd.compare.clipboard": "Compare with Clipboard",

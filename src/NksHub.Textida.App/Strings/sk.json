@@ -966,6 +966,7 @@
   "schema.tipConsent": "Schéma sa sťahuje zo siete a vy ste to zatiaľ nepovolili. Nástroje, Balíky, Povoliť stiahnutie schémy sa spýta na súhlas.",
   "schema.notFile": "Otvorený súbor sa podľa schémy nekontroluje",
   "schema.nothingToAllow": "Žiadne stiahnutie schémy tohto súboru nečaká na váš súhlas",
+  "schema.mappingRejected": "Mapovanie schémy sa preskočilo, zapíšte ho ako MASKA=SCHÉMA: {entry}",
   "schema.consent.title": "Stiahnutie schémy",
   "schema.consent.message": "Stiahnuť schému tohto súboru zo servera {host}? Editor potom požiada tento server o adresu schémy a server uvidí vašu sieťovú adresu. Schéma sa uloží do tohto počítača, kým je čerstvá, použije sa bez dotazu a použije sa aj vtedy, keď server neodpovie. Kým nesúhlasíte, nič sa neodošle. Zakázať dotazy na registre a sťahovanie schém súhlas vezme späť.",
   "lsp.textOnly": "Jazykový server pracuje len s textovými dokumentmi, nie s veľkými súbormi zobrazenými po stránkach.",

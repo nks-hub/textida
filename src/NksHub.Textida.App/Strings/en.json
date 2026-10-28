@@ -943,6 +943,7 @@
   "schema.tipConsent": "The schema is downloaded from the network, and you have not allowed that yet. Tools, Packages, Allow Schema Download asks for your consent.",
   "schema.notFile": "The open file is not checked against a schema",
   "schema.nothingToAllow": "No schema download of this file waits for your consent",
+  "schema.mappingRejected": "Schema mapping ignored, write it as MASK=SCHEMA: {entry}",
   "schema.consent.title": "Schema download",
   "schema.consent.message": "Download the schema of this file from {host}? The editor then requests the schema address from that server, which sees your network address. The schema is kept on this computer, used again without a request while it is recent, and used when the server does not answer. Nothing is sent until you agree. Forbid Registry Lookups and Schema Downloads takes the consent back.",
   "lsp.textOnly": "A language server works with text documents only, not with large files shown in pages.",

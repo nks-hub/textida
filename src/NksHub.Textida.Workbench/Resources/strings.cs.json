@@ -510,6 +510,8 @@
   "cmd.help.languageHelp": "Nápověda k jazyku",
   "setting.sql.dialect.title": "Výchozí dialekt SQL",
   "setting.sql.dialect.description": "Dialekt souborů SQL, pro které ho nenastavil soubor ani složka. Složka: sql_dialect v .editorconfig.",
+  "setting.schema.mappings.title": "Mapování schémat",
+  "setting.schema.mappings.description": "Pravidla, která vybírají schéma souboru, zapsaná MASKA=SCHÉMA a oddělená středníky nebo zalomením řádku, například *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASKA je název souboru, konec cesty nebo složka s /**. SCHÉMA je id známého schématu, adresa (stáhne se až po vašem souhlasu s jejím hostitelem) nebo cesta k souboru. Koncovka as json, jsonc, toml, yaml nebo markdown určuje, jak se soubor čte. První vyhovující pravidlo má přednost před schématy, která Textida zná; před pravidlem vyhrává jen $schema zapsané v souboru.",
   "setting.html.tidyPath.title": "Program HTML Tidy",
   "setting.html.tidyPath.description": "Úplná cesta k programu HTML Tidy. Prázdné: editor hledá vedle pluginu formátovačů, ve složce tools/tidy a v PATH.",
   "cmd.compare.clipboard": "Porovnat se schránkou",

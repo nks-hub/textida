@@ -931,6 +931,7 @@ public static class K
     public const string SchemaTipConsent = "schema.tipConsent";
     public const string SchemaNotFile = "schema.notFile";
     public const string SchemaNothingToAllow = "schema.nothingToAllow";
+    public const string SchemaMappingRejected = "schema.mappingRejected";
     public const string SchemaConsentTitle = "schema.consent.title";
     public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";

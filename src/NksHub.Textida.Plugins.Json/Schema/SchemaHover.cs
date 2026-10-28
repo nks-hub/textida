@@ -27,7 +27,7 @@ public static class SchemaHover
             {
                 foreach (var m in node.Members)
                 {
-                    var children = schemas.SelectMany(s => SchemaCatalog.Flatten(schemaRoot, s, options.MaxDepth)).Select(s => SchemaCatalog.ChildSchema(s, m.Name, options)).OfType<DataNode>().ToList();
+                    var children = schemas.SelectMany(s => SchemaCatalog.Flatten(schemaRoot, s, options)).Select(s => SchemaCatalog.ChildSchema(s, m.Name, options)).OfType<DataNode>().ToList();
                     if (position >= m.NameStart && position <= m.NameEnd) return Make(schemaRoot, children, m.NameStart, m.NameEnd, options, texts);
                     if (position >= m.Value.Start && position <= m.Value.End)
                     {
@@ -43,7 +43,7 @@ public static class SchemaHover
                 foreach (var item in node.Items)
                 {
                     if (position < item.Start || position > item.End) continue;
-                    var children = schemas.SelectMany(s => SchemaCatalog.Flatten(schemaRoot, s, options.MaxDepth)).Select(s => s.Get("items")).OfType<DataNode>().ToList();
+                    var children = schemas.SelectMany(s => SchemaCatalog.Flatten(schemaRoot, s, options)).Select(s => s.Get("items")).OfType<DataNode>().ToList();
                     if (item.Kind is not (DataKind.Object or DataKind.Array)) return Make(schemaRoot, children, item.Start, item.End, options, texts);
                     inner = item;
                     schemas = children;
@@ -57,7 +57,7 @@ public static class SchemaHover
 
     private static HoverInfo? Make(DataNode root, List<DataNode> schemas, int start, int end, SchemaOptions options, SchemaTexts texts)
     {
-        var flat = schemas.SelectMany(s => SchemaCatalog.Flatten(root, s, options.MaxDepth)).ToList();
+        var flat = schemas.SelectMany(s => SchemaCatalog.Flatten(root, s, options)).ToList();
         string? title = null, description = null, deprecation = null, defaultValue = null;
         bool deprecated = false;
         var types = new List<string>();

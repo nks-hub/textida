@@ -293,6 +293,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: time one <c>pattern</c> of a schema may take on one value before it counts as not matching.</summary>
     public const int SchemaRegexTimeoutMilliseconds = 200;
 
+    /// <summary>Placeholder, OPEN: longest chain of schema documents a <c>$ref</c> may lead through, counted from the schema of the file; 0 would follow no reference to another document. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDepth = 4;
+
+    /// <summary>Placeholder, OPEN: most other schema documents (files or downloads) the references of one schema may pull in together. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDocuments = 16;
+
     /// <summary>Placeholder: largest file handed to a language server; a larger one never starts one. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
     public const int LspMaxBytes = 1 << 20;
 

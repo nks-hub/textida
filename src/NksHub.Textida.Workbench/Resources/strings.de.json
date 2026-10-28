@@ -510,6 +510,8 @@
   "cmd.help.languageHelp": "Hilfe zu einer Sprache",
   "setting.sql.dialect.title": "Standard-SQL-Dialekt",
   "setting.sql.dialect.description": "Dialekt für SQL-Dateien, für die weder Datei noch Ordner einen festlegt. Ordner: sql_dialect in .editorconfig.",
+  "setting.schema.mappings.title": "Schema-Zuordnungen",
+  "setting.schema.mappings.description": "Regeln, die das Schema einer Datei wählen, geschrieben als MASKE=SCHEMA und getrennt durch Semikolons oder Zeilenumbrüche, zum Beispiel *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASKE ist ein Dateiname, das Ende eines Pfads oder ein Ordner mit /**. SCHEMA ist die Id eines bekannten Schemas, eine Adresse (wird erst nach Ihrer Erlaubnis für ihren Host geladen) oder ein Dateipfad. Die Endung as json, jsonc, toml, yaml oder markdown legt fest, wie die Datei gelesen wird. Die erste passende Regel geht den Schemas vor, die Textida kennt; nur ein in der Datei geschriebenes $schema geht einer Regel vor.",
   "setting.html.tidyPath.title": "HTML-Tidy-Programm",
   "setting.html.tidyPath.description": "Vollständiger Pfad zum Programm HTML Tidy. Leer: Der Editor sucht neben dem Formatierer-Plugin, im Ordner tools/tidy und in PATH.",
   "cmd.compare.clipboard": "Mit Zwischenablage vergleichen",
