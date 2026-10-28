@@ -140,6 +140,19 @@ public class ByteMapTests
     }
 
     [Fact]
+    public void The_histogram_reads_a_range_longer_than_one_block_and_counts_every_byte_once()
+    {
+        var bytes = new byte[2_600_000];
+        for (int i = 0; i < bytes.Length; i++) bytes[i] = (byte)(i % 7 == 0 ? 0xAB : i % 3);
+        var h = ByteHistogram.Compute(new Memory(bytes), new ByteRange(100, bytes.Length - 100));
+
+        long[] expected = new long[256];
+        for (int i = 100; i < bytes.Length - 100; i++) expected[bytes[i]]++;
+        Assert.Equal(expected, h.Counts);
+        Assert.Equal(bytes.Length - 200, h.Total);
+    }
+
+    [Fact]
     [Trait("Category", "Large")]
     public void A_fifty_gibibyte_file_is_sampled_in_the_first_pass_and_refined_within_the_reading_limit()
     {
