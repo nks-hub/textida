@@ -51,6 +51,32 @@ public class MacroTests : IDisposable
 
     private static int Steps(DocTab t) => t.Doc.Doc.UndoDepth - 1;
 
+    private DocTab OpenDocument(string text, Sel selection)
+    {
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = text;
+        Dispatcher.UIThread.RunJobs();
+        tab.Doc.FlushEol();
+        Reselect(tab, selection);
+        return tab;
+    }
+
+    private static void Reselect(DocTab tab, Sel selection)
+    {
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.SetSelections([selection]);
+    }
+
+    /// <summary>Puts the search and the replacement into the find bar, as the help says to do before recording.</summary>
+    private async Task SetBarAsync(string find, string replacement, bool inSelection = false)
+    {
+        _w.ShowFind(replace: true);
+        _w.FindBar.FindBox.Text = find;
+        _w.FindBar.ReplaceBox.Text = replacement;
+        _w.FindBar.SelectionToggle.IsChecked = inSelection;
+        await Settle(() => !_w.FindIsRunning);
+    }
+
     /// <summary>The steps of the manual run: the same commands, typed text through the keyboard path.</summary>
     private void DoByHand()
     {
@@ -259,6 +285,185 @@ public class MacroTests : IDisposable
         Run("nks.edit.selectLine");
         Run("nks.macro.stop");
         Assert.Equal(["nks.edit.selectLine"], Registry.LastMacro.Select(s => s.Command));
+    }
+
+    [AvaloniaFact]
+    public async Task Arrows_a_selection_the_clipboard_and_replace_replay_on_another_document_to_the_manual_bytes()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        var manual = OpenDocument(Original, Sel.At(0));
+        await SetBarAsync("foo", "bar");
+        Reselect(manual, Sel.At(0));
+
+        Run("nks.macro.record");
+        for (int i = 0; i < 3; i++) TestApp.Press(_w, Key.Right);
+        for (int i = 0; i < 2; i++) TestApp.Press(_w, Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.edit.copy", ctx));
+        TestApp.Press(_w, Key.End);
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.edit.paste", ctx));
+        TestApp.Press(_w, Key.Down);
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceNext", ctx));
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceAll", ctx));
+        Run("nks.macro.stop");
+        string byHand = manual.Editor!.Document.Text;
+        Assert.Equal("bar 1 1\nbar 2\nbar 3\n", byHand);
+        Assert.Equal(
+            ["nks.edit.cursorRight", "nks.edit.cursorRight", "nks.edit.cursorRight", "nks.edit.cursorRightSelect", "nks.edit.cursorRightSelect", "nks.edit.copy",
+             "nks.edit.cursorLineEnd", "nks.edit.paste", "nks.edit.cursorDown", "nks.search.replaceNext", "nks.search.replaceAll"],
+            Registry.LastMacro.Select(s => s.Command));
+        Assert.Contains("\"replace\":\"bar\"", Registry.LastMacro[^1].Argument);
+
+        await _w.Clipboard!.SetTextAsync("other");
+        var played = OpenDocument(Original, Sel.At(0));
+        await SetBarAsync("zzz", "q");
+        Reselect(played, Sel.At(0));
+        int before = Steps(played);
+        await _w.PlayMacroAsync(Registry.LastMacro);
+        Assert.Equal(byHand, played.Editor!.Document.Text);
+        Assert.Equal(before + 1, Steps(played));
+        Assert.Equal("foo", _w.FindBar.FindBox.Text);
+        Run("nks.edit.undo");
+        Assert.Equal(Original, played.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Replace_next_steps_over_the_matches_and_a_replay_does_the_same()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        var manual = OpenDocument("a a a a\n", Sel.At(0));
+        await SetBarAsync("a", "b");
+        Reselect(manual, Sel.At(0));
+        Run("nks.macro.record");
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceNext", ctx));
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceNext", ctx));
+        Run("nks.macro.stop");
+        Assert.Equal("b b a a\n", manual.Editor!.Document.Text);
+
+        var played = OpenDocument("a a a a\n", Sel.At(0));
+        await SetBarAsync("zzz", "q");
+        Reselect(played, Sel.At(0));
+        await _w.PlayMacroAsync(Registry.LastMacro);
+        Assert.Equal("b b a a\n", played.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Replace_all_in_the_selection_works_on_the_selection_the_macro_has_when_it_plays()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        const string text = "foo\nfoo\nfoo\n";
+        var manual = OpenDocument(text, new Sel(4, 7));
+        await SetBarAsync("foo", "bar", inSelection: true);
+        Reselect(manual, new Sel(4, 7));
+        Run("nks.macro.record");
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceAll", ctx));
+        Run("nks.macro.stop");
+        Assert.Equal("foo\nbar\nfoo\n", manual.Editor!.Document.Text);
+        Assert.Contains("\"selection\":true", Registry.LastMacro[0].Argument);
+
+        var played = OpenDocument(text, new Sel(8, 11));
+        await SetBarAsync("zzz", "q");
+        Reselect(played, new Sel(8, 11));
+        await _w.PlayMacroAsync(Registry.LastMacro);
+        Assert.Equal("foo\nfoo\nbar\n", played.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task A_saved_replace_step_runs_with_the_find_bar_closed()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        var manual = OpenDocument("foo foo\n", Sel.At(0));
+        await SetBarAsync("foo", "bar");
+        Reselect(manual, Sel.At(0));
+        Run("nks.macro.record");
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceAll", ctx));
+        Run("nks.macro.stop");
+        Assert.True(_app.Macros.Save("Foo to bar", Registry.LastMacro, out _));
+        var saved = Assert.Single(_app.Macros.Load([]));
+        Assert.Equal(Registry.LastMacro, saved.Steps);
+
+        _w.FindBar.FindBox.Text = "";
+        _w.FindBar.ReplaceBox.Text = "";
+        _w.HideFind();
+        var other = OpenDocument("foo x foo\n", Sel.At(0));
+        await _w.PlayMacroAsync(saved.Steps);
+        Assert.Equal("bar x bar\n", other.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Replace_without_a_search_in_the_bar_is_not_recorded()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        OpenWithFirstWordSelected();
+        Run("nks.macro.record");
+        Assert.Equal(CommandOutcome.NotRecordable, await Registry.ExecuteAsync("nks.search.replaceAll", ctx));
+        Assert.Equal(CommandOutcome.NotRecordable, await Registry.ExecuteAsync("nks.search.replaceNext", ctx));
+        Assert.False(_w.FindBar.IsVisible);
+        Run("nks.edit.selectLine");
+        Run("nks.macro.stop");
+        Assert.Equal(["nks.edit.selectLine"], Registry.LastMacro.Select(s => s.Command));
+    }
+
+    private void SaveTwoMacros()
+    {
+        Assert.True(_app.Macros.Save("First", [new MacroStep("nks.edit.upperCase", null)], out _));
+        Assert.True(_app.Macros.Save("Second", [new MacroStep("nks.edit.lowerCase", null)], out _));
+    }
+
+    [AvaloniaFact]
+    public async Task A_saved_macro_is_renamed_from_the_list_and_its_old_file_goes()
+    {
+        SaveTwoMacros();
+        _dialogs.Prompts.Enqueue("Renamed one");
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.rename"));
+        Assert.Equal(PaletteMode.Choice, _w.PaletteModeNow);
+        Assert.Equal(["First", "Second"], _w.QuickResults.Select(r => r.Title));
+        _w.QuickResults[0].Run();
+        string dir = _app.Macros.Directory;
+        await Settle(() => File.Exists(Path.Combine(dir, "renamed-one.json")));
+        Assert.False(File.Exists(Path.Combine(dir, "first.json")));
+        var left = _app.Macros.Load([]);
+        Assert.Equal(["Renamed one", "Second"], left.Select(m => m.Name));
+        Assert.Equal([new MacroStep("nks.edit.upperCase", null)], left[0].Steps);
+    }
+
+    [AvaloniaFact]
+    public void Renaming_to_the_name_of_another_macro_changes_nothing()
+    {
+        SaveTwoMacros();
+        _dialogs.Prompts.Enqueue("second");
+        Run("nks.macro.rename");
+        _w.QuickResults[0].Run();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(["First", "Second"], _app.Macros.Load([]).Select(m => m.Name));
+        Assert.Equal(Loc.Get(K.MacroNameTaken, ("name", "second")), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public async Task A_saved_macro_is_deleted_only_after_the_question_is_answered_yes()
+    {
+        SaveTwoMacros();
+        _dialogs.Answers.Enqueue(1);
+        Run("nks.macro.delete");
+        _w.QuickResults[0].Run();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("First", _dialogs.Asked[^1].Message);
+        Assert.Equal(2, _app.Macros.Load([]).Count);
+
+        _dialogs.Answers.Enqueue(0);
+        Run("nks.macro.delete");
+        _w.QuickResults[1].Run();
+        await Settle(() => _app.Macros.Load([]).Count == 1);
+        Assert.Equal("First", Assert.Single(_app.Macros.Load([])).Name);
+    }
+
+    [AvaloniaFact]
+    public void A_macro_file_over_the_limit_is_listed_as_damaged_and_not_read()
+    {
+        Directory.CreateDirectory(_app.Macros.Directory);
+        File.WriteAllText(Path.Combine(_app.Macros.Directory, "big.json"), "{\"name\":\"Big\",\"steps\":[]}" + new string(' ', PluginLimitsPlaceholders.MacroMaxFileBytes));
+        var problems = new List<(string File, string Reason)>();
+        Assert.Empty(_app.Macros.Load(problems));
+        Assert.Equal("big.json", Assert.Single(problems).File);
     }
 
     [AvaloniaFact]

@@ -215,6 +215,20 @@
       "macro": true
     },
     {
+      "id": "nks.search.replaceNext",
+      "title": "cmd.search.replaceNext",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly",
+      "macro": true
+    },
+    {
+      "id": "nks.search.replaceAll",
+      "title": "cmd.search.replaceAll",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly",
+      "macro": true
+    },
+    {
       "id": "nks.search.findWord",
       "title": "cmd.search.findWord",
       "category": "cat.search",
@@ -2090,6 +2104,16 @@
       "category": "cat.tools",
       "when": "editorFocus",
       "enablement": "!readOnly"
+    },
+    {
+      "id": "nks.macro.rename",
+      "title": "cmd.macro.rename",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.macro.delete",
+      "title": "cmd.macro.delete",
+      "category": "cat.tools"
     },
     {
       "id": "nks.file.configFiles",
@@ -4523,6 +4547,20 @@
       "order": 50
     },
     {
+      "menu": "tools",
+      "command": "nks.macro.rename",
+      "group": "4_other/12_9_macro",
+      "submenu": "macro",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.delete",
+      "group": "4_other/12_9_macro",
+      "submenu": "macro",
+      "order": 70
+    },
+    {
       "menu": "file",
       "command": "nks.file.configFiles",
       "group": "2_save",
@@ -4667,6 +4705,19 @@
     }
   ],
   "keybindings": [
+    {
+      "key": "mod+k mod+r",
+      "command": "nks.macro.record"
+    },
+    {
+      "key": "mod+k mod+shift+r",
+      "command": "nks.macro.stop"
+    },
+    {
+      "key": "mod+k mod+p",
+      "command": "nks.macro.playLast",
+      "when": "editorFocus"
+    },
     {
       "key": "mod+n",
       "command": "nks.file.new"

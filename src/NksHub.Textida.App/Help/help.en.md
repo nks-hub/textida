@@ -381,16 +381,20 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - They do not work in a read-only document or in paged mode.
 
 ## [edit.macro] Macros
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Tools, Macros, Record Macro, starts recording. Do the work with commands and typing. Tools, Macros, Stop Recording Macro, ends it.
 2. Tools, Macros, Play Last Macro, plays it again over the current selections and carets.
 3. Tools, Macros, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Macros, Run Saved Macro, lists the saved ones and plays the chosen one.
+4. Tools, Macros, Rename Saved Macro, lists the saved ones and renames the chosen one; a name that another macro already has is refused. Tools, Macros, Delete Saved Macro, asks and then deletes the chosen one for good.
 - A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, Cut, Copy, Paste, and typed text. With several carets it does the same as doing the steps by hand.
 - While recording, the arrow keys, Home, End, Ctrl+Home, Ctrl+End, Ctrl with the arrows (with or without Shift), Backspace and Delete are recorded as commands too. They move and delete at every caret.
 - Find Next and Find Previous (F3, Shift+F3, Enter in the find bar) keep the search of the find bar with the step, so the macro finds the same text when it plays later. Open the find bar and type the search before you start recording; without a search the step is not recorded.
+- Replace and All of the replace bar (the commands Replace Next and Replace All) keep the whole bar with the step: search, switches and replacement. Before the step runs, a macro sets the bar to these values, so the result does not depend on what the bar showed before. With Selection on, the step works on the selection the macro has when it runs. Without a search the step is not recorded.
 - A playback is one Undo step. If a step cannot run, the macro stops there and the status bar names the step; what ran before stays one Undo step.
 - While recording, a command that a macro cannot replay is refused and the status bar says so: everything with a dialog, file commands, opening the find bar. Recording goes on. Mouse clicks, Page Up and Page Down are not recorded.
 - Playing needs an editable text document. Import of PSPad macros is not available.
+- Default shortcuts, placeholders (OPEN, not decided yet): Ctrl+K Ctrl+R records, Ctrl+K Ctrl+Shift+R stops, Ctrl+K Ctrl+P plays the last macro; on macOS ⌘ instead of Ctrl. Your own shortcuts in the settings take precedence.
+- The file of a saved macro larger than 1 MB (placeholder limit, OPEN) is not read; the list reports it as damaged.
 
 ## [edit.json] Format JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
@@ -502,12 +506,13 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - When you turn on the regular expression, a Try button appears (topic Regular expression tester).
 
 ## [search.replace] Replacing
-commands: nks.search.replace
+commands: nks.search.replace, nks.search.replaceNext, nks.search.replaceAll
 1. Press Ctrl+H, or choose Search and then Replace. The bar has an extra box Replace with.
 2. Type the text to find and the replacement.
 3. Enter in the replacement box replaces one match, Ctrl+Alt+Enter replaces all. The buttons Replace and All do the same.
 4. The status bar says how many matches were replaced, or Nothing was replaced.
 - In a regular expression replacement $1, $& and the case conversion \U \L \E \u \l work.
+- Replace Next and Replace All are also commands (Command palette). A macro can record them (topic Macros).
 - It does not work in a read-only document or in paged mode.
 
 ## [search.inFiles] Find and replace in files

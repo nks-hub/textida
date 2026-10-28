@@ -386,16 +386,20 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Nefungujú v dokumente len na čítanie ani v stránkovanom režime.
 
 ## [edit.macro] Makrá
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Nástroje, Makrá, Nahrať makro, spustí nahrávanie. Pracujte príkazmi a písaním. Nástroje, Makrá, Zastaviť nahrávanie makra, ho ukončí.
 2. Nástroje, Makrá, Prehrať posledné makro, ho znova prehrá nad aktuálnymi výbermi a kurzormi.
 3. Nástroje, Makrá, Uložiť posledné makro ako, ho uloží pod názvom do priečinka macros v profile. Nástroje, Makrá, Spustiť uložené makro, ukáže uložené makrá a prehrá vybrané.
+4. Nástroje, Makrá, Premenovať uložené makro, ukáže uložené makrá a vybrané premenuje; názov, ktorý už má iné makro, sa odmietne. Nástroje, Makrá, Zmazať uložené makro, sa opýta a vybrané zmaže natálo.
 - Makro si pamätá príkazy, nie klávesy: Duplikovať riadok, veľkosť písmen, Pridať ďalší výskyt a podobné, Vystrihnúť, Kopírovať, Vložiť, a napísaný text. Pri viacerých kurzoroch urobí to isté ako ručný postup.
 - Pri nahrávaní sa ako príkazy zaznamenajú aj šípky, Home, End, Ctrl+Home, Ctrl+End, Ctrl so šípkami (so Shiftom aj bez), Backspace a Delete. Posúvajú a mažú pri všetkých kurzoroch.
 - Nájsť ďalšie a Nájsť predchádzajúce (F3, Shift+F3, Enter v lište hľadania) si s krokom uložia hľadaný text z lišty hľadania, takže makro nájde ten istý text aj pri neskoršom prehratí. Lištu hľadania otvorte a hľadaný text napíšte pred začiatkom nahrávania; bez hľadaného textu sa krok nenahrá.
+- Nahradiť a Všetko v lište nahrádzania (príkazy Nahradiť ďalšie a Nahradiť všetko) si s krokom uložia celu lištu: hľadaný text, prepínače a náhradu. Makro pred krokom lištu nastaví na tieto hodnoty, takže výsledok nezávisí od toho, čo lišta ukazovala predtým. So zapnutým Výberom krok pracuje s výberom, ktorý makro má v okamihu kroku. Bez hľadaného textu sa krok nenahrá.
 - Prehratie je jeden krok Späť. Keď krok neprebehne, makro sa tam zastaví a stavový riadok krok pomenuje; čo prebehlo predtým, zostáva jedným krokom Späť.
 - Pri nahrávaní sa príkaz, ktorý makro nemôže prehrať, odmietne a stavový riadok to povie: všetko s dialógom, príkazy so súbormi, otvorenie lišty hľadania. Nahrávanie pokračuje. Kliknutia myšou, Page Up a Page Down sa nenahrávajú.
 - Prehratie potrebuje upraviteľný textový dokument. Import makier PSPadu nie je k dispozícii.
+- Predvolené skratky sú zástupné (OPEN, zatiaľ nerozhodnuté): Ctrl+K Ctrl+R nahráva, Ctrl+K Ctrl+Shift+R zastaví, Ctrl+K Ctrl+P prehrá posledné makro; na macOS ⌘ namiesto Ctrl. Vaše vlastné skratky v nastaveniach majú prednosť.
+- Súbor uloženého makra väčší ako 1 MB (zástupný limit, OPEN) sa nečíta; zoznam ho ohlási ako poškodený.
 
 ## [edit.json] Formátovanie JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson
@@ -507,12 +511,13 @@ commands: nks.search.find, nks.search.findNext, nks.search.findPrevious, nks.sea
 - Keď zapnete regulárny výraz, objaví sa tlačidlo Skúsiť (téma Skúška regulárneho výrazu).
 
 ## [search.replace] Nahradenie
-commands: nks.search.replace
+commands: nks.search.replace, nks.search.replaceNext, nks.search.replaceAll
 1. Stlačte Ctrl+H, alebo zvoľte Hľadať a Nahradiť. Lišta má navyše pole Nahradiť čím.
 2. Napíšte hľadaný a náhradný text.
 3. Enter v poli náhrady nahradí jednu zhodu, Ctrl+Alt+Enter všetky. To isté robia tlačidlá Nahradiť a Všetko.
 4. Stavový riadok napíše, koľko zhôd sa nahradilo, alebo Nič sa nenahradilo.
 - V regulárnej náhrade platí $1, $& a zmena veľkosti písmen \U \L \E \u \l.
+- Nahradiť ďalšie a Nahradiť všetko sú aj príkazy (Paleta príkazov). Makro ich vie nahrať (téma Makrá).
 - Nejde pri dokumente len na čítanie ani v stránkovanom režime.
 
 ## [search.inFiles] Hľadanie a nahrádzanie v súboroch
