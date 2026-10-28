@@ -274,8 +274,8 @@ internal sealed class ImageView : ScrollViewer, IDisposable
         {
             case Key.Add or Key.OemPlus: ZoomBy(1); break;
             case Key.Subtract or Key.OemMinus: ZoomBy(-1); break;
-            case Key.D0 or Key.NumPad0: Fit(); break;
-            case Key.D1 or Key.NumPad1: ActualSize(); break;
+            case Key.D0 or Key.NumPad0 when e.KeyModifiers == KeyModifiers.None: Fit(); break;
+            case Key.D1 or Key.NumPad1 when e.KeyModifiers == KeyModifiers.None: ActualSize(); break;
             case Key.Up: LineUp(); break;
             case Key.Down: LineDown(); break;
             case Key.Left: LineLeft(); break;
