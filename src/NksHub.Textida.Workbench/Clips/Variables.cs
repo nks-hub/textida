@@ -145,14 +145,24 @@ public static class Variables
         return name[^1] != '.' && !name.Contains("..", StringComparison.Ordinal);
     }
 
-    /// <summary>Expands <paramref name="template"/>; every line break in the template and in the values becomes <paramref name="newLine"/>.</summary>
-    public static ExpandResult Expand(string template, VariableScope scope, string newLine = "\n")
+    /// <summary>
+    /// Expands <paramref name="template"/>; every line break in the template and in the values becomes <paramref name="newLine"/>. A snippet that outgrows
+    /// <paramref name="snippets"/> (or runs a transform too long) gives a <see cref="ExpandResult.SyntaxError"/>.
+    /// </summary>
+    public static ExpandResult Expand(string template, VariableScope scope, string newLine = "\n", SnippetLimits? snippets = null)
     {
         if (SnippetParser.HasStops(template))
         {
-            var snippet = SnippetParser.Parse(template, name => scope.TryGet(name, out var value) ? value : null, newLine);
-            int first = snippet.Stops.Count > 0 ? snippet.Stops[0].Spans[0].Start : snippet.FinalOffset;
-            return new ExpandResult(snippet.Text, [first], snippet.Missing, null) { Snippet = snippet };
+            try
+            {
+                var snippet = SnippetParser.Parse(template, name => scope.TryGet(name, out var value) ? value : null, newLine, snippets);
+                int first = snippet.Stops.Count > 0 ? snippet.Stops[0].Spans[0].Start : snippet.FinalOffset;
+                return new ExpandResult(snippet.Text, [first], snippet.Missing, null) { Snippet = snippet };
+            }
+            catch (SnippetLimitException e)
+            {
+                return new ExpandResult("", [], [], e.Message);
+            }
         }
         var sb = new StringBuilder(template.Length + 16);
         var carets = new List<int>();

@@ -121,6 +121,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: carets one snippet or clip places in each selection, and the most places Tab visits in one Emmet expansion.</summary>
     public const int SnippetCarets = 64;
 
+    /// <summary>Placeholder, OPEN: how many placeholders of a snippet may stand inside one another (<c>${1:a ${2:b}}</c> is two); a deeper one stays in the text as it is. The owner has not decided it.</summary>
+    public const int SnippetNestingDepth = 8;
+
+    /// <summary>Placeholder, OPEN: milliseconds one regular expression of a snippet transform may run on one text; a slower one stops the snippet with a message, and a mirror it feeds stays as it was. The owner has not decided it.</summary>
+    public const int SnippetTransformTimeoutMilliseconds = 100;
+
+    public static NksHub.Textida.Core.Snippets.SnippetLimits Snippets() => new(SnippetNestingDepth, SnippetLength, TimeSpan.FromMilliseconds(SnippetTransformTimeoutMilliseconds));
+
     /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
     public const long GrammarMaxBytes = 1 << 20;
     /// <summary>Placeholder: largest secrets file (<c>.env</c>) whose values are looked for when a plugin reads it; a larger one is hidden whole.</summary>
@@ -474,6 +482,7 @@ internal static class PluginLimitsPlaceholders
         MaxSymbolTextLength = SymbolTextLength,
         MaxSnippetLength = SnippetLength,
         MaxSnippetCarets = SnippetCarets,
+        Snippets = Snippets(),
         TabTimeout = TabTimeout,
         MaxSecretScanBytes = SecretScanMaxBytes,
         MaxClipboardChars = ClipboardMaxChars,

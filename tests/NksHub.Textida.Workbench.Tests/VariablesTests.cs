@@ -228,4 +228,18 @@ public class VariablesTests : IDisposable
             Assert.Empty(result.Values);
         }
     }
+
+    [Fact]
+    public void A_snippet_with_nested_stops_and_a_variable_transform_expands_and_one_over_the_limit_is_a_syntax_error()
+    {
+        var r = Expand(@"${1:a ${2:b}} ${file.name/(.*)\.(.*)/$2/} $0");
+        Assert.Null(r.SyntaxError);
+        Assert.Equal("a b txt ", r.Text);
+        Assert.Equal([1, 2], r.Snippet!.Stops.Select(s => s.Number));
+
+        var big = Variables.Expand("${1:$2$2$2$2}${2:" + new string('x', 30) + "}", new VariableScope(Context()), "\n", new NksHub.Textida.Core.Snippets.SnippetLimits(8, 100, TimeSpan.FromSeconds(1)));
+        Assert.NotNull(big.SyntaxError);
+        Assert.False(big.Ok);
+        Assert.Equal("", big.Text);
+    }
 }

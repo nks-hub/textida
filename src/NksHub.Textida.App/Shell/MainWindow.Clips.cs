@@ -142,7 +142,7 @@ internal sealed partial class MainWindow
         var pieces = new List<ExpandResult>(selections.Count);
         foreach (var selected in selections)
         {
-            var result = Variables.Expand(clip.Text, new VariableScope(context.WithSelection(selected), values), newLine);
+            var result = Variables.Expand(clip.Text, new VariableScope(context.WithSelection(selected), values), newLine, PluginLimitsPlaceholders.Snippets());
             if (ProblemOf(result) is { } problem) { SetStatusMessage(problem); return; }
             if (result.Text.Length > PluginLimitsPlaceholders.SnippetLength || result.Carets.Count > PluginLimitsPlaceholders.SnippetCarets)
             {
@@ -241,7 +241,7 @@ internal sealed partial class MainWindow
 
         var tab = NewDocument();
         if (tab.Surface is not { } surface) return;
-        var result = Variables.Expand(template.Text, scope, tab.Doc.NewLine(surface.Settings.ConfiguredEol));
+        var result = Variables.Expand(template.Text, scope, tab.Doc.NewLine(surface.Settings.ConfiguredEol), PluginLimitsPlaceholders.Snippets());
         surface.Document.Text = result.Text;
         surface.SetSelections(result.Carets.Count == 0 ? [Sel.At(0)] : [.. result.Carets.Select(Sel.At)]);
         FocusView(tab);

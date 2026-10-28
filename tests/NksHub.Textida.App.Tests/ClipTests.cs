@@ -160,6 +160,61 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_snippet_mirror_with_a_transform_shows_the_changed_text_of_its_stop_while_it_is_typed()
+    {
+        Install("acme", Manifest("""
+            "clips":[{"id":"tf","title":"Tf","text":"${1:one_two} ${1/(\\w+)_(\\w+)/${1:/camelcase}${2:/pascalcase}/}"}]
+            """));
+        var tab = Open("");
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal("one_two oneTwo", Text(tab));
+        Assert.Equal(new Sel(0, 7), CaretsOf(tab).Single());
+
+        tab.Editor!.TypeText("foo_bar");
+        Assert.Equal("foo_bar fooBar", Text(tab));
+        tab.Editor.TypeText("x");
+        Assert.Equal("foo_barx fooBarx", Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_stop_inside_a_default_is_visited_after_its_outer_stop_and_the_mirrors_of_the_outer_stop_follow_it()
+    {
+        Install("acme", Manifest("""
+            "clips":[{"id":"nest","title":"Nest","text":"<a ${1:href=\"${2:#}\"}>$0 | $1"}]
+            """));
+        var tab = Open("");
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal("<a href=\"#\"> | href=\"#\"", Text(tab));
+        Assert.Equal(new Sel(3, 11), CaretsOf(tab).Single());
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.Equal(new Sel(9, 10), CaretsOf(tab).Single());
+        tab.Editor!.TypeText("/x");
+        Assert.Equal("<a href=\"/x\"> | href=\"/x\"", Text(tab));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.snippet.next"));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Equal(Sel.At(Text(tab).IndexOf(">", StringComparison.Ordinal) + 1), CaretsOf(tab).Single());
+    }
+
+    [AvaloniaFact]
+    public void A_clip_with_a_transform_that_runs_too_long_is_refused_with_a_message_and_writes_nothing()
+    {
+        Install("acme", Manifest("""
+            "clips":[{"id":"slow","title":"Slow","text":"${1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx} ${1/(x+x+)+y/!/}"}]
+            """));
+        var tab = Open("keep");
+        tab.Editor!.CaretOffset = 4;
+        Run("nks.edit.insertClip");
+        _w.RunPaletteSelection();
+        Assert.Equal("keep", Text(tab));
+        Assert.False(tab.Editor.InSnippet);
+        Assert.Contains(Loc.Get(K.ClipBadText, ("reason", "")).Split(':')[0], _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
     public void The_command_a_clip_names_inserts_it_and_a_selection_is_replaced()
     {
         Install("acme", Manifest(Box));
