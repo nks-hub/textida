@@ -1088,6 +1088,9 @@ public static class K
     public const string ExportCopied = "export.copied";
     public const string ExportIndexPending = "export.indexPending";
     public const string ExportChanged = "export.changed";
+    public const string ExportReading = "export.reading";
+    public const string ExportCancelled = "export.cancelled";
+    public const string ExportBusy = "export.busy";
     public const string LogFoldTitle = "log.fold.title";
     public const string LogFoldLevelLabel = "log.fold.level";
     public const string LogFoldPlaceholder = "log.fold.placeholder";

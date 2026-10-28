@@ -50,6 +50,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: milliseconds between two updates of the percentage shown while the colors of a large file are read for an export or a copy with formatting. The owner has not decided it.</summary>
+    public const int HighlightExportProgressMilliseconds = 250;
+
     /// <summary>Placeholder, OPEN: parts the error heatmap of the minimap cuts a log into (by byte position); the picture takes the densest bucket of each row.</summary>
     public const int LogHeatBuckets = 1024;
 

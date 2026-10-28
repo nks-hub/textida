@@ -301,22 +301,25 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>
     /// The grammar state at the start of a zero-based line, read with a session of its own so that the colors of a view stay as they are. It runs on the
     /// UI thread in short slices, which is what a session requires, and yields between them. Null when the document changed meanwhile, ends before the
-    /// line, or the line is too long for a full scan; the caller then does not know the state.
+    /// line, or the line is too long for a full scan; the caller then does not know the state. <paramref name="ct"/> ends the read between two slices with an
+    /// <see cref="OperationCanceledException"/>; <paramref name="scanned"/> gets the bytes read so far after each slice.
     /// </summary>
-    internal static async Task<LineState?> StartStateOfLineAsync(Document doc, Tokenizer tokenizer, long line)
+    internal static async Task<LineState?> StartStateOfLineAsync(Document doc, Tokenizer tokenizer, long line, CancellationToken ct = default, IProgress<long>? scanned = null)
     {
         if (line == 0) return tokenizer.InitialState;
         long revision = doc.Revision;
         using var session = new CheckpointSyntaxSession(doc, tokenizer);
         while (true)
         {
+            ct.ThrowIfCancellationRequested();
             if (doc.Revision != revision) return null;
-            var view = session.TokenizeViewport(line, 1, BackgroundSlice, default, 0, 0);
+            var view = session.TokenizeViewport(line, 1, BackgroundSlice, ct, 0, 0);
             switch (view.Status)
             {
                 case SyntaxViewportStatus.Complete: return view.Lines.Count > 0 ? view.Lines[0].StartState : null;
                 case SyntaxViewportStatus.FullLineRequired: return null;
             }
+            scanned?.Report(session.BytesScanned);
             await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
         }
     }
