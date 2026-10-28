@@ -53,7 +53,7 @@ internal sealed partial class MainWindow
         _outputClose.Classes.Add("outputaction");
         _outputClose.Click += (_, _) => ToggleOutput(false);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), Children = { _outputStop, _outputClear, _outputClose } };
-        var header = new DockPanel { Height = 30, LastChildFill = false };
+        var header = new ReadingDockPanel { Height = 30, LastChildFill = false };
         header.Children.Add(Dock(actions, Avalonia.Controls.Dock.Right));
         header.Children.Add(Dock(tabs, Avalonia.Controls.Dock.Left));
 

@@ -360,6 +360,7 @@ public static class K
     public const string A11yDocumentList = "a11y.documents.list";
     public const string A11yStatusBar = "a11y.statusBar";
     public const string A11yWorkspace = "a11y.workspace";
+    public const string A11yGroupsSplitter = "a11y.groups.splitter";
     public const string FindWatermark = "find.watermark";
     public const string FindReplaceWatermark = "find.replaceWatermark";
     public const string FindFolderWatermark = "find.folderWatermark";
@@ -1105,6 +1106,7 @@ public static class K
     public const string TableA11yRow = "table.a11y.row";
     public const string TableA11yHeaderRow = "table.a11y.headerRow";
     public const string TableA11yColumn = "table.a11y.column";
+    public const string TableA11yEdit = "table.a11y.edit";
     public const string TableNoQuote = "table.noQuote";
     public const string TableFilterActive = "table.filterActive";
     public const string TableFilterTitle = "table.filter.title";

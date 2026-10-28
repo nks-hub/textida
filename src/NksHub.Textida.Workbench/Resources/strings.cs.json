@@ -268,6 +268,8 @@
   "cmd.view.toggleOutput": "Výstup",
   "cmd.view.pluginPanels": "Panely pluginů...",
   "cmd.view.fullScreen": "Celá obrazovka",
+  "cmd.view.nextPane": "Další oblast okna",
+  "cmd.view.previousPane": "Předchozí oblast okna",
   "cmd.files.newFile": "Nový soubor ve složce...",
   "cmd.files.newFolder": "Nová složka...",
   "cmd.files.duplicate": "Duplikovat",

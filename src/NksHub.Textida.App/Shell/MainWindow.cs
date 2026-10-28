@@ -162,7 +162,7 @@ internal sealed partial class MainWindow : Window
         _body.Children.Add(panel);
         _body.Children.Add(editorArea);
 
-        var content = new Border { Child = new DockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
+        var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
         Grid.SetRow(content, 1);
         root.Children.Add(content);
@@ -224,6 +224,7 @@ internal sealed partial class MainWindow : Window
                 _groupsGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
                 var splitter = new GridSplitter { ResizeDirection = GridResizeDirection.Columns, Background = Brushes.Transparent, Width = 4 };
                 splitter.Classes.Add("groupsplitter");
+                AutomationProperties.SetName(splitter, Loc.Get(K.A11yGroupsSplitter));
                 Grid.SetColumn(splitter, _groupsGrid.ColumnDefinitions.Count - 1);
                 _groupsGrid.Children.Add(splitter);
             }
@@ -345,8 +346,17 @@ internal sealed partial class MainWindow : Window
         ApplyPreviewTexts();
         RefreshPluginUi();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
+        string editorName = Loc.Get(K.A11yEditor);
+        foreach (var tab in Tabs)
+        {
+            Control? editor = tab.Surface ?? (Control?)tab.Paged;
+            if (editor is null || AutomationProperties.GetName(editor) == editorName) continue;
+            AutomationProperties.SetName(editor, editorName);
+            tab.RefreshAutomationLabel();
+        }
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
+        foreach (var splitter in _groupsGrid.Children.OfType<GridSplitter>()) AutomationProperties.SetName(splitter, Loc.Get(K.A11yGroupsSplitter));
         foreach (var tab in Tabs) tab.Minimap?.UpdateName();
         ApplyPaletteTexts();
         ApplyFindTexts();
@@ -361,6 +371,7 @@ internal sealed partial class MainWindow : Window
     {
         _message = text;
         UpdateStatus();
+        Announce(text);
     }
 
     private void OnSettingChanged(string key)

@@ -62,6 +62,29 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         Classes = { "shell", "dialog" }, Content = content,
     };
 
+    /// <summary>Called with a dialog window just before it is shown; tests use it to drive the real controls.</summary>
+    internal Action<Window>? Shown { get; set; }
+
+    /// <summary>
+    /// Shows <paramref name="dialog"/> modally. The control of the owner that had the keyboard gets it back when the dialog is gone, so a keyboard
+    /// user goes on where they were. A menu item is not given back: the window sends the keyboard to the document when it is activated again.
+    /// </summary>
+    private async Task<T> ShowAsync<T>(Window dialog, Window owner)
+    {
+        var before = owner.FocusManager?.GetFocusedElement();
+        Shown?.Invoke(dialog);
+        try { return await dialog.ShowDialog<T>(owner); }
+        finally { RestoreFocus(owner, before); }
+    }
+
+    private Task ShowAsync(Window dialog, Window owner) => ShowAsync<object?>(dialog, owner);
+
+    private static void RestoreFocus(Window owner, IInputElement? before)
+    {
+        if (before is not Control { Focusable: true, IsEffectivelyVisible: true } control || control is MenuItem or Menu || !ReferenceEquals(TopLevel.GetTopLevel(control), owner)) return;
+        control.Focus(NavigationMethod.Tab);
+    }
+
     private static Button MakeButton(DialogButton b, Window dialog, int index)
     {
         var button = new Button { Content = b.Label, IsDefault = b.IsDefault, IsCancel = b.IsCancel, MinWidth = 84, HorizontalContentAlignment = HorizontalAlignment.Center };
@@ -76,13 +99,17 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         var panel = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
         panel.Children.Add(new TextBlock { Text = request.Message, TextWrapping = TextWrapping.Wrap });
         if (request.Details is { Count: > 0 } details)
-            panel.Children.Add(new ListBox { ItemsSource = details, MaxHeight = 220, Background = Brushes.Transparent });
+        {
+            var list = new ListBox { ItemsSource = details, MaxHeight = 220, Background = Brushes.Transparent };
+            AutomationProperties.SetName(list, request.Title);
+            panel.Children.Add(list);
+        }
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         panel.Children.Add(row);
         var dialog = Frame(request.Title, panel, request.Details is null ? 460 : 560);
         for (int i = 0; i < request.Buttons.Count; i++) row.Children.Add(MakeButton(request.Buttons[i], dialog, i));
         using var closer = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close(null)));
-        var result = await dialog.ShowDialog<int?>(owner);
+        var result = await ShowAsync<int?>(dialog, owner);
         return result ?? -1;
     }
 
@@ -124,12 +151,13 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         var dialog = Frame(title, panel, 420);
         ok.Click += (_, _) => dialog.Close(combo.SelectedIndex >= 0 ? targets[combo.SelectedIndex].Codec : null);
         cancel.Click += (_, _) => dialog.Close(null);
-        return await dialog.ShowDialog<TextCodec?>(owner);
+        return await ShowAsync<TextCodec?>(dialog, owner);
     }
 
     public async Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null)
     {
         var input = new TextBox { Text = initial, MinWidth = 260 };
+        AutomationProperties.SetName(input, label);
         var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
         var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
         var panel = new StackPanel
@@ -158,7 +186,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         ok.Click += (_, _) => dialog.Close(input.Text ?? "");
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
-        return await dialog.ShowDialog<string?>(owner);
+        return await ShowAsync<string?>(dialog, owner);
     }
 
     public async Task<string?> PromptSecretAsync(Window owner, string title, string label)
@@ -181,15 +209,17 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         ok.Click += (_, _) => dialog.Close(input.Text ?? "");
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => input.Focus();
-        return await dialog.ShowDialog<string?>(owner);
+        return await ShowAsync<string?>(dialog, owner);
     }
 
     public async Task<SaveAsChoice?> SaveAsAsync(Window owner, SaveAsRequest request)
     {
         var path = new TextBox { Text = request.SuggestedPath ?? "", MinWidth = 320, HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetName(path, Loc.Get(K.DialogSaveAsPath));
         var browse = new Button { Content = Loc.Get(K.DialogBrowse) };
         var items = request.Targets.Select(t => t.Lost > 0 ? $"{t.Codec.Name} · {Loc.Plural(K.EncodingLossy, t.Lost)}" : t.Codec.Name).ToList();
         var encoding = new ComboBox { ItemsSource = items, SelectedIndex = Math.Max(0, request.Targets.ToList().FindIndex(t => t.Codec == request.Current)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetName(encoding, Loc.Get(K.DialogSaveAsEncoding));
         var ok = new Button { Content = Loc.Get(K.DialogSave), IsDefault = true, MinWidth = 84 };
         var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
         var pathRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8, Children = { path, browse } };
@@ -220,7 +250,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
             dialog.Close(new SaveAsChoice(System.IO.Path.GetFullPath(path.Text.Trim()), request.Targets[encoding.SelectedIndex].Codec));
         };
         cancel.Click += (_, _) => dialog.Close(null);
-        return await dialog.ShowDialog<SaveAsChoice?>(owner);
+        return await ShowAsync<SaveAsChoice?>(dialog, owner);
     }
 
     public async Task ShowAboutAsync(Window owner)
@@ -234,6 +264,6 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         };
         var dialog = Frame(Loc.Get(K.DialogAboutTitle, ("name", Loc.Get(K.AppName))), panel, 340);
         close.Click += (_, _) => dialog.Close();
-        await dialog.ShowDialog(owner);
+        await ShowAsync(dialog, owner);
     }
 }

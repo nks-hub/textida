@@ -778,6 +778,16 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.view.nextPane",
+      "title": "cmd.view.nextPane",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.previousPane",
+      "title": "cmd.view.previousPane",
+      "category": "cat.view"
+    },
+    {
       "id": "nks.files.newFile",
       "title": "cmd.files.newFile",
       "category": "cat.file",
@@ -4922,6 +4932,14 @@
     {
       "key": "f11",
       "command": "nks.view.fullScreen"
+    },
+    {
+      "key": "f6",
+      "command": "nks.view.nextPane"
+    },
+    {
+      "key": "shift+f6",
+      "command": "nks.view.previousPane"
     },
     {
       "key": "mod+k mod+e",

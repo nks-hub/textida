@@ -69,7 +69,7 @@ internal sealed class ToolEditorWindow : Window
         body.Children.Add(scroll);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { _save, _close } };
         var footer = new StackPanel { Margin = new Thickness(18, 0, 18, 12), Spacing = 6, Children = { _previewLine, _note, buttons } };
-        var root = new DockPanel { Children = { footer, body } };
+        var root = new ReadingDockPanel { Children = { footer, body } };
         DockPanel.SetDock(footer, Dock.Bottom);
         Content = root;
 
@@ -207,7 +207,7 @@ internal sealed class ToolEditorWindow : Window
     private void SetNote(string text, bool error)
     {
         _note.Text = text;
-        _note.Foreground = error ? new SolidColorBrush(Color.Parse("#C0392B")) : null;
+        _note.Foreground = error ? ThemeColors.Danger : null;
     }
 
     private void OnLanguageChanged()
@@ -247,6 +247,7 @@ internal sealed class ToolEditorWindow : Window
         AutomationProperties.SetName(_pattern, Loc.Get(K.ToolEditPattern));
         AutomationProperties.SetName(_encoding, Loc.Get(K.ToolEditEncoding));
         AutomationProperties.SetName(_variables, Loc.Get(K.ToolEditVariables));
+        AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite);
         RefreshPreview();
     }
 }

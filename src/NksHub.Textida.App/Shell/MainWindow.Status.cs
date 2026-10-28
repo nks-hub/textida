@@ -40,6 +40,7 @@ internal sealed partial class MainWindow
         Grid.SetColumn(_statusRight, 2);
         Grid.SetColumn(_pluginStatus, 1);
         grid.Children.Add(_statusLeft);
+        grid.Children.Add(_announcer);
         grid.Children.Add(_pluginStatus);
         grid.Children.Add(_statusRight);
         _indentItem.Click += (_, _) => ShowIndentMenu();

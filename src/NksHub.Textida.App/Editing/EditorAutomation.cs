@@ -280,6 +280,9 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private WindowsUiaBridge CreateBridge(nint hwnd) => new(NewSurface(), hwnd, new UiaEditorInfo(Label, "textida-editor"));
 
+    /// <summary>The label of the editor changed with the interface language; the native element takes it again.</summary>
+    internal void LabelChanged() => OnDocumentReplaced();
+
     private void OnDocumentReplaced()
     {
         if (OperatingSystem.IsWindows()) _window?.ResetBridge();

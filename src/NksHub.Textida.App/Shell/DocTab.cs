@@ -41,6 +41,9 @@ internal sealed class DocTab
 
     private readonly EditorAutomationHost? _automation;
 
+    /// <summary>The name of the editor follows the interface language; the native accessibility element is told.</summary>
+    public void RefreshAutomationLabel() => _automation?.LabelChanged();
+
     /// <summary>Raised when the tab is closed, before its views are released.</summary>
     public event Action? ViewClosed;
 

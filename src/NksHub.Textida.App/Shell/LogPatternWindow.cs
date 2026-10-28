@@ -58,7 +58,7 @@ internal sealed class LogPatternWindow : Window
         body.Children.Add(right);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { _use, _close } };
         var footer = new StackPanel { Margin = new Thickness(18, 0, 18, 12), Spacing = 6, Children = { _note, _help, buttons } };
-        var root = new DockPanel { Children = { footer, body } };
+        var root = new ReadingDockPanel { Children = { footer, body } };
         DockPanel.SetDock(footer, Dock.Bottom);
         Content = root;
 
@@ -118,6 +118,7 @@ internal sealed class LogPatternWindow : Window
         AutomationProperties.SetName(_syntax, Loc.Get(K.LogPatternSyntax));
         AutomationProperties.SetName(_sample, Loc.Get(K.LogPatternSample));
         AutomationProperties.SetName(_results, Loc.Get(K.LogPatternResults));
+        AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite);
     }
 
     private void Refresh()
@@ -132,7 +133,7 @@ internal sealed class LogPatternWindow : Window
         catch (LogPatternException e)
         {
             _note.Text = Loc.Get(K.LogPatternInvalid, ("reason", e.Message));
-            _note.Foreground = new SolidColorBrush(Color.Parse("#C0392B"));
+            _note.Foreground = ThemeColors.Danger;
             return;
         }
         _use.IsEnabled = true;
