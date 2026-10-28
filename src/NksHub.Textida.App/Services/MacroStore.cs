@@ -46,6 +46,29 @@ internal sealed class MacroStore(string directory)
         }
     }
 
+    /// <summary>Removes the file of the macro; false with the reason in <paramref name="detail"/> when it cannot be deleted.</summary>
+    public bool Delete(SavedMacro macro, out string detail)
+    {
+        detail = "";
+        try
+        {
+            File.Delete(Path.Combine(Directory, macro.File));
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            detail = e.Message;
+            return false;
+        }
+    }
+
+    /// <summary>Saves the macro under <paramref name="newName"/> and removes its old file when the new name makes another one. The caller has checked that no other macro has that file name.</summary>
+    public bool Rename(SavedMacro macro, string newName, out string detail)
+    {
+        if (!Save(newName, macro.Steps, out detail)) return false;
+        return string.Equals(Path.GetFileName(PathOf(newName)), macro.File, StringComparison.OrdinalIgnoreCase) || Delete(macro, out detail);
+    }
+
     /// <summary>Every readable macro by name; a file that cannot be read is left out and described in <paramref name="problems"/>.</summary>
     public IReadOnlyList<SavedMacro> Load(List<(string File, string Reason)> problems)
     {
@@ -55,6 +78,7 @@ internal sealed class MacroStore(string directory)
         {
             try
             {
+                if (new FileInfo(path).Length > PluginLimitsPlaceholders.MacroMaxFileBytes) throw new JsonException($"larger than {PluginLimitsPlaceholders.MacroMaxFileBytes} bytes");
                 var root = JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8))?.AsObject() ?? throw new JsonException("not an object");
                 var name = root["name"]?.GetValue<string>() is { Length: > 0 } n ? n : throw new JsonException("no name");
                 var steps = new List<MacroStep>();

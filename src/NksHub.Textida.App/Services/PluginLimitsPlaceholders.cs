@@ -513,6 +513,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: how long a plugin has to end a task the user cancelled before the editor ends it itself. The owner has not decided it.</summary>
     public const int TaskCancelGraceMilliseconds = 5000;
 
+    /// <summary>Placeholder, OPEN: largest file of a saved macro that is read, in bytes; a larger one is listed as damaged with the reason and not read. The owner has not decided it.</summary>
+    public const int MacroMaxFileBytes = 1 << 20;
+
     public static UiApiOptions Ui() => new()
     {
         MaxPanelsPerPlugin = 4,

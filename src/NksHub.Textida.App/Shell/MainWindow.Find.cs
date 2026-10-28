@@ -63,11 +63,11 @@ internal sealed partial class MainWindow
     {
         _find.CloseRequested += HideFind;
         _find.QueryChanged += OnFindQueryChanged;
-        // through the registry, so a macro being recorded records Enter in the bar like F3
+        // through the registry, so a macro being recorded records Enter in the bar like F3, and Replace and Replace All
         _find.NextRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.findNext", new ShellContext(this, forMenu: true));
         _find.PreviousRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.findPrevious", new ShellContext(this, forMenu: true));
-        _find.ReplaceOneRequested += () => _ = ReplaceAsync(all: false);
-        _find.ReplaceAllRequested += () => _ = ReplaceAsync(all: true);
+        _find.ReplaceOneRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.replaceNext", new ShellContext(this, forMenu: true));
+        _find.ReplaceAllRequested += () => _ = _app.Workbench.Commands.ExecuteAsync("nks.search.replaceAll", new ShellContext(this, forMenu: true));
         _find.GoRequested += () => _ = RunFilesSearchAsync();
         _find.TryRequested += ShowRegexTester;
         _find.ListRequested += () => _ = ListFindResultsAsync();

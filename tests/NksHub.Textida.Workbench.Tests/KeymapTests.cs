@@ -98,6 +98,23 @@ public class KeymapTests
     }
 
     [Fact]
+    public void The_placeholder_macro_shortcuts_collide_with_no_other_binding_on_any_platform()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        foreach (var platform in Enum.GetValues<Platform>())
+        {
+            var keymap = host.BuildKeymap(platform);
+            Assert.Empty(keymap.Errors);
+            Assert.DoesNotContain(keymap.Conflicts, c => c.Winner.CommandId.StartsWith("nks.macro.", StringComparison.Ordinal) || c.Loser.CommandId.StartsWith("nks.macro.", StringComparison.Ordinal));
+        }
+        var win = host.BuildKeymap(Platform.Windows);
+        Assert.Equal(["Ctrl+K Ctrl+R"], win.ShortcutsFor("nks.macro.record"));
+        Assert.Equal(["Ctrl+K Ctrl+Shift+R"], win.ShortcutsFor("nks.macro.stop"));
+        Assert.Equal(["Ctrl+K Ctrl+P"], win.ShortcutsFor("nks.macro.playLast"));
+        Assert.Equal(["⌘K ⌘R"], host.BuildKeymap(Platform.MacOS).ShortcutsFor("nks.macro.record"));
+    }
+
+    [Fact]
     public void Higher_layers_win_and_plugins_never_override()
     {
         var layers = new[]
