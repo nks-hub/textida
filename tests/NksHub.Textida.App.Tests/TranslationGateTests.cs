@@ -19,6 +19,7 @@ public class TranslationGateTests
         ["app.name"] = "cs sk de",
         ["a11y.minimap"] = "de",
         ["dialog.about.version"] = "de",
+        ["dialog.about.build"] = "de",
         ["dialog.ok"] = "cs sk de",
         ["restore.details"] = "de",
         ["source.editorConfig"] = "cs sk de",

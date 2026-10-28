@@ -32,9 +32,15 @@ Opens this help window.
 
 ## [help.about] About
 commands: nks.help.about
-Shows the program name and the version number.
+Shows the version and the build of the program, the system it runs on, the plugins, the licence and the links of the project.
 1. Choose Help and then About.
-2. Close the window with the Close button or the Esc key.
+2. The top of the window shows the version, the build (commit and date) and the two links of the project. The Technical data tab lists the .NET runtime, NativeAOT or JIT, system, architecture, interface language, profile type and the profile and log folders. Select a value to copy it. The Open folder button next to a folder shows it in the file manager.
+3. To report a problem, press Copy information. The block on the clipboard holds the version, build, runtime, system, architecture, language, profile type and plugins. The folders are added only when you tick the box above the button, because they contain your user name.
+4. Close the window with the Close button or the Esc key.
+- The Plugins tab lists the plugins with their version; each is built-in or installed (an installed one can be disabled or unreadable).
+- The License tab gives the MIT licence and its copyright. The field below it shows the file THIRD-PARTY-NOTICES.md, which lies next to the program; if it is missing, the field says so. Scroll it with the mouse or the arrow keys and select text in it with Shift and the arrows.
+- The project page and the bug reports (the links under the build) open in the browser only when you press the link and confirm the question. The window itself makes no network connection.
+- The labels in the block for a bug report are always in English, whatever the language of the program.
 - The same version number is shown at the top of every help topic.
 
 ## [file.new] New document

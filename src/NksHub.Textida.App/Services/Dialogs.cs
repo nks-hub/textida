@@ -283,18 +283,4 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         cancel.Click += (_, _) => dialog.Close(null);
         return await ShowAsync<SaveAsChoice?>(dialog, owner);
     }
-
-    public async Task ShowAboutAsync(Window owner)
-    {
-        var version = typeof(AvaloniaDialogs).Assembly.GetName().Version?.ToString(3) ?? "";
-        var close = new Button { Content = Loc.Get(K.DialogAboutClose), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true, IsCancel = true };
-        var panel = new StackPanel
-        {
-            Margin = new Thickness(20), Spacing = 10,
-            Children = { new TextBlock { Text = Loc.Get(K.AppName), FontSize = 20, FontWeight = FontWeight.SemiBold }, new TextBlock { Text = Loc.Get(K.DialogAboutVersion, ("version", version)) }, close },
-        };
-        var dialog = Frame(Loc.Get(K.DialogAboutTitle, ("name", Loc.Get(K.AppName))), panel, 340, "help.about");
-        close.Click += (_, _) => dialog.Close();
-        await ShowAsync(dialog, owner);
-    }
 }
