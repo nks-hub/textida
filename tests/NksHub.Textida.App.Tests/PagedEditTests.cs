@@ -627,7 +627,7 @@ public class PagedEditTests : IDisposable
         Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
 
         gate.Set();
-        await Eventually(() => Task.FromResult(close.IsCompleted));
+        PumpUntil(() => close.IsCompleted);
         Assert.True(await close); // nothing was typed after the snapshot, so nothing is left to ask about
         Assert.Empty(_w.Tabs);
         Assert.Equal(atSave, File.ReadAllBytes(path));
