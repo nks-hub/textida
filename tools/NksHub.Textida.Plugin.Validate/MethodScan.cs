@@ -27,7 +27,9 @@ internal static class MethodScan
     /// <summary>The methods whose names occur in any of the files, each with the files it occurs in.</summary>
     public static async Task<IReadOnlyDictionary<string, List<string>>> FindAsync(IEnumerable<string> files, CancellationToken ct)
     {
-        var patterns = Known.Select(m => (Method: m, Utf8: Encoding.UTF8.GetBytes(m), Utf16: Encoding.Unicode.GetBytes(m))).ToList();
+        // A NativeAOT program for macOS keeps the last byte of a string literal (the zero high byte of its last character) for what follows it, so the UTF-16 form is looked for without that byte.
+        // All names of the API are ASCII, where the byte is zero anyway.
+        var patterns = Known.Select(m => (Method: m, Utf8: Encoding.UTF8.GetBytes(m), Utf16: Encoding.Unicode.GetBytes(m)[..^1])).ToList();
         var overlap = patterns.Max(p => p.Utf16.Length);
         var found = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var file in files)
