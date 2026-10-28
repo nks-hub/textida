@@ -140,7 +140,11 @@ public sealed class AcpClient : IAsyncDisposable
         _options = options;
         _host = host;
         _process = process;
+        ProcessId = process.Id;
     }
+
+    /// <summary>The id of the agent process (for a program started through a batch file, the id of the command interpreter that runs it).</summary>
+    public int ProcessId { get; }
 
     public AcpAgentInfo? Agent { get; private set; }
 

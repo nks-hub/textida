@@ -92,6 +92,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
 
     public bool IsRunning => State is AgentState.Starting or AgentState.Ready or AgentState.Working;
 
+    /// <summary>The id of the running agent process; null while there is none. Tests use it to end the agent from outside.</summary>
+    internal int? AgentProcessId => _client?.ProcessId;
+
+    /// <summary>What the agent called itself in <c>initialize</c>.</summary>
+    internal AcpAgentInfo? AgentInfo => _client?.Agent;
+
     // ---- the conversation ----
 
     public IReadOnlyList<AgentLine> Lines()

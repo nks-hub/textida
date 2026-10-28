@@ -130,7 +130,10 @@ public sealed record IdeBridgeOptions
 /// description of the protocol, reverse engineered from the VS Code extension (https://github.com/coder/claudecode.nvim, PROTOCOL.md): the fields of the lock file, the
 /// <c>selection_changed</c> and <c>at_mentioned</c> notifications and the tools <c>openFile</c>, <c>openDiff</c>, <c>close_tab</c>, <c>closeAllDiffTabs</c>, <c>getCurrentSelection</c>,
 /// <c>getLatestSelection</c>, <c>getOpenEditors</c>, <c>getWorkspaceFolders</c>, <c>checkDocumentDirty</c> and <c>getDiagnostics</c>.
-/// That description is not a specification and no version of the CLI is confirmed against it (see <c>TODO.md</c>, P6.5.1). Left out: <c>saveDocument</c> (the bridge never saves)
+/// That description is not a specification. Claude Code 2.1.312 (interactive, <c>--ide</c>) was run against the bridge: it connects with the token of the lock file and introduces itself as
+/// <c>claude-code</c>; it calls <c>closeAllDiffTabs</c>, <c>openDiff</c> (the answer <c>FILE_SAVED</c> must be followed by a second text block with the accepted contents, else the CLI falls back to
+/// its own question), <c>close_tab</c> and <c>getDiagnostics</c>, and never <c>getOpenEditors</c>, <c>getWorkspaceFolders</c>, <c>checkDocumentDirty</c>, <c>getCurrentSelection</c> or
+/// <c>getLatestSelection</c> (the names are not in the program at all). The tests of the category <c>RealAgents</c> repeat that run; run them again when the CLI changes. Left out: <c>saveDocument</c> (the bridge never saves)
 /// and <c>executeCode</c> (notebooks); a call of one of those is answered with an error. A call of a tool that nobody documents, or of one of the bridge's own tools with arguments it cannot read, means the agent changed under the
 /// bridge: <see cref="Incompatible"/> is raised.
 /// </summary>

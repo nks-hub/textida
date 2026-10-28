@@ -1133,6 +1133,28 @@ public class IdeBridgeTests
         Assert.Equal("alpha beta\n", rig.Owner.Run(() => doc.ReadText(new ByteRange(0, doc.ByteLength)))); // the bridge itself writes nothing; the editor applies what the user accepts
     }
 
+    /// <summary>Claude Code 2.1.312 takes FILE_SAVED as an accepted diff only when a second text block follows with the contents the user accepted; with one block it falls back to its own question.</summary>
+    [Fact]
+    public async Task FILE_SAVED_is_followed_by_the_contents_the_user_accepted_and_a_rejection_is_one_block()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        async Task<List<string?>> BlocksAfter(IdeDiffOutcome outcome, int index)
+        {
+            var call = agent.RequestAsync("tools/call", "{\"name\":\"openDiff\",\"arguments\":" + DiffArgs(doc.FilePath!, "alpha delta\n", "Rename beta " + index) + "}");
+            await T.Until(() => diffs.Count == index + 1);
+            diffs.Decide(outcome, index);
+            return [.. (await call).GetProperty("result").GetProperty("content").EnumerateArray().Select(b => b.GetProperty("text").GetString())];
+        }
+
+        Assert.Equal(["FILE_SAVED", "alpha delta\n"], await BlocksAfter(IdeDiffOutcome.Saved, 0));
+        Assert.Equal(["DIFF_REJECTED"], await BlocksAfter(IdeDiffOutcome.Rejected, 1));
+    }
+
     [Fact]
     public async Task A_rejected_diff_answers_DIFF_REJECTED()
     {

@@ -206,7 +206,8 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
 
         string text;
         bool failed = false;
-        try { text = await tool.Run(new McpToolContext(server, ct, peer?.Scope), args).ConfigureAwait(false); }
+        var context = new McpToolContext(server, ct, peer?.Scope);
+        try { text = await tool.Run(context, args).ConfigureAwait(false); }
         catch (ToolArgumentException e)
         {
             if (peer is not null && peer.ExtraTools.Contains(tool)) peer.ReportIncompatible($"the agent called the tool '{name}' with arguments the bridge does not understand ({e.Message})");
@@ -214,21 +215,25 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         }
         catch (ToolFailure e) { text = e.Message; failed = true; }
         catch (RpcException e) { text = McpToolContext.Describe(e); failed = true; }
-        if (text.Length > server.Options.MaxResultChars)
+        int length = text.Length + context.MoreText.Sum(t => t.Length);
+        if (length > server.Options.MaxResultChars)
         {
-            text = $"The result has {text.Length} characters and the limit is {server.Options.MaxResultChars}. Ask for less: a smaller range, fewer results or a narrower pattern.";
+            text = $"The result has {length} characters and the limit is {server.Options.MaxResultChars}. Ask for less: a smaller range, fewer results or a narrower pattern.";
             failed = true;
         }
-        return Result(modern, false, w => WriteText(w, text, failed));
+        return Result(modern, false, w => WriteText(w, text, failed, failed ? [] : context.MoreText));
     }
 
-    private static void WriteText(Utf8JsonWriter w, string text, bool failed)
+    private static void WriteText(Utf8JsonWriter w, string text, bool failed, IReadOnlyList<string>? more = null)
     {
         w.WriteStartArray("content");
-        w.WriteStartObject();
-        w.WriteString("type", "text");
-        w.WriteString("text", text);
-        w.WriteEndObject();
+        foreach (var block in new[] { text }.Concat(more ?? []))
+        {
+            w.WriteStartObject();
+            w.WriteString("type", "text");
+            w.WriteString("text", block);
+            w.WriteEndObject();
+        }
         w.WriteEndArray();
         w.WriteBoolean("isError", failed);
     }
