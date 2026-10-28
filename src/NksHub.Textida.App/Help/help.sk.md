@@ -469,7 +469,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Štatistika dokumentu a hashe
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Ponuka Nástroje, Text a výpočty, Štatistika dokumentu, spočíta bajty, znaky, slová, riadky a najdlhší riadok celého dokumentu, alebo označených častí dokopy, a vypíše najčastejšie znaky a slová.
-2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus a vypočíta hash surových bajtov celého súboru alebo každej označenej časti. Zoznam je rovnaký ako v téme Hex: kontrolné súčty a hashe (každé CRC, Adler-32, súčty, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Vypočítať hash a skopírovať dá hash aj do schránky. Porovnať hash s vloženým sa opýta na hash a povie, či sa zhoduje; medzery, dvojbodky, 0x a veľkosť písmen nevadia. CRC-32, MD5, SHA-1, SHA-256, SHA-384 a SHA-512 sa poznajú podľa dĺžky vloženého hashu, pri inej dĺžke algoritmus vyberiete.
+2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus a vypočíta hash surových bajtov celého súboru alebo každej označenej časti. Zoznam je rovnaký ako v téme Hex: kontrolné súčty a hashe (každé CRC, Adler-32, súčty, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Výsledok sa ukáže v rovnakom dialógu ako kontrolné súčty hexového zobrazenia: hodnoty, po jednej pre každú označenú časť, s tlačidlami Kopírovať (všetky hodnoty, každá na riadku) a Porovnať, ktoré sa opýta na vloženú hodnotu a pri každej časti povie, či sa zhoduje, koľkokrát chcete. Vypočítať hash a skopírovať dá hash do schránky bez dialógu. Porovnať hash s vloženým sa opýta na hash a povie, či sa zhoduje; medzery, dvojbodky, 0x a veľkosť písmen nevadia. CRC-32, MD5, SHA-1, SHA-256, SHA-384 a SHA-512 sa poznajú podľa dĺžky vloženého hashu, pri inej dĺžke algoritmus vyberiete.
 - Oba príkazy čítajú dokument po blokoch a vy môžete ďalej pracovať, ukazujú priebeh a dajú sa zrušiť. Žiadny nedrží celý súbor v pamäti, takže fungujú na súboroch ľubovoľnej veľkosti, aj v stránkovanom a hex zobrazení.
 - Zrušená štatistika sa ukáže ako neúplná s počtom spočítaných bajtov. Zrušený hash výsledok nemá.
 - Štatistika aj hash platia pre dokument, aký bol pri spustení príkazu; úpravy počas výpočtu ich nemenia.
@@ -998,7 +998,7 @@ commands: nks.hex.fill, nks.hex.operate
 commands: nks.hex.checksum
 1. Hex: Kontrolné súčty a hashe počíta nad výberom, alebo nad celým súborom, keď nie je nič vybrané: CRC-16, CRC-32, CRC-64 vo viacerých variantoch, CRC s vlastným polynómom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 a SHA-512. Ponuka Nástroje, Text a výpočty, Vypočítať hash ponúka rovnaký zoznam pre textový pohľad.
 2. Výpočet beží na pozadí a postup ukazuje stavový riadok; Esc ho zruší.
-3. Výsledok sa dá skopírovať alebo porovnať s vloženou hodnotou; na medzerách, dvojbodkách, 0x a veľkosti písmen nezáleží.
+3. Výsledok sa dá skopírovať alebo porovnať s vloženou hodnotou; na medzerách, dvojbodkách, 0x a veľkosti písmen nezáleží. Textové zobrazenie ukazuje svoje hashe v tom istom dialógu.
 - Každý variant CRC má pevný polynóm a parametre (šírka, začiatočná hodnota, zrkadlenie vstupu a výsledku, koncové xor) podľa katalógu algoritmov CRC.
 - CRC s vlastným polynómom vezme šírku v bitoch a hex polynóm (nepárny), začiatočnú hodnotu, dva príznaky zrkadlenia (0 alebo 1) a koncové xor.
 

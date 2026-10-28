@@ -89,6 +89,13 @@ public partial class TextToolsTests
             return (await Host.CallAsync("tools", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
         }
 
+        /// <summary>The whole answer of a command, for the ones that hand more than a status back to the editor.</summary>
+        public async Task<JsonElement> RunRawAsync(string command, string extra = "")
+        {
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{Doc.Id}\",\"revision\":{Doc.Revision},\"language\":\"en\"{extra}}}";
+            return (await Host.CallAsync("tools", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
+        }
+
         public string LastNotice => Recorded.Notices[^1].Message;
 
         public byte[] Bytes() => Doc.GetSnapshot().ReadBytes(new ByteRange(0, Doc.ByteLength));
@@ -363,6 +370,41 @@ public partial class TextToolsTests
         string Sha1(string text) => Convert.ToHexStringLower(SHA1.HashData(Utf8(text)));
         Assert.Equal($"Part 1: SHA-1 (2 bytes): {Sha1("ab")}\nPart 2: SHA-1 (2 bytes): {Sha1("de")}", rig.LastNotice);
         Assert.Equal(NoticeLevel.Info, rig.Recorded.Notices[^1].Level);
+    }
+
+    [Fact]
+    public async Task With_the_dialog_flag_the_hash_is_handed_back_to_the_editor_part_by_part_and_nothing_is_shown_copied_or_compared()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("abcdef"), TextCodec.Utf8, [(0, 2), (3, 5)]);
+        string Sha1(string text) => Convert.ToHexStringLower(SHA1.HashData(Utf8(text)));
+
+        // copy and expected belong to the dialog of the editor then: they change nothing here
+        var answer = await rig.RunRawAsync(TextToolsPlugin.Hash, ",\"algorithm\":\"sha1\",\"dialog\":true,\"copy\":true,\"expected\":\"00\"");
+
+        Assert.Equal("completed", answer.GetProperty("status").GetString());
+        Assert.Equal("SHA-1", answer.GetProperty("algorithm").GetString());
+        Assert.True(answer.GetProperty("selection").GetBoolean());
+        Assert.Equal([(0L, 2L, Sha1("ab")), (3L, 5L, Sha1("de"))],
+            answer.GetProperty("blocks").EnumerateArray().Select(b => (b.GetProperty("start").GetInt64(), b.GetProperty("end").GetInt64(), b.GetProperty("hash").GetString()!)));
+        Assert.Empty(rig.Recorded.Notices);
+
+        await using var whole = await Rig.CreateAsync(Utf8("abcdef"), TextCodec.Utf8);
+        var all = await whole.RunRawAsync(TextToolsPlugin.Hash, ",\"algorithm\":\"sha1\",\"dialog\":true");
+        Assert.False(all.GetProperty("selection").GetBoolean());
+        var block = Assert.Single(all.GetProperty("blocks").EnumerateArray());
+        Assert.Equal((0L, 6L, Sha1("abcdef")), (block.GetProperty("start").GetInt64(), block.GetProperty("end").GetInt64(), block.GetProperty("hash").GetString()!));
+        Assert.Empty(whole.Recorded.Notices);
+    }
+
+    [Fact]
+    public async Task Without_the_dialog_flag_the_hash_is_still_a_notice_and_the_answer_carries_the_same_data()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("abc"), TextCodec.Utf8);
+
+        var answer = await rig.RunRawAsync(TextToolsPlugin.Hash, ",\"algorithm\":\"sha1\"");
+
+        Assert.EndsWith("a9993e364706816aba3e25717850c26c9cd0d89d", rig.LastNotice);
+        Assert.Equal("a9993e364706816aba3e25717850c26c9cd0d89d", Assert.Single(answer.GetProperty("blocks").EnumerateArray()).GetProperty("hash").GetString());
     }
 
     [Fact]

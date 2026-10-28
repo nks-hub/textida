@@ -813,6 +813,8 @@
   "hex.sum.cancelled": "Calculation cancelled.",
   "hex.sum.scope.selection": "the selection ({bytes} B from offset {start})",
   "hex.sum.scope.file": "the whole file ({bytes} B)",
+  "hex.sum.scope.parts": "{count} selected parts ({bytes} B together)",
+  "hex.sum.part": "Part {number}: {result}",
   "hex.sum.result": "{name} of {scope}",
   "hex.sum.copy": "Copy",
   "hex.sum.compare": "Compare...",

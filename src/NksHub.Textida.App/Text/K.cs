@@ -810,6 +810,8 @@ public static class K
     public const string HexSumCancelled = "hex.sum.cancelled";
     public const string HexSumScopeSelection = "hex.sum.scope.selection";
     public const string HexSumScopeFile = "hex.sum.scope.file";
+    public const string HexSumScopeParts = "hex.sum.scope.parts";
+    public const string HexSumPart = "hex.sum.part";
     public const string HexSumResult = "hex.sum.result";
     public const string HexSumCopy = "hex.sum.copy";
     public const string HexSumCompare = "hex.sum.compare";

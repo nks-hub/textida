@@ -566,23 +566,42 @@ internal sealed partial class MainWindow
             cts.Dispose();
         }
         SetStatusMessage("");
-        string title = Loc.Get(K.HexSumResult, ("name", spec.Name), ("scope", scope));
-        string note = masked ? Loc.Get(K.HexSumMasked) : "";
+        await ShowChecksumResultAsync(spec.Name, Loc.Get(K.HexSumResult, ("name", spec.Name), ("scope", scope)), [value], masked ? Loc.Get(K.HexSumMasked) : "");
+    }
+
+    /// <summary>
+    /// The one dialog that shows a checksum or a hash (P4.8.2), for the hex view and for the text tools alike: the values (one for each part of a selection), Copy (all values, one per line)
+    /// and Compare, which asks for a pasted value and says for every part whether it matches, as often as the user wants. <paramref name="note"/> is a line under the title.
+    /// </summary>
+    internal async Task ShowChecksumResultAsync(string name, string title, IReadOnlyList<string> values, string note = "")
+    {
         while (true)
         {
             var request = new ChoiceRequest(Loc.Get(K.HexSumTitle), note.Length > 0 ? title + "\n\n" + note : title,
                 [new DialogButton(Loc.Get(K.HexSumCopy), IsDefault: true), new DialogButton(Loc.Get(K.HexSumCompare)), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)],
-                [value]);
+                values);
             int choice = await _app.Dialogs.ChooseAsync(this, request);
             if (choice == 0)
             {
-                if (Clipboard is { } clipboard) await clipboard.SetTextAsync(value);
-                SetStatusMessage(Loc.Get(K.HexSumCopied, ("name", spec.Name)));
+                if (Clipboard is { } clipboard) await clipboard.SetTextAsync(string.Join('\n', values));
+                SetStatusMessage(Loc.Get(K.HexSumCopied, ("name", name)));
                 return;
             }
             if (choice != 1) return;
             var pasted = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexSumCompareTitle), Loc.Get(K.HexSumCompareLabel), "");
-            if (pasted is not null) note = Loc.Get(Checksums.SameValue(value, pasted) ? K.HexSumMatch : K.HexSumDiffers);
+            if (pasted is null) continue;
+            static string Verdict(string value, string wanted) => Loc.Get(Checksums.SameValue(value, wanted) ? K.HexSumMatch : K.HexSumDiffers);
+            note = values.Count == 1 ? Verdict(values[0], pasted) : string.Join('\n', values.Select((value, i) => Loc.Get(K.HexSumPart, ("number", i + 1), ("result", Verdict(value, pasted)))));
         }
+    }
+
+    /// <summary>The scope of a hash of the text tools in words, as the hex view words it: the whole document, one selection with its first byte, or several selections together.</summary>
+    internal static string HashScope(bool selection, IReadOnlyList<(long Start, long End)> parts)
+    {
+        long bytes = parts.Sum(p => p.End - p.Start);
+        if (!selection) return Loc.Get(K.HexSumScopeFile, ("bytes", bytes));
+        return parts.Count == 1
+            ? Loc.Get(K.HexSumScopeSelection, ("bytes", bytes), ("start", parts[0].Start))
+            : Loc.Get(K.HexSumScopeParts, ("count", parts.Count), ("bytes", bytes));
     }
 }

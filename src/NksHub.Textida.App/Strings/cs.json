@@ -835,6 +835,8 @@
   "hex.sum.cancelled": "Výpočet zrušen.",
   "hex.sum.scope.selection": "výběru ({bytes} B od offsetu {start})",
   "hex.sum.scope.file": "celého souboru ({bytes} B)",
+  "hex.sum.scope.parts": "{count} označených částí ({bytes} B dohromady)",
+  "hex.sum.part": "Část {number}: {result}",
   "hex.sum.result": "{name} z {scope}",
   "hex.sum.copy": "Kopírovat",
   "hex.sum.compare": "Porovnat...",

@@ -625,6 +625,26 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, extra);
 
     /// <summary>
+    /// Hashes the selections, or the document, through the text tools plugin and shows the result in the dialog the hex view uses for its checksums (Copy, Compare), so a hash looks and
+    /// works the same wherever it is asked for. The algorithm is picked from the list the hex view offers. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunHashDialogAsync(MainWindow window, DocTab tab)
+    {
+        if (tab.Custom is not null) return false;
+        var outcome = await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", "text.hash", ",\"dialog\":true");
+        if (!outcome.Started) return false;
+        if (outcome.Result is { ValueKind: JsonValueKind.Object } answer && answer.TryGetProperty("blocks", out var blocks) && blocks.ValueKind == JsonValueKind.Array
+            && answer.TryGetProperty("algorithm", out var algorithm) && algorithm.GetString() is { } name)
+        {
+            var parts = blocks.EnumerateArray().Select(b => (Start: b.GetProperty("start").GetInt64(), End: b.GetProperty("end").GetInt64())).ToList();
+            var values = blocks.EnumerateArray().Select(b => b.GetProperty("hash").GetString()!).ToList();
+            bool selection = answer.TryGetProperty("selection", out var picked) && picked.ValueKind == JsonValueKind.True;
+            await window.ShowChecksumResultAsync(name, Loc.Get(K.HexSumResult, ("name", name), ("scope", MainWindow.HashScope(selection, parts))), values);
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the
     /// table API and writes the clipboard. While the values of a secrets file are hidden the plugin gets <c>*</c> in their place and nothing is asked. SQL is written in the
     /// dialect of the document (the file, its folder, the <c>sql.dialect</c> setting). False when nothing was started.
