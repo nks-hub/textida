@@ -12,10 +12,10 @@ public sealed record CatalogSeverity(string Tool, ToolSeverity Editor);
 public sealed record CatalogMode(string Id, IReadOnlyList<string> Extensions, IReadOnlyList<string> FileNames, string? Grammar);
 
 /// <summary>
-/// A language server for one mode. <paramref name="Version"/> null means the version to pin is still open. <paramref name="Shipped"/> is whether the language server plugin starts it today;
-/// the other entries are data that no code starts yet. <paramref name="Verified"/> is true only after the launch line was run against the real program.
+/// A language server for one mode; the language server plugin starts the first entry of a language whose program is found. <paramref name="Version"/> null means the version to pin is still open.
+/// <paramref name="Verified"/> is true only after the launch line was run against the real program.
 /// </summary>
-public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Shipped = false, bool Verified = false);
+public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false);
 
 /// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
 public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
@@ -69,7 +69,7 @@ public sealed record LanguageGroup(
 public static class LanguageCatalog
 {
     /// <summary>Version of the table layout and content; raised when an entry changes in a way a consumer can see.</summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     /// <summary>The configuration that applies to every file.</summary>
     public static readonly CatalogConfig EditorConfig = new([".editorconfig"], "root = true\n\n[*]\n");
@@ -127,7 +127,7 @@ public static class LanguageCatalog
             [], [], [], [new("pom.xml", "Maven Central"), new("build.gradle", "Maven Central")]),
         new("csharp", "C#",
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
-            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"], Shipped: true), new("csharp", "csharp-ls", [], Shipped: true)],
+            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
             [], [], [],
             [new("*.csproj", "NuGet")]),
         new("c-cpp", "C, C++",
@@ -207,7 +207,7 @@ public static class LanguageCatalog
 
     /// <summary>
     /// The versioned table group → kind → tool and version → scenarios → systems, one row per tool of <see cref="Groups"/> (and one per mode for the grammar). Rows are derived from the groups, so the table cannot drift from the data.
-    /// A formatter or linter promises a run with success, a syntax error, a missing program, a time-out and no network; a language server promises only that it is found and never downloaded (its runs are tested with a fake server where <see cref="CatalogLsp.Shipped"/>).
+    /// A formatter or linter promises a run with success, a syntax error, a missing program, a time-out and no network; a language server promises only that it is found and never downloaded (its runs are tested with a fake server).
     /// OPEN: <c>Version</c> is null while no version is pinned.
     /// </summary>
     public static IReadOnlyList<CatalogMatrixRow> Matrix { get; } =

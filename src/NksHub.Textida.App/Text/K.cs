@@ -958,6 +958,8 @@ public static class K
     public const string SchemaConsentTitle = "schema.consent.title";
     public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";
+    public const string LspToolPathMissing = "lsp.toolPathMissing";
+    public const string LspServerName = "lsp.serverName";
     public const string KeysCompareHeader = "keys.compare.header";
     public const string KeysCompareSyntax = "keys.compare.syntax";
     public const string KeysCompareNoneMissing = "keys.compare.none";

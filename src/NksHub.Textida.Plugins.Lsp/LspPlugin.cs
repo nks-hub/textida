@@ -32,9 +32,14 @@ public sealed class LspPlugin : PluginBase
 
     private enum State { Stopped, Running, Crashed, NotFound }
 
+    /// <summary>The catalog entry (by its program name) the editor found a program for, and where: a path of the user, a folder of the project or the PATH.</summary>
+    private sealed record Located(string Name, string Path);
+
     /// <summary>One server process, for the documents of one language in one project root with one server configuration.</summary>
     private sealed class Slot(string language, string root, ServerLaunch? declared)
     {
+        /// <summary>What the editor found for the catalog server with its latest command; the next start runs it, so a path the user changes takes effect with the next start.</summary>
+        public volatile Located? Located;
         public readonly string Language = language;
         public readonly string Root = root;
         public readonly SemaphoreSlim Lifecycle = new(1, 1);
@@ -150,6 +155,8 @@ public sealed class LspPlugin : PluginBase
             var declared = p.TryGetProperty("lspServer", out var launch) && launch.ValueKind == JsonValueKind.Object ? ServerCatalog.ParseLaunch(launch) with { Language = r.Language } : null;
             var doc = await TrackAsync(r.Language, declared, r.Document, ct).ConfigureAwait(false);
             var slot = doc.Slot;
+            if (p.TryGetProperty("lspProgram", out var program) && program.ValueKind == JsonValueKind.Object && Text(program, "name") is { Length: > 0 } programName && Text(program, "path") is { Length: > 0 } programPath)
+                slot.Located = new Located(programName, programPath);
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
@@ -425,7 +432,7 @@ public sealed class LspPlugin : PluginBase
             if (restart) await StopServerCoreAsync(slot).ConfigureAwait(false);
             if (slot.Server is { Alive: true }) return null;
             bool found;
-            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : _catalog.Resolve(slot.Language, out found);
+            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : CatalogLaunch(slot, out found);
             if (launch is null || !found)
             {
                 slot.State = State.NotFound;
@@ -465,6 +472,17 @@ public sealed class LspPlugin : PluginBase
             return null;
         }
         finally { slot.Lifecycle.Release(); }
+    }
+
+    /// <summary>The catalog server of the slot: the program the editor found for it when that is still there, otherwise the first entry of the language whose program is on the PATH.</summary>
+    private ServerLaunch? CatalogLaunch(Slot slot, out bool found)
+    {
+        if (slot.Located is { } located && _catalog.Entry(slot.Language, located.Name) is { } entry && File.Exists(located.Path))
+        {
+            found = true;
+            return entry with { Program = located.Path };
+        }
+        return _catalog.Resolve(slot.Language, out found);
     }
 
     private async Task StopServerAsync(Slot slot)

@@ -970,6 +970,8 @@
   "schema.consent.title": "Schema-Download",
   "schema.consent.message": "Das Schema dieser Datei von {host} laden? Der Editor fragt dann bei diesem Server die Adresse des Schemas an, und der Server sieht Ihre Netzwerkadresse. Das Schema wird auf diesem Computer gespeichert, solange es aktuell ist ohne Anfrage wiederverwendet und auch benutzt, wenn der Server nicht antwortet. Ohne Ihre Zustimmung wird nichts gesendet. Registerabfragen und Schema-Downloads verbieten nimmt die Zustimmung zurück.",
   "lsp.textOnly": "Ein Sprachserver arbeitet nur mit Textdokumenten, nicht mit großen Dateien, die seitenweise angezeigt werden.",
+  "lsp.toolPathMissing": "Der für den Sprachserver {language} gesetzte Pfad existiert nicht: {path}. Es wurde nichts gestartet; korrigieren Sie ihn unter toolPaths in saveActions.json.",
+  "lsp.serverName": "Sprachserver {program}",
   "keys.compare.header": "Vergleich der Schlüssel von {a} und {b}",
   "keys.compare.syntax": "{file}: Syntaxfehler in Zeile {line}; die Schlüssel danach werden nicht verglichen.",
   "keys.compare.none": "In {file} fehlt nichts.",

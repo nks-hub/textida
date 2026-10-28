@@ -81,6 +81,52 @@ internal sealed partial class MainWindow
         else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
     }
 
+    /// <summary>The program of a language server the editor found, and the name of its entry in the catalog; <see cref="Declined"/> is set when the user said no or the path they set is wrong, and nothing may be started.</summary>
+    internal sealed record LspProgram(string Name, string Path)
+    {
+        public bool Declined { get; init; }
+    }
+
+    /// <summary>
+    /// Finds the program of the catalog's language server for <paramref name="language"/> the way every tool of the catalog is found: the path the user set as <c>lsp:&lt;language&gt;</c> in <c>toolPaths</c> of
+    /// the saveActions.json of the profile, then the folders of the project (<c>node_modules/.bin</c>, <c>vendor/bin</c>, <c>.venv</c>) and the PATH. Nothing is downloaded. A program found in a folder of the project is
+    /// a program the project brought, so the user is asked once before it runs, like for a linter (the answer is kept as long as the file stays the same). Null when no program of the language is found; the plugin then
+    /// looks in the PATH itself and reports what it did not find.
+    /// </summary>
+    internal async Task<LspProgram?> LocateLspProgramAsync(DocTab tab, string language)
+    {
+        var file = tab.Doc.Doc.FilePath;
+        var start = file is null ? null : Path.GetDirectoryName(Path.GetFullPath(file));
+        var userPath = LoadSaveActions(file).ToolPaths?.GetValueOrDefault("lsp:" + language);
+        if (!string.IsNullOrWhiteSpace(userPath) && !File.Exists(userPath) && !Directory.Exists(userPath))
+        {
+            SetStatusMessage(Loc.Get(K.LspToolPathMissing, ("language", language), ("path", userPath)));
+            return new LspProgram("", userPath) { Declined = true };
+        }
+        foreach (var entry in LanguageCatalog.Lsp.Where(e => e.Language == language))
+        {
+            if (ToolLocator.Find(entry.Program, start, userPath) is not { } found) continue;
+            bool brought = !string.Equals(found, ToolLocator.Find(entry.Program, null, userPath), PathComparison); // only a folder of the project has it
+            if (brought && !await ConfirmLspProgramAsync(entry, found, start)) return new LspProgram(entry.Program, found) { Declined = true };
+            return new LspProgram(entry.Program, found);
+        }
+        return null;
+    }
+
+    private async Task<bool> ConfirmLspProgramAsync(CatalogLsp entry, string program, string? folder)
+    {
+        var info = new FileInfo(program);
+        var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"lsp\0{entry.Language}\0{Path.GetFullPath(program)}\0{info.Length}\0{info.LastWriteTimeUtc.Ticks}\0{string.Join('\u0001', entry.Arguments)}")));
+        if (_app.ToolApprovals.Has(fingerprint)) return true;
+        var command = string.Join(' ', new[] { program }.Concat(entry.Arguments).Select(a => a.Contains(' ') ? "\"" + a + "\"" : a));
+        var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(K.ToolConfirmMessage, ("title", Loc.Get(K.LspServerName, ("program", entry.Program)))),
+            [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
+            [Loc.Get(K.ToolConfirmCommand, ("command", command)), Loc.Get(K.ToolConfirmDirectory, ("directory", folder ?? ""))]);
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
+        _app.ToolApprovals.Approve(fingerprint);
+        return true;
+    }
+
     /// <summary>Selects the bytes of <paramref name="range"/> in the tab and scrolls to them; the outline and the plugin API both end here.</summary>
     internal bool RevealBytes(DocTab tab, ByteRange range)
     {

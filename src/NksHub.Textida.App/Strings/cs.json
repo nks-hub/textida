@@ -993,6 +993,8 @@
   "schema.consent.title": "Stažení schématu",
   "schema.consent.message": "Stáhnout schéma tohoto souboru ze serveru {host}? Editor pak požádá tento server o adresu schématu a server uvidí vaši síťovou adresu. Schéma se uloží do tohoto počítače, dokud je čerstvé, použije se bez dotazu a použije se i tehdy, když server neodpoví. Dokud nesouhlasíte, nic se neodešle. Zakázat dotazy na registry a stahování schémat souhlas vezme zpět.",
   "lsp.textOnly": "Jazykový server pracuje jen s textovými dokumenty, ne s velkými soubory zobrazenými po stránkách.",
+  "lsp.toolPathMissing": "Cesta nastavená pro jazykový server {language} neexistuje: {path}. Nic se nespustilo; opravte ji v toolPaths v saveActions.json.",
+  "lsp.serverName": "Jazykový server {program}",
   "keys.compare.header": "Porovnání klíčů souborů {a} a {b}",
   "keys.compare.syntax": "{file}: chyba syntaxe na řádku {line}, klíče za ní se neporovnávají.",
   "keys.compare.none": "V souboru {file} nic nechybí.",

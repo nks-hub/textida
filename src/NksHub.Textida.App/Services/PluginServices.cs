@@ -371,9 +371,13 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         }
         var language = tab.Doc.Language.Id;
         var declared = DeclaredServerFor(language, tab.Doc.Doc.FilePath);
+        // a server of the catalog is looked for here (a path of the user, the project, the PATH) and the plugin is told where; stopping one starts nothing, so it asks nothing
+        MainWindow.LspProgram? program = declared is null && command != "lsp.stop" ? await window.LocateLspProgramAsync(tab, language) : null;
+        if (program is { Declined: true }) return false;
         var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
             $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0}"
-            + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language)), keep: true, keepOpen: true);
+            + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language))
+            + (program is null ? "" : $",\"lspProgram\":{{\"name\":\"{JsonEncodedText.Encode(program.Name)}\",\"path\":\"{JsonEncodedText.Encode(program.Path)}\"}}"), keep: true, keepOpen: true);
         if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"
             && r.TryGetProperty("revealed", out var revealed) && !revealed.GetBoolean() && r.GetProperty("locations") is { ValueKind: JsonValueKind.Array } places && places.GetArrayLength() == 1)
         {

@@ -970,6 +970,8 @@
   "schema.consent.title": "Schema download",
   "schema.consent.message": "Download the schema of this file from {host}? The editor then requests the schema address from that server, which sees your network address. The schema is kept on this computer, used again without a request while it is recent, and used when the server does not answer. Nothing is sent until you agree. Forbid Registry Lookups and Schema Downloads takes the consent back.",
   "lsp.textOnly": "A language server works with text documents only, not with large files shown in pages.",
+  "lsp.toolPathMissing": "The path set for the {language} language server does not exist: {path}. Nothing was started; fix it under toolPaths in saveActions.json.",
+  "lsp.serverName": "Language server {program}",
   "keys.compare.header": "Comparing the keys of {a} and {b}",
   "keys.compare.syntax": "{file}: syntax error at line {line}; the keys after it are not compared.",
   "keys.compare.none": "Nothing is missing in {file}.",

@@ -135,10 +135,12 @@ public class LspPluginTests
         }
 
         /// <param name="launch">The launch description to send instead of <see cref="Launch"/>, as the editor does when the server a document is served by changes.</param>
-        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null, string? launch = null)
+        /// <param name="program">The program of a catalog entry (its name) that the editor found, and where, as it sends with a command.</param>
+        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null, string? launch = null, (string Name, string Path)? program = null)
         {
             launch ??= Launch;
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}}}";
+            var located = program is { } p ? $",\"lspProgram\":{{\"name\":{JsonSerializer.Serialize(p.Name)},\"path\":{JsonSerializer.Serialize(p.Path)}}}" : "";
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}{located}}}";
             return (await Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
@@ -951,6 +953,37 @@ public class LspPluginTests
         Assert.Equal("[null,null]", ReadShared(answer));
     }
 
+    // ---- the program the editor found ----
+
+    [Fact]
+    public async Task A_program_the_editor_found_starts_the_catalog_server_of_that_name_and_the_slot_remembers_it_for_the_next_start()
+    {
+        await using var rig = await Rig.CreateAsync(program: "no-such-server-anywhere"); // the catalog names a program that is not on the PATH
+        var doc = rig.Add("a.fake", "x\n");
+        Assert.Equal("noServer", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+
+        var started = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("no-such-server-anywhere", T.DotnetFullPath));
+
+        Assert.Equal("ok", started.GetProperty("status").GetString());
+        Assert.Equal("x\n", await rig.ServerTextAsync(doc));
+        // a command that brings no program: the restart starts the server the editor found before
+        Assert.Equal("restarted", (await rig.RunAsync(doc, LspPlugin.RestartCommand)).GetProperty("status").GetString());
+        Assert.Equal("x\n", await rig.ServerTextAsync(doc));
+    }
+
+    [Fact]
+    public async Task A_program_that_is_gone_or_names_no_entry_of_the_catalog_is_not_started_and_the_plugin_looks_in_the_PATH_as_before()
+    {
+        await using var rig = await Rig.CreateAsync(program: "no-such-server-anywhere");
+        var doc = rig.Add("a.fake", "x\n");
+
+        var gone = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("no-such-server-anywhere", Path.Combine(rig.Folder, "gone.exe")));
+        Assert.Equal("noServer", gone.GetProperty("status").GetString());
+        var other = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("a-name-the-catalog-lacks", T.DotnetFullPath));
+        Assert.Equal("noServer", other.GetProperty("status").GetString());
+        Assert.Empty(Servers(rig)); // nothing was started
+    }
+
     // ---- the pieces without a process ----
 
     [Fact]
@@ -994,6 +1027,19 @@ public class LspPluginTests
         Assert.Null(ServerCatalog.BuiltIn.Resolve("nothing", out var found));
         Assert.False(found);
         Assert.True(Texts.Complete);
+    }
+
+    [Fact]
+    public void The_plugin_has_a_server_for_every_language_of_the_table_of_the_editor_and_none_for_a_language_without_one()
+    {
+        foreach (var (language, program) in new[] { ("javascript", "typescript-language-server"), ("typescript", "typescript-language-server"), ("html", "vscode-html-language-server"), ("css", "vscode-css-language-server"),
+            ("sql", "sqls"), ("python", "pyright-langserver"), ("shell", "bash-language-server"), ("java", "jdtls"), ("csharp", "csharp-ls"), ("c", "clangd"), ("cpp", "clangd"), ("php", "phpactor"),
+            ("go", "gopls"), ("rust", "rust-analyzer"), ("kotlin", "kotlin-lsp"), ("lua", "lua-language-server"), ("swift", "sourcekit-lsp"), ("ruby", "ruby-lsp"), ("dart", "dart") })
+            Assert.NotNull(ServerCatalog.BuiltIn.Entry(language, program));
+        Assert.Equal("gopls", Path.GetFileNameWithoutExtension(ServerCatalog.BuiltIn.Resolve("go", out _)!.Program));
+        Assert.Equal("typescript-language-server", Path.GetFileNameWithoutExtension(ServerCatalog.BuiltIn.Resolve("typescript", out _)!.Program));
+        Assert.Null(ServerCatalog.BuiltIn.Resolve("r", out _)); // the table has a mode for R and no server
+        Assert.Null(ServerCatalog.BuiltIn.Entry("go", "rust-analyzer"));
     }
 
     [Fact]
