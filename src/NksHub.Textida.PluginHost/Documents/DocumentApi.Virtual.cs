@@ -145,6 +145,16 @@ public sealed partial class DocumentApi
         Withdraw(doc);
     }
 
+    /// <summary>Whether the plugin holds something in the editor that is lost when its process ends: a virtual document, a file source, a provider, diagnostics, symbols, a preview or a pinned snapshot.</summary>
+    public bool HoldsState(string pluginId)
+    {
+        lock (_gate)
+            return _provided.Values.Any(x => x.PluginId == pluginId) || _sources.Values.Any(s => s.PluginId == pluginId)
+                || _completionProviders.Contains(pluginId) || _hoverProviders.Contains(pluginId) || _tabProviders.Contains(pluginId)
+                || _diagnostics.Keys.Any(k => k.Plugin == pluginId) || _symbols.Keys.Any(k => k.Plugin == pluginId) || _previews.Keys.Any(k => k.Plugin == pluginId)
+                || _snapshots.TryGetValue(pluginId, out var pins) && pins.Count > 0;
+    }
+
     /// <summary>
     /// A plugin ended (crashed, was turned off, the editor is closing): the virtual documents it provided close, because nobody is left to save them or to bring them up to date,
     /// and the snapshots it pinned are released. Call on the thread that owns the documents.

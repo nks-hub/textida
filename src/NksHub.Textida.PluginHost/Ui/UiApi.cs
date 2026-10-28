@@ -261,6 +261,12 @@ public sealed class UiApi
         if (dropped) _ui.EndTask(pluginId, taskId);
     }
 
+    /// <summary>Whether the plugin shows a panel or runs a task now; both would vanish with its process.</summary>
+    public bool HoldsState(string pluginId)
+    {
+        lock (_gate) return _plugins.TryGetValue(pluginId, out var c) && (c.Panels.Count > 0 || c.Tasks.Count > 0);
+    }
+
     /// <summary>The plugin stopped (exit, crash, restart): its panels, status item, tasks and notices go away.</summary>
     public void PluginEnded(string pluginId)
     {
