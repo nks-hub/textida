@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -71,6 +72,37 @@ public class FilePanelLookTests : IDisposable
     private static TextBlock NameOf(Grid row) => (TextBlock)row.Children[2];
 
     private static string LabelOf(Grid row) => AutomationProperties.GetName(row);
+
+    [AvaloniaFact]
+    public async Task A_click_on_the_arrow_of_a_folder_opens_it_and_a_second_click_closes_it()
+    {
+        await FolderWithAsync("src/", "src/inner.txt", "top.txt");
+        _w.Show();
+        bool Expanded() => _w.Files!.Rows.Single(r => r.Entry.Name == "src").Expanded;
+        Point Arrow()
+        {
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var row = _w.GetVisualDescendants().OfType<Grid>().FirstOrDefault(g => g.Classes.Contains("filerow") && NameOf(g).Text == "src");
+            Assert.True(row is not null, "the row of the folder is not on screen");
+            var arrow = (Border)row.Children[0];
+            return arrow.TranslatePoint(new Point(arrow.Bounds.Width / 2, arrow.Bounds.Height - 3), _w)!.Value; // off the stroke of the glyph
+        }
+        void Click(Point p)
+        {
+            _w.MouseDown(p, Avalonia.Input.MouseButton.Left);
+            _w.MouseUp(p, Avalonia.Input.MouseButton.Left);
+        }
+
+        Assert.False(Expanded());
+        Click(Arrow());
+        await WaitFor(Expanded, "the folder to open");
+        Assert.Contains(_w.Files!.Rows, r => r.Entry.Name == "inner.txt");
+
+        Click(Arrow());
+        await WaitFor(() => !Expanded(), "the folder to close");
+        Assert.DoesNotContain(_w.Files!.Rows, r => r.Entry.Name == "inner.txt");
+    }
 
     [AvaloniaFact]
     public async Task Every_kind_of_entry_has_an_icon_of_its_own_and_the_class_that_gives_it_its_colour()

@@ -38,9 +38,16 @@ internal sealed partial class MainWindow
         var mark = ShowGitStatus ? GitFileStatus.StateOf(_gitFiles, entry.Path, entry.IsDirectory) : default;
         string display = FileNames.Display(entry.Name);
 
-        var chevron = new Avalonia.Controls.Shapes.Path { Data = ChevronGlyph, Width = 16, Height = 16, Stretch = Stretch.None, IsVisible = entry.IsDirectory, RenderTransform = new RotateTransform(row.Expanded ? 90 : 0) };
+        var chevron = new Avalonia.Controls.Shapes.Path { Data = ChevronGlyph, Width = 16, Height = 16, Stretch = Stretch.None, RenderTransform = new RotateTransform(row.Expanded ? 90 : 0) };
         chevron.Classes.Add("fileglyph");
-        chevron.PointerPressed += (_, e) => { _ = ToggleFolderAsync(entry.Path); e.Handled = true; };
+        // the glyph is an open line that hit-tests only on its stroke; a transparent box makes the whole 16 px cell clickable
+        var expander = new Border { Background = Brushes.Transparent, Width = 16, Height = 24, Child = chevron, IsVisible = entry.IsDirectory };
+        expander.PointerPressed += (_, e) =>
+        {
+            if (!e.GetCurrentPoint(expander).Properties.IsLeftButtonPressed) return;
+            _ = ToggleFolderAsync(entry.Path);
+            e.Handled = true;
+        };
         var icon = new Avalonia.Controls.Shapes.Path { Data = FileGlyphs.Of(kind, row.Expanded), Width = 16, Height = 16, Stretch = Stretch.None, Margin = new Thickness(2, 0, 6, 0) };
         icon.Classes.Add("fileglyph");
         icon.Classes.Add(FileGlyphs.ClassOf(kind));
@@ -49,7 +56,7 @@ internal sealed partial class MainWindow
         grid.Classes.Add("filerow");
         Grid.SetColumn(icon, 1);
         Grid.SetColumn(name, 2);
-        grid.Children.Add(chevron);
+        grid.Children.Add(expander);
         grid.Children.Add(icon);
         grid.Children.Add(name);
 
