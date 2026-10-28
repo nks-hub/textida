@@ -1,5 +1,6 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -93,6 +94,53 @@ internal sealed partial class MainWindow
             SetStatusMessage(bridge.DisconnectAgents() == 0 ? Loc.Get(K.IdeNoAgent) : Loc.Get(K.IdeDisconnected, ("agent", names)));
         }
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>Hands the connected agent the active tab as context (<c>at_mentioned</c>): its file, and the lines of the selection. Only a shared tab goes out.</summary>
+    internal CommandOutcome SendIdeMention()
+    {
+        if (Active is not { } tab) return CommandOutcome.NotHandled;
+        McpTask = SendIdeMentionAsync(tab);
+        return CommandOutcome.Handled;
+    }
+
+    private async Task SendIdeMentionAsync(DocTab tab)
+    {
+        bool sent = await _app.Plugins.Mcp.MentionAsync(this, tab);
+        SetStatusMessage(Loc.Get(sent ? K.IdeMentionSent : K.IdeMentionNone, ("name", tab.Title)));
+    }
+
+    /// <summary>
+    /// Opens or brings forward the file the agent asked for (<c>openFile</c>) and selects the text it named. A file that is not open comes in a tab of its own that is not shared. The text is looked for
+    /// in a text tab only, and never in a secrets file. Throws <see cref="IdeOpenRefusedException"/> when the file cannot be opened. Call on the UI thread.
+    /// </summary>
+    internal IdeOpenedFile IdeOpenFile(IdeOpenFileRequest request)
+    {
+        DocTab tab;
+        if (request.MakeFrontmost)
+        {
+            try { tab = OpenFile(request.Path, null); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw new IdeOpenRefusedException(e.Message); }
+        }
+        else tab = Tabs.FirstOrDefault(t => t.Custom is null && string.Equals(t.Path, request.Path, PathComparison)) ?? throw new IdeOpenRefusedException("The file is not open in this window.");
+        if (request.StartText is { Length: > 0 } && tab.Surface is { } surface && !SecretValues.IsSecretFile(tab.Doc.Doc.SecretsPath)) SelectIdeText(surface, request);
+        return new IdeOpenedFile(tab.Path ?? request.Path, tab.Doc.Language.Id, tab.Doc.Doc.LineIndexState.Lines);
+    }
+
+    /// <summary>
+    /// Selects from the first <c>StartText</c> through the end of the first <c>EndText</c> after it, or through <c>StartText</c> alone; to the end of that line when asked. Nothing is selected when
+    /// <c>StartText</c> is not in the text. shortcut: the protocol description gives the two patterns no more exact meaning than this reading of them.
+    /// </summary>
+    private static void SelectIdeText(EditorSurface surface, IdeOpenFileRequest request)
+    {
+        var document = surface.Document;
+        var text = document.Text;
+        int start = text.IndexOf(request.StartText!, StringComparison.Ordinal);
+        if (start < 0) return;
+        int end = start + request.StartText!.Length;
+        if (request.EndText is { Length: > 0 } endText && text.IndexOf(endText, end, StringComparison.Ordinal) is >= 0 and var found) end = found + endText.Length;
+        if (request.SelectToEndOfLine) end = document.GetLineByOffset(end).EndOffset;
+        surface.SetSelections([new Sel(start, end)]);
     }
 
     private static string IdeAgentName(IdeAgent agent) =>

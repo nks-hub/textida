@@ -38,6 +38,11 @@ internal sealed class McpToolContext(McpServer server, CancellationToken cancell
     public static string? OptionalText(JsonElement args, string name) =>
         args.TryGetProperty(name, out var v) && v.ValueKind != JsonValueKind.Null ? (v.ValueKind == JsonValueKind.String ? v.GetString() : throw new ToolArgumentException($"'{name}' must be a string.")) : null;
 
+    public static bool? OptionalBool(JsonElement args, string name) =>
+        args.TryGetProperty(name, out var v) && v.ValueKind != JsonValueKind.Null
+            ? (v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : throw new ToolArgumentException($"'{name}' must be true or false."))
+            : null;
+
     public static long? OptionalNumber(JsonElement args, string name, long min = 0) =>
         args.TryGetProperty(name, out var v) && v.ValueKind != JsonValueKind.Null
             ? (v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var n) && n >= min ? n : throw new ToolArgumentException($"'{name}' must be an integer of at least {min}."))

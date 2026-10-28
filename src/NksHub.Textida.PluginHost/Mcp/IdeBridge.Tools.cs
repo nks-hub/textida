@@ -39,6 +39,17 @@ public sealed partial class IdeBridge
         new("closeAllDiffTabs", "Close all diffs", "Closes every open diff; they end as rejected.", "{\"type\":\"object\",\"properties\":{}}", false, CloseAllDiffs),
         new("getCurrentSelection", "Current selection", "Returns the selection in the tab the user works in, when that tab is shared.", "{\"type\":\"object\",\"properties\":{}}", true, CurrentSelectionAsync),
         new("getLatestSelection", "Latest selection", "Returns the selection in the shared tab the user worked in last.", "{\"type\":\"object\",\"properties\":{}}", true, LatestSelectionAsync),
+        new("openFile", "Open a file",
+            "Opens a file in the editor for the user and can select text in it. The file must be in a folder of getWorkspaceFolders or be a tab the user shared. 'startText' and 'endText' select from the first match of " +
+            "'startText' through the end of the first 'endText' after it (or through 'startText' alone); 'selectToEndOfLine' extends the selection to the end of its last line. 'preview' has no effect. " +
+            "With makeFrontmost false the tab is not brought forward and the answer describes it, which only a shared tab allows.",
+            "{\"type\":\"object\",\"properties\":{\"filePath\":{\"type\":\"string\"},\"preview\":{\"type\":\"boolean\"},\"startText\":{\"type\":\"string\"},\"endText\":{\"type\":\"string\"}," +
+            "\"selectToEndOfLine\":{\"type\":\"boolean\"},\"makeFrontmost\":{\"type\":\"boolean\"}},\"required\":[\"filePath\"]}", false, OpenFileAsync),
+        new("getOpenEditors", "Open editors", "Lists the tabs the user shared: {tabs: [{uri, isActive, label, languageId, isDirty}]}. Tabs that are not shared are not listed.",
+            "{\"type\":\"object\",\"properties\":{}}", true, OpenEditorsAsync),
+        new("getWorkspaceFolders", "Workspace folders", "Lists the folders of the window: {success, folders: [{name, uri, path}], rootPath}.", "{\"type\":\"object\",\"properties\":{}}", true, WorkspaceFoldersAsync),
+        new("checkDocumentDirty", "Unsaved changes", "Tells whether a shared tab has unsaved changes: {success, filePath, isDirty, isUntitled}. A file that is not open, or not shared, is 'Document not open'.",
+            "{\"type\":\"object\",\"properties\":{\"filePath\":{\"type\":\"string\"}},\"required\":[\"filePath\"]}", true, CheckDirtyAsync),
     ];
 
     // ---- selection ----

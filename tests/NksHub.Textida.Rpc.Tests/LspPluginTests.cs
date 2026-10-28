@@ -64,8 +64,9 @@ public class LspPluginTests
         public string? Launch { get; init; }
 
         /// <param name="declared">The server is not in the catalog (it is empty) but sent with each command, as the editor does for a server of a plugin manifest.</param>
+        /// <param name="externalCodec">The encoding of the external file; null is UTF-8 without a byte order mark. One with a mark has it written at the start.</param>
         public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
-            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null)
+            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null, TextCodec? externalCodec = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -75,7 +76,8 @@ public class LspPluginTests
             var arguments = new List<string> { fake, "--dump", dump };
             if (externalName is not null)
             {
-                File.WriteAllBytes(Path.Combine(folder, externalName), new UTF8Encoding(false).GetBytes(externalContent!));
+                byte[] external = externalCodec is null ? new UTF8Encoding(false).GetBytes(externalContent!) : [.. externalCodec.Bom, .. externalCodec.WithBom(false).Encode(externalContent!)];
+                File.WriteAllBytes(Path.Combine(folder, externalName), external);
                 arguments.AddRange(["--external", Path.Combine(folder, externalName)]);
             }
             arguments.AddRange(serverArgs ?? []);
@@ -133,10 +135,12 @@ public class LspPluginTests
         }
 
         /// <param name="launch">The launch description to send instead of <see cref="Launch"/>, as the editor does when the server a document is served by changes.</param>
-        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null, string? launch = null)
+        /// <param name="program">The program of a catalog entry (its name) that the editor found, and where, as it sends with a command.</param>
+        public async Task<JsonElement> RunAsync(Document doc, string command, long? offset = null, string? launch = null, (string Name, string Path)? program = null)
         {
             launch ??= Launch;
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}}}";
+            var located = program is { } p ? $",\"lspProgram\":{{\"name\":{JsonSerializer.Serialize(p.Name)},\"path\":{JsonSerializer.Serialize(p.Path)}}}" : "";
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}{located}}}";
             return (await Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
@@ -481,6 +485,52 @@ public class LspPluginTests
         Assert.False(File.Exists(Path.Combine(rig.Folder, "doomed.fake")));
         Assert.False(File.Exists(Path.Combine(rig.Folder, "moveme.fake")));
         Assert.Equal("move", File.ReadAllText(Path.Combine(rig.Folder, "moved.fake")));
+    }
+
+    [Theory]
+    [InlineData("UTF-16 LE with BOM")]
+    [InlineData("UTF-16 BE with BOM")]
+    [InlineData("UTF-32 LE with BOM")]
+    [InlineData("UTF-32 BE with BOM")]
+    [InlineData("UTF-8 with BOM")]
+    public async Task A_rename_edits_a_file_on_disk_that_starts_with_a_byte_order_mark_by_the_bytes_of_the_encoding_the_mark_names(string codecName)
+    {
+        var codec = TextCodec.ByName(codecName)!;
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "😀é foo on disk\n", externalCodec: codec);
+        var doc = rig.Add("main.fake", "foo\n");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var bytes = File.ReadAllBytes(Path.Combine(rig.Folder, "disk.fake"));
+        Assert.True(bytes.AsSpan().StartsWith(codec.Bom)); // the mark is still there
+        Assert.Equal("😀é bar on disk\n", codec.WithBom(false).Decode(bytes[codec.Bom.Length..]).Text);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0xFF, 0x0A })] // "foo" and a byte that UTF-8 does not have
+    [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0x00, 0x0A })] // "foo" and a NUL: how a UTF-16 file without a mark reads as UTF-8
+    public async Task A_rename_does_not_edit_a_file_on_disk_it_cannot_read_the_way_the_editor_does(byte[] content)
+    {
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "foo\n");
+        var disk = Path.Combine(rig.Folder, "disk.fake");
+        File.WriteAllBytes(disk, content);
+        var doc = rig.Add("main.fake", "foo\n");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal("unreadable", r.GetProperty("status").GetString());
+        Assert.Empty(rig.Review.Shown);
+        Assert.Equal("foo\n", Rig.TextOf(doc));
+        Assert.Equal(content, File.ReadAllBytes(disk));
     }
 
     [Fact]
@@ -915,6 +965,37 @@ public class LspPluginTests
         Assert.Equal("[null,null]", ReadShared(answer));
     }
 
+    // ---- the program the editor found ----
+
+    [Fact]
+    public async Task A_program_the_editor_found_starts_the_catalog_server_of_that_name_and_the_slot_remembers_it_for_the_next_start()
+    {
+        await using var rig = await Rig.CreateAsync(program: "no-such-server-anywhere"); // the catalog names a program that is not on the PATH
+        var doc = rig.Add("a.fake", "x\n");
+        Assert.Equal("noServer", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+
+        var started = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("no-such-server-anywhere", T.DotnetFullPath));
+
+        Assert.Equal("ok", started.GetProperty("status").GetString());
+        Assert.Equal("x\n", await rig.ServerTextAsync(doc));
+        // a command that brings no program: the restart starts the server the editor found before
+        Assert.Equal("restarted", (await rig.RunAsync(doc, LspPlugin.RestartCommand)).GetProperty("status").GetString());
+        Assert.Equal("x\n", await rig.ServerTextAsync(doc));
+    }
+
+    [Fact]
+    public async Task A_program_that_is_gone_or_names_no_entry_of_the_catalog_is_not_started_and_the_plugin_looks_in_the_PATH_as_before()
+    {
+        await using var rig = await Rig.CreateAsync(program: "no-such-server-anywhere");
+        var doc = rig.Add("a.fake", "x\n");
+
+        var gone = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("no-such-server-anywhere", Path.Combine(rig.Folder, "gone.exe")));
+        Assert.Equal("noServer", gone.GetProperty("status").GetString());
+        var other = await rig.RunAsync(doc, LspPlugin.StartCommand, program: ("a-name-the-catalog-lacks", T.DotnetFullPath));
+        Assert.Equal("noServer", other.GetProperty("status").GetString());
+        Assert.Empty(Servers(rig)); // nothing was started
+    }
+
     // ---- the pieces without a process ----
 
     [Fact]
@@ -958,6 +1039,19 @@ public class LspPluginTests
         Assert.Null(ServerCatalog.BuiltIn.Resolve("nothing", out var found));
         Assert.False(found);
         Assert.True(Texts.Complete);
+    }
+
+    [Fact]
+    public void The_plugin_has_a_server_for_every_language_of_the_table_of_the_editor_and_none_for_a_language_without_one()
+    {
+        foreach (var (language, program) in new[] { ("javascript", "typescript-language-server"), ("typescript", "typescript-language-server"), ("html", "vscode-html-language-server"), ("css", "vscode-css-language-server"),
+            ("sql", "sqls"), ("python", "pyright-langserver"), ("shell", "bash-language-server"), ("java", "jdtls"), ("csharp", "csharp-ls"), ("c", "clangd"), ("cpp", "clangd"), ("php", "phpactor"),
+            ("go", "gopls"), ("rust", "rust-analyzer"), ("kotlin", "kotlin-lsp"), ("lua", "lua-language-server"), ("swift", "sourcekit-lsp"), ("ruby", "ruby-lsp"), ("dart", "dart") })
+            Assert.NotNull(ServerCatalog.BuiltIn.Entry(language, program));
+        Assert.Equal("gopls", Path.GetFileNameWithoutExtension(ServerCatalog.BuiltIn.Resolve("go", out _)!.Program));
+        Assert.Equal("typescript-language-server", Path.GetFileNameWithoutExtension(ServerCatalog.BuiltIn.Resolve("typescript", out _)!.Program));
+        Assert.Null(ServerCatalog.BuiltIn.Resolve("r", out _)); // the table has a mode for R and no server
+        Assert.Null(ServerCatalog.BuiltIn.Entry("go", "rust-analyzer"));
     }
 
     [Fact]

@@ -559,6 +559,7 @@
   "cmd.tools.mcpShareSelection": "Sdílet výběr s MCP",
   "cmd.tools.ideBridge": "Most /ide: zapnout nebo vypnout...",
   "cmd.tools.ideDisconnect": "Most /ide: odpojit agenta",
+  "cmd.tools.ideMention": "Most /ide: poslat výběr agentovi jako kontext",
   "cmd.tools.mcpTools": "Nástroje MCP...",
   "cmd.tools.mcpServers": "Servery MCP agentů...",
   "cmd.agent.start": "Spustit agenta...",

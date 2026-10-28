@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml;
 
 namespace NksHub.Textida.Plugins.Json.Packages;
 
@@ -51,7 +52,7 @@ public abstract partial class RegistryAdapter(string id, string searchBase, stri
     protected static string Text(JsonElement item, string property) =>
         item.ValueKind == JsonValueKind.Object && item.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : throw new RegistryException($"The registry answer has no '{property}' text.");
 
-    public static IReadOnlyList<RegistryAdapter> CreateAll() => [new NpmAdapter(), new PackagistAdapter(), new PypiAdapter(), new NuGetAdapter(), new GoAdapter(), new CratesAdapter(), new RubyGemsAdapter(), new PubAdapter()];
+    public static IReadOnlyList<RegistryAdapter> CreateAll() => [new NpmAdapter(), new PackagistAdapter(), new PypiAdapter(), new NuGetAdapter(), new GoAdapter(), new CratesAdapter(), new RubyGemsAdapter(), new PubAdapter(), new MavenAdapter()];
 
     [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]*$", RegexOptions.CultureInvariant)]
     protected static partial Regex SimpleName();
@@ -205,6 +206,75 @@ public sealed class PubAdapter() : RegistryAdapter("pub", "https://pub.dev", "ht
     {
         using var doc = Parse(body);
         return [.. Items(doc.RootElement, "versions").Where(v => !(v.TryGetProperty("retracted", out var r) && r.ValueKind == JsonValueKind.True)).Select(v => Text(v, "version"))];
+    }
+}
+
+/// <summary>
+/// Maven Central for <c>pom.xml</c> and the Gradle build files (<c>build.gradle</c>, <c>build.gradle.kts</c>). A name is <c>group:artifact</c>. The Central search (Solr) lists names, and the
+/// <c>maven-metadata.xml</c> of an artifact lists its versions. A name can be completed in a Gradle file, where it is one piece of text; in a <c>pom.xml</c> group and artifact are two elements, so only
+/// versions are offered there.
+/// </summary>
+public sealed partial class MavenAdapter() : RegistryAdapter("maven", "https://search.maven.org", "https://repo1.maven.org/maven2")
+{
+    [GeneratedRegex(@"^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$", RegexOptions.CultureInvariant)]
+    private static partial Regex Coordinate();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_.-]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex Part();
+
+    public override IReadOnlyList<Dependency> Dependencies(string text) => Manifests.ReadMaven(text);
+
+    /// <summary>Only a coordinate of plain names is a package: <c>${project.groupId}</c> and the like cannot be looked up.</summary>
+    public override bool IsPackage(string name) => Coordinate().IsMatch(name);
+
+    public override Uri? NamesUrl(string prefix, int pageSize)
+    {
+        int colon = prefix.IndexOf(':', StringComparison.Ordinal);
+        string group = colon < 0 ? prefix : prefix[..colon], artifact = colon < 0 ? "" : prefix[(colon + 1)..];
+        if (group.Length == 0 || !Part().IsMatch(group) || !Part().IsMatch(artifact)) return null;
+        string query = colon < 0 ? group : $"g:\"{group}\"" + (artifact.Length > 0 ? $" AND a:{artifact}*" : "");
+        return new($"{SearchBase}/solrsearch/select?q={Q(query)}&rows={pageSize}&wt=json");
+    }
+
+    public override IReadOnlyList<string> Names(string body, string prefix)
+    {
+        using var doc = Parse(body);
+        if (!doc.RootElement.TryGetProperty("response", out var response) || response.ValueKind != JsonValueKind.Object) throw new RegistryException("The registry answer has no 'response'.");
+        return [.. Items(response, "docs").Select(d => Text(d, "id"))];
+    }
+
+    public override Uri VersionsUrl(string name)
+    {
+        int colon = name.IndexOf(':', StringComparison.Ordinal);
+        return new($"{MetaBase}/{string.Join('/', name[..colon].Split('.').Select(Q))}/{Q(name[(colon + 1)..])}/maven-metadata.xml");
+    }
+
+    public override IReadOnlyList<string> VersionList(string body, string name)
+    {
+        var versions = new List<string>();
+        bool listed = false, inside = false;
+        try
+        {
+            using var reader = XmlReader.Create(new StringReader(body), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
+            reader.MoveToContent();
+            while (!reader.EOF)
+            {
+                if (reader.NodeType == XmlNodeType.Element && reader.Name == "versions")
+                {
+                    listed = true;
+                    inside = !reader.IsEmptyElement;
+                }
+                else if (reader.NodeType == XmlNodeType.Element && inside && reader.Name == "version")
+                {
+                    if (reader.ReadElementContentAsString().Trim() is { Length: > 0 } version) versions.Add(version);
+                    continue; // the reader is already behind the element
+                }
+                else if (reader.NodeType == XmlNodeType.EndElement && reader.Name == "versions") inside = false;
+                reader.Read();
+            }
+        }
+        catch (XmlException e) { throw new RegistryException("The registry answer is not XML: " + e.Message, e); }
+        return listed ? versions : throw new RegistryException("The registry answer has no 'versions'.");
     }
 }
 

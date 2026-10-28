@@ -32,9 +32,14 @@ public sealed class LspPlugin : PluginBase
 
     private enum State { Stopped, Running, Crashed, NotFound }
 
+    /// <summary>The catalog entry (by its program name) the editor found a program for, and where: a path of the user, a folder of the project or the PATH.</summary>
+    private sealed record Located(string Name, string Path);
+
     /// <summary>One server process, for the documents of one language in one project root with one server configuration.</summary>
     private sealed class Slot(string language, string root, ServerLaunch? declared)
     {
+        /// <summary>What the editor found for the catalog server with its latest command; the next start runs it, so a path the user changes takes effect with the next start.</summary>
+        public volatile Located? Located;
         public readonly string Language = language;
         public readonly string Root = root;
         public readonly SemaphoreSlim Lifecycle = new(1, 1);
@@ -150,6 +155,8 @@ public sealed class LspPlugin : PluginBase
             var declared = p.TryGetProperty("lspServer", out var launch) && launch.ValueKind == JsonValueKind.Object ? ServerCatalog.ParseLaunch(launch) with { Language = r.Language } : null;
             var doc = await TrackAsync(r.Language, declared, r.Document, ct).ConfigureAwait(false);
             var slot = doc.Slot;
+            if (p.TryGetProperty("lspProgram", out var program) && program.ValueKind == JsonValueKind.Object && Text(program, "name") is { Length: > 0 } programName && Text(program, "path") is { Length: > 0 } programPath)
+                slot.Located = new Located(programName, programPath);
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
@@ -425,7 +432,7 @@ public sealed class LspPlugin : PluginBase
             if (restart) await StopServerCoreAsync(slot).ConfigureAwait(false);
             if (slot.Server is { Alive: true }) return null;
             bool found;
-            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : _catalog.Resolve(slot.Language, out found);
+            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : CatalogLaunch(slot, out found);
             if (launch is null || !found)
             {
                 slot.State = State.NotFound;
@@ -465,6 +472,17 @@ public sealed class LspPlugin : PluginBase
             return null;
         }
         finally { slot.Lifecycle.Release(); }
+    }
+
+    /// <summary>The catalog server of the slot: the program the editor found for it when that is still there, otherwise the first entry of the language whose program is on the PATH.</summary>
+    private ServerLaunch? CatalogLaunch(Slot slot, out bool found)
+    {
+        if (slot.Located is { } located && _catalog.Entry(slot.Language, located.Name) is { } entry && File.Exists(located.Path))
+        {
+            found = true;
+            return entry with { Program = located.Path };
+        }
+        return _catalog.Resolve(slot.Language, out found);
     }
 
     private async Task StopServerAsync(Slot slot)
@@ -657,7 +675,11 @@ public sealed class LspPlugin : PluginBase
         return list;
     }
 
-    /// <summary>The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk read as UTF-8 (<paramref name="strict"/>: null for bytes that are not valid UTF-8); null when it cannot be read or is larger than the limit.</summary>
+    /// <summary>
+    /// The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk; null when it cannot be read or is larger than the limit. A file that starts with a byte order mark is
+    /// read as the encoding the mark names (UTF-8, UTF-16 or UTF-32), any other as UTF-8: <paramref name="strict"/> is null for bytes that are not valid in that encoding, and for a text with a NUL in it
+    /// (UTF-16 without a mark reads as such), so an edit is never built on a reading of the file that the editor would not make.
+    /// </summary>
     private Loaded? Load(string path, bool strict = false)
     {
         foreach (var d in _docs.Values)
@@ -667,11 +689,22 @@ public sealed class LspPlugin : PluginBase
             var info = new FileInfo(path);
             if (!info.Exists || info.Length > _settings.MaxBytes) return null;
             var bytes = File.ReadAllBytes(path);
-            int bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-            var text = new UTF8Encoding(false, strict).GetString(bytes, bom, bytes.Length - bom);
-            return new Loaded(text, new LineMap(text), TextCodec.Utf8, bom, Convert.ToHexString(SHA256.HashData(bytes)));
+            var (codec, bom, encoding) = Sniff(bytes, strict);
+            var text = encoding.GetString(bytes, bom, bytes.Length - bom);
+            if (strict && text.Contains('\0')) return null;
+            return new Loaded(text, new LineMap(text), codec, bom, Convert.ToHexString(SHA256.HashData(bytes)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException) { return null; }
+    }
+
+    /// <summary>The encoding a file starts with by its byte order mark (the UTF-32 marks first: the one of UTF-32 LE starts with the one of UTF-16 LE), the length of the mark, and a decoder that throws on invalid bytes when asked.</summary>
+    private static (TextCodec Codec, int Bom, Encoding Encoding) Sniff(byte[] bytes, bool strict)
+    {
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32LEBom.Bom)) return (TextCodec.Utf32LE, 4, new UTF32Encoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32BEBom.Bom)) return (TextCodec.Utf32BE, 4, new UTF32Encoding(true, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16LEBom.Bom)) return (TextCodec.Utf16LE, 2, new UnicodeEncoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16BEBom.Bom)) return (TextCodec.Utf16BE, 2, new UnicodeEncoding(true, false, strict));
+        return (TextCodec.Utf8, bytes.AsSpan().StartsWith(TextCodec.Utf8Bom.Bom) ? 3 : 0, new UTF8Encoding(false, strict));
     }
 
     private List<Place> Resolve(Doc current, List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> raw)

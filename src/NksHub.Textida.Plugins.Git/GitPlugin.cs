@@ -477,6 +477,42 @@ public sealed class GitPlugin : PluginBase
         return Status("conflictDeleted");
     }
 
+    /// <summary>
+    /// The user opened an item of the status panel whose path has no file (the editor does not open it itself). The one thing to do for it is a conflict that both sides deleted, which has
+    /// no file to open and no command for a tab: after a question it is resolved with <c>git rm</c>. Any other missing file is only said to be missing.
+    /// </summary>
+    protected override async ValueTask OnEventAsync(JsonElement eventPayload)
+    {
+        if (!eventPayload.TryGetProperty("name", out var name) || name.GetString() != UiEvents.PanelActivated || !eventPayload.TryGetProperty("payload", out var payload)
+            || payload.GetProperty("panel").GetString() != StatusPanel || payload.GetProperty("item").GetString() is not { } item) return;
+        var ui = _language;
+        try
+        {
+            if (_panelRoot is not { } root || await GitRepository.OpenAsync(root, _settings.TimeoutMs, _settings.MaxBytes, default) is not { } repo) return;
+            var rel = Path.GetRelativePath(repo.Root, item).Replace('\\', '/');
+            if (rel.StartsWith("../", StringComparison.Ordinal) || rel == "..") return;
+            var file = Path.GetFileName(item);
+            if (await repo.ConflictCodeAsync(rel, default) != "DD")
+            {
+                await NotifyAsync(NoticeLevel.Warning, Texts.Get(ui, "missingFile", ("file", rel)), default);
+                return;
+            }
+            var answer = await CallAsync(UiMethods.Confirm, $"{{\"title\":\"{Quote(Texts.Get(ui, "bothDeletedTitle"))}\",\"message\":\"{Quote(Texts.Get(ui, "bothDeletedMessage", ("file", rel)))}\"}}", default);
+            if (answer.GetProperty("confirmed").ValueKind != JsonValueKind.True) return;
+            await repo.DeleteAsync(rel, default);
+            _loaded.TryRemove(IndexKey(repo, rel), out _);
+            await NotifyAsync(NoticeLevel.Info, Texts.Get(ui, "conflictDeleted", ("file", file)), default);
+            var entries = await repo.StatusAsync(default);
+            await SetPanelAsync(ui, repo, entries, reveal: false, default);
+            await ShowStatusBarAsync(ui, repo, entries, default);
+        }
+        catch (Exception e) when (e is RpcException or GitException or IOException)
+        {
+            try { await NotifyAsync(NoticeLevel.Error, Texts.Get(ui, "failed", ("reason", e.Message)), default); }
+            catch (RpcException) { /* the editor is gone */ }
+        }
+    }
+
     // ---- changes of the file for the gutter ----
 
     private static byte[] NoMarks(Request r) => Encoding.UTF8.GetBytes($"{{\"status\":\"none\",\"revision\":{r.Revision},\"hunks\":[]}}");

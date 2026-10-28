@@ -298,7 +298,7 @@ public class IdeBridgeTests
         await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
         await agent.InitializeAsync();
         var tools = (await agent.RequestAsync("tools/list", "{}")).GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
-        foreach (var name in new[] { "getDiagnostics", "openDiff", "close_tab", "closeAllDiffTabs", "getCurrentSelection", "getLatestSelection", "editor_prepare_changes" }) Assert.Contains(name, tools);
+        foreach (var name in new[] { "getDiagnostics", "openDiff", "close_tab", "closeAllDiffTabs", "getCurrentSelection", "getLatestSelection", "openFile", "getOpenEditors", "getWorkspaceFolders", "checkDocumentDirty", "editor_prepare_changes" }) Assert.Contains(name, tools);
         Assert.Equal(0, (await agent.ToolAsync("getDiagnostics")).GetArrayLength());
         Assert.Equal(1, rig.Bridge.ConnectionCount);
     }
@@ -802,6 +802,294 @@ public class IdeBridgeTests
         Assert.Equal("beta", pushed.GetProperty("params").GetProperty("text").GetString());
     }
 
+    // ---- editors, folders, openFile, at_mentioned ----
+
+    static IdeEditor Editor(Document doc, string label, bool dirty = false, string language = "plaintext") => new(doc.Id, doc.FilePath, label, language, dirty);
+
+    [Fact]
+    public async Task The_agent_asks_for_the_workspace_folders_of_the_window()
+    {
+        var first = Path.Combine(Path.GetTempPath(), "project-a");
+        var second = Path.Combine(Path.GetTempPath(), "project-b");
+        await using var rig = Rig.Create(o => o with { WorkspaceFolders = [first, second] });
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        var answer = await agent.ToolAsync("getWorkspaceFolders");
+        Assert.True(answer.GetProperty("success").GetBoolean());
+        var folders = answer.GetProperty("folders").EnumerateArray().ToList();
+        Assert.Equal(2, folders.Count);
+        Assert.Equal("project-a", folders[0].GetProperty("name").GetString());
+        Assert.Equal(first, folders[0].GetProperty("path").GetString());
+        Assert.Equal(new Uri(first).AbsoluteUri, folders[0].GetProperty("uri").GetString());
+        Assert.Equal(first, answer.GetProperty("rootPath").GetString());
+
+        Assert.True(rig.Bridge.UpdateWorkspaceFolders([]));
+        var none = await agent.ToolAsync("getWorkspaceFolders");
+        Assert.Equal(0, none.GetProperty("folders").GetArrayLength());
+        Assert.False(none.TryGetProperty("rootPath", out _));
+    }
+
+    [Fact]
+    public async Task The_open_editors_are_the_shared_tabs_in_the_order_of_the_editor_and_the_active_one_is_marked()
+    {
+        IReadOnlyList<IdeEditor> editors = [];
+        await using var rig = Rig.Create(o => o with { Editors = _ => Task.FromResult(editors) });
+        var a = rig.Share(rig.FileDocument("one\n", "a.txt"));
+        var b = rig.Share(rig.FileDocument("two\n", "b.md"));
+        var untitled = rig.Share(NewDocument("scratch"));
+        var hidden = rig.FileDocument("secret\n", "hidden.txt");
+        rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; }); // open in the editor, but never shared with the assistant
+        editors = [Editor(a, "a.txt"), Editor(hidden, "hidden.txt"), Editor(b, "b.md", dirty: true, language: "markdown"), new IdeEditor(untitled.Id, null, "new 1", "plaintext", true)];
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        Assert.True(await rig.Bridge.PublishSelectionAsync(b.Id, 0, 1));
+
+        var tabs = (await agent.ToolAsync("getOpenEditors")).GetProperty("tabs").EnumerateArray().ToList();
+        Assert.Equal(3, tabs.Count);
+        Assert.Equal(new Uri(a.FilePath!).AbsoluteUri, tabs[0].GetProperty("uri").GetString());
+        Assert.Equal("a.txt", tabs[0].GetProperty("label").GetString());
+        Assert.Equal("plaintext", tabs[0].GetProperty("languageId").GetString());
+        Assert.False(tabs[0].GetProperty("isActive").GetBoolean());
+        Assert.False(tabs[0].GetProperty("isDirty").GetBoolean());
+        Assert.Equal(new Uri(b.FilePath!).AbsoluteUri, tabs[1].GetProperty("uri").GetString());
+        Assert.True(tabs[1].GetProperty("isActive").GetBoolean());
+        Assert.True(tabs[1].GetProperty("isDirty").GetBoolean());
+        Assert.Equal("markdown", tabs[1].GetProperty("languageId").GetString());
+        Assert.StartsWith("untitled:", tabs[2].GetProperty("uri").GetString());
+        Assert.DoesNotContain("hidden.txt", (await agent.ToolAsync("getOpenEditors")).GetRawText());
+
+        rig.Permissions.Revoke(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(a.Id)); // withdrawn: gone from the list at once
+        Assert.Equal(2, (await agent.ToolAsync("getOpenEditors")).GetProperty("tabs").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task The_tools_that_need_the_editor_say_so_when_it_gives_them_nothing()
+    {
+        await using var rig = Rig.Create();
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var arguments = JsonSerializer.Serialize(new { filePath = Path.Combine(rig.Root, "a.txt") });
+        foreach (var tool in new[] { "getOpenEditors", "checkDocumentDirty", "openFile" })
+        {
+            var (isError, text) = await agent.ToolTextAsync(tool, arguments);
+            Assert.True(isError, tool);
+            Assert.NotEmpty(text);
+        }
+    }
+
+    [Fact]
+    public async Task Unsaved_changes_are_told_for_a_shared_tab_and_every_other_file_is_not_open()
+    {
+        IReadOnlyList<IdeEditor> editors = [];
+        await using var rig = Rig.Create(o => o with { Editors = _ => Task.FromResult(editors) });
+        var dirty = rig.Share(rig.FileDocument("one\n", "dirty.txt"));
+        var clean = rig.Share(rig.FileDocument("two\n", "clean.txt"));
+        var hidden = rig.FileDocument("secret\n", "hidden.txt");
+        rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; });
+        editors = [Editor(dirty, "dirty.txt", dirty: true), Editor(clean, "clean.txt"), Editor(hidden, "hidden.txt", dirty: true)];
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        var yes = await agent.ToolAsync("checkDocumentDirty", JsonSerializer.Serialize(new { filePath = dirty.FilePath }));
+        Assert.True(yes.GetProperty("success").GetBoolean());
+        Assert.Equal(dirty.FilePath, yes.GetProperty("filePath").GetString());
+        Assert.True(yes.GetProperty("isDirty").GetBoolean());
+        Assert.False(yes.GetProperty("isUntitled").GetBoolean());
+        var no = await agent.ToolAsync("checkDocumentDirty", JsonSerializer.Serialize(new { filePath = clean.FilePath }));
+        Assert.False(no.GetProperty("isDirty").GetBoolean());
+
+        foreach (var path in new[] { hidden.FilePath!, Path.Combine(rig.Root, "missing.txt"), "clean.txt" }) // not shared, not there, not an absolute path
+        {
+            var gone = await agent.ToolAsync("checkDocumentDirty", JsonSerializer.Serialize(new { filePath = path }));
+            Assert.False(gone.GetProperty("success").GetBoolean());
+            Assert.Equal("Document not open: " + path, gone.GetProperty("message").GetString());
+        }
+    }
+
+    sealed class OpenRig : IAsyncDisposable
+    {
+        public readonly List<IdeOpenFileRequest> Opened = [];
+        public IReadOnlyList<IdeEditor> Editors = [];
+        public Exception? Refuse;
+        public required Rig Rig { get; init; }
+
+        public static OpenRig Create(string? workspace = null)
+        {
+            OpenRig? self = null;
+            var rig = Rig.Create(o => o with
+            {
+                Editors = _ => Task.FromResult(self!.Editors),
+                OpenFile = (request, _) =>
+                {
+                    if (self!.Refuse is { } refuse) throw refuse;
+                    lock (self.Opened) self.Opened.Add(request);
+                    return Task.FromResult(new IdeOpenedFile(request.Path, "plaintext", 3));
+                },
+            });
+            self = new OpenRig { Rig = rig };
+            rig.Bridge.UpdateWorkspaceFolders([workspace ?? rig.Root]);
+            return self;
+        }
+
+        public int Count
+        {
+            get { lock (Opened) return Opened.Count; }
+        }
+
+        public ValueTask DisposeAsync() => Rig.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task An_agent_opens_a_file_of_the_workspace_with_the_options_it_gave()
+    {
+        await using var open = OpenRig.Create();
+        await using var agent = await FakeAgent.ConnectAsync(open.Rig.LockDirectory);
+        await agent.InitializeAsync();
+        var inside = Path.Combine(open.Rig.Root, "src", "inside.txt"); // the editor decides whether the file is there
+
+        var (isError, text) = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = inside }));
+        Assert.False(isError, text);
+        Assert.Equal("Opened file: " + inside, text);
+        var plain = Assert.Single(open.Opened);
+        Assert.Equal(inside, plain.Path);
+        Assert.True(plain.MakeFrontmost);
+        Assert.False(plain.Preview);
+        Assert.False(plain.SelectToEndOfLine);
+        Assert.Null(plain.StartText);
+        Assert.Null(plain.EndText);
+
+        var dotted = Path.Combine(open.Rig.Root, "src", "..", "src", "inside.txt"); // the editor is given the path in its plain form
+        await agent.ToolAsync("openFile", JsonSerializer.Serialize(new { filePath = dotted, preview = true, startText = "function hello", endText = "}", selectToEndOfLine = true, makeFrontmost = true }));
+        var full = open.Opened[1];
+        Assert.Equal(inside, full.Path);
+        Assert.True(full.Preview);
+        Assert.True(full.SelectToEndOfLine);
+        Assert.Equal("function hello", full.StartText);
+        Assert.Equal("}", full.EndText);
+    }
+
+    [Fact]
+    public async Task A_file_outside_the_workspace_a_relative_path_and_a_network_path_are_not_opened()
+    {
+        await using var open = OpenRig.Create();
+        await using var agent = await FakeAgent.ConnectAsync(open.Rig.LockDirectory);
+        await agent.InitializeAsync();
+        var network = OperatingSystem.IsWindows() ? @"\\server\share\a.txt" : "//server/share/a.txt";
+        var paths = new[]
+        {
+            Path.Combine(open.Rig.Root, "..", "other.txt"), // leaves the folder by way of ..
+            open.Rig.Root + "-other" + Path.DirectorySeparatorChar + "a.txt", // a sibling whose name starts like the folder
+            Path.Combine(Path.GetTempPath(), "elsewhere.txt"),
+            "a.txt",
+            "../a.txt",
+            network,
+        };
+        foreach (var path in paths)
+        {
+            var (isError, text) = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = path }));
+            Assert.True(isError, path);
+            Assert.NotEmpty(text);
+        }
+        Assert.Equal(0, open.Count);
+    }
+
+    [Fact]
+    public async Task A_shared_tab_can_be_opened_from_outside_the_workspace_and_only_a_shared_one_is_described()
+    {
+        await using var open = OpenRig.Create(workspace: Path.Combine(Path.GetTempPath(), "some-other-project"));
+        var shared = open.Rig.Share(open.Rig.FileDocument("one\ntwo\nthree\n", "shared.txt"));
+        var unshared = open.Rig.FileDocument("secret\n", "unshared.txt");
+        open.Editors = [Editor(shared, "shared.txt")];
+        await using var agent = await FakeAgent.ConnectAsync(open.Rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        var brought = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = shared.FilePath }));
+        Assert.False(brought.IsError);
+        Assert.Equal("Opened file: " + shared.FilePath, brought.Text);
+
+        var described = await agent.ToolAsync("openFile", JsonSerializer.Serialize(new { filePath = shared.FilePath, makeFrontmost = false }));
+        Assert.True(described.GetProperty("success").GetBoolean());
+        Assert.Equal(shared.FilePath, described.GetProperty("filePath").GetString());
+        Assert.Equal("plaintext", described.GetProperty("languageId").GetString());
+        Assert.Equal(3, described.GetProperty("lineCount").GetInt32());
+        Assert.False(open.Opened[1].MakeFrontmost);
+
+        // a file the user has not shared is not opened (outside the workspace), and not described in the workspace either
+        Assert.True((await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = unshared.FilePath }))).IsError);
+        open.Rig.Bridge.UpdateWorkspaceFolders([open.Rig.Root]);
+        var inWorkspace = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = unshared.FilePath, makeFrontmost = false }));
+        Assert.True(inWorkspace.IsError);
+        Assert.DoesNotContain("lineCount", inWorkspace.Text);
+        Assert.Equal(2, open.Count);
+        Assert.False((await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = unshared.FilePath }))).IsError); // as the front tab it is the user's to see
+    }
+
+    [Fact]
+    public async Task A_file_the_editor_cannot_open_is_an_error_with_the_reason()
+    {
+        await using var open = OpenRig.Create();
+        await using var agent = await FakeAgent.ConnectAsync(open.Rig.LockDirectory);
+        await agent.InitializeAsync();
+        open.Refuse = new IdeOpenRefusedException("The file is gone.");
+        var (isError, text) = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = Path.Combine(open.Rig.Root, "gone.txt") }));
+        Assert.True(isError);
+        Assert.Equal("The file is gone.", text);
+    }
+
+    [Fact]
+    public async Task OpenFile_called_with_arguments_it_cannot_read_is_an_incompatibility()
+    {
+        await using var open = OpenRig.Create();
+        string? reason = null;
+        open.Rig.Bridge.Incompatible += r => reason = r;
+        await using var agent = await FakeAgent.ConnectAsync(open.Rig.LockDirectory);
+        await agent.InitializeAsync();
+        var reply = await agent.RequestAsync("tools/call", "{\"name\":\"openFile\",\"arguments\":{\"filePath\":\"/a.txt\",\"makeFrontmost\":\"yes\"}}");
+        Assert.True(reply.TryGetProperty("error", out _));
+        await T.Until(() => reason is not null);
+        Assert.Contains("openFile", reason);
+        Assert.Equal(0, open.Count);
+    }
+
+    [Fact]
+    public async Task An_at_mention_gives_the_agent_a_path_and_the_lines_and_only_for_a_shared_tab()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.FileDocument("alpha\nbeta\ngamma\ndelta\n"));
+        var hidden = rig.FileDocument("secret\n", "hidden.txt");
+        rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; });
+        Assert.False(await rig.Bridge.PublishAtMentionAsync(doc.Id, 6, 9)); // nobody is connected
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        Assert.True(await rig.Bridge.PublishAtMentionAsync(doc.Id, 6, 9));
+        var inside = await agent.NextNotificationAsync();
+        Assert.Equal("at_mentioned", IdeBridge.AtMentionMethod);
+        Assert.Equal(IdeBridge.AtMentionMethod, inside.GetProperty("method").GetString());
+        var p = inside.GetProperty("params");
+        Assert.Equal(doc.FilePath, p.GetProperty("filePath").GetString());
+        Assert.Equal(1, p.GetProperty("lineStart").GetInt32()); // 0-based, like the lines of selection_changed
+        Assert.Equal(1, p.GetProperty("lineEnd").GetInt32());
+        Assert.DoesNotContain("beta", inside.GetRawText()); // the text is not part of it
+
+        Assert.True(await rig.Bridge.PublishAtMentionAsync(doc.Id, 6, 17)); // "beta\ngamma\n": the range ends where the next line begins, which is not part of it
+        var lines = (await agent.NextNotificationAsync()).GetProperty("params");
+        Assert.Equal(1, lines.GetProperty("lineStart").GetInt32());
+        Assert.Equal(2, lines.GetProperty("lineEnd").GetInt32());
+
+        Assert.True(await rig.Bridge.PublishAtMentionAsync(doc.Id, 7, 7)); // no selection: the file
+        var file = (await agent.NextNotificationAsync()).GetProperty("params");
+        Assert.Equal(doc.FilePath, file.GetProperty("filePath").GetString());
+        Assert.False(file.TryGetProperty("lineStart", out _));
+        Assert.False(file.TryGetProperty("lineEnd", out _));
+
+        Assert.False(await rig.Bridge.PublishAtMentionAsync(hidden.Id, 0, 3)); // not shared
+        Assert.False(await rig.Bridge.PublishAtMentionAsync(NewDocument("x").Id, 0, 1)); // not even known
+        rig.Permissions.Revoke(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(doc.Id));
+        Assert.False(await rig.Bridge.PublishAtMentionAsync(doc.Id, 6, 9)); // withdrawn
+    }
+
     // ---- diffs ----
 
     static string DiffArgs(string oldPath, string contents, string tab)
@@ -1006,7 +1294,7 @@ public class IdeBridgeTests
         await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
         await agent.InitializeAsync();
 
-        foreach (var tool in new[] { "openFile", "getOpenEditors", "getWorkspaceFolders", "checkDocumentDirty", "saveDocument", "executeCode" })
+        foreach (var tool in new[] { "saveDocument", "executeCode" })
         {
             var (isError, text) = await agent.ToolTextAsync(tool);
             Assert.True(isError);
