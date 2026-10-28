@@ -58,6 +58,19 @@ public static class ToolRunner
     }
 
     /// <summary>
+    /// The invocation with the values of the project variables that went into it (name and value) tied into its fingerprint: the definition is the same text, but a project
+    /// that changes such a value changes what runs, so the user is asked again, as for a changed definition. Without any such value the invocation stays as it is.
+    /// </summary>
+    public static ToolInvocation WithProjectValues(ToolInvocation tool, IReadOnlyDictionary<string, string> used)
+    {
+        if (used.Count == 0) return tool;
+        var sb = new StringBuilder(tool.Fingerprint);
+        foreach (var (name, value) in used.OrderBy(p => p.Key, StringComparer.Ordinal))
+            sb.Append('\0').Append(name.Length).Append(':').Append(name).Append(value.Length).Append(':').Append(value);
+        return tool with { Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()))) };
+    }
+
+    /// <summary>
     /// What an approval is tied to: the definition as written (with its variables), the full path of the program it resolves to and the
     /// directory text, the declared variables and, for a tool from another config file, that file and the directory it runs in. Changing any of them asks
     /// again; a different file in the same place does not.

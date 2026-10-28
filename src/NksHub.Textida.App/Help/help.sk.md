@@ -271,6 +271,7 @@ commands: nks.app.openSettings
 4. Hodnotu zmeňte priamo v riadku; prejaví sa hneď a uloží sa do súboru nastavení. Tlačidlo Obnoviť predvolené vráti pôvodnú hodnotu.
 - Nezmyselná hodnota sa odmietne a riadok napíše, čo s ňou je. Ak sa súbor nastavení nedá zapísať, nad zoznamom je dôvod.
 - Konflikty skratiek sú vidieť pri príslušných riadkoch.
+- Skupina Pokročilé obsahuje voľby, ktoré potrebuje málo ľudí: rolovanie za koniec textu, vystrihnutie celého riadka bez výberu, skrytie ukazovateľa myši pri písaní, odkazy cez Ctrl+klik, odsadenie zalomených riadkov, koľko posledných súborov a krokov späť sa drží, interval automatického ukladania, dobu blikania textového kurzora (0: neblikne), plynulé rolovanie kolieskom myši a koľko riadkov a stĺpcov okolo obrazovky sa naraz zafarbí. Textový kurzor s obvyklou dobou blikania je kurzor editora; iná doba ho vykreslí v programe a blokový výber používa zase kurzor editora.
 - F1 v tomto okne otvorí túto tému.
 
 ## [app.accessibility] Prístupnosť
@@ -464,7 +465,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Štatistika dokumentu a hashe
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Ponuka Nástroje, Text a výpočty, Štatistika dokumentu, spočíta bajty, znaky, slová, riadky a najdlhší riadok celého dokumentu, alebo označených častí dokopy, a vypíše najčastejšie znaky a slová.
-2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 alebo SHA-512) a vypočíta hash surových bajtov celého súboru alebo každej označenej časti. Vypočítať hash a skopírovať dá hash aj do schránky. Porovnať hash s vloženým sa opýta na hash, algoritmus pozná podľa dĺžky a povie, či sa zhoduje.
+2. Ponuka Nástroje, Text a výpočty, Vypočítať hash, sa opýta na algoritmus a vypočíta hash surových bajtov celého súboru alebo každej označenej časti. Zoznam je rovnaký ako v téme Hex: kontrolné súčty a hashe (každé CRC, Adler-32, súčty, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Vypočítať hash a skopírovať dá hash aj do schránky. Porovnať hash s vloženým sa opýta na hash a povie, či sa zhoduje; medzery, dvojbodky, 0x a veľkosť písmen nevadia. CRC-32, MD5, SHA-1, SHA-256, SHA-384 a SHA-512 sa poznajú podľa dĺžky vloženého hashu, pri inej dĺžke algoritmus vyberiete.
 - Oba príkazy čítajú dokument po blokoch a vy môžete ďalej pracovať, ukazujú priebeh a dajú sa zrušiť. Žiadny nedrží celý súbor v pamäti, takže fungujú na súboroch ľubovoľnej veľkosti, aj v stránkovanom a hex zobrazení.
 - Zrušená štatistika sa ukáže ako neúplná s počtom spočítaných bajtov. Zrušený hash výsledok nemá.
 - Štatistika aj hash platia pre dokument, aký bol pri spustení príkazu; úpravy počas výpočtu ich nemenia.
@@ -990,7 +991,7 @@ commands: nks.hex.fill, nks.hex.operate
 
 ## [hex.checksum] Hex: kontrolné súčty a hashe
 commands: nks.hex.checksum
-1. Hex: Kontrolné súčty a hashe počíta nad výberom, alebo nad celým súborom, keď nie je nič vybrané: CRC-16, CRC-32, CRC-64 vo viacerých variantoch, CRC s vlastným polynómom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 a SHA-512.
+1. Hex: Kontrolné súčty a hashe počíta nad výberom, alebo nad celým súborom, keď nie je nič vybrané: CRC-16, CRC-32, CRC-64 vo viacerých variantoch, CRC s vlastným polynómom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 a SHA-512. Ponuka Nástroje, Text a výpočty, Vypočítať hash ponúka rovnaký zoznam pre textový pohľad.
 2. Výpočet beží na pozadí a postup ukazuje stavový riadok; Esc ho zruší.
 3. Výsledok sa dá skopírovať alebo porovnať s vloženou hodnotou; na medzerách, dvojbodkách, 0x a veľkosti písmen nezáleží.
 - Každý variant CRC má pevný polynóm a parametre (šírka, začiatočná hodnota, zrkadlenie vstupu a výsledku, koncové xor) podľa katalógu algoritmov CRC.
@@ -1078,7 +1079,7 @@ commands: nks.tools.logPattern
 ## [tools.edit] Nástroje: úprava definícií, typované premenné, nástroje z priečinka
 commands: nks.tools.edit
 1. Nástroje, Spúšťanie nástrojov, Upraviť definície nástrojov otvorí jeden editor nástrojov zo súboru tools.json. Nový, Uložiť a Zmazať zapisujú súbor hneď. Riadok pod formulárom ukáže príkaz presne tak, ako by sa spustil pre otvorený súbor, alebo prečo sa teraz nedá spustiť. Editor aj Spustiť nástroj berú rovnakú definíciu, takže nástroj sa z oboch spustí s rovnakými argumentmi.
-2. Definícia môže deklarovať premenné, jednu na riadok: Názov:text alebo Názov:path, prípadne s =hodnota (hodnota smie používať ďalšie premenné, napríklad Out:path=${FileDir}/out). Bez hodnoty sa vezme používateľská alebo vstavaná premenná rovnakého mena. Poradie je: deklarovaná hodnota, vaše vlastné premenné (Upraviť používateľské premenné), vstavané. V executable, args a cwd ju použijete ako ${Názov}.
+2. Definícia môže deklarovať premenné, jednu na riadok: Názov:text alebo Názov:path, prípadne s =hodnota (hodnota smie používať ďalšie premenné, napríklad Out:path=${FileDir}/out). Bez hodnoty sa vezme používateľská alebo vstavaná premenná rovnakého mena. Poradie je: deklarovaná hodnota, premenné projektu (Upraviť premenné projektu), vaše vlastné premenné (Upraviť používateľské premenné), vstavané. V executable, args a cwd ju použijete ako ${Názov}.
 3. Text je jeden riadok. Cesta je jeden neprázdny riadok bez znakov * ? " < > | . Hodnota zlého typu zastaví spustenie skôr, než čokoľvek začne, a výstup menuje premennú.
 4. Priečinok otvoreného súboru alebo priečinok nad ním môže obsahovať .textida/tools.json s nástrojmi rovnakého tvaru. Ukážu sa v Spustiť nástroj, ale spustia sa až po potvrdení príkazu a adresára, aj keď rovnaký text máte vo vlastnom súbore. Ak sa definícia zmení vrátane premenných, opýtame sa znova. Tieto nástroje sa v editore upraviť nedajú.
 - Prázdny argument sa v editore napísať nedá. Uloženie zahodí komentáre v tools.json.
@@ -1201,7 +1202,7 @@ commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
 1. Log: Zbaliť nezaujímavé riadky sa opýta na úroveň (ostanú riadky aspoň tejto úrovne: error, warning, info, debug) a na regulárny výraz (ostanú riadky, ktoré mu vyhovujú). Každý úsek ostatných riadkov sa zmení na jeden zástupný riadok, ktorý sa kliknutím otvorí. Riadok bez slova úrovne, napríklad riadok stack trace, patrí k záznamu nad ním. Log: Zobraziť všetky riadky všetko znova otvorí. V stránkovanom (veľmi veľkom) súbore sa riadky zbaliť nedajú; riadky, ktoré by sa zbalili, sa namiesto toho kreslia tlmene.
 2. Ctrl+kliknutie na riadok stack trace z .NET, Javy, Pythonu, PHP alebo Node.js otvorí súbor na danom riadku; Log: Otvoriť súbor riadku stack trace to urobí pre riadok s kurzorom. Relatívna cesta sa hľadá v priečinku logu, potom v priečinkoch pracovného priestoru; holé meno súboru (Java) sa hľadá pod nimi.
 3. Pruh pri pravom okraji minimapy ukazuje, kde sú husto chybové riadky (červeno) a varovania (žlto). Počíta sa na pozadí. Súbor do 256 MiB sa číta celý, väčší sa vzorkuje, takže obraz je odhad. Tieto medze nie sú rozhodnuté hodnoty.
-4. Escape sekvencie ANSI v logu sa skryjú a kreslia sa ako farby (16, 256 aj true color), tučné písmo a podčiarknutie. Súbor sa nikdy nemení, takže uloženie escape sekvencie zachová. Log: Zobraziť escape sekvencie ANSI nespracované prepína medzi farbami a holými sekvenciami. Štýl, ktorý riadok nechá otvorený, sa do ďalšieho riadku neprenáša.
+4. Escape sekvencie ANSI v logu sa skryjú a kreslia sa ako farby (16, 256 aj true color), tučné písmo a podčiarknutie. Súbor sa nikdy nemení, takže uloženie escape sekvencie zachová. Log: Zobraziť escape sekvencie ANSI nespracované prepína medzi farbami a holými sekvenciami. Štýl, ktorý riadok nechá otvorený, pokračuje v ďalších riadkoch, kým ho nejaký kód nezmení, ako v termináli; aby ho našiel, program sa pozerá späť cez obmedzený počet riadkov (štýl otvorený dlhšie sa za touto vzdialenosťou ukáže vo východiskovom štýle) a riadok skrátený pre zobrazenie sa číta len tak ďaleko, ako je vidieť.
 - Pod kurzorom nie je súbor a riadok zo stack trace. Dajte kurzor na riadok s cestou a číslom riadka framu, alebo na frame kliknite s Ctrl.
 - Súbor cesta sa nenašiel vedľa logu ani v priečinkoch pracovného priestoru. Otvorte priečinok so zdrojom (Súbor a Otvoriť priečinok) alebo ho pridajte príkazom Pridať priečinok do panela, potom príkaz zopakujte.
 - Touto voľbou sa neskrýva žiadny riadok. Zvoľte vyššiu úroveň alebo iný regulárny výraz.
@@ -1479,7 +1480,7 @@ Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej nie sú a tu je
 - Čísla: veľkosti, počty a čakacie doby za limitmi pluginov, prenosov, exportov, veľkých súborov a schránky sú provizórne hodnoty. Konečná hodnota zatiaľ nie je určená, takže číslo v tejto nápovede sa v ďalšej verzii môže zmeniť.
 
 ## [edit.clips] Klipy
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.clips.editProjectVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Klip je kus textu s miestami pre premenné a kurzory. Klipy dodávajú dátové pluginy v priečinku plugins v profile; jeden podpriečinok na plugin, so súborom nkspad-plugin.json a bez programu.
 1. Zvoľte Úpravy, Vložiť, Vložiť klip. Zoznam ukazuje klipy s náhľadom textu, ktorý by sa vložil.
 2. Vyberte klip. Ak má formulár, vyplňte ho: náhľad sleduje, čo píšete, zlá hodnota je označená a OK zostane zošedlé, kým každá hodnota nesedí so svojím typom.
@@ -1490,7 +1491,8 @@ Klip je kus textu s miestami pre premenné a kurzory. Klipy dodávajú dátové 
 - Riadky snippetu za prvým dostanú odsadenie riadka, na ktorom snippet začína; tabulátory v jeho vlastnom odsadení sa zmenia na odsadenie dokumentu (tabulátory alebo medzery). Klip bez číslovaných miest sa vkladá tak, ako je.
 - V snippete $| nie je kurzor a dolár pred číslicou je zástupné miesto: dolár napíšte $$ alebo \$. Okrem ${name} fungujú premenné TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID a CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (aj ako $NAME). Text, ktorý do syntaxe nezapadá, zostane, ako je.
 - Predvolený text môže obsahovať ďalšie zástupné miesta: ${1:for (${2:i} = 0)}. Tab navštevuje miesta ako zvyčajne podľa čísel; miesto, ktoré obsahuje ďalšie, sa upravuje tam, kde stojí, a ostatné výskyty jeho čísla ukazujú text bez zmeny. Transformácia ukáže miesto so zmeneným textom: ${1/regex/formát/voľby} pre zástupné miesto (výskyt sleduje, čo píšete do miesta 1) a ${NAME/regex/formát/voľby} pre premennú. Formát má $1, ${1:/upcase}, ${1:/downcase}, ${1:/capitalize}, ${1:/camelcase}, ${1:/pascalcase}, ${1:+text ak}, ${1:?text ak:text inak} a ${1:-text inak}; voľby sú g (každá zhoda, inak len prvá), i, m a s. Lomku v regulárnom výraze aj vo formáte napíšte \/; výraz má syntax .NET. Miesta vnorené hlbšie, než povoľuje limit, zostanú ako text; snippet, ktorý prerastie limit dĺžky alebo ktorého transformácia beží príliš dlho, sa odmietne so správou.
-- Odkiaľ premenná berie hodnotu, od najsilnejšieho: 1. hodnota napísaná vo formulári klipu, 2. vaše vlastné premenné (Úpravy, Vložiť, Upraviť používateľské premenné otvorí súbor variables.json v profile: jeden objekt JSON s menom a textom), 3. vstavané. Rovnaké meno dá rovnakú hodnotu v klipe, recepte aj externom nástroji.
+- Odkiaľ premenná berie hodnotu, od najsilnejšieho: 1. hodnota napísaná vo formulári klipu, 2. premenné projektu, 3. vaše vlastné premenné (Úpravy, Vložiť, Upraviť používateľské premenné otvorí súbor variables.json v profile: jeden objekt JSON s menom a textom), 4. vstavané. Rovnaké meno dá rovnakú hodnotu v klipe, recepte aj externom nástroji.
+- Premenné projektu: Úpravy, Vložiť, Upraviť premenné projektu otvorí súbor .textida/variables.json projektu otvoreného súboru, v rovnakom tvare ako variables.json v profile. Projekt je najbližší priečinok nad súborom, ktorý takýto súbor má; keď žiadny nemá, súbor sa vytvorí v najbližšom priečinku s priečinkom .textida alebo .git. Jeho mená platia len pre súbory toho projektu a majú prednosť pred vašimi premennými rovnakého mena. Poškodený súbor zastaví klipy, recepty aj nástroje v tom projekte a v správe sa menuje. Externý nástroj, ktorého príkaz používa premennú projektu, sa po zmene jej hodnoty pýta na potvrdenie znova, rovnako ako po zmene definície.
 - Vstavané premenné: file.path, file.dir, file.name, file.base, file.ext (neuložený dokument file.* nemá), date (rrrr-MM-dd), time (HH:mm:ss), datetime (nastavenie Formát dátumu a času), guid (pre každý kurzor nový), selection (text vybraný pri tomto kurzore), user.name. Meno bez hodnoty vloženie zastaví a stavový riadok ho vypíše.
 - Polia formulára: name, label, type, default, choices, required. Typy: text, integer (celé číslo), number (desatinná bodka), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (rrrr-MM-dd), file (existujúci súbor), choice (jedna z hodnôt choices). Predvolená hodnota smie používať premenné, napríklad ${date}.
 - V nkspad-plugin.json je klip {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} v contributes.clips; klip s "command" dostane aj príkaz toho mena.
@@ -1633,7 +1635,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 commands: nks.edit.complete
 1. Stlačte Ctrl+J (Úpravy, Vložiť, Doplniť slovo alebo klip). Zoznam ponúkne slová, ktoré pokračujú slovo pred kurzorom, a potom klipy, ktoré sa hodia pre jazyk dokumentu.
 2. Vyberte položku. Slovo nahradí slovo pred každým kurzorom; klip sa vloží ako v téme Klipy a nahradí toto slovo. Je to jeden krok Späť.
-- Slová sa berú zo všetkých otvorených textových kariet. Slovo, ktoré práve píšete, sa neponúka, a slovo sa ponúka, len keď je dlhšie než napísaný začiatok. Najprv idú slová z upravovaného dokumentu, potom tie častejšie.
+- Slová sa berú zo všetkých otvorených textových kariet. Slovo, ktoré práve píšete, sa neponúka, a slovo sa ponúka, len keď je dlhšie než napísaný začiatok. Najprv idú slová z upravovaného dokumentu, z nich tie najbližšie ku kurzoru (v obmedzenom počte znakov na každú stranu), potom tie častejšie.
 - Klipy sú z knižnice z témy Klipy. Klip bez jazyka sa hodí do každého dokumentu; klip s jazykom len do dokumentov toho jazyka.
 - Hodnoty tajného súboru (`.env`) sa neponúkajú, kým sú skryté. Ponúkajú sa len v tom istom súbore a len keď sú zobrazené.
 - Zoznam drží obmedzený počet slov; zúžite ho písaním do poľa. Položky bežiaceho jazykového servera pribudnú, pozri tému Jazykový server.
@@ -1649,7 +1651,7 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Odsadenie (4 medzery) a veľkosť kľúčových slov (veľké) sú zatiaľ pevné; nastavenie to ešte nie je.
 
 ## [edit.html] HTML: entity a HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags, nks.edit.htmlInsertImage, nks.edit.htmlInsertLink
 1. Úpravy, Formátovanie, Previesť na entity HTML nahradí v označených častiach (v celom súbore, keď nie je nič vybrané) znaky & < > " ' entitami. Previesť z entít HTML prečíta pomenované, desiatkové aj šestnástkové entity späť. Zakódovaný text prevedený späť dá pôvodný text. Každé je jeden krok späť.
 2. Úpravy, Formátovanie, Formátovať pomocou HTML Tidy pošle HTML programu HTML Tidy a výsledok ukáže v náhľade zmien. Správy Tidy idú do okna výstupu.
 3. Tidy je samostatný program. Editor ho hľadá na ceste z nastavenia Program HTML Tidy, v priečinku `tidy` vedľa pluginu formátovačov, v priečinku `tools/tidy` aplikácie a v priečinkoch z PATH. Keď ho nenájde, správa vypíše všetky miesta.
@@ -1658,7 +1660,8 @@ commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.
 - Previesť na entity HTML vrátane znakov mimo ASCII zapíše aj každý znak mimo ASCII ako číselnú entitu (`&#233;`); prevod späť dá text znova.
 4. Nástroje na tagy (súbory HTML, XML a PHP): Úpravy, Formátovanie, Zatvoriť otvorený tag zapíše koncový tag najbližšieho tagu, ktorý je pri kurzore ešte otvorený. Prejsť na párový tag presunie kurzor na pár tagu pri kurzore. Vybrať element vyberie element okolo výberu; opakovaním sa vyberie ďalší nadradený. Odstrániť tag zmaže začiatočný a koncový tag elementu pri kurzore a obsah nechá. Obaliť tagom sa spýta na názov a obalí ním každý výber. Odstrániť všetky tagy zmaže z označených častí všetky tagy a komentáre (z celého súboru, keď nie je nič vybrané).
 - Tagy sa párujú podľa vnorenia. Komentáre a obsah `script` a `style` tagy neobsahujú. Nepovinné koncové tagy HTML (`li`, `p`) sa nedomýšľajú, taký tag sa teda počíta ako otvorený.
-- Vloženie obrázka alebo odkazu s rozmermi zatiaľ nie je.
+5. Úpravy, Formátovanie, Vložiť obrázok sa spýta na súbor s obrázkom a na miesto každého výberu zapíše `<img src="…" width="…" height="…" alt="">`. Adresa je voči dokumentu (súbor na inom disku alebo neuložený dokument dostane adresu `file:///`). Šírka a výška sa čítajú z hlavičky súborov PNG, GIF, JPEG, BMP a WebP; pri inom súbore, napríklad SVG, tag rozmer nemá. Vybraný text na jednom riadku sa stane alternatívnym textom; keď nie je nič vybrané, kurzor stojí v prázdnom alt.
+6. Vložiť odkaz sa spýta na adresu a okolo každého výberu zapíše `<a href="…">`. Keď nie je nič vybrané, odkaz ukáže adresu, alebo pri súbore s obrázkom obrázok so šírkou a výškou. Adresa, ktorá je cestou k existujúcemu súboru, sa zapíše voči dokumentu.
 
 ## [help.language] Pomocník k jazyku
 commands: nks.help.languageHelp

@@ -102,6 +102,8 @@ internal sealed partial class PagedTextView : Grid
         };
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
             line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
+        Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
+        _glide = new Glide(() => _bar.Value, value => _bar.Value = value);
         _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
         _indexTimer.Tick += (_, _) =>
         {
@@ -251,6 +253,8 @@ internal sealed partial class PagedTextView : Grid
     public void ApplyOptions(EditorOptions o)
     {
         _options = o;
+        if (!o.SmoothScrolling) _glide.Stop();
+        Syntax.SetLimits(o.HighlightMaxLines, o.HighlightMaxColumns);
         EditorFontFallbacks.Shared.Use(o.FullFontFamily);
         _lines.Clear();
         _truncatedColumns = -1; // the next draw sets the sideways range again: the cell width or the room for the line end mark may have changed
@@ -1435,9 +1439,12 @@ internal sealed partial class PagedTextView : Grid
     {
         if (e.Delta.X != 0 || e.KeyModifiers.HasFlag(KeyModifiers.Shift))
             _hBar.Value = Math.Clamp(_hBar.Value - (e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * 3 * _canvas.WindowColumns / 8, 0, _hBar.Maximum);
-        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * 3, 0, _bar.Maximum);
+        else if (_options.SmoothScrolling && _bar.Maximum > 0) _glide.Push(-e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
+        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
         e.Handled = true;
     }
+
+    private readonly Glide _glide;
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
@@ -1862,11 +1869,11 @@ internal sealed partial class PagedTextView : Grid
             }
         }
 
-        /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line; backgrounds are filled now, before the text is drawn over them.</summary>
-        private void DrawAnsi(DrawingContext context, FormattedText text, LineView view, double y)
+        /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line (<paramref name="spans"/>, which include the style the lines before it left open); backgrounds are filled now, before the text is drawn over them.</summary>
+        private void DrawAnsi(DrawingContext context, FormattedText text, LineView view, double y, IReadOnlyList<AnsiSpan> spans)
         {
             int length = view.Map.Text.Length;
-            foreach (var span in AnsiSgr.Parse(view.Map.Text).Spans)
+            foreach (var span in spans)
             {
                 int from = view.DisplayAt[Math.Min(span.Start, length)], to = view.DisplayAt[Math.Min(span.Start + span.Length, length)];
                 if (to <= from) continue;
@@ -2037,7 +2044,7 @@ internal sealed partial class PagedTextView : Grid
                             }
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
-                    if (view.HidesAnsi && _composed.Count == 0) DrawAnsi(context, text, view, y);
+                    if (owner.HideAnsi && _composed.Count == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
                     for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);
                     if (options.ShowWhitespace) DimMarks(text, shown, dim);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)

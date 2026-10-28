@@ -229,6 +229,85 @@ public class VariablesTests : IDisposable
         }
     }
 
+    // ---- the variables of a project ----
+
+    private string ProjectFile(string folder, string json)
+    {
+        string dir = Directory.CreateDirectory(Path.Combine(_dir, folder, ProjectVariables.FolderName)).FullName;
+        string file = Path.Combine(dir, UserVariables.FileName);
+        File.WriteAllText(file, json);
+        return file;
+    }
+
+    [Fact]
+    public void The_nearest_variables_file_above_the_document_is_the_one_of_its_project()
+    {
+        string outer = ProjectFile("outer", "{\"who\":\"outer\",\"only.outer\":\"o\"}");
+        string inner = ProjectFile(Path.Combine("outer", "inner"), "{\"who\":\"inner\"}");
+        string deep = Directory.CreateDirectory(Path.Combine(_dir, "outer", "inner", "src", "deep")).FullName;
+        string beside = Directory.CreateDirectory(Path.Combine(_dir, "outer", "other")).FullName;
+
+        Assert.Equal(inner, ProjectVariables.FindFile(deep));
+        Assert.Equal(outer, ProjectVariables.FindFile(beside));
+        Assert.Null(ProjectVariables.FindFile(Path.Combine(_dir, "nowhere")));
+        Assert.Null(ProjectVariables.FindFile(null));
+
+        var (values, problem, file) = ProjectVariables.Load(Path.Combine(deep, "a.txt"));
+        Assert.Null(problem);
+        Assert.Equal(inner, file);
+        Assert.Equal([("who", "inner")], values.Select(p => (p.Key, p.Value))); // the file of the outer folder is not merged in
+    }
+
+    [Fact]
+    public void A_document_without_a_path_or_a_project_has_no_project_variables_and_a_damaged_file_names_itself()
+    {
+        Assert.Empty(ProjectVariables.Load(null).Values);
+        Assert.Empty(ProjectVariables.Load(Path.Combine(_dir, "free", "a.txt")).Values);
+
+        string file = ProjectFile("broken", "{ nope");
+        var (values, problem, found) = ProjectVariables.Load(Path.Combine(_dir, "broken", "a.txt"));
+        Assert.Empty(values);
+        Assert.StartsWith(file + ": ", problem);
+        Assert.Equal(file, found);
+    }
+
+    [Fact]
+    public void The_file_of_the_user_is_not_read_again_as_the_one_of_a_project()
+    {
+        string file = ProjectFile("profile-in-project", "{\"a\":\"1\"}");
+        var (values, problem, found) = ProjectVariables.Load(Path.Combine(_dir, "profile-in-project", "a.txt"), except: file);
+        Assert.Empty(values);
+        Assert.Null(problem);
+        Assert.Null(found);
+    }
+
+    [Fact]
+    public void Precedence_puts_the_variables_of_the_project_between_the_form_and_the_user_variables()
+    {
+        var context = new VariableContext
+        {
+            FilePath = TodoPath, Now = new DateTime(2026, 10, 27, 13, 5, 9),
+            User = new Dictionary<string, string> { ["who"] = "user", ["only.user"] = "u", ["date"] = "user date" },
+            Project = new Dictionary<string, string> { ["who"] = "project", ["only.project"] = "p", ["date"] = "project date" },
+        };
+        var scope = new VariableScope(context, new Dictionary<string, string> { ["date"] = "form date" });
+
+        Assert.True(scope.TryGet("date", out var date, out var dateSource));
+        Assert.Equal(("form date", VariableSource.Field), (date, dateSource));
+        Assert.True(scope.TryGet("who", out var who, out var whoSource));
+        Assert.Equal(("project", VariableSource.Project), (who, whoSource));
+        Assert.True(scope.TryGet("only.user", out var user, out var userSource));
+        Assert.Equal(("u", VariableSource.User), (user, userSource));
+        Assert.True(scope.TryGet("only.project", out _, out var projectSource));
+        Assert.Equal(VariableSource.Project, projectSource);
+        Assert.True(scope.TryGet("time", out _, out var builtinSource));
+        Assert.Equal(VariableSource.Builtin, builtinSource);
+
+        // another file or another selection keeps the project's variables
+        Assert.Equal("project", Variables.Expand("${who}", new VariableScope(context.WithFile(null))).Text);
+        Assert.Equal("project", Variables.Expand("${who}", new VariableScope(context.WithSelection("x"))).Text);
+    }
+
     [Fact]
     public void A_snippet_with_nested_stops_and_a_variable_transform_expands_and_one_over_the_limit_is_a_syntax_error()
     {

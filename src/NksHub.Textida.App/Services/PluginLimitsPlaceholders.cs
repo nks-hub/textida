@@ -84,6 +84,18 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
+    /// <summary>Placeholder, OPEN: lines before a line of a log that are read to find the ANSI style the lines above left open; a style that stays open longer than this shows in the default style past it. The owner has not decided it.</summary>
+    public const int AnsiCarryLookbackLines = 200;
+
+    /// <summary>Placeholder, OPEN: milliseconds between two frames of smooth scrolling (the setting <c>advanced.smoothScrolling</c>). The owner has not decided it.</summary>
+    public const int SmoothScrollFrameMilliseconds = 16;
+
+    /// <summary>Placeholder, OPEN: share of the way to its target that smooth scrolling covers in one frame; the larger it is, the quicker the glide ends. The owner has not decided it.</summary>
+    public const double SmoothScrollShare = 0.3;
+
+    /// <summary>Placeholder, OPEN: lines one notch of the mouse wheel scrolls (smooth or not in the large file view; the editor's own wheel step is AvaloniaEdit's). The owner has not decided it.</summary>
+    public const int WheelLinesPerNotch = 3;
+
     /// <summary>Placeholder, OPEN: largest file Insert from File reads, in bytes; a larger one is refused with a message.</summary>
     public const long InsertFromFileMaxBytes = 16L << 20;
 
@@ -223,6 +235,9 @@ internal static partial class PluginLimitsPlaceholders
 
     /// <summary>Placeholder: most words the completion list (Ctrl+J) holds; the best ranked are kept.</summary>
     public const int CompletionMaxWords = 200;
+
+    /// <summary>Placeholder, OPEN: characters on each side of the caret in which the completion list (Ctrl+J) ranks the words of the document being edited by their distance from the caret; a word that occurs only farther away ranks by how often it occurs. The owner has not decided it.</summary>
+    public const int CompletionNearChars = 20_000;
 
     /// <summary>Placeholder: longest text (and HTML) one plugin write puts on the clipboard, in UTF-16 units; the same provisional bound the clipboard history uses.</summary>
     public const int ClipboardMaxChars = ClipboardHistory.MaxItemLength;

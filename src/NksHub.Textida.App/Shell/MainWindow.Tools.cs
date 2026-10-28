@@ -168,10 +168,17 @@ internal sealed partial class MainWindow
         var context = _app.VariableContextFor(tab?.Path, SelectionTexts(tab?.Surface).FirstOrDefault() ?? "", out var broken);
         if (broken is not null) throw new ToolException(Loc.Get(K.ClipVariablesBroken, ("reason", broken)));
         var scope = new VariableScope(context);
-        var variables = ToolVariables.ForDocument(tab?.Path, line, column, name => scope.TryGet(name, out var value) ? value : null,
+        var fromProject = new Dictionary<string, string>(StringComparer.Ordinal); // the project is not the user's own: what it supplied is tied to the approval
+        var variables = ToolVariables.ForDocument(tab?.Path, line, column, name =>
+            {
+                if (!scope.TryGet(name, out var value, out var source)) return null;
+                if (source == VariableSource.Project) fromProject[name] = value;
+                return value;
+            },
             tab is null ? null : () => SelectionOf(tab), tab is null ? null : () => WordText(tab));
-        return ToolRunner.Resolve(WithToolDefaults(spec), variables,
+        var tool = ToolRunner.Resolve(WithToolDefaults(spec), variables,
             (tab?.Path is { } own ? Path.GetDirectoryName(Path.GetFullPath(own)) : ActiveDirectory()) ?? Environment.CurrentDirectory);
+        return ToolRunner.WithProjectValues(tool, fromProject);
     }
 
     private static string? WordText(DocTab tab) => WordRangeAtCaret(tab) is { } r ? tab.Surface!.Document.GetText(r.Start, r.End - r.Start) : null;

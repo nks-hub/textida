@@ -144,6 +144,7 @@ internal static class AppCommands
         On("nks.edit.complete", w => w.ShowCompletion());
         On("nks.edit.clipFromSelection", w => w.SaveSelectionAsClip());
         On("nks.clips.editVariables", w => w.EditUserVariables());
+        On("nks.clips.editProjectVariables", w => w.EditProjectVariables());
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
         On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
         foreach (var conversion in Core.Conversions.SpecialConversions.All) On(conversion.CommandId, w => w.ConvertSpecial(conversion));
@@ -220,6 +221,8 @@ internal static class AppCommands
         On("nks.edit.htmlRemoveTag", w => w.HtmlRemoveTag());
         On("nks.edit.htmlStripTags", w => w.HtmlStripTags());
         Do("nks.edit.htmlWrapTag", w => _ = w.HtmlWrapTagAsync());
+        Do("nks.edit.htmlInsertImage", w => _ = w.HtmlInsertImageAsync());
+        Do("nks.edit.htmlInsertLink", w => _ = w.HtmlInsertLinkAsync());
         Fire("nks.edit.htmlTidy", (w, t) => app.Plugins.RunTidyAsync(w, t));
 
         // tools

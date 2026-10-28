@@ -106,9 +106,45 @@ public sealed partial class Document
 
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
-    /// <summary>Number of undo steps; a journal uses it to tell a new undo step from an edit merged into the previous one.</summary>
-    public int UndoDepth => _undo.Count;
+    /// <summary>
+    /// Number of undo steps, counting the ones <see cref="UndoLimit"/> dropped; a journal uses it to tell a new undo step from an edit merged into the previous one,
+    /// so a step that pushes the oldest one out still counts as a new step.
+    /// </summary>
+    public int UndoDepth => _undo.Count + _undoTrimmed;
     public int RedoDepth => _redo.Count;
+
+    private int _undoLimit, _undoTrimmed;
+
+    /// <summary>
+    /// Most undo steps the document keeps; 0 keeps all of them. Past the limit the oldest steps are dropped, and a document whose saved state lies beyond them stays modified
+    /// until it is saved again, so closing it still asks. Lowering the limit drops the steps at once.
+    /// </summary>
+    public int UndoLimit
+    {
+        get => _undoLimit;
+        set
+        {
+            _undoLimit = Math.Max(0, value);
+            TrimUndo();
+        }
+    }
+
+    private void TrimUndo()
+    {
+        int excess = _undoLimit > 0 ? _undo.Count - _undoLimit : 0;
+        if (excess <= 0) return;
+        var dropped = _undo.GetRange(0, excess);
+        // the saved state is the stack as it was, or the empty one; either way undo cannot reach it any more
+        if (_saved is null || dropped.Contains(_saved)) _savedUnreachable = true;
+        // a save under way writes the stack as it was (its newest step, or the empty stack): dropping that step, or any step on top of the empty stack, loses its state
+        if (_saving && (_joinBarrier is null || dropped.Contains(_joinBarrier))) _barrierLost = true;
+        foreach (var entry in dropped)
+            foreach (var step in entry.Steps)
+                foreach (var edit in step.Edits)
+                    _undoHeld -= (edit.Removed.Memory?.Length ?? 0) + (edit.Inserted.Memory?.Length ?? 0);
+        _undo.RemoveRange(0, excess);
+        _undoTrimmed += excess;
+    }
 
     /// <summary>
     /// True when <see cref="Undo"/> would do nothing now because a save runs. A save that keeps edits (<see cref="EditsDuringSave"/>) lets undo move the
@@ -516,6 +552,7 @@ public sealed partial class Document
             entry.Steps.Add(step);
             _undo.Add(entry);
             if (_groupDepth > 0) _groupEntry = entry;
+            TrimUndo();
         }
     }
 
@@ -565,6 +602,7 @@ public sealed partial class Document
         var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
         _undo.Add(entry);
+        TrimUndo(); // the limit may have been lowered while the step waited
         foreach (var step in entry.Steps)
         {
             if (step.Fill is { } fill)
@@ -598,9 +636,9 @@ public sealed partial class Document
     /// <summary>Undo steps that were there at the last save (all of them when nothing changed since).</summary>
     internal int SavedUndoDepth =>
         _savedUnreachable ? int.MaxValue
-        : _saved is null ? 0
-        : _undo.IndexOf(_saved) is var at and >= 0 ? at + 1
-        : _undo.Count + _redo.Count - _redo.IndexOf(_saved);
+        : _saved is null ? _undoTrimmed
+        : _undo.IndexOf(_saved) is var at and >= 0 ? at + 1 + _undoTrimmed
+        : _undo.Count + _undoTrimmed + _redo.Count - _redo.IndexOf(_saved);
 
     /// <summary>Revision of the last save; the revision the document was created or opened at (0) until then.</summary>
     public long SavedRevision { get; private set; }

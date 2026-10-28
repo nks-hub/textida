@@ -26,22 +26,25 @@ public sealed class VariableContext
     /// <summary>The user's own variables (see <see cref="UserVariables"/>).</summary>
     public IReadOnlyDictionary<string, string> User { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>The variables of the project the file belongs to (see <see cref="ProjectVariables"/>); a name here wins over the same name among the user's own.</summary>
+    public IReadOnlyDictionary<string, string> Project { get; init; } = new Dictionary<string, string>();
+
     /// <summary>The same facts for another file (a recipe over many files gives each its own <c>file.*</c>).</summary>
     public VariableContext WithFile(string? path) => new()
     {
-        FilePath = path, Selection = Selection, Now = Now, DateTimeFormat = DateTimeFormat, Culture = Culture, UserName = UserName, User = User,
+        FilePath = path, Selection = Selection, Now = Now, DateTimeFormat = DateTimeFormat, Culture = Culture, UserName = UserName, User = User, Project = Project,
     };
 
     /// <summary>The same facts for another selection (each caret of a clip has its own <c>selection</c>).</summary>
     public VariableContext WithSelection(string selection) => new()
     {
-        FilePath = FilePath, Selection = selection, Now = Now, DateTimeFormat = DateTimeFormat, Culture = Culture, UserName = UserName, User = User,
+        FilePath = FilePath, Selection = selection, Now = Now, DateTimeFormat = DateTimeFormat, Culture = Culture, UserName = UserName, User = User, Project = Project,
     };
 }
 
 /// <summary>
 /// The one place a variable name gets its value, for clips, recipes and external tools alike. Order of precedence, strongest first:
-/// 1. values the user typed into the form of the clip (<c>fields</c>); 2. the user's own variables; 3. the built-in variables.
+/// 1. values the user typed into the form of the clip (<c>fields</c>); 2. the variables of the project; 3. the user's own variables; 4. the built-in variables.
 /// A name has the same meaning everywhere; a value is computed once per scope, so <c>guid</c> used twice is the same GUID.
 /// Built-in names: <c>file.path</c>, <c>file.dir</c>, <c>file.name</c> (with extension), <c>file.base</c>, <c>file.ext</c> (with the dot),
 /// <c>date</c> (yyyy-MM-dd), <c>time</c> (HH:mm:ss), <c>datetime</c>, <c>guid</c>, <c>selection</c>, <c>user.name</c>.
@@ -65,6 +68,7 @@ public sealed class VariableScope
     public bool TryGet(string name, out string value, out VariableSource source)
     {
         if (_fields.TryGetValue(name, out var typed)) { value = typed; source = VariableSource.Field; return true; }
+        if (_context.Project.TryGetValue(name, out var project)) { value = project; source = VariableSource.Project; return true; }
         if (_context.User.TryGetValue(name, out var own)) { value = own; source = VariableSource.User; return true; }
         source = VariableSource.Builtin;
         if (!_builtin.TryGetValue(name, out var computed)) _builtin[name] = computed = Compute(name);
@@ -115,7 +119,7 @@ public sealed class VariableScope
     }
 }
 
-public enum VariableSource { Field, User, Builtin }
+public enum VariableSource { Field, Project, User, Builtin }
 
 /// <param name="Text">The expanded text with the line breaks the caller asked for; caret marks are removed.</param>
 /// <param name="Carets">UTF-16 offsets in <paramref name="Text"/> of the caret marks, in the order they stand.</param>
@@ -272,5 +276,43 @@ public static class UserVariables
         {
             return (new Dictionary<string, string>(), e.Message);
         }
+    }
+}
+
+/// <summary>
+/// The variables of a project: a file like the user's own (<see cref="UserVariables"/>) named <c>.textida/variables.json</c> in the nearest folder at or above the file
+/// that has one. They are for the files of that project only, and a name in it wins over the same name among the user's own. A damaged file gives no variables and a reason.
+/// </summary>
+public static class ProjectVariables
+{
+    public const string FolderName = ".textida";
+
+    /// <summary>The variables file in the nearest folder at or above <paramref name="fromDirectory"/> that has one, or null.</summary>
+    public static string? FindFile(string? fromDirectory)
+    {
+        try
+        {
+            for (var dir = fromDirectory is null ? null : new DirectoryInfo(Path.GetFullPath(fromDirectory)); dir is not null; dir = dir.Parent)
+            {
+                string candidate = Path.Combine(dir.FullName, FolderName, UserVariables.FileName);
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { /* no project file */ }
+        return null;
+    }
+
+    /// <summary>
+    /// The variables of the project of the file at <paramref name="documentPath"/> (none for a document that is not saved) and the file they came from. The reason names the file.
+    /// <paramref name="except"/> is a file that is not read as a project's: the user's own, when the profile itself sits in a folder of that name.
+    /// </summary>
+    public static (IReadOnlyDictionary<string, string> Values, string? Problem, string? File) Load(string? documentPath, string? except = null)
+    {
+        string? file;
+        try { file = documentPath is null ? null : FindFile(Path.GetDirectoryName(Path.GetFullPath(documentPath))); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException) { file = null; } // a name with characters no path can hold
+        if (file is null || (except is not null && string.Equals(Path.GetFullPath(except), file, StringComparison.OrdinalIgnoreCase))) return (new Dictionary<string, string>(), null, null);
+        var (values, problem) = UserVariables.Load(file);
+        return (values, problem is null ? null : file + ": " + problem, file);
     }
 }

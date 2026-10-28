@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Hashing;
 using System.Numerics;
 using System.Security.Cryptography;
 using NksHub.Textida.Core.Documents;
@@ -56,9 +57,10 @@ public interface IChecksumState : IDisposable
 /// <summary>One algorithm the checksum dialog offers; <see cref="Create"/> starts a fresh run.</summary>
 public sealed record ChecksumSpec(string Id, string Name, Func<IChecksumState> Create);
 
+/// <summary>The algorithms of the checksum dialog of the hex view and of the hash command of the text tools plugin, so both offer the same list under the same names.</summary>
 public static class Checksums
 {
-    /// <summary>Every algorithm of the dialog: the CRC models, Adler-32, plain sums, xxHash, MD5, SHA-1 and SHA-2.</summary>
+    /// <summary>Every algorithm of the dialog: the CRC models, Adler-32, plain sums, xxHash (also XXH3), MD5, SHA-1 and SHA-2.</summary>
     public static IReadOnlyList<ChecksumSpec> All { get; } =
     [
         .. CrcModel.Catalog.Select(Crc),
@@ -68,6 +70,8 @@ public static class Checksums
         new("sum32", "Sum-32", () => new SumState(4)),
         new("xxh32", "xxHash32", () => new XxHash32State()),
         new("xxh64", "xxHash64", () => new XxHash64State()),
+        new("xxh3", "XXH3-64", () => new LibraryState(new XxHash3())),
+        new("xxh128", "XXH3-128", () => new LibraryState(new XxHash128())),
         Hash("md5", "MD5", HashAlgorithmName.MD5),
         Hash("sha1", "SHA-1", HashAlgorithmName.SHA1),
         Hash("sha256", "SHA-256", HashAlgorithmName.SHA256),
@@ -106,17 +110,16 @@ public static class Checksums
         return state.Finish();
     }
 
-    /// <summary>True when two values are the same number: spaces, colons, dashes, a leading <c>0x</c>, case and leading zeros do not matter.</summary>
-    public static bool SameValue(string computed, string pasted)
+    /// <summary>The digits of a value that was typed or pasted: no spaces, colons, dashes or underscores, no leading <c>0x</c>, in lower case.</summary>
+    public static string Digits(string value)
     {
-        static string Clean(string s)
-        {
-            var digits = new string([.. s.Where(c => !char.IsWhiteSpace(c) && c is not (':' or '-' or '_'))]);
-            if (digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) digits = digits[2..];
-            return digits.TrimStart('0').ToLowerInvariant();
-        }
-        return !string.IsNullOrWhiteSpace(pasted) && Clean(computed) == Clean(pasted);
+        var digits = new string([.. value.Where(c => !char.IsWhiteSpace(c) && c is not (':' or '-' or '_'))]);
+        return (digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? digits[2..] : digits).ToLowerInvariant();
     }
+
+    /// <summary>True when two values are the same number: spaces, colons, dashes, a leading <c>0x</c>, case and leading zeros do not matter.</summary>
+    public static bool SameValue(string computed, string pasted) =>
+        !string.IsNullOrWhiteSpace(pasted) && Digits(computed).TrimStart('0') == Digits(pasted).TrimStart('0');
 
     private static string Hex(ulong value, int width) => value.ToString("x" + ((width + 3) / 4), System.Globalization.CultureInfo.InvariantCulture);
 
@@ -250,6 +253,15 @@ public static class Checksums
         public void Append(ReadOnlySpan<byte> data) => _hash.AppendData(data);
         public string Finish() => Convert.ToHexStringLower(_hash.GetHashAndReset());
         public void Dispose() => _hash.Dispose();
+    }
+
+    // ---- XXH3 (seed 0), from System.IO.Hashing; its result is the canonical (big-endian) form, as the xxhsum tool prints it ----
+
+    private sealed class LibraryState(NonCryptographicHashAlgorithm hash) : IChecksumState
+    {
+        public void Append(ReadOnlySpan<byte> data) => hash.Append(data);
+        public string Finish() => Convert.ToHexStringLower(hash.GetCurrentHash());
+        public void Dispose() { }
     }
 
     // ---- xxHash (seed 0) ----

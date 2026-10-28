@@ -52,8 +52,8 @@ internal sealed partial class MainWindow
             }
             else if (current)
             {
-                var line = other.Document.GetLineByOffset(caret); // the word at the caret is all that is read of the text
-                sources.Add(new CompletionSource(other.Document.GetText(line.Offset, line.Length), caret - line.Offset, WordIndexOf(other)));
+                var line = other.Document.GetLineByOffset(caret); // the word at the caret and the stretch around it are all that is read of the text
+                sources.Add(new CompletionSource(other.Document.GetText(line.Offset, line.Length), caret - line.Offset, WordIndexOf(other), NearCaret(other.Document, caret)));
             }
             else sources.Add(new CompletionSource("", -1, WordIndexOf(other)));
         }
@@ -66,6 +66,13 @@ internal sealed partial class MainWindow
             .OrderBy(e => e.Clip.Language is null)
             .ToList();
         return new CompletionCandidates(prefix, WordCompletion.Words(sources, prefix, PluginLimitsPlaceholders.CompletionMaxWords), clips);
+    }
+
+    /// <summary>The text within <see cref="PluginLimitsPlaceholders.CompletionNearChars"/> characters of the caret.</summary>
+    internal static CompletionNear NearCaret(TextDocument document, int caret)
+    {
+        int from = Math.Max(0, caret - PluginLimitsPlaceholders.CompletionNearChars), to = Math.Min(document.TextLength, caret + PluginLimitsPlaceholders.CompletionNearChars);
+        return new CompletionNear(document.GetText(from, to - from), caret - from, from > 0, to < document.TextLength);
     }
 
     private static readonly ConditionalWeakTable<EditorSurface, WordIndexTracker> WordIndexes = new();

@@ -20,7 +20,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 internal sealed partial class EditorSurface
 {
-    private const int BlinkMs = 530;
+    private int _blinkMs = EditorOptions.DefaultCaretBlinkMs;
 
     private AnchoredSelections? _others;
     private AnchoredSelections? _primaryKept;
@@ -58,6 +58,10 @@ internal sealed partial class EditorSurface
         TextArea.TextView.BackgroundRenderers.Add(new CaretLayer(this));
         TextArea.AddHandler(PointerPressedEvent, OnPointerPressedTunnel, RoutingStrategies.Tunnel);
         TextArea.AddHandler(PointerReleasedEvent, OnPointerReleasedAfter, RoutingStrategies.Bubble, handledEventsToo: true);
+        // the caret drawn here has no focus of its own to follow, and it starts to blink from "on" after every move
+        TextArea.Caret.PositionChanged += (_, _) => { if (DrawsOwnCarets) RestartBlink(); };
+        TextArea.GotFocus += (_, _) => { if (DrawsOwnCarets) RestartBlink(); };
+        TextArea.LostFocus += (_, _) => { if (DrawsOwnCarets) InvalidateCarets(); };
         HookCoreDocument();
     }
 
@@ -107,6 +111,7 @@ internal sealed partial class EditorSurface
         Doc.Changed -= OnSecretStateMaybeChanged;
         Doc.LanguageChanged -= OnColorLanguageChanged;
         _blink?.Stop();
+        _glide?.Stop();
         _probe?.Dispose();
         _probe = null;
         ReleaseBrackets();
@@ -253,25 +258,65 @@ internal sealed partial class EditorSurface
 
     private void AfterCaretsChanged()
     {
-        bool multi = _others is not null;
+        RefreshCaretDrawing();
+        CaretsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The surface draws the carets itself when there are several, and also for one caret when the blink time of the setting is not the one of AvaloniaEdit, whose caret
+    /// takes no other (see <see cref="CaretLayer"/>). Not in block mode, where the caret may stand beyond the end of a line.
+    /// </summary>
+    internal bool DrawsOwnCarets => _others is not null || (_blinkMs != EditorOptions.DefaultCaretBlinkMs && !BlockMode);
+
+    /// <summary>The blink time of the setting (0: the caret stays on); changing it switches between the caret of AvaloniaEdit and the one drawn here.</summary>
+    private void ApplyCaretBlink(int milliseconds)
+    {
+        int blink = Math.Clamp(milliseconds, 0, 2000);
+        if (blink == _blinkMs) return;
+        _blinkMs = blink;
+        RefreshCaretDrawing();
+    }
+
+    /// <summary>Makes the caret visible and starts its blinking again from "on".</summary>
+    private void RestartBlink()
+    {
+        _caretOn = true;
+        if (_blink is { IsEnabled: true } running)
+        {
+            running.Stop();
+            running.Start();
+        }
+        TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
+    }
+
+    /// <summary>Hides the caret of AvaloniaEdit while this class draws, and runs the blink timer when a caret is drawn here and is to blink.</summary>
+    private void RefreshCaretDrawing()
+    {
         _caretOn = true;
         UpdateNativeCaret();
-        if (multi)
+        if (DrawsOwnCarets && _blinkMs > 0)
         {
             _blink ??= CreateBlink();
+            _blink.Stop();
+            _blink.Interval = TimeSpan.FromMilliseconds(_blinkMs);
             _blink.Start();
         }
         else _blink?.Stop();
         InvalidateCarets();
-        CaretsChanged?.Invoke();
     }
+
+    /// <summary>The time between two changes of the blinking caret drawn here, or null when no timer exists.</summary>
+    internal TimeSpan? CaretBlinkInterval => _blink?.Interval;
+
+    /// <summary>True while the blink timer of the caret drawn here runs.</summary>
+    internal bool CaretBlinking => _blink?.IsEnabled == true;
 
     private DispatcherTimer CreateBlink()
     {
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(BlinkMs) };
+        var timer = new DispatcherTimer();
         timer.Tick += (_, _) =>
         {
-            if (_others is null) return;
+            if (!DrawsOwnCarets) return;
             _caretOn = !_caretOn;
             TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
         };
@@ -284,8 +329,8 @@ internal sealed partial class EditorSurface
         TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
     }
 
-    /// <summary>The native caret is hidden while several are drawn by the renderer, so they all look and blink alike.</summary>
-    private void UpdateNativeCaret() => TextArea.CaretBrush = _others is not null ? Brushes.Transparent : _caretBrush;
+    /// <summary>The native caret is hidden while the carets are drawn by the renderer, so they all look and blink alike.</summary>
+    private void UpdateNativeCaret() => TextArea.CaretBrush = DrawsOwnCarets ? Brushes.Transparent : _caretBrush;
 
     // ---- commands ----
 
@@ -738,7 +783,12 @@ internal sealed partial class EditorSurface
 
         private void DrawCore(TextView textView, DrawingContext drawingContext)
         {
-            if (owner._others is null || !owner._caretOn || owner._caretBrush is not { } brush || !textView.VisualLinesValid) return;
+            if (!owner.DrawsOwnCarets || !owner._caretOn || owner._caretBrush is not { } brush || !textView.VisualLinesValid) return;
+            if (owner._others is null) // one caret: drawn only while the editor has the keyboard, as the caret of AvaloniaEdit is
+            {
+                if (owner.TextArea.IsKeyboardFocusWithin) DrawCaret(textView, drawingContext, brush, owner.CaretOffset, 1);
+                return;
+            }
             DrawCaret(textView, drawingContext, brush, owner.PrimarySel().Caret, 1);
             using (drawingContext.PushOpacity(0.7))
                 foreach (var s in owner.VisibleOthers(textView)) DrawCaret(textView, drawingContext, brush, s.Caret, 0.7);

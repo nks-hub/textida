@@ -3,6 +3,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Snippets;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -219,6 +220,34 @@ internal sealed partial class MainWindow
         try
         {
             if (!File.Exists(path)) File.WriteAllText(path, "{\n}\n");
+            OpenFile(path, null);
+        }
+        catch (IOException e) { SetStatusMessage(e.Message); }
+        catch (UnauthorizedAccessException e) { SetStatusMessage(e.Message); }
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Opens the variables file of the project of the open file. A project that has none yet gets one with no variables, in its root: the nearest folder above the file that
+    /// has a <c>.textida</c> or <c>.git</c> folder. A saved change counts from the next use.
+    /// </summary>
+    internal CommandOutcome EditProjectVariables()
+    {
+        string? directory = Active is { Custom: null } tab && tab.Path is { } document ? Path.GetDirectoryName(Path.GetFullPath(document)) : null;
+        string? path = ProjectVariables.FindFile(directory);
+        if (path is null && ToolVariables.FindProjectRoot(directory) is { } root) path = Path.Combine(root, ProjectVariables.FolderName, UserVariables.FileName);
+        if (path is null)
+        {
+            SetStatusMessage(Loc.Get(K.ProjectVariablesNone));
+            return CommandOutcome.Handled;
+        }
+        try
+        {
+            if (!File.Exists(path))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "{\n}\n");
+            }
             OpenFile(path, null);
         }
         catch (IOException e) { SetStatusMessage(e.Message); }

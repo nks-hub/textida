@@ -68,6 +68,15 @@ public static class AnsiSgr
 
     public static bool Contains(ReadOnlySpan<char> line) => line.Contains(Esc);
 
+    /// <summary>A style with every attribute set, to tell the lines whose end style does not depend on their start.</summary>
+    private static readonly AnsiStyle Everything = new(AnsiColor.Rgb(1, 2, 3), AnsiColor.Rgb(4, 5, 6), true, true);
+
+    /// <summary>
+    /// True when the style a line leaves is the same whatever style it began with: it sets or resets every attribute itself (a reset code, or all of them one by one).
+    /// The lines before such a line do not matter for the lines after it.
+    /// </summary>
+    public static bool EndIsIndependent(ReadOnlySpan<char> line) => Contains(line) && Parse(line).End == Parse(line, Everything).End;
+
     /// <summary>Reads the line; <paramref name="start"/> is the style in force at its beginning.</summary>
     public static AnsiLine Parse(ReadOnlySpan<char> line, AnsiStyle start = default)
     {
@@ -164,5 +173,54 @@ public static class AnsiSgr
     {
         if (text.IsEmpty) return 0;
         return int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int n) ? n : -1;
+    }
+}
+
+/// <summary>
+/// The style that ANSI escapes of a log leave open at the end of a line, which goes on into the next lines until a code changes it (a red line that never resets
+/// colors the lines after it as well). The text is never changed. The style at the start of a line comes from the lines before it: the walk goes back to a line
+/// whose end style does not depend on its start (see <see cref="AnsiSgr.EndIsIndependent"/>), at most <see cref="Lookback"/> lines, and forward again through the
+/// lines that have escapes; what lies farther back counts as default. The style each line left is remembered, so the lines of a screen read one after the other cost one
+/// look each; the caller clears it when the text changes.
+/// shortcut: a log with a style open for more than <see cref="Lookback"/> lines shows the lines past that distance in the default style; widen the limit.
+/// </summary>
+public sealed class AnsiCarry(int lookback)
+{
+    /// <summary>The most lines the walk back goes; 0 reads every line on its own, as a line without a log before it.</summary>
+    public int Lookback { get; set; } = lookback;
+
+    private const int MaxRemembered = 4096;
+    private readonly Dictionary<long, AnsiStyle> _ends = [];
+
+    public void Clear() => _ends.Clear();
+
+    /// <summary>The style in force at the start of the zero-based <paramref name="line"/>; <paramref name="textOf"/> gives the text of a line, or null where there is none.</summary>
+    public AnsiStyle StartOf(long line, Func<long, string?> textOf)
+    {
+        if (Lookback <= 0 || line <= 0) return default;
+        if (_ends.TryGetValue(line - 1, out var known)) return known;
+        var pending = new List<string>();
+        for (long before = line - 1; before >= 0 && line - before <= Lookback; before--)
+        {
+            if (textOf(before) is not { } text) break;
+            if (!AnsiSgr.Contains(text)) continue;
+            pending.Add(text);
+            if (AnsiSgr.EndIsIndependent(text)) break;
+        }
+        var style = default(AnsiStyle);
+        for (int i = pending.Count - 1; i >= 0; i--) style = AnsiSgr.Parse(pending[i], style).End;
+        return style;
+    }
+
+    /// <summary>Reads the zero-based <paramref name="line"/> from the style the lines before it left, and remembers the style it leaves.</summary>
+    public AnsiLine Read(long line, string text, Func<long, string?> textOf)
+    {
+        var parsed = AnsiSgr.Parse(text, StartOf(line, textOf));
+        if (Lookback > 0)
+        {
+            if (_ends.Count >= MaxRemembered) _ends.Clear();
+            _ends[line] = parsed.End;
+        }
+        return parsed;
     }
 }

@@ -1347,6 +1347,12 @@
       "category": "cat.edit"
     },
     {
+      "id": "nks.clips.editProjectVariables",
+      "title": "cmd.clips.editProjectVariables",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.file.newFromTemplate",
       "title": "cmd.file.newFromTemplate",
       "category": "cat.file"
@@ -1816,6 +1822,20 @@
       "when": "editorFocus",
       "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')",
       "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.htmlInsertImage",
+      "title": "cmd.edit.htmlInsertImage",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlInsertLink",
+      "title": "cmd.edit.htmlInsertLink",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
     },
     {
       "id": "nks.tools.sqlDialect",
@@ -3799,6 +3819,13 @@
     },
     {
       "menu": "edit",
+      "command": "nks.clips.editProjectVariables",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 7
+    },
+    {
+      "menu": "edit",
       "command": "nks.edit.convert",
       "group": "4_more/8_insert",
       "submenu": "convert",
@@ -4299,6 +4326,20 @@
       "group": "3_text/5_format",
       "submenu": "format",
       "order": 120
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertImage",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertLink",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 140
     },
     {
       "menu": "tools",
@@ -6596,6 +6637,94 @@
         "interval",
         "delay",
         "seconds"
+      ]
+    },
+    {
+      "key": "advanced.caretBlinkMilliseconds",
+      "type": "integer",
+      "default": 500,
+      "title": "setting.advanced.caretBlinkMilliseconds.title",
+      "description": "setting.advanced.caretBlinkMilliseconds.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 2000,
+      "tags": [
+        "cursor",
+        "caret",
+        "blink",
+        "flash",
+        "milliseconds"
+      ]
+    },
+    {
+      "key": "advanced.smoothScrolling",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.smoothScrolling.title",
+      "description": "setting.advanced.smoothScrolling.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "scroll",
+        "smooth",
+        "wheel",
+        "animation"
+      ]
+    },
+    {
+      "key": "advanced.undoLimit",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.advanced.undoLimit.title",
+      "description": "setting.advanced.undoLimit.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 1000000,
+      "tags": [
+        "undo",
+        "history",
+        "steps",
+        "limit",
+        "memory"
+      ]
+    },
+    {
+      "key": "advanced.highlightMaxLines",
+      "type": "integer",
+      "default": 1024,
+      "title": "setting.advanced.highlightMaxLines.title",
+      "description": "setting.advanced.highlightMaxLines.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 100,
+      "maximum": 1024,
+      "tags": [
+        "highlight",
+        "syntax",
+        "color",
+        "lines",
+        "limit"
+      ]
+    },
+    {
+      "key": "advanced.highlightMaxColumns",
+      "type": "integer",
+      "default": 65536,
+      "title": "setting.advanced.highlightMaxColumns.title",
+      "description": "setting.advanced.highlightMaxColumns.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 1000,
+      "maximum": 65536,
+      "tags": [
+        "highlight",
+        "syntax",
+        "color",
+        "columns",
+        "long",
+        "limit"
       ]
     },
     {

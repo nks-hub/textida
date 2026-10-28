@@ -474,6 +474,7 @@
   "cmd.edit.insertClip": "Insert Clip...",
   "cmd.edit.clipFromSelection": "Save Selection as Clip...",
   "cmd.clips.editVariables": "Edit User Variables",
+  "cmd.clips.editProjectVariables": "Edit Project Variables",
   "cmd.file.newFromTemplate": "New from Template...",
   "cmd.edit.convert": "Convert...",
   "cmd.edit.runRecipe": "Run Edit Recipe...",
@@ -509,6 +510,8 @@
   "cmd.edit.htmlRemoveTag": "Remove Tag",
   "cmd.edit.htmlWrapTag": "Wrap in Tag...",
   "cmd.edit.htmlStripTags": "Strip Tags",
+  "cmd.edit.htmlInsertImage": "Insert Image...",
+  "cmd.edit.htmlInsertLink": "Insert Link...",
   "cmd.tools.sqlDialect": "SQL Dialect...",
   "cmd.help.languageHelp": "Language Help",
   "setting.sql.dialect.title": "Default SQL dialect",
@@ -612,5 +615,15 @@
   "setting.advanced.recentFilesCount.title": "Recent files kept",
   "setting.advanced.recentFilesCount.description": "How many recently opened files the list keeps. 0 keeps none. A lower number cuts the list the next time a file is opened.",
   "setting.advanced.autosaveIntervalSeconds.title": "Autosave interval (seconds)",
-  "setting.advanced.autosaveIntervalSeconds.description": "How often a document with changes is written to its own file when Autosave is on."
+  "setting.advanced.autosaveIntervalSeconds.description": "How often a document with changes is written to its own file when Autosave is on.",
+  "setting.advanced.caretBlinkMilliseconds.title": "Text cursor blink time (milliseconds)",
+  "setting.advanced.caretBlinkMilliseconds.description": "How long the text cursor stays on and then off while it blinks. 0 keeps it on without blinking. The usual value is 500.",
+  "setting.advanced.smoothScrolling.title": "Smooth scrolling with the mouse wheel",
+  "setting.advanced.smoothScrolling.description": "The text glides to where the mouse wheel moves it instead of jumping there. Moving the scroll bar or the caret ends the glide at once.",
+  "setting.advanced.undoLimit.title": "Undo steps kept per document",
+  "setting.advanced.undoLimit.description": "The most undo steps a document keeps. 0 keeps all of them. When the limit is reached the oldest steps are dropped; a document that was saved before them then counts as changed until it is saved again.",
+  "setting.advanced.highlightMaxLines.title": "Lines colored around the screen",
+  "setting.advanced.highlightMaxLines.description": "The most lines the syntax colors are worked out for in one go, counting those above and below the screen. A lower number spares a slow machine: the lines on screen are always colored, but the margin colored above and below them gets smaller, so lines you scroll to may show plain for a moment.",
+  "setting.advanced.highlightMaxColumns.title": "Columns colored in a line",
+  "setting.advanced.highlightMaxColumns.description": "The most characters of a line the syntax colors are worked out for in one go, around the part on screen. A lower number spares a slow machine on very long lines."
 }

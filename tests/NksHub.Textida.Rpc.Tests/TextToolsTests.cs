@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
@@ -56,7 +57,7 @@ public partial class TextToolsTests
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
-            var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
+            var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 100, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
             Assert.True(File.Exists(dll), dll);
@@ -288,8 +289,48 @@ public partial class TextToolsTests
         rig.Recorded.Pick = _ => "sha1";
         Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash));
         Assert.EndsWith("a9993e364706816aba3e25717850c26c9cd0d89d", rig.LastNotice);
-        Assert.Equal(6, rig.Recorded.Picks[0].Items.Count);
+        Assert.Equal(Checksums.All.Count, rig.Recorded.Picks[0].Items.Count); // the list of the checksum dialog of the hex view
         Assert.Contains(rig.Recorded.Picks[0].Items, i => i.Label == "CRC-32");
+        Assert.Contains(rig.Recorded.Picks[0].Items, i => i.Label == "XXH3-64");
+    }
+
+    [Theory]
+    [InlineData("xxh3", "abc", "78af5f94892f3950")]
+    [InlineData("crc-32c", "123456789", "e3069283")]
+    [InlineData("crc32", "123456789", "cbf43926")]
+    [InlineData("adler32", "123456789", "091e01de")]
+    [InlineData("crc-64/xz", "123456789", "995dc9bbdf1939fa")]
+    public async Task The_algorithms_of_the_hex_dialog_give_their_published_values_in_the_text_command(string id, string text, string expected)
+    {
+        await using var rig = await Rig.CreateAsync(Utf8(text), TextCodec.Utf8);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash, extra: $",\"algorithm\":\"{id}\""));
+        Assert.EndsWith(": " + expected, rig.LastNotice);
+    }
+
+    [Fact]
+    public async Task Xxh3_does_not_depend_on_where_the_chunks_are_cut()
+    {
+        var content = RandomBytes(100_000, 5);
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, chunk: 4097);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash, extra: ",\"algorithm\":\"xxh3\""));
+        Assert.EndsWith(": " + Convert.ToHexStringLower(System.IO.Hashing.XxHash3.Hash(content)), rig.LastNotice);
+    }
+
+    [Fact]
+    public async Task A_pasted_hash_is_compared_whatever_separators_it_has_and_an_unknown_length_asks_for_the_algorithm()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("123456789"), TextCodec.Utf8);
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash, extra: ",\"expected\":\"CB:F4:39:26\"")); // 8 digits: CRC-32
+        Assert.EndsWith("Matches the pasted hash.", rig.LastNotice);
+        Assert.Equal("mismatch", await rig.RunAsync(TextToolsPlugin.Hash, extra: ",\"expected\":\"0xcbf43927\""));
+        Assert.EndsWith("Does NOT match the pasted hash.", rig.LastNotice);
+        Assert.Empty(rig.Recorded.Picks);
+
+        rig.Recorded.Pick = _ => "xxh3"; // 16 digits could be several algorithms
+        string xxh3 = Convert.ToHexStringLower(System.IO.Hashing.XxHash3.Hash(Utf8("123456789")));
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Hash, extra: $",\"expected\":\"{xxh3.ToUpperInvariant()}\""));
+        Assert.EndsWith("Matches the pasted hash.", rig.LastNotice);
+        Assert.Single(rig.Recorded.Picks);
     }
 
     [Fact]

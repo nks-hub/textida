@@ -550,6 +550,83 @@ public class ClipTests : IDisposable
         Assert.Null(UserVariables.Load(path).Problem);
     }
 
+    // ---- P8.2.1 variables of a project ----
+
+    /// <summary>A folder of a project with a variables file and a file in it; returns the path of the file.</summary>
+    private string Project(string json, string name = "proj")
+    {
+        string root = Directory.CreateDirectory(Path.Combine(_temp.Path, name)).FullName;
+        string folder = Directory.CreateDirectory(Path.Combine(root, ProjectVariables.FolderName)).FullName;
+        File.WriteAllText(Path.Combine(folder, UserVariables.FileName), json);
+        return _temp.File(Path.Combine(name, "note.txt"), "x");
+    }
+
+    [AvaloniaFact]
+    public void A_variable_of_the_project_wins_over_the_user_variable_in_a_clip_and_a_tool_but_only_in_that_project()
+    {
+        Install("acme", Manifest("\"clips\":[{\"id\":\"c\",\"title\":\"Clip\",\"text\":\"${author}|${client}\"}]"));
+        WriteVariables("{\"author\":\"Ann\",\"client\":\"user client\"}");
+        string inProject = Project("{\"client\":\"Acme\"}");
+        var tab = _w.OpenFile(inProject, null);
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.CaretOffset = 0;
+
+        Run("nks.edit.insertClip");
+        Pick("Clip");
+        Assert.Equal("Ann|Acmex", Text(tab));
+        Assert.Equal(["Ann|Acme"], _w.ResolveTool(new ToolSpec("t", ToolTestKit.Dotnet, ["${author}|${client}"]), tab).Args);
+
+        var outside = _w.OpenFile(_temp.File("outside.txt", "y"), null);
+        Assert.Equal(["Ann|user client"], _w.ResolveTool(new ToolSpec("t", ToolTestKit.Dotnet, ["${author}|${client}"]), outside).Args);
+    }
+
+    [AvaloniaFact]
+    public void A_damaged_variables_file_of_the_project_stops_a_clip_and_names_the_file()
+    {
+        Install("acme", Manifest("\"clips\":[{\"id\":\"c\",\"title\":\"Clip\",\"text\":\"hi\"}]"));
+        string file = Project("{ not json");
+        var tab = _w.OpenFile(file, null);
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.CaretOffset = 0;
+
+        Run("nks.edit.insertClip");
+        Pick("Clip");
+
+        Assert.Equal("x", Text(tab));
+        Assert.Contains(Loc.Get(K.ClipVariablesBroken, ("reason", "")).Split(':')[0], _w.StatusLeftText);
+        Assert.Contains(Path.Combine(ProjectVariables.FolderName, UserVariables.FileName), _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public void The_project_variables_command_opens_the_file_of_the_project_and_creates_it_in_the_root_when_there_is_none()
+    {
+        // a project that has the file: that file is opened and left as it is
+        string existing = Project("{\"a\":\"1\"}", "has");
+        _w.OpenFile(existing, null);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.clips.editProjectVariables"));
+        string file = Path.Combine(_temp.Path, "has", ProjectVariables.FolderName, UserVariables.FileName);
+        Assert.Equal(file, _w.Active!.Path);
+        Assert.Equal("{\"a\":\"1\"}", File.ReadAllText(file));
+
+        // a project root (a .git folder) without it: the file is created there, empty and valid
+        string root = Directory.CreateDirectory(Path.Combine(_temp.Path, "git-project")).FullName;
+        Directory.CreateDirectory(Path.Combine(root, ".git"));
+        string deep = Directory.CreateDirectory(Path.Combine(root, "src", "deep")).FullName;
+        _w.OpenFile(_temp.File(Path.Combine("git-project", "src", "deep", "a.txt"), "z"), null);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.clips.editProjectVariables"));
+        string created = Path.Combine(root, ProjectVariables.FolderName, UserVariables.FileName);
+        Assert.Equal(created, _w.Active!.Path);
+        Assert.Empty(UserVariables.Load(created).Values);
+        Assert.Null(UserVariables.Load(created).Problem);
+        Assert.False(Directory.Exists(Path.Combine(deep, ProjectVariables.FolderName)));
+
+        // no project above the file, and no file at all: nothing is created
+        var outside = _w.OpenFile(_temp.File("loose.txt", "q"), null);
+        Run("nks.clips.editProjectVariables");
+        Assert.Equal(outside.Path, _w.Active!.Path);
+        Assert.Equal(Loc.Get(K.ProjectVariablesNone), _w.StatusMessageText);
+    }
+
     // ---- P4.1.4 file templates ----
 
     private const string Page = "\"templates\":[{\"id\":\"page\",\"title\":\"Page\",\"text\":\"<h1>${title}</h1>\\n<p>$|</p>\\n<footer>$|</footer>\"," +
