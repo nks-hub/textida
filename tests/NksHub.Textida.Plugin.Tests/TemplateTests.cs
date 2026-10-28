@@ -27,6 +27,7 @@ public class TemplateTests
         // The native linker finds the C++ toolchain through vswhere, which Visual Studio does not put on PATH.
         var installer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio", "Installer");
         if (Directory.Exists(installer)) psi.Environment["PATH"] = Environment.GetEnvironmentVariable("PATH") + Path.PathSeparator + installer;
+        psi.Environment["VSCMD_SKIP_SENDTELEMETRY"] = "1"; // see SdkAotTests: the telemetry shell of vcvarsall breaks the native link where a drive is not ready
         psi.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         psi.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         psi.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en"; // the output is read below

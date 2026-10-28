@@ -31,6 +31,8 @@ public class SdkAotTests
         // The native linker finds the C++ toolchain through vswhere, which Visual Studio does not put on PATH.
         var installer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio", "Installer");
         if (Directory.Exists(installer)) psi.Environment["PATH"] = Environment.GetEnvironmentVariable("PATH") + Path.PathSeparator + installer;
+        // vcvarsall starts a PowerShell for its telemetry; where a drive of the session is not ready (a stale network drive) that shell writes an error that lands in the path of the linker
+        psi.Environment["VSCMD_SKIP_SENDTELEMETRY"] = "1";
         foreach (var a in new[] { "publish", Path.Combine(RepoRoot(), project), "-c", "Release", "-r", Rid!, "-o", output, "--nologo" })
             psi.ArgumentList.Add(a);
         using (var publish = Process.Start(psi)!)
