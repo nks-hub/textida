@@ -41,7 +41,8 @@ public partial class TextToolsTests
         public required UiApiTests.RecordingUi Recorded { get; init; }
         public required DocumentApiTests.RecordingTools Tools { get; init; }
 
-        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12)
+        /// <param name="holdReads">When given, each read of bytes by the plugin waits for the task it returns, so a test can cancel a run that cannot have finished yet however slow the machine is.</param>
+        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, Func<Task>? holdReads = null)
         {
             var recorded = new UiApiTests.RecordingUi();
             PluginHost.PluginHost? host = null;
@@ -57,7 +58,17 @@ public partial class TextToolsTests
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
+            PluginApiCallback documents = docs.HandleAsync;
+            if (holdReads is not null)
+            {
+                var direct = documents;
+                documents = async (plugin, method, parameters, ct) =>
+                {
+                    if (method == DocumentMethods.ReadBytes) await holdReads().WaitAsync(ct);
+                    return await direct(plugin, method, parameters, ct);
+                };
+            }
+            host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(documents, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
             Assert.True(File.Exists(dll), dll);
             host.Register(new PluginSpec("tools", "Tools", T.DotnetHost, [dll, "--chunk-bytes", chunk.ToString(), "--progress-ms", "0"], ["onCommand:tools"]));
@@ -194,9 +205,11 @@ public partial class TextToolsTests
     [Fact]
     public async Task A_cancelled_statistic_is_reported_as_incomplete_with_how_far_it_got()
     {
-        await using var rig = await Rig.CreateAsync(Utf8(string.Concat(Enumerable.Repeat("word and more\n", 1 << 18))), TextCodec.Utf8, chunk: 1 << 10);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var rig = await Rig.CreateAsync(Utf8(string.Concat(Enumerable.Repeat("word and more\n", 1 << 18))), TextCodec.Utf8, chunk: 1 << 10, holdReads: () => release.Task);
         var run = rig.RunAsync(TextToolsPlugin.Statistics);
         await CancelTaskAsync(rig);
+        release.SetResult();
 
         Assert.Equal("incomplete", await run);
         Assert.StartsWith("Incomplete statistics, ", rig.LastNotice);
@@ -207,12 +220,18 @@ public partial class TextToolsTests
     [Fact]
     public async Task Each_cancelled_statistic_gives_back_its_snapshot_and_its_task()
     {
-        await using var rig = await Rig.CreateAsync(Utf8(string.Concat(Enumerable.Repeat("word and more\n", 1 << 18))), TextCodec.Utf8, chunk: 1 << 10);
+        // the reads stay held until the test has cancelled the run; each round gets a gate of its own
+        var gates = new TaskCompletionSource[3];
+        for (int i = 0; i < gates.Length; i++) gates[i] = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int round = 0;
+        await using var rig = await Rig.CreateAsync(Utf8(string.Concat(Enumerable.Repeat("word and more\n", 1 << 18))), TextCodec.Utf8, chunk: 1 << 10, holdReads: () => gates[Volatile.Read(ref round)].Task);
         // the rig allows two snapshots and two tasks, so the third run starts only if the cancelled ones gave theirs back
         for (int i = 0; i < 3; i++)
         {
+            Volatile.Write(ref round, i);
             var run = rig.RunAsync(TextToolsPlugin.Statistics);
             await CancelTaskAsync(rig, taskIndex: i);
+            gates[i].SetResult();
             Assert.Equal("incomplete", await run);
         }
         Assert.Equal(3, rig.Recorded.Ended.Count);

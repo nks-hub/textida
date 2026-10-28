@@ -68,6 +68,8 @@ public partial class PluginSdkTests
         public readonly List<(string Method, string Json)> Requests = [];
         public readonly List<(string Method, string Json)> Notifications = [];
         public Func<string, JsonElement, byte[]?> Answer = (_, _) => "{}"u8.ToArray();
+        /// <summary>Runs before the answer to a request is sent, so a test can put something on the wire ahead of it.</summary>
+        public Func<string, ValueTask>? BeforeAnswer;
         public JsonRpcDispatcher Rpc = null!;
         Task _run = null!;
 
@@ -78,10 +80,11 @@ public partial class PluginSdkTests
             var toEditor = new MemoryPipe();
             editor._run = PluginRunner.RunAsync(editor.Plugin, T.Roomy, toPlugin, toEditor);
             editor.Rpc = new JsonRpcDispatcher(toEditor, toPlugin, RpcProtocols.Plugin, T.Roomy, new DelegateHandler(
-                (method, p, _) =>
+                async (method, p, _) =>
                 {
                     lock (editor.Requests) editor.Requests.Add((method, p.GetRawText()));
-                    return ValueTask.FromResult(editor.Answer(method, p));
+                    if (editor.BeforeAnswer is { } before) await before(method);
+                    return editor.Answer(method, p);
                 },
                 (method, p) =>
                 {
@@ -190,6 +193,24 @@ public partial class PluginSdkTests
         var progress = Assert.Single(editor.Seen("ui/task/progress"));
         Assert.Equal("{\"task\":\"t1\",\"fraction\":0.25,\"message\":\"a quarter\"}", progress.Json);
         Assert.Equal("{\"task\":\"t1\"}", Assert.Single(editor.Seen("ui/task/end")).Json);
+    }
+
+    [Fact]
+    public async Task A_cancel_that_reaches_the_plugin_before_the_answer_to_the_start_of_its_task_is_not_lost()
+    {
+        await using var editor = await Editor.StartAsync();
+        editor.Answer = (method, _) => method == "ui/task/start" ? "{\"task\":\"t1\"}"u8.ToArray() : "{}"u8.ToArray();
+        // the editor shows the task as soon as it has the start; a cancel then reaches the plugin before the answer that names the task, and the plugin has handled it when the answer arrives
+        editor.BeforeAnswer = async method =>
+        {
+            if (method != "ui/task/start") return;
+            await editor.Rpc.NotifyAsync(PluginMethods.Event, T.Json("{\"name\":\"ui/taskCancelled\",\"payload\":{\"task\":\"t1\"}}"));
+            await T.Until(() => { lock (editor.Notifications) return editor.Notifications.Any(n => n.Method == PluginMethods.EventsHandled); });
+        };
+
+        var running = editor.CommandAsync("probe.task");
+
+        Assert.Equal("cancelled", (await running.WaitAsync(TimeSpan.FromSeconds(15))).GetProperty("status").GetString());
     }
 
     [Fact]

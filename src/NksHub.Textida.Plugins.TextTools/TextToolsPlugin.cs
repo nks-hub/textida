@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
@@ -48,20 +47,9 @@ public sealed class TextToolsPlugin : PluginBase
     public const string CopyAsJson = "table.copyAs.json";
     public const string CopyAsHtml = "table.copyAs.html";
 
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _tasks = new();
-
     private sealed record Context(string Document, long Revision, string Language, JsonElement Parameters);
 
     private sealed record Range(long Start, long End);
-
-    protected override ValueTask OnEventAsync(JsonElement eventPayload)
-    {
-        if (eventPayload.TryGetProperty("name", out var name) && name.GetString() == UiEvents.TaskCancelled
-            && eventPayload.TryGetProperty("payload", out var payload) && payload.TryGetProperty("task", out var task)
-            && task.GetString() is { } id && _tasks.TryGetValue(id, out var source))
-            source.Cancel();
-        return ValueTask.CompletedTask;
-    }
 
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
@@ -167,7 +155,7 @@ public sealed class TextToolsPlugin : PluginBase
 
         public async ValueTask DisposeAsync()
         {
-            owner._tasks.TryRemove(task, out _);
+            owner.ForgetTask(task);
             await owner.CallAsync(UiMethods.TaskEnd, $"{{\"task\":\"{task}\"}}", CancellationToken.None);
             await owner.CallAsync(DocumentMethods.SnapshotRelease, $"{{\"snapshot\":\"{snapshot}\"}}", CancellationToken.None);
         }
@@ -185,8 +173,7 @@ public sealed class TextToolsPlugin : PluginBase
         }
         var task = await CallAsync(UiMethods.TaskStart, $"{{\"title\":\"{Quote(title)}\",\"cancellable\":true}}", ct);
         var taskId = task.GetProperty("task").GetString()!;
-        var source = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _tasks[taskId] = source;
+        var source = TrackTask(taskId, ct);
         return (new Streamed(this, snapshotId, taskId), source);
     }
 
