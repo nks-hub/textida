@@ -48,7 +48,7 @@ public static class ToolLocator
             try
             {
                 var candidate = Path.Combine(folder, program + extension);
-                if (File.Exists(candidate)) return candidate;
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate); // the project folders are written with "/", cmd.exe reads that as a switch
             }
             catch (ArgumentException) { /* a PATH entry with characters a path cannot have */ }
         return null;

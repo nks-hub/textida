@@ -121,7 +121,7 @@ public sealed class LanguageCatalogTests : IDisposable
         string installed = InstallFakeTool(Path.Combine(project, projectFolder), tool);
         string start = Path.Combine(project, "src", "deep");
         Directory.CreateDirectory(start);
-        Assert.Equal(installed, ToolLocator.Find(tool, start), ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(Path.GetFullPath(installed), ToolLocator.Find(tool, start), ignoreCase: OperatingSystem.IsWindows());
         Assert.Null(ToolLocator.Find(tool)); // without a folder to start from only the PATH counts
         Assert.Null(ToolLocator.Find(tool, Path.Combine(_dir, "elsewhere")));
     }
