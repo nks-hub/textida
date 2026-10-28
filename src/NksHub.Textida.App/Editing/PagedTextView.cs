@@ -1079,6 +1079,7 @@ internal sealed partial class PagedTextView : Grid
             if (result is not { Applied: true }) (_caret, _lineMemo) = (caretBefore, memoBefore);
         }
         TypingTrace.End("paged.docApply", tApply);
+        if (result.Conflict == ConflictReason.Saving) Refused?.Invoke(Loc.Get(K.StatusSaveBusy)); // an in-place save does not take edits; a streamed one does
         if (!result.Applied) return false;
         _anchor = -1;
         _lineMemo = (Doc.Revision, caretAfter, lineAfter);
@@ -1231,7 +1232,11 @@ internal sealed partial class PagedTextView : Grid
         _own = true;
         try { result = redo ? Doc.Redo() : Doc.Undo(); }
         finally { _own = false; Doc.Changed -= Capture; }
-        if (result is null) return;
+        if (result is null)
+        {
+            if (redo ? Doc.RedoBlockedBySave : Doc.UndoBlockedBySave) Refused?.Invoke(Loc.Get(K.StatusSaveBusy));
+            return;
+        }
         long target = result.Selections.Count > 0 ? result.Selections[0].Start
             : changes.Count > 0 && changes[^1].Edits.Count > 0 ? changes[^1].Edits[0].Start + changes[^1].Edits[0].Inserted : _caret;
         UpdateScrollRange();
@@ -1337,6 +1342,7 @@ internal sealed partial class PagedTextView : Grid
             case Key.Delete when !command: DeleteForward(); break;
             case Key.Enter when !command: InsertText(_doc.NewLine(_options.ConfiguredEol), typing: false); break;
             case Key.Tab when !command && !e.KeyModifiers.HasFlag(KeyModifiers.Shift): Tab(); break;
+            case Key.Escape when Doc.IsSaving: Doc.CancelSave(); break;
             default: base.OnKeyDown(e); return;
         }
         }

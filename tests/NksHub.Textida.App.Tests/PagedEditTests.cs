@@ -16,14 +16,16 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public class PagedEditTests : IDisposable
 {
+    private readonly ITestOutputHelper _output;
     private readonly TempDir _temp = new();
     private readonly App _app;
     private readonly MainWindow _w;
 
     static PagedEditTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    public PagedEditTests()
+    public PagedEditTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp);
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
@@ -531,6 +533,216 @@ public class PagedEditTests : IDisposable
             Assert.Same(tab.Paged, provider.Asked);
         }
         finally { EditorAutomationHook.Provider = null; }
+    }
+
+    // ---- save in the background ----
+
+    private static void PumpUntil(Func<bool> condition, int seconds = 10)
+    {
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        while (!condition() && DateTime.UtcNow < until)
+        {
+            Thread.Sleep(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(condition());
+    }
+
+    private static byte[] Whole(DocTab tab) => tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength));
+
+    /// <summary>Types two characters, so that the next save writes a new file, and starts the save with Ctrl+S; it stops where the worker is about to write the first byte.</summary>
+    private (DocTab Tab, byte[] Original, byte[] AtSave, ManualResetEventSlim Gate) StreamedSaveHeldOpen()
+    {
+        var original = Rows(150_000);
+        var tab = OpenPaged(original);
+        TestApp.Type(_w, "ab");
+        var atSave = Whole(tab);
+        var reached = new ManualResetEventSlim();
+        var gate = new ManualResetEventSlim();
+        tab.Doc.Doc.StreamSaveStep = (step, _) =>
+        {
+            if (step != "temp-writing") return; // runs on the worker, so the window stays usable
+            reached.Set();
+            gate.Wait(20_000);
+        };
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => reached.IsSet);
+        return (tab, original, atSave, gate);
+    }
+
+    [AvaloniaFact]
+    public void Saving_a_large_file_runs_in_the_background_and_typing_meanwhile_stays_unsaved()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Assert.True(doc.IsSaving);
+        Assert.True(doc.EditsDuringSave);
+        Assert.Contains(Loc.Get(K.HexSaving), _w.StatusLeftText);
+
+        long savedRevision = doc.Revision;
+        TestApp.Type(_w, "XY");
+        var edited = Whole(tab);
+        Assert.NotEqual(atSave, edited);
+        Press(Key.S, TestApp.Mod); // a second save while one runs is refused, not queued
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.StatusSaveBusy)));
+
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(atSave, File.ReadAllBytes(tab.Path!));
+        Assert.Equal(edited, Whole(tab));
+        Assert.True(doc.IsModified);
+        Assert.Equal(savedRevision, doc.SavedRevision);
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexSavedEditsPending)));
+
+        WaitIndexed(tab); // the new file is indexed again
+        for (int i = 0; i < 5 && doc.IsModified; i++) Press(Key.Z, TestApp.Mod);
+        Assert.Equal(atSave, Whole(tab));
+        Assert.False(doc.IsModified);
+    }
+
+    [AvaloniaFact]
+    public void Escape_cancels_a_running_save_of_a_large_file_and_leaves_the_file_as_it_was()
+    {
+        var (tab, original, _, gate) = StreamedSaveHeldOpen();
+        var doc = tab.Doc.Doc;
+        Press(Key.Escape);
+        gate.Set();
+        PumpUntil(() => !doc.IsSaving);
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+        Assert.True(doc.IsModified);
+        PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexSaveCancelled)));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(tab.Path!)!, "*.tmp"));
+    }
+
+    [AvaloniaFact]
+    public async Task Closing_the_tab_or_reloading_during_a_save_waits_or_is_refused()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        string path = tab.Path!;
+        Assert.False(await _w.ReloadAsync(tab));
+        Assert.Contains(Loc.Get(K.StatusSaveBusy), _w.StatusLeftText);
+
+        var close = _w.CloseTabAsync(tab);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(close.IsCompleted);
+        Assert.Single(_w.Tabs);
+        Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => close.IsCompleted);
+        Assert.True(await close); // nothing was typed after the snapshot, so nothing is left to ask about
+        Assert.Empty(_w.Tabs);
+        Assert.Equal(atSave, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public void Closing_the_window_during_a_save_waits_for_the_save_and_then_closes()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        string path = tab.Path!;
+        _w.Close();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains(_w, _app.Windows); // the window stays while the worker writes from its document
+        Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => !_app.Windows.Contains(_w));
+        Assert.Equal(atSave, File.ReadAllBytes(path));
+    }
+
+    private string[] BackupCopies() => Directory.Exists(_app.Backups.Policy.Directory) ? Directory.GetFiles(_app.Backups.Policy.Directory!, "*.bak", SearchOption.AllDirectories) : [];
+
+    private static long WriteRows(string path, long atLeast)
+    {
+        byte[] unit = Rows(100_000);
+        long length = 0;
+        using var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20);
+        for (; length < atLeast; length += unit.Length) fs.Write(unit);
+        return length;
+    }
+
+    private static string HashOfFile(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20, FileOptions.SequentialScan);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fs));
+    }
+
+    [AvaloniaFact]
+    public void A_streamed_save_first_copies_the_old_file_and_then_replaces_it()
+    {
+        string path = Path.Combine(_temp.Path, "backed.log");
+        long length = WriteRows(path, 4L << 20);
+        string oldHash = HashOfFile(path);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 120);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 120);
+
+        var copy = Assert.Single(BackupCopies());
+        Assert.Equal(oldHash, HashOfFile(copy));
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_file_over_the_backup_limit_is_saved_without_a_copy_and_without_an_error()
+    {
+        string path = Path.Combine(_temp.Path, "over.log");
+        long length = WriteRows(path, Core.PagedSpillPlaceholders.SaveBackupMaxBytes + 1);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 300);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 600);
+
+        Assert.Empty(BackupCopies());
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    [Trait("Category", "Perf")]
+    public void Typing_during_the_save_of_a_multi_GiB_file_stays_within_the_limits()
+    {
+        string path = Path.Combine(_temp.Path, "huge.log");
+        long length = WriteRows(path, 3L << 30);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 600);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab"); // a length change: the save writes a new file
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => doc.IsSaving);
+        var times = new List<double>();
+        while (doc.IsSaving && times.Count < 3000)
+        {
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            TestApp.Type(_w, "x");
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+        }
+        PumpUntil(() => !doc.IsSaving, seconds: 900);
+
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)], p99 = times[(int)(times.Count * 0.99)];
+        _output.WriteLine($"Typing during a 3 GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
+        Assert.True(times.Count >= 100, $"only {times.Count} keystrokes fitted in the save");
+        Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms during the save");
+        Assert.True(p99 <= Core.PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");
+        Assert.Equal(length + 2, new FileInfo(path).Length); // the file is the revision of the save: the two characters, not the "x" typed after
+        Assert.True(doc.IsModified);
     }
 
     private sealed class RecordingProvider : IEditorAutomationProvider

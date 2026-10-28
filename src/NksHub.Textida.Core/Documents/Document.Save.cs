@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace NksHub.Textida.Core.Documents;
@@ -14,6 +15,9 @@ public enum SaveMode
 /// <summary>What a save would do right now: the way it writes and, for an in-place save, the ranges it touches.</summary>
 public sealed record SavePlan(SaveMode Mode, IReadOnlyList<ByteRange> Ranges, long ChangedBytes);
 
+/// <summary>How far a save that writes a whole new file has come: <paramref name="Written"/> of <paramref name="Total"/> bytes of the revision it saves.</summary>
+public readonly record struct SaveProgress(long Written, long Total);
+
 public sealed partial class Document
 {
     private bool _saving;
@@ -22,6 +26,9 @@ public sealed partial class Document
 
     /// <summary>Test seam of the in-place write.</summary>
     internal PatchHooks? InPlaceHooks;
+
+    /// <summary>Test seam: milliseconds between two progress reports of a streamed save; 0 reports after every buffer.</summary>
+    internal int ProgressIntervalMs = PagedSpillPlaceholders.SaveProgressIntervalMs;
 
     /// <summary>Test seam of the streamed save: called with the step (<c>temp-writing</c> on the worker before the first byte, <c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
     internal Action<string, string>? StreamSaveStep;
@@ -249,10 +256,12 @@ public sealed partial class Document
 
     /// <summary>
     /// Saves like <see cref="Save"/>, but the bytes are written on a worker thread from a snapshot of the current revision, so the
-    /// caller's thread stays free. The document takes no change until the task ends. Cancelling before the data is committed leaves the
+    /// caller's thread stays free. The document takes no change until the task ends, except edits, undo and redo while a whole new file is streamed by a
+    /// backend that can keep them (<see cref="EditsDuringSave"/>); they stay unsaved. Cancelling before the data is committed leaves the
     /// file as it was; the task then ends as cancelled. Call it from the thread that owns the document.
     /// </summary>
-    public async Task<SaveResult> SaveAsync(string? path = null, bool overwriteExternalChanges = false, CancellationToken cancellationToken = default)
+    /// <param name="progress">Told how many bytes of the new file are written, at most once per <see cref="PagedSpillPlaceholders.SaveProgressIntervalMs"/>; called on the worker thread, so use <see cref="Progress{T}"/> to get it on the caller's thread. Not used by an in-place save.</param>
+    public async Task<SaveResult> SaveAsync(string? path = null, bool overwriteExternalChanges = false, CancellationToken cancellationToken = default, IProgress<SaveProgress>? progress = null)
     {
         ThrowIfDisposed();
         if (_saving) throw new InvalidOperationException("A save is already running.");
@@ -277,7 +286,7 @@ public sealed partial class Document
                 _editsDuringSave = true;
             }
             // an in-place save checks the file once, cheaply, before the blocks it overwrites; a new file checks before and after it is written
-            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(CheckExternalChange, CancellationToken.None) is { } early) return new(false, early);
+            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } early) return new(false, early);
             ct.ThrowIfCancellationRequested();
 
             string hash;
@@ -310,7 +319,7 @@ public sealed partial class Document
                 string tempPath = temp;
                 try
                 {
-                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep), CancellationToken.None);
+                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
                     StreamSaveStep?.Invoke("temp-written", tempPath);
                 }
                 catch (SnapshotInvalidatedException) when (guard)
@@ -318,7 +327,7 @@ public sealed partial class Document
                     if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } changed) return new(false, changed);
                     throw;
                 }
-                if (guard && await Task.Run(CheckExternalChange, CancellationToken.None) is { } late) return new(false, late);
+                if (guard && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } late) return new(false, late);
                 ct.ThrowIfCancellationRequested();
                 _snapshot = null;
                 snapshot = null;
@@ -346,7 +355,7 @@ public sealed partial class Document
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/>; the new baseline is taken from the bytes written, not from the target afterwards.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step, IProgress<SaveProgress>? progress, int intervalMs)
     {
         using var fs = new FileStream(temp, new FileStreamOptions
         {
@@ -360,13 +369,21 @@ public sealed partial class Document
         var blocks = new OriginalBlockHashes();
         var hashing = new HashingStream(fs, blocks);
         var buf = new byte[1 << 20];
-        for (long at = 0; at < snapshot.ByteLength;)
+        long total = snapshot.ByteLength;
+        var clock = Stopwatch.StartNew();
+        long nextReport = intervalMs;
+        for (long at = 0; at < total;)
         {
             ct.ThrowIfCancellationRequested();
             int n = snapshot.Read(at, buf);
             if (n == 0) throw new EndOfStreamException("The snapshot ended before its declared length.");
             hashing.Write(buf.AsSpan(0, n));
             at += n;
+            if (progress is not null && (at == total || clock.ElapsedMilliseconds >= nextReport))
+            {
+                progress.Report(new(at, total));
+                nextReport = clock.ElapsedMilliseconds + intervalMs;
+            }
         }
         fs.Flush(true);
         return (hashing.Finish(), blocks);

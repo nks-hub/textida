@@ -158,6 +158,9 @@ public sealed record LargeOp(string Name, int Permille, long Delete, long Insert
 {
     public bool IsBulk => Name == "bulk";
 
+    /// <summary>Takes back the op before it with the undo of the document; the model returns to the state before that op.</summary>
+    public bool IsUndo => Name == "undo";
+
     public (long Offset, long Delete, long Insert) Resolve(long length)
     {
         long offset = length / 1000 * Permille + length % 1000 * Permille / 1000;
@@ -194,7 +197,7 @@ public static class LargeScenario
     /// <summary>Edits of the Replace All of the script: more than <see cref="JournalPlaceholders.MaxInlineEditCount"/>, so the journal writes them as a list.</summary>
     public const int BulkEdits = 6000;
 
-    public static readonly string[] Points = ["spill-written", "journal-flushed", "temp-written", "before-swap", "mid-swap", "after-swap", "saved", "post-save", "cancel"];
+    public static readonly string[] Points = ["spill-written", "journal-flushed", "mid-write", "temp-written", "before-swap", "mid-swap", "after-swap", "saved", "post-save", "cancel"];
 
     public static (List<LargeOp> Before, List<LargeOp> During, List<LargeOp> After) Plan(int burst, int big)
     {
@@ -205,7 +208,7 @@ public static class LargeScenario
         before.Add(new("big-1", 500, 0, big, 1003));
         before.Add(new("replace", 700, 20, 30, 1004));
         before.Add(new("big-2", 50, 0, big * 2L / 3, 1005));
-        var during = new List<LargeOp> { new("big-3", 900, 0, big * 2L / 3, 1006), new("small-2", 200, 0, 10, 1007), new("delete-2", 400, 200, 0, 0) };
+        var during = new List<LargeOp> { new("big-3", 900, 0, big * 2L / 3, 1006), new("small-2", 200, 0, 10, 1007), new("delete-2", 400, 200, 0, 0), new("undo", 0, 0, 0, 0) };
         return (before, during, [new("after", 600, 0, 7, 1008)]);
     }
 
@@ -213,6 +216,15 @@ public static class LargeScenario
     {
         if (flush) session.Flush();
         Process.GetCurrentProcess().Kill();
+    }
+
+    /// <summary>Ends the process on the worker thread when the temporary file is half written, while the main thread keeps editing.</summary>
+    private sealed class KillHalfway(JournalSession session) : IProgress<SaveProgress>
+    {
+        public void Report(SaveProgress progress)
+        {
+            if (progress.Written * 2 >= progress.Total) Kill(session, flush: true);
+        }
     }
 
     /// <summary>Edits, saves while editing and dies at <paramref name="point"/> (<c>slow</c> sleeps between steps so a kill from outside lands anywhere).</summary>
@@ -234,6 +246,12 @@ public static class LargeScenario
 
         void Do(LargeOp op)
         {
+            if (op.IsUndo)
+            {
+                if (doc.Undo() is null) throw new InvalidOperationException("the undo was refused");
+                Pause();
+                return;
+            }
             if (op.IsBulk)
             {
                 var edits = op.BulkEdits().Select(e => new ByteEdit(new ByteRange(e.Offset, e.Offset + 1), e.Bytes)).ToList();
@@ -292,7 +310,8 @@ public static class LargeScenario
                     break;
             }
         };
-        var save = doc.SaveAsync();
+        if (point == "mid-write") doc.ProgressIntervalMs = 0; // a report after every MiB, so the kill lands inside the write of a small file
+        var save = doc.SaveAsync(progress: point == "mid-write" ? new KillHalfway(session) : null);
         foreach (var op in during) Do(op);
         gate.Set();
         try { save.GetAwaiter().GetResult(); }
@@ -359,6 +378,11 @@ public static class LargeScenario
         var states = new List<LargeModel> { new(size) };
         foreach (var op in script)
         {
+            if (op.IsUndo)
+            {
+                states.Add(states[^2].Clone());
+                continue;
+            }
             var next = states[^1].Clone();
             if (op.IsBulk) op.ApplyBulk(next);
             else
@@ -377,6 +401,7 @@ public static class LargeScenario
         {
             case "spill-written": (docStates, fileStates) = ([big1, big1 + 1], [0]); break;
             case "journal-flushed": (docStates, fileStates) = ([a], [0]); break;
+            case "mid-write": (docStates, fileStates) = ([.. Enumerable.Range(a, b + 1)], [0]); break; // the kill meets the edits of the save at any of them
             case "temp-written" or "before-swap" or "mid-swap": (docStates, fileStates) = ([a + b], [0]); break;
             case "after-swap" or "saved": (docStates, fileStates) = ([a + b], [a]); break;
             case "post-save": (docStates, fileStates) = ([a + b + c], [a]); break;

@@ -225,7 +225,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(od.UserReadOnly ? K.SpecialSaveRefused : K.LockSaveRefused));
             return false;
         }
-        if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite);
+        if (tab.Hex is not null || od.IsLarge) return await TrackedSaveAsync(od, () => SaveBackgroundAsync(tab, overwrite));
         PrepareForSave(od);
         try
         {
@@ -296,9 +296,10 @@ internal sealed partial class MainWindow
             if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return false;
         }
 
-        if (tab.Hex is not null) return await SaveHexAsync(tab, overwrite: false, choice.Path);
+        if (tab.Hex is not null) return await TrackedSaveAsync(od, () => SaveBackgroundAsync(tab, overwrite: false, choice.Path));
         // a Save As is a manual save too: the actions of the folder it writes to run around it
-        return await SaveWithActionsAsync(tab, SaveOrigin.Manual, () => SaveAsFileAsync(tab, choice), choice.Path);
+        Task<bool> SaveAs() => SaveWithActionsAsync(tab, SaveOrigin.Manual, () => SaveAsFileAsync(tab, choice), choice.Path);
+        return od.IsLarge ? await TrackedSaveAsync(od, SaveAs) : await SaveAs();
     }
 
     private async Task<bool> SaveAsFileAsync(DocTab tab, SaveAsChoice choice)
@@ -319,7 +320,9 @@ internal sealed partial class MainWindow
                 replacement = report.HasLoss ? "?" : null;
                 break;
             }
-            var result = doc.SaveAs(choice.Path, codec, replacement);
+            // text in paged mode keeps its encoding (the dialog offers no other) and is written on a worker, so the window stays usable
+            SaveResult? written = od.IsLarge ? (await RunBackgroundSaveAsync(tab, overwrite: false, choice.Path))?.Result : doc.SaveAs(choice.Path, codec, replacement);
+            if (written is not { } result) return false;
             while (result.Loss is { HasLoss: true } loss)
             {
                 var (answer, picked) = await ConfirmLossAsync(od, loss, codec, Loc.Get(K.LossSaveReplaced));
@@ -383,6 +386,11 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         if (od.Path is not { } path) return false;
+        if (od.Doc.IsSaving)
+        {
+            SetStatusMessage(Loc.Get(K.StatusSaveBusy)); // the document cannot be replaced under a running save
+            return false;
+        }
         if (od.Doc.IsModified)
         {
             var ask = new ChoiceRequest(Loc.Get(K.DialogReloadTitle), Loc.Get(K.DialogReloadMessage, ("title", od.Title)),

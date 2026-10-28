@@ -1139,6 +1139,7 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 ### Čo ide
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
 - Písať, mazať (Backspace a Delete), Enter a Tab na mieste kurzora. Späť a Znova. Uložiť.
+- Uloženie (Ctrl+S) beží na pozadí: okno zostáva použiteľné, stavový riadok ukazuje, koľko percent nového súboru je zapísaných, a Esc uloženie zruší skôr, ako sa dáta potvrdia (súbor zostane bez zmeny). Môžete medzitým písať ďalej: do súboru sa zapíše text, aký bol v okamihu stlačenia Uložiť, neskoršie úpravy zostanú neuložené a karta ich ukazuje ako neuložené zmeny. Späť a Znova fungujú počas ukladania aj po ňom. Uloženie, ktoré len prepisuje bajty rovnakej dĺžky, zapíše len tieto bajty a počas svojho krátkeho trvania úpravy neprijíma. Súbor väčší ako 1 GiB (zatiaľ provizórny limit) sa uloží bez kópie starej verzie v priečinku záloh; starý súbor zostane nedotknutý, kým nie je nový celý.
 - Hľadať (Ctrl+F). Hľadanie v súboroch.
 - Výber (Shift so šípkami, myš, Ctrl+A), Kopírovať, Vystrihnúť a Vložiť. Výber väčší ako limit kopírovania (256 MiB, zatiaľ provizórna hodnota) sa neskopíruje a stavový riadok to povie. Dlhý výber sa číta na pozadí a vystrihnutie zmaže len vtedy, keď sa text medzitým nezmenil.
 - Riadok dlhší ako 16 KiB posuniete do strán posuvníkom pod textom. Vzdialená časť riadku sa na chvíľu ukáže ako …, kým sa nenačíta. Farby v nej pribudnú, keď program prečíta riadok až po ňu.
@@ -1155,7 +1156,8 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Výber je väčší ako limit kopírovania: vyberte menej; schránka zostala, ako bola.
 - Úprava je príliš veľká na to, aby sa dala vrátiť späť: odoberte alebo vložte naraz menej textu; dokument sa nezmenil.
 - Veľký súbor v kódovaní ... sa zatiaľ nedá otvoriť: súbor sa neotvorí; iné kódovanie vo veľkom súbore program zatiaľ neprečíta.
-- Ukladanie veľkého súboru zdrží okno.
+- Súbor sa práve ukladá, skúste to po skončení ukladania: skúšali ste niečo počas ukladania, ktoré prepisuje bajty na mieste, alebo ste súbor načítali znova počas akéhokoľvek ukladania.
+- Zatvorenie karty alebo okna počas ukladania počká na koniec ukladania; Esc ukladanie zruší.
 
 ## [conflict] Zmena súboru zvonku
 Ak súbor zmení iný program, nad dokumentom sa ukáže lišta Súbor sa na disku zmenil.
