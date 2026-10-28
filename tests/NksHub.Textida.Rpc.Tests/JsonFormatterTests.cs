@@ -44,8 +44,10 @@ public class JsonFormatterTests
 
         /// <param name="fileName">The document is a file of this name, so the plugin can tell JSONC from JSON; without it the document has no path.</param>
         /// <param name="program">A published (NativeAOT) program to run instead of the plugin DLL.</param>
+        /// <param name="indexLines">The line index of the document is built on the thread pool; the command asks for line and column of the selection, so the test waits for the index
+        /// unless it is switched off to see what the plugin says where the editor cannot place the selection.</param>
         public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections, long maxBytes = 1 << 16,
-            string? fileName = null, string? program = null, int maxDepth = 64)
+            string? fileName = null, string? program = null, int maxDepth = 64, bool indexLines = true)
         {
             var proposals = new Proposals();
             var ui = new UiApiTests.RecordingUi();
@@ -78,7 +80,9 @@ public class JsonFormatterTests
                 File.WriteAllBytes(path, content);
             }
             var options2 = new DocumentOptions { Format = codec };
-            var doc = path is null ? Document.FromBytes(content, PagedBackendFactory.Instance, options2) : Document.Open(path, PagedBackendFactory.Instance, options2);
+            var factory = indexLines ? PagedBackendFactory.Instance : new PagedBackendFactory(startIndexing: false);
+            var doc = path is null ? Document.FromBytes(content, factory, options2) : Document.Open(path, factory, options2);
+            if (indexLines) await T.Until(() => doc.LineIndexState.Complete);
             Func<SelectionSet?>? selector = selections is null ? null
                 : () => SelectionSet.Create([.. selections.Select(s => new TextSelection(s.Anchor, s.Caret))], 0);
             docs.Expose(doc, selector);
@@ -430,6 +434,35 @@ public class JsonFormatterTests
         Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format, language: language));
 
         Assert.StartsWith(start, Assert.Single(rig.Ui.Notices).Message);
+        Assert.Equal(content, rig.Bytes());
+    }
+
+    [Fact]
+    public async Task Where_the_editor_cannot_place_the_selection_the_error_is_counted_from_the_selection_and_the_message_says_so()
+    {
+        var content = Encoding.UTF8.GetBytes("one\ntwo\n   {\"a\":1,}\nend\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, [(11, 19)], indexLines: false);
+
+        Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format));
+
+        Assert.StartsWith("JSON syntax error at line 1, column 8 of the selected text:", Assert.Single(rig.Ui.Notices).Message);
+        Assert.Equal(content, rig.Bytes());
+    }
+
+    [Fact]
+    public async Task Minify_of_a_JSONC_file_drops_its_comments_and_trailing_commas_as_the_help_says_and_leaves_strict_JSON()
+    {
+        var content = Encoding.UTF8.GetBytes("// settings\n{\"a\":1, // one\n\"b\":[1,2,],}\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, fileName: "settings.jsonc");
+        var undoBefore = rig.Doc.UndoDepth;
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Minify));
+
+        var minified = Encoding.UTF8.GetString(rig.Bytes());
+        Assert.Equal("{\"a\":1,\"b\":[1,2]}\n", minified);
+        using (JsonDocument.Parse(minified)) { } // strict parser: no comment, no trailing comma
+        Assert.Equal(undoBefore + 1, rig.Doc.UndoDepth);
+        rig.Doc.Undo();
         Assert.Equal(content, rig.Bytes());
     }
 
