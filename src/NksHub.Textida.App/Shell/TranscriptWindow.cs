@@ -125,6 +125,7 @@ internal sealed class TranscriptWindow : Window
     internal IReadOnlyList<string> FileTexts => [.. _fileTexts];
     internal IReadOnlyList<string> RowTexts => [.. _rows.Items.OfType<Border>().Select(b => b.Tag is TranscriptRow r ? r.Text : "")];
     internal IReadOnlyList<TranscriptRow> RowData => [.. _rows.Items.OfType<Border>().Select(b => b.Tag).OfType<TranscriptRow>()];
+    internal TranscriptIndex Index => _index;
     internal string StatusText => _status.Text ?? "";
     internal string HeaderText => _turnHeader.Text ?? "";
     internal string NoticeText => _notice.Text ?? "";

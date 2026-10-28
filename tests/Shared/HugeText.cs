@@ -132,6 +132,7 @@ internal static class HugeText
     /// </summary>
     public static long EvictFileCache(string directory)
     {
+        if (Scale != 1) return 0; // a dry run on a developer machine must not write 1.3 times its memory
         long memory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         long bytes = Math.Max(2L * BlockBytes, memory * 13 / 10 / BlockBytes * BlockBytes);
         string path = Path.Combine(directory, "evict.bin");

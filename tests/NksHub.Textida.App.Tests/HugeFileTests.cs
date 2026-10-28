@@ -80,7 +80,7 @@ public sealed class HugeFileTests : IDisposable
         var clock = Stopwatch.StartNew();
         while (!done() && clock.Elapsed < timeout)
         {
-            Thread.Sleep(20);
+            Thread.Sleep(2);
             Dispatcher.UIThread.RunJobs();
         }
         Assert.True(done(), $"{what} (waited {clock.Elapsed.TotalSeconds:F0} s)");
@@ -214,6 +214,102 @@ public sealed class HugeFileTests : IDisposable
         Assert.True(read <= 2 * buckets + 8, $"the count read {read} blocks of {blocksInFile}");
         Assert.Equal(heat.Errors, again.Errors);
         Assert.Equal(heat.Lines, again.Lines);
+    }
+
+    // ---- P8b.3.3 and P8b.3.5 ----
+
+    /// <summary>
+    /// The window of a transcript of 1.2 GiB with a result of 54 MiB in the middle shows its first turn within 1 s (2 s with the file out of the file cache, which needs the disk of the
+    /// test machine and so <c>TEXTIDA_HUGE=1</c>); the list of turns scrolls within the limits of PR.2.2 while it fills, the turn with the giant line is shown without reading the giant line, and the
+    /// index stays within its memory limit.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_transcript_window_of_a_1_2_GiB_transcript_shows_its_first_turn_in_time_and_the_index_keeps_to_its_limit(bool cold)
+    {
+        if (cold && !HugeText.Enabled)
+        {
+            _output.WriteLine("skipped: TEXTIDA_HUGE is not 1");
+            return;
+        }
+        string dir = Directory.CreateTempSubdirectory("textida-transcript-").FullName;
+        try
+        {
+            string path = Path.Combine(dir, "big.jsonl");
+            var clock = Stopwatch.StartNew();
+            long lines = TranscriptFile.Write(path, out long giantLine);
+            _output.WriteLine($"{new FileInfo(path).Length >> 20} MiB, {lines} lines written in {clock.Elapsed.TotalSeconds:F1} s");
+            if (cold)
+            {
+                clock.Restart();
+                long pushed = HugeText.EvictFileCache(dir);
+                _output.WriteLine($"{pushed >> 30} GiB written and read to push the transcript out of the file cache, {clock.Elapsed.TotalSeconds:F0} s");
+            }
+
+            // the first window of a process pays for its start-up; that is not what the limit is about
+            string tiny = Path.Combine(dir, "tiny.jsonl");
+            File.WriteAllText(tiny, "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n");
+            var warmUp = _w.OpenTranscript(tiny)!;
+            PumpUntil(() => warmUp.TurnList.SelectedIndex >= 0 && warmUp.RowData.Count > 0, "the warm-up turn", TimeSpan.FromSeconds(30));
+            warmUp.Close();
+
+            clock.Restart();
+            var window = _w.OpenTranscript(path) ?? throw new InvalidOperationException("the transcript did not open");
+            PumpUntil(() => window.TurnList.SelectedIndex >= 0 && window.RowData.Count > 0, "the first turn", TimeSpan.FromSeconds(30));
+            var first = clock.Elapsed;
+            _output.WriteLine($"{(cold ? "cold" : "warm")}: the first turn was in the window {first.TotalMilliseconds:F0} ms after the call; status '{window.StatusText}'");
+
+            // the list scrolls while it fills and after
+            var origin = window.TurnList.TranslatePoint(default, window)!.Value;
+            var inside = new Point(origin.X + 60, origin.Y + 60);
+            List<double> whileFilling = [], afterwards = [];
+            for (int step = 0; step < 400; step++)
+            {
+                var timer = Stopwatch.StartNew();
+                window.MouseWheel(inside, new Vector(0, step % 40 < 30 ? -3 : 3), RawInputModifiers.None);
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                (window.IsListComplete ? afterwards : whileFilling).Add(timer.Elapsed.TotalMilliseconds);
+                Thread.Sleep(10);
+            }
+            PumpUntil(() => window.IsListComplete, "the end of the index", TimeSpan.FromMinutes(2));
+            var index = window.Index;
+            _output.WriteLine($"index complete: {index.LineCount} lines, {index.TurnCount} turns, {index.IndexBytes >> 10} KiB of {PluginLimitsPlaceholders.TranscriptIndexMaxBytes >> 10} KiB allowed, truncated {index.IsTruncated}");
+
+            // the turn with the giant line: shown, with the line counted as too long to show whole
+            int giantTurn = index.TurnOf(giantLine);
+            clock.Restart();
+            window.TurnList.SelectedIndex = giantTurn;
+            var shown = window.TurnTask;
+            PumpUntil(() => shown.IsCompleted && window.ShownTurn == giantTurn, "the turn with the giant line", TimeSpan.FromSeconds(30));
+            double giantMs = clock.Elapsed.TotalMilliseconds;
+            _output.WriteLine($"the turn with the 54 MiB line was shown in {giantMs:F0} ms; notice '{window.NoticeText}'");
+
+            var problems = new List<string>();
+            if (first > TimeSpan.FromSeconds(cold ? 2 : 1)) problems.Add($"the first turn took {first.TotalSeconds:F2} s");
+            foreach (var (what, times) in new[] { ("the list of turns while it fills", whileFilling), ("the list of turns after", afterwards) })
+            {
+                times.Sort();
+                if (times.Count == 0) { _output.WriteLine($"no wheel step was measured for {what}"); continue; }
+                double p95 = Percentile(times, 0.95), p99 = Percentile(times, 0.99);
+                _output.WriteLine($"{times.Count} wheel steps on {what}: p50 {Percentile(times, 0.5):F1} ms, p95 {p95:F1} ms, p99 {p99:F1} ms, max {times[^1]:F1} ms (limits p95 33, p99 80)");
+                if (times.Count < 30) { _output.WriteLine("too few steps for a percentile"); continue; }
+                if (p95 > 33) problems.Add($"{what}: p95 {p95:F1} ms");
+                if (p99 > 80) problems.Add($"{what}: p99 {p99:F1} ms");
+            }
+            if (index.Error is not null) problems.Add("the index failed: " + index.Error.Message);
+            if (index.IsTruncated) problems.Add("the index was cut off");
+            if (index.LineCount != lines) problems.Add($"the index counted {index.LineCount} lines of {lines}");
+            if (index.IndexBytes > PluginLimitsPlaceholders.TranscriptIndexMaxBytes) problems.Add($"the index uses {index.IndexBytes} bytes");
+            if (window.Index.ReadTurn(giantTurn).OversizedLines != 1) problems.Add("the giant line was not counted as oversized");
+            Assert.True(problems.Count == 0, string.Join("; ", problems));
+            window.Close();
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
+        }
     }
 
     // ---- P3.1.8 ----
