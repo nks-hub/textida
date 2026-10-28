@@ -72,7 +72,12 @@ internal sealed partial class MainWindow
         if (_pluginPanelKey is not { } key || _pluginTree.SelectedItem is not TreeViewItem { Tag: string item }) return;
         if (key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal)) _app.Plugins.RevealSymbol(key.Plugin, key.Panel, item);
         else if (key.Panel == PluginServices.LspLocationsPanel) { if (PluginServices.ParsePlace(item) is { } place) GoToPlace(place.Path, place.Line, place.Character, place.EndLine, place.EndCharacter); }
-        else if (key.Panel == PluginServices.GitStatusPanel) GoToPlace(item, 0, 0, 0, 0);
+        else if (key.Panel == PluginServices.GitStatusPanel)
+        {
+            // a path that is not there (a conflict both sides deleted, a file deleted in the tree) is the plugin's to answer: it can resolve the first
+            if (File.Exists(item) || Directory.Exists(item) || _app.Plugins.Ui.Api is not { } git) GoToPlace(item, 0, 0, 0, 0);
+            else _ = git.ActivateItemAsync(key.Plugin, key.Panel, item);
+        }
         else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
     }
 
