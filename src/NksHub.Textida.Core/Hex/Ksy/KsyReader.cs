@@ -170,6 +170,11 @@ public sealed class KsyReader
         {
             foreach (var attr in scope.Def.Seq)
             {
+                if (bit != 0 && attr.Type.Kind != KsyKind.Bits)
+                {
+                    pos++; // a field of whole bytes starts in the byte after the last bit field, even when its condition leaves it out
+                    bit = 0;
+                }
                 var node = ReadAttr(scope, attr, pos, budget, out var value, bit);
                 if (node is null)
                 {

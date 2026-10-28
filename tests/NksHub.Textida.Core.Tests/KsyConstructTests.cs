@@ -73,6 +73,23 @@ public class KsyConstructTests
     }
 
     [Fact]
+    public void A_field_of_whole_bytes_after_bit_fields_starts_in_the_next_byte()
+    {
+        const string template = "meta:\n  id: x\nseq:\n  - id: flag\n    type: b1\n  - id: kind\n    type: b3\n  - id: next\n    type: u1\n  - id: low\n    type: b2\n  - id: high\n    type: b6\n  - id: tail\n    type: u1\n";
+        var nodes = Read(template, [0xB5, 0x42, 0xC3, 0x99]);
+        Assert.Equal([("flag", "true", 0L, 1L), ("kind", "3", 0L, 1L), ("next", "66", 1L, 1L), ("low", "3", 2L, 1L), ("high", "3", 2L, 1L), ("tail", "153", 3L, 1L)],
+            nodes.Select(n => (n.Name, n.Value, n.Start, n.Length)));
+    }
+
+    [Fact]
+    public void A_field_of_whole_bytes_that_is_left_out_by_its_condition_still_ends_the_bit_fields()
+    {
+        const string template = "meta:\n  id: x\nseq:\n  - id: a\n    type: b4\n  - id: gap\n    type: u1\n    if: false\n  - id: b\n    type: b4\n";
+        var nodes = Read(template, [0xAB, 0xCD]);
+        Assert.Equal([("a", "10", 0L), ("b", "12", 1L)], nodes.Select(n => (n.Name, n.Value, n.Start)));
+    }
+
+    [Fact]
     public void A_bit_field_with_its_own_order_and_an_enum_is_read()
     {
         var nodes = Read("meta:\n  id: x\n  bit-endian: le\nseq:\n  - id: a\n    type: b4be\n    enum: kinds\nenums:\n  kinds:\n    10: ten\n", [0xA5]);
