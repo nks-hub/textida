@@ -1784,6 +1784,37 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 - Every agent is listed as "not verified": no run against the real program has passed the test scenarios yet. A turn in which the agent neither says nor asks anything for too long ends as timed out. The time limits and the size of a file handed to the agent are provisional.
 - A plugin can host its own conversation in the same panel (permission agent.panel). The panel works from the keyboard: it opens with the cursor in the message box, Enter sends, Tab moves through Send, Cancel turn, Stop agent and Close, Space or Enter presses the button, and Escape closes the panel and returns to the editor. Cancel Agent Turn and Stop Agent are also commands in the menu and the palette. A screen reader gets a name for the panel, the conversation, the message box, the status and every button, and the status (starting, ready, working, ended) is announced when it changes. This is tested with the accessibility tree of the program, not yet with a real screen reader.
 
+## [tools.hooks] Agent hooks editor
+commands: nks.agent.hooks
+Edits the hooks of Claude Code (settings.json, settings.local.json, the hooks.json of a plugin) and of Codex (hooks.json) in a form. It never runs a hook: a hook is a command, and nothing here starts one.
+1. Open the settings file in a tab and choose Tools, Agent, Edit Agent Hooks... The tree lists the events, the matcher groups and the handlers of the file. Choose a handler to change it, or a group to add a handler to it.
+2. Fill in the form: the event, the matcher, the type of the handler and its command (or URL, prompt, MCP server and tool), and if you want the timeout, the status message, the condition (if) and what happens when the hook fails. Apply to list changes the list in this window only.
+3. Dry run shows what the hook would receive on standard input (a sample made from the public documentation of the product), whether the matcher fires for the value you type, and what each exit code does on that event. For Claude Code an exit code 1 is a non-blocking error and 2 blocks where the event can be blocked. For Codex only what its documentation says is shown.
+4. Propose changes sends the new text to the change review (the Search Results tab). You see the changes as hunks and apply them as one undo step; then save the file as usual. The editor refuses the proposal while the list has errors, and when the tab changed after this window was opened.
+- Findings: the file is checked against a JSON Schema made from the public documentation of the product. An event the product does not have, a missing command or a field of the wrong type is an error. A field the documentation does not list is a warning, and so is a setting that the documentation says has no effect (a matcher on an event without matchers, a condition on an event that is not a tool event).
+- The file is strict JSON: a comment in it is a syntax error. Only the hooks entry and the places you change are touched; the rest of the file stays byte for byte.
+- Codex keeps hooks in [hooks] tables of config.toml as well; the editor does not change those tables. The tables of exit codes come from the documentation read on the day the dry run names, and they are not assumed to hold for other versions or for the other product.
+
+## [tools.transcript] Agent transcripts
+commands: nks.agent.transcript
+Opens the transcript of an agent session (a .jsonl file, for Claude Code under ~/.claude/projects) as a list of turns. It is read only: the file is never written, and nothing is sent anywhere.
+1. Choose Tools, Agent, Open Agent Transcript... and pick the file, or open the .jsonl file in a tab first and run the command. The window lists the turns while the file is indexed; a file of many gigabytes opens at once and the list grows as the index is built.
+2. Choose a turn to see the prompt, the answers, the tool calls with the lines they changed (red and green) and the results. The header shows the lines of the turn and an estimate of its tokens.
+3. Search looks through the whole transcript, also while it is still being indexed, and lists the lines it finds. Choose a hit to jump to its turn and row. A line too long to be read whole is not searched; the status says how many were skipped.
+4. Files in this turn lists the files the agent read, wrote or edited; Open file opens one in the editor. Open raw line opens the line behind the chosen row as a document that cannot be saved.
+- Records that are not a user message, an answer or a tool call, and blocks the reader does not know, are shown as raw JSON. Only what the public documentation of the Messages API and the Agent SDK defines is read, because Claude Code says the format of its file is internal and changes between versions. A Codex file is shown as raw JSON, because its format is not defined in the public documentation.
+- Values of .env files are hidden (topic Hidden values) in the rows, in raw lines, in the titles of the turns and in the hits. The editor learns them from the secrets files of the open tabs and of the opened folder, and from the transcript itself when the agent reads such a file. A value the transcript shows before it is first read cannot be hidden in what was shown already.
+- A line longer than the limit is classified from its start and shown cut. The size limits and the memory of the index are provisional.
+
+## [tools.tokens] Token estimate
+commands: nks.agent.tokens
+Shows how large a text is in tokens, for a selection, the document or a copy for an AI assistant. The number is always an estimate (marked with ≈) counted on this computer; no text is sent anywhere.
+1. While something is selected, the status bar shows its estimate, for example "≈ 1,240 tokens". Click it to choose the rule: a generic 4 characters per token, or the published rule of OpenAI, Gemini or Claude (before and after Opus 4.7).
+2. Tools, Agent, Estimate Tokens... shows the selection and the document with the rule and where it comes from. In paged mode only a selection is counted.
+3. Copy as AI Context shows the estimate for the Markdown and the XML text in its preview.
+- The rules are rules of thumb for English text that the vendors publish, not the tokenizers of the models. Other languages and code can differ a lot. An exact count needs the tokenizer of the model or the service of the vendor; this editor asks for neither.
+- The rule lasts until the window closes.
+
 ## [tools.mcpAgents] MCP servers of agents
 commands: nks.tools.mcpServers
 One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.

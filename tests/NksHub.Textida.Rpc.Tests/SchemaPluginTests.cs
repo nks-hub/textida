@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost;

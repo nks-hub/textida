@@ -1784,6 +1784,37 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 - Každý agent je v seznamu jako „neověřeno“: žádný běh se skutečným programem zatím neprošel zkušebními scénáři. Tah, ve kterém agent příliš dlouho nic neřekne ani nezeptá, skončí jako vypršelý. Časové limity a velikost souboru předaného agentovi jsou zatím provizorní.
 - Plugin může ve stejném panelu vést vlastní konverzaci (oprávnění agent.panel). Panel jde ovládat klávesnicí: otevře se s kurzorem v poli zprávy, Enter odešle, Tab prochází tlačítka Odeslat, Zrušit tah, Zastavit agenta a Zavřít, mezerník nebo Enter tlačítko stiskne a Esc panel zavře a vrátí do editoru. Zrušit tah agenta a Zastavit agenta jsou i příkazy v nabídce a v paletě. Čtečka obrazovky dostane jméno panelu, konverzace, pole zprávy, stavu a každého tlačítka a změna stavu (startuje, připraven, pracuje, skončil) se ohlásí. Ověřeno stromem přístupnosti programu, zatím ne skutečnou čtečkou obrazovky.
 
+## [tools.hooks] Editor hooků agenta
+commands: nks.agent.hooks
+Upravuje hooky Claude Code (settings.json, settings.local.json, hooks.json pluginu) a Codexu (hooks.json) ve formuláři. Žádný hook nikdy nespustí: hook je příkaz a nic tu žádný příkaz nespouští.
+1. Otevřete soubor s nastavením v kartě a zvolte Nástroje, Agent, Upravit hooky agenta... Strom ukazuje události, skupiny filtrů a obsluhy souboru. Vyberte obsluhu, chcete-li ji změnit, nebo skupinu, chcete-li do ní obsluhu přidat.
+2. Vyplňte formulář: událost, filtr, typ obsluhy a její příkaz (nebo adresu URL, zadání, server MCP a nástroj), případně časový limit, stavovou zprávu, podmínku (if) a co se stane, když hook selže. Použít v seznamu změní seznam jen v tomto okně.
+3. Zkouška bez spuštění ukáže, co by hook dostal na standardním vstupu (vzorek z veřejné dokumentace produktu), zda filtr pro zadanou hodnotu vyhoví a co na dané události udělá který návratový kód. U Claude Code je kód 1 neblokující chyba a kód 2 blokuje tam, kde lze událost zablokovat. U Codexu se ukáže jen to, co uvádí jeho dokumentace.
+4. Navrhnout změny pošle nový text do revize změn (karta Výsledky hledání). Změny uvidíte jako úseky a použijete je jedním krokem zpět; soubor pak uložíte jako obvykle. Editor návrh odmítne, dokud má seznam chyby, a když se karta po otevření okna změnila.
+- Nálezy: soubor se kontroluje schématem JSON vytvořeným z veřejné dokumentace produktu. Událost, kterou produkt nemá, chybějící příkaz nebo pole špatného typu je chyba. Pole, které dokumentace neuvádí, je varování; stejně tak nastavení, které podle dokumentace nemá žádný účinek (filtr u události bez filtrů, podmínka u události, která není událostí nástroje).
+- Soubor je přísný JSON: komentář v něm je chyba syntaxe. Mění se jen položka hooks a místa, která upravíte; zbytek souboru zůstane bajt po bajtu.
+- Codex drží hooky i v tabulkách [hooks] souboru config.toml; ty editor nemění. Tabulky návratových kódů vycházejí z dokumentace přečtené v den, který uvádí zkouška, a nepředpokládá se, že platí pro jiné verze ani pro druhý produkt.
+
+## [tools.transcript] Přepisy agentů
+commands: nks.agent.transcript
+Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude/projects) jako seznam tahů. Je jen pro čtení: do souboru se nikdy nezapisuje a nic se nikam neposílá.
+1. Zvolte Nástroje, Agent, Otevřít přepis agenta... a vyberte soubor, nebo soubor .jsonl nejdřív otevřete v kartě a příkaz spusťte. Okno vypisuje tahy, zatímco se soubor indexuje; soubor o mnoha gigabajtech se otevře hned a seznam roste, jak index vzniká.
+2. Vyberte tah a uvidíte zadání, odpovědi, volání nástrojů s řádky, které změnila (červeně a zeleně), a výsledky. Záhlaví ukazuje řádky tahu a odhad jeho tokenů.
+3. Hledání prochází celý přepis, i když se ještě indexuje, a vypíše nalezené řádky. Vyberte nález a skočíte na jeho tah a řádek. Řádek příliš dlouhý na přečtení celý se neprohledává; stavový řádek říká, kolik jich bylo přeskočeno.
+4. Soubory v tomto tahu uvádí soubory, které agent četl, zapsal nebo upravil; Otevřít soubor otevře vybraný v editoru. Otevřít surový řádek otevře řádek za vybranou řádkou jako dokument, který nejde uložit.
+- Záznamy, které nejsou zpráva uživatele, odpověď ani volání nástroje, a bloky, které čtečka nezná, se ukážou jako surový JSON. Čte se jen to, co definuje veřejná dokumentace Messages API a Agent SDK, protože Claude Code uvádí, že formát jeho souboru je interní a mezi verzemi se mění. Soubor Codexu se ukáže jako surový JSON, protože jeho formát veřejná dokumentace nedefinuje.
+- Hodnoty souborů .env jsou skryté (téma Skryté hodnoty) v řádcích, v surových řádcích, v názvech tahů i v nálezech. Editor se je učí z tajných souborů otevřených karet a otevřené složky a z přepisu samotného, když agent takový soubor čte. Hodnotu, kterou přepis ukáže dřív, než ji poprvé přečte, už v tom, co se ukázalo, skrýt nejde.
+- Řádek delší než limit se určí podle začátku a ukáže se zkrácený. Limity velikosti a paměť indexu jsou předběžné.
+
+## [tools.tokens] Odhad tokenů
+commands: nks.agent.tokens
+Ukáže, jak velký je text v tokenech: u výběru, dokumentu nebo kopie pro AI asistenta. Číslo je vždy odhad (značka ≈) spočítaný na tomto počítači; žádný text se nikam neposílá.
+1. Dokud je něco vybráno, ukazuje stavový řádek jeho odhad, například „≈ 1 240 tokenů“. Kliknutím zvolíte pravidlo: obecné 4 znaky na token, nebo zveřejněné pravidlo OpenAI, Gemini či Claude (před Opus 4.7 a po něm).
+2. Nástroje, Agent, Odhadnout tokeny... ukáže výběr a dokument s pravidlem a jeho zdrojem. Ve stránkovaném režimu se počítá jen výběr.
+3. Kopírovat jako kontext pro AI ukáže v náhledu odhad pro text v Markdownu i v XML.
+- Pravidla jsou orientační pravidla pro anglický text, která zveřejňují výrobci, ne tokenizéry modelů. Jiné jazyky a kód se mohou hodně lišit. Přesný počet vyžaduje tokenizér modelu nebo službu výrobce; tento editor nežádá ani jedno.
+- Pravidlo platí do zavření okna.
+
 ## [tools.mcpAgents] Servery MCP agentů
 commands: nks.tools.mcpServers
 Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agenti. Textida čte Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Soubory projektu hledá ve složce aktivního souboru a v nadřazených složkách. Soubory jen čte, nikdy do nich nezapisuje.

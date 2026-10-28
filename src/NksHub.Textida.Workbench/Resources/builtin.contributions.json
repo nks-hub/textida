@@ -2148,6 +2148,23 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.agent.hooks",
+      "title": "cmd.agent.hooks",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.agent.transcript",
+      "title": "cmd.agent.transcript",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.tokens",
+      "title": "cmd.agent.tokens",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.review.open",
       "title": "cmd.review.open",
       "category": "cat.file",
@@ -4677,6 +4694,27 @@
       "group": "3_code/11_9_agent",
       "submenu": "agent",
       "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.hooks",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.transcript",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.tokens",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 80
     },
     {
       "menu": "file",

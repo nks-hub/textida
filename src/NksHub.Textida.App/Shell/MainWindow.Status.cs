@@ -51,6 +51,8 @@ internal sealed partial class MainWindow
         _eolItem.Click += (_, _) => ShowEolMenu();
         _languageItem.Click += (_, _) => ShowLanguageMenu();
         _configItem.Click += (_, _) => ShowConfigFiles();
+        _tokensItem.Click += (_, _) => ShowTokenMenu();
+        _tokensItem.IsVisible = false;
         _configItem.IsVisible = false;
         return grid;
     }
@@ -146,6 +148,7 @@ internal sealed partial class MainWindow
         var configs = ConfigHitsOf(od).Where(h => h.Path is not null).ToList();
         _configItem.Content = ConfigLabel(configs);
         _configItem.IsVisible = configs.Count > 0;
+        UpdateTokensItem(tab);
 
         ToolTip.SetTip(_encodingItem, od.EncodingUncertain ? Loc.Get(K.StatusEncodingGuess, ("percent", (int)Math.Round(od.Guess!.Confidence * 100))) : Loc.Get(K.StatusEncodingTip));
         ToolTip.SetTip(_indentItem, IndentSourceFile() is { } indentFile ? Loc.Get(K.StatusIndentFromConfig, ("file", indentFile)) : Loc.Get(K.StatusIndentTip));
@@ -159,6 +162,7 @@ internal sealed partial class MainWindow
 
         var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem };
         if (_configItem.IsVisible) items.Add(_configItem);
+        if (_tokensItem.IsVisible) items.Add(_tokensItem);
         var shown = new List<Control>(items.Count * 2);
         for (int i = 0; i < items.Count; i++)
         {

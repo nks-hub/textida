@@ -9,6 +9,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Agents;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
@@ -214,7 +215,9 @@ public class AiContextCommandTests : IDisposable
         static string Size(string? text) => OpenDocument.FormatSize(Encoding.UTF8.GetByteCount(text!));
         Assert.NotEqual(Size(markdown), Size(xml));
         Assert.Equal(2, _dialogs.Asked.Count);
-        Assert.All(_dialogs.Asked, a => Assert.Equal(Loc.Get(K.AiPreview, ("files", 1), ("markdown", Size(markdown)), ("xml", Size(xml))), a.Message));
+        var rule = TokenEstimator.Generic;
+        string tokens = Loc.Get(K.AiTokens, ("markdown", MainWindow.FormatTokens(TokenEstimator.Estimate(markdown!.Length, rule))), ("xml", MainWindow.FormatTokens(TokenEstimator.Estimate(xml!.Length, rule))), ("rule", _w.TokenRuleName(rule)));
+        Assert.All(_dialogs.Asked, a => Assert.Equal(Loc.Get(K.AiPreview, ("files", 1), ("markdown", Size(markdown)), ("xml", Size(xml))) + " " + tokens, a.Message));
         Assert.Equal(Loc.Get(K.AiCopied, ("files", 1), ("size", Size(xml))), _w.StatusMessageText);
     }
 
