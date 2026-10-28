@@ -23,7 +23,9 @@ internal sealed record NetReport(IReadOnlyList<NetEvent> Hooked, IReadOnlyList<N
 /// Watches the network use of the editor under test: its own process (an event listener on the sockets, the resolver and HttpClient) and every .NET process it starts (the same listener loaded as a startup
 /// hook through <c>DOTNET_STARTUP_HOOKS</c>, which the children inherit). Attempts are judged by where they go, not by which class made them, so code that opens a <c>Socket</c> itself is seen as well as code that
 /// uses the network policy. What is allowed: Unix sockets, resolving <c>localhost</c>, and the loopback ports the test declares with <see cref="AllowLoopback"/>.
-/// Not seen: native code (a program such as git) and QUIC.
+/// The local channels the editor has, and so the only things that may show up there: standard input and output pipes to plugins, language servers and agents (not sockets at all); a named pipe on Windows and a
+/// Unix socket elsewhere for the second start of the editor and for <c>textida-mcp</c>; the loopback port of the IDE bridge while the user has it on; the proxy of the network policy, which the test declares.
+/// Not seen: native code (a program such as git) and QUIC. A program built for NativeAOT is not seen either, so the run is over the plugins as the build of the tests makes them (see <see cref="SwitchOnWatching"/>).
 /// </summary>
 internal sealed class NetworkHarness : IDisposable
 {
