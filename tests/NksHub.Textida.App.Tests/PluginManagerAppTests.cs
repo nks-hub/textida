@@ -344,6 +344,64 @@ public class PluginManagerAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_plugin_that_lists_onPanel_is_offered_in_the_list_of_panels_and_starts_when_the_user_opens_it()
+    {
+        InstallProcessPlugin("acme.tree", ["onPanel:acme.files"]);
+        InstallProcessPlugin("acme.other", ["onPanel:acme.other"]);
+        Assert.Equal(PluginState.Inactive, StateOf("acme.tree"));
+
+        Assert.Equal(CommandOutcome.Handled, _w.ShowPluginPanels());
+        Assert.Equal(["acme.files", "acme.other"], _w.QuickResults.Select(r => r.Title).Order(StringComparer.Ordinal));
+        Assert.Equal(PluginState.Inactive, StateOf("acme.tree")); // listing a panel starts nothing
+
+        _w.SetPaletteQuery("acme.files");
+        _w.RunPaletteSelection();
+        ToolTestKit.WaitFor(() => StateOf("acme.tree") == PluginState.Running, "the plugin of the panel to start");
+        Assert.Equal(PluginState.Inactive, StateOf("acme.other"));
+    }
+
+    [AvaloniaFact]
+    public void A_plugin_that_answers_the_handshake_with_another_api_version_is_turned_off_and_the_manager_says_why()
+    {
+        InstallProcessPlugin("acme.old", [ActivationEvents.Startup], "--api", "2");
+        InstallProcessPlugin("acme.good", [ActivationEvents.Startup]);
+
+        _app.Plugins.ActivateStartup();
+        ToolTestKit.WaitFor(() => StateOf("acme.old") == PluginState.Disabled && StateOf("acme.good") == PluginState.Running, "the refused plugin to be turned off and the other to run");
+
+        var text = PluginServices.StateText(_app.Plugins.StatusOf("acme.old")!);
+        Assert.Contains("version 2", text);
+        Assert.Contains("version 1", text);
+        Finish(_app.Plugins.StartPluginAsync("acme.old"));
+        Assert.Equal(PluginState.Disabled, StateOf("acme.old"));
+    }
+
+    [AvaloniaFact]
+    public void Closing_the_editor_ends_every_plugin_process_and_ending_twice_changes_nothing()
+    {
+        InstallProcessPlugin("acme.one", [ActivationEvents.Startup]);
+        InstallProcessPlugin("acme.two", [ActivationEvents.Startup]);
+        _app.Plugins.ActivateStartup();
+        ToolTestKit.WaitFor(() => StateOf("acme.one") == PluginState.Running && StateOf("acme.two") == PluginState.Running, "both plugins to start");
+        int[] pids = [.. new[] { "acme.one", "acme.two" }.Select(id => _app.Plugins.StatusOf(id)!.ProcessId!.Value)];
+        Assert.All(pids, pid => Assert.True(Alive(pid), "process " + pid));
+
+        Finish(Task.Run(_app.Plugins.Shutdown)); // the end waits for jobs of the UI thread, which Finish keeps running
+        Assert.All(pids, pid => Assert.False(Alive(pid), "process " + pid));
+        Finish(Task.Run(_app.Plugins.Shutdown));
+    }
+
+    private static bool Alive(int pid)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException) { return false; }
+    }
+
+    [AvaloniaFact]
     public void A_built_in_plugin_offers_start_while_it_does_not_run_and_the_dialog_names_its_state()
     {
         _dialogs.Answers.Enqueue(1); // Close (the only other button; the plugin does not run, so Start is first)

@@ -8,7 +8,7 @@ namespace NksHub.Textida.App.Services;
 
 /// <summary>
 /// The life of the plugin processes as the app drives it: the activation events that start a plugin (<c>onStartup</c>, <c>onLanguage</c>, <c>onFileType</c>, <c>workspaceContains</c>; <c>onCommand</c> is fired
-/// by the commands themselves), the state, start, stop and restart the plugin manager shows, and the bounded end of all processes when the editor closes.
+/// by the commands themselves, <c>onPanel</c> by the list of panels), the state, start, stop and restart the plugin manager shows, and the bounded end of all processes when the editor closes.
 /// </summary>
 internal sealed partial class PluginServices
 {
@@ -19,6 +19,7 @@ internal sealed partial class PluginServices
 
     private readonly HashSet<string> _scannedFolders = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     private int _startupFired;
+    private int _disposed;
 
     /// <summary>The editor has started: the plugins that list <c>onStartup</c> start, in the background. Fires once.</summary>
     public void ActivateStartup()
@@ -50,6 +51,13 @@ internal sealed partial class PluginServices
         }
         if (events.Count > 0 || folders.Count > 0) _ = ActivateInBackgroundAsync(events, folders);
     }
+
+    /// <summary>The panels that plugins list as <c>onPanel:id</c> and that none shows now; the plugin starts when the user opens one and then shows it.</summary>
+    internal IReadOnlyList<(string PluginId, string Name, string PanelId)> UnshownPanels() =>
+        [.. _host.DeclaredPanels().Where(d => !Ui.Panels.Any(p => p.PluginId == d.PluginId && p.Model.Id == d.PanelId))];
+
+    /// <summary>Fires <c>onPanel:id</c>: the plugins that list it start. Null when they run, else why one does not.</summary>
+    internal Task<string?> ActivatePanelAsync(string panelId) => LifecycleAsync(() => _host.ActivateAsync(ActivationEvents.Panel(panelId)));
 
     /// <summary>Fires the events and the folder search; a plugin that cannot start is passed over with a note in the status bar (a crash has its own notice).</summary>
     private async Task ActivateInBackgroundAsync(IReadOnlyList<string> events, IReadOnlyList<string> folders)

@@ -98,6 +98,15 @@ public sealed class PluginHost : IAsyncDisposable
         lock (_gate) return _plugins.ContainsKey(pluginId);
     }
 
+    /// <summary>The panels the registered plugins list as <c>onPanel:id</c> events: plugin id, name and panel id. The editor fires the event when the user opens one.</summary>
+    public IReadOnlyList<(string PluginId, string Name, string PanelId)> DeclaredPanels()
+    {
+        lock (_gate)
+            return [.. _plugins.Values.SelectMany(p => p.Spec.ActivationEvents
+                .Where(e => e.StartsWith(ActivationEvents.PanelPrefix, StringComparison.Ordinal))
+                .Select(e => (p.Spec.Id, p.Spec.DisplayName, e[ActivationEvents.PanelPrefix.Length..])))];
+    }
+
     /// <summary>Ends the plugin process the way a shutdown does and forgets the plugin, so it can be registered again (a new version) or never started (disabled, uninstalled).</summary>
     public async Task UnregisterAsync(string pluginId)
     {

@@ -160,8 +160,33 @@ internal sealed partial class MainWindow
             string plugin = names.GetValueOrDefault(p.PluginId, p.PluginId);
             return new QuickRow(p.Model.Title, plugin, null, null, true, null, p.Model.Title + ", " + plugin, () => ShowPluginPanel(p.PluginId, p.Model.Id));
         }).ToList();
+        // a plugin that lists onPanel:id is not running, so it has sent no panel yet: opening the row starts it and the panel opens as soon as the plugin shows it
+        rows.AddRange(plugins.UnshownPanels().Select(d =>
+            new QuickRow(d.PanelId, d.Name, null, null, true, null, d.PanelId + ", " + d.Name, () => _ = OpenDeclaredPluginPanelAsync(d.PluginId, d.PanelId, d.Name))));
         ShowChoice(Loc.Get(K.PluginPanelsWatermark), Loc.Get(K.A11yPluginPanels), rows, emptyText: Loc.Get(K.PluginPanelsEmpty));
         return CommandOutcome.Handled;
+    }
+
+    private (string Plugin, string Panel)? _pendingPluginPanel;
+
+    private async Task OpenDeclaredPluginPanelAsync(string plugin, string panel, string name)
+    {
+        _pendingPluginPanel = (plugin, panel);
+        if (await _app.Plugins.ActivatePanelAsync(panel) is { } why)
+        {
+            _pendingPluginPanel = null;
+            await Dispatcher.UIThread.InvokeAsync(() => SetStatusMessage(Loc.Get(K.PluginUnavailable, ("name", name), ("reason", why))));
+            return;
+        }
+        await Dispatcher.UIThread.InvokeAsync(() => ShowPendingPluginPanel(_app.Plugins.Ui));
+    }
+
+    /// <summary>Opens the panel the user asked for through <c>onPanel</c> once the plugin has sent it.</summary>
+    private void ShowPendingPluginPanel(PluginUiHost ui)
+    {
+        if (_pendingPluginPanel is not { } pending || !ui.Panels.Any(p => p.PluginId == pending.Plugin && p.Model.Id == pending.Panel)) return;
+        _pendingPluginPanel = null;
+        ShowPluginPanel(pending.Plugin, pending.Panel);
     }
 
     /// <summary>Gives the keyboard to the panel: the selected item, else the first one, so the arrows and Enter work at once and a screen reader names an item.</summary>
@@ -175,6 +200,7 @@ internal sealed partial class MainWindow
     private void RefreshPluginUi()
     {
         var ui = _app.Plugins.Ui;
+        ShowPendingPluginPanel(ui);
         RefreshPluginPanel(ui);
         OnGitStatusChanged(ui);
         _pluginPanelClose.SetValue(ToolTip.TipProperty, Loc.Get(K.PluginPanelClose));

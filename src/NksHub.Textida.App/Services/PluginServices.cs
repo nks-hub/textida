@@ -1346,6 +1346,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         await Acp.DisposeAsync();
         await Mcp.DisposeAsync();
         await _host.DisposeAsync();
