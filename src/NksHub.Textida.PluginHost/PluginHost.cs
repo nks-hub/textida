@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginHost;
@@ -575,6 +576,8 @@ public sealed class PluginHost : IAsyncDisposable
         };
         if (spec.WorkingDirectory is not null) psi.WorkingDirectory = spec.WorkingDirectory;
         foreach (var a in spec.Arguments) psi.ArgumentList.Add(a);
+        ChildProcessGuard.PassTo(psi);
+        if (_options.ParentCheck is { } check) ParentWatch.Apply(psi, check.Interval, check.StartTolerance);
 
         Process process;
         try { process = Process.Start(psi) ?? throw new InvalidOperationException("The process did not start."); }
@@ -582,13 +585,14 @@ public sealed class PluginHost : IAsyncDisposable
         {
             throw new PluginCrashedException(new PluginCrashInfo(spec.Id, spec.DisplayName, PluginEndReason.HandshakeFailed, null, $"Cannot start '{spec.Executable}': {e.Message}", [], null));
         }
+        ProcessLaunch.Track(process);
 
         var run = new Run(process);
         DateTime startedAt;
         try { startedAt = process.StartTime.ToUniversalTime(); }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { startedAt = DateTime.UtcNow; } // it ended already
         lock (_gate) _live[process.Id] = startedAt;
-        run.StderrTask = Task.Run(() => DrainStderrAsync(p, process));
+        run.StderrTask = Task.Run(() => StderrPump.RunAsync(process.StandardError, p.Stderr, _options.StderrTailLines, maxLineChars: 2000));
         run.Rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Plugin, _options.Limits, new HostHandler(this, p, run));
         p.Current = run; // seen by a stop only once the connection exists
         _ = Task.Run(() => MonitorAsync(p, run));
@@ -746,25 +750,6 @@ public sealed class PluginHost : IAsyncDisposable
         if (detail.Length == 0) detail = tail.Count > 0 ? "Last stderr line: " + tail[^1] : "The process exited.";
         run.Ended.TrySetResult(new PluginCrashInfo(p.Spec.Id, p.Spec.DisplayName, reason, run.Process.ExitCode, detail, tail, null));
         await run.Rpc.DisposeAsync().ConfigureAwait(false);
-    }
-
-    async Task DrainStderrAsync(Plugin p, Process process)
-    {
-        try
-        {
-            string? line;
-            while ((line = await process.StandardError.ReadLineAsync().ConfigureAwait(false)) is not null)
-            {
-                if (line.Length > 2000) line = line[..2000];
-                lock (p.Stderr)
-                {
-                    p.Stderr.Enqueue(line);
-                    while (p.Stderr.Count > _options.StderrTailLines) p.Stderr.Dequeue();
-                }
-            }
-        }
-        catch (IOException) { }
-        catch (ObjectDisposedException) { }
     }
 
     static void Kill(Run run)

@@ -154,6 +154,11 @@ public sealed partial class App : Application
         Journal?.Dispose();
         ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
         ConfigRestore = ConfigBackup.ApplyPending(ProfileDirectory, Clock()); // before any service reads the files it puts back
+        if (!OperatingSystem.IsWindows()) // Windows ends the children of a killed editor with a job object, see ProcessLaunch.Track
+        {
+            ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimitsPlaceholders.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.StartTimeToleranceMilliseconds));
+            ChildProcessGuard.SweepLeftovers();
+        }
         Workbench = new AppWorkbench(ProfileDirectory, Loc.DefaultLanguage);
         AppCommands.Register(this);
         Workbench.SettingChanged += OnSettingChanged;

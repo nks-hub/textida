@@ -82,7 +82,17 @@ public sealed record PluginHostOptions
 
     /// <summary>How far the search for <c>workspaceContains</c> events goes. Null: that event never fires.</summary>
     public WorkspaceScanLimits? WorkspaceScan { get; init; }
+
+    /// <summary>
+    /// Asks a plugin process to end by itself when the editor is gone (the SDK runner does it). Every plugin process gets the id of the editor in <c>TEXTIDA_PARENT_PID</c>;
+    /// this adds how often the plugin looks. Null: the plugin is not asked to look.
+    /// </summary>
+    public ParentCheckPolicy? ParentCheck { get; init; }
 }
+
+/// <param name="Interval">Time between two looks of a plugin at the editor.</param>
+/// <param name="StartTolerance">How far apart two readings of the start time of one process may be; a process of the same id that started later than this is another process.</param>
+public sealed record ParentCheckPolicy(TimeSpan Interval, TimeSpan StartTolerance);
 
 /// <param name="MaxEntries">Files and folders looked at over all open folders.</param>
 /// <param name="MaxDepth">Folders deeper than this below an open folder are not entered.</param>

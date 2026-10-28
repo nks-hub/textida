@@ -99,6 +99,7 @@ public sealed class GitRepository
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { throw new GitException(e.Message); }
+        ProcessLaunch.Track(process);
         using var limit = new CancellationTokenSource(_timeoutMs);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, limit.Token);
         var output = new MemoryStream();
