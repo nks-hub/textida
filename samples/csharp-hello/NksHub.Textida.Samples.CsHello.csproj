@@ -12,7 +12,9 @@
   <Import Project="..\..\src\NksHub.Textida.PluginSdk\Plugin.props" />
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NksHub.Textida.PluginSdk\NksHub.Textida.PluginSdk.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugin.Sdk\NksHub.Textida.Plugin.Sdk.csproj" />
+    <!-- inside this repository the connection layer is a project; the package carries it, so a plugin built on the package needs no reference -->
+    <ProjectReference Include="..\..\src\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
   </ItemGroup>
 
 </Project>

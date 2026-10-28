@@ -21,7 +21,9 @@ public abstract class PluginBase(string name, int apiVersion)
 {
     private readonly Dictionary<string, RequestHandler> _methods = [];
 
+    /// <summary>Name reported in the handshake.</summary>
     public string Name { get; } = name;
+    /// <summary>The plugin API version the plugin implements (<see cref="PluginApi.Version"/> for the API of this SDK).</summary>
     public int ApiVersion { get; } = apiVersion;
 
     /// <summary>The connection to the editor, for requests and notifications to it. Set before the first request is handled.</summary>
@@ -33,8 +35,10 @@ public abstract class PluginBase(string name, int apiVersion)
     /// </summary>
     protected virtual bool IdleStop => false;
 
+    /// <summary>Registers the handler of a request the editor sends. A method nobody registered is answered with <see cref="RpcErrorCodes.MethodNotFound"/>.</summary>
     protected void On(string method, RequestHandler handler) => _methods.Add(method, handler);
 
+    /// <summary>Registers the handler of a request with typed parameters and result. Parameters that do not fit <paramref name="request"/> are answered with <see cref="RpcErrorCodes.InvalidParams"/>.</summary>
     protected void On<TRequest, TResult>(string method, JsonTypeInfo<TRequest> request, JsonTypeInfo<TResult> result, Func<TRequest, CancellationToken, ValueTask<TResult>> handler) =>
         On(method, async (p, ct) =>
         {

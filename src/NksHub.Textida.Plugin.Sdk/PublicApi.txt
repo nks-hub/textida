@@ -1,0 +1,305 @@
+# NksHub.Textida.Plugin.Sdk
+type NksHub.Textida.PluginHost.AwaitingUserParams : sealed class , System.IEquatable<NksHub.Textida.PluginHost.AwaitingUserParams>
+  ctor public(bool Awaiting)
+  property public Awaiting : bool { get; init; }
+type NksHub.Textida.PluginHost.Documents.DocumentErrorCodes : static class
+  const AgentPanelBusy : int = -32040
+  const DiagnosticsQuotaExceeded : int = -32034
+  const DiffTooLarge : int = -32043
+  const EditsOverlap : int = -32027
+  const InvalidRange : int = -32025
+  const NetworkUnavailable : int = -32042
+  const NoAgentSession : int = -32041
+  const NoTableView : int = -32030
+  const NoTextView : int = -32029
+  const NotProvider : int = -32032
+  const PermissionDenied : int = -32023
+  const PositionUnknown : int = -32026
+  const ReadOnlyDocument : int = -32031
+  const RevisionConflict : int = -32020
+  const SnapshotExpired : int = -32021
+  const SnapshotQuotaExceeded : int = -32022
+  const SourceConflict : int = -32036
+  const SourceNotFound : int = -32038
+  const SourceSchemeTaken : int = -32039
+  const SourceUnavailable : int = -32037
+  const SymbolsQuotaExceeded : int = -32028
+  const UnknownDocument : int = -32024
+  const VirtualQuotaExceeded : int = -32033
+  const WorkspaceQuotaExceeded : int = -32035
+type NksHub.Textida.PluginHost.Documents.DocumentEvents : static class
+  const AgentCancel : string = "agent/cancel"
+  const AgentClosed : string = "agent/closed"
+  const AgentMessage : string = "agent/message"
+  const Changed : string = "document/changed"
+  const EventsLost : string = "document/eventsLost"
+  const Withdrawn : string = "document/withdrawn"
+type NksHub.Textida.PluginHost.Documents.DocumentMethods : static class
+  const AgentClose : string = "agent/close"
+  const AgentOpen : string = "agent/open"
+  const AgentPermission : string = "agent/permission"
+  const AgentUpdate : string = "agent/update"
+  const ClipboardWrite : string = "clipboard/write"
+  const CompletionRegister : string = "editor/completionProvider"
+  const DiagnosticsList : string = "diagnostics/list"
+  const DiagnosticsPublish : string = "diagnostics/publish"
+  const DiffCompute : string = "diff/compute"
+  const DiffOpen : string = "diff/open"
+  const DiffStage : string = "diff/stage"
+  const EditApply : string = "edit/apply"
+  const EditPropose : string = "edit/propose"
+  const Facts : string = "document/facts"
+  const Find : string = "document/find"
+  const FindBytes : string = "document/findBytes"
+  const FindLog : string = "document/findLog"
+  const HoverRegister : string = "editor/hoverProvider"
+  const Info : string = "document/info"
+  const List : string = "document/list"
+  const MapPositions : string = "document/mapPositions"
+  const MapRanges : string = "document/mapRanges"
+  const OffsetToPosition : string = "document/offsetToPosition"
+  const PositionToOffset : string = "document/positionToOffset"
+  const PreviewClose : string = "preview/close"
+  const PreviewShow : string = "preview/show"
+  const ReadBytes : string = "document/readBytes"
+  const ReadText : string = "document/readText"
+  const Reveal : string = "editor/reveal"
+  const Selections : string = "document/selections"
+  const SnapshotCreate : string = "snapshot/create"
+  const SnapshotRelease : string = "snapshot/release"
+  const SnippetInsert : string = "snippet/insert"
+  const SourceRegister : string = "source/register"
+  const Subscribe : string = "document/subscribe"
+  const SymbolsList : string = "symbols/list"
+  const SymbolsPublish : string = "symbols/publish"
+  const TabRegister : string = "editor/tabHandler"
+  const TableSelection : string = "table/selection"
+  const Unsubscribe : string = "document/unsubscribe"
+  const VirtualClose : string = "virtual/close"
+  const VirtualOpen : string = "virtual/open"
+  const VirtualUpdate : string = "virtual/update"
+  const WorkspaceEdit : string = "workspace/edit"
+type NksHub.Textida.PluginHost.Documents.DocumentPermissions : static class
+  const AgentPanel : string = "agent.panel"
+  const ClipboardWrite : string = "clipboard.write"
+  const EditDirect : string = "document.edit.direct"
+  const EditPropose : string = "document.edit.propose"
+  const LanguageServer : string = "language.server"
+  const Preview : string = "document.preview"
+  const Read : string = "document.read"
+  const SecretsReveal : string = "document.secrets.reveal"
+  const Source : string = "document.source"
+  const Virtual : string = "document.virtual"
+  const WorkspaceFiles : string = "workspace.files"
+type NksHub.Textida.PluginHost.Documents.DocumentRequests : static class
+  const Completion : string = "completion/request"
+  const Hover : string = "hover/request"
+  const SourceList : string = "source/list"
+  const SourceRead : string = "source/read"
+  const SourceSearch : string = "source/search"
+  const SourceStat : string = "source/stat"
+  const SourceWrite : string = "source/write"
+  const Tab : string = "editor/tab"
+  const VirtualSave : string = "virtual/save"
+type NksHub.Textida.PluginHost.InitializeParams : sealed class , System.IEquatable<NksHub.Textida.PluginHost.InitializeParams>
+  ctor public(int ApiVersion, bool Restarted, string HostName, System.Nullable<System.Text.Json.JsonElement> Settings = null)
+  property public ApiVersion : int { get; init; }
+  property public HostName : string { get; init; }
+  property public Restarted : bool { get; init; }
+  property public Settings : System.Nullable<System.Text.Json.JsonElement> { get; init; }
+type NksHub.Textida.PluginHost.InitializeResult : sealed class , System.IEquatable<NksHub.Textida.PluginHost.InitializeResult>
+  ctor public(int ApiVersion, string Name, bool EventAcks = false, bool IdleStop = false)
+  property public ApiVersion : int { get; init; }
+  property public EventAcks : bool { get; init; }
+  property public IdleStop : bool { get; init; }
+  property public Name : string { get; init; }
+type NksHub.Textida.PluginHost.Permissions.PluginMethodPermissions : static class
+  method public static For(string method) : string
+  method public static ForDocumentApi(string method) : string
+type NksHub.Textida.PluginHost.Permissions.PluginPermissionNames : static class
+  const CommandExecute : string = "command.execute"
+  const Network : string = "network"
+  property public static Declarable : System.Collections.Generic.IReadOnlyList<string> { get; }
+type NksHub.Textida.PluginHost.Permissions.PluginServiceMethods : static class
+  const CommandExecute : string = "command/execute"
+  const NetRequest : string = "net/request"
+  const SecretDelete : string = "secret/delete"
+  const SecretGet : string = "secret/get"
+  const SecretSet : string = "secret/set"
+type NksHub.Textida.PluginHost.PluginJson : sealed class : System.Text.Json.Serialization.JsonSerializerContext , System.Text.Json.Serialization.Metadata.IBuiltInJsonTypeInfoResolver , System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver
+type NksHub.Textida.PluginHost.PluginMethods : static class
+  const AwaitingUser : string = "$/awaitingUser"
+  const Event : string = "$/event"
+  const EventsHandled : string = "$/eventsHandled"
+  const Exit : string = "exit"
+  const Initialize : string = "initialize"
+  const Initialized : string = "initialized"
+  const Ping : string = "$/ping"
+  const Resync : string = "$/resync"
+  const Shutdown : string = "shutdown"
+type NksHub.Textida.PluginHost.Ui.NoticeLevel : enum , System.IComparable , System.IConvertible , System.IFormattable , System.ISpanFormattable
+  const Error : NksHub.Textida.PluginHost.Ui.NoticeLevel = 2
+  const Info : NksHub.Textida.PluginHost.Ui.NoticeLevel = 0
+  const Warning : NksHub.Textida.PluginHost.Ui.NoticeLevel = 1
+  field public value__ : int
+type NksHub.Textida.PluginHost.Ui.UiErrorCodes : static class
+  const QuotaExceeded : int = -32050
+  const UnknownTask : int = -32051
+type NksHub.Textida.PluginHost.Ui.UiEvents : static class
+  const PanelActivated : string = "ui/panelActivated"
+  const TaskCancelled : string = "ui/taskCancelled"
+type NksHub.Textida.PluginHost.Ui.UiMethods : static class
+  const Confirm : string = "ui/confirm"
+  const Input : string = "ui/input"
+  const Notify : string = "ui/notify"
+  const PanelCurrent : string = "ui/panel/current"
+  const PanelRemove : string = "ui/panel/remove"
+  const PanelSet : string = "ui/panel/set"
+  const QuickPick : string = "ui/quickPick"
+  const StatusClear : string = "ui/status/clear"
+  const StatusSet : string = "ui/status/set"
+  const TaskEnd : string = "ui/task/end"
+  const TaskProgress : string = "ui/task/progress"
+  const TaskStart : string = "ui/task/start"
+type NksHub.Textida.PluginSdk.ByteSelection : struct , System.IEquatable<NksHub.Textida.PluginSdk.ByteSelection>
+  ctor public(long Anchor, long Caret)
+  property public Anchor : long { get; init; }
+  property public Caret : long { get; init; }
+  property public End : long { get; }
+  property public IsEmpty : bool { get; }
+  property public Start : long { get; }
+type NksHub.Textida.PluginSdk.CommandContext : sealed class , System.IEquatable<NksHub.Textida.PluginSdk.CommandContext>
+  ctor public(string Command, string DocumentId, System.Nullable<long> Revision, string Language, System.Text.Json.JsonElement Parameters)
+  method public Flag(string name) : bool
+  method public String(string name) : string
+  method public static From(System.Text.Json.JsonElement parameters) : NksHub.Textida.PluginSdk.CommandContext
+  property public Command : string { get; init; }
+  property public DocumentId : string { get; init; }
+  property public Language : string { get; init; }
+  property public Parameters : System.Text.Json.JsonElement { get; init; }
+  property public Revision : System.Nullable<long> { get; init; }
+type NksHub.Textida.PluginSdk.CommandHandler : delegate , System.ICloneable , System.Runtime.Serialization.ISerializable
+  method public virtual Invoke(NksHub.Textida.PluginSdk.CommandContext context, System.Threading.CancellationToken cancellation) : System.Threading.Tasks.ValueTask<NksHub.Textida.PluginSdk.CommandResult>
+type NksHub.Textida.PluginSdk.CommandResult : sealed class , System.IEquatable<NksHub.Textida.PluginSdk.CommandResult>
+  ctor public(string Status, System.Collections.Generic.IReadOnlyList<string> Diagnostics = null)
+  method public static Raw(byte[] json) : NksHub.Textida.PluginSdk.CommandResult
+  property public Diagnostics : System.Collections.Generic.IReadOnlyList<string> { get; init; }
+  property public Status : string { get; init; }
+type NksHub.Textida.PluginSdk.DocumentClient : sealed class
+  ctor public(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, string document, long revision)
+  method public ApplyAsync(System.Collections.Generic.IReadOnlyList<NksHub.Textida.PluginSdk.RangeEdit> edits, string batchId = null, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
+  method public DominantLineEndingAsync(System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<string>
+  method public InfoAsync(System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<NksHub.Textida.PluginSdk.DocumentFacts>
+  method public PositionAsync(long offset, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<System.Nullable<System.ValueTuple<long, long>>>
+  method public ProposeAsync(string title, System.Collections.Generic.IReadOnlyList<NksHub.Textida.PluginSdk.RangeEdit> edits, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
+  method public ReadTextAsync(long start, long end, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<NksHub.Textida.PluginSdk.TextRead>
+  method public SelectionsAsync(System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<NksHub.Textida.PluginSdk.ByteSelection>>
+  method public static For(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, NksHub.Textida.PluginSdk.CommandContext command) : NksHub.Textida.PluginSdk.DocumentClient
+  method public static NotifyAsync(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, NksHub.Textida.PluginHost.Ui.NoticeLevel level, string message, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
+  property public Document : string { get; }
+  property public Revision : long { get; }
+type NksHub.Textida.PluginSdk.DocumentFacts : sealed class , System.IEquatable<NksHub.Textida.PluginSdk.DocumentFacts>
+  ctor public(long ByteLength, string Codec, int BomLength, string Path)
+  property public BomLength : int { get; init; }
+  property public ByteLength : long { get; init; }
+  property public Codec : string { get; init; }
+  property public Path : string { get; init; }
+type NksHub.Textida.PluginSdk.EditorHttpHandler : sealed class : System.Net.Http.HttpMessageHandler , System.IDisposable
+  ctor public(NksHub.Textida.Rpc.JsonRpcDispatcher rpc)
+  method protected virtual SendAsync(System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken cancellationToken) : System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage>
+type NksHub.Textida.PluginSdk.PluginApi : static class
+  const Version : int = 1
+type NksHub.Textida.PluginSdk.PluginBase : abstract class
+  const CommandMethod : string = "command/execute"
+  ctor protected(string name, int apiVersion)
+  method protected DocumentOf(NksHub.Textida.PluginSdk.CommandContext command) : NksHub.Textida.PluginSdk.DocumentClient
+  method protected NotifyAsync(NksHub.Textida.PluginHost.Ui.NoticeLevel level, string message, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
+  method protected On(string method, NksHub.Textida.PluginSdk.RequestHandler handler) : void
+  method protected On<TRequest, TResult>(string method, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TRequest> request, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TResult> result, System.Func<TRequest, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>> handler) : void
+  method protected OnCommand(string command, NksHub.Textida.PluginSdk.CommandHandler handler) : void
+  method protected StartTaskAsync(string title, System.Threading.CancellationToken cancellation, System.Nullable<System.TimeSpan> reportEvery = null) : System.Threading.Tasks.Task<NksHub.Textida.PluginSdk.PluginTask>
+  method protected virtual OnEventAsync(System.Text.Json.JsonElement eventPayload) : System.Threading.Tasks.ValueTask
+  method protected virtual OnResyncAsync(System.Text.Json.JsonElement state) : System.Threading.Tasks.ValueTask
+  property protected IdleStop : bool { get; }
+  property public ApiVersion : int { get; }
+  property public Name : string { get; }
+  property public Rpc : NksHub.Textida.Rpc.JsonRpcDispatcher { get; }
+type NksHub.Textida.PluginSdk.PluginRunner : static class
+  method public static RunAsync(NksHub.Textida.PluginSdk.PluginBase plugin, NksHub.Textida.Rpc.RpcLimits limits, System.IO.Stream input = null, System.IO.Stream output = null) : System.Threading.Tasks.Task<int>
+type NksHub.Textida.PluginSdk.PluginTask : sealed class , System.IAsyncDisposable
+  method public DisposeAsync() : System.Threading.Tasks.ValueTask
+  method public ReportAsync(double fraction, string message = null) : System.Threading.Tasks.ValueTask
+  property public Cancellation : System.Threading.CancellationToken { get; }
+type NksHub.Textida.PluginSdk.RangeEdit : struct , System.IEquatable<NksHub.Textida.PluginSdk.RangeEdit>
+  ctor public(long Start, long End, string Text)
+  property public End : long { get; init; }
+  property public Start : long { get; init; }
+  property public Text : string { get; init; }
+type NksHub.Textida.PluginSdk.RequestHandler : delegate , System.ICloneable , System.Runtime.Serialization.ISerializable
+  method public virtual Invoke(System.Text.Json.JsonElement parameters, System.Threading.CancellationToken cancellation) : System.Threading.Tasks.ValueTask<byte[]>
+type NksHub.Textida.PluginSdk.TextRead : sealed class , System.IEquatable<NksHub.Textida.PluginSdk.TextRead>
+  ctor public(string Text, bool HasInvalid)
+  property public HasInvalid : bool { get; init; }
+  property public Text : string { get; init; }
+type NksHub.Textida.PluginSdk.TypedRpc : static class
+  method public static NotifyAsync<TParams>(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, string method, TParams parameters, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TParams> parametersInfo, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
+  method public static RequestAsync<TParams, TResult>(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, string method, TParams parameters, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TParams> parametersInfo, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TResult> resultInfo, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<TResult>
+  method public static RequestAsync<TParams>(NksHub.Textida.Rpc.JsonRpcDispatcher rpc, string method, TParams parameters, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TParams> parametersInfo, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+# NksHub.Textida.Rpc (the connection layer that ships in the package; only these types are part of the API)
+type NksHub.Textida.Rpc.IRpcHandler : interface
+  method public abstract HandleNotificationAsync(string method, System.Text.Json.JsonElement parameters) : System.Threading.Tasks.ValueTask
+  method public abstract HandleRequestAsync(string method, System.Text.Json.JsonElement parameters, System.Threading.CancellationToken cancellation) : System.Threading.Tasks.ValueTask<byte[]>
+type NksHub.Textida.Rpc.JsonRpcDispatcher : sealed class , System.IAsyncDisposable
+  ctor public(System.IO.Stream input, System.IO.Stream output, NksHub.Textida.Rpc.RpcProtocol protocol, NksHub.Textida.Rpc.RpcLimits limits, NksHub.Textida.Rpc.IRpcHandler handler)
+  method public DisposeAsync() : System.Threading.Tasks.ValueTask
+  method public NotifyAsync(string method, System.ReadOnlyMemory<byte> paramsJson = null, System.Threading.CancellationToken ct = null) : System.Threading.Tasks.Task
+  method public RequestAsync(string method, System.ReadOnlyMemory<byte> paramsJson = null, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = null) : System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+  property public Completion : System.Threading.Tasks.Task { get; }
+  property public Fault : System.Exception { get; }
+  property public InFlightIncoming : int { get; }
+  property public InboundBytesInUse : long { get; }
+  property public IsClosed : bool { get; }
+  property public LateResponses : int { get; }
+  property public PendingOutgoing : int { get; }
+  property public Protocol : NksHub.Textida.Rpc.RpcProtocol { get; }
+  property public QueuedOutgoingBytes : long { get; }
+type NksHub.Textida.Rpc.RpcConnectionClosedException : sealed class : System.IO.IOException , System.Runtime.Serialization.ISerializable
+  ctor public(System.Exception cause)
+type NksHub.Textida.Rpc.RpcErrorCodes : static class
+  const InternalError : int = -32603
+  const InvalidParams : int = -32602
+  const InvalidRequest : int = -32600
+  const MessageTooLarge : int = -32011
+  const MethodNotFound : int = -32601
+  const ParseError : int = -32700
+  const RequestCancelled : int = -32800
+  const RequestTimeout : int = -32015
+  const SessionMemoryExceeded : int = -32014
+  const TooManyRequests : int = -32012
+  const TooManyResults : int = -32013
+type NksHub.Textida.Rpc.RpcException : class : System.Exception , System.Runtime.Serialization.ISerializable
+  ctor public(int code, string message)
+  property public Code : int { get; }
+  property public DataJson : string { get; init; }
+  property public Id : System.Nullable<NksHub.Textida.Rpc.RpcId> { get; init; }
+type NksHub.Textida.Rpc.RpcFramingException : sealed class : System.IO.IOException , System.Runtime.Serialization.ISerializable
+  ctor public(string message)
+type NksHub.Textida.Rpc.RpcId : struct , System.IEquatable<NksHub.Textida.Rpc.RpcId>
+  ctor public(long Number, string Text)
+  method public static FromNumber(long n) : NksHub.Textida.Rpc.RpcId
+  method public static FromText(string s) : NksHub.Textida.Rpc.RpcId
+  method public virtual ToString() : string
+  property public Number : long { get; init; }
+  property public Text : string { get; init; }
+type NksHub.Textida.Rpc.RpcLimits : sealed class , System.IEquatable<NksHub.Textida.Rpc.RpcLimits>
+  ctor public(int MaxMessageBytes, int MaxConcurrentIncoming, int MaxPendingOutgoing, int MaxResultItems, long MaxSessionBytes, long MaxOutgoingQueueBytes)
+  property public MaxConcurrentIncoming : int { get; init; }
+  property public MaxMessageBytes : int { get; init; }
+  property public MaxOutgoingQueueBytes : long { get; init; }
+  property public MaxPendingOutgoing : int { get; init; }
+  property public MaxResultItems : int { get; init; }
+  property public MaxSessionBytes : long { get; init; }
+type NksHub.Textida.Rpc.RpcRequestContext : static class
+  property public static CurrentId : System.Nullable<NksHub.Textida.Rpc.RpcId> { get; }
+type NksHub.Textida.Rpc.RpcTimeoutException : sealed class : System.TimeoutException , System.Runtime.Serialization.ISerializable
+  ctor public(string method, System.Nullable<System.TimeSpan> timeout)

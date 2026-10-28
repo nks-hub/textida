@@ -18,9 +18,9 @@ public interface ISecretBackend
 /// </summary>
 public sealed class PluginSecrets(ISecretBackend backend, PluginCallLog log)
 {
-    public const string Get = "secret/get";
-    public const string Set = "secret/set";
-    public const string Delete = "secret/delete";
+    public const string Get = PluginServiceMethods.SecretGet;
+    public const string Set = PluginServiceMethods.SecretSet;
+    public const string Delete = PluginServiceMethods.SecretDelete;
 
     public ValueTask<byte[]?> HandleAsync(string pluginId, string method, JsonElement p, CancellationToken cancellation) =>
         log.RunAsync(pluginId, method, null, () =>

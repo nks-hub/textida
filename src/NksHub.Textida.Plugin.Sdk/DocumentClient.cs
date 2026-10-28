@@ -1,4 +1,3 @@
-using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Rpc;
@@ -14,8 +13,11 @@ public sealed record DocumentFacts(long ByteLength, string Codec, int BomLength,
 /// <summary>A selection as byte offsets; <see cref="Anchor"/> may be after <see cref="Caret"/>.</summary>
 public readonly record struct ByteSelection(long Anchor, long Caret)
 {
+    /// <summary>The lower end of the selection.</summary>
     public long Start => Math.Min(Anchor, Caret);
+    /// <summary>The higher end of the selection.</summary>
     public long End => Math.Max(Anchor, Caret);
+    /// <summary>True for a bare caret.</summary>
     public bool IsEmpty => Anchor == Caret;
 }
 
@@ -28,7 +30,9 @@ public sealed record TextRead(string Text, bool HasInvalid);
 /// </summary>
 public sealed class DocumentClient(JsonRpcDispatcher rpc, string document, long revision)
 {
+    /// <summary>The id of the document.</summary>
     public string Document { get; } = document;
+    /// <summary>The revision of the document the client is bound to.</summary>
     public long Revision { get; } = revision;
 
     /// <summary>The client of the document and revision a <c>command/execute</c> request named.</summary>
@@ -37,15 +41,13 @@ public sealed class DocumentClient(JsonRpcDispatcher rpc, string document, long 
 
     private RpcException Stale() => new(DocumentErrorCodes.RevisionConflict, "Stale.");
 
+    /// <summary>Reads length, encoding, BOM length and path of the document. Fails with a revision conflict when the document has moved on from <see cref="Revision"/>.</summary>
     public async Task<DocumentFacts> InfoAsync(CancellationToken cancellation = default)
     {
         var info = await rpc.RequestAsync(DocumentMethods.Info, new DocumentRef(Document), SdkJson.Default.DocumentRef, SdkJson.Default.DocumentInfoResult, cancellation).ConfigureAwait(false);
         if (info.Revision != Revision) throw Stale();
         return new DocumentFacts(info.ByteLength, info.Codec, info.BomLength, info.Path);
     }
-
-    /// <summary>The codec of the document by its name, UTF-8 when the editor names one this build does not know.</summary>
-    public static TextCodec CodecOf(DocumentFacts facts) => TextCodec.ByName(facts.Codec) ?? TextCodec.Utf8;
 
     /// <summary>The selections of the document, empty ones (a bare caret) included, in the order the editor keeps them.</summary>
     public async Task<IReadOnlyList<ByteSelection>> SelectionsAsync(CancellationToken cancellation = default)
@@ -55,6 +57,7 @@ public sealed class DocumentClient(JsonRpcDispatcher rpc, string document, long 
         return [.. result.Selections.Select(s => new ByteSelection(s.Anchor, s.Caret))];
     }
 
+    /// <summary>Reads the bytes <paramref name="start"/> to <paramref name="end"/> as text, on character boundaries, at <see cref="Revision"/>.</summary>
     public async Task<TextRead> ReadTextAsync(long start, long end, CancellationToken cancellation = default)
     {
         var read = await rpc.RequestAsync(DocumentMethods.ReadText, new ReadTextParams(Document, Revision, start, end), SdkJson.Default.ReadTextParams, SdkJson.Default.ReadTextResult, cancellation).ConfigureAwait(false);

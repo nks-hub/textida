@@ -11,6 +11,7 @@ namespace NksHub.Textida.PluginSdk;
 /// </summary>
 public sealed class EditorHttpHandler(JsonRpcDispatcher rpc) : HttpMessageHandler
 {
+    /// <inheritdoc/>
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var body = request.Content is null ? null : await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
@@ -28,7 +29,7 @@ public sealed class EditorHttpHandler(JsonRpcDispatcher rpc) : HttpMessageHandle
             w.WriteEndObject();
         }
         JsonElement answer;
-        try { answer = await rpc.RequestAsync(PluginNetwork.Request, stream.ToArray(), null, cancellationToken).ConfigureAwait(false); }
+        try { answer = await rpc.RequestAsync(PluginServiceMethods.NetRequest, stream.ToArray(), null, cancellationToken).ConfigureAwait(false); }
         catch (RpcException e) { throw new HttpRequestException(e.Message, e); }
 
         var response = new HttpResponseMessage((System.Net.HttpStatusCode)answer.GetProperty("status").GetInt32())

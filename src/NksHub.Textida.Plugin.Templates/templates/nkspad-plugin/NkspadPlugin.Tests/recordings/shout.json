@@ -1,0 +1,15 @@
+{
+  "documents": [
+    { "name": "notes.txt", "text": "first line\nsecond line\n", "selections": [[0, 5]] }
+  ],
+  "steps": [
+    { "kind": "command", "name": "example.nkspad-plugin.shout", "document": "notes.txt", "status": "applied" },
+    { "kind": "expectText", "document": "notes.txt", "text": "FIRST line\nsecond line\n" },
+    { "kind": "edit", "document": "notes.txt", "offset": 23, "text": "third line\n" },
+    { "kind": "select", "document": "notes.txt", "ranges": [[11, 17], [23, 28]] },
+    { "kind": "command", "name": "example.nkspad-plugin.shout", "document": "notes.txt", "status": "applied" },
+    { "kind": "expectText", "document": "notes.txt", "text": "FIRST line\nSECOND line\nTHIRD line\n" },
+    { "kind": "expectCalled", "method": "edit/apply", "count": 2 },
+    { "kind": "expectNotCalled", "method": "edit/propose" }
+  ]
+}

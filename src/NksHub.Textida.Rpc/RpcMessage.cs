@@ -1,3 +1,4 @@
+#pragma warning disable CS1591 // wire details of the protocols of the editor; not part of the API of the plugin SDK package
 using System.Buffers;
 using System.Text.Json;
 

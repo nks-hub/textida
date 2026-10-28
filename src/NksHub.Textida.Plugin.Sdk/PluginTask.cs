@@ -23,6 +23,7 @@ public sealed class PluginTask : IAsyncDisposable
         (_rpc, _id, _source, _reportEvery, _forget) = (rpc, id, source, reportEvery, forget);
     }
 
+    /// <summary>Cancelled when the user presses cancel or the request that started the task is cancelled.</summary>
     public CancellationToken Cancellation => _source.Token;
 
     /// <summary>Reports <paramref name="fraction"/> (0 to 1) of the work done. When the task was started with a reporting interval, a report sooner than that after the last one is dropped.</summary>
@@ -34,6 +35,7 @@ public sealed class PluginTask : IAsyncDisposable
         await _rpc.RequestAsync(UiMethods.TaskProgress, new TaskProgressParams(_id, Math.Clamp(fraction, 0, 1), message), SdkJson.Default.TaskProgressParams, CancellationToken.None).ConfigureAwait(false);
     }
 
+    /// <summary>Tells the editor the task is over.</summary>
     public async ValueTask DisposeAsync()
     {
         _forget(_id);

@@ -14,6 +14,10 @@ Test-only (not shipped): FubarDev.FtpServer 3.1.2 (MIT), the in-process FTPS ser
 
 All MIT licences require the copyright notice and the permission notice to travel with copies of the software; the full texts are in the NuGet packages of the versions above.
 
+## Plugin validator
+
+`textida-plugin-validate` (`tools/NksHub.Textida.Plugin.Validate`) is a separate dotnet tool for plugin authors and is not part of the editor. It carries [Microsoft.CodeAnalysis.CSharp](https://github.com/dotnet/roslyn) 4.14.0 (MIT, Copyright (c) .NET Foundation and Contributors), which runs the analyzer that bans reflection over the C# sources of a plugin.
+
 ## Structure templates
 
 The `.ksy` files in `src/NksHub.Textida.Core/Hex/Ksy/Templates` (BMP, PNG, ZIP, PE, ELF, binary STL) were written for Textida from the public descriptions of the formats: the BMP file and info headers, the PNG specification, the PKWARE APPNOTE, Microsoft's PE format description, the System V gABI ELF chapter and the binary STL layout. They are MIT, like the rest of this repository, and `pinned.yaml` in that folder lists each file with its version, licence, source and the constructs it uses. The file syntax comes from the [Kaitai Struct](https://kaitai.io/) project; Textida has its own reader for a subset of it and ships neither the Kaitai compiler or runtime (GPL-3 and MIT) nor any template of the Kaitai format gallery.
