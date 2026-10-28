@@ -1133,10 +1133,12 @@ The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
+- Undo and Redo also work after Save: the steps made before the save can still be undone, and the next save writes the state after the undo. Typing a word without moving the caret is one step.
 - Find (Ctrl+F). Find in Files.
 - Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
+- Paste takes at most 32 Mi characters (a provisional value); a longer text is not pasted and the status bar says so. A text over 1 Mi characters is prepared in the background and goes in where the caret is when that is done.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
-- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves.
+- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves. A line longer than 1 GiB (a provisional value) is not edited; the status bar says so and the document does not change.
 ### What does not work
 - Block selection, multiple carets.
 - Commands for lines, indentation, letter case, replacing.
@@ -1148,6 +1150,9 @@ The status bar then shows Large file, its size and the revision.
 - The character cannot be written in the file encoding: type another character.
 - The selection is larger than the copy limit: select less; the clipboard stays as it was.
 - The edit is too large to be undone: remove or insert less text at once; the document does not change.
+- A line is longer than the limit that can be edited in paged mode: edit it in the hex view; the document does not change.
+- The clipboard text is larger than the paste limit: paste it in parts; the document does not change.
+- The encoding of the document changed while the text was being prepared: paste again.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - Saving a large file holds up the window.
 

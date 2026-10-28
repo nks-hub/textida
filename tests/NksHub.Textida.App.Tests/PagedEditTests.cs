@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia.Headless;
@@ -9,6 +11,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -468,6 +471,155 @@ public class PagedEditTests : IDisposable
             Dispatcher.UIThread.RunJobs();
         }
         Assert.True(await condition(), state?.Invoke());
+    }
+
+    private static string Sha(Document doc)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1 << 20];
+        for (long at = 0; at < doc.ByteLength;)
+        {
+            int n = doc.Read(at, buffer);
+            hash.AppendData(buffer, 0, n);
+            at += n;
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    [AvaloniaFact]
+    public void A_line_over_the_edit_limit_is_refused_with_a_message_and_the_document_stays_the_same()
+    {
+        byte[] content = [.. "short\n"u8, .. Encoding.ASCII.GetBytes(new string('x', 20_000) + "\n"), .. "tail\n"u8, .. Rows(100_000)];
+        var tab = OpenPaged(content);
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        view.EditLineLimitBytes = 10_000;
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+        string TooLong(long line) => Loc.Get(K.PagedLineTooLong, ("line", line.ToString("N0", CultureInfo.CurrentCulture)),
+            ("size", OpenDocument.FormatSize(20_000)), ("limit", OpenDocument.FormatSize(10_000)));
+
+        Press(Key.Down); // the long line, second in the file
+        TestApp.Type(_w, "q");
+        Press(Key.Back);
+        Press(Key.Delete);
+        Press(Key.Enter);
+        Press(Key.Tab);
+        Assert.False(view.PasteText("pasted"));
+        Assert.Equal(Enumerable.Repeat(TooLong(2), 6), refused);
+        Assert.False(doc.IsModified);
+        Assert.Equal(content.Length, doc.ByteLength);
+
+        // a join with the long line from either side is an edit of it
+        refused.Clear();
+        Press(Key.Down);
+        Press(Key.Back); // the start of "tail" joins it to the long line
+        Press(Key.Up);
+        Press(Key.Up);
+        Press(Key.End);
+        Press(Key.Delete); // the end of "short" joins the long line to it
+        Assert.Equal([TooLong(2), TooLong(2)], refused);
+        Assert.False(doc.IsModified);
+
+        // the short line next to it is edited as ever, and the long one again once the limit allows it
+        refused.Clear();
+        TestApp.Type(_w, "!");
+        Assert.Equal("short!\n", Head(tab, 7));
+        view.EditLineLimitBytes = 1 << 20;
+        Press(Key.Down); // column 6 of the long line
+        TestApp.Type(_w, "q");
+        Assert.Empty(refused);
+        Assert.Equal((byte)'q', doc.ReadBytes(new ByteRange(13, 14))[0]);
+    }
+
+    [AvaloniaFact]
+    public async Task A_paste_over_the_limit_is_refused_and_a_large_one_is_prepared_on_the_pool_and_is_one_undo_step()
+    {
+        var tab = OpenPaged(Rows(200_000, "\r\n"));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+
+        view.PasteLimitChars = 3_000_000;
+        Assert.False(await view.PasteTextAsync(new string('a', 3_000_001)));
+        Assert.Equal([Loc.Get(K.PagedPasteTooLarge, ("size", 3_000_001.ToString("N0", CultureInfo.CurrentCulture)), ("limit", 3_000_000.ToString("N0", CultureInfo.CurrentCulture)))], refused);
+        Assert.False(doc.IsModified);
+
+        // 300 000 lines with a character outside ASCII
+        string block = string.Concat(Enumerable.Range(0, 100_000).Select(i => $"ř{i}\n"));
+        string text = block + block + block;
+        Assert.InRange(text.Length, (1 << 20) + 1, 3_000_000); // over the size that is encoded on the UI thread, under the limit set above
+        string original = Encoding.UTF8.GetString(Rows(200_000, "\r\n"));
+        Press(Key.Down);
+        Press(Key.Right);
+        Press(Key.Right);
+        int at = "line 1\r\n".Length + 2;
+        int depth = doc.UndoDepth;
+        Assert.True(await view.PasteTextAsync(text));
+
+        string expected = original[..at] + text.Replace("\n", "\r\n") + original[at..];
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(expected))), Sha(doc));
+        Assert.Equal(depth + 1, doc.UndoDepth);
+        Assert.Equal(expected.Count(c => c == '\n') + 1L, view.Index.Lines);
+        Assert.Equal((2L + 300_000, 1L), tab.CaretPosition()); // behind the last pasted break, in front of the rest of "line 2"
+
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(before, Sha(doc));
+        Assert.Equal(depth, doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task A_paste_prepared_while_the_encoding_changes_is_refused_and_the_document_stays_the_same()
+    {
+        var tab = OpenPaged(Rows(150_000));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        var refused = new List<string>();
+        view.Refused += refused.Add;
+
+        var pasting = view.PasteTextAsync(new string('a', (1 << 20) + 1)); // over the size that is prepared on the UI thread: the work is on the pool
+        doc.ReinterpretAs(doc.Codec == TextCodec.Cp1250 ? TextCodec.Cp1252 : TextCodec.Cp1250); // the continuation of the paste cannot run before this ends
+        Assert.False(await pasting);
+        Assert.Equal([Loc.Get(K.PagedPasteEncoding)], refused);
+        Assert.Equal(before, Sha(doc));
+    }
+
+    [AvaloniaFact]
+    public void An_edit_that_makes_a_lone_CR_and_an_LF_one_line_break_keeps_the_caret_behind_the_pair_on_its_own_line()
+    {
+        // lines: "A" (ended by a lone CR), "xyz", "B", then the rows
+        var tab = OpenPaged([.. "A\rxyz\nB\n"u8, .. Rows(100_000)]);
+        var view = tab.Paged!;
+        Assert.Equal(100_004L, view.Index.Lines);
+
+        Press(Key.Down);
+        Press(Key.End, Shift);
+        Assert.Equal(new ByteRange(2, 5), view.SelectionRange);
+        Press(Key.Delete); // the CR now stands in front of the LF of "xyz"
+        Assert.Equal("A\r\nB\nli", Head(tab, 7));
+        Assert.Equal(3L, view.CaretOffset);
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+        Assert.Equal(100_003L, view.Index.Lines);
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal("A\rxyz\nB\n", Head(tab, 8));
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+
+        Assert.True(view.InsertText("\n", typing: false)); // an LF behind the lone CR
+        Assert.Equal("A\r\nxyz\nB", Head(tab, 8));
+        Assert.Equal(3L, view.CaretOffset);
+        Assert.Equal((2L, 1L), tab.CaretPosition());
+        Assert.Equal(100_004L, view.Index.Lines);
+        Press(Key.Z, TestApp.Mod);
+
+        Press(Key.End); // the end of "xyz"
+        Assert.True(view.InsertText("\r", typing: false)); // a CR in front of the LF
+        Assert.Equal("A\rxyz\r\nB\n", Head(tab, 9));
+        Assert.Equal(7L, view.CaretOffset);
+        Assert.Equal((3L, 1L), tab.CaretPosition());
+        Assert.Equal(100_004L, view.Index.Lines);
     }
 
     [AvaloniaFact]

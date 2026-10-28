@@ -1138,10 +1138,12 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Co jde
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).
 - Psát, mazat (Backspace a Delete), Enter a Tab na místě kurzoru. Zpět a Znovu. Uložit.
+- Zpět a Znovu fungují i po uložení: kroky provedené před uložením jdou dál vrátit a další uložení zapíše stav po vrácení. Napsané slovo bez přesunu kurzoru je jeden krok.
 - Hledat (Ctrl+F). Hledání v souborech.
 - Výběr (Shift se šipkami, myš, Ctrl+A), Kopírovat, Vyjmout a Vložit. Výběr větší než limit kopírování (256 MiB, zatím provizorní hodnota) se nezkopíruje a stavový řádek to řekne. Dlouhý výběr se čte na pozadí a vyjmutí smaže jen tehdy, když se text mezitím nezměnil.
+- Vložit přijme nejvýš 32 Mi znaků (zatím provizorní hodnota); delší text se nevloží a stavový řádek to řekne. Text nad 1 Mi znaků se připraví na pozadí a vloží se tam, kde je kurzor, až bude hotovo.
 - Řádek delší než 16 KiB posunete do stran posuvníkem pod textem. Vzdálená část řádku se na chvíli ukáže jako …, dokud se nenačte. Barvy v ní přibudou, jakmile program přečte řádek až k ní.
-- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny.
+- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny. Řádek delší než 1 GiB (zatím provizorní hodnota) se neupravuje; stavový řádek to řekne a dokument se nezmění.
 ### Co nejde
 - Blokový výběr, více kurzorů.
 - Příkazy nad řádky, odsazením, velikostí písmen, nahrazení.
@@ -1153,6 +1155,9 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 - Znak se nedá zapsat v kódování souboru: napište jiný znak.
 - Výběr je větší než limit kopírování: vyberte méně; schránka zůstala, jak byla.
 - Úprava je příliš velká, než aby šla vrátit zpět: odeberte nebo vložte najednou méně textu; dokument se nezměnil.
+- Řádek je delší než limit, který se ve stránkovaném režimu upravuje: upravte ho v hexu; dokument se nezměnil.
+- Text ve schránce je větší než limit vložení: vložte ho po částech; dokument se nezměnil.
+- Kódování dokumentu se změnilo, zatímco se text připravoval: vložte ho znovu.
 - Velký soubor v kódování ... se zatím nedá otevřít: soubor se neotevře; jiné kódování ve velkém souboru program zatím nepřečte.
 - Ukládání velkého souboru zdrží okno.
 
