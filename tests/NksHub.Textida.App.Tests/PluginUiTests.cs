@@ -123,6 +123,7 @@ public class PluginUiTests : IDisposable
     [AvaloniaFact]
     public async Task The_current_item_of_a_panel_is_drawn_in_bold_named_so_and_moves_without_the_tree_being_built_again()
     {
+        Loc.SetLanguage("en"); // the name is spoken in the language of the editor, Czech by default; Dispose puts it back
         await StartPluginAsync();
         await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"Outline\",\"kind\":\"tree\",\"reveal\":true,\"current\":\"b\",\"items\":[{\"id\":\"a\",\"label\":\"first\",\"detail\":\"class\",\"children\":[{\"id\":\"b\",\"label\":\"second\"}]},{\"id\":\"c\",\"label\":\"third\"}]}"));
         await Until(() => _w.PluginPanelOpen, "the revealed panel");
@@ -742,7 +743,11 @@ public class PluginUiTests : IDisposable
 
         var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.hash", new ShellContext(_w, forMenu: false)).AsTask();
         await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the algorithm pick");
-        Assert.Equal(["MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512", "CRC-32"], _w.QuickResults.Select(r => r.Title));
+        // the same list as the checksum dialog of the hex view; the first row is not MD5, so the test narrows the list to it
+        Assert.Equal(NksHub.Textida.Core.Hex.Checksums.All.Select(a => a.Name), _w.QuickResults.Select(r => r.Title));
+        Assert.Contains(_w.QuickResults, r => r.Title == "MD5");
+        _w.SetPaletteQuery("MD5");
+        Assert.Equal(["MD5"], _w.QuickResults.Select(r => r.Title));
         _w.RunPaletteSelection();
         await Until(() => run.IsCompleted, "the command");
         await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
