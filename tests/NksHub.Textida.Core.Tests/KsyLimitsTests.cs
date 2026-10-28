@@ -55,6 +55,29 @@ public class KsyLimitsTests
         Assert.Equal(["items", "items[4..7]", "items[6]"], items.PathTo(6).Select(n => n.Name));
     }
 
+    [Theory]
+    [InlineData(5, "items[0..3]|items[4..4]")]
+    [InlineData(16, "items[0..3]|items[4..7]|items[8..11]|items[12..15]")]
+    [InlineData(17, "items[0..15]|items[16..16]")]
+    [InlineData(64, "items[0..15]|items[16..31]|items[32..47]|items[48..63]")]
+    [InlineData(65, "items[0..63]|items[64..64]")]
+    public void The_ranges_of_a_long_array_grow_by_a_power_of_the_page_only_when_the_level_below_does_not_fit(int count, string expected)
+    {
+        var items = new KsyReader(new ArraySnapshot(new byte[count]), Parse("meta:\n  id: p\nseq:\n  - id: items\n    type: u1\n    repeat: eos\n"), new KsyLimits(PageSize: 4)).Root.Children.Single();
+        var groups = items.Children;
+        Assert.Equal(expected.Split('|'), groups.Select(g => g.Name));
+        long next = 0;
+        foreach (var group in groups)
+        {
+            var bounds = group.Name[(group.Name.IndexOf('[') + 1)..^1].Split("..").Select(long.Parse).ToArray();
+            Assert.Equal((bounds[0], bounds[1] - bounds[0] + 1), (group.Start, group.Length));
+            Assert.Equal(next, group.Start);
+            next = group.End;
+        }
+        Assert.Equal(count, next);
+        if (count == 65) Assert.Equal(["items[0..15]", "items[16..31]", "items[32..47]", "items[48..63]"], groups[0].Children.Select(g => g.Name));
+    }
+
     [Fact]
     public void An_array_up_to_a_page_is_not_split()
     {
