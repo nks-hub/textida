@@ -94,7 +94,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonElement> _pluginSettings = new(StringComparer.Ordinal);
 
-    private readonly HashSet<string> _boundInstalled = [];
+    /// <summary>The installed plugins with a process whose commands, keys and settings are in the app: id and the version they came from.</summary>
+    private readonly Dictionary<string, string> _boundInstalled = new(StringComparer.Ordinal);
 
     /// <summary>The package registries the user allowed (P8.7.3); the JSON plugin reads the same file.</summary>
     internal PackageRegistryConsent Registries { get; }
@@ -264,12 +265,37 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     }
 
     /// <summary>
+    /// Makes the app show what an installed plugin with a process contributes now: nothing when it is gone or switched off, the commands of its current version otherwise.
+    /// What an older version put into the commands, menus, keys and settings is taken back first, so a removal or an update needs no restart. A data plugin is read by the clip library instead.
+    /// </summary>
+    internal void SyncInstalled(string id)
+    {
+        var loaded = Manager.Installed().Any(p => p.Id == id && p.Enabled) ? Manager.Loaded(id) : null;
+        if (_boundInstalled.TryGetValue(id, out var version) && (loaded?.Spec is null || loaded.Manifest.Version != version)) UnbindInstalled(id);
+        BindInstalled(loaded);
+    }
+
+    private void UnbindInstalled(string id)
+    {
+        _boundInstalled.Remove(id);
+        InstalledProblems.RemoveAll(p => p.StartsWith(id + ":", StringComparison.Ordinal));
+        UndeclarePlugin(id);
+    }
+
+    /// <summary>Takes back the commands, menu items, keys and settings of a plugin, and the setting values kept for its handshake.</summary>
+    internal void UndeclarePlugin(string id)
+    {
+        _app.Workbench.RemovePlugin(id);
+        _pluginSettings.TryRemove(id, out _);
+    }
+
+    /// <summary>
     /// Gives the commands of an installed plugin with a process a handler that starts the plugin at its first use and sends it <c>command/execute</c>; a data plugin is read by the clip library instead.
-    /// The commands of a plugin are registered once per run: a new version that adds commands shows them after a restart.
+    /// The commands of one version of a plugin are registered once (see <see cref="SyncInstalled"/>).
     /// </summary>
     internal void BindInstalled(LoadedPlugin? plugin)
     {
-        if (plugin?.Spec is null || !_boundInstalled.Add(plugin.Manifest.Id)) return;
+        if (plugin?.Spec is null || !_boundInstalled.TryAdd(plugin.Manifest.Id, plugin.Manifest.Version)) return;
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
         var (id, display) = (plugin.Manifest.Id, plugin.Manifest.Name);
@@ -1420,6 +1446,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         await Acp.DisposeAsync();
         await Mcp.DisposeAsync();
         await _host.DisposeAsync();

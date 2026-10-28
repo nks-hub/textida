@@ -142,6 +142,22 @@ public class PluginLifecycleTests
     }
 
     [Fact]
+    public async Task TheDeclaredPanelsAreTheOnPanelEventsAndFiringOneStartsOnlyThePluginsThatListIt()
+    {
+        await using var host = new PluginHost.PluginHost(PluginHostTests.Options());
+        host.Register(SpecOn("tree", [ActivationEvents.Panel("acme.tree"), ActivationEvents.Language("json"), ActivationEvents.Panel("acme.list")]));
+        host.Register(SpecOn("other", [ActivationEvents.Startup]));
+
+        Assert.Equal([("tree", "Plugin tree", "acme.tree"), ("tree", "Plugin tree", "acme.list")], host.DeclaredPanels());
+        Assert.Empty(await host.ActivateAsync(ActivationEvents.Panel("acme.missing")));
+        Assert.Equal(PluginState.Inactive, host.GetState("tree"));
+
+        Assert.Equal(["tree"], await host.ActivateAsync(ActivationEvents.Panel("acme.list")));
+        Assert.Equal(PluginState.Running, host.GetState("tree"));
+        Assert.Equal(PluginState.Inactive, host.GetState("other"));
+    }
+
+    [Fact]
     public async Task ASecondActivationWaitsForAPluginThatIsStillStartingInsteadOfPassingItBy()
     {
         await using var host = new PluginHost.PluginHost(PluginHostTests.Options());

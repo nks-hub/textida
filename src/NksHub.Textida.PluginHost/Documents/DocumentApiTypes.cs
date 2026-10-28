@@ -2,6 +2,7 @@ using System.Text.Json;
 using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Permissions;
 
@@ -274,6 +275,8 @@ public sealed record DocumentApiOptions
     public required int MaxSnippetLength { get; init; }
     /// <summary>Carets one snippet places in each selection.</summary>
     public required int MaxSnippetCarets { get; init; }
+    /// <summary>Nesting depth, text size and transform time of the snippets a plugin sends; null keeps <see cref="SnippetLimits.Fallback"/>.</summary>
+    public SnippetLimits? Snippets { get; init; }
     /// <summary>How long a plugin has to answer the Tab key before the editor indents as without it.</summary>
     public required TimeSpan TabTimeout { get; init; }
     /// <summary>Largest secrets file whose values are looked for; a larger one is hidden whole, because looking would mean holding it in memory.</summary>

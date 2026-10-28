@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Avalonia.Threading;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -8,7 +9,7 @@ namespace NksHub.Textida.App.Services;
 
 /// <summary>
 /// The life of the plugin processes as the app drives it: the activation events that start a plugin (<c>onStartup</c>, <c>onLanguage</c>, <c>onFileType</c>, <c>workspaceContains</c>; <c>onCommand</c> is fired
-/// by the commands themselves), the state, start, stop and restart the plugin manager shows, and the bounded end of all processes when the editor closes.
+/// by the commands themselves, <c>onPanel</c> by the list of panels), the state, start, stop and restart the plugin manager shows, and the bounded end of all processes when the editor closes.
 /// </summary>
 internal sealed partial class PluginServices
 {
@@ -17,8 +18,12 @@ internal sealed partial class PluginServices
     /// <summary>What was already announced to the plugins per document: its language and file name, so a status refresh does not fire the same event again.</summary>
     private readonly HashSet<(Guid Document, string Key)> _activatedFor = [];
 
+    /// <summary>The document each window showed at its last look, so that showing a document again (a switch of tab) counts as a new activation event.</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<MainWindow, StrongBox<Guid>> _shown = new();
+
     private readonly HashSet<string> _scannedFolders = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     private int _startupFired;
+    private int _disposed;
 
     /// <summary>The editor has started: the plugins that list <c>onStartup</c> start, in the background. Fires once.</summary>
     public void ActivateStartup()
@@ -29,7 +34,8 @@ internal sealed partial class PluginServices
 
     /// <summary>
     /// Tells the plugins what the window shows: the language and file type of the active document (<c>onLanguage</c>, <c>onFileType</c>) and the folders it has open (<c>workspaceContains</c>).
-    /// Each is announced once per document and once per folder, so calling it on every refresh of the status bar costs a few set lookups.
+    /// Each is announced once per document and once per folder, so calling it on every refresh of the status bar costs a few set lookups; a document that is shown again after another one
+    /// (or a tab without text) is announced again, so a plugin that was stopped, or ended for being idle, starts at the next activation event as promised.
     /// </summary>
     public void TrackActivation(MainWindow window, DocTab? tab)
     {
@@ -38,18 +44,29 @@ internal sealed partial class PluginServices
         if (window.Files?.Roots is { Count: > 0 } roots)
             foreach (var root in roots)
                 if (_scannedFolders.Add(root)) folders.Add(root);
+        var shown = _shown.GetOrCreateValue(window);
         if (tab is { Custom: null, Hex: null } && !tab.Doc.IsVirtual && !tab.Doc.IsResults)
         {
             var document = tab.Doc.Doc;
             var language = tab.Doc.Language.Id;
-            if (_activatedFor.Add((document.Id, language + "\n" + document.FilePath)))
+            bool shownAgain = shown.Value != document.Id;
+            shown.Value = document.Id;
+            if (_activatedFor.Add((document.Id, language + "\n" + document.FilePath)) || shownAgain)
             {
                 events.Add(ActivationEvents.Language(language));
                 if (ActivationEvents.FileType(document.FilePath) is { } fileType) events.Add(fileType);
             }
         }
+        else shown.Value = Guid.Empty;
         if (events.Count > 0 || folders.Count > 0) _ = ActivateInBackgroundAsync(events, folders);
     }
+
+    /// <summary>The panels that plugins list as <c>onPanel:id</c> and that none shows now; the plugin starts when the user opens one and then shows it.</summary>
+    internal IReadOnlyList<(string PluginId, string Name, string PanelId)> UnshownPanels() =>
+        [.. _host.DeclaredPanels().Where(d => !Ui.Panels.Any(p => p.PluginId == d.PluginId && p.Model.Id == d.PanelId))];
+
+    /// <summary>Fires <c>onPanel:id</c>: the plugins that list it start. Null when they run, else why one does not.</summary>
+    internal Task<string?> ActivatePanelAsync(string panelId) => LifecycleAsync(() => _host.ActivateAsync(ActivationEvents.Panel(panelId)));
 
     /// <summary>Fires the events and the folder search; a plugin that cannot start is passed over with a note in the status bar (a crash has its own notice).</summary>
     private async Task ActivateInBackgroundAsync(IReadOnlyList<string> events, IReadOnlyList<string> folders)

@@ -813,6 +813,7 @@ public static class K
     public const string PluginPanelsWatermark = "plugin.panels.watermark";
     public const string A11yPluginPanels = "a11y.plugin.panels";
     public const string PluginPanelsEmpty = "plugin.panels.empty";
+    public const string PluginPanelsStarts = "plugin.panels.starts";
     public const string PluginPickWatermark = "plugin.pick.watermark";
     public const string A11yPluginPick = "a11y.plugin.pick";
     public const string PluginUnavailable = "plugin.unavailable";

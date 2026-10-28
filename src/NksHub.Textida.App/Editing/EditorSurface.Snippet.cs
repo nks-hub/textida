@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AvaloniaEdit.Document;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Snippets;
@@ -8,13 +9,15 @@ namespace NksHub.Textida.App.Editing;
 /// A snippet session: after a snippet with tab stops was inserted, Tab and Shift+Tab walk through its stops, the other places of a stop follow what is typed
 /// into the first one, and the session ends at <c>$0</c>, on Escape, or when the caret leaves the snippet. Every inserted snippet (one per caret) is part of
 /// the session; their stops are visited together, one caret each. The places are anchors of the text view document, so they follow any edit.
+/// A stop inside the default of another stop is visited after the one it stands in; a place with a transform shows the transformed text of its stop.
 /// </summary>
 internal sealed partial class EditorSurface
 {
-    private sealed record Place(TextAnchor Start, TextAnchor End)
+    private sealed record Place(TextAnchor Start, TextAnchor End, SnippetTransform? Transform = null)
     {
         public int Offset => Start.Offset;
         public int Length => Math.Max(0, End.Offset - Start.Offset);
+        public bool Contains(Place other) => Offset <= other.Offset && Offset + Length >= other.Offset + other.Length;
     }
 
     private sealed record LiveStop(IReadOnlyList<Place> Places, IReadOnlyList<string> Choices);
@@ -52,7 +55,7 @@ internal sealed partial class EditorSurface
         {
             if (snippet.Stops.Count == 0) continue;
             var stops = snippet.Stops.Select(stop => new LiveStop(
-                [.. stop.Spans.Select(x => new Place(Anchor(start + x.Start, AnchorMovementType.BeforeInsertion), Anchor(start + x.Start + x.Length, AnchorMovementType.AfterInsertion)))],
+                [.. stop.Spans.Select(x => new Place(Anchor(start + x.Start, AnchorMovementType.BeforeInsertion), Anchor(start + x.Start + x.Length, AnchorMovementType.AfterInsertion), x.Transform))],
                 stop.Choices)).ToList();
             live.Add(new LiveSnippet(stops, Anchor(start + snippet.FinalOffset, AnchorMovementType.AfterInsertion),
                 Anchor(start, AnchorMovementType.BeforeInsertion), Anchor(start + snippet.Text.Length, AnchorMovementType.AfterInsertion)));
@@ -143,7 +146,10 @@ internal sealed partial class EditorSurface
         if (!_snippetBusy) SyncSnippetMirrors();
     }
 
-    /// <summary>Makes every other place of the current stop show the text of its first place.</summary>
+    /// <summary>
+    /// Makes every other place of the current stop show the text of its first place (changed by its transform, if it has one). A place that is inside the first place
+    /// of another stop changes that stop too, so the stops that hold a changed place are synced after it; a few rounds at most, in case stops hold each other.
+    /// </summary>
     private void SyncSnippetMirrors()
     {
         if (_snippets is null || _snippetStop < 0) return;
@@ -153,13 +159,42 @@ internal sealed partial class EditorSurface
             foreach (var live in _snippets)
             {
                 if (_snippetStop >= live.Stops.Count) continue;
-                var places = live.Stops[_snippetStop].Places;
-                string text = Document.GetText(places[0].Offset, places[0].Length);
-                for (int i = 1; i < places.Count; i++)
-                    if (Document.GetText(places[i].Offset, places[i].Length) != text) Document.Replace(places[i].Offset, places[i].Length, text);
+                var pending = new List<int> { _snippetStop };
+                int round = 0;
+                void QueueHolders(Place changed)
+                {
+                    for (int s = 0; s < live.Stops.Count; s++)
+                    {
+                        var holder = live.Stops[s].Places[0];
+                        if (!ReferenceEquals(holder, changed) && holder.Contains(changed) && pending.IndexOf(s, round + 1) < 0) pending.Add(s);
+                    }
+                }
+                QueueHolders(live.Stops[_snippetStop].Places[0]);
+                for (; round < pending.Count && round < live.Stops.Count * 4; round++)
+                {
+                    var places = live.Stops[pending[round]].Places;
+                    string text = Document.GetText(places[0].Offset, places[0].Length);
+                    for (int i = 1; i < places.Count; i++)
+                    {
+                        var place = places[i];
+                        string shown = Document.GetText(place.Offset, place.Length);
+                        string wanted = MirrorText(place, text, shown);
+                        if (wanted == shown) continue;
+                        Document.Replace(place.Offset, place.Length, wanted);
+                        QueueHolders(place);
+                    }
+                }
             }
         }
         finally { _snippetBusy = false; }
+    }
+
+    /// <summary>The text a mirror should show; a transform that runs too long leaves the mirror as it is.</summary>
+    private static string MirrorText(Place place, string text, string shown)
+    {
+        if (place.Transform is not { } transform) return text;
+        try { return transform.Apply(text); }
+        catch (RegexMatchTimeoutException) { return shown; }
     }
 
     private void OnSnippetCaretMoved(object? sender, EventArgs e)
