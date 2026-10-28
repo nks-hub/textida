@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.Core.Agents;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
@@ -141,6 +142,57 @@ public class NetworkNoConsentTests
         var report = await rig.Net.FinishAsync();
         AssertSilent(report, rig);
         AssertWatched(report, "NksHub.Textida.Plugins.Json");
+    }
+
+    [AvaloniaFact]
+    public async Task Completion_and_edits_in_files_with_a_remote_schema_mapping_or_dependency_download_and_look_up_nothing()
+    {
+        using var rig = new NetworkRig();
+        Assert.Null(rig.App.Workbench.Set("schema.mappings", JsonValue.Create("*.cfgx=https://maps.example.test/cfg.json")));
+        var files = new (string Name, string Content, string Caret)[]
+        {
+            ("data.json", "{ \"$schema\": \"https://schemas.example.test/data.json\", \"na\": 1 }\n", "\"na"),
+            ("a.cfgx", "{ \"na\": 1 }\n", "\"na"),
+            ("package.json", "{ \"dependencies\": { \"lef\": \"1.0.0\" } }\n", "\"lef"),
+            ("config.yaml", "# yaml-language-server: $schema=https://schemas.example.test/config.json\nna: 1\n", "na"),
+        };
+        foreach (var (name, content, caret) in files)
+        {
+            var tab = rig.Window.OpenFile(rig.ProjectFile(name, content), null);
+            await rig.Until(() => rig.App.Plugins.SchemaResultOf(tab) is not null, "the check of " + name);
+            int at = content.IndexOf(caret, StringComparison.Ordinal) + caret.Length;
+            tab.Editor!.Select(at, 0);
+            await rig.App.Plugins.RequestCompletionAsync(tab);
+            tab.Editor.Document.Insert(at, "m"); // an edit makes the check run again
+            await rig.Until(() => rig.App.Plugins.SchemaResultOf(tab)!.Revision == tab.Doc.Doc.Revision, "the check after the edit of " + name);
+            await rig.App.Plugins.RequestCompletionAsync(tab);
+        }
+        Assert.Equal("noConsent", rig.App.Plugins.SchemaResultOf(rig.Window.Tabs.Single(t => Path.GetFileName(t.Path) == "a.cfgx"))!.State);
+        await rig.Settle(500);
+
+        var report = await rig.Net.FinishAsync();
+        AssertSilent(report, rig);
+        AssertWatched(report, "NksHub.Textida.Plugins.Json");
+    }
+
+    [AvaloniaFact]
+    public async Task The_token_estimate_of_a_selection_is_counted_here_under_every_rule_and_sends_nothing()
+    {
+        using var rig = new NetworkRig();
+        var tab = rig.Window.NewDocument();
+        tab.Editor!.Document.Text = "some text to count ".PadRight(4000, 'x');
+        tab.Editor.Select(0, 3000);
+        foreach (var rule in TokenEstimator.Presets)
+        {
+            rig.Window.TokenRule = rule;
+            Assert.True(rig.Window.TokensItem.IsVisible);
+            rig.Dialogs.Answers.Enqueue(0);
+            rig.Window.ShowTokenEstimate();
+            await rig.Window.TokenDialogTask;
+        }
+        await rig.Settle(500);
+
+        AssertSilent(await rig.Net.FinishAsync(), rig);
     }
 
     [AvaloniaFact]
