@@ -402,6 +402,11 @@ internal sealed partial class MainWindow
                 [new DialogButton(Loc.Get(K.DialogReloadDiscard)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
             if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return false;
         }
+        return ReloadNow(od, path);
+    }
+
+    private bool ReloadNow(OpenDocument od, string path)
+    {
         try
         {
             var (fresh, guess) = OpenDocument.OpenDocumentOnly(path, LargeFileBytes);
@@ -416,6 +421,19 @@ internal sealed partial class MainWindow
             SetStatusMessage(e.Message);
             return false;
         }
+    }
+
+    /// <summary>
+    /// The agent wrote a file it asked permission for: when the file now holds exactly <paramref name="sha256"/> and the tab has no unsaved edits, the tab shows the file as it is, at once, and no review of changes
+    /// from outside is started for it. False when the file holds something else, the tab has edits, or the file cannot be read.
+    /// </summary>
+    internal bool TakeAgentWrite(DocTab tab, string sha256)
+    {
+        var od = tab.Doc;
+        if (!_docs.Contains(od) || od.Path is not { } path || od.IsLarge || od.Doc.IsModified || od.Doc.IsSaving) return false;
+        if (FileFingerprint.TryRead(path) is not { } disk || !string.Equals(disk.Sha256, sha256, StringComparison.OrdinalIgnoreCase)) return false;
+        DismissBars(od);
+        return string.Equals(od.Doc.Fingerprint?.Sha256, disk.Sha256, StringComparison.OrdinalIgnoreCase) || ReloadNow(od, path);
     }
 
     /// <summary>A file changed on disk behind an open document: a non-modal bar offers reload, keeping the tab, or compare. Nothing is overwritten silently.</summary>
@@ -434,6 +452,7 @@ internal sealed partial class MainWindow
         if (change.Kind == ExternalChangeKind.Modified)
         {
             if (change.DocumentId != od.Doc.Id) return; // raised by a document that a reload has replaced since
+            if (change.Actual is { } actual && _app.Plugins.Acp.TakeWrite(od.Doc.Id, actual.Sha256)) return; // the file an agent was allowed to write: the review closed, the tab took it over
             if (await od.Doc.TryAdoptFileAsync(change))
             {
                 if (_docs.Contains(od)) DismissBars(od);

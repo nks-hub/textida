@@ -1645,6 +1645,8 @@
   "agent.line.toolOutside": "• {title} ({status}) [mimo editor]",
   "agent.permission.outside": "Tento nástroj pracuje mimo editor: editor nemůže zkontrolovat, co dělá, ani to vrátit.",
   "agent.permission.always": "Volbu označenou „vždy“ si pamatuje agent, ne editor. Vezmete ji zpět v nastavení samotného agenta.",
+  "agent.permission.review": "Změna souboru {file} je zobrazena v kontrole změn. Pokud ji povolíte, agent soubor zapíše sám a editor ho převezme.",
+  "agent.write.taken": "{agent} zapsal soubor {file}; karta ukazuje soubor tak, jak je teď.",
   "preview.panel.title": "Náhled",
   "preview.panel.status": "{title} · revize {revision}",
   "preview.panel.outdated": "{title} · zastaralý: ukazuje revizi {revision}, dokument je v revizi {current}",

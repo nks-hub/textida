@@ -51,11 +51,18 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         public string? Kind { get; set; }
     }
 
+    /// <summary>
+    /// A change the agent asked permission for, with the bytes the file will hold when it is written (<paramref name="Sha256"/>). It stays in the change review while the user answers; after an "allow" the agent
+    /// writes the file itself, and the review closes when the file holds exactly these bytes. <paramref name="Review"/> closes the proposal.
+    /// </summary>
+    private sealed record Asked(Shared Shared, string? ToolId, string Sha256, CancellationTokenSource Review);
+
     private readonly PluginServices _plugins;
     private readonly App _app;
     private readonly object _gate = new();
     private readonly Dictionary<Guid, Shared> _shared = [];
     private readonly List<Entry> _entries = [];
+    private readonly List<Asked> _asked = []; // the UI thread only
     private AcpClient? _client;
     private string? _session;
     private AcpAdapter? _adapter;
@@ -132,6 +139,8 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
 
     private void OnUpdate(AcpUpdate u)
     {
+        // a finished tool call has written what it was allowed to write: the proposals it left in the review are settled on the UI thread
+        if (u is { Kind: AcpUpdateKind.ToolCallUpdate, Status: "completed" or "failed" }) OnUi(() => EndAsked(u.ToolCallId, check: u.Status == "completed"));
         lock (_gate)
         {
             switch (u.Kind)
@@ -150,6 +159,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
             }
         }
         Changed?.Invoke();
+    }
+
+    private static void OnUi(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
     }
 
     /// <summary>A chunk of the agent's message goes on the line of the message before it, unless something else came in between. Call under the lock.</summary>
@@ -303,7 +318,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         State = AgentState.Ended;
         var reason = new AcpAgentExitedException(exit).Message;
         Add(AgentRole.Problem, () => Loc.Get(K.AgentEnded, ("reason", reason)));
-        Dispatcher.UIThread.Post(UnshareAll);
+        Dispatcher.UIThread.Post(() => { EndAsked(_ => true, check: false); UnshareAll(); });
     }
 
     /// <summary>Ends the agent (its input is closed, then the process is killed if it stays) and takes every shared tab back. Call on the UI thread.</summary>
@@ -314,6 +329,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         _turn?.Cancel();
         try { _starting?.Cancel(); }
         catch (ObjectDisposedException) { /* the start has just ended */ }
+        EndAsked(_ => true, check: false);
         UnshareAll();
         await DisposeClientAsync();
         bool wasRunning = IsRunning;
@@ -372,6 +388,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         {
             _turn = null;
             if (State == AgentState.Working) State = AgentState.Ready;
+            OnUi(() => EndAsked(_ => true, check: true)); // what the agent wrote before its turn ended is on disk now
             Changed?.Invoke();
         }
         return true;
@@ -380,7 +397,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     private async Task StopAfterFailureAsync()
     {
         _stopping = true;
-        await Dispatcher.UIThread.InvokeAsync(UnshareAll);
+        await Dispatcher.UIThread.InvokeAsync(() => { EndAsked(_ => true, check: false); UnshareAll(); });
         await DisposeClientAsync();
         State = AgentState.Ended;
     }
@@ -431,6 +448,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
             if (!_shared.Remove(document, out shared)) return false;
         }
         shared.Open.Replaced -= shared.Replaced;
+        EndAsked(a => a.Shared.Document.Id == document, check: false);
         var scope = GrantScope.OfDocument(document);
         foreach (var permission in new[] { DocumentPermissions.EditPropose, DocumentPermissions.Read })
             _plugins.Permissions.Revoke(ClientId, permission, scope);
@@ -559,7 +577,14 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     }
 
     /// <summary>Builds the change from the agent's whole new content and shows it in the change review. Null when the content is the same as the text of the document. UI thread.</summary>
-    private Task<ProposalDecision?> ProposeAsync(Shared shared, string content, CancellationToken cancellation)
+    private async Task<ProposalDecision?> ProposeAsync(Shared shared, string content, CancellationToken cancellation) =>
+        Prepare(shared, content) is { } prepared ? await ShowChangeAsync(shared, prepared.Change, cancellation) : null;
+
+    private Task<ProposalDecision> ShowChangeAsync(Shared s, FileChange change, CancellationToken cancellation) =>
+        s.Window.ShowProposalAsync(Guid.NewGuid().ToString("N"), Loc.Get(K.AgentProposal, ("agent", AgentName), ("file", s.Tab.Title)), "acp:" + (_adapter?.Id ?? "agent"), s.Tab, change, cancellation);
+
+    /// <summary>The bytes the document would hold with <paramref name="content"/> as its text and the hunks that lead there; null when the document already holds that text. Throws <see cref="AcpRefusedException"/> when the change cannot be shown. UI thread.</summary>
+    private (byte[] Bytes, FileChange Change)? Prepare(Shared shared, string content)
     {
         var doc = shared.Document;
         if (SecretValues.IsSecretFile(doc.SecretsPath)) throw new AcpRefusedException(AcpRefusedException.Declined, "This file holds secret values that were hidden from the agent; it cannot be written through the editor.");
@@ -571,13 +596,81 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
 
         var current = doc.GetSnapshot();
         var same = current.ByteLength == bytes.Length && current.ReadBytes(new ByteRange(0, current.ByteLength)).AsSpan().SequenceEqual(bytes);
-        if (same) return Task.FromResult<ProposalDecision?>(null);
+        if (same) return null;
         var change = ExternalReview.BuildRevert(doc, bytes) ?? throw new AcpRefusedException(AcpRefusedException.Declined, "The change cannot be shown as hunks (bytes that are not valid text in the file's encoding).");
-        return Review(shared, change, cancellation);
-
-        async Task<ProposalDecision?> Review(Shared s, FileChange c, CancellationToken ct) =>
-            await s.Window.ShowProposalAsync(Guid.NewGuid().ToString("N"), Loc.Get(K.AgentProposal, ("agent", AgentName), ("file", s.Tab.Title)), "acp:" + (_adapter?.Id ?? "agent"), s.Tab, c, ct);
+        return (bytes, change);
     }
+
+    // ---- a change the agent asks permission for ----
+
+    /// <summary>
+    /// The text the file will have when the agent's tool applies <paramref name="diff"/> to the text of <paramref name="doc"/>, or null when that cannot be told exactly. A diff without an old text, or with the
+    /// whole text as its old text, is the new content. Otherwise the two texts are a piece of the file (what the Edit tool of the Claude adapter reports): the piece must occur exactly once.
+    /// </summary>
+    internal static string? ResultOf(Document doc, AcpDiff diff)
+    {
+        if (diff.OldText is null) return diff.NewText;
+        if (doc.ByteLength > PluginLimitsPlaceholders.AcpMaxReadBytes) return null;
+        string text = doc.ReadText(new ByteRange(doc.BomLength, doc.ByteLength));
+        if (text == diff.OldText) return diff.NewText;
+        int at = diff.OldText.Length == 0 ? -1 : text.IndexOf(diff.OldText, StringComparison.Ordinal);
+        if (at < 0 || text.IndexOf(diff.OldText, at + 1, StringComparison.Ordinal) >= 0) return null;
+        return string.Concat(text.AsSpan(0, at), diff.NewText, text.AsSpan(at + diff.OldText.Length));
+    }
+
+    /// <summary>Shows the <c>diff</c> entries of a tool call that name a tab shared for changes in the change review, to be looked at while the user answers the permission question. UI thread.</summary>
+    private List<Asked> ShowAsked(AcpToolCallInfo tool)
+    {
+        var shown = new List<Asked>();
+        foreach (var diff in tool.Diffs ?? [])
+        {
+            if (FindShared(diff.Path) is not { } shared || shared.Open.IsLarge) continue;
+            if (!_plugins.Permissions.IsGranted(ClientId, DocumentPermissions.EditPropose, GrantScope.OfDocument(shared.Document.Id))) continue;
+            (byte[] Bytes, FileChange Change)? prepared;
+            try { prepared = ResultOf(shared.Document, diff) is { } content ? Prepare(shared, content) : null; }
+            catch (Exception e) when (e is AcpRefusedException or ArgumentException or IOException or NotSupportedException) { continue; } // what cannot be shown exactly is only asked about
+            if (prepared is not { } built) continue;
+            var asked = new Asked(shared, tool.Id, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(built.Bytes)), new CancellationTokenSource());
+            _asked.Add(asked);
+            shown.Add(asked);
+            _ = ShowChangeAsync(shared, built.Change, asked.Review.Token);
+        }
+        return shown;
+    }
+
+    /// <summary>
+    /// Ends the waiting changes that <paramref name="which"/> selects: the proposal leaves the review. With <paramref name="check"/> the file is looked at first, and a tab without unsaved edits whose file holds exactly the
+    /// bytes the agent was allowed to write takes the file over without a review of changes from outside. Returns whether a tab did. UI thread.
+    /// </summary>
+    private bool EndAsked(Func<Asked, bool> which, bool check)
+    {
+        bool taken = false, any = false;
+        foreach (var asked in _asked.Where(which).ToList())
+        {
+            if (!_asked.Remove(asked)) continue;
+            any = true;
+            var shared = asked.Shared;
+            bool wasShared = IsSharedDocument(shared.Document.Id);
+            if (check && shared.Window.TakeAgentWrite(shared.Tab, asked.Sha256))
+            {
+                taken = true;
+                Interlocked.Increment(ref _applied);
+                if (wasShared && !IsShared(shared.Tab)) Share(shared.Window, shared.Tab); // the reload made a new document, and the agent was shared the tab
+                shared.Window.SetStatusMessage(Loc.Get(K.AgentWriteTaken, ("agent", AgentName), ("file", shared.Tab.Title)));
+            }
+            try { asked.Review.Cancel(); }
+            catch (ObjectDisposedException) { /* ended meanwhile */ }
+        }
+        if (any) Changed?.Invoke();
+        return taken;
+    }
+
+    private bool EndAsked(string? toolId, bool check) => EndAsked(a => a.ToolId == toolId, check);
+
+    /// <summary>The file of <paramref name="document"/> changed to <paramref name="sha256"/>: when the agent was allowed to write exactly that, the tab takes it over and the review closes. UI thread.</summary>
+    public bool TakeWrite(Guid document, string sha256) =>
+        _asked.Any(a => a.Shared.Document.Id == document && string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase))
+        && EndAsked(a => a.Shared.Document.Id == document && string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase), check: true);
 
     // ---- session/request_permission ----
 
@@ -588,11 +681,26 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         var tool = toolCall.Title ?? toolCall.Kind ?? toolCall.Id ?? "?";
         var firstReject = options.ToList().FindIndex(o => o.IsReject);
         var buttons = options.Select((o, i) => new DialogButton(o.Name, IsDefault: i == firstReject)).Append(new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)).ToList();
+        // the change the tool is about to make is looked at in the review while the dialog waits; the dialog decides, an allowed write closes the proposal when it is on disk
+        var shown = await Dispatcher.UIThread.InvokeAsync(() => ShowAsked(toolCall));
         var notes = new List<string>();
         if (AcpToolKinds.RunsOutsideEditor(toolCall.Kind)) notes.Add(Loc.Get(K.AgentPermissionOutside));
         if (options.Any(o => o.Kind.EndsWith("_always", StringComparison.Ordinal))) notes.Add(Loc.Get(K.AgentPermissionAlways));
+        if (shown.Count > 0) notes.Add(Loc.Get(K.AgentPermissionReview, ("file", string.Join(", ", shown.Select(a => a.Shared.Tab.Title).Distinct()))));
         var request = new ChoiceRequest(Loc.Get(K.AgentPermissionTitle, ("agent", AgentName)), Loc.Get(K.AgentPermissionMessage, ("agent", AgentName), ("tool", tool)), buttons, notes.Count > 0 ? notes : null, "tools.agent");
-        int answer = await await Dispatcher.UIThread.InvokeAsync<Task<int>>(() => _app.Dialogs.ChooseAsync(window, request, cancellation));
+        int answer = -1;
+        try { answer = await await Dispatcher.UIThread.InvokeAsync<Task<int>>(() => _app.Dialogs.ChooseAsync(window, request, cancellation)); }
+        finally
+        {
+            bool allowed = answer >= 0 && answer < options.Count && options[answer].Kind.StartsWith("allow", StringComparison.Ordinal);
+            if (shown.Count > 0)
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    Interlocked.Add(ref _proposals, shown.Count);
+                    if (!allowed) EndAsked(a => shown.Contains(a), check: false);
+                    else Changed?.Invoke();
+                });
+        }
         return answer >= 0 && answer < options.Count ? new AcpPermissionChoice(options[answer].Id) : AcpPermissionChoice.Cancelled;
     }
 

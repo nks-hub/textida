@@ -1617,6 +1617,8 @@
   "agent.line.toolOutside": "• {title} ({status}) [außerhalb des Editors]",
   "agent.permission.outside": "Dieses Werkzeug arbeitet außerhalb des Editors: Der Editor kann weder prüfen, was es tut, noch es rückgängig machen.",
   "agent.permission.always": "Eine mit „immer“ gekennzeichnete Wahl merkt sich der Agent, nicht der Editor. Nehmen Sie sie in den Einstellungen des Agenten selbst zurück.",
+  "agent.permission.review": "Die Änderung an {file} wird in der Änderungsprüfung angezeigt. Wenn Sie sie erlauben, schreibt der Agent die Datei selbst und der Editor übernimmt sie.",
+  "agent.write.taken": "{agent} hat {file} geschrieben; der Tab zeigt die Datei, wie sie jetzt ist.",
   "preview.panel.title": "Vorschau",
   "preview.panel.status": "{title} · Revision {revision}",
   "preview.panel.outdated": "{title} · veraltet: zeigt Revision {revision}, das Dokument ist bei {current}",

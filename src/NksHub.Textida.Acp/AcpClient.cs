@@ -51,8 +51,14 @@ public sealed record AcpPermissionOption(string Id, string Name, string Kind)
     public bool IsReject => Kind.StartsWith("reject", StringComparison.Ordinal);
 }
 
-/// <summary>The tool call a permission is asked for; the agent may state nothing but the id.</summary>
-public sealed record AcpToolCallInfo(string? Id, string? Title, string? Kind);
+/// <summary>
+/// A <c>diff</c> entry of the content of a tool call (/protocol/tool-calls, "Diffs"): <paramref name="Path"/> is the absolute path of the file, <paramref name="OldText"/> the original content
+/// (null for a new file) and <paramref name="NewText"/> the content after the change. Some agents put only the changed piece of the file in the two texts.
+/// </summary>
+public sealed record AcpDiff(string Path, string? OldText, string NewText);
+
+/// <summary>The tool call a permission is asked for; the agent may state nothing but the id. <paramref name="Diffs"/> are the <c>diff</c> entries of its content, in order; null when it has none.</summary>
+public sealed record AcpToolCallInfo(string? Id, string? Title, string? Kind, IReadOnlyList<AcpDiff>? Diffs = null);
 
 /// <summary>The user's answer to a permission request: an option, or <see cref="Cancelled"/>.</summary>
 public readonly record struct AcpPermissionChoice(string? OptionId)
@@ -456,7 +462,7 @@ public sealed class AcpClient : IAsyncDisposable
             foreach (var o in list.EnumerateArray())
                 if (o.ValueKind == JsonValueKind.Object && Text(o, "optionId") is { } id && Text(o, "name") is { } name)
                     options.Add(new AcpPermissionOption(id, name, Text(o, "kind") ?? ""));
-            var tool = p.TryGetProperty("toolCall", out var t) && t.ValueKind == JsonValueKind.Object ? new AcpToolCallInfo(Text(t, "toolCallId"), Text(t, "title"), Text(t, "kind")) : new AcpToolCallInfo(null, null, null);
+            var tool = p.TryGetProperty("toolCall", out var t) && t.ValueKind == JsonValueKind.Object ? new AcpToolCallInfo(Text(t, "toolCallId"), Text(t, "title"), Text(t, "kind"), Diffs(t)) : new AcpToolCallInfo(null, null, null);
 
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
             lock (client._permissions) client._permissions.Add(linked);
@@ -474,6 +480,17 @@ public sealed class AcpClient : IAsyncDisposable
                 w.WriteString("optionId", choice.OptionId);
                 w.WriteEndObject();
             });
+        }
+
+        /// <summary>The <c>diff</c> entries of <c>content</c>: an absolute <c>path</c>, an <c>oldText</c> that is a string or null, and a <c>newText</c> string. An entry that lacks one of them is left out.</summary>
+        private static IReadOnlyList<AcpDiff>? Diffs(JsonElement toolCall)
+        {
+            if (!toolCall.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return null;
+            var diffs = new List<AcpDiff>();
+            foreach (var entry in content.EnumerateArray())
+                if (entry.ValueKind == JsonValueKind.Object && Text(entry, "type") == "diff" && Text(entry, "path") is { Length: > 0 } path && Path.IsPathRooted(path) && Text(entry, "newText") is { } newText)
+                    diffs.Add(new AcpDiff(path, Text(entry, "oldText"), newText));
+            return diffs.Count > 0 ? diffs : null;
         }
 
         public ValueTask HandleNotificationAsync(string method, JsonElement p)

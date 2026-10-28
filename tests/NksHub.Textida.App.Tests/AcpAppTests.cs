@@ -341,6 +341,117 @@ public class AcpAppTests : IDisposable
         await UntilPanelHas("PERM:{\"outcome\":\"cancelled\"}");
     }
 
+    // ---- session/request_permission with a diff: the adapters write the file themselves ----
+
+    private int HunksInReview() => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Count() ?? 0;
+
+    /// <summary>The state the dialog is asked in: how many hunks the review holds then.</summary>
+    private List<int> RecordHunksWhileAsking()
+    {
+        var seen = new List<int>();
+        _dialogs.WhileAsking = () => seen.Add(HunksInReview());
+        return seen;
+    }
+
+    [AvaloniaTheory]
+    [InlineData("permdiff")] // the tool call completes at once, before the watcher reports the write
+    [InlineData("permdiffslow")] // the watcher reports the write first
+    public async Task An_allowed_diff_is_in_the_review_while_the_dialog_waits_and_the_write_of_the_agent_closes_it_without_a_review_of_outside_changes(string how)
+    {
+        await RunAsync("nks.agent.panel");
+        var tab = Open("diff.txt", "alpha\nbeta\ngamma");
+        Assert.True(await StartAsync());
+        await ShareAsync(tab);
+        var seen = RecordHunksWhileAsking();
+        _dialogs.Answers.Enqueue(0); // Allow once
+
+        await SayAsync($"{how} {tab.Path}\nalpha\ndelta\ngamma");
+        await UntilPanelHas("PERMDIFF:written");
+        await Until(() => tab.Editor!.Document.Text == "alpha\ndelta\ngamma" && HunksInReview() == 0, "the tab to take the file over and the review to close");
+
+        Assert.Equal([1], seen); // the change was in the review while the dialog waited
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(Loc.Get(K.AgentPermissionReview, ("file", tab.Title)), asked.Details!);
+        Settle();
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Null(tab.Bar); // no bar about a change from outside, and no review of one
+        Assert.Null(tab.Doc.Review);
+        Assert.Equal("alpha\ndelta\ngamma", File.ReadAllText(tab.Path!));
+        Assert.True(Acp.IsShared(tab)); // the reload did not take the share back
+        Assert.Equal(new AgentBoundary(0, 1, 1, 0, 0), Acp.Boundary());
+    }
+
+    [AvaloniaFact]
+    public async Task A_rejected_diff_leaves_the_review_and_the_file_as_they_were()
+    {
+        await RunAsync("nks.agent.panel");
+        var tab = Open("diff.txt", "alpha\nbeta\ngamma");
+        Assert.True(await StartAsync());
+        await ShareAsync(tab);
+        var seen = RecordHunksWhileAsking();
+        _dialogs.Answers.Enqueue(1); // Reject
+
+        await SayAsync($"permdiff {tab.Path}\nalpha\ndelta\ngamma");
+        await UntilPanelHas("PERMDIFF:not-written");
+        await Until(() => HunksInReview() == 0, "the review to close");
+
+        Assert.Equal([1], seen);
+        Assert.Equal("alpha\nbeta\ngamma", tab.Editor!.Document.Text);
+        Assert.Equal("alpha\nbeta\ngamma", File.ReadAllText(tab.Path!));
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(new AgentBoundary(0, 1, 0, 0, 0), Acp.Boundary()); // decided, not applied
+    }
+
+    [AvaloniaFact]
+    public async Task A_piece_of_the_file_and_its_replacement_are_shown_as_the_change_they_make()
+    {
+        await RunAsync("nks.agent.panel");
+        var tab = Open("piece.txt", "one\ntwo\nthree\n");
+        Assert.True(await StartAsync());
+        await ShareAsync(tab);
+        var seen = RecordHunksWhileAsking();
+        _dialogs.Answers.Enqueue(0);
+
+        await SayAsync($"permedit {tab.Path}\ntwo\n2");
+        await UntilPanelHas("PERMDIFF:written");
+        await Until(() => tab.Editor!.Document.Text == "one\n2\nthree\n" && HunksInReview() == 0, "the tab to take the file over");
+
+        Assert.Equal([1], seen);
+        Assert.Null(tab.Bar);
+        Assert.False(tab.Doc.Doc.IsModified);
+    }
+
+    [AvaloniaFact]
+    public async Task A_diff_for_a_file_that_is_not_shared_only_gets_the_dialog()
+    {
+        await RunAsync("nks.agent.panel");
+        var shared = Open("shared.txt", "one\n");
+        var other = Open("other.txt", "two\n");
+        Assert.True(await StartAsync());
+        await ShareAsync(shared);
+        var seen = RecordHunksWhileAsking();
+        _dialogs.Answers.Enqueue(1); // Reject
+
+        await SayAsync($"permdiff {other.Path}\nhijacked\n");
+        await UntilPanelHas("PERMDIFF:not-written");
+
+        Assert.Equal([0], seen);
+        Assert.Null(Assert.Single(_dialogs.Asked).Details);
+        Assert.Null(_w.ResultsView);
+    }
+
+    [AvaloniaFact]
+    public void The_text_a_diff_leads_to_is_told_only_when_it_is_exact()
+    {
+        using var doc = NksHub.Textida.Core.Documents.Document.FromBytes("one\ntwo\nthree\ntwo\n"u8.ToArray(), NksHub.Textida.Core.Documents.PagedBackendFactory.Instance);
+        Assert.Equal("new", AcpService.ResultOf(doc, new AcpDiff("/x", null, "new"))); // no old text: the new content
+        Assert.Equal("new", AcpService.ResultOf(doc, new AcpDiff("/x", "one\ntwo\nthree\ntwo\n", "new"))); // the whole text as the old text
+        Assert.Equal("one\ntwo\n3\ntwo\n", AcpService.ResultOf(doc, new AcpDiff("/x", "three", "3"))); // a piece that occurs once
+        Assert.Null(AcpService.ResultOf(doc, new AcpDiff("/x", "two", "2"))); // twice: which one is not told
+        Assert.Null(AcpService.ResultOf(doc, new AcpDiff("/x", "four", "4"))); // not there
+        Assert.Null(AcpService.ResultOf(doc, new AcpDiff("/x", "", "4"))); // empty
+    }
+
     // ---- ending ----
 
     [AvaloniaFact]

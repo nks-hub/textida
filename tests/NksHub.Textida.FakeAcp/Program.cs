@@ -6,6 +6,8 @@
 //   perm             asks session/request_permission (allow-once / reject-once) and streams "PERM:" + the outcome
 //   permwait         the same, but the turn waits for the answer and ends with cancelled when the outcome is cancelled
 //   permexec         the same for a tool of kind execute, with an extra "allow always" option
+//   permdiff PATH\nTEXT, permedit PATH\nOLD\nNEW, permdiffslow PATH\nTEXT
+//                    ask for permission with a diff (the new text, or a piece and its replacement), write the file itself after "allow once" and stream "PERMDIFF:written" or "PERMDIFF:not-written"
 //   seen             streams "SEEN:" and the methods the client has sent so far, in order, separated by commas
 //   caps             streams "CAPS:" and the clientCapabilities of the client's initialize request
 //   outside          reports four tool calls that complete: two of kind execute, one delete, one read
@@ -117,6 +119,44 @@ async Task RunPrompt(JsonNode id, string text)
             var outcome = answer["result"]!["outcome"]!;
             Chunk("PERM:" + outcome.ToJsonString());
             if (word == "permwait" && (string?)outcome["outcome"] == "cancelled") stop = "cancelled";
+            break;
+        }
+        case "permdiff" or "permdiffslow" or "permedit":
+        {
+            // like the real adapters: the change comes with the question as a diff, and after an "allow" the agent writes the file itself and never calls fs/write_text_file
+            //   permdiff PATH\nTEXT       the whole new text, no old text (the Write tool)
+            //   permedit PATH\nOLD\nNEW   a piece of the file and its replacement (the Edit tool)
+            //   permdiffslow              like permdiff, but the tool call completes half a second after the write
+            var lines = rest.Split('\n');
+            string path = lines[0];
+            string current = File.Exists(path) ? File.ReadAllText(path) : "";
+            string? sentOld = word == "permedit" ? lines[1] : null;
+            string newText = word == "permedit" ? lines[2] : string.Join('\n', lines.Skip(1));
+            string result = word == "permedit" ? current.Replace(lines[1], lines[2]) : newText;
+            Update(new JsonObject { ["sessionUpdate"] = "tool_call", ["toolCallId"] = "call_3", ["title"] = "Edit the file", ["kind"] = "edit", ["status"] = "pending" });
+            var answer = await Ask("session/request_permission", new JsonObject
+            {
+                ["sessionId"] = "sess_fake",
+                ["toolCall"] = new JsonObject
+                {
+                    ["toolCallId"] = "call_3",
+                    ["title"] = "Edit the file",
+                    ["kind"] = "edit",
+                    ["content"] = new JsonArray { new JsonObject { ["type"] = "diff", ["path"] = path, ["oldText"] = sentOld, ["newText"] = newText } },
+                    ["locations"] = new JsonArray { new JsonObject { ["path"] = path } },
+                },
+                ["options"] = new JsonArray
+                {
+                    new JsonObject { ["optionId"] = "allow-once", ["name"] = "Allow once", ["kind"] = "allow_once" },
+                    new JsonObject { ["optionId"] = "reject-once", ["name"] = "Reject", ["kind"] = "reject_once" },
+                },
+            });
+            var outcome = answer["result"]!["outcome"]!;
+            bool allowed = (string?)outcome["outcome"] == "selected" && (string?)outcome["optionId"] == "allow-once";
+            if (allowed) File.WriteAllText(path, result);
+            if (word == "permdiffslow") await Task.Delay(500);
+            Update(new JsonObject { ["sessionUpdate"] = "tool_call_update", ["toolCallId"] = "call_3", ["status"] = allowed ? "completed" : "failed" });
+            Chunk("PERMDIFF:" + (allowed ? "written" : "not-written"));
             break;
         }
         case "seen":
