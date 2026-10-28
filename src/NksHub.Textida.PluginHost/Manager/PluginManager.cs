@@ -274,7 +274,20 @@ public sealed class PluginManager
         state.Plugins.Remove(id);
         WriteState(state);
         _loaded.Remove(id);
-        DeleteFolder(Path.Combine(_root, id));
+        await DeleteFolderOfStoppedPluginAsync(Path.Combine(_root, id)).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Deletes the folder of a plugin whose process has just ended. The system keeps the files of an ended program locked for a moment (longer when the machine is busy), so the delete is repeated
+    /// for up to two seconds before the folder is left behind, as <see cref="DeleteFolder"/> leaves it.
+    /// </summary>
+    private static async Task DeleteFolderOfStoppedPluginAsync(string path)
+    {
+        for (int attempt = 0; attempt < 20 && Directory.Exists(path); attempt++)
+        {
+            try { Directory.Delete(path, recursive: true); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { await Task.Delay(100).ConfigureAwait(false); }
+        }
     }
 
     /// <summary>The enabled plugins, loaded; their permissions are set and their processes registered with the host. Call once at startup. A plugin that cannot be read is skipped and reported.</summary>
