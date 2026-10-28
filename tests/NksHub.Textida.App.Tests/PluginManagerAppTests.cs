@@ -144,6 +144,119 @@ public class PluginManagerAppTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_app.Plugins.Manager.Root, "acme.clips")));
     }
 
+    // ---- P3b.2.1: what a plugin contributes comes and goes without a restart ----
+
+    private const string KitCommands = """
+        "commands":[{"id":"acme.kit.hi","title":"Hi"},{"id":"acme.kit.run","title":"Run"}],
+        "menus":[{"menu":"tools","command":"acme.kit.hi","group":"9_plugins"},{"menu":"tools","command":"acme.kit.run","group":"9_plugins"}],
+        "keybindings":[{"key":"mod+alt+shift+j","command":"acme.kit.hi"}],
+        "settings":[{"key":"acme.kit.width","type":"integer","default":7,"title":"Width"}],
+        "clips":[{"id":"hi","title":"Hi","text":"hi","command":"acme.kit.hi"}]
+        """;
+
+    /// <summary>A ZIP with the manifest of the plugin <c>acme.kit</c>: a data plugin, or with <paramref name="process"/> one that has the test plugin as its process.</summary>
+    private string KitZip(string version, string contributes = KitCommands, bool process = false)
+    {
+        var host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+        var executable = host ?? Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        string args = host is null ? "[]" : JsonSerializer.Serialize(new[] { Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin.dll") });
+        var path = Path.Combine(_temp.Path, Guid.NewGuid().ToString("N") + ".zip");
+        using (var zip = new ZipArchive(File.Create(path), ZipArchiveMode.Create))
+        using (var writer = new StreamWriter(zip.CreateEntry("nkspad-plugin.json").Open()))
+            writer.Write("{\"schemaVersion\":1,\"id\":\"acme.kit\",\"name\":\"Acme kit\",\"version\":\"" + version + "\",\"api\":{\"min\":1,\"max\":1},\"permissions\":[]," +
+                (process ? "\"main\":{\"executable\":" + JsonSerializer.Serialize(executable) + ",\"args\":" + args + "}," : "") + "\"contributes\":{" + contributes + "}}");
+        return path;
+    }
+
+    private bool KitShown(string command)
+    {
+        var wb = _app.Workbench;
+        var context = new ShellContext(_w, forMenu: true);
+        bool registered = wb.Commands.TryGet(command, out _);
+        Assert.Equal(registered, wb.Commands.HasHandler(command));
+        Assert.Equal(registered, wb.Commands.GetMenu("tools", context).Any(i => i.CommandId == command));
+        Assert.Equal(registered, wb.Commands.Commands.Any(c => c.Id == command));
+        return registered;
+    }
+
+    private void AssertKitShown(bool shown, params string[] commands)
+    {
+        var wb = _app.Workbench;
+        foreach (var command in commands) Assert.Equal(shown, KitShown(command));
+        Assert.Equal(shown, wb.Keymap.ShortcutsFor("acme.kit.hi").Count > 0);
+        Assert.Equal(shown, wb.Host.Settings.TryGet("acme.kit.width", out _));
+        Assert.Equal(shown, wb.SearchIndex.Search("Acme kit", wb.Settings, wb.Commands, wb.Keymap).Any(h => h.Id == "acme.kit.width"));
+        Assert.Equal(shown, _app.Clips.Clips.Any(c => c.PluginId == "acme.kit"));
+    }
+
+    [AvaloniaFact]
+    public void Switching_off_or_removing_a_data_plugin_takes_its_commands_menu_items_keys_and_settings_away_without_a_restart()
+    {
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(KitZip("1.0.0")), expected: true);
+        AssertKitShown(true, "acme.kit.hi");
+        Assert.Equal(7, _app.Workbench.Settings.GetInt("acme.kit.width"));
+
+        _dialogs.Answers.Enqueue(0); // Disable
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        AssertKitShown(false, "acme.kit.hi");
+
+        _dialogs.Answers.Enqueue(0); // Enable
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        AssertKitShown(true, "acme.kit.hi");
+
+        _dialogs.Answers.Enqueue(3); // Disable/Enable, Update, Permissions, Uninstall
+        _dialogs.Answers.Enqueue(0); // confirm
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        Assert.Empty(_app.Plugins.Manager.Installed());
+        AssertKitShown(false, "acme.kit.hi");
+        Assert.False(_app.Workbench.Commands.TryGet("acme.kit.run", out _)); // it had no handler, but it was registered
+        Assert.Empty(_app.Clips.Problems);
+    }
+
+    [AvaloniaFact]
+    public void A_plugin_with_a_process_runs_its_data_commands_and_loses_everything_it_contributed_when_switched_off_replaced_or_removed()
+    {
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(KitZip("1.0.0", process: true)), expected: true);
+        Assert.Empty(_app.Clips.Problems);
+        AssertKitShown(true, "acme.kit.hi", "acme.kit.run");
+        Assert.Equal(PluginState.Inactive, StateOf("acme.kit"));
+
+        // the data command inserts the clip without starting the process
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = "x";
+        tab.Editor.CaretOffset = 1;
+        Assert.Equal(CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("acme.kit.hi", new ShellContext(_w, forMenu: false)).AsTask().GetAwaiter().GetResult());
+        Assert.Equal("xhi", tab.Editor.Document.Text);
+        Assert.Equal(PluginState.Inactive, StateOf("acme.kit"));
+
+        _dialogs.Answers.Enqueue(0); // Disable (Disable/Enable, Start, Update, ...)
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        AssertKitShown(false, "acme.kit.hi", "acme.kit.run");
+
+        _dialogs.Answers.Enqueue(0); // Enable
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        AssertKitShown(true, "acme.kit.hi", "acme.kit.run");
+
+        // a new version with other commands replaces the old ones at once
+        const string next = """
+            "commands":[{"id":"acme.kit.bye","title":"Bye"}],
+            "menus":[{"menu":"tools","command":"acme.kit.bye","group":"9_plugins"}]
+            """;
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(KitZip("1.1.0", next, process: true)), expected: true);
+        AssertKitShown(false, "acme.kit.hi", "acme.kit.run");
+        Assert.True(KitShown("acme.kit.bye"));
+
+        _dialogs.Answers.Enqueue(5); // Disable/Enable, Start, Update, Roll back, Permissions, Uninstall
+        _dialogs.Answers.Enqueue(0); // confirm
+        Finish(_w.ManagePluginAsync("acme.kit"));
+        Assert.Empty(_app.Plugins.Manager.Installed());
+        Assert.False(KitShown("acme.kit.bye"));
+        AssertKitShown(false, "acme.kit.hi", "acme.kit.run");
+    }
+
     // ---- P3b.3.2: a command of an installed plugin edits the active tab ----
 
     private const string EditPlugin = "acme.edit";

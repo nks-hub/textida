@@ -119,10 +119,10 @@ internal sealed partial class MainWindow
 
     private static bool IsInstallFailure(Exception e) => e is PluginInstallException or IOException or UnauthorizedAccessException;
 
-    /// <summary>Makes the app see a plugin that was installed, updated, switched or removed: its commands, and the clips, converters and highlighters of a data plugin.</summary>
+    /// <summary>Makes the app see a plugin that was installed, updated, switched or removed: its commands, menus, keys and settings go or come without a restart, and so do the clips, converters and highlighters of a data plugin.</summary>
     private void AfterPluginChange(string id)
     {
-        _app.Plugins.BindInstalled(_app.Plugins.Manager.Loaded(id));
+        _app.Plugins.SyncInstalled(id);
         _app.ReloadClips();
     }
 
@@ -248,7 +248,7 @@ internal sealed partial class MainWindow
             await ShowPluginErrorAsync(e);
             return;
         }
-        _app.ReloadClips();
+        AfterPluginChange(plugin.Id);
         SetStatusMessage(Loc.Get(K.PluginsStatusUninstalled, ("name", plugin.Name)));
     }
 

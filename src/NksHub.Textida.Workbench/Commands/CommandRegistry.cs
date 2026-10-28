@@ -173,6 +173,28 @@ public sealed class CommandRegistry
         return errors;
     }
 
+    /// <summary>
+    /// Takes back what <see cref="AddManifest"/> added for <paramref name="source"/> (a plugin that was removed, switched off or replaced by another version): its commands with their
+    /// handlers and aliases, and its menu items. Returns how many commands went.
+    /// </summary>
+    public int RemoveSource(string source)
+    {
+        var ids = _commands.Values.Where(c => c.Source == source).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var id in ids)
+        {
+            _commands.Remove(id);
+            _handlers.Remove(id);
+        }
+
+        foreach (var alias in _aliases.Where(a => ids.Contains(a.Value)).Select(a => a.Key).ToList())
+        {
+            _aliases.Remove(alias);
+        }
+
+        _menus.RemoveAll(m => m.Source == source);
+        return ids.Count;
+    }
+
     /// <summary>Attaches the handler of a command. A command has at most one handler.</summary>
     public void SetHandler(string commandId, CommandHandler handler)
     {
