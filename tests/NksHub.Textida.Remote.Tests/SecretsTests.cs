@@ -42,11 +42,9 @@ public class SecretsTests
         Assert.Null(secrets.Get(c.SecretKey));
     }
 
-    [Fact]
-    public void WindowsCredentialManagerKeepsAndDeletesASecret()
+    /// <summary>The whole contract of a store on a machine that has the system store: absent, set, replaced, deleted, deleted again.</summary>
+    private static void KeepsAndDeletesASecret(ICredentialStore store)
     {
-        if (!OperatingSystem.IsWindows()) return; // the macOS Keychain and Linux secret service are not implemented, see UnavailableStoreThrowsInsteadOfStoringElsewhere
-        var store = CredentialStores.ForCurrentPlatform();
         string key = "textida:test:" + Guid.NewGuid().ToString("N");
         try
         {
@@ -60,6 +58,59 @@ public class SecretsTests
             Assert.False(store.Delete(key));
         }
         finally { store.Delete(key); }
+    }
+
+    [Fact]
+    public void WindowsCredentialManagerKeepsAndDeletesASecret()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        KeepsAndDeletesASecret(CredentialStores.ForCurrentPlatform());
+    }
+
+    // Written without a Mac and without a Linux desktop at hand: these two run only there, and the first run on those systems is the first real check.
+    [Fact]
+    public void MacKeychainKeepsAndDeletesASecret()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+        KeepsAndDeletesASecret(CredentialStores.ForCurrentPlatform());
+    }
+
+    [Fact]
+    public void LinuxSecretServiceKeepsAndDeletesASecretWhenThereIsOne()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        var store = CredentialStores.ForCurrentPlatform();
+        try { store.Get("textida:test:probe"); }
+        catch (CredentialStoreUnavailableException) { return; } // no libsecret or no keyring in this session: the store says so, which UnavailableStoreThrowsInsteadOfStoringElsewhere covers
+        KeepsAndDeletesASecret(store);
+    }
+
+    [Theory]
+    [InlineData("keychain", "Keychain")]
+    [InlineData("secret", "libsecret")]
+    public void AMissingSystemLibraryGivesAStoreThatSaysSoAndKeepsNothing(string kind, string mentions)
+    {
+        var store = kind == "keychain" ? MacKeychainCredentialStore.CreateOrUnavailable(_ => false) : LinuxSecretCredentialStore.CreateOrUnavailable(_ => false);
+
+        Assert.IsType<UnavailableCredentialStore>(store);
+        foreach (var call in new Action[] { () => store.Get("k"), () => store.Set("k", "v"), () => store.Delete("k") })
+            Assert.Contains(mentions, Assert.Throws<CredentialStoreUnavailableException>(call).Message);
+    }
+
+    [Fact]
+    public void ALoadableSystemLibraryGivesTheRealStore()
+    {
+        Assert.IsType<MacKeychainCredentialStore>(MacKeychainCredentialStore.CreateOrUnavailable(_ => true));
+        if (IntPtr.Size == 8) Assert.IsType<LinuxSecretCredentialStore>(LinuxSecretCredentialStore.CreateOrUnavailable(_ => true));
+    }
+
+    [Fact]
+    public void LibrariesOfTheSystemStoresAreNotLoadableOnWindows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        Assert.False(CredentialStores.CanLoad("libsecret-1.so.0"));
+        Assert.False(CredentialStores.CanLoad("/System/Library/Frameworks/Security.framework/Security"));
+        Assert.True(CredentialStores.CanLoad("advapi32.dll"));
     }
 
     [Fact]

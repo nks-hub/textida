@@ -141,33 +141,34 @@ public sealed class WorkingCopyStore(string root)
     /// Returns the local copy of a remote file; downloads it only when there is none yet. An existing copy, with or without unsent changes, is returned as it is,
     /// so reopening a file never overwrites local work.
     /// </summary>
-    public async Task<WorkingCopy> OpenAsync(IRemoteClient client, string remotePath, CancellationToken cancellation) =>
-        Find(client.Connection.Id, remotePath) is { } existing ? Rebase(existing, existing.Base) : await DownloadAsync(client, remotePath, cancellation).ConfigureAwait(false);
+    public async Task<WorkingCopy> OpenAsync(IRemoteClient client, string remotePath, CancellationToken cancellation, TransferOptions? options = null) =>
+        Find(client.Connection.Id, remotePath) is { } existing ? Rebase(existing, existing.Base) : await DownloadAsync(client, remotePath, cancellation, options).ConfigureAwait(false);
 
     /// <summary>
     /// Downloads the current server version into the copy and makes it the new base. This replaces the local file; callers check <see cref="LocalStateOf"/>
-    /// first when unsent changes must not be lost.
+    /// first when unsent changes must not be lost. The bytes arrive in a partial file (<see cref="RemoteTransfer.DownloadPartAsync"/>): a cancelled or broken download is continued
+    /// by the next call while the server file keeps its size and time, so a retry does not start over.
     /// </summary>
-    public async Task<WorkingCopy> DownloadAsync(IRemoteClient client, string remotePath, CancellationToken cancellation)
+    public async Task<WorkingCopy> DownloadAsync(IRemoteClient client, string remotePath, CancellationToken cancellation, TransferOptions? options = null)
     {
         string connectionId = client.Connection.Id;
         string folder = FolderOf(connectionId, remotePath);
         Directory.CreateDirectory(folder);
         string name = FileNameOf(remotePath);
         string local = Path.Combine(folder, name);
-        string temp = local + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
 
         var before = await client.StatAsync(remotePath, cancellation).ConfigureAwait(false)
             ?? throw new RemoteException(RemoteError.NotFound, $"'{remotePath}' does not exist on the server.");
+        if (before.IsDirectory) throw new RemoteException(RemoteError.Failed, $"'{remotePath}' is a folder.");
+        string? part = null;
         try
         {
-            await using (var fs = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                await client.DownloadAsync(remotePath, fs, cancellation).ConfigureAwait(false);
+            part = await RemoteTransfer.DownloadPartAsync(client, remotePath, local, before, options, cancellation).ConfigureAwait(false);
             var after = await client.StatAsync(remotePath, cancellation).ConfigureAwait(false);
-            if (after is null || after.Value.Size != before.Size || !SameTime(before.ModifiedUtc, after.Value.ModifiedUtc) || new FileInfo(temp).Length != after.Value.Size)
+            if (after is null || after.Value.Size != before.Size || !SameTime(before.ModifiedUtc, after.Value.ModifiedUtc) || new FileInfo(part).Length != after.Value.Size)
                 throw new RemoteException(RemoteError.ChangedOnServer, "The file changed on the server while it was downloaded. Open it again.");
-            string hash = await RemoteTransfer.HashOfAsync(temp, cancellation).ConfigureAwait(false);
-            FileSwap.Replace(temp, local);
+            string hash = await RemoteTransfer.HashOfAsync(part, cancellation).ConfigureAwait(false);
+            FileSwap.Replace(part, local);
             var meta = new WorkingCopyMeta
             {
                 ConnectionId = connectionId, RemotePath = remotePath, FileName = name, Size = before.Size, ModifiedUtc = before.ModifiedUtc, Sha256 = hash, LastUsedUtc = DateTime.UtcNow,
@@ -175,7 +176,11 @@ public sealed class WorkingCopyStore(string root)
             WriteMeta(folder, meta);
             return ToCopy(folder, meta);
         }
-        finally { FileSwap.TryDelete(temp); }
+        finally
+        {
+            // a complete part that failed a check is of no use; a part the transfer left unfinished never gets here (part is still null) and waits for the next call
+            if (part is not null) FileSwap.TryDelete(part);
+        }
     }
 
     private static bool SameTime(DateTime? a, DateTime? b) => a is null || b is null || RemoteRevision.Whole(a.Value) == RemoteRevision.Whole(b.Value);

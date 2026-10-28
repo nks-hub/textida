@@ -53,6 +53,7 @@ public static class RemoteSync
         var guarded = new TransferOptions
         {
             Log = options.Log,
+            Progress = options.Progress,
             BeforeCommit = async ct =>
             {
                 if (options.BeforeCommit is { } outer) await outer(ct).ConfigureAwait(false);

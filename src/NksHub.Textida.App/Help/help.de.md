@@ -113,7 +113,8 @@ Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im
 - Üblich sind FTPS und SFTP. Einfaches FTP sendet Passwort und Dateien unverschlüsselt und wird erst benutzt, wenn Sie es für diese Verbindung ausdrücklich erlauben.
 - Bei der ersten Verbindung zeigt das Programm die Identität des Servers (einen SSH-Hostschlüssel oder ein TLS-Zertifikat) und fragt, ob Sie ihr vertrauen. Vergleichen Sie sie mit der, die Ihnen der Serveradministrator gegeben hat.
 - Ändert sich die Identität eines Servers, dem Sie vertraut haben, verbindet sich das Programm erst, wenn Sie die neue bestätigen. Lesen Sie vorher die Warnung.
-- Das Speichern von Passwörtern funktioniert unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux wird der Anmeldeinformationsspeicher noch nicht unterstützt; das Programm sagt das, statt das Passwort anderswo abzulegen.
+- Ein Passwort wird im Anmeldeinformationsspeicher des Systems abgelegt: unter Windows in der Anmeldeinformationsverwaltung, unter macOS im Schlüsselbund (Keychain), unter Linux im Secret Service über libsecret (zum Beispiel GNOME Keyring oder KWallet). Fehlt dieser Speicher, sagt das Programm das, statt das Passwort anderswo abzulegen. Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert.
+- ssh-rsa: Manche alten SFTP-Server akzeptieren einen RSA-Schlüssel oder zeigen ihren Hostschlüssel nur mit der schwachen SHA-1-Signatur namens ssh-rsa. Das Programm bietet sie nie von selbst an. Lehnt ein solcher Server die Verbindung ab, wählen Sie die Verbindung und dann Alte RSA-Signatur (ssh-rsa), lesen Sie die Warnung und erlauben Sie sie nur für diese Verbindung. Die Remote-Ausgabe warnt bei jeder Verbindung, die sie erlaubt; schalten Sie sie ab, sobald der Server aktualisiert ist.
 
 ## [remote.open] Remote-Datei öffnen
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Die Leiste über dem Text sagt, ob die Kopie dem Stand auf dem Server entspricht. Der Editor selbst arbeitet ohne Verbindung.
 - Eine Remote-Datei, die schon eine Kopie hat, wird aus der Kopie geöffnet, auch mit Änderungen, die Sie noch nicht gesendet haben. Die Serverversion wird nie über Ihre Arbeit geladen.
 - Das Protokoll der Übertragungen steht im Tab Remote des Ausgabefensters.
+- Ein Download zeigt seinen Fortschritt in Prozent in der Statusleiste und in der Remote-Ausgabe. Übertragung abbrechen stoppt ihn. Was angekommen ist, bleibt erhalten, und das nächste Öffnen oder Neuladen derselben Serverversion macht bei diesem Byte weiter. Haben sich Größe oder Zeit der Datei auf dem Server inzwischen geändert, wird der angefangene Teil verworfen und der Download beginnt von vorn. Bricht die Verbindung ab, wiederholt das Programm den Download einige Male mit wachsenden Pausen.
 
 ## [remote.upload] Auf Server hochladen
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
 - Grenze: Prüfung und Austausch sind zwei Schritte, weil FTP und SFTP kein bedingtes Schreiben kennen. Eine Änderung, die jemand in diesem letzten Moment macht, wird nicht bemerkt. Die Prüfung läuft erst nach dem vollständigen Upload, der Moment ist also kurz.
 - Bricht die Verbindung beim Hochladen ab, versucht das Programm es einige Male mit wachsenden Pausen erneut. Jeder Versuch prüft zuerst wieder die Serverversion, und eine teilweise gesendete temporäre Datei wird erst fortgesetzt, wenn ihr Inhalt mit Ihrer Datei übereinstimmt. Verweigert der Server das Umbenennen, das die Datei an ihren Platz setzt, wird die alte Datei beiseitegelegt, die neue verschoben und bei einem Fehler die alte zurückgeholt.
+- Die Statusleiste zeigt den Fortschritt des Uploads in Prozent und die Remote-Ausgabe eine Zeile je Zehntel (die Schrittweite ist vorläufig). Die Prozent zählen die Bytes, die die Verbindung übernommen hat, und können dem Server etwas voraus sein.
 
 ## [remote.cancel] Übertragung abbrechen
 commands: nks.remote.cancel
-Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen stoppt, der Server behält seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort.
+Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen oder Herunterladen stoppt. Nach einem Upload behält der Server seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort. Nach einem Download bleibt, was angekommen ist, und der nächste Download derselben Serverversion macht dort weiter.
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
@@ -1222,10 +1225,10 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 
 ## [errors.remote] Fehlermeldungen: Remote-Dateien und Quellen
 Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleiste, in der Leiste über dem Text oder in einem Dialog. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
-- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy).
+- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy). Lehnt ein alter SFTP-Server einen Schlüssel ab oder teilen Sie mit ihm keinen Schlüsselalgorithmus, siehe Alte RSA-Signatur (ssh-rsa) im Thema Remote-Verbindungen.
 - ACHTUNG: Die Identität von Server ist nicht die, der Sie zuvor vertraut haben. Das Programm verbindet sich erst, wenn Sie die neue Identität bestätigen. Fragen Sie den Serveradministrator, ob der Server neu installiert wurde, und verbinden Sie sich nur, wenn Sie wissen, warum sie sich geändert hat (Thema Remote-Verbindungen).
 - Der Port muss eine Zahl von 1 bis 65535 sein. Geben Sie eine ganze Zahl von 1 bis 65535 ein oder lassen Sie das Feld leer, dann gilt der übliche Port des Protokolls.
-- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher für Anmeldedaten (er funktioniert nur unter Windows, Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
+- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher des Systems für Anmeldedaten (Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
 - Pfad gibt es auf dem Server nicht. Prüfen Sie den Pfad. Ein Pfad zu einem Ordner zeigt dessen Inhalt, so können Sie ab / zur Datei blättern.
 - Pfad kann nicht geöffnet werden: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund (eine Berechtigung auf dem Server, eine unterbrochene Verbindung) und öffnen Sie die Datei erneut.
 - Das Hochladen von Titel ist fehlgeschlagen: Grund. Der Server behält seine vorherige Version; Ihre Änderungen bleiben hier gespeichert. Beheben Sie den Grund und wählen Sie erneut Auf Server hochladen; eine teilweise gesendete Datei wird fortgesetzt (Thema Auf Server hochladen).
@@ -1307,7 +1310,7 @@ Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie ers
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
 - Updates: Das Programm aktualisiert sich nur unter Windows selbst, im installierten Textida (Thema Updates und Rückkehr zur vorherigen Version). Unter macOS und Linux installieren Sie eine neue Version selbst. Ein Build ohne Update-Adresse und Signaturschlüssel sucht nicht nach Updates und sagt das.
-- Gespeicherte Passwörter: Der Speicher für Anmeldedaten funktioniert nur unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
+- Gespeicherte Passwörter: Windows (Anmeldeinformationsverwaltung), macOS (Schlüsselbund) und Linux (Secret Service über libsecret). Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert. Fehlt der Speicher des Systems, speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
 - Plugins: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Seine Berechtigungen halten fest, was Sie erlaubt haben, sie sind keine Sandbox, und die Signaturen von Plugins werden nicht geprüft (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen). Installieren Sie nur Plugins, denen Sie vertrauen.
 - Assistenten: Die /ide-Brücke und der Agent über ACP sind nicht mit den echten Programmen geprüft (Themen Die /ide-Brücke für Claude Code und Agent über ACP). Eine Verbindung, die nicht klappt, meldet das Programm mit dem Grund in der Statusleiste oder in der Ausgabe Aufgaben.
 - Große Dateien: Das Bearbeiten im Seitenmodus ist eingeschränkt (Thema Große Dateien (Seitenmodus)). Ein Sprachserver, das Formatieren und die meisten Befehle, die Text ändern, funktionieren dort nicht. Die Bytes einer Datei beliebiger Größe ändern Sie im Hex-Editor.
