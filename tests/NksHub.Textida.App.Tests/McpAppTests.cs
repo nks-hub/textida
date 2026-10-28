@@ -290,6 +290,30 @@ public class McpAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task File_facts_of_a_cp1250_file_with_mixed_line_endings_that_the_app_read_from_disk_name_the_codec_and_all_three_endings()
+    {
+        await SwitchOnAsync();
+        // 3 CRLF, 2 LF and 1 CR; the app has to find the code page by itself, nothing tells it
+        const string text = "Příliš žluťoučký kůň úpěl ďábelské ódy.\r\nŘeřicha, žába a šakal.\nŽluťoučký kůň skáče přes plot.\r\nPříští týden budeme mít mrazy\rKůň na louce spí.\nVšechno je v pořádku.\r\n";
+        byte[] bytes = NksHub.Textida.Core.Encodings.TextCodec.Cp1250.Encode(text);
+        var tab = _w.OpenFile(_temp.Bytes("cp1250.txt", bytes), null);
+        _w.UpdateLayout();
+        Settle();
+        await ShareAsync(tab);
+
+        var client = NewClient();
+        var reply = await Pump(client.ToolAsync("editor_file_facts", $"{{\"document\":\"{tab.Doc.Doc.Id}\"}}"), "file facts");
+        Assert.False(reply.IsError, reply.Text);
+        var facts = JsonDocument.Parse(reply.Text).RootElement;
+
+        Assert.Equal("Windows-1250", facts.GetProperty("codec").GetString());
+        var endings = facts.GetProperty("lineEndings");
+        Assert.Equal((3, 2, 1, "mixed"), (endings.GetProperty("crlf").GetInt32(), endings.GetProperty("lf").GetInt32(), endings.GetProperty("cr").GetInt32(), endings.GetProperty("style").GetString()));
+        Assert.Equal(0, facts.GetProperty("invalidSequences").GetInt32());
+        Assert.Equal(bytes.Length, facts.GetProperty("byteLength").GetInt64());
+    }
+
+    [AvaloniaFact]
     public async Task Hex_changes_are_proposed_as_bytes_and_the_user_sees_them_before_and_after()
     {
         await SwitchOnAsync();

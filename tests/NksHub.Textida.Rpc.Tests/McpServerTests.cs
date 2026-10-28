@@ -702,6 +702,7 @@ public class McpServerTests
 
     [Fact]
     [Trait("Category", "Large")]
+    [Trait("Category", "Perf")]
     public async Task Log_query_answers_from_a_ten_gibibyte_log_with_lines_and_without_reading_all_of_it()
     {
         const long length = 10L << 30;
@@ -730,6 +731,7 @@ public class McpServerTests
 
     [Fact]
     [Trait("Category", "Large")]
+    [Trait("Category", "Perf")]
     public async Task Withdrawing_access_stops_a_scan_of_a_ten_gibibyte_log_that_is_running()
     {
         const long length = 10L << 30;
