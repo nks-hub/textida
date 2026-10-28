@@ -169,6 +169,21 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>A selection up to this size is decoded on the UI thread, a longer one on the pool.</summary>
     private const long InlineCopyBytes = 1 << 20;
 
+    /// <summary>Clipboard text up to this many characters is normalized and encoded on the UI thread, a longer one on the pool.</summary>
+    private const int InlinePasteChars = 1 << 20;
+
+    /// <summary>
+    /// Longest line, in bytes, that typing, deleting and pasting edit; a longer one is refused with a message and the document does not change.
+    /// Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedEditLineMaxBytes"/>. A test lowers it.
+    /// </summary>
+    internal long EditLineLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedEditLineMaxBytes;
+
+    /// <summary>
+    /// Characters of clipboard text that Paste takes; a longer text is refused with a message and the document does not change.
+    /// Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedPasteMaxChars"/>. A test lowers it.
+    /// </summary>
+    internal long PasteLimitChars { get; set; } = PluginLimitsPlaceholders.PagedPasteMaxChars;
+
     /// <summary>
     /// The selected text exactly as the bytes of the current revision decode, line breaks included; empty when nothing is selected or the selection is
     /// larger than <see cref="CopyLimitBytes"/>. It is decoded straight to a string, without the table of byte offsets that a line on screen needs.
@@ -1038,10 +1053,20 @@ internal sealed partial class PagedTextView : Grid
     {
         site = default;
         if (ReadOnlyReason is { } locked) { Refused?.Invoke(locked); return false; }
-        if (!Indexed) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
+        if (!Indexed || CaretLine() is not { } line) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
+        if (!LineEditable(line.Line, line.View.ByteLength)) return false; // before the site counts the characters in front of the caret
         if (CaretSite() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         site = c;
         return true;
+    }
+
+    /// <summary>False, with a message, when a line is longer than <see cref="EditLineLimitBytes"/>.</summary>
+    private bool LineEditable(long line, long byteLength)
+    {
+        if (byteLength <= EditLineLimitBytes) return true;
+        Refused?.Invoke(Loc.Get(K.PagedLineTooLong, ("line", (line + 1).ToString("N0", CultureInfo.CurrentCulture)),
+            ("size", OpenDocument.FormatSize(byteLength)), ("limit", OpenDocument.FormatSize(EditLineLimitBytes))));
+        return false;
     }
 
     private bool Commit(long at, long deleted, byte[] insert, long caretAfter, long lineAfter, bool typing, bool isInsert, long columnAfter = -1)
@@ -1054,6 +1079,12 @@ internal sealed partial class PagedTextView : Grid
             key = _typingKey;
         }
         else _typingKey = null;
+        if (JoinsCrLf(at, deleted, insert, out bool caretInside))
+        {
+            // the pair is one line break, so the lines after the edit are fewer than its text tells; a caret between the two characters goes behind the pair
+            if (caretInside) caretAfter += Doc.Codec.Alignment;
+            lineAfter = columnAfter = -1;
+        }
         var options = new EditOptions
         {
             CoalesceKey = key,
@@ -1063,7 +1094,7 @@ internal sealed partial class PagedTextView : Grid
         };
         // The handlers of Changed (status bar) read the caret while Apply runs; naming the new caret and its line first spares them a search through the line index.
         var (caretBefore, memoBefore) = (_caret, _lineMemo);
-        (_caret, _lineMemo) = (caretAfter, (Doc.Revision + 1, caretAfter, lineAfter));
+        (_caret, _lineMemo) = (caretAfter, lineAfter >= 0 ? (Doc.Revision + 1, caretAfter, lineAfter) : (-1L, -1L, 0L));
         _own = true;
         EditResult result = default;
         long tApply = TypingTrace.Begin();
@@ -1082,7 +1113,7 @@ internal sealed partial class PagedTextView : Grid
         if (result.Conflict == ConflictReason.Saving) Refused?.Invoke(Loc.Get(K.StatusSaveBusy)); // an in-place save does not take edits; a streamed one does
         if (!result.Applied) return false;
         _anchor = -1;
-        _lineMemo = (Doc.Revision, caretAfter, lineAfter);
+        _lineMemo = lineAfter >= 0 ? (Doc.Revision, caretAfter, lineAfter) : (-1L, -1L, 0L);
         if (columnAfter >= 0) NoteColumn(caretAfter, columnAfter);
         _wanted = -1;
         long t = TypingTrace.Begin();
@@ -1097,24 +1128,55 @@ internal sealed partial class PagedTextView : Grid
         return true;
     }
 
+    /// <summary>The code unit that starts at <paramref name="offset"/>, or 0 when there is none (before the text or past its end).</summary>
+    private uint UnitAt(long offset, Span<byte> buffer)
+    {
+        int w = Doc.Codec.Alignment;
+        return offset >= Doc.BomLength && offset + w <= Doc.ByteLength && Doc.Read(offset, buffer[..w]) == w ? LineScanner.Unit(buffer, 0, Doc.Codec) : 0;
+    }
+
+    /// <summary>
+    /// True when the edit puts a CR next to an LF that were not neighbours before: a lone CR in front of the new text or of the bytes the deletion exposes,
+    /// or the CR that ends the new text in front of an LF. The two make one line break. <paramref name="caretInside"/> is true when the caret
+    /// of the edit would stand between them.
+    /// </summary>
+    private bool JoinsCrLf(long at, long deleted, byte[] insert, out bool caretInside)
+    {
+        int w = Doc.Codec.Alignment;
+        Span<byte> buffer = stackalloc byte[4];
+        uint before = UnitAt(at - w, buffer), after = UnitAt(at + deleted, buffer);
+        uint first = insert.Length > 0 ? LineScanner.Unit(insert, 0, Doc.Codec) : after;
+        uint last = insert.Length > 0 ? LineScanner.Unit(insert, insert.Length - w, Doc.Codec) : before;
+        bool atStart = before == 13 && first == 10, atEnd = insert.Length > 0 && last == 13 && after == 10;
+        caretInside = insert.Length > 0 ? atEnd : atStart;
+        return atStart || atEnd;
+    }
+
     /// <summary>Types text at the caret. A character the encoding cannot hold is refused, not replaced behind the user's back.</summary>
     public bool InsertText(string text, bool typing = true)
     {
         if (text.Length == 0 || !CanEdit(out var site)) return false;
-        byte[] bytes;
-        try { bytes = Doc.Codec.Encode(text); }
-        catch (UnrepresentableCharactersException)
+        if (EncodeOrNull(text, Doc.Codec) is not { } bytes)
         {
             Refused?.Invoke(Loc.Get(K.PagedNotEncodable, ("encoding", Doc.Codec.Name)));
             return false;
         }
+        return InsertEncoded(bytes, text.Length, LineBreaks(text), site, typing);
+    }
+
+    private static byte[]? EncodeOrNull(string text, TextCodec codec)
+    {
+        try { return codec.Encode(text); }
+        catch (UnrepresentableCharactersException) { return null; }
+    }
+
+    /// <summary>Puts encoded text of <paramref name="chars"/> UTF-16 units and <paramref name="breaks"/> line breaks over the selection, or at the caret.</summary>
+    private bool InsertEncoded(byte[] bytes, int chars, int breaks, Site site, bool typing)
+    {
         if (!HasSelection)
-        {
-            int breaks = LineBreaks(text);
-            return Commit(_caret, 0, bytes, _caret + bytes.Length, site.Line + breaks, typing, isInsert: true, columnAfter: site.Long && breaks == 0 ? site.Column + text.Length : -1);
-        }
+            return Commit(_caret, 0, bytes, _caret + bytes.Length, site.Line + breaks, typing, isInsert: true, columnAfter: site.Long && breaks == 0 ? site.Column + chars : -1);
         var (from, to) = (SelectionRange.Start, SelectionRange.End);
-        return Commit(from, to - from, bytes, from + bytes.Length, LineOf(from) + LineBreaks(text), typing: false, isInsert: true);
+        return Commit(from, to - from, bytes, from + bytes.Length, LineOf(from) + breaks, typing: false, isInsert: true);
     }
 
     /// <summary>Deletes the selection as one undo step; false when nothing is selected or the edit is refused.</summary>
@@ -1164,11 +1226,75 @@ internal sealed partial class PagedTextView : Grid
     public async Task PasteAsync()
     {
         if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
-        if (await clipboard.TryGetTextAsync() is { Length: > 0 } text) PasteText(text);
+        if (await clipboard.TryGetTextAsync() is { Length: > 0 } text) await PasteTextAsync(text);
     }
 
-    internal bool PasteText(string text) =>
-        InsertText(AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, _doc.NewLine(_options.ConfiguredEol)), typing: false);
+    private readonly record struct Prepared(byte[] Bytes, int Chars, int Breaks);
+
+    /// <summary>The text with the line breaks of the document, encoded; null when the encoding cannot hold a character of it. Touches no state of the view, so it runs on the pool.</summary>
+    private static Prepared? PrepareInsert(string text, TextCodec codec, string newLine)
+    {
+        string normalized = UsesLineBreak(text, newLine) ? text : AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, newLine);
+        return EncodeOrNull(normalized, codec) is { } bytes ? new Prepared(bytes, normalized.Length, LineBreaks(normalized)) : null;
+    }
+
+    /// <summary>True when every line break of <paramref name="text"/> is <paramref name="newLine"/>, so normalizing would only copy a text that can be as large as the paste limit.</summary>
+    internal static bool UsesLineBreak(string text, string newLine)
+    {
+        var span = text.AsSpan();
+        for (int at = span.IndexOfAny('\r', '\n'); at >= 0;)
+        {
+            int length = span[at] == '\r' && at + 1 < span.Length && span[at + 1] == '\n' ? 2 : 1;
+            if (!span.Slice(at, length).SequenceEqual(newLine)) return false;
+            int next = span[(at + length)..].IndexOfAny('\r', '\n');
+            at = next < 0 ? -1 : at + length + next;
+        }
+        return true;
+    }
+
+    /// <summary>Whether a paste of this text may start: the document takes edits, and the text is not over <see cref="PasteLimitChars"/> (else a message, and nothing changes).</summary>
+    private bool CanPaste(string text)
+    {
+        if (text.Length == 0 || !CanEdit(out _)) return false;
+        if (text.Length <= PasteLimitChars) return true;
+        Refused?.Invoke(Loc.Get(K.PagedPasteTooLarge, ("size", text.Length.ToString("N0", CultureInfo.CurrentCulture)), ("limit", PasteLimitChars.ToString("N0", CultureInfo.CurrentCulture))));
+        return false;
+    }
+
+    private bool InsertPrepared(Prepared? prepared, TextCodec codec)
+    {
+        if (prepared is not { } p)
+        {
+            Refused?.Invoke(Loc.Get(K.PagedNotEncodable, ("encoding", codec.Name)));
+            return false;
+        }
+        if (!ReferenceEquals(codec, Doc.Codec)) // the text was encoded for the encoding the document had when the paste began
+        {
+            Refused?.Invoke(Loc.Get(K.PagedPasteEncoding));
+            return false;
+        }
+        return CanEdit(out var site) && InsertEncoded(p.Bytes, p.Chars, p.Breaks, site, typing: false);
+    }
+
+    internal bool PasteText(string text)
+    {
+        if (!CanPaste(text)) return false;
+        var codec = Doc.Codec;
+        return InsertPrepared(PrepareInsert(text, codec, _doc.NewLine(_options.ConfiguredEol)), codec);
+    }
+
+    /// <summary>
+    /// <see cref="PasteText"/> for the clipboard: text over <see cref="InlinePasteChars"/> is normalized and encoded on the pool, so the window keeps answering,
+    /// and goes into the document where the caret and the selection are when that is done.
+    /// </summary>
+    internal async Task<bool> PasteTextAsync(string text)
+    {
+        if (!CanPaste(text)) return false;
+        var codec = Doc.Codec;
+        string newLine = _doc.NewLine(_options.ConfiguredEol);
+        var prepared = text.Length <= InlinePasteChars ? PrepareInsert(text, codec, newLine) : await Task.Run(() => PrepareInsert(text, codec, newLine));
+        return InsertPrepared(prepared, codec);
+    }
 
     public void SelectAll()
     {
@@ -1199,7 +1325,8 @@ internal sealed partial class PagedTextView : Grid
             long at = view.Start + view.Map.ByteOffsetOf(j);
             Commit(at, _caret - at, [], at, line, typing: true, isInsert: false, columnAfter: site.Long ? site.Column - (i - j) : -1);
         }
-        else if (line > 0 && TryBounds(line - 1, out _, out long end, out long next)) Commit(end, next - end, [], end, line - 1, typing: false, isInsert: false);
+        else if (line > 0 && TryBounds(line - 1, out long prevStart, out long end, out long next) && LineEditable(line - 1, end - prevStart))
+            Commit(end, next - end, [], end, line - 1, typing: false, isInsert: false);
     }
 
     private void DeleteForward()
@@ -1211,7 +1338,8 @@ internal sealed partial class PagedTextView : Grid
         int i = map.CharIndexOf(_caret - view.Start);
         if (i < map.Text.Length)
             Commit(_caret, view.Start + map.ByteOffsetOf(map.IsCharBoundary(i + 1) ? i + 1 : i + 2) - _caret, [], _caret, line, typing: true, isInsert: false, columnAfter: site.Long ? site.Column : -1);
-        else if (line + 1 < LineCount && TryBounds(line, out _, out long end, out long next)) Commit(end, next - end, [], end, line, typing: false, isInsert: false);
+        else if (line + 1 < LineCount && TryBounds(line, out _, out long end, out long next) && TryBounds(line + 1, out long nextStart, out long nextEnd, out _) && LineEditable(line + 1, nextEnd - nextStart))
+            Commit(end, next - end, [], end, line, typing: false, isInsert: false);
     }
 
     private void Tab()

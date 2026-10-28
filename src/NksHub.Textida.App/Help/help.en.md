@@ -1140,10 +1140,13 @@ The status bar then shows Large file, its size and the revision.
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
 - Save (Ctrl+S) runs in the background: the window stays usable, the status bar shows how many percent of the new file are written, and Esc cancels the save before the data is committed (the file stays unchanged). You can keep typing meanwhile: the file gets the text as it was when you pressed Save, your later edits stay unsaved, and the tab shows them as unsaved changes. Undo and Redo work during the save and after it. A save that only overwrites bytes of the same length writes just those bytes and takes no edits for its short time. A file larger than 1 GiB (a provisional limit) is saved without a copy of the old version in the backup folder; the old file stays untouched until the new one is complete.
+
+- Undo and Redo also work after Save: the steps made before the save can still be undone, and the next save writes the state after the undo. Typing a word without moving the caret is one step.
 - Find (Ctrl+F). Find in Files.
 - Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
+- Paste takes at most 32 Mi characters (a provisional value); a longer text is not pasted and the status bar says so. A text over 1 Mi characters is prepared in the background and goes in where the caret is when that is done.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
-- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves.
+- A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves. A line longer than 1 GiB (a provisional value) is not edited; the status bar says so and the document does not change.
 ### What does not work
 - Block selection, multiple carets.
 - Commands for lines, indentation, letter case, replacing.
@@ -1155,6 +1158,9 @@ The status bar then shows Large file, its size and the revision.
 - The character cannot be written in the file encoding: type another character.
 - The selection is larger than the copy limit: select less; the clipboard stays as it was.
 - The edit is too large to be undone: remove or insert less text at once; the document does not change.
+- A line is longer than the limit that can be edited in paged mode: edit it in the hex view; the document does not change.
+- The clipboard text is larger than the paste limit: paste it in parts; the document does not change.
+- The encoding of the document changed while the text was being prepared: paste again.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - The file is being saved, try again when the save ends: you tried something while a save that overwrites bytes in place was running, or reloaded the file during any save.
 - Closing the tab or the window during a save waits for the end of the save; Esc cancels the save.

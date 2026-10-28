@@ -1140,10 +1140,13 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
 - Speichern (Strg+S) läuft im Hintergrund: Das Fenster bleibt benutzbar, die Statusleiste zeigt, wie viel Prozent der neuen Datei geschrieben sind, und Esc bricht das Speichern ab, bevor die Daten übernommen werden (die Datei bleibt unverändert). Sie können währenddessen weitertippen: In die Datei kommt der Text, wie er beim Speichern war, spätere Änderungen bleiben ungespeichert, und der Tab zeigt sie als ungespeicherte Änderungen. Rückgängig und Wiederholen funktionieren während des Speicherns und danach. Ein Speichern, das nur Bytes gleicher Länge überschreibt, schreibt nur diese Bytes und nimmt in seiner kurzen Zeit keine Änderungen an. Eine Datei über 1 GiB (vorläufige Grenze) wird ohne Kopie der alten Version im Sicherungsordner gespeichert; die alte Datei bleibt unberührt, bis die neue vollständig ist.
+
+- Rückgängig und Wiederholen funktionieren auch nach dem Speichern: Schritte vor dem Speichern lassen sich weiter zurücknehmen, und das nächste Speichern schreibt den Stand nach dem Zurücknehmen. Ein getipptes Wort ohne Bewegen des Cursors ist ein Schritt.
 - Suchen (Strg+F). In Dateien suchen.
 - Auswählen (Umschalt mit den Pfeilen, Maus, Strg+A), Kopieren, Ausschneiden und Einfügen. Eine Auswahl über dem Kopierlimit (256 MiB, vorläufiger Wert) wird nicht kopiert, und die Statusleiste sagt es. Eine lange Auswahl wird im Hintergrund gelesen, und Ausschneiden löscht nur, wenn sich der Text inzwischen nicht geändert hat.
+- Einfügen nimmt höchstens 32 Mi Zeichen (vorläufiger Wert); ein längerer Text wird nicht eingefügt, und die Statusleiste sagt es. Ein Text über 1 Mi Zeichen wird im Hintergrund vorbereitet und dort eingefügt, wo der Cursor nach dem Fertigwerden steht.
 - Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
-- Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen.
+- Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen. Eine Zeile über 1 GiB (vorläufiger Wert) wird nicht bearbeitet; die Statusleiste sagt es, und das Dokument bleibt unverändert.
 ### Was nicht geht
 - Blockauswahl, mehrere Cursor.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
@@ -1155,6 +1158,9 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
 - Die Auswahl ist größer als das Kopierlimit: Wählen Sie weniger aus; die Zwischenablage blieb, wie sie war.
 - Die Änderung ist zu groß, um rückgängig gemacht zu werden: Entfernen oder fügen Sie weniger Text auf einmal ein; das Dokument wurde nicht verändert.
+- Eine Zeile ist länger als das Limit, das im Seitenmodus bearbeitet wird: Bearbeiten Sie sie in Hex; das Dokument wurde nicht verändert.
+- Der Text in der Zwischenablage ist größer als das Einfügelimit: Fügen Sie ihn in Teilen ein; das Dokument wurde nicht verändert.
+- Die Kodierung des Dokuments hat sich geändert, während der Text vorbereitet wurde: Fügen Sie ihn erneut ein.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Die Datei wird gerade gespeichert, später noch einmal versuchen: Sie haben etwas versucht, während ein Speichern lief, das Bytes an Ort und Stelle überschreibt, oder die Datei während eines beliebigen Speicherns neu geladen.
 - Das Schließen eines Tabs oder des Fensters während des Speicherns wartet auf das Ende des Speicherns; Esc bricht das Speichern ab.
