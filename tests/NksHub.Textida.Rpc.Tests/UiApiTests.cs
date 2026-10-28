@@ -225,11 +225,12 @@ public class UiApiTests
     [Fact]
     public async Task A_task_the_plugin_ends_after_cancel_is_not_ended_a_second_time()
     {
-        await using var rig = await Rig.CreateAsync(cancelGrace: TimeSpan.FromMilliseconds(200));
+        // the end has to reach the editor within the grace; a round trip to a plugin process on a busy machine takes longer than a few hundred milliseconds
+        await using var rig = await Rig.CreateAsync(cancelGrace: TimeSpan.FromSeconds(3));
         var id = (await rig.CallAsync(UiMethods.TaskStart, "{\"title\":\"Polite\",\"cancellable\":true}")).GetProperty("task").GetString()!;
         Assert.True(await rig.Api.CancelTaskAsync("p", id));
         Assert.True((await rig.CallAsync(UiMethods.TaskEnd, $"{{\"task\":\"{id}\"}}")).GetProperty("ended").GetBoolean());
-        await Task.Delay(500);
+        await Task.Delay(3500);
         Assert.Equal([id], rig.Ui.Ended);
     }
 

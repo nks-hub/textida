@@ -344,6 +344,21 @@ public sealed partial class Document
     }
 
     /// <summary>
+    /// Maps one position of an older revision to the current one. Text inserted exactly at the position goes after it for <see cref="AnchorGravity.Left"/> and before it
+    /// for <see cref="AnchorGravity.Right"/>; a position inside text a later change deleted or replaced has no place (<see cref="ConflictReason.Overlap"/>), it is never moved to a guess.
+    /// </summary>
+    public PointMapResult MapPoint(long offset, AnchorGravity gravity, long fromRevision)
+    {
+        if (fromRevision > _revision || fromRevision < 0) return new(false, offset, ConflictReason.FutureRevision);
+        if (fromRevision < FirstReachableRevision) return new(false, offset, ConflictReason.LogTruncated);
+        long pos = offset;
+        if (fromRevision < _revision)
+            for (int i = (int)(fromRevision + 1 - _log[0].Revision); i < _log.Count; i++)
+                if (!ChangeMap.TryMapPoint(ref pos, gravity, _log[i])) return new(false, offset, ConflictReason.Overlap);
+        return new(true, pos, ConflictReason.None);
+    }
+
+    /// <summary>
     /// Maps a region of an older revision to the current one the way a marker needs it (see <see cref="ChangeMap.TryMapRegion"/>): edits that touch the region
     /// change it instead of making it a conflict. Null when nothing of it is left or the change log no longer reaches back to <paramref name="fromRevision"/>.
     /// </summary>

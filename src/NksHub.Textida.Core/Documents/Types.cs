@@ -59,6 +59,12 @@ public readonly record struct EditResult(bool Applied, long Revision, ConflictRe
 
 public readonly record struct RangeMapResult(bool Ok, ByteRange Range, ConflictReason Conflict);
 
+/// <summary>
+/// Where a position of an older revision stands now. When <see cref="Ok"/> is false, <see cref="ConflictReason.Overlap"/> means a later change
+/// deleted the text the position was in; <see cref="ConflictReason.FutureRevision"/> and <see cref="ConflictReason.LogTruncated"/> mean the log cannot say.
+/// </summary>
+public readonly record struct PointMapResult(bool Ok, long Offset, ConflictReason Conflict);
+
 /// <summary>Result of undo or redo: the document revision after it and the selections the step restored.</summary>
 public sealed record UndoResult(long Revision, IReadOnlyList<ByteRange> Selections);
 

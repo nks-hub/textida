@@ -110,6 +110,11 @@ public interface IByteSnapshot
 {
     long ByteLength { get; }
     int Read(long offset, Span<byte> destination);
+    /// <summary>
+    /// Memory the snapshot itself holds, in bytes (an estimate for a budget): the whole content for a copy, only the piece list for a snapshot
+    /// of a mapped file. Bytes of the mapped file and the add buffer shared with the document are not counted.
+    /// </summary>
+    long RetainedBytes => ByteLength;
 }
 
 /// <summary>Creates backends over bytes, so a document can move between backends in memory.</summary>

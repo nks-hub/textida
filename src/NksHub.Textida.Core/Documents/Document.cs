@@ -234,6 +234,8 @@ public sealed class DocumentSnapshot : IByteSnapshot
     public Guid DocumentId { get; }
     public long Revision { get; }
     public long ByteLength => _bytes.ByteLength;
+    /// <summary>Memory the snapshot holds (see <see cref="IByteSnapshot.RetainedBytes"/>).</summary>
+    public long RetainedBytes => _bytes.RetainedBytes;
     /// <summary>How the bytes of this revision are read as text.</summary>
     public TextCodec Codec => _codec;
     public int Read(long offset, Span<byte> destination) => _bytes.Read(offset, destination);
