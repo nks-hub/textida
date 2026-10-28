@@ -541,6 +541,7 @@
   "hex.a11y.continuation": "pokračovanie znaku",
   "hex.a11y.invalid": "neplatný bajt",
   "hex.a11y.space": "medzera",
+  "hex.a11y.hidden": "offset {offset}, skrytá hodnota",
   "hex.endOfFile": "Prepis nemení dĺžku súboru. Na pridanie bajtov zapnite vkladanie (Insert).",
   "hex.notEncodable": "Znak sa nedá zapísať v kódovaní {encoding}.",
   "hex.busy": "Súbor sa práve ukladá, túto zmenu (výplň alebo vrátenie výplne a kódovania) počkaj do konca uloženia.",

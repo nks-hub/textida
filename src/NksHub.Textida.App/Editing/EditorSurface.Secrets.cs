@@ -40,13 +40,16 @@ internal sealed partial class EditorSurface
         Doc.Changed += OnSecretStateMaybeChanged;
     }
 
-    /// <summary>The name of the file changed (Save As): the values appear or go with it.</summary>
+    /// <summary>The name of the file changed (Save As) or the setting of the secret files did: the values appear or go with it.</summary>
     private void OnSecretStateMaybeChanged()
     {
         if (IsSecretFile == _secretFileSeen) return;
         _secretFileSeen = IsSecretFile;
         RefreshSecrets();
     }
+
+    /// <summary>Looks again at whether the file is a secrets file.</summary>
+    internal void RefreshSecretsState() => OnSecretStateMaybeChanged();
 
     /// <summary>The secrets of the text as it is now; looked for again only after an edit.</summary>
     internal IReadOnlyList<SecretSpan> Secrets()
@@ -118,6 +121,13 @@ internal sealed partial class EditorSurface
         var text = string.Join(Doc.NewLine(Settings.ConfiguredEol), selected.Select(s => SecretValues.Mask(Document.GetText(s.Start, s.Length), spans, s.Start)));
         if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard) _ = clipboard.SetTextAsync(text);
         return true;
+    }
+
+    /// <summary>The selected texts, one per line, with the placeholder in place of every value in them; for an export or a copy that leaves the editor while the values are hidden.</summary>
+    internal string MaskedSelection(string newLine)
+    {
+        var spans = Secrets();
+        return string.Join(newLine, GetSelections().Where(s => !s.IsEmpty).Select(s => SecretValues.Mask(Document.GetText(s.Start, s.Length), spans, s.Start)));
     }
 
     private bool HiddenCopyKey(KeyEventArgs e)

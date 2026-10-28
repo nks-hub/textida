@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -208,6 +209,11 @@ internal sealed partial class HexView
                 return;
             }
 
+            // the bytes of a hidden value are overwritten before anything is built from them, so no later step can show one
+            var hidden = owner._secrets.Hidden ? owner._secrets.Ranges() : null;
+            if (hidden is not null) SecretValues.MaskBytes(buf, bufStart, hidden, doc.Codec);
+            var hiddenCells = new bool[bpr];
+
             var ranges = owner.ChangedRanges();
             var marks = owner.Marks.Items;
             var highlight = Brush("Highlight", Brushes.Gold);
@@ -269,6 +275,7 @@ internal sealed partial class HexView
 
                 if (n > 0)
                 {
+                    if (hidden is not null) MarkHidden(hiddenCells, hidden, rowOffset, n);
                     hexBuilder.Clear();
                     for (int col = 0; col < n; col++)
                     {
@@ -278,7 +285,8 @@ internal sealed partial class HexView
                             if (IsGap(col, bpr, owner._group)) hexBuilder.Append(' ');
                         }
                         byte b = buf[rowOffset - bufStart + col];
-                        hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
+                        if (hidden is not null && hiddenCells[col]) hexBuilder.Append(HiddenGlyph, 2);
+                        else hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
                     }
                     var hex = Format(hexBuilder.ToString(), fore);
                     // one span per run of bytes with the same colour: a row of zeros is one span, not one per byte
@@ -290,7 +298,7 @@ internal sealed partial class HexView
                         if (col < n)
                         {
                             byte b = buf[rowOffset - bufStart + col];
-                            brush = b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
+                            brush = hidden is not null && hiddenCells[col] || b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
                             if (ReferenceEquals(brush, runBrush)) continue;
                         }
                         if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], _hexChar[col - 1] + 2 - _hexChar[runStart]);
@@ -301,6 +309,9 @@ internal sealed partial class HexView
                     int window = (int)(rowOffset - bufStart);
                     int before = Math.Min(window, set.Lookbehind);
                     set.Map(buf.AsSpan(window - before, Math.Min(buf.Length - (window - before), before + n + set.Lookahead)), before, n, rowOffset - before, cells);
+                    if (hidden is not null)
+                        for (int i = 0; i < n; i++)
+                            if (hiddenCells[i]) cells[i] = new HexCell(HiddenGlyph.ToString(), HexCellKind.Control);
                     DrawChars(context, cells, n, y, fore, dim, danger, warn);
                 }
                 if (caret >= rowOffset && caret <= rowOffset + n && (caret < rowOffset + bpr)) DrawCaret(context, accent, muted, y, (int)(caret - rowOffset), caret < length);
@@ -330,6 +341,17 @@ internal sealed partial class HexView
         }
 
         private static char HexDigit(int v) => (char)(v < 10 ? '0' + v : 'A' + v - 10);
+
+        /// <summary>What a byte of a hidden value shows in both columns: two of these in the hex column, one in the character column.</summary>
+        private const char HiddenGlyph = '•';
+
+        /// <summary>Marks which of the <paramref name="n"/> bytes of the row that starts at <paramref name="rowOffset"/> lie in a hidden value.</summary>
+        private static void MarkHidden(bool[] cells, IReadOnlyList<ByteRange> hidden, long rowOffset, int n)
+        {
+            Array.Clear(cells);
+            for (int k = FirstRangeAfter(hidden, rowOffset); k < hidden.Count && hidden[k].Start < rowOffset + n; k++)
+                for (long p = Math.Max(hidden[k].Start, rowOffset); p < Math.Min(hidden[k].End, rowOffset + n); p++) cells[p - rowOffset] = true;
+        }
 
         private void Mark(DrawingContext context, IBrush brush, double y, int from, int to)
         {

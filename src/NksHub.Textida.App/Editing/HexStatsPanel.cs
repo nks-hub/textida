@@ -158,13 +158,14 @@ internal sealed class HexStatsPanel : Border
         DocumentSnapshot snapshot;
         try { snapshot = doc.GetSnapshot(); }
         catch (ObjectDisposedException) { return; }
+        var bytes = _owner.ShownBytes(snapshot); // the figures of a hidden value would tell what it holds
         int generation = _generation;
         var cts = _job = new CancellationTokenSource();
         Counting = Task.Run(() =>
         {
             try
             {
-                var h = ByteHistogram.Compute(snapshot, range, cts.Token);
+                var h = ByteHistogram.Compute(bytes, range, cts.Token);
                 Dispatcher.UIThread.Post(() => { if (generation == _generation) Show(h); });
             }
             catch (Exception e) when (e is OperationCanceledException or IOException or ObjectDisposedException or InvalidOperationException)
@@ -195,11 +196,17 @@ internal sealed class HexStatsPanel : Border
         });
     }
 
+    /// <summary>Counts again whatever was counted before, for the bytes now shown (a hidden value was shown or hidden).</summary>
+    public void Reload()
+    {
+        _shownFor = (-1, -1, -1);
+        Refresh();
+    }
+
     public bool FocusPanel()
     {
         IsVisible = true;
-        _shownFor = (-1, -1, -1);
-        Refresh();
+        Reload();
         return Focus();
     }
 }

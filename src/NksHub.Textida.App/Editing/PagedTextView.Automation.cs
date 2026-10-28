@@ -43,6 +43,7 @@ internal sealed partial class PagedTextView
         private long _revision = -1;
         private long _shown = -1;
         private bool _exact = true;
+        private bool _masked;
         private bool _atEnd;
         private bool _capped;
         private int _excerptIndex = -1;
@@ -114,7 +115,7 @@ internal sealed partial class PagedTextView
         {
             long top = _owner.TopLine, shown = _owner.ShownLines;
             int visible = Math.Max(1, Canvas.VisibleLines), count = _views.Length;
-            bool stale = _version == 0 || _revision != Doc.Revision || _exact != _owner.LinesExact || _atEnd && _shown != shown
+            bool stale = _version == 0 || _revision != Doc.Revision || _exact != _owner.LinesExact || _atEnd && _shown != shown || _masked != _owner.SecretsHidden
                 || top < _first || top + visible > _first + count && !_atEnd
                 || !_capped && (top < _first + WindowRebuildLines && _first > _owner.FirstKnownLine
                     || top + visible > _first + count - WindowRebuildLines && !_atEnd)
@@ -177,7 +178,7 @@ internal sealed partial class PagedTextView
                 views.Add(view);
                 textEnds.Add(view.Start + view.Map.ByteOffsetOf(view.Map.Text.Length));
                 lineEnds.Add(end);
-                text.Append(view.Map.Text);
+                text.Append(view.ReadAloud);
                 if (next > end)
                 {
                     int n = Doc.Read(end, terminator.AsSpan(0, (int)Math.Min(8, next - end)));
@@ -202,6 +203,7 @@ internal sealed partial class PagedTextView
             _revision = Doc.Revision;
             _shown = _owner.ShownLines;
             _exact = _owner.LinesExact;
+            _masked = _owner.SecretsHidden;
             _text = text.ToString();
             _version++;
         }

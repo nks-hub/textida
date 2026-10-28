@@ -523,6 +523,7 @@
   "hex.a11y.continuation": "Fortsetzung eines Zeichens",
   "hex.a11y.invalid": "ungültiges Byte",
   "hex.a11y.space": "Leerzeichen",
+  "hex.a11y.hidden": "Offset {offset}, verborgener Wert",
   "hex.endOfFile": "Überschreiben ändert die Dateilänge nicht. Zum Anfügen von Bytes den Einfügemodus (Einfg) einschalten.",
   "hex.notEncodable": "Das Zeichen lässt sich in {encoding} nicht schreiben.",
   "hex.busy": "Die Datei wird gerade gespeichert. Diese Änderung (Füllen oder Rückgängig von Füllen und Kodierung) wartet bis zum Ende.",

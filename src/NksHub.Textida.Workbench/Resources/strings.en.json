@@ -326,6 +326,8 @@
   "setting.history.enabled.description": "Keeps a revision of a file at every save and at every change made outside the editor.",
   "setting.history.storeSecretFiles.title": "Keep history of secrets files",
   "setting.history.storeSecretFiles.description": "Files such as .env hold secret values. Off: no revisions of them are stored, because the values would lie on disk as plain text.",
+  "setting.files.secretFilePatterns.title": "Secret files",
+  "setting.files.secretFilePatterns.description": "Name masks of the files whose values are hidden, separated by semicolons; * stands for any text and ? for one character. The default list is provisional.",
   "setting.history.maxRevisionsPerFile.title": "Revisions per file",
   "setting.history.maxRevisionsPerFile.description": "The oldest revisions beyond this number are deleted; pinned ones stay. 0: no limit.",
   "setting.history.maxAgeDays.title": "Keep revisions for (days)",

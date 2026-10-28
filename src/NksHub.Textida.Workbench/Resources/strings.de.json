@@ -326,6 +326,8 @@
   "setting.history.enabled.description": "Speichert bei jedem Speichern und bei jeder Änderung außerhalb des Editors eine Revision der Datei.",
   "setting.history.storeSecretFiles.title": "Verlauf von Dateien mit geheimen Werten führen",
   "setting.history.storeSecretFiles.description": "Dateien wie .env enthalten geheime Werte. Aus: von ihnen werden keine Revisionen gespeichert, weil die Werte sonst im Klartext auf dem Datenträger lägen.",
+  "setting.files.secretFilePatterns.title": "Geheime Dateien",
+  "setting.files.secretFilePatterns.description": "Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt; * steht für beliebigen Text und ? für ein Zeichen. Die Standardliste ist vorläufig.",
   "setting.history.maxRevisionsPerFile.title": "Revisionen pro Datei",
   "setting.history.maxRevisionsPerFile.description": "Die ältesten Revisionen über dieser Zahl werden gelöscht; angeheftete bleiben. 0: keine Grenze.",
   "setting.history.maxAgeDays.title": "Revisionen aufbewahren (Tage)",

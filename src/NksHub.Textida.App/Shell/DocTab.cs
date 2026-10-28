@@ -77,6 +77,30 @@ internal sealed class DocTab
     /// <summary>Header state last drawn, so a keystroke does not rebuild the strip.</summary>
     public string HeaderState { get; set; } = "";
 
+    /// <summary>The values of a secrets file are hidden in this tab, in the text, the paged or the hex view.</summary>
+    public bool SecretsHidden => Surface?.SecretsHidden ?? Paged?.SecretsHidden ?? Hex?.SecretsHidden ?? false;
+
+    /// <summary>The user showed the values of a secrets file in this tab.</summary>
+    public bool SecretsRevealed => Surface?.SecretsRevealed ?? Paged?.SecretsRevealed ?? Hex?.SecretsRevealed ?? false;
+
+    /// <summary>Shows or hides the values of this tab again; false for a tab without a text or byte view.</summary>
+    public bool ToggleSecrets()
+    {
+        if (Surface is { } surface) surface.ToggleSecrets();
+        else if (Paged is { } paged) paged.ToggleSecrets();
+        else if (Hex is { } hex) hex.ToggleSecrets();
+        else return false;
+        return true;
+    }
+
+    /// <summary>The name of the file may have changed or the setting of the secret files did: the views look again at whether their values are hidden.</summary>
+    public void RefreshSecrets()
+    {
+        Surface?.RefreshSecretsState();
+        Paged?.RefreshSecretsState();
+        Hex?.RefreshSecretsState();
+    }
+
     public string? Path => Doc.Path;
     public string Title => Doc.Title;
     public TaskCompletionSource Closed => Doc.Closed;

@@ -615,12 +615,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Verborgene Werte in .env-Dateien
 commands: nks.view.toggleSecrets
-1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`. Ansicht, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
-- Ruht der Mauszeiger auf einem Wert, wird nur dieser eine gezeigt.
+1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`, im Texteditor, im seitenweisen Modus und in der Hex-Ansicht. Ansicht, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
+- Im Texteditor wird nur dieser eine Wert gezeigt, wenn der Mauszeiger auf ihm ruht.
 - Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
-- Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten und in den Suchergebnissen verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
+- Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten, in den Suchergebnissen und in den Exporten mit Formatierung (HTML, RTF) verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
+- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm und das Strukturfenster sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist.
+- Im seitenweisen Modus liest ein Screenreader für jedes Zeichen eines verborgenen Werts ein Aufzählungszeichen. Eine Zeile über 16 KiB, die einen Wert enthält, verbirgt alles hinter ihrem ersten Teil.
 - Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
-- Der seitenweise Modus und die Hex-Ansicht zeigen die Bytes, wie sie sind.
+- Die Einstellung Geheime Dateien enthält die Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt (`*` steht für beliebigen Text). Ihre Standardliste ist vorläufig.
 
 ## [view.tabs] Tabs wechseln
 commands: nks.view.nextTab, nks.view.previousTab

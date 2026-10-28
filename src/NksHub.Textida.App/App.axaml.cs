@@ -15,6 +15,7 @@ using NksHub.Textida.Core.Conversions;
 using NksHub.Textida.Core.History;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
@@ -161,6 +162,7 @@ public sealed partial class App : Application
         Loc.SetLanguage(Settings.Language);
         ApplyThemeVariant();
         ApplyRegexTimeout();
+        ApplySecretFilePatterns();
 
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
@@ -397,8 +399,14 @@ public sealed partial class App : Application
             case "search.regexTimeoutMs":
                 ApplyRegexTimeout();
                 break;
+            case "files.secretFilePatterns":
+                ApplySecretFilePatterns();
+                foreach (var w in _windows) w.RefreshSecrets();
+                break;
         }
     }
+
+    private void ApplySecretFilePatterns() => SecretValues.FilePatterns = Workbench.Settings.GetString("files.secretFilePatterns");
 
     /// <summary>The history settings; 0 in a limit means no limit.</summary>
     private HistoryPolicy ReadHistoryPolicy()
