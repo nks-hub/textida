@@ -449,16 +449,19 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 
 ## [tools.markdown] Náhled Markdownu, tabulky a obsah
 commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
-1. Nástroje, Markdown, Náhled Markdownu nebo HTML otevře pod editorem panel náhledu s aktuálním souborem. Panel sleduje psaní: překreslí se chvíli po poslední klávese a drží polohu posuvníku.
-2. Markdown se ukáže jako stránka: nadpisy, seznamy, citace, kód, zvýraznění a tabulky s buňkami (dvojtečky v řádku pomlček určují zarovnání sloupce).
-3. Soubor HTML se ukáže jako text, i se značkami. Nic z něj se nespouští a nic se nenačítá ze sítě.
+1. Nástroje, Markdown, Náhled Markdownu nebo HTML otevře pod editorem panel náhledu s aktuálním souborem. Panel sleduje psaní: překreslí se chvíli po poslední klávese. Editor a panel se posouvají společně: když posunete jedno, druhé jde za ním.
+2. Markdown se ukáže jako stránka: nadpisy, seznamy, citace, kód, zvýraznění a tabulky s buňkami (dvojtečky v řádku pomlček určují zarovnání sloupce). Blok kódu označený `mermaid` se nakreslí jako vývojový diagram.
+3. Soubor HTML se ukáže také jako stránka, ale rozumí se jen malé části HTML: nadpisům, odstavcům, seznamům, tabulkám, předformátovanému textu, kódu, odkazům, obrázkům a zvýraznění. Každá jiná značka, každý komentář a vše uvnitř `script` a `style` se ukáže jako text, kterým je. Nic z toho souboru se nespouští.
 4. Nástroje, Markdown, Zobrazit osnovu Markdownu vypíše v témže panelu nadpisy souboru, odsazené podle úrovně. Klik, nebo Enter na nadpisu, přesune kurzor v editoru na jeho řádek.
 5. Nástroje, Markdown, Zarovnat tabulku v Markdowne přepíše tabulku pod kurzorem tak, aby měl každý sloupec šířku nejširší buňky. Značky `:--`, `:-:` a `--:` zůstanou a kratší řádek se doplní prázdnými buňkami. Zpět to vrátí jedním krokem.
 6. Nástroje, Markdown, Aktualizovat obsah Markdownu zapíše odkazy na nadpisy mezi řádky `<!-- TOC -->` a `<!-- /TOC -->`. Mění se jen text mezi nimi. Když tam nejsou, přidají se na místo kurzoru. Kotvy jsou malými písmeny, mezery se mění na pomlčky a opakovaný nadpis dostane `-1`, `-2`.
 7. V tabulce Tab vybere další buňku a Shift+Tab předchozí; sloupce se při tom zarovnají. Tab v poslední buňce přidá řádek. Mimo tabulku obě klávesy fungují jako dřív. Každý přesun vrátí Zpět jedním krokem.
 8. V tabulce Shift+Enter přidá pod řádek s kurzorem prázdný řádek se správným počtem buněk. Nástroje, Markdown, Opravit tabulku v Markdownu spraví rozbitou tabulku: doplní chybějící řádek pomlček, doplní krátké řádky, ponechá dvojtečky a zarovná sloupce.
-- Obrázek se kreslí jen z adresy `data:` s obrázkem PNG, JPEG, GIF, BMP nebo WebP. Vzdálený obrázek a obrázek z místního souboru se ukážou jako poznámka s popisem. Odkaz na web nebo e-mail se nejdřív potvrzuje; jiný odkaz je jen text.
-- Soubor delší než limit náhledu se nekreslí; stavový řádek to oznámí. Esc nebo Zavřít náhled ukončí.
+- Obrázek se kreslí z adresy `data:` s obrázkem PNG, JPEG, GIF, BMP nebo WebP, z obrázku, který přiložil plugin (`preview:name`), a v náhledu vašeho vlastního souboru ze souboru vedle něj: z relativní cesty, která zůstává ve složce souboru. SVG, cesta mimo složku, soubor větší než limit a obrázek s příliš mnoha body se ukážou jako poznámka s popisem.
+- Obrázek z webu se nenačte, dokud nepovolíte jeho server. Náhled ukáže tlačítko; po stisknutí se jednou zeptá na server a povolení platí do zavření okna. Požadavek jde přes síťová nastavení Textidy včetně proxy, přesměrování se nesledují a neúspěšný obrázek se po čase zkusí znovu.
+- Odkaz na web nebo e-mail se nejdřív potvrzuje; jiný odkaz, například `file:` nebo `javascript:`, je jen text.
+- Mermaid: vývojové diagramy (`graph` nebo `flowchart`, směr TD, TB, BT, LR nebo RL) s uzly jako `A[text]`, `A(text)`, `A{text}` nebo `A((text))` a spojeními `-->`, `---`, `-.->` nebo `==>`, i s popiskem, se kreslí. Podgraf nebo jiný druh diagramu se ukáže jako zdroj. Čtečka obrazovky čte uzly a spojení jako název diagramu.
+- Soubor delší než limit náhledu se nekreslí; stavový řádek to oznámí. Esc nebo Zavřít náhled ukončí. F6 přesune zaměření do náhledu; šipky, Page Up, Page Down, Home a End jím posouvají a Tab dosáhne na jeho odkazy a tlačítka.
 - V osnově jsou jen nadpisy psané přes `#`. Šířka buňky tabulky je šířka na obrazovce: široké východoasijské znaky se počítají za dva sloupce. Svislítko v buňce se píše `\|` nebo musí být v útržku kódu.
 
 ## [tools.keys] Cesty klíčů v YAML a JSON

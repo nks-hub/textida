@@ -448,8 +448,44 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest text of one preview a plugin shows, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int PreviewMaxChars = 1 << 20;
 
-    /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI. OPEN: the owner has not decided it.</summary>
+    /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI or of the bytes a plugin attaches. OPEN: the owner has not decided it.</summary>
     public const int PreviewImageMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder: most pictures one preview of a plugin attaches. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImagesPerPreview = 32;
+
+    /// <summary>Placeholder: largest total of the pictures one preview of a plugin attaches, in bytes. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImagesTotalBytes = 8 << 20;
+
+    /// <summary>Placeholder: largest picture the preview reads from a local file or a web address, in bytes. OPEN: the owner has not decided it.</summary>
+    public const int PreviewFileImageMaxBytes = 8 << 20;
+
+    /// <summary>Placeholder: most pixels (width times height) of a picture the preview decodes, whatever its size in bytes. OPEN: the owner has not decided it.</summary>
+    public const long PreviewImageMaxPixels = 40_000_000;
+
+    /// <summary>Placeholder: decoded pictures a window keeps so that drawing the preview again does not read or fetch them again. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImageCacheEntries = 32;
+
+    /// <summary>Placeholder: longest time one remote picture of a preview may take, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const int PreviewRemoteImageTimeoutMs = 10_000;
+
+    /// <summary>Placeholder: how long a web picture that failed is left alone before drawing the preview asks for it again, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const long PreviewRemoteImageRetryMs = 30_000;
+
+    /// <summary>Placeholder: time after the editor or the preview was scrolled by the other during which scrolling it again is not passed back, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const int PreviewSyncQuietMs = 150;
+
+    /// <summary>Placeholder: most nodes the HTML reader of the preview creates; the rest of the text stays text. OPEN: the owner has not decided it.</summary>
+    public const int PreviewHtmlMaxNodes = 20_000;
+
+    /// <summary>Placeholder: deepest nesting of HTML tags the preview reads; a deeper tag stays text. OPEN: the owner has not decided it.</summary>
+    public const int PreviewHtmlMaxDepth = 64;
+
+    /// <summary>Placeholder: most nodes of a Mermaid flowchart the preview draws; a larger one is shown as source. OPEN: the owner has not decided it.</summary>
+    public const int PreviewMermaidMaxNodes = 60;
+
+    /// <summary>Placeholder: most connections of a Mermaid flowchart the preview draws; a larger one is shown as source. OPEN: the owner has not decided it.</summary>
+    public const int PreviewMermaidMaxEdges = 120;
 
     /// <summary>Placeholder: quiet time after an edit before the live preview of the current file is drawn again, in milliseconds. OPEN: the owner has not decided it.</summary>
     public const int PreviewLiveDebounceMs = 300;
@@ -464,7 +500,7 @@ internal static class PluginLimitsPlaceholders
         IPreviewPanel? preview = null, IAgentPanel? agent = null) => new()
     {
         Workspace = workspace,
-        Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
+        Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars, PreviewImagesPerPreview, PreviewImageMaxBytes, PreviewImagesTotalBytes),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
         DiffActions = new DiffActionOptions(DiffActionsPerTab, DiffActionTextLength),
         MaxDiffBytes = DiffMaxSideBytes,
