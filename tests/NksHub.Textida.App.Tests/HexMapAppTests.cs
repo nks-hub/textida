@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Workbench.Commands;
@@ -320,6 +321,21 @@ public class HexMapAppTests : IDisposable
     [Trait("Category", "Perf")]
     public void The_map_of_a_fifty_gibibyte_file_shows_within_a_second_of_opening_it_in_hex()
     {
+        var (opened, shown) = OpenFiftyGibibytesInHex(holdIndex: false);
+        Assert.True(shown < 1000, $"the map showed {shown:0} ms after the open started (the open took {opened:0} ms)");
+    }
+
+    /// <summary>The same with the line index of the file held back, to tell what the index workers cost the open: prints the times, asserts nothing.</summary>
+    [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void For_comparison_the_fifty_gibibyte_file_opens_in_hex_while_the_line_index_waits()
+    {
+        var (opened, shown) = OpenFiftyGibibytesInHex(holdIndex: true);
+        _output.WriteLine($"50 GiB hex with the index held back: open {opened:0} ms, map {shown:0} ms");
+    }
+
+    private (double Opened, double Shown) OpenFiftyGibibytesInHex(bool holdIndex)
+    {
         const long length = 50L << 30;
         string path = Path.Combine(_temp.Path, "fifty.bin");
         File.WriteAllBytes(path, []);
@@ -332,20 +348,31 @@ public class HexMapAppTests : IDisposable
         }
         using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write)) stream.SetLength(length);
 
-        NksHub.Textida.Core.TypingTrace.Reset();
-        NksHub.Textida.Core.TypingTrace.Enabled = true;
-        var clock = Stopwatch.StartNew();
-        var hex = _w.OpenHex(path, null).Hex!;
-        double opened = clock.Elapsed.TotalMilliseconds;
-        NksHub.Textida.Core.TypingTrace.Enabled = false;
-        _output.WriteLine("50 GiB hex, spans of the open:\n" + NksHub.Textida.Core.TypingTrace.Summary());
-        _w.UpdateLayout();
-        double laidOut = clock.Elapsed.TotalMilliseconds;
-        PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
-        _output.WriteLine($"50 GiB hex: open {opened:0} ms, layout done {laidOut:0} ms, map {clock.Elapsed.TotalMilliseconds:0} ms");
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(1), $"the map showed {clock.Elapsed.TotalMilliseconds:0} ms after the open started (the open took {opened:0} ms)");
-        Assert.Equal(length, hex.Document.ByteLength);
-        Assert.False(hex.Minimap.Map!.IsExact);
+        using var gate = new ManualResetEventSlim();
+        if (holdIndex) MappedFileSource.IndexBlockHook = (source, _) => { if (source.Path == path) gate.Wait(); };
+        try
+        {
+            NksHub.Textida.Core.TypingTrace.Reset();
+            NksHub.Textida.Core.TypingTrace.Enabled = true;
+            var clock = Stopwatch.StartNew();
+            var hex = _w.OpenHex(path, null).Hex!;
+            double opened = clock.Elapsed.TotalMilliseconds;
+            NksHub.Textida.Core.TypingTrace.Enabled = false;
+            _output.WriteLine("50 GiB hex, spans of the open:\n" + NksHub.Textida.Core.TypingTrace.Summary());
+            _w.UpdateLayout();
+            double laidOut = clock.Elapsed.TotalMilliseconds;
+            PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
+            double shown = clock.Elapsed.TotalMilliseconds;
+            _output.WriteLine($"50 GiB hex: open {opened:0} ms, layout done {laidOut:0} ms, map {shown:0} ms");
+            Assert.Equal(length, hex.Document.ByteLength);
+            Assert.False(hex.Minimap.Map!.IsExact);
+            return (opened, shown);
+        }
+        finally
+        {
+            gate.Set();
+            MappedFileSource.IndexBlockHook = null;
+        }
     }
 
     [AvaloniaFact]

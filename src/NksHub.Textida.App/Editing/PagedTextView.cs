@@ -574,6 +574,7 @@ internal sealed partial class PagedTextView : Grid
         double gapPerLine = prefixLines > 1 && indexed > 0 ? (perLine + (double)indexed / (prefixLines - 1)) / 2 : perLine;
         long baseLine = Math.Max(0, prefixLines - 1) + (long)Math.Max(0, (start - indexed) / gapPerLine);
         _detour = new Detour(start, baseLine, perLine);
+        if (lineStart < 0) _detour.Cuts.Add(start); // the line holding the offset has no known start: the view begins inside it
         _lines.Clear();
         _lineMemo = (-1, -1, 0);
         _wanted = -1;
@@ -1297,7 +1298,8 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     private void BuildColumnIndexInBackground(long lineStart)
     {
-        if (Paged.IsModified || !_indexing.Add(lineStart)) return;
+        // a view line cut out of a longer one would scan the rest of the real line from its own start, and every cut of the line would do it
+        if (Paged.IsModified || _detour is { } d && d.Cuts.Contains(lineStart) || !_indexing.Add(lineStart)) return;
         var source = Paged.Source;
         var token = (_indexCts ??= new()).Token;
         _ = Task.Run(() =>
