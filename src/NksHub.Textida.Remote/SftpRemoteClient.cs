@@ -152,8 +152,12 @@ public sealed class SftpRemoteClient(RemoteConnection connection, string? secret
         await file.CopyToAsync(destination, cancellation).ConfigureAwait(false);
     }, cancellation);
 
-    public Task UploadAsync(string path, Stream source, CancellationToken cancellation) =>
-        Guard(() => Client.UploadFileAsync(source, path, true, null!, cancellation), cancellation);
+    // An own handle instead of UploadFileAsync: a cancelled upload must close it, or a Windows server refuses to rename the partial file later.
+    public Task UploadAsync(string path, Stream source, CancellationToken cancellation) => Guard(async () =>
+    {
+        await using var file = await Client.OpenAsync(path, FileMode.Create, FileAccess.Write, cancellation).ConfigureAwait(false);
+        await source.CopyToAsync(file, cancellation).ConfigureAwait(false);
+    }, cancellation);
 
     public Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken cancellation) => Guard(async () =>
     {
