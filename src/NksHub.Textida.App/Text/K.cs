@@ -651,6 +651,12 @@ public static class K
     public const string KsyErrLimitSize = "ksy.err.limitSize";
     public const string KsyErrLimitWork = "ksy.err.limitWork";
     public const string KsyErrExpression = "ksy.err.expression";
+    public const string KsyErrLimitTime = "ksy.err.limitTime";
+    public const string KsyOpen = "ksy.open";
+    public const string KsyOpenFailed = "ksy.open.failed";
+    public const string KsyRefused = "ksy.refused";
+    public const string KsyInfo = "ksy.info";
+    public const string KsyInfoCustom = "ksy.info.custom";
     public const string HexCompareTitle = "hex.compare.title";
     public const string HexCompareLeft = "hex.compare.left";
     public const string HexCompareMemory = "hex.compare.memory";

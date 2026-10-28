@@ -1970,6 +1970,12 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.template.open",
+      "title": "cmd.hex.template.open",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.compare.file",
       "title": "cmd.hex.compare.file",
       "category": "cat.hex",
@@ -4621,6 +4627,13 @@
       "order": 140
     },
     {
+      "menu": "view",
+      "command": "nks.hex.template.open",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 141
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.pasteAsHtml",
       "group": "4_more/8_insert",
@@ -6093,6 +6106,22 @@
         "regex",
         "search",
         "bytes"
+      ]
+    },
+    {
+      "key": "hex.structureTemplates",
+      "type": "string",
+      "default": "",
+      "title": "setting.hex.structureTemplates.title",
+      "description": "setting.hex.structureTemplates.description",
+      "category": "cat.hex",
+      "scope": "application",
+      "tags": [
+        "hex",
+        "structure",
+        "template",
+        "ksy",
+        "binary"
       ]
     },
     {
