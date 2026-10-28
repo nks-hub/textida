@@ -167,15 +167,23 @@ public class DispatcherTests
     [Fact]
     public async Task ATimeoutThrowsAndCancelsTheHandler()
     {
-        var cancelled = new TaskCompletionSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new DelegateHandler(async (method, p, ct) =>
         {
+            started.TrySetResult();
             try { await Task.Delay(Timeout.Infinite, ct); }
-            catch (OperationCanceledException) { cancelled.SetResult(); throw; }
+            catch (OperationCanceledException) { cancelled.TrySetResult(); throw; }
             return null;
         });
         await using var pair = Pair.Create(RpcProtocols.Plugin, T.Roomy, Echo("A"), T.Roomy, handler);
-        await Assert.ThrowsAsync<RpcTimeoutException>(() => pair.A.RequestAsync("m", timeout: TimeSpan.FromMilliseconds(150)));
+        // a request still in the queue when its time runs out is taken back and never reaches the handler (a busy machine can hold the writer up that long): ask again
+        for (var attempt = 0; !started.Task.IsCompleted; attempt++)
+        {
+            Assert.True(attempt < 20, "no request reached the handler");
+            await Assert.ThrowsAsync<RpcTimeoutException>(() => pair.A.RequestAsync("m", timeout: TimeSpan.FromMilliseconds(150)));
+            await Task.WhenAny(started.Task, Task.Delay(1000));
+        }
         await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(0, pair.A.PendingOutgoing);
     }
