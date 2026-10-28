@@ -584,6 +584,82 @@ public class LineCommandTests : IDisposable
         Assert.Equal(Loc.Get(K.LinesSortLocaleInvalid), noteWhenWrong);
     }
 
+    // ---- verification of P4.5.3: what the first tests left open ----
+
+    [AvaloniaFact]
+    public async Task Insert_from_file_decodes_a_utf16_file_and_a_utf8_file_without_a_bom_by_their_encoding()
+    {
+        var tab = Open("x\ny");
+        _dialogs.Picked.Add(_temp.Bytes("u16.txt", [0xFF, 0xFE, .. Encoding.Unicode.GetBytes("žluť\r\nkůň")]));
+        tab.Editor!.CaretOffset = 1;
+        Run("nks.edit.insertFromFile");
+        await Eventually(() => Text(tab) != "x\ny");
+        Assert.Equal("xžluť\nkůň\ny", Text(tab));
+        Assert.Equal(Text(tab), Bytes(tab));
+
+        Mod(Key.Z);
+        _dialogs.Picked.Clear();
+        _dialogs.Picked.Add(_temp.Bytes("u8.txt", Encoding.UTF8.GetBytes("é€")));
+        Run("nks.edit.insertFromFile");
+        await Eventually(() => Text(tab) != "x\ny");
+        Assert.Equal("xé€\ny", Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void Justify_left_and_block_work_through_the_commands_in_one_step_each()
+    {
+        var tab = Open("x\n  a  \n\tb\nccc\ny");
+        AssertOneStep(tab, "nks.edit.justifyLeft", "x\na\nb\nccc\ny", () => tab.Editor!.Select(2, 12));
+        Mod(Key.Z);
+        tab = Open("x\naa bb\nc d e\nlonger line\ny");
+        AssertOneStep(tab, "nks.edit.justifyBlock", "x\naa       bb\nc    d    e\nlonger line\ny", () => tab.Editor!.Select(2, 23));
+    }
+
+    [AvaloniaFact]
+    public void A_line_of_exactly_half_the_margin_is_not_short_and_a_shorter_one_ends_the_paragraph()
+    {
+        _app.Workbench.Set("editor.rightMargin", JsonValue.Create(30));
+        var shorter = Open("aaaa bbbb ccccc\ndddd eeee ffff\ngggg hhhh");
+        AssertOneStep(shorter, "nks.edit.reformatShortLines", "aaaa bbbb ccccc dddd eeee ffff\ngggg hhhh", () => shorter.Editor!.CaretOffset = 1);
+        var half = Open("aaaa bbbb ccccc\ndddd eeee fffff\ngggg hhhh");
+        AssertOneStep(half, "nks.edit.reformatShortLines", "aaaa bbbb ccccc dddd eeee\nfffff gggg hhhh", () => half.Editor!.CaretOffset = 1);
+    }
+
+    [AvaloniaFact]
+    public void Special_paste_and_line_commands_leave_a_paged_file_alone()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var rows = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 150_000).Select(n => $"line {n}\n")));
+        var tab = _w.OpenFile(_temp.Bytes("big.log", rows), null);
+        Assert.True(tab.Doc.IsLarge);
+        int steps = tab.Doc.Doc.UndoDepth;
+        _dialogs.Picked.Add(_temp.Bytes("part.txt", "x"u8.ToArray()));
+        _dialogs.InsertOptions.Enqueue(new LineInsertOptions(Text: "x"));
+
+        foreach (var id in new[]
+        {
+            "nks.edit.pasteKeepCaret", "nks.edit.pasteAsHtml", "nks.edit.insertFromFile", "nks.edit.insertIntoLines", "nks.edit.sortLines", "nks.edit.reformatParagraph",
+            "nks.edit.reformatShortLines", "nks.edit.justifyLeft", "nks.edit.justifyRight", "nks.edit.justifyCenter", "nks.edit.justifyBlock", "nks.edit.insertDateTime", "nks.edit.insertGuid",
+        })
+            Assert.NotEqual(CommandOutcome.Handled, Run(id));
+
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(steps, tab.Doc.Doc.UndoDepth);
+        Assert.Equal(rows.Length, tab.Doc.Doc.ByteLength);
+        Assert.Equal(0, _dialogs.LineDialogsAsked);
+    }
+
+    [AvaloniaFact]
+    public void The_new_special_paste_and_wrap_commands_sit_in_the_edit_and_format_menus()
+    {
+        static IEnumerable<MenuCommand> Commands(IEnumerable<MenuNode> nodes) => nodes.SelectMany(n => n switch { MenuCommand c => [c], MenuGroup g => Commands(g.Items), _ => [] });
+        var edit = Commands(_w.MenuModel.Single(g => g.Label == "Úpravy").Items).Select(c => c.CommandId).ToList();
+        var format = Commands(_w.MenuModel.Single(g => g.Label == "Formát").Items).Select(c => c.CommandId).ToList();
+        Assert.Contains("nks.edit.pasteAsHtml", edit);
+        Assert.Contains("nks.edit.insertFromFile", edit);
+        Assert.Contains("nks.edit.reformatShortLines", format);
+    }
+
     // ---- the closed list ----
 
     [AvaloniaFact]

@@ -367,6 +367,20 @@ public class CompareTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task An_open_comparison_follows_a_change_of_the_editor_font()
+    {
+        var tab = NewWith("a\n");
+        var view = await OpenWithClipboard(tab, "b\n");
+        double size = view.Options.FontSize + 7;
+
+        Assert.Null(_app.Workbench.Set("editor.fontSize", JsonValue.Create(size)));
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(size, view.Options.FontSize);
+        Assert.Equal(size, tab.Editor!.FontSize);
+    }
+
+    [AvaloniaFact]
     public async Task The_screen_reader_hears_the_current_difference_with_its_lines_and_the_first_line_of_each_side()
     {
         var tab = NewWith("a\n  old one\nold two\nc\n");
@@ -385,6 +399,22 @@ public class CompareTests : IDisposable
         inserted.NextDifference();
         Loc.SetLanguage("en");
         Assert.Equal("Difference 1 of 1, left no lines, right line 2. Right: b", other.Value);
+    }
+
+    [AvaloniaFact]
+    public async Task The_screen_reader_is_told_of_each_new_current_difference()
+    {
+        var tab = NewWith("a\nb\nc\nd\n");
+        var view = await OpenWithClipboard(tab, "a\nB\nc\nD\n");
+        var peer = (DiffAutomationPeer)ControlAutomationPeer.CreatePeerForElement(view);
+        string Announced() => (string)typeof(DiffAutomationPeer).GetField("_last", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(peer)!;
+
+        view.NextDifference();
+        Assert.StartsWith("Rozdíl 1 z 2", Announced());
+        Assert.Equal(peer.Value, Announced());
+        view.NextDifference();
+        Assert.StartsWith("Rozdíl 2 z 2", Announced());
+        Assert.Equal(peer.Value, Announced());
     }
 
     // ---- synchronized scrolling of two tabs ----

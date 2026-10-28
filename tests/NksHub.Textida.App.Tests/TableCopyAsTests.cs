@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json.Nodes;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -192,6 +193,83 @@ public class TableCopyAsTests : IDisposable
         _dialogs.Prompts.Enqueue("people");
         var sql = await CopyAsAsync("table.copyAs.sql");
         Assert.Contains("INSERT INTO `people` (`id`, `name`, `note`) VALUES ('1', 'Ann', 'it''s');\n", sql);
+    }
+
+    [AvaloniaFact]
+    public async Task The_sql_form_follows_the_global_setting_and_the_dialect_chosen_for_the_file_beats_it()
+    {
+        Assert.Null(_app.Workbench.Set("sql.dialect", JsonValue.Create("tsql")));
+        var (tab, view) = OpenTable("data.csv", Sample);
+        Assert.Equal("tsql", tab.Doc.SqlDialect);
+        view.SelectAll();
+
+        _dialogs.Prompts.Enqueue("people");
+        var sql = await CopyAsAsync("table.copyAs.sql");
+        Assert.Contains("INSERT INTO [people] ([id], [name], [note]) VALUES (N'1', N'Ann', N'it''s');\n", sql);
+
+        tab.Doc.ChooseSqlDialect("sqlite");
+        _dialogs.Prompts.Enqueue("people");
+        sql = await CopyAsAsync("table.copyAs.sql");
+        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES ('1', 'Ann', 'it''s');\n", sql);
+    }
+
+    [AvaloniaFact]
+    public async Task A_selection_with_more_values_than_the_table_api_gives_copies_nothing_and_the_window_names_the_limit()
+    {
+        static string Row(int i) => $"{i},{new string('a', 55)},{new string('b', 55)}\n";
+        var (_, view) = OpenTable("big.csv", "id,name,note\n" + string.Concat(Enumerable.Range(1, 10_000).Select(Row)));
+        view.SelectAll();
+        await _w.Clipboard!.SetTextAsync("before");
+
+        await _w.CopyTableAsAsync("table.copyAs.markdown");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
+        Assert.Contains(_w.Notices, n => n.Message.Contains("at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters of values", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public async Task A_form_longer_than_the_clipboard_limit_from_a_small_selection_copies_nothing_and_the_window_names_the_limit()
+    {
+        // 550 000 asterisks are under the limit of the selection and of one message, but Markdown writes a backslash before each: 1.1 million characters
+        var (_, view) = OpenTable("cells.csv", "a\n" + new string('*', 550_000) + "\n");
+        view.SelectAll();
+        await _w.Clipboard!.SetTextAsync("before");
+
+        await _w.CopyTableAsAsync("table.copyAs.markdown");
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(300);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
+        Assert.Contains(_w.Notices, n => n.Message.Contains("clipboard takes at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public async Task Three_columns_of_a_wider_table_are_copied_in_all_four_forms_and_nothing_of_the_other_columns()
+    {
+        var (tab, view) = OpenTable("wide.csv", "a,b,c,d,e\n1,\"x<y & 'z'\",3,\"4|4\",5\n6,7,8,9,10\n");
+        view.Select(0, 1, 1, 3);
+
+        Assert.Equal("| b | c | d |\n| --- | --- | --- |\n| x\\<y \\& 'z' | 3 | 4\\|4 |\n| 7 | 8 | 9 |\n", await CopyAsAsync("table.copyAs.markdown"));
+
+        _dialogs.Prompts.Enqueue("t");
+        Assert.Equal("INSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES ('x<y & ''z''', '3', '4|4');\nINSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES ('7', '8', '9');\n", await CopyAsAsync("table.copyAs.sql"));
+
+        using (var json = System.Text.Json.JsonDocument.Parse((await CopyAsAsync("table.copyAs.json"))!))
+        {
+            var rows = json.RootElement.EnumerateArray().ToList();
+            Assert.Equal(["b", "c", "d"], rows[0].EnumerateObject().Select(p => p.Name));
+            Assert.Equal(["x<y & 'z'", "3", "4|4", "7", "8", "9"], rows.SelectMany(r => r.EnumerateObject().Select(p => p.Value.GetString())));
+        }
+
+        var html = await CopyAsAsync("table.copyAs.html");
+        Assert.Contains("<tr><th>b</th><th>c</th><th>d</th></tr>", html);
+        Assert.Contains("<tr><td>x&lt;y &amp; &#39;z&#39;</td><td>3</td><td>4|4</td></tr>", html);
+        Assert.DoesNotContain(">a<", html);
+        Assert.DoesNotContain(">e<", html);
+        Assert.DoesNotContain(">10<", html);
+        Assert.Equal("a,b,c,d,e\n1,\"x<y & 'z'\",3,\"4|4\",5\n6,7,8,9,10\n", Bytes(tab));
     }
 
     // ---- own forms: converters of a data plugin marked for tables ----

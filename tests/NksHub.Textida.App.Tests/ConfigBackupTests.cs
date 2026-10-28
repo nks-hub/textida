@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Remote;
 using NksHub.Textida.Remote.Tests;
 
@@ -127,6 +128,67 @@ public class ConfigBackupTests : IDisposable
     }
 
     [Fact]
+    public void Every_kind_of_configuration_file_is_in_the_backup_and_no_other_state_of_the_profile()
+    {
+        string[] configuration =
+        [
+            "user-settings.json", "keymap.json", "variables.json", "tools.json", "saveActions.json", "logviews.json", "workspace.json", "remote/connections.json", "remote/network.json",
+            "macros/wrap.json", "recipes/trim.json", "plugins/user-clips/nkspad-plugin.json", "projects/a/project.json",
+        ];
+        string[] other = ["journal/session.json", "history/a/1.rev", "backups/old.bak", "remote/cache/c/a.txt", "sessions/s.json", "logs/app.log", "recent.json", "config-restore.zip", "config-backups/before.zip", "macros/wip.json.tmp"];
+        foreach (var file in configuration.Concat(other)) Write(file, "{ \"n\": \"" + file + "\" }");
+
+        string zip = Path.Combine(_out.Path, "all.zip");
+        var result = ConfigBackup.Export(_profile.Path, zip, []);
+
+        var entries = Entries(zip);
+        Assert.Equal(configuration.Order(), entries.Keys.Where(k => k != "textida-backup.json").Order());
+        Assert.Equal((configuration.Length, 0), (result.Files, result.LeftOut));
+        Assert.Equal(configuration.Length, ConfigBackup.Inspect(zip));
+        Assert.All(configuration, file => Assert.Contains(file, entries[file]));
+    }
+
+    [Fact]
+    public void A_damaged_staged_backup_changes_nothing_says_why_and_is_removed()
+    {
+        const string settings = """{ "schemaVersion": 1, "settings": { "editor.tabSize": 2 } }""";
+        Write("user-settings.json", settings);
+        File.WriteAllText(P(ConfigBackup.PendingName), "this is not a zip");
+
+        var result = ConfigBackup.ApplyPending(_profile.Path, DateTime.Now)!;
+
+        Assert.NotNull(result.Problem);
+        Assert.Null(result.SavedBefore);
+        Assert.Equal(0, result.Files);
+        Assert.Equal(settings, File.ReadAllText(P("user-settings.json")));
+        Assert.False(File.Exists(P(ConfigBackup.PendingName)));
+        Assert.False(Directory.Exists(P(ConfigBackup.BeforeRestoreFolder)));
+    }
+
+    [Fact]
+    public void A_backup_that_unpacks_to_more_than_the_limit_is_refused_before_anything_is_written()
+    {
+        string path = Path.Combine(_out.Path, "huge.zip");
+        using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            using (var w = new StreamWriter(zip.CreateEntry("textida-backup.json").Open())) w.Write("""{ "format": 1 }""");
+            using var stream = zip.CreateEntry("variables.json", CompressionLevel.Fastest).Open();
+            var zeros = new byte[1 << 20];
+            for (long written = 0; written <= ConfigBackup.MaxUnpackedBytes; written += zeros.Length) stream.Write(zeros);
+        }
+        Write("variables.json", "{ \"keep\": \"me\" }");
+
+        Assert.Contains("limit", Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(path)).Message);
+        ConfigBackup.Stage(_profile.Path, path);
+        var result = ConfigBackup.ApplyPending(_profile.Path, DateTime.Now)!;
+
+        Assert.Contains("limit", result.Problem);
+        Assert.Null(result.SavedBefore);
+        Assert.Equal("{ \"keep\": \"me\" }", File.ReadAllText(P("variables.json")));
+        Assert.False(File.Exists(P(ConfigBackup.PendingName)));
+    }
+
+    [Fact]
     public void A_newer_backup_a_foreign_zip_and_a_file_that_is_no_zip_are_refused()
     {
         Assert.Contains("newer", Assert.Throws<ConfigBackupException>(() => ConfigBackup.Inspect(Zip(("textida-backup.json", """{ "format": 99 }"""), ("user-settings.json", "{}")))).Message);
@@ -223,6 +285,27 @@ public class ConfigBackupWindowTests : IDisposable
         Assert.True(File.Exists(_app.ConfigRestore.SavedBefore));
         Assert.Equal(entries.Count - 1, _app.ConfigRestore.Files);
         Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.ConfigRestoreApplied, ("files", _app.ConfigRestore.Files), ("path", _app.ConfigRestore.SavedBefore!)));
+    }
+
+    [AvaloniaFact]
+    public async Task The_commands_are_in_the_settings_menu_and_the_status_counts_what_the_backup_left_out()
+    {
+        static IEnumerable<MenuCommand> Commands(IEnumerable<MenuNode> nodes) => nodes.SelectMany(n => n switch { MenuCommand c => [c], MenuGroup g => Commands(g.Items), _ => [] });
+        var inMenu = Commands(_w.MenuModel.Single(g => g.Label == "Nastavení").Items).Select(c => c.CommandId).ToList();
+        Assert.Contains("nks.settings.backup", inMenu);
+        Assert.Contains("nks.settings.restore", inMenu);
+
+        File.WriteAllText(Path.Combine(_app.ProfileDirectory, "variables.json"), """{ "deployToken": "tok-9999-abc", "author": "Jane" }""");
+        string zip = Path.Combine(_temp.Path, "left-out.zip");
+        _dialogs.SaveFiles.Enqueue(zip);
+
+        await _app.Workbench.Commands.ExecuteAsync("nks.settings.backup", new ShellContext(_w, forMenu: true));
+        await Until(() => File.Exists(zip) && _w.StatusMessageText.Contains(zip), "the backup");
+
+        var entries = ConfigBackupTests.Entries(zip);
+        Assert.Contains("Jane", entries["variables.json"]);
+        Assert.All(entries.Values, text => Assert.DoesNotContain("tok-9999-abc", text));
+        Assert.Equal(Loc.Get(K.ConfigBackupDoneLeftOut, ("files", entries.Count - 1), ("leftOut", 1), ("path", zip)), _w.StatusMessageText);
     }
 
     [AvaloniaFact]

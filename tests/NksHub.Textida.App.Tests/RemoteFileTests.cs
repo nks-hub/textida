@@ -23,8 +23,8 @@ public class RemoteFileTests : IDisposable
     private readonly TempDir _server = new();
     private readonly ScriptedDialogs _dialogs = new();
     private readonly MemoryCredentials _secrets = new();
-    private readonly App _app;
-    private readonly MainWindow _w;
+    private App _app;
+    private MainWindow _w;
     private FtpsServer? _ftps;
 
     public RemoteFileTests()
@@ -304,6 +304,45 @@ public class RemoteFileTests : IDisposable
 
         _w.QuickResults.Single(r => r.Title == "b.txt").Run();
         await Until(() => _w.Tabs.Any(t => t.Doc.RemoteCopy?.RemotePath == "/b.txt" && BarOf(t) == Loc.Get(K.RemoteBarServerChanged)), "the bar of the opened copy");
+    }
+
+    [AvaloniaFact]
+    public async Task A_configuration_restored_at_the_next_start_keeps_the_connection_working_without_a_password_in_the_backup_and_the_cache_pairs_with_the_server()
+    {
+        File.WriteAllText(Path.Combine(_server.Path, "a.txt"), "server a");
+        var connection = await StartServerAndSaveConnectionAsync(trusted: true);
+        await _w.CloseTabAsync(await OpenRemoteAsync("/a.txt"));
+        string localCopy = _app.Remote.Copies.Find(connection.Id, "/a.txt")!.LocalPath;
+
+        string zip = Path.Combine(_temp.Path, "config.zip");
+        _dialogs.SaveFiles.Enqueue(zip);
+        _w.BackupConfiguration();
+        await Until(() => File.Exists(zip) && _w.StatusMessageText.Contains(zip), "the backup");
+        var entries = ConfigBackupTests.Entries(zip);
+        Assert.All(entries.Values, text => Assert.DoesNotContain(Password, text));
+        Assert.Equal(connection.Id, Assert.Single(ConnectionStore.Import(entries["remote/connections.json"])).Id);
+        Assert.DoesNotContain(entries.Keys, k => k.StartsWith("remote/cache"));
+
+        _app.Remote.Connections.Save([]); // the list is lost, the password stays in the credential store
+        Assert.Empty(_app.Remote.Connections.Load());
+        _dialogs.Picked.Add(zip);
+        _dialogs.Answers.Enqueue(1);
+        _w.RestoreConfiguration();
+        await Until(() => _w.StatusMessageText == Loc.Get(K.ConfigRestoreStaged), "the restore to be staged");
+
+        _app = TestApp.Restart(_temp, _app, _dialogs);
+        _app.Remote = new RemoteServices(_app.ProfileDirectory, _secrets);
+        _w = _app.CreateWindow(null);
+        Assert.Null(_app.ConfigRestore!.Problem);
+        Assert.Equal(connection.Id, Assert.Single(_app.Remote.Connections.Load()).Id);
+
+        File.WriteAllText(localCopy, "local edit");
+        _w.PairCache();
+        await Until(() => _w.QuickResults.Count > 0, "the list of connections");
+        _w.QuickResults[0].Run();
+        await Until(() => _w.QuickResults.Count == 1 && _w.QuickResults[0].Title == "a.txt", "the copy paired with the server");
+        Assert.StartsWith(Loc.Get(K.RemoteBarUnsent), _w.QuickResults[0].Detail);
+        Assert.Equal("server a", File.ReadAllText(Path.Combine(_server.Path, "a.txt")));
     }
 
     [AvaloniaFact]

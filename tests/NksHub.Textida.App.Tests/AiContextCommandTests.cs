@@ -4,6 +4,8 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -184,6 +186,54 @@ public class AiContextCommandTests : IDisposable
             Assert.Contains("Files: 0.", preview.Message);
             Assert.Contains(preview.Details!, d => d.EndsWith("big.log: does not fit in the size limit of the whole context (1000 B)"));
         }
+    }
+
+    [AvaloniaFact]
+    public async Task The_sizes_in_the_preview_are_the_sizes_of_the_text_that_reaches_the_clipboard_in_both_forms()
+    {
+        OpenFile("A.cs", "int žlutý;\n");
+        var markdown = await CopyAsync("This file");
+        var xml = await CopyAsync("This file", answer: 1);
+
+        static string Size(string? text) => OpenDocument.FormatSize(Encoding.UTF8.GetByteCount(text!));
+        Assert.NotEqual(Size(markdown), Size(xml));
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.All(_dialogs.Asked, a => Assert.Equal(Loc.Get(K.AiPreview, ("files", 1), ("markdown", Size(markdown)), ("xml", Size(xml))), a.Message));
+        Assert.Equal(Loc.Get(K.AiCopied, ("files", 1), ("size", Size(xml))), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void The_size_limit_of_the_whole_copy_starts_at_8_MiB()
+    {
+        Assert.Equal(8L << 20, _w.AiContextMaxBytes);
+        Assert.Equal(8L << 20, PluginLimitsPlaceholders.AiContextMaxBytes);
+    }
+
+    [AvaloniaFact]
+    public async Task A_paged_selection_over_the_size_limit_is_not_read_into_memory()
+    {
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        var tab = _w.OpenFile(_temp.Bytes("big.log", Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(1, 300_000).Select(i => $"line {i}\n")))), null);
+        for (int i = 0; i < 400 && !tab.Paged!.Index.Complete; i++)
+        {
+            Thread.Sleep(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+        tab.Paged!.SelectAll();
+        _w.AiContextMaxBytes = 1000;
+        _dialogs.Answers.Enqueue(2);
+
+        // the list, the choice and the preview run on this thread up to the dialog; the selected text alone would be about 4 MB of characters
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _w.ShowAiContext();
+        _w.SetPaletteQuery("Selection");
+        Assert.True(_w.QuickResults.Single(r => r.Title == "Selection").Enabled);
+        _w.RunPaletteSelection();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        await _w.AiContextTask;
+
+        Assert.True(allocated < 1_000_000, $"{allocated} bytes allocated");
+        Assert.Contains(_dialogs.Asked.Single().Details!, d => d.EndsWith("does not fit in the size limit of the whole context (1000 B)"));
     }
 
     [AvaloniaFact]
