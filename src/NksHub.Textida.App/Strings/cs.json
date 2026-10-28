@@ -1089,6 +1089,7 @@
   "log.follow.rotated": "Log {name} nahradil nový soubor: {matches} dřívějších shod už neplatí, čtu nový soubor",
   "log.follow.reading": "Čtu log... {percent} %",
   "log.follow.error": "Log nejde přečíst: {reason}",
+  "log.follow.capped": "Pohled drží jen {kept} nejnovějších shod: {dropped} starších se zahodilo kvůli paměti",
   "log.view.save.title": "Uložit pohled na log",
   "log.view.name": "Název pohledu",
   "log.view.filter": "Ponechat řádky, které vyhovují regulárnímu výrazu (prázdné ponechá všechny)",

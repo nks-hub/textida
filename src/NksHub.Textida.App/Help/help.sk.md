@@ -1184,9 +1184,9 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 3. Log: pohľady vypíše uložené pohľady. Vybraný nastaví pravidlá úrovní, filter a pozíciu kurzora a raz prečíta súbor, aby našiel vyhovujúce riadky. Ak bol pohľad uložený pre iný súbor, pozícia sa nepoužije.
 4. Log: ďalšia zhoda pohľadu a Log: predchádzajúca zhoda pohľadu skáču medzi riadkami, ktoré filter ponechal. Keď súbor rastie, skúmajú sa len pribudnuté riadky; skôr prečítaná časť sa znova nečíta. Posledný riadok bez konca riadka sa vezme, až keď skončí.
 5. Keď iný program log skráti alebo ho vymení (rotácia: súbor sa premenuje a pod starým menom vznikne nový), povie to stavový riadok, skoršie zhody sa zahodia a čítanie začne znova od začiatku nového obsahu. Chýbajúci súbor sa ohlási raz a čaká sa naň.
-- Rotácia sa pozná podľa prvých 4096 bajtov súboru a vo Windows aj podľa času vzniku. Nový súbor, ktorý začína rovnakými bajtmi a nie je kratší ako starý, sa od neho nerozlíši; vymenený súbor rovnakej dĺžky s rovnakým časom a bajtmi sa nepozná.
+- Rotácia sa pozná podľa prvých 4096 bajtov súboru, podľa 4096 bajtov tesne pred doteraz prečítaným miestom a vo Windows aj podľa času vzniku. Nový súbor, ktorý začína rovnakými bajtmi a nie je kratší ako starý, sa pozná podľa bajtov pred prečítaným miestom, takže to funguje aj v macOS a Linuxe. Vymenený súbor rovnakej dĺžky sa prezrie znova len vtedy, keď sa zmenil čas posledného zápisu. Nový súbor, ktorý má všetky bajty až po prečítané miesto rovnaké, sa nepozná.
 - Súbor sa kontroluje raz za sekundu. Táto hodnota ani 4096 bajtov nie sú rozhodnuté hodnoty.
-- Zhody sa držia v pamäti bez hornej hranice.
+- V pamäti sa drží najviac 1 000 000 zhôd pohľadu (hodnota je placeholder, nie je rozhodnutá). Nad ňu sa najstaršie zhody zahodia, až na tri štvrtiny hranice, a stavový riadok povie koľko; najnovšie ostanú pre Ďalšiu a Predchádzajúcu zhodu.
 - Log: uložiť pohľad sa pýta aj na text na zvýraznenie (regulárny výraz; prázdne nezvýrazní nič). Po použití pohľadu majú zhody výrazu v každom riadku pozadie, v editore aj v stránkovanom režime. Hľadá sa len v prvých 8192 znakoch riadku a riadok, ktorého hľadanie trvá príliš dlho (hodnota je placeholder, nie je rozhodnutá), zostane bez značky.
 
 ## [export.highlight] Export a kópia so zvýraznením

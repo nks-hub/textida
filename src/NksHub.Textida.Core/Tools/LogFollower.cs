@@ -14,12 +14,15 @@ public interface ILogSource
     int Read(long offset, Span<byte> destination);
 }
 
-/// <summary><paramref name="Identity"/> tells one file from another under the same name; 0 when the platform gives no reliable one.</summary>
-public readonly record struct LogSourceState(long Length, long Identity);
+/// <summary>
+/// <paramref name="Identity"/> tells one file from another under the same name; 0 when the platform gives no reliable one. <paramref name="Stamp"/> is the time of
+/// the last write (0 when unknown): a file of unchanged length whose stamp moved is looked at again.
+/// </summary>
+public readonly record struct LogSourceState(long Length, long Identity, long Stamp = 0);
 
 /// <summary>
 /// The file of a path, opened for each read with sharing that lets the writer of the log carry on and rotate it. The identity is the creation time on Windows;
-/// elsewhere it is 0, because a creation time there can move with every write.
+/// elsewhere it is 0, because a creation time there can move with every write, and <see cref="LogFollower"/> then tells a replaced file by its bytes.
 /// </summary>
 public sealed class FileLogSource(string path) : ILogSource
 {
@@ -28,7 +31,7 @@ public sealed class FileLogSource(string path) : ILogSource
         try
         {
             var info = new FileInfo(path);
-            return info.Exists ? new LogSourceState(info.Length, OperatingSystem.IsWindows() ? info.CreationTimeUtc.Ticks : 0) : null;
+            return info.Exists ? new LogSourceState(info.Length, OperatingSystem.IsWindows() ? info.CreationTimeUtc.Ticks : 0, info.LastWriteTimeUtc.Ticks) : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
@@ -74,13 +77,16 @@ public readonly record struct LogMatchLine(long Line, LogLevel? Level);
 
 /// <param name="Invalidated">Matches that belonged to the old file or content and were dropped (<see cref="LogFollower.Epoch"/> moved).</param>
 /// <param name="BytesRead">Bytes of the log that were examined by this poll (those already read are not examined again, a line still without its terminator excepted).</param>
-public sealed record LogFollowUpdate(LogFollowChange Change, long BytesRead, long NewMatches, long Invalidated, long Consumed);
+/// <param name="Dropped">Oldest matches that this poll removed to keep the bound on the matches in memory; <paramref name="NewMatches"/> counts them too.</param>
+public sealed record LogFollowUpdate(LogFollowChange Change, long BytesRead, long NewMatches, long Invalidated, long Consumed, long Dropped = 0);
 
 /// <summary>
 /// Follows a growing log: each <see cref="Poll"/> examines only the bytes added since the one before, whole lines at a time, and records the start of the
 /// lines the <see cref="LogFilter"/> keeps. A line without its terminator yet is left for the next poll. The old bytes are not read again; the first
 /// bytes of the file are compared with the ones seen earlier to notice that the file was replaced, and a shorter file means truncation. Both start the
-/// reading over on the new content and drop the matches of the old (<see cref="Epoch"/>). Not thread safe for polling; the match queries may run beside it.
+/// reading over on the new content and drop the matches of the old (<see cref="Epoch"/>). A file that is no shorter and begins as before is also taken for a
+/// new one when the bytes just before the offset reached differ from the ones seen there: on a platform without file identity that is the only sign of a
+/// rotation. At most <c>maxMatches</c> matches are kept, the oldest go first (<see cref="Dropped"/>). Not thread safe for polling; the match queries may run beside it.
 /// </summary>
 public sealed class LogFollower
 {
@@ -96,14 +102,20 @@ public sealed class LogFollower
     private readonly List<long> _matches = [];
     private readonly List<LogMatchLine> _matchLines = [];
     private readonly Lock _gate = new();
-    private byte[] _head = [];
+    private readonly int _maxMatches;
+    private byte[] _head = [], _tail = [];
+    private long _tailOffset, _stamp, _dropped;
     private long _consumed, _length, _identity;
     private long _line; // number of the line that starts at _consumed
     private bool _known, _missing, _started, _pending;
 
+    /// <param name="maxMatches">Most matches kept in memory; when it is exceeded the oldest ones are dropped down to three quarters of it. Unbounded by default.</param>
     /// <exception cref="LogPatternException">The filter text is not a valid regular expression.</exception>
-    public LogFollower(ILogSource source, TextCodec codec, LogLevelRules rules, LogFilter filter)
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxMatches"/> is below 1.</exception>
+    public LogFollower(ILogSource source, TextCodec codec, LogLevelRules rules, LogFilter filter, int maxMatches = int.MaxValue)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxMatches, 1);
+        _maxMatches = maxMatches;
         _source = source;
         _codec = codec;
         _rules = rules;
@@ -125,6 +137,9 @@ public sealed class LogFollower
     public long Consumed => Volatile.Read(ref _consumed);
 
     public long MatchCount { get { lock (_gate) return _matches.Count; } }
+
+    /// <summary>Matches dropped from the front to stay within the bound since <see cref="Epoch"/> last moved; 0 while every match is still kept.</summary>
+    public long Dropped { get { lock (_gate) return _dropped; } }
 
     public long[] Matches() { lock (_gate) return [.. _matches]; }
 
@@ -173,8 +188,8 @@ public sealed class LogFollower
         {
             if (state.Identity != _identity) change = LogFollowChange.Rotated;
             else if (state.Length < Math.Max(_length, _consumed)) change = LogFollowChange.Truncated;
-            else if (state.Length == _length && !_pending) return new(LogFollowChange.None, 0, 0, 0, _consumed);
-            else if (HeadChanged()) change = LogFollowChange.Rotated;
+            else if (state.Length == _length && !_pending && state.Stamp == _stamp) return new(LogFollowChange.None, 0, 0, 0, _consumed);
+            else if (SamplesChanged()) change = LogFollowChange.Rotated;
         }
         _missing = false;
 
@@ -186,25 +201,28 @@ public sealed class LogFollower
                 invalidated = _matches.Count;
                 _matches.Clear();
                 _matchLines.Clear();
+                _dropped = 0;
                 if (_started) Epoch++;
             }
             _head = [];
+            _tail = [];
             Volatile.Write(ref _consumed, FirstLineStart());
             _line = 0;
         }
         _started = true;
         _identity = state.Identity;
+        _stamp = state.Stamp;
         _known = true;
 
         _pending = true;
-        long found = 0, read = 0;
+        long found = 0, read = 0, droppedBefore = Dropped;
         // a filter that keeps nothing only needs to know where the file ends, so a large log is not read to follow it
         if (_filter.IsEmpty) Volatile.Write(ref _consumed, state.Length);
         else read = Examine(state.Length, ct, progress, out found);
         _pending = false;
         _length = state.Length;
-        RememberHead();
-        return new(change, read, found, invalidated, _consumed);
+        RememberSamples();
+        return new(change, read, found, invalidated, _consumed, Dropped - droppedBefore);
     }
 
     private long FirstLineStart()
@@ -215,19 +233,28 @@ public sealed class LogFollower
         return _source.Read(0, head) == bom && head.SequenceEqual(_codec.Bom) ? bom : 0;
     }
 
-    private bool HeadChanged()
+    private bool SamplesChanged() => Differs(0, _head) || Differs(_tailOffset, _tail);
+
+    private bool Differs(long offset, byte[] expected)
     {
-        if (_head.Length == 0) return false;
-        var now = new byte[_head.Length];
-        return _source.Read(0, now) != now.Length || !now.AsSpan().SequenceEqual(_head);
+        if (expected.Length == 0) return false;
+        var now = new byte[expected.Length];
+        return _source.Read(offset, now) != now.Length || !now.AsSpan().SequenceEqual(expected);
     }
 
-    private void RememberHead()
+    /// <summary>Keeps the first bytes of the file and the bytes just before <see cref="Consumed"/>: the places where a new file of the same name is most likely to differ.</summary>
+    private void RememberSamples()
     {
         int want = (int)Math.Min(_consumed, HeadBytes);
-        if (want <= _head.Length) return;
-        var head = new byte[want];
-        if (_source.Read(0, head) == want) _head = head;
+        if (want > _head.Length)
+        {
+            var head = new byte[want];
+            if (_source.Read(0, head) == want) _head = head;
+        }
+        long start = Math.Max(_head.Length, _consumed - HeadBytes);
+        var tail = new byte[Math.Max(0, _consumed - start)];
+        if (tail.Length > 0 && _source.Read(start, tail) == tail.Length) (_tail, _tailOffset) = (tail, start);
+        else _tail = [];
     }
 
     /// <summary>Examines whole lines from <see cref="Consumed"/> to <paramref name="end"/>; returns the bytes read.</summary>
@@ -292,7 +319,17 @@ public sealed class LogFollower
         {
             _matches.Add(offset);
             _matchLines.Add(new LogMatchLine(_line, level));
+            if (_matches.Count > _maxMatches) DropOldest();
         }
         return true;
+    }
+
+    /// <summary>Called under the lock. Drops down to three quarters of the bound, so the cost of moving the list is spread over many matches.</summary>
+    private void DropOldest()
+    {
+        int drop = _matches.Count - (_maxMatches - _maxMatches / 4);
+        _matches.RemoveRange(0, drop);
+        _matchLines.RemoveRange(0, drop);
+        _dropped += drop;
     }
 }

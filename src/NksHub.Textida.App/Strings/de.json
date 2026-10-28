@@ -1064,6 +1064,7 @@
   "log.follow.rotated": "Das Log {name} wurde durch eine neue Datei ersetzt: {matches} frühere Treffer sind ungültig, die neue Datei wird gelesen",
   "log.follow.reading": "Das Log wird gelesen... {percent} %",
   "log.follow.error": "Das Log kann nicht gelesen werden: {reason}",
+  "log.follow.capped": "Die Ansicht behält nur die neuesten {kept} Treffer: {dropped} ältere wurden zum Speichern von Arbeitsspeicher verworfen",
   "log.view.save.title": "Loganzeige speichern",
   "log.view.name": "Name der Anzeige",
   "log.view.filter": "Zeilen behalten, die zu diesem regulären Ausdruck passen (leer behält alle)",

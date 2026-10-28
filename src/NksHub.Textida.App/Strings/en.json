@@ -1064,6 +1064,7 @@
   "log.follow.rotated": "The log {name} was replaced by a new file: {matches} earlier matches are no longer valid, reading the new file",
   "log.follow.reading": "Reading the log... {percent} %",
   "log.follow.error": "The log cannot be read: {reason}",
+  "log.follow.capped": "The view keeps only the newest {kept} matches: {dropped} older ones were dropped to save memory",
   "log.view.save.title": "Save log view",
   "log.view.name": "Name of the view",
   "log.view.filter": "Keep lines matching this regular expression (empty keeps all)",

@@ -1184,9 +1184,9 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 3. Log: pohledy vypíše uložené pohledy. Vybraný nastaví pravidla úrovní, filtr a pozici kurzoru a jednou přečte soubor, aby našel vyhovující řádky. Byl-li pohled uložen pro jiný soubor, pozice se nepoužije.
 4. Log: další shoda pohledu a Log: předchozí shoda pohledu skáčou mezi řádky, které filtr ponechal. Když soubor roste, zkoumají se jen přibylé řádky; dřív přečtená část se znovu nečte. Poslední řádek bez konce řádku se vezme, až když skončí.
 5. Když jiný program log zkrátí nebo ho vymění (rotace: soubor se přejmenuje a pod starým jménem vznikne nový), řekne to stavový řádek, dřívější shody se zahodí a čtení začne znovu od začátku nového obsahu. Chybějící soubor se ohlásí jednou a čeká se na něj.
-- Rotace se pozná podle prvních 4096 bajtů souboru a ve Windows i podle času vzniku. Nový soubor, který začíná stejnými bajty a není kratší než starý, se od něj nerozliší; vyměněný soubor stejné délky se stejným časem a bajty se nepozná.
+- Rotace se pozná podle prvních 4096 bajtů souboru, podle 4096 bajtů těsně před dosud přečteným místem a ve Windows i podle času vzniku. Nový soubor, který začíná stejnými bajty a není kratší než starý, se pozná podle bajtů před přečteným místem, takže to funguje i v macOS a Linuxu. Vyměněný soubor stejné délky se prohlédne znovu jen tehdy, když se změnil čas posledního zápisu. Nový soubor, který má všechny bajty až po přečtené místo stejné, se nepozná.
 - Soubor se kontroluje jednou za sekundu. Tato hodnota ani 4096 bajtů nejsou rozhodnuté hodnoty.
-- Shody se drží v paměti bez horní meze.
+- V paměti se drží nejvýš 1 000 000 shod pohledu (hodnota je placeholder, není rozhodnutá). Nad ni se nejstarší shody zahodí, až na tři čtvrtiny meze, a stavový řádek řekne kolik; nejnovější zůstanou pro Další a Předchozí shodu.
 - Log: zapamatovat pohled se ptá i na text ke zvýraznění (regulární výraz; prázdné nezvýrazní nic). Po použití pohledu mají shody výrazu v každém řádku pozadí, v editoru i ve stránkovaném režimu. Hledá se jen v prvních 8192 znacích řádku a řádek, jehož hledání trvá příliš dlouho (hodnota je placeholder, není rozhodnutá), zůstane bez značky.
 
 ## [export.highlight] Export a kopie se zvýrazněním

@@ -17,6 +17,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds between two looks at a followed log for new lines, truncation or rotation. The owner has not decided it.</summary>
     public const int LogFollowPollMilliseconds = 1000;
 
+    /// <summary>Placeholder, OPEN: most matches a live log view keeps in memory (about 24 bytes each); beyond it the oldest are dropped and the status bar says so.</summary>
+    public const int LogFollowMaxMatches = 1_000_000;
+
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
