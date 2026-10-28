@@ -5,6 +5,7 @@
     <AssemblyName>Textida</AssemblyName>
     <RootNamespace>NksHub.Textida.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\textida.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
@@ -27,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaResource Include="Assets\textida.ico" />
     <EmbeddedResource Include="Strings\*.json" />
     <!-- help.cs.md would be taken for a satellite resource of the culture "cs" -->
     <EmbeddedResource Include="Help\*.md" LogicalName="NksHub.Textida.App.Help.%(Filename)%(Extension)" WithCulture="false" />
