@@ -399,6 +399,42 @@ public class AgentToolsAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_codex_session_file_opens_as_turns_with_the_value_of_an_env_file_hidden_in_rows_raw_line_and_hits()
+    {
+        string[] lines =
+        [
+            """{"timestamp":"2026-01-01T10:00:00Z","type":"session_meta","payload":{"id":"s1","cwd":"/work/proj","originator":"test","cli_version":"0.0.0"}}""",
+            """{"timestamp":"2026-01-01T10:00:01Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Please read the env file"}]}}""",
+            """{"timestamp":"2026-01-01T10:00:02Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":[\"cat\",\".env\"]}","call_id":"c1"}}""",
+            """{"timestamp":"2026-01-01T10:00:03Z","type":"response_item","payload":{"type":"function_call_output","call_id":"c1","output":"API_KEY=hunter2hunter2\nMODE=dev"}}""",
+            """{"timestamp":"2026-01-01T10:00:04Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"The key is hunter2hunter2."}]}}""",
+        ];
+        string path = _temp.File("rollout.jsonl", string.Join("\n", lines) + "\n");
+        var window = _w.OpenTranscript(path)!;
+        await Until(() => { window.Tick(); return window.IsListComplete; }, "the index");
+        await Until(() => { window.Tick(); return window.TurnList.SelectedIndex >= 0; }, "the first turn");
+        Assert.Equal(["Before the first prompt", "#1 Please read the env file"], window.TurnTitles);
+
+        window.TurnList.SelectedIndex = 1;
+        await window.TurnTask;
+        Dispatcher.UIThread.RunJobs();
+        Assert.DoesNotContain(window.RowTexts, t => t.Contains(Key));
+        Assert.Contains(window.RowTexts, t => t.Contains("API_KEY=" + SecretValues.Placeholder));
+        Assert.Contains(window.RowTexts, t => t == "The key is " + SecretValues.Placeholder + ".");
+
+        window.RowList.SelectedIndex = window.RowData.ToList().FindIndex(r => r.Kind == NksHub.Textida.Core.Agents.Transcripts.TranscriptRowKind.ToolResult);
+        await window.OpenRawNow();
+        Dispatcher.UIThread.RunJobs();
+        Assert.DoesNotContain(Key, _w.Active!.Editor!.Document.Text);
+        Assert.Contains("function_call_output", _w.Active.Editor.Document.Text);
+
+        await window.SearchNow(Key);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Empty(window.HitTexts);
+        window.Close();
+    }
+
+    [AvaloniaFact]
     public async Task Values_from_an_env_file_of_the_opened_tabs_are_hidden_from_the_start_and_a_file_that_is_missing_says_so()
     {
         var env = _w.OpenFile(_temp.File(".env", "TOKEN=abcdef123456\n"), null);

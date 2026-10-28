@@ -118,12 +118,29 @@ public class TranscriptTests
     public void The_index_keeps_to_its_memory_limit_and_says_it_stopped()
     {
         using var file = Write(Enumerable.Repeat(Session[1], 500));
-        using var index = Open(file, limits: Limits with { IndexMaxBytes = 2000 });
+        using var index = Open(file, limits: Limits with { IndexMaxBytes = 12_000 });
         Assert.True(index.IsComplete);
         Assert.True(index.IsTruncated);
         Assert.InRange(index.LineCount, 1, 499);
-        Assert.InRange(index.IndexBytes, 1, 2200);
+        Assert.InRange(index.IndexBytes, 9000, 12_000); // never past the limit: the line that would not fit is not registered
         Assert.True(index.TurnCount > 0);
+        Assert.Equal(index.LineCount, index.TurnCount);
+    }
+
+    [Fact]
+    public void The_memory_of_the_index_grows_by_whole_blocks_so_a_small_limit_holds_no_line_that_needs_a_block_it_cannot_have()
+    {
+        using var file = Write(Enumerable.Repeat(Session[1], 50));
+        using var tiny = Open(file, limits: Limits with { IndexMaxBytes = 2000 });
+        Assert.True(tiny.IsTruncated);
+        Assert.Equal(0, tiny.LineCount);
+        Assert.Equal(0, tiny.IndexBytes);
+
+        using var roomy = Open(file, limits: Limits with { IndexMaxBytes = 1 << 20 });
+        Assert.False(roomy.IsTruncated);
+        Assert.Equal(50, roomy.LineCount);
+        Assert.InRange(roomy.IndexBytes, 9000, 20_000);
+        for (int i = 0; i < 50; i++) Assert.Equal(roomy.StartOf(i), i * (long)(Session[1].Length + 1));
     }
 
     [Fact]

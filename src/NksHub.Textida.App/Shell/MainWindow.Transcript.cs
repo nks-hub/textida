@@ -12,7 +12,7 @@ using NksHub.Textida.Workbench.Commands;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// Tools, Agent, Open Agent Transcript: the transcript of a Claude Code session (a <c>.jsonl</c> file of <c>~/.claude/projects</c>) in <see cref="TranscriptWindow"/>, read only. The file is read
+/// Tools, Agent, Open Agent Transcript: the transcript of a Claude Code session (a <c>.jsonl</c> file of <c>~/.claude/projects</c>) or of a Codex session (<c>~/.codex/sessions</c>) in <see cref="TranscriptWindow"/>, read only. The file is read
 /// through its own handle and never written. The values of the secrets files of the open tabs and of the opened folder are hidden in it from the start, and those the transcript itself shows are
 /// hidden once seen.
 /// </summary>
