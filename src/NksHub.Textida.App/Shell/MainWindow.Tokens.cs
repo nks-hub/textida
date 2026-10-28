@@ -102,11 +102,11 @@ internal sealed partial class MainWindow
         var lines = new List<string>();
         long? selected = SelectionCharacters(tab);
         if (selected is { } characters)
-            lines.Add(Loc.Get(K.TokensSelection, ("count", FormatTokens(TokenEstimator.Estimate(characters, _tokenRule))), ("chars", FormatTokens(characters))));
+            lines.Add(Loc.Get(K.TokensSelection, ("tokens", FormatTokens(TokenEstimator.Estimate(characters, _tokenRule))), ("chars", FormatTokens(characters))));
         if (tab.Surface is { } surface)
         {
             long length = surface.Document.TextLength;
-            lines.Add(Loc.Get(K.TokensDocument, ("count", FormatTokens(TokenEstimator.Estimate(length, _tokenRule))), ("chars", FormatTokens(length))));
+            lines.Add(Loc.Get(K.TokensDocument, ("tokens", FormatTokens(TokenEstimator.Estimate(length, _tokenRule))), ("chars", FormatTokens(length))));
         }
         else if (selected is null) lines.Add(Loc.Get(K.TokensPagedNote));
         string message = string.Join("\n", lines) + "\n\n" + Loc.Get(K.TokensRule, ("rule", TokenRuleName(_tokenRule)), ("source", _tokenRule.Source)) + " " + Loc.Get(K.TokensEstimateNote);

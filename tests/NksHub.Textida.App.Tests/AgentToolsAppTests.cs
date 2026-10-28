@@ -120,8 +120,8 @@ public class AgentToolsAppTests : IDisposable
 
         var asked = Assert.Single(_dialogs.Asked);
         Assert.Equal(Loc.Get(K.TokensDialogTitle), asked.Title);
-        Assert.Contains(Loc.Get(K.TokensSelection, ("count", "10"), ("chars", "40")), asked.Message);
-        Assert.Contains(Loc.Get(K.TokensDocument, ("count", "100"), ("chars", "400")), asked.Message);
+        Assert.Contains(Loc.Get(K.TokensSelection, ("tokens", "10"), ("chars", "40")), asked.Message);
+        Assert.Contains(Loc.Get(K.TokensDocument, ("tokens", "100"), ("chars", "400")), asked.Message);
         Assert.Contains(Loc.Get(K.TokensRule, ("rule", _w.TokenRuleName(TokenEstimator.Generic)), ("source", TokenEstimator.Generic.Source)), asked.Message);
         Assert.Contains(Loc.Get(K.TokensEstimateNote), asked.Message);
     }

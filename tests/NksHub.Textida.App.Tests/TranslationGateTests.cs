@@ -25,6 +25,7 @@ public class TranslationGateTests
         ["source.plugin"] = "cs sk",
         ["find.case"] = "cs sk de",
         ["find.word"] = "cs sk de",
+        ["find.hexMode"] = "cs sk de",
         ["hex.inspector.little"] = "cs sk de",
         ["hex.inspector.big"] = "cs sk de",
         ["hex.goto.label"] = "cs sk de",

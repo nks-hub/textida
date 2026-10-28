@@ -140,13 +140,15 @@ public class TranslationReviewTests
     public void The_inventory_of_every_language_has_the_same_keys_and_gives_each_a_review()
     {
         var register = LoadRegister();
-        var reference = Inventory(register, "cs").Select(r => (r.Catalogue, r.Key)).Order().ToList();
+        // cs and sk have a .few plural form that en and de do not need, so the keys are compared without their plural category
+        static List<(string, string)> Keys(IEnumerable<Row> rows) =>
+            rows.Select(r => (r.Catalogue, PluralForm.Replace(r.Key, ""))).Distinct().Order().ToList();
+        var reference = Keys(Inventory(register, "cs"));
         Assert.True(reference.Count > 2000, $"only {reference.Count} texts in the inventory");
         foreach (var lang in StringTable.UiLanguages)
         {
             var rows = Inventory(register, lang).ToList();
-            Assert.Equal(reference.Count, rows.Count);
-            Assert.True(rows.Select(r => (r.Catalogue, r.Key)).Order().SequenceEqual(reference), $"{lang}: the keys differ from the keys of the default language");
+            Assert.True(Keys(rows).SequenceEqual(reference), $"{lang}: the keys differ from the keys of the default language");
             Assert.All(rows, r =>
             {
                 Assert.True(r.Area.Length > 0, $"{lang}:{r.Catalogue}:{r.Key} has no area");
@@ -182,6 +184,7 @@ public class TranslationReviewTests
         Texts(lang).Where(t => t.Catalogue != "plugin").ToDictionary(t => (t.Catalogue, t.Key), t => t.Text);
 
     private static readonly Regex Placeholder = new(@"\{[^{}]*\}");
+    private static readonly Regex PluralForm = new(@"\.(one|few|many|other)$");
 
     /// <summary>How a text ends where it matters to the reader: an ellipsis says that a dialog follows, a colon that something follows in the same row.</summary>
     private static string Ending(string text)
