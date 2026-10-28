@@ -48,6 +48,15 @@ public class HexAccessibilityTests : IDisposable
 
     private void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) => TestApp.Press(_w, key, mods);
 
+    /// <summary>Ctrl+F opens the find bar in byte mode; the query is typed into it and F3 takes the first step.</summary>
+    private void SearchInBar(string query)
+    {
+        Press(Key.F, TestApp.Mod);
+        _w.FindBar.FindBox.Text = query;
+        Dispatcher.UIThread.RunJobs(); // the text box reports a change on the dispatcher
+        TestApp.FindNext(_w);
+    }
+
     private void Chord(Key second)
     {
         Press(Key.K, TestApp.Mod);
@@ -245,16 +254,14 @@ public class HexAccessibilityTests : IDisposable
         (bytes[100], bytes[101], bytes[900], bytes[901]) = (0x41, 0x42, 0x41, 0x42);
         var hex = OpenHex(bytes);
 
-        _dialogs.Prompts.Enqueue("41 42");
-        Press(Key.F, TestApp.Mod);
+        SearchInBar("41 42");
         PumpUntil(() => _w.AnnouncedText == Loc.Get(K.HexFindCount, ("index", 1), ("total", 2)));
         Assert.Equal((100L, 102L), (hex.Editor.Selection.Start, hex.Editor.Selection.End));
 
         TestApp.FindNext(_w);
         PumpUntil(() => _w.AnnouncedText == Loc.Get(K.HexFindCount, ("index", 2), ("total", 2)));
 
-        _dialogs.Prompts.Enqueue("DE AD BE EF");
-        Press(Key.F, TestApp.Mod);
+        SearchInBar("DE AD BE EF");
         PumpUntil(() => _w.AnnouncedText == Loc.Get(K.HexFindNone));
     }
 

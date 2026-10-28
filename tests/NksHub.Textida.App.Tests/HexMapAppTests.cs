@@ -145,8 +145,10 @@ public class HexMapAppTests : IDisposable
         foreach (int at in new[] { 100, 30_000, 70_000 }) new byte[] { 0x7E, 0x7E, 0x7E, 0x7E }.CopyTo(bytes, at);
         bytes[0] = 0;
         var hex = OpenHex(bytes);
-        _dialogs.Prompts.Enqueue("7E 7E 7E 7E");
         TestApp.Press(_w, Key.F, TestApp.Mod);
+        _w.FindBar.FindBox.Text = "7E 7E 7E 7E";
+        Dispatcher.UIThread.RunJobs(); // the text box reports a change on the dispatcher
+        TestApp.FindNext(_w);
         PumpUntil(() => hex.Minimap.Matches.Count > 0, "no matches were marked");
         Assert.Equal(new long[] { 100, 30_000, 70_000 }, hex.Minimap.Matches.Where(m => m is 100 or 30_000 or 70_000));
         Assert.True(hex.Minimap.Matches.Count >= 3);

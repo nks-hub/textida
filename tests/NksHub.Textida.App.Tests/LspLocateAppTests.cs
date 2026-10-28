@@ -49,6 +49,9 @@ public class LspLocateAppTests : IDisposable
 
     private DocTab Open() => _w.OpenFile(Path.Combine(_project, "src", "a.ts"), null);
 
+    /// <summary>The program is found through the extensions of PATHEXT, which Windows writes in capitals (<c>.EXE</c>), and a path there is the same file in either case.</summary>
+    private static StringComparison PathCase => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
     [AvaloniaFact]
     public async Task A_server_a_folder_of_the_project_brings_is_run_only_after_a_yes_that_is_asked_with_its_command_and_kept_until_the_file_changes()
     {
@@ -58,17 +61,18 @@ public class LspLocateAppTests : IDisposable
         var declined = await _w.LocateLspProgramAsync(tab, "typescript");
         Assert.True(declined!.Declined);
         var asked = Assert.Single(_dialogs.Asked);
-        Assert.Contains(_local, asked.Details![0]);
+        Assert.Contains(_local, asked.Details![0], PathCase);
         Assert.Contains("--stdio", asked.Details[0]);
         Assert.Contains("typescript-language-server", asked.Message);
 
         _dialogs.Answers.Enqueue(0); // run
         var yes = await _w.LocateLspProgramAsync(tab, "typescript");
         Assert.False(yes!.Declined);
-        Assert.Equal(("typescript-language-server", _local), (yes.Name, yes.Path));
+        Assert.Equal("typescript-language-server", yes.Name);
+        Assert.Equal(_local, yes.Path, ignoreCase: OperatingSystem.IsWindows());
 
         var again = await _w.LocateLspProgramAsync(tab, "typescript"); // asked once: no answer is queued, so a question would throw
-        Assert.Equal(_local, again!.Path);
+        Assert.Equal(_local, again!.Path, ignoreCase: OperatingSystem.IsWindows());
         Assert.Equal(2, _dialogs.Asked.Count);
 
         File.WriteAllText(_local, "a different program"); // the file changed: the answer is not for it
@@ -117,6 +121,7 @@ public class LspLocateAppTests : IDisposable
 
         var found = await _w.LocateLspProgramAsync(tab, "csharp");
 
-        Assert.Equal(("csharp-ls", only), (found!.Name, found.Path));
+        Assert.Equal("csharp-ls", found!.Name);
+        Assert.Equal(only, found.Path, ignoreCase: OperatingSystem.IsWindows());
     }
 }

@@ -204,6 +204,7 @@ public class HexSearchAppTests : IDisposable
         Assert.True(bar.FindBox.IsFocused);
 
         bar.FindBox.Text = "50 4B ?? 04";
+        Dispatcher.UIThread.RunJobs(); // the text box reports a change on the dispatcher
         Assert.Equal(Loc.Get(K.HexFindPreview, ("min", 4), ("max", 4)), bar.CountText.Text);
         TestApp.Press(_w, Key.Enter);
         PumpUntil(() => hex.Editor.HasSelection && bar.CountText.Text == Loc.Get(K.HexFindCount, ("index", 1), ("total", 2)));
@@ -232,10 +233,12 @@ public class HexSearchAppTests : IDisposable
         var bar = _w.FindBar;
 
         bar.FindBox.Text = "41";
+        Dispatcher.UIThread.RunJobs(); // the text box reports a change on the dispatcher
         Assert.Equal(Loc.Get(K.HexFindPreview, ("min", 1), ("max", 1)), bar.CountText.Text);
         Assert.DoesNotContain("error", bar.CountText.Classes);
 
         bar.FindBox.Text = "ZZ";
+        Dispatcher.UIThread.RunJobs();
         Assert.StartsWith(Loc.Get(K.HexFindInvalid, ("reason", "")), bar.CountText.Text);
         Assert.Contains("error", bar.CountText.Classes);
         TestApp.Press(_w, Key.Enter);
@@ -244,6 +247,7 @@ public class HexSearchAppTests : IDisposable
         Assert.Empty(_dialogs.Prompts);
 
         bar.FindBox.Text = "";
+        Dispatcher.UIThread.RunJobs();
         Assert.Equal("", bar.CountText.Text ?? "");
         Assert.DoesNotContain("error", bar.CountText.Classes);
     }

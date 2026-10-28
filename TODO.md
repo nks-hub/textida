@@ -742,6 +742,7 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
   - **Odhad:** F149 4–7 ČT (matice) za P2.2.1 a P2.2.3–P2.2.5
   - **Stav 27. 10. 2026 (noc):** částečně. Rozpracovaný text IME se kreslí podtržený přímo v řádku u každého kurzoru. Editor teď hlásí SupportsPreedit=true přes obal klienta AvaloniaEdit v EditorSurface.Ime.cs.…; Kompozice skončí, když se pohne kurzor, změní se dokument, editor ztratí fokus nebo se přepne karta, a nic se nezapíše dvakrát ani neztratí; Esc, Enter a šipky během kompozice patří IME: neruší kurzory a nespouští příkazy. Zkratky s Ctrl, Alt nebo ⌘ fungují dál; Okno kandidátů IME se otevírá za rozepsaným textem. Testy prošly (336 v testovací sadě testera). Chybí: Výkon 1 000 kurzorů (p95 ≤ 33 ms) jsem neměřil. Podle posledního měření pořád neplatí a chce to buď Perf na referenční Windows VM, nebo rozhodnutí…; Živou IME s českou, japonskou a čínskou klávesnicí, změnu DPI, matici R10 a macOS jsem neověřil, protože k tomu je potřeba člověk se…; Ctrl+Alt+↓ v živém běhu na Windows zůstává neověřené, protože tady nesmím spouštět aplikaci.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Opraveno: 1000 kurzorů v 1 MiB vloženého textu 91 s → 1,7 s (ByteTextMap); příkazy nad 1000 kurzory 15–21 s → 0,9 s (RunEdit).
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Psaní s 1000 kurzory: referenční Windows VM p95 29–32 ms, referenční Mac p95 28,8 ms (limit 33). Zbývá IME a čtečka.
 - [x] **P2.2.3** Kotvy a normalizace výběrů
   - **Co a proč:** Výběry jako kotvy, sloučení překrytých a sousedních výběrů, primární kurzor.
   - **Funkce:** F149 (částečně: model výběrů)
@@ -919,6 +920,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Hotovo, když:** výřez na náhodném offsetu 10GiB souboru vykreslí stejné znaky jako referenční dekódování a nečte víc než určený počet bloků.
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Řádek z bloku s offsetem u neupraveného dokumentu, nejvýš 6 přečtených bloků (placeholder) na 80MB i Large 30M řádků. Upravený dokument a 10 GiB doplňuje další vývojář.
 - [x] **P3.1.7** Navigace a výběr ve stránkované ploše
   - **Co a proč:** Kurzor, výběr, klávesy a myš nad bajtovými pozicemi bez materializace řádku.
   - **Funkce:** F153 (částečně: navigace a výběr)
@@ -933,6 +935,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Hotovo, když:** skok na offset i na řádek trefí stejné místo jako naivní výpočet; během několikaminutové indexace 50GiB souboru: průběh je vidět, posun splní limity PR.2.3, skok za hotový prefix indexu trefí správný offset a číslo řádku nese „≈“, dokud není přesné; zavření karty, reload a zrušení indexaci ukončí a uvolní zdroje; private commit i working set během indexace jsou zapsané (P3.1.9).
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Opraven odhad řádků pro UTF-16/UTF-32 a samotné CR (`BytesPerLine`). Neměřeno: indexace 50GiB souboru.
 - [ ] **P3.1.9** Invalidace a limity paměti
   - **Co a proč:** Které části výřezu se po změně podkladu nebo revize překreslí; strop paměti cache bloků. Na referenční Windows VM měl 50GiB soubor po indexu 109,3 MiB private, ale working set při indexaci přibližně 12 297 MiB; sledují se obě veličiny. Schválený limit private commit se tím nemění.
   - **Funkce:** F153 (částečně: invalidace a limity)
@@ -989,6 +992,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Hotovo, když:** v čistém ASCII souboru 100 MiB i v UTF-8 logu 100 MiB z korpusu (PR.2.1) dá předem zapsaná sekvence kláves (psaní včetně českých znaků, Backspace, Delete, Enter, Tab, přepsání výběru, úpravy u CRLF) po uložení soubor se stejným SHA-256 jako nezávislý výpočet; kurzor stojí po každém kroku na zapsaném řádku a sloupci; souvislé psaní slova je jeden krok undo a 500 kroků undo a redo vrátí obsah okna podle očekávání; úprava řádku delšího než zapsaný limit se odmítne s hlášením v liště stránkovaného režimu a dokument se nezmění; psaní má na obou strojích R8 vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms.
   - **Závisí na:** P3.1.7, P3.1.8, P1.2.6, P1.2.8
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Scénář se SHA-256 po uložení prošel (100 MiB ASCII i UTF-8). Druhý stroj R8 neověřen.
 - [ ] **P3.1.12** Schránka na stránkované ploše
   - **Co a proč:** Kopírovat, vyjmout a vložit v textu do 100 MiB bez `.Text` a bez druhé úplné kopie obsahu. Výběr se převádí na bajty aktuální revize. Velké vložení (desítky MiB) spike neměřil; přepočet řádků projde vložený blok jednou.
   - **Funkce:** F154 (částečně: schránka v textu do 100 MiB)
@@ -997,13 +1001,14 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Hotovo, když:** kopie výběru přes hranici bloků, přes CRLF a přes úsek vložený úpravou dá do schránky přesně očekávaný text; vyjmutí i vložení jsou každé jeden krok undo; vložení zapsané velikosti do souboru 100 MiB skončí v zapsaném čase, počet a začátky řádků pak souhlasí s úplným průchodem a přírůstek private commit celé aplikace zůstane u ASCII ≤ 350 MiB (kap. 3); u většího vložení UI nezamrzne a dokument zůstane celý: vložení buď projde, nebo se s hlášením odmítne.
   - **Závisí na:** P3.1.11
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
-- [ ] **P3.1.13** Undo po uložení na místo ve stránkovaném režimu
+- [x] **P3.1.13** Undo po uložení na místo ve stránkovaném režimu
   - **Co a proč:** Rozhodnutí majitele 26. 10. 2026: undo musí přežít uložení na místo i ve stránkovaném režimu MVP, bez viditelného omezení. Dnes `SaveAsync` na stejnou cestu undo smaže, protože úseky historie ukazují do nahrazeného originálu. Ukládá se přes společnou službu P3.5.5, která pro hex původní bajty pro undo už zachová. Tady se totéž zajistí pro textovou editaci do 100 MiB, i když se délka změní a ukládá se streamem. Zbytek P7.1.3, tedy soubory větší než RAM, zůstává v P7.
   - **Funkce:** F154 (částečně: undo po uložení na místo do 100 MiB)
   - **Stav 26. 10. 2026:** částečně: `PagedSaveUndoTests` (100 MiB, ASCII a UTF-8 log, 5000 úprav): uložení streamem, SHA-256 proti modelu, 500 kroků undo/redo, undo všech úprav na originál prošly na referenční Windows VM. Zápis na místo po zvětšení logu změn na 8192 neověřen; pád během streamového uložení textu nepokryt.
   - **Hotovo, když:** v čistém ASCII souboru 100 MiB i v UTF-8 logu 100 MiB proběhne po 5 000 úpravách uložení na stejnou cestu streamem i zápisem na místo bez změny délky; disk pak obsahuje přesně uloženou revizi (SHA-256 proti nezávislému výpočtu); 500 kroků undo a 500 redo po uložení dá v každém kontrolním bodě očekávaný obsah a undo všech úprav vrátí obsah se SHA-256 originálu; další uložení zapíše revizi po undo; přírůstek private commit u ASCII zůstane ≤ 350 MiB (kap. 3); pád injektovaný během uložení nechá na disku celý originál, nebo celou uloženou revizi, a obnova podle P1.5.1 vrátí neuloženou práci; lišta stránkovaného režimu undo po uložení neuvádí jako omezení.
   - **Závisí na:** P3.5.5, P3.1.11, P1.5.1
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. test hranice logu změn (8192) a pádu během streamovaného uložení 100 MiB po 5 000 úpravách (ASCII i UTF-8 CRLF) prošly, ověřeno mutací.
 
 ### P3.2 Zvýrazňování
 
@@ -1016,7 +1021,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
     - napojení rendereru běžné i stránkované plochy
     - gramatiky MVP a snapshot testy podle případů z `09` kap. 12
     - checkpointy stavu z P3.2.3
-  - **Stav 26. 10. 2026:** hotovo: barvy v běžném editoru i stránkované ploše z jednoho `SyntaxFeeder`, palety D5, ruční volba jazyka přežije reload; gramatiky MVP včetně C#, Razor (`.cshtml`, `.razor`), `.sln` a `.csproj`/`.props` (XML) se snapshot testy tokenů; NEON, Latte, Razor a `.sln` se v editoru barví podle přípony (dřív chyběly v seznamu jazyků). Win11lite2 27. 10.: `Typing_in_a_highlighted_one_mebibyte_file_stays_within_33_ms_at_p95` prošel. Razor: výrazy uvnitř hodnot atributů HTML a uvnitř `<script>` se nebarví jako Razor.
+  - **Stav 26. 10. 2026:** hotovo: barvy v běžném editoru i stránkované ploše z jednoho `SyntaxFeeder`, palety D5, ruční volba jazyka přežije reload; gramatiky MVP včetně C#, Razor (`.cshtml`, `.razor`), `.sln` a `.csproj`/`.props` (XML) se snapshot testy tokenů; NEON, Latte, Razor a `.sln` se v editoru barví podle přípony (dřív chyběly v seznamu jazyků). referenční Windows VM 27. 10.: `Typing_in_a_highlighted_one_mebibyte_file_stays_within_33_ms_at_p95` prošel. Razor: výrazy uvnitř hodnot atributů HTML a uvnitř `<script>` se nebarví jako Razor.
   - **Hotovo, když:** psaní v souboru 1 MiB se zvýrazněním má vstup → prezentace p95 ≤ 33 ms (cíl, který TextMate nesplnil); snapshot testy tokenů všech gramatik MVP procházejí; ruční volba jazyka přežije reload.
   - **Závisí na:** P2.7.1, P3.2.3
   - **Odhad:** bez odhadu
@@ -1249,7 +1254,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Pád nebo zamrznutí pluginu teď v aplikaci ukáže lištu se jménem pluginu, důvodem a časem restartu, nebo řekne, že je po opakovaných pádech vypnutý; Poslední chybové řádky pluginu a záznam hostitele jdou do okna výstupu a tlačítko Zobrazit výstup na liště ho otevře; Hlídání nezabije plugin, který čeká na uživatele v kterémkoli dialogu (návrh změn, úprava pracovního prostoru, ui/quickPick, ui/input, ui/confirm, agent/permission), už…; Události, které se ztratí, když plugin startuje a běží resynchronizace, se už nesmažou: plugin je dostane jako document/eventsLost hned, jak znovu běží (nové…. Testy prošly (356 v testovací sadě testera). Chybí: Testy jsem nespouštěl, podle zadání je spustí tester; ověřený je jen build (0 chyb, 0 varování); Běh pod NativeAOT a na macOS jsem neověřil, na tomhle PC to nejde; Hodnoty restartu a časových limitů zůstávají zástupné v PluginLimitsPlaceholders.Host(), rozhodnutí majitele je dál otevřené.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
-- [ ] **P3b.1.3** Inicializace a životní cyklus procesů pluginů
+- [x] **P3b.1.3** Inicializace a životní cyklus procesů pluginů
   - **Co a proč:** Líná aktivace (`onCommand`, `onLanguage`, `onFileType`, `onPanel`), handshake s verzí API, ukončení a čerpání `stderr`.
   - **Funkce:** F196 (částečně: aktivace a procesy)
   - **Stav 26. 10. 2026:** částečně: líná aktivace, handshake s chybou verze, vyčerpání `stderr`, vypnutí bez osiřelých procesů. Chybí zapojení do aplikace.
@@ -1257,6 +1262,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Závisí na:** P3b.1.1
   - **Odhad:** v rámci F196 (viz P3b.1.2)
   - **Umístění:** jádro
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. aktivace `onPanel`, opětovné `onLanguage`/`onFileType` po přepnutí karty, opakovatelné ukončení; testy zavření editoru bez osiřelých procesů prošly.
 - [ ] **P3b.1.4** Rušení, kvóty a zpětný tlak
   - **Co a proč:** Limity velikosti zpráv, souběhu, počtu výsledků a paměti relace se zpětným tlakem (R08); rušení požadavků podle adaptéru z P3b.1.1.
   - **Funkce:** F196 (částečně: kvóty a rušení)
@@ -1280,6 +1286,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Odhad:** F197 2–3 ČT (matice)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Klávesy pluginu v mapě kláves (vestavěná vyhrává, konflikt ve Správci pluginů), nastavení pluginu ve vyhledávání pod jeho názvem a v `initialize`/`settings.changed`, datové příkazy spouštějí externí nástroj s potvrzením, limit gramatiky kontrolovaný na otevřeném souboru. Chybí: schválení tvaru převodníků a klipů, datové příkazy u pluginu s procesem, odebrání bez restartu.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Datové příkazy i u pluginu s procesem, odebrání a vypnutí bez restartu. Tvar převodníků a klipů čeká na rozhodnutí majitele.
 - [ ] **P3b.2.2** UI příspěvky ve vzhledu D5
   - **Co a proč:** Editor kreslí z dat pluginu panel se stromem nebo seznamem, nejvýš jednu položku stavového řádku na plugin, výběr ze seznamu, vstup, potvrzení, oznámení a úlohy s průběhem a zrušením. Plugin nekreslí vlastní UI, nemá webview ani příspěvek do horní lišty.
   - **Funkce:** F200
@@ -1321,7 +1328,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Pomalý plugin teď opravdu dostane document/eventsLost s aktuální revizí: plugin v handshaku ohlásí eventAcks, každou událost potvrdí přes $/eventsHandled a editor mu…; Po startu nebo restartu dostane plugin v resync aktuální revize všech dokumentů, které smí číst, s příznakem subscribed (DocumentApi.BuildState); Kapacita fronty (256) a okno (32) jsou v PluginLimitsPlaceholders jako zástupné hodnoty s poznámkou OPEN; aplikace posílá události dokumentů s oknem, události UI…; Testy: pomalý reálný proces pluginu dostane eventsLost, odeslání čeká na plné okno a při pádu pluginu vrátí false, SDK potvrdí i událost, při které handler spadl, resync…. Testy prošly (857 v testovací sadě testera). Chybí: Hodnoty kapacity fronty a okna musí rozhodnout majitel, zatím jsou to zástupné hodnoty s poznámkou OPEN; Testy jsem podle zadání nespouštěl, ověřený je jen build řešení (0 chyb, 0 varování); běh nechávám testerovi; Pluginy psané přímo nad protokolem bez eventAcks (ukázka v Pythonu, JSON plugin) mají dál neomezené odesílání, takže jejich nevyřízené….
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
-- [ ] **P3b.3.5** API pro časné nástroje: symboly, reveal, snippety, kurzory a `Tab`
+- [x] **P3b.3.5** API pro časné nástroje: symboly, reveal, snippety, kurzory a `Tab`
   - **Co a proč:** Code Explorer (P4.4.1), Emmet (P4.5.2) a cesta klíče (P4.6.4) mají být skutečné pluginy od začátku. Chybí jim poskytovatel symbolů a reveal (skok a zvýraznění místa), vložení snippetu s kurzory a předání neobslouženého `Tab` zpět jádru. Každý kontrakt nese revizi.
   - **Funkce:** žádná (infrastruktura API)
   - **Stav 26. 10. 2026:** částečně: `symbols/publish` jen pro aktuální revizi (starší = konflikt), zastaralá osnova označená a klik najde text, kde je teď; `editor/reveal` i klik v osnově přes `MainWindow.RevealBytes` (test shody bajtů s „é“); `snippet/insert` s kurzory do všech výběrů jako jeden krok undo; `editor/tabHandler` – nezpracovaný, chybný nebo pomalý Tab odsadí jako bez pluginu. Limity jsou zástupné hodnoty v `PluginLimitsPlaceholders.cs`. Chybí: přeskakování zástupných míst snippetu, odsazení dalších řádků snippetu; Tab a klik v běžící aplikaci neověřeny. Nález agenta o tichém nepoužití úpravy bez platné hranice znaku se nepotvrdil: jádro vrací `ConflictReason.InvalidRange` a obě cesty úprav z pluginu (`edit/apply`, `snippet/insert`) ho hlásí chybou.
@@ -1330,6 +1337,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Odhad:** bez odhadu; podíl ze zbytku rozpočtu P3b u P3b.5.4 určí PR.8.2 před zahájením P3b; že se do zbytku vejde vedle distribuce, SDK a prvního pluginu, doložené není
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Zástupná místa snippetu (`$1`, `${1:x}`, volby, `$0`, zrcadla, proměnné), Tab/Shift+Tab mezi místy, odsazení dalších řádků, `snippet/insert` s `format: template`, každý kurzor vlastní session. Chybí vnořená místa a transformace.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. vnořená místa a transformace ve snippetech (místa i proměnné) s limity hloubky a času; testy prošly.
 - [ ] **P3b.3.2** Úpravy z pluginu
   - **Co a proč:** `edit/propose` jde do služby náhledu změn z P2.5.2 (revize F178 přijde v P6). `edit/apply` jen s oprávněním `document.edit.direct`, jako jeden krok undo. Úpravy v dávce atomicky a bez překryvů.
   - **Funkce:** F199
@@ -1486,7 +1494,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.4 Code Explorer
 
-- [ ] **P4.4.1** Code Explorer bez LSP a symboly v Goto Anything
+- [x] **P4.4.1** Code Explorer bez LSP a symboly v Goto Anything
   - **Co a proč:** Strom funkcí, tříd a značek nad otevřeným souborem bez LSP a bez indexu projektu. Osnova CMake, Makefile, Meson a klíčů YAML. Symboly `@` v Goto Anything. Poskytovatele symbolů a reveal dává API z P3b.3.5.
   - **Funkce:** F083, F148 (částečně: symboly)
   - **Stav 26. 10. 2026:** částečně: vestavěný plugin `NksHub.Textida.Plugins.CodeExplorer` (jednoduchá pravidla jazyka, bez LSP, komentáře a řetězce se nečtou) – osnova HTML, PHP, CSS, C# a Markdownu patří k revizi, po úpravě se obnoví, zpožděná odpověď pro starší revizi se neukáže; klik v osnově i `@` v Přejít na cokoli vyberou stejné bajty; osnova přežije restart procesu pluginu (test). Chybí osnova CMake, Makefile a Meson (jazykové režimy v aplikaci nejsou); limity jsou zástupné hodnoty; ověřeno jen headless.
@@ -1495,6 +1503,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** osnova CMake a Makefile 0,5 ČT; symboly v rámci F148 (P2.1.2); jinak bez odhadu
   - **Umístění:** vestavěný plugin (balíček Markdown a osnova)
   - **Stav 27. 10. 2026 (noc):** částečně. Osnova i pro JS/TS, Python, Rust, Dart, C/C++, Bash, CMake, Makefile a Meson; stránkovaný soubor do limitu; symbol u kurzoru ve stavovém řádku. Chybí zvýraznění položky ve stromu (panelové API to neumí).
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. osnova Code Exploreru tučně označí položku pod kurzorem (`ui/panel/current`), čtečka ji pojmenuje; testy prošly.
 
 ### P4.5 Psaní a schránka
 
@@ -1534,7 +1543,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P1.6.1, P2.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.5.5** Doplňování slov a klipů
+- [x] **P4.5.5** Doplňování slov a klipů
   - **Co a proč:** Ctrl+J doplní slova z dokumentu a klipy, funguje hned po instalaci. LSP doplňování je v P8.
   - **Funkce:** F076
   - **Stav 26. 10. 2026:** částečně: Ctrl+J nabídne slova z otevřených karet a klipy podle jazyka, výběr nahradí slovo před každým kurzorem jako jeden krok undo; skryté hodnoty `.env` se nenabízejí (odkryté jen v samotném souboru). Index slov dokumentu se po úpravě opraví jen v dotčených řádcích (test shody s nově postaveným po náhodných úpravách); řádek nad 64 tis. znaků index zahodí a další Ctrl+J ho postaví znovu. Zástupná hodnota 200 slov v nabídce; Perf na referenční Windows VM 27. 10. prošel (nabídka v souboru 1 MiB i hned po napsaném znaku do 33 ms).
@@ -1543,6 +1552,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Doplněné slovo převezme velikost písmen z napsaného; klipy mají zástupná místa (Tab/Shift+Tab, zrcadla, volby, odsazení dalších řádků). Chybí řazení podle blízkosti kurzoru a import klipů PSPad (po 1.0).
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. slova se řadí podle vzdálenosti od kurzoru; import klipů PSPad zůstává po 1.0.
 
 ### P4.6 Web, barvy a data
 
@@ -1554,7 +1564,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3.2.1, P3b.3.2
   - **Odhad:** 1–2 ČT
   - **Umístění:** jádro (F085, náhled a výběr), vestavěný plugin (F086, převod)
-- [ ] **P4.6.2** Skryté hodnoty v `.env`
+- [x] **P4.6.2** Skryté hodnoty v `.env`
   - **Co a proč:** Hodnoty jako `••••`, ukázat najetím nebo přepínačem; obsah se nemění. Maskování je jeden sdílený filtr jádra pro vykreslení, minimapu, schránku, hledání, kopírování jako kontext (F254), přepisy agentů (F257) a API pluginů. Pravidlo pro agenty (hodnoty jen po potvrzení) platí od P6.
   - **Funkce:** F184
   - **Stav 26. 10. 2026:** částečně: hodnoty `.env` skryté `••••` ve vykreslení, minimapě, náhledech hledání, Přejít na cokoli, výsledcích hledání, schránce i historii schránky (test); odhalení přepínačem nebo najetím myši; plugin bez potvrzení čte jen `*`, vestavěné příkazy se ptají; soubor se nemění, záznam volání bez hodnot. Čtečka obrazovky dostane místo hodnoty značku „[skrytá hodnota]“ (cs/sk/en/de, test), po odkrytí skutečný text. Chybí: stránkovaný a hex pohled ukazují surové bajty; NVDA a VoiceOver neověřeny. Otevřené: které soubory jsou „tajné“ (dnes `.env`, `.env.*`, `*.env`).
@@ -1562,6 +1572,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3.2.1
   - **Odhad:** F184 0,5–1 ČT (matice)
   - **Umístění:** jádro
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. maskování i ve stránkovaném a hex pohledu, v mapě bajtů, kontrolním součtu a náhledech Nahradit; testy prošly.
 - [x] **P4.6.3** SQL bez připojení
   - **Co a proč:** Dialekt pro soubor, složku a globálně, výchozí Generic bez hlášení chyb; formátování s velikostí klíčových slov a odsazením podle dialektu. K databázi se nepřipojuje.
   - **Funkce:** F185
@@ -1578,7 +1589,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P2.1.2, P3.2.1, P3b.3.5
   - **Odhad:** F212 1–2 ČT (matice)
   - **Umístění:** vestavěný plugin
-- [ ] **P4.6.5** HTML nástroje a HTML Tidy
+- [x] **P4.6.5** HTML nástroje a HTML Tidy
   - **Co a proč:** Nejčastější HTML a textové převody; HTML Tidy jako externí formátovač s diagnostikou. Revize navrhla Tidy jako volitelný plugin, majitel rozhodl vše přibalit a zapnout.
   - **Funkce:** F100, F101
   - **Stav 26. 10. 2026:** částečně: převod výběru na entity a zpět bezeztrátově (test na 20 000 náhodných textech); Tidy bez binárky vypíše, kde ji hledal, se skutečným `tidy.exe` 5.8.0 vrátí výsledek jako návrh a hlášení jdou do okna výstupu; plugin prošel testy i jako NativeAOT. Tidy není přibalený (pro macOS vydává projekt jen instalátor, ne samostatnou binárku; licence právně neověřena). Otevřené: argumenty Tidy, převod znaků mimo ASCII na entity.
@@ -1587,6 +1598,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin (textové nástroje, formátovače)
   - **Stav 27. 10. 2026 (noc):** částečně. Zavřít tag, protější tag, vybrat element, odstranit tag, obalit tagem, odstranit všechny tagy, entity i pro znaky mimo ASCII. Chybí vložení obrázku a odkazu s rozměrem; Tidy není přibalený.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. příkazy Vložit obrázek a Vložit odkaz s rozměry z hlavičky PNG/GIF/JPEG/BMP/WebP; Tidy se nepřibaluje.
 
 ### P4.7 Zvýrazňovače jako data
 
@@ -1618,7 +1630,8 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin (textové nástroje)
   - **Stav 27. 10. 2026 (noc):** částečně. Statistika i nad výběrem, nejčastější znaky a slova se stropem tabulky. Chybí měření 10 GiB a paměti.
-- [ ] **P4.8.2** Hashe po blocích
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. 10GiB statistika na referenční Windows VM 294,9 s, paměť pluginu 42–141 MiB (JIT), zrušení 39 ms. Strop 64 MiB pro AOT build neměřen.
+- [x] **P4.8.2** Hashe po blocích
   - **Co a proč:** Hashe po blocích nad surovými bajty; společný dialog s hex hashi F242.
   - **Funkce:** F090
   - **Stav 26. 10. 2026:** částečně: MD5, SHA-1, SHA-256, SHA-384, SHA-512 nad bajty souboru nebo výběru proudem ze snapshotu, SHA-256 se shoduje s `certutil`, zrušení nedá výsledek. Otevřené: seznam algoritmů; chybí porovnání s vloženým hashem a tlačítko kopírovat.
@@ -1627,7 +1640,8 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin (textové nástroje)
   - **Stav 27. 10. 2026 (noc):** částečně. CRC-32, hash po blocích pro každou označenou část, spočítat a zkopírovat, porovnat s vloženým. Chybí XXH3 a společný dialog s F242.
-- [ ] **P4.8.3** Výrazy, výpočet bloku a soustavy
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. XXH3-64/128 přes System.IO.Hashing (AOT ověřen), společný seznam algoritmů a porovnání s hex dialogem; okno zůstává dvojí (plugin a hex).
+- [x] **P4.8.3** Výrazy, výpočet bloku a soustavy
   - **Co a proč:** Součet výběru s formátem čísel, převod soustav, vyhodnocení výrazu bez spouštění kódu.
   - **Funkce:** F092, F093, F094
   - **Stav 26. 10. 2026:** částečně: součet bloku, výpočet výrazu bez spouštění kódu a převod soustav (-2^63 až 2^64-1), součty sloupců v cs, sk, de a en formátu, dokument se nemění. Otevřené: volba formátu čísel výběru, nečíselné tokeny (dnes přeskočeny a spočteny), rozsah převodu; chybí vložení výsledku, římská čísla a ms na datum.
@@ -1636,6 +1650,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin (textové nástroje)
   - **Stav 27. 10. 2026 (noc):** částečně. Výraz z výběru nebo řádku, vložit výsledek, římská čísla a datum z čísla v převodu soustav. Chybí ověření vložení v aplikaci.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. vložení výsledku výrazu do dokumentu ověřeno testem v aplikaci (mutací); ve stránkovaném režimu je příkaz vypnutý.
 
 ### P4.9 Kontext pro AI
 
@@ -1713,6 +1728,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Odhad:** v rámci F160 (viz P5.1.1)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Automatická detekce oddělovače z prvních 64 KiB (čárka, středník, tabulátor, svislítko; shoda vyhrává přípona), ruční volba má přednost. Chybí: víceřádkové buňky ve vzorku, ověření v aplikaci.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Detekce oddělovače bere víceřádkovou buňku v uvozovkách jako jeden řádek. Zbývá čtečka obrazovky.
 - [x] **P5.1.5** Editace buněk a filtr
   - **Co a proč:** Úprava buňky, přidání a smazání řádku a sloupce, filtr podle hodnoty; každá změna je krok undo.
   - **Funkce:** F160 (částečně: editace a filtr)
@@ -1771,7 +1787,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
 
 ### P5.3 Místní historie
 
-- [ ] **P5.3.1** Místní historie souborů: ukládání revizí, diff a obnova
+- [x] **P5.3.1** Místní historie souborů: ukládání revizí, diff a obnova
   - **Co a proč:** Revize každého uložení i změny zvenku, diff a obnova celého souboru nebo úseku. Bez projektu a Gitu. Trvalé úložiště s migrací formátu, které aktualizace editoru nesmaže. Je to základ revize změn F178 v P6. Retence je v P5.3.2, štítky a hledání v P5.3.3.
   - **Funkce:** F172
   - **Stav 26. 10. 2026:** částečně: revize jako soubor s vlastními metadaty (bez sdíleného indexu, pád při zápisu nechá nejvýš sirotka, kterého další přístup uklidí), značka verze (historie z novějšího editoru se odmítne beze změny), kontrola hashe při čtení; ukládají se uložení, změny zvenku a stav při prvním otevření; obnova celého souboru jako krok undo, obnova výběru mění jen vybrané řádky; porovnání s revizí přes stávající `ExternalDiff.Compare`. Soubory ve stránkovaném režimu se do historie neukládají (bez rozhodnutého stropu velikosti by se kopírovaly celé), příkazy historie jsou v něm zakázané. Pád simulovaný v procesu, ne harness; UI neověřeno.
@@ -1780,6 +1796,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Odhad:** F172 3–5 ČT (matice) za P5.3.1–P5.3.3
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Revize při uložení, diff, obnova jako krok Zpět; nad 32 MiB (placeholder) se revize neukládá se stavem TooLarge. Chybí stránkovaný režim a patche velkých souborů.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. stránkované karty mají historii; revize velkých souborů jako ověřené záplaty proti celé kopii (formát v2), retence chrání potřebné kopie; testy prošly. Hledání v revizích-záplatách doplňuje další vývojář.
 - [ ] **P5.3.2** Retence historie a připnuté revize
   - **Co a proč:** Délka a limit velikosti jsou nastavitelné. Kvóta nesmí zničit možnost vrátit nevyřízenou změnu: revize, která je základem nevyřízené revize změn F178, je připnutá a retence ji nesmaže.
   - **Funkce:** F172 (částečně: retence)
@@ -1890,7 +1907,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
 
 Hotovo celku podle analýzy konkurence: porovnání dvou 1GiB souborů se 100 oddělenými změnami na pevných offsetech najde přesně těch 100 rozsahů; u 100MiB souboru s vloženými bloky ukáže vložení, ne posun; nahrazení všeho jde vrátit jedním krokem a nad novější revizí se odmítne; záložky přežijí vložení před ně; minimapa 50GiB souboru se ukáže do 1 s.
 
-- [ ] **P5.6.1** Regex nad bajty a zástupný znak `*`
+- [x] **P5.6.1** Regex nad bajty a zástupný znak `*`
   - **Co a proč:** Bajt = znak 0–255, `.` je jeden bajt, `*` = 0–N bajtů (N nastavitelné). Nad `ByteSearch`.
   - **Funkce:** F237
   - **Stav 26. 10. 2026:** částečně: regex nad bajty a `*` jako 0–N bajtů (`/regex/` nebo `50 4B * 04`), vlastní rozsah `*{m,n}`. Otevřené: výchozí N pro `*` (nastavení `hex.wildcardMaxBytes` = 0, hledání s `*` o volbu požádá).
@@ -1899,6 +1916,7 @@ Hotovo celku podle analýzy konkurence: porovnání dvou 1GiB souborů se 100 od
   - **Odhad:** F237 1–1,5 ČT (matice)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Kotvy `^`/`$` na rozsah, výchozí N pro `*` (placeholder 256), živý náhled délky shody v dialogu. Chybí režim v liště hledání (hex hledání je dál dialog).
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. Ctrl+F v hexu otevře lištu hledání v bajtovém režimu s délkou shody a krokováním; testy prošly.
 - [x] **P5.6.2** Nahrazení bajtů s náhledem
   - **Co a proč:** Náhled podle F152 s původními a novými bajty, upozornění na změnu délky, jedno undo, kontrola revize; v přepisu je změna délky zakázaná.
   - **Funkce:** F238
@@ -1952,6 +1970,7 @@ Společný základ celé etapy (kap. 5.3). F179, F180 a pluginy do ní jen posí
   - **Závisí na:** P5.3.1, P5.3.2, P2.5.2, P1.5.1
   - **Odhad:** F178 2–3 ČT (matice)
   - **Umístění:** jádro
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Sledovaná složka s ignorováním `.gitignore`/`.ignore`, čekající kontroly se základem z historie přežijí restart; nové soubory a soubory bez základu se nekontrolují. Neověřeno se skutečným Claude Code a Codexem.
 - [x] **P6.1.2** Návrhy pluginů do revize změn
   - **Co a proč:** `edit/propose` z P3b se přepojí ze služby náhledu změn na revizi F178. Odpověď přijde po rozhodnutí uživatele. Je to rozšíření kontraktu F199; návrhový mechanismus z P3b se znovu neúčtuje.
   - **Funkce:** F199 (částečně: napojení na F178)
@@ -2001,7 +2020,8 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P1.1.6, P1.1.8
   - **Odhad:** bez odhadu; ocení PR.8.2 před zahájením P6
   - **Umístění:** jádro
-- [ ] **P6.2.4** Řízený náhled v API
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Vlastní renderer bez WebView s bezpečnou podmnožinou HTML, obrázky a Mermaid; opraven kvadratický parser. Zbývají důkazy na Windows 10, 11 a macOS 14.
+- [x] **P6.2.4** Řízený náhled v API
   - **Co a proč:** Plocha náhledu ve vzhledu D5 bez obecného webview. Obsah dodá plugin jako data, editor ho vykreslí rendererem a podle bezpečnostní politiky náhledu z P6.2.7. Mermaid se vykresluje přes tento řízený vstup.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** testovací plugin ukáže náhled s textem, obrázkem a diagramem; skript, vzdálený obrázek a odkaz na místní soubor se bez schválené politiky nenačtou.
@@ -2009,6 +2029,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P3b.2.2, P6.2.7
   - **Odhad:** v rámci odhadu P6.2.2
   - **Umístění:** jádro
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. náhled z pluginu umí podmnožinu HTML, obrázky z dat pluginu a Mermaid; skript, vzdálený obrázek bez souhlasu a místní soubor se nenačtou (testy s počítáním spojení).
 - [ ] **P6.2.5** Panel agenta v API
   - **Co a proč:** Panel konverzace agenta ve vzhledu D5 pro ACP (P6.6) a most `/ide`.
   - **Funkce:** žádná (infrastruktura API)
@@ -2038,7 +2059,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** F170 2–4 ČT (matice); souhlas a nástroje 1–2 ČT
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Nástroj `editor_get_selection`, příkaz Sdílet výběr s MCP, strop 10 čekajících návrhů, stažení návrhu při vypnutí a zavření. Chybí oprávnění po klientech (rozhodnutí majitele).
-- [ ] **P6.3.2** Nástroje MCP serveru navíc
+- [x] **P6.3.2** Nástroje MCP serveru navíc
   - **Co a proč:** `editor_outline` (osnova i neuložené karty), `editor_find_in_files` (worker F151 i nad živými buffery), `editor_file_facts` (kódování, BOM, EOL, neplatné sekvence, velký režim), `editor_log_query` nad režimem logu. Malá sada nástrojů s přesnými popisy, odpovědi jako úryvky se stropem.
   - **Funkce:** F256
   - **Stav 26. 10. 2026:** částečně: 12 nástrojů `editor_*` (čtení neuložených karet, hledání, návrh změn textu i bajtů, osnova, hledání v souborech, fakta o souboru, dotaz do logu, bajtové čtení a hledání); návrhy jdou do stávajícího náhledu změn; `editor_find_in_files` jen ve sdílených kartách (zpřístupnění složky není určené).
@@ -2047,6 +2068,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P6.3.1, P4.4.1, P4.3.2
   - **Odhad:** F256 1,5–2,5 ČT (matice)
   - **Umístění:** jádro
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. test CP1250 se smíšenými EOL v aplikaci; 10GiB testy jako Perf prošly na referenční Windows VM (2 m 22 s a 2 m 11 s).
 - [x] **P6.3.3** Hex pro MCP
   - **Co a proč:** `editor_read_bytes` (nejvýš 64 KiB, hex nebo base64), `editor_search_bytes`, `editor_prepare_byte_changes` jako návrh s revizí. Modelu se nikdy nepošle celý binární soubor.
   - **Funkce:** F247
@@ -2058,7 +2080,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
 
 ### P6.4 Editor jako MCP klient
 
-- [ ] **P6.4.3** MCP klient
+- [x] **P6.4.3** MCP klient
   - **Co a proč:** Společný klient MCP nad JSON-RPC vrstvou P3b.1.1 a poskytovatelem souborů P6.2.1: spuštění serveru, `initialize`, výpis a volání nástrojů, zrušení. Nečeká na wiki ani na změnu mimo repozitář.
   - **Funkce:** F171 (částečně: klient MCP)
   - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.McpClient` (2026-07-28 přes `server/discover`, jinak `initialize` 2025-11-25); připojení, nástroje, volání, zrušení přes `notifications/cancelled` a pád serveru otestované proti testovacímu serveru, skutečnému `textida-mcp` a oficiálnímu `@modelcontextprotocol/server-everything` 2.0.1. Knihovna v aplikaci, ne plugin v procesu; vzdálené servery (URL) se nespouštějí; limity zástupné; AOT publish neověřen.
@@ -2067,6 +2089,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** v rámci F171 (viz P6.4.1)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Streamable HTTP, zdroje dat, Připojit, dotaz před voláním nástroje, limity, tajné hodnoty jen v úložišti pověření. Chybí starý přenos HTTP+SSE.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. doplněn starý přenos HTTP+SSE (spec 2024-11-05) včetně přechodu z adresy bez typu; testy proti testovacímu serveru prošly na referenční Windows VM i referenční Mac.
 - [ ] **P6.4.1** Adaptér NKS IS wiki
   - **Co a proč:** „Otevřít z…“ → služba → dokument, jako první NKS IS wiki. Stránka se upravuje jako běžný dokument a uloží se zpět. MCP nemá obecný zápis zdrojů, každá služba potřebuje adaptér. Bez atomické kontroly revize na straně NKS IS (P6.4.4) nejde wiki bezpečně dokončit.
   - **Funkce:** F171
@@ -2103,6 +2126,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** F179 2–3 ČT (matice)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Most `/ide`: zámek s tokenem a úklidem po pádu, most na okno, `selection_changed`, `openDiff` přes revizi změn, `getDiagnostics`, stavový řádek a odpojení; testy s falešným agentem i v aplikaci. Protokol mimo oficiální dokumentaci podle komunitního popisu. Neověřeno se skutečným Claude Code; chybí openFile, getOpenEditors a další nástroje.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Nástroje openFile, getOpenEditors, getWorkspaceFolders, checkDocumentDirty a `at_mentioned` podle veřejného popisu protokolu. Neověřeno se skutečným Claude Code, verze CLI nezapsaná.
 
 ### P6.6 Agent přes ACP
 
@@ -2170,6 +2194,7 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Stav 27. 10. 2026:** částečně (jádro): `Document.SaveAsync` streamuje snapshot do dočasného souboru a prohodí ho; úpravy během uložení se navrství a zůstanou „neuloženo“ (test: SHA-256 souboru = snapshot N, editor na N+1), potvrzení až po flush a prohození, zrušení i selhání prohození nechá originál. Large test 3 GiB lokálně prošel. Aplikace během streamového uložení dovolí psaní, mazání a vkládání (hex, CSV), stavový řádek „Ukládání…“ a potom „Uloženo. Úpravy z doby ukládání zatím v souboru nejsou.“; undo a redo během uložení posouvají jen živou revizi (test: soubor beze změny); kroky undo po uložení nad rozpočtem paměti jdou do scratch souboru. Fill a undo kroku s výplní nebo změnou kódování během uložení zůstávají odmítnuté (odkazují na nahrazovaný soubor). Krok undo nad 2 GiB odmítnut; obnova po pádu během undo při uložení netestována. 50 GiB na stroji s menší RAM neměřeno.
   - **Závisí na:** P7.1.2, P3.5.5, P3.1.13
   - **Odhad:** v rámci F154
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Nový test pádu při undo kroku ukládané revize prošel. Neměřeno: 50 GiB na stroji s menší RAM.
 - [ ] **P7.1.4** Obnova velkých změn
   - **Co a proč:** Velké změny jdou do žurnálu na disku. Cíl kap. 3 pro 1.0: obnova po pádu i u velkých dokumentů, ztráta nejvýš 2 s žurnálu. Navazuje na hot exit z P1.5.1 a žurnál zápisu z P3.5.5.
   - **Funkce:** F154
@@ -2178,7 +2203,8 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Závisí na:** P7.1.3, P1.5.1
   - **Odhad:** v rámci F154
   - **Stav 28. 10. 2026:** částečně. Seznam úprav ve vedlejším souboru s CRC (žurnál v4), velká vložení do souboru, změny nad 64 MiB přes lištu Obnovit/Zahodit.
-- [ ] **P7.1.5** Editace dlouhých řádků
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Žurnál v5 s kontrolním součtem celého bloku, zápis velkého bloku na vlastním vlákně. Neměřeno: zabití během úpravy a uložení 50GiB souboru a ztráta ≤ 2 s.
+- [x] **P7.1.5** Editace dlouhých řádků
   - **Co a proč:** Lokální editace v řádku 100 MiB bez materializace celého řádku; v P0 neměřeno. Do té doby MVP editaci řádku nad limitem odmítne (P3.1.11).
   - **Funkce:** F155 (částečně: editace)
   - **Hotovo, když:** psaní uprostřed řádku 100 MiB má vstup → prezentace p95 ≤ 33 ms a p99 ≤ 80 ms a paměť nepřibude o velikost řádku.
@@ -2186,6 +2212,7 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Závisí na:** P3.1.3, P7.1.1
   - **Odhad:** v rámci F155 (matice, viz P3.1.3)
   - **Stav 28. 10. 2026:** částečně. Kopie a vyjmutí z dlouhého řádku na pozadí s limitem 256 MiB, rychlá cesta UTF-8. Chybí: příčina alokace na úhoz, první skok kurzoru do 100MiB řádku na UI vlákně.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. příčina alokace na úhoz odstraněna (dekodér bez stringu na znak), vzdálené skoky ve 100MiB řádku mimo vlákno UI; Perf na referenční Mac: skok a psaní v řádku 100 MiB p95 3,0–8,7 ms.
 - [x] **P7.1.6** Hledání nad upraveným stránkovaným dokumentem při textové editaci
   - **Co a proč:** Čtecí adaptér a hledání nad aktuální revizí vznikají už v P3.5.9, pro hex úpravy i pro textovou editaci do 100 MiB včetně čísel řádků shod. Tady se ověří nad 10 GiB, kde index řádků po úpravě ladí P7.1.1.
   - **Funkce:** F154
@@ -2206,7 +2233,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
 
 ### P8.1 Makra a recepty
 
-- [ ] **P8.1.1** Makra
+- [x] **P8.1.1** Makra
   - **Co a proč:** Záznam a přehrání příkazů z registru s centrálním pořadím a jedním undo. Ne binární emulace. Import PME až po 1.0.
   - **Funkce:** F018
   - **Hotovo, když:** zaznamenané makro nad více výběry dá při přehrání stejný výsledek jako ruční postup a vrátí se jedním undo.
@@ -2216,6 +2243,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Šipky, Home/End, Ctrl+šipky, Ctrl+Home/End (i se Shiftem), Backspace a Delete se při nahrávání zapíšou jako 24 skrytých příkazů registru (nks.edit.cursor*/delete*) a…; Vyjmout, Kopírovat a Vložit smí do makra a čekají na schránku, takže kopírování a vložení v jednom makru dá stejný výsledek jako ruční postup; Najít další/předchozí (F3, Shift+F3, Enter v liště) uloží s krokem hledaný text a přepínače jako argument kroku; uložené makro ho najde i se zavřenou lištou, bez…; Registr má argument kroku (RecordArgument/StepArgument), MacroStore ho ukládá do macros/<název>.json a krok zaznamená na vlákně UI (ConfigureAwait(true)). Testy prošly (320 v testovací sadě testera). Chybí: Výchozí klávesové zkratky pro makra jsou dál otevřené, nikdo o nich nerozhodl; Výběr uloženého makra v UI a přehrání v běžící aplikaci jsem neověřil, protože aplikaci tady nesmím spustit; Kroky na macOS (Option/Cmd s šipkami) nejsou ověřené, chybí mi hardware; Alt+šipky tam navíc zabírá Skok zpět/vpřed.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Doplněno: kroky Nahradit další/vše se stavem lišty, přejmenování a smazání uložených maker, zástupné zkratky Ctrl+K Ctrl+R/Ctrl+K Ctrl+Shift+R/Ctrl+K Ctrl+P (OPEN). PageUp/PageDown se nenahrávají.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. PageUp/PageDown se nahrávají a přehrávají; testy prošly.
 - [x] **P8.1.2** Plné recepty nad sadou souborů
   - **Co a proč:** Uložený recept se pustí znovu nad jinou sadou souborů, s náhledem, obnovou a kontrolou revizí. Krokem může být převodník, náhrada, formátovač.
   - **Funkce:** F165
@@ -2227,7 +2255,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
 
 ### P8.2 Externí nástroje
 
-- [ ] **P8.2.1** Externí aplikace, proměnné a nastavení nástrojů
+- [x] **P8.2.1** Externí aplikace, proměnné a nastavení nástrojů
   - **Co a proč:** Rozšíření spouštěče z P4.3.3: typované proměnné cest a textu, společný editor definic, příkazový řádek s výstupem. Příkaz se ukáže předem. Druhý spouštěč nevznikne. Plný terminál je F159 (později).
   - **Funkce:** F124, F126, F116, F089
   - **Hotovo, když:** definice nástroje se upraví v editoru definic a spustí se se stejnými argumenty jako ze spouštěče P4.3.3; nástroj z cizí konfigurace se poprvé spustí až po potvrzení příkazu a adresáře; typovaná proměnná se špatným typem se odmítne před spuštěním.
@@ -2236,7 +2264,8 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. Proměnné `${Selection}`, `${Word}`, `${ProjectRoot}`, `outputEncoding`, `tools.timeoutSeconds`. Chybí proměnné po projektech.
-- [ ] **P8.2.2** Cíle Makefile
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. proměnné projektu v `.textida/variables.json` s předností formulář > projekt > uživatel > vestavěné; testy prošly.
+- [x] **P8.2.2** Cíle Makefile
   - **Co a proč:** Seznam cílů z otevřeného Makefile, spuštění přes F124 v okně výstupu, odkazy na chyby přes F125.
   - **Funkce:** F124
   - **Hotovo, když:** cíl vybraný ze seznamu se spustí a chyba ve výstupu skočí do souboru.
@@ -2245,6 +2274,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** 0,5 ČT
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. Nejbližší Makefile, opakovat poslední cíl, adresáře rekurzivního make.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. souhlas se spuštěním make je vázaný na SHA-256 obsahu Makefile; testy (ToolEcho) prošly, skutečný make na vývojovém PC není.
 
 ### P8.3 Akce při uložení
 
@@ -2277,7 +2307,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.4.1
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
-- [ ] **P8.4.3** Workspace edit v API
+- [x] **P8.4.3** Workspace edit v API
   - **Co a proč:** Dávka úprav ve více souborech včetně vytvoření, přejmenování a smazání souboru, přes službu náhledu P2.5.2.
   - **Funkce:** žádná (infrastruktura API)
   - **Hotovo, když:** workspace edit s úpravou, vytvořením, přejmenováním a smazáním projde náhledem a kontrolou revizí; úprava mimo povolený rozsah se odmítne celá.
@@ -2286,6 +2316,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. Create/rename/delete v žurnálu dávky s obnovou po pádu, rename a delete otevřeného souboru, náhled nového souboru.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. `workspace/edit` sleduje odkazy v cestě a odmítne celou dávku mimo workspace, limit celkového textu; testy prošly.
 
 ### P8.5 LSP a katalog jazyků
 
@@ -2300,6 +2331,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F157 4–7 ČT (matice) za P8.5.1, P8.5.4 a P8.5.5
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Jeden server na projekt (kořen podle značek jazyka), `workspace/configuration` z initializationOptions.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Rename upravuje i soubory na disku s BOM. Neověřeno se skutečným Roslyn LSP; síťový test PR.6.4.
 - [x] **P8.5.4** LSP: životní cyklus a synchronizace dokumentu
   - **Co a proč:** Spuštění serveru na vyžádání, `initialize`, synchronizace změn s revizemi, restart a ukončení přes adaptér LSP z P3b.1.1.
   - **Funkce:** F157 (částečně: životní cyklus)
@@ -2316,7 +2348,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.5.4
   - **Odhad:** v rámci F157 (viz P8.5.1)
   - **Umístění:** vestavěný plugin
-- [ ] **P8.5.2** Jazykové servery z manifestu pluginu
+- [x] **P8.5.2** Jazykové servery z manifestu pluginu
   - **Co a proč:** Plugin nabídne jazykový server v manifestu (`languageServers`); registr ověří manifest a souhlas se spuštěním.
   - **Funkce:** F208
   - **Hotovo, když:** datový plugin s jazykovým serverem se po potvrzení spustí pro svůj jazyk bez dalšího kódu.
@@ -2324,6 +2356,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F208 0,5–1 ČT (matice)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (večer):** částečně. `contributes.languageServers` v manifestu (jazyky, globy, příkaz, argumenty, init options, `locate`), oprávnění `language.server` se souhlasem, jeden proces na jazyk a workspace, zastavení po nečinnosti (placeholder 300 s), testy s FakeLsp. Chybí: automatický restart po pádu, zkouška s reálným serverem.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. plugin LSP po pádu serveru restartuje s rostoucí pauzou a stropem a pošle znovu otevřené dokumenty; testy proti FakeLsp prošly.
 - [ ] **P8.5.3** Katalog jazykových nástrojů
   - **Co a proč:** Jeden deklarativní záznam na skupinu jazyků: přípony a jména souborů, gramatika, příkaz LSP s ověřenou verzí, formátovač, linter s formátem výstupu a tabulkou závažností, konfigurační soubory, manifest. Na začátku 17 skupin z tabulky analýza konkurence. Editor nástroj jen najde (PATH, `node_modules/.bin`, `vendor/bin`, `.venv`) nebo použije cestu od uživatele; nic nestahuje. Navíc Ruff, Prettier/Biome, ShellCheck, shfmt, SQLFluff, StyLua, `dart format`.
   - **Funkce:** F213
@@ -2333,10 +2366,11 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F213 1–2 ČT (matice); další nástroje 1–2 ČT
   - **Umístění:** data, čte je jádro a podle nich spouští LSP plugin
   - **Stav 28. 10. 2026:** částečně. Tabulka skupina → nástroj → scénář → OS (`LanguageCatalog.Matrix`).
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Plugin spustí servery všech jazyků katalogu (verze katalogu 4), hledání v toolPaths, složkách projektu a PATH se souhlasem. Neověřeno proti skutečným serverům.
 
 ### P8.6 Git
 
-- [ ] **P8.6.1** Git: stage úseku a konflikt
+- [x] **P8.6.1** Git: stage úseku a konflikt
   - **Co a proč:** Stage vybraného úseku přes kontrakt z P6.2.2 a předání konfliktu. Ne vlastní náhrada celého Git klienta. Stav a diff jsou v P8.6.2.
   - **Funkce:** F158
   - **Hotovo, když:** stage jednoho úseku ze souboru se třemi změnami přidá do indexu jen ten úsek (ověřeno `git diff --cached`); změna indexu jiným programem mezi náhledem a stage skončí konfliktem.
@@ -2346,7 +2380,8 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin
   - **Stav 27. 10. 2026 (večer):** částečně. Vrácení úseku z indexu, konflikt: naše/jejich/obě a označit vyřešené (odmítne zbylé značky). Chybí: stage ze žlábku a z karty diffu, konflikt bez značek, UTF-16.
   - **Stav 28. 10. 2026:** částečně. Stage/unstage z okraje a z karty diffu, konflikty bez značek, UTF-16/32, `autocrlf` přes `git hash-object --path`. DD konflikt jde jen přes `git rm`.
-- [ ] **P8.6.2** Git: stav a diff
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. konflikt smazáno oběma (DD) se řeší z panelu stavu s dotazem; DU/UD už šly; testy prošly.
+- [x] **P8.6.2** Git: stav a diff
   - **Co a proč:** Stav souborů v panelu a diff proti indexu a `HEAD` přes diff API.
   - **Funkce:** F158 (částečně: stav a diff)
   - **Hotovo, když:** stav souboru v panelu odpovídá `git status` i po změně zvenku; diff proti indexu a proti `HEAD` ukáže stejné úseky jako `git diff`.
@@ -2356,6 +2391,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin
   - **Stav 27. 10. 2026 (večer):** částečně. Panel stavu otevírá soubor, stavový řádek s větví a počty, obnova po příkazu Git. Chybí: obnova při změně zvenku, `autocrlf`.
   - **Stav 28. 10. 2026:** částečně. Sledování změn zvenku (RepoWatcher) pro poslední repozitář.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. RepoWatcher hlídá každý repozitář s otevřeným souborem a končí se zavřením posledního; testy prošly.
 
 ### P8.7 Schémata a manifesty
 
@@ -2368,6 +2404,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F181 2–4 ČT (matice); TOML a další schémata 0,5–1 ČT
   - **Umístění:** vestavěný plugin, schémata jako data
   - **Stav 28. 10. 2026:** částečně. `$schema` a modelines, výřez katalogu SchemaStore, stažení po souhlasu s cache, syntaxe YAML/TOML, doplňování hodnot, hover. Kontrola YAML bez falešných poplachů na 5517 souborech. Chybí `$ref` na jiné soubory a uživatelské mapování v nastavení.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. `$ref` na místní soubory (hloubka, cykly) a vzdálené jen přes souhlas, uživatelské mapování `schema.mappings`; testy prošly. Zbývá síťový test PR.6.4.
 - [x] **P8.7.2** Soubory agentů a kontrola frontmatteru
   - **Co a proč:** Mapování „cesta → schéma → dialekt“ pro `.claude/settings*.json` (striktní JSON), `.mcp.json`, Codex `config.toml`, `opencode.json(c)` (JSONC); vlastní malé schéma pro `.mcp.json`. Kontrola YAML frontmatteru `SKILL.md`, `agents/*.md`, `rules/*.md`, `.mdc` v profilech Agent Skills a Claude Code.
   - **Funkce:** F250, F251
@@ -2385,6 +2422,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F183 3–5 ČT (matice) za P8.7.3 a P8.7.5
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Limit a životnost cache registrů, adaptér pub.dev.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Nový adaptér Maven Central (pom.xml, Gradle). Zbývá síťový test PR.6.4 a proxy s přihlášením.
 - [x] **P8.7.5** Adaptéry registrů balíčků
   - **Co a proč:** Adaptéry ve skupinách s vlastními testy: `composer.json`, `package.json`, `requirements.txt`, `.csproj`, `go.mod`, `Cargo.toml`, `Gemfile`.
   - **Funkce:** F183 (částečně: adaptéry registrů)
@@ -2404,7 +2442,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
 
 ### P8.8 Lintery a gramatiky
 
-- [ ] **P8.8.1** Podtržení z PHPStanu a linterů
+- [x] **P8.8.1** Podtržení z PHPStanu a linterů
   - **Co a proč:** Výstup PHPStanu, Psalmu, golangci-lint, `cargo clippy`, clang-tidy, RuboCopu jako podtržení v textu a seznam. Tabulka převodu závažností pro každý nástroj. Spuštění při uložení nebo ručně, ne při každé změně; časový limit s hlášením.
   - **Funkce:** F125
   - **Hotovo, když:** chyba PHPStanu se podtrhne na správném řádku a sloupci; po opravě a novém běhu zmizí; každý linter z tabulky P8.5.3 má test úspěchu, syntaktické chyby, chybějícího nástroje a timeoutu; nástroj, který překročí limit, se ohlásí a UI dál reaguje.
@@ -2413,7 +2451,8 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** 1–2 ČT a lintery 0,5–1 ČT
   - **Umístění:** jádro, vzory jako data
   - **Stav 28. 10. 2026:** částečně. Parsery ESLint, Ruff, ShellCheck, SQLFluff, dart analyze; výchozí limit, zahození zastaralých nálezů, hledání ve vendor/bin, node_modules/.bin, .venv; `toolPaths`. Verze nástrojů nepřipnuté.
-- [ ] **P8.8.2** Gramatiky: Latte, NEON a 17 skupin jazyků
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. u linterů zapsané okno verzí, verze mimo okno se ohlásí vedle výsledku; testy prošly (skutečné lintery na vývojovém PC nespuštěny).
+- [x] **P8.8.2** Gramatiky: Latte, NEON a 17 skupin jazyků
   - **Co a proč:** Latte a NEON vedle Blade a Twig, párování `{if}…{/if}`. Go, `go.mod`, Go šablony, Rust, TOML, C, C++, CMake, Makefile (`Tab` vždy tabulátor), Meson, Ruby, ERB, HAML, Slim a další ze 17 skupin z tabulky analýza konkurence.
   - **Funkce:** F121
   - **Hotovo, když:** každá gramatika ze seznamu v tabulce P8.5.3 má snapshot test; v Makefile vloží `Tab` tabulátor i při odsazení mezerami.
@@ -2422,6 +2461,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** Latte a NEON 0,5–1 ČT, gramatiky 3. kola 1–2 ČT
   - **Umístění:** jádro (engine), gramatiky jako data
   - **Stav 27. 10. 2026 (noc):** částečně. Doplněny gramatiky Twig, Blade, Batch a Visual Basic se snapshot testy; Blade podle `.blade.php` (nejdelší přípona vyhrává). Tab v Makefile vkládá tabulátor. Zjednodušeno: Blade `@php…@endphp`, VB bez XML literálů.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. Blade `@php…@endphp` jako PHP a XML literály ve VB; 49 gramatik se kompiluje; snapshot testy prošly.
 
 ### P8.9 Vložené fragmenty
 
@@ -2445,7 +2485,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F245 3–5 ČT (matice) za P8.10.1–P8.10.5; revize ho považuje za optimistický
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Šablony ZIP, PE, ELF, STL, otevření souboru šablony, `hex.structureTemplates`, synchronizace kurzoru a stromu. Ověřeno proti reálným souborům.
-- [ ] **P8.10.5** Výběr připnutých šablon `.ksy`
+- [x] **P8.10.5** Výběr připnutých šablon `.ksy`
   - **Co a proč:** Parser nemůže stát na výběru šablon, který vznikne až při integraci. Nejdřív se vyberou skutečné soubory a z nich se odvodí podporovaná podmnožina a testovací vstupy.
   - **Funkce:** F245 (částečně: výběr šablon)
   - **Hotovo, když:** v repozitáři je seznam připnutých souborů `.ksy`, každý s verzí nebo commitem zdroje, licencí CC0, MIT nebo BSD a výčtem použitých konstrukcí; podporovaná podmnožina P8.10.2 je sjednocením těchto konstrukcí, nebo seznam říká, která šablona se kvůli nepodporované konstrukci nepřibalí; ke každé šabloně je určený platný a poškozený vstup.
@@ -2453,6 +2493,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P3.5.2
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** data (šablony), jádro (seznam konstrukcí)
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. `pinned.yaml` se 6 vlastními šablonami (MIT), výčty konstrukcí, platnými i poškozenými vzorky; podmnožina parseru je jejich sjednocením.
 - [ ] **P8.10.2** Parser a validace podmnožiny `.ksy`
   - **Co a proč:** Podporované konstrukce: `meta`, `seq`, `types`, `enums`, čísla, `str`/`strz`, `size`, `repeat`, `if`, `switch-on`, `instances`, `contents`, upřesněné podle seznamu P8.10.5. Nepodporovaná konstrukce se ohlásí jménem.
   - **Funkce:** F245 (částečně: parser)
@@ -2462,7 +2503,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Desetinná čísla, bitové typy, vnořené výčty, `endian: switch-on`. `process` odmítnuto.
-- [ ] **P8.10.3** Líné čtení a limity proti škodlivému vstupu
+- [x] **P8.10.3** Líné čtení a limity proti škodlivému vstupu
   - **Co a proč:** Pole se čtou až při rozbalení. Limity hloubky rekurze, počtu opakování, rozsahů, času a paměti chrání před škodlivým datovým vstupem.
   - **Funkce:** F245 (částečně: limity)
   - **Před zahájením:** hodnoty všech limitů se zapíšou jako vstupní rozhodnutí (úvod TODO).
@@ -2472,7 +2513,8 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Stránkování dlouhých polí, pole pevné velikosti se neprochází, časový limit.
-- [ ] **P8.10.4** Výrazy a podmínky v šablonách
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. strom struktury čte uzly na pozadí s řádkem „Čte se…“, limit paměti projitého pole; testy prošly.
+- [x] **P8.10.4** Výrazy a podmínky v šablonách
   - **Co a proč:** Jednoduché výrazy pro `size`, `if`, `switch-on` a `instances`, bez spouštění kódu.
   - **Funkce:** F245 (částečně: výrazy)
   - **Hotovo, když:** každý podporovaný operátor má test; dělení nulou a odkaz na neexistující pole vrátí chybu pole, ne pád.
@@ -2480,6 +2522,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 27. 10. 2026 (večer):** částečně. Výrazy (aritmetika, bity, porovnání, logika, `?:`, `_parent`, `_root`, `_index`, `_io`, enumy, cast), `size`, `repeat` expr/until, `if`, `switch-on`, `instances` s `pos`/`value`; nepodporované hlásí řádek; limity hloubky a práce. Chybí: float, `process`, bitové typy, vnořené enumy.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. doplněno `process` (xor, rol, ror) na str a surových bajtech; float, bitové typy a vnořené enumy už byly; testy prošly.
 
 ## P8b – veřejné SDK a API
 
@@ -2504,6 +2547,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P3b.5.1, P8b.1.1, P3b.3.5, P6.2.3, P6.2.2, P6.2.4, P6.2.5, P6.2.6, P8.4.2, P8.4.3
   - **Odhad:** F202 2–3 ČT (matice)
   - **Umístění:** jádro (vývojová infrastruktura)
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Balík NksHub.Textida.Plugin.Sdk s baseline veřejného API, testovací hostitel, šablona `dotnet new nkspad-plugin` (AOT win-x64). Zbývá CI a osx AOT (jen na Macu).
 - [ ] **P8b.2.2** Ověřovač pluginů a kontraktové testy
   - **Co a proč:** Staticky kontroluje manifest, rozsah `api` a deklarace, za běhu handshake a validaci RPC. Bezpečnostní audit binárky neslibuje (R14). Kontraktové testy pokrývají všechna rozhraní z P8b.2.1, nejen API v1.
   - **Funkce:** F203
@@ -2511,6 +2555,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P8b.2.1
   - **Odhad:** F203 1 ČT (matice); revize ho pro široké API považuje za optimistický
   - **Umístění:** jádro (vývojová infrastruktura)
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. `textida-plugin-validate` a kontraktové testy sedmi rozhraní. Zbývá běh na všech třech RID.
 - [ ] **P8b.2.3** Ověřovací sada vlastních pluginů
   - **Co a proč:** JSON formátovač, statistika, osnova Markdownu a datový balíček (klip, převodník, gramatika) proti distribuovanému AOT buildu. Převodník typu souboru F138 se nedělá, kontrakt není navržený.
   - **Funkce:** F205
@@ -2535,6 +2580,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P8.7.2, P6.1.2
   - **Odhad:** F253 1,5–2,5 ČT (matice)
   - **Umístění:** vestavěný plugin
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Editor hooků s formulářem, validací proti schématu z dokumentace Claude Code (33 událostí) a Codexu (12), zkouškou bez spuštění; tabulka exit kódů jen tam, kde ji dokumentace uvádí.
 - [ ] **P8b.3.2** Odhad tokenů
   - **Co a proč:** Položka stavového řádku „≈ 1 240 tok.“ pro výběr. Pro OpenAI místní tokenizér o200k (`Microsoft.ML.Tokenizers`, pod AOT neověřeno), pro Claude jen „≈“. Přesný počet přes count_tokens jen po kliknutí, s klíčem z klíčenky.
   - **Funkce:** F255
@@ -2542,6 +2588,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P3b.2.2, P3b.3.1
   - **Odhad:** F255 1–1,5 ČT (matice)
   - **Umístění:** vestavěný plugin
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Odhad ≈ ve stavovém řádku a dialogu s pravidly a zdroji; přesný tokenizér a „Spočítat přesně“ nejsou (nic se neodesílá).
 - [ ] **P8b.3.3** Prohlížeč přepisů agentů: panel tahů
   - **Co a proč:** `*.jsonl` z `~/.claude/projects/` a `~/.codex/sessions/` jako relace: panel tahů, tokeny, hledání, skok do surového řádku. Editor kreslí panel a virtuální dokument z P6.2.6. Neznámý záznam jako surový JSON. Jen pro čtení. Parsery a index jsou v P8b.3.4, maskování a limity v P8b.3.5.
   - **Funkce:** F257
@@ -2549,13 +2596,15 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P8b.3.4, P8b.3.5, P6.2.6, P3b.3.1
   - **Odhad:** F257 3–5 ČT (matice) za P8b.3.3–P8b.3.5
   - **Umístění:** vestavěný plugin
-- [ ] **P8b.3.4** Přepisy agentů: parsery a index
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Okno přepisu jen pro čtení s tahy, nástroji, diffy, hledáním a maskováním. Neměřeno: 1,2 GiB s řádkem 54 MiB.
+- [x] **P8b.3.4** Přepisy agentů: parsery a index
   - **Co a proč:** Plugin postaví index „tah → offset“ ve vlastním procesu, pro formát Claude Code i Codexu, nad stránkovaným čtením.
   - **Funkce:** F257 (částečně: parsery a index)
   - **Hotovo, když:** index testovacích přepisů obou formátů dá stejné tahy a offsety jako referenční průchod; neznámý typ záznamu se ukáže jako surový JSON.
   - **Závisí na:** P3.1.1, P3.1.3, P3b.3.1
   - **Odhad:** v rámci F257 (viz P8b.3.3)
   - **Umístění:** vestavěný plugin
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. čtečka přepisů Claude Code i Codex (pole z veřejných definic protokolu openai/codex), index shodný s referenčním průchodem; testy prošly.
 - [ ] **P8b.3.5** Přepisy agentů: maskování a limity
   - **Co a proč:** Maskování F184 přes sdílený filtr z P4.6.2 platí v panelu, ve virtuálním dokumentu i v hledání. Index má strop paměti.
   - **Funkce:** F257 (částečně: maskování a limity)
@@ -2564,6 +2613,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Závisí na:** P8b.3.4, P4.6.2
   - **Odhad:** v rámci F257 (viz P8b.3.3)
   - **Umístění:** vestavěný plugin
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Maskování i pro Codex, index se stropem paměti. Neměřeno: 1,2GiB přepis.
 
 ## P9 – použitelnost a vydání
 
@@ -2588,7 +2638,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
 
 ### P9.2 Nastavení a překlady
 
-- [ ] **P9.2.1** Pokročilé volby
+- [x] **P9.2.1** Pokročilé volby
   - **Co a proč:** Pokročilé volby ve verzovaném schématu, bez původního INI.
   - **Funkce:** F120
   - **Před zahájením:** seznam ID pokročilých voleb se zapíše jako vstupní rozhodnutí (úvod TODO).
@@ -2597,6 +2647,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Kategorie Pokročilé se 7 volbami napojenými na chování (rolování za konec, kopírovat celý řádek, skrýt myš při psaní, odkazy přes Ctrl+klik, odsazení zalomení, počet posledních souborů, interval autosave), seznam ID je v testu označený OPEN. Chybí: blikání kurzoru, max. undo, limity zvýrazňování, plynulé rolování.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. pět nových voleb (blikání kurzoru, plynulé rolování, limit kroků zpět, limity obarvení); plynulé rolování opraveno (AvaloniaEdit `ScrollToVerticalOffset` nic nedělal); testy prošly.
 - [ ] **P9.2.2** Překlady rozhraní
   - **Co a proč:** Kap. 6 P9 má překlady. Navazuje na textové prostředky z P1.1.5. Jazyky UI pro 1.0 jsou čeština, angličtina, slovenština a němčina (R10); ostatní dodávané texty určuje matice P1.1.7. Import starých překladů PSPadu až po 1.0. Úplný seznam klíčů není úplný test lokalizace. Úplný kartézský součin jazyků a jádrových testů není nutný; rozsah testů je ale zapsaný.
   - **Funkce:** žádná (rozšíření textových prostředků z P1.1.5)
@@ -2607,6 +2658,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P1.1.5, P1.1.7
   - **Odhad:** bez odhadu; cenu určí PR.8.2 po inventáři P1.1.7
   - **Umístění:** jádro, texty jako data
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Evidence kontrol `TranslationReview.json` (všechny záznamy OPEN), kontroly ořezu, kolizí v menu, palety a přepnutí jazyka; testy prošly. Zbývá kontrola rodilým mluvčím.
 - [ ] **P9.2.3** Nápověda pro 1.0
   - **Co a proč:** P3.6.5 přijímá nápovědu jen pro příkazy MVP. Verze 1.0 přidá pluginy, vzdálené soubory, MCP, agenty, velkou editaci a další funkce; nápověda F142 se rozšíří o ně a její přejímka se váže na vydání.
   - **Funkce:** žádná (rozšíření nápovědy z P3.6.5)
@@ -2614,6 +2666,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P3.6.5, P1.1.7
   - **Odhad:** bez odhadu; ocení PR.8.2
   - **Umístění:** jádro, texty jako data
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Každý příkaz registru má v nápovědě kroky ve 4 jazycích, 86 hlášení doslovně; testy prošly. Zbývá ověření na buildu 1.0.
 
 ### P9.3 Náhledy a export
 
@@ -2625,6 +2678,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Živý náhled Markdownu a HTML v panelu (aktualizace při psaní po 300 ms, hodnota je placeholder), tabulky jako mřížka, osnova nadpisů se skokem. Chybí: synchronizace posunu, místní obrázky, ověření politiky (skript, vzdálené zdroje) na Windows 10 a macOS 14, čtečka.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Synchronizace posunu, místní obrázky ve složce dokumentu, politika ověřená testy. Zbývá Windows 10, macOS 14 a čtečka.
 - [ ] **P9.3.2** Export se zvýrazněním
   - **Co a proč:** Základní HTML a RTF export a schránka se stejnými tokeny a barvami jako zobrazení; TeX a PDF později.
   - **Funkce:** F039
@@ -2633,7 +2687,8 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (večer):** částečně. Export HTML a RTF dokumentu nebo výběru se stejnými tokeny a barvami motivu; Úpravy → Kopírovat jako (text + HTML + RTF do schránky, zdroj HTML). Limit 8 Mi znaků je placeholder. Chybí: ruční zkouška vložení do Wordu, výběr ve stránkovaném režimu se barví od svého začátku; TeX a PDF až později.
-- [ ] **P9.3.3** Markdown tabulky a obsah
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Výběr ve stránkovaném režimu se obarví podle celého dokumentu. Zbývá ruční zkouška vložení do Wordu.
+- [x] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
   - **Hotovo, když:** `Tab` v tabulce přeskočí do další buňky a sloupce se zarovnají; `Tab` mimo tabulku odsadí jako bez pluginu; aktualizace obsahu přepíše jen blok `<!-- TOC -->`; diagram Mermaid se vykreslí v náhledu a nespustí skript ani síťový požadavek.
@@ -2641,10 +2696,11 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** F190 1–2 ČT (matice)
   - **Umístění:** vestavěný plugin (balíček Markdown a osnova)
   - **Stav 27. 10. 2026:** částečně. Příkazy Zarovnat tabulku pod kurzorem a Aktualizovat obsah v `<!-- TOC -->` (Nástroje → Markdown, 4 jazyky, testy). Večer doplněno: `Tab`/`Shift+Tab` mezi buňkami se zarovnáním, `Shift+Enter` nový řádek, oprava rozbité tabulky, šířka CJK a emoji. Chybí: Mermaid.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. Mermaid (graph/flowchart) se kreslí v náhledu bez skriptu a bez sítě; testy prošly.
 
 ### P9.4 Logy
 
-- [ ] **P9.4.1** Živé pohledy na log a hledání: uložené pohledy
+- [x] **P9.4.1** Živé pohledy na log a hledání: uložené pohledy
   - **Co a proč:** Uložené připnuté filtry nad rostoucím velkým souborem, klik skočí do logu, obnova pohledu po restartu. Ověřit uživatelským scénářem (kap. 9). Inkrementální filtr je v P9.4.3, rotace a zkrácení logu v P9.4.4.
   - **Funkce:** F166
   - **Hotovo, když:** uložený pohled přežije restart a vrátí stejné filtry a pozici; klik na shodu skočí na její bajty v logu.
@@ -2652,7 +2708,8 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** F166 3–5 ČT navíc (matice) za P9.4.1, P9.4.3 a P9.4.4
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Uložené pohledy (`logviews.json` v profilu, atomický zápis: filtr, úrovně, pravidla, zvýraznění, pozice), příkazy v podmenu Log, skok na další/předchozí shodu, testy LogViewStoreTests. Chybí: kreslení zvýraznění pohledu (zadáno dalšímu vývojáři), ověření uživatelským scénářem.
-- [ ] **P9.4.3** Inkrementální filtr rostoucího logu
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. uživatelský scénář (restart, filtr, zvýraznění včetně kresby, poloha, skoky, růst logu) prošel; opravena výjimka minimapy po zavření okna.
+- [x] **P9.4.3** Inkrementální filtr rostoucího logu
   - **Co a proč:** Sledování přibývajících řádků; nové shody se hledají jen v přírůstku.
   - **Funkce:** F166 (částečně: inkrementální filtr)
   - **Hotovo, když:** filtr ERROR nad rostoucím 10GiB logem přidává nové shody bez nového prohledání celého souboru; shody souhlasí s naivním průchodem výsledného souboru.
@@ -2660,7 +2717,8 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** v rámci F166 (viz P9.4.1)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. `LogFollower` čte jen přírůstek, filtr hledá jen v něm a shody souhlasí s naivním průchodem (LogFollowTests, 1 GiB test Category=Large). Interval 1000 ms je placeholder. Chybí běh nad 10GiB logem; shody v paměti nemají horní mez.
-- [ ] **P9.4.4** Rotace a zkrácení logu
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. horní mez shod v paměti; 10GiB log na referenční Windows VM: první průchod 44 s, přírůstek 5 GiB za 40 s, paměť +17 MiB, shody souhlasí s nezávislým průchodem.
+- [x] **P9.4.4** Rotace a zkrácení logu
   - **Co a proč:** Log, který jiný program zkrátí nebo vymění při rotaci, se pozná podle otisku podkladu (P1.2.3).
   - **Funkce:** F166 (částečně: rotace)
   - **Hotovo, když:** po zkrácení i po rotaci logu pohled ohlásí změnu, staré shody označí jako neplatné a pokračuje na novém souboru.
@@ -2668,6 +2726,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** v rámci F166 (viz P9.4.1)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Zkrácení podle velikosti, rotace podle prvních 4096 bajtů (placeholder) a ve Windows i podle času vzniku; staré shody se zahodí, stavový řádek to ohlásí. Mimo Windows rotaci se stejným začátkem a ne menší velikostí nepozná.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. rotace se pozná i mimo Windows (vzorek bajtů před přečteným místem a čas zápisu); testy prošly.
 - [ ] **P9.4.2** Plný režim logu
   - **Co a proč:** Sbalení nezajímavých řádků, odkazy ze stack trace na soubor, heatmapa chyb v minimapě, barvy ANSI, i ve stránkovaném režimu.
   - **Funkce:** F187
@@ -2676,12 +2735,13 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** v rámci F187 (matice, viz P4.3.2)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (večer):** částečně. Sbalení nezajímavých řádků (jen běžný editor, ve stránkovaném se tlumí), odkazy ze stack trace (.NET, Java, Python, PHP, Node), heatmapa chyb v minimapě (vzorkování nad 256 MiB, placeholdery), barvy ANSI bez změny bajtů a přepnutí na syrové zobrazení. Chybí: styl ANSI přes konec řádku, ruční ověření v aplikaci.
+  - **Stav 28. 10. 2026 (odpoledne):** částečně. Styl ANSI pokračuje přes konec řádku v editoru i stránkovaném zobrazení. Neměřeno: heatmapa v 10GiB logu.
 
 ### P9.5 Pracovní prostor
 
 Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří k použitelnosti.
 
-- [ ] **P9.5.1** Projekty a oblíbené
+- [x] **P9.5.1** Projekty a oblíbené
   - **Co a proč:** Jednoduchý workspace (složka bez projektu funguje od MVP) a oblíbené cesty. Import PPR a Links až po 1.0.
   - **Funkce:** F007, F011
   - **Hotovo, když:** workspace si pamatuje složky a otevřené karty; oblíbená cesta se otevře z panelu a chybějící je označená.
@@ -2689,7 +2749,8 @@ Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří 
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Projekty (sada složek + otevřené karty) a oblíbené cesty v profilu, chybějící cesta je označená, testy WorkspaceAppTests. Chybí ověření uživatelským scénářem.
-- [ ] **P9.5.2** Pojmenované relace
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. scénář projektů a oblíbených přes příkazy aplikace po restartu prošel (ověřeno mutací).
+- [x] **P9.5.2** Pojmenované relace
   - **Co a proč:** Pojmenované sady souborů nad stejným úložištěm jako hot exit.
   - **Funkce:** F028
   - **Hotovo, když:** uložená relace se otevře i s neuloženým obsahem a pozicemi kurzorů.
@@ -2697,7 +2758,8 @@ Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří 
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Pojmenované relace v profilu nad úložištěm hot exitu, testy WorkspaceAppTests. Chybí ověření obnovy neuloženého obsahu ve velkém souboru.
-- [ ] **P9.5.3** Zvláštní otevření
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. opravena chyba: relace zahazovala neuložené změny velkého souboru a polohu kurzoru; strop 16 MiB (placeholder); testy prošly.
+- [x] **P9.5.3** Zvláštní otevření
   - **Co a proč:** Zvláštní otevření PSPadu sjednocené do palety a souborového panelu.
   - **Funkce:** F031
   - **Před zahájením:** seznam variant zvláštního otevření se zapíše jako vstupní rozhodnutí (úvod TODO).
@@ -2706,6 +2768,7 @@ Kap. 6 tyto funkce 1.0 do žádné etapy nezařazuje; jsou tu, protože patří 
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Podmenu Zvláštní otevření v Soubor, v paletě a v kontextovém menu panelu: hex, s kódováním, jen pro čtení, nová kopie, složka v systému, výchozí aplikace, znovu otevřít zavřenou kartu; seznam variant v kódu jako OPEN. Chybí test spuštění systémového správce a výchozí aplikace.
+  - **Ověření 28. 10. 2026 (odpoledne):** hotovo. spuštění správce souborů a výchozí aplikace v `SystemLauncher`, testy variant, cest, selhání a skutečného startu procesu prošly; `open`/`xdg-open` na Windows spustit nejdou.
 
 ### P9.6 Distribuce a aktualizace
 
