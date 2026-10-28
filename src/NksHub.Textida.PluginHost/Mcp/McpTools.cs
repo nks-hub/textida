@@ -25,6 +25,9 @@ internal sealed class McpToolContext(McpServer server, CancellationToken cancell
     public McpServerOptions Options => server.Options;
     public CancellationToken Cancellation => cancellation;
 
+    /// <summary>Text blocks that follow the result of the tool in the same answer; a client that reads more than the first block (<c>openDiff</c> of the /ide bridge) gets them.</summary>
+    public List<string> MoreText { get; } = [];
+
     // ---- arguments ----
 
     public static Guid Document(JsonElement args) =>

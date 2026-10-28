@@ -227,12 +227,19 @@ public sealed partial class IdeBridge
         }
         return outcome switch
         {
-            IdeDiffOutcome.Saved => FileSaved,
+            // Claude Code takes FILE_SAVED as an accepted diff only with the contents that were accepted in a second text block
+            IdeDiffOutcome.Saved => AcceptedWith(c, request.NewContents),
             IdeDiffOutcome.Rejected => DiffRejected,
             IdeDiffOutcome.Partial => throw new ToolFailure("The user applied only some of the changes. Read the file again."),
             IdeDiffOutcome.Stale => throw new ToolFailure("The file changed in the editor before the user decided. Read it again and propose the change again."),
             _ => throw new ToolFailure("The editor could not apply the change."),
         };
+    }
+
+    private static string AcceptedWith(McpToolContext c, string contents)
+    {
+        c.MoreText.Add(contents);
+        return FileSaved;
     }
 
     private Task<string> CloseTab(McpToolContext c, JsonElement args)
