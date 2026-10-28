@@ -155,6 +155,7 @@ internal sealed partial class PagedTextView
         }
         var primary = kept.PrimarySelection;
         (_caret, _anchor) = (primary.Caret, primary.IsEmpty ? -1 : primary.Anchor);
+        _caretStamp++; // a handler that ran before this one may have cached the set with the old primary caret for this revision
         SetCarets(AllCarets());
     }
 
@@ -464,6 +465,25 @@ internal sealed partial class PagedTextView
         return false;
     }
 
+    /// <summary>False, with a message, when an edit starts or ends on a line longer than <see cref="EditLineLimitBytes"/>; as for one caret, nothing is changed then.</summary>
+    private bool LinesEditable(IEnumerable<CaretEdit> edits)
+    {
+        long checkedLine = -1;
+        foreach (var edit in edits)
+        {
+            if (!edit.HasContent) continue;
+            foreach (long at in (ReadOnlySpan<long>)[edit.Start, edit.Start + edit.Deleted])
+            {
+                if (!CanFindLine(at)) continue;
+                long line = LineOf(at);
+                if (line == checkedLine) continue;
+                checkedLine = line;
+                if (TryBounds(line, out long start, out long end, out _) && !LineEditable(line, end - start)) return false;
+            }
+        }
+        return true;
+    }
+
     private bool SameCarets(SelectionSet a, SelectionSet b) => a.Primary == b.Primary && a.Items.SequenceEqual(b.Items);
 
     /// <summary>The key of the undo step of a run of typing or deleting: it goes on while the carets stand where the run left them.</summary>
@@ -478,6 +498,7 @@ internal sealed partial class PagedTextView
     private bool EditCarets(List<CaretEdit> edits, SelectionSet before, string? kind)
     {
         var plan = ByteCarets.Assemble(before, edits);
+        if (!LinesEditable(plan.Kept)) return false;
         string? key = kind is null ? null : RunKey(kind, before);
         var (caret, anchor) = (_caret, _anchor);
         // the handlers of Changed read the caret while Apply runs: it already stands where the edit puts it
@@ -572,7 +593,7 @@ internal sealed partial class PagedTextView
     {
         var before = AllCarets();
         var ranges = before.Items.Where(s => !s.IsEmpty).Select(s => s.ToRange()).ToList();
-        if (ranges.Count == 0 || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEditDocument()) return;
+        if (ranges.Count == 0 || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !(CanEditDocument() && LinesEditable(ByteCarets.PlanDeleteSelected(before)))) return;
         long total = ranges.Sum(r => r.Length);
         if (total > CopyLimitBytes)
         {
