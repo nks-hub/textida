@@ -101,8 +101,17 @@ public class PseudoLocalizationTests : IDisposable
         }
         if (block.TranslatePoint(new Point(block.Bounds.Width, 0), root) is { } right && root.Bounds.Width > 0 && right.X > root.Bounds.Width + 2)
             return $"ends {right.X - root.Bounds.Width:0} px beyond the window";
+        // a label that is not stretched takes the room it wants, so it can stick out of the slot its parent has (a button of a fixed width, a row in a narrow column)
+        if (block.GetVisualParent() is Visual parent && parent.Bounds.Width > 1 && (block.Bounds.Right > parent.Bounds.Width + 2 || block.Bounds.Left < -2))
+            return $"is {block.Bounds.Width:0} px wide in a parent that is {parent.Bounds.Width:0} px wide";
         return null;
     }
+
+    /// <summary>
+    /// Whether anything of the label reaches the screen. The one exception to "every label is measured" is by design: the 1 px live region the window announces to a screen reader with
+    /// (opacity 0) holds the text of every notice and palette choice and cannot show it; a label drawn at full opacity is never skipped.
+    /// </summary>
+    private static bool IsDrawn(TextBlock block) => block.GetSelfAndVisualAncestors().All(v => v.Opacity > 0);
 
     /// <summary>Lays out <paramref name="root"/> and measures every visible label that shows a marked text.</summary>
     private void Look(string surface, Visual root)
@@ -110,7 +119,7 @@ public class PseudoLocalizationTests : IDisposable
         Layout(root);
         foreach (var block in root.GetVisualDescendants().OfType<TextBlock>())
         {
-            if (!block.IsEffectivelyVisible || block.Text is not { Length: > 0 } text || !text.Contains(Open)) continue;
+            if (!block.IsEffectivelyVisible || !IsDrawn(block) || block.Text is not { Length: > 0 } text || !text.Contains(Open)) continue;
             if (Problem(block, text, root) is { } problem) _clipped.Add($"{surface}: \"{Shorten(text)}\" {problem}");
         }
     }
@@ -152,7 +161,7 @@ public class PseudoLocalizationTests : IDisposable
 
     private void Run(string id) => _app.Workbench.Commands.ExecuteAsync(id, new ShellContext(_w, forMenu: true)).AsTask().GetAwaiter().GetResult();
 
-    [Fact]
+    [AvaloniaFact]
     public void The_markers_and_the_lengthening_work()
     {
         Assert.Equal("⟦Save⟧", Lengthen("Save", 1.0));
