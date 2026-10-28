@@ -637,23 +637,58 @@ public sealed partial class FileHistory
     // ---- search ----
 
     /// <summary>
-    /// Looks for text in the older revisions of a file; newest revision first. Revisions of a secrets file are not searched, and neither are the revisions of a large file that
-    /// are kept as patches (their bytes are not text on disk).
+    /// Looks for text in the older revisions of a file; newest revision first. Revisions of a secrets file are not searched. A revision kept as a patch is built again in a
+    /// scratch file, one at a time, checked against its hash on the way, and searched there; one that cannot be built (its whole copy is gone, or a stored byte is damaged) is left out.
     /// </summary>
     public async Task<IReadOnlyList<HistorySearchHit>> SearchAsync(string path, SearchPattern pattern, CancellationToken ct = default)
     {
         if (SecretValues.IsSecretFile(path)) return [];
-        IReadOnlyList<HistoryRevision> revisions = [.. List(path).Where(r => !r.IsPatch)];
+        var revisions = List(path);
         if (revisions.Count == 0) return [];
-        var blobs = Path.Combine(FolderOf(path), "blobs");
-        var settings = new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Walk = new FileWalkOptions { UseIgnoreFiles = false, IncludeHidden = true } };
-        var (hits, _) = await SearchWorker.CollectAsync(pattern, new SearchScope([blobs]), settings, ct);
+        string folder = FolderOf(path);
         var byId = revisions.ToDictionary(r => r.Id);
-        return hits
-            .Where(h => h.Source.Path is not null && Path.GetExtension(h.Source.Path) == ".rev" && byId.ContainsKey(Path.GetFileNameWithoutExtension(h.Source.Path)))
-            .GroupBy(h => Path.GetFileNameWithoutExtension(h.Source.Path!))
-            .Select(g => new HistorySearchHit(byId[g.Key], g.LongCount(), g.Min(h => h.Line), g.OrderBy(h => h.Line).First().Preview))
-            .OrderByDescending(h => h.Revision.Id, StringComparer.Ordinal)
-            .ToList();
+        var settings = new SearchSettings { MaxResults = int.MaxValue, StopAtLimit = false, Walk = new FileWalkOptions { UseIgnoreFiles = false, IncludeHidden = true } };
+        var found = new List<HistorySearchHit>();
+        if (revisions.Any(r => !r.IsPatch))
+        {
+            var (hits, _) = await SearchWorker.CollectAsync(pattern, new SearchScope([Path.Combine(folder, "blobs")]), settings, ct);
+            found.AddRange(PerRevision(hits, byId));
+        }
+
+        string? scratch = null;
+        try
+        {
+            foreach (var patched in revisions.Where(r => r.IsPatch))
+            {
+                ct.ThrowIfCancellationRequested();
+                scratch ??= Directory.CreateTempSubdirectory("textida-history-").FullName;
+                string copy = Path.Combine(scratch, patched.Id + ".rev");
+                try
+                {
+                    using (var fs = new FileStream(copy, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16)) Materialize(folder, patched, fs);
+                }
+                catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
+                {
+                    FileSwap.TryDelete(copy);
+                    continue;
+                }
+                var (hits, _) = await SearchWorker.CollectAsync(pattern, new SearchScope([copy]), settings, ct);
+                found.AddRange(PerRevision(hits, byId));
+                FileSwap.TryDelete(copy);
+            }
+        }
+        finally
+        {
+            if (scratch is not null)
+                try { Directory.Delete(scratch, recursive: true); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the next search makes its own folder; the system cleans the temp folder */ }
+        }
+        return [.. found.OrderByDescending(h => h.Revision.Id, StringComparer.Ordinal)];
     }
+
+    /// <summary>The hits grouped by the revision whose copy (<c>&lt;id&gt;.rev</c>) they were found in.</summary>
+    private static IEnumerable<HistorySearchHit> PerRevision(IReadOnlyList<SearchHit> hits, Dictionary<string, HistoryRevision> byId) => hits
+        .Where(h => h.Source.Path is not null && Path.GetExtension(h.Source.Path) == ".rev" && byId.ContainsKey(Path.GetFileNameWithoutExtension(h.Source.Path)))
+        .GroupBy(h => Path.GetFileNameWithoutExtension(h.Source.Path!))
+        .Select(g => new HistorySearchHit(byId[g.Key], g.LongCount(), g.Min(h => h.Line), g.OrderBy(h => h.Line).First().Preview));
 }

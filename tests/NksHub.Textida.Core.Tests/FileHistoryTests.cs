@@ -518,18 +518,73 @@ public class FileHistoryTests
         Assert.Throws<InvalidDataException>(() => h.Read(file, patch.Id));
     }
 
+    private static byte[] RowsText() => Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 20_000).Select(i => $"row {i} of the file\n")));
+
     [Fact]
-    public async Task RevisionsKeptAsPatchesAreNotSearched()
+    public async Task RevisionsKeptAsPatchesAreSearchedLikeWholeCopies()
     {
         using var dir = new JournalTempDir();
-        byte[] text = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 20_000).Select(i => $"row {i} of the file\n")));
+        byte[] text = RowsText();
         var (h, clock, file, anchor) = PatchedHistory(dir, text);
         clock.Advance(TimeSpan.FromSeconds(1));
-        File.WriteAllBytes(file, Splice(text, 100, 0, "a needle in a patch\n"u8.ToArray()));
+        byte[] second = Splice(text, 100, 0, "a needle in a patch\n"u8.ToArray());
+        File.WriteAllBytes(file, second);
+        var patched = h.RecordFile(file, HistorySource.Save).Revision!;
+        Assert.True(patched.IsPatch);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        File.WriteAllBytes(file, Splice(second, 5000, 0, "a second needle in a patch\nand a third needle\n"u8.ToArray()));
+        var newest = h.RecordFile(file, HistorySource.Save).Revision!;
+        Assert.True(newest.IsPatch);
+
+        var hits = await h.SearchAsync(file, new SearchPattern("needle"));
+        Assert.Equal([newest.Id, patched.Id], hits.Select(x => x.Revision.Id));
+        Assert.Equal([3L, 1L], hits.Select(x => x.Matches));
+        Assert.Equal(Lines(second, "needle").Min(), hits[1].FirstLine);
+        Assert.Contains("a needle in a patch", hits[1].Preview);
+        Assert.Empty(await h.SearchAsync(file, new SearchPattern("absent")));
+        Assert.Equal([newest.Id, patched.Id, anchor.Id], (await h.SearchAsync(file, new SearchPattern("row 5 of"))).Select(x => x.Revision.Id));
+    }
+
+    private static IEnumerable<int> Lines(byte[] bytes, string needle) =>
+        Encoding.UTF8.GetString(bytes).Split('\n').Select((line, i) => (line, i)).Where(x => x.line.Contains(needle, StringComparison.Ordinal)).Select(x => x.i + 1);
+
+    [Fact]
+    public async Task APatchThatCannotBeBuiltIsLeftOutOfTheSearchAndTheOthersAreFound()
+    {
+        using var dir = new JournalTempDir();
+        byte[] text = RowsText();
+        var (h, clock, file, anchor) = PatchedHistory(dir, text);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        File.WriteAllBytes(file, Splice(text, 100, 0, "first needle\n"u8.ToArray()));
+        var damaged = h.RecordFile(file, HistorySource.Save).Revision!;
+        clock.Advance(TimeSpan.FromSeconds(1));
+        File.WriteAllBytes(file, Splice(text, 200, 0, "second needle\n"u8.ToArray()));
+        var intact = h.RecordFile(file, HistorySource.Save).Revision!;
+
+        string blob = Directory.GetFiles(dir.Combine("history"), damaged.Id + ".dlt", SearchOption.AllDirectories).Single();
+        byte[] bytes = File.ReadAllBytes(blob);
+        bytes[^3] ^= 0x55;
+        File.WriteAllBytes(blob, bytes);
+
+        Assert.Equal([intact.Id], (await h.SearchAsync(file, new SearchPattern("needle"))).Select(x => x.Revision.Id));
+
+        File.Delete(Directory.GetFiles(dir.Combine("history"), anchor.Id + ".rev", SearchOption.AllDirectories).Single());
+        Assert.Empty(await h.SearchAsync(file, new SearchPattern("needle")));
+    }
+
+    [Fact]
+    public async Task ASearchOverPatchesStopsWhenItIsCancelled()
+    {
+        using var dir = new JournalTempDir();
+        byte[] text = RowsText();
+        var (h, clock, file, _) = PatchedHistory(dir, text);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        File.WriteAllBytes(file, Splice(text, 100, 0, "a needle\n"u8.ToArray()));
         Assert.True(h.RecordFile(file, HistorySource.Save).Revision!.IsPatch);
 
-        Assert.Empty(await h.SearchAsync(file, new SearchPattern("needle")));
-        Assert.Equal(anchor.Id, Assert.Single(await h.SearchAsync(file, new SearchPattern("row 5 of"))).Revision.Id);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => h.SearchAsync(file, new SearchPattern("needle"), cancelled.Token));
     }
 
     [Theory]
