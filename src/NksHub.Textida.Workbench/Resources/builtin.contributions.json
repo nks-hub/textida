@@ -806,6 +806,11 @@
       "category": "cat.view"
     },
     {
+      "id": "nks.files.toggleHidden",
+      "title": "cmd.files.toggleHidden",
+      "category": "cat.view"
+    },
+    {
       "id": "nks.view.toggleOutput",
       "title": "cmd.view.toggleOutput",
       "category": "cat.view"
@@ -2956,18 +2961,21 @@
       "menu": "view",
       "command": "nks.view.zoomIn",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 20
     },
     {
       "menu": "view",
       "command": "nks.view.zoomOut",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 30
     },
     {
       "menu": "view",
       "command": "nks.view.zoomReset",
       "group": "2_display/2_text",
+      "submenu": "zoom",
       "order": 40
     },
     {
@@ -3498,6 +3506,13 @@
       "command": "nks.view.toggleFilePanel",
       "group": "3_panels/4_panels",
       "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.files.toggleHidden",
+      "group": "3_panels/6_layout",
+      "submenu": "panels",
+      "order": 10
     },
     {
       "menu": "view",
@@ -5781,6 +5796,36 @@
         "newline",
         "save",
         "eol"
+      ]
+    },
+    {
+      "key": "files.showHidden",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.files.showHidden.title",
+      "description": "setting.files.showHidden.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "hidden",
+        "dot",
+        "files panel",
+        "tree"
+      ]
+    },
+    {
+      "key": "files.gitStatus",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.files.gitStatus.title",
+      "description": "setting.files.gitStatus.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "git",
+        "status",
+        "files panel",
+        "tree"
       ]
     },
     {

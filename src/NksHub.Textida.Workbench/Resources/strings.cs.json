@@ -631,5 +631,12 @@
   "setting.advanced.highlightMaxLines.title": "Barvené řádky kolem obrazovky",
   "setting.advanced.highlightMaxLines.description": "Nejvíc řádků, pro které se najednou počítají barvy syntaxe, včetně těch nad obrazovkou a pod ní. Nižší číslo ulehčí pomalému počítači: řádky na obrazovce jsou obarvené vždy, ale okraj obarvený nad nimi a pod nimi se zmenší, takže řádky, k nimž doroluje, mohou chvíli zůstat bez barev.",
   "setting.advanced.highlightMaxColumns.title": "Barvené sloupce v řádku",
-  "setting.advanced.highlightMaxColumns.description": "Nejvíc znaků řádku kolem viditelné části, pro které se najednou počítají barvy syntaxe. Nižší číslo ulehčí pomalému počítači u velmi dlouhých řádků."
+  "setting.advanced.highlightMaxColumns.description": "Nejvíc znaků řádku kolem viditelné části, pro které se najednou počítají barvy syntaxe. Nižší číslo ulehčí pomalému počítači u velmi dlouhých řádků.",
+  "cmd.files.toggleHidden": "Zobrazit skryté položky v panelu souborů",
+  "setting.files.showHidden.title": "Skryté položky v panelu souborů",
+  "setting.files.showHidden.description": "Položky, jejichž název začíná tečkou nebo které mají atribut skrytý, se v panelu souborů zobrazí ztlumeně. Vypnutím se ze stromu vynechají.",
+  "setting.files.gitStatus.title": "Stav Gitu v panelu souborů",
+  "setting.files.gitStatus.description": "U složky v repozitáři Git obarví názvy souborů podle stavu (změněno, nové, smazáno, ignorováno, konflikt) a přidá za název písmeno; složka ukáže nejvážnější stav pod sebou. Stav dodá plugin Git a ptá se jen na složku, která leží v repozitáři.",
+  "submenu.zoom": "Lupa",
+  "submenu.panels": "Rozložení panelů"
 }

@@ -35,6 +35,20 @@
                     <SolidColorBrush x:Key="DiffAdded">#C9EBCF</SolidColorBrush>
                     <SolidColorBrush x:Key="Danger">#B3261E</SolidColorBrush>
                     <SolidColorBrush x:Key="Good">#1B6E3A</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileFolder">#A86B12</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileText">#566579</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileCode">#0F7B6C</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileMarkup">#C0501A</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileData">#7B4FB5</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileStyle">#2B6CB0</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileImage">#2F855A</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileArchive">#8A5A2B</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileBinary">#6B7280</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitModified">#8A5F00</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitNew">#1B6E3A</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitDeleted">#B3261E</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitConflict">#A21CAF</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitIgnored">#7C828C</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
@@ -65,6 +79,20 @@
                     <SolidColorBrush x:Key="DiffAdded">#27502F</SolidColorBrush>
                     <SolidColorBrush x:Key="Danger">#FF8A80</SolidColorBrush>
                     <SolidColorBrush x:Key="Good">#7FD99A</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileFolder">#E0B050</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileText">#9DAEC4</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileCode">#3DC2AC</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileMarkup">#F0955A</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileData">#B997E6</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileStyle">#74A8E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileImage">#6FD39B</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileArchive">#C8A878</SolidColorBrush>
+                    <SolidColorBrush x:Key="FileBinary">#9AA0AA</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitModified">#E3B341</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitNew">#7FD99A</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitDeleted">#FF8A80</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitConflict">#E879F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitIgnored">#7B828D</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -324,7 +352,31 @@
         <Style Selector="Path.fileglyph">
             <Setter Property="Stroke" Value="{DynamicResource FgMuted}" />
             <Setter Property="StrokeThickness" Value="1.2" />
+            <Setter Property="StrokeLineCap" Value="Round" />
+            <Setter Property="StrokeJoin" Value="Round" />
         </Style>
+        <!-- the icon of a row takes the colour of its kind, the name the colour of its Git state; a hidden or ignored entry is dimmed as a whole -->
+        <Style Selector="Path.fileglyph.kindfolder"><Setter Property="Stroke" Value="{DynamicResource FileFolder}" /></Style>
+        <Style Selector="Path.fileglyph.kindtext"><Setter Property="Stroke" Value="{DynamicResource FileText}" /></Style>
+        <Style Selector="Path.fileglyph.kindcode"><Setter Property="Stroke" Value="{DynamicResource FileCode}" /></Style>
+        <Style Selector="Path.fileglyph.kindmarkup"><Setter Property="Stroke" Value="{DynamicResource FileMarkup}" /></Style>
+        <Style Selector="Path.fileglyph.kinddata"><Setter Property="Stroke" Value="{DynamicResource FileData}" /></Style>
+        <Style Selector="Path.fileglyph.kindstyle"><Setter Property="Stroke" Value="{DynamicResource FileStyle}" /></Style>
+        <Style Selector="Path.fileglyph.kindimage"><Setter Property="Stroke" Value="{DynamicResource FileImage}" /></Style>
+        <Style Selector="Path.fileglyph.kindarchive"><Setter Property="Stroke" Value="{DynamicResource FileArchive}" /></Style>
+        <Style Selector="Path.fileglyph.kindbinary"><Setter Property="Stroke" Value="{DynamicResource FileBinary}" /></Style>
+        <Style Selector="Grid.filerow.hiddenfile > :is(Control), Grid.filerow.gitignored > :is(Control)"><Setter Property="Opacity" Value="0.55" /></Style>
+        <Style Selector="Grid.filerow TextBlock.gitmark">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="6,0,2,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Grid.filerow.gitmodified TextBlock"><Setter Property="Foreground" Value="{DynamicResource GitModified}" /></Style>
+        <Style Selector="Grid.filerow.gitnew TextBlock"><Setter Property="Foreground" Value="{DynamicResource GitNew}" /></Style>
+        <Style Selector="Grid.filerow.gitdeleted TextBlock"><Setter Property="Foreground" Value="{DynamicResource GitDeleted}" /></Style>
+        <Style Selector="Grid.filerow.gitconflict TextBlock"><Setter Property="Foreground" Value="{DynamicResource GitConflict}" /></Style>
+        <Style Selector="Grid.filerow.gitignored TextBlock"><Setter Property="Foreground" Value="{DynamicResource GitIgnored}" /></Style>
         <Style Selector="TextBox.panelfilter">
             <Setter Property="MinHeight" Value="28" />
             <Setter Property="Padding" Value="8,4" />

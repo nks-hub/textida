@@ -704,11 +704,15 @@ commands: nks.view.toggleDocumentList
 - Esc closes the panel.
 
 ## [view.files] Files panel
-commands: nks.view.toggleFilePanel
+commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Ctrl+Shift+E opens or closes the Files panel. Without an open folder it offers Open Folder.
 2. The arrows walk through the tree, Right and Left arrow expand and collapse a folder, Enter or a double click opens a file.
 3. The right button offers file operations (topic File operations). F2 renames, Delete moves to the recycle bin or trash, F5 refreshes.
+4. View, Show Hidden Items in the Files Panel hides or shows the entries whose name starts with a dot or that have the hidden attribute.
 - The tree follows changes on disk by itself.
+- Every entry has an icon and a colour by its type: folder, text, source code, markup, data, style sheet, image, archive or binary file. Hidden entries are shown dimmed.
+- In a folder that lies in a Git repository the name takes the colour of the state Git gives the file, and a letter follows it: M changed, N new, D deleted, I ignored, ! conflict. A folder shows the heaviest state below it. The setting Git status in the Files panel turns this off; outside a repository Git is not started.
+- A character that no font draws, such as a private-use character that another tool put in a name, is shown as its number, for example ‹U+F03A›. A screen reader reads the type, hidden and the Git state of an entry.
 
 ## [files.create] New file and new folder
 commands: nks.files.newFile, nks.files.newFolder

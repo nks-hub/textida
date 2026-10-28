@@ -19,8 +19,6 @@ internal enum LeftPanel { Documents, Files, Plugin }
 /// </summary>
 internal sealed partial class MainWindow
 {
-    private static readonly Geometry FolderGlyph = Geometry.Parse("M2,4.5 L6,4.5 L7.5,6 L14,6 L14,12.5 L2,12.5 Z");
-    private static readonly Geometry FileGlyph = Geometry.Parse("M4,2.5 L9.5,2.5 L12,5 L12,13.5 L4,13.5 Z M9.5,2.5 L9.5,5 L12,5");
     private static readonly Geometry ChevronGlyph = Geometry.Parse("M5.5,3.5 L10,8 L5.5,12.5");
 
     private readonly DockPanel _docPanel = new();
@@ -229,10 +227,14 @@ internal sealed partial class MainWindow
     {
         _fileTree?.Dispose();
         _fileTree = tree;
+        _gitFiles = [];
+        tree.ShowHidden = ShowHiddenFiles;
         InvalidateWorkspaceIndex();
         tree.Changed += () => SyncFileList();
         tree.DiskChanged += OnFolderChangedOnDisk;
+        tree.ContentChanged += () => Dispatcher.UIThread.Post(() => { if (ReferenceEquals(_fileTree, tree) && ShowGitStatus) RefreshGitFiles(now: true); });
         tree.Watch();
+        ApplyFileLookSettings("files.gitStatus");
         StartFolderReview(tree);
         _app.Recent.SetFolder(tree.Root);
         ApplyFileTexts();
@@ -296,25 +298,6 @@ internal sealed partial class MainWindow
         _filesFavoritesButton.IsVisible = noFolder;
         _filesEmptyText.Text = Loc.Get(noFolder ? K.PanelFilesEmpty : K.PanelFilesEmptyFolder);
         _fileList.IsVisible = !noFolder;
-    }
-
-    private Control BuildFileRow(FileTreeRow row)
-    {
-        var entry = row.Entry;
-        var chevron = new Avalonia.Controls.Shapes.Path { Data = ChevronGlyph, Width = 16, Height = 16, Stretch = Stretch.None, IsVisible = entry.IsDirectory, RenderTransform = new RotateTransform(row.Expanded ? 90 : 0) };
-        chevron.Classes.Add("fileglyph");
-        chevron.PointerPressed += (_, e) => { _ = ToggleFolderAsync(entry.Path); e.Handled = true; };
-        var icon = new Avalonia.Controls.Shapes.Path { Data = entry.IsDirectory ? FolderGlyph : FileGlyph, Width = 16, Height = 16, Stretch = Stretch.None, Margin = new Thickness(2, 0, 6, 0) };
-        icon.Classes.Add("fileglyph");
-        var name = new TextBlock { Text = entry.Name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"), Margin = new Thickness(row.Depth * 14, 0, 4, 0), Height = 24 };
-        Grid.SetColumn(icon, 1);
-        Grid.SetColumn(name, 2);
-        grid.Children.Add(chevron);
-        grid.Children.Add(icon);
-        grid.Children.Add(name);
-        AutomationProperties.SetName(grid, Loc.Get(!entry.IsDirectory ? K.A11yFilesFile : row.Expanded ? K.A11yFilesFolderOpen : K.A11yFilesFolderClosed, ("name", entry.Name)));
-        return grid;
     }
 
     private async Task ToggleFolderAsync(string directory)

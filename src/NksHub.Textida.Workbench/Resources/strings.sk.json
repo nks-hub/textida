@@ -631,5 +631,12 @@
   "setting.advanced.highlightMaxLines.title": "Farbené riadky okolo obrazovky",
   "setting.advanced.highlightMaxLines.description": "Najviac riadkov, pre ktoré sa naraz počítajú farby syntaxe, vrátane tých nad obrazovkou a pod ňou. Nižšie číslo uľahčí pomalému počítaču: riadky na obrazovke sú zafarbené vždy, ale okraj zafarbený nad nimi a pod nimi sa zmenší, takže riadky, ku ktorým doroluje, môžu chvíľu ostať bez farieb.",
   "setting.advanced.highlightMaxColumns.title": "Farbené stĺpce v riadku",
-  "setting.advanced.highlightMaxColumns.description": "Najviac znakov riadku okolo viditeľnej časti, pre ktoré sa naraz počítajú farby syntaxe. Nižšie číslo uľahčí pomalému počítaču pri veľmi dlhých riadkoch."
+  "setting.advanced.highlightMaxColumns.description": "Najviac znakov riadku okolo viditeľnej časti, pre ktoré sa naraz počítajú farby syntaxe. Nižšie číslo uľahčí pomalému počítaču pri veľmi dlhých riadkoch.",
+  "cmd.files.toggleHidden": "Zobraziť skryté položky v paneli súborov",
+  "setting.files.showHidden.title": "Skryté položky v paneli súborov",
+  "setting.files.showHidden.description": "Položky, ktorých názov začína bodkou alebo ktoré majú atribút skrytý, sa v paneli súborov zobrazia stlmene. Vypnutím sa zo stromu vynechajú.",
+  "setting.files.gitStatus.title": "Stav Gitu v paneli súborov",
+  "setting.files.gitStatus.description": "Pri priečinku v repozitári Git zafarbí názvy súborov podľa stavu (zmenené, nové, zmazané, ignorované, konflikt) a pridá za názov písmeno; priečinok ukáže najzávažnejší stav pod sebou. Stav dodá plugin Git a pýta sa len na priečinok, ktorý leží v repozitári.",
+  "submenu.zoom": "Lupa",
+  "submenu.panels": "Rozloženie panelov"
 }

@@ -2137,4 +2137,23 @@ public static class K
     public const string TranscriptNoFile = "transcript.file.missing";
     public const string TranscriptOpenFailed = "transcript.openFailed";
     public const string TranscriptRawTab = "transcript.rawTab";
+    public const string A11yFilesKindFile = "a11y.files.kind.file";
+    public const string A11yFilesKindText = "a11y.files.kind.text";
+    public const string A11yFilesKindCode = "a11y.files.kind.code";
+    public const string A11yFilesKindMarkup = "a11y.files.kind.markup";
+    public const string A11yFilesKindData = "a11y.files.kind.data";
+    public const string A11yFilesKindStyle = "a11y.files.kind.style";
+    public const string A11yFilesKindImage = "a11y.files.kind.image";
+    public const string A11yFilesKindArchive = "a11y.files.kind.archive";
+    public const string A11yFilesKindBinary = "a11y.files.kind.binary";
+    public const string A11yFilesHidden = "a11y.files.hidden";
+    public const string A11yFilesGitModified = "a11y.files.git.modified";
+    public const string A11yFilesGitNew = "a11y.files.git.new";
+    public const string A11yFilesGitDeleted = "a11y.files.git.deleted";
+    public const string A11yFilesGitIgnored = "a11y.files.git.ignored";
+    public const string A11yFilesGitConflict = "a11y.files.git.conflict";
+    public const string A11yFilesGitBelowModified = "a11y.files.git.below.modified";
+    public const string A11yFilesGitBelowNew = "a11y.files.git.below.new";
+    public const string A11yFilesGitBelowDeleted = "a11y.files.git.below.deleted";
+    public const string A11yFilesGitBelowConflict = "a11y.files.git.below.conflict";
 }

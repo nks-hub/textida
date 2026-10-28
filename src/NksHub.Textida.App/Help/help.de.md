@@ -704,11 +704,15 @@ commands: nks.view.toggleDocumentList
 - Esc schließt das Panel.
 
 ## [view.files] Panel Dateien
-commands: nks.view.toggleFilePanel
+commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Strg+Umschalt+E öffnet oder schließt das Panel Dateien. Ohne geöffneten Ordner bietet es Ordner öffnen an.
 2. Die Pfeile gehen durch den Baum, Pfeil nach rechts und links klappen einen Ordner auf und zu, die Eingabetaste oder ein Doppelklick öffnet eine Datei.
 3. Die rechte Maustaste bietet Dateivorgänge an (Thema Dateivorgänge). F2 benennt um, Entf verschiebt in den Papierkorb, F5 aktualisiert.
+4. Ansicht, Versteckte Elemente im Dateipanel anzeigen blendet die Einträge aus oder ein, deren Name mit einem Punkt beginnt oder die das Attribut „versteckt“ haben.
 - Der Baum folgt Änderungen auf dem Datenträger selbstständig.
+- Jeder Eintrag hat ein Symbol und eine Farbe nach seinem Typ: Ordner, Text, Quellcode, Auszeichnung, Daten, Stylesheet, Bild, Archiv oder Binärdatei. Versteckte Einträge erscheinen abgeblendet.
+- Bei einem Ordner in einem Git-Repository hat der Name die Farbe des Zustands, den Git der Datei gibt, und dahinter steht ein Buchstabe: M geändert, N neu, D gelöscht, I ignoriert, ! Konflikt. Ein Ordner zeigt den schwersten Zustand darunter. Die Einstellung Git-Status im Dateipanel schaltet das aus; außerhalb eines Repositorys wird Git nicht gestartet.
+- Ein Zeichen, das keine Schrift zeichnet, etwa ein Zeichen aus dem privaten Bereich, das ein anderes Werkzeug in einen Namen gesetzt hat, erscheint als seine Nummer, zum Beispiel ‹U+F03A›. Ein Screenreader liest Typ, Versteckt und Git-Zustand eines Eintrags vor.
 
 ## [files.create] Neue Datei und neuer Ordner
 commands: nks.files.newFile, nks.files.newFolder

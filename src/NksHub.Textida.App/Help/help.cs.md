@@ -704,11 +704,15 @@ commands: nks.view.toggleDocumentList
 - Esc panel zavře.
 
 ## [view.files] Panel Soubory
-commands: nks.view.toggleFilePanel
+commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Ctrl+Shift+E otevře nebo zavře panel Soubory. Bez otevřené složky nabízí Otevřít složku.
 2. Šipky procházejí strom, Šipka doprava a doleva rozbalí a sbalí složku, Enter nebo dvojklik soubor otevře.
 3. Pravé tlačítko nabízí operace se soubory (téma Operace se soubory). F2 přejmenuje, Delete smaže do koše, F5 obnoví.
+4. Zobrazit, Zobrazit skryté položky v panelu souborů skryje nebo ukáže položky, jejichž název začíná tečkou nebo které mají atribut skrytý.
 - Strom sleduje změny na disku sám.
+- Každá položka má ikonu a barvu podle typu: složka, text, zdrojový kód, značkovací jazyk, data, soubor stylů, obrázek, archiv nebo binární soubor. Skryté položky jsou ztlumené.
+- U složky v repozitáři Git má název barvu podle stavu, který Git souboru dává, a za ním písmeno: M změněno, N nové, D smazáno, I ignorováno, ! konflikt. Složka ukáže nejvážnější stav pod sebou. Nastavení Stav Gitu v panelu souborů to vypne; mimo repozitář se Git nespouští.
+- Znak, který žádné písmo nekreslí, například znak ze soukromé oblasti, který do názvu vložil jiný nástroj, se ukáže jako své číslo, například ‹U+F03A›. Čtečka obrazovky přečte typ položky, skrytí a stav Gitu.
 
 ## [files.create] Nový soubor a nová složka
 commands: nks.files.newFile, nks.files.newFolder

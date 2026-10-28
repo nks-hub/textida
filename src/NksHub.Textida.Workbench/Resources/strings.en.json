@@ -631,5 +631,12 @@
   "setting.advanced.highlightMaxLines.title": "Lines colored around the screen",
   "setting.advanced.highlightMaxLines.description": "The most lines the syntax colors are worked out for in one go, counting those above and below the screen. A lower number spares a slow machine: the lines on screen are always colored, but the margin colored above and below them gets smaller, so lines you scroll to may show plain for a moment.",
   "setting.advanced.highlightMaxColumns.title": "Columns colored in a line",
-  "setting.advanced.highlightMaxColumns.description": "The most characters of a line the syntax colors are worked out for in one go, around the part on screen. A lower number spares a slow machine on very long lines."
+  "setting.advanced.highlightMaxColumns.description": "The most characters of a line the syntax colors are worked out for in one go, around the part on screen. A lower number spares a slow machine on very long lines.",
+  "cmd.files.toggleHidden": "Show Hidden Items in the Files Panel",
+  "setting.files.showHidden.title": "Hidden items in the Files panel",
+  "setting.files.showHidden.description": "Entries whose name starts with a dot, or that have the hidden attribute, are shown dimmed in the Files panel. Turn it off to leave them out of the tree.",
+  "setting.files.gitStatus.title": "Git status in the Files panel",
+  "setting.files.gitStatus.description": "For a folder in a Git repository, colours the names of the files by their state (modified, new, deleted, ignored, in conflict) and adds a letter after the name; a folder shows the heaviest state below it. The Git plugin supplies the state, and it is asked only for a folder that lies in a repository.",
+  "submenu.zoom": "Zoom",
+  "submenu.panels": "Panel Layout"
 }

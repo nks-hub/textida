@@ -77,6 +77,10 @@ internal sealed record ContrastColors(Color Window, Color WindowText, Color Gray
         ["Accent"] = HotLight, ["AccentFg"] = Window, ["Danger"] = HotLight, ["Good"] = HotLight,
         ["AccentSoft"] = Highlight, ["SelectedFg"] = HighlightText, ["SelectionBg"] = Soft(0.45),
         ["Scrim"] = Color.FromArgb(0xB3, Window.R, Window.G, Window.B),
+        // the file tree: the kind is told by the shape of the icon, the Git state by the letter after the name, so no colour is needed to tell them apart
+        ["FileFolder"] = WindowText, ["FileText"] = WindowText, ["FileCode"] = WindowText, ["FileMarkup"] = WindowText, ["FileData"] = WindowText,
+        ["FileStyle"] = WindowText, ["FileImage"] = WindowText, ["FileArchive"] = WindowText, ["FileBinary"] = WindowText,
+        ["GitModified"] = HotLight, ["GitNew"] = HotLight, ["GitDeleted"] = HotLight, ["GitConflict"] = HotLight, ["GitIgnored"] = GrayText,
     };
 }
 

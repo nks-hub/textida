@@ -223,6 +223,30 @@ public class FileTreeHiddenAndContentTests
     }
 
     [Fact]
+    [Trait("Category", "Perf")]
+    public async Task Switching_the_hidden_entries_of_a_folder_with_a_hundred_thousand_files_is_one_pass_over_its_listing()
+    {
+        using var dir = new JournalTempDir();
+        string big = dir.Combine("big");
+        Directory.CreateDirectory(big);
+        Parallel.For(0, 100_000, i => File.WriteAllBytes(Path.Combine(big, (i % 10 == 0 ? ".h" : "f") + $"{i:D6}.txt"), []));
+        using var tree = new FileTree(dir.Path);
+        await tree.LoadRootAsync();
+        await tree.ExpandAsync(big);
+        Assert.Equal(100_001, tree.Rows.Count);
+
+        var sw = Stopwatch.StartNew();
+        tree.ShowHidden = false;
+        long hiding = sw.ElapsedMilliseconds;
+        Assert.Equal(90_001, tree.Rows.Count);
+        sw.Restart();
+        tree.ShowHidden = true;
+        long showing = sw.ElapsedMilliseconds;
+        Assert.Equal(100_001, tree.Rows.Count);
+        Assert.True(hiding < 500 && showing < 500, $"hiding took {hiding} ms, showing {showing} ms");
+    }
+
+    [Fact]
     public async Task Writing_into_a_file_raises_the_content_event_and_lists_no_folder_again()
     {
         using var dir = new JournalTempDir();
