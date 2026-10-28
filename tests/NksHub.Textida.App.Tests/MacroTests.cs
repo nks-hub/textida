@@ -404,6 +404,22 @@ public class MacroTests : IDisposable
         Assert.Equal(["nks.edit.selectLine"], Registry.LastMacro.Select(s => s.Command));
     }
 
+    [AvaloniaFact]
+    public async Task The_replace_buttons_of_the_bar_are_recorded_like_the_replace_commands()
+    {
+        var tab = OpenDocument("a a a\n", Sel.At(0));
+        await SetBarAsync("a", "b");
+        Reselect(tab, Sel.At(0));
+        Run("nks.macro.record");
+        _w.FindBar.ReplaceOneButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Settle(() => tab.Editor!.Document.Text == "b a a\n");
+        _w.FindBar.ReplaceAllButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await Settle(() => tab.Editor!.Document.Text == "b b b\n");
+        Run("nks.macro.stop");
+        Assert.Equal(["nks.search.replaceNext", "nks.search.replaceAll"], Registry.LastMacro.Select(s => s.Command));
+        Assert.All(Registry.LastMacro, s => Assert.Contains("\"replace\":\"b\"", s.Argument));
+    }
+
     private void SaveTwoMacros()
     {
         Assert.True(_app.Macros.Save("First", [new MacroStep("nks.edit.upperCase", null)], out _));

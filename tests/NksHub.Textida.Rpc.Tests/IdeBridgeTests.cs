@@ -505,8 +505,9 @@ public class IdeBridgeTests
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(rig.LockDirectory));
         }
-        await rig.DisposeAsync();
+        await rig.Bridge.DisposeAsync(); // the bridge alone: disposing the rig would delete the whole folder and hide a lock file left behind
         Assert.False(File.Exists(path));
+        await rig.DisposeAsync();
     }
 
     [Fact]
