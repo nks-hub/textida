@@ -6,10 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
-    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-    <EnableAotAnalyzer>true</EnableAotAnalyzer>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
+
+  <Import Project="..\NksHub.Textida.PluginSdk\Plugin.props" />
 
   <ItemGroup>
     <EmbeddedResource Include="Schema\schemas\*.schema.json" LogicalName="schemas/%(Filename)%(Extension)" />
@@ -18,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.PluginSdk\NksHub.Textida.PluginSdk.csproj" />
   </ItemGroup>
 
 </Project>

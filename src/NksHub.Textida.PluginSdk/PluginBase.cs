@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using NksHub.Textida.PluginHost;
+using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginSdk;
@@ -42,6 +44,47 @@ public abstract class PluginBase(string name, int apiVersion)
             return JsonSerializer.SerializeToUtf8Bytes(await handler(value, ct).ConfigureAwait(false), result);
         });
 
+    /// <summary>The request the editor sends to run a command of the plugin.</summary>
+    public const string CommandMethod = "command/execute";
+
+    private readonly Dictionary<string, CommandHandler> _commands = [];
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _tasks = new();
+
+    /// <summary>
+    /// Registers a command. The plugin answers <see cref="CommandMethod"/> by itself: it reads the request, runs the handler of the command it names, and sends the
+    /// <see cref="CommandResult"/> back; a command it does not know is an <see cref="RpcErrorCodes.InvalidParams"/> error.
+    /// </summary>
+    protected void OnCommand(string command, CommandHandler handler)
+    {
+        if (_commands.Count == 0) On(CommandMethod, RunCommandAsync);
+        _commands.Add(command, handler);
+    }
+
+    private async ValueTask<byte[]?> RunCommandAsync(JsonElement parameters, CancellationToken cancellation)
+    {
+        var context = CommandContext.From(parameters);
+        if (!_commands.TryGetValue(context.Command, out var handler)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        return (await handler(context, cancellation).ConfigureAwait(false)).ToJson();
+    }
+
+    /// <summary>The client of the document and revision a command was started on.</summary>
+    protected DocumentClient DocumentOf(CommandContext command) => DocumentClient.For(Rpc, command);
+
+    /// <summary>Shows a notice in the window of the editor.</summary>
+    protected Task NotifyAsync(NoticeLevel level, string message, CancellationToken cancellation = default) => DocumentClient.NotifyAsync(Rpc, level, message, cancellation);
+
+    /// <summary>
+    /// Starts a task the user sees, with progress and a cancel button. Its <see cref="PluginTask.Cancellation"/> is cancelled when the user cancels it or when <paramref name="cancellation"/> is.
+    /// Reports closer together than <paramref name="reportEvery"/> are dropped; null sends every one.
+    /// </summary>
+    protected async Task<PluginTask> StartTaskAsync(string title, CancellationToken cancellation, TimeSpan? reportEvery = null)
+    {
+        var started = await Rpc.RequestAsync(UiMethods.TaskStart, new TaskStartParams(title, Cancellable: true), SdkJson.Default.TaskStartParams, SdkJson.Default.TaskStartResult, cancellation).ConfigureAwait(false);
+        var source = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        _tasks[started.Task] = source;
+        return new PluginTask(Rpc, started.Task, source, reportEvery, id => _tasks.TryRemove(id, out _));
+    }
+
     /// <summary>The state after a start or restart, as the editor sends it (open documents with revisions, lost events).</summary>
     protected virtual ValueTask OnResyncAsync(JsonElement state) => ValueTask.CompletedTask;
 
@@ -70,9 +113,22 @@ public abstract class PluginBase(string name, int apiVersion)
     internal async ValueTask HandleNotificationAsync(string method, JsonElement p)
     {
         if (method != PluginMethods.Event) return;
+        CancelTaskOf(p);
         try { await OnEventAsync(p).ConfigureAwait(false); }
         // an event that failed is still handled; without the acknowledgement the editor would wait for it for good
         finally { await Rpc.NotifyAsync(PluginMethods.EventsHandled, HandledOne).ConfigureAwait(false); }
+    }
+
+    /// <summary>The user cancelled a task of this plugin (the event <c>ui/taskCancelled</c>): its token is cancelled.</summary>
+    private void CancelTaskOf(JsonElement eventPayload)
+    {
+        if (eventPayload.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String && name.GetString() == UiEvents.TaskCancelled
+            && eventPayload.TryGetProperty("payload", out var payload) && payload.TryGetProperty("task", out var task) && task.ValueKind == JsonValueKind.String
+            && _tasks.TryGetValue(task.GetString()!, out var source))
+        {
+            try { source.Cancel(); }
+            catch (ObjectDisposedException) { } // the task ended in the same moment
+        }
     }
 
     private static readonly byte[] HandledOne = "{\"count\":1}"u8.ToArray();
