@@ -1,6 +1,6 @@
 ## [start] Začíname
 commands: nks.help.contents
-Tento pomocník je priamo v programe a nepotrebuje internet. Otvoríte ho klávesom F1 alebo z ponuky Pomocník. Keď stlačíte F1 pri vybranom príkaze v palete príkazov alebo v otvorenom paneli (hľadanie, súbory, dokumenty, nastavenia, skúška regulárneho výrazu), otvorí sa rovno jeho téma.
+Tento pomocník je priamo v programe a nepotrebuje internet. Otvoríte ho klávesom F1 alebo z ponuky Pomocník. F1 funguje v každom okne, dialógu a paneli: stlačte ho pri vybranom príkaze v palete príkazov, vo vnútri panela (hľadanie, súbory, dokumenty, výstup, náhľad, agent, hex panely), v lište nad dokumentom, v dialógu alebo v inom okne programu a otvorí sa rovno téma, ktorá sedí.
 ### Ako v pomocníkovi hľadať
 - Vľavo je zoznam tém. Do poľa nad ním napíšte slovo; zostanú len témy, ktoré obsahujú všetky napísané slová. Diakritika a veľkosť písmen nehrajú rolu.
 - Šípky nahor a nadol v poli prepínajú témy, Esc pomocníka zavrie.
@@ -26,8 +26,8 @@ Paleta je zoznam všetkých príkazov programu s hľadaním.
 commands: nks.help.contents
 Otvorí toto okno pomocníka.
 1. Stlačte F1, alebo zvoľte Pomocník a Pomocník.
-2. Okno sa otvorí na téme podľa toho, kde sa práve nachádzate: pri vybranom príkaze v palete na jeho téme, v hľadaní, v paneli súborov alebo v zozname dokumentov na téme toho panelu, inak na úvode.
-3. F1 v nastaveniach otvorí tému o nastaveniach, F1 v skúške regulárneho výrazu tému o skúške.
+2. Okno sa otvorí na téme podľa toho, kde sa práve nachádzate: pri vybranom príkaze v palete na jeho téme, v hľadaní, v paneli, v pohľade (hex, tabuľka, porovnanie, veľký súbor) alebo v lište nad dokumentom na téme tej časti, v dialógu na téme príkazu, ktorý ho otvoril, inak na úvode.
+3. F1 v nastaveniach, v skúške regulárneho výrazu, v editore nástrojov, v skúške vzoru LOGu, v binárnom porovnaní a v tomto okne pomocníka otvorí tému o tom okne.
 - Pomocník je jedno okno. Ďalšie F1 ho len prepne na inú tému.
 
 ## [help.about] O aplikácii
@@ -98,13 +98,11 @@ commands: nks.file.reload
 
 ## [file.compare] Porovnať s diskom
 commands: nks.file.compareWithDisk
-Príkaz spustí váš vlastný program na porovnanie: vľavo súbor na disku, vpravo obsah karty.
-1. Raz v nastaveniach vyplňte Externý porovnávač (cestu k programu) a prípadne Argumenty porovnávača. V šablóne znamená {left} súbor na disku a {right} obsah karty.
-2. Zvoľte Súbor a Porovnať s diskom.
-- Bez nastaveného programu sa ukáže lišta Nie je nastavený externý porovnávač s tlačidlom Otvoriť nastavenia.
-- Karta bez súboru na disku napíše Karta nemá súbor na disku, nie je s čím porovnávať.
-- Ak sa program nespustí, stavový riadok napíše Porovnávač sa nespustil a dôvod.
-- Vlastný porovnávač v programe nie je; používa sa ten, ktorý nastavíte.
+Karta a súbor na disku sa zobrazia vedľa seba v samostatnej karte. Vľavo je karta aj s neuloženými zmenami, vpravo súbor na disku.
+1. Zvoľte Súbor a potom Porovnať s diskom. Otvorí sa karta s porovnaním (téma Porovnanie textov).
+2. Ak je v nastaveniach vyplnený Externý porovnávač, spustí sa namiesto toho váš program: vľavo súbor na disku, vpravo obsah karty. V šablóne argumentov je {left} súbor na disku a {right} obsah karty. Kópia karty odovzdaná programu sa po jeho skončení zmaže.
+- Karta bez súboru na disku povie: Karta nemá súbor na disku, nie je s čím porovnávať.
+- Keď sa váš program nespustí, stavový riadok napíše Porovnávač sa nespustil a uvedie dôvod.
 
 ## [remote.connections] Vzdialené pripojenia
 commands: nks.remote.connections
@@ -207,7 +205,7 @@ Súbor sa otvorí len na čítanie, keď ho má otvorený iný program a nedovo�
 commands: nks.file.history
 Program uchováva revíziu súboru pri každom uložení a pri každej zmene, ktorú súbor urobí iný program. Nepotrebuje projekt ani Git.
 1. Zvoľte Súbor a potom História a potom Miestna história. Zoznam ukazuje revízie súboru z karty, najnovšie prvé, s dôvodom, veľkosťou a štítkom.
-2. Vyberte revíziu. Porovnať ju otvorí vo vašom porovnávači (rovnakom ako Porovnať s diskom) vľavo a kartu vpravo. Obnoviť súbor vloží do karty celú revíziu. Obnoviť výber nahradí len vybrané riadky zodpovedajúcimi riadkami revízie. Štítok revíziu pomenuje.
+2. Vyberte revíziu. Porovnať ju ukáže vľavo a kartu vpravo v karte s porovnaním (téma Porovnať s diskom); ak je nastavený Externý porovnávač, spustí sa namiesto toho on. Obnoviť súbor vloží do karty celú revíziu. Obnoviť výber nahradí len vybrané riadky zodpovedajúcimi riadkami revízie. Štítok revíziu pomenuje.
 - Obnova je úprava v karte; Späť ju vráti a nič sa nezapíše, kým neuložíte. Text, ktorý v karte bol, zostane ako revízia.
 - Revízie ležia v priečinku profilu, takže ich aktualizácia programu nezmaže.
 - Súbory s tajnými hodnotami, napríklad .env, sa neukladajú, kým v nastaveniach nezapnete Ukladať históriu súborov s tajnými hodnotami.
@@ -227,11 +225,6 @@ commands: nks.file.historySearch
 2. Zoznam ukáže revízie súboru, ktoré text obsahujú, s počtom zhôd a prvým riadkom. Vyberte jednu a otvoria sa akcie, napríklad Porovnať.
 - Revízie súborov s tajnými hodnotami sa neprehľadávajú.
 
-Karta a súbor na disku sa zobrazia vedľa seba v samostatnej karte. Vľavo je karta aj s neuloženými zmenami, vpravo súbor na disku.
-1. Zvoľte Súbor a potom Porovnať s diskom. Otvorí sa karta s porovnaním (téma Porovnanie textov).
-2. Ak je v nastaveniach vyplnený Externý porovnávač, spustí sa namiesto toho váš program: vľavo súbor na disku, vpravo obsah karty. V šablóne argumentov je {left} súbor na disku a {right} obsah karty. Kópia karty odovzdaná programu sa po jeho skončení zmaže.
-- Karta bez súboru na disku povie: Karta nemá súbor na disku, nie je s čím porovnávať.
-- Keď sa váš program nespustí, stavový riadok napíše Porovnávač sa nespustil a uvedie dôvod.
 ## [file.openPath] Otvoriť cestu pod kurzorom
 commands: nks.file.openPathAtCaret
 1. Dajte kurzor na cestu k súboru v texte, napríklad src/a.cs:12.
@@ -938,7 +931,7 @@ Dve hex mriežky vedľa seba, ktoré sa posúvajú spoločne, s rozdielmi podfar
 - Posun jednej mriežky posunie druhú na rovnaké miesto v druhom súbore; pri vložených bajtoch je to zodpovedajúce miesto, nie rovnaký offset.
 - Mriežky sú len na čítanie. Mapa vedľa každej mriežky označuje rozdiely.
 - Zoznam končí na 1 000 000 rozdieloch (okno to povie); dva nesúvisiace súbory by inak zaplnili pamäť.
-- Dve revízie súboru z miestnej histórie sa zatiaľ neponúkajú, pretože miestna história neexistuje.
+- Dve revízie súboru z miestnej histórie sa v hexe porovnať nedajú. Porovnať v miestnej histórii porovnáva text (téma Miestna história).
 
 ## [tools.run] Nástroje: spustenie externého programu
 commands: nks.tools.run, nks.tools.stop
@@ -1143,7 +1136,7 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 Ak súbor zmení iný program, nad dokumentom sa ukáže lišta Súbor sa na disku zmenil.
 - Znova načítať zahodí vaše zmeny a načíta súbor z disku.
 - Ponechať moje nechá vaše zmeny; ďalšie uloženie sa opýta, než súbor prepíše.
-- Porovnať otvorí porovnávač (téma Porovnať s diskom).
+- Porovnať ukáže rozdiely medzi vašou kartou a súborom na disku (téma Porovnať s diskom).
 Ak je súbor zmazaný alebo premenovaný, lišta napíše, že už nie je. Ponechať nechá kartu, Zavrieť kartu ju zavrie.
 Pri uložení dostanete tú istú otázku v okne Súbor sa zmenil: Prepísať súbor, Porovnať, Zrušiť. Nič sa neprepíše bez súhlasu.
 
@@ -1191,13 +1184,101 @@ Pri nepodarenej operácii so súborom je nad dokumentom lišta Operácia zlyhala
 - Žurnál obnovy nie je k dispozícii: nahrádzanie v súboroch sa vykoná bez istoty, že sa po páde dá dokončiť alebo vrátiť; radšej ho spustite, keď žurnál funguje.
 - „...“ nie je číslo riadka: v okne Prejsť na riadok napíšte číslo, riadok:stĺpec, percento alebo @bajt (téma Prejsť na riadok).
 
+## [errors.remote] Chybové hlásenia: vzdialené súbory a zdroje
+Hlásenie o vzdialenom súbore alebo zdroji sa objaví v stavovom riadku, v lište nad textom alebo v dialógu. Každý riadok cituje hlásenie a hovorí, čo robiť.
+- Nie je možné sa pripojiť k názov: dôvod. Skontrolujte názov servera, port, používateľa, heslo alebo kľúč aj svoju sieť. Ak používate proxy, skontrolujte aj ju (téma Sieťový proxy).
+- POZOR: identita servera server nie je tá, ktorej ste predtým uverili. Program sa nepripojí, kým novú identitu nepotvrdíte. Opýtajte sa správcu servera, či server nebol preinštalovaný, a pripojte sa len vtedy, keď viete, prečo sa zmenila (téma Vzdialené pripojenia).
+- Port musí byť číslo od 1 do 65535. Napíšte celé číslo od 1 do 65535, alebo nechajte pole prázdne a použije sa obvyklý port protokolu.
+- Pripojenie sa neuložilo: dôvod. Dôvod hovorí, čo zlyhalo: priečinok profilu (oprávnenia, miesto na disku) alebo úložisko prihlasovacích údajov (funguje len vo Windows, téma Čo táto verzia nevie). Opravte to a uložte znova.
+- cesta na serveri neexistuje. Skontrolujte cestu. Cesta k priečinku ukáže jeho obsah, takže k súboru môžete prejsť od /.
+- Súbor cesta nie je možné otvoriť: dôvod. Nič sa neotvorilo. Odstráňte dôvod (oprávnenie na serveri, prerušené pripojenie) a otvorte súbor znova.
+- Nahranie súboru názov zlyhalo: dôvod. Server si ponecháva predchádzajúcu verziu, vaše zmeny zostávajú uložené tu. Odstráňte dôvod a zvoľte znova Nahrať na server; čiastočne odoslaný súbor sa doplní (téma Nahrať na server).
+- Kontrola so serverom zlyhala: dôvod. Nič sa nestiahlo ani nezmenilo. Keď bude pripojenie fungovať, zvoľte v lište Skontrolovať znova, alebo Skontrolovať verziu na serveri.
+- Miestna kópia súboru cesta bola zmazaná. Otvorte súbor zo servera znova (Otvoriť vzdialený súbor).
+- Súbor nie je použiteľný zoznam pripojení: dôvod. Zvoľte súbor vytvorený príkazom Exportovať pripojenia (téma Záloha pripojení).
+- Adresu adresa neobsluhuje žiadny plugin. Porovnajte schému na začiatku adresy so zoznamom v Otvoriť zo zdroja pluginu. Vypnutý plugin nič neposkytuje (téma Správca pluginov: inštalácia, aktualizácia, návrat a odobratie pluginov).
+- Nemožno otvoriť adresa: dôvod. Nič sa neotvorilo. Odstráňte dôvod a skúste to znova.
+- Nemožno uložiť názov: dôvod. Váš text zostáva v karte. Odstráňte dôvod a uložte znova, alebo použite Uložiť ako a zapíšte kópiu na disk; tým sa spojenie so zdrojom preruší.
+- Zdroj názov zápis neprijíma. Tento zdroj len číta. Pomocou Uložiť ako si ponechajte kópiu na disku; tým sa spojenie so zdrojom preruší.
+- názov neprijal názov: dôvod. Zmeny zostali v karte. Odstráňte dôvod a uložte znova. Plugin musí bežať (téma Karty, ktoré dodá plugin).
+- Táto karta je len na čítanie, pretože je súbor zamknutý. Použite na lište Aj tak upraviť, alebo Uložiť ako. Zvoľte v lište Aj tak upraviť: každé uloženie potom najprv skontroluje súbor na disku. Alebo použite Uložiť ako (téma Zamknuté súbory).
+
+## [errors.plugins] Chybové hlásenia: pluginy
+Plugin, ktorý nejde nainštalovať alebo nebeží, sa ohlási v dialógu, v lište nad textom alebo v stavovom riadku. Každý riadok cituje hlásenie a hovorí, čo robiť.
+- Súbor nie je čitateľný ZIP. Nič sa nenainštalovalo. Stiahnite ZIP pluginu znova alebo požiadajte autora o nový.
+- ZIP obsahuje cestu, ktorá by sa zapísala mimo priečinka pluginu. Nič sa nenainštalovalo. Autor musí plugin zabaliť znova.
+- ZIP sa rozbalí na viac, než je povolené (zatiaľ provizórny limit). Nič sa nenainštalovalo. Požiadajte autora o menší balíček; limit je provizórny.
+- ZIP nemá v koreni súbor nkspad-plugin.json. Súbor musí ležať priamo v koreni ZIPu, nie v podpriečinku.
+- Manifest je odmietnutý: Riadky za ním hovoria, ktorá položka je zlá; autor musí opraviť nkspad-plugin.json.
+- ID pluginu patrí vstavanému pluginu. Id vstavaného pluginu nejde použiť; autor musí zvoliť iné id.
+- Rovnaká alebo novšia verzia tohto pluginu už je nainštalovaná. Nič sa nenainštalovalo. Správca sa vie vrátiť len na predchádzajúcu verziu, ktorú si ponechal.
+- Tento ZIP obsahuje iný plugin (id), nie aktualizáciu vybraného pluginu. Zvoľte plugin, ktorému ZIP patrí, alebo ho nainštalujte ako nový plugin príkazom Nainštalovať plugin zo ZIP.
+- Plugin sa nepodarilo nainštalovať: Dôvod nasleduje za hlásením. Nič sa nenainštalovalo.
+- Zásuvný modul názov sa nepodarilo spustiť: dôvod. Prečítajte si dôvod. Ak program pluginu zmizol, nainštalujte plugin znova z jeho ZIPu.
+- Zásuvný modul názov prestal bežať (dôvod). Znova sa spustí o N s. Počkajte: plugin sa spustí sám znova. Zobraziť výstup v lište otvorí posledné chybové riadky pluginu.
+- Zásuvný modul názov prestal bežať (dôvod). Po opakovaných pádoch je vypnutý. Zostane vypnutý. Zobraziť výstup v lište povie prečo; plugin aktualizujte alebo nainštalujte znova a zapnite ho v Správcovi pluginov.
+- Karta názov sa zavrela: jej zásuvný modul ju zavrel alebo skončil. Neuložené zmeny sú stratené. Kartu uložte skôr, než sa plugin zastaví: Uložiť pošle text pluginu (téma Karty, ktoré dodá plugin).
+
+## [errors.agents] Chybové hlásenia: MCP, /ide a agenti
+Hlásenia servera MCP, mosta /ide a agentov sa objavujú v stavovom riadku, v dialógoch a v paneli agenta. Každý riadok cituje hlásenie a hovorí, čo robiť. Nič sa na vaše karty nepoužije bez vášho potvrdenia, takže nepodarený krok ich nechá, ako boli.
+- Server MCP sa nepodarilo spustiť: dôvod. Odstráňte dôvod a zvoľte Server MCP znova. Zatiaľ sa nič nezdieľa.
+- Najprv zapnite server MCP (Nástroje, Server MCP). Server zapnite a kartu potom zdieľajte znova (téma Editor ako server MCP).
+- Túto kartu nemožno zdieľať. Zdieľať ide len textové karty. Porovnanie ani zoznam výsledkov hľadania nie.
+- Výber je väčší ako N B. Vyberte menej, alebo zdieľajte celú kartu. Vyberte menej, alebo zdieľajte celú kartu.
+- Most /ide sa nepodarilo spustiť: dôvod. Odstráňte dôvod a zvoľte Most /ide znova.
+- Most /ide bol vypnutý: dôvod. Agent hovorí verziou protokolu, ktorú Textida nepozná. V kartách sa nič nezmenilo. Použite verziu Claude Code, ktorá hovorí protokolom, ktorý Textida pozná, a most potom zapnite znova (téma Most /ide pre Claude Code).
+- K mostu /ide nie je pripojený žiadny agent. Spustite /ide v Claude Code v termináli v priečinku tohto okna.
+- názov sa nepodarilo vyskúšať: dôvod. Dôvod uvádza chybu a posledné riadky, ktoré program napísal na štandardný chybový výstup. Opravte nastavenie servera v súbore jeho agenta (Textida ten súbor nikdy nemení) a skúste to znova.
+- Bez odpovede do N s. Serveru bolo povedané, aby ten požiadavok ukončil. Overte, že server mimo Textidy štartuje a odpovedá, a skúste to znova.
+- Úryvok pre agent neprešiel kontrolou formátu: dôvod. Nič sa nezapísalo. Položka používa niečo, čo formát druhého agenta nevie; opravte ju v jej zdrojovom súbore a preveďte znova.
+- názov zlyhal: dôvod. Zoznam sa zavrie. Posledné riadky programu sú vo výstupe Úlohy.
+- Pre názov nebola zadaná hodnota, nič sa nespustilo. Pripojte sa znova a hodnotu napíšte; uloží sa do úložiska prihlasovacích údajov a nikam inam.
+- názov odmietol kľúč. Uložená hodnota premenné bola zabudnutá, spýtam sa znova. Keď sa vás program opýta, napíšte nový kľúč.
+- názov odmietol kľúč. Nepochádza z úložiska prihlasovacích údajov Textidy (je v prostredí alebo priamo v konfigurácii), zmeňte ho tam. Zmeňte kľúč tam, kde je, v prostredí alebo v konfiguračnom súbore; Textida ho tam nemení.
+- Nie je to objekt JSON. Argumenty napíšte ako objekt JSON, napríklad {"name": "value"}; {} znamená žiadne.
+- Zobrazených je prvých N z N znakov. Zvyšok je odrezaný. Požiadajte nástroj o menej (téma Servery MCP agentov).
+- agent sa nepodarilo spustiť: dôvod. Overte, že je program nainštalovaný a spustí sa v termináli; Textida žiadnych agentov neinštaluje.
+- Najprv otvorte súbor alebo priečinok; agent pracuje v jeho priečinku. Najprv otvorte súbor alebo priečinok a potom agenta spustite.
+- Agent už beží. Najprv ho zastavte príkazom Zastaviť agenta.
+- Najprv spustite agenta. Spustite agenta príkazom Spustiť agenta a potom kartu zdieľajte (téma Agent cez ACP).
+- Túto kartu nemožno s agentom zdieľať. Agent pomenúva súbor cestou: kartu najprv uložte. Porovnanie ani zoznam výsledkov hľadania zdieľať nejde.
+- Ťah ešte beží. Najprv ho zrušte. Zvoľte Zrušiť ťah agenta, alebo počkajte, kým ťah skončí.
+- Agent neodpovedal včas: dôvod. Ťah skončil. Pošlite správu znova, alebo agenta zastavte a spustite znova.
+- Agent zlyhal: dôvod. Prečítajte si dôvod v paneli; ak agent už nebeží, spustite ho znova.
+
+## [errors.tools] Chybové hlásenia: nástroje, lintery, jazykové servery a Git
+Tieto hlásenia pochádzajú z programov, ktoré editor spúšťa za vás. Objavujú sa v stavovom riadku, vo výstupe Úlohy alebo v lište nad textom. Každý riadok cituje hlásenie a hovorí, čo robiť.
+- názov ešte beží. Najprv ho zastavte. Beží vždy len jeden nástroj. Počkajte na neho, alebo zvoľte Zastaviť bežiaci nástroj.
+- názov sa nedá spustiť: dôvod. Dôvod uvádza premennú alebo program. Neznáma premenná, alebo taká, ktorá pre tento dokument neplatí, zastaví beh skôr, než čokoľvek začne (téma Nástroje: spustenie externého programu).
+- Zastavené: uplynul časový limit N s. Zvýšte timeoutSeconds v definícii nástroja, alebo nastavenie Predvolený časový limit nástrojov.
+- názov nebežal: program sa nenašiel vo vendor/bin, node_modules/.bin, .venv ani v PATH. Nainštalujte ho tam alebo uveďte jeho cestu v toolPaths v saveActions.json. Nainštalujte program, alebo uveďte jeho cestu ako toolPaths v saveActions.json (téma Lintery).
+- názov nedobehol za N s a bol zastavený. Nálezy zo skoršieho behu zostávajú. Zvýšte lintTimeoutSeconds v saveActions.json.
+- Uložené bez formátovania: dôvod. Súbor sa uložil, ako bol. Odstráňte dôvod a uložte znova, alebo formátovanie vypnite (téma Akcie pri uložení: formátovať, spustiť nástroj, nahrať).
+- Nástroj ešte nebol potvrdený; spustite ho raz ručne cez Spustiť nástroj. Spustite nástroj raz príkazom Spustiť nástroj a potvrďte jeho príkaz a priečinok; potom môže bežať pri uložení.
+- Nahrávanie súborov z folder na názov nie je povolené; uložte súbor projektu ručne a povoľte ho. Uložte súbor projektu ručne: program sa opýta a nahrávanie pre ten projekt môžete povoliť.
+- Dotazy na register nie sú možné: nie sú povolené, alebo proxy vyžaduje prihlásenie. Zvoľte Nástroje, Balíčky, Skontrolovať verzie balíkov a pre register súhlaste. Proxy s používateľským menom sa pre dopyty použiť nedá (téma Manifesty balíkov: názvy, verzie a značka novšej verzie).
+- schéma názov: stiahnutie nie je povolené. Zvoľte Nástroje, Balíčky, Povoliť stiahnutie schémy a pre server súhlaste (téma Schémy pre JSON, YAML a TOML: kontrola, dopĺňanie a popisy).
+- Vedľa otvoreného súboru ani v nadradených priečinkoch nie je Makefile. Otvorte súbor v priečinku, ktorý má Makefile, alebo priamo Makefile (téma Makefile: spustenie cieľa).
+- Jazykový server pracuje len s textovými dokumentmi, nie s veľkými súbormi zobrazenými po stránkach. Súbor v stránkovanom režime sa jazykovému serveru nikdy nepredá (téma Veľké súbory (stránkovaný režim)).
+- Jazykový server pre jazyk sa nenašiel: program. Nainštalujte server tak, aby sa jeho program našiel v PATH (téma Jazykový server: definícia, odkazy, premenovanie, dopĺňanie a diagnostika).
+- Jazykový server pre jazyk sa nepodarilo spustiť: dôvod. Prečítajte si dôvod, odstráňte ho a spustite príkaz tej skupiny znova.
+- Jazykový server pre jazyk neočakávane skončil (podrobnosť). Spustite ľubovoľný príkaz tej skupiny znova: server sa spustí a dostane otvorené dokumenty znova.
+- Program git sa nepodarilo spustiť: dôvod. Program git musí byť nainštalovaný a nájdený v PATH (téma Git: stav, porovnanie a príprava úseku).
+- Súbor nie je v repozitári Git. Otvorte súbor z repozitára Git.
+- Index súboru súbor sa zmenil od posledného načítania (iným programom). Nič sa nezapísalo. Skontrolujte zmeny a pripravte úsek znova.
+- Súbor má nevyriešený konflikt zlučovania. Vyriešte ho a až potom pripravujte úseky. Vyriešte konflikt príkazom Git: konflikt, vziať naše zmeny / vziať ich zmeny / vziať obe strany, súbor uložte a potom zvoľte Git: označiť súbor ako vyriešený.
+
 ## [limits] Čo táto verzia nevie
-Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej zatiaľ nie sú:
-- Aktualizácia programu: program sa sám neaktualizuje a nekontroluje nové verzie. Novú verziu nainštalujete sami.
-- Hex editor nemá minimapu, nehľadá všetky zhody do karty a bajty nenahrádza; skok na offset neukazuje náhľad cieľa; nastavenie, ktoré by súbory vždy otváralo v hexe, chýba.
-- Porovnanie súborov vlastným oknom: používa sa externý porovnávač (téma Porovnať s diskom).
-- Úpravy veľmi veľkých súborov: len obmedzené, pozri tému Veľké súbory.
-- Rozšírenia (pluginy), vzdialené súbory a ďalšie funkcie z plánu verzie 1.0: v tejto verzii nie sú.
+Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej nie sú a tu je, čo robiť namiesto nich:
+- Aktualizácie: program sa sám aktualizuje len vo Windows, v nainštalovanom Textida (téma Aktualizácie a návrat na predchádzajúcu verziu). V macOS a Linuxe novú verziu nainštalujete sami. Zostavenie bez adresy aktualizácií a podpisového kľúča nové verzie nehľadá a povie to.
+- Uložené heslá: úložisko prihlasovacích údajov funguje len vo Windows (Správca poverení). V macOS a Linuxe program heslo nikam neukladá a pýta si ho pri každom pripojení (téma Vzdialené pripojenia).
+- Pluginy: plugin je program, ktorý beží s právami vášho používateľa. Jeho oprávnenia sú záznam toho, čo ste povolili, nie izolácia, a podpisy pluginov sa nekontrolujú (téma Správca pluginov: inštalácia, aktualizácia, návrat a odobratie pluginov). Inštalujte len pluginy, ktorým dôverujete.
+- Asistenti: most /ide a agent cez ACP nie sú overené so skutočnými programami (témy Most /ide pre Claude Code a Agent cez ACP). Pripojenie, ktoré nejde, program ohlási s dôvodom v stavovom riadku alebo vo výstupe Úlohy.
+- Veľké súbory: úpravy v stránkovanom režime sú obmedzené (téma Veľké súbory (stránkovaný režim)). Jazykový server, formátovanie a väčšina príkazov, ktoré menia text, tam nefungujú. Bajty súboru akejkoľvek veľkosti zmeníte v hexe.
+- Hex: dve revízie z miestnej histórie nejde porovnať bajt po bajte a šablóny štruktúry sú podmnožina formátu .ksy (téma Hex: šablóna štruktúry).
+- Programy, ktoré editor len spúšťa (git, lintery, formátovače, jazykové servery, make, npm, Composer, HTML Tidy): musia byť nainštalované a nájdené v PATH. Editor žiadny z nich nesťahuje.
+- Ponuka Prieskumníka a priradenie súborov: len Windows.
+- Jazyky rozhrania: čeština, angličtina, slovenčina a nemčina. Staré preklady PSPadu sa prevziať nedajú.
 
 ## [edit.clips] Klipy
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1526,6 +1607,12 @@ Len Windows, v nainštalovanej Textide (priečinok vytvorený cez Setup.ps1). Te
 4. Pomocník, Vrátiť sa na predchádzajúcu verziu vás vráti na verziu, ktorá bola nainštalovaná pred poslednou aktualizáciou. Novšia verzia sa potom stane tou, na ktorú sa dá vrátiť.
 - Nastavenia Textidy a žurnál zostávajú, priečinok prenosného profilu sa prenesie.
 - Tento build zisťuje aktualizácie len vtedy, ak má adresu aktualizácií a podpisový kľúč; build bez nich to povie.
+### Hlásenia
+- Aktualizácie fungujú len v nainštalovanej Textide (Setup.ps1 vedľa Textida.exe vo Windows). Aktualizácie fungujú len vo Windows, v nainštalovanej Textide. Inde novú verziu nainštalujete sami (téma Čo táto verzia nevie).
+- Tento build nemá nastavenú adresu aktualizácií ani podpisový kľúč, aktualizácie preto nemožno zistiť. Použite zostavenie, ktoré má adresu aktualizácií a podpisový kľúč, alebo novú verziu nainštalujte sami.
+- Aktualizácia zlyhala: dôvod. Nič sa nenainštalovalo a beží ďalej súčasná verzia. Dôvod uvádza príčinu (nesedí podpis alebo kontrolný súčet, balík, ktorý nesúhlasí, chyba siete); skúste to neskôr.
+- Najprv uložte alebo zatvorte dokumenty s neuloženými zmenami: žurnál je vypnutý, aktualizácia by ich mohla stratiť. Dokumenty uložte, alebo zapnite obnovu po páde (téma Obnova po páde), a potom aktualizáciu zvoľte znova.
+- Nie je žiadna predchádzajúca verzia, na ktorú by sa dalo vrátiť. Predchádzajúca verzia existuje len po aktualizácii.
 
 ## [review.external] Kontrola zmien zvonka
 commands: nks.review.open, nks.review.next, nks.review.previous
