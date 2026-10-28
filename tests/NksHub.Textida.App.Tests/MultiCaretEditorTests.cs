@@ -841,41 +841,52 @@ public class MultiCaretEditorTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_bypass_tells_a_view_only_about_the_changes_that_touch_its_lines()
+    public void The_bypass_tells_a_view_only_about_the_changes_that_touch_its_lines_and_other_views_about_all()
     {
         var tab = Open(string.Concat(Enumerable.Range(0, 300).Select(i => $"line {i}\n")));
         var d = tab.Editor!.Document;
         tab.Editor.ScrollToLine(150);
         var view = tab.Editor.TextArea.TextView;
-        (int From, int To) Visible()
+        void Layout()
         {
             _w.UpdateLayout();
             view.EnsureVisualLines();
-            var last = view.VisualLines[^1].LastDocumentLine;
-            return (view.VisualLines[0].FirstDocumentLine.Offset, last.Offset + last.TotalLength);
         }
-        var visible = Visible();
+        Layout();
         Assert.True(view.IsMeasureValid && view.VisualLinesValid);
 
-        using (WeakEventBypass.Begin(d, visible)) d.Insert(d.TextLength, "x"); // behind its lines: it hears nothing and has nothing to redo
+        // a second pane over the same text shows its first lines
+        var pane = new TextEditor { Document = d };
+        var paneWindow = new Avalonia.Controls.Window { Width = 600, Height = 300, Content = pane };
+        paneWindow.Show();
+        var paneView = pane.TextArea.TextView;
+        paneWindow.UpdateLayout();
+        paneView.EnsureVisualLines();
+        Assert.True(paneView.VisualLinesValid);
+
+        using (WeakEventBypass.Begin(d, view)) d.Insert(d.TextLength, "x"); // behind its lines: it hears nothing and has nothing to redo
         Assert.True(view.IsMeasureValid && view.VisualLinesValid);
 
-        using (var bypass = WeakEventBypass.Begin(d, visible)) // before its lines: it hears nothing but is asked once for a new measure, its lines stay
+        using (var bypass = WeakEventBypass.Begin(d, view)) // before its lines: it hears nothing but is asked once for a new measure, its lines stay
         {
             Assert.True(bypass.Active);
             d.Insert(d.GetLineByNumber(5).Offset, "y");
             d.Insert(d.GetLineByNumber(3).Offset, "y");
             Assert.True(view.IsMeasureValid);
+            Assert.False(paneView.VisualLinesValid); // the other pane shows those lines and hears of them
         }
         Assert.False(view.IsMeasureValid);
         Assert.True(view.VisualLinesValid);
+        paneWindow.UpdateLayout();
+        paneView.EnsureVisualLines();
+        Assert.Contains("y", d.GetText(paneView.VisualLines[2].FirstDocumentLine));
 
-        visible = Visible();
-        using (WeakEventBypass.Begin(d, visible)) d.Insert(view.VisualLines[2].FirstDocumentLine.Offset + 1, "z"); // in a line: the view redraws it
+        Layout();
+        using (WeakEventBypass.Begin(d, view)) d.Insert(view.VisualLines[2].FirstDocumentLine.Offset + 1, "z"); // in a line: the view redraws it
         Assert.False(view.VisualLinesValid);
-        _w.UpdateLayout();
-        view.EnsureVisualLines();
+        Layout();
         Assert.Contains("z", d.GetText(view.VisualLines[2].FirstDocumentLine));
+        paneWindow.Close();
     }
 
     [AvaloniaFact]

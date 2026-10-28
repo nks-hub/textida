@@ -14,8 +14,8 @@ namespace NksHub.Textida.AvaloniaEditAdapter;
 /// </summary>
 /// <remarks>
 /// A text view also asks, for every change, which of its visible lines the change touches (<c>TextView.Redraw</c>). A change that lies wholly behind the
-/// visible lines touches none, one before them only asks for a new measure; with the range of the visible lines the batch tells the view
-/// about the changes that touch it and asks once for a measure when it skipped one before.
+/// visible lines touches none, one before them only asks for a new measure; for the view a batch is given, it tells the view about the changes that touch its
+/// lines and asks once for a measure when it skipped one before. Other views of the same text (the second pane of a split) hear of every change.
 /// </remarks>
 internal static class WeakEventBypass
 {
@@ -26,17 +26,17 @@ internal static class WeakEventBypass
     private static readonly FieldInfo? ChangedField = typeof(TextDocument).GetField("Changed", Any);
 
     /// <summary>
-    /// Starts a batch of changes of <paramref name="document"/>; dispose the result when it ends. <paramref name="visible"/> is the range of offsets
-    /// the lines of the text view show at the start (in the text as it is then, the changes of the batch go from the end of the text to its start), or null for none known.
+    /// Starts a batch of changes of <paramref name="document"/>; dispose the result when it ends. <paramref name="view"/> is the text view that shows the
+    /// text and whose visible lines are read now (the changes of the batch go from the end of the text to its start), or null for none known.
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "The members are kept by the dependencies below; without them the batch runs through the managers.")]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, ManagerBase, "AvaloniaEdit")]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, ManagerBase + "+WeakHandlerList", "AvaloniaEdit")]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, ManagerBase + "+WeakHandler", "AvaloniaEdit")]
-    public static Scope Begin(TextDocument document, (int From, int To)? visible = null)
+    public static Scope Begin(TextDocument document, TextView? view = null)
     {
         var swaps = new List<Swap>(2);
-        var batch = new Batch(visible);
+        var batch = new Batch(view);
         try
         {
             foreach (var field in new[] { ChangingField, ChangedField })
@@ -51,18 +51,26 @@ internal static class WeakEventBypass
     }
 
     /// <summary>What the changes of one batch have in common.</summary>
-    internal sealed class Batch((int From, int To)? visible)
+    internal sealed class Batch
     {
-        private (int From, int To)? _visible = visible;
+        private readonly TextView? _view;
+        private (int From, int To)? _visible;
         private int _last = int.MaxValue;
 
-        /// <summary>A view that was not told about a change before its first visible line.</summary>
-        public TextView? Behind { get; private set; }
+        public Batch(TextView? view)
+        {
+            if (view is not { VisualLinesValid: true, VisualLines: { Count: > 0 } lines }) return;
+            var last = lines[^1].LastDocumentLine;
+            (_view, _visible) = (view, (lines[0].FirstDocumentLine.Offset, last.Offset + last.TotalLength));
+        }
 
-        /// <summary>False when <paramref name="e"/> reaches none of the visible lines, so the text view need not hear of it.</summary>
+        /// <summary>The view was not told about a change before its first visible line.</summary>
+        public bool Behind { get; private set; }
+
+        /// <summary>False when <paramref name="e"/> reaches none of the visible lines of the view, so it need not hear of it.</summary>
         public bool Reaches(object? listener, DocumentChangeEventArgs e)
         {
-            if (listener is not TextView view || _visible is not { } range) return true;
+            if (_visible is not { } range || !ReferenceEquals(listener, _view)) return true;
             // the range holds only while the changes come from the end of the text to its start; the first one that does not ends the shortcut
             if (e.Offset > _last)
             {
@@ -72,8 +80,13 @@ internal static class WeakEventBypass
             _last = e.Offset;
             if (e.Offset > range.To) return false;
             if (e.Offset + e.RemovalLength >= range.From) return true;
-            Behind = view;
+            Behind = true;
             return false;
+        }
+
+        public void AskForMeasure()
+        {
+            if (Behind) _view?.InvalidateMeasure();
         }
     }
 
@@ -87,7 +100,7 @@ internal static class WeakEventBypass
         {
             foreach (var swap in swaps) swap.Undo(document);
             swaps.Clear();
-            batch.Behind?.InvalidateMeasure();
+            batch.AskForMeasure();
         }
     }
 

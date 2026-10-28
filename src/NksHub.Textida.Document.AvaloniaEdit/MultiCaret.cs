@@ -434,9 +434,9 @@ public static class MultiEdit
     /// bytes (byte-exact); a lossy single-byte encoding goes through the text view instead, so the loss report of typed characters keeps
     /// working. The byte positions of the new carets are worked out from the edits, not looked up again, so the cost stays linear in the carets.
     /// Edits with the same <paramref name="coalesceKey"/> in a row (a typing run) share one undo step, which gives back the carets from before the first.
-    /// <paramref name="visible"/> is the range of offsets the text view shows, when it is laid out: the view then hears only of the changes that touch it.
+    /// <paramref name="view"/> is the text view that shows the text, when it is laid out: it then hears only of the changes that touch its lines.
     /// </summary>
-    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null, (int From, int To)? visible = null)
+    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null, AvaloniaEdit.Rendering.TextView? view = null)
     {
         long tAsm = Core.TypingTrace.Begin();
         var kept = Assemble(plan, before, out var keptCarets, out int keptPrimary);
@@ -515,7 +515,7 @@ public static class MultiEdit
             // one update block: the views react to the text view once, not once per caret
             long tApply = Core.TypingTrace.Begin();
             var update = text.RunUpdate();
-            var bypass = WeakEventBypass.Begin(text, visible);
+            var bypass = WeakEventBypass.Begin(text, view);
             try { result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey }); }
             finally
             {
