@@ -254,6 +254,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder: files listed in the Git status panel; more are counted and named in a notice. Must not exceed <see cref="Ui"/> items per panel.</summary>
     public const int GitStatusEntries = 2000;
 
+    /// <summary>Placeholder, OPEN: entries (changed, new, ignored files and folders) the Git plugin answers with when the file tree asks for the state of its files; the heaviest come first and the rest has no colour. The answer is one message, so about 60 bytes an entry must stay below the message limit of the plugin. The owner has not decided it.</summary>
+    public const int GitTreeEntries = 20_000;
+
     /// <summary>Placeholder: bytes the Git plugin reads per request when it takes the staged index document back. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int GitChunkBytes = 1 << 20;
 

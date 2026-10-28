@@ -3,7 +3,8 @@ using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Files;
 
-public readonly record struct DirectoryEntry(string Name, string Path, bool IsDirectory, long Length);
+/// <param name="Hidden">The name starts with a dot, or (Windows) the entry has the hidden attribute.</param>
+public readonly record struct DirectoryEntry(string Name, string Path, bool IsDirectory, long Length, bool Hidden = false);
 
 /// <param name="Depth">0 for the entries of the root folder.</param>
 public readonly record struct FileTreeRow(DirectoryEntry Entry, int Depth, bool Expanded);
@@ -22,7 +23,13 @@ public sealed class FileTree : IDisposable
     private List<FileTreeRow> _rows = [];
     private readonly List<FileSystemWatcher> _watchers = [];
     private Timer? _debounce;
+    private Timer? _contentTimer;
+    private int _contentPending;
+    private bool _showHidden = true;
     private readonly HashSet<string> _dirty = new(PathComparer);
+
+    /// <summary>Quiet time after the first change of a file before <see cref="ContentChanged"/> is raised.</summary>
+    private const int ContentDelayMilliseconds = 400;
 
     /// <param name="root">The first folder; with <paramref name="more"/> the tree shows every folder as a top row (a project of several folders).</param>
     public FileTree(string root, IEnumerable<string>? more = null)
@@ -44,8 +51,26 @@ public sealed class FileTree : IDisposable
 
     public IReadOnlyList<FileTreeRow> Rows => _rows;
 
+    /// <summary>Whether hidden entries (<see cref="DirectoryEntry.Hidden"/>) have a row. Setting it rebuilds the rows.</summary>
+    public bool ShowHidden
+    {
+        get => _showHidden;
+        set
+        {
+            if (_showHidden == value) return;
+            _showHidden = value;
+            if (_children.Count > 0) Rebuild();
+        }
+    }
+
     /// <summary>Raised on the UI thread after <see cref="Rows"/> changed.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// Raised on a pool thread, at most once per <see cref="ContentDelayMilliseconds"/>, after a file below a folder of the tree was written, created, deleted or renamed.
+    /// It carries nothing: it tells whoever reads the state of the files (Git) to look again. Nothing is watched for it while nobody listens.
+    /// </summary>
+    public event Action? ContentChanged;
 
     /// <summary>Raised on a pool thread, shortly after something changed on disk, with the folders whose listing is probably stale. Call <see cref="RefreshAsync"/> from the UI thread.</summary>
     public event Action<IReadOnlyCollection<string>>? DiskChanged;
@@ -131,6 +156,11 @@ public sealed class FileTree : IDisposable
     {
         if (_watchers.Count > 0) return;
         _debounce = new Timer(_ => Flush());
+        _contentTimer = new Timer(_ =>
+        {
+            Interlocked.Exchange(ref _contentPending, 0);
+            ContentChanged?.Invoke();
+        });
         foreach (var root in Roots.Where(Directory.Exists)) WatchFolder(root);
     }
 
@@ -142,7 +172,7 @@ public sealed class FileTree : IDisposable
             watcher = new FileSystemWatcher(root)
             {
                 IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite,
                 InternalBufferSize = 64 * 1024,
             };
         }
@@ -154,10 +184,18 @@ public sealed class FileTree : IDisposable
         {
             lock (_dirty) _dirty.Add(path is null ? root : Path.GetDirectoryName(path) ?? root);
             _debounce!.Change(200, Timeout.Infinite);
+            PokeContent();
+        }
+        void PokeContent()
+        {
+            if (ContentChanged is null || Interlocked.Exchange(ref _contentPending, 1) == 1) return;
+            try { _contentTimer!.Change(ContentDelayMilliseconds, Timeout.Infinite); }
+            catch (ObjectDisposedException) { /* the tree ended while an event was on its way */ }
         }
         watcher.Created += (_, e) => Poke(e.FullPath);
         watcher.Deleted += (_, e) => Poke(e.FullPath);
         watcher.Renamed += (_, e) => { Poke(e.OldFullPath); Poke(e.FullPath); };
+        watcher.Changed += (_, _) => PokeContent(); // the names did not change: no listing to read again
         watcher.Error += (_, _) => Poke(null);
         watcher.EnableRaisingEvents = true;
         _watchers.Add(watcher);
@@ -179,6 +217,7 @@ public sealed class FileTree : IDisposable
         foreach (var watcher in _watchers) watcher.Dispose();
         _watchers.Clear();
         _debounce?.Dispose();
+        _contentTimer?.Dispose();
     }
 
     private void Rebuild()
@@ -200,12 +239,16 @@ public sealed class FileTree : IDisposable
             if (!_children.TryGetValue(directory, out var entries)) return;
             foreach (var entry in entries)
             {
+                if (entry.Hidden && !_showHidden) continue;
                 bool open = entry.IsDirectory && _expanded.Contains(entry.Path);
                 rows.Add(new FileTreeRow(entry, depth, open));
                 if (open) Add(entry.Path, depth + 1);
             }
         }
     }
+
+    private static bool IsHidden(ref FileSystemEntry entry) =>
+        (entry.FileName.Length > 0 && entry.FileName[0] == '.') || (OperatingSystem.IsWindows() && (entry.Attributes & FileAttributes.Hidden) != 0);
 
     /// <summary>The entries of one folder: folders first, then files, each by name without regard to case.</summary>
     public static DirectoryEntry[] List(string directory, bool throwIfUnreadable)
@@ -214,7 +257,7 @@ public sealed class FileTree : IDisposable
         {
             var options = new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = true, RecurseSubdirectories = false, ReturnSpecialDirectories = false };
             var entries = new FileSystemEnumerable<DirectoryEntry>(directory,
-                (ref FileSystemEntry e) => new DirectoryEntry(e.FileName.ToString(), e.ToFullPath(), e.IsDirectory, e.IsDirectory ? 0 : e.Length), options).ToArray();
+                (ref FileSystemEntry e) => new DirectoryEntry(e.FileName.ToString(), e.ToFullPath(), e.IsDirectory, e.IsDirectory ? 0 : e.Length, IsHidden(ref e)), options).ToArray();
             Array.Sort(entries, (a, b) => a.IsDirectory != b.IsDirectory ? (a.IsDirectory ? -1 : 1) : string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
             return entries;
         }

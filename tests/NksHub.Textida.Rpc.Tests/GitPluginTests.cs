@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Files;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
@@ -91,7 +92,7 @@ public class GitPluginTests
         public required UiApi UiApi { get; init; }
         public long Caret;
 
-        public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0)
+        public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0, int treeEntries = 0)
         {
             var ui = new UiApiTests.RecordingUi();
             var tools = new DocumentApiTests.RecordingTools();
@@ -114,6 +115,7 @@ public class GitPluginTests
             Assert.True(File.Exists(dll), dll);
             string[] args = [dll, "--timeout-ms", "20000", "--max-bytes", "1000000", "--max-entries", "50", "--chunk-bytes", "60000"];
             if (watchMs > 0) args = [.. args, "--watch-debounce-ms", watchMs.ToString()];
+            if (treeEntries > 0) args = [.. args, "--max-tree-entries", treeEntries.ToString()];
             host.Register(new PluginSpec("git", "Git", T.DotnetHost, args, ["onCommand:git"]));
             await host.ActivateAsync("onCommand:git");
             var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = codec ?? TextCodec.Utf8 });
@@ -148,6 +150,13 @@ public class GitPluginTests
         {
             var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"path\":{JsonSerializer.Serialize(path)}}}";
             return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
+        }
+
+        /// <summary>The state of the files below a folder, as the file tree asks for it: a request without a document.</summary>
+        public async Task<JsonElement> TreeStatusAsync(string folder)
+        {
+            var json = $"{{\"command\":\"{GitPlugin.TreeStatusCommand}\",\"language\":\"en\",\"path\":{JsonSerializer.Serialize(folder)}}}";
+            return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
         public int StatusCount() { lock (Ui.Statuses) return Ui.Statuses.Count; }
@@ -227,6 +236,120 @@ public class GitPluginTests
         Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Label == "sub/d.txt");
         Assert.Contains(rig.Ui.Panels[^1].Items, i => i.Label == "a.txt" && i.Detail == "Staged: modified");
     }
+
+    static Dictionary<string, string> TreeEntries(JsonElement answer) =>
+        answer.GetProperty("entries").EnumerateArray().ToDictionary(e => e[1].GetString()!, e => e[0].GetString()!);
+
+    [Fact]
+    public async Task The_state_of_the_files_of_a_folder_is_what_git_status_says_with_untracked_and_ignored_folders_as_one_entry_and_it_needs_no_document()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("b.txt", "b\n"), ("c.txt", "c\n"), ("sub/d.txt", "d\n"), ("sub/e.txt", "e\n"), (".gitignore", "*.log\nbuild/\n"));
+        repo.Write("a.txt", "a2\n");                          // changed in the tree
+        repo.Write("b.txt", "b2\n"); repo.Run("add", "b.txt"); // staged
+        File.Delete(repo.PathOf("c.txt"));                    // deleted in the tree
+        repo.Write("new.txt", "x\n");                         // untracked
+        repo.Write("fresh/one.txt", "1\n"); repo.Write("fresh/two.txt", "2\n"); // an untracked folder is one entry
+        repo.Write("sub/f.txt", "f\n");                       // untracked in a folder Git knows
+        repo.Run("mv", "sub/e.txt", "sub/e2.txt");            // renamed
+        repo.Write("debug.log", "l\n");                       // ignored file
+        repo.Write("build/out.bin", "o\n"); repo.Write("build/deep/x.bin", "x\n"); // ignored folder, one entry
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+        var indexFile = Path.Combine(repo.Dir, ".git", "index");
+        var before = File.ReadAllBytes(indexFile);
+
+        var answer = await rig.TreeStatusAsync(repo.Dir);
+
+        Assert.Equal("tree", answer.GetProperty("status").GetString());
+        var entries = TreeEntries(answer);
+        Assert.Equal(new Dictionary<string, string>
+        {
+            ["a.txt"] = "M", ["b.txt"] = "M", ["c.txt"] = "D", ["new.txt"] = "N", ["fresh/"] = "N", ["sub/f.txt"] = "N", ["sub/e2.txt"] = "M", ["debug.log"] = "I", ["build/"] = "I",
+        }.OrderBy(e => e.Key), entries.OrderBy(e => e.Key));
+        Assert.Equal(entries.Count, answer.GetProperty("count").GetInt32());
+        Assert.Equal(before, File.ReadAllBytes(indexFile)); // reading the state writes nothing
+        Assert.Empty(rig.Ui.Panels);                          // and shows nothing
+        Assert.Empty(rig.Ui.Notices);
+
+        // the paths Git itself names, the ignored ones aside, are the ones the answer has (a folder it names whole is one of them)
+        var fields = repo.Run("status", "--porcelain=v1", "-z", "--untracked-files=normal").Split('\0', StringSplitOptions.RemoveEmptyEntries);
+        var named = new List<string>();
+        for (int i = 0; i < fields.Length; i++)
+        {
+            named.Add(fields[i][3..]);
+            if (fields[i][0] is 'R' or 'C') i++; // the old name of a rename follows
+        }
+        Assert.Equal(named.Order(), entries.Where(e => e.Value != "I").Select(e => e.Key).Order());
+    }
+
+    [Fact]
+    public async Task The_state_of_a_subfolder_has_paths_relative_to_it_and_only_its_own_entries()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("sub/d.txt", "d\n"), ("sub/deep/g.txt", "g\n"));
+        repo.Write("a.txt", "a2\n");
+        repo.Write("sub/d.txt", "d2\n");
+        repo.Write("sub/deep/new.txt", "n\n");
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+
+        Assert.Equal(new Dictionary<string, string> { ["d.txt"] = "M", ["deep/new.txt"] = "N" }.OrderBy(e => e.Key), TreeEntries(await rig.TreeStatusAsync(repo.PathOf("sub"))).OrderBy(e => e.Key));
+        Assert.Equal(new Dictionary<string, string> { ["new.txt"] = "N" }, TreeEntries(await rig.TreeStatusAsync(repo.PathOf("sub/deep"))));
+    }
+
+    [Fact]
+    public async Task A_conflict_is_the_heaviest_state_and_the_entries_over_the_limit_are_the_lightest_ones()
+    {
+        using var repo = ConflictRepo();
+        repo.Write("note.txt", "n\n");
+        repo.Write("x.log", "l\n");
+        repo.Write(".gitignore", "*.log\n");
+        await using var rig = await Rig.CreateAsync(repo.PathOf("c.txt"), treeEntries: 2);
+
+        var entries = TreeEntries(await rig.TreeStatusAsync(repo.Dir));
+
+        Assert.Equal(2, entries.Count);
+        Assert.Equal("C", entries["c.txt"]);
+        Assert.DoesNotContain("I", entries.Values); // the ignored file is the lightest and goes first
+    }
+
+    [Fact]
+    public async Task A_folder_outside_a_repository_and_one_that_is_not_there_have_no_state_and_no_notice()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+        var outside = Path.Combine(Path.GetTempPath(), "textida-nogit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outside);
+        try
+        {
+            Assert.Equal("noRepository", (await rig.TreeStatusAsync(outside)).GetProperty("status").GetString());
+            Assert.Equal("noRepository", (await rig.TreeStatusAsync(Path.Combine(outside, "missing"))).GetProperty("status").GetString());
+            Assert.Equal("noFile", (await rig.TreeStatusAsync("")).GetProperty("status").GetString());
+            Assert.Empty(rig.Ui.Notices);
+        }
+        finally { Directory.Delete(outside, true); }
+    }
+
+    [Theory]
+    [InlineData(' ', 'M', GitFileState.Modified)]
+    [InlineData('M', ' ', GitFileState.Modified)]
+    [InlineData('M', 'M', GitFileState.Modified)]
+    [InlineData('T', ' ', GitFileState.Modified)]
+    [InlineData('R', ' ', GitFileState.Modified)]
+    [InlineData('R', 'M', GitFileState.Modified)]
+    [InlineData('A', ' ', GitFileState.New)]
+    [InlineData('A', 'M', GitFileState.New)]
+    [InlineData(' ', 'A', GitFileState.New)]
+    [InlineData('C', ' ', GitFileState.New)]
+    [InlineData('?', '?', GitFileState.New)]
+    [InlineData(' ', 'D', GitFileState.Deleted)]
+    [InlineData('D', ' ', GitFileState.Deleted)]
+    [InlineData('A', 'D', GitFileState.Deleted)]
+    [InlineData('!', '!', GitFileState.Ignored)]
+    [InlineData('U', 'U', GitFileState.Conflict)]
+    [InlineData('A', 'A', GitFileState.Conflict)]
+    [InlineData('D', 'D', GitFileState.Conflict)]
+    [InlineData('D', 'U', GitFileState.Conflict)]
+    [InlineData('U', 'D', GitFileState.Conflict)]
+    public void Two_letters_of_git_status_are_one_of_the_states_of_the_tree(char index, char tree, GitFileState expected) =>
+        Assert.Equal(expected, TreeStatus.Classify(new StatusEntry(index, tree, "p", null)));
 
     static string[] Expected(Repo repo)
     {

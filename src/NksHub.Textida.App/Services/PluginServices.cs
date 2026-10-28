@@ -9,6 +9,7 @@ using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Files;
 using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
@@ -49,6 +50,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     public const string GitStatusPanel = "git:status";
     /// <summary>The command that tells the Git plugin a document is closed, so it can stop watching a repository.</summary>
     public const string GitClosedCommand = "git.closed";
+    public const string GitTreeStatusCommand = "git.treeStatus";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -230,7 +232,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
-             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString()],
+             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
@@ -442,11 +444,35 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     }
 
     /// <summary>Whether a <c>.git</c> folder or file stands in the folder of the file or above it. The plugin is not started for a file that cannot be in a repository.</summary>
-    internal static bool InRepository(string file)
+    internal static bool InRepository(string file) => InRepositoryFolder(Path.GetDirectoryName(Path.GetFullPath(file)));
+
+    /// <summary>The same for a folder: it or a folder above it holds <c>.git</c>.</summary>
+    internal static bool InRepositoryFolder(string? folder)
     {
-        for (var dir = Path.GetDirectoryName(Path.GetFullPath(file)); dir is not null; dir = Path.GetDirectoryName(dir))
+        for (var dir = folder is null ? null : Path.GetFullPath(folder); dir is not null; dir = Path.GetDirectoryName(dir))
             if (Directory.Exists(Path.Combine(dir, ".git")) || File.Exists(Path.Combine(dir, ".git"))) return true;
         return false;
+    }
+
+    /// <summary>
+    /// The state Git gives the files below <paramref name="folder"/>, for the file tree. Null when Git was not asked or could not answer: the plugin is not there, the folder is in no repository
+    /// (nothing is started for it), the plugin does not run. A folder in a repository without changes has a status without entries.
+    /// </summary>
+    public async Task<GitFileStatus?> GitTreeStatusAsync(string folder)
+    {
+        if (!File.Exists(_gitProgram) || !InRepositoryFolder(folder)) return null;
+        try
+        {
+            await _host.ActivateAsync(GitActivation);
+            var request = $"{{\"command\":\"{GitTreeStatusCommand}\",\"language\":\"{Loc.Language}\",\"path\":\"{JsonEncodedText.Encode(folder)}\"}}";
+            var answer = (await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes(request))).Clone();
+            if (answer.ValueKind != JsonValueKind.Object || !answer.TryGetProperty("status", out var status) || status.GetString() != "tree" || !answer.TryGetProperty("entries", out var entries)) return null;
+            return GitFileStatus.Build(folder, entries.EnumerateArray().Select(e => (GitFileStatus.FromCode(e[0].GetString() is { Length: 1 } code ? code[0] : '?'), e[1].GetString() ?? "")));
+        }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException or InvalidOperationException or KeyNotFoundException)
+        {
+            return null; // a colour in a tree is not worth a notice; the next change asks again
+        }
     }
 
     /// <summary>The window and tab of an open document, null when it is not open (a comparison tab names the document of its right side).</summary>
