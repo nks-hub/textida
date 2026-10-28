@@ -150,7 +150,7 @@ public partial class ShellTests : IDisposable
     public void Chrome_is_only_menu_tabs_and_status_bar_no_toolbar()
     {
         var app = TestApp.Prepare(_temp);
-        var w = app.CreateWindow(null);
+        var w = app.CreateWindow(null, look: TestApp.WindowsLook);
         w.NewDocument();
         Assert.All(w.GetVisualDescendants().OfType<Button>(), b => Assert.True(b.Classes.Contains("tabclose") || b.Classes.Contains("statusitem") || b.Classes.Contains("panelaction") || b.Classes.Contains("outputtab") || b.Classes.Contains("outputaction") || b.FindAncestorOfType<FindBar>() is not null, "only tab close buttons, status bar items, the empty-panel action, the hidden output window and the find bar may have buttons in the chrome"));
         Assert.Single(w.GetVisualDescendants().OfType<Menu>());
@@ -163,7 +163,7 @@ public partial class ShellTests : IDisposable
     public void The_menu_itself_carries_the_accessible_name_in_the_ui_language()
     {
         var app = TestApp.Prepare(_temp);
-        var w = app.CreateWindow(null);
+        var w = app.CreateWindow(null, look: TestApp.WindowsLook);
         try
         {
             Assert.Equal("Hlavní nabídka", AutomationProperties.GetName(w.GetVisualDescendants().OfType<Menu>().Single()));
