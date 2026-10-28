@@ -102,6 +102,9 @@ public sealed record ChangeSet(long Revision, ChangeKind Kind, string? Source, I
 public sealed class DocumentChangedEventArgs(ChangeSet change) : EventArgs
 {
     public ChangeSet Change { get; } = change;
+
+    /// <summary>The undo step of the change while its handlers run (null when it has none); the journal takes the inserted bytes from it instead of reading them back.</summary>
+    internal object? Step { get; init; }
 }
 
 public sealed class DocumentOptions

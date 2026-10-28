@@ -285,7 +285,7 @@ public sealed partial class Document
         TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
         long tChanged = TypingTrace.Begin();
-        var args = new DocumentChangedEventArgs(change);
+        var args = new DocumentChangedEventArgs(change) { Step = step };
         if (TypingTrace.Enabled && Changed is { } changed)
             foreach (var handler in changed.GetInvocationList())
             {
@@ -296,6 +296,10 @@ public sealed partial class Document
         else Changed?.Invoke(this, args);
         TypingTrace.End("doc.changedEvent", tChanged);
     }
+
+    /// <summary>The bytes the edit <paramref name=index/> of a change inserted, as the undo step keeps them (never to be changed); null when the step does not hold them in memory.</summary>
+    internal byte[]? InsertedBytes(DocumentChangedEventArgs e, int index) =>
+        e.Step is Step { Fill: null } step && step.Edits.Length == e.Change.Edits.Count && step.Edits[index].Inserted is { Memory: { } bytes, At: 0 } kept && kept.Length == bytes.Length ? bytes : null;
 
     private static bool HasLineBreak(AppliedEdit[] edits)
     {
