@@ -13,7 +13,10 @@ public sealed partial class MacKeychainCredentialStore : ICredentialStore
 {
     private const string Security = "/System/Library/Frameworks/Security.framework/Security";
     private const string CoreFoundation = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
-    private static readonly byte[] ServiceName = "Textida"u8.ToArray();
+    private readonly byte[] _service;
+
+    /// <param name="serviceName">The service the items belong to; a test passes its own so it never touches the items of the application.</param>
+    public MacKeychainCredentialStore(string serviceName = "Textida") => _service = Encoding.UTF8.GetBytes(serviceName);
 
     private const int ErrSecSuccess = 0;
     private const int ErrSecUserCanceled = -128;
@@ -75,7 +78,7 @@ public sealed partial class MacKeychainCredentialStore : ICredentialStore
             if (status == ErrSecItemNotFound)
             {
                 byte[] account = AccountOf(key);
-                Check(SecKeychainAddGenericPassword(IntPtr.Zero, (uint)ServiceName.Length, ServiceName, (uint)account.Length, account, (uint)password.Length, password, IntPtr.Zero), "write");
+                Check(SecKeychainAddGenericPassword(IntPtr.Zero, (uint)_service.Length, _service, (uint)account.Length, account, (uint)password.Length, password, IntPtr.Zero), "write");
                 return null;
             }
             Check(status, "write");
@@ -101,10 +104,10 @@ public sealed partial class MacKeychainCredentialStore : ICredentialStore
     });
 
     /// <summary>Looks the item up. On success the caller owns <paramref name="data"/> and <paramref name="item"/> and hands them to <see cref="Release"/>.</summary>
-    private static int Find(string key, out IntPtr data, out IntPtr item, out byte[]? bytes)
+    private int Find(string key, out IntPtr data, out IntPtr item, out byte[]? bytes)
     {
         byte[] account = AccountOf(key);
-        int status = SecKeychainFindGenericPassword(IntPtr.Zero, (uint)ServiceName.Length, ServiceName, (uint)account.Length, account, out uint length, out data, out item);
+        int status = SecKeychainFindGenericPassword(IntPtr.Zero, (uint)_service.Length, _service, (uint)account.Length, account, out uint length, out data, out item);
         bytes = null;
         if (status == ErrSecSuccess)
         {
