@@ -245,12 +245,17 @@ public class NetworkConsentTests
         await AssertOnlyAsync(rig, "127.0.0.1:9");
     }
 
-    [AvaloniaFact]
-    public async Task A_remote_MCP_server_of_an_agent_is_contacted_only_after_the_user_agreed_and_only_at_its_own_address()
+    /// <param name="redirects">The server is on this computer (the only plain address that may carry a header) and sends the client on to another host, with the key from its configuration in a header.</param>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_remote_MCP_server_of_an_agent_is_contacted_only_after_the_user_agreed_and_only_at_its_own_address(bool redirects)
     {
         using var rig = new NetworkRig();
         var home = Directory.CreateDirectory(Path.Combine(rig.Temp.Path, "home")).FullName;
-        File.WriteAllText(Path.Combine(home, ".claude.json"), """{ "mcpServers": { "remote": { "type": "http", "url": "https://mcp.example.test/mcp" } } }""");
+        string address = redirects ? "http://127.0.0.1:7/mcp" : "https://mcp.example.test/mcp";
+        if (redirects) rig.Net.Sinkhole.RedirectTo = uri => uri.Port == 7 ? "http://tracker.example.test/collect" : null;
+        File.WriteAllText(Path.Combine(home, ".claude.json"), $$"""{ "mcpServers": { "remote": { "type": "http", "url": "{{address}}", "headers": { "X-Api-Key": "key-for-this-server-only" } } } }""");
         rig.App.AgentConfigHome = home;
         var window = rig.Window;
         await rig.App.Workbench.Commands.ExecuteAsync("nks.tools.mcpServers", new ShellContext(window, forMenu: false)).AsTask();
@@ -273,6 +278,6 @@ public class NetworkConsentTests
         window.ClosePalette();
         await rig.Until(() => window.McpTask.IsCompleted, "the list to end");
 
-        await AssertOnlyAsync(rig, "mcp.example.test:443");
+        await AssertOnlyAsync(rig, redirects ? "127.0.0.1:7" : "mcp.example.test:443");
     }
 }
