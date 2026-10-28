@@ -432,9 +432,10 @@ public class MacroTests : IDisposable
         Reselect(tab, Sel.At(0));
         Run("nks.macro.record");
         _w.FindBar.ReplaceOneButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        await Settle(() => tab.Editor!.Document.Text == "b a a\n");
+        // the first command ends after it has moved on to the next match; a click before that runs inside it and is not a step of its own
+        await Settle(() => tab.Editor!.Document.Text == "b a a\n" && !Registry.IsExecuting);
         _w.FindBar.ReplaceAllButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        await Settle(() => tab.Editor!.Document.Text == "b b b\n");
+        await Settle(() => tab.Editor!.Document.Text == "b b b\n" && !Registry.IsExecuting);
         Run("nks.macro.stop");
         Assert.Equal(["nks.search.replaceNext", "nks.search.replaceAll"], Registry.LastMacro.Select(s => s.Command));
         Assert.All(Registry.LastMacro, s => Assert.Contains("\"replace\":\"b\"", s.Argument));
@@ -501,6 +502,136 @@ public class MacroTests : IDisposable
         var problems = new List<(string File, string Reason)>();
         Assert.Empty(_app.Macros.Load(problems));
         Assert.Equal("big.json", Assert.Single(problems).File);
+    }
+
+    private void Chord(Key second, RawInputModifiers modifiers = default)
+    {
+        TestApp.Press(_w, Key.K, TestApp.Mod);
+        TestApp.Press(_w, second, TestApp.Mod | modifiers);
+    }
+
+    [AvaloniaFact]
+    public async Task The_placeholder_shortcuts_record_stop_and_play_a_macro()
+    {
+        OpenWithFirstWordSelected();
+        Chord(Key.R);
+        Assert.True(Registry.IsRecording);
+        DoByHand();
+        Chord(Key.R, RawInputModifiers.Shift);
+        Assert.False(Registry.IsRecording);
+        Assert.Equal(["nks.edit.addNextOccurrence", "nks.edit.addNextOccurrence", "nks.edit.upperCase", null], Registry.LastMacro.Select(s => s.Command));
+
+        var played = OpenWithFirstWordSelected();
+        int before = Steps(played);
+        Chord(Key.P);
+        await Settle(() => played.Editor!.Document.Text == "x 1\nx 2\nx 3\n");
+        Assert.Equal(before + 1, Steps(played));
+    }
+
+    [AvaloniaFact]
+    public async Task Run_saved_macro_lists_the_saved_macros_and_plays_the_chosen_one_over_the_selections()
+    {
+        SaveTwoMacros();
+        var tab = OpenWithFirstWordSelected();
+        int before = Steps(tab);
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.run"));
+        Assert.Equal(PaletteMode.Choice, _w.PaletteModeNow);
+        Assert.Equal(["First", "Second"], _w.QuickResults.Select(r => r.Title));
+        _w.QuickResults[0].Run();
+
+        await Settle(() => tab.Editor!.Document.Text == "FOO 1\nfoo 2\nfoo 3\n");
+        Assert.Equal(before + 1, Steps(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task A_step_that_does_not_run_stops_the_macro_there_and_what_came_before_is_one_undo_step()
+    {
+        var tab = OpenWithFirstWordSelected();
+        int before = Steps(tab);
+
+        await _w.PlayMacroAsync([new MacroStep("nks.edit.upperCase", null), new MacroStep("nks.search.findNext", null, "not a search")]);
+
+        Assert.Equal("FOO 1\nfoo 2\nfoo 3\n", tab.Editor!.Document.Text);
+        Assert.Equal(Loc.Get(K.MacroFailed, ("step", 2), ("title", Loc.Get("cmd.search.findNext"))), _w.StatusMessageText);
+        Assert.Equal(before + 1, Steps(tab));
+        Run("nks.edit.undo");
+        Assert.Equal(Original, tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task A_macro_does_not_play_while_another_is_recorded()
+    {
+        var tab = OpenWithFirstWordSelected();
+        Run("nks.macro.record");
+
+        await _w.PlayMacroAsync([new MacroStep("nks.edit.upperCase", null)]);
+
+        Assert.Equal(Original, tab.Editor!.Document.Text);
+        Assert.Equal(Loc.Get(K.MacroBusy), _w.StatusMessageText);
+        Run("nks.macro.record");
+        Assert.Equal(Loc.Get(K.MacroBusy), _w.StatusMessageText);
+        Run("nks.macro.stop");
+        Assert.Equal(Loc.Get(K.MacroStoppedEmpty), _w.StatusMessageText);
+        Run("nks.macro.stop");
+        Assert.Equal(Loc.Get(K.MacroNotRecording), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void Play_last_macro_says_so_when_nothing_was_recorded_and_leaves_a_read_only_document_alone()
+    {
+        var tab = OpenWithFirstWordSelected();
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.playLast"));
+        Assert.Equal(Loc.Get(K.MacroNone), _w.StatusMessageText);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.macro.save"));
+        Assert.Equal(Loc.Get(K.MacroNone), _w.StatusMessageText);
+
+        Run("nks.macro.record");
+        Run("nks.edit.upperCase");
+        Run("nks.macro.stop");
+        tab.Editor!.IsReadOnly = true;
+        Assert.Equal(CommandOutcome.NotHandled, Run("nks.macro.playLast"));
+        Assert.Equal(CommandOutcome.NotHandled, Run("nks.macro.run"));
+    }
+
+    [AvaloniaFact]
+    public void A_macro_saved_under_an_empty_name_or_a_cancelled_question_writes_nothing()
+    {
+        OpenWithFirstWordSelected();
+        Run("nks.macro.record");
+        Run("nks.edit.upperCase");
+        Run("nks.macro.stop");
+
+        _dialogs.Prompts.Enqueue("   ");
+        Run("nks.macro.save");
+        Dispatcher.UIThread.RunJobs();
+        _dialogs.Prompts.Enqueue(null);
+        Run("nks.macro.save");
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(_app.Macros.Load([]));
+        Assert.False(Directory.Exists(_app.Macros.Directory) && Directory.EnumerateFiles(_app.Macros.Directory).Any());
+    }
+
+    [AvaloniaFact]
+    public void A_damaged_macro_file_is_named_with_its_reason_and_the_other_macros_still_load()
+    {
+        SaveTwoMacros();
+        string dir = _app.Macros.Directory;
+        File.WriteAllText(Path.Combine(dir, "a-not-json.json"), "{ nope");
+        File.WriteAllText(Path.Combine(dir, "b-no-name.json"), "{\"steps\":[]}");
+        File.WriteAllText(Path.Combine(dir, "c-no-steps.json"), "{\"name\":\"X\"}");
+        File.WriteAllText(Path.Combine(dir, "d-both.json"), "{\"name\":\"X\",\"steps\":[{\"command\":\"nks.edit.upperCase\",\"text\":\"a\"}]}");
+        File.WriteAllText(Path.Combine(dir, "e-neither.json"), "{\"name\":\"X\",\"steps\":[{}]}");
+
+        var problems = new List<(string File, string Reason)>();
+        var loaded = _app.Macros.Load(problems);
+
+        Assert.Equal(["First", "Second"], loaded.Select(m => m.Name));
+        Assert.Equal(["a-not-json.json", "b-no-name.json", "c-no-steps.json", "d-both.json", "e-neither.json"], problems.Select(p => p.File));
+        Assert.Contains("no name", problems[1].Reason);
+        Assert.Contains("no steps", problems[2].Reason);
+        Assert.All(problems.Skip(3), p => Assert.Contains("a step needs a command or a text", p.Reason));
     }
 
     [AvaloniaFact]

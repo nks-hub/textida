@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -147,6 +148,145 @@ public class HexMapAppTests : IDisposable
         Assert.True(hex.Minimap.Matches.Count >= 3);
         hex.Editor.Write(new ByteRange(0, 1), [9]);
         Assert.Empty(hex.Minimap.Matches); // the offsets belong to the revision they were found in
+    }
+
+    private sealed record Shot(byte[] Data, int Stride);
+
+    private Shot Capture()
+    {
+        _w.UpdateLayout();
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(2);
+        }
+        using var buffer = _w.CaptureRenderedFrame()!.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        return new Shot(data, buffer.RowBytes);
+    }
+
+    private static List<(int X, int Y)> Changed(Shot a, Shot b, int left, int top, int width, int height)
+    {
+        var changed = new List<(int, int)>();
+        for (int y = top; y < top + height; y++)
+            for (int x = left; x < left + width; x++)
+            {
+                int at = y * a.Stride + x * 4;
+                if (at + 3 < a.Data.Length && !a.Data.AsSpan(at, 4).SequenceEqual(b.Data.AsSpan(at, 4))) changed.Add((x, y));
+            }
+        return changed;
+    }
+
+    /// <summary>What a change makes in the lane of the map (the six pixels right of the map): the pixels that differ, as screen offsets inside the lane (X from its left edge, Y from the top of the map), and the row the offset has.</summary>
+    private (List<(int X, int Y)> Pixels, Func<long, int> RowOf) LaneAfter(HexView hex, Action change)
+    {
+        hex.Minimap.Rebuild();
+        PumpUntil(() => hex.Minimap.Map is { IsExact: true }, "the map did not become exact");
+        var map = hex.Minimap.Map!;
+        double height = hex.Minimap.Bounds.Height;
+        var origin = hex.Minimap.TranslatePoint(default, _w)!.Value;
+        int left = (int)origin.X + (int)HexMinimap.MapWidth - 10 + 2, top = (int)origin.Y;
+        var before = Capture();
+        change();
+        var after = Capture();
+        var pixels = Changed(before, after, left, top, 6, (int)height).Select(p => (p.X - left, p.Y - top)).ToList();
+        return (pixels, offset => (int)Math.Min(height - 2, Math.Floor(map.BucketOf(offset) * height / map.Buckets)));
+    }
+
+    [AvaloniaFact]
+    public void A_bookmark_is_marked_in_the_left_half_of_the_lane_at_its_place_in_the_file()
+    {
+        var hex = OpenHex(Quarters());
+        var (pixels, rowOf) = LaneAfter(hex, () => hex.Marks.Add(new ByteRange(300_000, 300_004), "b"));
+
+        Assert.NotEmpty(pixels);
+        Assert.All(pixels, p => { Assert.InRange(p.Y, rowOf(300_000), rowOf(300_000) + 1); Assert.InRange(p.X, 0, 2); });
+    }
+
+    [AvaloniaFact]
+    public void A_change_since_the_save_is_marked_in_the_right_half_of_the_lane_at_its_place_in_the_file()
+    {
+        var hex = OpenHex(Quarters());
+        var (pixels, rowOf) = LaneAfter(hex, () => hex.Editor.Write(new ByteRange(50_000, 50_001), [9]));
+
+        Assert.NotEmpty(pixels);
+        Assert.All(pixels, p => { Assert.InRange(p.Y, rowOf(50_000), rowOf(50_000) + 1); Assert.InRange(p.X, 3, 5); });
+    }
+
+    [AvaloniaFact]
+    public void A_match_is_marked_across_the_lane_at_its_place_in_the_file()
+    {
+        var hex = OpenHex(Quarters());
+        var (pixels, rowOf) = LaneAfter(hex, () => hex.Minimap.Matches = [150_000]);
+
+        Assert.NotEmpty(pixels);
+        Assert.All(pixels, p => Assert.Equal(rowOf(150_000), p.Y));
+        Assert.Contains(pixels, p => p.X < 3);
+        Assert.Contains(pixels, p => p.X >= 3);
+    }
+
+    [AvaloniaFact]
+    public void The_rectangle_of_the_part_on_screen_follows_the_scrolling_of_the_grid()
+    {
+        var hex = OpenHex(Quarters());
+        hex.Minimap.Rebuild();
+        PumpUntil(() => hex.Minimap.Map is { IsExact: true }, "the map did not become exact");
+        var origin = hex.Minimap.TranslatePoint(default, _w)!.Value;
+        int left = (int)origin.X, top = (int)origin.Y, width = (int)HexMinimap.MapWidth - 10, height = (int)hex.Minimap.Bounds.Height;
+
+        var atTop = Capture();
+        hex.Minimap.ScrollAt(height * 0.75);
+        var scrolled = Capture();
+
+        Assert.True(Changed(atTop, scrolled, left, top, width, height / 2).Count > 0, "the rectangle did not leave the top of the map");
+        Assert.True(Changed(atTop, scrolled, left, top + height / 2, width, height / 2).Count > 0, "the rectangle did not arrive at three quarters of the map");
+        hex.Minimap.ScrollAt(0);
+        var back = Capture();
+        Assert.Equal(0, Changed(atTop, back, left, top, width, height).Count);
+    }
+
+    /// <summary>A hex view of a small file whose watcher is off and whose reports of an external change are collected with the thread they came on.</summary>
+    private (HexView Hex, string Path, FileFingerprint Print, List<int> Threads) WatchedHex()
+    {
+        var hex = OpenHex(Quarters(1000));
+        var doc = hex.Document;
+        doc.StopWatching();
+        var threads = new List<int>();
+        doc.ExternalChangeDetected += (_, _) => { lock (threads) threads.Add(Environment.CurrentManagedThreadId); };
+        return (hex, doc.FilePath!, doc.Fingerprint!, threads);
+    }
+
+    [AvaloniaFact]
+    public async Task The_file_check_leaves_a_file_with_the_recorded_size_and_time_alone()
+    {
+        var (hex, path, print, threads) = WatchedHex();
+
+        // other bytes with the same size and write time: the hash would tell, the quick look at size and time does not start a check
+        var bytes = File.ReadAllBytes(path);
+        bytes[10] ^= 0xFF;
+        File.WriteAllBytes(path, bytes);
+        File.SetLastWriteTimeUtc(path, print.LastWriteUtc);
+        Assert.False(FileFingerprint.TryRead(path)!.SameContent(print));
+        hex.FileChangedBehind();
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(500);
+
+        lock (threads) Assert.Empty(threads);
+    }
+
+    [AvaloniaFact]
+    public void The_file_check_of_a_file_of_another_size_hashes_it_on_a_worker_not_on_the_ui_thread()
+    {
+        var (hex, path, _, threads) = WatchedHex();
+        int uiThread = Environment.CurrentManagedThreadId;
+
+        File.AppendAllText(path, "more");
+        hex.FileChangedBehind();
+        Dispatcher.UIThread.RunJobs();
+        PumpUntil(() => { lock (threads) return threads.Count > 0; }, "the changed file was not reported");
+
+        lock (threads) Assert.NotEqual(uiThread, Assert.Single(threads));
     }
 
     [AvaloniaFact]

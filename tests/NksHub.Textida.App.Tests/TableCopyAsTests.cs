@@ -225,7 +225,8 @@ public class TableCopyAsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
-        Assert.Contains(_w.Notices, n => n.Message.Contains("at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters of values", StringComparison.Ordinal));
+        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)));
+        Assert.DoesNotContain(_w.Notices, n => n.Message.StartsWith("The plugin Text tools could not be run", StringComparison.Ordinal));
     }
 
     [AvaloniaFact]
@@ -242,7 +243,30 @@ public class TableCopyAsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
-        Assert.Contains(_w.Notices, n => n.Message.Contains("clipboard takes at most " + PluginLimitsPlaceholders.ClipboardMaxChars + " characters", StringComparison.Ordinal));
+        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)));
+        Assert.DoesNotContain(_w.Notices, n => n.Message.StartsWith("The plugin Text tools could not be run", StringComparison.Ordinal));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("cs", "Tabulka je nad limitem")]
+    [InlineData("en", "The table is over the limit")]
+    [InlineData("sk", "Tabuľka je nad limitom")]
+    [InlineData("de", "Die Tabelle ist über dem Limit")]
+    public async Task The_window_says_the_table_is_over_the_limit_in_every_language_and_not_that_the_plugin_could_not_run(string language, string start)
+    {
+        Loc.SetLanguage(language);
+        var (_, view) = OpenTable("cells.csv", "a\n" + new string('*', 550_000) + "\n");
+        view.SelectAll();
+
+        await _w.CopyTableAsAsync("table.copyAs.markdown");
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(300);
+        Dispatcher.UIThread.RunJobs();
+
+        var notice = Assert.Single(_w.Notices, n => n.Message.StartsWith(start, StringComparison.Ordinal));
+        Assert.Contains(PluginLimitsPlaceholders.ClipboardMaxChars.ToString(), notice.Message);
+        Assert.DoesNotContain("{", notice.Message);
+        Assert.DoesNotContain(_w.Notices, n => n.Message.Contains("Text tools", StringComparison.Ordinal));
     }
 
     [AvaloniaFact]

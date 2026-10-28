@@ -298,6 +298,33 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task SnippetItemsThatTouchAHiddenValueOfASecretsFileAreRefusedUnlessThePluginMaySeeIt()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"));
+        var bytes = Utf8("KEY=hunter2\nB=2\n");
+        var path = WriteEnv(".env", bytes);
+        var doc = Document.Open(path, PagedBackendFactory.Instance);
+        rig.Owner.Run(() => { rig.Api.Expose(doc, () => SelectionSet.Single(TextSelection.At(0))); return 0; });
+        try
+        {
+            string Items(string items, long revision) => $"{{\"document\":\"{doc.Id}\",\"revision\":{revision},\"items\":[{items}]}}";
+            byte[] Bytes() => rig.Owner.Run(() => doc.ReadBytes(new ByteRange(0, doc.ByteLength)));
+
+            await rig.ErrorAsync(DocumentMethods.SnippetInsert, Items("{\"start\":4,\"end\":11,\"text\":\"x\"}", doc.Revision), DocumentErrorCodes.PermissionDenied);
+            await rig.ErrorAsync(DocumentMethods.SnippetInsert, Items("{\"start\":0,\"end\":3,\"text\":\"APP\"},{\"start\":6,\"end\":6,\"text\":\"y\"}", doc.Revision), DocumentErrorCodes.PermissionDenied);
+            Assert.Equal(bytes, Bytes());
+
+            await rig.CallAsync(DocumentMethods.SnippetInsert, Items("{\"start\":0,\"end\":3,\"text\":\"APP\"},{\"start\":12,\"end\":13,\"text\":\"C\"}", doc.Revision));
+            Assert.Equal(Utf8("APP=hunter2\nC=2\n"), Bytes());
+
+            rig.Permissions.Grant("p", DocumentPermissions.SecretsReveal, GrantScope.OfDocument(doc.Id));
+            await rig.CallAsync(DocumentMethods.SnippetInsert, Items("{\"start\":4,\"end\":11,\"text\":\"new\"}", doc.Revision));
+            Assert.Equal(Utf8("APP=new\nC=2\n"), Bytes());
+        }
+        finally { rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; }); Directory.Delete(Path.GetDirectoryName(path)!, true); }
+    }
+
+    [Fact]
     public async Task ASnippetNeedsSelectionsToInsertInto()
     {
         await using var rig = await Rig.CreateAsync(Utf8("ab"), codec: TextCodec.Utf8);

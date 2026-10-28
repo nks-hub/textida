@@ -34,6 +34,7 @@ internal sealed class HexMinimap : Control
     private int _builtBuckets;
     private ByteMapMode _mode = ByteMapMode.Entropy;
     private bool _dragging;
+    private long _thumbFirst = -1, _thumbCount = -1;
     private IReadOnlyList<long> _matches = [];
 
     public HexMinimap(HexView owner)
@@ -96,7 +97,14 @@ internal sealed class HexMinimap : Control
     private void OnDocumentChanged()
     {
         if (_matches.Count > 0) _matches = []; // the offsets of a search belong to the revision it ran on
+        InvalidateVisual(); // the lane shows the changes since the save at once; the map itself follows when the build is done
         Schedule();
+    }
+
+    /// <summary>The grid scrolled or got another size: the rectangle of the part on screen moves. Draws again only when it did.</summary>
+    internal void NoteView()
+    {
+        if (_owner.FirstByte != _thumbFirst || _owner.VisibleBytes != _thumbCount) InvalidateVisual();
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)
@@ -234,6 +242,7 @@ internal sealed class HexMinimap : Control
     {
         double height = Bounds.Height;
         long first = _owner.FirstByte, count = _owner.VisibleBytes;
+        (_thumbFirst, _thumbCount) = (first, count);
         double top = Math.Clamp(first * height / length, 0, height - 3);
         double thumb = Math.Clamp(count * height / length, 6, height);
         var accent = ColorOf("Accent", Colors.Teal);

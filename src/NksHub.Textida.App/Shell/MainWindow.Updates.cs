@@ -38,9 +38,12 @@ internal sealed partial class MainWindow
         if (_app.Workbench.Settings.GetBool("updates.checkOnStart")) UpdateTask = CheckUpdatesAsync(interactive: false);
     }
 
+    /// <summary>The client of the update check: it goes through the proxy of the network policy; a policy that cannot be read throws <see cref="RemoteException"/>.</summary>
+    internal HttpClient CreateUpdateHttpClient() => new(_app.Remote.Policy().CreateHttpHandler());
+
     private AppUpdater? OpenUpdater(bool interactive)
     {
-        var updater = UpdaterOverride ?? new AppUpdater(new HttpClient(_app.Remote.Policy().CreateHttpHandler()), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, AppContext.BaseDirectory);
+        var updater = UpdaterOverride ?? new AppUpdater(CreateUpdateHttpClient(), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, AppContext.BaseDirectory);
         if (!OperatingSystem.IsWindows() || !updater.IsInstalled) { if (interactive) SetStatusMessage(Loc.Get(K.UpdateUnavailable)); return null; }
         if (!updater.IsConfigured) { if (interactive) SetStatusMessage(Loc.Get(K.UpdateNotConfigured)); return null; }
         return updater;

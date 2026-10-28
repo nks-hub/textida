@@ -35,6 +35,51 @@ public class ProxyTests
         if (protocol == RemoteProtocol.Ftps) Assert.True(proxy.Tunnels >= 2, $"only {proxy.Tunnels} connection(s) used the proxy");
     }
 
+    [Theory, MemberData(nameof(Matrix))]
+    public async Task TheProxyOfTheNetworkPolicyCarriesEveryTypeAndProtocolForAConnectionWithoutItsOwn(RemoteProtocol protocol, ProxyType kind)
+    {
+        using var dir = new TempDir();
+        File.WriteAllText(dir.Combine("a.txt"), "by policy");
+        await using var server = await Servers.StartAsync(protocol, dir.Path, dir.Path);
+        using var proxy = new TestProxy(kind);
+        var connection = server.Connection(trusted: server.Identity);
+        var secrets = new MemoryCredentials();
+        secrets.Set(connection.SecretKey, "p");
+
+        await using var client = RemoteClients.Create(connection, secrets, DenyUnknownServers.Instance, new NetworkPolicy(proxy.Settings, null));
+        await client.ConnectAsync(default);
+        var ms = new MemoryStream();
+        await client.DownloadAsync("/a.txt", ms, default);
+
+        Assert.Equal("by policy", Encoding.UTF8.GetString(ms.ToArray()));
+        Assert.True(proxy.Tunnels >= 1, "no connection came through the proxy of the policy");
+        if (protocol == RemoteProtocol.Ftps) Assert.True(proxy.Tunnels >= 2, $"only {proxy.Tunnels} connection(s) used the proxy of the policy");
+    }
+
+    [Fact]
+    public async Task ASocks4ProxyOfThePolicyIsRefusedForFtpsWithAClearErrorAndAcceptedForSftp()
+    {
+        var policy = new NetworkPolicy(new ProxySettings(ProxyType.Socks4, "198.51.100.1", 1080), null);
+        var ftps = new RemoteConnection { Name = "f", Host = "192.0.2.1", Protocol = RemoteProtocol.Ftps };
+        var e = Assert.Throws<RemoteException>(() => RemoteClients.Create(ftps, new MemoryCredentials(), DenyUnknownServers.Instance, policy));
+        Assert.Equal(RemoteError.UnsupportedCombination, e.Error);
+        Assert.Contains("SOCKS4", e.Message);
+
+        var sftp = ftps with { Protocol = RemoteProtocol.Sftp };
+        await using var client = RemoteClients.Create(sftp, new MemoryCredentials(), DenyUnknownServers.Instance, policy);
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void AnUnsupportedProxyTypeInThePolicyStopsTheClientBeforeAnyConnection()
+    {
+        var policy = new NetworkPolicy(new ProxySettings((ProxyType)99, "198.51.100.1", 8080), null);
+        var connection = new RemoteConnection { Name = "f", Host = "192.0.2.1", Protocol = RemoteProtocol.Sftp };
+        var e = Assert.Throws<RemoteException>(() => RemoteClients.Create(connection, new MemoryCredentials(), DenyUnknownServers.Instance, policy));
+        Assert.Equal(RemoteError.UnsupportedCombination, e.Error);
+        Assert.Contains("http, socks4, socks5", e.Message);
+    }
+
     [Theory]
     [InlineData(RemoteProtocol.Ftps, ProxyType.Http)]
     [InlineData(RemoteProtocol.Ftps, ProxyType.Socks5)]

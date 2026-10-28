@@ -354,6 +354,65 @@ public class RegistryTests
     }
 
     [Fact]
+    public async Task A_recording_keeps_the_handled_outermost_macro_commands_and_joins_typed_text_and_a_playback_stops_at_the_first_step_that_does_not_run()
+    {
+        var registry = Host.Commands;
+        var ctx = new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.ReadOnly, false).Set(ContextKeys.HasDocument, true).Set(ContextKeys.HasSelection, true);
+        var ran = new List<string>();
+        CommandHandler Handled(string name) => (_, _) => { ran.Add(name); return ValueTask.FromResult(CommandOutcome.Handled); };
+        registry.SetHandler("nks.edit.selectAll", Handled("selectAll"));
+        registry.SetHandler("nks.edit.upperCase", (_, _) => { ran.Add("upperCase"); return ValueTask.FromResult(CommandOutcome.NotHandled); });
+        registry.SetHandler("nks.edit.selectLine", async (_, _) =>
+        {
+            ran.Add("selectLine");
+            await registry.ExecuteAsync("nks.edit.selectAll", ctx); // runs inside the command: part of it, not a step of its own
+            return CommandOutcome.Handled;
+        });
+        var refused = new List<string>();
+        registry.RecordingRefused += refused.Add;
+        Assert.True(registry.TryGet("nks.edit.convert", out var convert) && !convert.Macro);
+
+        Assert.True(registry.StartRecording());
+        Assert.False(registry.StartRecording());
+        Assert.True(registry.IsRecording);
+        await registry.ExecuteAsync("nks.edit.selectAll", ctx);
+        registry.RecordText("a");
+        registry.RecordText("");
+        registry.RecordText("b");
+        Assert.Equal(CommandOutcome.NotHandled, await registry.ExecuteAsync("nks.edit.upperCase", ctx));
+        Assert.Equal(CommandOutcome.NotRecordable, await registry.ExecuteAsync("nks.edit.convert", ctx));
+        await registry.ExecuteAsync("nks.edit.selectLine", ctx);
+        Assert.Equal(new MacroResult(0, CommandOutcome.NotHandled), await registry.PlayAsync([new MacroStep("nks.edit.selectAll", null)], ctx, _ => true)); // not while recording
+        var steps = registry.StopRecording();
+
+        Assert.Equal([new MacroStep("nks.edit.selectAll", null), new MacroStep(null, "ab"), new MacroStep("nks.edit.selectLine", null)], steps);
+        Assert.Equal(["nks.edit.convert"], refused);
+        Assert.Equal(steps, registry.LastMacro);
+        Assert.False(registry.IsRecording);
+        Assert.False(registry.IsExecuting);
+
+        // an empty recording does not replace the last macro, and text typed while nothing is recorded is not kept
+        Assert.True(registry.StartRecording());
+        Assert.Empty(registry.StopRecording());
+        registry.RecordText("lost");
+        Assert.Equal(steps, registry.LastMacro);
+
+        ran.Clear();
+        var typed = new List<string>();
+        Assert.Equal(new MacroResult(3, CommandOutcome.Handled), await registry.PlayAsync(steps, ctx, t => { typed.Add(t); return true; }));
+        Assert.Equal(["selectAll", "selectLine", "selectAll"], ran);
+        Assert.Equal(["ab"], typed);
+        Assert.False(registry.IsPlaying);
+
+        ran.Clear();
+        var broken = new[] { new MacroStep("nks.edit.selectAll", null), new MacroStep("nks.edit.upperCase", null), new MacroStep("nks.edit.selectLine", null) };
+        Assert.Equal(new MacroResult(1, CommandOutcome.NotHandled), await registry.PlayAsync(broken, ctx, _ => true));
+        Assert.Equal(["selectAll", "upperCase"], ran);
+        Assert.Equal(new MacroResult(1, CommandOutcome.NotHandled), await registry.PlayAsync([new MacroStep("nks.edit.selectAll", null), new MacroStep(null, "x")], ctx, _ => false));
+        Assert.False(registry.IsPlaying);
+    }
+
+    [Fact]
     public async Task Fallback_chains_are_bounded()
     {
         var host = Host;
