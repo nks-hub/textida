@@ -1993,6 +1993,7 @@
   "settings.system.desktop": "Desktop shortcut",
   "settings.system.defaultNote": "The default app for a file type is chosen in Windows Settings. Textida is offered there for the extensions ticked above.",
   "settings.system.defaultButton": "Open default apps in Windows",
+  "settings.system.assocItem": "Open with: {extension}",
   "update.title": "Update",
   "update.checking": "Checking for updates...",
   "update.current": "Textida {version} is up to date.",

@@ -217,7 +217,7 @@ internal sealed class SetupWindow : Window
 
     private static Button MakeButton(string id, string content, bool enabled, Action click)
     {
-        var button = new Button { Content = content, IsEnabled = enabled, MinWidth = 96, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var button = new Button { Content = content, IsEnabled = enabled, MinWidth = 96, HorizontalContentAlignment = HorizontalAlignment.Center, IsCancel = id == "cancel" };
         AutomationProperties.SetAutomationId(button, id);
         button.Click += (_, _) => click();
         return button;

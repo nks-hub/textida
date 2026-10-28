@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using System.Security;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -50,6 +51,7 @@ internal sealed partial class SettingsWindow
             {
                 var box = Toggle(extension, associated.Contains(extension), integration, problem, on => integration.SetAssociated(extension, on));
                 box.MinWidth = 84;
+                AutomationProperties.SetName(box, Loc.Get(K.SettingsSystemAssocItem, ("extension", extension))); // a screen reader says what the switch does, not only the extension
                 extensions.Children.Add(box);
             }
             stack.Children.Add(extensions);

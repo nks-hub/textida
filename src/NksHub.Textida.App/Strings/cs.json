@@ -2029,6 +2029,7 @@
   "settings.system.desktop": "Zástupce na ploše",
   "settings.system.defaultNote": "Která aplikace soubory otevírá ve výchozím stavu, se volí v nastavení Windows. Textida se tam nabídne u přípon zaškrtnutých výše.",
   "settings.system.defaultButton": "Otevřít výchozí aplikace ve Windows",
+  "settings.system.assocItem": "Otevřít pomocí: {extension}",
   "update.title": "Aktualizace",
   "update.checking": "Zjišťuji aktualizace...",
   "update.current": "Textida {version} je aktuální.",

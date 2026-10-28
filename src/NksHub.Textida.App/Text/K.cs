@@ -1967,6 +1967,7 @@ public static class K
     public const string SettingsSystemDesktop = "settings.system.desktop";
     public const string SettingsSystemDefaultNote = "settings.system.defaultNote";
     public const string SettingsSystemDefaultButton = "settings.system.defaultButton";
+    public const string SettingsSystemAssocItem = "settings.system.assocItem";
     public const string UpdateTitle = "update.title";
     public const string UpdateChecking = "update.checking";
     public const string UpdateCurrent = "update.current";

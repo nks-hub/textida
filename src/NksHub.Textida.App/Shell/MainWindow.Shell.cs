@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Install;
@@ -15,16 +16,39 @@ internal sealed partial class MainWindow
     /// <summary>The last Explorer integration command; tests wait for it.</summary>
     internal Task ShellTask { get; private set; } = Task.CompletedTask;
 
-    internal CommandOutcome AddShellMenu() => RunShell(s => { s.SetMenu(true, Loc.Get(K.ShellMenuLabel)); return K.ShellMenuAdded; });
+    internal CommandOutcome AddShellMenu() => OperatingSystem.IsWindows() ? RunShell(AddMenu) : Unavailable();
 
-    internal CommandOutcome RemoveShellIntegration() => RunShell(s => { s.RemoveExplorerIntegration(); return K.ShellRemoved; });
+    internal CommandOutcome RemoveShellIntegration() => OperatingSystem.IsWindows() ? RunShell(RemoveExplorerEntries) : Unavailable();
 
     internal CommandOutcome ShowShellAssociations()
     {
+        if (!OperatingSystem.IsWindows()) return Unavailable();
         ShellTask = ChooseShellAssociationsAsync();
         return CommandOutcome.Handled;
     }
 
+    [SupportedOSPlatform("windows")]
+    private static string AddMenu(SystemIntegration shell)
+    {
+        shell.SetMenu(true, Loc.Get(K.ShellMenuLabel));
+        return K.ShellMenuAdded;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string RemoveExplorerEntries(SystemIntegration shell)
+    {
+        shell.RemoveExplorerIntegration();
+        return K.ShellRemoved;
+    }
+
+    private CommandOutcome Unavailable()
+    {
+        ShellTask = Task.CompletedTask;
+        SetStatusMessage(Loc.Get(K.ShellUnavailable));
+        return CommandOutcome.Handled;
+    }
+
+    [SupportedOSPlatform("windows")]
     private CommandOutcome RunShell(Func<SystemIntegration, string> run)
     {
         ShellTask = Task.CompletedTask;
@@ -41,6 +65,7 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    [SupportedOSPlatform("windows")]
     private SystemIntegration? OpenShell()
     {
         var shell = ShellHost.Open();
@@ -49,6 +74,7 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Lists the extensions with their state; choosing one switches it, and the list stays until it is dismissed.</summary>
+    [SupportedOSPlatform("windows")]
     private async Task ChooseShellAssociationsAsync()
     {
         if (OpenShell() is not { } shell) return;

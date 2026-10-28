@@ -1993,6 +1993,7 @@
   "settings.system.desktop": "Verknüpfung auf dem Desktop",
   "settings.system.defaultNote": "Welche App einen Dateityp standardmäßig öffnet, wählen Sie in den Windows-Einstellungen. Textida wird dort für die oben angekreuzten Endungen angeboten.",
   "settings.system.defaultButton": "Standard-Apps in Windows öffnen",
+  "settings.system.assocItem": "Öffnen mit: {extension}",
   "update.title": "Update",
   "update.checking": "Suche nach Updates...",
   "update.current": "Textida {version} ist aktuell.",

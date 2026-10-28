@@ -2029,6 +2029,7 @@
   "settings.system.desktop": "Zástupca na ploche",
   "settings.system.defaultNote": "Predvolená aplikácia pre typ súboru sa vyberá v nastaveniach Windows. Textida sa tam ponúkne pri príponách zaškrtnutých vyššie.",
   "settings.system.defaultButton": "Otvoriť predvolené aplikácie vo Windows",
+  "settings.system.assocItem": "Otvoriť pomocou: {extension}",
   "update.title": "Aktualizácia",
   "update.checking": "Zisťujem aktualizácie...",
   "update.current": "Textida {version} je aktuálna.",

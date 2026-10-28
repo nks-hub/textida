@@ -208,6 +208,22 @@ public class SystemIntegrationSettingsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Every_control_of_the_section_has_a_name_and_a_role_in_every_language()
+    {
+        var keys = A11yAudit.Keys();
+        foreach (var language in A11yAudit.Languages)
+        {
+            _app.SetLanguage(language);
+            var items = A11yAudit.Collect(Open("").RowOf(SettingsWindow.SystemSectionId)!);
+            Assert.True(items.Count >= ShellIntegration.Extensions.Count + 4, language);
+            Assert.All(items, item => Assert.Empty(A11yAudit.Problems(item, keys, [])));
+        }
+
+        _app.SetLanguage("en");
+        Assert.Contains(A11yAudit.Collect(Open("").RowOf(SettingsWindow.SystemSectionId)!), i => i.Name == "Open with: .log");
+    }
+
+    [AvaloniaFact]
     public void Outside_textida_exe_the_section_explains_instead_of_offering_switches()
     {
         ShellHost.ExeOverride = null; // the test host is not Textida.exe
