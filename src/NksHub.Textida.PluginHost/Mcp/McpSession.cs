@@ -53,7 +53,11 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         }
     }
 
-    public ValueTask HandleNotificationAsync(string method, JsonElement parameters) => ValueTask.CompletedTask;
+    public ValueTask HandleNotificationAsync(string method, JsonElement parameters)
+    {
+        if (method == "notifications/initialized") peer?.Ready();
+        return ValueTask.CompletedTask;
+    }
 
     // ---- eras ----
 
@@ -122,6 +126,16 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         if (p.ValueKind != JsonValueKind.Object || !p.TryGetProperty("protocolVersion", out var v) || v.ValueKind != JsonValueKind.String)
             throw InvalidParams("initialize needs a protocolVersion. This server also speaks " + McpServer.ModernVersion + ", where every request carries its version in _meta.");
         _legacy = true;
+        if (peer is not null)
+        {
+            string? name = null, version = null;
+            if (p.TryGetProperty("clientInfo", out var info) && info.ValueKind == JsonValueKind.Object)
+            {
+                if (info.TryGetProperty("name", out var clientName) && clientName.ValueKind == JsonValueKind.String) name = clientName.GetString();
+                if (info.TryGetProperty("version", out var clientVersion) && clientVersion.ValueKind == JsonValueKind.String) version = clientVersion.GetString();
+            }
+            peer.Identify(name, version);
+        }
         return DocumentApi.Obj(w =>
         {
             w.WriteString("protocolVersion", McpServer.LegacyVersion);
@@ -180,15 +194,24 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         bool modern = IsModern(p);
         if (!p.TryGetProperty("name", out var n) || n.ValueKind != JsonValueKind.String) throw InvalidParams("Parameter 'name' must be a string.");
         var name = n.GetString()!;
-        var tool = server.FindEnabled(name) ?? peer?.ExtraTools.FirstOrDefault(t => t.Name == name) ?? throw InvalidParams("Unknown tool: " + name);
+        var tool = server.FindEnabled(name) ?? peer?.ExtraTools.FirstOrDefault(t => t.Name == name);
+        if (tool is null)
+        {
+            if (peer?.Decline(name) is not { } declined) throw InvalidParams("Unknown tool: " + name);
+            return Result(modern, false, w => WriteText(w, declined, failed: true));
+        }
         var args = EmptyObject;
         if (p.TryGetProperty("arguments", out var a) && a.ValueKind != JsonValueKind.Null)
             args = a.ValueKind == JsonValueKind.Object ? a : throw InvalidParams("Parameter 'arguments' must be an object.");
 
         string text;
         bool failed = false;
-        try { text = await tool.Run(new McpToolContext(server, ct), args).ConfigureAwait(false); }
-        catch (ToolArgumentException e) { throw InvalidParams($"Invalid arguments for tool {name}: {e.Message}"); }
+        try { text = await tool.Run(new McpToolContext(server, ct, peer?.Scope), args).ConfigureAwait(false); }
+        catch (ToolArgumentException e)
+        {
+            if (peer is not null && peer.ExtraTools.Contains(tool)) peer.ReportIncompatible($"the agent called the tool '{name}' with arguments the bridge does not understand ({e.Message})");
+            throw InvalidParams($"Invalid arguments for tool {name}: {e.Message}");
+        }
         catch (ToolFailure e) { text = e.Message; failed = true; }
         catch (RpcException e) { text = McpToolContext.Describe(e); failed = true; }
         if (text.Length > server.Options.MaxResultChars)
@@ -196,16 +219,18 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
             text = $"The result has {text.Length} characters and the limit is {server.Options.MaxResultChars}. Ask for less: a smaller range, fewer results or a narrower pattern.";
             failed = true;
         }
-        return Result(modern, false, w =>
-        {
-            w.WriteStartArray("content");
-            w.WriteStartObject();
-            w.WriteString("type", "text");
-            w.WriteString("text", text);
-            w.WriteEndObject();
-            w.WriteEndArray();
-            w.WriteBoolean("isError", failed);
-        });
+        return Result(modern, false, w => WriteText(w, text, failed));
+    }
+
+    private static void WriteText(Utf8JsonWriter w, string text, bool failed)
+    {
+        w.WriteStartArray("content");
+        w.WriteStartObject();
+        w.WriteString("type", "text");
+        w.WriteString("text", text);
+        w.WriteEndObject();
+        w.WriteEndArray();
+        w.WriteBoolean("isError", failed);
     }
 
     // ---- subscriptions ----

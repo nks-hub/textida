@@ -1345,6 +1345,15 @@ public static class K
     public const string IdeOnStatus = "ide.on.status";
     public const string IdeOffStatus = "ide.off.status";
     public const string IdeFailed = "ide.failed";
+    public const string IdeStatusWaiting = "ide.status.waiting";
+    public const string IdeStatusConnected = "ide.status.connected";
+    public const string IdeStatusTip = "ide.status.tip";
+    public const string IdeAgentUnnamed = "ide.agent.unnamed";
+    public const string IdeDisconnected = "ide.disconnected";
+    public const string IdeNoAgent = "ide.noAgent";
+    public const string IdeNotOn = "ide.notOn";
+    public const string IdeProposal = "ide.proposal";
+    public const string IdeIncompatible = "ide.incompatible";
     public const string McpOnTitle = "mcp.on.title";
     public const string McpOnMessage = "mcp.on.message";
     public const string McpOnConfirm = "mcp.on.confirm";

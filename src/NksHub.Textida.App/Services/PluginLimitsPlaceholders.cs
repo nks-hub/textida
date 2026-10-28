@@ -458,12 +458,16 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest upgrade request the IDE bridge reads, in bytes.</summary>
     public const int IdeMaxHeaderBytes = 8 * 1024;
 
+    /// <summary>Placeholder, OPEN: longest name of a connected /ide agent that is kept for the status bar, in UTF-16 units; a longer name is cut. The owner has not decided it.</summary>
+    public const int IdeMaxAgentNameChars = 40;
+
     public static IdeBridgeOptions Ide(McpServer server, string lockDirectory) => new()
     {
         Server = server,
         LockDirectory = lockDirectory,
         HandshakeTimeout = TimeSpan.FromSeconds(IdeHandshakeSeconds),
         MaxHeaderBytes = IdeMaxHeaderBytes,
+        MaxAgentNameChars = IdeMaxAgentNameChars,
     };
 
     /// <summary>Placeholder: longest wait for a server tried from the list of agent servers, for its handshake and for its list of tools.</summary>

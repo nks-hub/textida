@@ -527,6 +527,7 @@
   "cmd.tools.mcpShareTab": "Share This Tab with MCP",
   "cmd.tools.mcpShareSelection": "Share Selection with MCP",
   "cmd.tools.ideBridge": "IDE Bridge /ide: Switch On or Off...",
+  "cmd.tools.ideDisconnect": "IDE Bridge /ide: Disconnect Agent",
   "cmd.tools.mcpTools": "MCP Tools...",
   "cmd.tools.mcpServers": "MCP Servers of Agents...",
   "cmd.agent.start": "Start Agent...",

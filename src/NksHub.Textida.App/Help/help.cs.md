@@ -1457,14 +1457,17 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
 
 ## [tools.ide] Most /ide pro Claude Code
-commands: nks.tools.ideBridge
-Claude Code běžící v terminálu na tomto počítači se k Textidě připojí příkazem /ide. Agent pak ví, kde máte výběr, a může navrhovat změny. Vidí jen karty, které zpřístupníte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+Claude Code běžící v terminálu na tomto počítači se příkazem /ide připojí k oknu Textidy. Agent pak ví, kde máte výběr a který soubor je otevřený, a změny, které chce ve zpřístupněné kartě udělat, se objeví v kontrole změn. Vidí jen karty, které zpřístupníte, a Textida použije jen to, co potvrdíte.
 1. Nejdřív zapněte server MCP (Nástroje, Server MCP) a zpřístupněte kartu (Nástroje, Sdílet tuto kartu s MCP). Most používá stejné zpřístupněné karty.
-2. Zvolte Nástroje, Most /ide. Dialog řekne, co agent dostane. Teprve po potvrzení Textida otevře port, jen na tomto počítači (127.0.0.1), a zapíše soubor zámku s tokenem do ~/.claude/ide (nebo do složky ide v CLAUDE_CONFIG_DIR). Opětovná volba příkazu port zavře a soubor smaže.
-3. V terminálu spusťte v Claude Code příkaz /ide. Program bez tokenu ze souboru zámku se odmítne.
-- Agent se při každé změně výběru dozví výběr a cestu zpřístupněné karty. Hodnoty z .env jsou skryté jako u každého jiného čtení. Odvolání karty to okamžitě zastaví.
-- Změny agenta přijdou jako návrhy stejným náhledem změn jako u MCP.
-- Nedokončeno: pole souboru zámku, podprotokol WebSocketu, zprávu o výběru a volání rozdílu Claude Code veřejná dokumentace nepopisuje, takže zatím není potvrzena žádná verze Claude Code, se kterou most funguje. Tvar výsledku getDiagnostics (chyby a varování zpřístupněných karet) je provizorní.
+2. Zvolte Nástroje, Most /ide. Dialog řekne, co agent dostane. Teprve po potvrzení Textida otevře port, jen na tomto počítači (127.0.0.1), a zapíše soubor zámku s tokenem a složkami okna do ~/.claude/ide (nebo do složky ide v CLAUDE_CONFIG_DIR). Opětovná volba příkazu port zavře a soubor smaže.
+3. V terminálu ve složce tohoto okna spusťte v Claude Code příkaz /ide. Program bez tokenu ze souboru zámku se odmítne.
+4. Stavový řádek ukazuje připojeného agenta. Kliknutím, nebo příkazem Nástroje, Most /ide: odpojit agenta ho odpojíte. Port zůstane otevřený, takže se agent může příkazem /ide připojit znovu; chcete-li tomu zabránit, most vypněte.
+- Každé okno má svůj most s vlastním portem a tokenem, stejně jako každá instance Textidy. Agent připojený k oknu vidí jen karty zpřístupněné v tomto okně. Soubor zámku, který po sobě nechala spadlá instance, se smaže při spuštění dalšího mostu.
+- Agent se dozví výběr a cestu zpřístupněné karty při každé změně výběru i při přepnutí na kartu. Karta, která není zpřístupněná nebo ještě nemá soubor, se nehlásí. Hodnoty z .env jsou skryté jako u každého jiného čtení. Odvolání karty to okamžitě zastaví.
+- Změna, kterou Claude Code navrhne pro zpřístupněnou kartu, se otevře v kontrole změn (karta Výsledky hledání). Použití celé změny odpoví FILE_SAVED, odmítnutí DIFF_REJECTED; použití jen některých úseků odpoví chybou, aby si agent soubor přečetl znovu. Textida použije v kartě to, co potvrdíte, a soubor neuloží. Soubor, který není v okně otevřený nebo zpřístupněný, a soubor .env se odmítnou.
+- getDiagnostics vrací chyby a varování zpřístupněných karet.
+- Neověřeno: Claude Code tento protokol nespecifikuje. Most se řídí oficiální stránkou o vestavěném serveru IDE a popisem komunity (coder/claudecode.nvim) a žádná verze Claude Code zatím nebyla potvrzena jako funkční. Neprovedeno: otevírání souborů z agenta, seznam otevřených karet, ukládání přes most, spouštění buněk notebooků a @-zmínky.
 
 ## [tools.agent] Agent přes ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop

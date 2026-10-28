@@ -1457,14 +1457,17 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
 
 ## [tools.ide] Most /ide pre Claude Code
-commands: nks.tools.ideBridge
-Claude Code bežiaci v termináli na tomto počítači sa k Textide pripojí príkazom /ide. Agent potom vie, kde máte výber, a môže navrhovať zmeny. Vidí len karty, ktoré sprístupníte, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+Claude Code bežiaci v termináli na tomto počítači sa príkazom /ide pripojí k oknu Textidy. Agent potom vie, kde máte výber a ktorý súbor je otvorený, a zmeny, ktoré chce v sprístupnenej karte urobiť, sa zobrazia v kontrole zmien. Vidí len karty, ktoré sprístupníte, a Textida použije len to, čo potvrdíte.
 1. Najprv zapnite server MCP (Nástroje, Server MCP) a sprístupnite kartu (Nástroje, Zdieľať túto kartu s MCP). Most používa tie isté sprístupnené karty.
-2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
-3. V termináli spustite v Claude Code príkaz /ide. Program bez tokenu zo súboru zámku sa odmietne.
-- Agent sa pri každej zmene výberu dozvie výber a cestu sprístupnenej karty. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
-- Zmeny agenta prídu ako návrhy tým istým náhľadom zmien ako pri MCP.
-- Nedokončené: polia súboru zámku, podprotokol WebSocketu, správu o výbere a volanie rozdielu Claude Code verejná dokumentácia neopisuje, takže zatiaľ nie je potvrdená žiadna verzia Claude Code, s ktorou most funguje. Tvar výsledku getDiagnostics (chyby a varovania sprístupnených kariet) je provizórny.
+2. Zvoľte Nástroje, Most /ide. Dialóg povie, čo agent dostane. Až po potvrdení Textida otvorí port, len na tomto počítači (127.0.0.1), a zapíše súbor zámku s tokenom a priečinkami okna do ~/.claude/ide (alebo do priečinka ide v CLAUDE_CONFIG_DIR). Opätovná voľba príkazu port zavrie a súbor zmaže.
+3. V termináli v priečinku tohto okna spustite v Claude Code príkaz /ide. Program bez tokenu zo súboru zámku sa odmietne.
+4. Stavový riadok ukazuje pripojeného agenta. Kliknutím, alebo príkazom Nástroje, Most /ide: odpojiť agenta ho odpojíte. Port zostane otvorený, takže sa agent môže príkazom /ide pripojiť znova; ak tomu chcete zabrániť, most vypnite.
+- Každé okno má svoj most s vlastným portom a tokenom, rovnako ako každá inštancia Textidy. Agent pripojený k oknu vidí len karty sprístupnené v tomto okne. Súbor zámku, ktorý po sebe nechala spadnutá inštancia, sa zmaže pri spustení ďalšieho mosta.
+- Agent sa dozvie výber a cestu sprístupnenej karty pri každej zmene výberu aj pri prepnutí na kartu. Karta, ktorá nie je sprístupnená alebo ešte nemá súbor, sa nehlási. Hodnoty z .env sú skryté ako pri každom inom čítaní. Odvolanie karty to okamžite zastaví.
+- Zmena, ktorú Claude Code navrhne pre sprístupnenú kartu, sa otvorí v kontrole zmien (karta Výsledky hľadania). Použitie celej zmeny odpovie FILE_SAVED, odmietnutie DIFF_REJECTED; použitie len niektorých úsekov odpovie chybou, aby si agent súbor prečítal znova. Textida použije v karte to, čo potvrdíte, a súbor neuloží. Súbor, ktorý nie je v okne otvorený alebo sprístupnený, a súbor .env sa odmietnu.
+- getDiagnostics vracia chyby a varovania sprístupnených kariet.
+- Neoverené: Claude Code tento protokol nešpecifikuje. Most sa riadi oficiálnou stránkou o vstavanom serveri IDE a popisom komunity (coder/claudecode.nvim) a žiadna verzia Claude Code zatiaľ nebola potvrdená ako funkčná. Nerealizované: otváranie súborov z agenta, zoznam otvorených kariet, ukladanie cez most, spúšťanie buniek notebookov a @-zmienky.
 
 ## [tools.agent] Agent cez ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
