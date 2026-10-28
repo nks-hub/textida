@@ -937,6 +937,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Opraven odhad řádků pro UTF-16/UTF-32 a samotné CR (`BytesPerLine`). Neměřeno: indexace 50GiB souboru.
+  - **Odloženo 28. 10. 2026 (noc):** rozhodnutí majitele. Testy obřích souborů (10–50 GiB) se zatím nespouštějí a výchozí testy používají nejvýš asi 2 GiB. Obří varianty zůstávají za `TEXTIDA_HUGE=1` a vrátí se při ladění rychlosti. Do té doby zůstává otevřené PageDown během indexace 50 GiB (p95 59,7 ms).
 - [ ] **P3.1.9** Invalidace a limity paměti
   - **Co a proč:** Které části výřezu se po změně podkladu nebo revize překreslí; strop paměti cache bloků. Na referenční Windows VM měl 50GiB soubor po indexu 109,3 MiB private, ale working set při indexaci přibližně 12 297 MiB; sledují se obě veličiny. Schválený limit private commit se tím nemění.
   - **Funkce:** F153 (částečně: invalidace a limity)
@@ -1049,6 +1050,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (noc):** zadáno k ladění.
+  - **Stav 28. 10. 2026 (noc, sloučeno af7d25a1):** opraveno. Editor hlásil viditelné sloupce z `VisualLinesChanged`, který přijde při měření dřív, než se okno poprvé umístí. `Bounds.Width` bylo 0, takže se barvy vyžádaly jen pro sloupce 0–1. Platilo to pro všechny jazyky, ne jen PHP. Šířka se teď čte z `Viewport.Width` (`EditorSurface.OnVisualLinesChangedCore`). Test `Every_character_on_screen_has_the_color_of_its_token` porovná barvu každého vykresleného znaku s tokeny gramatiky (PHP ve světlém i tmavém, C#, JS, JSON, Markdown). S původním kódem padá 6 ze 6. AOT publish prošel. V běžící aplikaci neověřeno.
 
 ### P3.3 Minimapa
 
@@ -1330,6 +1332,55 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.6
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+- [ ] **P3.6.16** Menu podle typu souboru
+  - **Co a proč:** Majitel 28. 10. 2026: volby v menu mají být aktivní podle zjištěného typu souboru, podobně jako to má hex.
+  - **Dnešní stav:**
+    - Položka menu s nesplněnou podmínkou `when` se skryje. Příkaz s nesplněným `enablement` zašedne (`CommandRegistry.IsAvailable` / `IsEnabled`, `Shell/ShellContext.cs`). Paleta umí říct, proč je příkaz vypnutý (`CommandPalette`).
+    - Kontextové klíče (`WhenExpression`): `editorFocus`, `hasDocument`, `language`, `hasSelection`, `readOnly`, `largeFileMode`, `platform`, `isDirty`, `hasFolder`, `fileSelected`, `multipleCarets`, `hexMode`, `tableMode`, `compareMode`, `inMarkdownTable`, `inSnippet`, `panelOpen`, `imageFile`.
+    - Podmínky s `language` existují jen pro markdown, html, php, css, csharp, yaml, json, sql a xml.
+    - Klíč pro druh souboru chybí: `FileKinds` zná Text, Code, Markup, Data, Style, Image, Archive a Binary, ale menu ho nevidí.
+    - Chybí také klíče pro režim logu, soubor v repozitáři Git, vzdálený soubor a náhled Markdownu.
+    - 112 z 371 položek menu nemá žádnou podmínku (z toho Nástroje 44 a Soubor 31).
+  - **Návrh:**
+    - Nové kontextové klíče: druh souboru z `FileKinds`, `language` pro všechny skupiny `LanguageCatalog`, režim logu, soubor v repozitáři Git, vzdálený soubor, náhled Markdownu.
+    - Pravidlo: položka jen pro jiný typ se skryje, jako dnes hex. Obecná položka, která teď nejde, zašedne a paleta řekne proč.
+    - Zvážit kontextové menu typu (Hex, Tabulka, Markdown, Log, Obrázek), které se objeví jen u svého typu.
+    - Pluginy dostanou stejné klíče pro své příkazy.
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Pro každý druh souboru (text, kód podle jazyka, JSON/YAML/CSV, Markdown, HTML, log, obrázek, hex, binární) je tabulka položek, které se ukážou, zašednou a skryjou. Test ji ověří proti skutečnému menu.
+    - Žádná položka nespustí příkaz, který na daném typu nic neudělá nebo skončí chybou.
+    - Přepnutí karty nebo režimu (text ↔ hex, obrázek ↔ text) menu hned změní.
+    - Čtečka hlásí zašedlou položku jako nedostupnou.
+    - Headless testy.
+  - **Závisí na:** P3.6.17
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro (`Workbench/Commands`, `builtin.contributions.json`)
+- [ ] **P3.6.17** Review a přeorganizování celé nabídky
+  - **Co a proč:** Majitel 28. 10. 2026: projít celou nabídku a logicky ji roztřídit.
+  - **Dnešní stav:** 422 příkazů a 371 položek menu v deseti nabídkách:
+    - Nástroje 110, Úpravy 94, Soubor 52, Zobrazit 50, Hledat 20, Formát 16, Nastavení 12, Okno 5, Nápověda 5;
+    - kontextové menu editoru jen 7 položek.
+    Nástroje a Úpravy jsou přeplněné.
+  - **Návrh:**
+    - Projít každou položku: patří do správné nabídky a skupiny? Je duplicitní? Má název, který říká, co udělá?
+    - Rozdělit Nástroje do podnabídek podle účelu: text a převody, data (JSON, YAML, CSV, schémata), web (HTML, CSS), kód a jazykové nástroje, Git, porovnání a historie, vzdálené soubory, agenti a AI, pluginy a makra.
+    - Kontextové menu editoru doplnit o nejčastější akce podle typu souboru (P3.6.16).
+    - Sjednotit pořadí skupin, oddělovače, klávesy pro přístup (Alt + písmeno) a zkratky zobrazené u položek.
+    - Porovnat s PSPadem, PhpStormem a VS Code a s návrhem D5 a zapsat, kde se rozcházíme a proč.
+    - Jazyk rozhraní se přesune do nastavení (P3.6.15).
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Existuje zapsaná mapa celé nabídky (staré → nové umístění) a je provedená v `builtin.contributions.json`.
+    - Žádná podnabídka nepřekročí délku dohodnutou v review. Limit se zapíše jako rozhodnutí.
+    - Každý příkaz má právě jedno hlavní místo. Duplicity jsou jen záměrné a zapsané.
+    - Klávesy pro přístup se v žádné nabídce neopakují.
+    - Názvy jsou ve 4 jazycích bez chybějícího klíče.
+    - Test hlídá, že žádná viditelná položka nemá prázdnou nebo duplicitní skupinu.
+    - Odkazy na menu v nápovědě odpovídají novému umístění.
+  - **Závisí na:** P3.6.15
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro (`builtin.contributions.json`, nápověda)
 
 ### P3.7 První distribuce
 
@@ -2390,6 +2441,7 @@ Co dnes `PagedDocument` neumí, podle měření, a cíle sloupce 1.0 z kap. 3 (5
   - **Závisí na:** P7.1.2, P3.5.5, P3.1.13
   - **Odhad:** v rámci F154
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Nový test pádu při undo kroku ukládané revize prošel. Neměřeno: 50 GiB na stroji s menší RAM.
+  - **Odloženo 28. 10. 2026 (noc):** rozhodnutí majitele. Měření 20 a 50 GiB (dosud 20 GiB prošlo a 50 GiB se nevešlo do limitu nástroje) se vrátí při ladění rychlosti. Výchozí testy používají nejvýš asi 2 GiB a obří varianty jsou za `TEXTIDA_HUGE=1`.
 - [ ] **P7.1.4** Obnova velkých změn
   - **Co a proč:** Velké změny jdou do žurnálu na disku. Cíl kap. 3 pro 1.0: obnova po pádu i u velkých dokumentů, ztráta nejvýš 2 s žurnálu. Navazuje na hot exit z P1.5.1 a žurnál zápisu z P3.5.5.
   - **Funkce:** F154
@@ -3316,7 +3368,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 50 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 52 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 26 | 24–37 (neúplné) |
@@ -3327,7 +3379,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **339** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **341** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
