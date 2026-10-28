@@ -245,25 +245,34 @@ public sealed class LinterTests : IDisposable
     }
 
     [Fact]
-    public async Task The_program_is_asked_once_for_its_version_without_a_trace_of_a_run_and_a_silent_or_missing_one_is_unreadable()
+    public async Task The_program_is_asked_once_for_its_version_without_a_trace_of_a_run()
     {
         var setup = Prepare("golangci-lint");
         using var doc = setup.Doc;
         var tool = Linters.Prepare(setup.Linter, setup.Path, setup.Timeout);
-
-        var silent = await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30));
-        Assert.Equal(LinterVersionState.Unreadable, silent.State);
-        Assert.False(File.Exists(setup.Tool + ".runs")); // a version request is no run of the linter
-        Assert.False(File.Exists(setup.Tool + ".args"));
-
         File.WriteAllText(setup.Tool + ".version", "golangci-lint has version 1.64.8 built with go1.24.2 from 8f1a2b3 on 2025-03-01T12:00:00Z\n");
+
         var old = await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30));
         Assert.Equal((LinterVersionState.TooOld, "1.64.8"), (old.State, old.Found));
         Assert.Equal(setup.Linter.Supported, old.Range);
+        Assert.False(File.Exists(setup.Tool + ".runs")); // a version request is no run of the linter
+        Assert.False(File.Exists(setup.Tool + ".args"));
 
         File.WriteAllText(setup.Tool + ".version", "golangci-lint has version 2.1.6 built with go1.24.2\n");
         Assert.Equal("1.64.8", (await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30))).Found); // kept for this file of the program
-        Assert.False(File.Exists(setup.Tool + ".runs"));
+    }
+
+    [Fact]
+    public async Task A_silent_or_missing_program_has_no_version_to_compare()
+    {
+        var setup = Prepare("ruff");
+        using var doc = setup.Doc;
+        var tool = Linters.Prepare(setup.Linter, setup.Path, setup.Timeout);
+
+        var silent = await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30)); // the stand-in prints nothing for a version request without a .version file
+        Assert.Equal(LinterVersionState.Unreadable, silent.State);
+        Assert.Null(silent.Found);
+        Assert.False(silent.Mismatch);
 
         var missing = await LinterVersions.CheckAsync(setup.Linter, tool with { Executable = Path.Combine(_dir, "no-such-program") }, TimeSpan.FromSeconds(30));
         Assert.Equal(LinterVersionState.Unreadable, missing.State);

@@ -67,8 +67,8 @@ public static class LinterVersions
         if (run.End == ToolEnd.Cancelled) return new LinterVersionCheck(LinterVersionState.Unreadable, null, range, "The version request was cancelled.");
 
         var check = Compare(string.Join('\n', output), range);
-        if (check.State != LinterVersionState.Unreadable) Known[key] = check;
-        else if (run.ExitCode != 0) check = check with { Reason = $"The program stopped with code {run.ExitCode} when asked for its version." };
+        if (check.State == LinterVersionState.Unreadable && run.ExitCode != 0) check = check with { Reason = $"The program stopped with code {run.ExitCode} when asked for its version." };
+        Known[key] = check; // a program that ended and told no version tells none the next time either
         return check;
     }
 
