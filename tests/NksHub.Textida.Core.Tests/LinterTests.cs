@@ -10,7 +10,8 @@ namespace NksHub.Textida.Core.Tests;
 
 /// <summary>
 /// P8.8.1: the linters of the catalog through the real runner. A copy of ToolEcho named like the linter stands in for it and prints a recorded sample (written here in my own words after the documented
-/// output shape of each tool). The real PHPStan, Psalm, golangci-lint, Clippy, clang-tidy and RuboCop are not installed, so their command lines and output are not verified against the programs.
+/// output shape of each tool). The real PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck and SQLFluff are not installed, so their command lines and output are not verified against the programs;
+/// the sample of <c>dart analyze</c> is the output of the real Dart 3.12.2 (see <see cref="The_real_dart_analyze_reports_what_the_machine_format_parser_reads"/>).
 /// </summary>
 public sealed class LinterTests : IDisposable
 {
@@ -72,7 +73,50 @@ public sealed class LinterTests : IDisposable
             " ", 2, 7, ToolSeverity.Info, "Layout/TrailingWhitespace",
             """{"files":[{"path":"a.rb","offenses":[{"severity":"fatal","message":"Lint/Syntax: unexpected token tEOF","cop_name":"Lint/Syntax","location":{"start_line":2,"start_column":1,"length":1}}]}]}""", ToolSeverity.Error,
             """{"files":[{"path":"a.rb","offenses":[]}],"summary":{"offense_count":0}}"""),
+        new("eslint", "src/a.js", "var x = 1;\nfoo(x);\n", ["package.json"],
+            """[{"filePath":"{FILEJSON}","messages":[{"ruleId":"no-undef","severity":2,"message":"'foo' is not defined.","line":2,"column":1,"nodeType":"Identifier","messageId":"undef","endLine":2,"endColumn":4}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]}]""",
+            "foo", 2, 1, ToolSeverity.Error, "no-undef",
+            """[{"filePath":"{FILEJSON}","messages":[{"ruleId":null,"fatal":true,"severity":2,"message":"Parsing error: Unexpected token )","line":2,"column":6}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":1,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0}]""", ToolSeverity.Error,
+            """[{"filePath":"{FILEJSON}","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]}]"""),
+        new("ruff", "a.py", "import os\nprint(1)\n", ["pyproject.toml"],
+            """[{"cell":null,"code":"F401","end_location":{"column":10,"row":1},"filename":"{FILEJSON}","fix":{"applicability":"safe","edits":[{"content":"","end_location":{"column":1,"row":2},"location":{"column":1,"row":1}}],"message":"Remove unused import: `os`"},"location":{"column":8,"row":1},"message":"`os` imported but unused","noqa_row":1,"url":"https://docs.astral.sh/ruff/rules/unused-import"}]""",
+            "os", 1, 8, ToolSeverity.Warning, "F401",
+            """
+            #exit 1
+            [{"cell":null,"code":null,"end_location":{"column":8,"row":2},"filename":"{FILEJSON}","fix":null,"location":{"column":7,"row":2},"message":"SyntaxError: Expected an expression","noqa_row":null,"url":null}]
+            """, ToolSeverity.Error,
+            "[]"),
+        new("shellcheck", "a.sh", "#!/bin/sh\necho $x\n", [".shellcheckrc"],
+            """
+            #exit 1
+            [{"file":"{FILEJSON}","line":2,"endLine":2,"column":6,"endColumn":8,"level":"info","code":2086,"message":"Double quote to prevent globbing and word splitting.","fix":null}]
+            """,
+            "$x", 2, 6, ToolSeverity.Info, "SC2086",
+            """
+            #exit 1
+            [{"file":"{FILEJSON}","line":2,"endLine":2,"column":1,"endColumn":2,"level":"error","code":1072,"message":"Unexpected end of input.","fix":null}]
+            """, ToolSeverity.Error,
+            "[]"),
+        new("sqlfluff", "q.sql", "SELECT a  FROM t\n", [".sqlfluff"],
+            """
+            #exit 1
+            [{"filepath":"{FILEJSON}","violations":[{"start_line_no":1,"start_line_pos":9,"end_line_no":1,"end_line_pos":11,"code":"LT01","description":"Expected only single space before 'FROM' keyword. Found '  '.","name":"layout.spacing","warning":false,"fixes":[],"start_file_pos":8,"end_file_pos":10}]}]
+            """,
+            "  ", 1, 9, ToolSeverity.Warning, "LT01",
+            """
+            #exit 1
+            [{"filepath":"{FILEJSON}","violations":[{"start_line_no":1,"start_line_pos":8,"code":"PRS","description":"Line 1, Position 8: Found unparsable section: 'a FROM t'","name":"","warning":false}]}]
+            """, ToolSeverity.Error,
+            """[{"filepath":"{FILEJSON}","violations":[]}]"""),
+        new("dart-analyze", "lib/a.dart", "int f() {\n  var x = 1;\n  return y;\n}\n", ["pubspec.yaml"],
+            "ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|{FILEDART}|3|10|1|Undefined name 'y'.",
+            "y", 3, 10, ToolSeverity.Error, "undefined_identifier",
+            "#exit 3\nERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|{FILEDART}|3|9|1|Expected an identifier.", ToolSeverity.Error,
+            ""),
     ];
+
+    /// <summary>The linters these cases cover; the matrix of the catalog is checked against it.</summary>
+    public static IReadOnlyList<string> CaseIds => [.. Cases.Select(c => c.Id)];
 
     public static TheoryData<string> Ids
     {
@@ -110,7 +154,7 @@ public sealed class LinterTests : IDisposable
     }
 
     private static void Say(string tool, string sample, string path) =>
-        File.WriteAllText(tool + ".sample", sample.Replace("{FILEJSON}", JsonSerializer.Serialize(path)[1..^1]).Replace("{FILE}", path), new UTF8Encoding(false));
+        File.WriteAllText(tool + ".sample", sample.Replace("{FILEJSON}", JsonSerializer.Serialize(path)[1..^1]).Replace("{FILEDART}", path.Replace("\\", "\\\\", StringComparison.Ordinal)).Replace("{FILE}", path), new UTF8Encoding(false));
 
     private static Task<LintOutcome> Run(Setup s) => Linters.RunAsync(s.Doc, s.Linter, Linters.Prepare(s.Linter, s.Path, s.Timeout));
 
@@ -121,10 +165,17 @@ public sealed class LinterTests : IDisposable
     [Fact]
     public void Every_linter_of_the_plan_has_a_parser_for_its_output_format_and_a_severity_table()
     {
-        foreach (var id in new[] { "phpstan", "psalm", "golangci-lint", "clippy", "clang-tidy", "rubocop-lint" })
+        string[] ids = ["phpstan", "psalm", "golangci-lint", "clippy", "clang-tidy", "rubocop-lint", "eslint", "ruff", "shellcheck", "sqlfluff", "dart-analyze"];
+        foreach (var id in ids)
             Assert.NotNull(Linters.Find(id));
-        Assert.Equal(Cases.Select(c => c.Id).Order(), new[] { "phpstan", "psalm", "golangci-lint", "clippy", "clang-tidy", "rubocop-lint" }.Order());
-        Assert.Null(Linters.Find("ruff")); // data only: no parser reads its output yet
+        Assert.Equal(Cases.Select(c => c.Id).Order(), ids.Order());
+        // every linter of the catalog has a parser and a case here, none is left as data only
+        Assert.Equal(LanguageCatalog.Linters.Select(l => l.Id).Order(), ids.Order());
+        Assert.Equal(ToolSeverity.Error, Linters.SeverityOf(Linters.Find("ruff")!, "error"));
+        Assert.Equal(ToolSeverity.Warning, Linters.SeverityOf(Linters.Find("ruff")!, "warning"));
+        Assert.Equal(ToolSeverity.Hint, Linters.SeverityOf(Linters.Find("shellcheck")!, "style"));
+        Assert.Equal(ToolSeverity.Error, Linters.SeverityOf(Linters.Find("eslint")!, "fatal"));
+        Assert.Equal(ToolSeverity.Info, Linters.SeverityOf(Linters.Find("dart-analyze")!, "INFO"));
         Assert.Equal(ToolSeverity.Error, Linters.SeverityOf(Linters.Find("phpstan")!, "anything"));
         Assert.Equal(ToolSeverity.Info, Linters.SeverityOf(Linters.Find("psalm")!, "INFO"));
         Assert.Equal(ToolSeverity.Warning, Linters.SeverityOf(Linters.Find("psalm")!, "unknown")); // no "*" row: a warning
@@ -272,5 +323,184 @@ public sealed class LinterTests : IDisposable
         File.Delete(Path.Combine(_dir, "clippy", "Cargo.toml"));
         Assert.Contains("Cargo.toml", Assert.Throws<ToolException>(() => Linters.Prepare(setup.Linter, setup.Path, setup.Timeout)).Message);
         await Task.CompletedTask;
+    }
+
+    // ---- the command line, the network and where the program comes from ----
+
+    [Theory]
+    [MemberData(nameof(Ids))]
+    public async Task Each_linter_gets_the_arguments_of_the_catalog_with_the_file_filled_in(string id)
+    {
+        var setup = Prepare(id);
+        using var doc = setup.Doc;
+        await Run(setup);
+        string expected = string.Join('\n', setup.Linter.Args.Select(a => a == "${File}" ? Path.GetFullPath(setup.Path) : a));
+        Assert.Equal(expected, string.Join('\n', File.ReadAllLines(setup.Tool + ".args")));
+    }
+
+    [Theory]
+    [InlineData("clippy", "CARGO_NET_OFFLINE=true")]
+    [InlineData("golangci-lint", "GOPROXY=off")]
+    public async Task A_linter_that_could_fetch_packages_runs_with_the_network_switched_off(string id, string expected)
+    {
+        var setup = Prepare(id);
+        using var doc = setup.Doc;
+        Assert.Equal(LintState.Done, (await Run(setup)).State);
+        Assert.Contains(expected, File.ReadAllLines(setup.Tool + ".env"));
+    }
+
+    [Fact]
+    public void No_linter_of_the_catalog_is_started_through_a_program_that_installs_or_downloads()
+    {
+        string[] downloaders = ["npx", "npm", "pnpm", "yarn", "bunx", "pip", "pip3", "pipx", "uvx", "uv", "gem", "bundle", "composer", "nuget"];
+        string[] verbs = ["install", "add", "get", "download", "fetch", "update", "upgrade", "init"];
+        Assert.All(LanguageCatalog.Linters, l =>
+        {
+            Assert.DoesNotContain(l.Executable, downloaders);
+            Assert.DoesNotContain(l.Args, a => verbs.Contains(a, StringComparer.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public void A_path_from_the_user_is_used_before_the_project_and_a_path_that_does_not_exist_is_an_error()
+    {
+        var setup = Prepare("phpstan");
+        using var doc = setup.Doc;
+        string mine = Path.Combine(_dir, "mine");
+        Directory.CreateDirectory(mine);
+        string own = Path.Combine(mine, Path.GetFileName(setup.Tool));
+        File.Copy(setup.Tool, own);
+
+        Assert.Equal(setup.Tool, Linters.Prepare(setup.Linter, setup.Path, setup.Timeout).Executable, ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(own, Linters.Prepare(setup.Linter, setup.Path, setup.Timeout, own).Executable, ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(own, Linters.Prepare(setup.Linter, setup.Path, setup.Timeout, mine).Executable, ignoreCase: OperatingSystem.IsWindows());
+
+        var wrong = Assert.Throws<ToolException>(() => Linters.Prepare(setup.Linter, setup.Path, setup.Timeout, Path.Combine(_dir, "nothing-here")));
+        Assert.True(wrong.Missing);
+        Assert.Contains("does not exist", wrong.Message);
+    }
+
+    [Fact]
+    public void A_missing_program_says_where_it_was_looked_for()
+    {
+        var setup = Prepare("phpstan");
+        using var doc = setup.Doc;
+        var missing = setup.Linter with { Executable = "textida-no-such-" + Guid.NewGuid().ToString("N")[..8] };
+        var e = Assert.Throws<ToolException>(() => Linters.Prepare(missing, setup.Path, setup.Timeout));
+        Assert.True(e.Missing);
+        Assert.Contains("vendor/bin", e.Message);
+        Assert.Contains("PATH", e.Message);
+    }
+
+    [Fact]
+    public async Task A_batch_file_in_vendor_bin_is_started_and_the_script_without_extension_next_to_it_is_not_the_program()
+    {
+        if (!OperatingSystem.IsWindows()) return; // batch files are a Windows matter
+
+        var setup = Prepare("phpstan");
+        using var doc = setup.Doc;
+        string folder = Path.GetDirectoryName(setup.Tool)!;
+        File.Delete(setup.Tool);
+        File.WriteAllText(Path.Combine(folder, "phpstan"), "#!/usr/bin/env php\n<?php echo 'composer proxy';\n");
+        File.WriteAllText(Path.Combine(folder, "phpstan.sample"), setup.Case.Sample.Replace("{FILEJSON}", JsonSerializer.Serialize(setup.Path)[1..^1]));
+        string bat = Path.Combine(folder, "phpstan.bat");
+        File.WriteAllText(bat, "@echo off\r\ntype \"%~dp0phpstan.sample\"\r\n");
+
+        var tool = Linters.Prepare(setup.Linter, setup.Path, setup.Timeout);
+        Assert.Equal(bat, tool.Executable, ignoreCase: true);
+        var outcome = await Linters.RunAsync(setup.Doc, setup.Linter, tool);
+
+        Assert.Equal(LintState.Done, outcome.State);
+        Assert.Equal("foo($x);", Underlined(setup.Doc, Assert.Single(outcome.Findings)));
+    }
+
+    // ---- the parsers on recorded samples that the cases above do not reach ----
+
+    private static IReadOnlyList<LintFinding> Findings(string format, string text)
+    {
+        var parsed = LinterOutput.Parse(format, text.Split('\n'));
+        Assert.True(parsed.Readable, parsed.Problem);
+        return parsed.Findings;
+    }
+
+    [Fact]
+    public void ESLint_reads_a_warning_a_message_without_a_place_and_several_files()
+    {
+        var found = Findings("eslint-json", """
+            [{"filePath":"/p/a.js","messages":[{"ruleId":"semi","severity":1,"message":"Missing semicolon.","line":1,"column":10,"endLine":1,"endColumn":10},{"ruleId":null,"severity":1,"message":"File ignored because of a matching ignore pattern."}]},{"filePath":"/p/b.js","messages":[]}]
+            """);
+        Assert.Equal(["warning", "warning"], found.Select(f => f.SeverityWord));
+        Assert.Equal(("semi", 1, 10, 1, 10), (found[0].Code, found[0].Line, found[0].Column, found[0].EndLine, found[0].EndColumn));
+        Assert.Equal(((string?)null, 1, (int?)null), (found[1].Code, found[1].Line, found[1].Column)); // no line: the first one, which the placing turns into the text of that line
+        Assert.False(LinterOutput.Parse("eslint-json", ["""{"not":"an array"}"""]).Readable);
+    }
+
+    [Fact]
+    public void Ruff_reads_a_rule_as_a_warning_and_a_syntax_error_without_a_code_as_an_error()
+    {
+        var found = Findings("ruff-json", """[{"code":"E501","message":"Line too long","filename":"a.py","location":{"row":3,"column":89},"end_location":{"row":3,"column":120}},{"code":null,"message":"SyntaxError: x","filename":"a.py","location":{"row":4,"column":1},"end_location":{"row":4,"column":2}}]""");
+        Assert.Equal(["warning", "error"], found.Select(f => f.SeverityWord));
+        Assert.Equal(("E501", 3, 89, 3, 120), (found[0].Code, found[0].Line, found[0].Column, found[0].EndLine, found[0].EndColumn));
+        Assert.Null(found[1].Code);
+    }
+
+    [Fact]
+    public void ShellCheck_reads_both_the_array_of_json_and_the_wrapped_object_of_json1()
+    {
+        const string item = """{"file":"a.sh","line":4,"endLine":4,"column":3,"endColumn":9,"level":"style","code":2250,"message":"Prefer putting braces around variable references.","fix":null}""";
+        foreach (var text in new[] { "[" + item + "]", """{"comments":[""" + item + "]}" })
+        {
+            var finding = Assert.Single(Findings("shellcheck-json", text));
+            Assert.Equal(("SC2250", "style", 4, 3, 9), (finding.Code, finding.SeverityWord, finding.Line, finding.Column, finding.EndColumn));
+        }
+    }
+
+    [Fact]
+    public void SQLFluff_reads_the_names_of_versions_before_2_and_counts_unreadable_text_as_errors()
+    {
+        var found = Findings("sqlfluff-json", """[{"filepath":"q.sql","violations":[{"line_no":2,"line_pos":5,"code":"L010","description":"Keywords must be consistently upper case."},{"line_no":3,"line_pos":1,"code":"TMP","description":"Undefined jinja template variable."}]}]""");
+        Assert.Equal(("L010", 2, 5, "warning"), (found[0].Code, found[0].Line, found[0].Column, found[0].SeverityWord));
+        Assert.Equal(("TMP", "error"), (found[1].Code, found[1].SeverityWord));
+    }
+
+    [Fact]
+    public void The_machine_format_of_dart_analyze_unescapes_paths_and_pipes_and_ignores_other_lines()
+    {
+        var found = Findings("dart-machine", "WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|C:\\\\p\\\\lib\\\\a.dart|2|7|1|The value of the local variable 'x' isn't used.\n"
+            + "INFO|LINT|AVOID_PRINT|C:\\\\p\\\\lib\\\\a.dart|5|3|5|Don't invoke 'print' in production code (a \\| b).\n\nAnalyzing a.dart...");
+        Assert.Equal(2, found.Count);
+        Assert.Equal(("C:\\p\\lib\\a.dart", 2, 7, 8, "warning", "unused_local_variable"), (found[0].File, found[0].Line, found[0].Column, found[0].EndColumn, found[0].SeverityWord, found[0].Code));
+        Assert.Equal(("info", "avoid_print", "Don't invoke 'print' in production code (a | b)."), (found[1].SeverityWord, found[1].Code, found[1].Message));
+
+        Assert.Empty(Findings("dart-machine", "")); // a clean run prints nothing
+        Assert.False(LinterOutput.Parse("dart-machine", ["Directory or file doesn't exist: missing.dart"]).Readable);
+    }
+
+    // ---- the real dart analyze, where Dart is on PATH ----
+
+    [InstalledFact("dart")]
+    public async Task The_real_dart_analyze_reports_what_the_machine_format_parser_reads()
+    {
+        string project = Directory.CreateDirectory(Path.Combine(_dir, "dartproject", "lib")).Parent!.FullName;
+        File.WriteAllText(Path.Combine(project, "pubspec.yaml"), "name: demo\nenvironment:\n  sdk: \">=3.0.0 <4.0.0\"\n");
+        string bad = Path.Combine(project, "lib", "a.dart");
+        File.WriteAllText(bad, "int f() {\n  return y;\n}\n");
+        string good = Path.Combine(project, "lib", "ok.dart");
+        File.WriteAllText(good, "int f() => 1;\n");
+        var linter = Linters.Find("dart-analyze")!;
+
+        using (var doc = Doc.Open(bad, ReferenceBackendFactory.Instance))
+        {
+            var outcome = await Linters.RunAsync(doc, linter, Linters.Prepare(linter, bad, TimeSpan.FromSeconds(180)));
+            Assert.Equal(LintState.Done, outcome.State);
+            var finding = Assert.Single(outcome.Findings);
+            Assert.Equal(("y", 2, 10, ToolSeverity.Error, "undefined_identifier"), (Underlined(doc, finding), finding.Line, finding.Column, finding.Severity, finding.Code));
+        }
+        using (var doc = Doc.Open(good, ReferenceBackendFactory.Instance))
+        {
+            var outcome = await Linters.RunAsync(doc, linter, Linters.Prepare(linter, good, TimeSpan.FromSeconds(180)));
+            Assert.Equal(LintState.Done, outcome.State);
+            Assert.Empty(outcome.Findings);
+        }
     }
 }

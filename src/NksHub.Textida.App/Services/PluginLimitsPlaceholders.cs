@@ -76,6 +76,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: seconds a formatter of the save actions (and a format step of a recipe) has when <c>formatTimeoutSeconds</c> in saveActions.json is not set; then the file is saved unformatted.</summary>
     public const int FormatOnSaveTimeoutSeconds = 10;
 
+    /// <summary>Placeholder, OPEN: seconds a linter run has when <c>lintTimeoutSeconds</c> in saveActions.json is not set; then the run is stopped and reported, and the findings of the earlier run stay. The owner has not decided it.</summary>
+    public const int LintTimeoutSeconds = 60;
+
+    /// <summary>Placeholder, OPEN: milliseconds a linter run started by a save waits for a further save of the same file before it starts; a newer save replaces the waiting run. The owner has not decided it.</summary>
+    public const int LintOnSaveDebounceMilliseconds = 500;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 

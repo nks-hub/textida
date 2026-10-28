@@ -47,14 +47,15 @@ public static class ConfigFormatters
     /// A timeout, a failing exit, a program that is not found or a changed byte order mark leave the document untouched.
     /// </summary>
     /// <param name="path">The file the next save writes when it is not the file of the document (Save As); its folder holds the copy and gives the configuration.</param>
-    public static async Task<FormatOutcome> FormatAsync(Document doc, FormatterDef def, TimeSpan timeout, CancellationToken ct = default, string? path = null)
+    /// <param name="toolPath">The program, or the folder holding it, that the user chose for this formatter (<see cref="SaveActionSet.ToolPaths"/>); null looks it up in PATH.</param>
+    public static async Task<FormatOutcome> FormatAsync(Document doc, FormatterDef def, TimeSpan timeout, CancellationToken ct = default, string? path = null, string? toolPath = null)
     {
         path ??= doc.FilePath;
         if (path is null) return new(FormatResult.Skipped, "The document has no file name yet.");
         if (doc.ByteLength > SaveTransforms.MaxBytes) return new(FormatResult.Skipped, "The document is too large to format on save.");
         long revision = doc.Revision;
         byte[] before = doc.ReadBytes(new ByteRange(0, doc.ByteLength));
-        var (outcome, after) = await FormatBytesAsync(path, before, def, timeout, ct);
+        var (outcome, after) = await FormatBytesAsync(path, before, def, timeout, ct, toolPath);
         if (after is null) return outcome;
         if (doc.Revision != revision) return new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
         int bom = doc.BomLength;
@@ -68,7 +69,7 @@ public static class ConfigFormatters
     /// The program half of <see cref="FormatAsync"/> for content that is not an open document (a recipe over many files): <paramref name="before"/> goes to a temporary copy next to
     /// <paramref name="path"/>, the program runs with <paramref name="timeout"/> and the copy is removed. <c>After</c> is the formatted content, or null when nothing changed or the program failed (the outcome says which).
     /// </summary>
-    public static async Task<(FormatOutcome Outcome, byte[]? After)> FormatBytesAsync(string path, byte[] before, FormatterDef def, TimeSpan timeout, CancellationToken ct = default)
+    public static async Task<(FormatOutcome Outcome, byte[]? After)> FormatBytesAsync(string path, byte[] before, FormatterDef def, TimeSpan timeout, CancellationToken ct = default, string? toolPath = null)
     {
         string dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
         string temp = Path.Combine(dir, Path.GetFileNameWithoutExtension(path) + ".textida-fmt-" + Guid.NewGuid().ToString("N")[..8] + Path.GetExtension(path));
@@ -78,7 +79,7 @@ public static class ConfigFormatters
             try
             {
                 await File.WriteAllBytesAsync(temp, before, ct);
-                tool = ToolRunner.Resolve(new ToolSpec("format:" + def.Id, def.Executable, def.Args, null, timeout), name => name == "File" ? temp : null, dir);
+                tool = ToolRunner.Resolve(new ToolSpec("format:" + def.Id, Program(def, toolPath), def.Args, null, timeout), name => name == "File" ? temp : null, dir);
             }
             catch (ToolException e) { return (new(FormatResult.Missing, e.Message), null); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (new(FormatResult.Failed, e.Message), null); }
@@ -101,6 +102,15 @@ public static class ConfigFormatters
             try { File.Delete(temp); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the copy is a temporary file; a later format uses another name */ }
         }
+    }
+
+    /// <summary>The program to start: the one at the path the user set (a wrong path is an error, not a search in PATH), else the bare name for the PATH lookup of the runner.</summary>
+    private static string Program(FormatterDef def, string? toolPath)
+    {
+        if (string.IsNullOrWhiteSpace(toolPath)) return def.Executable;
+        if (!File.Exists(toolPath) && !Directory.Exists(toolPath)) throw new ToolException($"The path '{toolPath}' set for {def.Title} does not exist.") { Missing = true };
+        string found = ToolLocator.Find(def.Executable, null, toolPath) ?? throw new ToolException($"The program '{def.Executable}' was not found at '{toolPath}'.") { Missing = true };
+        return found.Replace("$", "$$", StringComparison.Ordinal);
     }
 
     private static string Reason(FormatterDef def, int exitCode, List<string> output)

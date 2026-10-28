@@ -3,7 +3,11 @@ using System.Text;
 namespace NksHub.Textida.Core.Tools;
 
 /// <summary>A tool cannot be started: an unknown variable, an executable that is missing or refused, a directory that does not exist.</summary>
-public sealed class ToolException(string message) : Exception(message);
+public sealed class ToolException(string message) : Exception(message)
+{
+    /// <summary>The program (or the path the user gave for it) does not exist, as opposed to a program that failed.</summary>
+    public bool Missing { get; init; }
+}
 
 /// <summary>What a declared variable may hold: a <c>Text</c> is one line, a <c>Path</c> is one line without the characters no path can have.</summary>
 public enum ToolVariableType { Text, Path }
