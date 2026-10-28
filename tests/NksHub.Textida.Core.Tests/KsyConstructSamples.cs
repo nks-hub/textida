@@ -72,7 +72,7 @@ internal static class KsyConstructSamples
                 type: b4
               - id: high
                 type: b4
-            """, [0xA5]),
+            """, [0xB1]),
         new("bits", """
             meta:
               id: bits
@@ -85,7 +85,7 @@ internal static class KsyConstructSamples
                 type: b12
               - id: tail
                 type: u1
-            """, [0xA5, 0x3C, 0x99]),
+            """, [0xB6, 0x1E, 0x99]),
         new("encoding-str", """
             meta:
               id: s
@@ -335,14 +335,14 @@ internal static class KsyConstructSamples
             """,
         ["bit-endian"] = """
             bo=@0+1
-              low=5@0+1
-              high=10@0+1
+              low=1@0+1
+              high=11@0+1
             """,
         ["bits"] = """
             bits=@0+3
               flag=true@0+1
-              kind=2@0+1
-              rest=1340@0+2
+              kind=3@0+1
+              rest=1566@0+2
               tail=153@2+1
             """,
         ["encoding-str"] = """

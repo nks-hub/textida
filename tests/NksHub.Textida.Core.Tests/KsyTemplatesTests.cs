@@ -109,13 +109,13 @@ public class KsyTemplatesTests
     [Fact]
     public void The_flags_of_a_zip_entry_are_read_bit_by_bit_with_the_bytes_each_bit_is_in()
     {
-        var data = new List<byte>(KsySamples.ZipLocal("a.txt", "hello"u8.ToArray(), 0x0809));
+        var data = new List<byte>(KsySamples.ZipLocal("a.txt", "hello"u8.ToArray(), 0x490D)); // bits 0, 2, 3, 8, 11 and 14
         data.AddRange(KsySamples.ZipEnd(0, 0, 0));
         var root = KsySamples.Read("zip_archive", [.. data]);
         var flags = Child(root, "sections").Children[0].Children[2].Children[1];
         Assert.Equal(("flags", 6L, 2L), (flags.Name, flags.Start, flags.Length));
 
-        Assert.Equal(["true", "0", "true", "false", "false", "false", "0", "true", "false", "false", "0"], flags.Children.Select(c => c.Value));
+        Assert.Equal(["true", "2", "true", "false", "false", "false", "2", "true", "false", "false", "1"], flags.Children.Select(c => c.Value));
         Assert.Equal((6L, 1L), (flags.Children[0].Start, flags.Children[0].Length));
         Assert.Equal((6L, 2L), (flags.Children[6].Start, flags.Children[6].Length)); // unused: bits 7 to 10 span two bytes
         Assert.Equal((7L, 1L), (flags.Children[7].Start, flags.Children[7].Length)); // utf8_names: bit 11

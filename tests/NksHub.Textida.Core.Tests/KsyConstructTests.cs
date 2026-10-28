@@ -136,6 +136,15 @@ public class KsyConstructTests
         Assert.Equal("one (1)", top[1].Value);
     }
 
+    [Fact]
+    public void An_enum_of_a_type_wins_over_an_enum_of_the_same_name_in_the_root_inside_that_type_only()
+    {
+        const string template = "meta:\n  id: x\nseq:\n  - id: outer\n    type: u1\n    enum: kinds\n  - id: item\n    type: inner\nenums:\n  kinds:\n    1: root_one\ntypes:\n  inner:\n    enums:\n      kinds:\n        1: inner_one\n    seq:\n      - id: kind\n        type: u1\n        enum: kinds\n      - id: mark\n        type: u1\n        if: kind == kinds::inner_one\n";
+        var nodes = Read(template, [1, 1, 5]);
+        Assert.Equal("root_one (1)", nodes[0].Value);
+        Assert.Equal(["inner_one (1)", "5"], nodes[1].Children.Select(c => c.Value));
+    }
+
     [Theory]
     [InlineData("enum: nothing")]
     [InlineData("enum: inner::nothing")]
