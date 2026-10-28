@@ -74,6 +74,7 @@ public class MacroTests : IDisposable
         _w.FindBar.FindBox.Text = find;
         _w.FindBar.ReplaceBox.Text = replacement;
         _w.FindBar.SelectionToggle.IsChecked = inSelection;
+        Dispatcher.UIThread.RunJobs(); // the change of the text reaches the bar only now; without it the search starts later and its jump moves the caret
         await Settle(() => !_w.FindIsRunning);
     }
 
