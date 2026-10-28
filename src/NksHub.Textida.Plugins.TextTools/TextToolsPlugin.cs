@@ -35,6 +35,9 @@ public sealed class TextToolsPlugin : PluginBase
         On("command/execute", ExecuteAsync);
     }
 
+    /// <summary>Everything happens inside a command, so the editor may end the process between commands.</summary>
+    protected override bool IdleStop => true;
+
     public const string Statistics = "text.stats";
     public const string Hash = "text.hash";
     public const string Calculate = "text.calculate";

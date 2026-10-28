@@ -1,9 +1,11 @@
 using System.IO.Compression;
 using System.Text.Json;
 using Avalonia.Headless.XUnit;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Workbench.Commands;
@@ -239,5 +241,161 @@ public class PluginManagerAppTests : IDisposable
         Assert.True(_app.Plugins.Permissions.IsGranted(PluginServices.LspPluginId, DocumentPermissions.WorkspaceFiles, GrantScope.All));
         Assert.False(_app.Plugins.Permissions.IsGranted(PluginServices.JsonPluginId, DocumentPermissions.WorkspaceFiles, GrantScope.All));
         Assert.Empty(_dialogs.Asked);
+    }
+
+    // ---- P3b.1.3: activation events and the life of the process ----
+
+    /// <summary>Installs the test plugin as a plugin with a process that lists <paramref name="activationEvents"/> and no command.</summary>
+    private void InstallProcessPlugin(string id, string[] activationEvents, params string[] pluginArgs)
+    {
+        var host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+        var executable = host ?? Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        List<string> args = host is null ? [] : [Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin.dll")];
+        args.AddRange(pluginArgs);
+        static string List(IEnumerable<string> items) => "[" + string.Join(",", items.Select(i => JsonSerializer.Serialize(i))) + "]";
+
+        var path = Path.Combine(_temp.Path, Guid.NewGuid().ToString("N") + ".zip");
+        using (var zip = new ZipArchive(File.Create(path), ZipArchiveMode.Create))
+        using (var writer = new StreamWriter(zip.CreateEntry("nkspad-plugin.json").Open()))
+            writer.Write("{\"schemaVersion\":1,\"id\":\"" + id + "\",\"name\":\"Acme " + id + "\",\"version\":\"1.0.0\",\"api\":{\"min\":1,\"max\":1},\"permissions\":[]," +
+                "\"main\":{\"executable\":" + JsonSerializer.Serialize(executable) + ",\"args\":" + List(args) + ",\"activationEvents\":" + List(activationEvents) + "}}");
+        _dialogs.Answers.Enqueue(0);
+        Finish(_w.InstallPluginAsync(path), expected: true);
+    }
+
+    private PluginState StateOf(string id) => _app.Plugins.StatusOf(id)!.State;
+
+    private Task<JsonElement> CallPlugin(string id, string method) => _app.Plugins.HostForTests.CallAsync(id, method);
+
+    [AvaloniaFact]
+    public void A_plugin_starts_when_a_document_in_its_language_or_of_its_file_type_is_shown()
+    {
+        InstallProcessPlugin("acme.lang", ["onLanguage:json"]);
+        InstallProcessPlugin("acme.type", ["onFileType:.md"]);
+        Assert.Equal(PluginState.Inactive, StateOf("acme.lang"));
+        Assert.Equal(PluginState.Inactive, StateOf("acme.type"));
+
+        var tab = _w.NewDocument();
+        _app.Plugins.TrackActivation(_w, tab); // a plain text document asks for neither
+        Assert.Equal(PluginState.Inactive, StateOf("acme.lang"));
+
+        tab.Doc.ChooseLanguage(LanguageModes.ById("json"));
+        _app.Plugins.TrackActivation(_w, tab);
+        ToolTestKit.WaitFor(() => StateOf("acme.lang") == PluginState.Running, "the plugin of the language to start");
+        Assert.Equal(PluginState.Inactive, StateOf("acme.type"));
+    }
+
+    [AvaloniaFact]
+    public void A_plugin_that_lists_onStartup_starts_once_the_editor_has_started_and_not_before()
+    {
+        InstallProcessPlugin("acme.boot", [ActivationEvents.Startup]);
+        Assert.Equal(PluginState.Inactive, StateOf("acme.boot"));
+
+        _app.Plugins.ActivateStartup();
+        ToolTestKit.WaitFor(() => StateOf("acme.boot") == PluginState.Running, "the plugin to start");
+    }
+
+    [AvaloniaFact]
+    public void A_plugin_that_lists_workspaceContains_starts_when_an_open_folder_holds_a_matching_file()
+    {
+        InstallProcessPlugin("acme.maven", ["workspaceContains:pom.xml"]);
+        var empty = Directory.CreateDirectory(Path.Combine(_temp.Path, "empty")).FullName;
+        var project = Directory.CreateDirectory(Path.Combine(_temp.Path, "project")).FullName;
+        File.WriteAllText(Path.Combine(project, "pom.xml"), "");
+
+        var none = _app.Plugins.HostForTests.ActivateWorkspaceAsync([empty]);
+        Finish(none);
+        Assert.Empty(none.Result);
+        Assert.Equal(PluginState.Inactive, StateOf("acme.maven"));
+
+        var some = _app.Plugins.HostForTests.ActivateWorkspaceAsync([empty, project]);
+        Finish(some);
+        Assert.Equal(["acme.maven"], some.Result);
+        Assert.Equal(PluginState.Running, StateOf("acme.maven"));
+    }
+
+    [AvaloniaFact]
+    public void The_manager_starts_stops_and_restarts_the_process_of_a_plugin_and_says_what_it_does()
+    {
+        InstallProcessPlugin("acme.run", ["onCommand:acme.run.go"]);
+        _dialogs.Asked.Clear();
+
+        _dialogs.Answers.Enqueue(1); // Disable/Enable, Start
+        Finish(_w.ManagePluginAsync("acme.run"));
+        Assert.Contains(Loc.Get(K.PluginStateInactive), Assert.Single(_dialogs.Asked).Message);
+        Assert.Equal(PluginState.Running, StateOf("acme.run"));
+        Assert.Equal(Loc.Get(K.PluginsStatusStarted, ("name", "Acme acme.run")), _w.StatusMessageText);
+        var first = CallPlugin("acme.run", "pid");
+        Finish(first);
+
+        _dialogs.Asked.Clear();
+        _dialogs.Answers.Enqueue(2); // Disable/Enable, Stop, Restart
+        Finish(_w.ManagePluginAsync("acme.run"));
+        Assert.Contains(Loc.Get(K.PluginStateRunning), Assert.Single(_dialogs.Asked).Message);
+        Assert.Equal(Loc.Get(K.PluginsStatusRestarted, ("name", "Acme acme.run")), _w.StatusMessageText);
+        var second = CallPlugin("acme.run", "pid");
+        Finish(second);
+        Assert.NotEqual(first.Result.GetInt32(), second.Result.GetInt32());
+
+        _dialogs.Answers.Enqueue(1); // Stop
+        Finish(_w.ManagePluginAsync("acme.run"));
+        Assert.Equal(PluginState.Inactive, StateOf("acme.run"));
+        Assert.Equal(Loc.Get(K.PluginsStatusStopped, ("name", "Acme acme.run")), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void A_built_in_plugin_offers_start_while_it_does_not_run_and_the_dialog_names_its_state()
+    {
+        _dialogs.Answers.Enqueue(1); // Close (the only other button; the plugin does not run, so Start is first)
+        Finish(_w.ManageBuiltInAsync(PluginServices.TextToolsPluginId, "Text tools"));
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(Loc.Get(K.PluginStateInactive), asked.Message);
+        Assert.Equal([Loc.Get(K.PluginsManageStart), Loc.Get(K.PluginsManageClose)], asked.Buttons.Select(b => b.Label));
+        Assert.Equal(PluginState.Inactive, StateOf(PluginServices.TextToolsPluginId));
+    }
+}
+
+/// <summary>The words the plugin manager uses for the state of a plugin process.</summary>
+[Collection("LocState")]
+public class PluginStateTextTests : IDisposable
+{
+    public void Dispose() => Loc.SetLanguage(Loc.DefaultLanguage);
+
+    private static PluginStatus Status(PluginState state, PluginCrashInfo? crash = null, string? reason = null, bool idleStop = false) => new("p", "Plugin", state, null, crash, reason, 0, idleStop);
+
+    private static readonly PluginCrashInfo Crash = new("p", "Plugin", PluginEndReason.Unresponsive, null, "", [], TimeSpan.FromSeconds(4.2));
+
+    public static IEnumerable<object[]> Languages() => Loc.Languages.Select(l => new object[] { l });
+
+    [Fact]
+    public void Every_state_has_its_words_in_english()
+    {
+        Loc.SetLanguage("en");
+        Assert.Equal("not running, starts when needed", PluginServices.StateText(Status(PluginState.Inactive)));
+        Assert.Equal("not running, starts when needed", PluginServices.StateText(Status(PluginState.Stopped)));
+        Assert.Equal("starting", PluginServices.StateText(Status(PluginState.Starting)));
+        Assert.Equal("running", PluginServices.StateText(Status(PluginState.Running)));
+        Assert.Equal("running, ends when it has no work", PluginServices.StateText(Status(PluginState.Running, idleStop: true)));
+        Assert.Equal("stopping", PluginServices.StateText(Status(PluginState.Stopping)));
+        Assert.Equal("stopped (no answer), starts again in 5 s", PluginServices.StateText(Status(PluginState.WaitingRestart, Crash)));
+        Assert.Equal("turned off (no answer)", PluginServices.StateText(Status(PluginState.Disabled, Crash)));
+        Assert.Equal("turned off (refused the handshake)", PluginServices.StateText(Status(PluginState.Disabled, reason: "refused the handshake")));
+    }
+
+    [Theory, MemberData(nameof(Languages))]
+    public void Every_state_reads_as_text_without_leftover_placeholders_in_every_language(string language)
+    {
+        Loc.SetLanguage(language);
+        var texts = new[]
+        {
+            Status(PluginState.Inactive), Status(PluginState.Starting), Status(PluginState.Running), Status(PluginState.Running, idleStop: true), Status(PluginState.Stopping),
+            Status(PluginState.WaitingRestart, Crash), Status(PluginState.Disabled, Crash),
+        }.Select(PluginServices.StateText).ToList();
+        Assert.All(texts, t =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(t));
+            Assert.DoesNotContain('{', t);
+        });
+        Assert.Equal(texts.Count, texts.Distinct().Count());
     }
 }

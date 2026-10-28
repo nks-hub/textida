@@ -28,6 +28,9 @@ public sealed class FormattersPlugin : PluginBase
 
     private readonly FormattersSettings _settings;
 
+    /// <summary>Everything happens inside a command, so the editor may end the process between commands.</summary>
+    protected override bool IdleStop => true;
+
     public FormattersPlugin(FormattersSettings settings) : base("formatters", apiVersion: 1)
     {
         _settings = settings;

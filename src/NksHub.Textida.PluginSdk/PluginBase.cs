@@ -25,6 +25,12 @@ public abstract class PluginBase(string name, int apiVersion)
     /// <summary>The connection to the editor, for requests and notifications to it. Set before the first request is handled.</summary>
     public JsonRpcDispatcher Rpc { get; internal set; } = null!;
 
+    /// <summary>
+    /// True for a plugin that holds nothing in the editor which cannot be set up again (no virtual tab, panel, source or provider it registered at its start and cannot register twice):
+    /// the editor ends its process after a while without work and starts it again with the next activation event.
+    /// </summary>
+    protected virtual bool IdleStop => false;
+
     protected void On(string method, RequestHandler handler) => _methods.Add(method, handler);
 
     protected void On<TRequest, TResult>(string method, JsonTypeInfo<TRequest> request, JsonTypeInfo<TResult> result, Func<TRequest, CancellationToken, ValueTask<TResult>> handler) =>
@@ -47,7 +53,7 @@ public abstract class PluginBase(string name, int apiVersion)
         switch (method)
         {
             case PluginMethods.Initialize:
-                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(ApiVersion, Name, EventAcks: true), PluginJson.Default.InitializeResult);
+                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(ApiVersion, Name, EventAcks: true, IdleStop: IdleStop), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 await OnResyncAsync(p).ConfigureAwait(false);
                 return null;

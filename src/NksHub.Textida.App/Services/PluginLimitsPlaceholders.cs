@@ -367,8 +367,29 @@ internal static class PluginLimitsPlaceholders
 
     public static PluginNetworkOptions Network() => new(TimeSpan.FromMilliseconds(NetworkTimeoutMilliseconds), NetworkMaxResponseBytes);
 
+    /// <summary>Placeholder, OPEN: seconds a plugin that asked for it (idle stop) may have no work before the editor ends its process; the next activation event starts it again. The owner has not decided it.</summary>
+    public const int IdleStopSeconds = 300;
+
+    /// <summary>Placeholder, OPEN: seconds all plugins together may take to leave when the editor closes; a process still alive then is killed by its process id. The owner has not decided it.</summary>
+    public const int ShutdownTotalSeconds = 4;
+
+    /// <summary>Placeholder, OPEN: seconds the exit of the editor waits for the plugin services (agents, the MCP server, the plugins) to finish before it kills the plugin processes that are left. The owner has not decided it.</summary>
+    public const int ExitWaitSeconds = 8;
+
+    /// <summary>Placeholder, OPEN: files and folders looked at over all open folders to see whether a plugin's <c>workspaceContains</c> event fires. The owner has not decided it.</summary>
+    public const int WorkspaceScanEntries = 20_000;
+
+    /// <summary>Placeholder, OPEN: how many folders deep below an open folder the <c>workspaceContains</c> search goes. The owner has not decided it.</summary>
+    public const int WorkspaceScanDepth = 6;
+
+    /// <summary>Placeholder, OPEN: folder names the <c>workspaceContains</c> search passes over. The owner has not decided it.</summary>
+    public static readonly string[] WorkspaceScanSkippedFolders = [".git", ".hg", ".svn", "node_modules"];
+
     public static PluginHostOptions Host() => new()
     {
+        IdleStopAfter = TimeSpan.FromSeconds(IdleStopSeconds),
+        ShutdownTotal = TimeSpan.FromSeconds(ShutdownTotalSeconds),
+        WorkspaceScan = new WorkspaceScanLimits(WorkspaceScanEntries, WorkspaceScanDepth, WorkspaceScanSkippedFolders),
         EventWindow = EventWindow,
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
         Restart = new RestartPolicy(MaxCrashes: 3, Window: TimeSpan.FromMinutes(5), BaseDelay: TimeSpan.FromSeconds(1), MaxDelay: TimeSpan.FromSeconds(30)),

@@ -8,12 +8,16 @@ using NksHub.Textida.Rpc;
 // Options: --api N, --crash-on-start CODE, --stderr-flood LINES, --sleep-before-read MS, --resync-delay MS (answers the resync late and says so on stderr), --exit-after-handshake,
 // --on-command JSON ({"method","params"} the plugin sends to the editor on command/execute; $document and $revision are filled in from the command).
 // The request "deaf" {ms} stops reading standard input for that long while the process lives on.
+// --idle-stop declares in the handshake that the editor may end the process when it is idle. --linger makes the process ignore "exit" and outlive the end of its input
+// (a foreground thread), so only a kill ends it.
 var api = 1;
 var crashOnStart = -1;
 var stderrFlood = 0;
 var sleepBeforeRead = 0;
 var resyncDelay = 0;
 var eventAcks = !args.Contains("--no-event-acks");
+var idleStop = args.Contains("--idle-stop");
+var linger = args.Contains("--linger");
 string? onCommand = null;
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -39,15 +43,16 @@ if (crashOnStart >= 0)
     Environment.Exit(crashOnStart);
 }
 if (sleepBeforeRead > 0) Thread.Sleep(sleepBeforeRead);
+if (linger) new Thread(() => Thread.Sleep(Timeout.Infinite)) { IsBackground = false }.Start();
 
-var handler = new Handler(api, onCommand, resyncDelay, eventAcks);
+var handler = new Handler(api, onCommand, resyncDelay, eventAcks, idleStop, linger);
 var limits = new RpcLimits(4 * 1024 * 1024, 64, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024);
 await using var rpc = new JsonRpcDispatcher(new DeafInput(Console.OpenStandardInput()), Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
 handler.Rpc = rpc;
 await rpc.Completion;
 return 0;
 
-sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks) : IRpcHandler
+sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks, bool idleStop, bool linger) : IRpcHandler
 {
     public JsonRpcDispatcher Rpc = null!;
     volatile bool _frozen;
@@ -87,7 +92,7 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
         switch (method)
         {
             case PluginMethods.Initialize:
-                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: eventAcks), PluginJson.Default.InitializeResult);
+                return JsonSerializer.SerializeToUtf8Bytes(new InitializeResult(api, "test-plugin", EventAcks: eventAcks, IdleStop: idleStop), PluginJson.Default.InitializeResult);
             case PluginMethods.Resync:
                 _resync = p.GetRawText();
                 if (resyncDelay > 0)
@@ -307,7 +312,7 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
             case PluginMethods.Initialized:
                 break;
             case PluginMethods.Exit:
-                Environment.Exit(0);
+                if (!linger) Environment.Exit(0);
                 break;
             case PluginMethods.Event:
                 lock (_events) _events.Add(p.GetRawText());

@@ -1,5 +1,6 @@
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Manager;
 using NksHub.Textida.PluginHost.Permissions;
@@ -23,16 +24,61 @@ internal sealed partial class MainWindow
         {
             string detail = p.Problem is { } why ? Loc.Get(K.PluginsRowProblem, ("reason", why)) : Loc.Get(K.PluginsRowDetail, ("version", p.Version), ("allowed", p.Granted.Count));
             string id = p.Id;
-            rows.Add(new QuickRow(p.Name, Loc.Get(p.Enabled ? K.PluginsOriginInstalled : K.PluginsOriginDisabled), detail, null, true, null, p.Name, () => _ = ManagePluginAsync(id)));
+            var state = StateOf(id);
+            rows.Add(new QuickRow(p.Name, Loc.Get(p.Enabled ? K.PluginsOriginInstalled : K.PluginsOriginDisabled), state is null ? detail : state + ". " + detail, null, true, null,
+                state is null ? p.Name : p.Name + ", " + state, () => _ = ManagePluginAsync(id)));
         }
         foreach (var (id, name) in PluginServices.BuiltIns)
         {
             var granted = string.Join(", ", plugins.Permissions.GrantsOf(id).Select(g => g.Permission).Distinct().Order(StringComparer.Ordinal));
             string detail = Loc.Get(K.PluginsRowBuiltinDetail, ("list", granted.Length > 0 ? granted : "-"));
-            rows.Add(new QuickRow(name, Loc.Get(K.PluginsOriginBuiltin), detail, null, true, null, name, () => SetStatusMessage(detail)));
+            var state = StateOf(id);
+            rows.Add(new QuickRow(name, Loc.Get(K.PluginsOriginBuiltin), state is null ? detail : state + ". " + detail, null, true, null,
+                state is null ? name : name + ", " + state, () => _ = ManageBuiltInAsync(id, name)));
         }
         ShowChoice(Loc.Get(K.PluginsManagerWatermark), Loc.Get(K.A11yPluginsManager), rows);
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>The state of the process of a plugin in words; null for a plugin without a process.</summary>
+    private string? StateOf(string pluginId) => _app.Plugins.StatusOf(pluginId) is { } status ? PluginServices.StateText(status) : null;
+
+    /// <summary>
+    /// The actions that fit the state of the process of a plugin: start when it does not run (a plugin that was turned off gets a clean slate, one that waits for its restart starts at once),
+    /// stop while it runs or waits, restart while it runs. A plugin that is on its way out, or has no process, has none.
+    /// </summary>
+    private List<(string Label, Func<Task> Run)> ProcessActions(string id, string name)
+    {
+        var plugins = _app.Plugins;
+        var actions = new List<(string Label, Func<Task> Run)>();
+        if (plugins.StatusOf(id) is not { } status) return actions;
+        if (status.State is PluginState.Inactive or PluginState.Stopped or PluginState.Disabled or PluginState.WaitingRestart)
+            actions.Add((Loc.Get(K.PluginsManageStart), () => ChangeProcessAsync(name, plugins.StartPluginAsync(id), K.PluginsStatusStarted)));
+        if (status.State is PluginState.Running or PluginState.Starting or PluginState.WaitingRestart)
+            actions.Add((Loc.Get(K.PluginsManageStop), () => ChangeProcessAsync(name, plugins.StopPluginAsync(id), K.PluginsStatusStopped)));
+        if (status.State == PluginState.Running)
+            actions.Add((Loc.Get(K.PluginsManageRestart), () => ChangeProcessAsync(name, plugins.RestartPluginAsync(id), K.PluginsStatusRestarted)));
+        return actions;
+    }
+
+    /// <summary>Waits for a start, stop or restart and says in the status bar what came of it.</summary>
+    private async Task ChangeProcessAsync(string name, Task<string?> change, string doneKey)
+    {
+        var problem = await change;
+        SetStatusMessage(problem is null ? Loc.Get(doneKey, ("name", name)) : Loc.Get(K.PluginsStatusFailed, ("name", name), ("reason", problem)));
+    }
+
+    /// <summary>A plugin that comes with the editor: what its process is doing and what it may do, with the start, stop and restart that fit.</summary>
+    internal async Task ManageBuiltInAsync(string id, string name)
+    {
+        var plugins = _app.Plugins;
+        var state = StateOf(id);
+        var message = state is null ? name : Loc.Get(K.PluginsManageProcess, ("name", name), ("state", state));
+        var allowed = plugins.Permissions.GrantsOf(id).Select(g => g.Permission).Distinct().Order(StringComparer.Ordinal).Select(p => $"{p}: {PermissionMeaning(p)}").ToList();
+        var actions = ProcessActions(id, name);
+        var buttons = actions.Select((a, i) => new DialogButton(a.Label, IsDefault: i == 0)).Append(new DialogButton(Loc.Get(K.PluginsManageClose), IsCancel: true)).ToList();
+        int picked = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(name, message, buttons, allowed));
+        if (picked >= 0 && picked < actions.Count) await actions[picked].Run();
     }
 
     private static string PermissionMeaning(string permission) => Loc.Get(permission switch
@@ -134,14 +180,16 @@ internal sealed partial class MainWindow
         var actions = new List<(string Label, Func<Task> Run)>
         {
             plugin.Enabled ? (Loc.Get(K.PluginsManageDisable), () => SetPluginEnabledAsync(plugin, false)) : (Loc.Get(K.PluginsManageEnable), () => SetPluginEnabledAsync(plugin, true)),
-            (Loc.Get(K.PluginsManageUpdate), () => InstallPluginAsync(updateOf: id)),
         };
+        if (plugin.Enabled) actions.AddRange(ProcessActions(id, plugin.Name));
+        actions.Add((Loc.Get(K.PluginsManageUpdate), () => InstallPluginAsync(updateOf: id)));
         if (plugin.PreviousVersion is { } previous) actions.Add((Loc.Get(K.PluginsManageRollback, ("version", previous)), () => RollBackPluginAsync(plugin)));
         actions.Add((Loc.Get(K.PluginsManagePermissions), () => { ShowPluginPermissions(id); return Task.CompletedTask; }));
         actions.Add((Loc.Get(K.PluginsManageUninstall), () => UninstallPluginAsync(plugin)));
 
         string message = Loc.Get(K.PluginsManageMessage, ("name", plugin.Name), ("version", plugin.Version), ("state", Loc.Get(plugin.Enabled ? K.PluginsManageEnabled : K.PluginsManageDisabled)))
-            + (plugin.PreviousVersion is { } kept ? " " + Loc.Get(K.PluginsManagePrevious, ("previous", kept)) : "");
+            + (plugin.PreviousVersion is { } kept ? " " + Loc.Get(K.PluginsManagePrevious, ("previous", kept)) : "")
+            + (plugin.Enabled && StateOf(id) is { } process ? " " + Loc.Get(K.PluginsManageProcess, ("name", plugin.Name), ("state", process)) : "");
         var buttons = actions.Select((a, i) => new DialogButton(a.Label, IsDefault: i == 0)).Append(new DialogButton(Loc.Get(K.PluginsManageClose), IsCancel: true)).ToList();
         var conflicts = _app.Workbench.KeyConflictsOf(id).Select(KeyConflictText).ToList();
         if (conflicts.Count > 0) message += " " + Loc.Get(K.PluginsKeysMessage, ("count", conflicts.Count));
