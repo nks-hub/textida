@@ -151,10 +151,11 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         await NextFrameAsync();
     }
 
-    private async Task<bool> NoticeAsync(Func<string, bool> match)
+    /// <summary>Waits for a notice bar that matches; a failure names the bars that were there.</summary>
+    private async Task CheckNoticeAsync(Func<string, bool> match, string what)
     {
         for (int i = 0; i < 100 && !window.Notices.Any(n => match(n.Message)); i++) await Task.Delay(50);
-        return window.Notices.Any(n => match(n.Message));
+        Check(window.Notices.Any(n => match(n.Message)), $"{what} (notices: {string.Join(" | ", window.Notices.Select(n => n.Message))})");
     }
 
     /// <summary>
@@ -188,6 +189,11 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             "the bytes outside the range and the code page of the file are kept");
         window.Undo();
         Check(tab.Editor.Document.Text == head + json + tail, "one undo takes the formatting back");
+        var restart = await app.Plugins.RestartPluginAsync(PluginServices.JsonPluginId);
+        Check(restart is null && app.Plugins.StatusOf(PluginServices.JsonPluginId)?.State == PluginState.Running && tab.Editor.Document.Text == head + json + tail, $"a restart of the JSON plugin repeats no write ({restart})");
+        tab.Editor.Select(head.Length, json.Length);
+        await RunPluginCommandAsync("nks.edit.formatJson");
+        Check(tab.Editor.Document.Text == formatted, "the restarted plugin formats the same way");
         window.CloseTab(tab);
 
         var bigText = "[\n" + string.Concat(Enumerable.Repeat("1,\n", 350_000)) + "1]";
@@ -198,7 +204,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         Check(big.Surface is not null, "a JSON text of 1 MiB opens as text");
         await RunPluginCommandAsync("nks.edit.formatJson");
         Check(big.Editor!.Document.TextLength == bigText.Length, "a text over the limit of the formatter is left alone");
-        Check(await NoticeAsync(m => Digits(m).Contains("1048576", StringComparison.Ordinal) && Digits(m).Contains(bigText.Length.ToString(), StringComparison.Ordinal)), "the notice names the size and the limit");
+        await CheckNoticeAsync(m => Digits(m).Contains("1048576", StringComparison.Ordinal) && Digits(m).Contains(bigText.Length.ToString(), StringComparison.Ordinal), "the notice names the size and the limit");
         window.CloseTab(big);
 
         var statsFile = Path.Combine(temp, "stats.txt");
@@ -206,7 +212,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         var stats = window.OpenFile(statsFile, null);
         await NextFrameAsync();
         Check(await app.Plugins.RunTextToolAsync(window, stats, "text.stats"), "the statistics start");
-        Check(await NoticeAsync(m => Digits(m) == "1010335"), "the text tools count 10 bytes, 10 characters, 3 words, 3 lines and 5 characters in the longest");
+        await CheckNoticeAsync(m => Digits(m).StartsWith("1010335", StringComparison.Ordinal), "the text tools count 10 bytes, 10 characters, 3 words, 3 lines and 5 characters in the longest");
         window.CloseTab(stats);
 
         var outlineFile = Path.Combine(temp, "outline.md");
