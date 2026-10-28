@@ -46,7 +46,7 @@ internal sealed class HexTemplatePanel : Border
         Classes.Add("sidepanel");
         Width = 320;
         Padding = new Thickness(10, 8);
-        _picker.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<KsyPinned>((p, _) => new TextBlock { Text = Label(p) });
+        _picker.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<KsyPinned>((p, _) => new TextBlock { Text = p is null ? "" : Label(p) }); // the box of a combo without a choice builds its content from null
         _picker.SelectionChanged += (_, _) => PickerChanged();
         _open.Click += (_, _) => _ = OpenFileAsync();
         AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite); // a refused template is announced without moving the focus
