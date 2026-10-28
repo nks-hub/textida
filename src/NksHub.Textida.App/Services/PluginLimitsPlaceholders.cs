@@ -164,6 +164,21 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the Git plugin reads per request when it takes the staged index document back. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int GitChunkBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after a change in the working tree or in the index of the repository before the Git status panel and status bar are read again. The owner has not decided it.</summary>
+    public const int GitWatchDebounceMilliseconds = 500;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after an edit, a save or a change of the repository before the change marks in the gutter of the open file are asked for again. The owner has not decided it.</summary>
+    public const int GitGutterDebounceMilliseconds = 600;
+
+    /// <summary>Placeholder, OPEN: largest document, in bytes, that gets change marks in the gutter; a larger one gets none. Must not exceed <see cref="VirtualDocumentMaxBytes"/>, which is what the Git plugin reads. The owner has not decided it.</summary>
+    public const long GitGutterMaxBytes = 1L << 20;
+
+    /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The owner has not decided it.</summary>
+    public const int DiffActionsPerTab = 4;
+
+    /// <summary>Placeholder, OPEN: longest key, command and title of a comparison tab a plugin opens, in UTF-16 units. The owner has not decided it.</summary>
+    public const int DiffActionTextLength = 200;
+
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 
@@ -348,6 +363,7 @@ internal static class PluginLimitsPlaceholders
         Workspace = workspace,
         Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
+        DiffActions = new DiffActionOptions(DiffActionsPerTab, DiffActionTextLength),
         Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,

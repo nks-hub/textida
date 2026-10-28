@@ -1277,18 +1277,23 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
 ## [tools.git] Git: status, compare and stage a hunk
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
-1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. Run it again after the repository changes from outside.
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. The panel and the status bar refresh by themselves shortly after the last change made from outside.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
 4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
-- The plugin writes to the repository only on Git: Stage Hunk at Caret. Status and compare only read and do not even refresh the index file.
+- The plugin writes to the repository only when you stage or unstage a hunk or resolve a conflict. Status and compare only read and do not even refresh the index file.
 - The text open in the editor is staged, saved or not. A file with an unresolved merge conflict is not staged.
 5. Git: Unstage Hunk at Caret takes back to HEAD only the staged change the caret is in (or points to in the file). The other staged changes stay.
 6. For a merge conflict put the caret in the block between `<<<<<<<` and `>>>>>>>` and choose Git: Conflict, Take Ours / Take Theirs / Take Both. The block is replaced by the chosen side. When no block is left and the file is saved, choose Git: Mark File Resolved; the file is added to the index.
 7. A double click or Enter on a file in the status panel opens it. The status bar shows the branch and counts: `+` staged, `~` changed, `?` untracked, `!` conflicts; it updates after every Git command.
-- Not there yet: commit and branches. A file with line ending conversion (`autocrlf`) can differ from the index on every line.
-- The Git process starts with the first command. The `git` program must be on the PATH.
+8. In a file inside a Git repository the left margin marks the lines that differ from the index with a filled bar (blue changed, green added, a short red bar where lines were removed) and the lines that are staged already with an outlined bar. A click on a mark stages the change; a click on an outlined mark takes it back from the index. The setting Show Git changes in the gutter turns the marks off. A file above the size limit and a file with hidden values (.env) get none.
+9. The tabs Git: Compare with Index and Git: Compare with HEAD have buttons Stage hunk and Unstage hunk for the difference the tab is on (from the keyboard the commands Compare: First Plugin Action and Second Plugin Action in the Tools menu do the same). After a button the comparison opens again in the place of the tab.
+10. A conflict in which one side deleted the file (the panel says "conflict: deleted by us" or "deleted by them"), or both sides added a file that cannot be merged, has no markers. Git: Conflict, Take Ours / Take Theirs / Take Both then says so. Keep the file with Git: Mark File Resolved, or delete it with Git: Conflict, Delete File. A file both sides deleted is shown in the panel, but there is nothing to open for it; resolve it with `git rm`.
+11. Conflict blocks are found in files saved as UTF-16 and UTF-32 as well.
+12. With `core.autocrlf` (or an `eol` attribute) a hunk of a file with CRLF line endings is stored with LF, as `git add` stores it.
+- Not there yet: commit and branches.
+- The Git process starts with the first command, or when a file is opened while the marks in the margin are on. The `git` program must be on the PATH.
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1395,12 +1400,13 @@ Select a part of a text, for example a block of comma-separated lines in a note 
 - Rows added at the end go inside the selection. Toggle Table View returns to the text; the next Toggle Table View shows the whole file as a table.
 
 ## [compare.text] Comparing texts
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2
 Two texts are compared line by line in a tab of their own. Equal lines stand level, a changed block is tinted on both sides and marked in the middle strip, and the bar above says how many differences there are.
 1. Compare with Clipboard (Tools menu, or the context menu of the editor) compares the tab with the text on the clipboard. With text selected in the editor, only the selection is compared.
 2. Compare with File asks for a file and compares the tab with it. Compare with Disk is in the File menu and compares the tab with its own file.
 3. Compare Two Texts opens two empty sides. Paste left text and Paste right text put the clipboard into a side.
 - From the command line, textida --diff left right opens the comparison of two files: the left file opens in a tab and can take blocks of the right one, which is read-only.
+- A plugin can add buttons to a comparison tab it opens (Git adds Stage hunk and Unstage hunk). A button acts on the difference the tab is on; from the keyboard the commands Compare: First Plugin Action and Second Plugin Action in the Tools menu do the same. The buttons work while the document of the right side is unchanged since the comparison was made; otherwise open the comparison again.
 - The tab side is the document itself: when it changes, the comparison is made again after a short pause. The clipboard, a selection and a file on disk are read-only sides.
 - A different line ending (CR, LF, CRLF) does not make a line differ. Spaces and letter case do, until you turn on Ignore Whitespace or Ignore Case in Tools, Compare. Then lines that differ only in spaces and tabs (anywhere in the line), or only in letter case, are equal. The choice applies to every comparison, open ones are compared again at once, and the bar above says it is on. Such equal lines are not tinted even where their spaces differ, and copying to the left or right takes the lines as they are.
 - A large file in paged mode is compared without being loaded: only the lines on screen are read.

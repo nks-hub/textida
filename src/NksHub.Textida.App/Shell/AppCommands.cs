@@ -251,6 +251,7 @@ internal static class AppCommands
         Fire("nks.git.conflictTheirs", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictTheirs"));
         Fire("nks.git.conflictBoth", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictBoth"));
         Fire("nks.git.markResolved", (w, t) => app.Plugins.RunGitAsync(w, t, "git.markResolved"));
+        Fire("nks.git.conflictDelete", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictDelete"));
         Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
@@ -330,6 +331,8 @@ internal static class AppCommands
         On("nks.compare.previous", w => w.CompareStep(next: false));
         On("nks.compare.copyToRight", w => w.CompareCopy(Core.Compare.DiffSide.B));
         On("nks.compare.copyToLeft", w => w.CompareCopy(Core.Compare.DiffSide.A));
+        On("nks.compare.action1", w => w.CompareAction(0));
+        On("nks.compare.action2", w => w.CompareAction(1));
         Do("nks.compare.ignoreWhitespace", w => w.ToggleCompareIgnoreWhitespace());
         Do("nks.compare.ignoreCase", w => w.ToggleCompareIgnoreCase());
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());

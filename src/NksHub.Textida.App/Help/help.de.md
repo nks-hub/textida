@@ -1277,18 +1277,23 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Der Emmet-Prozess startet mit dem ersten Tab in einer HTML- oder CSS-Datei.
 
 ## [tools.git] Git: Status, Vergleich und Abschnitt vormerken
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved
-1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Führen Sie den Befehl erneut aus, wenn sich das Repository von außen ändert.
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Das Panel und die Statusleiste aktualisieren sich nach einer Änderung von außen von selbst, kurz nach der letzten Änderung.
 2. Git: Mit Index vergleichen und Git: Mit HEAD vergleichen öffnen einen Vergleichs-Tab des offenen Textes mit seiner Version im Index oder in HEAD. Die Abschnitte sind dieselben wie in `git diff`.
 3. Git: Abschnitt am Cursor vormerken schreibt nur die Änderung in den Index, in der der Cursor steht. Die übrigen Änderungen der Datei bleiben nur im Arbeitsbaum. Die Datei auf der Festplatte wird nicht verändert.
 4. Hat ein anderes Programm den Index inzwischen geändert, wird nichts geschrieben. Das Plugin liest den Index neu und meldet einen Konflikt; prüfen Sie die Änderungen und wiederholen Sie den Befehl.
-- Das Plugin schreibt nur bei Git: Abschnitt am Cursor vormerken in das Repository. Status und Vergleich lesen nur und erneuern nicht einmal die Indexdatei.
+- Das Plugin schreibt nur in das Repository, wenn Sie einen Abschnitt vormerken oder zurücknehmen oder einen Konflikt lösen. Status und Vergleich lesen nur und erneuern nicht einmal die Indexdatei.
 - Vorgemerkt wird der im Editor offene Text, gespeichert oder nicht. Eine Datei mit ungelöstem Merge-Konflikt wird nicht vorgemerkt.
 5. Git: Abschnitt am Cursor aus dem Index nehmen nimmt nur die vorgemerkte Änderung, in der der Cursor steht (oder auf die er in der Datei zeigt), nach HEAD zurück. Die übrigen vorgemerkten Änderungen bleiben.
 6. Setzen Sie bei einem Merge-Konflikt den Cursor in den Block zwischen `<<<<<<<` und `>>>>>>>` und wählen Sie Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen. Der Block wird durch die gewählte Seite ersetzt. Ist kein Block mehr übrig und die Datei gespeichert, wählen Sie Git: Datei als gelöst markieren; die Datei wird im Index vorgemerkt.
 7. Doppelklick oder Enter auf eine Datei im Statuspanel öffnet sie. Die Statusleiste zeigt den Branch und Zähler: `+` vorgemerkt, `~` geändert, `?` nicht verfolgt, `!` Konflikte; sie wird nach jedem Git-Befehl aktualisiert.
-- Noch nicht vorhanden: Commit und Branches. Eine Datei mit Zeilenenden-Umwandlung (`autocrlf`) kann sich in jeder Zeile vom Index unterscheiden.
-- Der Git-Prozess startet mit dem ersten Befehl. Das Programm `git` muss im PATH liegen.
+8. In einer Datei aus einem Git-Repository markiert der linke Rand die Zeilen, die sich vom Index unterscheiden, mit einem gefüllten Balken (blau geändert, grün hinzugefügt, ein kurzer roter Balken dort, wo Zeilen entfernt wurden) und die schon vorgemerkten Zeilen mit einem Umriss. Ein Klick auf eine Markierung merkt die Änderung vor; ein Klick auf eine Umriss-Markierung nimmt sie aus dem Index. Die Einstellung Git-Änderungen am linken Rand anzeigen schaltet die Markierungen aus. Dateien über dem Größenlimit und Dateien mit verborgenen Werten (.env) haben keine.
+9. Die Tabs Git: Mit Index vergleichen und Git: Mit HEAD vergleichen haben die Schaltflächen Abschnitt vormerken und Abschnitt aus dem Index nehmen für den Unterschied, auf dem der Tab steht (per Tastatur tun das die Befehle Vergleich: erste und zweite Plugin-Aktion im Menü Extras). Nach einer Schaltfläche wird der Vergleich an der Stelle des Tabs neu geöffnet.
+10. Ein Konflikt, in dem eine Seite die Datei gelöscht hat (das Panel schreibt „Konflikt: von uns gelöscht“ oder „von ihnen gelöscht“) oder beide Seiten sie hinzugefügt haben und sie sich nicht zusammenführen lässt, hat keine Markierungen. Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen sagt das dann. Die Datei behalten Sie mit Git: Datei als gelöst markieren, löschen können Sie sie mit Git: Konflikt, Datei löschen. Eine von beiden Seiten gelöschte Datei zeigt das Panel, aber es gibt nichts zu öffnen; lösen Sie sie mit `git rm`.
+11. Konfliktblöcke werden auch in Dateien gefunden, die als UTF-16 und UTF-32 gespeichert sind.
+12. Mit `core.autocrlf` (oder einem `eol`-Attribut) wird ein Abschnitt einer Datei mit CRLF-Zeilenenden mit LF gespeichert, wie `git add` ihn speichert.
+- Noch nicht vorhanden: Commit und Branches.
+- Der Git-Prozess startet mit dem ersten Befehl oder wenn eine Datei geöffnet wird und die Markierungen am linken Rand eingeschaltet sind. Das Programm `git` muss im PATH liegen.
 
 ## [tools.lsp] Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1395,12 +1400,13 @@ Wählen Sie einen Teil eines Textes aus, etwa einen Block kommagetrennter Zeilen
 - Am Ende hinzugefügte Zeilen gehören zur Auswahl. Tabellenansicht umschalten kehrt zum Text zurück; das nächste Umschalten zeigt die ganze Datei als Tabelle.
 
 ## [compare.text] Texte vergleichen
-commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase
+commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2
 Zwei Texte werden zeilenweise in einem eigenen Tab verglichen. Gleiche Zeilen stehen auf gleicher Höhe, ein geänderter Block ist auf beiden Seiten getönt und im mittleren Streifen markiert, und die Leiste oben nennt die Zahl der Unterschiede.
 1. Mit Zwischenablage vergleichen (Menü Extras oder Kontextmenü des Editors) vergleicht den Tab mit dem Text der Zwischenablage. Ist im Editor Text ausgewählt, wird nur die Auswahl verglichen.
 2. Mit Datei vergleichen fragt nach einer Datei und vergleicht den Tab damit. Mit Datenträger vergleichen steht im Menü Datei und vergleicht den Tab mit seiner eigenen Datei.
 3. Zwei Texte vergleichen öffnet zwei leere Seiten. Die Schaltflächen Linken Text einfügen und Rechten Text einfügen setzen die Zwischenablage in eine Seite ein.
 - Von der Befehlszeile öffnet textida --diff links rechts den Vergleich zweier Dateien: Die linke Datei öffnet sich in einem Tab und kann Blöcke der rechten aufnehmen, die schreibgeschützt ist.
+- Ein Plugin kann einem Vergleichs-Tab, den es öffnet, Schaltflächen hinzufügen (Git fügt Abschnitt vormerken und Abschnitt aus dem Index nehmen hinzu). Eine Schaltfläche wirkt auf den Unterschied, auf dem der Tab steht; per Tastatur tun das die Befehle Vergleich: erste und zweite Plugin-Aktion im Menü Extras. Die Schaltflächen wirken, solange sich das Dokument der rechten Seite seit dem Vergleich nicht geändert hat; sonst öffnen Sie den Vergleich neu.
 - Die Tab-Seite ist das Dokument selbst: Ändert es sich, wird nach einer kurzen Pause neu verglichen. Zwischenablage, Auswahl und Datei auf dem Datenträger sind schreibgeschützte Seiten.
 - Ein anderes Zeilenende (CR, LF, CRLF) macht eine Zeile nicht anders. Leerzeichen und Groß-/Kleinschreibung schon, bis Sie unter Extras, Vergleichen die Optionen Leerraum ignorieren oder Groß-/Kleinschreibung ignorieren einschalten. Dann sind Zeilen gleich, die sich nur in Leerzeichen und Tabulatoren (irgendwo in der Zeile) oder nur in der Groß-/Kleinschreibung unterscheiden. Die Wahl gilt für jeden Vergleich, offene werden sofort neu verglichen, und die Leiste oben nennt sie. Solche gleichen Zeilen werden nicht getönt, auch wenn ihre Leerzeichen abweichen, und das Kopieren nach links oder rechts übernimmt die Zeilen, wie sie sind.
 - Eine große Datei im seitenweisen Modus wird verglichen, ohne geladen zu werden: Es werden nur die Zeilen auf dem Bildschirm gelesen.

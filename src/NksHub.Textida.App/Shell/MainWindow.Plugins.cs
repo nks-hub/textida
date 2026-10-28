@@ -176,6 +176,7 @@ internal sealed partial class MainWindow
     {
         var ui = _app.Plugins.Ui;
         RefreshPluginPanel(ui);
+        OnGitStatusChanged(ui);
         _pluginPanelClose.SetValue(ToolTip.TipProperty, Loc.Get(K.PluginPanelClose));
         AutomationProperties.SetName(_pluginPanelClose, Loc.Get(K.PluginPanelClose));
 

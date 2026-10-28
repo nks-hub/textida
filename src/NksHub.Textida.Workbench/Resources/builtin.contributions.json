@@ -1623,6 +1623,13 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.conflictDelete",
+      "title": "cmd.git.conflictDelete",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -1885,6 +1892,18 @@
     {
       "id": "nks.compare.copyToLeft",
       "title": "cmd.compare.copyToLeft",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.action1",
+      "title": "cmd.compare.action1",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.action2",
+      "title": "cmd.compare.action2",
       "category": "cat.tools",
       "enablement": "compareMode"
     },
@@ -3986,6 +4005,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.git.conflictDelete",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 100
+    },
+    {
+      "menu": "tools",
       "command": "nks.lsp.start",
       "group": "3_code/09_9_lsp",
       "submenu": "lsp",
@@ -4248,6 +4274,20 @@
       "group": "2_run/07_7_compare",
       "submenu": "compare",
       "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.action1",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 72
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.action2",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 74
     },
     {
       "menu": "tools",
@@ -5734,6 +5774,20 @@
         "diff",
         "compare",
         "case"
+      ]
+    },
+    {
+      "key": "git.gutter",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.git.gutter.title",
+      "description": "setting.git.gutter.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "git",
+        "gutter",
+        "diff"
       ]
     },
     {

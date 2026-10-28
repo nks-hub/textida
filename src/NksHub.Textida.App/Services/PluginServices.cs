@@ -63,6 +63,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     private readonly App _app;
     private readonly Host _host;
     private readonly Dictionary<Guid, Run> _running = [];
+    private readonly string _gitProgram;
     private readonly HashSet<(string Plugin, Guid Document)> _outlines = [];
 
     public PluginUiHost Ui { get; }
@@ -203,10 +204,11 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual, DocumentPermissions.EditDirect })
             permissions.Grant(GitPluginId, permission, GrantScope.All);
         var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
-        var gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        var gitProgram = _gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
-             "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString()],
+             "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
+             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
@@ -353,11 +355,57 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     // ---- Git: status, diff against the index and HEAD, stage the hunk at the caret ----
 
-    /// <summary>Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>, <c>git.unstageHunk</c>, <c>git.conflictOurs</c>, <c>git.conflictTheirs</c>, <c>git.conflictBoth</c>, <c>git.markResolved</c>) for the file of the tab. False when nothing was started.</summary>
-    public async Task<bool> RunGitAsync(MainWindow window, DocTab tab, string command)
+    /// <summary>
+    /// Runs a Git command (<c>git.status</c>, <c>git.diffIndex</c>, <c>git.diffHead</c>, <c>git.stageHunk</c>, <c>git.unstageHunk</c>, <c>git.conflictOurs</c>, <c>git.conflictTheirs</c>, <c>git.conflictBoth</c>,
+    /// <c>git.markResolved</c>, <c>git.conflictDelete</c>) for the file of the tab. With an <paramref name="offset"/> (a byte of the document) the hunk commands act there instead of at the caret.
+    /// False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunGitAsync(MainWindow window, DocTab tab, string command, long? offset = null)
     {
         var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
-        return (await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", command, $",\"path\":\"{path}\"")).Started;
+        return (await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", command, $",\"path\":\"{path}\"" + (offset is { } at ? $",\"offset\":{at}" : ""))).Started;
+    }
+
+    /// <summary>
+    /// The changes of the file of the tab against the index and <c>HEAD</c>, for the gutter, as of <see cref="GitMarks.Revision"/> of the document. Empty for a document the gutter does not look at (no file,
+    /// a secrets file, a file above <see cref="PluginLimitsPlaceholders.GitGutterMaxBytes"/>) and for a file Git has nothing to say about; null when Git could not be asked now (the document is busy with a command, the plugin does not run).
+    /// </summary>
+    public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab)
+    {
+        var document = tab.Doc.Doc;
+        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file))
+            return new GitMarks(document.Revision, []);
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\"", notify: false, background: true);
+        if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } answer || !answer.TryGetProperty("hunks", out var hunks) || hunks.ValueKind != JsonValueKind.Array
+            || !answer.TryGetProperty("revision", out var revision)) return null;
+        var marks = new List<GitMark>(hunks.GetArrayLength());
+        foreach (var h in hunks.EnumerateArray())
+        {
+            var kind = h.GetProperty("kind").GetString() switch { "added" => GitMarkKind.Added, "removed" => GitMarkKind.Removed, _ => GitMarkKind.Modified };
+            marks.Add(new GitMark(h.GetProperty("line").GetInt32(), h.GetProperty("lines").GetInt32(), kind, h.GetProperty("staged").GetBoolean()));
+        }
+        return new GitMarks(revision.GetInt64(), marks);
+    }
+
+    /// <summary>Whether a <c>.git</c> folder or file stands in the folder of the file or above it. The plugin is not started for a file that cannot be in a repository.</summary>
+    internal static bool InRepository(string file)
+    {
+        for (var dir = Path.GetDirectoryName(Path.GetFullPath(file)); dir is not null; dir = Path.GetDirectoryName(dir))
+            if (Directory.Exists(Path.Combine(dir, ".git")) || File.Exists(Path.Combine(dir, ".git"))) return true;
+        return false;
+    }
+
+    /// <summary>The window and tab of an open document, null when it is not open (a comparison tab names the document of its right side).</summary>
+    internal (MainWindow Window, DocTab Tab)? OpenTabOf(Guid document) => TabOf(document);
+
+    /// <summary>
+    /// Runs the command of a comparison tab's button in the plugin that opened the comparison, for the document of its right side (see <see cref="DiffAction"/>): the request names the document,
+    /// its revision and file, and the <paramref name="offset"/> where the hunk starts. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunDiffActionAsync(MainWindow window, DocTab tab, string pluginId, string command, long? offset)
+    {
+        var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
+        return (await ExecuteAsync(window, tab, pluginId, "onCommand:" + command, PluginName(pluginId), command, $",\"path\":\"{path}\"" + (offset is { } at ? $",\"offset\":{at}" : ""))).Started;
     }
 
     // ---- formatters: SQL, HTML entities, HTML Tidy ----

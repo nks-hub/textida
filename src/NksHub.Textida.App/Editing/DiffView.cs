@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Compare;
+using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -32,6 +33,8 @@ internal sealed partial class DiffView : DockPanel
     private readonly TextBlock _rightTitle = new() { TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(8, 4, 4, 4) };
     private readonly Button _previous = new(), _next = new(), _toLeft = new(), _toRight = new(), _pasteLeft = new(), _pasteRight = new();
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly StackPanel _tools;
+    private readonly List<(DiffAction Action, Button Button)> _actions = [];
     private EditorOptions _options;
     private long _top;
     private int _current = -1;
@@ -54,9 +57,9 @@ internal sealed partial class DiffView : DockPanel
         }
         _pasteLeft.IsVisible = session.Left.Pasteable;
         _pasteRight.IsVisible = session.Right.Pasteable;
-        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6, 8, 6), Children = { _previous, _next, _toLeft, _toRight, _pasteLeft, _pasteRight, _summary } };
-        SetDock(tools, Dock.Top);
-        Children.Add(tools);
+        _tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 6, 8, 6), Children = { _previous, _next, _toLeft, _toRight, _pasteLeft, _pasteRight, _summary } };
+        SetDock(_tools, Dock.Top);
+        Children.Add(_tools);
 
         var titles = new Grid { ColumnDefinitions = new ColumnDefinitions($"*,{GutterWidth},*"), Margin = new Thickness(0, 0, 16, 0) };
         Grid.SetColumn(_rightTitle, 2);
@@ -114,6 +117,38 @@ internal sealed partial class DiffView : DockPanel
 
     /// <summary>The user asked for the other side of a pasted text; the window reads the clipboard.</summary>
     public Func<Task<string?>>? ReadClipboard { get; set; }
+
+    /// <summary>The user pressed a button the plugin that opened the comparison added: the action and the number of the current difference.</summary>
+    public event Action<DiffAction, int>? ActionRequested;
+
+    public IReadOnlyList<Button> ActionButtons => [.. _actions.Select(a => a.Button)];
+
+    /// <summary>Adds a button for each action of the plugin that opened the comparison, after the buttons of the view; each acts on the current difference.</summary>
+    public void SetActions(IReadOnlyList<DiffAction>? actions)
+    {
+        foreach (var (_, button) in _actions) _tools.Children.Remove(button);
+        _actions.Clear();
+        int at = _tools.Children.IndexOf(_summary);
+        foreach (var action in actions ?? [])
+        {
+            int number = _actions.Count;
+            var button = new Button { Content = action.Title, Padding = new Thickness(10, 2), MinHeight = 24, Focusable = false };
+            button.Classes.Add("barbutton");
+            button.Click += (_, _) => RunAction(number);
+            AutomationProperties.SetName(button, action.Title);
+            _tools.Children.Insert(at++, button);
+            _actions.Add((action, button));
+        }
+        UpdateState();
+    }
+
+    /// <summary>Runs action <paramref name="number"/> on the current difference; false when there is no such action or no current difference.</summary>
+    public bool RunAction(int number)
+    {
+        if (number < 0 || number >= _actions.Count || _current < 0 || ActionRequested is null) return false;
+        ActionRequested(_actions[number].Action, _current);
+        return true;
+    }
 
     public void ApplyOptions(EditorOptions o)
     {
@@ -224,6 +259,7 @@ internal sealed partial class DiffView : DockPanel
         _toLeft.IsEnabled = _current >= 0 && _session.Left.CanReceive;
         _toRight.IsVisible = _session.Right.CanReceive;
         _toLeft.IsVisible = _session.Left.CanReceive;
+        foreach (var (_, button) in _actions) button.IsEnabled = _current >= 0;
         (ControlAutomationPeer.FromElement(this) as DiffAutomationPeer)?.Changed();
     }
 
