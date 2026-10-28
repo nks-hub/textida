@@ -17,6 +17,8 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.Remote;
+using NksHub.Textida.Remote.Tests;
 using Ellipse = Avalonia.Controls.Shapes.Ellipse;
 using Polygon = Avalonia.Controls.Shapes.Polygon;
 using Polyline = Avalonia.Controls.Shapes.Polyline;
@@ -95,7 +97,7 @@ internal static class Http
 [Collection("LocState")]
 public class PreviewSafetyTests : IDisposable
 {
-    private const string OnePixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    internal const string OnePixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
     private readonly TempDir _temp = new();
     private readonly ScriptedDialogs _dialogs = new();
@@ -140,12 +142,12 @@ public class PreviewSafetyTests : IDisposable
 
     private static string NameOf(Control c) => AutomationProperties.GetName(c) ?? "";
 
-    private static async Task Until(Func<bool> condition, string what)
+    private static async Task Until(Func<bool> condition, string what, Func<string>? state = null)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (!condition())
         {
-            Assert.True(sw.ElapsedMilliseconds < 10_000, "Not reached: " + what);
+            Assert.True(sw.ElapsedMilliseconds < 10_000, "Not reached: " + what + (state is null ? "" : " (" + state() + ")"));
             Dispatcher.UIThread.RunJobs();
             await Task.Delay(10);
         }
@@ -158,89 +160,31 @@ public class PreviewSafetyTests : IDisposable
         Dispatcher.UIThread.RunJobs();
     }
 
+    /// <summary>
+    /// Lays out and runs the jobs until neither the preview nor the editor has moved for twice the quiet time of the scroll sync, so no scroll event caused by the layout is still on its way
+    /// (one that arrives while the sync is quiet is dropped by design, and a test that scrolls then would wait for nothing).
+    /// </summary>
+    private async Task Still(EditorSurface editor)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var still = System.Diagnostics.Stopwatch.StartNew();
+        (double Preview, double Editor) last = (-1, -1);
+        while (still.ElapsedMilliseconds < 2 * PluginLimitsPlaceholders.PreviewSyncQuietMs)
+        {
+            Assert.True(sw.ElapsedMilliseconds < 10_000, "The preview and the editor never stood still.");
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var now = (_w.PreviewScroller.Offset.Y, MainWindow.TopLine(editor));
+            if (now != last)
+            {
+                last = now;
+                still.Restart();
+            }
+            await Task.Delay(10);
+        }
+    }
+
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-
-    // ---- the policy as functions ----
-
-    [Fact]
-    public void A_local_picture_is_a_relative_path_inside_the_folder_and_nothing_else()
-    {
-        string dir = Path.Combine(_temp.Path, "docs");
-        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "a.png"));
-        Assert.Equal(Path.Combine(dir, "sub", "a b.png"), PreviewPolicy.LocalImagePath(dir, "sub/a%20b.png"));
-        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "./a.png?raw=true#frag"));
-        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "sub/../a.png"));
-        string[] refused =
-        [
-            "../a.png", "sub/../../a.png", "%2e%2e/a.png", "/etc/passwd", "\\\\server\\share\\a.png", "//server/share/a.png", "C:\\x.png", "C:x.png", "file:///C:/x.png",
-            "a.png:stream", "http://x.example/a.png", "%3A", "a\u0000.png", "", "  ",
-        ];
-        Assert.All(refused, target => Assert.Null(PreviewPolicy.LocalImagePath(dir, target)));
-        Assert.Null(PreviewPolicy.LocalImagePath(null, "a.png"));
-        Assert.Null(PreviewPolicy.LocalImagePath("", "a.png"));
-    }
-
-    [Fact]
-    public void A_remote_picture_is_a_web_address_without_a_user_name_and_consent_is_kept_per_host_and_port()
-    {
-        Assert.Equal("http://x.example/a.png", PreviewPolicy.RemoteImage("http://x.example/a.png")!.AbsoluteUri);
-        Assert.NotNull(PreviewPolicy.RemoteImage(" https://x.example:8443/a.png "));
-        string[] refused = ["ftp://x.example/a.png", "file:///C:/a.png", "data:image/png;base64,AAAA", "//x.example/a.png", "a.png", "https://user:pw@x.example/a.png", "javascript:alert(1)", ""];
-        Assert.All(refused, target => Assert.Null(PreviewPolicy.RemoteImage(target)));
-
-        Assert.Equal("x.example:8443", PreviewPolicy.ConsentKey(new Uri("https://X.example:8443/a.png")));
-        Assert.Equal("x.example", PreviewPolicy.ConsentKey(new Uri("https://X.example/a.png")));
-        Assert.Equal("x.example", PreviewPolicy.ConsentKey(new Uri("http://x.example:80/b.png")));
-    }
-
-    [Fact]
-    public void A_plugin_picture_is_named_by_preview_scheme_and_a_picture_must_be_a_known_raster_of_a_sane_size()
-    {
-        Assert.Equal("logo", PreviewPolicy.AttachedName("preview:logo"));
-        Assert.Equal("logo", PreviewPolicy.AttachedName(" PREVIEW:logo "));
-        Assert.Null(PreviewPolicy.AttachedName("preview:"));
-        Assert.Null(PreviewPolicy.AttachedName("logo"));
-        Assert.Null(PreviewPolicy.AttachedName("https://x.example/preview:logo"));
-
-        Assert.True(PreviewPolicy.Drawable(Png));
-        Assert.True(PreviewPolicy.Drawable(WithSize(Png, 8000, 5000)));
-        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 8001, 5000)));
-        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 50000, 50000)));
-        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 0, 10)));
-        Assert.False(PreviewPolicy.Drawable(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"><script>1</script></svg>")));
-        Assert.False(PreviewPolicy.Drawable(Png[..20]));
-    }
-
-    private static byte[] WithSize(byte[] png, int width, int height)
-    {
-        var copy = (byte[])png.Clone();
-        BitConverter.GetBytes(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(width)).CopyTo(copy, 16);
-        BitConverter.GetBytes(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(height)).CopyTo(copy, 20);
-        return copy;
-    }
-
-    [Fact]
-    public void The_scroll_map_is_straight_between_blocks_and_runs_both_ways()
-    {
-        var map = new PreviewScrollMap([(0, 0.0), (10, 100.0), (30, 140.0)], lineCount: 40, height: 400);
-        double[][] pairs = [[0, 0], [5, 50], [10, 100], [20, 120], [30, 140], [35, 270], [40, 400], [100, 400]];
-        foreach (var pair in pairs) Assert.Equal(pair[1], map.OffsetFor(pair[0]), 0.001);
-        foreach (var pair in pairs.Take(7)) Assert.Equal(pair[0], map.LineAt(pair[1]), 0.001);
-        Assert.Equal(40, map.LineAt(1000), 0.001);
-        Assert.Equal(0, map.LineAt(-5), 0.001);
-    }
-
-    [Fact]
-    public void The_scroll_map_drops_anchors_that_run_backwards_and_works_without_any()
-    {
-        var map = new PreviewScrollMap([(5, 50.0), (3, 30.0), (8, 20.0), (9, 90.0)], lineCount: 20, height: 200);
-        Assert.Equal(80, map.OffsetFor(8), 0.001); // the anchor at line 8 sits above the one at line 5 and is ignored
-        var plain = new PreviewScrollMap([], lineCount: 100, height: 1000);
-        Assert.Equal(500, plain.OffsetFor(50), 0.001);
-        Assert.Equal(50, plain.LineAt(500), 0.001);
-        var flat = new PreviewScrollMap([(10, 100.0), (12, 100.0)], lineCount: 20, height: 300);
-        Assert.Equal(10, flat.LineAt(100), 0.001);
-    }
 
     // ---- the web ----
 
@@ -312,6 +256,40 @@ public class PreviewSafetyTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_remote_picture_goes_through_the_proxy_of_the_network_policy_and_never_around_it()
+    {
+        _app.Remote = new RemoteServices(_app.ProfileDirectory, new MemoryCredentials());
+        using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
+        string Url(string name) => $"http://{server.Authority}/{name}";
+
+        // the proxy of the policy is not there: the picture is a note and the server is not reached around the proxy
+        int closed;
+        using (var probe = new TcpListener(IPAddress.Loopback, 0))
+        {
+            probe.Start();
+            closed = ((IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, new ProxySettings(ProxyType.Socks5, "127.0.0.1", closed), null, _app.Remote.Secrets);
+        Open($"![first]({Url("first.png")})\n", "markdown");
+        _w.ShowLivePreview(outline: false);
+        await Settle();
+        _dialogs.Answers.Enqueue(0);
+        Click(Tree(Body()).OfType<Button>().Single());
+        await Until(() => TextOf(Body()).Contains(Loc.Get(K.PreviewPanelImage, ("alt", "first")), StringComparison.Ordinal), "the note");
+        Assert.Equal(0, server.Connections);
+
+        // a working proxy: the picture arrives through it, and the host that was allowed is not asked again
+        using var proxy = new TestProxy(ProxyType.Socks5);
+        NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, proxy.Settings, null, _app.Remote.Secrets);
+        Open($"![second]({Url("second.png")})\n", "markdown");
+        _w.ShowLivePreview(outline: false);
+        await Until(() => Tree(Body()).OfType<Image>().Count() == 1, "the picture through the proxy");
+        Assert.Equal(1, proxy.Tunnels);
+        Assert.Equal(1, server.Connections);
+        Assert.Single(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
     public async Task Active_content_in_html_never_runs_and_never_connects_and_the_rest_of_the_page_is_drawn()
     {
         using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
@@ -380,7 +358,7 @@ public class PreviewSafetyTests : IDisposable
         File.WriteAllBytes(Path.Combine(docs, "pic.png"), Png);
         File.WriteAllBytes(Path.Combine(docs, "sub", "two.png"), Png);
         File.WriteAllBytes(outside, Png);
-        File.WriteAllBytes(Path.Combine(docs, "bomb.png"), WithSize(Png, 50000, 50000)); // a few bytes that claim 2.5 billion pixels
+        File.WriteAllBytes(Path.Combine(docs, "bomb.png"), PreviewPolicyTests.WithSize(Png, 50000, 50000)); // a few bytes that claim 2.5 billion pixels
         File.WriteAllText(Path.Combine(docs, "notimage.png"), "this is text, not a picture");
         string path = Path.Combine(docs, "doc.md");
         File.WriteAllText(path, $"![a](pic.png) ![b](sub/two.png) ![c](../outside.png) ![d]({new Uri(outside).AbsoluteUri}) ![e](missing.png) ![f](bomb.png) ![g](notimage.png) ![h]({outside.Replace('\\', '/')})\n");
@@ -459,52 +437,59 @@ public class PreviewSafetyTests : IDisposable
 
     private static string LongDocument() => string.Concat(Enumerable.Range(1, 120).Select(i => $"Paragraph number {i}\n\n"));
 
-    [AvaloniaFact]
-    public async Task The_editor_and_the_preview_scroll_together_in_both_directions()
+    /// <summary>
+    /// Shows the live preview of a long document and waits until the editor and the preview are laid out and have stopped moving. A new document refreshes its line-ending summary 250 ms after
+    /// its text was set, which raises a change and draws the preview once more; scrolling before that is drawn would race with it.
+    /// </summary>
+    private async Task<(DocTab Tab, ILogicalScrollable Editor)> LongPreviewAsync()
     {
         var tab = Open(LongDocument(), "markdown");
         _w.ShowLivePreview(outline: false);
+        long drawn = _w.ShownPreview!.Revision;
         var scroller = _w.PreviewScroller;
-        var editor = tab.Surface!;
-        var scrollable = (ILogicalScrollable)editor.TextArea.TextView;
+        var scrollable = (ILogicalScrollable)tab.Surface!.TextArea.TextView;
         await Until(() =>
         {
             _w.UpdateLayout();
             return scroller.Viewport.Height > 0 && scroller.Extent.Height > scroller.Viewport.Height + 200 && scrollable.Viewport.Height > 0 && scrollable.Extent.Height > scrollable.Viewport.Height;
         }, "both to be laid out");
-        await Settle(300);
+        await Until(() => _w.ShownPreview!.Revision > drawn, "the preview to be drawn again after the line-ending summary");
+        await Still(tab.Surface!);
+        return (tab, scrollable);
+    }
+
+    [AvaloniaFact]
+    public async Task The_editor_and_the_preview_scroll_together_in_both_directions()
+    {
+        var (tab, scrollable) = await LongPreviewAsync();
+        var scroller = _w.PreviewScroller;
+        var editor = tab.Surface!;
         int lines = editor.Document.LineCount;
+        string State() => $"preview {scroller.Offset.Y} of {scroller.Extent.Height - scroller.Viewport.Height}, editor line {MainWindow.TopLine(editor)} of {lines}";
 
         // the editor scrolls, the preview follows to about the same place
         scrollable.Offset = new Vector(0, editor.TextArea.TextView.GetVisualTopByDocumentLine(lines / 2));
-        await Until(() => scroller.Offset.Y > 0, "the preview to follow the editor");
+        await Until(() => scroller.Offset.Y > 0, "the preview to follow the editor", State);
+        await Still(editor);
         double share = scroller.Offset.Y / (scroller.Extent.Height - scroller.Viewport.Height);
         Assert.InRange(share, 0.3, 0.8);
 
         // the preview scrolls back to the top, the editor follows
-        await Settle(PluginLimitsPlaceholders.PreviewSyncQuietMs + 150);
         scroller.Offset = new Vector(0, 0);
-        await Until(() => MainWindow.TopLine(editor) < 5, "the editor to follow the preview");
+        await Until(() => MainWindow.TopLine(editor) < 5, "the editor to follow the preview to the top", State);
+        await Still(editor);
 
         // and to the middle
-        await Settle(PluginLimitsPlaceholders.PreviewSyncQuietMs + 150);
         scroller.Offset = new Vector(0, (scroller.Extent.Height - scroller.Viewport.Height) / 2);
-        await Until(() => MainWindow.TopLine(editor) > lines * 0.25, "the editor to reach the middle");
+        await Until(() => MainWindow.TopLine(editor) > lines * 0.25, "the editor to follow the preview to the middle", State);
         Assert.InRange(MainWindow.TopLine(editor) / lines, 0.25, 0.75);
     }
 
     [AvaloniaFact]
     public async Task The_preview_scrolls_from_the_keyboard()
     {
-        Open(LongDocument(), "markdown");
-        _w.ShowLivePreview(outline: false);
+        await LongPreviewAsync();
         var scroller = _w.PreviewScroller;
-        await Until(() =>
-        {
-            _w.UpdateLayout();
-            return scroller.Viewport.Height > 0 && scroller.Extent.Height > scroller.Viewport.Height + 200;
-        }, "the preview to be laid out");
-
         Assert.True(scroller.Focusable);
         scroller.Focus();
         Dispatcher.UIThread.RunJobs();
@@ -516,7 +501,7 @@ public class PreviewSafetyTests : IDisposable
         Assert.InRange(scroller.Offset.Y, 1, max - 1);
         double page = scroller.Offset.Y;
         TestApp.Press(_w, Key.Down);
-        Assert.True(scroller.Offset.Y > page);
+        Assert.True(scroller.Offset.Y > page, $"page {page}, now {scroller.Offset.Y}, max {max}");
         TestApp.Press(_w, Key.Up);
         TestApp.Press(_w, Key.Up);
         Assert.True(scroller.Offset.Y < page);
@@ -541,5 +526,95 @@ public class PreviewSafetyTests : IDisposable
         Assert.All(named, c => Assert.False(string.IsNullOrWhiteSpace(NameOf(c)), c.GetType().Name));
         Assert.All(Tree(body).OfType<Button>(), b => Assert.True(b.Focusable && b.IsTabStop && b.IsVisible));
         Assert.Equal(Loc.Get(K.A11yPreviewBody), NameOf(_w.PreviewScroller));
+    }
+}
+
+/// <summary>The rules of <see cref="PreviewPolicy"/> and the scroll map as plain functions; they need no window.</summary>
+public class PreviewPolicyTests
+{
+    private const string OnePixelPng = PreviewSafetyTests.OnePixelPng;
+
+    private static byte[] Png => Convert.FromBase64String(OnePixelPng);
+
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "textida-policy");
+
+    [Fact]
+    public void A_local_picture_is_a_relative_path_inside_the_folder_and_nothing_else()
+    {
+        string dir = Path.Combine(_root, "docs");
+        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "a.png"));
+        Assert.Equal(Path.Combine(dir, "sub", "a b.png"), PreviewPolicy.LocalImagePath(dir, "sub/a%20b.png"));
+        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "./a.png?raw=true#frag"));
+        Assert.Equal(Path.Combine(dir, "a.png"), PreviewPolicy.LocalImagePath(dir, "sub/../a.png"));
+        string[] refused =
+        [
+            "../a.png", "sub/../../a.png", "%2e%2e/a.png", "/etc/passwd", "\\\\server\\share\\a.png", "//server/share/a.png", "C:\\x.png", "C:x.png", "file:///C:/x.png",
+            "a.png:stream", "http://x.example/a.png", "%3A", "a\u0000.png", "", "  ",
+        ];
+        Assert.All(refused, target => Assert.Null(PreviewPolicy.LocalImagePath(dir, target)));
+        Assert.Null(PreviewPolicy.LocalImagePath(null, "a.png"));
+        Assert.Null(PreviewPolicy.LocalImagePath("", "a.png"));
+    }
+
+    [Fact]
+    public void A_remote_picture_is_a_web_address_without_a_user_name_and_consent_is_kept_per_host_and_port()
+    {
+        Assert.Equal("http://x.example/a.png", PreviewPolicy.RemoteImage("http://x.example/a.png")!.AbsoluteUri);
+        Assert.NotNull(PreviewPolicy.RemoteImage(" https://x.example:8443/a.png "));
+        string[] refused = ["ftp://x.example/a.png", "file:///C:/a.png", "data:image/png;base64,AAAA", "//x.example/a.png", "a.png", "https://user:pw@x.example/a.png", "javascript:alert(1)", ""];
+        Assert.All(refused, target => Assert.Null(PreviewPolicy.RemoteImage(target)));
+
+        Assert.Equal("x.example:8443", PreviewPolicy.ConsentKey(new Uri("https://X.example:8443/a.png")));
+        Assert.Equal("x.example", PreviewPolicy.ConsentKey(new Uri("https://X.example/a.png")));
+        Assert.Equal("x.example", PreviewPolicy.ConsentKey(new Uri("http://x.example:80/b.png")));
+    }
+
+    [Fact]
+    public void A_plugin_picture_is_named_by_preview_scheme_and_a_picture_must_be_a_known_raster_of_a_sane_size()
+    {
+        Assert.Equal("logo", PreviewPolicy.AttachedName("preview:logo"));
+        Assert.Equal("logo", PreviewPolicy.AttachedName(" PREVIEW:logo "));
+        Assert.Null(PreviewPolicy.AttachedName("preview:"));
+        Assert.Null(PreviewPolicy.AttachedName("logo"));
+        Assert.Null(PreviewPolicy.AttachedName("https://x.example/preview:logo"));
+
+        Assert.True(PreviewPolicy.Drawable(Png));
+        Assert.True(PreviewPolicy.Drawable(WithSize(Png, 8000, 5000)));
+        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 8001, 5000)));
+        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 50000, 50000)));
+        Assert.False(PreviewPolicy.Drawable(WithSize(Png, 0, 10)));
+        Assert.False(PreviewPolicy.Drawable(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"><script>1</script></svg>")));
+        Assert.False(PreviewPolicy.Drawable(Png[..20]));
+    }
+
+    internal static byte[] WithSize(byte[] png, int width, int height)
+    {
+        var copy = (byte[])png.Clone();
+        BitConverter.GetBytes(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(width)).CopyTo(copy, 16);
+        BitConverter.GetBytes(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(height)).CopyTo(copy, 20);
+        return copy;
+    }
+
+    [Fact]
+    public void The_scroll_map_is_straight_between_blocks_and_runs_both_ways()
+    {
+        var map = new PreviewScrollMap([(0, 0.0), (10, 100.0), (30, 140.0)], lineCount: 40, height: 400);
+        double[][] pairs = [[0, 0], [5, 50], [10, 100], [20, 120], [30, 140], [35, 270], [40, 400], [100, 400]];
+        foreach (var pair in pairs) Assert.Equal(pair[1], map.OffsetFor(pair[0]), 0.001);
+        foreach (var pair in pairs.Take(7)) Assert.Equal(pair[0], map.LineAt(pair[1]), 0.001);
+        Assert.Equal(40, map.LineAt(1000), 0.001);
+        Assert.Equal(0, map.LineAt(-5), 0.001);
+    }
+
+    [Fact]
+    public void The_scroll_map_drops_anchors_that_run_backwards_and_works_without_any()
+    {
+        var map = new PreviewScrollMap([(5, 50.0), (3, 30.0), (8, 20.0), (9, 90.0)], lineCount: 20, height: 200);
+        Assert.Equal(80, map.OffsetFor(8), 0.001); // the anchor at line 8 sits above the one at line 5 and is ignored
+        var plain = new PreviewScrollMap([], lineCount: 100, height: 1000);
+        Assert.Equal(500, plain.OffsetFor(50), 0.001);
+        Assert.Equal(50, plain.LineAt(500), 0.001);
+        var flat = new PreviewScrollMap([(10, 100.0), (12, 100.0)], lineCount: 20, height: 300);
+        Assert.Equal(10, flat.LineAt(100), 0.001);
     }
 }
