@@ -135,16 +135,33 @@ commands: nks.remote.upload
 
 ## [remote.cancel] Cancel the transfer
 commands: nks.remote.cancel
-Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
+An upload that takes too long can be stopped. Your changes stay saved on this computer.
+1. Start Upload to Server (topic Upload to the server).
+2. While the upload runs, choose File and then Remote Files and then Cancel Transfer.
+3. The upload stops and the status bar says Upload of title cancelled. The server keeps its previous version.
+- A partly sent temporary file is continued by the next upload, after its content was compared with your file.
+- No transfer is running. Cancel Transfer works only while an upload runs; there is nothing to cancel.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
-Choose File and then Remote Files and then Check Server Version. The bar says: same as on the server, changed here and not sent, changed on the server, changed in both places, or the file no longer exists on the server. Nothing is downloaded or changed.
+The check compares the copy on this computer with the file on the server. Nothing is downloaded or changed.
+1. Keep the tab of a remote file active (topic Open a remote file).
+2. Choose File and then Remote Files and then Check Server Version. The program connects to the server of the file.
+3. The bar above the text gives the result: Same as on the server. Changed here and not sent to the server yet. Upload? The file on the server changed since you opened it. Changed here and on the server. Compare before you upload. The file no longer exists on the server. The buttons of the bar are Check Again, Upload, Show Differences and Reload from Server.
+- This tab is not a remote file. Open one with Open Remote File. The command works on the tab of a remote file only.
+- The connection of this file was deleted. The connection was deleted from the list, so the file cannot be checked. Create the connection again (topic Remote connections).
+- Not checked against the server. Your changes stay saved on this computer. The server could not be reached. Choose Check Again in the bar when the connection works.
+- The check against the server failed: reason. Nothing was downloaded or changed. Fix the reason and check again (topic Error messages: remote files and sources).
 
 ## [remote.unsent] Unsent remote changes
 commands: nks.remote.unsent
 Changes to a remote file are saved on this computer first. The list shows the remote files whose copy was changed and not sent, also after the program was closed or crashed. Choose one to open the copy; the bar offers Upload.
+1. Choose File and then Remote Files and then Unsent Remote Changes. The list shows each remote file whose copy was changed and not sent, with the name of the connection and the path on the server.
+2. Choose a file. The copy opens in a tab and the bar offers Upload.
+3. Choose Upload in the bar, or File, Remote Files, Upload to Server (topic Upload to the server).
 - Editing needs no connection. Unsent changes stay until you upload them.
+- No remote file has unsent changes. Nothing waits to be sent.
+- The local copy of path was deleted. The copy was removed from this computer. Open the file from the server again (topic Open a remote file).
 
 ## [remote.cache] Compare the cache with the server
 commands: nks.remote.pairCache
@@ -255,6 +272,9 @@ commands: nks.app.openSettings
 ## [app.accessibility] Accessibility
 commands: nks.view.nextPane, nks.view.previousPane
 The program can be used with the keyboard alone and with a screen reader. It is tested through the accessibility tree of the program; it has not yet been tried with NVDA or VoiceOver themselves, so tell us where a screen reader reads something wrongly.
+1. Press F6 to move the keyboard to the next part of the window and Shift+F6 to the previous one. The same commands are Next Pane and Previous Pane in the command palette.
+2. In the part you reached, press Tab and Shift+Tab to move between the controls and the arrow keys between the rows of a list.
+3. Press Esc to close a dialog, the palette or a panel; the keyboard returns to the document.
 ### Keyboard
 - Every command is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu. The menu bar is reached with the Alt key on Windows; on macOS it is the menu bar of the system (Ctrl+F2).
 - The editor keeps the Tab key for itself. F6 moves the keyboard to the next part of the window: the list on the left, the document, the preview, agent and output panels, the find bar, the status bar. Shift+F6 goes back. A part that is closed is skipped.
@@ -302,6 +322,9 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 ## [edit.lines] Working with lines
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 The commands act on the line with the caret, or on all lines of the selection. Each is one Undo step.
+1. Put the caret on a line, or select several lines.
+2. Press the shortcut of the command, or choose it in the Edit menu or in the palette.
+3. The command changes the whole line, or all selected lines, as one Undo step; Ctrl+Z takes it back.
 - Delete Line: Ctrl+Shift+K.
 - Duplicate Line: Ctrl+Shift+D inserts a copy below the line.
 - Move Line Up or Down: Alt+Up arrow, Alt+Down arrow.
@@ -323,6 +346,7 @@ commands: nks.edit.indent, nks.edit.outdent, nks.edit.insertIndent, nks.edit.tab
 commands: nks.edit.newline
 1. Enter starts a new line with the indentation of the previous one, in the line ending format of the document.
 2. If the caret is in a comment, the new line continues the comment (setting Continue comments).
+- In a document that is read only Enter writes nothing. In a large file in paged mode Enter works as typing does (topic Large files (paged mode)).
 
 ## [edit.case] Letter case
 commands: nks.edit.upperCase, nks.edit.lowerCase
@@ -341,9 +365,14 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Paste as HTML and insert from a file
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
+1. Put the caret where the text should go. For Paste as HTML first copy formatted text in a browser or a word processor.
+2. Choose Edit, Insert and then Paste as HTML or Insert from File. Insert from File asks you to choose the file.
+3. The text goes in at every caret as one Undo step; Ctrl+Z takes it back.
 - Paste as HTML (Edit, Insert) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
 - Insert from File (Edit, Insert) puts the text of the file you choose at every caret as one Undo step. The encoding of the file is detected as when it is opened, and its line endings become those of the document. A file larger than 16 MiB is not inserted.
 - Neither works in a read-only document or in paged mode (topic Large files).
+- The clipboard holds no HTML. Copy the text from a browser or a word processor that puts HTML on the clipboard. Nothing was pasted.
+- name is larger than limit bytes and was not inserted. The limit is 16 MiB (a provisional value); nothing was inserted. Insert a smaller file, or open the large one in its own tab.
 
 ## [edit.insertLines] Insert into lines
 commands: nks.edit.insertIntoLines
@@ -378,20 +407,28 @@ commands: nks.search.selectLinesByRange
 ## [format.block] Aligning and wrapping lines
 commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 These commands are in the Format menu. They act on the selected lines, or on all lines when there is only a caret (Reformat Paragraph: on the paragraph with the caret). Each is one Undo step.
+1. Select the lines to change. With only a caret the commands act on all lines; Reformat Paragraph acts on the paragraph with the caret.
+2. Choose Format and then Reformat Paragraph, Reformat Paragraph (Ends at a Short Line), Align Lines Left, Align Lines Right, Center Lines or Justify Lines.
+3. The lines change as one Undo step; Ctrl+Z takes it back.
 - Reformat Paragraph wraps the text at the column of the setting Right margin column, joins the lines of a paragraph and removes extra blanks. Paragraphs are separated by blank lines, and every line of a paragraph gets the indentation of its first line. When no right margin is set, the status bar says so.
-- Reformat Paragraph (Ends at a Short Line) does the same, but a paragraph also ends after a line shorter than half the right margin, so it is not joined to the next line. It suits text with no blank lines between paragraphs.
+- Reformat Paragraph (Ends at a Short Line) does the same, but a paragraph also ends after a line shorter than half the right margin (a provisional value), so it is not joined to the next line. It suits text with no blank lines between paragraphs.
 - Align Lines Left removes the blanks at the start and end of the lines.
 - Align Lines Right and Center Lines align to the width of the longest line.
 - Justify Lines widens the gaps between words until every line is as wide as the longest one; a line of one word stays.
 - In the PSPad profile Align Lines Left and Align Lines Right are Ctrl+Alt+Left arrow and Ctrl+Alt+Right arrow.
 - They do not work in a read-only document or in paged mode.
+- Set the Right margin column in the settings first; the paragraph is wrapped at that column. The two Reformat commands need the setting Right margin column.
 
 ## [edit.insertSmall] Date, GUID and repeat
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+1. Put the caret where the text should go; several carets are allowed.
+2. Choose Edit, Insert and then Insert Date and Time or Insert GUID. Repeat Last Command is in Edit, Conversions and Recipes.
+3. The text goes in at every caret as one Undo step; Ctrl+Z takes it back.
 - Insert Date and Time writes the current date and time at every caret, in the format of the setting Date and time format (a .NET custom format such as yyyy-MM-dd HH:mm; month and day names follow the interface language). A selection is replaced. In the PSPad profile it is Alt+D.
 - Insert GUID writes a new GUID at every caret, each caret its own: lower case, with hyphens, without braces.
 - Repeat Last Command runs the last text-changing command again: Delete Line, Duplicate Line, Move Line, Join Lines, Indent, Outdent, letter case, Toggle Comment, Insert into Lines, Sort Lines, Reformat Paragraph and the alignment commands, Insert Date and Time, Insert GUID. A command with a dialog repeats with the choices of its last run, without asking. In the PSPad profile it is Alt+Q.
 - They do not work in a read-only document or in paged mode.
+- The date and time format is not valid: reason. Nothing was inserted. Fix the setting Date and time format: it must be a .NET custom format such as yyyy-MM-dd HH:mm.
 
 ## [edit.macro] Macros
 commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
@@ -671,48 +708,78 @@ commands: nks.files.newFile, nks.files.newFolder
 ## [files.manage] Duplicate, rename, move, delete
 commands: nks.files.duplicate, nks.files.rename, nks.files.move, nks.files.delete
 Select a file or folder in the Files panel. The operations are in the context menu and in the palette.
+1. Select a file or a folder in the Files panel (topic Files panel).
+2. Right-click it, or run Duplicate, Rename, Move or Move to Recycle Bin or Trash in the palette.
+3. Answer what the command asks: the new name, the target folder, or the confirmation of the delete.
 - Duplicate makes a copy next to the original.
 - Rename (F2): type the new name. Open tabs and the lists of places follow it.
 - Move: type the target folder.
 - Move to Recycle Bin or Trash (Delete): the program asks, and the file goes to the bin, from where you can restore it. If it is open with unsaved changes, the tab stays open and keeps them.
 - If an operation fails, a bar above the document gives the reason and says Nothing was changed.
+- When an operation fails, fix the reason the bar names and repeat the operation (topic Error messages: Files panel).
 
 ## [files.refresh] Refresh and reveal a file
 commands: nks.files.refresh, nks.files.reveal
+1. Press F5 in the Files panel, or run Refresh Files in the palette. The tree is read again from the disk.
+2. To see the file of the active tab in the tree, run Show Active File in Panel.
 - Refresh Files (F5 in the panel) reads the tree again from disk.
 - Show Active File in Panel opens the panel and selects the file of the active tab. It works with an open folder and an open document.
+- Refresh Files needs an open folder; Show Active File in Panel needs an open folder and an open document. Without them the commands are dimmed.
 
 ## [workspace.projects] Projects
 commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
 A project is a named set of folders with the files that were open in them. It is kept in the profile and can be switched like a folder.
+1. Open the folder of the project (File and then Open Folder) and, if the project has more folders, add them with Add Folder to Panel.
+2. Open the files you want to find again, choose File, Projects and Sessions, Save Project and type a name.
+3. To come back, choose File, Projects and Sessions, Open Project and pick the project.
 - Add Folder to Panel shows one more folder next to the ones in the panel. Each folder is a top row of the tree.
 - Save Project (File, Projects and Sessions) stores the folders of the panel and the open files that lie in them under a name. A project of the same name is replaced.
 - Open Project shows the folders in the panel and opens the files the project had open. A folder or a file that is gone is named in the status bar; the others open.
 - Switching to another project keeps the tabs that are open. The project you leave remembers its own files.
 - Delete Project removes only the entry. Folders and files stay.
 - Edit Project Settings opens the settings file of the active project (same format as the user settings). Its values apply while the project is active, after the project is opened again. Go to Anything searches the first folder only.
+- Open a folder first: a project is made of the folders in the panel. Choose File and then Open Folder, then Save Project.
+- None of the folders of project name exists. The folders were moved or deleted. Delete the project with Delete Project, or restore the folders.
+- Project name opened. Not found: names. The project opened; the folders and files named there are gone from the disk, the others opened.
+- The settings of project name cannot be read: reason. The values of the project are not applied until the file can be read. Open it with Edit Project Settings and fix it.
+- No project is open. Open or save a project first. Edit Project Settings works for the active project only.
 
 ## [workspace.favorites] Favorites
 commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+1. Select a file or a folder in the Files panel, or keep a file open in a tab.
+2. Choose File, Projects and Sessions, Add to Favorites.
+3. To come back to it, choose Favorites in the same menu and pick the entry; Remove from Favorites removes one.
 - Add to Favorites stores the selected row of the file panel, else the active file, else the folder of the panel. It is also in the context menu of the panel.
 - Favorites lists them (also from the empty panel). Enter opens a folder in the panel and a file in a tab. A path that is gone is shown dimmed with Not found.
 - Remove from Favorites lists them and removes the one you choose.
+- Nothing to add: open a file or a folder first. The command takes the selected row of the Files panel, else the active file, else the folder of the panel.
+- Already in favorites: path. The entry is in the list already; nothing changed.
 
 ## [workspace.sessions] Named sessions
 commands: nks.session.save, nks.session.open, nks.session.delete
+1. Open the tabs you want to keep together.
+2. Choose File, Projects and Sessions, Save Session and type a name.
+3. Later choose File, Projects and Sessions, Open Session and pick it; Delete Session removes one.
 - Save Session stores the open tabs under a name: groups, order, the active tab and the selection of each tab. A tab with unsaved changes, or without a file, keeps its text. A session of the same name is replaced.
 - Open Session opens the tabs next to the ones already open. Files are read from disk, then the unsaved text of the session replaces their text, so you can still undo or discard it. A file that is gone is named in the status bar; its text, if the session had it, opens in an unnamed document.
 - Delete Session asks first, because the session may hold unsaved text.
 - A session file that cannot be read is skipped and named in a bar; the other sessions work.
 - Large files opened in the paged mode are stored by path only.
+- There are no open tabs to save. A session keeps tabs with a file or with unsaved text; a list of search results, a tab of a plugin and a text from a source are not stored.
+- Session name opened. Not found: names. The files named there are gone; the others opened.
 
 ## [format.encoding] Encoding
 commands: nks.format.reread, nks.format.convert
 The status bar shows the encoding; clicking it opens the same choice. If the encoding is a guess, the percentage of certainty is shown with it.
+1. Choose Format and then Convert to Encoding. To read the file again in another encoding choose Reopen with Encoding in File, Open Special.
+2. Choose the encoding in the list. An encoding that would lose characters is marked lossy, with the number of characters.
+3. Check the window Byte Changes and confirm it (topic Byte inspector). The status bar says Converted to encoding.
 - Reopen with Encoding: the file is read again from disk in another encoding. Use it when wrong letters appear after opening.
 - Convert to Encoding: the document is converted to another encoding. Which characters would be lost is shown in the list (lossy and a count) and in a window with the line, column and byte of each character. Replace and Convert replaces them with a question mark.
 - Default list of encodings in the settings: UTF-8 (with and without BOM), UTF-16 LE and BE, Windows-1250, Windows-1252, ISO-8859-2.
 - For a large file in paged mode both choices are not available.
+- N characters cannot be written in encoding: characters. Choose another encoding (for example UTF-8), or Replace and Convert, which writes a question mark in place of each of them.
+- Conversion to encoding failed. The document was not converted, for example because it changed while the window was open. Run the command again.
 
 ## [format.eol] Line endings
 commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
@@ -733,11 +800,17 @@ A character with an accent can be written as one character (NFC) or as a letter 
 ## [format.inspector] Byte inspector
 commands: nks.format.applyEditorConfig
 Every action that rewrites bytes you did not edit shows what it changes first, and writes nothing until you confirm: Convert to Encoding, Line Endings, Normalize Unicode, Save As with another encoding and Apply EditorConfig.
+1. Run an action that rewrites bytes, for example Format and then Convert to Encoding or Apply EditorConfig Encoding and Line Endings.
+2. Read the window Byte Changes: the changed ranges, the sizes before and after, the encoding and the line endings.
+3. Confirm to write the change, or cancel; nothing is written before you confirm.
 - The window gives the number of changed ranges and bytes, the size before and after, the encoding and the line endings before and after, and one line per range: where it is, the old and the new length and the first bytes (up to 500 lines; the rest is counted).
 - When the target encoding cannot hold some characters, the same window lists each one with its line, column and byte, and offers three answers: cancel (nothing is written), change the encoding, or replace each with a question mark.
 - Apply EditorConfig Encoding and Line Endings in the Format menu converts the file to the charset and line ending its .editorconfig sets; each step opens the inspector. A property the file does not set is left alone.
 - The ranges are those of the revision you looked at; if the document changed meanwhile, the action is refused.
 - File and then Changes Before Saving shows the same list for the next save.
+- No byte changes; only the encoding label does. Confirming changes the label only; the bytes of the file stay.
+- EditorConfig sets no encoding or line ending for this file. There is nothing to apply. Set charset or end_of_line in the .editorconfig of the folder, or choose the encoding and the line endings by hand.
+- The file already matches EditorConfig. There is nothing to change.
 
 ## [format.batchEncoding] Convert the encoding of many files
 commands: nks.file.convertEncodingBatch
@@ -842,7 +915,7 @@ Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It r
 - F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit.
 - Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
 - Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
-- The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the built-in default of 256 bytes is used. *{2,8} writes a range of your own and needs no setting.
+- The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the built-in default of 256 bytes (a provisional value) is used. *{2,8} writes a range of your own and needs no setting.
 - A pattern between slashes is a regular expression over bytes, for example /\x50\x4B[\x01-\x08]/. A byte is a character 0 to 255, . is any one byte (also 0A and 0D), \xHH is a byte and [...] a set of bytes. Groups, |, ? * + {n,m} and \n \r \t \0 \d \w \s work; ^ and $ are the start and the end of the file (of the selection in Replace); \b, back references and look-around do not, because bytes have no lines or words. An open repeat (.*, +, {n,}) reaches at most N bytes. A match needs at least one byte, and matches may overlap.
 - Ctrl+H replaces bytes: first the pattern (the same forms as Find), then the replacement as hex, text in quotes or a number; an empty replacement deletes the matches. With a selection only the selection is searched.
 - A preview lists every match with its old and new bytes and warns when the length of the file changes. Replace All writes all of them as one undo step. If the file changed after the preview, nothing is replaced. Matches that overlap an earlier one are left out.
@@ -869,6 +942,9 @@ commands: nks.hex.inspector
 ## [hex.layout] Hex: grid layout
 commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
 The commands are available in hex, in the View menu, in the status bar and in the palette.
+1. Open a file in hex (topic Hex: opening and moving).
+2. Choose View, Hex and then Hex Layout: Bytes per Row, Grouping or Character Column Encoding, or click the item in the status bar.
+3. Pick the value; the grid is drawn again, and the next hex view remembers the choice.
 - Character column encoding: the encoding in which bytes are shown as characters.
 - Layout: bytes per row (8, 16, 24, 32, 48, 64), grouping of bytes and the offset format. Each size also has its own command.
 - Ctrl+wheel over the hex adds or removes one block of bytes per row (one group, at least 8) and the row with the caret stays in place. There is no fixed limit, only the window width: when the next block does not fit, the wheel does nothing.
@@ -876,6 +952,7 @@ The commands are available in hex, in the View menu, in the status bar and in th
 - Ctrl+Shift+wheel changes the font size in hex too, like Ctrl+=, Ctrl+- and Ctrl+0.
 - Toggle offsets between decimal and hexadecimal.
 - The next hex view remembers the choices.
+- Outside the hex view the commands are dimmed.
 
 ## [hex.save] Hex: saving and changes before saving
 commands: nks.hex.inspectChanges
@@ -1098,6 +1175,10 @@ commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
 2. Ctrl+click on a stack trace frame of .NET, Java, Python, PHP or Node.js opens the file at that line; Log: Open File of Stack Trace Frame does the same for the caret line. A relative path is looked for in the folder of the log, then in the workspace folders; a bare file name (Java) is searched below them.
 3. The strip at the right edge of the minimap shows where error lines (red) and warning lines (yellow) are dense. It is counted in the background. A file up to 256 MiB is read whole; a larger one is sampled, so the picture is an estimate. These limits are not decided values.
 4. ANSI escape sequences in a log are hidden and drawn as colors (16, 256 and true colors), bold and underline. The file is never changed, so saving keeps the escapes. Log: Show ANSI Escapes Raw switches between the colors and the plain sequences. A style that a line leaves open does not carry into the next line.
+- No file and line of a stack trace under the caret. Put the caret on a line that holds a path and a line number of a frame, or Ctrl+click the frame.
+- The file path was not found next to the log or in the workspace folders. Open the folder with the source (File and then Open Folder) or add it with Add Folder to Panel, then repeat the command.
+- No line is hidden by this choice. Choose a higher level or another regular expression.
+- Lines that would be folded are shown dim (a paged file cannot be folded). A log above the large file threshold cannot be folded (topic Large files (paged mode)).
 
 ## [view.options] Editor display
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1159,11 +1240,11 @@ The status bar then shows Large file, its size and the revision.
 ### Messages
 - Line numbering is still running, editing starts in a moment: wait until the file has been read through.
 - The character cannot be written in the file encoding: type another character.
-- The selection is larger than the copy limit: select less; the clipboard stays as it was.
-- The edit is too large to be undone: remove or insert less text at once; the document does not change.
-- A line is longer than the limit that can be edited in paged mode: edit it in the hex view; the document does not change.
-- The clipboard text is larger than the paste limit: paste it in parts; the document does not change.
-- The encoding of the document changed while the text was being prepared: paste again.
+- The selection (size) is larger than the copy limit (limit). The clipboard was not changed. Select less. The limit is 256 MiB, a provisional value.
+- The edit is too large to be undone; the document was not changed. Remove or insert less text at once.
+- Line L is N long, more than the M that can be edited in paged mode. The document was not changed. Edit it in the hex view. The limit is 1 GiB, a provisional value.
+- The clipboard text (size characters) is larger than the paste limit (limit characters). The document was not changed. Paste it in parts. The limit is 32 Mi characters, a provisional value.
+- The encoding of the document changed while the text was being prepared; paste again. The document was not changed.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - The file is being saved, try again when the save ends: you tried something while a save that overwrites bytes in place was running, or reloaded the file during any save.
 - Closing the tab or the window during a save waits for the end of the save; Esc cancels the save.
@@ -1196,6 +1277,17 @@ At the bottom you see the line and column of the caret (the number of characters
 - The change failed, the text changed meanwhile: repeat the command.
 - Trailing blanks were not trimmed on save: the file is saved without trimming; turn the trimming off in the settings, or make the file smaller.
 - A large file in an encoding cannot be opened yet: see the topic Large files.
+- title is open in another program that does not let others write to it, so it opened read only. Close the other program, then choose Try Again on the bar (topic Locked files).
+- title is open for editing in another window of Textida, so it opened read only. Close the file in the other window, then choose Try Again on the bar, or Edit Anyway (topic Locked files).
+- title is open for editing in another Textida (process N), so it opened read only. Close the file in that Textida, then choose Try Again on the bar, or Edit Anyway (topic Locked files).
+- title is still locked. Try Again found the lock still in place; close the other program or window first.
+- No change from outside waits for review in this tab. It has something to show after another program changed the file of a tab that has no unsaved edits (topic Review changes from outside).
+- The earlier content could not be kept in the local history, so the changes cannot be reviewed. Use Reload.
+- Reverted in the tab, but not saved: reason. The file on the disk was not changed. Fix the reason and save the tab again.
+- Another review is open. Finish it first, then choose Review Changes from Outside.
+- Not a file: path. Choose a file, not a folder (topic Open Special).
+- The system could not open path. Check that a program is assigned to this type of file in the system.
+- No closed tab to reopen. Reopen Last Closed Tab has no file to open yet (topic Open Special).
 
 ## [errors.files] Error messages: Files panel
 When an operation on a file fails, a bar above the document says The operation failed with the reason, and always Nothing was changed.
@@ -1238,6 +1330,16 @@ A message about a remote file or a source appears in the status bar, in the bar 
 - name does not accept writes. This source only reads. Use Save As to keep a copy on disk; that ends the link to the source.
 - name did not take title: reason. The changes stay in the tab. Fix the reason and save again. The plugin has to be running (topic Tabs that a plugin supplies).
 - This tab is read only because the file is locked. Use Edit Anyway on the bar, or Save As. Choose Edit Anyway on the bar: every save then checks the file on disk first. Or use Save As (topic Locked files).
+- There are no connections yet. Create one in Remote Connections. Choose File, Remote Files, Remote Connections and New Connection (topic Remote connections).
+- title on the server is not the version you opened. Nothing was uploaded. The file on the server changed after you opened it. Choose Show Differences, merge what you need, save and upload again; Upload Anyway replaces exactly the server version you were shown (topic Upload to the server).
+- title was deleted on the server. Nothing was uploaded. The file is gone from the server. Upload Anyway puts your copy there again; Cancel leaves everything as it is.
+- The certificate of host is not issued by a trusted authority, or does not match the name. Trust it only if you know this server. The window Server Identity shows the fingerprint. Choose Trust and Connect only if you know the server; otherwise cancel and ask the administrator (topic Remote connections).
+- No plugin offers files from a URI scheme. Open from Source lists the sources that plugins offer, and a plugin that is turned off offers none. Start or turn on the plugin in the plugin manager (topic Plugin manager: install, update, roll back and remove plugins).
+- title changed in name since you opened it. Nothing was written and your text is untouched. Choose Show differences to compare, Overwrite to replace exactly the version that was found, or Cancel (topic Open from a plugin source).
+- title no longer exists in name. Nothing was written and your text is untouched. Overwrite writes your text to the source again; Cancel keeps the text in the tab, and Save As writes a copy to disk.
+- The source cannot be reached, so its version cannot be shown. Show differences needs an answer of the source. Save again when it answers.
+- Nothing found for “words” in name. Try other words, or type the address that starts with the scheme of the source.
+- Search in name failed: reason. Nothing was opened. Fix the reason and search again; the log is in the Remote tab of the output window.
 
 ## [errors.plugins] Error messages: plugins
 A plugin that cannot be installed or does not run is reported in a dialog, in a bar above the text or in the status bar. Each line quotes the message and says what to do.
@@ -1254,6 +1356,15 @@ A plugin that cannot be installed or does not run is reported in a dialog, in a 
 - The plugin name stopped (reason). It starts again in N s. Wait: the plugin starts again by itself. Show output in the bar opens the last error lines of the plugin.
 - The plugin name stopped (reason). After repeated crashes it is turned off. It stays turned off. Show output in the bar tells why; update or reinstall the plugin and turn it on again in the Plugin Manager.
 - title was closed: its plugin closed it or stopped. Changes that were not saved are lost. Save the tab before the plugin stops: Save sends the text to the plugin (topic Tabs that a plugin supplies).
+- The ZIP contains a symbolic link. Nothing was installed. The author has to pack the plugin again without symbolic links.
+- The ZIP has more files than allowed (provisional limit). Nothing was installed. Ask the author for a package with fewer files.
+- The ZIP lists the same file twice. Nothing was installed. The author has to pack the plugin again with every file once.
+- Plugin name did not start: reason. Read the reason; the last lines of the plugin are in the Tasks output. Choose Start or Restart in the plugin manager again (topic Plugin processes: when they start, how to see them and how they end).
+- keys for command does nothing: command (origin) has the same keys. A built-in, profile or user binding on the same keys wins over a plugin. Give the command of the plugin other keys in your keymap file, or change the other binding.
+- keys (command) is the start of keys (command), so the longer one cannot be typed. Change the keys of one of the two commands so that neither sequence is the start of the other.
+- Cannot be read: reason. Install the plugin again from its ZIP, or remove it (topic Plugin manager: install, update, roll back and remove plugins).
+- This tab shows data a plugin supplies. It is read only and cannot be saved. Save and Save As say so in the status bar. Copy what you need into a tab of your own (topic Tabs that a plugin supplies).
+- This tab belongs to a plugin. Save sends it to the plugin; it cannot be saved to a file. Use Save to send the text to the plugin; Save As is not available for this tab.
 
 ## [errors.agents] Error messages: MCP, /ide and agents
 The messages of the MCP server, the /ide bridge and the agents appear in the status bar, in dialogs and in the agent panel. Each line quotes the message and says what to do. Nothing is applied to your tabs without your confirmation, so a failed step leaves them as they were.
@@ -1281,6 +1392,14 @@ The messages of the MCP server, the /ide bridge and the agents appear in the sta
 - A turn is still running. Cancel it first. Choose Cancel Agent Turn, or wait until the turn ends.
 - The agent did not answer in time: reason. The turn ended. Send the message again, or stop the agent and start it again.
 - The agent failed: reason. Read the reason in the panel; if the agent no longer runs, start it again.
+- No MCP servers found in the files of Claude Code, Cursor, Codex and OpenCode. The command reads the configuration files of those agents. Add a server in the file of one agent, then run the command again (topic MCP servers of agents).
+- Could not read: files. The named files are skipped and the others are listed. Fix the named file where the agent keeps it; Textida never changes it.
+- name offers no tools and no resources. The server answered but offers nothing to call. Check its setup in the file of its agent.
+- tool reports an error; its text is in a new tab. The call reached the server, and the server reports the error. Read the text in the new tab and call the tool again with other arguments.
+- The value of name could not be saved (reason); it is used for this connection only. The next connection asks for the value again. Fix the cause named in the reason.
+- The /ide bridge of this window is off. Switch it on with Tools, IDE Bridge /ide. Then repeat the command (topic The /ide bridge for Claude Code).
+- agent version N (the table lists M). This is a note in the agent panel, not an error: the agent still starts, but this version has not been verified (topic Agent over ACP).
+- agent: the version could not be read (reason). Not verified. This is a note in the agent panel too: the agent still starts, but its version is not verified.
 
 ## [errors.tools] Error messages: tools, linters, language servers and Git
 These messages come from programs the editor starts for you. They appear in the status bar, in the Tasks output or in a bar above the text. Each line quotes the message and says what to do.
@@ -1303,6 +1422,16 @@ These messages come from programs the editor starts for you. They appear in the 
 - The file is not in a Git repository. Open a file from a Git repository.
 - The index of file changed since it was last read (by another program). Nothing was written. Check the changes and stage the hunk again.
 - The file has an unresolved merge conflict. Resolve it before staging hunks. Resolve the conflict with Git: Conflict, Take Ours / Take Theirs / Take Both, save the file, then choose Git: Mark File Resolved.
+- The open file is not a package manifest. Open a package manifest and choose the command again (topic Package manifests: names, versions and newer-version marks).
+- The open file is not a package.json or composer.json. Open a package.json or composer.json and choose the command again (topic Package scripts: npm and Composer).
+- No scripts found in file. Add a scripts section to the file, or open another file.
+- registry did not give a usable answer: reason. Nothing was changed. Try again later; the registry or the network proxy may be at fault (topic Network proxy).
+- The manifest is too large to check. Check a smaller manifest; the limit is provisional.
+- The document is in use by another command. Try again. Wait until the other command ends.
+- The open file is not checked against a schema. Allow Schema Download works on a file that is checked against a schema (topic Schemas for JSON, YAML and TOML: check, completion and descriptions).
+- No schema download of this file waits for your consent. Allow Schema Download asks only when the check of the file needs a schema from a server that you have not allowed yet.
+- schema name: not loaded. The schema could not be read, was too large or invalid; the file is not checked against it. Fix or replace the schema.
+- schema name: not checked (YAML form not supported). The file is not checked against this schema; nothing in the file changes.
 
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it, and this is what to do instead:
@@ -1315,6 +1444,7 @@ This help describes only what this version can do. These things are not in it, a
 - Programs the editor only starts (git, linters, formatters, language servers, make, npm, Composer, HTML Tidy): they must be installed and found in PATH. The editor downloads none of them.
 - The Explorer menu and the file associations: Windows only.
 - Interface languages: Czech, English, Slovak and German. Old PSPad translation files cannot be imported.
+- Numbers: the sizes, counts and waiting times behind the limits of plugins, transfers, exports, large files and the clipboard are provisional values. No final value has been decided yet, so a number in this help can change in a later version.
 
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1354,6 +1484,9 @@ A conversion changes the text of every selection at once, or of the whole file w
 ## [edit.specialConversion] Special conversions
 commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
 Conversions the editor has itself. Each is a command in the palette and in the menu Edit, Conversions and Recipes, and is in the Convert list too. It changes the text of every selection at once as one Undo step, or of the whole file when nothing is selected. The new text stays selected.
+1. Select the text to convert, or select nothing to convert the whole file. Several selections are converted at once.
+2. Choose Edit, Conversions and Recipes and then the conversion, or run it from the palette.
+3. The new text replaces the old as one Undo step and stays selected.
 - Decimal to Hexadecimal and back: the selection must be one whole number from 0 to 18446744073709551615 (FFFFFFFFFFFFFFFF); a hexadecimal one may start with 0x. Spaces and line ends around the number stay. 255 gives FF, ACE gives 2766.
 - Text to URL Encoding writes everything except the letters A to Z, digits and - _ . ~ as %XX of the UTF-8 bytes, a space as %20 and a line end as %0D%0A, or %0A in a file with LF line ends. URL Encoding to Text reads %XX back; a % without two hexadecimal digits stays as it is.
 - Text to Quoted-Printable keeps printable ASCII and spaces and writes every other UTF-8 byte, line ends and = included, as =XX. Quoted-Printable to Text reads =XX and drops = at a line end; any other = refuses the text.
@@ -1361,6 +1494,8 @@ Conversions the editor has itself. Each is a command in the palette and in the m
 - Remove Accents takes acute accents, carons, rings and umlauts off the letters (č to c, ů to u). Letters without a decomposition (ł, ø, ß) and the marks of other scripts stay.
 - Tabs to Spaces replaces every tab with spaces up to the next tab stop of the tab size of the document, counted from the column where the selection starts.
 - When the conversion cannot read a selection, nothing changes and the status bar says so. Repeat Last Command runs the same conversion again.
+- The conversion title did not run: the text is not in the form this conversion reads. Nothing was changed. Select text in the form the conversion reads, for example one whole number for Decimal to Hexadecimal.
+- Nothing to change. The conversion would give the same text.
 
 ## [edit.recipes] Edit recipes
 commands: nks.edit.runRecipe
@@ -1523,6 +1658,9 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 ## [table.copyAs] Copying cells as Markdown, SQL, JSON or HTML
 commands: nks.table.copyAs
 Select cells in the table view and choose View, Table, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.
+1. Open a CSV or TSV file in the table view (topic Table view for CSV and TSV) and select the cells.
+2. Choose View, Table, Copy Table As and then Markdown table, SQL INSERT, JSON or HTML table. SQL INSERT first asks for the name of the table.
+3. The status bar names the form, for example The selected cells were copied as Markdown table. Paste them where you need them.
 - Markdown table: a pipe table with the header (or the column letters A, B, ... when there is no header). Special characters such as the pipe, the backslash, asterisks, underscores and angle brackets get a backslash, and a line break in a cell becomes `<br>`.
 - SQL INSERT: one statement per row with the values as text in single quotes (a quote is doubled). The header gives the column names. You are asked for the table name, starting with the file name.
 - The SQL dialect decides the quoting: `sql_dialect` in an `.editorconfig` of the folder, else the setting Default SQL dialect (topic SQL: dialect and formatting). MySQL puts names in backticks and doubles a backslash in a value; T-SQL puts names in square brackets and writes values as N'...'; the other dialects use double quotes for names and leave a backslash as it is.
@@ -1531,6 +1669,8 @@ Select cells in the table view and choose View, Table, Copy Table As, then a for
 - A hidden value of a .env file is copied as stars, not as its text. Copy and cut with Ctrl+C and Ctrl+X put the placeholder in its place too, and a cut that touches one deletes nothing.
 - If the file changes while the command runs, nothing is copied and a notice asks you to run it again.
 - Your own form is a converter of a data plugin with "table": true (topic Convert text). It appears below the built-in forms. It gets the selected cells as Copy writes them: tab-separated, one row per line, the header row when it is selected, and a value with a tab, a quote or a line break in double quotes. Its result goes to the clipboard; if it fails, the clipboard is not changed.
+- The table is over the limit: the clipboard takes at most N characters of one form. Nothing was copied and the clipboard was not changed. The limit is 1 Mi characters (a provisional value). Select fewer rows.
+- The converter title did not run: reason. The clipboard was not changed. Your own form, the converter of a data plugin, failed. Fix the converter or use a built-in form.
 
 ## [table.region] Editing selected text as a table
 commands: nks.table.editRegion

@@ -135,16 +135,33 @@ commands: nks.remote.upload
 
 ## [remote.cancel] Übertragung abbrechen
 commands: nks.remote.cancel
-Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen stoppt, der Server behält seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort.
+Ein Upload, der zu lange dauert, lässt sich stoppen. Ihre Änderungen bleiben auf diesem Computer gespeichert.
+1. Starten Sie Auf Server hochladen (Thema Auf Server hochladen).
+2. Wählen Sie während des Uploads Datei, dann Remote-Dateien, dann Übertragung abbrechen.
+3. Der Upload stoppt, und die Statusleiste sagt Hochladen von Titel abgebrochen. Der Server behält seine vorherige Version.
+- Eine teilweise gesendete temporäre Datei setzt der nächste Upload fort, nachdem er ihren Inhalt mit Ihrer Datei verglichen hat.
+- Es läuft keine Übertragung. Übertragung abbrechen wirkt nur, solange ein Upload läuft; es gibt nichts abzubrechen.
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
-Wählen Sie Datei und dann Remotedateien und dann Serverversion prüfen. Die Leiste sagt: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert oder die Datei gibt es auf dem Server nicht mehr. Es wird nichts geladen oder geändert.
+Die Prüfung vergleicht die Kopie auf diesem Computer mit der Datei auf dem Server. Es wird nichts geladen oder geändert.
+1. Lassen Sie den Tab einer Remote-Datei aktiv (Thema Remote-Datei öffnen).
+2. Wählen Sie Datei, dann Remote-Dateien, dann Serverversion prüfen. Das Programm verbindet sich mit dem Server der Datei.
+3. Das Ergebnis nennt die Leiste über dem Text: Gleich wie auf dem Server. Hier geändert, noch nicht an den Server gesendet. Hochladen? Die Datei auf dem Server hat sich seit dem Öffnen geändert. Hier und auf dem Server geändert. Vergleichen Sie vor dem Hochladen. Die Datei gibt es auf dem Server nicht mehr. Die Schaltflächen der Leiste sind Erneut prüfen, Hochladen, Unterschiede zeigen und Vom Server neu laden.
+- Dieser Tab ist keine Remote-Datei. Öffnen Sie eine mit Remote-Datei öffnen. Der Befehl wirkt nur auf dem Tab einer Remote-Datei.
+- Die Verbindung dieser Datei wurde gelöscht. Die Verbindung wurde aus der Liste gelöscht, die Datei lässt sich also nicht prüfen. Legen Sie die Verbindung neu an (Thema Remote-Verbindungen).
+- Nicht mit dem Server abgeglichen. Ihre Änderungen bleiben auf diesem Computer gespeichert. Der Server war nicht erreichbar. Wählen Sie in der Leiste Erneut prüfen, sobald die Verbindung funktioniert.
+- Der Abgleich mit dem Server ist fehlgeschlagen: Grund. Es wurde nichts geladen oder geändert. Beheben Sie den Grund und prüfen Sie erneut (Thema Fehlermeldungen: Remote-Dateien und Quellen).
 
 ## [remote.unsent] Nicht gesendete Remote-Änderungen
 commands: nks.remote.unsent
 Änderungen an einer Remote-Datei werden zuerst auf diesem Computer gespeichert. Die Liste zeigt die Remote-Dateien, deren Kopie geändert und nicht gesendet wurde, auch nach dem Schließen oder einem Absturz des Programms. Wählen Sie eine aus, dann öffnet sich die Kopie; die Leiste bietet Hochladen an.
+1. Wählen Sie Datei, dann Remote-Dateien, dann Nicht gesendete Remote-Änderungen. Die Liste zeigt jede Remote-Datei, deren Kopie geändert und nicht gesendet wurde, mit dem Namen der Verbindung und dem Pfad auf dem Server.
+2. Wählen Sie eine Datei. Die Kopie öffnet sich in einem Tab, und die Leiste bietet Hochladen an.
+3. Wählen Sie in der Leiste Hochladen oder Datei, Remote-Dateien, Auf Server hochladen (Thema Auf Server hochladen).
 - Das Bearbeiten braucht keine Verbindung. Nicht gesendete Änderungen bleiben, bis Sie sie hochladen.
+- Keine Remote-Datei hat nicht gesendete Änderungen. Nichts wartet auf das Senden.
+- Die lokale Kopie von Pfad wurde gelöscht. Die Kopie wurde von diesem Computer entfernt. Öffnen Sie die Datei erneut vom Server (Thema Remote-Datei öffnen).
 
 ## [remote.cache] Cache mit dem Server abgleichen
 commands: nks.remote.pairCache
@@ -255,6 +272,9 @@ commands: nks.app.openSettings
 ## [app.accessibility] Barrierefreiheit
 commands: nks.view.nextPane, nks.view.previousPane
 Das Programm lässt sich allein mit der Tastatur und mit einem Screenreader bedienen. Geprüft wird es über den Zugänglichkeitsbaum des Programms; mit NVDA und VoiceOver selbst ist es noch nicht ausprobiert, melden Sie uns also, wo ein Screenreader etwas falsch vorliest.
+1. Mit F6 setzen Sie die Tastatur auf den nächsten Teil des Fensters und mit Umschalt+F6 auf den vorherigen. Dieselben Befehle heißen Nächster Bereich und Vorheriger Bereich in der Befehlspalette.
+2. Im erreichten Teil bewegen Sie sich mit Tab und Umschalt+Tab zwischen den Bedienelementen und mit den Pfeiltasten zwischen den Zeilen einer Liste.
+3. Mit Esc schließen Sie einen Dialog, die Palette oder ein Panel; die Tastatur kehrt zum Dokument zurück.
 ### Tastatur
 - Jeder Befehl steht in der Befehlspalette (Strg+Umschalt+P) und, wenn er einen hat, in einem Menü. Die Menüleiste erreichen Sie unter Windows mit der Alt-Taste; unter macOS ist es die Menüleiste des Systems (Ctrl+F2).
 - Der Editor behält die Tabulatortaste für sich. F6 setzt die Tastatur auf den nächsten Teil des Fensters: die Liste links, das Dokument, die Bereiche für Vorschau, Agent und Ausgabe, die Suchleiste, die Statusleiste. Umschalt+F6 geht zurück. Ein geschlossener Teil wird übersprungen.
@@ -302,6 +322,9 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 ## [edit.lines] Arbeiten mit Zeilen
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 Die Befehle betreffen die Zeile mit dem Cursor oder alle Zeilen der Auswahl. Jeder ist ein Schritt für Rückgängig.
+1. Setzen Sie den Cursor in eine Zeile oder markieren Sie mehrere Zeilen.
+2. Drücken Sie das Kürzel des Befehls oder wählen Sie ihn im Menü Bearbeiten oder in der Palette.
+3. Der Befehl ändert die ganze Zeile oder alle markierten Zeilen in einem Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Zeile löschen: Strg+Umschalt+K.
 - Zeile duplizieren: Strg+Umschalt+D fügt eine Kopie unter der Zeile ein.
 - Zeile nach oben oder unten verschieben: Alt+Pfeil nach oben, Alt+Pfeil nach unten.
@@ -323,6 +346,7 @@ commands: nks.edit.indent, nks.edit.outdent, nks.edit.insertIndent, nks.edit.tab
 commands: nks.edit.newline
 1. Die Eingabetaste beginnt eine neue Zeile mit dem Einzug der vorherigen, im Zeilenendformat des Dokuments.
 2. Steht der Cursor in einem Kommentar, setzt die neue Zeile den Kommentar fort (Einstellung Kommentare fortsetzen).
+- In einem schreibgeschützten Dokument schreibt die Eingabetaste nichts. Bei einer großen Datei im Seitenmodus wirkt sie wie Tippen (Thema Große Dateien (Seitenmodus)).
 
 ## [edit.case] Groß- und Kleinschreibung
 commands: nks.edit.upperCase, nks.edit.lowerCase
@@ -341,9 +365,14 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Als HTML und aus einer Datei einfügen
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
+1. Setzen Sie den Cursor an die Stelle, an der der Text stehen soll. Für Als HTML einfügen kopieren Sie zuerst formatierten Text in einem Browser oder einer Textverarbeitung.
+2. Wählen Sie Bearbeiten, Einfügen und dann Als HTML einfügen oder Aus Datei einfügen. Aus Datei einfügen bittet Sie, die Datei zu wählen.
+3. Der Text kommt in jeden Cursor als ein Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Als HTML einfügen (Bearbeiten, Einfügen) fügt den HTML-Quelltext ein, den ein Browser oder eine Textverarbeitung beim Kopieren von formatiertem Text in die Zwischenablage gelegt hat. Er wird als Text eingefügt, wie bei Strg+V, als ein Rückgängig-Schritt. Enthält die Zwischenablage kein HTML, sagt es die Statusleiste.
 - Aus Datei einfügen (Bearbeiten, Einfügen) setzt den Text der gewählten Datei in jeden Cursor, als ein Rückgängig-Schritt. Die Kodierung der Datei wird wie beim Öffnen erkannt, und ihre Zeilenenden werden zu denen des Dokuments. Eine Datei über 16 MiB wird nicht eingefügt.
 - Beide funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus (Thema Große Dateien).
+- Die Zwischenablage enthält kein HTML. Kopieren Sie den Text aus einem Browser oder einer Textverarbeitung, die HTML in die Zwischenablage legt. Es wurde nichts eingefügt.
+- Name ist größer als Grenze Bytes und wurde nicht eingefügt. Die Grenze liegt bei 16 MiB (ein vorläufiger Wert); es wurde nichts eingefügt. Fügen Sie eine kleinere Datei ein oder öffnen Sie die große in einem eigenen Tab.
 
 ## [edit.insertLines] In Zeilen einfügen
 commands: nks.edit.insertIntoLines
@@ -378,20 +407,28 @@ commands: nks.search.selectLinesByRange
 ## [format.block] Zeilen ausrichten und umbrechen
 commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 Diese Befehle stehen im Menü Format. Sie wirken auf die markierten Zeilen, oder auf alle Zeilen, wenn nur ein Cursor da ist (Absatz neu umbrechen: auf den Absatz mit dem Cursor). Jeder ist ein Rückgängig-Schritt.
+1. Markieren Sie die Zeilen, die sich ändern sollen. Ist nur ein Cursor da, wirken die Befehle auf alle Zeilen; Absatz neu umbrechen wirkt auf den Absatz mit dem Cursor.
+2. Wählen Sie Format und dann Absatz neu umbrechen, Absatz neu umbrechen (endet an kurzer Zeile), Zeilen linksbündig, Zeilen rechtsbündig, Zeilen zentrieren oder Zeilen im Blocksatz.
+3. Die Zeilen ändern sich in einem Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Absatz neu umbrechen bricht den Text an der Spalte der Einstellung Spalte des rechten Rands um, verbindet die Zeilen eines Absatzes und entfernt überzählige Leerzeichen. Absätze trennt eine Leerzeile, und jede Zeile eines Absatzes bekommt die Einrückung der ersten. Ist kein rechter Rand eingestellt, sagt es die Statusleiste.
-- Absatz neu umbrechen (endet an kurzer Zeile) macht dasselbe, aber ein Absatz endet auch nach einer Zeile, die kürzer als die Hälfte des rechten Rands ist, sodass sie nicht mit der nächsten Zeile verbunden wird. Das passt zu Text ohne Leerzeilen zwischen den Absätzen.
+- Absatz neu umbrechen (endet an kurzer Zeile) macht dasselbe, aber ein Absatz endet auch nach einer Zeile, die kürzer als die Hälfte des rechten Rands (ein vorläufiger Wert) ist, sodass sie nicht mit der nächsten Zeile verbunden wird. Das passt zu Text ohne Leerzeilen zwischen den Absätzen.
 - Zeilen linksbündig entfernt die Leerzeichen am Anfang und Ende der Zeilen.
 - Zeilen rechtsbündig und Zeilen zentrieren richten sich nach der Breite der längsten Zeile.
 - Zeilen im Blocksatz vergrößert die Lücken zwischen den Wörtern, bis jede Zeile so breit ist wie die längste; eine Zeile mit einem Wort bleibt.
 - Im Profil PSPad liegen Zeilen linksbündig und Zeilen rechtsbündig auf Strg+Alt+Pfeil links und Strg+Alt+Pfeil rechts.
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+- Stellen Sie zuerst die Spalte des rechten Rands in den Einstellungen ein; der Absatz wird an dieser Spalte umbrochen. Beide Befehle zum Neuumbrechen brauchen die Einstellung Spalte des rechten Rands.
 
 ## [edit.insertSmall] Datum, GUID und Wiederholen
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+1. Setzen Sie den Cursor an die Stelle, an der der Text stehen soll; mehrere Cursor sind erlaubt.
+2. Wählen Sie Bearbeiten, Einfügen und dann Datum und Uhrzeit einfügen oder GUID einfügen. Letzten Befehl wiederholen steht unter Bearbeiten, Umwandlungen und Rezepte.
+3. Der Text kommt in jeden Cursor als ein Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Datum und Uhrzeit einfügen schreibt Datum und Uhrzeit in jeden Cursor, im Format der Einstellung Datums- und Zeitformat (ein benutzerdefiniertes .NET-Format wie yyyy-MM-dd HH:mm; Monats- und Tagesnamen folgen der Sprache der Oberfläche). Eine Auswahl wird ersetzt. Im Profil PSPad ist es Alt+D.
 - GUID einfügen schreibt in jeden Cursor eine neue GUID, jeder seine eigene: klein geschrieben, mit Bindestrichen, ohne geschweifte Klammern.
 - Letzten Befehl wiederholen führt den zuletzt ausgeführten Befehl, der Text ändert, erneut aus: Zeile löschen, Zeile duplizieren, Zeile verschieben, Zeilen verbinden, Einzug vergrößern, Einzug verkleinern, Groß-/Kleinschreibung, Kommentar umschalten, In Zeilen einfügen, Zeilen sortieren, Absatz neu umbrechen und die Ausrichtungsbefehle, Datum und Uhrzeit einfügen, GUID einfügen. Ein Befehl mit Dialog wird mit den Einstellungen des letzten Laufs ohne Nachfrage wiederholt. Im Profil PSPad ist es Alt+Q.
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+- Das Datums- und Zeitformat ist ungültig: Grund. Es wurde nichts eingefügt. Korrigieren Sie die Einstellung Datums- und Zeitformat: Es muss ein benutzerdefiniertes .NET-Format sein, etwa yyyy-MM-dd HH:mm.
 
 ## [edit.macro] Makros
 commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
@@ -671,48 +708,78 @@ commands: nks.files.newFile, nks.files.newFolder
 ## [files.manage] Duplizieren, umbenennen, verschieben, löschen
 commands: nks.files.duplicate, nks.files.rename, nks.files.move, nks.files.delete
 Wählen Sie im Panel Dateien eine Datei oder einen Ordner. Die Vorgänge stehen im Kontextmenü und in der Palette.
+1. Wählen Sie im Panel Dateien eine Datei oder einen Ordner (Thema Panel Dateien).
+2. Klicken Sie mit der rechten Maustaste darauf oder starten Sie in der Palette Duplizieren, Umbenennen, Verschieben oder In den Papierkorb verschieben.
+3. Beantworten Sie die Frage des Befehls: neuer Name, Zielordner oder Bestätigung des Löschens.
 - Duplizieren legt eine Kopie neben dem Original an.
 - Umbenennen (F2): Tippen Sie den neuen Namen. Offene Tabs und die Listen der Stellen folgen mit.
 - Verschieben: Tippen Sie den Zielordner.
 - In den Papierkorb verschieben (Entf): Das Programm fragt nach, und die Datei kommt in den Papierkorb, aus dem Sie sie wiederherstellen können. Ist sie mit ungespeicherten Änderungen geöffnet, bleibt der Tab offen und behält sie.
 - Misslingt ein Vorgang, nennt eine Leiste über dem Dokument den Grund und sagt Es wurde nichts geändert.
+- Misslingt ein Vorgang, beheben Sie den Grund, den die Leiste nennt, und wiederholen Sie den Vorgang (Thema Fehlermeldungen: Panel Dateien).
 
 ## [files.refresh] Aktualisieren und Datei anzeigen
 commands: nks.files.refresh, nks.files.reveal
+1. Drücken Sie F5 im Panel Dateien oder starten Sie in der Palette Dateien aktualisieren. Der Baum wird erneut vom Datenträger gelesen.
+2. Um die Datei des aktiven Tabs im Baum zu sehen, starten Sie Aktive Datei im Panel anzeigen.
 - Dateien aktualisieren (F5 im Panel) liest den Baum erneut vom Datenträger.
 - Aktive Datei im Panel anzeigen öffnet das Panel und wählt darin die Datei des aktiven Tabs aus. Es funktioniert bei geöffnetem Ordner und geöffnetem Dokument.
+- Dateien aktualisieren braucht einen geöffneten Ordner; Aktive Datei im Panel anzeigen braucht einen geöffneten Ordner und ein geöffnetes Dokument. Ohne sie sind die Befehle abgeblendet.
 
 ## [workspace.projects] Projekte
 commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
 Ein Projekt ist ein benannter Satz von Ordnern mit den Dateien, die darin geöffnet waren. Es liegt im Profil und lässt sich wie ein Ordner wechseln.
+1. Öffnen Sie den Ordner des Projekts (Datei und dann Ordner öffnen) und fügen Sie weitere Ordner des Projekts mit Ordner zum Panel hinzufügen hinzu.
+2. Öffnen Sie die Dateien, die Sie wiederfinden wollen, wählen Sie Datei, Projekte und Sitzungen, Projekt speichern und tippen Sie einen Namen.
+3. Zur Rückkehr wählen Sie Datei, Projekte und Sitzungen, Projekt öffnen und das Projekt.
 - Ordner zum Panel hinzufügen zeigt einen weiteren Ordner neben den vorhandenen. Jeder Ordner ist eine oberste Zeile des Baums.
 - Projekt speichern (Datei, Projekte und Sitzungen) legt die Ordner des Panels und die darin liegenden offenen Dateien unter einem Namen ab. Ein Projekt gleichen Namens wird ersetzt.
 - Projekt öffnen zeigt die Ordner im Panel und öffnet die Dateien, die das Projekt offen hatte. Ein fehlender Ordner oder eine fehlende Datei wird in der Statusleiste genannt; die übrigen öffnen sich.
 - Beim Wechsel zu einem anderen Projekt bleiben die offenen Tabs. Das verlassene Projekt merkt sich seine eigenen Dateien.
 - Projekt löschen entfernt nur den Eintrag. Ordner und Dateien bleiben.
 - Projekteinstellungen bearbeiten öffnet die Einstellungsdatei des aktiven Projekts (gleiches Format wie die Benutzereinstellungen). Die Werte gelten, solange das Projekt aktiv ist, nach erneutem Öffnen des Projekts. Gehe zu Allem durchsucht nur den ersten Ordner.
+- Öffnen Sie zuerst einen Ordner: Ein Projekt besteht aus den Ordnern im Panel. Wählen Sie Datei und dann Ordner öffnen, danach Projekt speichern.
+- Keiner der Ordner von Projekt Name existiert. Die Ordner wurden verschoben oder gelöscht. Löschen Sie das Projekt mit Projekt löschen oder stellen Sie die Ordner wieder her.
+- Projekt Name geöffnet. Nicht gefunden: Namen. Das Projekt hat sich geöffnet; die genannten Ordner und Dateien fehlen auf dem Datenträger, die übrigen öffneten sich.
+- Die Einstellungen von Projekt Name lassen sich nicht lesen: Grund. Die Werte des Projekts gelten nicht, solange die Datei nicht lesbar ist. Öffnen Sie sie mit Projekteinstellungen bearbeiten und korrigieren Sie sie.
+- Es ist kein Projekt geöffnet. Öffnen oder speichern Sie zuerst ein Projekt. Projekteinstellungen bearbeiten wirkt nur auf das aktive Projekt.
 
 ## [workspace.favorites] Favoriten
 commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+1. Wählen Sie im Panel Dateien eine Datei oder einen Ordner oder lassen Sie eine Datei in einem Tab geöffnet.
+2. Wählen Sie Datei, Projekte und Sitzungen, Zu Favoriten hinzufügen.
+3. Um zurückzukehren, wählen Sie im selben Menü Favoriten und den Eintrag; Aus Favoriten entfernen entfernt einen.
 - Zu Favoriten hinzufügen speichert die gewählte Zeile des Dateipanels, sonst die aktive Datei, sonst den Ordner des Panels. Der Befehl steht auch im Kontextmenü des Panels.
 - Favoriten listet sie auf (auch aus dem leeren Panel). Enter öffnet einen Ordner im Panel und eine Datei in einem Tab. Ein fehlender Pfad erscheint abgeblendet mit Nicht gefunden.
 - Aus Favoriten entfernen listet sie auf und entfernt den gewählten Eintrag.
+- Nichts hinzuzufügen: Öffnen Sie zuerst eine Datei oder einen Ordner. Der Befehl nimmt die gewählte Zeile des Panels Dateien, sonst die aktive Datei, sonst den Ordner des Panels.
+- Bereits in den Favoriten: Pfad. Der Eintrag steht schon in der Liste; nichts hat sich geändert.
 
 ## [workspace.sessions] Benannte Sitzungen
 commands: nks.session.save, nks.session.open, nks.session.delete
+1. Öffnen Sie die Tabs, die zusammenbleiben sollen.
+2. Wählen Sie Datei, Projekte und Sitzungen, Sitzung speichern und tippen Sie einen Namen.
+3. Später wählen Sie Datei, Projekte und Sitzungen, Sitzung öffnen und die Sitzung; Sitzung löschen entfernt eine.
 - Sitzung speichern legt die offenen Tabs unter einem Namen ab: Gruppen, Reihenfolge, aktiven Tab und die Auswahl jedes Tabs. Ein Tab mit ungesicherten Änderungen oder ohne Datei behält seinen Text. Eine Sitzung gleichen Namens wird ersetzt.
 - Sitzung öffnen öffnet die Tabs neben den bereits offenen. Dateien werden von der Platte gelesen, dann ersetzt der ungesicherte Text der Sitzung ihren Text, sodass er sich rückgängig machen oder verwerfen lässt. Eine fehlende Datei wird in der Statusleiste genannt; ihr Text, falls die Sitzung ihn hatte, öffnet sich in einem unbenannten Dokument.
 - Sitzung löschen fragt zuerst nach, weil die Sitzung ungesicherten Text enthalten kann.
 - Eine Sitzungsdatei, die sich nicht lesen lässt, wird übersprungen und in einer Leiste genannt; die anderen Sitzungen funktionieren.
 - Große Dateien im seitenweisen Modus werden nur mit dem Pfad gespeichert.
+- Es gibt keine offenen Tabs zum Speichern. Eine Sitzung behält Tabs mit einer Datei oder mit ungesichertem Text; eine Liste von Suchergebnissen, ein Tab eines Plugins und ein Text aus einer Quelle werden nicht gespeichert.
+- Sitzung Name geöffnet. Nicht gefunden: Namen. Die genannten Dateien fehlen; die übrigen öffneten sich.
 
 ## [format.encoding] Codierung
 commands: nks.format.reread, nks.format.convert
 Die Statusleiste zeigt die Codierung; ein Klick darauf öffnet dieselbe Auswahl. Ist die Codierung geschätzt, steht der Prozentwert der Sicherheit dabei.
+1. Wählen Sie Format und dann In Codierung konvertieren. Um die Datei in einer anderen Codierung erneut zu lesen, wählen Sie Mit Codierung neu öffnen unter Datei, Spezielles Öffnen.
+2. Wählen Sie die Codierung in der Liste. Eine Codierung, die Zeichen verlieren würde, ist als verlustbehaftet markiert, mit der Zahl der Zeichen.
+3. Prüfen Sie das Fenster Änderungen an den Bytes und bestätigen Sie es (Thema Byte-Inspektor). Die Statusleiste sagt In Codierung konvertiert.
 - Mit Codierung neu öffnen: Die Datei wird in einer anderen Codierung erneut vom Datenträger gelesen. Nutzen Sie das, wenn nach dem Öffnen falsche Buchstaben erscheinen.
 - In Codierung konvertieren: Das Dokument wird in eine andere Codierung umgewandelt. Welche Zeichen verloren gingen, zeigen die Liste (verlustbehaftet und eine Anzahl) und ein Fenster mit Zeile, Spalte und Byte jedes Zeichens. Ersetzen und konvertieren ersetzt sie durch ein Fragezeichen.
 - Standardliste der Codierungen in den Einstellungen: UTF-8 (mit und ohne BOM), UTF-16 LE und BE, Windows-1250, Windows-1252, ISO-8859-2.
 - Bei einer großen Datei im Seitenmodus sind beide Auswahlen nicht verfügbar.
+- N Zeichen lassen sich nicht in Codierung schreiben: Zeichen. Wählen Sie eine andere Codierung (zum Beispiel UTF-8) oder Ersetzen und konvertieren, was jedes Zeichen durch ein Fragezeichen ersetzt.
+- Konvertierung in Codierung fehlgeschlagen. Das Dokument wurde nicht konvertiert, zum Beispiel weil es sich bei geöffnetem Fenster geändert hat. Führen Sie den Befehl erneut aus.
 
 ## [format.eol] Zeilenenden
 commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
@@ -733,11 +800,17 @@ Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem g
 ## [format.inspector] Byte-Inspektor
 commands: nks.format.applyEditorConfig
 Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Codierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Codierung und EditorConfig anwenden.
+1. Starten Sie eine Aktion, die Bytes umschreibt, zum Beispiel Format und dann In Codierung konvertieren oder Codierung und Zeilenenden aus EditorConfig anwenden.
+2. Lesen Sie das Fenster Änderungen an den Bytes: die geänderten Bereiche, die Größen vorher und nachher, Codierung und Zeilenenden.
+3. Bestätigen Sie das Schreiben der Änderung oder brechen Sie das Fenster ab; vor der Bestätigung wird nichts geschrieben.
 - Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Codierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
 - Kann die Zielcodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Codierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
 - Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
 - Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
 - Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
+- Kein Byte ändert sich, nur die Codierungsangabe. Die Bestätigung ändert nur die Codierungsangabe, die Bytes der Datei bleiben.
+- EditorConfig legt für diese Datei weder Codierung noch Zeilenenden fest. Es gibt nichts anzuwenden. Setzen Sie charset oder end_of_line in der .editorconfig des Ordners oder wählen Sie Codierung und Zeilenenden von Hand.
+- Die Datei entspricht bereits EditorConfig. Es gibt nichts zu ändern.
 
 ## [format.batchEncoding] Codierung vieler Dateien umwandeln
 commands: nks.file.convertEncodingBatch
@@ -842,7 +915,7 @@ Hex zeigt eine Datei Byte für Byte: Offset, Bytes hexadezimal und Zeichen. Es l
 - F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam.
 - Strg+G öffnet Gehe zu Offset. Schreibweise: 0x1F40, +0x100 (ab dem Cursor), end-512, 50%, 4K, sel (Beginn der Auswahl), val (der Vier-Byte-Wert am Cursor).
 - Nicht gefunden: Es gibt keinen Treffer. Ungültiges Muster oder Ungültiger Ausdruck: Korrigieren Sie die Eingabe. Der Offset liegt außerhalb der Datei: Geben Sie einen kleineren Wert ein. Die Datei hat sich inzwischen auf dem Datenträger geändert, das Suchergebnis wurde verworfen: Wiederholen Sie die Suche.
-- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), gilt der eingebaute Standardwert von 256 Bytes. *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
+- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), gilt der eingebaute Standardwert von 256 Bytes (ein vorläufiger Wert). *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
 - Ein Muster zwischen Schrägstrichen ist ein regulärer Ausdruck über Bytes, zum Beispiel /\x50\x4B[\x01-\x08]/. Ein Byte ist ein Zeichen 0 bis 255, . ist ein beliebiges Byte (auch 0A und 0D), \xHH ist ein Byte und [...] eine Menge von Bytes. Gruppen, |, ? * + {n,m} und \n \r \t \0 \d \w \s funktionieren; ^ und $ sind Anfang und Ende der Datei (beim Ersetzen der Auswahl); \b, Rückverweise und Lookaround nicht, weil Bytes keine Zeilen oder Wörter haben. Eine offene Wiederholung (.*, +, {n,}) reicht höchstens N Bytes weit. Ein Treffer braucht mindestens ein Byte, und Treffer dürfen sich überlappen.
 - Strg+H ersetzt Bytes: zuerst das Muster (dieselben Formen wie bei Suchen), dann der Ersatz als Hex, Text in Anführungszeichen oder Zahl; ein leerer Ersatz löscht die Treffer. Bei einer Auswahl wird nur in ihr gesucht.
 - Eine Vorschau listet jeden Treffer mit den alten und neuen Bytes auf und warnt, wenn sich die Länge der Datei ändert. Alle ersetzen schreibt alles als einen Rückgängig-Schritt. Hat sich die Datei nach der Vorschau geändert, wird nichts ersetzt. Treffer, die einen früheren überlappen, bleiben außen vor.
@@ -869,6 +942,9 @@ commands: nks.hex.inspector
 ## [hex.layout] Hex: Aussehen des Rasters
 commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
 Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Palette zur Verfügung.
+1. Öffnen Sie eine Datei in Hex (Thema Hex: Öffnen und Bewegen).
+2. Wählen Sie Ansicht, Hex und dann Hex-Layout: Bytes pro Zeile, Gruppierung oder Kodierung der Zeichenspalte, oder klicken Sie auf den Eintrag in der Statusleiste.
+3. Wählen Sie den Wert; das Raster wird neu gezeichnet, und die nächste Hex-Ansicht merkt sich die Auswahl.
 - Codierung der Zeichenspalte: die Codierung, in der Bytes als Zeichen angezeigt werden.
 - Layout: Bytes pro Zeile (8, 16, 24, 32, 48, 64), Gruppierung der Bytes und Offsetformat. Jede Größe hat auch einen eigenen Befehl.
 - Strg+Mausrad über Hex fügt einen Block Bytes pro Zeile hinzu oder nimmt ihn weg (eine Gruppe, mindestens 8); die Zeile mit dem Cursor bleibt an ihrer Stelle. Es gibt keine feste Grenze, nur die Fensterbreite: Passt der nächste Block nicht, tut das Mausrad nichts.
@@ -876,6 +952,7 @@ Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Pale
 - Strg+Umschalt+Mausrad ändert die Schriftgröße auch in Hex, wie Strg+=, Strg+- und Strg+0.
 - Offsets zwischen dezimal und hexadezimal umschalten.
 - Die nächste Hex-Ansicht merkt sich die Auswahl.
+- Außerhalb von Hex sind die Befehle abgeblendet.
 
 ## [hex.save] Hex: Speichern und Änderungen vor dem Speichern
 commands: nks.hex.inspectChanges
@@ -1098,6 +1175,10 @@ commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
 2. Strg+Klick auf einen Stacktrace-Frame von .NET, Java, Python, PHP oder Node.js öffnet die Datei an dieser Zeile; Log: Datei der Stacktrace-Zeile öffnen tut dasselbe für die Zeile mit dem Cursor. Ein relativer Pfad wird im Ordner des Logs gesucht, dann in den Arbeitsbereich-Ordnern; ein bloßer Dateiname (Java) wird darunter gesucht.
 3. Der Streifen am rechten Rand der Minimap zeigt, wo Fehlerzeilen (rot) und Warnungen (gelb) dicht liegen. Er wird im Hintergrund gezählt. Eine Datei bis 256 MiB wird ganz gelesen, eine größere nur stichprobenartig; das Bild ist dann eine Schätzung. Diese Grenzen sind keine entschiedenen Werte.
 4. ANSI-Escape-Sequenzen in einem Log werden ausgeblendet und als Farben (16, 256 und True Color), Fett und Unterstreichung gezeichnet. Die Datei wird nie verändert, Speichern behält die Sequenzen also. Log: ANSI-Escapes unverändert anzeigen wechselt zwischen Farben und den reinen Sequenzen. Ein Stil, den eine Zeile offen lässt, geht nicht in die nächste Zeile über.
+- Unter dem Cursor steht keine Datei mit Zeile aus einem Stacktrace. Setzen Sie den Cursor auf eine Zeile mit Pfad und Zeilennummer eines Frames oder klicken Sie mit Strg auf den Frame.
+- Die Datei Pfad wurde weder neben dem Log noch in den Arbeitsbereich-Ordnern gefunden. Öffnen Sie den Ordner mit dem Quelltext (Datei und dann Ordner öffnen) oder fügen Sie ihn mit Ordner zum Panel hinzufügen hinzu, dann wiederholen Sie den Befehl.
+- Mit dieser Auswahl wird keine Zeile ausgeblendet. Wählen Sie eine höhere Stufe oder einen anderen regulären Ausdruck.
+- Zeilen, die eingeklappt würden, erscheinen abgeblendet (eine seitenweise geladene Datei lässt sich nicht einklappen). Ein Log über der Schwelle für große Dateien lässt sich nicht einklappen (Thema Große Dateien (Seitenmodus)).
 
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1159,11 +1240,11 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Meldungen
 - Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich: Warten Sie, bis die Datei durchgelesen ist.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
-- Die Auswahl ist größer als das Kopierlimit: Wählen Sie weniger aus; die Zwischenablage blieb, wie sie war.
-- Die Änderung ist zu groß, um rückgängig gemacht zu werden: Entfernen oder fügen Sie weniger Text auf einmal ein; das Dokument wurde nicht verändert.
-- Eine Zeile ist länger als das Limit, das im Seitenmodus bearbeitet wird: Bearbeiten Sie sie in Hex; das Dokument wurde nicht verändert.
-- Der Text in der Zwischenablage ist größer als das Einfügelimit: Fügen Sie ihn in Teilen ein; das Dokument wurde nicht verändert.
-- Die Kodierung des Dokuments hat sich geändert, während der Text vorbereitet wurde: Fügen Sie ihn erneut ein.
+- Die Auswahl (Größe) ist größer als das Kopierlimit (Grenze). Die Zwischenablage wurde nicht geändert. Wählen Sie weniger aus. Die Grenze liegt bei 256 MiB, ein vorläufiger Wert.
+- Die Änderung ist zu groß, um rückgängig gemacht zu werden; das Dokument wurde nicht verändert. Entfernen oder fügen Sie weniger Text auf einmal ein.
+- Zeile L ist N lang, mehr als die M, die im seitenweisen Modus bearbeitet werden. Das Dokument wurde nicht verändert. Bearbeiten Sie sie in Hex. Die Grenze liegt bei 1 GiB, ein vorläufiger Wert.
+- Der Text in der Zwischenablage (Größe Zeichen) ist größer als das Einfügelimit (Grenze Zeichen). Das Dokument wurde nicht verändert. Fügen Sie ihn in Teilen ein. Die Grenze liegt bei 32 Mi Zeichen, ein vorläufiger Wert.
+- Die Kodierung des Dokuments hat sich während der Vorbereitung des Textes geändert; bitte erneut einfügen. Das Dokument wurde nicht verändert.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Die Datei wird gerade gespeichert, später noch einmal versuchen: Sie haben etwas versucht, während ein Speichern lief, das Bytes an Ort und Stelle überschreibt, oder die Datei während eines beliebigen Speicherns neu geladen.
 - Das Schließen eines Tabs oder des Fensters während des Speicherns wartet auf das Ende des Speicherns; Esc bricht das Speichern ab.
@@ -1196,6 +1277,17 @@ Unten sehen Sie Zeile und Spalte des Cursors (bei einer Auswahl die Zeichenzahl,
 - Die Änderung ist fehlgeschlagen, der Text hat sich inzwischen geändert: Wiederholen Sie den Befehl.
 - Leerzeichen am Zeilenende wurden beim Speichern nicht entfernt: Die Datei wird ohne Entfernen gespeichert; schalten Sie das Entfernen in den Einstellungen aus oder verkleinern Sie die Datei.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: siehe Thema Große Dateien.
+- Titel ist in einem anderen Programm geöffnet, das anderen das Schreiben verbietet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie das andere Programm und wählen Sie dann in der Leiste Erneut versuchen (Thema Gesperrte Dateien).
+- Titel ist in einem anderen Textida-Fenster zum Bearbeiten geöffnet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie die Datei im anderen Fenster und wählen Sie dann in der Leiste Erneut versuchen oder Trotzdem bearbeiten (Thema Gesperrte Dateien).
+- Titel ist in einem anderen Textida (Prozess N) zum Bearbeiten geöffnet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie die Datei in diesem Textida und wählen Sie dann in der Leiste Erneut versuchen oder Trotzdem bearbeiten (Thema Gesperrte Dateien).
+- Titel ist weiterhin gesperrt. Erneut versuchen fand die Sperre noch vor; schließen Sie zuerst das andere Programm oder Fenster.
+- In diesem Tab wartet keine Änderung von außen auf Prüfung. Es hat etwas anzuzeigen, wenn ein anderes Programm die Datei eines Tabs ohne ungesicherte Änderungen geändert hat (Thema Änderungen von außen prüfen).
+- Der frühere Inhalt konnte nicht im lokalen Verlauf gesichert werden, die Änderungen lassen sich daher nicht prüfen. Verwenden Sie Neu laden.
+- Im Tab zurückgesetzt, aber nicht gespeichert: Grund. Die Datei auf dem Datenträger wurde nicht geändert. Beheben Sie den Grund und speichern Sie den Tab erneut.
+- Eine andere Prüfung ist offen. Beenden Sie sie zuerst und wählen Sie dann Änderungen von außen prüfen.
+- Keine Datei: Pfad. Wählen Sie eine Datei, keinen Ordner (Thema Spezielles Öffnen).
+- Das System konnte Pfad nicht öffnen. Prüfen Sie, dass diesem Dateityp im System ein Programm zugewiesen ist.
+- Kein geschlossener Tab zum erneuten Öffnen. Zuletzt geschlossenen Tab erneut öffnen hat noch keine Datei zu öffnen (Thema Spezielles Öffnen).
 
 ## [errors.files] Fehlermeldungen: Panel Dateien
 Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der Vorgang ist fehlgeschlagen mit dem Grund und immer Es wurde nichts geändert.
@@ -1238,6 +1330,16 @@ Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleis
 - Name nimmt keine Schreibvorgänge an. Diese Quelle kann nur lesen. Behalten Sie mit Speichern unter eine Kopie auf der Festplatte; das beendet die Verbindung zur Quelle.
 - Name hat Titel nicht angenommen: Grund. Die Änderungen bleiben im Tab. Beheben Sie den Grund und speichern Sie erneut. Das Plugin muss laufen (Thema Tabs, die ein Plugin liefert).
 - Dieser Tab ist schreibgeschützt, weil die Datei gesperrt ist. Nutzen Sie in der Leiste Trotzdem bearbeiten oder Speichern unter. Wählen Sie in der Leiste Trotzdem bearbeiten: Jedes Speichern prüft dann zuerst die Datei auf der Festplatte. Oder verwenden Sie Speichern unter (Thema Gesperrte Dateien).
+- Es gibt noch keine Verbindung. Legen Sie eine unter Remote-Verbindungen an. Wählen Sie Datei, Remote-Dateien, Remote-Verbindungen und Neue Verbindung (Thema Remote-Verbindungen).
+- Titel auf dem Server ist nicht mehr die Version, die Sie geöffnet haben. Es wurde nichts hochgeladen. Die Datei auf dem Server hat sich nach dem Öffnen geändert. Wählen Sie Unterschiede zeigen, übernehmen Sie, was Sie brauchen, speichern Sie und laden Sie erneut hoch; Trotzdem hochladen ersetzt genau die Serverversion, die Ihnen gezeigt wurde (Thema Auf Server hochladen).
+- Titel wurde auf dem Server gelöscht. Es wurde nichts hochgeladen. Die Datei ist auf dem Server verschwunden. Trotzdem hochladen legt Ihre Kopie dort wieder ab; Abbrechen lässt alles, wie es ist.
+- Das Zertifikat von Server stammt nicht von einer vertrauenswürdigen Stelle oder passt nicht zum Namen. Vertrauen Sie ihm nur, wenn Sie den Server kennen. Das Fenster Identität des Servers zeigt den Fingerabdruck. Wählen Sie Vertrauen und verbinden nur, wenn Sie den Server kennen; sonst brechen Sie ab und fragen den Administrator (Thema Remote-Verbindungen).
+- Kein Plugin stellt Dateien für ein URI-Schema bereit. Aus einer Plugin-Quelle öffnen listet die Quellen, die Plugins anbieten, und ein ausgeschaltetes Plugin bietet keine an. Starten oder aktivieren Sie das Plugin im Plugin-Manager (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen).
+- Titel wurde in Name seit dem Öffnen geändert. Es wurde nichts geschrieben, Ihr Text ist unverändert. Wählen Sie Unterschiede zeigen zum Vergleichen, Überschreiben, um genau die gefundene Version zu ersetzen, oder Abbrechen (Thema Aus einer Plugin-Quelle öffnen).
+- Titel gibt es in Name nicht mehr. Es wurde nichts geschrieben, Ihr Text ist unverändert. Überschreiben schreibt Ihren Text erneut in die Quelle; Abbrechen lässt den Text im Tab, und Speichern unter schreibt eine Kopie auf den Datenträger.
+- Die Quelle ist nicht erreichbar, ihre Version kann nicht angezeigt werden. Unterschiede zeigen braucht eine Antwort der Quelle. Speichern Sie erneut, sobald sie antwortet.
+- Für „Wörter“ wurde in Name nichts gefunden. Versuchen Sie andere Wörter oder tippen Sie die Adresse, die mit dem Schema der Quelle beginnt.
+- Die Suche in Name ist fehlgeschlagen: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund und suchen Sie erneut; das Protokoll steht im Tab Remote des Ausgabefensters.
 
 ## [errors.plugins] Fehlermeldungen: Plugins
 Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem Dialog, in einer Leiste über dem Text oder in der Statusleiste gemeldet. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
@@ -1254,6 +1356,15 @@ Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem 
 - Das Plugin Name läuft nicht mehr (Grund). Es startet in N s neu. Warten Sie: Das Plugin startet von selbst neu. Ausgabe anzeigen in der Leiste öffnet die letzten Fehlerzeilen des Plugins.
 - Das Plugin Name läuft nicht mehr (Grund). Nach wiederholten Abstürzen ist es ausgeschaltet. Es bleibt ausgeschaltet. Ausgabe anzeigen in der Leiste sagt, warum; aktualisieren oder installieren Sie das Plugin neu und schalten Sie es im Plugin-Manager wieder ein.
 - Titel wurde geschlossen: Das Plugin hat ihn geschlossen oder wurde beendet. Nicht gespeicherte Änderungen sind verloren. Speichern Sie den Tab, bevor das Plugin endet: Speichern sendet den Text an das Plugin (Thema Tabs, die ein Plugin liefert).
+- Die ZIP-Datei enthält einen symbolischen Link. Es wurde nichts installiert. Der Autor muss das Plugin ohne symbolische Links neu packen.
+- Die ZIP-Datei enthält mehr Dateien als erlaubt (vorläufiges Limit). Es wurde nichts installiert. Bitten Sie den Autor um ein Paket mit weniger Dateien.
+- Die ZIP-Datei enthält dieselbe Datei zweimal. Es wurde nichts installiert. Der Autor muss das Plugin neu packen, jede Datei einmal.
+- Plugin Name wurde nicht gestartet: Grund. Lesen Sie den Grund; die letzten Zeilen des Plugins stehen im Tab Aufgaben des Ausgabefensters. Wählen Sie im Plugin-Manager erneut Starten oder Neu starten (Thema Plugin-Prozesse: wann sie starten, wie man sie sieht und wie sie enden).
+- Tasten für Befehl bewirkt nichts: dieselben Tasten hat Befehl (Herkunft). Eine eingebaute, Profil- oder Benutzerbelegung auf denselben Tasten hat Vorrang vor einem Plugin. Geben Sie dem Befehl des Plugins andere Tasten in Ihrer Tastenbelegungsdatei oder ändern Sie die andere Belegung.
+- Tasten (Befehl) ist der Anfang von Tasten (Befehl), die längere Folge lässt sich also nicht eingeben. Ändern Sie die Tasten eines der beiden Befehle so, dass keine Folge der Anfang der anderen ist.
+- Nicht lesbar: Grund. Installieren Sie das Plugin erneut aus seiner ZIP oder entfernen Sie es (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen).
+- Dieser Tab zeigt Daten, die ein Plugin liefert. Er ist schreibgeschützt und kann nicht gespeichert werden. Speichern und Speichern unter sagen es in der Statusleiste. Kopieren Sie, was Sie brauchen, in einen eigenen Tab (Thema Tabs, die ein Plugin liefert).
+- Dieser Tab gehört einem Plugin. Speichern sendet ihn an das Plugin; in eine Datei lässt er sich nicht speichern. Speichern schickt den Text an das Plugin; Speichern unter gibt es bei diesem Tab nicht.
 
 ## [errors.agents] Fehlermeldungen: MCP, /ide und Agenten
 Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in der Statusleiste, in Dialogen und im Agent-Bereich. Jede Zeile zitiert die Meldung und sagt, was zu tun ist. Ohne Ihre Bestätigung wird nichts auf Ihre Tabs angewendet, ein fehlgeschlagener Schritt lässt sie also unverändert.
@@ -1281,6 +1392,14 @@ Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in de
 - Ein Zug läuft noch. Brechen Sie ihn zuerst ab. Wählen Sie Zug des Agenten abbrechen oder warten Sie, bis der Zug endet.
 - Der Agent hat nicht rechtzeitig geantwortet: Grund. Der Zug ist beendet. Senden Sie die Nachricht erneut oder beenden Sie den Agenten und starten Sie ihn neu.
 - Der Agent ist fehlgeschlagen: Grund. Lesen Sie den Grund im Bereich; läuft der Agent nicht mehr, starten Sie ihn neu.
+- In den Dateien von Claude Code, Cursor, Codex und OpenCode gibt es keine MCP-Server. Der Befehl liest die Konfigurationsdateien dieser Agenten. Tragen Sie einen Server in die Datei eines Agenten ein und führen Sie den Befehl erneut aus (Thema MCP-Server der Agenten).
+- Nicht lesbar: Dateien. Die genannten Dateien werden übersprungen, die übrigen aufgelistet. Korrigieren Sie die genannte Datei dort, wo der Agent sie ablegt; Textida ändert sie nie.
+- Name bietet weder Tools noch Ressourcen an. Der Server hat geantwortet, bietet aber nichts zum Aufrufen an. Prüfen Sie seine Einrichtung in der Datei seines Agenten.
+- Werkzeug meldet einen Fehler; der Text steht in einem neuen Tab. Der Aufruf hat den Server erreicht, und der Server meldet den Fehler. Lesen Sie den Text im neuen Tab und rufen Sie das Werkzeug mit anderen Argumenten erneut auf.
+- Der Wert von Name konnte nicht gespeichert werden (Grund); er gilt nur für diese Verbindung. Die nächste Verbindung fragt den Wert erneut ab. Beheben Sie die Ursache, die der Grund nennt.
+- Die /ide-Brücke dieses Fensters ist aus. Einschalten unter Werkzeuge, /ide-Brücke. Wiederholen Sie dann den Befehl (Thema Die /ide-Brücke für Claude Code).
+- Agent Version N (die Tabelle nennt M). Das ist ein Hinweis im Agentenpanel, kein Fehler: Der Agent startet trotzdem, aber diese Version ist nicht geprüft (Thema Agent über ACP).
+- Agent: Die Version konnte nicht gelesen werden (Grund). Nicht verifiziert. Auch das ist ein Hinweis im Agentenpanel: Der Agent startet trotzdem, aber seine Version ist nicht geprüft.
 
 ## [errors.tools] Fehlermeldungen: Werkzeuge, Linter, Sprachserver und Git
 Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie erscheinen in der Statusleiste, in der Ausgabe Aufgaben oder in einer Leiste über dem Text. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
@@ -1303,6 +1422,16 @@ Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie ers
 - Die Datei liegt in keinem Git-Repository. Öffnen Sie eine Datei aus einem Git-Repository.
 - Der Index von Datei hat sich seit dem letzten Lesen geändert (durch ein anderes Programm). Es wurde nichts geschrieben. Prüfen Sie die Änderungen und merken Sie den Abschnitt erneut vor.
 - Die Datei hat einen ungelösten Merge-Konflikt. Lösen Sie ihn, bevor Sie Abschnitte vormerken. Lösen Sie den Konflikt mit Git: Konflikt, unsere Änderungen nehmen / ihre Änderungen nehmen / beide Seiten nehmen, speichern Sie die Datei und wählen Sie dann Git: Datei als gelöst markieren.
+- Die geöffnete Datei ist kein Paketmanifest. Öffnen Sie ein Paketmanifest und wählen Sie den Befehl erneut (Thema Paketmanifeste: Namen, Versionen und Marke für neuere Versionen).
+- Die geöffnete Datei ist keine package.json oder composer.json. Öffnen Sie eine package.json oder composer.json und wählen Sie den Befehl erneut (Thema Paketskripte: npm und Composer).
+- In Datei wurden keine Skripte gefunden. Fügen Sie der Datei einen Abschnitt scripts hinzu oder öffnen Sie eine andere Datei.
+- Register hat keine brauchbare Antwort gegeben: Grund. Es wurde nichts geändert. Versuchen Sie es später; das Register oder der Netzwerk-Proxy kann schuld sein (Thema Netzwerk-Proxy).
+- Das Manifest ist zu groß für die Prüfung. Prüfen Sie ein kleineres Manifest; das Limit ist vorläufig.
+- Das Dokument wird gerade von einem anderen Befehl verwendet. Versuchen Sie es erneut. Warten Sie, bis der andere Befehl endet.
+- Die geöffnete Datei wird nicht gegen ein Schema geprüft. Schema-Download erlauben wirkt auf eine Datei, die gegen ein Schema geprüft wird (Thema Schemas für JSON, YAML und TOML: Prüfung, Vervollständigung und Beschreibungen).
+- Für diese Datei wartet kein Schema-Download auf Ihre Zustimmung. Schema-Download erlauben fragt nur, wenn die Prüfung der Datei ein Schema von einem Server braucht, den Sie noch nicht erlaubt haben.
+- Schema Name: nicht geladen. Das Schema ließ sich nicht lesen, war zu groß oder ungültig; die Datei wird nicht dagegen geprüft. Korrigieren oder ersetzen Sie das Schema.
+- Schema Name: nicht geprüft (YAML-Form nicht unterstützt). Die Datei wird nicht gegen dieses Schema geprüft; an der Datei ändert sich nichts.
 
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
@@ -1315,6 +1444,7 @@ Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, u
 - Programme, die der Editor nur startet (git, Linter, Formatierer, Sprachserver, make, npm, Composer, HTML Tidy): Sie müssen installiert und im PATH zu finden sein. Der Editor lädt keines davon herunter.
 - Das Explorer-Menü und die Dateizuordnungen: nur unter Windows.
 - Sprachen der Oberfläche: Tschechisch, Englisch, Slowakisch und Deutsch. Alte PSPad-Übersetzungen lassen sich nicht übernehmen.
+- Zahlen: Die Größen, Anzahlen und Wartezeiten hinter den Limits von Plugins, Übertragungen, Exporten, großen Dateien und der Zwischenablage sind vorläufige Werte. Ein endgültiger Wert ist noch nicht entschieden, deshalb kann sich eine Zahl in dieser Hilfe in einer späteren Version ändern.
 
 ## [edit.clips] Clips
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1354,6 +1484,9 @@ Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Dat
 ## [edit.specialConversion] Spezielle Umwandlungen
 commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
 Umwandlungen, die der Editor selbst hat. Jede ist ein Befehl in der Befehlspalette und im Menü Bearbeiten, Umwandlungen und Rezepte, und steht auch in der Liste Umwandeln. Sie ändert den Text aller Auswahlen auf einmal als ein Rückgängig-Schritt, oder die ganze Datei, wenn nichts markiert ist. Der neue Text bleibt markiert.
+1. Markieren Sie den Text zum Umwandeln oder markieren Sie nichts, dann wird die ganze Datei umgewandelt. Mehrere Auswahlen werden auf einmal umgewandelt.
+2. Wählen Sie Bearbeiten, Umwandlungen und Rezepte und dann die Umwandlung oder starten Sie sie aus der Palette.
+3. Der neue Text ersetzt den alten als ein Rückgängig-Schritt und bleibt markiert.
 - Dezimal nach Hexadezimal und zurück: Die Auswahl muss eine ganze Zahl von 0 bis 18446744073709551615 (FFFFFFFFFFFFFFFF) sein, eine hexadezimale darf mit 0x beginnen. Leerzeichen und Zeilenenden um die Zahl bleiben. 255 ergibt FF, ACE ergibt 2766.
 - Text in URL-Kodierung schreibt alles außer den Buchstaben A bis Z, Ziffern und - _ . ~ als %XX der UTF-8-Bytes, ein Leerzeichen als %20 und ein Zeilenende als %0D%0A, oder %0A in einer Datei mit LF-Zeilenenden. URL-Kodierung in Text liest %XX zurück; ein % ohne zwei Hexadezimalziffern bleibt, wie es ist.
 - Text in Quoted-Printable behält druckbares ASCII und Leerzeichen und schreibt jedes andere UTF-8-Byte, Zeilenenden und = eingeschlossen, als =XX. Quoted-Printable in Text liest =XX und lässt = am Zeilenende weg; jedes andere = lehnt den Text ab.
@@ -1361,6 +1494,8 @@ Umwandlungen, die der Editor selbst hat. Jede ist ein Befehl in der Befehlspalet
 - Akzente entfernen nimmt Akut, Hatschek, Kringel und Umlautpunkte von den Buchstaben (č zu c, ü zu u). Buchstaben ohne Zerlegung (ł, ø, ß) und die Zeichen anderer Schriften bleiben.
 - Tabulatoren in Leerzeichen ersetzt jeden Tabulator durch Leerzeichen bis zum nächsten Tabstopp nach der Tabulatorgröße des Dokuments, gezählt ab der Spalte, in der die Auswahl beginnt.
 - Wenn die Umwandlung eine Auswahl nicht lesen kann, ändert sich nichts und die Statusleiste sagt es. Letzten Befehl wiederholen führt dieselbe Umwandlung erneut aus.
+- Die Umwandlung Titel lief nicht: der Text hat nicht die Form, die diese Umwandlung liest. Nichts wurde geändert. Markieren Sie Text in der Form, die die Umwandlung liest, zum Beispiel bei Dezimal nach Hexadezimal eine ganze Zahl.
+- Nichts zu ändern. Die Umwandlung würde denselben Text ergeben.
 
 ## [edit.recipes] Bearbeitungsrezepte
 commands: nks.edit.runRecipe
@@ -1523,6 +1658,9 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 ## [table.copyAs] Zellen als Markdown, SQL, JSON oder HTML kopieren
 commands: nks.table.copyAs
 Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle, Tabelle kopieren als und dann eine Form. Die Zwischenablage enthält die markierten Spalten und Zeilen in dieser Form.
+1. Öffnen Sie eine CSV- oder TSV-Datei in der Tabellenansicht (Thema Tabellenansicht für CSV und TSV) und markieren Sie die Zellen.
+2. Wählen Sie Ansicht, Tabelle, Tabelle kopieren als und dann Markdown-Tabelle, SQL INSERT, JSON oder HTML-Tabelle. SQL INSERT fragt zuerst nach dem Tabellennamen.
+3. Die Statusleiste nennt die Form, zum Beispiel Die markierten Zellen wurden als Markdown-Tabelle kopiert. Fügen Sie sie dort ein, wo Sie sie brauchen.
 - Markdown-Tabelle: eine Tabelle mit senkrechten Strichen, mit Kopfzeile (ohne Kopfzeile mit den Spaltenbuchstaben A, B, ...). Sonderzeichen wie der senkrechte Strich, der Backslash, Sternchen, Unterstriche und spitze Klammern erhalten einen Backslash, und ein Zeilenumbruch in einer Zelle wird zu `<br>`.
 - SQL INSERT: eine Anweisung pro Zeile, die Werte als Text in einfachen Anführungszeichen (ein Anführungszeichen wird verdoppelt). Die Spaltennamen stammen aus der Kopfzeile. Das Programm fragt nach dem Tabellennamen und schlägt den Dateinamen vor.
 - Die Quotierung richtet sich nach dem SQL-Dialekt: `sql_dialect` in einer `.editorconfig` des Ordners, sonst die Einstellung Standard-SQL-Dialekt (Thema SQL: Dialekt und Formatierung). MySQL setzt Namen in Backticks und verdoppelt einen Backslash im Wert; T-SQL setzt Namen in eckige Klammern und schreibt Werte als N'...'; die übrigen Dialekte setzen Namen in doppelte Anführungszeichen und lassen einen Backslash, wie er ist.
@@ -1531,6 +1669,8 @@ Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle, Ta
 - Ein verborgener Wert einer .env-Datei wird als Sterne kopiert, nicht als sein Text. Kopieren und Ausschneiden mit Strg+C und Strg+X setzen ebenfalls den Platzhalter ein, und ein Ausschneiden, das einen berührt, löscht nichts.
 - Ändert sich die Datei während des Befehls, wird nichts kopiert, und ein Hinweis fordert zum erneuten Ausführen auf.
 - Eine eigene Form ist ein Konverter eines Datenplugins mit "table": true (Thema Text umwandeln). Sie erscheint unter den eingebauten Formen. Sie erhält die markierten Zellen so, wie Kopieren sie schreibt: durch Tabulatoren getrennt, eine Tabellenzeile pro Textzeile, die Kopfzeile, wenn sie markiert ist, und ein Wert mit Tabulator, Anführungszeichen oder Zeilenumbruch in doppelten Anführungszeichen. Das Ergebnis kommt in die Zwischenablage; schlägt die Umwandlung fehl, bleibt die Zwischenablage unverändert.
+- Die Tabelle ist über dem Limit: Die Zwischenablage nimmt höchstens N Zeichen einer Form auf. Es wurde nichts kopiert und die Zwischenablage wurde nicht geändert. Die Grenze liegt bei 1 Mi Zeichen (ein vorläufiger Wert). Markieren Sie weniger Zeilen.
+- Der Konverter Titel lief nicht: Grund. Die Zwischenablage wurde nicht geändert. Ihre eigene Form, der Konverter eines Datenplugins, ist fehlgeschlagen. Korrigieren Sie den Konverter oder nehmen Sie eine eingebaute Form.
 
 ## [table.region] Ausgewählten Text als Tabelle bearbeiten
 commands: nks.table.editRegion
