@@ -17,10 +17,7 @@ public sealed class LinterTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-lint-").FullName;
 
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
-    }
+    public void Dispose() => TestDir.Delete(_dir);
 
     private static string ExeName(string name) => OperatingSystem.IsWindows() ? name + ".exe" : name;
 

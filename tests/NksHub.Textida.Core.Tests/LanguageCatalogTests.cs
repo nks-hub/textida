@@ -15,7 +15,7 @@ public sealed class LanguageCatalogTests : IDisposable
     public void Dispose()
     {
         Environment.SetEnvironmentVariable("PATH", _path);
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
+        TestDir.Delete(_dir);
     }
 
     private static readonly string[] GroupIds =

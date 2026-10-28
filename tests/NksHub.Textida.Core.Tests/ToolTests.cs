@@ -8,10 +8,7 @@ public sealed class ToolTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-tool-").FullName;
 
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
-    }
+    public void Dispose() => TestDir.Delete(_dir);
 
     private static string Dotnet => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
 

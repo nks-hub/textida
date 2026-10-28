@@ -21,6 +21,31 @@ internal sealed class TempFile : IDisposable
     }
 }
 
+internal static class TestDir
+{
+    /// <summary>
+    /// Deletes a folder that held a program a test started or killed: the system keeps the image file of an ended program locked for a moment, so the delete is repeated for a few seconds
+    /// (on a loaded machine that moment is long). A folder that is still locked after that is left to the temp cleanup.
+    /// </summary>
+    public static void Delete(string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (DirectoryNotFoundException) { return; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= 50) return;
+                Thread.Sleep(100);
+            }
+        }
+    }
+}
+
 internal static class Gen
 {
     /// <summary>Text made only of line-break related pieces, so CR, LF, CRLF and empty lines are frequent.</summary>

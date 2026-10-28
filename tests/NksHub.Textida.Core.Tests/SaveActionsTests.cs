@@ -25,10 +25,7 @@ public sealed class SaveActionsTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-saveact-").FullName;
 
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
-    }
+    public void Dispose() => TestDir.Delete(_dir);
 
     private static string Dotnet => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
     private static string EchoDll => Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.ToolEcho.dll");
