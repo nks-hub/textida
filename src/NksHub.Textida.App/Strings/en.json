@@ -1970,7 +1970,7 @@
   "update.checking": "Checking for updates...",
   "update.current": "Textida {version} is up to date.",
   "update.notConfigured": "This build has no update address or signing key set, so it cannot check for updates.",
-  "update.unavailable": "Updates work only in an installed Textida (Setup.ps1 next to Textida.exe on Windows).",
+  "update.unavailable": "Updates work only in an installed Textida (TextidaSetup.exe or Setup.ps1 next to Textida.exe on Windows).",
   "update.failed": "Update failed: {reason}",
   "update.available": "Textida {version} is available, you have {current}. Open documents are kept. Textida restarts to install it, and the current version stays for Return to the Previous Version.",
   "update.install": "Install and restart",

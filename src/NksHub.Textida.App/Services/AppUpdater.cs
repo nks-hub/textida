@@ -19,7 +19,8 @@ internal sealed class UpdateException(UpdateError error, string message, Excepti
 /// <summary>
 /// P3.7.2: the updater of the per-user Windows install. The feed is one static JSON file that is signed with ECDSA P-256 (SHA-256); the package is a ZIP made by
 /// tools/BuildWindowsPackage.cs whose SHA-256 and size are inside the signed part. Checking is a single GET of the feed and sends nothing else. The new version is unpacked
-/// next to the old one (<c>Textida.new</c>) and verified there; the switch is done by Setup.ps1 after Textida has ended, because a running program cannot replace its own folder.
+/// next to the old one (<c>Textida.new</c>) and verified there; the switch is done after Textida has ended, because a running program cannot replace its own folder: by TextidaSetup.exe when the install has it
+/// (made by the setup program), else by Setup.ps1 (made by Install.cmd).
 /// The old folder stays as <c>Textida.previous</c> and <see cref="Rollback"/> swaps back.
 /// </summary>
 internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicKeyBase64, string installDir)
@@ -37,7 +38,7 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     public string StagingDir => InstallDir + ".new";
     public string PreviousDir => InstallDir + ".previous";
 
-    /// <summary>The registry key of Apps &amp; features that Setup.ps1 keeps in step; null is the real one. Tests point it elsewhere.</summary>
+    /// <summary>The registry key of Apps &amp; features that the setup keeps in step; null is the real one. Tests point it elsewhere.</summary>
     public string? UninstallKey { get; init; }
 
     /// <summary>The process the helper waits for before it touches the folders; tests set 0 because their host keeps running.</summary>
@@ -45,8 +46,10 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
 
     public bool IsConfigured => feedUrl.Length > 0 && publicKeyBase64.Length > 0;
 
-    /// <summary>Update and return need the installer script next to the program.</summary>
-    public bool IsInstalled => File.Exists(Path.Combine(InstallDir, "Textida.exe")) && File.Exists(Path.Combine(InstallDir, "Setup.ps1"));
+    /// <summary>Update and return need the setup program or the installer script next to the program.</summary>
+    public bool IsInstalled => File.Exists(Path.Combine(InstallDir, "Textida.exe")) && (File.Exists(SetupProgram) || File.Exists(Path.Combine(InstallDir, "Setup.ps1")));
+
+    private string SetupProgram => Path.Combine(InstallDir, "TextidaSetup.exe");
 
     public bool HasPrevious => File.Exists(Path.Combine(PreviousDir, "Textida.exe"));
 
@@ -157,25 +160,43 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
 
     /// <summary>
     /// Starts the switch of the staged folder (<paramref name="staged"/> is the result of <see cref="Stage"/>) and returns the helper; the caller ends Textida at once. The helper is a copy of
-    /// the installer script run from a temporary folder, waits for this process to end, and starts Textida again when <paramref name="restart"/> is set.
+    /// the setup program (or of the installer script) run from a temporary folder, waits for this process to end, and starts Textida again when <paramref name="restart"/> is set.
     /// </summary>
-    public Process Switch(string staged, bool restart) => StartScript(["-ApplyUpdate", staged], restart);
+    public Process Switch(string staged, bool restart) => StartHelper(staged, restart);
 
     /// <summary>Same as <see cref="Switch"/> for the return to <c>Textida.previous</c>; the version that is running now becomes the previous one.</summary>
     public Process Rollback(bool restart)
     {
         if (!HasPrevious) throw new UpdateException(UpdateError.NoPrevious, "There is no previous version.");
-        return StartScript(["-Rollback"], restart);
+        return StartHelper(null, restart);
     }
 
-    private Process StartScript(string[] mode, bool restart)
+    /// <summary>The switch to <paramref name="staged"/>, or the return to the previous version when it is null.</summary>
+    private Process StartHelper(string? staged, bool restart)
     {
-        var script = Path.Combine(Path.GetTempPath(), "textida-update-" + Guid.NewGuid().ToString("N")[..12]);
-        Directory.CreateDirectory(script);
-        File.Copy(Path.Combine(InstallDir, "Setup.ps1"), Path.Combine(script, "Setup.ps1"));
+        var folder = Path.Combine(Path.GetTempPath(), "textida-update-" + Guid.NewGuid().ToString("N")[..12]);
+        Directory.CreateDirectory(folder);
+        ProcessStartInfo start;
+        if (File.Exists(SetupProgram))
+        {
+            var copy = Path.Combine(folder, "TextidaSetup.exe");
+            File.Copy(SetupProgram, copy);
+            start = new ProcessStartInfo(copy) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = folder };
+            if (staged is null) start.ArgumentList.Add("--rollback");
+            else { start.ArgumentList.Add("--apply-update"); start.ArgumentList.Add(staged); }
+            foreach (var a in new[] { "--dir", InstallDir }) start.ArgumentList.Add(a);
+            if (WaitPid > 0) { start.ArgumentList.Add("--wait-pid"); start.ArgumentList.Add(WaitPid.ToString()); }
+            if (UninstallKey is not null) { start.ArgumentList.Add("--uninstall-key"); start.ArgumentList.Add(UninstallKey); }
+            if (restart) start.ArgumentList.Add("--restart");
+            start.ArgumentList.Add("--temp-copy"); // the copy removes itself when it is done
+            return Process.Start(start)!;
+        }
+
+        File.Copy(Path.Combine(InstallDir, "Setup.ps1"), Path.Combine(folder, "Setup.ps1"));
         var powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
-        var start = new ProcessStartInfo(powershell) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = script };
-        foreach (var a in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(script, "Setup.ps1"), "-Dir", InstallDir }.Concat(mode)) start.ArgumentList.Add(a);
+        start = new ProcessStartInfo(powershell) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = folder };
+        string[] mode = staged is null ? ["-Rollback"] : ["-ApplyUpdate", staged];
+        foreach (var a in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(folder, "Setup.ps1"), "-Dir", InstallDir }.Concat(mode)) start.ArgumentList.Add(a);
         if (WaitPid > 0) { start.ArgumentList.Add("-WaitPid"); start.ArgumentList.Add(WaitPid.ToString()); }
         if (UninstallKey is not null) { start.ArgumentList.Add("-UninstallKey"); start.ArgumentList.Add(UninstallKey); }
         if (restart) start.ArgumentList.Add("-Restart");

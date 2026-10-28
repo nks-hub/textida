@@ -1970,7 +1970,7 @@
   "update.checking": "Suche nach Updates...",
   "update.current": "Textida {version} ist aktuell.",
   "update.notConfigured": "In diesem Build sind weder Update-Adresse noch Signaturschlüssel gesetzt, daher kann er nicht nach Updates suchen.",
-  "update.unavailable": "Updates funktionieren nur in einer installierten Textida (Setup.ps1 neben Textida.exe unter Windows).",
+  "update.unavailable": "Updates funktionieren nur in einer installierten Textida (TextidaSetup.exe oder Setup.ps1 neben Textida.exe unter Windows).",
   "update.failed": "Update fehlgeschlagen: {reason}",
   "update.available": "Textida {version} ist verfügbar, Sie haben {current}. Offene Dokumente bleiben erhalten. Textida startet zur Installation neu, die aktuelle Version bleibt für Zur vorherigen Version zurückkehren erhalten.",
   "update.install": "Installieren und neu starten",

@@ -2006,7 +2006,7 @@
   "update.checking": "Zjišťuji aktualizace...",
   "update.current": "Textida {version} je aktuální.",
   "update.notConfigured": "Tento build nemá nastavenou adresu aktualizací ani podpisový klíč, aktualizace proto nejde zjistit.",
-  "update.unavailable": "Aktualizace fungují jen v nainstalované Textidě (Setup.ps1 vedle Textida.exe ve Windows).",
+  "update.unavailable": "Aktualizace fungují jen v nainstalované Textidě (TextidaSetup.exe nebo Setup.ps1 vedle Textida.exe ve Windows).",
   "update.failed": "Aktualizace selhala: {reason}",
   "update.available": "Je k dispozici Textida {version}, máte {current}. Otevřené dokumenty zůstanou. Textida se pro instalaci restartuje a stávající verze zůstane pro Návrat na předchozí verzi.",
   "update.install": "Nainstalovat a restartovat",
