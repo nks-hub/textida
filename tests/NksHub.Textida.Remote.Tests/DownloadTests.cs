@@ -191,6 +191,23 @@ public class DownloadTests
     }
 
     [Theory, MemberData(nameof(ServersData))]
+    public async Task APartIsNotContinuedWhenTheServerGivesNoTime(RemoteProtocol protocol)
+    {
+        await using var r = await SyncTests.Rig.StartAsync(protocol);
+        byte[] data = Pattern(100_000);
+        File.WriteAllBytes(r.ServerFile("big.bin"), data);
+        string local = Path.Combine(r.Local.Path, "big.bin");
+        var server = new RemoteStat(data.Length, null);
+        File.WriteAllBytes(RemoteTransfer.PartNameOf(local, server), new byte[40_000]); // zeros of another version of the same size: a resume would keep them
+        var log = new List<TransferEvent>();
+
+        string part = await RemoteTransfer.DownloadPartAsync(r.Client, "/big.bin", local, server, new TransferOptions { Log = log.Add }, default);
+
+        Assert.Equal(data, File.ReadAllBytes(part));
+        Assert.DoesNotContain(log, l => l.Step == TransferStep.ResumingDownload);
+    }
+
+    [Theory, MemberData(nameof(ServersData))]
     public async Task CancelledUploadLeavesTheOldFileAndTheNextUploadContinues(RemoteProtocol protocol)
     {
         await using var r = await SyncTests.Rig.StartAsync(protocol, ("a.txt", "old version"));
@@ -227,7 +244,7 @@ public class DownloadTests
 
         await using (var cutting = SftpServer.Start(dir.Path, hostKey, dropReadAfterBytes: 200_000))
         {
-            await using var client = ConnectionTests.Create(cutting.Connection(trusted: cutting.Identity), DenyUnknownServers.Instance);
+            await using var client = ConnectionTests.Create(cutting.Connection(trusted: cutting.Identity) with { Id = "same" }, DenyUnknownServers.Instance);
             await client.ConnectAsync(default);
             var lost = await Assert.ThrowsAsync<RemoteException>(() => store.OpenAsync(client, "/big.bin", default));
             Assert.Equal(RemoteError.ConnectionLost, lost.Error);
@@ -236,7 +253,7 @@ public class DownloadTests
         long kept = parts.Length == 1 ? new FileInfo(parts[0]).Length : 0; // how much arrived before the cut depends on the pipelining of the library
 
         await using var healthy = SftpServer.Start(dir.Path, hostKey);
-        await using var again = ConnectionTests.Create(healthy.Connection(trusted: healthy.Identity), DenyUnknownServers.Instance);
+        await using var again = ConnectionTests.Create(healthy.Connection(trusted: healthy.Identity) with { Id = "same" }, DenyUnknownServers.Instance);
         await again.ConnectAsync(default);
         var log = new List<TransferEvent>();
         var copy = await store.OpenAsync(again, "/big.bin", default, new TransferOptions { Log = log.Add });
