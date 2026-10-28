@@ -98,7 +98,7 @@ public class HexSearchAppTests : IDisposable
         _app.Workbench.Set("hex.wildcardMaxBytes", 2);
         _dialogs.Prompts.Enqueue("41 * 42");
         TestApp.Press(_w, Key.F, TestApp.Mod);
-        PumpUntil(() => hex.Editor.HasSelection);
+        PumpUntil(() => (hex.Editor.Selection.Start, hex.Editor.Selection.End) == (1L, 5L)); // the selection of the first search is still there until this one has run
         Assert.Equal((1L, 5L), (hex.Editor.Selection.Start, hex.Editor.Selection.End));
 
         _dialogs.Prompts.Enqueue("41 *{4} 42");
