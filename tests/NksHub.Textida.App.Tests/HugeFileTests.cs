@@ -311,8 +311,8 @@ public sealed class HugeFileTests : IDisposable
                 double p95 = Percentile(times, 0.95), p99 = Percentile(times, 0.99);
                 _output.WriteLine($"{times.Count} wheel steps on {what}: p50 {Percentile(times, 0.5):F1} ms, p95 {p95:F1} ms, p99 {p99:F1} ms, max {times[^1]:F1} ms (limits p95 33, p99 80)");
                 if (times.Count < 30) { _output.WriteLine("too few steps for a percentile"); continue; }
-                // a cold transcript is read from the disk while its list fills, and about 190 steps put the p95 between 33 and 36 ms on the test machine; the bound of PR.2.2 on p95 is held for the warm file
-                if (p95 > 33 && !(cold && ReferenceEquals(times, whileFilling))) problems.Add($"{what}: p95 {p95:F1} ms");
+                // P8b.3.3 holds p95 33 ms for the cold file too; on 28. 10. 2026 it measured 33.4-35.6 ms while the list fills, so this stays red until that path is faster
+                if (p95 > 33) problems.Add($"{what}: p95 {p95:F1} ms");
                 if (p99 > 80) problems.Add($"{what}: p99 {p99:F1} ms");
             }
             if (index.Error is not null) problems.Add("the index failed: " + index.Error.Message);
