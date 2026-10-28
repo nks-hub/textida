@@ -195,9 +195,11 @@ public partial class DocumentApiTests
     [Fact]
     public async Task AnExpiredSnapshotIsReleasedEvenWhenNobodyCallsTheApi()
     {
-        await using var rig = await Rig.CreateAsync(Utf8("hello"), tune: o => o with { SnapshotLifetime = TimeSpan.FromMilliseconds(300) });
+        var time = new ManualTime();
+        await using var rig = await Rig.CreateAsync(Utf8("hello"), tune: o => o with { SnapshotLifetime = TimeSpan.FromMilliseconds(300) }, time: time);
         await rig.CallAsync(DocumentMethods.SnapshotCreate, rig.D());
         Assert.Equal(1, rig.Api.PinnedSnapshots("p"));
+        time.Advance(TimeSpan.FromSeconds(1));
         await T.Until(() => rig.Api.PinnedSnapshots("p") == 0, 10_000);
     }
 
