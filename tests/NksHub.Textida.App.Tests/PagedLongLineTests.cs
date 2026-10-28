@@ -204,6 +204,13 @@ public class PagedLongLineTests : IDisposable
         Expect();
         Type("XY");
         Expect();
+        // the window of the edited revision is read off the UI thread: draw until it has come back
+        for (int i = 0; i < 1500 && paged.CachedWindow(0)?.Contains("XY", StringComparison.Ordinal) != true; i++)
+        {
+            Thread.Sleep(10);
+            Dispatcher.UIThread.RunJobs();
+            Draw();
+        }
         Assert.Contains("XY", paged.CachedWindow(0));
 
         Press(Key.Back);
