@@ -7,9 +7,10 @@ namespace NksHub.Textida.Core.Hex.Ksy;
 /// <summary>
 /// Reads the subset of Kaitai Struct <c>.ksy</c> that <see cref="KsyReader"/> can interpret: <c>meta</c> (<c>id</c>, <c>endian</c> fixed or with <c>switch-on</c>, <c>bit-endian</c>, <c>encoding</c>, <c>file-extension</c>, <c>title</c>),
 /// <c>seq</c>, <c>types</c>, <c>enums</c> (also inside a type), <c>instances</c> (<c>pos</c> or <c>value</c>), integers, floats, bit-sized integers <c>b1</c> to <c>b64</c>, <c>str</c>, <c>strz</c>, raw bytes,
-/// <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>; not for bit-sized fields), <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>.
-/// <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c> and <c>switch-on</c> are expressions
-/// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. <c>process</c> and the rest are refused by name.
+/// <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>; not for bit-sized fields), <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>,
+/// and <c>process</c> (<c>xor</c>, <c>rol</c>, <c>ror</c>) on a string or on raw bytes.
+/// <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c>, <c>switch-on</c> and the argument of <c>process</c> are expressions
+/// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. The rest (<c>process: zlib</c>, a <c>process</c> of a structure, ...) is refused by name.
 /// </summary>
 public static class KsyParser
 {
@@ -28,6 +29,12 @@ public static class KsyParser
         "size", "size-eos", "repeat.eos", "repeat.expr", "repeat.until", "if", "contents", "enum",
         "expr", "expr.float", "expr.enum",
     ];
+
+    /// <summary>
+    /// Constructs the subset has that no pinned template needs, so they are not in <see cref="Constructs"/> (that list is the union of the pinned templates, P8.10.1). A template that uses one of
+    /// them names it in <see cref="KsyTemplate.Constructs"/>; each has a sample of its own in the tests (P8.10.4).
+    /// </summary>
+    public static IReadOnlyList<string> OtherConstructs { get; } = ["process.xor", "process.rol", "process.ror"];
 
     private const int MaxYamlDepth = 32;
 
@@ -65,8 +72,8 @@ public static class KsyParser
 
     private sealed class Builder(string text)
     {
-        private static readonly string[] AttrKeys = ["id", "type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "contents", "enum", "encoding", "doc", "doc-ref"];
-        private static readonly string[] InstanceKeys = ["type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "pos", "io", "value", "contents", "enum", "encoding", "doc", "doc-ref"];
+        private static readonly string[] AttrKeys = ["id", "type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "contents", "enum", "encoding", "process", "doc", "doc-ref"];
+        private static readonly string[] InstanceKeys = ["type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "pos", "io", "value", "contents", "enum", "encoding", "process", "doc", "doc-ref"];
         private static readonly string[] MetaKeys = ["id", "title", "endian", "bit-endian", "encoding", "file-extension", "license", "ks-version", "ks-debug", "tags", "application", "xref"];
         private static readonly string[] Encodings = ["UTF-8", "ASCII", "ISO-8859-1", "UTF-16LE", "UTF-16BE"];
 
@@ -352,6 +359,15 @@ public static class KsyParser
                 foreach (var c in sw.Cases) CheckType(def, c.Type, typeNode, size is not null || eos, encoding);
             }
 
+            KsyProcess? process = null;
+            if (n.Get("process") is { } processNode)
+            {
+                if (sw is not null) throw Err(processNode.Start, KsyErrorKind.Unsupported, "process of a switch-on type");
+                if (type.Kind == KsyKind.User) throw Err(processNode.Start, KsyErrorKind.Unsupported, "process of a structure");
+                if (type.Kind is not (KsyKind.Bytes or KsyKind.Str)) throw Err(processNode.Start, KsyErrorKind.Invalid, "process");
+                process = ReadProcess(def, processNode);
+            }
+
             string? enumName = null;
             if (n.Get("enum") is { } en)
             {
@@ -389,9 +405,22 @@ public static class KsyParser
                 RepeatCount = countNode is null ? null : Expr(def, countNode, "repeat-expr"),
                 RepeatUntil = untilNode is null ? null : Expr(def, untilNode, "repeat-until"),
                 Contents = bytes,
+                Process = process,
                 Enum = enumName,
                 Encoding = encoding,
             };
+        }
+
+        /// <summary><c>xor(key)</c>, <c>rol(bits)</c> or <c>ror(bits)</c>; any other process (<c>zlib</c>, a custom one) is refused by its name.</summary>
+        private KsyProcess ReadProcess(KsyTypeDef def, DataNode n)
+        {
+            if (n.Kind != DataKind.String) throw Err(n.Start, KsyErrorKind.Invalid, "process");
+            string call = n.Text.Trim();
+            int open = call.IndexOf('(', StringComparison.Ordinal);
+            string name = open < 0 ? call : call[..open].TrimEnd();
+            if (open < 0 || call[^1] != ')' || name is not ("xor" or "rol" or "ror")) throw Err(n.Start, KsyErrorKind.Unsupported, "process " + name);
+            Use("process." + name);
+            return new KsyProcess(name switch { "xor" => KsyProcessKind.Xor, "rol" => KsyProcessKind.Rol, _ => KsyProcessKind.Ror }, Expr(def, call[(open + 1)..^1], n.Start, "process"));
         }
 
         private void CheckType(KsyTypeDef def, KsyType type, DataNode? typeNode, bool sized, string? encoding)

@@ -309,6 +309,24 @@ internal static class KsyConstructSamples
                 0: off
                 1: on
             """, [4, 1, 1, 2, 3, 4, 5]),
+        new("process", """
+            meta:
+              id: pr
+              encoding: ASCII
+            seq:
+              - id: key
+                type: u1
+              - id: secret
+                type: str
+                size: 3
+                process: xor(key)
+              - id: rotated
+                size: 2
+                process: rol(1)
+              - id: shifted
+                size: 2
+                process: ror(key - 83)
+            """, [0x55, 0x34, 0x37, 0x36, 0x81, 0x40, 0x0C, 0x02]),
     ];
 
     /// <summary>The tree each sample is expected to read into.</summary>
@@ -442,6 +460,13 @@ internal static class KsyConstructSamples
               body=0102030405@2+5
               half=2@0+0
               scaled=6@0+0
+            """,
+        ["process"] = """
+            pr=@0+8
+              key=85@0+1
+              secret="abc"@1+3
+              rotated=0380@4+2
+              shifted=0380@6+2
             """,
     };
 }
