@@ -520,6 +520,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest file a workspace edit may create, in bytes. OPEN: the owner has not decided it.</summary>
     public const long WorkspaceEditFileBytes = 4L << 20;
 
+    /// <summary>Placeholder: bytes of new text (replacement texts and the content of new files) all changes of one workspace edit may bring together, so many changes cannot hold the memory of the editor. OPEN: the owner has not decided it.</summary>
+    public const long WorkspaceEditTotalBytes = 64L << 20;
+
     /// <summary>Placeholder: lines of the content of a new file the change review shows; the rest is counted. OPEN: the owner has not decided it.</summary>
     public const int NewFilePreviewLines = 30;
 

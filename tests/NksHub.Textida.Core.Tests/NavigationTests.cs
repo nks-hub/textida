@@ -222,6 +222,25 @@ public class PlacesTests
         var result = PathMove.Rebase(N(path), N(oldPath), N(newPath));
         Assert.Equal(expected is null ? null : N(expected), result);
     }
+
+    [Fact]
+    public void A_real_path_follows_a_link_in_a_folder_above_the_file_and_keeps_a_part_that_does_not_exist()
+    {
+        using var dir = new JournalTempDir();
+        using var other = new JournalTempDir();
+        Directory.CreateDirectory(Path.Combine(other.Path, "deep"));
+        string link = Path.Combine(dir.Path, "ext");
+        if (!FileWalkerTests.TryLink(link, other.Path)) { Assert.False(OperatingSystem.IsWindows()); return; }
+
+        Assert.True(PathMove.TryRealPath(Path.Combine(link, "deep", "new.txt"), out var real));
+        Assert.True(PathMove.TryRealPath(Path.Combine(other.Path, "deep", "new.txt"), out var expected));
+        Assert.Equal(expected, real, ignoreCase: OperatingSystem.IsWindows());
+        Assert.True(PathMove.TryRealPath(dir.Path, out var realDir));
+        Assert.False(PathMove.IsInside(real, realDir));
+
+        Assert.True(PathMove.TryRealPath(Path.Combine(dir.Path, "plain", "a.txt"), out var plain));
+        Assert.True(PathMove.IsInside(plain, realDir));
+    }
 }
 
 public class FileOperationsTests
