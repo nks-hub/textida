@@ -587,6 +587,95 @@ public class PagedSurfaceTests : IDisposable
         }
     }
 
+    /// <summary>The same after edits: the line of an offset comes from the terminator counts of the piece tree, not from a search through the starts of lines that reads a block per step.</summary>
+    [AvaloniaFact]
+    public void A_view_at_a_random_offset_of_an_edited_file_shows_the_reference_text_and_reads_few_blocks()
+    {
+        _app.Workbench.Set("editor.minimap", JsonValue.Create(false));
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false };
+        const int rows = 1_300_000, editedRow = 1000;
+        var starts = new long[rows + 1];
+        string path = System.IO.Path.Combine(_temp.Path, "viewport-edited.txt");
+        using (var stream = new StreamWriter(path, false, new UTF8Encoding(false), 1 << 20) { NewLine = "\n" })
+            for (int i = 0; i < rows; i++)
+            {
+                string row = ViewRow(i);
+                stream.WriteLine(row);
+                starts[i + 1] = starts[i] + Encoding.UTF8.GetByteCount(row) + 1;
+            }
+        var tab = OpenIndexed(path);
+        var paged = tab.Paged!;
+        var file = PagedOf(tab).Source.File;
+        Assert.True(file.Length > 40L << 20);
+
+        paged.GoToOffset(starts[editedRow] + 1);
+        TestApp.Type(_w, "Q"); // the next rows are one byte further on, and the tree has three pieces
+        Assert.True(tab.Doc.Doc.IsModified);
+
+        var random = new Random(3108);
+        for (int k = 0; k < 25; k++)
+        {
+            int row = random.Next(editedRow + 2, rows - 10), column = random.Next(0, 4);
+            long offset = starts[row] + 1 + Encoding.UTF8.GetByteCount(ViewRow(row).AsSpan(0, column));
+            file.BeginBlockCount();
+            paged.GoToOffset(offset);
+            _w.UpdateLayout();
+            _w.CaptureRenderedFrame();
+            int blocks = file.BlocksTouched;
+
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.Equal(offset, paged.CaretOffset);
+            Assert.Equal(((long)row, (long)column), paged.CaretLineColumn());
+            for (int i = 0; i < 4; i++) Assert.Equal(ViewRow(row + i), paged.DisplayOf(row + i));
+        }
+    }
+
+    /// <summary>
+    /// A jump beyond the indexed part into a line of many megabytes: the view looks a bounded stretch back for the start of the line and forward for its end, and cuts the line there,
+    /// so the jump reads a few blocks and not the whole line.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_jump_into_a_giant_line_beyond_the_index_looks_at_a_bounded_stretch_of_it()
+    {
+        _app.Workbench.Set("editor.minimap", JsonValue.Create(false));
+        const int scan = 64 * 1024, size = 40 * Mib;
+        var content = new byte[size + 12];
+        Array.Fill(content, (byte)'x', 0, size);
+        "\ntail\nmore\n"u8.CopyTo(content.AsSpan(size));
+        string path = _temp.Bytes("giant.txt", content);
+        using var gate = new ManualResetEventSlim();
+        MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= 1) gate.Wait(); };
+        try
+        {
+            var tab = Open(path);
+            var paged = tab.Paged!;
+            paged.DetourLineScanBytes = scan;
+            WaitFor(() => PagedOf(tab).IndexedBytes == Mib, "index held at the gate");
+            var file = PagedOf(tab).Source.File;
+
+            long caret = 20L * Mib + 1000;
+            file.BeginBlockCount();
+            paged.GoToOffset(caret);
+            _w.UpdateLayout();
+            _w.CaptureRenderedFrame();
+            int blocks = file.BlocksTouched;
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB");
+            Assert.False(paged.LinesExact);
+            Assert.Equal(caret, paged.CaretOffset);
+
+            // down is the next view line at the same column, one scan further on, and up is the way back
+            TestApp.Press(_w, Key.Down);
+            Assert.Equal(caret + scan, paged.CaretOffset);
+            TestApp.Press(_w, Key.Up);
+            Assert.Equal(caret, paged.CaretOffset);
+        }
+        finally
+        {
+            gate.Set();
+            MappedFileSource.IndexBlockHook = null;
+        }
+    }
+
     /// <summary>The same at gigabytes: 30 million rows of "line N", about 300 MiB, so the search for a line would take nine blocks and more.</summary>
     [AvaloniaFact]
     [Trait("Category", "Large")]

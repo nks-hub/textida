@@ -478,14 +478,38 @@ internal sealed partial class PagedTextView : Grid
         public double BytesPerLine { get; } = bytesPerLine;
         public List<long> Starts { get; } = [baseStart];
         public bool AtEnd { get; set; }
+        /// <summary>Starts of view lines that begin where a line longer than <see cref="DetourLineScanBytes"/> was cut, not after a line break.</summary>
+        public HashSet<long> Cuts { get; } = [];
+    }
+
+    /// <summary>Bytes a detour looks at to find the end or the start of one line; a longer line is cut there. Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedDetourLineScanBytes"/>. A test lowers it.</summary>
+    internal long DetourLineScanBytes { get; set; } = PluginLimitsPlaceholders.PagedDetourLineScanBytes;
+
+    /// <summary>The offset at or before <paramref name="offset"/> that is the start of a character.</summary>
+    private long AlignToCharBoundary(long offset)
+    {
+        int w = Doc.Codec.Alignment;
+        offset -= (offset - Doc.BomLength) % w;
+        while (offset > Doc.BomLength && !Doc.IsCharBoundary(offset)) offset -= w;
+        return Math.Max(offset, Doc.BomLength);
     }
 
     private long EstimatedLines(Detour d) => d.BaseLine + (long)((Doc.ByteLength - d.BaseStart) / d.BytesPerLine);
 
-    /// <summary>Start of the next line, or -1 when the line is the last one.</summary>
-    private long NextLineStart(long start)
+    /// <summary>
+    /// Start of the next line, or -1 when the line is the last one. A line that goes on for <see cref="DetourLineScanBytes"/> bytes without a break is cut there, on a
+    /// character boundary: the next view line begins at the cut and the cut is noted in <paramref name="d"/>, so one step never reads more than that.
+    /// </summary>
+    private long NextLineStart(Detour d, long start)
     {
-        long end = Paged.Source.FindLineEnd(start);
+        long end = Paged.Source.FindLineEnd(start, DetourLineScanBytes);
+        if (end < 0)
+        {
+            long cut = AlignToCharBoundary(start + DetourLineScanBytes);
+            if (cut <= start || cut >= Doc.ByteLength) return -1;
+            d.Cuts.Add(cut);
+            return cut;
+        }
         if (end >= Doc.ByteLength) return -1;
         int w = Doc.Codec.Alignment;
         Span<byte> two = stackalloc byte[8];
@@ -499,7 +523,7 @@ internal sealed partial class PagedTextView : Grid
         if (index < 0) return -1;
         while (d.Starts.Count <= index && !d.AtEnd)
         {
-            long next = NextLineStart(d.Starts[^1]);
+            long next = NextLineStart(d, d.Starts[^1]);
             if (next < 0) d.AtEnd = true; else d.Starts.Add(next);
         }
         return index < d.Starts.Count ? d.Starts[(int)index] : -1;
@@ -522,7 +546,9 @@ internal sealed partial class PagedTextView : Grid
     private void EnterDetour(long offset, bool keepSelection = false)
     {
         if (!keepSelection) DropOthers();
-        long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
+        long lineStart = Paged.Source.AlignToLineStart(offset, DetourLineScanBytes);
+        // the line that holds the offset is longer than the scan looks back: the view begins half a scan before the offset, where nobody knows a line to start
+        long start = Math.Max(Doc.BomLength, lineStart >= 0 ? lineStart : AlignToCharBoundary(offset - DetourLineScanBytes / 2));
         int w = Doc.Codec.Alignment;
         var sample = new byte[(int)(Math.Min(Doc.ByteLength, 64 * 1024) / w * w)];
         long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length) / w * w;
@@ -682,6 +708,11 @@ internal sealed partial class PagedTextView : Grid
             end = next = Doc.ByteLength;
             return true;
         }
+        if (_detour is { } cutAt && cutAt.Cuts.Contains(next))
+        {
+            end = next; // a view line cut out of a longer one has no line break to take off
+            return true;
+        }
         int w = Doc.Codec.Alignment;
         Span<byte> tail = stackalloc byte[8];
         int n = (int)Math.Min(2 * w, next - start);
@@ -774,7 +805,8 @@ internal sealed partial class PagedTextView : Grid
         if (first < 0) return;
         long origin = LineStart(first);
         if (origin < 0 || !Indexed && _detour is null && first >= ShownLines) return;
-        int window = (int)Math.Min(Doc.ByteLength - origin, 128 * 1024);
+        // in a detour a line never runs past the scan that cuts it, so this window finds no break a cut has not already put before it
+        int window = (int)Math.Min(Doc.ByteLength - origin, _detour is null ? 128 * 1024 : Math.Min(128 * 1024, DetourLineScanBytes));
         bool toEnd = origin + window >= Doc.ByteLength;
         var buffer = ArrayPool<byte>.Shared.Rent(window); // a fresh 128 KiB array per edit lands on the large object heap
         try { FillLines(first, origin, buffer, window, toEnd); }

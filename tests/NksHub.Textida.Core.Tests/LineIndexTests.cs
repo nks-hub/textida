@@ -299,7 +299,87 @@ public class LineIndexTests
         Assert.Equal(11, src.FindLineEnd(9));
     }
 
+    [Fact]
+    public void TheBoundedScansForTheEndAndTheStartOfALineGiveUpOnALongLine()
+    {
+        using var f = new TempFile(Encoding.ASCII.GetBytes(new string('a', 300_000) + "\nbc\n"));
+        using var src = OpenIndexed(f, 1 << 16);
+        Assert.Equal(-1, src.FindLineEnd(0, 100_000));
+        Assert.Equal(300_000, src.FindLineEnd(0, 300_001));
+        Assert.Equal(300_000, src.FindLineEnd(0));
+        Assert.Equal(300_003, src.FindLineEnd(300_001, 10));
+        Assert.Equal(src.ByteLength, src.FindLineEnd(src.ByteLength, 10));
+
+        Assert.Equal(-1, src.AlignToLineStart(200_000, 100_000));
+        Assert.Equal(0, src.AlignToLineStart(50_000, 100_000)); // the start of the file is a line start
+        Assert.Equal(300_001, src.AlignToLineStart(300_002, 100_000));
+        Assert.Equal(0, src.AlignToLineStart(200_000));
+    }
+
+    [Fact]
+    public void TheBoundedScansCountCodeUnitsOfUtf16()
+    {
+        var bytes = Encoding.Unicode.GetBytes(new string('a', 100_000) + "\r\nb");
+        using var f = new TempFile(bytes);
+        using var src = MappedFileSource.Open(f.Path, new MappedFileSourceOptions { Codec = TextCodec.Utf16LE });
+        src.IndexTask.Wait();
+        Assert.Equal(-1, src.FindLineEnd(0, 100_000));
+        Assert.Equal(200_000, src.FindLineEnd(0, 200_004)); // the CR of the CRLF
+        Assert.Equal(-1, src.AlignToLineStart(150_000, 40_000));
+    }
+
     // ---- the line of an offset (P3.1.6) ----
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(7)]
+    [InlineData(1000)]
+    public void TheLineOfAnOffsetInAnEditedDocumentIsTheLastLineStartAtOrBeforeIt(int block)
+    {
+        var r = new Random(block * 5 + 1);
+        for (int round = 0; round < 12; round++)
+        {
+            string text = Gen.LineSoup(r, r.Next(1, 120));
+            using var f = new TempFile(Encoding.UTF8.GetBytes(text));
+            using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { IndexBlockSize = block });
+            doc.Source.IndexTask.Wait();
+            for (int step = 0; step < 12; step++)
+            {
+                int at = r.Next(0, text.Length + 1);
+                long byteAt = Encoding.UTF8.GetByteCount(text.AsSpan(0, at));
+                if (r.Next(3) == 0 && at < text.Length)
+                {
+                    int length = r.Next(1, Math.Min(8, text.Length - at) + 1);
+                    doc.Delete(byteAt, Encoding.UTF8.GetByteCount(text.AsSpan(at, length)));
+                    text = text.Remove(at, length);
+                }
+                else
+                {
+                    string inserted = Gen.LineSoup(r, r.Next(0, 6));
+                    doc.Insert(byteAt, inserted);
+                    text = text.Insert(at, inserted);
+                }
+
+                var bytes = new byte[doc.ByteLength];
+                Assert.Equal(bytes.Length, doc.Read(0, bytes));
+                Assert.Equal(Encoding.UTF8.GetBytes(text), bytes);
+                var starts = NaiveLineStarts(bytes);
+                for (long offset = 0; offset <= bytes.Length; offset++)
+                {
+                    Assert.True(doc.TryGetLineOfOffset(offset, out long line), $"round {round}, step {step}, offset {offset}");
+                    Assert.Equal(starts.FindLastIndex(s => s <= offset), line);
+                }
+                for (int line = 0; line < starts.Count; line++)
+                {
+                    Assert.True(doc.TryGetLineStart(line, out long start));
+                    Assert.Equal(starts[line], start);
+                }
+                Assert.False(doc.TryGetLineOfOffset(bytes.Length + 1, out _));
+                Assert.False(doc.TryGetLineOfOffset(-1, out _));
+            }
+        }
+    }
+
 
     [Theory]
     [InlineData(1)]
@@ -346,6 +426,29 @@ public class LineIndexTests
                 if (text[k] == '\n' || (text[k] == '\r' && !(k + 1 < text.Length && text[k + 1] == '\n'))) expected++;
             Assert.True(src.TryGetLineOfOffset(enc.GetByteCount(text.AsSpan(0, i)), out long line), $"char {i}");
             Assert.Equal(expected, line);
+        }
+    }
+
+    [Fact]
+    public void TheLineOfAnOffsetInAnEditedFileReadsAFewBlocksAndNotOneForEveryStepOfASearch()
+    {
+        var bytes = new byte[48 << 20];
+        for (int i = 0; i < bytes.Length; i++) bytes[i] = (byte)(i % 24 == 23 ? '\n' : 'a');
+        using var f = new TempFile(bytes);
+        using var doc = PagedDocument.Open(f.Path);
+        doc.Source.IndexTask.Wait();
+        doc.Insert(10_000_000, "x\ny\n");
+        doc.Delete(30_000_000, 5);
+        doc.Insert(20_000_000, "zz");
+        Assert.True(doc.IsModified);
+
+        foreach (long offset in new long[] { 100, 9_999_999, 15_000_003, 25_000_000, doc.ByteLength - 7, doc.ByteLength })
+        {
+            doc.Source.File.BeginBlockCount();
+            Assert.True(doc.TryGetLineOfOffset(offset, out long line));
+            Assert.InRange(doc.Source.File.BlocksTouched, 0, 4);
+            Assert.True(doc.TryGetLineStart(line, out long start) && start <= offset);
+            if (doc.TryGetLineStart(line + 1, out long next)) Assert.True(offset < next);
         }
     }
 

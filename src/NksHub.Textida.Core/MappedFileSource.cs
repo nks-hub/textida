@@ -243,13 +243,20 @@ public sealed class MappedFileSource : IPagedTextSource
     }
 
     /// <summary>Largest line start at or before <paramref name="byteOffset"/>.</summary>
-    public long AlignToLineStart(long byteOffset)
+    public long AlignToLineStart(long byteOffset) => AlignToLineStart(byteOffset, long.MaxValue);
+
+    /// <summary>
+    /// Largest line start at or before <paramref name="byteOffset"/>, looked for at most <paramref name="maxBytes"/> bytes back (in steps of 64 KiB, so a little more can be read);
+    /// -1 when the line is longer than that and its start is not known.
+    /// </summary>
+    public long AlignToLineStart(long byteOffset, long maxBytes)
     {
         if (byteOffset <= 0) return 0;
         int w = Codec.Alignment;
-        long end = Math.Min(byteOffset, _file.Length);
+        long end = Math.Min(byteOffset, _file.Length), floor = maxBytes >= end ? 0 : end - maxBytes;
         while (end > 0)
         {
+            if (end <= floor) return -1;
             long start = Math.Max(0, end - 65536);
             var span = _file.GetSpanClamped(start, end - start + w);
             if (w == 1)
@@ -276,13 +283,19 @@ public sealed class MappedFileSource : IPagedTextSource
     }
 
     /// <summary>Offset of the terminator ending the line that starts at <paramref name="lineStart"/>, or the file length.</summary>
-    public long FindLineEnd(long lineStart)
+    public long FindLineEnd(long lineStart) => FindLineEnd(lineStart, long.MaxValue);
+
+    /// <summary>
+    /// Offset of the terminator ending the line that starts at <paramref name="lineStart"/>, or the file length; -1 when the line goes on for
+    /// <paramref name="maxBytes"/> bytes or more without one and the file does not end before that.
+    /// </summary>
+    public long FindLineEnd(long lineStart, long maxBytes)
     {
         int w = Codec.Alignment;
-        long pos = lineStart;
-        while (pos < _file.Length)
+        long pos = lineStart, limit = maxBytes >= _file.Length - lineStart ? _file.Length : lineStart + maxBytes;
+        while (pos < limit)
         {
-            var span = _file.GetSpanClamped(pos, 1 << 20);
+            var span = _file.GetSpanClamped(pos, Math.Min(1 << 20, limit - pos));
             int t = LineScanner.FindTerminator(span, 0, Codec);
             if (t >= 0)
             {
@@ -292,7 +305,7 @@ public sealed class MappedFileSource : IPagedTextSource
             }
             pos += span.Length;
         }
-        return _file.Length;
+        return limit < _file.Length ? -1 : _file.Length;
     }
 
     /// <summary>
