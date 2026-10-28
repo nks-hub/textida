@@ -511,13 +511,18 @@ public class OccurrenceHighlightTests : IDisposable
         var fill = Blend(Backdrop("OccurrenceBg"), Backdrop());
         Assert.True(Matching(Capture(), InWindow(paged, new Rect(70, 20, 400, 10)), fill) > 5, "the second row has no highlight");
 
+        paged.Occurrences.Debounce = TimeSpan.FromMilliseconds(20);
         ((IMinimapHost)paged).ScrollToLine(200);
-        Pump();
-        await Settled(paged.Occurrences);
+        Assert.True(paged.Occurrences.Pending, "a scroll does not ask for a new count");
+        Assert.NotNull(paged.Occurrences.Target); // the text looked for stays while the lines are counted again
+        for (var clock = Stopwatch.StartNew(); !(paged.Occurrences.Result.Lines.Count > 0 && paged.Occurrences.Result.Lines[0] == 200) && clock.ElapsedMilliseconds < 5000;)
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
         scan = paged.Occurrences.Result;
         Assert.Equal(200, scan.Lines[0]);
         Assert.True(scan.Count is > 5 and < 100);
-        Assert.NotNull(paged.Occurrences.Target); // the text looked for stayed
     }
 
     [AvaloniaFact]
@@ -626,6 +631,55 @@ public class OccurrenceHighlightTests : IDisposable
             var hits = workbench.SearchIndex.Search(query, workbench.Settings, workbench.Commands, workbench.Keymap);
             Assert.Contains(hits, hit => hit.Id == "editor.occurrences.enabled");
         }
+    }
+}
+
+/// <summary>P3.6.12: the pure parts of the occurrence highlight, which need no window.</summary>
+public class OccurrenceMatcherTests
+{
+    [Fact]
+    public void The_matcher_stops_at_the_room_given_and_finds_the_word_next_to_a_column()
+    {
+        var regex = OccurrenceMatcher.RegexOf(new OccurrenceQuery("ab", MatchCase: true, WholeWord: false))!;
+        var spans = new List<(int Start, int Length)>();
+        OccurrenceMatcher.Spans(regex, "ab ab ab", spans, 2);
+        Assert.Equal([(0, 2), (3, 2)], spans);
+        OccurrenceMatcher.Spans(regex, "ab ab", spans, 2); // no room left: nothing is added
+        Assert.Equal(2, spans.Count);
+
+        Assert.True(OccurrenceMatcher.WordAt("foo čau_1 bar", 6, out int start, out int end));
+        Assert.Equal((4, 9), (start, end));
+        Assert.True(OccurrenceMatcher.WordAt("foo", 0, out start, out end)); // at the start of a word
+        Assert.Equal((0, 3), (start, end));
+        Assert.True(OccurrenceMatcher.WordAt("foo", 3, out start, out end)); // behind the last letter
+        Assert.False(OccurrenceMatcher.WordAt("a  b", 2, out _, out _)); // between two spaces
+        Assert.False(OccurrenceMatcher.WordAt("", 0, out _, out _));
+    }
+
+    [Fact]
+    public void A_text_is_worth_looking_for_only_between_the_limits_on_one_line_and_not_as_white_space()
+    {
+        var options = new OccurrenceOptions();
+        Assert.Null(OccurrenceMatcher.TargetOf("a", 0, false, options));
+        Assert.NotNull(OccurrenceMatcher.TargetOf("ab", 0, false, options));
+        Assert.Null(OccurrenceMatcher.TargetOf(new string('x', PluginLimitsPlaceholders.OccurrenceMaxChars + 1), 0, false, options));
+        Assert.NotNull(OccurrenceMatcher.TargetOf(new string('x', PluginLimitsPlaceholders.OccurrenceMaxChars), 0, false, options));
+        Assert.Null(OccurrenceMatcher.TargetOf("ab\ncd", 0, false, options));
+        Assert.Null(OccurrenceMatcher.TargetOf("ab\rcd", 0, false, options));
+        Assert.Null(OccurrenceMatcher.TargetOf("\t \t", 0, false, options));
+        Assert.True(OccurrenceMatcher.TargetOf("ab", 0, wholeWord: true, options)!.Value.Query.WholeWord);
+        Assert.False(OccurrenceMatcher.TargetOf("ab", 0, wholeWord: false, options)!.Value.Query.WholeWord);
+        Assert.NotNull(OccurrenceMatcher.TargetOf("a", 0, false, options with { MinLength = 1 }));
+        Assert.Null(OccurrenceMatcher.TargetOf("ab", 0, false, options with { MinLength = 3 }));
+    }
+
+    [Fact]
+    public void The_strip_puts_each_line_in_the_row_of_its_share_of_the_file_and_merges_neighbours()
+    {
+        Assert.Equal([0, 5, 9], OccurrenceStrip.Rows([0, 1, 500, 999], 1000, 10)); // lines 0 and 1 share a row
+        Assert.Equal([0, 5, 9], OccurrenceStrip.Rows([0, 1, 500, 999, 5000, -1], 1000, 10)); // lines outside the file are ignored
+        Assert.Empty(OccurrenceStrip.Rows([3], 0, 10));
+        Assert.Empty(OccurrenceStrip.Rows([3], 10, 0));
     }
 }
 

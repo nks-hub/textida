@@ -79,6 +79,7 @@ internal static class OccurrenceMatcher
     /// <summary>Adds the matches in <paramref name="line"/> (start and length) to <paramref name="into"/> until it holds <paramref name="max"/>.</summary>
     public static void Spans(Regex regex, ReadOnlySpan<char> line, List<(int Start, int Length)> into, int max)
     {
+        if (into.Count >= max) return;
         try
         {
             foreach (var match in regex.EnumerateMatches(line))
