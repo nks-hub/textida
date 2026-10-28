@@ -142,7 +142,11 @@ internal sealed partial class MainWindow
             _docPanel.IsVisible = which == LeftPanel.Documents;
             _filePanel.IsVisible = which == LeftPanel.Files;
             _pluginPanel.IsVisible = which == LeftPanel.Plugin;
-            if (which == LeftPanel.Files) RestoreFolder();
+            if (which == LeftPanel.Files)
+            {
+                RestoreFolder();
+                if (_fileTree is not null && _gitFilesStale) RefreshGitFiles(now: true);
+            }
         }
         _body.ColumnDefinitions[0].Width = new GridLength(show ? PanelWidth : 0);
         _leftHost.IsVisible = show;
@@ -232,7 +236,7 @@ internal sealed partial class MainWindow
         InvalidateWorkspaceIndex();
         tree.Changed += () => SyncFileList();
         tree.DiskChanged += OnFolderChangedOnDisk;
-        tree.ContentChanged += () => Dispatcher.UIThread.Post(() => { if (ReferenceEquals(_fileTree, tree) && ShowGitStatus) RefreshGitFiles(now: true); });
+        tree.ContentChanged += () => Dispatcher.UIThread.Post(() => OnTreeContentChanged(tree));
         tree.Watch();
         ApplyFileLookSettings("files.gitStatus");
         StartFolderReview(tree);

@@ -18,7 +18,7 @@ namespace NksHub.Textida.App.Shell;
 internal sealed partial class MainWindow
 {
     private IReadOnlyList<GitFileStatus> _gitFiles = [];
-    private bool _gitFilesRunning, _gitFilesAgain;
+    private bool _gitFilesRunning, _gitFilesAgain, _gitFilesStale;
     private DispatcherTimer? _gitFilesTimer;
     private readonly List<FileSystemWatcher> _gitDirectoryWatchers = [];
 
@@ -111,6 +111,14 @@ internal sealed partial class MainWindow
         if (key is null or "files.gitStatus") RefreshGitFiles(now: true);
     }
 
+    /// <summary>A file of the tree changed. While the panel is closed nothing is read; the panel reads when it opens again.</summary>
+    private void OnTreeContentChanged(FileTree tree)
+    {
+        if (!ReferenceEquals(_fileTree, tree) || !ShowGitStatus) return;
+        if (FilePanelOpen) RefreshGitFiles(now: true);
+        else _gitFilesStale = true;
+    }
+
     /// <summary>Reads the state of the files again: at once, or once the changes of the repository are over (they come in bursts).</summary>
     private void RefreshGitFiles(bool now = false)
     {
@@ -144,6 +152,7 @@ internal sealed partial class MainWindow
             do
             {
                 _gitFilesAgain = false;
+                _gitFilesStale = false;
                 var tree = _fileTree;
                 var found = new List<GitFileStatus>();
                 if (tree is not null && ShowGitStatus)
@@ -178,7 +187,7 @@ internal sealed partial class MainWindow
                 var watcher = new FileSystemWatcher(directory) { NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size, IncludeSubdirectories = false };
                 void OnGitFile(object? s, FileSystemEventArgs e)
                 {
-                    if (e.Name is "index" or "HEAD") Dispatcher.UIThread.Post(() => RefreshGitFiles());
+                    if (e.Name is "index" or "HEAD") Dispatcher.UIThread.Post(() => { if (FilePanelOpen) RefreshGitFiles(); else _gitFilesStale = true; });
                 }
                 watcher.Created += OnGitFile;
                 watcher.Changed += OnGitFile;

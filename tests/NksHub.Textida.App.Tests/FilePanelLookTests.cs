@@ -303,6 +303,28 @@ public class FilePanelLookTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task While_the_panel_is_closed_the_state_is_not_read_and_a_change_made_meanwhile_shows_when_it_opens()
+    {
+        var repo = NewRepo();
+        repo.Write("a.txt", "a2\n");
+        Assert.True(await _w.ShowFolderAsync(repo.Dir));
+        await WaitFor(() => MarkOf(repo, "a.txt").State == GitFileState.Modified, "the state from the Git plugin");
+
+        _w.ToggleFiles(false);
+        repo.Run("add", "-A");
+        repo.Run("commit", "-q", "-m", "second");
+        for (int i = 0; i < 60; i++) // the watchers and their delays are over long before this
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(25);
+        }
+        Assert.Equal(GitFileState.Modified, MarkOf(repo, "a.txt").State);
+
+        _w.ToggleFiles(true);
+        await WaitFor(() => MarkOf(repo, "a.txt").State == GitFileState.None, "the state after the panel opened", 60_000);
+    }
+
+    [AvaloniaFact]
     public async Task A_conflict_is_the_heaviest_state_and_the_setting_turns_the_state_off()
     {
         var repo = NewRepo();
