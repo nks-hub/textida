@@ -138,7 +138,9 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
+        var applied = new AppliedEdit[work.Count];
+        for (int k = 0; k < applied.Length; k++) applied[k] = Applied(work[k].Start, removed![k], work[k].Insert.IsEmpty ? [] : work[k].Insert.ToArray());
+        var step = new Step(applied, options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -266,15 +268,16 @@ public sealed partial class Document
 
     private void Commit(ChangeKind kind, string? source, List<Pending> work, Step? step, string? coalesceKey)
     {
-        var spans = work.Select(w => new ChangeSet.Span(w.Start, w.Deleted, w.Insert.Length)).ToArray();
+        var spans = new ChangeSet.Span[work.Count];
+        for (int i = 0; i < spans.Length; i++) spans[i] = new ChangeSet.Span(work[i].Start, work[i].Deleted, work[i].Insert.Length);
         Commit(kind, source, spans, step, coalesceKey);
     }
 
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => e.Removed.HasLineBreak || e.Inserted.HasLineBreak) };
-        if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || HasLineBreak(step.Edits) };
+        if (StartsInBom(spans)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
         long tAnchors = TypingTrace.Begin();
@@ -292,6 +295,20 @@ public sealed partial class Document
             }
         else Changed?.Invoke(this, args);
         TypingTrace.End("doc.changedEvent", tChanged);
+    }
+
+    private static bool HasLineBreak(AppliedEdit[] edits)
+    {
+        foreach (var e in edits)
+            if (e.Removed.HasLineBreak || e.Inserted.HasLineBreak) return true;
+        return false;
+    }
+
+    private static bool StartsInBom(ChangeSet.Span[] spans)
+    {
+        foreach (var s in spans)
+            if (s.Start < 4) return true;
+        return false;
     }
 
     private static bool HasLineBreakByte(byte[] bytes) => bytes.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0;

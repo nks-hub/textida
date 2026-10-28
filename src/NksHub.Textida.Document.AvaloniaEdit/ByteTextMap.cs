@@ -267,8 +267,13 @@ internal sealed class ByteTextMap
     {
         int i0 = SplitAt(c0);
         int i1 = SplitAt(c1);
-        var removed = new List<byte>();
-        for (int i = i0; i < i1; i++) removed.AddRange(BytesOf(_runs[i]).ToArray());
+        byte[] removed = [];
+        if (i1 > i0)
+        {
+            var taken = new List<byte>();
+            for (int i = i0; i < i1; i++) taken.AddRange(BytesOf(_runs[i]).ToArray());
+            removed = [.. taken];
+        }
         _runs.RemoveRange(i0, i1 - i0);
         if (bytes.Length > 0 && i0 > 0 && _runs[i0 - 1] is { Original: false, Bytes: < MaxJoinedRunBytes } previous && CanJoin(previous, text))
         {
@@ -277,9 +282,9 @@ internal sealed class ByteTextMap
             i0--;
         }
         else if (bytes.Length > 0 || chars > 0) InsertRuns(i0, bytes, text, chars);
-        _totalBytes += bytes.Length - removed.Count;
+        _totalBytes += bytes.Length - removed.Length;
         Invalidate(i0);
-        return [.. removed];
+        return removed;
     }
 
     /// <summary>An edited run is cut to about this many chars. It has no checkpoints, so a lookup inside it walks unit by unit from its start.</summary>
