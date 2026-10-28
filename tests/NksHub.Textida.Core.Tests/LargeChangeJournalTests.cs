@@ -329,18 +329,23 @@ public sealed class LargeChangeJournalTests : IDisposable
     /// <summary>Where a crash can leave the disk while a document is saved over its own file with edits made meanwhile.</summary>
     private sealed record Crash(string Step, string Snapshot, bool Swapped);
 
-    private static void CopyTree(string from, string to)
+    /// <param name="skip">Files that are not copied: the temporary file of a save that is still writing it is open without sharing.</param>
+    private static void CopyTree(string from, string to, Func<string, bool>? skip = null)
     {
         Directory.CreateDirectory(to);
-        foreach (var f in Directory.GetFiles(from).Where(f => !f.EndsWith(".lock")))
+        foreach (var f in Directory.GetFiles(from).Where(f => !f.EndsWith(".lock") && skip?.Invoke(f) != true))
         {
             using var input = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var output = new FileStream(Path.Combine(to, Path.GetFileName(f)), FileMode.Create, FileAccess.Write);
             input.CopyTo(output);
         }
-        foreach (var d in Directory.GetDirectories(from)) CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+        foreach (var d in Directory.GetDirectories(from)) CopyTree(d, Path.Combine(to, Path.GetFileName(d)), skip);
     }
 
+    private sealed class ProgressSink(Action<SaveProgress> report) : IProgress<SaveProgress>
+    {
+        public void Report(SaveProgress value) => report(value);
+    }
     [Fact]
     public async Task A_crash_at_every_step_of_a_save_with_edits_meanwhile_recovers_the_edits_or_says_why_not()
     {
@@ -350,6 +355,8 @@ public sealed class LargeChangeJournalTests : IDisposable
         var model = new LargeModel(Size);
         var crashes = new List<Crash>();
         var gate = new ManualResetEventSlim();
+        var edited = new ManualResetEventSlim();
+        int midWrite = 0;
         LargeModel? snapshot = null;
 
         using (var session = JournalSession.Start(Journal, Backends(factory), new JournalOptions { Fsync = FsyncPolicy.Manual }))
@@ -360,6 +367,17 @@ public sealed class LargeChangeJournalTests : IDisposable
             Edit(doc, model, Size / 2, 0, 72, 2 << 20);
             snapshot = model.Clone();
 
+            doc.ProgressIntervalMs = 0; // a report after every MiB: the first one comes while the temporary file is half written
+            var progress = new ProgressSink(_ =>
+            {
+                if (Interlocked.Exchange(ref midWrite, 1) == 1) return;
+                edited.Wait(); // the edits made during the save are in the journal now
+                session.Flush();
+                string snap = Path.Combine(_dir, "snap-mid-write");
+                CopyTree(Path.Combine(_dir, "data"), Path.Combine(snap, "data"), f => f.EndsWith(".tmp"));
+                CopyTree(Journal, Path.Combine(snap, "journal"));
+                crashes.Add(new Crash("mid-write", snap, false));
+            });
             doc.StreamSaveStep = (step, temp) =>
             {
                 if (step == "temp-writing") return; // the temp file is still open for writing, only the later steps are crash points here
@@ -376,17 +394,22 @@ public sealed class LargeChangeJournalTests : IDisposable
                 File.Move(Path.Combine(mid, "data", "doc.txt"), Path.Combine(mid, "data", Path.GetFileName(FileSwap.BackupOf(temp))));
                 crashes.Add(new Crash("mid-swap", mid, false));
             };
-            var task = doc.SaveAsync();
+            var task = doc.SaveAsync(progress: progress);
             Edit(doc, model, 3000, 0, 73, 1 << 20);
             Edit(doc, model, 0, 0, 74, 33);
+            var beforeLast = model.Clone();
             Edit(doc, model, 70_000, 400, 75, 0);
+            Assert.NotNull(doc.Undo()); // an undo during the save is journaled as an edit and comes back with the others
+            model = beforeLast;
+            edited.Set();
             gate.Set();
             Assert.True((await task).Saved);
             Assert.Equal(snapshot.Sha256(), HashFile(Data));
             Assert.Equal(model.Sha256(), HashOf(doc));
         }
 
-        Assert.Equal(["temp-written", "before-swap", "mid-swap", "after-swap", "saved"], crashes.Select(c => c.Step).OrderBy(s => Array.IndexOf(new[] { "temp-written", "before-swap", "mid-swap", "after-swap", "saved" }, s)));
+        string[] order = ["mid-write", "temp-written", "before-swap", "mid-swap", "after-swap", "saved"];
+        Assert.Equal(order, crashes.Select(c => c.Step).OrderBy(s => Array.IndexOf(order, s)));
         GC.Collect();
         GC.WaitForPendingFinalizers();
         foreach (var crash in crashes)
@@ -472,8 +495,8 @@ public sealed class LargeChangeJournalTests : IDisposable
     [Fact]
     public void Killing_the_process_at_each_step_of_large_edits_and_a_streaming_save_recovers_the_edits_and_never_the_original()
     {
-        // 9 named kill points (spill written, journal flushed, temp file written, before and in the middle of the swap, after it, after the save, cancel)
-        // and random kills; 2500 small edits push the undo history into its scratch file as well
+        // 10 named kill points (spill written, journal flushed, temp file half written, temp file written, before and in the middle of the swap, after it, after the save, cancel)
+        // and random kills; the edits made during the save include an undo; 2500 small edits push the undo history into its scratch file as well
         var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "6", "--parallel", "4", "--seed", "9100", "--burst", "2500");
         Assert.Contains("failures 0", output);
     }
@@ -483,7 +506,7 @@ public sealed class LargeChangeJournalTests : IDisposable
     public void Killing_the_process_during_a_save_of_a_3_GiB_document_recovers_the_edits_and_leaves_the_original_whole()
     {
         var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", (3L << 30).ToString(),
-            "--points", "journal-flushed,temp-written,mid-swap,after-swap,saved,cancel");
+            "--points", "journal-flushed,mid-write,temp-written,mid-swap,after-swap,saved,cancel");
         Assert.Contains("failures 0", output);
     }
 }
