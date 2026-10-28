@@ -16,6 +16,7 @@
                     <SolidColorBrush x:Key="FgMuted">#565B64</SolidColorBrush>
                     <SolidColorBrush x:Key="Accent">#0F7B6C</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectedFg">#1B1D21</SolidColorBrush>
                     <SolidColorBrush x:Key="LineNumbers">#8A9099</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#1B1D21</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#EEF0F3</SolidColorBrush>
@@ -45,6 +46,7 @@
                     <SolidColorBrush x:Key="FgMuted">#A9AEB7</SolidColorBrush>
                     <SolidColorBrush x:Key="Accent">#3DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#00201A</SolidColorBrush>
+                    <SolidColorBrush x:Key="SelectedFg">#E6E8EB</SolidColorBrush>
                     <SolidColorBrush x:Key="LineNumbers">#6F7681</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#D4D7DC</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#202225</SolidColorBrush>
@@ -82,6 +84,15 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Background" Value="{DynamicResource Bg0}" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+
+        <!-- D5: the accent marks the keyboard focus. The ring is drawn for Tab and arrow navigation, not for a click, and replaces the black and white ring of the theme. -->
+        <Style Selector=":is(Control)">
+            <Setter Property="FocusAdorner">
+                <FocusAdornerTemplate>
+                    <Border BorderBrush="{DynamicResource Accent}" BorderThickness="2" CornerRadius="4" />
+                </FocusAdornerTemplate>
+            </Setter>
         </Style>
 
         <Style Selector="Border.mark">
@@ -271,7 +282,7 @@
         </Style>
         <Style Selector="ListBox.paletteList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="Foreground" Value="{DynamicResource SelectedFg}" />
         </Style>
         <Style Selector="ListBox.paletteList ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
@@ -295,14 +306,14 @@
         </Style>
         <Style Selector="ListBox.doclist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="Foreground" Value="{DynamicResource SelectedFg}" />
         </Style>
         <Style Selector="ListBox.doclist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
         </Style>
         <Style Selector="ListBox.filelist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="Foreground" Value="{DynamicResource SelectedFg}" />
         </Style>
         <Style Selector="ListBox.filelist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
@@ -454,7 +465,7 @@
         </Style>
         <Style Selector="ToggleButton.findtoggle:checked /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="Foreground" Value="{DynamicResource SelectedFg}" />
         </Style>
         <Style Selector="Button.findbutton">
             <Setter Property="Background" Value="Transparent" />
@@ -488,7 +499,7 @@
         </Style>
         <Style Selector="ListBox.resultlist ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
-            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+            <Setter Property="Foreground" Value="{DynamicResource SelectedFg}" />
         </Style>
         <Style Selector="ListBox.resultlist ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />

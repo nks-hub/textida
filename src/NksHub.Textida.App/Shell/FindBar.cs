@@ -181,7 +181,9 @@ internal sealed class FindBar : Border
         AutomationProperties.SetName(WordToggle, Loc.Get(K.FindWordTip));
         AutomationProperties.SetName(SelectionToggle, Loc.Get(K.FindSelectionTip));
         AutomationProperties.SetName(CloseButton, Loc.Get(K.A11yFindClose));
-        AutomationProperties.SetName(CountText, Loc.Get(K.A11yFindCount));
+        // a text block is named by its text; the counter is read out whenever it changes, and the label tells what it counts
+        AutomationProperties.SetHelpText(CountText, Loc.Get(K.A11yFindCount));
+        AutomationProperties.SetLiveSetting(CountText, AutomationLiveSetting.Polite);
     }
 
     /// <summary>Shows the match counter, or the reason the pattern cannot be used (<paramref name="error"/>).</summary>

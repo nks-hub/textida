@@ -79,6 +79,7 @@ internal sealed class SearchResultsView : DockPanel
     {
         Classes.Add("results");
         Focusable = true;
+        IsTabStop = false; // the view only hands the keyboard to its list; Tab goes to the list itself
         GotFocus += (_, e) => { if (ReferenceEquals(e.Source, this)) _list.Focus(); };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(28, 0, 28, 8), Children = { _cancel, _apply, _repreview } };
         foreach (var b in new[] { _cancel, _apply, _repreview }) b.Classes.Add("barbutton");
@@ -136,6 +137,8 @@ internal sealed class SearchResultsView : DockPanel
         _apply.Content = Loc.Get(K.ResultsApply);
         _repreview.Content = Loc.Get(K.ResultsRepreview);
         AutomationProperties.SetName(_list, Loc.Get(K.A11yResultsList));
+        AutomationProperties.SetLiveSetting(_summary, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(_limit, AutomationLiveSetting.Polite);
     }
 
     public void Clear()

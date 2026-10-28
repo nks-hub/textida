@@ -67,7 +67,7 @@ internal sealed class RegexTesterWindow : Window
         body.Children.Add(left);
         body.Children.Add(right);
         var footer = new StackPanel { Margin = new Thickness(18, 0, 18, 12), Spacing = 4, Children = { _note, _dialect, _limits } };
-        var root = new DockPanel { Children = { footer, body } };
+        var root = new ReadingDockPanel { Children = { footer, body } };
         DockPanel.SetDock(footer, Dock.Bottom);
         Content = root;
 
@@ -121,6 +121,7 @@ internal sealed class RegexTesterWindow : Window
         AutomationProperties.SetName(_explain, Loc.Get(K.RegexExplain));
         AutomationProperties.SetName(_replaced, Loc.Get(K.RegexReplaced));
         AutomationProperties.SetName(_case, Loc.Get(K.FindCaseTip));
+        AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite);
     }
 
     private void Refresh()
@@ -143,7 +144,7 @@ internal sealed class RegexTesterWindow : Window
         if (result.Error is { } error)
         {
             _note.Text = Loc.Get(K.FindInvalid, ("reason", error));
-            _note.Foreground = new SolidColorBrush(Color.Parse("#C0392B"));
+            _note.Foreground = ThemeColors.Danger;
         }
         else if (result.TimedOut) _note.Text = Loc.Get(K.RegexTimedOut);
         else if (result.Truncated) _note.Text = Loc.Get(K.RegexTruncated, ("max", RegexTools.MaxTestMatches));

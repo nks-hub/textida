@@ -254,6 +254,21 @@ commands: nks.app.openSettings
 - Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
 - F1 in diesem Fenster öffnet dieses Thema.
 
+## [app.accessibility] Barrierefreiheit
+commands: nks.view.nextPane, nks.view.previousPane
+Das Programm lässt sich allein mit der Tastatur und mit einem Screenreader bedienen. Geprüft wird es über den Zugänglichkeitsbaum des Programms; mit NVDA und VoiceOver selbst ist es noch nicht ausprobiert, melden Sie uns also, wo ein Screenreader etwas falsch vorliest.
+### Tastatur
+- Jeder Befehl steht in der Befehlspalette (Strg+Umschalt+P) und, wenn er einen hat, in einem Menü. Die Menüleiste erreichen Sie unter Windows mit der Alt-Taste; unter macOS ist es die Menüleiste des Systems (Ctrl+F2).
+- Der Editor behält die Tabulatortaste für sich. F6 setzt die Tastatur auf den nächsten Teil des Fensters: die Liste links, das Dokument, die Bereiche für Vorschau, Agent und Ausgabe, die Suchleiste, die Statusleiste. Umschalt+F6 geht zurück. Ein geschlossener Teil wird übersprungen.
+- In den übrigen Teilen bewegen Tab und Umschalt+Tab zwischen den Bedienelementen von oben nach unten und von links nach rechts; in einer Liste wechseln Sie mit den Pfeiltasten zwischen den Zeilen. Esc schließt einen Dialog, die Palette und die Bereiche und gibt die Tastatur an das Dokument zurück.
+- Nach dem Schließen eines Dialogs kehrt die Tastatur zu dem Element zurück, das sie vorher hatte.
+### Was ein Screenreader erhält
+- Jedes Bedienelement, jedes Fenster und jeder Dialog hat in allen vier Sprachen der Oberfläche (Tschechisch, Englisch, Slowakisch, Deutsch) einen Namen und eine Rolle. Die Namen folgen einem Sprachwechsel sofort.
+- Eine Meldung der Statusleiste, ein Hinweis über dem Dokument, die Zahl der Treffer einer Suche, die gewählte Zeile der Palette und der Zustand des Agenten werden vorgelesen, sobald sie erscheinen, ohne dass sich die Tastatur bewegt.
+### Hoher Kontrast
+- Verlangt das System hohen Kontrast (ein Kontrastdesign unter Windows), nimmt das Programm für Fenster, Karteireiter, Listen, Rahmen und den Fokusrahmen die Farben des Systems, auch im Editor. Der Text einer gewählten Zeile hat die Farbe, die das System dafür vorgibt. Unter macOS gilt das, wenn das System die Einstellung Kontrast erhöhen an das Programm meldet.
+- Die Farben der Syntaxhervorhebung ändern sich nicht. Der Tastaturfokus ist ein Rahmen um das Bedienelement in der Akzentfarbe (bei hohem Kontrast in der Farbe, die das System für Links nutzt).
+
 ## [app.quit] Beenden
 commands: nks.app.quit
 1. Drücken Sie Strg+Q oder wählen Sie Datei und dann Beenden.

@@ -71,6 +71,7 @@ internal sealed class SettingsWindow : Window
         Title = Loc.Get(K.SettingsTitle);
         _search.PlaceholderText = Loc.Get(K.SettingsSearchWatermark);
         AutomationProperties.SetName(_search, Loc.Get(K.SettingsSearchA11y));
+        AutomationProperties.SetLiveSetting(_count, AutomationLiveSetting.Polite);
     }
 
     internal void SetQuery(string text)
@@ -117,7 +118,7 @@ internal sealed class SettingsWindow : Window
         }
     }
 
-    private static TextBlock Banner(string text, bool strong = true) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = strong ? new SolidColorBrush(Color.Parse("#C0392B")) : null, Opacity = strong ? 1 : 0.7 };
+    private static TextBlock Banner(string text, bool strong = true) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = strong ? ThemeColors.Danger : null, Opacity = strong ? 1 : 0.7 };
 
     private static string SourceName(SettingSource source) => source switch
     {
@@ -158,9 +159,9 @@ internal sealed class SettingsWindow : Window
         var key = new TextBlock { Text = hit.Id, Opacity = 0.55, FontSize = 12, VerticalAlignment = VerticalAlignment.Bottom };
         var description = new TextBlock { Text = hit.Description ?? "", TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
         var source = new TextBlock { Text = Loc.Get(K.SettingsValueSource, ("source", SourceName(resolved.Source) + (resolved.Source == SettingSource.EditorConfig && resolved.LayerName is { } layer ? " (" + layer + ")" : ""))), Opacity = 0.65, FontSize = 12 };
-        var error = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#C0392B")), IsVisible = false, TextWrapping = TextWrapping.Wrap };
+        var error = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };
 
-        var editor = MakeEditor(definition, resolved, error);
+        var editor = MakeEditor(definition, resolved, error, hit.Title);
         var reset = new Button { Content = Loc.Get(K.SettingsReset), IsVisible = resolved.Source != SettingSource.Default, Padding = new Thickness(8, 2), MinHeight = 24 };
         reset.Click += (_, _) => Commit(hit.Id, null, error);
 
@@ -173,26 +174,26 @@ internal sealed class SettingsWindow : Window
         return row;
     }
 
-    private Control MakeEditor(Workbench.Contributions.SettingDefinition definition, ResolvedSetting resolved, TextBlock error)
+    private Control MakeEditor(Workbench.Contributions.SettingDefinition definition, ResolvedSetting resolved, TextBlock error, string title)
     {
         string id = definition.Key;
         if (definition.Type == "boolean")
         {
             var box = new CheckBox { IsChecked = resolved.Value.GetValue<bool>() };
-            AutomationProperties.SetName(box, id);
+            AutomationProperties.SetName(box, title);
             box.IsCheckedChanged += (_, _) => Commit(id, JsonValue.Create(box.IsChecked == true), error);
             return box;
         }
         if (definition.Values is { Count: > 0 } values)
         {
             var combo = new ComboBox { ItemsSource = values, SelectedItem = resolved.Value.GetValue<string>(), MinWidth = 180 };
-            AutomationProperties.SetName(combo, id);
+            AutomationProperties.SetName(combo, title);
             combo.SelectionChanged += (_, _) => { if (combo.SelectedItem is string s && s != resolved.Value.GetValue<string>()) Commit(id, JsonValue.Create(s), error); };
             return combo;
         }
         string current = resolved.Value is JsonValue jv && jv.TryGetValue<string>(out var str) ? str : resolved.ValueText;
         var text = new TextBox { Text = current, MinWidth = 260 };
-        AutomationProperties.SetName(text, id);
+        AutomationProperties.SetName(text, title);
         void Apply()
         {
             string value = text.Text ?? "";

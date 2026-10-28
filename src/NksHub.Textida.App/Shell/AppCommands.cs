@@ -379,6 +379,8 @@ internal static class AppCommands
         Do("nks.view.toggleOutput", w => w.ToggleOutput());
         On("nks.view.pluginPanels", w => w.ShowPluginPanels());
         Do("nks.view.fullScreen", w => w.ToggleFullScreen());
+        On("nks.view.nextPane", w => w.FocusNextPane(forward: true));
+        On("nks.view.previousPane", w => w.FocusNextPane(forward: false));
 
         // format
         Do("nks.format.reread", w => _ = w.ShowEncodingMenu(onlyConvert: false));

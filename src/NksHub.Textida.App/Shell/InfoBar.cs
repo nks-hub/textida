@@ -40,5 +40,12 @@ internal sealed class InfoBar : Border
 
     public string Message { get; }
 
+    /// <summary>A notice appears without taking the keyboard, so a screen reader is told what it says; a warning interrupts.</summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        (TopLevel.GetTopLevel(this) as MainWindow)?.Announce(Message, urgent: Classes.Contains("warning"));
+    }
+
     public IEnumerable<Button> Buttons => ((Panel)((Grid)Child!).Children[1]).Children.OfType<Button>();
 }

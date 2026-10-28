@@ -46,7 +46,7 @@ internal sealed class HexInspectorPanel : Border
         _list.KeyDown += OnListKey;
         _list.DoubleTapped += (_, _) => BeginEdit();
         var order = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 6, 0, 6), Children = { _little, _big } };
-        var stack = new DockPanel { LastChildFill = true };
+        var stack = new Shell.ReadingDockPanel { LastChildFill = true };
         DockPanel.SetDock(_title, Dock.Top);
         DockPanel.SetDock(order, Dock.Top);
         var editor = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0), Children = { _hint, _edit, _error } };

@@ -259,6 +259,21 @@ commands: nks.app.openSettings
 - Konflikty skratiek sú vidieť pri príslušných riadkoch.
 - F1 v tomto okne otvorí túto tému.
 
+## [app.accessibility] Prístupnosť
+commands: nks.view.nextPane, nks.view.previousPane
+Program sa dá ovládať len klávesnicou aj s čítačkou obrazovky. Overuje sa cez prístupnostný strom programu; so samotným NVDA ani VoiceOverom zatiaľ vyskúšaný nie je, takže napíšte, kde čítačka číta niečo zle.
+### Klávesnica
+- Každý príkaz je v palete príkazov (Ctrl+Shift+P) a, ak ho má, aj v ponuke. K ponukovej lište sa dostanete klávesom Alt vo Windows; na macOS je to ponuková lišta systému (Ctrl+F2).
+- Editor si necháva kláves Tab pre seba. F6 presunie klávesnicu na ďalšiu časť okna: zoznam vľavo, dokument, panely náhľadu, agenta a výstupu, lištu hľadania, stavový riadok. Shift+F6 ide späť. Zatvorená časť sa preskočí.
+- V ostatných častiach sa Tab a Shift+Tab pohybujú medzi ovládacími prvkami zhora nadol a zľava doprava; v zozname sa medzi riadkami pohybujete šípkami. Esc zatvorí dialóg, paletu a panely a vráti klávesnicu do dokumentu.
+- Po zatvorení dialógu sa klávesnica vráti na prvok, ktorý ju mal predtým.
+### Čo dostane čítačka obrazovky
+- Každý ovládací prvok, okno a dialóg má meno a rolu vo všetkých štyroch jazykoch rozhrania (čeština, angličtina, slovenčina, nemčina). Mená sa pri zmene jazyka zmenia hneď.
+- Správa v stavovom riadku, upozornenie nad dokumentom, počet zhôd pri hľadaní, vybraný riadok v palete a stav agenta sa prečítajú, hneď ako sa objavia, bez toho, aby sa pohla klávesnica.
+### Vysoký kontrast
+- Keď systém žiada vysoký kontrast (vysoko kontrastný motív vo Windows), program pre okná, karty, zoznamy, rámčeky a rámček fokusu použije farby systému, aj v editore. Text vybraného riadku má farbu, ktorú pre neho systém určuje. Na macOS to platí, keď systém tento údaj programu oznámi (voľba Zvýšiť kontrast).
+- Farby zvýraznenia syntaxe sa nemenia. Fokus klávesnice je rámček okolo ovládacieho prvku vo farbe akcentu (vo vysokom kontraste vo farbe systému pre odkazy).
+
 ## [app.quit] Koniec programu
 commands: nks.app.quit
 1. Stlačte Ctrl+Q, alebo zvoľte Súbor a Koniec.

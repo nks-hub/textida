@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Clips;
 
@@ -48,10 +49,11 @@ internal sealed partial class AvaloniaDialogs
         var swatches = new Dictionary<string, Border>(StringComparer.Ordinal);
         var rows = new List<Control>();
         var refresh = new List<Action>();
-        var red = new SolidColorBrush(Color.Parse("#C0392B"));
+        var red = ThemeColors.Danger;
 
         var (shown, previewFrame) = PreviewBox(Loc.Get(K.ClipFormPreview));
         var error = new TextBlock { Foreground = red, FontSize = 12, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        AutomationProperties.SetLiveSetting(error, AutomationLiveSetting.Polite);
         var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
         var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
 
@@ -94,6 +96,7 @@ internal sealed partial class AvaloniaDialogs
             }
             AutomationProperties.SetName(input is Grid g && g.Children[0] is { } inner ? inner : input, label);
             var note = new TextBlock { Foreground = red, FontSize = 12, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+            AutomationProperties.SetLiveSetting(note, AutomationLiveSetting.Polite);
             notes[field.Name] = note;
             var stack = new StackPanel { Spacing = 2, Children = { input } };
             if (Hint(field) is { } hint) stack.Children.Add(new TextBlock { Text = hint, Opacity = 0.65, FontSize = 12 });
@@ -135,7 +138,6 @@ internal sealed partial class AvaloniaDialogs
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Update(); if (inputs.Count > 0) (dialog.GetVisualDescendants().OfType<TextBox>().FirstOrDefault())?.Focus(); };
-        Shown?.Invoke(dialog);
-        return await dialog.ShowDialog<IReadOnlyDictionary<string, string>?>(owner);
+        return await ShowAsync<IReadOnlyDictionary<string, string>?>(dialog, owner);
     }
 }

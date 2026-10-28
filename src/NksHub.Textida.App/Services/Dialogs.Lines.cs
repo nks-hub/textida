@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 
@@ -13,9 +14,6 @@ namespace NksHub.Textida.App.Services;
 internal sealed partial class AvaloniaDialogs
 {
     private static readonly FontFamily Mono = new("Cascadia Mono, Consolas, Menlo, monospace");
-
-    /// <summary>Called with a dialog window just before it is shown; tests use it to drive the real controls.</summary>
-    internal Action<Window>? Shown { get; set; }
 
     private static Grid Row(string label, Control input)
     {
@@ -115,8 +113,7 @@ internal sealed partial class AvaloniaDialogs
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); (text.IsVisible ? text : start).Focus(); };
-        Shown?.Invoke(dialog);
-        return await dialog.ShowDialog<LineInsertOptions?>(owner);
+        return await ShowAsync<LineInsertOptions?>(dialog, owner);
     }
 
     public async Task<SortOptions?> SortLinesAsync(Window owner, SortOptions initial, Func<SortOptions, string> preview)
@@ -127,7 +124,8 @@ internal sealed partial class AvaloniaDialogs
         var byLocale = Choice("method", Loc.Get(K.LinesSortByLocale), initial.Method == SortMethod.Locale);
         var byNumber = Choice("method", Loc.Get(K.LinesSortByNumber), initial.Method == SortMethod.Numeric);
         var locale = Field(initial.Locale, 160);
-        var localeNote = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#C0392B")), FontSize = 12 };
+        var localeNote = new TextBlock { Foreground = ThemeColors.Danger, FontSize = 12 };
+        AutomationProperties.SetLiveSetting(localeNote, AutomationLiveSetting.Polite);
         var matchCase = new CheckBox { Content = Loc.Get(K.LinesSortCase), IsChecked = initial.CaseSensitive };
         var duplicates = new CheckBox { Content = Loc.Get(K.LinesSortDuplicates), IsChecked = initial.RemoveDuplicates };
         var from = Field(initial.ColumnFrom.ToString(CultureInfo.InvariantCulture), 70);
@@ -179,7 +177,6 @@ internal sealed partial class AvaloniaDialogs
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); up.Focus(); };
-        Shown?.Invoke(dialog);
-        return await dialog.ShowDialog<SortOptions?>(owner);
+        return await ShowAsync<SortOptions?>(dialog, owner);
     }
 }

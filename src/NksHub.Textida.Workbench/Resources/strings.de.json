@@ -271,6 +271,8 @@
   "cmd.view.toggleOutput": "Ausgabe",
   "cmd.view.pluginPanels": "Plugin-Bereiche...",
   "cmd.view.fullScreen": "Vollbild",
+  "cmd.view.nextPane": "Nächster Bereich",
+  "cmd.view.previousPane": "Vorheriger Bereich",
   "cmd.files.newFile": "Neue Datei im Ordner...",
   "cmd.files.newFolder": "Neuer Ordner...",
   "cmd.files.duplicate": "Duplizieren",

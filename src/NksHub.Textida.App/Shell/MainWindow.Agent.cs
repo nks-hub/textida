@@ -62,7 +62,7 @@ internal sealed partial class MainWindow
         foreach (var button in new[] { _agentSend, _agentCancel, _agentStop, _agentClose }) button.Classes.Add("outputaction");
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 0, 8, 0), Children = { _agentCancel, _agentStop, _agentClose } };
-        var header = new DockPanel { Height = 30, LastChildFill = false };
+        var header = new ReadingDockPanel { Height = 30, LastChildFill = false };
         header.Children.Add(Dock(actions, Avalonia.Controls.Dock.Right));
         header.Children.Add(Dock(_agentStatus, Avalonia.Controls.Dock.Left));
         var inputRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(12, 6) };
@@ -89,7 +89,7 @@ internal sealed partial class MainWindow
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         _agentPanel.Classes.Add("outputpanel");
-        _agentPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), Dock(_agentBoundary, Avalonia.Controls.Dock.Top), Dock(_agentBoundaryNow, Avalonia.Controls.Dock.Top), Dock(inputRow, Avalonia.Controls.Dock.Bottom), _agentText } };
+        _agentPanel.Child = new ReadingDockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), Dock(_agentBoundary, Avalonia.Controls.Dock.Top), Dock(_agentBoundaryNow, Avalonia.Controls.Dock.Top), Dock(inputRow, Avalonia.Controls.Dock.Bottom), _agentText } };
         return _agentPanel;
     }
 

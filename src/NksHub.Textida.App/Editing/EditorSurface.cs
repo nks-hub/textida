@@ -131,12 +131,14 @@ internal sealed partial class EditorSurface : TextEditor
     {
         base.OnAttachedToVisualTree(e);
         ApplyTheme();
+        if (Application.Current is App app) app.Contrast.Changed += ApplyTheme;
     }
 
     // a tab switch takes the editor out of the window; a composition it showed is gone with it
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         EndComposition();
+        if (Application.Current is App app) app.Contrast.Changed -= ApplyTheme;
         base.OnDetachedFromVisualTree(e);
     }
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -463,6 +464,7 @@ internal sealed partial class CsvView : Grid, IDisposable
         _anchorCol = _col;
         _editing = true;
         _edit.Text = initial ?? (DataRowCount == 0 && _row >= 0 ? "" : CellText(_row, _col));
+        AutomationProperties.SetName(_edit, Loc.Get(K.TableA11yEdit, ("cell", DescribeCell())));
         if (_canvas.CellRect(_row, _col) is { } rect)
         {
             _edit.Margin = new Thickness(rect.X, rect.Y, 0, 0);
