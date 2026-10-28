@@ -453,6 +453,7 @@ public sealed class HugeFileTests : IDisposable
         {
             var tab = Open(path, out double callMs);
             var source = PagedOf(tab).Source;
+            var hashing = tab.Doc.Doc.HashPass;
             Assert.False(tab.Paged!.Index.Complete);
             PumpUntil(() => PagedOf(tab).IndexedBytes >= 1L << 30, "a GiB of the index", TimeSpan.FromMinutes(5));
             using var self = Process.GetCurrentProcess();
@@ -462,6 +463,7 @@ public sealed class HugeFileTests : IDisposable
             _w.CloseTab(tab);
             double closeMs = clock.Elapsed.TotalMilliseconds;
             Assert.True(source.IndexTask.IsCompleted, "the index task is still running after the tab was closed");
+            Assert.True(hashing is not null && hashing.Wait(TimeSpan.FromSeconds(10)), "the pass that hashes the file in the background was not stopped by the close");
 
             FileStream? opened = null;
             clock.Restart();

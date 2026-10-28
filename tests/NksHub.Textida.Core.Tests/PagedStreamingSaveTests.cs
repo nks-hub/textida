@@ -633,16 +633,17 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         long grown = peak - before;
         Say($"save of {size / 1073741824.0:F1} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
         Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
+        // SHA-256 runs at about 130 MiB/s on the test machine, so the two hashes go side by side
         clock.Restart();
-        string fileHash = HashFile(path);
-        Say($"SHA-256 of the saved file {fileHash} read in {clock.Elapsed.TotalSeconds:F0} s");
-        clock.Restart();
-        string expected = snapshot.Sha256();
-        Say($"independent SHA-256 of the snapshot {expected} computed in {clock.Elapsed.TotalSeconds:F0} s");
+        var fileHashing = Task.Run(() => HashFile(path));
+        var snapshotHashing = Task.Run(() => snapshot.Sha256());
+        string fileHash = await fileHashing, expected = await snapshotHashing;
+        Say($"SHA-256 of the saved file {fileHash} and the independent SHA-256 of the snapshot {expected}, both in {clock.Elapsed.TotalSeconds:F0} s");
         Assert.Equal(expected, fileHash);
         clock.Restart();
-        Assert.Equal(model.Sha256(), HashOf(doc));
-        Say($"the editor holds the newer revision: both hashes {clock.Elapsed.TotalSeconds:F0} s");
+        if (fast) Assert.Equal(-1, model.FirstDifferenceIn(doc)); // the editor holds the newer revision, byte by byte
+        else Assert.Equal(model.Sha256(), HashOf(doc));
+        Say($"the editor holds the newer revision: compared in {clock.Elapsed.TotalSeconds:F0} s");
         Assert.True(doc.IsModified);
         Assert.NotNull(doc.Undo()); // undo after the save
         Assert.True(doc.IsModified);

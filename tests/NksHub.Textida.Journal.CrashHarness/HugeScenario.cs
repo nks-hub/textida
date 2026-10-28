@@ -145,22 +145,6 @@ public static class HugeScenario
         return -1;
     }
 
-    private static long FirstDifferenceInDocument(Doc doc, LargeModel model)
-    {
-        var actual = new byte[HugeText.BlockBytes];
-        var expected = new byte[HugeText.BlockBytes];
-        for (long at = 0; at < model.Length;)
-        {
-            int n = (int)Math.Min(actual.Length, model.Length - at);
-            if (doc.Read(at, actual.AsSpan(0, n)) != n) return at;
-            model.Read(at, expected.AsSpan(0, n));
-            int same = actual.AsSpan(0, n).CommonPrefixLength(expected.AsSpan(0, n));
-            if (same < n) return at + same;
-            at += n;
-        }
-        return -1;
-    }
-
     /// <summary>Runs one kill point on a fresh file; returns null when the recovery was whole and in time, else what was wrong. The numbers go to <paramref name="report"/>.</summary>
     public static string? RunPoint(string dir, string point, long size, int pasteChunks, Report report)
     {
@@ -289,7 +273,7 @@ public static class HugeScenario
                 if (lengths[k] != doc.ByteLength) continue;
                 var model = ModelAfter(k);
                 var inFile = Task.Run(() => FirstDifferenceInFile(file, size));
-                long wrong = FirstDifferenceInDocument(doc, model);
+                long wrong = model.FirstDifferenceIn(doc);
                 long fileWrong = inFile.Result;
                 if (fileWrong >= 0) return $"the file of the user differs from the original at byte {fileWrong}";
                 if (wrong < 0) found = k;

@@ -85,6 +85,24 @@ public sealed class LargeModel
 
     public LargeModel Clone() => new([.. _segments], Length, _fill);
 
+    /// <summary>Offset of the first byte at which <paramref name="doc"/> differs from the model, or -1 when it holds exactly the model. Compares in blocks of 1 MiB, which is much faster than hashing both.</summary>
+    public long FirstDifferenceIn(Doc doc)
+    {
+        if (doc.ByteLength != Length) return Math.Min(doc.ByteLength, Length);
+        var actual = new byte[1 << 20];
+        var expected = new byte[1 << 20];
+        for (long at = 0; at < Length;)
+        {
+            int n = (int)Math.Min(actual.Length, Length - at);
+            if (doc.Read(at, actual.AsSpan(0, n)) != n) return at;
+            Read(at, expected.AsSpan(0, n));
+            int same = actual.AsSpan(0, n).CommonPrefixLength(expected.AsSpan(0, n));
+            if (same < n) return at + same;
+            at += n;
+        }
+        return -1;
+    }
+
     /// <summary>The bytes of the model from <paramref name="offset"/>, as many as <paramref name="destination"/> holds and the model has.</summary>
     public int Read(long offset, Span<byte> destination)
     {
