@@ -102,6 +102,36 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** každý případ z kap. 8 má automatický test; pád se injektuje před a po flush, před a po výměně souboru a během zápisu žurnálu, včetně plného disku; pomalý disk se simuluje injektovaným zdržením flush/fsync aspoň 1,5 s a UI během něj splní limity kap. 3, uložení jde zrušit a potvrzení nepřijde dřív než flush; po obnově se originál i poslední potvrzená revize porovnají nezávislým výpočtem a žádný případ nevede ke ztrátě neuložené práce ani k poškození souboru.
   - **Závisí na:** P1.5.1, P1.2.3
   - **Odhad:** bez odhadu; účtuje se v P1 a v P3 (hex uložení)
+- [ ] **PR.2.5** Testy velkých souborů v rozumné velikosti
+  - **Co a proč:** Majitel 28. 10. 2026: testy obřích souborů zatím vyřadit a používat 1–2 GB, aby běhy netrvaly tak dlouho. Obří varianty se vrátí při ladění rychlosti.
+  - **Stav 28. 10. 2026 (noc):** rozpracováno ve větvi `worktree-agent-af1de3b16b2df8837` (commit 196a19ec). Do main nesloučeno a neověřeno.
+    - `HugeText.Size` ořezává na 2 GiB, pokud není `TEXTIDA_HUGE=1`. Nová `SizePast(hranice, bajty)` dá bez HUGE hranici + 4 MiB. K tomu `HugeTextSizeTests` (2 testy).
+    - Zmenšené testy se skutečnými bajty:
+      - `HugeFileTests` (náhodný pohled, heatmapa) z 10 na 2 GiB;
+      - `PagedStreamingSaveTests` (2 testy), `PagedEditTests` a `LargeChangeJournalTests` z 3 GiB na 2 GiB + 4 MiB;
+      - `HexFillLargeTests` z 5 GiB na 2 GiB + 4 MiB;
+      - `HexSaveTests` z 10 GiB na 2 GiB + 4 MiB (streamové uložení zapíše celý soubor, dřív 12 min);
+      - `PagedSpillTests` z 3 GiB na 2 GiB + 4 MiB.
+      S `TEXTIDA_HUGE=1` mají všechny původní velikost. Testy s velikostí v názvu jsou přejmenované.
+    - Beze změny (řídké nebo syntetické soubory): `LogModeAppTests`, `LogTests`, `LogFollowPerfTests`, `McpServerTests`, `PagedHugeEditTests`, `TextToolsTests`, `ByteSearchTests`, `DocumentApiTests.Revisions`, `ViewOptionsTests`, `HexMapAppTests`.
+    - Nejdražší zbylé testy podle starých logů: `TextToolsTests` 7 + 2 min, `PagedHugeEditTests` 4,5 min, `ByteSearchTests` 4,4 min, `McpServerTests` 2,4 + 2,2 min, `LogFollowPerfTests` 1,5 min. Zkrátit je je samostatné rozhodnutí.
+    - Hranice 4 GiB bez HUGE zůstává jen v řídkých testech (`PagedBackend`, `ByteCarets`).
+  - **Chyba nalezená 28. 10. 2026 (noc):** běh `Category=Large` na testovacím virtuálu (196a19ec, 23:06–23:20) je neplatný.
+    - Testovací proces Core spadl na chybě čtení stránky („In page error“), zatímco paralelně běžely testy s velkými řídkými soubory. Potom vše skončilo na „Na disku není dost místa“.
+    - Core před pádem prošlo 68 z 69. Neprošel nezměněný `LogFollowPerfTests` (půl → 1 GiB) s nárůstem paměti o 2 191 MiB.
+    - Zda se totéž děje na main, ověřené není.
+    - Další běhy byly na pokyn majitele zrušené. Perf běh téže větve se nechal doběhnout, výsledek nezapsán.
+  - **Další krok:**
+    - Na virtuálu zjistit volné místo a velikost složky testů. Projekty s velkými soubory pouštět po jednom (`-m:1` i pro Large).
+    - Ověřit větev běhy Large a Perf (doba před a po) a sloučit ji.
+    - Smazat pomocnou větev `tmp-baseline-1939987f`.
+  - **Funkce:** žádná (infrastruktura, požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Bez `TEXTIDA_HUGE` žádný test nezapíše víc než asi 2 GiB skutečných bajtů.
+    - Běhy Large a Perf na virtuálu projdou bez plného disku a mají zapsanou dobu před a po.
+    - Obří varianty s `TEXTIDA_HUGE=1` zůstávají beze změny.
+  - **Závisí na:** žádná
+  - **Odhad:** bez odhadu
 
 ### PR.3 Podpis a notarizace
 
@@ -1260,6 +1290,15 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (noc):** zadáno vývojáři.
+  - **Stav 28. 10. 2026 (noc, sloučeno):** hotovo v kódu, v běžící aplikaci neověřeno.
+    - Výběr na jednom řádku (aspoň 2 znaky) zvýrazní ostatní výskyty vlastním rendererem pozadí, odlišným od výběru, aktuálního řádku a zvýraznění hledání ve všech třech tématech.
+    - Značky jsou u posuvníku a v minimapě, počet ve stavovém řádku. Čtečka ho dostane nejvýš jednou za 1,5 s.
+    - V editoru se hledá celý dokument mimo vlákno UI (`SearchWorker`), ve stránkovaném jen viditelná část („v dohledu“). Hledá se po 200 ms klidu.
+    - Nastavení: zapnout, celá slova, velikost písmen, slovo pod kurzorem, nejkratší výběr. Texty ve 4 jazycích a nápověda.
+    - Stropy počtu jsou placeholdery v `PluginLimitsPlaceholders`.
+    - Výběr jen z mezer, skrytá hodnota, víc kurzorů a víceřádkový výběr se nezvýrazní. Řádek nad 10 000 znaků se jen počítá a značí.
+    - Testy: 32 headless testů (`OccurrenceHighlightTests`), 12 mutací kódu odhaleno.
+    - Neověřeno: Perf (testy napsané), čtečka, IME, macOS. Soubory jen s CR mají značky na špatných řádcích, stejně jako značky Hledání (`SearchWorker`).
 - [ ] **P3.6.13** Nástrojová lišta podle uživatele
   - **Co a proč:** Majitel chce nástrojovou lištu, kterou si uživatel přizpůsobí: přidat, odebrat a přeřadit tlačítka z registru příkazů (včetně příkazů pluginů), oddělovače, ikony s popiskem nebo bez, velikost. Vzhled D5 počítá s oknem bez pruhu tlačítek, proto je lišta volitelná: zapíná se v menu Zobrazit, ve výchozím stavu je vypnutá a vzhled D5 bez ní zůstává beze změny. Nastavení lišty se ukládá do profilu a jde vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -3398,7 +3437,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 
 | Etapa | Celky | Úkoly | ČT (kap. 6) |
 |---|---|---|---|
-| Průběžně | 8 | 23 | ocení PR.8.1 a PR.8.2 podle etap u položek |
+| Průběžně | 8 | 24 | ocení PR.8.1 a PR.8.2 podle etap u položek |
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
@@ -3413,7 +3452,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **342** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **343** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
