@@ -110,6 +110,20 @@ public class NetworkConsentTests
         Assert.DoesNotContain(password, File.ReadAllText(rig.App.Plugins.Registries.FilePath), StringComparison.Ordinal);
     }
 
+    [AvaloniaFact]
+    public async Task A_wiki_the_user_configured_is_reached_through_net_request_at_its_own_address_only()
+    {
+        using var rig = new NetworkRig();
+        rig.Secrets.Set($"textida:plugin:{PluginServices.WikiPluginId}:baseUrl", "http://wiki.example.test/");
+        rig.Secrets.Set($"textida:plugin:{PluginServices.WikiPluginId}:token", "token-not-for-the-log");
+        rig.Net.Sinkhole.Respond = _ => ("application/json", "{}"u8.ToArray());
+
+        Assert.Null(await rig.Window.OpenSourceAsync("nksis://wiki/docs/page-a")); // the stand-in answers nothing a page is made of
+        await rig.Settle(500);
+
+        await AssertOnlyAsync(rig, "wiki.example.test:80");
+    }
+
     /// <param name="viaDialog">The proxy is saved through File, Remote Files, Network Proxy; otherwise the policy file is written by something else and only its timestamp tells.</param>
     [AvaloniaTheory]
     [InlineData(true)]

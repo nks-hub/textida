@@ -26,8 +26,9 @@ internal sealed class NetworkRig : IDisposable
     public NetworkRig(bool proxy = true)
     {
         Net = new NetworkHarness();
+        // set before the services are built: the secrets of the plugins and the passwords of the connections must never reach the store of the machine
+        ((App)Avalonia.Application.Current!).Credentials = Secrets;
         App = TestApp.Prepare(Temp, Dialogs);
-        App.Credentials = Secrets;
         App.Remote = new RemoteServices(App.ProfileDirectory, Secrets);
         if (proxy) NetworkPolicy.Save(App.Remote.NetworkPolicyPath, Net.Sinkhole.Settings, null, Secrets);
         Window = App.CreateWindow(null);

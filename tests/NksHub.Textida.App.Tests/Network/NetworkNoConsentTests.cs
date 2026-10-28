@@ -176,6 +176,19 @@ public class NetworkNoConsentTests
     }
 
     [AvaloniaFact]
+    public async Task A_wiki_address_with_no_wiki_configured_connects_nowhere()
+    {
+        using var rig = new NetworkRig();
+
+        Assert.Null(await rig.Window.OpenSourceAsync("nksis://wiki/docs/page-a"));
+        await rig.Settle(500);
+
+        var report = await rig.Net.FinishAsync();
+        AssertSilent(report, rig);
+        AssertWatched(report, "NksHub.Textida.Plugins.Wiki");
+    }
+
+    [AvaloniaFact]
     public async Task The_token_estimate_of_a_selection_is_counted_here_under_every_rule_and_sends_nothing()
     {
         using var rig = new NetworkRig();
