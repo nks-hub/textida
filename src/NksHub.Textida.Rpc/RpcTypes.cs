@@ -5,8 +5,11 @@ namespace NksHub.Textida.Rpc;
 /// <summary>A JSON-RPC request id: either a number or a string. Ids of the two directions live in separate tables.</summary>
 public readonly record struct RpcId(long Number, string? Text)
 {
+    /// <summary>An id that is a number.</summary>
     public static RpcId FromNumber(long n) => new(n, null);
+    /// <summary>An id that is a string.</summary>
     public static RpcId FromText(string s) => new(0, s);
+    /// <summary>The id as it is written in the message.</summary>
     public override string ToString() => Text ?? Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
@@ -16,15 +19,25 @@ public readonly record struct RpcId(long Number, string? Text)
 /// </summary>
 public static class RpcErrorCodes
 {
+    /// <summary>The message is not valid JSON.</summary>
     public const int ParseError = -32700;
+    /// <summary>The message is not a valid JSON-RPC request.</summary>
     public const int InvalidRequest = -32600;
+    /// <summary>The peer has no such method.</summary>
     public const int MethodNotFound = -32601;
+    /// <summary>The parameters are missing, of a wrong type or out of range.</summary>
     public const int InvalidParams = -32602;
+    /// <summary>The handler failed in a way the caller cannot fix.</summary>
     public const int InternalError = -32603;
+    /// <summary>The request was cancelled by the peer.</summary>
     public const int RequestCancelled = -32800;
+    /// <summary>A message is larger than the limit of the connection.</summary>
     public const int MessageTooLarge = -32011;
+    /// <summary>The peer has as many requests running as the limit of the connection allows.</summary>
     public const int TooManyRequests = -32012;
+    /// <summary>A result holds more items than the limit of the connection allows.</summary>
     public const int TooManyResults = -32013;
+    /// <summary>The messages being processed hold more memory than the limit of the connection allows.</summary>
     public const int SessionMemoryExceeded = -32014;
     /// <summary>A handler gave up waiting (a <see cref="TimeoutException"/>, such as <see cref="RpcTimeoutException"/> of a call it forwarded); the peer is told this instead of an internal error.</summary>
     public const int RequestTimeout = -32015;
@@ -33,7 +46,9 @@ public static class RpcErrorCodes
 /// <summary>An error that travels as a JSON-RPC error object.</summary>
 public class RpcException(int code, string message) : Exception(message)
 {
+    /// <summary>The JSON-RPC error code (<see cref="RpcErrorCodes"/>, or the codes of an API).</summary>
     public int Code { get; } = code;
+    /// <summary>The id of the request the error answers, when it came from a peer.</summary>
     public RpcId? Id { get; init; }
     /// <summary>Raw JSON of the error "data" member, if the peer sent one.</summary>
     public string? DataJson { get; init; }
@@ -42,9 +57,11 @@ public class RpcException(int code, string message) : Exception(message)
 /// <summary>The byte stream can no longer be split into frames; the connection is unusable.</summary>
 public sealed class RpcFramingException(string message) : IOException(message);
 
+/// <summary>The connection ended before the answer came; the call may or may not have had its effect.</summary>
 public sealed class RpcConnectionClosedException(Exception? cause)
     : IOException("The JSON-RPC connection is closed" + (cause is null ? "." : ": " + cause.Message), cause);
 
+/// <summary>The peer did not answer a request within its timeout.</summary>
 public sealed class RpcTimeoutException(string method, TimeSpan? timeout)
     : TimeoutException($"No response to '{method}' within {timeout}.");
 
@@ -81,6 +98,7 @@ public static class RpcRequestContext
 {
     private static readonly AsyncLocal<RpcId?> Current = new();
 
+    /// <summary>The id of the request being served on this logical thread of control, or null outside a handler.</summary>
     public static RpcId? CurrentId
     {
         get => Current.Value;
@@ -93,5 +111,6 @@ public interface IRpcHandler
 {
     /// <summary>Returns the raw JSON result (null means JSON null). Throw <see cref="RpcException"/> for a protocol error.</summary>
     ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement parameters, CancellationToken cancellation);
+    /// <summary>Handles a notification; no answer goes back.</summary>
     ValueTask HandleNotificationAsync(string method, JsonElement parameters);
 }

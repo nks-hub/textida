@@ -9,7 +9,9 @@
 
   <Import Project="Plugin.props" />
 
+  <!-- The SDK of the plugins that ship with the editor: the public SDK and the helpers that need the core of the editor (text codecs). -->
   <ItemGroup>
+    <ProjectReference Include="..\NksHub.Textida.Plugin.Sdk\NksHub.Textida.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
   </ItemGroup>
 

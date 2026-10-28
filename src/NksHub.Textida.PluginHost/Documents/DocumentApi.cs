@@ -125,18 +125,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     }
 
     /// <summary>The permission a method needs; null for the calls that only give something back (unsubscribe, release a snapshot).</summary>
-    private static string? Required(string method) => method switch
-    {
-        DocumentMethods.Unsubscribe or DocumentMethods.SnapshotRelease => null,
-        DocumentMethods.EditApply or DocumentMethods.SnippetInsert => DocumentPermissions.EditDirect,
-        DocumentMethods.EditPropose or DocumentMethods.WorkspaceEdit => DocumentPermissions.EditPropose,
-        DocumentMethods.ClipboardWrite => DocumentPermissions.ClipboardWrite,
-        DocumentMethods.VirtualOpen or DocumentMethods.VirtualUpdate or DocumentMethods.VirtualClose => DocumentPermissions.Virtual,
-        DocumentMethods.SourceRegister => DocumentPermissions.Source,
-        DocumentMethods.PreviewShow or DocumentMethods.PreviewClose => DocumentPermissions.Preview,
-        DocumentMethods.AgentOpen or DocumentMethods.AgentUpdate or DocumentMethods.AgentPermission or DocumentMethods.AgentClose => DocumentPermissions.AgentPanel,
-        _ =>DocumentPermissions.Read,
-    };
+    private static string? Required(string method) => PluginMethodPermissions.ForDocumentApi(method);
 
     /// <summary>The document a request is about: the one it names, or the one its snapshot was taken from. <see cref="GrantScope.Any"/> when there is none.</summary>
     private (GrantScope Scope, Guid? Document) ScopeOf(string pluginId, JsonElement p)

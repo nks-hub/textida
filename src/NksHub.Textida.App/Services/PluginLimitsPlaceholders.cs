@@ -417,7 +417,7 @@ internal static class PluginLimitsPlaceholders
         EventWindow = EventWindow,
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
         Restart = new RestartPolicy(MaxCrashes: 3, Window: TimeSpan.FromMinutes(5), BaseDelay: TimeSpan.FromSeconds(1), MaxDelay: TimeSpan.FromSeconds(30)),
-        ApiVersion = 1,
+        ApiVersion = NksHub.Textida.PluginSdk.PluginApi.Version,
         HandshakeTimeout = TimeSpan.FromSeconds(10),
         PingInterval = TimeSpan.FromSeconds(5),
         PingTimeout = TimeSpan.FromSeconds(5),

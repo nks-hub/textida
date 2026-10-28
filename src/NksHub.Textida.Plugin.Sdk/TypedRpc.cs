@@ -23,6 +23,7 @@ public static class TypedRpc
     public static Task<JsonElement> RequestAsync<TParams>(this JsonRpcDispatcher rpc, string method, TParams parameters, JsonTypeInfo<TParams> parametersInfo, CancellationToken cancellation = default) =>
         rpc.RequestAsync(method, JsonSerializer.SerializeToUtf8Bytes(parameters, parametersInfo), null, cancellation);
 
+    /// <summary>Sends a notification; the editor answers none.</summary>
     public static Task NotifyAsync<TParams>(this JsonRpcDispatcher rpc, string method, TParams parameters, JsonTypeInfo<TParams> parametersInfo, CancellationToken cancellation = default) =>
         rpc.NotifyAsync(method, JsonSerializer.SerializeToUtf8Bytes(parameters, parametersInfo), cancellation);
 }

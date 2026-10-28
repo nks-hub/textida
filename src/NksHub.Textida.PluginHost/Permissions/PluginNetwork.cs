@@ -17,7 +17,7 @@ public sealed record PluginNetworkOptions(TimeSpan Timeout, int MaxResponseBytes
 /// <param name="handler">Builds the handler of the network policy; it throws when the policy cannot be used.</param>
 public sealed class PluginNetwork(PluginPermissions permissions, Func<HttpClientHandler> handler, PluginNetworkOptions options, PluginCallLog log)
 {
-    public const string Request = "net/request";
+    public const string Request = PluginServiceMethods.NetRequest;
 
     private static readonly HashSet<string> Methods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"];
 

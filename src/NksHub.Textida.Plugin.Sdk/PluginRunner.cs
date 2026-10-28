@@ -1,5 +1,4 @@
 using System.Text.Json;
-using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost;
 using NksHub.Textida.Rpc;
 
@@ -9,9 +8,10 @@ namespace NksHub.Textida.PluginSdk;
 public static class PluginRunner
 {
     /// <summary>
-    /// Serves the plugin until the editor sends <c>exit</c>, closes the connection, or is gone (when the editor asked the plugin to look for it, see <see cref="ParentWatch"/>; this ends a plugin
+    /// Serves the plugin until the editor sends <c>exit</c>, closes the connection, or is gone (when the editor asked the plugin to look for it, in the environment of the process; this ends a plugin
     /// whose connection was never closed because the editor died). Returns the process exit code.
     /// </summary>
+    /// <param name="plugin">The plugin to serve.</param>
     /// <param name="limits">Message and queue limits of the connection; they are an owner decision, so there is no default.</param>
     /// <param name="input">Defaults to standard input.</param>
     /// <param name="output">Defaults to standard output.</param>
@@ -21,7 +21,7 @@ public static class PluginRunner
         await using var rpc = new JsonRpcDispatcher(input ?? Console.OpenStandardInput(), output ?? Console.OpenStandardOutput(), RpcProtocols.Plugin, limits, handler);
         plugin.Rpc = rpc;
         using var stopWatching = new CancellationTokenSource();
-        var parentGone = ParentWatch.FromEnvironment() is { } watch ? watch.WaitUntilGoneAsync(stopWatching.Token) : Task.Delay(Timeout.Infinite, stopWatching.Token);
+        var parentGone = EditorWatch.FromEnvironment() is { } watch ? watch.WaitUntilGoneAsync(stopWatching.Token) : Task.Delay(Timeout.Infinite, stopWatching.Token);
         await Task.WhenAny(rpc.Completion, handler.Exited.Task, parentGone).ConfigureAwait(false);
         stopWatching.Cancel();
         return 0;

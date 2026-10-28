@@ -22,28 +22,6 @@ public readonly record struct GrantScope(ScopeKind Kind, string? Id = null)
 
 public sealed record PermissionGrant(string PluginId, string Permission, GrantScope Scope);
 
-/// <summary>Permissions outside the document API.</summary>
-public static class PluginPermissionNames
-{
-    /// <summary>Run a command of another plugin. The scope is the target plugin.</summary>
-    public const string CommandExecute = "command.execute";
-
-    /// <summary>Send HTTP requests through the editor (<c>net/request</c>), which applies its network policy and proxy. The scope is all.</summary>
-    public const string Network = "network";
-
-    /// <summary>
-    /// What a manifest may ask for; the user grants each one to the plugin in the plugin manager, for all documents. <see cref="DocumentPermissions.SecretsReveal"/> (one document)
-    /// and <see cref="CommandExecute"/> (one target plugin) have a narrower scope and are granted when needed, not declared.
-    /// </summary>
-    public static IReadOnlyList<string> Declarable { get; } =
-    [
-        DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
-        DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles, DocumentPermissions.Source,
-        DocumentPermissions.Preview, DocumentPermissions.AgentPanel,
-        DocumentPermissions.LanguageServer, Network,
-    ];
-}
-
 /// <summary>
 /// Grants per plugin, permission and scope. A request enters through <see cref="Enter"/>: no grant is a <see cref="DocumentErrorCodes.PermissionDenied"/> error,
 /// never an empty result. Revoking a grant cancels every request in flight that the grant allowed and no other grant still allows.

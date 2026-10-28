@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- A public member without an XML comment fails the build (CS1591). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackageId>NksHub.Textida.Plugin.Sdk</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>NKS Hub</Authors>
+    <Description>C# SDK for plugins of the Textida editor: the plugin protocol, the document and UI clients, and the analyzer that keeps a NativeAOT plugin free of reflection.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>textida;plugin;sdk;nativeaot</PackageTags>
+    <!-- the connection layer ships inside this package: it is a project of this repository and has no package of its own -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);BundleConnectionLayer</TargetsForTfmSpecificBuildOutput>
+    <NoPackageAnalysis>false</NoPackageAnalysis>
+  </PropertyGroup>
+
+  <Import Project="build\NksHub.Textida.Plugin.Sdk.props" />
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NksHub.Textida.Plugin.Tests" />
+    <ProjectReference Include="..\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\NksHub.Textida.PluginSdk.Analyzers\NksHub.Textida.PluginSdk.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="build\NksHub.Textida.Plugin.Sdk.props" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+
+  <Target Name="BundleConnectionLayer">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'NksHub.Textida.Rpc' And ('%(Extension)' == '.dll' Or '%(Extension)' == '.xml')" />
+    </ItemGroup>
+  </Target>
+
+  <!-- the analyzer that bans reflection travels with the package, so a project that references it gets NKSPLG001 -->
+  <Target Name="PackAnalyzer" BeforeTargets="_GetPackageFiles" DependsOnTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <None Include="@(Analyzer->WithMetadataValue('Filename', 'NksHub.Textida.PluginSdk.Analyzers'))" Pack="true" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>

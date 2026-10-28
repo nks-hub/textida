@@ -30,6 +30,12 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
     int _closed;
     int _lateResponses;
 
+    /// <summary>Starts reading <paramref name="input"/> and serving <paramref name="handler"/>; answers and requests go to <paramref name="output"/>.</summary>
+    /// <param name="input">The stream the peer writes to.</param>
+    /// <param name="output">The stream the peer reads from.</param>
+    /// <param name="protocol">Framing, cancel and progress rules of the connection (<see cref="RpcProtocols.Plugin"/> for a plugin).</param>
+    /// <param name="limits">Quotas of the connection; they have no defaults.</param>
+    /// <param name="handler">Receives what the peer sends.</param>
     public JsonRpcDispatcher(Stream input, Stream output, RpcProtocol protocol, RpcLimits limits, IRpcHandler handler)
     {
         limits.Validate();
@@ -49,11 +55,17 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
     public Task Completion => _completion.Task;
     /// <summary>Why the connection ended; null for a clean end of stream.</summary>
     public Exception? Fault { get; private set; }
+    /// <summary>True once the connection has ended.</summary>
     public bool IsClosed => Volatile.Read(ref _closed) == 1;
+    /// <summary>The protocol the connection speaks.</summary>
     public RpcProtocol Protocol => _protocol;
+    /// <summary>Requests sent and not answered yet.</summary>
     public int PendingOutgoing { get { lock (_gate) return _pending.Count; } }
+    /// <summary>Requests of the peer being handled now.</summary>
     public int InFlightIncoming { get { lock (_gate) return _incoming.Count; } }
+    /// <summary>Bytes queued for writing.</summary>
     public long QueuedOutgoingBytes => _outBudget.Used;
+    /// <summary>Bytes of messages of the peer being processed now.</summary>
     public long InboundBytesInUse => Interlocked.Read(ref _inboundBytes);
     /// <summary>Bytes of errors and cancels owed to the peer that are not written yet.</summary>
     internal long QueuedReplyBytes => Interlocked.Read(ref _replyBytes);
@@ -104,6 +116,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         finally { _pendingSlots.Release(); }
     }
 
+    /// <summary>Sends a notification, which has no answer. It waits for room in the outgoing queue.</summary>
     public async Task NotifyAsync(string method, ReadOnlyMemory<byte> paramsJson = default, CancellationToken ct = default)
     {
         ThrowIfClosed();
@@ -431,6 +444,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         _completion.TrySetResult();
     }
 
+    /// <summary>Ends the connection and closes the output stream; waits up to a second for the background loops to stop.</summary>
     public async ValueTask DisposeAsync()
     {
         Close(null);
