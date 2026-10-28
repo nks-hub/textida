@@ -1435,6 +1435,40 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.7.1, P3.6.6, P3.6.8
   - **Odhad:** bez odhadu
   - **Umístění:** mimo jádro (distribuce)
+- [ ] **P3.7.8** Sestavení balíku a instalátor pro macOS
+  - **Co a proč:** Majitel 28. 10. 2026 chce instalátor a builder pro macOS.
+  - **Dnešní stav:**
+    - Windows má `tools/BuildWindowsPackage.cs` (ZIP a TextidaSetup.exe), `src/NksHub.Textida.Setup` a `src/NksHub.Textida.Install`.
+    - Pro macOS v produktu nic není: žádný balík `.app`, `Info.plist`, ikona `.icns` ani DMG.
+    - AOT publikace pro `osx-arm64` i `osx-x64` funguje. Ověřeno 28. 10. 2026 na macOS 15 arm64 a x64 pod Rosettou, včetně 9 přibalených pluginů.
+  - **Návrh:**
+    - Builder `tools/BuildMacPackage.cs` ve stylu Windows builderu: `--version V --rid osx-arm64|osx-x64 --output DIR`.
+      - AOT publikace aplikace a pluginů a struktura `Textida.app` (`Contents/MacOS`, `Contents/Resources`).
+      - `Info.plist`: bundle ID z P3.7.6 (do rozhodnutí pracovní), `LSMinimumSystemVersion` 14.0, typy dokumentů pro přidružení, `NSHighResolutionCapable`.
+      - Ikona `.icns` z `tools/MakeIcon.cs` (velikosti 16–1024 včetně @2x).
+      - Podpis ad-hoc (`codesign -s -`), aby balík na Apple Silicon vůbec běžel.
+      - Výstup DMG s přetažením do Aplikací a ZIP.
+      - Builder běží jen na macOS (`hdiutil`, `iconutil`, `codesign`, `lipo`). Na Windows srozumitelně skončí.
+      - Zapsat rozhodnutí: jeden univerzální balík (`lipo`), nebo dva podle architektury.
+    - Instalace: na macOS je zvykem DMG, proto volby jako u TextidaSetup.exe (P3.7.7) nabídne aplikace sama, v panelu Systém v nastavení (P3.6.15):
+      - příkaz `textida` v terminálu (odkaz do `/usr/local/bin` nebo `~/bin`);
+      - akce „Otevřít v Textidě“ ve Finderu (Quick Action nebo Services);
+      - přidružení přípon přes Launch Services;
+      - odebrání všeho jedním tlačítkem.
+    - Odinstalace je smazání aplikace. Nastavení zůstane, pokud ho uživatel nesmaže.
+    - Podpis Developer ID a notarizace zůstávají v PR.3.1. Během vývoje se nedělají (rozhodnutí majitele). Do té doby nápověda popíše první spuštění nepodepsané aplikace.
+  - **Funkce:** F112, F113 (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Builder na Macu vyrobí DMG a ZIP pro obě architektury. `AotCheck --package` ověří obsah a `minos` všech Mach-O souborů ≤ 14 (PR.1.2).
+    - Instalace z DMG do Aplikací a první start projdou na macOS 14 i 15. Nativní Intel podle výjimky P1.1.6.
+    - Aplikace v balíku najde všechny přibalené pluginy.
+    - Soubor otevřený z Finderu nebo příkazem `textida` se otevře v běžící instanci.
+    - Každá volba integrace se projeví a jde vrátit.
+    - Smazání aplikace a odebrání integrace nenechá v systému nic kromě nastavení.
+    - Záznam uvádí hash balíku a verzi OS.
+  - **Závisí na:** P3.7.1, P3.7.6, P3.6.8, P3.6.15 (podpis pro vydání PR.3.1)
+  - **Odhad:** bez odhadu
+  - **Umístění:** mimo jádro (distribuce)
 
 ## P3b – základ pluginů
 
@@ -3368,7 +3402,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 52 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 53 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 26 | 24–37 (neúplné) |
@@ -3379,7 +3413,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **341** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **342** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
