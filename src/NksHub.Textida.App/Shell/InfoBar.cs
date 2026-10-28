@@ -3,16 +3,18 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>A non-modal strip with a message and a few actions, shown above the editor (external change, restore, warnings).</summary>
+/// <summary>A non-modal strip with a message and a few actions, shown above the editor (external change, restore, warnings). F1 inside it opens <c>helpTopic</c>.</summary>
 internal sealed class InfoBar : Border
 {
-    public InfoBar(string message, IReadOnlyList<(string Label, Action Click)> actions, bool warning = false, Action? onClose = null)
+    public InfoBar(string message, IReadOnlyList<(string Label, Action Click)> actions, bool warning = false, Action? onClose = null, string? helpTopic = null)
     {
         Message = message;
+        if (helpTopic is not null) HelpContext.Set(this, helpTopic);
         Classes.Add("infobar");
         if (warning) Classes.Add("warning");
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };

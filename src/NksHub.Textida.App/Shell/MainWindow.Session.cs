@@ -136,7 +136,7 @@ internal sealed partial class MainWindow
         var message = Loc.Plural(K.RestoreBar, back, ("unsaved", unsaved));
         if (failed > 0) message += " " + Loc.Plural(K.RestoreBarFailed, failed);
         var details = recovery.Documents.Select(DescribeRecovered).ToList();
-        ShowNotice("restore", message, [(Loc.Get(K.RestoreDetails), () => _ = _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.RestoreTitle), message, [new DialogButton(Loc.Get(K.DialogClose), IsDefault: true, IsCancel: true)], details)))]);
+        ShowNotice("restore", message, [(Loc.Get(K.RestoreDetails), () => _ = _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.RestoreTitle), message, [new DialogButton(Loc.Get(K.DialogClose), IsDefault: true, IsCancel: true)], details, "recovery")))]);
     }
 
     // ---- large changes that wait for a decision ----
@@ -181,7 +181,7 @@ internal sealed partial class MainWindow
         string name = NameOfRecovered(pending);
         var ask = new ChoiceRequest(Loc.Get(K.RecoverLargeDiscardTitle),
             Loc.Get(K.RecoverLargeDiscardMessage, ("name", name), ("size", OpenDocument.FormatSize(pending.PendingBytes))),
-            [new DialogButton(Loc.Get(K.RecoverLargeDiscard)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
+            [new DialogButton(Loc.Get(K.RecoverLargeDiscard)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], HelpTopic: "recovery");
         if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return;
         DismissNotice(PendingKey(pending));
         await _app.Journal.DiscardPendingAsync(pending.DocId);

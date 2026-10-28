@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Compare;
@@ -25,6 +26,9 @@ internal sealed partial class DiffView : DockPanel
 {
     private const double GutterWidth = 48;
 
+    /// <summary>The digit keys 1 to 9 press the first nine buttons of the plugin.</summary>
+    private const int MaxActionKeys = 9;
+
     private readonly CompareSession _session;
     private readonly DiffSurface _surface;
     private readonly ScrollBar _bar = new() { Orientation = Orientation.Vertical, Minimum = 0, SmallChange = 1, AllowAutoHide = false };
@@ -37,11 +41,12 @@ internal sealed partial class DiffView : DockPanel
     private readonly List<(DiffAction Action, Button Button)> _actions = [];
     private EditorOptions _options;
     private long _top;
-    private int _current = -1;
+    private int _current = -1, _restoreHunk = -1;
     private bool _syncingBar, _shown;
 
     public DiffView(CompareSession session, EditorOptions options)
     {
+        HelpContext.Set(this, "compare.text");
         _session = session;
         _options = options;
         Focusable = true;
@@ -123,7 +128,10 @@ internal sealed partial class DiffView : DockPanel
 
     public IReadOnlyList<Button> ActionButtons => [.. _actions.Select(a => a.Button)];
 
-    /// <summary>Adds a button for each action of the plugin that opened the comparison, after the buttons of the view; each acts on the current difference.</summary>
+    /// <summary>
+    /// Adds a button for each action of the plugin that opened the comparison, after the buttons of the view; each acts on the current difference. The digit keys 1 to 9 press the buttons in order
+    /// while the view has the focus, and the buttons say which key is theirs.
+    /// </summary>
     public void SetActions(IReadOnlyList<DiffAction>? actions)
     {
         foreach (var (_, button) in _actions) _tools.Children.Remove(button);
@@ -136,6 +144,12 @@ internal sealed partial class DiffView : DockPanel
             button.Classes.Add("barbutton");
             button.Click += (_, _) => RunAction(number);
             AutomationProperties.SetName(button, action.Title);
+            if (number < MaxActionKeys)
+            {
+                string key = (number + 1).ToString();
+                AutomationProperties.SetAcceleratorKey(button, key);
+                ToolTip.SetTip(button, Loc.Get(K.CompareActionTip, ("title", action.Title), ("key", key)));
+            }
             _tools.Children.Insert(at++, button);
             _actions.Add((action, button));
         }
@@ -216,12 +230,24 @@ internal sealed partial class DiffView : DockPanel
         _debounce.Start();
     }
 
+    /// <summary>
+    /// Makes the difference with this number the current one once the first comparison ends (or the last one when there are fewer): a comparison that takes the place of another one
+    /// opened with the same key carries on where the user was, and a hunk that was taken away leaves the next one current.
+    /// </summary>
+    public void RestoreHunk(int hunk) => _restoreHunk = hunk;
+
     private void OnUpdated()
     {
         if (_session.Diff is { } diff)
         {
             _current = diff.Hunks.Count == 0 ? -1 : Math.Min(_current, diff.Hunks.Count - 1);
             UpdateScrollRange();
+            if (_restoreHunk >= 0 && diff.Hunks.Count > 0)
+            {
+                int hunk = Math.Min(_restoreHunk, diff.Hunks.Count - 1);
+                _restoreHunk = -1;
+                SelectHunk(hunk);
+            }
         }
         UpdateState();
         _surface.InvalidateVisual();
@@ -389,6 +415,12 @@ internal sealed partial class DiffView : DockPanel
     {
         base.OnKeyDown(e);
         if (e.KeyModifiers != KeyModifiers.None) return;
+        int digit = e.Key is >= Key.D1 and <= Key.D9 ? e.Key - Key.D1 : e.Key is >= Key.NumPad1 and <= Key.NumPad9 ? e.Key - Key.NumPad1 : -1;
+        if (digit >= 0)
+        {
+            e.Handled = RunAction(digit);
+            return;
+        }
         long page = Math.Max(1, VisibleRows - 1);
         switch (e.Key)
         {

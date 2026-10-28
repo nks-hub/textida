@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Markdown;
@@ -54,6 +55,7 @@ internal sealed partial class MainWindow
             e.Handled = true;
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         _previewPanel.Classes.Add("outputpanel");
+        HelpContext.Set(_previewPanel, "tools.markdown");
         _previewPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), _previewScroll } };
         return _previewPanel;
     }

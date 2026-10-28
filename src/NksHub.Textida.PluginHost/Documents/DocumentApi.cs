@@ -75,7 +75,11 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     private sealed record Pinned(string Id, DocumentSnapshot Snap, int Bom, DateTimeOffset Expires, Lazy<IReadOnlyList<ByteRange>>? Secrets, long Retained);
 
     /// <param name="Secrets">The byte ranges to hide from this plugin; null when the document has none or the plugin may see them.</param>
-    private sealed record Target(DocumentSnapshot Snap, int Bom, IReadOnlyList<ByteRange>? Secrets);
+    /// <param name="Name">What heads a side that is no document (the name the plugin gave, the name of the file); null for a document.</param>
+    /// <param name="File">The file a side was read from; null for anything else.</param>
+    /// <param name="Detached">The side is content of the plugin or a file, not a revision of an open document.</param>
+    /// <param name="Pinned">The side comes from a snapshot the plugin holds, so it stays what it is whatever the document does.</param>
+    private sealed record Target(DocumentSnapshot Snap, int Bom, IReadOnlyList<ByteRange>? Secrets, string? Name = null, DiffFile? File = null, bool Detached = false, bool Pinned = false);
 
     /// <summary>The secrets of a revision of a secrets file (found on first use), or null for any other document. Call on the thread that owns the document.</summary>
     private Lazy<IReadOnlyList<ByteRange>>? SecretsOf(Document d, DocumentSnapshot snap, int bom) =>
@@ -374,7 +378,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             int at = list.FindIndex(match);
             if (at < 0) return null;
             var pin = list[at] = list[at] with { Expires = _time.GetUtcNow() + _options.SnapshotLifetime };
-            return new Target(pin.Snap, pin.Bom, Hidden(pluginId, pin.Snap.DocumentId, pin.Secrets));
+            return new Target(pin.Snap, pin.Bom, Hidden(pluginId, pin.Snap.DocumentId, pin.Secrets), Pinned: true);
         }
     }
 

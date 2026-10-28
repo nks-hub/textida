@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
@@ -34,6 +35,7 @@ internal sealed class HexInspectorPanel : Border
 
     public HexInspectorPanel(HexView owner)
     {
+        HelpContext.Set(this, "hex.inspector");
         _owner = owner;
         Classes.Add("sidepanel");
         Width = 260;
@@ -173,7 +175,10 @@ internal sealed class HexInspectorPanel : Border
                 string name = KindName(_kinds[i]), shown = hidden ? Loc.Get(K.SecretHiddenValue) : Show(v);
                 var row = new Grid { ColumnDefinitions = new ColumnDefinitions("100,*") };
                 row.Children.Add(new TextBlock { Text = name, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center });
-                var value = new TextBlock { Text = shown, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, FontFamily = new Avalonia.Media.FontFamily(_owner.Options.FontFamily) };
+                var value = new TextBlock { Text = shown, VerticalAlignment = VerticalAlignment.Center, FontFamily = new Avalonia.Media.FontFamily(_owner.Options.FontFamily) };
+                // a decoded value is data and is cut with an ellipsis; a message of the program (incomplete, invalid, hidden) wraps so that it is read whole in any language
+                if (v.Status == InspectorStatus.Ok && !hidden) value.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
+                else value.TextWrapping = Avalonia.Media.TextWrapping.Wrap;
                 if (v.Status != InspectorStatus.Ok) value.Opacity = 0.65;
                 Grid.SetColumn(value, 1);
                 row.Children.Add(value);

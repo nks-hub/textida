@@ -389,6 +389,186 @@ public class PluginDiffVirtualTests : IDisposable
         Assert.Equal(2, (await CommandsAsync(2)).Count);
     }
 
+    /// <summary>A working tree document with two changed lines against its first revision, exposed to the plugin: the snapshot of the first revision, its revision, and the revision compared.</summary>
+    private async Task<(DocTab Tree, string Snapshot, long Older, long Revision)> TreeWithTwoChangesAsync()
+    {
+        var tree = _w.NewDocument();
+        tree.Editor!.Document.Text = "a\nb\nc\nd\n";
+        _app.Plugins.Documents.Expose(tree.Doc.Doc, tree.Editor.ByteSelections);
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        var snapshot = (await Editor(DocumentMethods.SnapshotCreate, $"{{\"document\":\"{tree.Doc.Doc.Id}\"}}")).GetProperty("snapshot").GetString()!;
+        long older = tree.Doc.Doc.Revision;
+        tree.Editor.Document.Replace(2, 1, "B");
+        tree.Editor.Document.Replace(6, 1, "D");
+        return (tree, snapshot, older, tree.Doc.Doc.Revision);
+    }
+
+    [AvaloniaFact]
+    public async Task A_digit_key_presses_the_button_and_the_request_names_the_difference_and_both_sides()
+    {
+        await StartPluginAsync();
+        var (tree, snapshot, older, revision) = await TreeWithTwoChangesAsync();
+
+        await Editor(DocumentMethods.DiffOpen, $"{{\"left\":{{\"snapshot\":\"{snapshot}\"}},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{revision}}},\"key\":\"k\"," +
+            "\"actions\":[{\"command\":\"x.one\",\"title\":\"One\"},{\"command\":\"x.two\",\"title\":\"Two\",\"refresh\":\"x.show\"}]}");
+        var view = (DiffView)_w.Active!.Custom!;
+        await view.Session.RefreshAsync();
+        Assert.Equal(new[] { "One", "Two" }, view.ActionButtons.Select(b => b.Content?.ToString()));
+        Assert.Equal(Loc.Get(K.CompareActionTip, ("title", "Two"), ("key", "2")), Avalonia.Controls.ToolTip.GetTip(view.ActionButtons[1]));
+        Assert.Equal("2", Avalonia.Automation.AutomationProperties.GetAcceleratorKey(view.ActionButtons[1]));
+
+        // no difference is chosen yet: the key does nothing
+        view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D2 });
+        view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D3 });
+        Assert.Empty((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray());
+
+        view.SelectHunk(1);
+        view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D2 });
+        var commands = await CommandsAsync(2);
+        var two = commands[0].GetProperty("params");
+        Assert.Equal(("x.two", 6L), (two.GetProperty("command").GetString(), two.GetProperty("offset").GetInt64()));
+        var diff = two.GetProperty("diff");
+        Assert.Equal(("k", 1, 2), (diff.GetProperty("key").GetString(), diff.GetProperty("hunk").GetInt32(), diff.GetProperty("hunkCount").GetInt32()));
+        var right = diff.GetProperty("right");
+        Assert.Equal((tree.Doc.Doc.Id.ToString(), revision, 3L, 1L, 6L, 8L),
+            (right.GetProperty("document").GetString(), right.GetProperty("revision").GetInt64(), right.GetProperty("startLine").GetInt64(), right.GetProperty("lines").GetInt64(), right.GetProperty("start").GetInt64(), right.GetProperty("end").GetInt64()));
+        var left = diff.GetProperty("left");
+        Assert.Equal((older, 3L, 6L), (left.GetProperty("revision").GetInt64(), left.GetProperty("startLine").GetInt64(), left.GetProperty("start").GetInt64()));
+        var refresh = commands[1].GetProperty("params");
+        Assert.Equal(("x.show", "k"), (refresh.GetProperty("command").GetString(), refresh.GetProperty("diff").GetProperty("key").GetString()));
+        Assert.False(refresh.GetProperty("diff").TryGetProperty("hunk", out _));
+    }
+
+    [AvaloniaFact]
+    public async Task A_comparison_of_text_the_plugin_supplied_runs_its_button_without_a_document()
+    {
+        await StartPluginAsync();
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+
+        await Editor(DocumentMethods.DiffOpen, "{\"left\":{\"text\":\"a\\nb\\n\",\"name\":\"Base\"},\"right\":{\"text\":\"a\\nB\\n\"},\"key\":\"t\"," +
+            "\"actions\":[{\"command\":\"x.take\",\"title\":\"Take\",\"refresh\":\"x.show\"}]}");
+        var view = (DiffView)_w.Active!.Custom!;
+        await view.Session.RefreshAsync();
+        Assert.Equal(("Base", Loc.Get(K.CompareSideRight)), (view.LeftTitleText, view.RightTitleText));
+        Assert.Equal([new DiffHunk(1, 1, 1, 1)], view.Session.Diff!.Hunks);
+
+        view.SelectHunk(0);
+        view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D1 });
+        var commands = await CommandsAsync(2);
+        var take = commands[0].GetProperty("params");
+        Assert.Equal("x.take", take.GetProperty("command").GetString());
+        Assert.False(take.TryGetProperty("document", out _));
+        var diff = take.GetProperty("diff");
+        Assert.Equal(("t", 0, 1), (diff.GetProperty("key").GetString(), diff.GetProperty("hunk").GetInt32(), diff.GetProperty("hunkCount").GetInt32()));
+        Assert.False(diff.GetProperty("right").TryGetProperty("document", out _));
+        Assert.Equal((1L, 1L, 2L, 4L), (diff.GetProperty("right").GetProperty("startLine").GetInt64(), diff.GetProperty("right").GetProperty("lines").GetInt64(),
+            diff.GetProperty("right").GetProperty("start").GetInt64(), diff.GetProperty("right").GetProperty("end").GetInt64()));
+        var refresh = commands[1].GetProperty("params");
+        Assert.Equal(("x.show", "t"), (refresh.GetProperty("command").GetString(), refresh.GetProperty("diff").GetProperty("key").GetString()));
+        Assert.False(refresh.TryGetProperty("document", out _));
+    }
+
+    [AvaloniaFact]
+    public async Task A_button_is_refused_once_the_live_left_side_moved_on_but_not_for_a_pinned_one()
+    {
+        await StartPluginAsync();
+        var tree = _w.NewDocument();
+        tree.Editor!.Document.Text = "a\nB\n";
+        _app.Plugins.Documents.Expose(tree.Doc.Doc, tree.Editor.ByteSelections);
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        var index = VirtualTab(await Editor(DocumentMethods.VirtualOpen, OpenParams("index", "file.txt", "a\nb\n", "Index")));
+        var pinned = (await Editor(DocumentMethods.SnapshotCreate, $"{{\"document\":\"{index.Doc.Doc.Id}\"}}")).GetProperty("snapshot").GetString();
+        string Open(string left, string key) =>
+            $"{{\"left\":{left},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{tree.Doc.Doc.Revision}}},\"key\":\"{key}\",\"actions\":[{{\"command\":\"x.take\",\"title\":\"Take\"}}]}}";
+
+        await Editor(DocumentMethods.DiffOpen, Open($"{{\"document\":\"{index.Doc.Doc.Id}\",\"revision\":{index.Doc.Doc.Revision}}}", "live"));
+        var live = (DiffView)_w.Active!.Custom!;
+        await live.Session.RefreshAsync();
+        await Editor(DocumentMethods.DiffOpen, Open($"{{\"snapshot\":\"{pinned}\"}}", "pinned"));
+        var held = (DiffView)_w.Active!.Custom!;
+        await held.Session.RefreshAsync();
+        Assert.NotSame(live, held);
+
+        // the plugin put a new index in after both comparisons were made
+        await Editor(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{index.Doc.Doc.Id}\",\"text\":\"a\\nb\\nc\\n\"}}");
+        live.SelectHunk(0);
+        Assert.True(live.RunAction(0));
+        Assert.Equal(Loc.Get(K.CompareActionStale), _w.StatusMessageText);
+        Assert.Empty((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray());
+
+        held.SelectHunk(0);
+        Assert.True(held.RunAction(0));
+        Assert.Equal("x.take", (await CommandsAsync(1))[0].GetProperty("params").GetProperty("command").GetString());
+    }
+
+    [AvaloniaFact]
+    public async Task A_button_refused_because_the_index_moved_works_when_the_comparison_is_opened_again_on_the_new_index()
+    {
+        await StartPluginAsync();
+        var tree = _w.NewDocument();
+        tree.Editor!.Document.Text = "a\nB\n";
+        _app.Plugins.Documents.Expose(tree.Doc.Doc, tree.Editor.ByteSelections);
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        var index = VirtualTab(await Editor(DocumentMethods.VirtualOpen, OpenParams("index", "file.txt", "a\nb\n", "Index")));
+        string Open() => $"{{\"left\":{{\"document\":\"{index.Doc.Doc.Id}\",\"revision\":{index.Doc.Doc.Revision}}},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{tree.Doc.Doc.Revision}}}," +
+            "\"key\":\"git\",\"actions\":[{\"command\":\"x.take\",\"title\":\"Take\"}]}";
+
+        await Editor(DocumentMethods.DiffOpen, Open());
+        var before = Assert.Single(_w.CompareViews);
+        await before.Session.RefreshAsync();
+
+        // a click in the gutter stages a line: the index of the plugin is another revision, and the old comparison sends nothing
+        await Editor(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{index.Doc.Doc.Id}\",\"text\":\"a\\nB\\nc\\n\"}}");
+        before.SelectHunk(0);
+        Assert.True(before.RunAction(0));
+        Assert.Equal(Loc.Get(K.CompareActionStale), _w.StatusMessageText);
+        Assert.Empty((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray());
+
+        // the plugin opens the comparison again on the index as it is now, in the place of the old one, and the button works
+        await Editor(DocumentMethods.DiffOpen, Open());
+        var after = Assert.Single(_w.CompareViews);
+        Assert.NotSame(before, after);
+        await after.Session.RefreshAsync();
+        after.SelectHunk(0);
+        Assert.True(after.RunAction(0));
+        Assert.Equal("x.take", (await CommandsAsync(1))[0].GetProperty("params").GetProperty("command").GetString());
+    }
+
+    [AvaloniaFact]
+    public async Task A_comparison_opened_again_with_the_same_key_stays_on_the_difference_the_user_was_on()
+    {
+        await StartPluginAsync();
+        var (tree, snapshot, _, revision) = await TreeWithTwoChangesAsync();
+        string Open() => $"{{\"left\":{{\"snapshot\":\"{snapshot}\"}},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{revision}}},\"key\":\"k\"}}";
+        await Editor(DocumentMethods.DiffOpen, Open());
+        var first = Assert.Single(_w.CompareViews);
+        await first.Session.RefreshAsync();
+        first.SelectHunk(1);
+
+        await Editor(DocumentMethods.DiffOpen, Open());
+
+        var again = Assert.Single(_w.CompareViews);
+        Assert.NotSame(first, again);
+        await again.Session.RefreshAsync();
+        Assert.Equal(1, again.CurrentHunk);
+    }
+
+    [AvaloniaFact]
+    public void A_file_side_has_changed_when_the_file_is_not_what_was_read()
+    {
+        var path = Path.Combine(_temp.Path, "side.txt");
+        File.WriteAllText(path, "one\n");
+        var info = new FileInfo(path);
+        var file = new DiffFile(path, info.Length, info.LastWriteTimeUtc);
+        Assert.False(NksHub.Textida.App.Services.DiffActionPayload.FileChanged(file));
+
+        File.WriteAllText(path, "one\ntwo\n");
+        Assert.True(NksHub.Textida.App.Services.DiffActionPayload.FileChanged(file));
+
+        File.Delete(path);
+        Assert.True(NksHub.Textida.App.Services.DiffActionPayload.FileChanged(file));
+    }
+
     [AvaloniaFact]
     public async Task Staging_one_hunk_changes_the_index_tab_and_an_index_that_moved_is_a_conflict()
     {

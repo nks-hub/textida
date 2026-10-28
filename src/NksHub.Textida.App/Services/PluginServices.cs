@@ -404,12 +404,33 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
 
     /// <summary>
     /// Runs the command of a comparison tab's button in the plugin that opened the comparison, for the document of its right side (see <see cref="DiffAction"/>): the request names the document,
-    /// its revision and file, and the <paramref name="offset"/> where the hunk starts. False when nothing was started.
+    /// its revision and file, the <paramref name="offset"/> where the hunk starts and <paramref name="diff"/>, more members of the request already written as JSON (see <see cref="DiffActionPayload"/>).
+    /// False when nothing was started.
     /// </summary>
-    public async Task<bool> RunDiffActionAsync(MainWindow window, DocTab tab, string pluginId, string command, long? offset)
+    public async Task<bool> RunDiffActionAsync(MainWindow window, DocTab tab, string pluginId, string command, long? offset, string diff = "")
     {
         var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
-        return (await ExecuteAsync(window, tab, pluginId, "onCommand:" + command, PluginName(pluginId), command, $",\"path\":\"{path}\"" + (offset is { } at ? $",\"offset\":{at}" : ""))).Started;
+        return (await ExecuteAsync(window, tab, pluginId, "onCommand:" + command, PluginName(pluginId), command, $",\"path\":\"{path}\"" + (offset is { } at ? $",\"offset\":{at}" : "") + diff)).Started;
+    }
+
+    /// <summary>
+    /// Runs the command of a comparison tab's button when the right side is no open document (text or a file the plugin supplied): the request has no document, only <paramref name="diff"/>
+    /// (see <see cref="DiffActionPayload"/>). The plugin learns nothing it did not give the editor. False when the plugin could not be reached.
+    /// </summary>
+    public async Task<bool> RunDiffActionAsync(MainWindow window, string pluginId, string command, string diff)
+    {
+        try
+        {
+            await _host.ActivateAsync("onCommand:" + command);
+            var request = $"{{\"command\":\"{JsonEncodedText.Encode(command)}\",\"language\":\"{Loc.Language}\"{diff}}}";
+            await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes(request));
+            return true;
+        }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
+        {
+            if (e is not PluginCrashedException) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", PluginName(pluginId)), ("reason", e.Message)), [], warning: true);
+            return false;
+        }
     }
 
     // ---- formatters: SQL, HTML entities, HTML Tidy ----
@@ -873,7 +894,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         try
         {
             await _host.ActivateAsync(activation);
-            var request = $"{{\"command\":\"{command}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"{extra}}}";
+            var request = $"{{\"command\":\"{JsonEncodedText.Encode(command)}\",\"document\":\"{document.Id}\",\"revision\":{document.Revision},\"language\":\"{Loc.Language}\"{extra}}}";
             result = (await _host.CallAsync(pluginId, "command/execute", Encoding.UTF8.GetBytes(request))).Clone();
         }
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)

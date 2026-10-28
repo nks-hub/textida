@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
@@ -71,6 +72,7 @@ internal sealed class HexStatsPanel : Border
 
     public HexStatsPanel(HexView owner)
     {
+        HelpContext.Set(this, "hex.map");
         _owner = owner;
         Classes.Add("sidepanel");
         Width = 280;

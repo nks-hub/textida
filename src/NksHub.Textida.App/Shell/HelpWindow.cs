@@ -48,6 +48,7 @@ internal sealed partial class HelpWindow : Window
         _search.AddHandler(KeyDownEvent, OnSearchKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         _list.SelectionChanged += (_, _) => { if (_list.SelectedIndex is var i and >= 0 && i < _shown.Count) Render(_shown[i]); };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
+        HelpContext.OnF1(this, "help.contents");
         Loc.Changed += OnLanguageChanged;
         Closed += (_, _) => Loc.Changed -= OnLanguageChanged;
         ApplyTexts();
@@ -108,7 +109,7 @@ internal sealed partial class HelpWindow : Window
         select ??= _currentId;
         _shown = HelpCatalog.Search(Loc.Language, Query);
         _list.Items.Clear();
-        foreach (var topic in _shown) _list.Items.Add(new ListBoxItem { Content = topic.Title });
+        foreach (var topic in _shown) _list.Items.Add(new ListBoxItem { Content = new TextBlock { Text = topic.Title, TextWrapping = TextWrapping.Wrap } }); // a long title goes to a second line
         _empty.IsVisible = _shown.Count == 0;
         if (_shown.Count == 0) return;
         int index = _shown.ToList().FindIndex(t => t.Id == select);

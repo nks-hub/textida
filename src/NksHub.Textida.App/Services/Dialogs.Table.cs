@@ -38,13 +38,13 @@ internal sealed partial class AvaloniaDialogs
             {
                 new TextBlock { Text = Loc.Get(K.TableRegionHint), TextWrapping = Avalonia.Media.TextWrapping.Wrap, Opacity = 0.8 },
                 new WrapPanel { Children = { delimiters[0].Radio, delimiters[1].Radio, delimiters[2].Radio, delimiters[3].Radio } },
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { quote, header } },
+                SideBySide(quote, header),
                 new TextBlock { Text = Loc.Get(K.LinesPreview), Opacity = 0.7 },
                 previewFrame,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(Loc.Get(K.TableRegionTitle), panel, 560);
+        var dialog = Frame(Loc.Get(K.TableRegionTitle), panel, 560, "table.region");
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); delimiters.First(d => d.Radio.IsChecked == true).Radio.Focus(); };

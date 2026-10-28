@@ -391,7 +391,7 @@ internal sealed partial class MainWindow
         var local = _app.Remote.Copies.LocalStateOf(copy);
         var actions = new List<(string, Action)> { (Loc.Get(K.RemoteBarCheck), () => _ = CheckRemoteAsync(tab)) };
         if (local == LocalState.Unsent) actions.Insert(0, (Loc.Get(K.RemoteBarUpload), () => _ = UploadRemoteAsync(tab)));
-        tab.ShowBar(new InfoBar(Loc.Get(local == LocalState.Unsent ? K.RemoteBarUnsent : K.RemoteBarOffline), actions, warning: local == LocalState.Unsent, onClose: () => ClearRemoteBar(tab)));
+        tab.ShowBar(new InfoBar(Loc.Get(local == LocalState.Unsent ? K.RemoteBarUnsent : K.RemoteBarOffline), actions, warning: local == LocalState.Unsent, onClose: () => ClearRemoteBar(tab), helpTopic: "remote.check"));
     }
 
     private async Task ShowRemoteBarAsync(DocTab tab, IRemoteClient client)
@@ -407,7 +407,7 @@ internal sealed partial class MainWindow
             (_, ServerState.Missing) => (Loc.Get(K.RemoteBarServerMissing), [(Loc.Get(K.RemoteBarUpload), () => _ = UploadRemoteAsync(tab))], true),
             _ => (Loc.Get(K.RemoteBarBoth), [(Loc.Get(K.RemoteBarDifferences), Diff)], true),
         };
-        tab.ShowBar(new InfoBar(bar.Message, bar.Actions, bar.Warning, () => ClearRemoteBar(tab)));
+        tab.ShowBar(new InfoBar(bar.Message, bar.Actions, bar.Warning, () => ClearRemoteBar(tab), helpTopic: "remote.check"));
     }
 
     // ---- commands on the active tab ----

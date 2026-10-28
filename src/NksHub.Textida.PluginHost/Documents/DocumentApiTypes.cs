@@ -71,10 +71,14 @@ public static class DocumentMethods
     public const string FindLog = "document/findLog";
     /// <summary>The symbols plugins published for a document.</summary>
     public const string SymbolsList = "symbols/list";
-    /// <summary>The line diff of two revisions (documents at their current revision or snapshots): hunks as lines and byte ranges.</summary>
+    /// <summary>
+    /// The line diff of two sides: each is a document at its current revision, a snapshot, <c>{"text"|"bytes", "encoding"?, "name"?}</c> the plugin supplies, or <c>{"file":"absolute path", "encoding"?}</c> below
+    /// the workspace (the <see cref="DocumentPermissions.WorkspaceFiles"/> grant). Hunks come as lines and byte ranges. A side over <see cref="DocumentApiOptions.MaxDiffBytes"/> is a <see cref="DocumentErrorCodes.DiffTooLarge"/>.
+    /// </summary>
     public const string DiffCompute = "diff/compute";
     /// <summary>
-    /// Shows the diff of two revisions in a comparison tab. Optional: <c>key</c>, so that opening the comparison again takes the place of the tab, and <c>actions</c>, buttons (<c>command</c>, <c>title</c>, optional
+    /// Shows the diff of two sides (as <see cref="DiffCompute"/>; a side of <c>text</c> or <c>bytes</c> needs the <see cref="DocumentPermissions.Virtual"/> grant, because the editor shows the plugin's own content) in a comparison tab.
+    /// Optional: <c>key</c>, so that opening the comparison again takes the place of the tab and keeps the difference the user was on, and <c>actions</c>, buttons (<c>command</c>, <c>title</c>, optional
     /// <c>refresh</c>) that run the plugin's command on the difference the tab is on (see <see cref="DiffAction"/>).
     /// </summary>
     public const string DiffOpen = "diff/open";
@@ -234,6 +238,8 @@ public static class DocumentErrorCodes
     public const int NoAgentSession = -32041;
     /// <summary>A <c>net/request</c> did not get an answer: no connection, the proxy refused it, a timeout, an answer over the limit, or a network policy the editor cannot read.</summary>
     public const int NetworkUnavailable = -32042;
+    /// <summary>A side of a diff is larger than the editor compares for a plugin (data: <c>limitBytes</c>, <c>bytes</c>).</summary>
+    public const int DiffTooLarge = -32043;
 }
 
 /// <summary>
@@ -304,6 +310,8 @@ public sealed record DocumentApiOptions
     public AgentPanelOptions? Agent { get; init; }
     /// <summary>Actions and the key of a comparison tab a plugin opens (<see cref="DocumentMethods.DiffOpen"/>); null means the editor takes neither and opens the tab without them.</summary>
     public DiffActionOptions? DiffActions { get; init; }
+    /// <summary>Largest side of a diff (<see cref="DocumentMethods.DiffCompute"/>, <see cref="DocumentMethods.DiffOpen"/>, <see cref="DocumentMethods.DiffStage"/>), in bytes; null sets no limit.</summary>
+    public long? MaxDiffBytes { get; init; }
 }
 
 /// <summary>Limits of the actions a plugin offers in a comparison tab: how many, and the longest key, command and title, in UTF-16 code units.</summary>
@@ -465,12 +473,22 @@ public interface IEditorTools
 /// <summary>What <see cref="DocumentMethods.VirtualOpen"/> says about a virtual document besides its content: the <paramref name="Key"/> the plugin chose, its <paramref name="Uri"/> (null when it gave none) and whether the user may edit it.</summary>
 public sealed record VirtualInfo(string Key, string? Uri, bool Editable);
 
-/// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
-public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title);
+/// <summary>A file a side was read from, as it was then: the editor refuses an action once the file on disk is not like this any more.</summary>
+public sealed record DiffFile(string Path, long Length, DateTime WriteTimeUtc);
 
 /// <summary>
-/// A button the plugin that opened a comparison adds to it. Pressed on a hunk, the editor sends the plugin <c>command/execute</c> with <paramref name="Command"/> for the document of the right side
-/// (its path and revision, and <c>offset</c>, the byte offset where the hunk starts on that side). When that went through, it sends <paramref name="Refresh"/> (null: nothing) the same way, without the offset.
+/// One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).
+/// A <paramref name="Detached"/> side is content the plugin supplied or a <paramref name="File"/> read for it; its snapshot belongs to no open document.
+/// A <paramref name="Pinned"/> side is a snapshot the plugin holds: it stays what it is when its document moves on (an old revision to compare with), where a side that is not pinned goes out of date with it.
+/// </summary>
+public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title, DiffFile? File = null, bool Detached = false, bool Pinned = false);
+
+/// <summary>
+/// A button the plugin that opened a comparison adds to it. Pressed on a hunk, the editor sends the plugin <c>command/execute</c> with <paramref name="Command"/>: the <c>diff</c> object names the
+/// comparison (<c>key</c>, <c>hunk</c> counted from 0 as the tab shows them, <c>hunkCount</c>) and both sides (<c>document</c> and <c>revision</c> of a side that is a document, and for the hunk
+/// <c>startLine</c>, <c>lines</c>, <c>start</c>, <c>end</c>). When the right side is an open document the request is for it as well (its <c>document</c>, <c>revision</c>, <c>path</c> and the <c>offset</c> where the hunk starts there);
+/// otherwise it has no document. Nothing is sent once the right side, or a left side that is not pinned, is a document at another revision than the comparison was made for, or a file side differs on disk. When the command went through, the editor sends
+/// <paramref name="Refresh"/> (null: nothing) the same way, without the hunk.
 /// </summary>
 public sealed record DiffAction(string Command, string Title, string? Refresh);
 

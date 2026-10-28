@@ -92,7 +92,7 @@ internal sealed partial class AvaloniaDialogs
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } },
             },
         };
-        var dialog = Frame(Loc.Get(K.HexBmDialogTitle), panel, 480);
+        var dialog = Frame(Loc.Get(K.HexBmDialogTitle), panel, 480, "hex.bookmarks");
         ok.Click += (_, _) => dialog.Close(new HexBookmarkForm(name.Text ?? "", Parsed(out _), string.IsNullOrWhiteSpace(comment.Text) ? null : comment.Text, initial.Type, initial.Region));
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { name.Focus(); name.SelectAll(); };

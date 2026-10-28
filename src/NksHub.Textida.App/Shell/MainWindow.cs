@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Profile;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
@@ -169,6 +170,7 @@ internal sealed partial class MainWindow : Window
 
         _statusBar.Child = BuildStatusBar();
         _statusBar.Classes.Add("statusbar");
+        HelpContext.Set(_statusBar, "statusbar");
         Grid.SetRow(_statusBar, 2);
         root.Children.Add(_statusBar);
 

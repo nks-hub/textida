@@ -1155,6 +1155,7 @@ public static class K
     public const string CompareCopyFailed = "compare.copyFailed";
     public const string CompareActionGone = "compare.actionGone";
     public const string CompareActionStale = "compare.actionStale";
+    public const string CompareActionTip = "compare.actionTip";
     public const string GitGutterAdded = "git.gutter.added";
     public const string GitGutterModified = "git.gutter.modified";
     public const string GitGutterRemoved = "git.gutter.removed";

@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using NksHub.Textida.Acp;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Tools;
@@ -89,6 +90,7 @@ internal sealed partial class MainWindow
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         _agentPanel.Classes.Add("outputpanel");
+        HelpContext.Set(_agentPanel, "tools.agent");
         _agentPanel.Child = new ReadingDockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), Dock(_agentBoundary, Avalonia.Controls.Dock.Top), Dock(_agentBoundaryNow, Avalonia.Controls.Dock.Top), Dock(inputRow, Avalonia.Controls.Dock.Bottom), _agentText } };
         return _agentPanel;
     }

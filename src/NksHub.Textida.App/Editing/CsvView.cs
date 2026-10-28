@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
@@ -58,6 +59,7 @@ internal sealed partial class CsvView : Grid, IDisposable
     /// <param name="dialect">Own dialect of a region; without it the one of the document.</param>
     public CsvView(OpenDocument doc, EditorOptions options, ByteRange? region = null, CsvDialect? dialect = null)
     {
+        HelpContext.Set(this, "table.view");
         _od = doc;
         _options = options;
         _region = region;

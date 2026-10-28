@@ -124,7 +124,7 @@ internal sealed partial class MainWindow
         string message = b.FromCache
             ? Loc.Get(K.SourceBarOffline, ("name", b.Source.Name), ("uri", b.MaskedUri), ("revision", b.Revision ?? "-"), ("time", b.CachedAt?.ToLocalTime().ToString("g") ?? "-"))
             : Loc.Get(K.SourceBarOnline, ("name", b.Source.Name), ("uri", b.MaskedUri), ("revision", b.Revision ?? "-"), ("write", write));
-        tab.ShowBar(new InfoBar(message, [(Loc.Get(K.SourceBarReload), () => _ = ReloadFromSourceAsync(tab))], warning: b.FromCache || (caps.Write && !caps.AtomicWrite), onClose: () => tab.ShowBar(null)));
+        tab.ShowBar(new InfoBar(message, [(Loc.Get(K.SourceBarReload), () => _ = ReloadFromSourceAsync(tab))], warning: b.FromCache || (caps.Write && !caps.AtomicWrite), onClose: () => tab.ShowBar(null), helpTopic: "source.open"));
     }
 
     /// <summary>Reads the file again and replaces the text. Never discards unsaved changes.</summary>

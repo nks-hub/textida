@@ -198,7 +198,6 @@ internal sealed partial class MainWindow
             return;
         }
         var window = _toolEditor = new ToolEditorWindow(_app.Tools, PreviewTool);
-        window.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.F1) { _app.OpenHelp("tools.edit"); e.Handled = true; } };
         window.Closed += (_, _) => _toolEditor = null;
         window.Show(this);
     }
@@ -405,7 +404,6 @@ internal sealed partial class MainWindow
         }
         string sample = string.Join('\n', _app.Output.Read(OutputChannel.Tasks, 200).Select(l => l.Text));
         var window = _logPatternWindow = new LogPatternWindow("", LogPatternSyntax.Mask, sample);
-        window.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.F1) { _app.OpenHelp("tools.logPattern"); e.Handled = true; } };
         window.Used += UseLogPattern;
         window.Closed += (_, _) => _logPatternWindow = null;
         window.Show(this);
