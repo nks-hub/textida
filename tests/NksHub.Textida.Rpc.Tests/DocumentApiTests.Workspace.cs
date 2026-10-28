@@ -26,6 +26,8 @@ public partial class DocumentApiTests
         public async ValueTask DisposeAsync()
         {
             await Rig.DisposeAsync();
+            // links of the test go first: a recursive delete is refused on a junction made by mklink /J (win11lite2, 28. 10. 2026)
+            foreach (var link in new DirectoryInfo(Root).EnumerateDirectories().Where(d => d.LinkTarget is not null)) link.Delete();
             Directory.Delete(Root, true);
             Directory.Delete(Outside, true);
         }
