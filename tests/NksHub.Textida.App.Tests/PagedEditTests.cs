@@ -595,6 +595,22 @@ public class PagedEditTests : IDisposable
         Assert.Equal(before, Sha(doc));
     }
 
+    [AvaloniaTheory]
+    [InlineData("", "\n")]
+    [InlineData("no break", "\r\n")]
+    [InlineData("a\nb\n", "\n")]
+    [InlineData("a\r\nb\r\n", "\r\n")]
+    [InlineData("a\rb\r", "\r")]
+    [InlineData("a\r\nb", "\n")]
+    [InlineData("a\nb", "\r\n")]
+    [InlineData("a\rb", "\n")]
+    [InlineData("a\r", "\r\n")]
+    [InlineData("a\n\r", "\n")]
+    [InlineData("a\r\n\nb", "\r\n")]
+    [InlineData("a\u2028b\u0085c", "\n")]
+    public void Text_that_uses_the_line_break_of_the_document_is_told_so_exactly_when_normalizing_leaves_it_as_it_is(string text, string newLine) =>
+        Assert.Equal(AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, newLine) == text, PagedTextView.UsesLineBreak(text, newLine));
+
     [AvaloniaFact]
     public async Task A_paste_prepared_while_the_encoding_changes_is_refused_and_the_document_stays_the_same()
     {

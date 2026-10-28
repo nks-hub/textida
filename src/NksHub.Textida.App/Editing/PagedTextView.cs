@@ -1233,8 +1233,22 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>The text with the line breaks of the document, encoded; null when the encoding cannot hold a character of it. Touches no state of the view, so it runs on the pool.</summary>
     private static Prepared? PrepareInsert(string text, TextCodec codec, string newLine)
     {
-        string normalized = AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, newLine);
+        string normalized = UsesLineBreak(text, newLine) ? text : AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, newLine);
         return EncodeOrNull(normalized, codec) is { } bytes ? new Prepared(bytes, normalized.Length, LineBreaks(normalized)) : null;
+    }
+
+    /// <summary>True when every line break of <paramref name="text"/> is <paramref name="newLine"/>, so normalizing would only copy a text that can be as large as the paste limit.</summary>
+    internal static bool UsesLineBreak(string text, string newLine)
+    {
+        var span = text.AsSpan();
+        for (int at = span.IndexOfAny('\r', '\n'); at >= 0;)
+        {
+            int length = span[at] == '\r' && at + 1 < span.Length && span[at + 1] == '\n' ? 2 : 1;
+            if (!span.Slice(at, length).SequenceEqual(newLine)) return false;
+            int next = span[(at + length)..].IndexOfAny('\r', '\n');
+            at = next < 0 ? -1 : at + length + next;
+        }
+        return true;
     }
 
     /// <summary>Whether a paste of this text may start: the document takes edits, and the text is not over <see cref="PasteLimitChars"/> (else a message, and nothing changes).</summary>
