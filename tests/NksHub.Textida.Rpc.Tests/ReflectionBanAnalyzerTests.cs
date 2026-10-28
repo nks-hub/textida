@@ -56,6 +56,48 @@ public class ReflectionBanAnalyzerTests
     [InlineData("class C { bool M(Type type) => type.IsAssignableFrom(typeof(C)); }")]
     public async Task Code_that_needs_no_reflection_is_left_alone(string code) => Assert.Empty(await AnalyzeAsync(code));
 
+    static async Task<(int ExitCode, string Output)> BuildAsync(string project)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo(T.DotnetFullPath) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var a in new[] { "build", project, "--nologo", "-nodeReuse:false", "-p:UseSharedCompilation=false" }) psi.ArgumentList.Add(a);
+        using var build = System.Diagnostics.Process.Start(psi)!;
+        var output = build.StandardOutput.ReadToEndAsync();
+        var error = build.StandardError.ReadToEndAsync();
+        await build.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(5));
+        return (build.ExitCode, await output + await error);
+    }
+
+    /// <summary>
+    /// The tests above run the analyzer on its own. A compiler that cannot load an analyzer only warns and then checks nothing, so this builds a project the way a plugin does:
+    /// by importing Plugin.props. The same project without reflection builds, so the failure is the analyzer's.
+    /// </summary>
+    [Fact]
+    public async Task A_project_that_imports_Plugin_props_fails_its_build_on_reflection_and_builds_without_it()
+    {
+        var dir = T.TempDir();
+        var props = Path.Combine(SdkAotTests.RepoRoot(), "src", "NksHub.Textida.PluginSdk", "Plugin.props");
+        var project = Path.Combine(dir, "Probe.csproj");
+        File.WriteAllText(project, $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <Nullable>enable</Nullable>
+              </PropertyGroup>
+              <Import Project="{props}" />
+            </Project>
+            """);
+        var source = Path.Combine(dir, "Probe.cs");
+
+        File.WriteAllText(source, "public class Probe { public int Value() => 1; }");
+        var clean = await BuildAsync(project);
+        Assert.True(clean.ExitCode == 0, clean.Output);
+
+        File.WriteAllText(source, "public class Probe { public object? Make() => System.Activator.CreateInstance(typeof(Probe)); }");
+        var reflective = await BuildAsync(project);
+        Assert.NotEqual(0, reflective.ExitCode);
+        Assert.Contains("error NKSPLG001", reflective.Output);
+    }
+
     [Fact]
     public async Task Every_use_in_a_file_is_reported_at_its_place()
     {

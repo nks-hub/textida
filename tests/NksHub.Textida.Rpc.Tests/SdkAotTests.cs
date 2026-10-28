@@ -10,7 +10,7 @@ namespace NksHub.Textida.Rpc.Tests;
 /// </summary>
 public class SdkAotTests
 {
-    static string RepoRoot()
+    internal static string RepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
             if (File.Exists(Path.Combine(dir.FullName, "NksHub.Textida.sln"))) return dir.FullName;
