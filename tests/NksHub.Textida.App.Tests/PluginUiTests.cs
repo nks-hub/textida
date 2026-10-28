@@ -752,6 +752,73 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Insert_expression_writes_the_result_behind_the_selection_or_the_line_in_the_plain_form_and_each_is_one_undo_step()
+    {
+        const string original = "žluťoučký: 10/4\r\n1000*1.5+2\r\nbez výrazu\r\n";
+        var tab = _w.OpenFile(_temp.File("calc.txt", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        // the selection is the expression; the characters before it are two bytes each, the result goes behind the selection and not in front of the line break
+        tab.Editor.Select(original.IndexOf("10/4", StringComparison.Ordinal), 4);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2\r\nbez výrazu\r\n", Utf8(tab));
+        Assert.True(HasNotice("10/4 = 2,5"), string.Join(" | ", _w.Notices.Select(n => n.Message))); // the notice follows the language of the interface, the document does not
+
+        // no selection: the line of the caret is the expression, and a thousands separator or a decimal comma never reaches the file
+        tab.Editor.Select(tab.Editor.Text.IndexOf("1000*", StringComparison.Ordinal) + 3, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2 = 1502\r\nbez výrazu\r\n", Utf8(tab));
+        Assert.Equal(2, tab.Doc.Doc.UndoDepth);
+
+        _w.Undo();
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2\r\nbez výrazu\r\n", Utf8(tab));
+        _w.Undo();
+        Assert.Equal(original, Utf8(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task Insert_expression_changes_nothing_when_the_text_is_no_expression_or_calls_the_system()
+    {
+        const string original = "2 $ 3\r\nSystem(\"calc\")\r\n\r\n";
+        var tab = _w.OpenFile(_temp.File("nope.txt", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        tab.Editor.Select(2, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Chyba ve výrazu na pozici"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        tab.Editor.Select(original.IndexOf("System", StringComparison.Ordinal) + 2, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Neznámý název 'System'"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        tab.Editor.Select(original.Length, 0); // the empty line behind the last break
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Označte výraz, nebo dejte kurzor na řádek s výrazem."), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        Assert.Equal(original, Utf8(tab));
+        Assert.Equal(0, tab.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task Insert_expression_is_off_in_the_large_file_mode_and_the_document_stays_as_it_was()
+    {
+        // longer than the threshold of the paged surface, which the test sets to 1 MiB
+        string original = "first line\n2^10\nlast\n" + string.Concat(Enumerable.Repeat("a line that only makes the file larger than the threshold\n", 25_000));
+        var tab = OpenPaged("expr.txt", Encoding.UTF8.GetBytes(original));
+        await Until(() => tab.Paged!.Index.Complete, "the line index");
+        Assert.True(tab.GoToLine(2, 3));
+
+        var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.insertExpression", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => run.IsCompleted, "the command");
+
+        Assert.Equal(CommandOutcome.Disabled, await run);
+        Assert.Equal(original, Utf8(tab));
+        Assert.Equal(0, tab.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
     public async Task Preview_shows_the_change_first_and_applies_it_only_when_the_user_agrees()
     {
         var tab = _w.OpenFile(_temp.File("p.json", "[1,2]"), null);
