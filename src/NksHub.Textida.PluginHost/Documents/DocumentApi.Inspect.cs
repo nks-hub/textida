@@ -18,7 +18,7 @@ public sealed partial class DocumentApi
 
     private static int OptionalCount(JsonElement p, string name, int fallback, int max)
     {
-        if (!p.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null) return fallback;
+        if (!p.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null) return Math.Min(fallback, max);
         return v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var n) && n >= 1 ? Math.Min(n, max) : throw Invalid($"Parameter '{name}' must be a positive integer.");
     }
 
@@ -113,9 +113,13 @@ public sealed partial class DocumentApi
         long scanEnd = ScanEnd(from, to);
         bool limited = scanEnd < to;
         long readEnd = Math.Min(to, scanEnd + pattern.Length - 1);
-        ByteSearchResult result = Guarded(t.Snap, () => ByteSearch.Find(t.Snap, pattern, new ByteSearchOptions { MaxResults = max, Range = new ByteRange(from, readEnd) }, ct));
-        var matches = result.Matches.Where(m => m.Start < scanEnd && (t.Secrets is null || !SecretValues.Overlaps(t.Secrets, m.Start, m.End))).ToList();
-        bool full = result.LimitReached && matches.Count >= max;
+        // one match more than asked for tells that there are more; a search that ends with exactly the cap is complete, as in document/find
+        ByteSearchResult result = Guarded(t.Snap, () => ByteSearch.Find(t.Snap, pattern, new ByteSearchOptions { MaxResults = max + 1, Range = new ByteRange(from, readEnd) }, ct));
+        var visible = result.Matches.Where(m => m.Start < scanEnd && (t.Secrets is null || !SecretValues.Overlaps(t.Secrets, m.Start, m.End))).ToList();
+        bool capped = visible.Count > max;
+        var matches = capped ? visible.GetRange(0, max) : visible;
+        // the search limit can also be used up by hidden matches: then it goes on after the last match it looked at
+        long? next = capped ? null : result.LimitReached ? Math.Min(result.Matches[^1].Start + 1, scanEnd) : limited ? scanEnd : null;
         return Obj(w =>
         {
             w.WriteNumber("revision", t.Snap.Revision);
@@ -129,8 +133,8 @@ public sealed partial class DocumentApi
                 w.WriteEndObject();
             }
             w.WriteEndArray();
-            w.WriteBoolean("truncated", result.LimitReached || limited);
-            if (limited && !full) w.WriteNumber("next", scanEnd); else w.WriteNull("next");
+            w.WriteBoolean("truncated", capped || result.LimitReached || limited);
+            if (next is { } go) w.WriteNumber("next", go); else w.WriteNull("next");
         });
     }
 
