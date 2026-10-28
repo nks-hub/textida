@@ -108,7 +108,7 @@ public class TemplateTests
             var exit = await Cli.RunAsync([published, "--run", "--scenario", Path.Combine(generated, "Probe.Plugin.Tests", "recordings", "shout.json"), "--source", Path.Combine(generated, "Probe.Plugin")], output, output);
 
             Assert.True(exit == 0, output.ToString());
-            Assert.DoesNotContain("[warning]", output.ToString());
+            Assert.False(output.ToString().Contains("[warning]", StringComparison.Ordinal), output.ToString());
             Assert.Contains("The recorded session (8 steps) ran as recorded.", output.ToString());
         }
         finally
