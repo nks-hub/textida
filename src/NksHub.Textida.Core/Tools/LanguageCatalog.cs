@@ -113,7 +113,7 @@ public static class LanguageCatalog
             [new("sql", "sqls", [])],
             [new("sqlfluff-fix", "SQLFluff", "sqlfluff", ["fix", "--force", "${File}"], [".sqlfluff"], [".sql"])],
             [new("sqlfluff", "SQLFluff", "sqlfluff", ["lint", "--format", "json", "${File}"], "sqlfluff-json", [new("error", ToolSeverity.Error), AnyWarning], [".sqlfluff"], [".sql"], Supported: new("2.0.0", "4.0.0"))],
-            [C([".sqlfluff"], "[sqlfluff]\n")],
+            [C([".sqlfluff"], "[sqlfluff]\ndialect = ansi\n")], // SQLFluff refuses to run without a dialect
             []),
         new("python", "Python",
             [M("python", [".py"], "python")],
