@@ -544,6 +544,22 @@ public class PluginManagerAppTests : IDisposable
         Finish(Task.Run(_app.Plugins.Shutdown));
     }
 
+    [AvaloniaFact]
+    public void Closing_the_editor_on_the_UI_thread_does_not_wait_for_the_UI_thread()
+    {
+        InstallProcessPlugin("acme.one", [ActivationEvents.Startup]);
+        _app.Plugins.ActivateStartup();
+        ToolTestKit.WaitFor(() => StateOf("acme.one") == PluginState.Running, "the plugin to start");
+        int pid = _app.Plugins.StatusOf("acme.one")!.ProcessId!.Value;
+
+        // the editor ends the plugin services in the handler of its exit, which runs on the UI thread: nothing the end waits for may need that thread
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        _app.Plugins.Shutdown();
+
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(PluginLimitsPlaceholders.ExitWaitSeconds / 2.0), $"the end took {clock.Elapsed.TotalSeconds:F1} s");
+        Assert.False(Alive(pid));
+    }
+
     private static bool Alive(int pid)
     {
         try

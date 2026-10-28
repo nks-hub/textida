@@ -132,7 +132,8 @@ internal sealed partial class PluginServices
     /// </summary>
     internal void Shutdown()
     {
-        try { DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(PluginLimitsPlaceholders.ExitWaitSeconds)); }
+        // on the thread pool: this runs on the UI thread, and a continuation that went back to it would wait for the wait below
+        try { Task.Run(() => DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(PluginLimitsPlaceholders.ExitWaitSeconds)); }
         catch (AggregateException) { /* what failed to end is killed below */ }
         _host.KillAll();
     }
