@@ -202,8 +202,9 @@ internal static class TestApp
         PluginLimitsPlaceholders.HandshakeTimeout = TimeSpan.FromSeconds(60);
         app.Configure();
         app.Dialogs = dialogs ?? new ScriptedDialogs();
-        // a Markdown file opens in reading by default (P9.3.4); the tests of the other features open .md files and work in the editor, the tests of the modes choose their own
-        app.Workbench.Set("markdown.defaultMode", "source");
+        // a Markdown file opens in reading by default (P9.3.4); the tests of the other features open .md files and work in the editor, so the layer under the user's settings (nothing is written)
+        // gives them source; the tests of the modes set the user's value
+        app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.Plugin, new System.Text.Json.Nodes.JsonObject { ["markdown.defaultMode"] = "source" }, name: "tests");
         return app;
     }
 

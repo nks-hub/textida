@@ -284,6 +284,7 @@ public class ViewModeTests : IDisposable
         Click(ButtonOf(tab, Loc.Get(K.ViewModeShowText)));
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(ViewMode.Text, od.Mode);
+        Assert.Same(_w.Active!.ModeBar!.Buttons[1], _w.FocusManager!.GetFocusedElement()); // the keyboard user stays on the bar
         Assert.NotNull(_w.Active!.Surface);
         Assert.Same(od, _w.Active.Doc);
         Assert.True(_w.Active.ModeBar!.Buttons[1].IsChecked);
@@ -665,6 +666,24 @@ public class ViewModeTests : IDisposable
         Layout();
         Layout();
         Assert.InRange(tab.SidePreview!.TopLine, 245, 255);
+
+        System.Threading.Thread.Sleep(PluginLimitsPlaceholders.PreviewSyncQuietMs + 50); // the page that just followed the editor must not send it back at once
+        tab.SidePreview.ScrollToLine(100);
+        Layout();
+        Layout();
+        Assert.InRange(MainWindow.TopLine(tab.Surface!), 96, 104);
+    }
+
+    [AvaloniaFact]
+    public async Task Save_works_from_reading_after_text_was_changed_in_editing()
+    {
+        var tab = OpenMarkdown("save.md", "# One\n", "edit");
+        tab.Editor!.Document.Insert(tab.Editor.Document.TextLength, "two\n");
+        Click(ButtonOf(tab, Loc.Get(K.ViewModeRead)));
+        Assert.IsType<MarkdownPreview>(_w.Active!.Custom);
+        Assert.True(await _w.SaveAsync(_w.Active));
+        Assert.Equal("# One\ntwo\n", File.ReadAllText(Path.Combine(_temp.Path, "save.md")));
+        Assert.False(_w.Active.Doc.Doc.IsModified);
     }
 
     [AvaloniaFact]
