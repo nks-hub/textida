@@ -502,6 +502,39 @@ public class PluginDiffVirtualTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_button_refused_because_the_index_moved_works_when_the_comparison_is_opened_again_on_the_new_index()
+    {
+        await StartPluginAsync();
+        var tree = _w.NewDocument();
+        tree.Editor!.Document.Text = "a\nB\n";
+        _app.Plugins.Documents.Expose(tree.Doc.Doc, tree.Editor.ByteSelections);
+        _app.Plugins.Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        var index = VirtualTab(await Editor(DocumentMethods.VirtualOpen, OpenParams("index", "file.txt", "a\nb\n", "Index")));
+        string Open() => $"{{\"left\":{{\"document\":\"{index.Doc.Doc.Id}\",\"revision\":{index.Doc.Doc.Revision}}},\"right\":{{\"document\":\"{tree.Doc.Doc.Id}\",\"revision\":{tree.Doc.Doc.Revision}}}," +
+            "\"key\":\"git\",\"actions\":[{\"command\":\"x.take\",\"title\":\"Take\"}]}";
+
+        await Editor(DocumentMethods.DiffOpen, Open());
+        var before = Assert.Single(_w.CompareViews);
+        await before.Session.RefreshAsync();
+
+        // a click in the gutter stages a line: the index of the plugin is another revision, and the old comparison sends nothing
+        await Editor(DocumentMethods.VirtualUpdate, $"{{\"document\":\"{index.Doc.Doc.Id}\",\"text\":\"a\\nB\\nc\\n\"}}");
+        before.SelectHunk(0);
+        Assert.True(before.RunAction(0));
+        Assert.Equal(Loc.Get(K.CompareActionStale), _w.StatusMessageText);
+        Assert.Empty((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray());
+
+        // the plugin opens the comparison again on the index as it is now, in the place of the old one, and the button works
+        await Editor(DocumentMethods.DiffOpen, Open());
+        var after = Assert.Single(_w.CompareViews);
+        Assert.NotSame(before, after);
+        await after.Session.RefreshAsync();
+        after.SelectHunk(0);
+        Assert.True(after.RunAction(0));
+        Assert.Equal("x.take", (await CommandsAsync(1))[0].GetProperty("params").GetProperty("command").GetString());
+    }
+
+    [AvaloniaFact]
     public async Task A_comparison_opened_again_with_the_same_key_stays_on_the_difference_the_user_was_on()
     {
         await StartPluginAsync();
