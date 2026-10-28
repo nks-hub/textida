@@ -1153,6 +1153,7 @@ commands: nks.tools.lint
 - Without lintTimeoutSeconds in saveActions.json a linter has a provisional limit of 60 seconds; the final value is not decided yet. A linter that runs over the limit is stopped and reported; the editor stays usable meanwhile and the findings of the earlier run stay.
 - PHPStan reports a line and no column, so the text of that line is underlined. A program that is a batch file (phpstan.bat, eslint.cmd) is started through cmd.exe, as for every tool.
 - Only dart analyze was checked with the real program (Dart 3.12.2); the other linters are read by the documented format of their output.
+- Each linter except Clippy and clang-tidy has a window of versions that its options and the reading of its output were written for (for example golangci-lint 2.x: an older one does not know the option the editor passes). Once per program file, after you confirmed it, the editor starts the program with --version (10 seconds at most, a provisional value) and compares the answer. A version outside the window is named next to the result of the run and, if the run failed, in the reason; the run is not stopped. A program that prints no version number is not compared, and that is said only when the run failed. The windows come from the documentation of the tools and are not decided values.
 
 ## [file.saveActions] Save actions: format, run a tool, upload
 commands: nks.file.saveActions

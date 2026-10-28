@@ -224,6 +224,48 @@ public class LintAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_version_the_check_was_not_written_for_is_said_next_to_the_result_and_the_findings_still_show()
+    {
+        Configure(60);
+        Say(Found);
+        File.WriteAllText(_tool + ".version", "PHPStan - PHP Static Analysis Tool 0.12.99\n");
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+
+        string old = Loc.Get(K.LintVersionOld, ("name", "PHPStan"), ("found", "0.12.99"), ("min", "1.0.0"));
+        Assert.Contains(old, _w.StatusMessageText);
+        Assert.Contains(Loc.Get(K.LintFound, ("name", "PHPStan"), ("number", 1)), _w.StatusMessageText);
+        Assert.Contains(_app.Output.Read(OutputChannel.Tasks).Select(l => l.Text), t => t.Contains(old, StringComparison.Ordinal));
+        Assert.Single(File.ReadAllLines(_tool + ".runs")); // the version request left no run behind
+    }
+
+    [AvaloniaFact]
+    public async Task A_version_inside_the_window_adds_nothing_and_a_failed_run_with_a_newer_version_names_it_as_a_reason()
+    {
+        Configure(60);
+        Say(Found);
+        File.WriteAllText(_tool + ".version", "PHPStan - PHP Static Analysis Tool 2.1.0\n");
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+        Assert.DoesNotContain("2.1.0", _w.StatusMessageText);
+
+        File.WriteAllText(_tool + ".version", "PHPStan - PHP Static Analysis Tool 3.4.0\n"); // another time stamp is another file of the program
+        File.SetLastWriteTimeUtc(_tool, DateTime.UtcNow.AddMinutes(1));
+        Say("not what the documentation says");
+        await SaveEditedAsync(tab, "\n");
+        string news = Loc.Get(K.LintVersionNew, ("name", "PHPStan"), ("found", "3.4.0"), ("min", "1.0.0"), ("below", "3.0.0"));
+        await Until(() => _w.StatusMessageText.Contains(news, StringComparison.Ordinal), "the report with the version");
+
+        Assert.StartsWith(Loc.Get(K.LintFailed, ("name", "PHPStan"), ("reason", "")).TrimEnd(), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
     public async Task A_linter_is_offered_in_the_save_actions_and_off_until_switched_on()
     {
         var tab = _w.OpenFile(_php, null);

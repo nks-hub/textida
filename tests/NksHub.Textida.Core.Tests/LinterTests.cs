@@ -199,6 +199,87 @@ public sealed class LinterTests : IDisposable
         Assert.Null(Linters.Choose(Path.Combine(project, "notes.txt")));
     }
 
+    // ---- the versions a linter was written for ----
+
+    [Fact]
+    public void Every_linter_but_clippy_and_clang_tidy_names_a_window_of_versions_that_is_not_empty()
+    {
+        Assert.Equal(["clang-tidy", "clippy"], LanguageCatalog.Linters.Where(l => l.Supported is null).Select(l => l.Id).Order());
+        foreach (var linter in LanguageCatalog.Linters.Where(l => l.Supported is not null))
+        {
+            var range = linter.Supported!;
+            Assert.True(new Version(range.Min) < new Version(range.Below!), linter.Id);
+            Assert.Null(linter.Version); // the version to pin stays open; this is what the parser was written for
+        }
+        Assert.Equal(new CatalogVersionRange("2.0.0", "3.0.0"), Linters.Find("golangci-lint")!.Supported); // its --output.json.path is the second major
+        Assert.Equal("3.12.2", Linters.Find("dart-analyze")!.Supported!.Min); // the one version that was run
+    }
+
+    [Theory]
+    [InlineData("phpstan", "PHPStan - PHP Static Analysis Tool 1.10.50", LinterVersionState.Supported, "1.10.50")]
+    [InlineData("phpstan", "PHPStan - PHP Static Analysis Tool 2.1.0", LinterVersionState.Supported, "2.1.0")]
+    [InlineData("phpstan", "PHPStan - PHP Static Analysis Tool 0.12.99", LinterVersionState.TooOld, "0.12.99")]
+    [InlineData("phpstan", "PHPStan - PHP Static Analysis Tool 3.0.1", LinterVersionState.TooNew, "3.0.1")]
+    [InlineData("psalm", "Psalm 5.26.1@d747f6500b38ac4f7dfc5edbcae6e4b637d7add0", LinterVersionState.Supported, "5.26.1")]
+    [InlineData("golangci-lint", "golangci-lint has version 2.1.6 built with go1.24.2 from 4b9a2f5 on 2025-05-05T12:00:00Z", LinterVersionState.Supported, "2.1.6")]
+    [InlineData("golangci-lint", "golangci-lint has version 1.64.8 built with go1.24.2 from 8f1a2b3 on 2025-03-01T12:00:00Z", LinterVersionState.TooOld, "1.64.8")]
+    [InlineData("eslint", "v9.12.0", LinterVersionState.Supported, "9.12.0")]
+    [InlineData("eslint", "v7.32.0", LinterVersionState.TooOld, "7.32.0")]
+    [InlineData("eslint", "v10.0.0", LinterVersionState.TooNew, "10.0.0")]
+    [InlineData("ruff", "ruff 0.6.9", LinterVersionState.Supported, "0.6.9")]
+    [InlineData("ruff", "ruff 0.0.292", LinterVersionState.TooOld, "0.0.292")]
+    [InlineData("shellcheck", "ShellCheck - shell script analysis tool\nversion: 0.10.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net", LinterVersionState.Supported, "0.10.0")]
+    [InlineData("sqlfluff", "sqlfluff, version 3.2.5", LinterVersionState.Supported, "3.2.5")]
+    [InlineData("sqlfluff", "sqlfluff, version 1.4.5", LinterVersionState.TooOld, "1.4.5")]
+    [InlineData("rubocop-lint", "1.62.1", LinterVersionState.Supported, "1.62.1")]
+    [InlineData("rubocop-lint", "0.93.1", LinterVersionState.TooOld, "0.93.1")]
+    [InlineData("dart-analyze", "Dart SDK version: 3.12.2 (stable) (Tue Oct 14 10:00:00 2026 +0000) on \"windows_x64\"", LinterVersionState.Supported, "3.12.2")]
+    [InlineData("dart-analyze", "Dart SDK version: 2.19.6 (stable)", LinterVersionState.TooOld, "2.19.6")]
+    [InlineData("phpstan", "no number in here", LinterVersionState.Unreadable, null)]
+    public void The_version_a_program_prints_is_compared_with_the_window_of_the_catalog(string id, string output, LinterVersionState expected, string? found)
+    {
+        var check = LinterVersions.Compare(output, Linters.Find(id)!.Supported!);
+        Assert.Equal(expected, check.State);
+        Assert.Equal(found, check.Found);
+        Assert.Equal(expected is LinterVersionState.TooOld or LinterVersionState.TooNew, check.Mismatch);
+    }
+
+    [Fact]
+    public async Task The_program_is_asked_once_for_its_version_without_a_trace_of_a_run_and_a_silent_or_missing_one_is_unreadable()
+    {
+        var setup = Prepare("golangci-lint");
+        using var doc = setup.Doc;
+        var tool = Linters.Prepare(setup.Linter, setup.Path, setup.Timeout);
+
+        var silent = await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30));
+        Assert.Equal(LinterVersionState.Unreadable, silent.State);
+        Assert.False(File.Exists(setup.Tool + ".runs")); // a version request is no run of the linter
+        Assert.False(File.Exists(setup.Tool + ".args"));
+
+        File.WriteAllText(setup.Tool + ".version", "golangci-lint has version 1.64.8 built with go1.24.2 from 8f1a2b3 on 2025-03-01T12:00:00Z\n");
+        var old = await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30));
+        Assert.Equal((LinterVersionState.TooOld, "1.64.8"), (old.State, old.Found));
+        Assert.Equal(setup.Linter.Supported, old.Range);
+
+        File.WriteAllText(setup.Tool + ".version", "golangci-lint has version 2.1.6 built with go1.24.2\n");
+        Assert.Equal("1.64.8", (await LinterVersions.CheckAsync(setup.Linter, tool, TimeSpan.FromSeconds(30))).Found); // kept for this file of the program
+        Assert.False(File.Exists(setup.Tool + ".runs"));
+
+        var missing = await LinterVersions.CheckAsync(setup.Linter, tool with { Executable = Path.Combine(_dir, "no-such-program") }, TimeSpan.FromSeconds(30));
+        Assert.Equal(LinterVersionState.Unreadable, missing.State);
+        Assert.NotEmpty(missing.Reason);
+    }
+
+    [Fact]
+    public async Task A_linter_without_a_window_is_not_started_for_its_version()
+    {
+        var setup = Prepare("clippy");
+        using var doc = setup.Doc;
+        var check = await LinterVersions.CheckAsync(setup.Linter, Linters.Prepare(setup.Linter, setup.Path, setup.Timeout), TimeSpan.FromSeconds(30));
+        Assert.Equal(LinterVersionState.NotChecked, check.State);
+        Assert.False(File.Exists(setup.Tool + ".runs"));
+    }
+
     // ---- the scenarios, for each linter ----
 
     [Theory]

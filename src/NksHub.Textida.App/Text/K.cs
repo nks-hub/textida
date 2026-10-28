@@ -1863,6 +1863,9 @@ public static class K
     public const string LintFound = "lint.found";
     public const string LintDropped = "lint.dropped";
     public const string LintStale = "lint.stale";
+    public const string LintVersionOld = "lint.version.old";
+    public const string LintVersionNew = "lint.version.new";
+    public const string LintVersionUnreadable = "lint.version.unreadable";
     public const string FragmentTab = "fragment.tab";
     public const string FragmentTabDetached = "fragment.tabDetached";
     public const string FragmentLanguage = "fragment.language";

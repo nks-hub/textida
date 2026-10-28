@@ -1153,6 +1153,7 @@ commands: nks.tools.lint
 - Bez lintTimeoutSeconds v saveActions.json má linter provizórny limit 60 sekúnd; konečná hodnota nie je rozhodnutá. Linter, ktorý limit prekročí, sa zastaví a ohlási; editor medzitým zostáva použiteľný a nálezy predchádzajúceho behu zostanú.
 - PHPStan hlási riadok a žiadny stĺpec, preto sa podčiarkne text celého riadku. Program, ktorý je dávkový súbor (phpstan.bat, eslint.cmd), sa spustí cez cmd.exe, rovnako ako pri každom nástroji.
 - So skutočným programom bol overený len dart analyze (Dart 3.12.2); ostatné lintery sa čítajú podľa zdokumentovaného formátu výstupu.
+- Každý linter okrem Clippy a clang-tidy má rozsah verzií, pre ktoré sú napísané jeho prepínače a čítanie výstupu (napríklad golangci-lint 2.x: starší nepozná prepínač, ktorý editor odovzdáva). Raz pre súbor programu, po vašom potvrdení, editor program spustí s --version (najviac 10 sekúnd, predbežná hodnota) a odpoveď porovná. Verzia mimo rozsahu sa uvedie vedľa výsledku behu a pri zlyhaní behu aj v dôvode; beh sa nezastaví. Program, ktorý číslo verzie nevypíše, sa neporovnáva, a povie sa to len pri zlyhaní behu. Rozsahy vychádzajú z dokumentácie nástrojov a nie sú rozhodnuté hodnoty.
 
 ## [file.saveActions] Akcie pri uložení: formátovať, spustiť nástroj, nahrať
 commands: nks.file.saveActions
