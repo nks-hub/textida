@@ -1628,6 +1628,7 @@ public static class K
     public const string ReviewBar = "review.bar";
     public const string ReviewTitle = "review.title";
     public const string ReviewHint = "review.hint";
+    public const string ReviewNewHint = "review.newHint";
     public const string ReviewBadge = "review.badge";
     public const string ReviewNone = "review.none";
     public const string ReviewNoBase = "review.noBase";
@@ -1640,6 +1641,7 @@ public static class K
     public const string ReviewFolderNoFolder = "review.folder.noFolder";
     public const string ReviewFolderNone = "review.folder.none";
     public const string ReviewFolderWaiting = "review.folder.waiting";
+    public const string ReviewFolderBaseTaken = "review.folder.baseTaken";
     public const string ReviewFolderFull = "review.folder.full";
     public const string ReviewFolderDropped = "review.folder.dropped";
     public const string ReviewFolderWatermark = "review.folder.watermark";
