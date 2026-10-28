@@ -1091,7 +1091,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 2. Repeat Last Makefile Target runs the target started last once more.
 3. The run goes through the tool runner: the command is shown and has to be confirmed the first time, the output goes to the Tasks tab, Stop ends make and what it started.
 4. A line of the output that names a file and a line (main.c:12:5: error, Makefile:7:) opens that place on a click or Enter. A recursive make says "Entering directory" and "Leaving directory"; a relative file name after such a line is looked for in that folder.
-- Make has to be installed and found in PATH, or named in the setting Make program (for example mingw32-make). Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command, not to the content of the Makefile, because running a Makefile means running what it says.
+- Make has to be installed and found in PATH, or named in the setting Make program (for example mingw32-make). Special targets (.PHONY), pattern rules and names with a variable or wildcard are not listed. The confirmation is tied to the command and to the content of the Makefile on disk (the start of its SHA-256 is shown in the question): when the file changes, the question comes again, and the old answer applies again if the bytes return to what they were. Files that the Makefile includes are not covered, and neither is a change made after the question. The text of an unsaved tab is not what make runs.
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke

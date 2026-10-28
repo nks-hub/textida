@@ -1676,6 +1676,7 @@
   "macro.failed": "Makro bei Schritt {step} angehalten: {title} lief nicht",
   "tool.confirm.foreign": "{title} stammt aus einer Werkzeugdatei des Ordners, nicht aus Ihren eigenen Definitionen. Es läuft erst nach Bestätigung von Befehl und Verzeichnis, und bei jeder Änderung der Definition wird erneut gefragt.",
   "tool.confirm.source": "Definiert in: {source}",
+  "tool.confirm.pinned": "Das Ja gilt nur, solange {name} gleich {value} bleibt",
   "tool.edit.title": "Werkzeugdefinitionen",
   "tool.edit.list": "Werkzeuge",
   "tool.edit.new": "Neu",

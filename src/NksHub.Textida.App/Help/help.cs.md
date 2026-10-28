@@ -1091,7 +1091,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 2. Opakovat poslední cíl Makefile spustí naposledy spuštěný cíl znovu.
 3. Běh jde přes spouštěč nástrojů: příkaz se ukáže a poprvé se potvrzuje, výstup jde do karty Úlohy, Zastavit ukončí make i vše, co spustil.
 4. Řádek výstupu, který jmenuje soubor a řádek (main.c:12:5: error, Makefile:7:), otevře to místo klikem nebo Enterem. Rekurzivní make hlásí „Entering directory“ a „Leaving directory“; relativní název souboru za takovým řádkem se hledá v té složce.
-- Make musí být nainstalovaný a v PATH, nebo uvedený v nastavení Program make (třeba mingw32-make). Zvláštní cíle (.PHONY), vzorová pravidla a názvy s proměnnou či zástupným znakem se nevypisují. Potvrzení se váže na příkaz, ne na obsah Makefile, protože spustit Makefile znamená spustit, co říká.
+- Make musí být nainstalovaný a v PATH, nebo uvedený v nastavení Program make (třeba mingw32-make). Zvláštní cíle (.PHONY), vzorová pravidla a názvy s proměnnou či zástupným znakem se nevypisují. Potvrzení se váže na příkaz a na obsah Makefile na disku (v otázce je začátek jeho SHA-256): když se soubor změní, otázka přijde znovu a starý souhlas platí zase, když se bajty vrátí k původním. Soubory, které Makefile vkládá, se nehlídají, ani změna po položení otázky. Text neuložené karty není to, co make spustí.
 
 ## [packages.registry] Manifesty balíčků: názvy, verze a značka novější verze
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke

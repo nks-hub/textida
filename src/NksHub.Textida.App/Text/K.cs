@@ -1657,6 +1657,7 @@ public static class K
     public const string MacroDeleteFailed = "macro.deleteFailed";
     public const string ToolConfirmForeign = "tool.confirm.foreign";
     public const string ToolConfirmSource = "tool.confirm.source";
+    public const string ToolConfirmPinned = "tool.confirm.pinned";
     public const string ToolEditTitle = "tool.edit.title";
     public const string ToolEditList = "tool.edit.list";
     public const string ToolEditNew = "tool.edit.new";

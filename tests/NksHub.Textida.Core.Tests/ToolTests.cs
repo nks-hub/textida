@@ -458,6 +458,24 @@ public sealed class ToolTests : IDisposable
     }
 
     [Fact]
+    public void The_digest_of_a_makefile_follows_its_bytes_and_a_missing_file_is_an_error()
+    {
+        string makefile = Path.Combine(_dir, "digest.mk");
+        File.WriteAllText(makefile, "build:\n\techo hi\n");
+        string first = MakefileTargets.ContentDigest(makefile);
+        Assert.Equal(64, first.Length);
+        Assert.Equal(first, MakefileTargets.ContentDigest(makefile));
+
+        File.WriteAllText(makefile, "build:\n\techo hi\nevil:\n\techo no\n");
+        string changed = MakefileTargets.ContentDigest(makefile);
+        Assert.NotEqual(first, changed);
+
+        File.WriteAllText(makefile, "build:\n\techo hi\n");
+        Assert.Equal(first, MakefileTargets.ContentDigest(makefile)); // back to the old bytes: the old digest
+        Assert.ThrowsAny<IOException>(() => MakefileTargets.ContentDigest(Path.Combine(_dir, "none.mk")));
+    }
+
+    [Fact]
     public void A_recursive_make_names_the_folder_a_relative_error_belongs_to()
     {
         string[] lines =

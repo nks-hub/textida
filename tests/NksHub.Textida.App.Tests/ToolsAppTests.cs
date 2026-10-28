@@ -599,6 +599,44 @@ public class ToolLauncherTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_yes_to_a_makefile_run_holds_only_for_the_content_it_was_given_for()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Makefile");
+        string original = "build:\n\techo hi\n";
+        File.WriteAllText(makefile, original);
+        void Run() => Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll]));
+
+        _dialogs.Answers.Enqueue(0);
+        Run();
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(asked.Details!, d => d.Contains(MakefileTargets.ApprovalKey, StringComparison.Ordinal));
+        Run();
+        Assert.Single(_dialogs.Asked); // the same bytes: no question
+
+        File.AppendAllText(makefile, "build:\n\techo changed behind the yes\n");
+        _dialogs.Answers.Enqueue(1); // refused: the changed Makefile does not run
+        int lines = Lines().Count;
+        Run();
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal(lines, Lines().Count); // nothing ran and nothing was written
+
+        File.WriteAllText(makefile, original);
+        Run();
+        Assert.Equal(2, _dialogs.Asked.Count); // the old bytes are the approved ones again
+    }
+
+    [AvaloniaFact]
+    public void A_makefile_that_cannot_be_read_is_reported_and_nothing_runs()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Missing.mk");
+        Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll]));
+        Assert.Empty(_dialogs.Asked);
+        Assert.Contains(Lines(), l => l.Contains("Missing.mk", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
     public void The_targets_of_the_nearest_makefile_are_listed_for_any_file_and_a_folder_without_one_says_so()
     {
         string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;

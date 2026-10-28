@@ -1676,6 +1676,7 @@
   "macro.failed": "Macro stopped at step {step}: {title} did not run",
   "tool.confirm.foreign": "{title} comes from a tool file of the folder, not from your own definitions. It runs only after you confirm its command and directory, and you are asked again whenever the definition changes.",
   "tool.confirm.source": "Defined in: {source}",
+  "tool.confirm.pinned": "The yes holds only while {name} stays {value}",
   "tool.edit.title": "Tool definitions",
   "tool.edit.list": "Tools",
   "tool.edit.new": "New",

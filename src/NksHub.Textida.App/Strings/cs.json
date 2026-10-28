@@ -1706,6 +1706,7 @@
   "macro.failed": "Makro se zastavilo u kroku {step}: {title} neproběhl",
   "tool.confirm.foreign": "{title} pochází ze souboru nástrojů ve složce, ne z vašich vlastních definic. Spustí se až po potvrzení příkazu a adresáře a při každé změně definice se zeptáme znovu.",
   "tool.confirm.source": "Definováno v: {source}",
+  "tool.confirm.pinned": "Souhlas platí, jen dokud {name} zůstane {value}",
   "tool.edit.title": "Definice nástrojů",
   "tool.edit.list": "Nástroje",
   "tool.edit.new": "Nový",

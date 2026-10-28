@@ -23,6 +23,19 @@ public static class MakefileTargets
     /// <summary>The make program a target runs with; the file name of the Makefile is given to it as <c>-f</c>.</summary>
     public const string DefaultProgram = "make";
 
+    /// <summary>The name under which the digest of a Makefile is tied to the approval of a run (see <see cref="ToolRunner.WithProjectValues"/>).</summary>
+    public const string ApprovalKey = "makefile.sha256";
+
+    /// <summary>
+    /// SHA-256 (hex) of the bytes of the file on disk, which is what make reads. A yes to a run is tied to it, so a Makefile that changed since asks again.
+    /// Files it includes are not covered. Throws <see cref="IOException"/> or <see cref="UnauthorizedAccessException"/> when the file cannot be read.
+    /// </summary>
+    public static string ContentDigest(string makefile)
+    {
+        using var stream = new FileStream(makefile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+    }
+
     /// <summary>The names make itself looks for, in the order it prefers them.</summary>
     private static readonly string[] DefaultNames = ["GNUmakefile", "makefile", "Makefile"];
 

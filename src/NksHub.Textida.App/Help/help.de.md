@@ -1091,7 +1091,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 2. Letztes Makefile-Ziel wiederholen führt das zuletzt gestartete Ziel noch einmal aus.
 3. Der Lauf geht über den Werkzeug-Starter: Der Befehl wird gezeigt und beim ersten Mal bestätigt, die Ausgabe geht in den Tab Aufgaben, Stopp beendet make und alles, was es gestartet hat.
 4. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter. Ein rekursives make meldet „Entering directory“ und „Leaving directory“; ein relativer Dateiname nach einer solchen Zeile wird in diesem Ordner gesucht.
-- Make muss installiert und im PATH sein oder in der Einstellung Make-Programm stehen (zum Beispiel mingw32-make). Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
+- Make muss installiert und im PATH sein oder in der Einstellung Make-Programm stehen (zum Beispiel mingw32-make). Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl und dem Inhalt des Makefile auf der Platte (der Anfang seines SHA-256 steht in der Frage): Ändert sich die Datei, kommt die Frage wieder, und die alte Antwort gilt erneut, wenn die Bytes zum früheren Stand zurückkehren. Dateien, die das Makefile einbindet, werden nicht überwacht, ebenso wenig eine Änderung nach der Frage. Der Text eines ungespeicherten Tabs ist nicht das, was make ausführt.
 
 ## [packages.registry] Paketmanifeste: Namen, Versionen und Marke für neuere Versionen
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
