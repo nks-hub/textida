@@ -29,6 +29,7 @@ public static partial class Program
             if (!command.NeedsNoWindow)
             {
                 SetupApp.Startup = (command, env);
+                NativeBundle.Prepare(env.SetupExe);
                 return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             }
             if (RelocateIfInside(command, env, args)) return 0;
@@ -43,7 +44,9 @@ public static partial class Program
         }
     }
 
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<SetupApp>().UsePlatformDetect().LogToTrace();
+    /// <summary>The window is drawn by the software renderer: a setup needs no GPU, and it starts the same on a machine without one.</summary>
+    public static AppBuilder BuildAvaloniaApp() =>
+        AppBuilder.Configure<SetupApp>().UsePlatformDetect().With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Software] }).LogToTrace();
 
     /// <summary>
     /// A folder cannot be moved from under the program that runs from it. A switch of the folders started from the install folder therefore starts a copy of the setup from a temporary folder,

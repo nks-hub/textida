@@ -36,4 +36,11 @@
     <EmbeddedResource Include="Strings\*.json" />
     <EmbeddedResource Include="..\..\LICENSE" LogicalName="LICENSE" />
   </ItemGroup>
+
+  <!-- the native libraries of the Skia and HarfBuzz packages come with their .pdb files, which the setup does not ship -->
+  <Target Name="DropPackageSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSymbols)' != 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 </Project>
