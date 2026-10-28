@@ -26,6 +26,27 @@ public class IpcTests
         Assert.Null(seen.Files[1].Line);
     }
 
+    /// <summary>A context whose work never runs: the thread that owns it is blocked in a wait, as the UI thread is while the editor ends its server.</summary>
+    private sealed class BlockedContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state) { }
+    }
+
+    [Fact]
+    public void Ending_the_server_does_not_need_the_thread_that_waits_for_it()
+    {
+        var server = new IpcServer(Channel(), _ => Task.CompletedTask);
+        var before = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new BlockedContext());
+        try
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            // the handler of the exit of the editor waits for three seconds at most: a normal end must not use them up
+            Assert.True(server.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(1.5)), $"the end did not come in {clock.Elapsed.TotalSeconds:F1} s");
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(before); }
+    }
+
     [Fact]
     public async Task Reply_waits_for_the_handler()
     {
