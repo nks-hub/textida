@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia;
@@ -7,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Input.TextInput;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -45,11 +47,14 @@ public class PagedMultiCaretTests : IDisposable
 
     private DocTab OpenUnindexed(byte[] content, string name)
     {
-        var tab = _w.OpenFile(_temp.Bytes(name, content), null);
+        // the setting files.largeFileThreshold cannot go below 1 MiB, so a small text is opened in the paged backend directly
+        var tab = _w.AddRecovered(OpenDocument.Open(_temp.Bytes(name, content), 0), _w.ActiveGroup);
         Assert.True(tab.Doc.IsLarge);
+        _w.SelectTab(tab);
         _w.UpdateLayout();
         tab.Paged!.Focus();
         Dispatcher.UIThread.RunJobs();
+        Assert.True(tab.Paged.IsAttachedToVisualTree());
         return tab;
     }
 
@@ -221,6 +226,26 @@ public class PagedMultiCaretTests : IDisposable
         Press(Key.Down, TestApp.Mod | RawInputModifiers.Alt); // a caret on the empty last line would be the third
         Assert.Equal(2, paged.CaretCount);
         Assert.Contains(Loc.Get(K.PagedCaretsLimit, ("limit", 2)), _w.StatusLeftText);
+    }
+
+    [AvaloniaFact]
+    public void Select_all_occurrences_stops_at_1000_carets_by_default_and_typing_at_all_of_them_is_one_undo_step()
+    {
+        string text = string.Concat(Enumerable.Repeat("ab ", 1500)) + "\n";
+        var tab = OpenPaged(text);
+        var paged = tab.Paged!;
+        Assert.Equal(1000, paged.CaretLimit);
+        paged.SelectBytes(0, 2);
+        Mod(Key.L, shift: true);
+        Assert.Equal(1000, paged.CaretCount);
+        Assert.Contains(Loc.Get(K.PagedCaretsLimit, ("limit", 1000)), _w.StatusLeftText);
+
+        TestApp.Type(_w, "X");
+        Assert.Equal(string.Concat(Enumerable.Repeat("X ", 1000)) + string.Concat(Enumerable.Repeat("ab ", 500)) + "\n", Text(tab));
+        Assert.Equal(1, tab.Doc.Doc.UndoDepth);
+        Mod(Key.Z);
+        Assert.Equal(text, Text(tab));
+        Assert.Equal(1000, paged.CaretCount);
     }
 
     // ---- moving ----
@@ -430,6 +455,140 @@ public class PagedMultiCaretTests : IDisposable
         Mod(Key.D);
         Assert.False(paged.IsMulti);
         Assert.Contains(Loc.Get(K.PagedOccurrenceTooLong, ("limit", OpenDocument.FormatSize(3))), _w.StatusLeftText);
+    }
+
+    // ---- undo steps and carets ----
+
+    [AvaloniaFact]
+    public void A_run_of_typing_at_three_carets_is_one_undo_step_and_undo_and_redo_give_back_the_text_and_all_three_carets()
+    {
+        var tab = OpenPaged("one\ntwo\nthree\nfour\n");
+        var paged = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        Place(tab, 1, 5, 10);
+        var start = paged.AllCarets();
+        Assert.Equal("o|ne\nt|wo\nth|ree\nfour\n", Marked(tab));
+
+        foreach (string letter in new[] { "a", "b", "c" }) TestApp.Type(_w, letter);
+        Assert.Equal("oabcne\ntabcwo\nthabcree\nfour\n", Text(tab));
+        Assert.Equal("oabc|ne\ntabc|wo\nthabc|ree\nfour\n", Marked(tab));
+        Assert.Equal(1, doc.UndoDepth);
+        var typed = paged.AllCarets();
+
+        Mod(Key.Z);
+        Assert.Equal("one\ntwo\nthree\nfour\n", Text(tab));
+        Assert.Equal(0, doc.UndoDepth);
+        Assert.Equal(3, paged.CaretCount);
+        Assert.Equal(start.Items, paged.AllCarets().Items);
+        Assert.Equal(start.Primary, paged.AllCarets().Primary);
+
+        Mod(Key.Z, shift: true);
+        Assert.Equal("oabcne\ntabcwo\nthabcree\nfour\n", Text(tab));
+        Assert.Equal(typed.Items, paged.AllCarets().Items);
+        Assert.Equal(typed.Primary, paged.AllCarets().Primary);
+
+        // moving the carets ends the run: the next typing is a step of its own, and its undo gives back the moved carets
+        Press(Key.Right);
+        TestApp.Type(_w, "x");
+        Assert.Equal("oabcnxe\ntabcwxo\nthabcrxee\nfour\n", Text(tab));
+        Assert.Equal(2, doc.UndoDepth);
+        Mod(Key.Z);
+        Assert.Equal("oabcne\ntabcwo\nthabcree\nfour\n", Text(tab));
+        Assert.Equal("oabcn|e\ntabcw|o\nthabcr|ee\nfour\n", Marked(tab));
+        Mod(Key.Z);
+        Assert.Equal("one\ntwo\nthree\nfour\n", Text(tab));
+        Assert.Equal(start.Items, paged.AllCarets().Items);
+    }
+
+    // ---- the edit limit of a line ----
+
+    private (DocTab Tab, List<string> Refused, string TooLong) OpenWithLongLine()
+    {
+        var tab = OpenPaged("short\n" + new string('x', 20_000) + "\ntail\n");
+        tab.Paged!.EditLineLimitBytes = 10_000;
+        var refused = new List<string>();
+        tab.Paged.Refused += refused.Add;
+        string tooLong = Loc.Get(K.PagedLineTooLong, ("line", 2.ToString("N0", CultureInfo.CurrentCulture)),
+            ("size", OpenDocument.FormatSize(20_000)), ("limit", OpenDocument.FormatSize(10_000)));
+        return (tab, refused, tooLong);
+    }
+
+    [AvaloniaFact]
+    public void Carets_on_a_line_over_the_edit_limit_refuse_every_edit_as_one_caret_does_and_the_document_stays_the_same()
+    {
+        var (tab, refused, tooLong) = OpenWithLongLine();
+        var paged = tab.Paged!;
+        byte[] content = AllBytes(tab);
+        Place(tab, 2, 106, 20_007); // "short", the long line and "tail"
+
+        TestApp.Type(_w, "q");
+        Press(Key.Back);
+        Press(Key.Delete);
+        Press(Key.Enter);
+        Press(Key.Tab);
+        Assert.False(paged.PasteText("pasted"));
+        Assert.Equal(Enumerable.Repeat(tooLong, 6), refused);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(content, AllBytes(tab));
+        Assert.Equal(3, paged.CaretCount);
+
+        // a join with the long line from either side is an edit of it
+        refused.Clear();
+        Place(tab, 3, 20_007);
+        Press(Key.Back); // the start of "tail" joins it to the long line
+        Place(tab, 3, 5);
+        Press(Key.Delete); // the end of "short" joins the long line to it
+        Assert.Equal([tooLong, tooLong], refused);
+        Assert.Equal(content, AllBytes(tab));
+
+        // carets that stay off the long line edit as ever, and the long line again once the limit allows it
+        refused.Clear();
+        Place(tab, 2, 3);
+        TestApp.Type(_w, "!");
+        Assert.Equal("sh!o!rt\n", Text(tab)[..8]);
+        Mod(Key.Z);
+        paged.EditLineLimitBytes = 1 << 20;
+        Place(tab, 2, 106);
+        TestApp.Type(_w, "q");
+        Assert.Empty(refused);
+        Assert.Equal(content.Length + 2, AllBytes(tab).Length);
+    }
+
+    [AvaloniaFact]
+    public async Task A_cut_that_touches_a_line_over_the_edit_limit_is_refused_and_the_clipboard_stays_as_it_was()
+    {
+        var (tab, refused, tooLong) = OpenWithLongLine();
+        var paged = tab.Paged!;
+        await _w.Clipboard!.SetTextAsync("kept");
+        byte[] content = AllBytes(tab);
+        paged.SetCarets(SelectionSet.Create([new TextSelection(0, 2), new TextSelection(100, 110)], 1));
+
+        await paged.CopyAsync(cut: true);
+        Assert.Equal([tooLong], refused);
+        Assert.Equal("kept", await _w.Clipboard!.TryGetTextAsync());
+        Assert.Equal(content, AllBytes(tab));
+        Assert.False(tab.Doc.Doc.IsModified);
+
+        await paged.CopyAsync(cut: false); // a copy edits nothing
+        Assert.Equal([tooLong], refused);
+        Assert.Equal("sh" + tab.Doc.NewLine(_w.Options.ConfiguredEol) + new string('x', 10), await _w.Clipboard!.TryGetTextAsync());
+    }
+
+    [AvaloniaFact]
+    public void Tab_and_typing_at_carets_far_along_a_line_longer_than_a_screen_edit_exactly_those_bytes()
+    {
+        string line = new string('x', 40_000);
+        var tab = OpenPaged(line + "\nend\n");
+        var paged = tab.Paged!;
+        var options = _w.Options;
+        int size = Math.Max(1, options.InsertSpaces ? options.IndentSize : options.TabSize);
+        string Pad(int column) => options.InsertSpaces ? new string(' ', size - column % size) : "\t";
+        Place(tab, 3, 30_001, 40_004); // columns 3 and 30 001 of the long line, and the end of the second line
+        Press(Key.Tab);
+        Assert.Equal(line[..3] + Pad(3) + line[3..30_001] + Pad(30_001) + line[30_001..] + "\nend" + Pad(3) + "\n", Text(tab));
+        Mod(Key.Z);
+        Assert.Equal(line + "\nend\n", Text(tab));
+        Assert.Equal(0, tab.Doc.Doc.UndoDepth);
     }
 
     // ---- the input method ----
