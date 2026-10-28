@@ -5168,12 +5168,12 @@
     {
       "key": "alt+left",
       "command": "nks.search.jumpBack",
-      "mac": "mod+ctrl+left"
+      "mac": "meta+ctrl+left"
     },
     {
       "key": "alt+right",
       "command": "nks.search.jumpForward",
-      "mac": "mod+ctrl+right"
+      "mac": "meta+ctrl+right"
     },
     {
       "key": "ctrl+f2",
