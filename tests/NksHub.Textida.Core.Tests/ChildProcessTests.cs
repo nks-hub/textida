@@ -65,19 +65,31 @@ public class ChildProcessTests : IDisposable
         var pidFile = Path.Combine(_folder, mode + ".pid");
         var parent = Process.Start(Dotnet("NksHub.Textida.Journal.CrashHarness.dll", mode, pidFile))!;
         _started.Add(parent);
-        var waited = Stopwatch.StartNew();
-        while (!File.Exists(pidFile))
-        {
-            Assert.False(parent.HasExited, "the stand-in for the editor ended on its own");
-            Assert.True(waited.Elapsed < TimeSpan.FromSeconds(30), "the stand-in for the editor did not start a child");
-            Thread.Sleep(50);
-        }
-        var child = Process.GetProcessById(int.Parse(File.ReadAllText(pidFile)));
-        _started.Add(child);
-        Assert.False(child.HasExited);
+        WaitForFile(parent, pidFile);
+        var child = Adopt(int.Parse(File.ReadAllText(pidFile)));
         parent.Kill();
         parent.WaitForExit();
         return child;
+    }
+
+    private static void WaitForFile(Process parent, string path)
+    {
+        var waited = Stopwatch.StartNew();
+        while (!File.Exists(path))
+        {
+            Assert.False(parent.HasExited, "the stand-in for the editor ended on its own");
+            Assert.True(waited.Elapsed < TimeSpan.FromSeconds(30), "the stand-in for the editor did not start its children");
+            Thread.Sleep(50);
+        }
+    }
+
+    /// <summary>Opens a process the harness started so that the test ends it in the end, whatever the outcome.</summary>
+    private Process Adopt(int pid)
+    {
+        var process = Process.GetProcessById(pid);
+        _started.Add(process);
+        Assert.False(process.HasExited);
+        return process;
     }
 
     [Fact]
@@ -89,11 +101,34 @@ public class ChildProcessTests : IDisposable
     }
 
     [Fact]
+    public void A_grandchild_of_a_tracked_child_ends_with_it_and_an_untracked_process_of_the_same_program_lives_on_Windows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var file = Path.Combine(_folder, "tree.pids");
+        var parent = Process.Start(Dotnet("NksHub.Textida.Journal.CrashHarness.dll", "guard-tree-parent", file))!;
+        _started.Add(parent);
+        WaitForFile(parent, file);
+        WaitForFile(parent, file + ".grandchild");
+        var ids = File.ReadAllText(file).Split(' ');
+        var tracked = Adopt(int.Parse(ids[0]));
+        var untracked = Adopt(int.Parse(ids[1]));
+        var grandchild = Adopt(int.Parse(File.ReadAllText(file + ".grandchild")));
+        Assert.Equal(untracked.ProcessName, tracked.ProcessName);
+
+        parent.Kill();
+        parent.WaitForExit();
+
+        Assert.True(tracked.WaitForExit(10_000), "the tracked child outlived the killed editor");
+        Assert.True(grandchild.WaitForExit(10_000), "the grandchild of the tracked child outlived the killed editor");
+        Assert.False(untracked.WaitForExit(1_000), "the untracked process was ended with the editor");
+    }
+
+    [Fact]
     public void A_plugin_that_watches_its_parent_ends_by_itself_when_the_editor_is_killed()
     {
         var child = KillParentOf("guard-watched-parent");
         Assert.True(child.WaitForExit(10_000), "the plugin did not notice that the editor is gone");
-        if (OperatingSystem.IsWindows()) Assert.Equal(0, child.ExitCode); // the exit code of a process that is not ours is known on Windows only
+        Assert.True(File.Exists(Path.Combine(_folder, "guard-watched-parent.pid.gone")), "the plugin ended without its watch seeing the editor go"); // the exit code of a process that is not ours cannot be read
     }
 
     // ---- the files of the children ----

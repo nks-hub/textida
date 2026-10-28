@@ -11,12 +11,14 @@ public static class Program
     {
         if (args.Length == 2 && args[0] == "guard-parent") return GuardParent(args[1], tracked: true);
         if (args.Length == 2 && args[0] == "guard-watched-parent") return GuardParent(args[1], tracked: false);
+        if (args is ["guard-tree-parent", var treeFile]) return GuardTreeParent(treeFile);
+        if (args is ["guard-spawn", var grandchildFile]) return GuardSpawn(grandchildFile);
         if (args is ["guard-sleep"])
         {
             Thread.Sleep(Timeout.Infinite);
             return 0;
         }
-        if (args is ["guard-watch"]) return GuardWatch();
+        if (args is ["guard-watch", var goneFile]) return GuardWatch(goneFile);
         if (args.Length >= 3 && args[0] == "child") return Child(args[1], int.Parse(args[2]));
         if (args.Length >= 3 && args[0] == "inplace-child") return InPlaceChild(args[1], args[2]);
         if (args.Length >= 4 && args[0] == "batch-child") return BatchScenario.Child(args[1], int.Parse(args[2]), args[3]);
@@ -64,7 +66,7 @@ public static class Program
     /// </summary>
     private static int GuardParent(string pidFile, bool tracked)
     {
-        var info = ProcessLaunch.CreateStartInfo(Environment.ProcessPath!, [typeof(Program).Assembly.Location, tracked ? "guard-sleep" : "guard-watch"]);
+        var info = ProcessLaunch.CreateStartInfo(Environment.ProcessPath!, [typeof(Program).Assembly.Location, .. tracked ? new[] { "guard-sleep" } : ["guard-watch", pidFile + ".gone"]]);
         info.UseShellExecute = false;
         info.CreateNoWindow = true;
         if (!tracked)
@@ -81,11 +83,50 @@ public static class Program
         return 0;
     }
 
-    /// <summary>A plugin process that ends by itself when its parent is gone: exit code 0 then, 3 when the environment asks it for no watch.</summary>
-    private static int GuardWatch()
+    /// <summary>
+    /// Stand-in for an editor with two children: a tracked one (<c>guard-spawn</c>, which starts a grandchild of its own) and an untracked one that only sleeps. Writes
+    /// "tracked untracked" process ids to <paramref name="file"/> once the grandchild is up, whose id <c>guard-spawn</c> writes to <c>file + ".grandchild"</c>.
+    /// </summary>
+    private static int GuardTreeParent(string file)
+    {
+        Process Start(params string[] args)
+        {
+            var info = ProcessLaunch.CreateStartInfo(Environment.ProcessPath!, [typeof(Program).Assembly.Location, .. args]);
+            info.UseShellExecute = false;
+            info.CreateNoWindow = true;
+            return Process.Start(info)!;
+        }
+        using var tracked = Start("guard-spawn", file + ".grandchild");
+        ProcessLaunch.Track(tracked);
+        using var untracked = Start("guard-sleep");
+        File.WriteAllText(file + ".tmp", $"{tracked.Id} {untracked.Id}");
+        File.Move(file + ".tmp", file);
+        Thread.Sleep(Timeout.Infinite);
+        return 0;
+    }
+
+    /// <summary>A tracked child that starts a plain grandchild (nothing tracks it by hand), writes its process id to <paramref name="grandchildFile"/> and waits.</summary>
+    private static int GuardSpawn(string grandchildFile)
+    {
+        var info = ProcessLaunch.CreateStartInfo(Environment.ProcessPath!, [typeof(Program).Assembly.Location, "guard-sleep"]);
+        info.UseShellExecute = false;
+        info.CreateNoWindow = true;
+        using var grandchild = Process.Start(info)!;
+        File.WriteAllText(grandchildFile + ".tmp", grandchild.Id.ToString());
+        File.Move(grandchildFile + ".tmp", grandchildFile);
+        Thread.Sleep(Timeout.Infinite);
+        return 0;
+    }
+
+    /// <summary>
+    /// A plugin process that ends by itself when its parent is gone. It writes <paramref name="goneFile"/> when the watch saw the parent go, and ends with code 3 without
+    /// the file when the environment asks it for no watch. A parent's other process cannot read the exit code of a child that is not its own, so the file is the proof.
+    /// </summary>
+    private static int GuardWatch(string goneFile)
     {
         if (ParentWatch.FromEnvironment() is not { } watch) return 3;
         watch.WaitUntilGoneAsync(CancellationToken.None).GetAwaiter().GetResult();
+        File.WriteAllText(goneFile, "gone");
         return 0;
     }
 
