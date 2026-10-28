@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using FubarDev.FtpServer;
 using FubarDev.FtpServer.AccountManagement;
+using FubarDev.FtpServer.Commands;
+using FubarDev.FtpServer.Features;
 using FubarDev.FtpServer.FileSystem.DotNet;
 using Microsoft.Extensions.DependencyInjection;
 using NksHub.Textida.Remote;
@@ -69,7 +71,7 @@ public sealed class FtpsServer : IServerFixture
         try { return ((IPEndPoint)l.LocalEndpoint).Port; } finally { l.Stop(); }
     }
 
-    public static async Task<FtpsServer> StartAsync(string root, bool isImplicit = false, X509Certificate2? certificate = null, int? port = null, bool plain = false, string password = "p")
+    public static async Task<FtpsServer> StartAsync(string root, bool isImplicit = false, X509Certificate2? certificate = null, int? port = null, bool plain = false, string password = "p", TimeSpan? commandLag = null)
     {
         certificate ??= NewCertificate();
         int p = port ?? FreePort();
@@ -80,6 +82,8 @@ public sealed class FtpsServer : IServerFixture
         services.AddSingleton(new FixedMembership(password));
         services.AddSingleton<IMembershipProvider>(sp => sp.GetRequiredService<FixedMembership>());
         services.AddSingleton<IMembershipProviderAsync>(sp => sp.GetRequiredService<FixedMembership>());
+        if (commandLag is { } lag) services.AddSingleton<IFtpCommandMiddleware>(new LagAfterTheResponse(lag));
+        services.AddSingleton<IFtpMiddleware, WaitForTheRunningCommand>();
         services.AddFtpServer(b => b.UseDotNetFileSystem().UseSingleRoot());
         var provider = services.BuildServiceProvider();
         var host = provider.GetRequiredService<IFtpServerHost>();
@@ -91,6 +95,36 @@ public sealed class FtpsServer : IServerFixture
     {
         await _host.StopAsync(CancellationToken.None);
         await _provider.DisposeAsync();
+    }
+
+    /// <summary>
+    /// FubarDev runs RNFR, RNTO and the other commands it declares abortable as a background task and answers the next such command with
+    /// "503 Parallel commands aren't allowed" until its dispatcher noticed that the task ended. The task ends a moment after the reply is
+    /// queued, so a client that sends RNTO the instant it has read the 350 of RNFR (as every client must) is refused on a loaded machine.
+    /// This waits for that task before the next command is dispatched; ABOR is the one command that is meant to arrive meanwhile.
+    /// </summary>
+    private sealed class WaitForTheRunningCommand : IFtpMiddleware
+    {
+        public async Task InvokeAsync(FtpContext context, FtpRequestDelegate next)
+        {
+            var features = context.Connection.Features;
+            if (features.Get<IBackgroundTaskLifetimeFeature?>() is { } running && !context.Command.Name.Equals("ABOR", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.WhenAny(running.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                if (running.Task.IsCompleted) features.Set<IBackgroundTaskLifetimeFeature?>(null);
+            }
+            await next(context);
+        }
+    }
+
+    /// <summary>Keeps every command running for a while after its reply was queued, which widens the window of the race <see cref="WaitForTheRunningCommand"/> closes.</summary>
+    private sealed class LagAfterTheResponse(TimeSpan lag) : IFtpCommandMiddleware
+    {
+        public async Task InvokeAsync(FtpExecutionContext context, FtpCommandExecutionDelegate next)
+        {
+            await next(context);
+            await Task.Delay(lag);
+        }
     }
 
     private sealed class FixedMembership(string password) : IMembershipProviderAsync, IMembershipProvider
