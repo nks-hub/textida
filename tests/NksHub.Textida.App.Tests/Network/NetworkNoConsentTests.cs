@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Tests;
@@ -205,6 +206,70 @@ public class NetworkNoConsentTests
         var report = await rig.Net.FinishAsync();
         AssertSilent(report, rig);
         AssertWatched(report, [.. new[] { "Json", "TextTools", "WebData", "CodeExplorer", "Emmet", "Formatters", "Git", "Lsp", "Wiki" }.Select(n => "NksHub.Textida.Plugins." + n)]);
+    }
+
+    /// <summary>The fake server under the name of the C# server of the catalog, in a folder the user's tool path names; the editor starts it like the real one.</summary>
+    private static string InstallFakeServer(NetworkRig rig)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(rig.Temp.Path, "lsp-tools")).FullName;
+        const string name = "NksHub.Textida.FakeLsp";
+        foreach (var extension in new[] { ".dll", ".runtimeconfig.json", ".deps.json" }) File.Copy(Path.Combine(AppContext.BaseDirectory, name + extension), Path.Combine(folder, name + extension));
+        var host = OperatingSystem.IsWindows() ? ".exe" : "";
+        File.Copy(Path.Combine(AppContext.BaseDirectory, name + host), Path.Combine(folder, "Microsoft.CodeAnalysis.LanguageServer" + host));
+        SaveActionConfig.Write(Path.Combine(rig.App.ProfileDirectory, SaveActionConfig.FileName), new SaveActionsFile { ToolPaths = new Dictionary<string, string> { ["lsp:csharp"] = folder } });
+        return folder;
+    }
+
+    [AvaloniaFact]
+    public async Task A_running_language_server_is_started_without_telemetry_and_neither_it_nor_its_client_makes_a_connection()
+    {
+        using var rig = new NetworkRig();
+        InstallFakeServer(rig);
+        var argv = Path.Combine(rig.Temp.Path, "argv.txt");
+        Environment.SetEnvironmentVariable("TEXTIDA_FAKELSP_ARGV", argv);
+        try
+        {
+            var tab = rig.Window.OpenFile(rig.ProjectFile("src/Program.cs", "class C { void M() { } }\n"), null);
+            Assert.True(await rig.App.Plugins.RunLspAsync(rig.Window, tab, "lsp.start"));
+            await rig.Until(() => File.Exists(argv), "the language server to start");
+            tab.Editor!.Document.Insert(0, "// edited\n");
+            await rig.Settle(2500);
+        }
+        finally { Environment.SetEnvironmentVariable("TEXTIDA_FAKELSP_ARGV", null); }
+
+        Assert.Contains("--telemetryLevel\noff", File.ReadAllText(argv));
+        var report = await rig.Net.FinishAsync();
+        AssertSilent(report, rig);
+        AssertWatched(report, "NksHub.Textida.Plugins.Lsp", "Microsoft.CodeAnalysis.LanguageServer");
+    }
+
+    [AvaloniaFact]
+    public async Task The_MCP_server_the_IDE_bridge_the_agent_panel_and_the_list_of_agent_servers_idle_without_a_connection()
+    {
+        using var rig = new NetworkRig();
+        var home = Directory.CreateDirectory(Path.Combine(rig.Temp.Path, "home")).FullName;
+        File.WriteAllText(Path.Combine(home, ".claude.json"), """{ "mcpServers": { "remote": { "type": "http", "url": "https://mcp.example.test/mcp" } } }""");
+        rig.App.AgentConfigHome = home;
+        var mcp = rig.App.Plugins.Mcp;
+        mcp.IdeLockDirectory = Path.Combine(rig.Temp.Path, "ide");
+        mcp.Enable();
+        mcp.EnableIde(rig.Window);
+        var bridge = mcp.IdeOf(rig.Window)!;
+        rig.Net.AllowLoopback(bridge.Port, "IDE bridge of the editor, the door of a CLI agent");
+        using (var agent = new System.Net.Sockets.TcpClient()) await agent.ConnectAsync(System.Net.IPAddress.Loopback, bridge.Port);
+
+        await rig.App.Workbench.Commands.ExecuteAsync("nks.tools.mcpServers", new ShellContext(rig.Window, forMenu: false)).AsTask();
+        await rig.Until(() => rig.Window.IsPaletteOpen && rig.Window.PaletteModeNow == PaletteMode.Choice && rig.Window.QuickResults.Count == 1, "the list of servers");
+        rig.Window.ClosePalette();
+        await rig.Until(() => rig.Window.McpTask.IsCompleted, "the list to end");
+        await rig.Settle(2000);
+
+        Assert.False(rig.App.Plugins.Acp.IsRunning);
+        Assert.Empty(rig.Dialogs.Asked);
+        var report = await rig.Net.FinishAsync();
+        AssertSilent(report, rig);
+        Assert.Contains(report.Ipc, e => e.Target == $"127.0.0.1:{bridge.Port}");
+        await mcp.DisableAsync();
     }
 
     private static string FeedFor(string version, out string publicKey)

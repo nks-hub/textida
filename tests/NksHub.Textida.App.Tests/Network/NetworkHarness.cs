@@ -15,7 +15,7 @@ internal sealed record NetReport(IReadOnlyList<NetEvent> Hooked, IReadOnlyList<N
     public IEnumerable<string> Hosts => Requests.Select(r => NetworkHarness.HostPort(r.Target)).Distinct().Order(StringComparer.Ordinal);
 
     public override string ToString() =>
-        $"hooked: {string.Join(", ", Hooked.Select(h => $"{h.Process}[{h.Pid}]"))}\nipc: {string.Join("; ", Ipc.Select(i => i.Kind + " " + i.Target))}\n"
+        $"hooked: {string.Join(", ", Hooked.Select(h => $"{h.Process}[{h.Pid}]"))}\nipc: {string.Join("; ", Ipc.Select(i => i.ToString()))}\n"
         + $"requests: {string.Join("; ", Requests.Select(r => r.Process + " " + r.Target))}\nforbidden: {string.Join("; ", Forbidden.Select(f => f.ToString()))}";
 }
 

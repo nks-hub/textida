@@ -31,7 +31,7 @@ public sealed record NetEvent(long Ticks, int Pid, string Process, string Kind, 
 
     private static string Clean(string text) => text.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
 
-    public override string ToString() => $"{Process}[{Pid}] {Kind} {Target}{(Detail.Length > 0 ? " (" + Detail + ")" : "")}";
+    public override string ToString() => $"{Process}[{Pid}] {Kind} {Target}{(Detail.Length > 0 ? " (" + Detail + ")" : "")}".Trim();
 }
 
 /// <summary>Reading and judging the targets of <see cref="NetEvent"/>.</summary>

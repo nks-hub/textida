@@ -18,6 +18,8 @@ string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
 string? configSections = args.SkipWhile(a => a != "--config").Skip(1).FirstOrDefault();
 string? processFile = null;
+// TEXTIDA_FAKELSP_ARGV names a file that gets the command line of each start, so a test can see how the editor launches a server from the catalog.
+if (Environment.GetEnvironmentVariable("TEXTIDA_FAKELSP_ARGV") is { Length: > 0 } argvFile) File.AppendAllText(argvFile, string.Join('\n', args) + "\n--\n");
 if (dump is not null)
 {
     Directory.CreateDirectory(dump);
