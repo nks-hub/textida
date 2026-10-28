@@ -1,5 +1,9 @@
+using System.Diagnostics;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
@@ -513,6 +517,164 @@ public class IdeBridgeTests
         Assert.NotEqual(first.Bridge.AuthToken, second.Bridge.AuthToken);
     }
 
+    // ---- the handshake on the wire ----
+
+    /// <summary>Sends one request head to the bridge as it is and returns the status line of the answer; null when the bridge closes the connection without one.</summary>
+    static async Task<string?> RawUpgradeAsync(int port, IEnumerable<string> head)
+    {
+        using var client = new TcpClient();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await client.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+        var stream = client.GetStream();
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(string.Join("\r\n", head) + "\r\n\r\n"), timeout.Token);
+        var buffer = new byte[256];
+        int read;
+        try { read = await stream.ReadAsync(buffer, timeout.Token); }
+        catch (IOException) { return null; }
+        return read == 0 ? null : Encoding.ASCII.GetString(buffer, 0, read).Split("\r\n")[0];
+    }
+
+    static List<string> UpgradeHead(int port, string? token, string host = "", string method = "GET", string? origin = null, bool upgrade = true)
+    {
+        var head = new List<string> { $"{method} / HTTP/1.1" };
+        if (host != "-") head.Add("Host: " + (host.Length > 0 ? host : $"127.0.0.1:{port}"));
+        if (upgrade) head.AddRange(["Upgrade: websocket", "Connection: Upgrade"]);
+        head.AddRange(["Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==", "Sec-WebSocket-Version: 13"]);
+        if (token is not null) head.Add($"{IdeBridge.AuthorizationHeader}: {token}");
+        if (origin is not null) head.Add("Origin: " + origin);
+        return head;
+    }
+
+    [Fact]
+    public async Task Only_a_request_with_the_exact_token_for_a_loopback_host_and_without_an_origin_is_upgraded()
+    {
+        await using var rig = Rig.Create();
+        int port = rig.Bridge.Port;
+        string token = rig.Bridge.AuthToken;
+        var cases = new (string Label, List<string> Head, string Status)[]
+        {
+            ("the right token", UpgradeHead(port, token), "HTTP/1.1 101"),
+            ("localhost as the host", UpgradeHead(port, token, host: $"localhost:{port}"), "HTTP/1.1 101"),
+            ("no token", UpgradeHead(port, null), "HTTP/1.1 401"),
+            ("an empty token", UpgradeHead(port, ""), "HTTP/1.1 401"),
+            ("another token", UpgradeHead(port, new string('0', token.Length)), "HTTP/1.1 401"),
+            ("the token with a character more", UpgradeHead(port, token + "0"), "HTTP/1.1 401"),
+            ("the token without its last character", UpgradeHead(port, token[..^1]), "HTTP/1.1 401"),
+            ("the token with a space before it", UpgradeHead(port, "x" + token), "HTTP/1.1 401"),
+            ("a host that is not loopback", UpgradeHead(port, token, host: $"evil.example:{port}"), "HTTP/1.1 403"),
+            ("a LAN address as the host", UpgradeHead(port, token, host: $"192.0.2.10:{port}"), "HTTP/1.1 403"),
+            ("the loopback host with another port", UpgradeHead(port, token, host: $"127.0.0.1:{port + 1}"), "HTTP/1.1 403"),
+            ("no host", UpgradeHead(port, token, host: "-"), "HTTP/1.1 403"),
+            ("an origin, as a web page sends", UpgradeHead(port, token, origin: "http://127.0.0.1"), "HTTP/1.1 403"),
+            ("a method other than GET", UpgradeHead(port, token, method: "POST"), "HTTP/1.1 400"),
+            ("no upgrade", UpgradeHead(port, token, upgrade: false), "HTTP/1.1 400"),
+        };
+        foreach (var (label, head, expected) in cases)
+        {
+            var status = await RawUpgradeAsync(port, head);
+            Assert.True(status is not null && status.StartsWith(expected, StringComparison.Ordinal), $"{label}: expected {expected}, got {status ?? "no answer"}");
+        }
+    }
+
+    [Fact]
+    public async Task A_request_head_over_the_limit_or_a_handshake_that_never_comes_is_dropped_and_the_bridge_goes_on()
+    {
+        await using var rig = Rig.Create(o => o with { HandshakeTimeout = TimeSpan.FromMilliseconds(300), MaxHeaderBytes = 2048 });
+        var big = UpgradeHead(rig.Bridge.Port, rig.Bridge.AuthToken);
+        big.Add("X-Padding: " + new string('a', 4096));
+        Assert.Null(await RawUpgradeAsync(rig.Bridge.Port, big));
+
+        using (var silent = new TcpClient())
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await silent.ConnectAsync(IPAddress.Loopback, rig.Bridge.Port, timeout.Token);
+            var read = 0;
+            try { read = await silent.GetStream().ReadAsync(new byte[16], timeout.Token); }
+            catch (IOException) { }
+            Assert.Equal(0, read); // the bridge hung up on the connection that sent nothing
+        }
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+    }
+
+    [Fact]
+    public async Task The_bridge_cannot_be_reached_by_the_addresses_of_the_machine_other_than_loopback()
+    {
+        await using var rig = Rig.Create();
+        var addresses = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .SelectMany(n => n.GetIPProperties().UnicastAddresses.Select(a => a.Address))
+            .Where(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a))
+            .Take(3).ToList();
+        foreach (var address in addresses) // a machine with no other address has nothing to try
+        {
+            using var client = new TcpClient();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<Exception>(async () => await client.ConnectAsync(address, rig.Bridge.Port, timeout.Token));
+        }
+    }
+
+    // ---- lock files and the process table ----
+
+    /// <summary>A process that lives until its input is closed.</summary>
+    static Process StartWaiter()
+    {
+        var start = OperatingSystem.IsWindows() ? new ProcessStartInfo("cmd.exe", "/c \"set /p x=\"") : new ProcessStartInfo("/bin/sh") { ArgumentList = { "-c", "read x" } };
+        start.RedirectStandardInput = true;
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        return Process.Start(start)!;
+    }
+
+    static string WriteLock(string directory, string name, int pid, string ideName)
+    {
+        var path = Path.Combine(directory, name);
+        File.WriteAllText(path, $"{{\"pid\":{pid},\"ideName\":\"{ideName}\",\"authToken\":\"left-behind\"}}");
+        return path;
+    }
+
+    [Fact]
+    public async Task A_lock_file_is_stale_only_when_the_process_that_wrote_it_is_gone_from_the_machine()
+    {
+        using var running = StartWaiter();
+        using var finished = StartWaiter();
+        finished.StandardInput.Close();
+        Assert.True(finished.WaitForExit(20_000));
+        string dead = "", alive = "", otherIde = "", noPid = "";
+        await using var rig = Rig.Create(seed: dir => // no fake of the process table: the bridge asks the operating system
+        {
+            dead = WriteLock(dir, "10001.lock", finished.Id, IdeBridge.IdeName);
+            alive = WriteLock(dir, "10002.lock", running.Id, IdeBridge.IdeName);
+            otherIde = WriteLock(dir, "10003.lock", finished.Id, "Another IDE");
+            noPid = Path.Combine(dir, "10004.lock");
+            File.WriteAllText(noPid, "{\"ideName\":\"Textida\"}");
+        });
+        try
+        {
+            Assert.False(File.Exists(dead));
+            Assert.True(File.Exists(alive));
+            Assert.True(File.Exists(otherIde));
+            Assert.True(File.Exists(noPid));
+        }
+        finally
+        {
+            running.StandardInput.Close();
+            running.WaitForExit(20_000);
+        }
+    }
+
+    [Fact]
+    public async Task The_lock_file_goes_when_the_process_exits_without_closing_the_bridge()
+    {
+        var rig = Rig.Create();
+        var path = rig.Bridge.LockPath;
+        Assert.True(File.Exists(path));
+        // the process-exit handler cannot be raised from a test, so the method it is registered with is called
+        typeof(IdeBridge).GetMethod("OnProcessExit", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(rig.Bridge, [null, EventArgs.Empty]);
+        Assert.False(File.Exists(path));
+        await rig.DisposeAsync();
+    }
+
     // ---- selection ----
 
     [Fact]
@@ -574,6 +736,27 @@ public class IdeBridgeTests
         var text = (await agent.NextNotificationAsync()).GetProperty("params").GetProperty("text").GetString()!;
         Assert.DoesNotContain("hunter2", text);
         Assert.Contains("API_KEY=", text);
+    }
+
+    [Fact]
+    public async Task Hidden_values_of_an_env_file_stay_hidden_in_every_answer_the_agent_can_ask_for()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.FileDocument("API_KEY=hunter2\n", ".env"), () => SelectionSet.Single(new TextSelection(0, 15)));
+        rig.Owner.Run(() => { rig.Api.PublishOwn(doc, "lint", doc.Revision, [new Diagnostic(DiagnosticSeverity.Warning, "key is set", "W1", new ByteRange(8, 15))]); return 0; });
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        Assert.True(await rig.Bridge.PublishSelectionAsync(doc.Id, 0, 15));
+        var answers = new[]
+        {
+            (await agent.NextNotificationAsync()).GetRawText(),
+            (await agent.ToolAsync("getCurrentSelection")).GetRawText(),
+            (await agent.ToolAsync("getLatestSelection")).GetRawText(),
+            (await agent.ToolAsync("getDiagnostics")).GetRawText(),
+            (await agent.ToolTextAsync("editor_read_range", $"{{\"document\":\"{doc.Id}\"}}")).Text,
+        };
+        foreach (var answer in answers) Assert.DoesNotContain("hunter2", answer);
+        Assert.Contains("API_KEY=", answers[1]);
     }
 
     [Fact]
