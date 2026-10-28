@@ -879,6 +879,7 @@ public class PluginUiTests : IDisposable
         await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.json")), "the schema in the status bar");
         Assert.Equal(1, server.Count);
 
+        Loc.SetLanguage("en"); // the hover is written in the language of the editor, which is Czech by default; Dispose puts it back
         var hover = await Pump(tab.Editor.HoverProvider!(tab.Editor.Document.Text.IndexOf("\"n\"", StringComparison.Ordinal) + 2));
         Assert.Equal("A number.\n\nType: integer", hover!.Value.Text);
         Assert.Equal("\"n\"", tab.Editor.Document.GetText(hover.Value.Start, hover.Value.End - hover.Value.Start));
