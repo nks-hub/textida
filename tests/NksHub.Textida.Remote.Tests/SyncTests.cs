@@ -423,6 +423,38 @@ public class SyncTests
         Assert.True((await store.CheckAsync(r.Client, store.Find(r.Client.Connection.Id, "/c.txt")!, default)).IsConflict);
     }
 
+    [Theory, MemberData(nameof(ServersData))]
+    public async Task PairingSeesALaterTimeAtTheSameSizeAndIgnoresPartsOfASecond(RemoteProtocol protocol)
+    {
+        await using var r = await Rig.StartAsync(protocol, ("a.txt", "AAAA"), ("b.txt", "BBBB"));
+        var store = r.Store;
+        var a = await store.OpenAsync(r.Client, "/a.txt", default);
+        var b = await store.OpenAsync(r.Client, "/b.txt", default);
+        File.WriteAllText(r.ServerFile("a.txt"), "XXXX");
+        File.SetLastWriteTimeUtc(r.ServerFile("a.txt"), a.Base.ModifiedUtc!.Value.AddMinutes(5));
+        File.SetLastWriteTimeUtc(r.ServerFile("b.txt"), RemoteRevision.Whole(b.Base.ModifiedUtc!.Value).AddMilliseconds(400));
+
+        var paired = (await new WorkingCopyStore(r.Local.Path).PairAsync(r.Client, default)).ToDictionary(s => s.Copy.RemotePath);
+        Assert.Equal(ServerState.Changed, paired["/a.txt"].Server);
+        Assert.Equal(ServerState.InSync, paired["/b.txt"].Server);
+    }
+
+    [Theory, MemberData(nameof(ServersData))]
+    public async Task PairingListsOnlyTheCopiesOfTheConnectionItIsGiven(RemoteProtocol protocol)
+    {
+        await using var r = await Rig.StartAsync(protocol, ("a.txt", "a"));
+        var store = r.Store;
+        await store.OpenAsync(r.Client, "/a.txt", default);
+        using var project = new TempDir();
+        File.WriteAllText(project.Combine("x.txt"), "x");
+        store.Stage("another-connection", "/x.txt", project.Combine("x.txt"));
+        Assert.Equal(2, store.All().Count);
+
+        var paired = await new WorkingCopyStore(r.Local.Path).PairAsync(r.Client, default);
+
+        Assert.Equal("/a.txt", Assert.Single(paired).Copy.RemotePath);
+    }
+
     [Fact]
     public async Task PruneRemovesOldCleanCopiesAndNeverUnsentOnes()
     {
