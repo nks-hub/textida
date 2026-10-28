@@ -262,7 +262,7 @@ internal sealed partial class MainWindow
         else if (editor.Caret < doc.ByteLength)
         {
             var info = hex.Describe(editor.Caret);
-            position += $" · {info.Value:X2} = {info.Value}";
+            position += info.Hidden ? " · " + Loc.Get(K.SecretHiddenValue) : $" · {info.Value:X2} = {info.Value}";
         }
         if (hex.Marks.Containing(editor.Caret) is [{ } under, ..]) position += " · " + Loc.Get(K.HexBmStatus, ("name", under.Name.Length > 0 ? under.Name : hex.OffsetText(under.Range.Start)));
         string message = _message.Length > 0 ? _message : doc.IsSaving ? Loc.Get(K.HexSaving) : doc.IsModified ? "" : Loc.Get(K.StatusReady);
@@ -376,7 +376,12 @@ internal sealed partial class MainWindow
     {
         var doc = hex.Editor.Document;
         Span<byte> four = stackalloc byte[4];
-        uint? value = doc.Read(hex.Caret, four) == 4 ? System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(four) : null;
+        uint? value = null;
+        if (doc.Read(hex.Caret, four) == 4)
+        {
+            hex.MaskHidden(hex.Caret, four); // the jump would show the number a hidden value holds
+            value = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(four);
+        }
         long selection = hex.Editor.HasSelection ? hex.Editor.Selection.Start : hex.Caret;
         try
         {
@@ -399,7 +404,8 @@ internal sealed partial class MainWindow
         if (target is not { } at) return problem!;
         string offset = hex.OffsetText(at), decimalText = at.ToString(CultureInfo.InvariantCulture);
         if (at >= hex.Editor.Document.ByteLength) return Loc.Get(K.HexGotoPreviewEnd, ("offset", offset), ("decimal", decimalText));
-        return Loc.Get(K.HexGotoPreview, ("offset", offset), ("decimal", decimalText), ("value", $"{hex.Describe(at).Value:X2}"));
+        var info = hex.Describe(at);
+        return Loc.Get(K.HexGotoPreview, ("offset", offset), ("decimal", decimalText), ("value", info.Hidden ? Loc.Get(K.SecretHiddenValue) : $"{info.Value:X2}"));
     }
 
     internal async Task GoToOffsetAsync(HexView hex)

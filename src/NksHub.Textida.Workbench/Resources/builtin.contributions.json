@@ -327,7 +327,7 @@
       "id": "nks.view.toggleSecrets",
       "title": "cmd.view.toggleSecrets",
       "category": "cat.view",
-      "enablement": "hasDocument && !largeFileMode"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.nextTab",
@@ -5696,6 +5696,21 @@
         "history",
         "revisions",
         "backup"
+      ]
+    },
+    {
+      "key": "files.secretFilePatterns",
+      "type": "string",
+      "default": ".env;.env.*;*.env",
+      "title": "setting.files.secretFilePatterns.title",
+      "description": "setting.files.secretFilePatterns.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "secrets",
+        "env",
+        "hidden",
+        "mask"
       ]
     },
     {

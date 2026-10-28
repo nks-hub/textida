@@ -319,6 +319,12 @@ internal sealed partial class MainWindow : Window
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }
 
+    /// <summary>The setting of the secret files changed: every tab looks again at whether its values are hidden.</summary>
+    internal void RefreshSecrets()
+    {
+        foreach (var tab in Tabs) tab.RefreshSecrets();
+    }
+
     private void RefreshHeaders()
     {
         foreach (var g in _groups)

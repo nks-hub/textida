@@ -144,6 +144,30 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task ASymbolOverAHiddenValueIsWithheldFromAPluginThatMayNotSeeItAndListedAfterTheGrant()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("x"));
+        var (doc, path) = await ExposeEnvAsync(rig, ".env", Utf8("API_KEY=hunter2\nHOST=example\n"));
+        try
+        {
+            // the outline of the document (the MCP tool editor_outline and the /ide bridge read it here): a name that is a value, or holds one, is not handed out
+            await rig.CallAsync(DocumentMethods.SymbolsPublish, $"{{\"document\":\"{doc.Id}\",{Publish(doc.Revision, Symbol("a", "API_KEY", 0, 7), Symbol("b", "hunter2", 8, 15), Symbol("c", "HOST=example", 16, 28))}}}");
+
+            var hidden = await rig.CallAsync(DocumentMethods.SymbolsList, $"{{\"document\":\"{doc.Id}\"}}");
+            var names = hidden.GetProperty("sets")[0].GetProperty("symbols").EnumerateArray().Select(s => s.GetProperty("name").GetString());
+            Assert.Equal(["API_KEY"], names);
+            Assert.Equal(2, hidden.GetProperty("withheld").GetInt32());
+            Assert.DoesNotContain("hunter2", hidden.GetRawText());
+
+            rig.Permissions.Grant("p", DocumentPermissions.SecretsReveal, GrantScope.OfDocument(doc.Id));
+            var shown = await rig.CallAsync(DocumentMethods.SymbolsList, $"{{\"document\":\"{doc.Id}\"}}");
+            Assert.Equal(3, shown.GetProperty("sets")[0].GetProperty("symbols").GetArrayLength());
+            Assert.Equal(0, shown.GetProperty("withheld").GetInt32());
+        }
+        finally { rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; }); Directory.Delete(Path.GetDirectoryName(path)!, true); }
+    }
+
+    [Fact]
     public async Task AnEnvFileLargerThanTheScanLimitIsHiddenWhole()
     {
         await using var rig = await Rig.CreateAsync(Utf8("x"), o => o with { MaxSecretScanBytes = 8 });

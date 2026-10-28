@@ -321,7 +321,7 @@ internal static class AppCommands
         Do("nks.view.toggleRightMargin", w => w.ToggleRightMargin());
         Do("nks.view.toggleLinks", w => w.ToggleLinks());
         Do("nks.view.toggleMinimap", w => w.ToggleMinimap());
-        Surface("nks.view.toggleSecrets", s => s.ToggleSecrets());
+        On("nks.view.toggleSecrets", w => w.Active?.ToggleSecrets() == true ? CommandOutcome.Handled : CommandOutcome.NotHandled);
         Do("nks.view.nextTab", w => w.CycleTab(1));
         Do("nks.view.previousTab", w => w.CycleTab(-1));
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());

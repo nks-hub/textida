@@ -328,6 +328,8 @@
   "setting.history.enabled.description": "Uloží revizi souboru při každém uložení a při každé změně mimo editor.",
   "setting.history.storeSecretFiles.title": "Ukládat historii souborů s tajnými hodnotami",
   "setting.history.storeSecretFiles.description": "Soubory jako .env obsahují tajné hodnoty. Vypnuto: revize takových souborů se neukládají, hodnoty by ležely na disku jako prostý text.",
+  "setting.files.secretFilePatterns.title": "Tajné soubory",
+  "setting.files.secretFilePatterns.description": "Masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem; * zastupuje libovolný text a ? jeden znak. Výchozí seznam je zatím předběžný.",
   "setting.history.maxRevisionsPerFile.title": "Revizí na soubor",
   "setting.history.maxRevisionsPerFile.description": "Nejstarší revize nad tento počet se smažou; připnuté zůstanou. 0: bez omezení.",
   "setting.history.maxAgeDays.title": "Držet revize (dny)",

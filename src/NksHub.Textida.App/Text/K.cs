@@ -522,6 +522,7 @@ public static class K
     public const string HexA11yContinuation = "hex.a11y.continuation";
     public const string HexA11yInvalid = "hex.a11y.invalid";
     public const string HexA11ySpace = "hex.a11y.space";
+    public const string HexA11yHidden = "hex.a11y.hidden";
     public const string HexEndOfFile = "hex.endOfFile";
     public const string HexNotEncodable = "hex.notEncodable";
     public const string HexBusy = "hex.busy";

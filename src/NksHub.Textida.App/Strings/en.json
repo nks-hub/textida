@@ -524,6 +524,7 @@
   "hex.a11y.continuation": "continuation of a character",
   "hex.a11y.invalid": "invalid byte",
   "hex.a11y.space": "space",
+  "hex.a11y.hidden": "offset {offset}, hidden value",
   "hex.endOfFile": "Overwrite does not change the file length. Turn on insert mode (Insert) to add bytes.",
   "hex.notEncodable": "The character cannot be written in {encoding}.",
   "hex.busy": "The file is being saved. This change (a fill, or undo of a fill or encoding change) waits until the save ends.",

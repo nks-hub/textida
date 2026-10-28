@@ -635,12 +635,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Skryté hodnoty v súboroch .env
 commands: nks.view.toggleSecrets
-1. Súbory s názvom `.env`, `.env.*` alebo `*.env` ukazujú každú hodnotu premennej ako `••••`. Zobraziť a Zobraziť skryté hodnoty ich ukáže v aktuálnej karte, ďalšie použitie ich zase skryje.
-- Keď na hodnotu prejdete ukazovateľom myši, ukáže sa len tá jedna.
+1. Súbory s názvom `.env`, `.env.*` alebo `*.env` ukazujú každú hodnotu premennej ako `••••`, v textovom editore, v stránkovanom režime aj v hexadecimálnom zobrazení. Zobraziť a Zobraziť skryté hodnoty ich ukáže v aktuálnej karte, ďalšie použitie ich zase skryje.
+- V textovom editore sa po prejdení ukazovateľom myši na hodnotu ukáže len tá jedna.
 - Text súboru sa nemení: uloženie zapíše rovnaké bajty.
-- Skryté sú aj v minimape, v náhľadoch Prejsť na čokoľvek a Miesta úprav a vo výsledkoch hľadania. Kopírovanie dá do schránky `••••` namiesto skrytej hodnoty a Vystrihnúť skrytú hodnotu nezmaže.
+- Skryté sú aj v minimape, v náhľadoch Prejsť na čokoľvek a Miesta úprav, vo výsledkoch hľadania a v exportoch s formátovaním (HTML, RTF). Kopírovanie dá do schránky `••••` namiesto skrytej hodnoty a Vystrihnúť skrytú hodnotu nezmaže.
+- V hexadecimálnom zobrazení je skrytá hodnota bodka za každý bajt v oboch stĺpcoch. Kopírovať, Kopírovať ako, Exportovať, inšpektor dát, histogram a panel štruktúry vidia na mieste tých bajtov `*` a stavový riadok hovorí, že hodnota je skrytá.
+- V stránkovanom režime čítačka obrazovky číta za každý znak skrytej hodnoty odrážku. Riadok dlhší než 16 KiB, ktorý hodnotu obsahuje, skryje všetko za svojou prvou časťou.
 - Plugin číta namiesto každej skrytej hodnoty hviezdičky `*`. Skôr než sa na takom súbore spustí vstavaný príkaz, program sa opýta, či smie hodnoty prečítať.
-- Stránkovaný režim a hexadecimálne zobrazenie ukazujú bajty tak, ako sú.
+- Nastavenie Tajné súbory obsahuje masky názvov súborov, ktorých hodnoty sa skrývajú, oddelené bodkočiarkou (`*` zastupuje ľubovoľný text). Predvolený zoznam je zatiaľ predbežný.
 
 ## [view.tabs] Prepínanie kariet
 commands: nks.view.nextTab, nks.view.previousTab

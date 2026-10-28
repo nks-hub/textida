@@ -542,6 +542,7 @@
   "hex.a11y.continuation": "pokračování znaku",
   "hex.a11y.invalid": "neplatný bajt",
   "hex.a11y.space": "mezera",
+  "hex.a11y.hidden": "offset {offset}, skrytá hodnota",
   "hex.endOfFile": "Přepis nemění délku souboru. Pro přidání bajtů zapněte vkládání (Insert).",
   "hex.notEncodable": "Znak nejde zapsat v kódování {encoding}.",
   "hex.busy": "Soubor se právě ukládá, tuhle změnu (výplň nebo krok vrácení výplně a kódování) počkej na konec uložení.",

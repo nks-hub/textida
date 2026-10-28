@@ -9,6 +9,8 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
 using AdapterCarets = NksHub.Textida.AvaloniaEditAdapter.Carets;
 
@@ -125,6 +127,20 @@ public class AiContextCommandTests : IDisposable
         Assert.True(tab.Editor.SecretsRevealed);
         tab.Editor.SetCarets(AdapterCarets.Create([new Sel(0, 13)], 1));
         Assert.Equal("before", await CopyAsync("Selection"));
+        Assert.DoesNotContain("hunter2", string.Concat(_dialogs.Asked.Select(a => a.Message + string.Concat(a.Details ?? []))));
+    }
+
+    [AvaloniaFact]
+    public async Task A_document_without_a_file_that_carries_the_name_of_a_secrets_file_is_left_out_like_the_file_is()
+    {
+        var excerpt = Document.CreateVirtual(".env", Encoding.UTF8.GetBytes("TOKEN=hunter2\n"), AvaloniaEditBackendFactory.Instance, TextCodec.Utf8);
+        _w.OpenVirtualDocument(excerpt, "Excerpt");
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("before", await CopyAsync("This file"));
+        var preview = _dialogs.Asked[^1];
+        Assert.Contains("Files: 0.", preview.Message);
+        Assert.Contains(preview.Details!, d => d.EndsWith(": secrets file, its values are never copied"));
         Assert.DoesNotContain("hunter2", string.Concat(_dialogs.Asked.Select(a => a.Message + string.Concat(a.Details ?? []))));
     }
 

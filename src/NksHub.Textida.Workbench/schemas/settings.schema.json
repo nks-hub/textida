@@ -241,6 +241,12 @@
           "description": "Keep history of secrets files. Files such as .env hold secret values. Off: no revisions of them are stored, because the values would lie on disk as plain text.",
           "x-scope": "application"
         },
+        "files.secretFilePatterns": {
+          "type": "string",
+          "default": ".env;.env.*;*.env",
+          "description": "Secret files. Name masks of the files whose values are hidden, separated by semicolons; * stands for any text and ? for one character. The default list is provisional.",
+          "x-scope": "application"
+        },
         "history.maxRevisionsPerFile": {
           "type": "integer",
           "default": 0,

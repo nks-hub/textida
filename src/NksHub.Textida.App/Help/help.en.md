@@ -630,12 +630,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Hidden values in .env files
 commands: nks.view.toggleSecrets
-1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`. View, Show Hidden Values shows them in the current tab, and using it again hides them.
-- Resting the pointer on a value shows just that one.
+1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. View, Show Hidden Values shows them in the current tab, and using it again hides them.
+- In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
-- Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, and in search results. Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
+- Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
+- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram and the structure panel see `*` for those bytes, and the status line says the value is hidden.
+- In paged mode a screen reader reads a bullet for each character of a hidden value. A line longer than 16 KiB hides everything beyond its first part when it holds a value.
 - A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
-- Paged mode and the hex view show the bytes as they are.
+- The setting Secret files holds the name masks of the files whose values are hidden, separated by semicolons (`*` stands for any text). Its default list is provisional.
 
 ## [view.tabs] Switching tabs
 commands: nks.view.nextTab, nks.view.previousTab

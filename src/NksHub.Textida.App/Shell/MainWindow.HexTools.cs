@@ -111,7 +111,7 @@ internal sealed partial class MainWindow
             return;
         }
         var range = editor.Selection;
-        var snapshot = editor.Document.GetSnapshot();
+        var snapshot = hex.ShownBytes(editor.Document.GetSnapshot()); // a hidden value is copied as stars
         var cts = hex.Job = new CancellationTokenSource();
         string text;
         try
@@ -185,7 +185,7 @@ internal sealed partial class MainWindow
         string stem = Path.GetFileNameWithoutExtension(editor.Document.FilePath ?? "data");
         string? path = await _app.Dialogs.PickSaveFileAsync(this, Loc.Get(K.HexExportTitle), stem + (format is { } f ? ByteFormats.Extension(f) : ".bin"));
         if (path is null) return;
-        var snapshot = editor.Document.GetSnapshot();
+        var snapshot = hex.ShownBytes(editor.Document.GetSnapshot()); // the file gets stars in place of a hidden value
         var cts = hex.Job = new CancellationTokenSource();
         SetStatusMessage(Loc.Get(K.HexExportRunning, ("bytes", range.Length)));
         try

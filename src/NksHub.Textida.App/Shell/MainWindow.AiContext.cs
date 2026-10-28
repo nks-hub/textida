@@ -120,7 +120,7 @@ internal sealed partial class MainWindow
     private string NameOf(DocTab tab) => tab.Path is { } path ? Display(path) : tab.Title;
 
     private AiSource SourceOf(DocTab tab, IReadOnlyList<AiRange> ranges) =>
-        new(NameOf(tab), tab.Path, tab.Doc.Language.Id, tab.Doc.Doc.Codec.Name, tab.Doc.Doc.Revision, tab.Doc.Doc.IsModified, ranges);
+        new(NameOf(tab), tab.Doc.Doc.SecretsPath, tab.Doc.Language.Id, tab.Doc.Doc.Codec.Name, tab.Doc.Doc.Revision, tab.Doc.Doc.IsModified, ranges);
 
     /// <summary>The selections of a tab. A paged selection too large for the size limit is named as left out without being read, so it never sits in memory whole.</summary>
     private AiGathered AiSelectionOf(DocTab tab)

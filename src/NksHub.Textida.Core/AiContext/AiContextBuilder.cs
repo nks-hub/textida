@@ -27,7 +27,7 @@ public sealed record AiRange(string Text, long? FirstLine = null, long? LastLine
 }
 
 /// <param name="Name">The path as the context shows it, or the title of a file that has no path yet.</param>
-/// <param name="Path">The full path, null for a file never saved. A secrets file is refused by its path.</param>
+/// <param name="Path">The full path, the name of a virtual document, null for a file never saved. A secrets file is refused by it.</param>
 /// <param name="Revision">Revision of the open document the text was taken from; null for a file read from disk.</param>
 /// <param name="Unsaved">The text holds changes that are not in the file on disk.</param>
 public sealed record AiSource(string Name, string? Path, string Language, string Encoding, long? Revision, bool Unsaved, IReadOnlyList<AiRange> Ranges);

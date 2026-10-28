@@ -7,6 +7,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
@@ -34,9 +35,16 @@ internal sealed partial class MainWindow
             return selected.Length == 0 ? null : new ExportSource(selected, null, tokenizer, levels, title);
         }
         if (tab.Surface is not { } surface || tab.TableShown) return null;
+        string newLine = od.NewLine(surface.Settings.ConfiguredEol);
         if (surface.IsMulti || surface.IsBlockSelection)
-            return surface.SelectedTexts(od.NewLine(surface.Settings.ConfiguredEol)) is { Length: > 0 } picked ? new ExportSource(picked, null, tokenizer, levels, title) : null;
+            return (surface.SecretsHidden ? surface.MaskedSelection(newLine) : surface.SelectedTexts(newLine)) is { Length: > 0 } picked ? new ExportSource(picked, null, tokenizer, levels, title) : null;
         string text = surface.Text;
+        if (surface.SecretsHidden) // the export carries the placeholder, as the clipboard does
+        {
+            var spans = surface.Secrets();
+            string shown = surface.SelectionLength > 0 ? SecretValues.Mask(text.Substring(surface.SelectionStart, surface.SelectionLength), spans, surface.SelectionStart) : SecretValues.Mask(text, spans);
+            return new ExportSource(shown, null, tokenizer, levels, title);
+        }
         return new ExportSource(text, surface.SelectionLength > 0 ? (surface.SelectionStart, surface.SelectionLength) : null, tokenizer, levels, title);
     }
 

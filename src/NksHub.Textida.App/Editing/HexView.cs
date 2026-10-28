@@ -11,11 +11,12 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Editing;
 
-/// <summary>How a byte of the hex grid is described for a screen reader and the status line.</summary>
-internal readonly record struct HexByteInfo(long Offset, bool AtEnd, byte Value, string Character, HexCellKind Kind, bool Changed);
+/// <summary>How a byte of the hex grid is described for a screen reader and the status line. <paramref name="Hidden"/>: the byte is part of a hidden value, so <paramref name="Value"/> and <paramref name="Character"/> hold nothing.</summary>
+internal readonly record struct HexByteInfo(long Offset, bool AtEnd, byte Value, string Character, HexCellKind Kind, bool Changed, bool Hidden = false);
 
 /// <summary>
 /// Hex view of a document: offset, hex and character columns over the same <see cref="Document"/> the text view uses, so one revision, one undo history
@@ -28,6 +29,7 @@ internal sealed partial class HexView : Grid
     private static readonly int[] RowSizes = [8, 16, 24, 32, 48, 64];
 
     private readonly OpenDocument _od;
+    private readonly ByteSecrets _secrets;
     private readonly HexSurface _canvas;
     private readonly ScrollBar _bar = new() { Orientation = Avalonia.Layout.Orientation.Vertical, Minimum = 0, SmallChange = 1, AllowAutoHide = false };
     private readonly DispatcherTimer _watch = new() { Interval = TimeSpan.FromMilliseconds(1000) };
@@ -52,6 +54,7 @@ internal sealed partial class HexView : Grid
     public HexView(OpenDocument doc, EditorOptions options)
     {
         _od = doc;
+        _secrets = new ByteSecrets(doc);
         _options = options;
         Editor = new HexEditor(doc.Doc, _lastCharset ?? HexCharset.For(doc.Doc.Codec));
         Focusable = true;
@@ -265,6 +268,46 @@ internal sealed partial class HexView : Grid
     }
 
     internal EditorOptions Options => _options;
+
+    // ---- hidden values of a secrets file (P4.6.2) ----
+
+    /// <summary>The values of the file are hidden now: it is a secrets file and the user did not show them in this tab. The grid draws a dot for each of their bytes.</summary>
+    public bool SecretsHidden => _secrets.Hidden;
+
+    /// <summary>The user showed the values in this tab.</summary>
+    public bool SecretsRevealed => _secrets.Revealed;
+
+    /// <summary>Shows or hides the values of this tab again.</summary>
+    public void ToggleSecrets()
+    {
+        _secrets.Toggle();
+        RefreshSecretsState();
+    }
+
+    /// <summary>The grid and the panels read the bytes again: the values were shown or hidden, or the setting of the secret files changed.</summary>
+    internal void RefreshSecretsState()
+    {
+        _canvas.InvalidateVisual();
+        Inspector.Refresh();
+        Statistics.Reload();
+        Structure.Refresh();
+        RaiseViewChanged();
+    }
+
+    /// <summary>The hidden byte ranges of the current revision; empty when nothing is hidden.</summary>
+    internal IReadOnlyList<ByteRange> HiddenRanges() => _secrets.Ranges();
+
+    /// <summary>Whether [<paramref name="start"/>, <paramref name="end"/>) touches a hidden value.</summary>
+    internal bool TouchesHidden(long start, long end) => _secrets.Touches(start, end);
+
+    /// <summary>Bytes read from <paramref name="start"/> as the panels may show them: every hidden value reads as <c>*</c>.</summary>
+    internal void MaskHidden(long start, Span<byte> data)
+    {
+        if (_secrets.Hidden) SecretValues.MaskBytes(data, start, _secrets.Ranges(), Doc.Codec);
+    }
+
+    /// <summary>The snapshot that copies, exports and the tools read: the values of a hidden secrets file read as <c>*</c>, the file keeps its bytes.</summary>
+    internal IByteSnapshot ShownBytes(DocumentSnapshot snapshot) => _secrets.Hidden ? new MaskedSnapshot(snapshot, _secrets.Ranges(), snapshot.Codec) : snapshot;
 
     // ---- layout choices ----
 
@@ -521,12 +564,15 @@ internal sealed partial class HexView : Grid
     {
         if (!Editor.HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
         byte[] bytes = Editor.SelectedBytes();
+        var selection = Editor.Selection;
+        bool masked = _secrets.Touches(selection.Start, selection.End); // a value never leaves the view by the clipboard, and a cut that touches one deletes nothing
+        if (masked) MaskHidden(selection.Start, bytes);
         var item = DataTransferItem.CreateText(HexEditor.ToHexText(bytes));
         item.Set(BytesFormat, bytes);
         var data = new DataTransfer();
         data.Add(item);
         await clipboard.SetDataAsync(data);
-        if (cut) await DeleteAsync(backspace: false); // does nothing in a read-only view
+        if (cut && !masked) await DeleteAsync(backspace: false); // does nothing in a read-only view
     }
 
     /// <summary>Pastes bytes: the exact bytes of another hex view, else hex text, else (in the character column) text in the charset.</summary>
@@ -577,6 +623,7 @@ internal sealed partial class HexView : Grid
     {
         long length = Doc.ByteLength;
         if (offset >= length) return new(offset, true, 0, "", HexCellKind.Normal, false);
+        if (_secrets.Touches(offset, offset + 1)) return new(offset, false, 0, "", HexCellKind.Control, IsChanged(offset), Hidden: true);
         long start = Math.Max(0, offset - Editor.Charset.Lookbehind);
         var buf = new byte[(int)Math.Min(length - start, Editor.Charset.Lookbehind + 1 + Editor.Charset.Lookahead)];
         Doc.Read(start, buf);

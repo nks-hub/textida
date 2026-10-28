@@ -1,4 +1,5 @@
 using NksHub.Textida.Core;
+using NksHub.Textida.Core.Secrets;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -62,6 +63,7 @@ internal sealed partial class PagedTextView : IMinimapHost
         var codec = Doc.Codec.WithBom(false);
         int w = Doc.Codec.Alignment;
         var lines = new List<string>();
+        var hidden = _secrets.Hidden ? _secrets.Ranges() : null;
         for (int pos = 0; pos < window && first + lines.Count < LineCount && lines.Count < MapBlockLines;)
         {
             int end = LineScanner.FindTerminator(buffer, pos, Doc.Codec);
@@ -81,7 +83,8 @@ internal sealed partial class PagedTextView : IMinimapHost
             }
             int take = Math.Min(end - pos, Minimap.MaxChars * 4);
             if (take < end - pos) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
-            string text = codec.Decode(buffer.AsMemory(pos, take)).Text;
+            var decoded = codec.Decode(buffer.AsMemory(pos, take));
+            string text = hidden is null ? decoded.Text : SecretValues.Mask(decoded.Text, SecretValues.SpansIn(decoded, origin + pos, hidden));
             lines.Add(text.Length > Minimap.MaxChars ? text[..Minimap.MaxChars] : text);
             pos = next;
         }

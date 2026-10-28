@@ -164,9 +164,9 @@ internal sealed partial class MainWindow
     /// <summary>The byte ranges of the values that are hidden in the tab (a secrets file whose values are not shown); null when nothing is hidden.</summary>
     private static IReadOnlyList<ByteRange>? HiddenValues(DocTab tab)
     {
-        if (tab.Surface is not { SecretsHidden: true }) return null;
+        if (!tab.SecretsHidden) return null;
         var doc = tab.Doc.Doc;
-        return doc.ByteLength > PluginLimitsPlaceholders.SecretScanMaxBytes ? [new ByteRange(doc.BomLength, doc.ByteLength)] : SecretValues.ByteRanges(doc.GetSnapshot(), doc.BomLength);
+        return SecretValues.HiddenRanges(doc.GetSnapshot(), doc.BomLength, PluginLimitsPlaceholders.SecretScanMaxBytes);
     }
 
     /// <summary>Copy and cut of cells: a hidden value goes to the clipboard as the placeholder, and a cut that touches one deletes nothing.</summary>

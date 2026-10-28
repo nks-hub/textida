@@ -197,7 +197,7 @@ internal sealed class HexTemplatePanel : Border
         DocumentSnapshot snapshot;
         try { snapshot = _owner.Document.GetSnapshot(); }
         catch (ObjectDisposedException) { return; }
-        _rootNode = new KsyReader(snapshot, pinned.Template).Root;
+        _rootNode = new KsyReader(_owner.ShownBytes(snapshot), pinned.Template).Root; // the fields of a hidden value read as stars
         _rootItem = Item(_rootNode);
         _tree.Items.Add(_rootItem);
         _rootItem.IsExpanded = true;

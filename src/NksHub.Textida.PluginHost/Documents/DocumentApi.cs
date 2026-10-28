@@ -199,7 +199,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.Facts: return await FactsAsync(pluginId, p, cancellation);
             case DocumentMethods.FindBytes: return await FindBytesAsync(pluginId, p, cancellation);
             case DocumentMethods.FindLog: return await FindLogAsync(pluginId, p, cancellation);
-            case DocumentMethods.SymbolsList: return await SymbolsListAsync(p);
+            case DocumentMethods.SymbolsList: return await SymbolsListAsync(pluginId, p);
             case DocumentMethods.DiffCompute: return await DiffComputeAsync(pluginId, p, cancellation);
             case DocumentMethods.DiffOpen: return await DiffOpenAsync(pluginId, p, cancellation);
             case DocumentMethods.DiffStage: return await DiffStageAsync(pluginId, p, cancellation);

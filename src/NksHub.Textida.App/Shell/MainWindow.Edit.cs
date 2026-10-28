@@ -75,7 +75,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleRightMargin" => (Options.RightMargin > 0, false),
         "nks.view.toggleLinks" => (Options.Links, false),
         "nks.view.toggleMinimap" => (Options.Minimap, false),
-        "nks.view.toggleSecrets" => (Active?.Surface?.SecretsRevealed ?? false, false),
+        "nks.view.toggleSecrets" => (Active?.SecretsRevealed ?? false, false),
         "nks.view.syncScroll" => (SyncScrollOn, false),
         "nks.compare.ignoreWhitespace" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Whitespace), false),
         "nks.compare.ignoreCase" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Case), false),
