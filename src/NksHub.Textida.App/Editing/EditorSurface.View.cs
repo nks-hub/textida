@@ -72,6 +72,16 @@ internal sealed partial class EditorSurface : IMinimapHost
 
     private Glide? _glide;
 
+    /// <summary>AvaloniaEdit's own method of this name leaves the text where it is; this one moves the scroll viewer, which is what smooth scrolling needs.</summary>
+    public new void ScrollToVerticalOffset(double offset)
+    {
+        ApplyTemplate();
+        _scroller ??= Avalonia.VisualTree.VisualExtensions.FindDescendantOfType<ScrollViewer>(this);
+        if (_scroller is { } viewer) viewer.Offset = new Vector(viewer.Offset.X, offset);
+    }
+
+    private ScrollViewer? _scroller;
+
     /// <summary>True while smooth scrolling is moving the text towards where the wheel sent it.</summary>
     internal bool Gliding => _glide?.Active == true;
 
