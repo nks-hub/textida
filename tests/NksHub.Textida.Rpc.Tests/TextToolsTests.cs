@@ -41,7 +41,11 @@ public partial class TextToolsTests
         public required UiApiTests.RecordingUi Recorded { get; init; }
         public required DocumentApiTests.RecordingTools Tools { get; init; }
 
-        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12)
+        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12) =>
+            await CreateAsync(Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec }), selections, chunk);
+
+        /// <summary>The rig over a document the test opened itself (a file); <paramref name="maxRead"/> is what one read of the document API may return, the chunk must not exceed it.</summary>
+        public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null)
         {
             var recorded = new UiApiTests.RecordingUi();
             PluginHost.PluginHost? host = null;
@@ -52,17 +56,16 @@ public partial class TextToolsTests
             var tools = new DocumentApiTests.RecordingTools();
             var docs = new DocumentApi(new DocumentApiOptions
             {
-                MaxReadBytes = 1 << 16, MaxFindMatches = 10, MaxSnapshotsPerPlugin = 2, SnapshotLifetime = TimeSpan.FromSeconds(10),
+                MaxReadBytes = maxRead, MaxFindMatches = 10, MaxSnapshotsPerPlugin = 2, SnapshotLifetime = TimeSpan.FromSeconds(10),
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 50, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1), MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20, MaxDiagnosticsPerDocument = 10, MaxCompletionItems = 10, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(2),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var ui = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 4000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, recorded, send);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
+            host = new PluginHost.PluginHost(PluginHostTests.Options(limits is null ? null : o => o with { Limits = limits }), PluginApiRouter.Create(docs.HandleAsync, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
             Assert.True(File.Exists(dll), dll);
             host.Register(new PluginSpec("tools", "Tools", T.DotnetHost, [dll, "--chunk-bytes", chunk.ToString(), "--progress-ms", "0"], ["onCommand:tools"]));
             await host.ActivateAsync("onCommand:tools");
-            var doc = Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec });
             Func<SelectionSet?>? selector = selections is null ? null : () => SelectionSet.Create([.. selections.Select(s => new TextSelection(s.Anchor, s.Caret))], 0);
             docs.Expose(doc, selector);
             return new Rig { Host = host, Docs = docs, Ui = ui, Doc = doc, Recorded = recorded, Tools = tools };
