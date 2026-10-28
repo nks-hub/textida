@@ -181,6 +181,9 @@ public class PaletteReasonTests
         Assert.Equal("Alt+Left", win.ShortcutsFor("nks.search.jumpBack").First());
         Assert.Equal("⌘P", host.BuildKeymap(Platform.MacOS).ShortcutsFor("nks.search.gotoAnything").First());
         Assert.Equal("⇧⌘E", host.BuildKeymap(Platform.MacOS).ShortcutsFor("nks.view.toggleFilePanel").First());
+        var mac = host.BuildKeymap(Platform.MacOS);
+        Assert.Equal("⌃⌘←", mac.ShortcutsFor("nks.search.jumpBack").Single()); // Option+arrow moves by word on a Mac
+        Assert.Equal("⌃⌘→", mac.ShortcutsFor("nks.search.jumpForward").Single());
         Assert.Empty(host.Validate(win));
         var inMenus = host.Commands.CommandsInMenus();
         Assert.Contains("nks.search.gotoAnything", inMenus);
