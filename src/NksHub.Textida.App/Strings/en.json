@@ -1142,6 +1142,7 @@
   "table.copyAs.html": "HTML table",
   "table.copyAs.copied": "The selected cells were copied as {title}.",
   "table.copyAs.failed": "The converter {title} did not run: {reason}. The clipboard was not changed.",
+  "table.copyAs.tooLarge": "The table is over the limit: the clipboard takes at most {limit} characters of one form. Nothing was copied and the clipboard was not changed.",
   "a11y.compare": "Comparison",
   "compare.tab": "Compare: {left} / {right}",
   "compare.side.clipboard": "Clipboard",

@@ -1142,6 +1142,7 @@
   "table.copyAs.html": "HTML-Tabelle",
   "table.copyAs.copied": "Die markierten Zellen wurden als {title} kopiert.",
   "table.copyAs.failed": "Der Konverter {title} lief nicht: {reason}. Die Zwischenablage wurde nicht geändert.",
+  "table.copyAs.tooLarge": "Die Tabelle ist über dem Limit: Die Zwischenablage nimmt höchstens {limit} Zeichen einer Form auf. Es wurde nichts kopiert und die Zwischenablage wurde nicht geändert.",
   "a11y.compare": "Vergleich",
   "compare.tab": "Vergleich: {left} / {right}",
   "compare.side.clipboard": "Zwischenablage",

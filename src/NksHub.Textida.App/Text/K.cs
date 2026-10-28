@@ -1127,6 +1127,7 @@ public static class K
     public const string TableCopyAsHtml = "table.copyAs.html";
     public const string TableCopyAsCopied = "table.copyAs.copied";
     public const string TableCopyAsFailed = "table.copyAs.failed";
+    public const string TableCopyAsTooLarge = "table.copyAs.tooLarge";
     public const string A11yCompare = "a11y.compare";
     public const string CompareTab = "compare.tab";
     public const string CompareSideClipboard = "compare.side.clipboard";

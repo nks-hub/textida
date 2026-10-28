@@ -551,7 +551,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// </summary>
     public async Task<bool> RunTableCopyAsync(MainWindow window, DocTab tab, string command) =>
         tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command,
-            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.Surface is { SecretsHidden: true })).Started;
+            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.Surface is { SecretsHidden: true }, tooLarge: Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)))).Started;
 
     // ---- web data: colours and key paths ----
 
@@ -842,9 +842,10 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// <paramref name="keep"/> asks to leave a document with published symbols exposed: the outline stays valid, and the document goes when its tab closes (<see cref="Forget"/>).
     /// <paramref name="keepOpen"/> (with <paramref name="keep"/>) leaves the document exposed whether or not the plugin published anything, for a language server that follows its edits.
     /// <paramref name="keepHidden"/> leaves the values of a secrets file hidden from the plugin without asking. <paramref name="extra"/> is more members of the request object, already written as JSON (starting with a comma). Without <paramref name="notify"/> a plugin that cannot run is passed over silently.
+    /// <paramref name="tooLarge"/> is what the window says when the plugin ran but an API call refused a size over a limit; without it the notice says the plugin could not be run.
     /// </summary>
     private async Task<Outcome> ExecuteAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command,
-        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false, bool keepHidden = false, bool keepOpen = false)
+        string extra = "", DocTab? other = null, bool keep = false, bool notify = true, bool background = false, bool keepHidden = false, bool keepOpen = false, string? tooLarge = null)
     {
         var document = tab.Doc.Doc;
         var otherDocument = other?.Doc.Doc;
@@ -878,7 +879,8 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
         {
             // a crash has its own notice (ReportCrash), whether a command was running or not
-            if (notify && e is not PluginCrashedException) window.ShowNotice("plugin:" + pluginId, Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
+            if (notify && e is not PluginCrashedException)
+                window.ShowNotice("plugin:" + pluginId, tooLarge is not null && e is NksHub.Textida.Rpc.RpcException { Code: NksHub.Textida.Rpc.RpcErrorCodes.MessageTooLarge } ? tooLarge : Loc.Get(K.PluginUnavailable, ("name", name), ("reason", e.Message)), [], warning: true);
         }
         finally
         {
