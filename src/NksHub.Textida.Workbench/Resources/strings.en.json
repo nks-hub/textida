@@ -471,6 +471,7 @@
   "cmd.edit.insertClip": "Insert Clip...",
   "cmd.edit.clipFromSelection": "Save Selection as Clip...",
   "cmd.clips.editVariables": "Edit User Variables",
+  "cmd.clips.editProjectVariables": "Edit Project Variables",
   "cmd.file.newFromTemplate": "New from Template...",
   "cmd.edit.convert": "Convert...",
   "cmd.edit.runRecipe": "Run Edit Recipe...",

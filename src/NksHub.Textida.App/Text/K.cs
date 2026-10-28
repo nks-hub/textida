@@ -911,6 +911,7 @@ public static class K
     public const string ClipBadText = "clips.badText";
     public const string ClipTooBig = "clips.tooBig";
     public const string ClipVariablesBroken = "clips.variablesBroken";
+    public const string ProjectVariablesNone = "clips.projectVariablesNone";
     public const string ClipLibraryProblem = "clips.libraryProblem";
     public const string ClipNoSelection = "clips.noSelection";
     public const string ClipSaveTitle = "clips.save.title";

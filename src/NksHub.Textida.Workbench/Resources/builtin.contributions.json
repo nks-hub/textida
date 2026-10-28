@@ -1347,6 +1347,12 @@
       "category": "cat.edit"
     },
     {
+      "id": "nks.clips.editProjectVariables",
+      "title": "cmd.clips.editProjectVariables",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.file.newFromTemplate",
       "title": "cmd.file.newFromTemplate",
       "category": "cat.file"
@@ -3758,6 +3764,13 @@
     {
       "menu": "edit",
       "command": "nks.clips.editVariables",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 7
+    },
+    {
+      "menu": "edit",
+      "command": "nks.clips.editProjectVariables",
       "group": "4_more/8_insert",
       "submenu": "insert",
       "order": 7

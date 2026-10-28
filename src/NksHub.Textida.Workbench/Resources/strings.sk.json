@@ -471,6 +471,7 @@
   "cmd.edit.insertClip": "Vložiť klip...",
   "cmd.edit.clipFromSelection": "Uložiť výber ako klip...",
   "cmd.clips.editVariables": "Upraviť používateľské premenné",
+  "cmd.clips.editProjectVariables": "Upraviť premenné projektu",
   "cmd.file.newFromTemplate": "Nový zo šablóny...",
   "cmd.edit.convert": "Previesť...",
   "cmd.edit.runRecipe": "Spustiť recept úprav...",

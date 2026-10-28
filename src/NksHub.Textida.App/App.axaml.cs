@@ -208,15 +208,18 @@ public sealed partial class App : Application
 
     /// <summary>
     /// The facts every variable is resolved from (see <see cref="VariableScope"/>): the file, the selection, the clock in the date format of the settings and the
-    /// user's own variables. Clips, recipes and tools all take their variables from here. Problem: why the user variables file could not be read, or null.
+    /// user's own variables and those of the project the file is in. Clips, recipes and tools all take their variables from here. Problem: why the user variables
+    /// file or the one of the project could not be read, or null.
     /// </summary>
     internal VariableContext VariableContextFor(string? path, string selection, out string? problem)
     {
-        var (user, why) = UserVariables.Load(Path.Combine(ProfileDirectory, UserVariables.FileName));
-        problem = why;
+        string userFile = Path.Combine(ProfileDirectory, UserVariables.FileName);
+        var (user, why) = UserVariables.Load(userFile);
+        var (project, projectWhy, _) = ProjectVariables.Load(path, userFile);
+        problem = why ?? projectWhy;
         return new VariableContext
         {
-            FilePath = path, Selection = selection, Now = Clock(), User = user,
+            FilePath = path, Selection = selection, Now = Clock(), User = user, Project = project,
             DateTimeFormat = Workbench.Settings.GetString("editor.dateTimeFormat"),
             Culture = CultureInfo.GetCultureInfo(Loc.Language),
         };

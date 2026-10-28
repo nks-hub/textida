@@ -135,6 +135,7 @@ internal static class AppCommands
         On("nks.edit.complete", w => w.ShowCompletion());
         On("nks.edit.clipFromSelection", w => w.SaveSelectionAsClip());
         On("nks.clips.editVariables", w => w.EditUserVariables());
+        On("nks.clips.editProjectVariables", w => w.EditProjectVariables());
         On("nks.file.newFromTemplate", w => w.ShowTemplates());
         On("nks.edit.convert", w => w.ShowConversions(registry.IsRepeating));
         foreach (var conversion in Core.Conversions.SpecialConversions.All) On(conversion.CommandId, w => w.ConvertSpecial(conversion));
