@@ -798,7 +798,7 @@ public sealed class PluginHost : IAsyncDisposable
         }
         catch (Exception e) when (e is IOException or RpcException or TimeoutException) { }
         try { run.Process.StandardInput.Close(); }
-        catch (IOException) { }
+        catch (Exception e) when (e is IOException or ObjectDisposedException) { } // the process ended meanwhile and the monitor already closed its input
         if (await Task.WhenAny(run.Ended.Task, Task.Delay(_options.ShutdownGrace)).ConfigureAwait(false) != run.Ended.Task)
         {
             run.KillReason = PluginEndReason.Unresponsive;
