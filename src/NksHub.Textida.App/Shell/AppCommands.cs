@@ -150,6 +150,7 @@ internal static class AppCommands
         On("nks.tools.mcpShareSelection", w => w.ShareSelectionWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
         On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
+        On("nks.tools.ideDisconnect", w => w.DisconnectIdeAgent());
         On("nks.tools.mcpServers", w => w.ShowAgentMcpServers());
         On("nks.agent.start", w => w.StartAgent());
         On("nks.agent.panel", w => w.ToggleAgentPanelCommand());
@@ -164,6 +165,8 @@ internal static class AppCommands
         On("nks.macro.playLast", w => w.PlayLastMacro());
         On("nks.macro.save", w => w.SaveMacro());
         On("nks.macro.run", w => w.ShowMacros());
+        On("nks.macro.rename", w => w.ShowMacros(MacroAction.Rename));
+        On("nks.macro.delete", w => w.ShowMacros(MacroAction.Delete));
         registry.RecordingRefused += id =>
             app.ActiveWindow?.SetStatusMessage(Loc.Get(K.MacroRefused, ("title", registry.TryGet(id, out var refused) ? Loc.Get(refused.TitleKey) : id)));
         registry.SetHandler("nks.edit.repeatLast",(context, token) => registry.RepeatLastAsync(context, token));
@@ -251,6 +254,7 @@ internal static class AppCommands
         Fire("nks.git.conflictTheirs", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictTheirs"));
         Fire("nks.git.conflictBoth", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictBoth"));
         Fire("nks.git.markResolved", (w, t) => app.Plugins.RunGitAsync(w, t, "git.markResolved"));
+        Fire("nks.git.conflictDelete", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictDelete"));
         Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
@@ -270,6 +274,7 @@ internal static class AppCommands
         On("nks.packages.lookup", w => w.PackageLookup(refresh: false));
         On("nks.packages.refresh", w => w.PackageLookup(refresh: true));
         On("nks.packages.revoke", w => w.PackageRevoke());
+        On("nks.schemas.allow", w => w.SchemaAllowDownload());
         On("nks.packages.script", w => w.ShowPackageScripts());
         On("nks.plugins.manage", w => w.ShowPluginManager());
         On("nks.tools.lint", w => w.RunLinter());
@@ -295,6 +300,8 @@ internal static class AppCommands
         On("nks.search.replace", w => w.ShowFind(replace: true));
         registry.SetHandler("nks.search.findNext", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: true) : done(CommandOutcome.NotHandled));
         registry.SetHandler("nks.search.findPrevious", (_, _) => app.ActiveWindow is { } w ? w.FindStepCommandAsync(forward: false) : done(CommandOutcome.NotHandled));
+        registry.SetHandler("nks.search.replaceNext", (_, _) => app.ActiveWindow is { } w ? w.ReplaceStepCommandAsync(all: false) : done(CommandOutcome.NotHandled));
+        registry.SetHandler("nks.search.replaceAll", (_, _) => app.ActiveWindow is { } w ? w.ReplaceStepCommandAsync(all: true) : done(CommandOutcome.NotHandled));
         On("nks.search.findWord", w => w.FindWord());
         On("nks.search.findInFiles", w => w.ShowFindInFiles(replace: false));
         On("nks.search.replaceInFiles", w => w.ShowFindInFiles(replace: true));
@@ -330,6 +337,8 @@ internal static class AppCommands
         On("nks.compare.previous", w => w.CompareStep(next: false));
         On("nks.compare.copyToRight", w => w.CompareCopy(Core.Compare.DiffSide.B));
         On("nks.compare.copyToLeft", w => w.CompareCopy(Core.Compare.DiffSide.A));
+        On("nks.compare.action1", w => w.CompareAction(0));
+        On("nks.compare.action2", w => w.CompareAction(1));
         Do("nks.compare.ignoreWhitespace", w => w.ToggleCompareIgnoreWhitespace());
         Do("nks.compare.ignoreCase", w => w.ToggleCompareIgnoreCase());
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());
@@ -360,6 +369,7 @@ internal static class AppCommands
         On("nks.hex.minimap.mode", w => w.CycleHexMapMode());
         On("nks.hex.statistics", w => w.ToggleHexStatistics());
         On("nks.hex.template", w => w.ToggleHexTemplate());
+        On("nks.hex.template.open", w => w.OpenHexTemplateFile());
         On("nks.hex.compare.file", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; _ = w.CompareHexWithFileAsync(tab); return CommandOutcome.Handled; });
         On("nks.hex.compare.saved", w => { if (w.Active is not { Hex: not null } tab) return CommandOutcome.NotHandled; w.CompareHexWithSaved(tab); return CommandOutcome.Handled; });
         On("nks.hex.bookmarks.panel", w => w.ToggleHexBookmarkPanel());

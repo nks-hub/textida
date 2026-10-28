@@ -321,6 +321,12 @@
           "description": "Ignore case when comparing. Lines that differ only in letter case count as equal when texts are compared.",
           "x-scope": "application"
         },
+        "git.gutter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Git changes in the gutter. Marks the lines of a file in a Git repository that differ from the index (filled bar) or are staged already (outlined bar). A click on a mark stages the change or takes it back from the index. A file above the size limit gets no marks.",
+          "x-scope": "application"
+        },
         "tools.makeProgram": {
           "type": "string",
           "default": "",
@@ -481,6 +487,12 @@
           "minimum": 0,
           "maximum": 1048576,
           "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
+          "x-scope": "application"
+        },
+        "hex.structureTemplates": {
+          "type": "string",
+          "default": "",
+          "description": "Structure template per file type. Which structure template the hex view uses for a file extension, written extension=template and separated by commas, for example bin=elf_file, dat=png_chunks. The list in the structure panel writes it when you pick a template. The shipped templates are bmp_header, png_chunks, zip_archive, pe_file, elf_file and stl_binary. An extension that is not listed gets the template that fits the first bytes of the file or its extension.",
           "x-scope": "application"
         },
         "review.autoKeep": {

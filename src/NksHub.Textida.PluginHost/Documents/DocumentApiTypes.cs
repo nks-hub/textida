@@ -47,7 +47,10 @@ public static class DocumentMethods
     public const string SymbolsList = "symbols/list";
     /// <summary>The line diff of two revisions (documents at their current revision or snapshots): hunks as lines and byte ranges.</summary>
     public const string DiffCompute = "diff/compute";
-    /// <summary>Shows the diff of two revisions in a comparison tab.</summary>
+    /// <summary>
+    /// Shows the diff of two revisions in a comparison tab. Optional: <c>key</c>, so that opening the comparison again takes the place of the tab, and <c>actions</c>, buttons (<c>command</c>, <c>title</c>, optional
+    /// <c>refresh</c>) that run the plugin's command on the difference the tab is on (see <see cref="DiffAction"/>).
+    /// </summary>
     public const string DiffOpen = "diff/open";
     /// <summary>Takes one hunk of a diff into a virtual document the plugin provides (the index of a repository), unless that document moved on.</summary>
     public const string DiffStage = "diff/stage";
@@ -67,9 +70,14 @@ public static class DocumentMethods
     public const string DiagnosticsList = "diagnostics/list";
     /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
     public const string CompletionRegister = "editor/completionProvider";
+    /// <summary>The plugin offers (or stops offering) to answer hover requests (<see cref="DocumentRequests.Hover"/>).</summary>
+    public const string HoverRegister = "editor/hoverProvider";
     /// <summary>One batch of text edits in several documents or files and of file operations (create, rename, delete), shown in the change review and applied all or nothing.</summary>
     public const string WorkspaceEdit = "workspace/edit";
-    /// <summary>The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>).</summary>
+    /// <summary>
+    /// The plugin offers (or withdraws) a file source for a URI scheme: it serves list, read, stat and write for such URIs (<see cref="DocumentRequests.SourceRead"/>), and search when it declares <c>search</c>.
+    /// Optional <c>adapterVersion</c> and <c>serviceVersion</c> (texts of at most <see cref="FileSourceOptions.MaxVersionChars"/> characters) say which adapter and which service the user is talking to.
+    /// </summary>
     public const string SourceRegister = "source/register";
     /// <summary>Shows a controlled preview (text or Markdown the plugin supplies) of one revision of a document in the editor's preview panel. HTML is not rendered yet.</summary>
     public const string PreviewShow = "preview/show";
@@ -92,8 +100,15 @@ public static class DocumentRequests
     public const string Tab = "editor/tab";
     /// <summary>Completion at a caret: params <c>document</c>, <c>revision</c>, <c>offset</c> (byte), optional <c>language</c>; the answer holds the <c>revision</c> it was computed for and the <c>items</c>.</summary>
     public const string Completion = "completion/request";
+    /// <summary>
+    /// Hover at a position: params <c>document</c>, <c>revision</c>, <c>offset</c> (byte), optional <c>language</c> (the language of the editor's interface, for texts the plugin writes);
+    /// the answer holds the <c>revision</c> it was computed for and, when it has something to say, <c>text</c> with the byte range <c>start</c>, <c>end</c> the text describes.
+    /// </summary>
+    public const string Hover = "hover/request";
     /// <summary>File source: params <c>uri</c> of a folder; the answer is <c>{"entries":[{"uri","name","isDirectory","size"?}]}</c>.</summary>
     public const string SourceList = "source/list";
+    /// <summary>File source that declared <c>search</c>: params <c>uri</c> (the root of the scheme) and <c>query</c> (words); the answer has the shape of <see cref="SourceList"/>.</summary>
+    public const string SourceSearch = "source/search";
     /// <summary>File source: params <c>uri</c>; the answer holds the <c>revision</c> (an opaque non-empty string) and the content as <c>text</c> (UTF-8) or <c>bytes</c> (base64).</summary>
     public const string SourceRead = "source/read";
     /// <summary>File source: params <c>uri</c>; the answer is <c>{"exists":false}</c> or <c>{"revision","size"}</c>.</summary>
@@ -243,8 +258,10 @@ public sealed record DocumentApiOptions
     public required int MaxCompletionItems { get; init; }
     /// <summary>Additional edits one completion item may carry.</summary>
     public required int MaxCompletionEdits { get; init; }
-    /// <summary>How long the editor waits for a plugin's completion answer; a plugin that is later contributes nothing.</summary>
+    /// <summary>How long the editor waits for a plugin's completion answer (and its hover answer); a plugin that is later contributes nothing.</summary>
     public required TimeSpan CompletionTimeout { get; init; }
+    /// <summary>Longest hover text taken from a plugin, in UTF-16 code units; a longer one is cut. Zero means the editor takes no hover text.</summary>
+    public int MaxHoverChars { get; init; }
     /// <summary>Workspace edits (<see cref="DocumentMethods.WorkspaceEdit"/>); null means the editor takes none.</summary>
     public WorkspaceEditOptions? Workspace { get; init; }
     /// <summary>File sources for URI schemes (<see cref="DocumentMethods.SourceRegister"/>); null means the editor takes none.</summary>
@@ -253,7 +270,12 @@ public sealed record DocumentApiOptions
     public PreviewOptions? Preview { get; init; }
     /// <summary>The agent panel for plugins (<see cref="DocumentMethods.AgentOpen"/>); null means the editor takes none.</summary>
     public AgentPanelOptions? Agent { get; init; }
+    /// <summary>Actions and the key of a comparison tab a plugin opens (<see cref="DocumentMethods.DiffOpen"/>); null means the editor takes neither and opens the tab without them.</summary>
+    public DiffActionOptions? DiffActions { get; init; }
 }
+
+/// <summary>Limits of the actions a plugin offers in a comparison tab: how many, and the longest key, command and title, in UTF-16 code units.</summary>
+public sealed record DiffActionOptions(int MaxActions, int MaxTextLength);
 
 /// <summary>Formats of <see cref="DocumentMethods.PreviewShow"/>. HTML is left out until the renderer and its policy (P6.2.7) are chosen.</summary>
 public static class PreviewFormats
@@ -361,6 +383,9 @@ public sealed record CompletionEdit(ByteRange Range, string Text);
 /// <summary>One offer of a plugin, valid for <paramref name="Revision"/> only: <paramref name="Text"/> replaces <paramref name="Range"/>, the <paramref name="AdditionalEdits"/> go in the same undo step.</summary>
 public sealed record CompletionItem(string PluginId, Guid Document, long Revision, string Label, string? Detail, string? Kind, ByteRange Range, string Text, IReadOnlyList<CompletionEdit> AdditionalEdits);
 
+/// <summary>What a plugin said about the text at a position of <paramref name="Revision"/>: <paramref name="Text"/> describes <paramref name="Range"/>. <paramref name="Stale"/>: the document moved on, so nothing is shown; a null text means there is nothing to say.</summary>
+public sealed record HoverAnswer(long Revision, bool Stale, string? Text, ByteRange? Range, string? PluginId);
+
 /// <summary>The plugins' offers for <paramref name="Revision"/>. <paramref name="Stale"/>: the document moved on while the plugins answered, so nothing is offered.</summary>
 public sealed record CompletionAnswer(long Revision, bool Stale, IReadOnlyList<CompletionItem> Items);
 
@@ -411,8 +436,17 @@ public sealed record VirtualInfo(string Key, string? Uri, bool Editable);
 /// <summary>One side of a comparison a plugin asked for: the bytes of one revision, from <paramref name="Bom"/> on, headed by <paramref name="Title"/> (null: the editor names it after the document and revision).</summary>
 public sealed record DiffInput(DocumentSnapshot Snapshot, int Bom, string? Title);
 
-/// <summary>The comparison of two revisions the editor shows as a tab. <paramref name="Title"/> is null when the editor names it after its sides.</summary>
-public sealed record DiffRequest(string? Title, DiffInput Left, DiffInput Right);
+/// <summary>
+/// A button the plugin that opened a comparison adds to it. Pressed on a hunk, the editor sends the plugin <c>command/execute</c> with <paramref name="Command"/> for the document of the right side
+/// (its path and revision, and <c>offset</c>, the byte offset where the hunk starts on that side). When that went through, it sends <paramref name="Refresh"/> (null: nothing) the same way, without the offset.
+/// </summary>
+public sealed record DiffAction(string Command, string Title, string? Refresh);
+
+/// <summary>
+/// The comparison of two revisions the editor shows as a tab. <paramref name="Title"/> is null when the editor names it after its sides. A tab opened with a <paramref name="Key"/> takes the place of
+/// the tab the same plugin opened with that key before. <paramref name="PluginId"/> is the plugin that asked, <paramref name="Actions"/> the buttons it adds.
+/// </summary>
+public sealed record DiffRequest(string? Title, DiffInput Left, DiffInput Right, string? PluginId = null, string? Key = null, IReadOnlyList<DiffAction>? Actions = null);
 
 /// <summary>Sends a request to a plugin and waits for its answer (<see cref="PluginHost.CallAsync"/> with the timeout).</summary>
 public delegate Task<JsonElement> PluginRequestSender(string pluginId, string method, ReadOnlyMemory<byte> paramsJson, TimeSpan timeout, CancellationToken cancellation);

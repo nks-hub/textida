@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using NksHub.Textida.Acp;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Workbench.Commands;
 
@@ -23,6 +24,7 @@ internal sealed partial class MainWindow
     private readonly Border _agentPanel = new() { IsVisible = false, Height = 280 };
     private readonly TextBlock _agentStatus = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
     private readonly TextBlock _agentBoundary = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 0, 12, 4) };
+    private readonly TextBlock _agentBoundaryNow = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 0, 12, 4), IsVisible = false };
     private readonly TextBox _agentText = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontSize = 13 };
     private readonly TextBox _agentInput = new() { MinHeight = 26 };
     private readonly Button _agentSend = new() { Margin = new Thickness(8, 0, 0, 0) };
@@ -33,6 +35,11 @@ internal sealed partial class MainWindow
 
     /// <summary>The last start, send or stop the user began; tests wait for it.</summary>
     internal Task AgentTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The agents Start Agent offers; tests replace it to start the stand-in agent through the command.</summary>
+    internal IReadOnlyList<AcpAdapter> AgentAdapters { get; set; } = AcpAdapters.All;
+
+    internal string AgentBoundaryNowText => _agentBoundaryNow.Text ?? "";
 
     public bool AgentPanelOpen => _agentPanel.IsVisible;
     internal string AgentPanelText => _agentText.Text ?? "";
@@ -49,6 +56,7 @@ internal sealed partial class MainWindow
     {
         _agentStatus.Classes.Add("findcount");
         _agentBoundary.Classes.Add("findcount");
+        _agentBoundaryNow.Classes.Add("findcount");
         _agentText.Classes.Add("outputtext");
         _agentInput.Classes.Add("findinput");
         foreach (var button in new[] { _agentSend, _agentCancel, _agentStop, _agentClose }) button.Classes.Add("outputaction");
@@ -81,7 +89,7 @@ internal sealed partial class MainWindow
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         _agentPanel.Classes.Add("outputpanel");
-        _agentPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), Dock(_agentBoundary, Avalonia.Controls.Dock.Top), Dock(inputRow, Avalonia.Controls.Dock.Bottom), _agentText } };
+        _agentPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), Dock(_agentBoundary, Avalonia.Controls.Dock.Top), Dock(_agentBoundaryNow, Avalonia.Controls.Dock.Top), Dock(inputRow, Avalonia.Controls.Dock.Bottom), _agentText } };
         return _agentPanel;
     }
 
@@ -154,7 +162,7 @@ internal sealed partial class MainWindow
             {
                 AgentRole.You => Loc.Get(K.AgentLineYou, ("text", line.Text)),
                 AgentRole.Agent => Loc.Get(K.AgentLineAgent, ("agent", acp.AgentName), ("text", line.Text)),
-                AgentRole.Tool => Loc.Get(K.AgentLineTool, ("title", line.Text), ("status", ToolStatusText(line.Status))),
+                AgentRole.Tool => Loc.Get(line.Outside ? K.AgentLineToolOutside : K.AgentLineTool, ("title", line.Text), ("status", ToolStatusText(line.Status))),
                 AgentRole.Note => Loc.Get(K.AgentLineNote, ("text", line.Text)),
                 _ => Loc.Get(K.AgentLineProblem, ("text", line.Text)),
             }).Append('\n');
@@ -169,9 +177,31 @@ internal sealed partial class MainWindow
             AgentState.Ended => Loc.Get(K.AgentStatusEnded, ("agent", acp.AgentName)),
             _ => Loc.Get(K.AgentStatusNone),
         };
+        _agentBoundaryNow.Text = BoundaryText(acp);
+        _agentBoundaryNow.IsVisible = _agentBoundaryNow.Text.Length > 0;
         _agentSend.IsEnabled = acp.State == AgentState.Ready;
         _agentCancel.IsEnabled = acp.TurnRunning;
         _agentStop.IsEnabled = acp.State != AgentState.None;
+    }
+
+    /// <summary>What the editor vouches for in this session, counted by the editor, and what the agent reported doing outside it. Empty when no agent of the table runs.</summary>
+    private static string BoundaryText(AcpService acp)
+    {
+        if (acp.State == AgentState.None || acp.HostsPlugin) return "";
+        var lines = new List<string>();
+        if (acp.Adapter is { } adapter) lines.Add(Loc.Get(K.AgentBoundaryMode, ("agent", adapter.Name), ("reach", ReachText(adapter.OwnToolsReach))));
+        var b = acp.Boundary();
+        lines.Add(Loc.Get(K.AgentBoundaryCounts, ("reads", b.Reads), ("proposals", b.Proposals), ("applied", b.Applied), ("commands", b.Commands), ("other", b.OtherOutside)));
+        return string.Join('\n', lines);
+    }
+
+    private static string ReachText(AcpReach reach)
+    {
+        var parts = new List<string>();
+        if (reach.HasFlag(AcpReach.Files)) parts.Add(Loc.Get(K.AgentReachFiles));
+        if (reach.HasFlag(AcpReach.Programs)) parts.Add(Loc.Get(K.AgentReachPrograms));
+        if (reach.HasFlag(AcpReach.Network)) parts.Add(Loc.Get(K.AgentReachNetwork));
+        return string.Join(", ", parts);
     }
 
     private static string ToolStatusText(string? status) => status switch
@@ -216,24 +246,34 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.AgentStartNoFolder));
             return;
         }
-        var items = AcpAdapters.All.Select(a => new PickItem(a.Id, a.Name, a.CommandLine + (a.IsVerified ? "" : " · " + Loc.Get(K.AgentStartUnverified)))).ToList();
+        var adapters = AgentAdapters;
+        var items = adapters.Select(a => new PickItem(a.Id, a.Name, a.CommandLine + " · " + AgentInstallState(a))).ToList();
         var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.AgentTitle), Loc.Get(K.AgentStartWatermark), items), CancellationToken.None);
-        if (chosen is null || AcpAdapters.Find(chosen) is not { } adapter) return;
+        if (chosen is null || adapters.FirstOrDefault(a => a.Id == chosen) is not { } adapter) return;
 
         var (program, problem) = AcpLaunch.Find(adapter.Command);
         if (program is null)
         {
-            SetStatusMessage(Loc.Get(K.AgentStartFailed, ("agent", adapter.Name), ("reason", problem ?? "")));
+            var ok = new[] { new DialogButton(Loc.Get(K.DialogOk), IsDefault: true, IsCancel: true) };
+            await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.AgentStartTitle, ("agent", adapter.Name)),
+                Loc.Get(K.AgentStartMissing, ("agent", adapter.Name), ("command", adapter.Command), ("reason", problem ?? ""), ("repository", adapter.Repository)), ok));
             return;
         }
+        var launch = new AcpLaunch(program, adapter.Args, folder);
         var buttons = new[] { new DialogButton(Loc.Get(K.AgentStartConfirm)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true) };
-        var details = new[] { Loc.Get(K.AgentStartReads), Loc.Get(K.AgentStartWrites), Loc.Get(K.AgentStartOwn), Loc.Get(K.AgentStartMode) };
-        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.AgentStartTitle, ("agent", adapter.Name)), Loc.Get(K.AgentStartMessage, ("command", adapter.CommandLine), ("folder", folder)), buttons, details));
+        var details = new[] { Loc.Get(K.AgentStartReads), Loc.Get(K.AgentStartWrites), Loc.Get(K.AgentStartOwn, ("agent", adapter.Name), ("reach", ReachText(adapter.OwnToolsReach))), Loc.Get(K.AgentStartMode, ("agent", adapter.Name)) };
+        var command = new ToolInvocation(adapter.Id, program, adapter.Args, folder, null, "").CommandLine;
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.AgentStartTitle, ("agent", adapter.Name)), Loc.Get(K.AgentStartMessage, ("command", command), ("folder", folder)), buttons, details));
         if (answer != 0 || acp.IsRunning) return;
 
         ToggleAgentPanel(true);
-        await acp.StartAsync(this, new AcpLaunch(program, adapter.Args, folder), adapter.Name, adapter);
+        await acp.StartAsync(this, launch, adapter.Name, adapter);
     }
+
+    /// <summary>The picker detail: whether the program is in PATH and, if it is, that no run of the test scenarios has passed for it.</summary>
+    private static string AgentInstallState(AcpAdapter adapter) =>
+        AcpLaunch.Find(adapter.Command).Path is null ? Loc.Get(K.AgentStartMissingInPath)
+        : Loc.Get(K.AgentStartFound) + (adapter.IsVerified ? "" : " · " + Loc.Get(K.AgentStartUnverified));
 
     internal CommandOutcome ShareTabWithAgent()
     {

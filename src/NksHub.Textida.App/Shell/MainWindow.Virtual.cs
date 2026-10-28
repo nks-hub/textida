@@ -71,11 +71,36 @@ internal sealed partial class MainWindow
         }
     }
 
-    /// <summary>Opens the comparison a plugin asked for. Both sides are the revisions it named, not the documents as they are later.</summary>
+    /// <summary>The comparison tabs plugins opened with a key, by plugin and key; opening one again takes the place of the tab.</summary>
+    private readonly Dictionary<(string Plugin, string Key), DocTab> _keyedDiffs = [];
+
+    /// <summary>
+    /// Opens the comparison a plugin asked for. Both sides are the revisions it named, not the documents as they are later. The buttons the plugin added act on the difference the tab is on;
+    /// a tab with the same plugin and key as an open one takes its place.
+    /// </summary>
     internal DocTab OpenDiffRequest(DiffRequest request)
     {
         CompareSide Side(DiffInput input) => new() { Title = input.Title ?? RevisionTitle(input.Snapshot), Snapshot = input.Snapshot, SnapshotBom = input.Bom };
-        return OpenCompare(Side(request.Left), Side(request.Right), request.Title);
+        (string, string)? keyed = request is { PluginId: { } plugin, Key: { } key } ? (plugin, key) : null;
+        TabGroup? group = null;
+        int? index = null;
+        if (keyed is { } known && _keyedDiffs.Remove(known, out var old) && old.Group is { } oldGroup && oldGroup.Tabs.Contains(old))
+        {
+            (group, index) = (oldGroup, oldGroup.Tabs.ToList().IndexOf(old));
+            RemoveTab(old, untrack: true);
+        }
+        var tab = OpenCompare(Side(request.Left), Side(request.Right), request.Title, group, index, view =>
+        {
+            if (request.Actions is not { Count: > 0 } actions) return;
+            view.SetActions(actions);
+            view.ActionRequested += (action, hunk) => _ = RunDiffActionAsync(view, request, action, hunk);
+        });
+        if (keyed is { } opened)
+        {
+            _keyedDiffs[opened] = tab;
+            tab.ViewClosed += () => { if (_keyedDiffs.TryGetValue(opened, out var current) && current == tab) _keyedDiffs.Remove(opened); };
+        }
+        return tab;
     }
 
     private string RevisionTitle(DocumentSnapshot snapshot) =>

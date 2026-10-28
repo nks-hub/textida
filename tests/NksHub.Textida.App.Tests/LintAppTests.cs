@@ -53,14 +53,14 @@ public class LintAppTests : IDisposable
 
     private string ActionsFile => Path.Combine(_app.ProfileDirectory, SaveActionConfig.FileName);
 
-    private void Configure(int? lintTimeoutSeconds, bool lint = true) =>
-        SaveActionConfig.Write(ActionsFile, new SaveActionsFile { LintTimeoutSeconds = lintTimeoutSeconds, Actions = lint ? [new SaveActionEntry { Kind = "lint", Id = "phpstan" }] : [] });
+    private void Configure(int? lintTimeoutSeconds, bool lint = true, Dictionary<string, string>? toolPaths = null) =>
+        SaveActionConfig.Write(ActionsFile, new SaveActionsFile { LintTimeoutSeconds = lintTimeoutSeconds, ToolPaths = toolPaths, Actions = lint ? [new SaveActionEntry { Kind = "lint", Id = "phpstan" }] : [] });
 
     private void Say(string sample) =>
         File.WriteAllText(_tool + ".sample", sample.Replace("{FILEJSON}", System.Text.Json.JsonSerializer.Serialize(_php)[1..^1]), new UTF8Encoding(false));
 
     /// <summary>The program asks for a yes before its first run, as every tool; here it has been given.</summary>
-    private void Approve() => _app.ToolApprovals.Approve(Linters.Prepare(Linters.Find("phpstan")!, _php, TimeSpan.FromSeconds(5)));
+    private void Approve(string? userPath = null) => _app.ToolApprovals.Approve(Linters.Prepare(Linters.Find("phpstan")!, _php, TimeSpan.FromSeconds(5), userPath));
 
     private static async Task Until(Func<bool> condition, string what, int timeoutMs = 30_000)
     {
@@ -112,7 +112,7 @@ public class LintAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task Without_a_time_limit_no_linter_runs_and_the_status_bar_says_so()
+    public async Task Without_lintTimeoutSeconds_the_provisional_limit_applies_and_the_linter_runs()
     {
         Configure(null);
         Say(Found);
@@ -120,9 +120,9 @@ public class LintAppTests : IDisposable
         var tab = _w.OpenFile(_php, null);
 
         await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
 
-        Assert.Equal(Loc.Get(K.LintNoLimit, ("name", "PHPStan")), _w.StatusMessageText);
-        Assert.Empty(tab.Surface!.Diagnostics);
+        Assert.Equal(TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintTimeoutSeconds), _w.LoadSaveActions(_php).LintTimeout);
     }
 
     [AvaloniaFact]
@@ -134,8 +134,7 @@ public class LintAppTests : IDisposable
 
         await SaveEditedAsync(tab, "\n");
 
-        Assert.Contains("phpstan", _w.StatusMessageText);
-        Assert.Contains(Loc.Get(K.LintFailed, ("name", "PHPStan"), ("reason", "")).Split('\u0001')[0].TrimEnd(), _w.StatusMessageText);
+        Assert.Equal(Loc.Get(K.LintMissing, ("name", "PHPStan"), ("program", "phpstan")), _w.StatusMessageText);
         Assert.Empty(tab.Surface!.Diagnostics);
     }
 
@@ -148,10 +147,80 @@ public class LintAppTests : IDisposable
         var tab = _w.OpenFile(_php, null);
 
         await SaveEditedAsync(tab, "\n");
+        await Until(() => File.Exists(_tool + ".runs"), "the linter to start"); // a save that is typed over before the run starts is not linted
         tab.Editor!.Document.Insert(0, "typing while it runs "); // the editor accepts input meanwhile
         await Until(() => _w.StatusMessageText == Loc.Get(K.LintTimedOut, ("name", "PHPStan"), ("seconds", "1")), "the report of the time-out");
 
         Assert.Empty(tab.Surface!.Diagnostics);
+    }
+
+    [AvaloniaFact]
+    public async Task Two_saves_in_a_row_start_one_run_because_the_newer_save_replaces_the_waiting_one()
+    {
+        Configure(60);
+        Say(Found);
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+        await Task.Delay(PluginLimitsPlaceholders.LintOnSaveDebounceMilliseconds + 300);
+
+        Assert.Single(File.ReadAllLines(_tool + ".runs"));
+    }
+
+    [AvaloniaFact]
+    public async Task Text_typed_while_the_linter_runs_moves_the_underline_with_the_text()
+    {
+        Configure(60);
+        Say("#delay 1500\n" + Found);
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => File.Exists(_tool + ".runs"), "the linter to start");
+        tab.Editor!.Document.Insert(0, "<?php // typed during the run\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+
+        var mark = tab.Surface!.Diagnostics[0];
+        Assert.Equal("foo($x);", tab.Editor!.Document.Text[mark.Start..mark.End]);
+    }
+
+    [AvaloniaFact]
+    public async Task A_finding_whose_text_was_changed_while_the_linter_ran_is_dropped_and_the_report_says_so()
+    {
+        Configure(60);
+        Say("#delay 1500\n" + Found);
+        Approve();
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => File.Exists(_tool + ".runs"), "the linter to start");
+        tab.Editor!.Document.Replace(tab.Editor!.Document.Text.IndexOf("foo", StringComparison.Ordinal), 3, "bar");
+        await Until(() => _w.StatusMessageText == Loc.Get(K.LintStale, ("number", 1)), "the report that the finding is stale");
+
+        Assert.Empty(tab.Surface!.Diagnostics);
+        Assert.Contains(Loc.Get(K.LintStale, ("number", 1)), TaskLines());
+    }
+
+    [AvaloniaFact]
+    public async Task A_program_path_from_the_user_in_the_profile_finds_a_linter_that_is_not_in_the_project()
+    {
+        string mine = Directory.CreateDirectory(Path.Combine(_temp.Path, "mine")).FullName;
+        foreach (var extension in new[] { ".dll", ".runtimeconfig.json", ".deps.json" })
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.ToolEcho" + extension), Path.Combine(mine, "NksHub.Textida.ToolEcho" + extension), overwrite: true);
+        string own = Path.Combine(mine, Path.GetFileName(_tool));
+        File.Move(_tool, own);
+        Configure(60, toolPaths: new Dictionary<string, string> { ["phpstan"] = own });
+        File.WriteAllText(own + ".sample", Found.Replace("{FILEJSON}", System.Text.Json.JsonSerializer.Serialize(_php)[1..^1]), new UTF8Encoding(false));
+        Approve(own);
+        var tab = _w.OpenFile(_php, null);
+
+        await SaveEditedAsync(tab, "\n");
+        await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
+
+        Assert.Equal("foo($x);", tab.Editor!.Document.Text[tab.Surface!.Diagnostics[0].Start..tab.Surface!.Diagnostics[0].End]);
     }
 
     [AvaloniaFact]

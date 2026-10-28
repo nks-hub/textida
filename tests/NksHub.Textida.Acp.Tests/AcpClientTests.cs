@@ -306,4 +306,95 @@ public class AcpClientTests
         });
         Assert.Equal("opencode acp", AcpAdapters.Find("opencode")!.CommandLine);
     }
+
+    // ---- P6.6.3 / P6.6.4: the table as data, the version probe and the boundary of the guarantee ----
+
+    private static string Dotnet => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+
+    [Fact]
+    public void The_table_says_per_adapter_what_the_editor_sets_and_what_the_own_tools_may_do()
+    {
+        Assert.All(AcpAdapters.All, a =>
+        {
+            Assert.False(a.EditorSetsMode); // no session/set_mode is ever sent (see the test of the methods the agent saw)
+            Assert.Equal(AcpReach.All, a.OwnToolsReach); // the agent is a plain process with the rights of the user: nothing stops its tools
+            Assert.Matches(@"^\d+\.\d+\.\d+$", a.ListedVersion);
+            Assert.StartsWith("https://github.com/", a.Repository);
+            Assert.Equal(["--version"], a.VersionCheckArgs);
+        });
+    }
+
+    [Fact]
+    public void The_table_holds_only_program_names_and_flags_no_key_token_or_environment()
+    {
+        Assert.All(AcpAdapters.All, a =>
+        {
+            Assert.Matches("^[a-z][a-z-]*$", a.Command);
+            Assert.All(a.Args, arg => Assert.Matches("^([a-z]+|--[a-z]+(=(true|false))?)$", arg));
+        });
+    }
+
+    [Fact]
+    public async Task The_editor_sends_no_permission_mode_and_offers_the_agent_no_terminal()
+    {
+        var (client, session, updates) = await OpenAsync(new TestHost());
+        await using var _ = client;
+        await client.PromptAsync(session, "seen");
+        await UntilAsync(() => Streamed(updates).Contains("SEEN:"), "the methods");
+        Assert.Equal("SEEN:initialize,session/new,session/prompt", Streamed(updates));
+        updates.Clear();
+        await client.PromptAsync(session, "caps");
+        await UntilAsync(() => Streamed(updates).Contains("CAPS:"), "the capabilities");
+        Assert.Equal("""CAPS:{"fs":{"readTextFile":true,"writeTextFile":true}}""", Streamed(updates));
+    }
+
+    [Theory]
+    [InlineData("execute", true)]
+    [InlineData("delete", true)]
+    [InlineData("move", true)]
+    [InlineData("fetch", true)]
+    [InlineData("read", false)]
+    [InlineData("edit", false)]
+    [InlineData("search", false)]
+    [InlineData("think", false)]
+    [InlineData("switch_mode", false)]
+    [InlineData("other", false)]
+    [InlineData(null, false)]
+    public void Only_the_tool_kinds_without_a_method_the_editor_serves_count_as_outside_the_editor(string? kind, bool outside) =>
+        Assert.Equal(outside, AcpToolKinds.RunsOutsideEditor(kind));
+
+    [Theory]
+    [InlineData("--version", "0.1.0", null)]
+    [InlineData("--version-silent", null, "no version in the output")]
+    [InlineData("--version-fail", null, "exit code 4")]
+    public async Task The_version_probe_takes_the_first_version_number_and_says_why_it_found_none(string flag, string? version, string? problem)
+    {
+        var result = await AcpVersionProbe.ReadAsync(Dotnet, [FakeAgent, flag], AppContext.BaseDirectory, TimeSpan.FromSeconds(60));
+        Assert.Equal(new AcpVersionResult(version, problem), result);
+    }
+
+    [Fact]
+    public async Task A_program_that_does_not_answer_is_ended_and_one_that_does_not_exist_is_reported()
+    {
+        var slow = await AcpVersionProbe.ReadAsync(Dotnet, [FakeAgent, "--version-hang"], AppContext.BaseDirectory, TimeSpan.FromMilliseconds(1500));
+        Assert.Null(slow.Version);
+        Assert.StartsWith("no answer within", slow.Problem);
+
+        var missing = await AcpVersionProbe.ReadAsync(Path.Combine(AppContext.BaseDirectory, "no-such-agent.exe"), ["--version"], AppContext.BaseDirectory, TimeSpan.FromSeconds(10));
+        Assert.Null(missing.Version);
+        Assert.NotEmpty(missing.Problem!);
+
+        using var cancelled = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var stopped = await AcpVersionProbe.ReadAsync(Dotnet, [FakeAgent, "--version-hang"], AppContext.BaseDirectory, TimeSpan.FromSeconds(60), cancelled.Token).WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.Null(stopped.Version);
+    }
+
+    [Fact]
+    public void A_crash_report_hides_the_secret_part_of_a_URL_in_the_last_line_of_stderr()
+    {
+        var message = new AcpAgentExitedException(new AcpExit(1, "login at https://user:hunter2@example.com/cb?token=abc123 failed")).Message;
+        Assert.Contains("example.com", message);
+        Assert.DoesNotContain("hunter2", message);
+        Assert.DoesNotContain("abc123", message);
+    }
 }

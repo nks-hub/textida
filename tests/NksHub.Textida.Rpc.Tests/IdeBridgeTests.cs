@@ -1,4 +1,9 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Documents;
@@ -9,7 +14,10 @@ using NksHub.Textida.PluginHost.Permissions;
 
 namespace NksHub.Textida.Rpc.Tests;
 
-/// <summary>The /ide bridge: discovery through the lock file, the token, the selection notification and the path of a proposal through the same review as every assistant.</summary>
+/// <summary>
+/// The /ide bridge: discovery through the lock file, the token, the selection and diagnostics the agent gets, the diffs it opens in the change review, one bridge per window and the path of a proposal
+/// through the same review as every assistant. The agent is a fake client over loopback; no run against a real Claude Code is part of these tests.
+/// </summary>
 public class IdeBridgeTests
 {
     sealed class OwnerLock : IDocumentOwnerThread
@@ -52,8 +60,43 @@ public class IdeBridgeTests
         }
     }
 
+    /// <summary>The editor's side of an open diff: records what it was asked to show and answers when the test says so. Like the editor, it answers "rejected" as soon as it is cancelled.</summary>
+    sealed class FakeDiffs
+    {
+        public readonly List<IdeDiffRequest> Seen = [];
+        public readonly List<CancellationToken> Tokens = [];
+        readonly List<TaskCompletionSource<IdeDiffOutcome>> _decisions = [];
+
+        public async Task<IdeDiffOutcome> Show(IdeDiffRequest request, CancellationToken cancellation)
+        {
+            var decision = new TaskCompletionSource<IdeDiffOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (Seen)
+            {
+                Seen.Add(request);
+                Tokens.Add(cancellation);
+                _decisions.Add(decision);
+            }
+            using var _ = cancellation.Register(() => decision.TrySetResult(IdeDiffOutcome.Rejected));
+            return await decision.Task;
+        }
+
+        /// <summary>The user decides the diff that was shown <paramref name="index"/>th.</summary>
+        public void Decide(IdeDiffOutcome outcome, int index = 0)
+        {
+            lock (Seen) _decisions[index].TrySetResult(outcome);
+        }
+
+        public int Count
+        {
+            get { lock (Seen) return Seen.Count; }
+        }
+    }
+
     sealed class Rig : IAsyncDisposable
     {
+        readonly List<IdeBridge> _extra = [];
+        readonly List<Document> _files = [];
+
         public required DocumentApi Api { get; init; }
         public required McpServer Server { get; init; }
         public required PluginPermissions Permissions { get; init; }
@@ -63,7 +106,11 @@ public class IdeBridgeTests
         public required string LockDirectory { get; init; }
         public IdeBridge Bridge { get; private set; } = null!;
 
-        public static Rig Create()
+        /// <summary>The temporary folder that holds the lock directory and the files of the test.</summary>
+        public string Root => Path.GetDirectoryName(LockDirectory)!;
+
+        /// <param name="seed">Runs on the lock directory before the bridge starts (lock files an earlier editor left behind).</param>
+        public static Rig Create(Func<IdeBridgeOptions, IdeBridgeOptions>? configure = null, Action<string>? seed = null, int maxPending = 10)
         {
             var permissions = new PluginPermissions();
             var ledger = new ProposalLedger(100);
@@ -80,26 +127,57 @@ public class IdeBridgeTests
             var server = new McpServer(new McpServerOptions
             {
                 Documents = api, Proposals = ledger, Limits = T.Roomy, ServerName = "textida-test", ServerVersion = "0.0.1", MaxResultChars = 200_000, MaxRangeBytes = 4096,
-                MaxItems = 50, SnippetBytes = 12, MaxLineChars = 200, MaxPendingProposals = 10,
+                MaxItems = 50, SnippetBytes = 12, MaxLineChars = 200, MaxPendingProposals = maxPending,
             });
             var rig = new Rig { Api = api, Server = server, Permissions = permissions, Ledger = ledger, Reviewer = reviewer, Owner = owner, LockDirectory = Path.Combine(T.TempDir(), "ide") };
-            rig.Bridge = new IdeBridge(new IdeBridgeOptions { Server = server, LockDirectory = rig.LockDirectory, HandshakeTimeout = TimeSpan.FromSeconds(5), MaxHeaderBytes = 8192 });
+            if (seed is not null)
+            {
+                Directory.CreateDirectory(rig.LockDirectory);
+                seed(rig.LockDirectory);
+            }
+            rig.Bridge = rig.Build(configure);
             return rig;
         }
 
-        public Document Share(Document doc)
+        IdeBridge Build(Func<IdeBridgeOptions, IdeBridgeOptions>? configure)
         {
-            Owner.Run(() => { Api.Expose(doc); return 0; });
+            var options = new IdeBridgeOptions { Server = Server, LockDirectory = LockDirectory, HandshakeTimeout = TimeSpan.FromSeconds(5), MaxHeaderBytes = 8192, MaxAgentNameChars = 40 };
+            return new IdeBridge(configure is null ? options : configure(options));
+        }
+
+        /// <summary>Another bridge on the same server and lock directory: another window of the same editor.</summary>
+        public IdeBridge AddBridge(Func<IdeBridgeOptions, IdeBridgeOptions>? configure = null)
+        {
+            var bridge = Build(configure);
+            _extra.Add(bridge);
+            return bridge;
+        }
+
+        public Document Share(Document doc, Func<SelectionSet?>? selections = null)
+        {
+            Owner.Run(() => { Api.Expose(doc, selections); return 0; });
             Permissions.Grant(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(doc.Id));
             Permissions.Grant(McpServer.ClientId, DocumentPermissions.EditPropose, GrantScope.OfDocument(doc.Id));
+            return doc;
+        }
+
+        /// <summary>A document opened from a file of the test folder, so it has a path to give the agent.</summary>
+        public Document FileDocument(string text, string name = "a.txt")
+        {
+            var path = Path.Combine(Root, name);
+            File.WriteAllBytes(path, Utf8(text));
+            var doc = Document.Open(path, PagedBackendFactory.Instance);
+            _files.Add(doc);
             return doc;
         }
 
         public async ValueTask DisposeAsync()
         {
             await Bridge.DisposeAsync();
+            foreach (var bridge in _extra) await bridge.DisposeAsync();
+            foreach (var doc in _files) Owner.Run(() => { if (Api.IsExposed(doc.Id)) Api.Withdraw(doc); doc.Dispose(); return 0; });
             await Api.DisposeAsync();
-            Directory.Delete(Path.GetDirectoryName(LockDirectory)!, true);
+            Directory.Delete(Root, true);
         }
     }
 
@@ -111,22 +189,23 @@ public class IdeBridgeTests
 
         public List<JsonElement> Notifications { get; } = [];
 
-        public static (int Port, string Token) Discover(string lockDirectory)
+        /// <summary>Finds the lock file the way an agent does: the one file of the directory, or the one of the given port when several editors (or windows) are running.</summary>
+        public static (int Port, string Token) Discover(string lockDirectory, int? port = null)
         {
-            var file = Assert.Single(Directory.GetFiles(lockDirectory, "*.lock"));
+            var file = port is { } chosen ? Path.Combine(lockDirectory, chosen + ".lock") : Assert.Single(Directory.GetFiles(lockDirectory, "*.lock"));
             using var lockContent = JsonDocument.Parse(File.ReadAllBytes(file));
             return (int.Parse(Path.GetFileNameWithoutExtension(file)), lockContent.RootElement.GetProperty("authToken").GetString()!);
         }
 
-        public static async Task<FakeAgent> ConnectAsync(string lockDirectory, string? token = null, bool useToken = true, string? origin = null)
+        public static async Task<FakeAgent> ConnectAsync(string lockDirectory, string? token = null, bool useToken = true, string? origin = null, int? port = null)
         {
-            var (port, found) = Discover(lockDirectory);
+            var (listening, found) = Discover(lockDirectory, port);
             var agent = new FakeAgent();
             if (useToken) agent._socket.Options.SetRequestHeader(IdeBridge.AuthorizationHeader, token ?? found);
             if (origin is not null) agent._socket.Options.SetRequestHeader("Origin", origin);
             agent._socket.Options.AddSubProtocol("mcp");
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            await agent._socket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}"), timeout.Token);
+            await agent._socket.ConnectAsync(new Uri($"ws://127.0.0.1:{listening}"), timeout.Token);
             return agent;
         }
 
@@ -160,9 +239,9 @@ public class IdeBridgeTests
             }
         }
 
-        public async Task InitializeAsync()
+        public async Task InitializeAsync(string name = "fake-agent", string version = "1")
         {
-            var reply = await RequestAsync("initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"fake-agent\",\"version\":\"1\"}}");
+            var reply = await RequestAsync("initialize", $"{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"{name}\",\"version\":\"{version}\"}}}}");
             Assert.False(reply.TryGetProperty("error", out _), reply.GetRawText());
             await SendAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
         }
@@ -219,17 +298,24 @@ public class IdeBridgeTests
         await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
         await agent.InitializeAsync();
         var tools = (await agent.RequestAsync("tools/list", "{}")).GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
-        Assert.Contains("getDiagnostics", tools);
-        Assert.Contains("editor_prepare_changes", tools);
-        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics")).GetProperty("files").GetArrayLength());
+        foreach (var name in new[] { "getDiagnostics", "openDiff", "close_tab", "closeAllDiffTabs", "getCurrentSelection", "getLatestSelection", "editor_prepare_changes" }) Assert.Contains(name, tools);
+        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics")).GetArrayLength());
         Assert.Equal(1, rig.Bridge.ConnectionCount);
+    }
+
+    [Fact]
+    public async Task The_bridge_listens_on_the_loopback_interface_only()
+    {
+        await using var rig = Rig.Create();
+        Assert.Equal(IPAddress.Loopback, rig.Bridge.EndPoint.Address);
+        Assert.Equal(rig.Bridge.Port, rig.Bridge.EndPoint.Port);
     }
 
     [Fact]
     public async Task Diagnostics_reach_the_agent_for_shared_tabs_only()
     {
         await using var rig = Rig.Create();
-        var shared = rig.Share(NewDocument("alpha\nbeta\n"));
+        var shared = rig.Share(rig.FileDocument("alpha\nbeta\n"));
         var hidden = NewDocument("secret\n");
         rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; });
         rig.Owner.Run(() =>
@@ -241,14 +327,152 @@ public class IdeBridgeTests
         await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
         await agent.InitializeAsync();
         var result = await agent.ToolAsync("getDiagnostics");
-        var file = Assert.Single(result.GetProperty("files").EnumerateArray());
-        Assert.StartsWith("untitled:", file.GetProperty("uri").GetString());
+        var file = Assert.Single(result.EnumerateArray());
+        var uri = new Uri(shared.FilePath!).AbsoluteUri;
+        Assert.Equal(uri, file.GetProperty("uri").GetString());
         var d = Assert.Single(file.GetProperty("diagnostics").EnumerateArray());
         Assert.Equal("bad beta", d.GetProperty("message").GetString());
         Assert.Equal("Error", d.GetProperty("severity").GetString());
         Assert.Equal(1, d.GetProperty("range").GetProperty("start").GetProperty("line").GetInt32());
+        Assert.Equal(0, d.GetProperty("range").GetProperty("start").GetProperty("character").GetInt32());
+        Assert.Equal("lint", d.GetProperty("source").GetString());
         Assert.DoesNotContain("bad secret", result.GetRawText());
-        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics", "{\"uri\":\"untitled:other\"}")).GetProperty("files").GetArrayLength());
+        Assert.Single((await agent.ToolAsync("getDiagnostics", $"{{\"uri\":\"{uri}\"}}")).EnumerateArray());
+        Assert.Equal(0, (await agent.ToolAsync("getDiagnostics", "{\"uri\":\"untitled:other\"}")).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task The_lock_file_names_the_editor_and_the_folders_of_the_window_and_can_list_new_ones()
+    {
+        var first = Path.Combine(Path.GetTempPath(), "project-a");
+        var second = Path.Combine(Path.GetTempPath(), "project-b");
+        await using var rig = Rig.Create(o => o with { WorkspaceFolders = [first] });
+        string[] Folders(out JsonElement root, out JsonDocument content)
+        {
+            content = JsonDocument.Parse(File.ReadAllBytes(rig.Bridge.LockPath));
+            root = content.RootElement;
+            return [.. root.GetProperty("workspaceFolders").EnumerateArray().Select(e => e.GetString()!)];
+        }
+        Assert.Equal(new[] { first }, Folders(out var root, out var content));
+        Assert.Equal(Environment.ProcessId, root.GetProperty("pid").GetInt32());
+        Assert.Equal(IdeBridge.IdeName, root.GetProperty("ideName").GetString());
+        Assert.Equal("ws", root.GetProperty("transport").GetString());
+        Assert.Equal(rig.Bridge.AuthToken, root.GetProperty("authToken").GetString());
+        content.Dispose();
+
+        Assert.True(rig.Bridge.UpdateWorkspaceFolders([first, second]));
+        Assert.Equal(new[] { first, second }, Folders(out root, out content));
+        Assert.Equal(rig.Bridge.AuthToken, root.GetProperty("authToken").GetString()); // the token stays; only the folders change
+        content.Dispose();
+    }
+
+    [Fact]
+    public async Task Lock_files_of_a_crashed_editor_are_removed_when_the_next_bridge_starts()
+    {
+        string dead = "", alive = "", otherIde = "", broken = "";
+        await using var rig = Rig.Create(o => o with { IsProcessAlive = pid => pid == 4242 }, seed: dir =>
+        {
+            dead = Path.Combine(dir, "10001.lock");
+            File.WriteAllText(dead, "{\"pid\":9999,\"ideName\":\"Textida\",\"authToken\":\"left-behind\"}");
+            alive = Path.Combine(dir, "10002.lock");
+            File.WriteAllText(alive, "{\"pid\":4242,\"ideName\":\"Textida\"}");
+            otherIde = Path.Combine(dir, "10003.lock");
+            File.WriteAllText(otherIde, "{\"pid\":9999,\"ideName\":\"Another IDE\"}");
+            broken = Path.Combine(dir, "10004.lock");
+            File.WriteAllText(broken, "not json");
+        });
+        Assert.False(File.Exists(dead)); // the editor that wrote it is gone
+        Assert.True(File.Exists(alive)); // a running instance keeps its lock file
+        Assert.True(File.Exists(otherIde)); // not ours to delete
+        Assert.True(File.Exists(broken));
+        Assert.True(File.Exists(rig.Bridge.LockPath));
+    }
+
+    [Fact]
+    public async Task Every_bridge_has_its_own_port_token_and_lock_file_and_keeps_the_lock_file_of_the_others()
+    {
+        await using var rig = Rig.Create();
+        var second = rig.AddBridge();
+        Assert.NotEqual(rig.Bridge.Port, second.Port);
+        Assert.NotEqual(rig.Bridge.AuthToken, second.AuthToken);
+        Assert.Equal(2, Directory.GetFiles(rig.LockDirectory, "*.lock").Length); // starting the second did not delete the first, which belongs to the same process
+
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory, port: second.Port);
+        await agent.InitializeAsync();
+        Assert.Equal(1, second.ConnectionCount);
+        Assert.Equal(0, rig.Bridge.ConnectionCount);
+        await Assert.ThrowsAsync<WebSocketException>(() => FakeAgent.ConnectAsync(rig.LockDirectory, token: rig.Bridge.AuthToken, port: second.Port)); // the token of one is no key to the other
+
+        await second.DisposeAsync();
+        Assert.False(File.Exists(second.LockPath));
+        Assert.True(File.Exists(rig.Bridge.LockPath));
+    }
+
+    [Fact]
+    public async Task A_bridge_serves_only_the_documents_of_its_own_window()
+    {
+        var windowA = new HashSet<Guid>();
+        var windowB = new HashSet<Guid>();
+        await using var rig = Rig.Create(o => o with { Scope = windowA.Contains });
+        var otherWindow = rig.AddBridge(o => o with { Scope = windowB.Contains });
+        var a = rig.Share(rig.FileDocument("alpha\n", "a.txt"));
+        var b = rig.Share(rig.FileDocument("bravo\n", "b.txt"));
+        windowA.Add(a.Id);
+        windowB.Add(b.Id);
+        rig.Owner.Run(() =>
+        {
+            rig.Api.PublishOwn(a, "lint", a.Revision, [new Diagnostic(DiagnosticSeverity.Error, "in a", "E1", new ByteRange(0, 5))]);
+            rig.Api.PublishOwn(b, "lint", b.Revision, [new Diagnostic(DiagnosticSeverity.Error, "in b", "E2", new ByteRange(0, 5))]);
+            return 0;
+        });
+
+        await using var agentA = await FakeAgent.ConnectAsync(rig.LockDirectory, port: rig.Bridge.Port);
+        await agentA.InitializeAsync();
+        Assert.Equal(a.Id.ToString(), Assert.Single((await agentA.ToolAsync("editor_list_documents")).GetProperty("documents").EnumerateArray()).GetProperty("id").GetString());
+        var read = await agentA.ToolTextAsync("editor_read_range", $"{{\"document\":\"{b.Id}\",\"start\":0,\"end\":3}}");
+        Assert.True(read.IsError); // shared in the other window: as good as not shared here
+        var diagnostics = await agentA.ToolAsync("getDiagnostics");
+        Assert.Contains("in a", diagnostics.GetRawText());
+        Assert.DoesNotContain("in b", diagnostics.GetRawText());
+        Assert.False(await rig.Bridge.PublishSelectionAsync(b.Id, 0, 3));
+        Assert.True(await rig.Bridge.PublishSelectionAsync(a.Id, 0, 3));
+
+        await using var agentB = await FakeAgent.ConnectAsync(rig.LockDirectory, port: otherWindow.Port);
+        await agentB.InitializeAsync();
+        Assert.Equal(b.Id.ToString(), Assert.Single((await agentB.ToolAsync("editor_list_documents")).GetProperty("documents").EnumerateArray()).GetProperty("id").GetString());
+        Assert.DoesNotContain("in a", (await agentB.ToolAsync("getDiagnostics")).GetRawText());
+    }
+
+    [Fact]
+    public async Task The_status_names_the_connected_agent_and_disconnecting_cuts_it_off_but_leaves_the_bridge_open()
+    {
+        await using var rig = Rig.Create();
+        int changes = 0;
+        rig.Bridge.AgentsChanged += () => Interlocked.Increment(ref changes);
+        Assert.Empty(rig.Bridge.Agents);
+
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync("fake-agent", "2.5");
+        await T.Until(() => rig.Bridge.Agents.Count == 1);
+        Assert.Equal(new IdeAgent("fake-agent", "2.5"), rig.Bridge.Agents[0]);
+        Assert.True(Volatile.Read(ref changes) >= 2); // it connected and it said who it is
+
+        Assert.Equal(1, rig.Bridge.DisconnectAgents());
+        await T.Until(() => rig.Bridge.Agents.Count == 0);
+        await Assert.ThrowsAnyAsync<Exception>(() => agent.RequestAsync("ping", "{}"));
+
+        await using var again = await FakeAgent.ConnectAsync(rig.LockDirectory); // the bridge is still open for the next /ide
+        await again.InitializeAsync();
+        Assert.Single(rig.Bridge.Agents);
+    }
+
+    [Fact]
+    public async Task The_name_of_an_agent_is_cut_to_the_limit()
+    {
+        await using var rig = Rig.Create(o => o with { MaxAgentNameChars = 4 });
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync("fake-agent", "1234567");
+        Assert.Equal(new IdeAgent("fake", "1234"), Assert.Single(rig.Bridge.Agents));
     }
 
     [Fact]
@@ -281,8 +505,9 @@ public class IdeBridgeTests
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(rig.LockDirectory));
         }
-        await rig.DisposeAsync();
+        await rig.Bridge.DisposeAsync(); // the bridge alone: disposing the rig would delete the whole folder and hide a lock file left behind
         Assert.False(File.Exists(path));
+        await rig.DisposeAsync();
     }
 
     [Fact]
@@ -293,14 +518,172 @@ public class IdeBridgeTests
         Assert.NotEqual(first.Bridge.AuthToken, second.Bridge.AuthToken);
     }
 
+    // ---- the handshake on the wire ----
+
+    /// <summary>Sends one request head to the bridge as it is and returns the status line of the answer; null when the bridge closes the connection without one.</summary>
+    static async Task<string?> RawUpgradeAsync(int port, IEnumerable<string> head)
+    {
+        using var client = new TcpClient();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await client.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+        var stream = client.GetStream();
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(string.Join("\r\n", head) + "\r\n\r\n"), timeout.Token);
+        var buffer = new byte[256];
+        int read;
+        try { read = await stream.ReadAsync(buffer, timeout.Token); }
+        catch (IOException) { return null; }
+        return read == 0 ? null : Encoding.ASCII.GetString(buffer, 0, read).Split("\r\n")[0];
+    }
+
+    static List<string> UpgradeHead(int port, string? token, string host = "", string method = "GET", string? origin = null, bool upgrade = true)
+    {
+        var head = new List<string> { $"{method} / HTTP/1.1" };
+        if (host != "-") head.Add("Host: " + (host.Length > 0 ? host : $"127.0.0.1:{port}"));
+        if (upgrade) head.AddRange(["Upgrade: websocket", "Connection: Upgrade"]);
+        head.AddRange(["Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==", "Sec-WebSocket-Version: 13"]);
+        if (token is not null) head.Add($"{IdeBridge.AuthorizationHeader}: {token}");
+        if (origin is not null) head.Add("Origin: " + origin);
+        return head;
+    }
+
+    [Fact]
+    public async Task Only_a_request_with_the_exact_token_for_a_loopback_host_and_without_an_origin_is_upgraded()
+    {
+        await using var rig = Rig.Create();
+        int port = rig.Bridge.Port;
+        string token = rig.Bridge.AuthToken;
+        var cases = new (string Label, List<string> Head, string Status)[]
+        {
+            ("the right token", UpgradeHead(port, token), "HTTP/1.1 101"),
+            ("localhost as the host", UpgradeHead(port, token, host: $"localhost:{port}"), "HTTP/1.1 101"),
+            ("no token", UpgradeHead(port, null), "HTTP/1.1 401"),
+            ("an empty token", UpgradeHead(port, ""), "HTTP/1.1 401"),
+            ("another token", UpgradeHead(port, new string('0', token.Length)), "HTTP/1.1 401"),
+            ("the token with a character more", UpgradeHead(port, token + "0"), "HTTP/1.1 401"),
+            ("the token without its last character", UpgradeHead(port, token[..^1]), "HTTP/1.1 401"),
+            ("the token with a space before it", UpgradeHead(port, "x" + token), "HTTP/1.1 401"),
+            ("a host that is not loopback", UpgradeHead(port, token, host: $"evil.example:{port}"), "HTTP/1.1 403"),
+            ("a LAN address as the host", UpgradeHead(port, token, host: $"192.0.2.10:{port}"), "HTTP/1.1 403"),
+            ("the loopback host with another port", UpgradeHead(port, token, host: $"127.0.0.1:{port + 1}"), "HTTP/1.1 403"),
+            ("no host", UpgradeHead(port, token, host: "-"), "HTTP/1.1 403"),
+            ("an origin, as a web page sends", UpgradeHead(port, token, origin: "http://127.0.0.1"), "HTTP/1.1 403"),
+            ("a method other than GET", UpgradeHead(port, token, method: "POST"), "HTTP/1.1 400"),
+            ("no upgrade", UpgradeHead(port, token, upgrade: false), "HTTP/1.1 400"),
+        };
+        foreach (var (label, head, expected) in cases)
+        {
+            var status = await RawUpgradeAsync(port, head);
+            Assert.True(status is not null && status.StartsWith(expected, StringComparison.Ordinal), $"{label}: expected {expected}, got {status ?? "no answer"}");
+        }
+    }
+
+    [Fact]
+    public async Task A_request_head_over_the_limit_or_a_handshake_that_never_comes_is_dropped_and_the_bridge_goes_on()
+    {
+        await using var rig = Rig.Create(o => o with { HandshakeTimeout = TimeSpan.FromMilliseconds(300), MaxHeaderBytes = 2048 });
+        var big = UpgradeHead(rig.Bridge.Port, rig.Bridge.AuthToken);
+        big.Add("X-Padding: " + new string('a', 4096));
+        Assert.Null(await RawUpgradeAsync(rig.Bridge.Port, big));
+
+        using (var silent = new TcpClient())
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await silent.ConnectAsync(IPAddress.Loopback, rig.Bridge.Port, timeout.Token);
+            var read = 0;
+            try { read = await silent.GetStream().ReadAsync(new byte[16], timeout.Token); }
+            catch (IOException) { }
+            Assert.Equal(0, read); // the bridge hung up on the connection that sent nothing
+        }
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+    }
+
+    [Fact]
+    public async Task The_bridge_cannot_be_reached_by_the_addresses_of_the_machine_other_than_loopback()
+    {
+        await using var rig = Rig.Create();
+        var addresses = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .SelectMany(n => n.GetIPProperties().UnicastAddresses.Select(a => a.Address))
+            .Where(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a))
+            .Take(3).ToList();
+        foreach (var address in addresses) // a machine with no other address has nothing to try
+        {
+            using var client = new TcpClient();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<Exception>(async () => await client.ConnectAsync(address, rig.Bridge.Port, timeout.Token));
+        }
+    }
+
+    // ---- lock files and the process table ----
+
+    /// <summary>A process that lives until its input is closed.</summary>
+    static Process StartWaiter()
+    {
+        var start = OperatingSystem.IsWindows() ? new ProcessStartInfo("cmd.exe", "/c \"set /p x=\"") : new ProcessStartInfo("/bin/sh") { ArgumentList = { "-c", "read x" } };
+        start.RedirectStandardInput = true;
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        return Process.Start(start)!;
+    }
+
+    static string WriteLock(string directory, string name, int pid, string ideName)
+    {
+        var path = Path.Combine(directory, name);
+        File.WriteAllText(path, $"{{\"pid\":{pid},\"ideName\":\"{ideName}\",\"authToken\":\"left-behind\"}}");
+        return path;
+    }
+
+    [Fact]
+    public async Task A_lock_file_is_stale_only_when_the_process_that_wrote_it_is_gone_from_the_machine()
+    {
+        using var running = StartWaiter();
+        using var finished = StartWaiter();
+        finished.StandardInput.Close();
+        Assert.True(finished.WaitForExit(20_000));
+        string dead = "", alive = "", otherIde = "", noPid = "";
+        await using var rig = Rig.Create(seed: dir => // no fake of the process table: the bridge asks the operating system
+        {
+            dead = WriteLock(dir, "10001.lock", finished.Id, IdeBridge.IdeName);
+            alive = WriteLock(dir, "10002.lock", running.Id, IdeBridge.IdeName);
+            otherIde = WriteLock(dir, "10003.lock", finished.Id, "Another IDE");
+            noPid = Path.Combine(dir, "10004.lock");
+            File.WriteAllText(noPid, "{\"ideName\":\"Textida\"}");
+        });
+        try
+        {
+            Assert.False(File.Exists(dead));
+            Assert.True(File.Exists(alive));
+            Assert.True(File.Exists(otherIde));
+            Assert.True(File.Exists(noPid));
+        }
+        finally
+        {
+            running.StandardInput.Close();
+            running.WaitForExit(20_000);
+        }
+    }
+
+    [Fact]
+    public async Task The_lock_file_goes_when_the_process_exits_without_closing_the_bridge()
+    {
+        var rig = Rig.Create();
+        var path = rig.Bridge.LockPath;
+        Assert.True(File.Exists(path));
+        // the process-exit handler cannot be raised from a test, so the method it is registered with is called
+        typeof(IdeBridge).GetMethod("OnProcessExit", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(rig.Bridge, [null, EventArgs.Empty]);
+        Assert.False(File.Exists(path));
+        await rig.DisposeAsync();
+    }
+
     // ---- selection ----
 
     [Fact]
     public async Task The_agent_hears_about_the_selection_of_a_shared_tab_and_of_nothing_else()
     {
         await using var rig = Rig.Create();
-        var shared = rig.Share(NewDocument("alpha beta gamma\n"));
-        var hidden = NewDocument("secret text\n");
+        var shared = rig.Share(rig.FileDocument("alpha beta gamma\n"));
+        var hidden = rig.FileDocument("secret text\n", "hidden.txt");
         rig.Owner.Run(() => { rig.Api.Expose(hidden); return 0; }); // open in the editor, but never shared with the assistant
         await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
         await agent.InitializeAsync();
@@ -308,12 +691,24 @@ public class IdeBridgeTests
         Assert.False(await rig.Bridge.PublishSelectionAsync(hidden.Id, 0, 6));
         Assert.True(await rig.Bridge.PublishSelectionAsync(shared.Id, 6, 10));
         var update = await agent.NextNotificationAsync();
+        Assert.Equal("selection_changed", IdeBridge.SelectionMethod);
         Assert.Equal(IdeBridge.SelectionMethod, update.GetProperty("method").GetString());
         var p = update.GetProperty("params");
         Assert.Equal("beta", p.GetProperty("text").GetString());
-        Assert.Equal(6, p.GetProperty("start").GetInt64());
-        Assert.Equal(10, p.GetProperty("end").GetInt64());
-        Assert.Equal(shared.Id.ToString(), p.GetProperty("document").GetString());
+        Assert.Equal(shared.FilePath, p.GetProperty("filePath").GetString());
+        Assert.Equal(new Uri(shared.FilePath!).AbsoluteUri, p.GetProperty("fileUrl").GetString());
+        var selection = p.GetProperty("selection");
+        Assert.Equal(0, selection.GetProperty("start").GetProperty("line").GetInt32());
+        Assert.Equal(6, selection.GetProperty("start").GetProperty("character").GetInt32());
+        Assert.Equal(0, selection.GetProperty("end").GetProperty("line").GetInt32());
+        Assert.Equal(10, selection.GetProperty("end").GetProperty("character").GetInt32());
+        Assert.False(selection.GetProperty("isEmpty").GetBoolean());
+
+        // a cursor without a selection is the open file as far as the agent is concerned
+        Assert.True(await rig.Bridge.PublishSelectionAsync(shared.Id, 3, 3));
+        var cursor = (await agent.NextNotificationAsync()).GetProperty("params");
+        Assert.Equal("", cursor.GetProperty("text").GetString());
+        Assert.True(cursor.GetProperty("selection").GetProperty("isEmpty").GetBoolean());
 
         // the user withdraws the tab: no more updates
         rig.Permissions.Revoke(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(shared.Id));
@@ -321,24 +716,326 @@ public class IdeBridgeTests
     }
 
     [Fact]
+    public async Task A_tab_without_a_file_is_not_announced()
+    {
+        await using var rig = Rig.Create();
+        var untitled = rig.Share(NewDocument("alpha\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        Assert.False(await rig.Bridge.PublishSelectionAsync(untitled.Id, 0, 3)); // the notification has no way to say where the text lives
+        Assert.False((await agent.ToolAsync("getLatestSelection")).GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
     public async Task Hidden_values_of_an_env_file_are_not_in_the_selection()
     {
         await using var rig = Rig.Create();
-        var dir = T.TempDir();
-        try
+        var doc = rig.Share(rig.FileDocument("API_KEY=hunter2\n", ".env"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        Assert.True(await rig.Bridge.PublishSelectionAsync(doc.Id, 0, 15));
+        var text = (await agent.NextNotificationAsync()).GetProperty("params").GetProperty("text").GetString()!;
+        Assert.DoesNotContain("hunter2", text);
+        Assert.Contains("API_KEY=", text);
+    }
+
+    [Fact]
+    public async Task Hidden_values_of_an_env_file_stay_hidden_in_every_answer_the_agent_can_ask_for()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.FileDocument("API_KEY=hunter2\n", ".env"), () => SelectionSet.Single(new TextSelection(0, 15)));
+        rig.Owner.Run(() => { rig.Api.PublishOwn(doc, "lint", doc.Revision, [new Diagnostic(DiagnosticSeverity.Warning, "key is set", "W1", new ByteRange(8, 15))]); return 0; });
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        Assert.True(await rig.Bridge.PublishSelectionAsync(doc.Id, 0, 15));
+        var answers = new[]
         {
-            var path = Path.Combine(dir, ".env");
-            File.WriteAllBytes(path, Utf8("API_KEY=hunter2\n"));
-            var doc = rig.Share(Document.Open(path, PagedBackendFactory.Instance));
-            await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
-            await agent.InitializeAsync();
-            Assert.True(await rig.Bridge.PublishSelectionAsync(doc.Id, 0, 15));
-            var text = (await agent.NextNotificationAsync()).GetProperty("params").GetProperty("text").GetString()!;
-            Assert.DoesNotContain("hunter2", text);
-            Assert.Contains("API_KEY=", text);
-            rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
+            (await agent.NextNotificationAsync()).GetRawText(),
+            (await agent.ToolAsync("getCurrentSelection")).GetRawText(),
+            (await agent.ToolAsync("getLatestSelection")).GetRawText(),
+            (await agent.ToolAsync("getDiagnostics")).GetRawText(),
+            (await agent.ToolTextAsync("editor_read_range", $"{{\"document\":\"{doc.Id}\"}}")).Text,
+        };
+        foreach (var answer in answers) Assert.DoesNotContain("hunter2", answer);
+        Assert.Contains("API_KEY=", answers[1]);
+    }
+
+    [Fact]
+    public async Task The_agent_asks_for_the_current_and_the_latest_selection_and_loses_them_with_the_focus_and_the_share()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.FileDocument("alpha beta gamma\n"), () => SelectionSet.Single(new TextSelection(6, 10)));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        var none = await agent.ToolAsync("getCurrentSelection"); // no shared tab has been selected yet
+        Assert.False(none.GetProperty("success").GetBoolean());
+        Assert.Equal("No active editor found", none.GetProperty("message").GetString());
+        Assert.Equal("No selection available", (await agent.ToolAsync("getLatestSelection")).GetProperty("message").GetString());
+
+        Assert.True(await rig.Bridge.PublishSelectionAsync(doc.Id, 6, 10));
+        var current = await agent.ToolAsync("getCurrentSelection");
+        Assert.True(current.GetProperty("success").GetBoolean());
+        Assert.Equal("beta", current.GetProperty("text").GetString());
+        Assert.Equal(doc.FilePath, current.GetProperty("filePath").GetString());
+        Assert.Equal(6, current.GetProperty("selection").GetProperty("start").GetProperty("character").GetInt32());
+        Assert.Equal(10, current.GetProperty("selection").GetProperty("end").GetProperty("character").GetInt32());
+
+        rig.Bridge.ClearActive(); // the user moved to a tab that is not shared
+        Assert.False((await agent.ToolAsync("getCurrentSelection")).GetProperty("success").GetBoolean());
+        Assert.Equal("beta", (await agent.ToolAsync("getLatestSelection")).GetProperty("text").GetString()); // the last shared one is still the latest
+
+        rig.Permissions.Revoke(McpServer.ClientId, DocumentPermissions.Read, GrantScope.OfDocument(doc.Id));
+        Assert.False((await agent.ToolAsync("getLatestSelection")).GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task An_agent_that_connects_later_is_told_where_the_selection_is()
+    {
+        await using var rig = Rig.Create();
+        var doc = rig.Share(rig.FileDocument("alpha beta gamma\n"), () => SelectionSet.Single(new TextSelection(6, 10)));
+        Assert.False(await rig.Bridge.PublishSelectionAsync(doc.Id, 6, 10)); // nobody to tell yet; the bridge remembers the tab
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var pushed = await agent.NextNotificationAsync();
+        Assert.Equal(IdeBridge.SelectionMethod, pushed.GetProperty("method").GetString());
+        Assert.Equal("beta", pushed.GetProperty("params").GetProperty("text").GetString());
+    }
+
+    // ---- diffs ----
+
+    static string DiffArgs(string oldPath, string contents, string tab)
+    {
+        using var stream = new MemoryStream();
+        using (var w = new Utf8JsonWriter(stream))
+        {
+            w.WriteStartObject();
+            w.WriteString("old_file_path", oldPath);
+            w.WriteString("new_file_path", oldPath);
+            w.WriteString("new_file_contents", contents);
+            w.WriteString("tab_name", tab);
+            w.WriteEndObject();
         }
-        finally { Directory.Delete(dir, true); }
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    [Fact]
+    public async Task A_diff_opens_in_the_review_waits_for_the_user_and_answers_FILE_SAVED_when_all_of_it_was_applied()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        var call = agent.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "alpha delta\n", "Rename beta"));
+        await T.Until(() => diffs.Count == 1);
+        Assert.False(call.IsCompleted); // the agent waits for the user
+        var seen = diffs.Seen[0];
+        Assert.Equal(doc.FilePath, seen.OldPath);
+        Assert.Equal(doc.FilePath, seen.NewPath);
+        Assert.Equal("alpha delta\n", seen.NewContents);
+        Assert.Equal("Rename beta", seen.TabName);
+
+        diffs.Decide(IdeDiffOutcome.Saved);
+        Assert.Equal((false, "FILE_SAVED"), await call);
+        Assert.Equal("alpha beta\n", rig.Owner.Run(() => doc.ReadText(new ByteRange(0, doc.ByteLength)))); // the bridge itself writes nothing; the editor applies what the user accepts
+    }
+
+    [Fact]
+    public async Task A_rejected_diff_answers_DIFF_REJECTED()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var call = agent.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "alpha delta\n", "Rename beta"));
+        await T.Until(() => diffs.Count == 1);
+        diffs.Decide(IdeDiffOutcome.Rejected);
+        Assert.Equal((false, "DIFF_REJECTED"), await call);
+    }
+
+    [Theory]
+    [InlineData(IdeDiffOutcome.Partial, "only some of the changes")]
+    [InlineData(IdeDiffOutcome.Stale, "changed in the editor")]
+    [InlineData(IdeDiffOutcome.Failed, "could not apply")]
+    public async Task A_diff_that_was_not_applied_as_a_whole_is_an_error_the_agent_can_read(IdeDiffOutcome outcome, string fragment)
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var call = agent.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "alpha delta\n", "Rename beta"));
+        await T.Until(() => diffs.Count == 1);
+        diffs.Decide(outcome);
+        var (isError, text) = await call;
+        Assert.True(isError);
+        Assert.Contains(fragment, text);
+    }
+
+    [Fact]
+    public async Task A_diff_the_editor_refuses_or_cannot_show_is_an_error()
+    {
+        await using var refusing = Rig.Create(o => o with { ShowDiff = (_, _) => throw new IdeDiffRefusedException("The file is not open in this window of the editor.") });
+        await using var agent = await FakeAgent.ConnectAsync(refusing.LockDirectory);
+        await agent.InitializeAsync();
+        var (isError, text) = await agent.ToolTextAsync("openDiff", DiffArgs("/nowhere/a.txt", "x", "tab"));
+        Assert.True(isError);
+        Assert.Contains("not open in this window", text);
+        var malformed = await agent.RequestAsync("tools/call", "{\"name\":\"openDiff\",\"arguments\":{\"old_file_path\":\"/nowhere/a.txt\"}}"); // no tab_name
+        Assert.True(malformed.TryGetProperty("error", out _));
+
+        await using var none = Rig.Create(); // an editor that has no way to show a diff
+        await using var other = await FakeAgent.ConnectAsync(none.LockDirectory);
+        await other.InitializeAsync();
+        Assert.True((await other.ToolTextAsync("openDiff", DiffArgs("/nowhere/a.txt", "x", "tab"))).IsError);
+    }
+
+    [Fact]
+    public async Task Closing_the_tab_ends_the_open_diff_and_the_agent_hears_it_was_not_applied()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var waiting = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await waiting.InitializeAsync();
+        await using var closer = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await closer.InitializeAsync();
+
+        var call = waiting.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "alpha delta\n", "Tab A"));
+        await T.Until(() => diffs.Count == 1);
+        Assert.Equal((false, "TAB_CLOSED"), await closer.ToolTextAsync("close_tab", "{\"tab_name\":\"Tab A\"}"));
+        Assert.Equal((false, "DIFF_REJECTED"), await call);
+        Assert.True(diffs.Tokens[0].IsCancellationRequested); // the review is told to close
+        Assert.Equal((false, "TAB_CLOSED"), await closer.ToolTextAsync("close_tab", "{\"tab_name\":\"No such tab\"}"));
+    }
+
+    [Fact]
+    public async Task Closing_all_diff_tabs_ends_every_open_diff()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var first = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await first.InitializeAsync();
+        await using var second = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await second.InitializeAsync();
+        await using var closer = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await closer.InitializeAsync();
+
+        var callA = first.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "one\n", "Tab A"));
+        var callB = second.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "two\n", "Tab B"));
+        await T.Until(() => diffs.Count == 2);
+        Assert.Equal((false, "CLOSED_2_DIFF_TABS"), await closer.ToolTextAsync("closeAllDiffTabs"));
+        Assert.Equal((false, "DIFF_REJECTED"), await callA);
+        Assert.Equal((false, "DIFF_REJECTED"), await callB);
+        Assert.Equal((false, "CLOSED_0_DIFF_TABS"), await closer.ToolTextAsync("closeAllDiffTabs"));
+    }
+
+    [Fact]
+    public async Task An_agent_that_goes_away_or_is_disconnected_takes_its_open_diff_with_it()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+
+        var leaving = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await leaving.InitializeAsync();
+        _ = leaving.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "one\n", "Tab A"));
+        await T.Until(() => diffs.Count == 1);
+        await leaving.DisposeAsync(); // the terminal was closed
+        await T.Until(() => diffs.Tokens[0].IsCancellationRequested);
+
+        await using var cut = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await cut.InitializeAsync();
+        _ = cut.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "two\n", "Tab B"));
+        await T.Until(() => diffs.Count == 2);
+        rig.Bridge.DisconnectAgents(); // the user cut it off
+        await T.Until(() => diffs.Tokens[1].IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task Switching_the_bridge_off_ends_the_open_diff()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show });
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        _ = agent.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "one\n", "Tab A"));
+        await T.Until(() => diffs.Count == 1);
+        await rig.Bridge.DisposeAsync();
+        Assert.True(diffs.Tokens[0].IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task Diffs_waiting_for_the_user_are_limited_and_a_diff_of_the_same_name_replaces_the_old_one()
+    {
+        var diffs = new FakeDiffs();
+        await using var rig = Rig.Create(o => o with { ShowDiff = diffs.Show }, maxPending: 1);
+        var doc = rig.Share(rig.FileDocument("alpha beta\n"));
+        await using var first = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await first.InitializeAsync();
+        await using var second = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await second.InitializeAsync();
+
+        var callA = first.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "one\n", "Tab A"));
+        await T.Until(() => diffs.Count == 1);
+        var (isError, text) = await second.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "two\n", "Tab B"));
+        Assert.True(isError);
+        Assert.Contains("limit", text);
+        Assert.Equal(1, diffs.Count); // the refused diff never reached the review
+
+        var callA2 = second.ToolTextAsync("openDiff", DiffArgs(doc.FilePath!, "three\n", "Tab A")); // same name: the first one is closed, this one takes its place
+        Assert.Equal((false, "DIFF_REJECTED"), await callA);
+        await T.Until(() => diffs.Count == 2);
+        Assert.False(callA2.IsCompleted);
+        rig.Bridge.DisconnectAgents();
+    }
+
+    // ---- compatibility ----
+
+    [Fact]
+    public async Task A_tool_the_protocol_documents_but_the_bridge_leaves_out_is_an_error_and_a_tool_nobody_documents_is_an_incompatibility()
+    {
+        await using var rig = Rig.Create();
+        var reasons = new List<string>();
+        rig.Bridge.Incompatible += reason => { lock (reasons) reasons.Add(reason); };
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+
+        foreach (var tool in new[] { "openFile", "getOpenEditors", "getWorkspaceFolders", "checkDocumentDirty", "saveDocument", "executeCode" })
+        {
+            var (isError, text) = await agent.ToolTextAsync(tool);
+            Assert.True(isError);
+            Assert.Contains(tool, text);
+        }
+        Assert.True((await agent.RequestAsync("tools/call", "{\"name\":\"editor_read_range\",\"arguments\":{}}")).TryGetProperty("error", out _)); // bad arguments for a tool that is not the bridge's own
+        lock (reasons) Assert.Empty(reasons);
+
+        Assert.True((await agent.RequestAsync("tools/call", "{\"name\":\"someNewTool\",\"arguments\":{}}")).TryGetProperty("error", out _));
+        await T.Until(() => { lock (reasons) return reasons.Count == 1; });
+        Assert.Contains("someNewTool", reasons[0]);
+
+        await agent.RequestAsync("tools/call", "{\"name\":\"anotherNewTool\",\"arguments\":{}}");
+        await Task.Delay(100);
+        lock (reasons) Assert.Single(reasons); // said once; the owner switches the bridge off at the first
+    }
+
+    [Fact]
+    public async Task A_tool_of_the_bridge_called_with_arguments_it_cannot_read_is_an_incompatibility()
+    {
+        await using var rig = Rig.Create(o => o with { ShowDiff = new FakeDiffs().Show });
+        string? reason = null;
+        rig.Bridge.Incompatible += r => reason = r;
+        await using var agent = await FakeAgent.ConnectAsync(rig.LockDirectory);
+        await agent.InitializeAsync();
+        var reply = await agent.RequestAsync("tools/call", "{\"name\":\"openDiff\",\"arguments\":{\"old_file_path\":\"/nowhere/a.txt\"}}"); // no tab_name, no contents
+        Assert.True(reply.TryGetProperty("error", out _));
+        await T.Until(() => reason is not null);
+        Assert.Contains("openDiff", reason);
     }
 
     // ---- edits ----

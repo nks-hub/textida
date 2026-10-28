@@ -19,6 +19,7 @@ public static class Texts
         ["failed"] = ["Wiki odpověděla neočekávaně (HTTP {status}).", "The wiki answered unexpectedly (HTTP {status}).", "Wiki odpovedala neočakávane (HTTP {status}).", "Das Wiki hat unerwartet geantwortet (HTTP {status})."],
         ["notFound"] = ["Stránka {slug} neexistuje.", "The page {slug} does not exist.", "Stránka {slug} neexistuje.", "Die Seite {slug} existiert nicht."],
         ["conflict"] = ["Stránka má jinou revizi, než ze které se upravovalo.", "The page is at another revision than the one that was edited.", "Stránka má inú revíziu, než z ktorej sa upravovalo.", "Die Seite hat eine andere Revision als die bearbeitete."],
+        ["emptyQuery"] = ["Zadejte slova k hledání.", "Enter the words to search for.", "Zadajte slová na hľadanie.", "Geben Sie die Suchbegriffe ein."],
         ["badAddress"] = ["Adresa {uri} neodpovídá tvaru nksis://wiki/stránka.", "The address {uri} does not match nksis://wiki/page.", "Adresa {uri} nezodpovedá tvaru nksis://wiki/stránka.", "Die Adresse {uri} entspricht nicht nksis://wiki/Seite."],
         ["tooLarge"] = ["Stránka má víc než {max} B.", "The page is larger than {max} bytes.", "Stránka má viac než {max} B.", "Die Seite ist größer als {max} Bytes."],
         ["notText"] = ["Obsah stránky není platný UTF-8.", "The content is not valid UTF-8.", "Obsah stránky nie je platný UTF-8.", "Der Inhalt ist kein gültiges UTF-8."],

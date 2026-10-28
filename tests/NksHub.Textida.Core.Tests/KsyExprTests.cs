@@ -150,9 +150,11 @@ public class KsyExprTests
     [InlineData("'abc", false)]
     [InlineData("99999999999999999999", false)]
     [InlineData("0x", false)]
+    [InlineData("1.5e", false)]
+    [InlineData("1.5e+", false)]
+    [InlineData("1.5x", false)]
     [InlineData("and", false)]
     [InlineData("a ? b", false)]
-    [InlineData("1.5 + 1", true)]
     [InlineData("[1, 2]", true)]
     [InlineData("x.reverse()", true)]
     public void A_malformed_or_unsupported_expression_is_refused_with_its_kind(string text, bool unsupported)
@@ -183,6 +185,69 @@ public class KsyExprTests
         Assert.Equal(["u4"], e.Casts);
         Assert.True(e.UsesContext);
         Assert.False(Compile("1 + k::two").UsesContext);
+    }
+
+    // ---- floats ----
+
+    private static readonly Dictionary<string, object?> FloatNames = new() { ["scale"] = 2.5 };
+
+    [Theory]
+    [InlineData("1.5 + 1", 2.5)]
+    [InlineData("7 / 2.0", 3.5)]
+    [InlineData("0.5 * 4", 2.0)]
+    [InlineData("10 - 0.25", 9.75)]
+    [InlineData("1.5 * 1.5", 2.25)]
+    [InlineData("2.5e1", 25.0)]
+    [InlineData("2.5E-1", 0.25)]
+    [InlineData("-1.5", -1.5)]
+    [InlineData("scale * 2", 5.0)]
+    [InlineData("true ? 1.5 : 2.5", 1.5)]
+    public void A_float_expression_is_computed_in_floats(string text, double expected) =>
+        Assert.Equal(expected, Assert.IsType<double>(Eval(text, FloatNames)));
+
+    [Theory]
+    [InlineData("1.5 < 2", true)]
+    [InlineData("2 > 1.5", true)]
+    [InlineData("1.0 == 1", true)]
+    [InlineData("1.5 != 1.5", false)]
+    [InlineData("2.5 >= 2.5", true)]
+    [InlineData("scale == 2.5", true)]
+    public void Floats_and_integers_compare_by_value(string text, bool expected) => Assert.Equal(expected, Eval(text, FloatNames));
+
+    [Theory]
+    [InlineData("7.9.to_i", 7L)]
+    [InlineData("(0.0 - 7.9).to_i", -7L)]
+    [InlineData("scale.to_i", 2L)]
+    public void A_float_becomes_an_integer_by_to_i(string text, long expected) => Assert.Equal(expected, Eval(text, FloatNames));
+
+    [Theory]
+    [InlineData("1.5 % 2")]
+    [InlineData("2 % 1.5")]
+    [InlineData("1.5 & 1")]
+    [InlineData("1.5 << 1")]
+    [InlineData("~1.5")]
+    [InlineData("not 1.5")]
+    [InlineData("1.5 / 0")]
+    [InlineData("1 / 0.0")]
+    [InlineData("1.0e308 * 10")]
+    [InlineData("1.0e19.to_i")]
+    [InlineData("1.5 + 'a'")]
+    [InlineData("1.5 < 'a'")]
+    public void A_float_that_cannot_be_computed_is_a_field_error_not_a_crash(string text) =>
+        Assert.Equal(KsyErrorKind.Expression, Assert.Throws<KsyExprException>(() => Eval(text, FloatNames)).Kind);
+
+    [Fact]
+    public void The_float_flag_the_constant_and_the_long_enum_name_of_an_expression_are_known()
+    {
+        Assert.True(Compile("1.5 + a").UsesFloat);
+        Assert.False(Compile("1 + a").UsesFloat);
+        Assert.True(Compile("2 * 8").TryConstant(out long constant));
+        Assert.Equal(16, constant);
+        Assert.False(Compile("n + 1").TryConstant(out _));
+        Assert.False(Compile("1 / 0").TryConstant(out _));
+        Assert.False(Compile("1.5").TryConstant(out _));
+        Assert.False(Compile("'a'").TryConstant(out _));
+        Assert.Equal([("t::k", "two")], Compile("t::k::two + 1").EnumRefs);
     }
 
     // ---- templates ----
@@ -310,6 +375,26 @@ public class KsyExprTests
         Assert.Equal(1, small[2].Length);
     }
 
+    [Fact]
+    public void A_float_field_is_a_value_in_expressions_and_never_a_size()
+    {
+        const string template = """
+            meta:
+              id: fl
+              endian: be
+            seq:
+              - id: ratio
+                type: f4
+              - id: scaled
+                size: (ratio * 2).to_i
+              - id: bad
+                size: ratio
+            """;
+        var nodes = Read(template, [0x3F, 0xC0, 0, 0, 1, 2, 3, 9]);
+        Assert.Equal(["1.5", "010203"], nodes.Take(2).Select(n => n.Value));
+        Assert.Equal((KsyErrorKind.Expression, "ratio"), (nodes[2].Error!.Kind, nodes[2].Error!.Subject));
+    }
+
     private const string Instances = """
         meta:
           id: inst
@@ -375,7 +460,7 @@ public class KsyExprTests
         Assert.Equal(KsyErrorKind.OutOfFile, Read(size, [0, 1, 0, 0])[1].Error!.Kind);
 
         const string count = "meta:\n  id: h\n  endian: be\nseq:\n  - id: len\n    type: u4\n  - id: items\n    type: u1\n    repeat: expr\n    repeat-expr: len * 1000\n";
-        Assert.Equal(KsyErrorKind.LimitRepeat, Read(count, [0, 0, 0, 100])[1].Error!.Kind);
+        Assert.Equal(KsyErrorKind.OutOfFile, Read(count, [0, 0, 0, 100])[1].Error!.Kind);
 
         const string divide = "meta:\n  id: h\n  endian: be\nseq:\n  - id: len\n    type: u4\n  - id: body\n    size: 10 / len\n";
         var error = Read(divide, [0, 0, 0, 0])[1].Error!;

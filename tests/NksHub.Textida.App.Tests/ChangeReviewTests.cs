@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
@@ -277,6 +278,21 @@ public class ChangeReviewTests : IDisposable
         Assert.Null(_w.ApplyPlan()); // a late click on Apply finds nothing to write
         Assert.Equal(Original, Text(tab));
         Assert.Equal(steps, Steps(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task The_real_question_dialog_closes_by_itself_and_answers_minus_one_when_the_plugin_that_asked_goes_away()
+    {
+        var dialogs = new AvaloniaDialogs();
+        using var gone = new CancellationTokenSource();
+        var request = new ChoiceRequest("Inspector", "A plugin proposes bytes", [new DialogButton("Apply", IsDefault: true), new DialogButton("Cancel", IsCancel: true)], ["0: 41"]);
+        var asking = dialogs.ChooseAsync(_w, request, gone.Token);
+        Settle();
+        Assert.False(asking.IsCompleted);
+
+        gone.Cancel();
+        await Until(() => asking.IsCompleted, "the dialog closing");
+        Assert.Equal(-1, await asking);
     }
 
     [AvaloniaFact]

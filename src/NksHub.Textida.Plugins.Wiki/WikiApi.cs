@@ -30,6 +30,9 @@ public interface IWikiApi
     /// <summary>The pages whose slug starts with <paramref name="prefix"/>, at most <paramref name="max"/>.</summary>
     Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, int max, CancellationToken cancellation);
 
+    /// <summary>The pages the wiki finds for the words <paramref name="query"/> (its own text search, no path filter), at most <paramref name="max"/>.</summary>
+    Task<IReadOnlyList<WikiPageInfo>> SearchAsync(string query, int max, CancellationToken cancellation);
+
     /// <summary>The page, or null when it does not exist.</summary>
     Task<WikiPage?> ReadAsync(string slug, CancellationToken cancellation);
 
@@ -95,12 +98,17 @@ public sealed class NksIsWikiHttp(HttpClient http, Uri baseUrl, string key, Time
             ? new WikiPage(content, $"{version}|{count}|{updated}")
             : null;
 
-    public async Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, int max, CancellationToken cancellation)
+    public Task<IReadOnlyList<WikiPageInfo>> ListAsync(string prefix, int max, CancellationToken cancellation) => PagesAsync(prefix, prefix, max, cancellation);
+
+    public Task<IReadOnlyList<WikiPageInfo>> SearchAsync(string query, int max, CancellationToken cancellation) => PagesAsync(query, "", max, cancellation);
+
+    /// <summary>Reads the pages of the list for the words <paramref name="search"/> and keeps those whose slug starts with <paramref name="prefix"/>.</summary>
+    private async Task<IReadOnlyList<WikiPageInfo>> PagesAsync(string search, string prefix, int max, CancellationToken cancellation)
     {
         List<WikiPageInfo> list = [];
         for (int page = 1; list.Count < max; page++)
         {
-            var query = $"?page={page}&limit={max}" + (prefix.Length > 0 ? "&search=" + Uri.EscapeDataString(prefix) : "");
+            var query = $"?page={page}&limit={max}" + (search.Length > 0 ? "&search=" + Uri.EscapeDataString(search) : "");
             var (status, body) = await SendAsync(Request(HttpMethod.Get, "/wiki" + query), cancellation);
             using (body)
             {

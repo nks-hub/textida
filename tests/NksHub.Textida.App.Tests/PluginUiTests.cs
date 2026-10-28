@@ -249,6 +249,98 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Esc_in_the_panel_returns_the_keyboard_to_the_text_while_Esc_in_the_text_leaves_the_panel_open()
+    {
+        _w.Show();
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = "text";
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel");
+
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        await Until(() => !_w.PluginPanelOpen && tab.Editor.IsKeyboardFocusWithin, "the keyboard back in the text");
+
+        _w.ShowPluginPanel("p", "todo");
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel again");
+        tab.Editor.TextArea.Focus();
+        await Until(() => tab.Editor.IsKeyboardFocusWithin, "the keyboard in the text");
+        TestApp.Press(_w, Avalonia.Input.Key.Escape);
+        Assert.True(_w.PluginPanelOpen);
+    }
+
+    [AvaloniaFact]
+    public async Task The_arrows_move_through_the_panel_and_Enter_sends_the_chosen_item_to_the_plugin()
+    {
+        _w.Show();
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.SelectedItem is TreeViewItem { Tag: "a" } && _w.PluginTree.IsKeyboardFocusWithin, "the first item with the keyboard");
+
+        TestApp.Press(_w, Avalonia.Input.Key.Down);
+        Assert.Equal("b", (_w.PluginTree.SelectedItem as TreeViewItem)?.Tag);
+        TestApp.Press(_w, Avalonia.Input.Key.Enter);
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var all = await Pump(Host.CallAsync("p", "events"));
+            var activated = all.EnumerateArray().Where(e => e.GetProperty("name").GetString() == UiEvents.PanelActivated).ToList();
+            if (activated.Count > 0)
+            {
+                var payload = Assert.Single(activated).GetProperty("payload");
+                Assert.Equal(("todo", "b"), (payload.GetProperty("panel").GetString(), payload.GetProperty("item").GetString()));
+                break;
+            }
+            Assert.True(sw.ElapsedMilliseconds < 30_000, "Not reached: the activated item");
+            await Task.Delay(20);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task F1_in_the_open_panel_opens_the_help_topic_of_plugin_panels()
+    {
+        _w.Show();
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"list\",\"reveal\":true," + TwoItems + "}"));
+        await Until(() => _w.PluginPanelOpen && _w.PluginTree.IsKeyboardFocusWithin, "the keyboard in the panel");
+
+        TestApp.Press(_w, Avalonia.Input.Key.F1);
+        Assert.Equal("view.pluginPanels", _app.HelpView!.CurrentTopic);
+        _app.HelpView.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task The_panel_its_items_and_the_status_item_carry_names_for_a_screen_reader_and_the_command_is_in_the_view_menu_and_the_palette()
+    {
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"todo\",\"title\":\"Todo\",\"kind\":\"tree\",\"reveal\":true,\"items\":[{\"id\":\"a\",\"label\":\"first\",\"detail\":\"open\",\"children\":[{\"id\":\"b\",\"label\":\"second\"}]}]}"));
+        await Until(() => _w.PluginPanelOpen, "the panel");
+        await Pump(Editor(UiMethods.StatusSet, "{\"text\":\"JSON ok\",\"tooltip\":\"valid\"}"));
+        await Until(() => ((Panel)_w.PluginStatusHost).Children.Count == 1, "the status item");
+
+        var name = Loc.Get(K.A11yPluginPanel, ("title", "Todo"));
+        Assert.Equal(name, Avalonia.Automation.AutomationProperties.GetName(_w.PluginTree));
+        var first = Assert.IsType<TreeViewItem>(Assert.Single(_w.PluginTree.Items));
+        Assert.Equal("first, open", Avalonia.Automation.AutomationProperties.GetName(first));
+        Assert.Equal("second", Avalonia.Automation.AutomationProperties.GetName(Assert.IsType<TreeViewItem>(Assert.Single(first.Items))));
+        var status = Assert.IsType<TextBlock>(Assert.Single(((Panel)_w.PluginStatusHost).Children));
+        Assert.Equal("JSON ok", Avalonia.Automation.AutomationProperties.GetName(status));
+
+        // the next report changes the same item, it is not replaced by another one
+        await Pump(Editor(UiMethods.StatusSet, "{\"text\":\"JSON error\"}"));
+        await Until(() => status.Text == "JSON error", "the new status text");
+        Assert.Same(status, Assert.Single(((Panel)_w.PluginStatusHost).Children));
+        Assert.Equal("JSON error", Avalonia.Automation.AutomationProperties.GetName(status));
+
+        var inMenu = _w.MenuModel.Single(g => g.Label == "Zobrazit").Items.AllCommands().Select(c => c.CommandId);
+        Assert.Contains("nks.view.pluginPanels", inMenu);
+        _w.ShowPalette();
+        _w.SetPaletteQuery(_app.Workbench.Strings.Get(_app.Workbench.Commands.TryGet("nks.view.pluginPanels", out var command) ? command.TitleKey : ""));
+        Assert.Contains(_w.PaletteResults, r => r.CommandId == "nks.view.pluginPanels" && r.Enabled);
+    }
+
+    [AvaloniaFact]
     public async Task A_task_row_is_kept_while_progress_comes_and_says_it_cancels_once_Cancel_was_pressed()
     {
         await StartPluginAsync();
@@ -807,6 +899,101 @@ public class PluginUiTests : IDisposable
         var plain = _w.OpenFile(_temp.File("n.txt", "x"), null);
         Dispatcher.UIThread.RunJobs();
         Assert.False(PluginServices.IsSchemaFile(plain));
+    }
+
+    /// <summary>A server on the loopback address that answers one path with a body and counts what it was asked; the schemas of the tests come from here, never from a real host.</summary>
+    private sealed class SchemaServer : IDisposable
+    {
+        private readonly System.Net.HttpListener _listener = new();
+        public List<string> Requests { get; } = [];
+        public string Url { get; }
+
+        public SchemaServer(string path, string body)
+        {
+            int port;
+            using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+            {
+                probe.Start();
+                port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+            }
+            Url = $"http://127.0.0.1:{port}";
+            _listener.Prefixes.Add(Url + "/");
+            _listener.Start();
+            _ = Task.Run(async () =>
+            {
+                while (_listener.IsListening)
+                {
+                    System.Net.HttpListenerContext context;
+                    try { context = await _listener.GetContextAsync(); }
+                    catch (Exception e) when (e is System.Net.HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
+                    lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
+                    var bytes = Encoding.UTF8.GetBytes(context.Request.Url.AbsolutePath == path ? body : "{}");
+                    context.Response.ContentLength64 = bytes.Length;
+                    await context.Response.OutputStream.WriteAsync(bytes);
+                    context.Response.Close();
+                }
+            });
+        }
+
+        public int Count
+        {
+            get { lock (Requests) return Requests.Count; }
+        }
+
+        public void Dispose() => _listener.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task A_schema_at_an_address_waits_for_consent_then_underlines_completes_and_describes_from_the_download()
+    {
+        using var server = new SchemaServer("/schemas/thing.json", """{ "type": "object", "properties": { "n": { "type": "integer", "description": "A number." } } }""");
+        var tab = _w.OpenFile(_temp.File("thing.json", $"{{ \"$schema\": \"{server.Url}/schemas/thing.json\", \"n\": \"x\" }}"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab);
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaNoConsent, ("name", "thing.json")), "the status bar says the download is not allowed");
+        Assert.Empty(tab.Editor!.Diagnostics);
+        Assert.Equal(0, server.Count);
+
+        _dialogs.Answers.Enqueue(1); // refused
+        var refused = _w.SchemaAllowDownloadAsync(tab);
+        await Until(() => refused.IsCompleted, "the refused consent");
+        Assert.Contains(Assert.Single(_dialogs.Asked).Details!, d => d.Contains("127.0.0.1", StringComparison.Ordinal));
+        Assert.False(_app.Plugins.Registries.IsAllowed(PackageRegistryConsent.SchemaId("127.0.0.1")));
+        Assert.Equal(0, server.Count);
+
+        _dialogs.Answers.Enqueue(0); // agreed
+        var agreed = _w.SchemaAllowDownloadAsync(tab);
+        await Until(() => agreed.IsCompleted, "the agreed consent");
+        Assert.True(_app.Plugins.Registries.IsAllowed(PackageRegistryConsent.SchemaId("127.0.0.1")));
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the downloaded schema");
+        var mark = Assert.Single(tab.Editor!.Diagnostics);
+        Assert.Equal("\"x\"", tab.Editor.Document.GetText(mark.Start, mark.End - mark.Start));
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.json")), "the schema in the status bar");
+        Assert.Equal(1, server.Count);
+
+        Loc.SetLanguage("en"); // the hover is written in the language of the editor, which is Czech by default; Dispose puts it back
+        var hover = await Pump(tab.Editor.HoverProvider!(tab.Editor.Document.Text.IndexOf("\"n\"", StringComparison.Ordinal) + 2));
+        Assert.Equal("A number.\n\nType: integer", hover!.Value.Text);
+        Assert.Equal("\"n\"", tab.Editor.Document.GetText(hover.Value.Start, hover.Value.End - hover.Value.Start));
+        Assert.Equal(1, server.Count); // the description came from the copy, not from the host
+
+        _w.PackageRevoke(); // forbids every download: the file is checked again without the schema
+        await Until(() => tab.Editor!.Diagnostics.Count == 0, "the underline gone after the revoke");
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaNoConsent, ("name", "thing.json")), "the status bar after the revoke");
+        Assert.Equal(1, server.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task A_schema_file_on_disk_is_used_without_asking_for_consent()
+    {
+        _temp.File("thing.schema.json", """{ "type": "object", "properties": { "n": { "type": "integer" } } }""");
+        var tab = _w.OpenFile(_temp.File("thing.json", "{ \"$schema\": \"thing.schema.json\", \"n\": \"x\" }"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab);
+
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the schema file");
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.schema.json")), "the schema file in the status bar");
+        Assert.Empty(_dialogs.Asked);
     }
 
     // ---- P8.5.4 and P8.5.5: language server commands (the protocol itself is tested with a fake server in Rpc.Tests) ----

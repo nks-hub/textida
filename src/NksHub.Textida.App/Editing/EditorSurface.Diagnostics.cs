@@ -49,7 +49,7 @@ internal sealed partial class EditorSurface
     private void OnDiagnosticPointerMoved(object? sender, PointerEventArgs e)
     {
         var view = TextArea.TextView;
-        string? message = OffsetAt(e) is { } at && DiagnosticAt(at) is { } mark ? mark.Message : null;
+        string? message = OffsetAt(e) is { } at ? TipAt(at) : null;
         if (!Equals(ToolTip.GetTip(view), message)) ToolTip.SetTip(view, message);
     }
 

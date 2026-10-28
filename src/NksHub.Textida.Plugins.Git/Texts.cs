@@ -34,6 +34,18 @@ public static class Texts
         ["unsaved"] = ["Soubor {file} má neuložené změny. Uložte ho a označte jako vyřešený znovu.", "{file} has unsaved changes. Save it and mark it resolved again.", "Súbor {file} má neuložené zmeny. Uložte ho a označte ako vyriešený znova.", "{file} hat ungespeicherte Änderungen. Speichern Sie die Datei und markieren Sie sie erneut als gelöst."],
         ["markedResolved"] = ["Soubor {file} je označen jako vyřešený a přidán do indexu.", "{file} is marked resolved and added to the index.", "Súbor {file} je označený ako vyriešený a pridaný do indexu.", "{file} ist als gelöst markiert und im Index vorgemerkt."],
         ["statusTip"] = ["Git, větev {branch}: v indexu {staged}, změněno {changed}, nesledováno {untracked}, konflikty {conflicts}", "Git, branch {branch}: staged {staged}, changed {changed}, untracked {untracked}, conflicts {conflicts}", "Git, vetva {branch}: v indexe {staged}, zmenené {changed}, nesledované {untracked}, konflikty {conflicts}", "Git, Branch {branch}: vorgemerkt {staged}, geändert {changed}, nicht verfolgt {untracked}, Konflikte {conflicts}"],
+        ["noMarkers"] = ["Soubor je v konfliktu bez značek ({kind}), nemá co brát ze stran. Ponechte ho příkazem „Git: označit soubor jako vyřešený“, nebo ho smažte příkazem „Git: konflikt, smazat soubor“.", "The file is in a conflict without markers ({kind}), so there is no side to take. Keep it with \"Git: Mark File Resolved\" or delete it with \"Git: Conflict, Delete File\".", "Súbor je v konflikte bez značiek ({kind}), nie je z čoho vyberať. Ponechajte ho príkazom „Git: označiť súbor ako vyriešený“, alebo ho zmažte príkazom „Git: konflikt, zmazať súbor“.", "Die Datei hat einen Konflikt ohne Markierungen ({kind}), es gibt keine Seite zum Übernehmen. Behalten Sie sie mit „Git: Datei als gelöst markieren“ oder löschen Sie sie mit „Git: Konflikt, Datei löschen“."],
+        ["conflictDeleted"] = ["Soubor {file} je smazán a konflikt je vyřešen.", "{file} is deleted and the conflict is resolved.", "Súbor {file} je zmazaný a konflikt je vyriešený.", "{file} wurde gelöscht und der Konflikt ist gelöst."],
+        ["actionStage"] = ["Připravit úsek", "Stage hunk", "Pripraviť úsek", "Abschnitt vormerken"],
+        ["actionUnstage"] = ["Vrátit úsek z indexu", "Unstage hunk", "Vrátiť úsek z indexu", "Abschnitt aus dem Index nehmen"],
+        // kinds of conflict, by the two letters of git status
+        ["UU"] = ["konflikt: změněno oběma", "conflict: both modified", "konflikt: zmenené oboma", "Konflikt: beidseitig geändert"],
+        ["AA"] = ["konflikt: přidáno oběma", "conflict: added by both", "konflikt: pridané oboma", "Konflikt: beidseitig hinzugefügt"],
+        ["DD"] = ["konflikt: smazáno oběma", "conflict: deleted by both", "konflikt: zmazané oboma", "Konflikt: beidseitig gelöscht"],
+        ["AU"] = ["konflikt: přidáno námi", "conflict: added by us", "konflikt: pridané nami", "Konflikt: von uns hinzugefügt"],
+        ["UA"] = ["konflikt: přidáno jimi", "conflict: added by them", "konflikt: pridané nimi", "Konflikt: von ihnen hinzugefügt"],
+        ["DU"] = ["konflikt: smazáno námi", "conflict: deleted by us", "konflikt: zmazané nami", "Konflikt: von uns gelöscht"],
+        ["UD"] = ["konflikt: smazáno jimi", "conflict: deleted by them", "konflikt: zmazané nimi", "Konflikt: von ihnen gelöscht"],
         // status words
         ["staged:"] = ["V indexu", "Staged", "V indexe", "Vorgemerkt"],
         ["changed:"] = ["Ve stromu", "In tree", "V strome", "Im Baum"],
@@ -61,7 +73,7 @@ public static class Texts
     {
         string Word(char c) => Table.ContainsKey(c.ToString()) ? Get(language, c.ToString()) : c.ToString();
         if (e.Index == '?') return Word('?');
-        if (e.Index == 'U' || e.Tree == 'U' || (e.Index, e.Tree) is ('A', 'A') or ('D', 'D')) return Word('U');
+        if (StatusCounts.IsConflict(e)) return Table.ContainsKey(new string([e.Index, e.Tree])) ? Get(language, new string([e.Index, e.Tree])) : Word('U');
         var parts = new List<string>();
         if (e.Index != ' ') parts.Add(Get(language, "staged:") + ": " + Word(e.Index));
         if (e.Tree != ' ') parts.Add(Get(language, "changed:") + ": " + Word(e.Tree));

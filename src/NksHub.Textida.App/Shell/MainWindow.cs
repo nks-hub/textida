@@ -253,6 +253,8 @@ internal sealed partial class MainWindow : Window
         RefreshTitle();
         _menuModel = BuildMenuModel();
         var tab = Active;
+        ScheduleGitGutter(tab);
+        _app.Plugins.Mcp.ActiveTabChanged(this, tab);
         Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_body.Children[0].IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
@@ -344,6 +346,7 @@ internal sealed partial class MainWindow : Window
         ApplyAgentTexts();
         ApplyPreviewTexts();
         RefreshPluginUi();
+        RefreshIdeItem();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
@@ -366,6 +369,7 @@ internal sealed partial class MainWindow : Window
     private void OnSettingChanged(string key)
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
+        if (key == "git.gutter") foreach (var tab in Tabs) ScheduleGitGutter(tab);
         if (key == "files.autoSave") foreach (var od in _docs) ConfigureAutosave(od);
         else if (key == "advanced.autosaveIntervalSeconds")
             foreach (var od in _docs)
@@ -389,7 +393,9 @@ internal sealed partial class MainWindow : Window
         ReleaseOutput();
         ReleaseLogFollow();
         ReleaseAgent();
+        ReleaseIde();
         ReleasePlugins();
+        ReleaseGitGutter();
         bool others = _app.Windows.Count > 1;
         foreach (var doc in _docs.ToList())
         {

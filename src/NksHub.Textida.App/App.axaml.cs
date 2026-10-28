@@ -42,11 +42,22 @@ public sealed partial class App : Application
     /// <summary>Where passwords live: the credential store of the operating system. Tests replace it.</summary>
     /// <summary>The folder whose dot files hold the MCP server lists of the agents; tests point it at a fixture.</summary>
     internal string AgentConfigHome { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    /// <summary>Limits and timeouts of the MCP client; tests shorten them.</summary>
+    internal NksHub.Textida.McpClient.McpClientOptions McpClientOptions { get; set; } = Services.PluginLimitsPlaceholders.McpClient();
     internal NksHub.Textida.Core.Secrets.ICredentialStore Credentials { get; set; } = NksHub.Textida.Core.Secrets.CredentialStores.ForCurrentPlatform();
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
     internal RecentFiles Recent { get; private set; } = null!;
+
+    private HexTemplateHost? _hexTemplates;
+
+    /// <summary>The structure templates the hex views of all windows share; the choice per file type lives in the setting <c>hex.structureTemplates</c>.</summary>
+    internal HexTemplateHost HexTemplates => _hexTemplates ??= new HexTemplateHost
+    {
+        ReadChoices = () => Workbench.Settings.GetString("hex.structureTemplates"),
+        WriteChoices = value => Workbench.Set("hex.structureTemplates", value),
+    };
     internal WorkspaceStore Workspace { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
     /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>

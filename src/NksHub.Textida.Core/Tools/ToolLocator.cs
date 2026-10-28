@@ -35,17 +35,20 @@ public static class ToolLocator
         return null;
     }
 
-    /// <summary>The file named <paramref name="program"/> in <paramref name="folder"/>; on Windows with each extension of <c>PATHEXT</c> too.</summary>
+    /// <summary>
+    /// The file named <paramref name="program"/> in <paramref name="folder"/>. On Windows the extensions of <c>PATHEXT</c> come first and the bare name only when it has an extension itself:
+    /// <c>vendor/bin</c> and <c>node_modules/.bin</c> hold a shell script without extension next to the <c>.bat</c> or <c>.cmd</c> that Windows can start.
+    /// </summary>
     private static string? InFolder(string folder, string program)
     {
         string[] extensions = OperatingSystem.IsWindows()
-            ? [.. (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE").Split(';', StringSplitOptions.RemoveEmptyEntries).Prepend("")]
+            ? [.. (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE").Split(';', StringSplitOptions.RemoveEmptyEntries), .. Path.HasExtension(program) ? new[] { "" } : []]
             : [""];
         foreach (var extension in extensions)
             try
             {
                 var candidate = Path.Combine(folder, program + extension);
-                if (File.Exists(candidate)) return candidate;
+                if (File.Exists(candidate)) return Path.GetFullPath(candidate); // the project folders are written with "/", cmd.exe reads that as a switch
             }
             catch (ArgumentException) { /* a PATH entry with characters a path cannot have */ }
         return null;

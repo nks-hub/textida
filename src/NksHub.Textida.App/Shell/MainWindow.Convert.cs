@@ -66,6 +66,21 @@ internal sealed partial class MainWindow
         return result.Problem is { } why ? Loc.Get(K.ConvertFailed, ("title", choice.Title), ("reason", why)) : FirstLines(result.Text!);
     }
 
+    /// <summary>The visual column (tab stops of <paramref name="tabSize"/>) at which each of the <paramref name="targets"/> (in document order) starts in its line; selections of one line are counted on from the previous one, so many of them on one long line stay linear.</summary>
+    internal static int[] StartColumns(AvaloniaEdit.Document.TextDocument document, IReadOnlyList<Sel> targets, int tabSize)
+    {
+        var columns = new int[targets.Count];
+        int lineStart = -1, scanned = 0, column = 0;
+        for (int i = 0; i < targets.Count; i++)
+        {
+            var line = document.GetLineByOffset(targets[i].Start);
+            if (line.Offset != lineStart) (lineStart, scanned, column) = (line.Offset, line.Offset, 0);
+            for (; scanned < targets[i].Start; scanned++) column = document.GetCharAt(scanned) == '\t' ? column + tabSize - column % tabSize : column + 1;
+            columns[i] = column;
+        }
+        return columns;
+    }
+
     /// <summary>
     /// Converts the text of every selection, or the whole file when nothing is selected, and keeps the new text selected. A selection whose conversion fails stops
     /// the whole command before anything is written, so a failure never leaves a half converted file.
@@ -79,16 +94,13 @@ internal sealed partial class MainWindow
 
         var results = new List<string>(targets.Count);
         bool changed = false;
-        int tabSize = TabSizeOf(surface), lineStart = -1, scanned = 0, column = 0;
-        foreach (var target in targets)
+        int tabSize = TabSizeOf(surface);
+        var columns = StartColumns(document, targets, tabSize);
+        for (int i = 0; i < targets.Count; i++)
         {
-            // the visual column of each start, counted on from the previous selection of the same line so many carets on one long line stay linear
-            var line = document.GetLineByOffset(target.Start);
-            if (line.Offset != lineStart) (lineStart, scanned, column) = (line.Offset, line.Offset, 0);
-            for (; scanned < target.Start; scanned++) column = document.GetCharAt(scanned) == '\t' ? column + tabSize - column % tabSize : column + 1;
-
+            var target = targets[i];
             var original = document.GetText(target.Start, target.Length);
-            var result = choice.Convert(original, new ConversionContext(tabSize, column));
+            var result = choice.Convert(original, new ConversionContext(tabSize, columns[i]));
             if (result.Problem is { } why)
             {
                 SetStatusMessage(Loc.Get(K.ConvertFailed, ("title", choice.Title), ("reason", why)));

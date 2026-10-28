@@ -100,6 +100,8 @@ internal sealed partial class EditorSurface
             margin.Release();
             TextArea.LeftMargins.Remove(margin);
         }
+        _gitMargin.Release();
+        TextArea.LeftMargins.Remove(_gitMargin);
         if (_hooked is not null) _hooked.Changed -= OnCoreChanged;
         _hooked = null;
         Doc.Changed -= OnSecretStateMaybeChanged;

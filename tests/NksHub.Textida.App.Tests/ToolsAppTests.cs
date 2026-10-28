@@ -473,10 +473,15 @@ public class ToolLauncherTests : IDisposable
     public void A_damaged_user_variables_file_stops_a_tool_before_anything_is_asked_and_names_the_reason()
     {
         Define([ToolTestKit.Tool("plain", "Plain", ["x"])]);
-        File.WriteAllText(Path.Combine(_app.ProfileDirectory, NksHub.Textida.Workbench.Clips.UserVariables.FileName), "{ not json");
+        string path = Path.Combine(_app.ProfileDirectory, NksHub.Textida.Workbench.Clips.UserVariables.FileName);
+        File.WriteAllText(path, "{ not json");
+        var reason = NksHub.Textida.Workbench.Clips.UserVariables.Load(path).Problem;
+        Assert.False(string.IsNullOrWhiteSpace(reason));
         Finish(Run("plain"));
         Assert.Empty(_dialogs.Asked);
-        Assert.Contains(Loc.Get(K.ClipVariablesBroken, ("reason", "")).Split(':')[0], Assert.Single(Lines()), StringComparison.Ordinal);
+        var line = Assert.Single(Lines());
+        Assert.Contains(Loc.Get(K.ClipVariablesBroken, ("reason", "")).Split(':')[0], line, StringComparison.Ordinal);
+        Assert.Contains(reason!, line, StringComparison.Ordinal);
         Assert.False(_w.ToolRunningNow);
     }
 

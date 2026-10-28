@@ -5,15 +5,29 @@ using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Core.Hex.Ksy;
 
 /// <summary>
-/// Reads the subset of Kaitai Struct <c>.ksy</c> that <see cref="KsyReader"/> can interpret: <c>meta</c> (<c>id</c>, <c>endian</c>, <c>encoding</c>, <c>file-extension</c>, <c>title</c>),
-/// <c>seq</c>, <c>types</c>, <c>enums</c>, <c>instances</c> (<c>pos</c> or <c>value</c>), integers, floats, <c>str</c>, <c>strz</c>, raw bytes, <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>),
-/// <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>. <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c> and <c>switch-on</c> are expressions
+/// Reads the subset of Kaitai Struct <c>.ksy</c> that <see cref="KsyReader"/> can interpret: <c>meta</c> (<c>id</c>, <c>endian</c> fixed or with <c>switch-on</c>, <c>bit-endian</c>, <c>encoding</c>, <c>file-extension</c>, <c>title</c>),
+/// <c>seq</c>, <c>types</c>, <c>enums</c> (also inside a type), <c>instances</c> (<c>pos</c> or <c>value</c>), integers, floats, bit-sized integers <c>b1</c> to <c>b64</c>, <c>str</c>, <c>strz</c>, raw bytes,
+/// <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>; not for bit-sized fields), <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>.
+/// <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c> and <c>switch-on</c> are expressions
 /// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. <c>process</c> and the rest are refused by name.
 /// </summary>
 public static class KsyParser
 {
-    /// <summary>Largest template read. Placeholder: the real limit is an open input decision (P8.10.3).</summary>
+    /// <summary>Largest template read. Placeholder, OPEN: the real limit is an input decision the owner has not made (P8.10.3).</summary>
     public const int MaxTemplateChars = 256 * 1024;
+
+    /// <summary>
+    /// The constructs the subset has, named the way <see cref="KsyTemplate.Constructs"/> and the list of pinned templates name them (P8.10.5). A template that uses a construct not listed here
+    /// cannot be parsed, so the list of a pinned template can only be a part of this one.
+    /// </summary>
+    public static IReadOnlyList<string> Constructs { get; } =
+    [
+        "meta", "meta.endian", "meta.endian-switch", "meta.bit-endian", "meta.encoding", "meta.file-extension",
+        "seq", "types", "enums", "enums.nested", "instances.pos", "instances.value", "instances.io",
+        "int", "float", "bits", "str", "strz", "bytes", "user-type", "switch-on",
+        "size", "size-eos", "repeat.eos", "repeat.expr", "repeat.until", "if", "contents", "enum",
+        "expr", "expr.float", "expr.enum",
+    ];
 
     private const int MaxYamlDepth = 32;
 
@@ -52,13 +66,17 @@ public static class KsyParser
     private sealed class Builder(string text)
     {
         private static readonly string[] AttrKeys = ["id", "type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "contents", "enum", "encoding", "doc", "doc-ref"];
-        private static readonly string[] InstanceKeys = ["type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "pos", "value", "contents", "enum", "encoding", "doc", "doc-ref"];
-        private static readonly string[] MetaKeys = ["id", "title", "endian", "encoding", "file-extension", "license", "ks-version", "ks-debug", "tags", "application", "xref"];
+        private static readonly string[] InstanceKeys = ["type", "size", "size-eos", "repeat", "repeat-expr", "repeat-until", "if", "pos", "io", "value", "contents", "enum", "encoding", "doc", "doc-ref"];
+        private static readonly string[] MetaKeys = ["id", "title", "endian", "bit-endian", "encoding", "file-extension", "license", "ks-version", "ks-debug", "tags", "application", "xref"];
         private static readonly string[] Encodings = ["UTF-8", "ASCII", "ISO-8859-1", "UTF-16LE", "UTF-16BE"];
 
         private KsyTemplate _t = null!;
         private string? _encoding;
         private readonly Dictionary<KsyTypeDef, List<DataMember>> _declared = [];
+        private readonly SortedSet<string> _uses = new(StringComparer.Ordinal);
+        private readonly List<(KsyTypeDef Def, DataNode Switch)> _endianSwitches = [];
+
+        private void Use(string construct) => _uses.Add(construct);
 
         private Fail Err(int offset, KsyErrorKind kind, string subject) => new(new KsyError(kind, LineOf(text, offset), subject));
 
@@ -70,24 +88,33 @@ public static class KsyParser
             foreach (var m in doc.Members)
                 if (m.Name is not ("meta" or "seq" or "types" or "enums" or "instances" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
 
+            Use("meta");
             var meta = doc.Get("meta") ?? throw Err(doc.Start, KsyErrorKind.Invalid, "meta");
             if (meta.Kind != DataKind.Object) throw Err(meta.Start, KsyErrorKind.Invalid, "meta");
             foreach (var m in meta.Members)
                 if (!MetaKeys.Contains(m.Name)) throw Err(m.NameStart, KsyErrorKind.Unsupported, "meta/" + m.Name);
             var idNode = meta.Get("id");
             if (idNode is not { Kind: DataKind.String } || !IsId(idNode.Text)) throw Err(idNode?.Start ?? meta.Start, KsyErrorKind.Invalid, "meta/id");
-            var endian = Endian(meta);
+            var endian = Endian(meta, KsyOrder.Default, out var rootSwitch);
+            var bitEndian = BitEndian(meta, KsyOrder.Default);
             _encoding = Encoding(meta.Get("encoding"));
+            if (_encoding is not null) Use("meta.encoding");
+            if (meta.Get("file-extension") is not null) Use("meta.file-extension");
 
             _t = new KsyTemplate
             {
                 Id = idNode.Text,
                 Title = meta.Get("title") is { Kind: DataKind.String } title ? title.Text : null,
                 Extensions = Extensions(meta.Get("file-extension")),
-                Root = new KsyTypeDef { Name = idNode.Text, Endian = endian },
+                Root = new KsyTypeDef { Name = idNode.Text, Endian = endian, BitEndian = bitEndian, HasEndianSwitch = rootSwitch is not null },
             };
+            if (rootSwitch is not null) _endianSwitches.Add((_t.Root, rootSwitch));
 
-            if (doc.Get("enums") is { } enums) ReadEnums(enums);
+            if (doc.Get("enums") is { } enums)
+            {
+                ReadEnums(enums, "");
+                Use("enums");
+            }
             var typeNodes = new List<(KsyTypeDef Def, DataNode Node)>();
             if (doc.Get("types") is { } types)
             {
@@ -96,23 +123,41 @@ public static class KsyParser
                 {
                     if (!IsId(m.Name)) throw Err(m.NameStart, KsyErrorKind.Invalid, m.Name);
                     if (m.Value.Kind != DataKind.Object) throw Err(m.Value.Start, KsyErrorKind.Invalid, m.Name);
-                    var def = new KsyTypeDef { Name = m.Name, Endian = m.Value.Get("meta") is { Kind: DataKind.Object } tm ? Endian(tm, endian) : endian };
+                    var tm = m.Value.Get("meta") is { Kind: DataKind.Object } typeMeta ? typeMeta : null;
+                    DataNode? typeSwitch = null;
+                    var def = new KsyTypeDef
+                    {
+                        Name = m.Name,
+                        Endian = tm is null ? endian : Endian(tm, endian, out typeSwitch),
+                        BitEndian = tm is null ? bitEndian : BitEndian(tm, bitEndian),
+                        HasEndianSwitch = typeSwitch is not null,
+                    };
+                    if (typeSwitch is not null) _endianSwitches.Add((def, typeSwitch));
                     _t.Types[m.Name] = def;
                     typeNodes.Add((def, m.Value));
+                    Use("types");
                 }
             }
             foreach (var (def, node) in typeNodes)
             {
                 foreach (var m in node.Members)
-                    if (m.Name is not ("seq" or "meta" or "instances" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
+                    if (m.Name is not ("seq" or "meta" or "instances" or "enums" or "doc" or "doc-ref")) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
+                if (node.Get("enums") is { } typeEnums)
+                {
+                    ReadEnums(typeEnums, def.Name + "::");
+                    Use("enums.nested");
+                }
                 Declare(def, node.Get("instances"));
             }
             Declare(_t.Root, doc.Get("instances"));
             foreach (var (def, node) in typeNodes) ReadSeq(def, node.Get("seq"));
             ReadSeq(_t.Root, doc.Get("seq"));
             if (_t.Root.Seq.Count == 0) throw Err(doc.Start, KsyErrorKind.Invalid, "seq");
+            Use("seq");
             foreach (var (def, _) in typeNodes) ReadInstances(def);
             ReadInstances(_t.Root);
+            foreach (var (def, node) in _endianSwitches) def.EndianSwitch = ReadEndianSwitch(def, node);
+            _t.Constructs = [.. _uses];
             return _t;
         }
 
@@ -139,16 +184,53 @@ public static class KsyParser
             }
         }
 
-        private KsyOrder Endian(DataNode meta, KsyOrder inherited = KsyOrder.Default)
+        /// <summary>The byte order <c>meta</c> names, or <paramref name="inherited"/>; a <c>switch-on</c> is returned as <paramref name="endianSwitch"/> and read once the fields of the type are known.</summary>
+        private KsyOrder Endian(DataNode meta, KsyOrder inherited, out DataNode? endianSwitch)
         {
+            endianSwitch = null;
             if (meta.Get("endian") is not { } e) return inherited;
-            if (e.Kind == DataKind.Object) throw Err(e.Start, KsyErrorKind.Unsupported, "endian/switch-on");
+            if (e.Kind == DataKind.Object)
+            {
+                endianSwitch = e;
+                Use("meta.endian-switch");
+                return KsyOrder.Default;
+            }
+            Use("meta.endian");
             return e is { Kind: DataKind.String } ? e.Text switch
             {
                 "le" => KsyOrder.Little,
                 "be" => KsyOrder.Big,
                 _ => throw Err(e.Start, KsyErrorKind.Invalid, "endian"),
             } : throw Err(e.Start, KsyErrorKind.Invalid, "endian");
+        }
+
+        private KsyOrder BitEndian(DataNode meta, KsyOrder inherited)
+        {
+            if (meta.Get("bit-endian") is not { } e) return inherited;
+            Use("meta.bit-endian");
+            return e is { Kind: DataKind.String } ? e.Text switch
+            {
+                "le" => KsyOrder.Little,
+                "be" => KsyOrder.Big,
+                _ => throw Err(e.Start, KsyErrorKind.Invalid, "bit-endian"),
+            } : throw Err(e.Start, KsyErrorKind.Invalid, "bit-endian");
+        }
+
+        private KsyEndianSwitch ReadEndianSwitch(KsyTypeDef def, DataNode n)
+        {
+            foreach (var m in n.Members)
+                if (m.Name is not ("switch-on" or "cases")) throw Err(m.NameStart, KsyErrorKind.Unsupported, "endian/" + m.Name);
+            var on = n.Get("switch-on") ?? throw Err(n.Start, KsyErrorKind.Invalid, "switch-on");
+            if (n.Get("cases") is not { Kind: DataKind.Object, Members.Count: > 0 } cases) throw Err(n.Start, KsyErrorKind.Invalid, "cases");
+            var branches = new List<(KsyExpr, KsyOrder)>();
+            foreach (var c in cases.Members)
+            {
+                var key = Expr(def, c.Name, c.NameStart, "cases");
+                if (key.UsesContext) throw Err(c.NameStart, KsyErrorKind.Invalid, "cases");
+                var order = c.Value is { Kind: DataKind.String } v && v.Text is "le" or "be" ? (c.Value.Text == "le" ? KsyOrder.Little : KsyOrder.Big) : throw Err(c.Value.Start, KsyErrorKind.Invalid, "endian");
+                branches.Add((key, order));
+            }
+            return new KsyEndianSwitch(Expr(def, on, "switch-on"), branches);
         }
 
         private string? Encoding(DataNode? n)
@@ -167,7 +249,7 @@ public static class KsyParser
             throw Err(n.Start, KsyErrorKind.Invalid, "file-extension");
         }
 
-        private void ReadEnums(DataNode enums)
+        private void ReadEnums(DataNode enums, string prefix)
         {
             if (enums.Kind != DataKind.Object) throw Err(enums.Start, KsyErrorKind.Invalid, "enums");
             foreach (var e in enums.Members)
@@ -181,7 +263,7 @@ public static class KsyParser
                     if (name is null) throw Err(v.Value.Start, KsyErrorKind.Invalid, v.Name);
                     if (!values.TryAdd(key, name)) throw Err(v.NameStart, KsyErrorKind.Duplicate, v.Name);
                 }
-                _t.Enums[e.Name] = values;
+                _t.Enums[prefix + e.Name] = values;
             }
         }
 
@@ -209,11 +291,16 @@ public static class KsyParser
                 if (!(instanceId is null ? AttrKeys : InstanceKeys).Contains(m.Name)) throw Err(m.NameStart, KsyErrorKind.Unsupported, m.Name);
             string id = instanceId ?? $"field_{def.Seq.Count + 1}";
             var ifExpr = n.Get("if") is { } ifNode ? Expr(def, ifNode, "if") : null;
+            if (ifExpr is not null) Use("if");
             var posNode = n.Get("pos");
+            var ioNode = n.Get("io");
             var valueNode = n.Get("value");
+            if (ioNode is not null && posNode is null) throw Err(ioNode.Start, KsyErrorKind.Invalid, "io");
+            if (ioNode is not null) Use("instances.io");
             if (instanceId is not null)
             {
                 if ((posNode is null) == (valueNode is null)) throw Err(n.Start, KsyErrorKind.Invalid, "pos");
+                Use(valueNode is not null ? "instances.value" : "instances.pos");
                 if (valueNode is not null)
                 {
                     if (n.Members.Any(m => m.Name is not ("value" or "if" or "doc" or "doc-ref"))) throw Err(valueNode.Start, KsyErrorKind.Invalid, "value");
@@ -232,6 +319,8 @@ public static class KsyParser
             bool eos = sizeEos is { Kind: DataKind.Boolean, Bool: true };
             if (sizeEos is not null && sizeEos.Kind != DataKind.Boolean) throw Err(sizeEos.Start, KsyErrorKind.Invalid, "size-eos");
             if (size is not null && eos) throw Err(size.Start, KsyErrorKind.Invalid, "size");
+            if (size is not null) Use("size");
+            if (eos) Use("size-eos");
 
             KsyType type;
             KsySwitch? sw = null;
@@ -241,33 +330,34 @@ public static class KsyParser
                 if (typeNode is not null || size is not null || eos) throw Err(contents.Start, KsyErrorKind.Invalid, "contents");
                 bytes = Contents(contents);
                 type = new KsyType(KsyKind.Bytes);
+                Use("contents");
             }
             else if (typeNode is null)
             {
                 if (size is null && !eos) throw Err(n.Start, KsyErrorKind.Invalid, "type");
                 type = new KsyType(KsyKind.Bytes);
+                Use("bytes");
             }
             else type = ReadType(def, typeNode, out sw);
 
             string? encoding = Encoding(n.Get("encoding"));
             if (sw is null)
             {
-                if (type.Kind is KsyKind.Int or KsyKind.Float or KsyKind.Strz && (size is not null || eos)) throw Err((size ?? sizeEos)!.Start, KsyErrorKind.Invalid, "size");
+                if (type.Kind is KsyKind.Int or KsyKind.Float or KsyKind.Bits or KsyKind.Strz && (size is not null || eos)) throw Err((size ?? sizeEos)!.Start, KsyErrorKind.Invalid, "size");
                 CheckType(def, type, typeNode, size is not null || eos, encoding);
             }
             else
             {
-                // Without a default branch a value that no branch names is read as raw bytes, which need a size.
-                if (sw.Cases.All(c => c.Key is not null) && size is null && !eos) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "size");
+                // A value that no branch names is read as raw bytes when the field has a size, and is an error on the field otherwise.
                 foreach (var c in sw.Cases) CheckType(def, c.Type, typeNode, size is not null || eos, encoding);
             }
 
             string? enumName = null;
             if (n.Get("enum") is { } en)
             {
-                if (en.Kind != DataKind.String || type.Kind != KsyKind.Int) throw Err(en.Start, KsyErrorKind.Invalid, "enum");
-                if (!_t.Enums.ContainsKey(en.Text)) throw Err(en.Start, KsyErrorKind.UnknownEnum, en.Text);
-                enumName = en.Text;
+                if (en.Kind != DataKind.String || !(type.Kind == KsyKind.Int || type is { Kind: KsyKind.Bits, Width: > 1 })) throw Err(en.Start, KsyErrorKind.Invalid, "enum");
+                enumName = _t.ResolveEnum(def, en.Text) ?? throw Err(en.Start, KsyErrorKind.UnknownEnum, en.Text);
+                Use("enum");
             }
 
             var repeatNode = n.Get("repeat");
@@ -276,6 +366,8 @@ public static class KsyParser
             {
                 if (repeatNode.Kind != DataKind.String || repeatNode.Text is not ("eos" or "expr" or "until")) throw Err(repeatNode.Start, KsyErrorKind.Unsupported, "repeat/" + repeatNode.Text);
                 repeat = repeatNode.Text switch { "eos" => KsyRepeat.Eos, "expr" => KsyRepeat.Expr, _ => KsyRepeat.Until };
+                if (type.Kind == KsyKind.Bits) throw Err(repeatNode.Start, KsyErrorKind.Unsupported, "repeat of a bit-sized type");
+                Use("repeat." + repeatNode.Text);
             }
             var countNode = n.Get("repeat-expr");
             if ((repeat == KsyRepeat.Expr) != (countNode is not null)) throw Err((countNode ?? repeatNode)?.Start ?? n.Start, KsyErrorKind.Invalid, "repeat-expr");
@@ -290,6 +382,7 @@ public static class KsyParser
                 Switch = sw,
                 If = ifExpr,
                 Pos = posNode is null ? null : Expr(def, posNode, "pos"),
+                Io = ioNode is null ? null : Expr(def, ioNode, "io"),
                 Size = size is null ? null : Expr(def, size, "size"),
                 SizeEos = eos,
                 Repeat = repeat,
@@ -304,8 +397,8 @@ public static class KsyParser
         private void CheckType(KsyTypeDef def, KsyType type, DataNode? typeNode, bool sized, string? encoding)
         {
             if (type.Kind is KsyKind.Str && !sized) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "size");
-            if (type.Kind == KsyKind.Int && type.Width > 1 && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
-            if (type.Kind == KsyKind.Float && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
+            if (type.Kind == KsyKind.Int && type.Width > 1 && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default && !def.HasEndianSwitch) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
+            if (type.Kind == KsyKind.Float && type.Order == KsyOrder.Default && def.Endian == KsyOrder.Default && !def.HasEndianSwitch) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "endian");
             if (type.Kind is KsyKind.Str or KsyKind.Strz && encoding is null) throw Err(typeNode!.Start, KsyErrorKind.Invalid, "encoding");
         }
 
@@ -315,15 +408,36 @@ public static class KsyParser
             if (n.Kind == DataKind.Object)
             {
                 sw = ReadSwitch(def, n);
+                Use("switch-on");
                 return new KsyType(KsyKind.Switch);
             }
             if (n.Kind != DataKind.String) throw Err(n.Start, KsyErrorKind.Invalid, "type");
             string s = n.Text;
-            if (s == "str") return new KsyType(KsyKind.Str);
-            if (s == "strz") return new KsyType(KsyKind.Strz);
-            if (TryNumeric(s, out var numeric)) return numeric;
-            if (s.Length > 1 && s[0] == 'b' && s.Skip(1).All(char.IsAsciiDigit)) throw Err(n.Start, KsyErrorKind.Unsupported, "type " + s);
-            if (_t.Types.ContainsKey(s)) return new KsyType(KsyKind.User, UserName: s);
+            if (s == "str")
+            {
+                Use("str");
+                return new KsyType(KsyKind.Str);
+            }
+            if (s == "strz")
+            {
+                Use("strz");
+                return new KsyType(KsyKind.Strz);
+            }
+            if (TryNumeric(s, out var numeric))
+            {
+                Use(numeric.Kind == KsyKind.Float ? "float" : "int");
+                return numeric;
+            }
+            if (TryBits(s, out var bits))
+            {
+                Use("bits");
+                return bits;
+            }
+            if (_t.Types.ContainsKey(s))
+            {
+                Use("user-type");
+                return new KsyType(KsyKind.User, UserName: s);
+            }
             throw Err(n.Start, KsyErrorKind.UnknownType, s);
         }
 
@@ -343,7 +457,9 @@ public static class KsyParser
                     if (key.UsesContext) throw Err(c.NameStart, KsyErrorKind.Invalid, "cases");
                 }
                 if (c.Value.Kind == DataKind.Object) throw Err(c.Value.Start, KsyErrorKind.Unsupported, "switch-on/type");
-                branches.Add(new KsyCase(key, ReadType(def, c.Value, out _)));
+                var branch = ReadType(def, c.Value, out _);
+                if (branch.Kind == KsyKind.Bits) throw Err(c.Value.Start, KsyErrorKind.Unsupported, "switch-on/bit-sized type");
+                branches.Add(new KsyCase(key, branch));
             }
             return new KsySwitch(Expr(def, on, "switch-on"), branches);
         }
@@ -357,6 +473,19 @@ public static class KsyParser
             var order = suffix switch { "" => KsyOrder.Default, "le" => KsyOrder.Little, "be" => KsyOrder.Big, _ => (KsyOrder)(-1) };
             if (order < 0 || (s[0] == 'f' ? width is not (4 or 8) : width is not (1 or 2 or 4 or 8)) || (width == 1 && order != KsyOrder.Default)) return false;
             type = new KsyType(s[0] == 'f' ? KsyKind.Float : KsyKind.Int, width, s[0] == 's', order);
+            return true;
+        }
+
+        private static bool TryBits(string s, out KsyType type)
+        {
+            type = null!;
+            if (s.Length < 2 || s[0] != 'b' || !char.IsAsciiDigit(s[1])) return false;
+            int end = 1;
+            while (end < s.Length && char.IsAsciiDigit(s[end])) end++;
+            if (end - 1 > 2 || !int.TryParse(s.AsSpan(1, end - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int width) || width is < 1 or > 64) return false;
+            var order = s[end..] switch { "" => KsyOrder.Default, "le" => KsyOrder.Little, "be" => KsyOrder.Big, _ => (KsyOrder)(-1) };
+            if (order < 0) return false;
+            type = new KsyType(KsyKind.Bits, width, Order: order);
             return true;
         }
 
@@ -380,11 +509,14 @@ public static class KsyParser
                 if (def.Seq.All(a => a.Id != name) && !(_declared.TryGetValue(def, out var members) && members.Any(m => m.Name == name))) throw Err(at, KsyErrorKind.UnknownField, name);
             foreach (var (enumName, member) in expr.EnumRefs)
             {
-                if (!_t.Enums.TryGetValue(enumName, out var values)) throw Err(at, KsyErrorKind.UnknownEnum, enumName);
-                if (!values.ContainsValue(member)) throw Err(at, KsyErrorKind.UnknownField, enumName + "::" + member);
+                if (_t.ResolveEnum(def, enumName) is not { } resolved) throw Err(at, KsyErrorKind.UnknownEnum, enumName);
+                if (!_t.Enums[resolved].ContainsValue(member)) throw Err(at, KsyErrorKind.UnknownField, enumName + "::" + member);
             }
             foreach (string cast in expr.Casts)
-                if (cast is not ("str" or "strz") && !TryNumeric(cast, out _) && !_t.Types.ContainsKey(cast)) throw Err(at, KsyErrorKind.UnknownType, cast);
+                if (cast is not ("str" or "strz") && !TryNumeric(cast, out _) && !TryBits(cast, out _) && !_t.Types.ContainsKey(cast)) throw Err(at, KsyErrorKind.UnknownType, cast);
+            Use("expr");
+            if (expr.UsesFloat) Use("expr.float");
+            if (expr.EnumRefs.Count > 0) Use("expr.enum");
             return expr;
         }
 

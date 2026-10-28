@@ -49,19 +49,20 @@ internal sealed partial class MainWindow
 
     private DocTab? CompareSource() => Active is { Custom: null, Hex: null } tab && !tab.Doc.IsResults ? tab : null;
 
-    /// <summary>Opens a compare tab for two sides and starts the comparison.</summary>
-    internal DocTab OpenCompare(CompareSide left, CompareSide right, string? title = null)
+    /// <summary>Opens a compare tab for two sides and starts the comparison. It goes into <paramref name="group"/> (the active one by default) at <paramref name="index"/> (the end by default).</summary>
+    internal DocTab OpenCompare(CompareSide left, CompareSide right, string? title = null, TabGroup? group = null, int? index = null, Action<DiffView>? configure = null)
     {
         var session = new CompareSession(left, right) { Ignore = CompareIgnore };
         var view = new DiffView(session, Options) { ReadClipboard = async () => Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null };
         view.Refused += SetStatusMessage;
         view.ViewChanged += () => { if (ActiveCompare == view) UpdateStatus(); };
+        configure?.Invoke(view);
         var od = OpenDocument.NewResults();
         od.TitleOverride = () => title ?? Loc.Get(K.CompareTab, ("left", left.Title), ("right", right.Title));
         Adopt(od);
         var tab = new DocTab(od, Options, view);
         tab.ViewClosed += session.Dispose;
-        _activeGroup.Add(tab);
+        (group ?? _activeGroup).Add(tab, index);
         OnActiveTabChanged();
         _app.SessionChanged();
         return tab;
@@ -135,6 +136,10 @@ internal sealed partial class MainWindow
 
     internal CommandOutcome CompareStep(bool next) =>
         ActiveCompare is not { } view ? CommandOutcome.NotHandled : (next ? view.NextDifference() : view.PreviousDifference()) ? CommandOutcome.Handled : CommandOutcome.NotHandled;
+
+    /// <summary>Runs button <paramref name="number"/> that the plugin of the comparison added, on the current difference.</summary>
+    internal CommandOutcome CompareAction(int number) =>
+        ActiveCompare is { } view && view.RunAction(number) ? CommandOutcome.Handled : CommandOutcome.NotHandled;
 
     internal CommandOutcome CompareCopy(Core.Compare.DiffSide target) =>
         ActiveCompare is not { CurrentHunk: >= 0 } view ? CommandOutcome.NotHandled : view.CopyCurrent(target) ? CommandOutcome.Handled : CommandOutcome.NotHandled;

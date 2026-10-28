@@ -20,14 +20,31 @@ public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<s
 /// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
 public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
 
-/// <summary>A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.</summary>
-public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
+/// <summary>
+/// A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.
+/// <paramref name="Environment"/> are variables set for the run; the catalog uses them to keep a linter that would fetch packages (Cargo crates, Go modules) off the network.
+/// </summary>
+public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions,
+    string? Version = null, bool Verified = false, IReadOnlyDictionary<string, string>? Environment = null);
 
 /// <summary>A configuration file of a group: <paramref name="Names"/> are the accepted names (the first one is created), <paramref name="Template"/> the minimal content of a new one, or null where no neutral content exists.</summary>
 public sealed record CatalogConfig(IReadOnlyList<string> Names, string? Template);
 
 /// <summary>The package manifest of a group and the public registry behind it.</summary>
 public sealed record CatalogManifest(string File, string Registry);
+
+public enum ToolKind { Grammar, Lsp, Format, Lint }
+
+/// <summary>What a test of the matrix runs for a tool: a clean run, a syntax error in the file, a program that is not there, a run over the time limit and a tool the editor never lets download anything.</summary>
+[Flags]
+public enum ToolScenario { None = 0, Success = 1, SyntaxError = 2, MissingTool = 4, Timeout = 8, NoNetwork = 16 }
+
+/// <summary>The operating systems of the distribution (the three runtime identifiers are two systems).</summary>
+[Flags]
+public enum ToolSystem { Windows = 1, MacOS = 2 }
+
+/// <summary>One row of <see cref="LanguageCatalog.Matrix"/>. <paramref name="Verified"/> says the launch line was run against the real program; a grammar is always <c>true</c>, it has no program.</summary>
+public sealed record CatalogMatrixRow(string Group, ToolKind Kind, string Tool, string? Executable, string? Version, bool Verified, ToolScenario Scenarios, ToolSystem Systems);
 
 /// <summary>One group of languages with everything the editor needs to know about its tools.</summary>
 public sealed record LanguageGroup(
@@ -45,18 +62,22 @@ public sealed record LanguageGroup(
 /// the grammars, the language server launch lines, the formatters of Save Actions, the linters, the configuration files shown in the status bar and the package manifests.
 /// Nothing here runs a program or reaches the network; <see cref="ToolLocator"/> only looks for a program on disk.
 /// OPEN: no tool version is pinned (<c>Version</c> is null everywhere). Marked verified are the formatters whose command line was run against the real program: <c>gofmt</c>, <c>clang-format</c> 19.1.5
-/// (it formats code that does not parse and fails only on a broken configuration) and <c>dart format</c> of Dart 3.12.2 (exit code 65 for code that does not parse). The other command lines come from
-/// the documentation of the tools and have not been run.
+/// (it formats code that does not parse and fails only on a broken configuration), <c>dart format</c> of Dart 3.12.2 (exit code 65 for code that does not parse) and <c>dart analyze --format=machine</c> of Dart 3.12.2
+/// (pipe separated lines, exit code 3 for errors and warnings, nothing printed when clean). The other command lines and output formats come from the documentation of the tools and have not been run.
+/// <see cref="Matrix"/> lists what the table promises per group, tool and system.
 /// </summary>
 public static class LanguageCatalog
 {
     /// <summary>Version of the table layout and content; raised when an entry changes in a way a consumer can see.</summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>The configuration that applies to every file.</summary>
     public static readonly CatalogConfig EditorConfig = new([".editorconfig"], "root = true\n\n[*]\n");
 
     private static readonly CatalogSeverity AnyWarning = new("*", ToolSeverity.Warning);
+
+    private static readonly string[] EslintConfigs =
+        ["eslint.config.mjs", "eslint.config.js", "eslint.config.cjs", "eslint.config.ts", "eslint.config.mts", "eslint.config.cts", ".eslintrc.json", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.yml", ".eslintrc.yaml", ".eslintrc"];
 
     private static CatalogMode M(string id, string[] extensions, string? grammar, string[]? fileNames = null) => new(id, extensions, fileNames ?? [], grammar);
     private static CatalogConfig C(string[] names, string? template = null) => new(names, template);
@@ -70,8 +91,9 @@ public static class LanguageCatalog
                 new("prettier", "Prettier", "prettier", ["--write", "${File}"], [".prettierrc", ".prettierrc.json", ".prettierrc.yml", ".prettierrc.yaml", ".prettierrc.toml", "prettier.config.js"], [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".json", ".jsonc", ".css", ".html"]),
                 new("biome", "Biome", "biome", ["format", "--write", "${File}"], ["biome.json", "biome.jsonc"], [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".json", ".jsonc"]),
             ],
-            [],
-            [C(["tsconfig.json"], "{\n  \"compilerOptions\": {}\n}\n"), C([".prettierrc"], "{}\n"), C(["biome.json"], "{}\n")],
+            [new("eslint", "ESLint", "eslint", ["--format", "json", "${File}"], "eslint-json", [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning)], EslintConfigs, [".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"])],
+            [C(["tsconfig.json"], "{\n  \"compilerOptions\": {}\n}\n"), C([".prettierrc"], "{}\n"), C(["biome.json"], "{}\n"),
+                C(EslintConfigs, "// ESLint reports nothing but syntax errors while this list is empty.\nexport default [];\n")],
             [new("package.json", "npm")]),
         new("web", "HTML, CSS",
             [M("html", [".html", ".htm", ".xhtml"], "html"), M("css", [".css"], "css")],
@@ -81,14 +103,14 @@ public static class LanguageCatalog
             [M("sql", [".sql"], "sql")],
             [new("sql", "sqls", [])],
             [new("sqlfluff-fix", "SQLFluff", "sqlfluff", ["fix", "--force", "${File}"], [".sqlfluff"], [".sql"])],
-            [new("sqlfluff", "SQLFluff", "sqlfluff", ["lint", "--format", "json", "${File}"], "sqlfluff-json", [AnyWarning], [".sqlfluff"], [".sql"])],
+            [new("sqlfluff", "SQLFluff", "sqlfluff", ["lint", "--format", "json", "${File}"], "sqlfluff-json", [new("error", ToolSeverity.Error), AnyWarning], [".sqlfluff"], [".sql"])],
             [C([".sqlfluff"], "[sqlfluff]\n")],
             []),
         new("python", "Python",
             [M("python", [".py"], "python")],
             [new("python", "pyright-langserver", ["--stdio"])],
             [new("ruff-format", "Ruff", "ruff", ["format", "${File}"], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"])],
-            [new("ruff", "Ruff", "ruff", ["check", "--output-format=json", "${File}"], "ruff-json", [AnyWarning], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"])],
+            [new("ruff", "Ruff", "ruff", ["check", "--output-format=json", "${File}"], "ruff-json", [new("error", ToolSeverity.Error), AnyWarning], ["ruff.toml", ".ruff.toml", "pyproject.toml"], [".py"])],
             [C(["ruff.toml", ".ruff.toml"], "# Ruff uses its defaults while this file is empty.\n"), C(["pyproject.toml"])],
             [new("requirements.txt", "PyPI")]),
         new("shell", "Bash, PowerShell",
@@ -132,7 +154,8 @@ public static class LanguageCatalog
             [new("go", "gopls", [])],
             [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], Verified: true)],
             [new("golangci-lint", "golangci-lint", "golangci-lint", ["run", "--output.json.path=stdout", "${File}"], "golangci-json",
-                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"])],
+                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"],
+                Environment: new Dictionary<string, string> { ["GOPROXY"] = "off" })],
             [C([".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], "version: \"2\"\n")],
             [new("go.mod", "Go module proxy")]),
         new("rust", "Rust",
@@ -140,7 +163,8 @@ public static class LanguageCatalog
             [new("rust", "rust-analyzer", [])],
             [new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"])],
             [new("clippy", "Clippy", "cargo", ["clippy", "--message-format=json", "--quiet"], "cargo-json",
-                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info), new("help", ToolSeverity.Hint), AnyWarning], ["clippy.toml", ".clippy.toml"], [".rs"])],
+                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info), new("help", ToolSeverity.Hint), AnyWarning], ["clippy.toml", ".clippy.toml"], [".rs"],
+                Environment: new Dictionary<string, string> { ["CARGO_NET_OFFLINE"] = "true" })],
             [C(["rustfmt.toml", ".rustfmt.toml"], "# rustfmt uses its defaults while this file is empty.\n"), C(["clippy.toml", ".clippy.toml"], "# Clippy uses its defaults while this file is empty.\n")],
             [new("Cargo.toml", "crates.io")]),
         new("kotlin", "Kotlin",
@@ -172,13 +196,30 @@ public static class LanguageCatalog
             [M("dart", [".dart"], "dart")],
             [new("dart", "dart", ["language-server"])],
             [new("dart-format", "dart format", "dart", ["format", "${File}"], ["analysis_options.yaml"], [".dart"], Verified: true)],
-            [],
+            [new("dart-analyze", "dart analyze", "dart", ["analyze", "--format=machine", "${File}"], "dart-machine",
+                [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info)], ["analysis_options.yaml"], [".dart"], Verified: true)],
             [C(["analysis_options.yaml"])],
             [new("pubspec.yaml", "pub.dev")]),
         new("r", "R",
             [M("r", [".r"], "r", [".Rprofile"])],
             [], [], [], [], []),
     ];
+
+    /// <summary>
+    /// The versioned table group → kind → tool and version → scenarios → systems, one row per tool of <see cref="Groups"/> (and one per mode for the grammar). Rows are derived from the groups, so the table cannot drift from the data.
+    /// A formatter or linter promises a run with success, a syntax error, a missing program, a time-out and no network; a language server promises only that it is found and never downloaded (its runs are tested with a fake server where <see cref="CatalogLsp.Shipped"/>).
+    /// OPEN: <c>Version</c> is null while no version is pinned.
+    /// </summary>
+    public static IReadOnlyList<CatalogMatrixRow> Matrix { get; } =
+    [
+        .. Groups.SelectMany(g => g.Modes.Select(m => new CatalogMatrixRow(g.Id, ToolKind.Grammar, m.Id, null, null, true, ToolScenario.None, AllSystems))
+            .Concat(g.Lsp.Select(l => new CatalogMatrixRow(g.Id, ToolKind.Lsp, l.Language, l.Program, l.Version, l.Verified, ToolScenario.NoNetwork, AllSystems)))
+            .Concat(g.Formatters.Select(f => new CatalogMatrixRow(g.Id, ToolKind.Format, f.Id, f.Executable, f.Version, f.Verified, RunScenarios, AllSystems)))
+            .Concat(g.Linters.Select(l => new CatalogMatrixRow(g.Id, ToolKind.Lint, l.Id, l.Executable, l.Version, l.Verified, RunScenarios, AllSystems)))),
+    ];
+
+    private const ToolSystem AllSystems = ToolSystem.Windows | ToolSystem.MacOS;
+    private const ToolScenario RunScenarios = ToolScenario.Success | ToolScenario.SyntaxError | ToolScenario.MissingTool | ToolScenario.Timeout | ToolScenario.NoNetwork;
 
     public static IEnumerable<CatalogLsp> Lsp => Groups.SelectMany(g => g.Lsp);
     public static IEnumerable<CatalogFormatter> Formatters => Groups.SelectMany(g => g.Formatters);

@@ -76,6 +76,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: seconds a formatter of the save actions (and a format step of a recipe) has when <c>formatTimeoutSeconds</c> in saveActions.json is not set; then the file is saved unformatted.</summary>
     public const int FormatOnSaveTimeoutSeconds = 10;
 
+    /// <summary>Placeholder, OPEN: seconds a linter run has when <c>lintTimeoutSeconds</c> in saveActions.json is not set; then the run is stopped and reported, and the findings of the earlier run stay. The owner has not decided it.</summary>
+    public const int LintTimeoutSeconds = 60;
+
+    /// <summary>Placeholder, OPEN: milliseconds a linter run started by a save waits for a further save of the same file before it starts; a newer save replaces the waiting run. The owner has not decided it.</summary>
+    public const int LintOnSaveDebounceMilliseconds = 500;
+
     /// <summary>Placeholder: largest JSON range the built-in formatter handles; also bounded by <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const long JsonFormatterMaxBytes = 1 << 20;
 
@@ -164,6 +170,21 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes the Git plugin reads per request when it takes the staged index document back. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>.</summary>
     public const int GitChunkBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after a change in the working tree or in the index of the repository before the Git status panel and status bar are read again. The owner has not decided it.</summary>
+    public const int GitWatchDebounceMilliseconds = 500;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after an edit, a save or a change of the repository before the change marks in the gutter of the open file are asked for again. The owner has not decided it.</summary>
+    public const int GitGutterDebounceMilliseconds = 600;
+
+    /// <summary>Placeholder, OPEN: largest document, in bytes, that gets change marks in the gutter; a larger one gets none. Must not exceed <see cref="VirtualDocumentMaxBytes"/>, which is what the Git plugin reads. The owner has not decided it.</summary>
+    public const long GitGutterMaxBytes = 1L << 20;
+
+    /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The owner has not decided it.</summary>
+    public const int DiffActionsPerTab = 4;
+
+    /// <summary>Placeholder, OPEN: longest key, command and title of a comparison tab a plugin opens, in UTF-16 units. The owner has not decided it.</summary>
+    public const int DiffActionTextLength = 200;
+
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
 
@@ -208,6 +229,12 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder: bytes of the source cache. OPEN: the owner has not decided it.</summary>
     public const long SourceCacheBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: longest version text a source may state about its adapter and about its service. The owner has not decided it.</summary>
+    public const int SourceVersionMaxChars = 64;
+
+    /// <summary>Placeholder, OPEN: most characters of the words a search in a source may send. The owner has not decided it.</summary>
+    public const int SourceQueryMaxChars = 200;
 
     /// <summary>Placeholder: diagnostics one checker (source) of a plugin may publish for one document.</summary>
     public const int DiagnosticsPerDocument = 2000;
@@ -266,8 +293,35 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: names asked of a registry for one name completion. OPEN: the owner has not decided it.</summary>
     public const int RegistryPageSize = 20;
 
-    /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it. The lifetime of cached answers is open too: the cache has none, only Refresh Package Versions drops it.</summary>
+    /// <summary>Placeholder: packages one check of a manifest asks the registry about; the rest stay unchecked. OPEN: the owner has not decided it.</summary>
     public const int RegistryMaxLookups = 50;
+
+    /// <summary>Placeholder, OPEN: bytes of registry answers the cache of the JSON plugin holds; the oldest answers go first and one larger than this is not kept. The owner has not decided it.</summary>
+    public const long RegistryCacheMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: seconds a cached registry answer is used; an older one is asked for again (Refresh Package Versions drops the cache at any time). The owner has not decided it.</summary>
+    public const int RegistryCacheLifetimeSeconds = 3600;
+
+    /// <summary>Placeholder, OPEN: milliseconds the proxy of the network policy is not copied again to the consent file the JSON plugin reads while schemas are checked. The owner has not decided it.</summary>
+    public const int RegistryProxySyncMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: bytes the copies of downloaded schemas take on disk together; the oldest copies are deleted to make room. The owner has not decided it.</summary>
+    public const long SchemaCacheMaxBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: largest schema that is downloaded and kept; a larger answer is refused. The owner has not decided it.</summary>
+    public const long SchemaDownloadMaxBytes = 4L << 20;
+
+    /// <summary>Placeholder, OPEN: seconds a downloaded schema is used without asking its host again; after that the host is asked, and the copy is used only if the host does not answer. The owner has not decided it.</summary>
+    public const int SchemaCacheMaxAgeSeconds = 7 * 24 * 3600;
+
+    /// <summary>Placeholder, OPEN: seconds a host that did not answer for a schema is left alone before it is asked again. The owner has not decided it.</summary>
+    public const int SchemaRetrySeconds = 60;
+
+    /// <summary>Placeholder, OPEN: milliseconds the pointer rests on text before the hover description is asked for. The owner has not decided it.</summary>
+    public const int HoverDelayMilliseconds = 400;
+
+    /// <summary>Placeholder, OPEN: longest hover description taken from a plugin, in UTF-16 units; a longer one is cut. The owner has not decided it.</summary>
+    public const int HoverMaxChars = 2000;
 
     /// <summary>Placeholder: document events that wait for one plugin; beyond it the rest of a document's events become one <c>document/eventsLost</c>. OPEN: the owner has not decided it.</summary>
     public const int EventQueueCapacity = 256;
@@ -348,7 +402,8 @@ internal static class PluginLimitsPlaceholders
         Workspace = workspace,
         Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
-        Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes),
+        DiffActions = new DiffActionOptions(DiffActionsPerTab, DiffActionTextLength),
+        Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes, SourceVersionMaxChars, SourceQueryMaxChars),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,
         MaxSymbolTextLength = SymbolTextLength,
@@ -365,6 +420,7 @@ internal static class PluginLimitsPlaceholders
         MaxCompletionItems = CompletionItemsPerPlugin,
         MaxCompletionEdits = CompletionEditsPerItem,
         CompletionTimeout = TimeSpan.FromMilliseconds(CompletionTimeoutMilliseconds),
+        MaxHoverChars = HoverMaxChars,
         Tools = tools,
         MaxReadBytes = 1 << 20,
         MaxFindMatches = 1000,
@@ -424,12 +480,16 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest upgrade request the IDE bridge reads, in bytes.</summary>
     public const int IdeMaxHeaderBytes = 8 * 1024;
 
+    /// <summary>Placeholder, OPEN: longest name of a connected /ide agent that is kept for the status bar, in UTF-16 units; a longer name is cut. The owner has not decided it.</summary>
+    public const int IdeMaxAgentNameChars = 40;
+
     public static IdeBridgeOptions Ide(McpServer server, string lockDirectory) => new()
     {
         Server = server,
         LockDirectory = lockDirectory,
         HandshakeTimeout = TimeSpan.FromSeconds(IdeHandshakeSeconds),
         MaxHeaderBytes = IdeMaxHeaderBytes,
+        MaxAgentNameChars = IdeMaxAgentNameChars,
     };
 
     /// <summary>Placeholder: longest wait for a server tried from the list of agent servers, for its handshake and for its list of tools.</summary>
@@ -441,10 +501,17 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a server's standard error kept for the report of its end.</summary>
     public const int McpClientStderrLines = 20;
 
+    /// <summary>Placeholder, OPEN: longest wait for the answer to a list, a tool call or the read of a resource of a connected MCP server; a slower server is told to stop and the call ends with a message. The owner has not decided it.</summary>
+    public const int McpClientCallTimeoutSeconds = 120;
+
+    /// <summary>Placeholder, OPEN: most characters of the answer of an MCP tool or resource that are shown; the rest is cut off and the message says how long the answer was. The owner has not decided it.</summary>
+    public const int McpClientMaxResultChars = 256 * 1024;
+
     public static NksHub.Textida.McpClient.McpClientOptions McpClient() => new(
         new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
         TimeSpan.FromSeconds(McpClientTimeoutSeconds), TimeSpan.FromSeconds(McpClientExitGraceSeconds), McpClientStderrLines,
-        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0");
+        "textida", typeof(PluginLimitsPlaceholders).Assembly.GetName().Version?.ToString(3) ?? "0",
+        TimeSpan.FromSeconds(McpClientCallTimeoutSeconds), McpClientMaxResultChars);
 
     /// <summary>Placeholder: time an agent has to answer <c>initialize</c> and <c>session/new</c>. OPEN: the owner has not decided it.</summary>
     public const int AcpStartTimeoutSeconds = 30;
@@ -461,6 +528,9 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: largest text file (bytes of the content) handed to an agent in one <c>fs/read_text_file</c>. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
     public const int AcpMaxReadBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: seconds an agent program gets to print its version (<c>--version</c>) before it is ended and the version counts as unknown. The owner has not decided it.</summary>
+    public const int AcpVersionCheckTimeoutSeconds = 15;
+
     public static NksHub.Textida.Acp.AcpOptions Acp() => new(
         new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 4, MaxPendingOutgoing: 8, MaxResultItems: 100_000, MaxSessionBytes: 16L << 20, MaxOutgoingQueueBytes: 16L << 20),
         TimeSpan.FromSeconds(AcpStartTimeoutSeconds), TimeSpan.FromSeconds(AcpIdleTimeoutSeconds), TimeSpan.FromSeconds(AcpExitGraceSeconds), AcpStderrLines,
@@ -468,6 +538,9 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: how long a plugin has to end a task the user cancelled before the editor ends it itself. The owner has not decided it.</summary>
     public const int TaskCancelGraceMilliseconds = 5000;
+
+    /// <summary>Placeholder, OPEN: largest file of a saved macro that is read, in bytes; a larger one is listed as damaged with the reason and not read. The owner has not decided it.</summary>
+    public const int MacroMaxFileBytes = 1 << 20;
 
     public static UiApiOptions Ui() => new()
     {

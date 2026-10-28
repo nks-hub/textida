@@ -215,6 +215,20 @@
       "macro": true
     },
     {
+      "id": "nks.search.replaceNext",
+      "title": "cmd.search.replaceNext",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly",
+      "macro": true
+    },
+    {
+      "id": "nks.search.replaceAll",
+      "title": "cmd.search.replaceAll",
+      "category": "cat.search",
+      "enablement": "hasDocument && !readOnly",
+      "macro": true
+    },
+    {
       "id": "nks.search.findWord",
       "title": "cmd.search.findWord",
       "category": "cat.search",
@@ -1623,6 +1637,13 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.conflictDelete",
+      "title": "cmd.git.conflictDelete",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -1889,6 +1910,18 @@
       "enablement": "compareMode"
     },
     {
+      "id": "nks.compare.action1",
+      "title": "cmd.compare.action1",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
+      "id": "nks.compare.action2",
+      "title": "cmd.compare.action2",
+      "category": "cat.tools",
+      "enablement": "compareMode"
+    },
+    {
       "id": "nks.compare.ignoreWhitespace",
       "title": "cmd.compare.ignoreWhitespace",
       "category": "cat.tools"
@@ -1970,6 +2003,12 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.template.open",
+      "title": "cmd.hex.template.open",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.compare.file",
       "title": "cmd.hex.compare.file",
       "category": "cat.hex",
@@ -2006,6 +2045,11 @@
     {
       "id": "nks.tools.ideBridge",
       "title": "cmd.tools.ideBridge",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.tools.ideDisconnect",
+      "title": "cmd.tools.ideDisconnect",
       "category": "cat.tools"
     },
     {
@@ -2087,6 +2131,16 @@
       "enablement": "!readOnly"
     },
     {
+      "id": "nks.macro.rename",
+      "title": "cmd.macro.rename",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.macro.delete",
+      "title": "cmd.macro.delete",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.file.configFiles",
       "title": "cmd.file.configFiles",
       "category": "cat.file",
@@ -2108,6 +2162,12 @@
       "id": "nks.packages.revoke",
       "title": "cmd.packages.revoke",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.schemas.allow",
+      "title": "cmd.schemas.allow",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.packages.script",
@@ -3986,6 +4046,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.git.conflictDelete",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 100
+    },
+    {
+      "menu": "tools",
       "command": "nks.lsp.start",
       "group": "3_code/09_9_lsp",
       "submenu": "lsp",
@@ -4251,6 +4318,20 @@
     },
     {
       "menu": "tools",
+      "command": "nks.compare.action1",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 72
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.action2",
+      "group": "2_run/07_7_compare",
+      "submenu": "compare",
+      "order": 74
+    },
+    {
+      "menu": "tools",
       "command": "nks.compare.ignoreWhitespace",
       "group": "2_run/07_7_compare",
       "submenu": "compare",
@@ -4423,6 +4504,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.ideDisconnect",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 36
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.mcpServers",
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
@@ -4505,6 +4593,20 @@
       "order": 50
     },
     {
+      "menu": "tools",
+      "command": "nks.macro.rename",
+      "group": "4_other/12_9_macro",
+      "submenu": "macro",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.delete",
+      "group": "4_other/12_9_macro",
+      "submenu": "macro",
+      "order": 70
+    },
+    {
       "menu": "file",
       "command": "nks.file.configFiles",
       "group": "2_save",
@@ -4530,6 +4632,13 @@
       "group": "2_run/06_6_packages",
       "submenu": "packages",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.schemas.allow",
+      "group": "2_run/06_6_packages",
+      "submenu": "packages",
+      "order": 35
     },
     {
       "menu": "tools",
@@ -4621,6 +4730,13 @@
       "order": 140
     },
     {
+      "menu": "view",
+      "command": "nks.hex.template.open",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 141
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.pasteAsHtml",
       "group": "4_more/8_insert",
@@ -4642,6 +4758,19 @@
     }
   ],
   "keybindings": [
+    {
+      "key": "mod+k mod+r",
+      "command": "nks.macro.record"
+    },
+    {
+      "key": "mod+k mod+shift+r",
+      "command": "nks.macro.stop"
+    },
+    {
+      "key": "mod+k mod+p",
+      "command": "nks.macro.playLast",
+      "when": "editorFocus"
+    },
     {
       "key": "mod+n",
       "command": "nks.file.new"
@@ -5737,6 +5866,20 @@
       ]
     },
     {
+      "key": "git.gutter",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.git.gutter.title",
+      "description": "setting.git.gutter.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "git",
+        "gutter",
+        "diff"
+      ]
+    },
+    {
       "key": "tools.makeProgram",
       "type": "string",
       "default": "",
@@ -6093,6 +6236,22 @@
         "regex",
         "search",
         "bytes"
+      ]
+    },
+    {
+      "key": "hex.structureTemplates",
+      "type": "string",
+      "default": "",
+      "title": "setting.hex.structureTemplates.title",
+      "description": "setting.hex.structureTemplates.description",
+      "category": "cat.hex",
+      "scope": "application",
+      "tags": [
+        "hex",
+        "structure",
+        "template",
+        "ksy",
+        "binary"
       ]
     },
     {

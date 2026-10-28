@@ -58,13 +58,15 @@ public class PluginSourceAppTests : IDisposable
 
     private PluginHost.PluginHost Host => _app.Plugins.HostForTests;
 
-    private async Task StartPluginAsync(bool atomic = true)
+    private const string Versions = ",\"search\":true,\"adapterVersion\":\"1.2.3\",\"serviceVersion\":\"API v1\"";
+
+    private async Task StartPluginAsync(bool atomic = true, bool versions = false)
     {
         var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.PluginHost.TestPlugin.dll");
         Host.Register(new PluginSpec("p", "Test plugin", Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet", [dll], ["onCommand:p"]));
         await Pump(Host.ActivateAsync("onCommand:p"));
         _app.Plugins.Permissions.Grant("p", DocumentPermissions.Source, GrantScope.All);
-        var json = $"{{\"method\":\"{DocumentMethods.SourceRegister}\",\"params\":{{\"scheme\":\"fake\",\"name\":\"Fake wiki\",\"list\":true,\"write\":true,\"atomicWrite\":{(atomic ? "true" : "false")}}}}}";
+        var json = $"{{\"method\":\"{DocumentMethods.SourceRegister}\",\"params\":{{\"scheme\":\"fake\",\"name\":\"Fake wiki\",\"list\":true,\"write\":true,\"atomicWrite\":{(atomic ? "true" : "false")}{(versions ? Versions : "")}}}}}";
         var answer = await Pump(CallPlugin("callEditor", json));
         Assert.True(answer.GetProperty("enabled").GetBoolean(), answer.GetRawText());
         await Pump(CallPlugin("sourceMode", $"{{\"atomic\":{(atomic ? "true" : "false")}}}"));
@@ -207,6 +209,68 @@ public class PluginSourceAppTests : IDisposable
             }
             catch (IOException) { /* a locked journal file keeps no addresses */ }
         }
+    }
+
+    [AvaloniaFact]
+    public async Task The_log_of_every_access_names_the_adapter_and_the_service_the_source_stated()
+    {
+        await StartPluginAsync(versions: true);
+        await Put(Page, "one\n");
+        var tab = await OpenAsync(Page);
+        tab.Editor!.Document.Insert(0, "x");
+        Assert.True(await Pump(_w.SaveAsync(tab)));
+        await Put(Page, "changed by a colleague\n");
+        tab.Editor.Document.Insert(0, "y");
+        _dialogs.Answers.Enqueue(2); // Cancel at the conflict
+        Assert.False(await Pump(_w.SaveAsync(tab)));
+
+        var lines = _app.Output.Read(OutputChannel.Remote).Select(l => l.Text).ToList();
+        var versions = " (" + Loc.Get(K.SourceVersions, ("adapter", "1.2.3"), ("service", "API v1")) + ")";
+        Assert.Contains(Loc.Get(K.SourceLogOpened, ("uri", Page), ("revision", "r1")) + versions, lines);
+        Assert.Contains(Loc.Get(K.SourceLogSaved, ("uri", Page), ("revision", "r2")) + versions, lines);
+        Assert.Contains(Loc.Get(K.SourceLogConflict, ("uri", Page)) + versions, lines);
+    }
+
+    [AvaloniaFact]
+    public async Task A_source_that_searches_takes_words_lists_the_pages_found_and_opens_the_one_chosen()
+    {
+        await StartPluginAsync(versions: true);
+        await Put(Page, "the quick brown fox");
+        await Put("fake://wiki/other", "a lazy dog");
+        _dialogs.Prompts.Enqueue("QUICK");
+
+        _w.OpenFromSource();
+        await Until(() => _w.QuickResults.Count > 0, "the list of sources");
+        var row = _w.QuickResults.Single(r => r.Title == "Fake wiki");
+        Assert.Contains(Loc.Get(K.SourceSearchYes), row.Detail);
+        Assert.Contains("1.2.3", row.Detail);
+        row.Run();
+        await Until(() => _w.QuickResults.Count == 1 && _w.QuickResults[0].Title == "page", "the pages found");
+        Assert.Equal(Page, _w.QuickResults[0].Detail);
+
+        _w.QuickResults[0].Run();
+        await Until(() => _w.Tabs.Any(t => t.Doc.Source is not null), "the tab");
+        Assert.Equal("the quick brown fox", _w.Tabs.Single(t => t.Doc.Source is not null).Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task A_search_that_finds_nothing_says_so_and_an_address_typed_to_a_source_that_searches_is_still_opened()
+    {
+        await StartPluginAsync(versions: true);
+        await Put(Page, "the quick brown fox");
+        _dialogs.Prompts.Enqueue("zebra");
+
+        _w.OpenFromSource();
+        await Until(() => _w.QuickResults.Count > 0, "the list of sources");
+        _w.QuickResults.Single(r => r.Title == "Fake wiki").Run();
+        await Until(() => _w.StatusMessageText == Loc.Get(K.SourceSearchNone, ("query", "zebra"), ("name", "Fake wiki")), "the message");
+
+        _dialogs.Prompts.Enqueue(Page);
+        _w.OpenFromSource();
+        await Until(() => _w.QuickResults.Count > 0, "the list of sources again");
+        _w.QuickResults.Single(r => r.Title == "Fake wiki").Run();
+        await Until(() => _w.Tabs.Any(t => t.Doc.Source is not null), "the tab");
+        Assert.Equal("the quick brown fox", _w.Tabs.Single(t => t.Doc.Source is not null).Editor!.Document.Text);
     }
 
     [AvaloniaFact]

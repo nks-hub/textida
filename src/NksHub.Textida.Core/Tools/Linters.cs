@@ -28,10 +28,13 @@ public static class Linters
     /// The one linter a manual run uses when several handle the file: the first one whose configuration file exists in the folder of the file or above it, else the first one whose program is found, else the first one.
     /// A save action names its linter itself and never asks this.
     /// </summary>
-    public static CatalogLinter? Choose(string path)
+    /// <param name="toolPaths">The program paths the user set, by linter id (see <see cref="SaveActionSet.ToolPaths"/>).</param>
+    public static CatalogLinter? Choose(string path, IReadOnlyDictionary<string, string>? toolPaths = null)
     {
         var all = For(path);
-        return all.FirstOrDefault(l => Root(l, path, markers: false) is not null) ?? all.FirstOrDefault(l => ToolLocator.Find(l.Executable, Path.GetDirectoryName(Path.GetFullPath(path))) is not null) ?? all.FirstOrDefault();
+        return all.FirstOrDefault(l => Root(l, path, markers: false) is not null)
+            ?? all.FirstOrDefault(l => ToolLocator.Find(l.Executable, Path.GetDirectoryName(Path.GetFullPath(path)), toolPaths?.GetValueOrDefault(l.Id)) is not null)
+            ?? all.FirstOrDefault();
     }
 
     /// <summary>The folder the linter runs in: the nearest one above the file with a configuration file of the linter or the manifest of its language, else the folder of the file.</summary>
@@ -52,14 +55,18 @@ public static class Linters
     /// The command that would run: program found, arguments with the file filled in, folder to run in. Throws <see cref="ToolException"/> when the program is not found or, for Clippy, no <c>Cargo.toml</c> is above the file.
     /// The caller shows it for confirmation where the program comes from the project and starts it with <see cref="RunAsync"/>.
     /// </summary>
+    /// <param name="userPath">A program or a folder the user chose for this linter; a path that does not exist is an error, never replaced by a guess.</param>
     public static ToolInvocation Prepare(CatalogLinter linter, string path, TimeSpan timeout, string? userPath = null)
     {
         string full = Path.GetFullPath(path);
         string directory = Path.GetDirectoryName(full)!;
         string root = Root(linter, full) ?? directory;
         if (linter.Executable == "cargo" && !File.Exists(Path.Combine(root, "Cargo.toml"))) throw new ToolException("Clippy needs a Cargo.toml in the folder of the file or above it.");
-        string program = ToolLocator.Find(linter.Executable, directory, userPath) ?? throw new ToolException($"The program '{linter.Executable}' was not found.");
-        return ToolRunner.Resolve(new ToolSpec("lint:" + linter.Id, program.Replace("$", "$$", StringComparison.Ordinal), linter.Args, null, timeout), name => name == "File" ? full : null, root);
+        if (!string.IsNullOrWhiteSpace(userPath) && !File.Exists(userPath) && !Directory.Exists(userPath))
+            throw new ToolException($"The path '{userPath}' set for {linter.Title} does not exist.") { Missing = true };
+        string program = ToolLocator.Find(linter.Executable, directory, userPath)
+            ?? throw new ToolException($"The program '{linter.Executable}' was not found in the project folders (vendor/bin, node_modules/.bin, .venv) or in PATH.") { Missing = true };
+        return ToolRunner.Resolve(new ToolSpec("lint:" + linter.Id, program.Replace("$", "$$", StringComparison.Ordinal), linter.Args, null, timeout, Environment: linter.Environment), name => name == "File" ? full : null, root);
     }
 
     public static async Task<LintOutcome> RunAsync(Document doc, CatalogLinter linter, ToolInvocation tool, CancellationToken ct = default)
@@ -123,7 +130,7 @@ public static class Linters
         int dropped = 0;
         foreach (var f in findings)
         {
-            if (f.File is { Length: > 0 } file && linter.OutputFormat is "cargo-json" or "gcc-text" && !SameFile(file, workingDirectory, documentPath)) { dropped++; continue; }
+            if (f.File is { Length: > 0 } file && linter.OutputFormat is "cargo-json" or "gcc-text" or "dart-machine" && !SameFile(file, workingDirectory, documentPath)) { dropped++; continue; }
             if (f.Line < 1 || f.Line > starts.Count) { dropped++; continue; }
             int lineStart = starts[f.Line - 1], lineEnd = LineEnd(f.Line);
             int start, end;

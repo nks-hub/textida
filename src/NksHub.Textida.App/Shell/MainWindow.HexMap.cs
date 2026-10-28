@@ -33,6 +33,14 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>Hex: Open Structure Template File: asks for a <c>.ksy</c> file and reads the file through it (P8.10.1).</summary>
+    internal CommandOutcome OpenHexTemplateFile()
+    {
+        if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;
+        _ = hex.Structure.OpenFileAsync();
+        return CommandOutcome.Handled;
+    }
+
     internal CommandOutcome ToggleHexStatistics()
     {
         if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;

@@ -254,6 +254,55 @@ public static partial class Manifests
         return result;
     }
 
+    // ---- pubspec.yaml ----
+
+    [GeneratedRegex(@"^(?<name>[A-Za-z0-9_]+)[ \t]*(?::(?:[ \t]+(?<value>.*))?)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex PubEntry();
+
+    /// <summary>
+    /// The entries of <c>dependencies</c>, <c>dev_dependencies</c> and <c>dependency_overrides</c>: <c>name: ^1.2.3</c> or <c>name: 1.2.3</c>. An entry with a block under it (<c>sdk: flutter</c>, <c>git:</c>, <c>path:</c>)
+    /// has no version and is a name only.
+    /// </summary>
+    public static IReadOnlyList<Dependency> ReadPubspec(string text)
+    {
+        var result = new List<Dependency>();
+        bool inSection = false;
+        int entryIndent = -1;
+        foreach (var (line, offset) in Lines(text))
+        {
+            int indent = line.Length - line.TrimStart().Length;
+            if (indent == line.Length || line[indent] == '#') continue;
+            if (indent == 0)
+            {
+                int comment = line.IndexOf(" #", StringComparison.Ordinal);
+                inSection = (comment >= 0 ? line[..comment] : line).TrimEnd() is "dependencies:" or "dev_dependencies:" or "dependency_overrides:";
+                entryIndent = -1;
+                continue;
+            }
+            if (!inSection) continue;
+            if (entryIndent < 0) entryIndent = indent;
+            if (indent != entryIndent) continue;
+            var m = PubEntry().Match(line[indent..]);
+            if (!m.Success) continue;
+            var name = m.Groups["name"];
+            int at = offset + indent;
+            var value = m.Groups["value"];
+            string constraint = value.Success ? value.Value : "";
+            int comment2 = constraint.IndexOf(" #", StringComparison.Ordinal);
+            if (comment2 >= 0) constraint = constraint[..comment2];
+            constraint = constraint.TrimEnd();
+            int valueAt = at + (value.Success ? value.Index : 0);
+            if (constraint.Length > 0 && constraint[0] is '\'' or '"')
+            {
+                valueAt++;
+                constraint = constraint[1..];
+                if (constraint.Length > 0 && constraint[^1] is '\'' or '"') constraint = constraint[..^1];
+            }
+            result.Add(constraint.Length == 0 ? Named(name.Value, at + name.Index) : With(name.Value, at + name.Index, constraint, valueAt));
+        }
+        return result;
+    }
+
     /// <summary>The lines of the text without their line ends, with the character offset where each starts.</summary>
     private static IEnumerable<(string Line, int Offset)> Lines(string text)
     {

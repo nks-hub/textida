@@ -147,6 +147,7 @@ internal sealed partial class MainWindow
         IReadOnlyList<Sel> after;
         using (surface.Doc.Doc.BeginUndoGroup(ToBytes(surface, before), () => ToBytes(surface, surface.GetSelections())))
         {
+            surface.ClearCarets(); // every edit of the command would move all the anchored carets, a cost that grows with the square of their number; `after` puts them back
             after = command(surface, before);
             surface.SetSelections(after);
         }

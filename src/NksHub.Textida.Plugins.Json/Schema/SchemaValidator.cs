@@ -5,7 +5,7 @@ using NksHub.Textida.Core.Data;
 namespace NksHub.Textida.Plugins.Json.Schema;
 
 /// <summary>One finding of a check against a schema. <see cref="Code"/> is the keyword that failed; <see cref="Detail"/> is English text for logs.</summary>
-public sealed record SchemaIssue(string Code, string Detail, int Start, int End, string Pointer);
+public sealed record SchemaIssue(string Code, string Detail, int Start, int End, string Pointer, string[]? Args = null);
 
 /// <summary>Limits the caller decides; there are no defaults.</summary>
 public sealed record SchemaOptions(int MaxDepth, TimeSpan RegexTimeout);
@@ -41,7 +41,7 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
         return node;
     }
 
-    private void Add(List<SchemaIssue> issues, string code, string detail, int start, int end, string pointer) => issues.Add(new(code, detail, start, end, pointer));
+    private void Add(List<SchemaIssue> issues, string code, string detail, int start, int end, string pointer, params string[] args) => issues.Add(new(code, detail, start, end, pointer, args.Length == 0 ? null : args));
 
     private bool Matches(DataNode schema, DataNode data, string pointer, int depth)
     {
@@ -79,7 +79,7 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
             var types = t.Kind == DataKind.String ? [t.Text] : t.Items.Where(i => i.Kind == DataKind.String).Select(i => i.Text).ToList();
             if (types.Count > 0 && !types.Any(x => TypeIs(x, d)))
             {
-                Add(issues, "type", $"Expected {string.Join(" or ", types)}.", d.Start, d.End, ptr);
+                Add(issues, "type", $"Expected {string.Join(" or ", types)}.", d.Start, d.End, ptr, [.. types]);
                 return;
             }
         }
@@ -92,7 +92,7 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
         if (schema.Get("oneOf") is { Kind: DataKind.Array } one)
         {
             int n = one.Items.Count(s => Matches(s, d, ptr, depth));
-            if (n != 1) Add(issues, "oneOf", n == 0 ? "The value matches none of the allowed alternatives." : "The value matches more than one alternative.", d.Start, d.End, ptr);
+            if (n != 1) Add(issues, "oneOf", n == 0 ? "The value matches none of the allowed alternatives." : "The value matches more than one alternative.", d.Start, d.End, ptr, n == 0 ? Array.Empty<string>() : new[] { "many" });
         }
         if (schema.Get("not") is { } not && Matches(not, d, ptr, depth)) Add(issues, "not", "The value matches a schema that is not allowed.", d.Start, d.End, ptr);
         if (schema.Get("if") is { } cond)
@@ -114,9 +114,9 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
     {
         if (schema.Get("required") is { Kind: DataKind.Array } req)
             foreach (var name in req.Items.Where(i => i.Kind == DataKind.String).Select(i => i.Text))
-                if (d.Get(name) is null) Add(issues, "required", $"The property '{name}' is required.", d.Start, d.Start + 1, ptr);
-        if (schema.Get("minProperties") is { Kind: DataKind.Number } minP && d.Members.Count < minP.Number) Add(issues, "minProperties", $"At least {minP.Text} properties are required.", d.Start, d.End, ptr);
-        if (schema.Get("maxProperties") is { Kind: DataKind.Number } maxP && d.Members.Count > maxP.Number) Add(issues, "maxProperties", $"At most {maxP.Text} properties are allowed.", d.Start, d.End, ptr);
+                if (d.Get(name) is null) Add(issues, "required", $"The property '{name}' is required.", d.Start, d.Start + 1, ptr, name);
+        if (schema.Get("minProperties") is { Kind: DataKind.Number } minP && d.Members.Count < minP.Number) Add(issues, "minProperties", $"At least {minP.Text} properties are required.", d.Start, d.End, ptr, minP.Text);
+        if (schema.Get("maxProperties") is { Kind: DataKind.Number } maxP && d.Members.Count > maxP.Number) Add(issues, "maxProperties", $"At most {maxP.Text} properties are allowed.", d.Start, d.End, ptr, maxP.Text);
 
         var props = schema.Get("properties");
         var patterns = schema.Get("patternProperties");
@@ -131,21 +131,21 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
                     if (IsMatch(p.Name, m.Name)) { known = true; Check(p.Value, m.Value, childPtr, issues, depth + 1); }
             if (!known && additional is not null)
             {
-                if (additional.Kind == DataKind.Boolean) { if (!additional.Bool) Add(issues, "additionalProperties", $"The property '{m.Name}' is not allowed.", m.NameStart, m.NameEnd, childPtr); }
+                if (additional.Kind == DataKind.Boolean) { if (!additional.Bool) Add(issues, "additionalProperties", $"The property '{m.Name}' is not allowed.", m.NameStart, m.NameEnd, childPtr, m.Name); }
                 else Check(additional, m.Value, childPtr, issues, depth + 1);
             }
             if (schema.Get("propertyNames") is { } pn)
             {
                 var nameNode = new DataNode(DataKind.String, m.NameStart, m.NameEnd) { Text = m.Name };
-                if (!Matches(pn, nameNode, childPtr, depth)) Add(issues, "propertyNames", $"The property name '{m.Name}' is not allowed.", m.NameStart, m.NameEnd, childPtr);
+                if (!Matches(pn, nameNode, childPtr, depth)) Add(issues, "propertyNames", $"The property name '{m.Name}' is not allowed.", m.NameStart, m.NameEnd, childPtr, m.Name);
             }
         }
     }
 
     private void CheckArray(DataNode schema, DataNode d, string ptr, List<SchemaIssue> issues, int depth)
     {
-        if (schema.Get("minItems") is { Kind: DataKind.Number } minI && d.Items.Count < minI.Number) Add(issues, "minItems", $"At least {minI.Text} items are required.", d.Start, d.End, ptr);
-        if (schema.Get("maxItems") is { Kind: DataKind.Number } maxI && d.Items.Count > maxI.Number) Add(issues, "maxItems", $"At most {maxI.Text} items are allowed.", d.Start, d.End, ptr);
+        if (schema.Get("minItems") is { Kind: DataKind.Number } minI && d.Items.Count < minI.Number) Add(issues, "minItems", $"At least {minI.Text} items are required.", d.Start, d.End, ptr, minI.Text);
+        if (schema.Get("maxItems") is { Kind: DataKind.Number } maxI && d.Items.Count > maxI.Number) Add(issues, "maxItems", $"At most {maxI.Text} items are allowed.", d.Start, d.End, ptr, maxI.Text);
         if (schema.Get("uniqueItems") is { Kind: DataKind.Boolean, Bool: true })
             for (int i = 1; i < d.Items.Count; i++)
                 for (int j = 0; j < i; j++)
@@ -169,22 +169,22 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
     private void CheckString(DataNode schema, DataNode d, string ptr, List<SchemaIssue> issues)
     {
         int codePoints = d.Text.EnumerateRunes().Count();
-        if (schema.Get("minLength") is { Kind: DataKind.Number } minL && codePoints < minL.Number) Add(issues, "minLength", $"At least {minL.Text} characters are required.", d.Start, d.End, ptr);
-        if (schema.Get("maxLength") is { Kind: DataKind.Number } maxL && codePoints > maxL.Number) Add(issues, "maxLength", $"At most {maxL.Text} characters are allowed.", d.Start, d.End, ptr);
+        if (schema.Get("minLength") is { Kind: DataKind.Number } minL && codePoints < minL.Number) Add(issues, "minLength", $"At least {minL.Text} characters are required.", d.Start, d.End, ptr, minL.Text);
+        if (schema.Get("maxLength") is { Kind: DataKind.Number } maxL && codePoints > maxL.Number) Add(issues, "maxLength", $"At most {maxL.Text} characters are allowed.", d.Start, d.End, ptr, maxL.Text);
         if (schema.Get("pattern") is { Kind: DataKind.String } pat && !IsMatch(pat.Text, d.Text, defaultWhenInvalid: true))
-            Add(issues, "pattern", $"The text does not match the pattern '{pat.Text}'.", d.Start, d.End, ptr);    }
+            Add(issues, "pattern", $"The text does not match the pattern '{pat.Text}'.", d.Start, d.End, ptr, pat.Text);    }
 
     private void CheckNumber(DataNode schema, DataNode d, string ptr, List<SchemaIssue> issues)
     {
         double v = d.Number;
-        if (schema.Get("minimum") is { Kind: DataKind.Number } min && v < min.Number) Add(issues, "minimum", $"The value must be at least {min.Text}.", d.Start, d.End, ptr);
-        if (schema.Get("maximum") is { Kind: DataKind.Number } max && v > max.Number) Add(issues, "maximum", $"The value must be at most {max.Text}.", d.Start, d.End, ptr);
-        if (schema.Get("exclusiveMinimum") is { Kind: DataKind.Number } xmin && v <= xmin.Number) Add(issues, "exclusiveMinimum", $"The value must be greater than {xmin.Text}.", d.Start, d.End, ptr);
-        if (schema.Get("exclusiveMaximum") is { Kind: DataKind.Number } xmax && v >= xmax.Number) Add(issues, "exclusiveMaximum", $"The value must be less than {xmax.Text}.", d.Start, d.End, ptr);
+        if (schema.Get("minimum") is { Kind: DataKind.Number } min && v < min.Number) Add(issues, "minimum", $"The value must be at least {min.Text}.", d.Start, d.End, ptr, min.Text);
+        if (schema.Get("maximum") is { Kind: DataKind.Number } max && v > max.Number) Add(issues, "maximum", $"The value must be at most {max.Text}.", d.Start, d.End, ptr, max.Text);
+        if (schema.Get("exclusiveMinimum") is { Kind: DataKind.Number } xmin && v <= xmin.Number) Add(issues, "exclusiveMinimum", $"The value must be greater than {xmin.Text}.", d.Start, d.End, ptr, xmin.Text);
+        if (schema.Get("exclusiveMaximum") is { Kind: DataKind.Number } xmax && v >= xmax.Number) Add(issues, "exclusiveMaximum", $"The value must be less than {xmax.Text}.", d.Start, d.End, ptr, xmax.Text);
         if (schema.Get("multipleOf") is { Kind: DataKind.Number } mul && mul.Number > 0)
         {
             double q = v / mul.Number;
-            if (Math.Abs(q - Math.Round(q)) > 1e-9) Add(issues, "multipleOf", $"The value must be a multiple of {mul.Text}.", d.Start, d.End, ptr);
+            if (Math.Abs(q - Math.Round(q)) > 1e-9) Add(issues, "multipleOf", $"The value must be a multiple of {mul.Text}.", d.Start, d.End, ptr, mul.Text);
         }
     }
 

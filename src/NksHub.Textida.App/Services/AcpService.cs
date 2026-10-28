@@ -19,8 +19,14 @@ internal enum AgentState { None, Starting, Ready, Working, Ended }
 
 internal enum AgentRole { You, Agent, Tool, Note, Problem }
 
-/// <summary>One line of the conversation as it is now; <paramref name="Text"/> is already in the language of the user.</summary>
-internal sealed record AgentLine(AgentRole Role, string Text, string? Status = null);
+/// <summary>One line of the conversation as it is now; <paramref name="Text"/> is already in the language of the user. <paramref name="Outside"/>: a tool the agent runs by itself, out of reach of the editor.</summary>
+internal sealed record AgentLine(AgentRole Role, string Text, string? Status = null, bool Outside = false);
+
+/// <summary>
+/// The guarantee boundary of the session so far. What went through the editor is counted by the editor (reads served, proposals the user decided, those applied); what ran outside it is only what
+/// the agent reported about its own tool calls, so it is a lower bound.
+/// </summary>
+internal sealed record AgentBoundary(int Reads, int Proposals, int Applied, int Commands, int OtherOutside);
 
 /// <summary>
 /// An agent over ACP (P6.6): one agent process at a time, started on the user's request. It sees only the tabs the user shares with it, through the same permission model as the plugins
@@ -42,6 +48,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         public string? ToolId { get; init; }
         public string? Title { get; set; }
         public string? Status { get; set; }
+        public string? Kind { get; set; }
     }
 
     private readonly PluginServices _plugins;
@@ -53,7 +60,9 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     private string? _session;
     private AcpAdapter? _adapter;
     private CancellationTokenSource? _turn;
+    private CancellationTokenSource? _starting;
     private bool _stopping;
+    private int _reads, _proposals, _applied;
 
     public AcpService(PluginServices plugins, App app)
     {
@@ -72,6 +81,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     }
     public string AgentName { get; private set; } = "";
 
+    /// <summary>The table entry the running agent was started from; null for a conversation a plugin hosts and for an agent started without one.</summary>
+    public AcpAdapter? Adapter => _adapter;
+
+    /// <summary>The panel shows a conversation a plugin hosts, which has no process of the editor behind it.</summary>
+    public bool HostsPlugin => _hostPlugin is not null;
+
     /// <summary>The conversation or the state changed. Raised on any thread; a view posts to the UI thread.</summary>
     public event Action? Changed;
 
@@ -82,8 +97,20 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     public IReadOnlyList<AgentLine> Lines()
     {
         lock (_gate)
-            return [.. _entries.Select(e => new AgentLine(e.Role, e.Dynamic?.Invoke() ?? (e.Role == AgentRole.Tool ? e.Title ?? "" : e.Text.ToString()), e.Status))];
+            return [.. _entries.Select(e => new AgentLine(e.Role, e.Dynamic?.Invoke() ?? (e.Role == AgentRole.Tool ? e.Title ?? "" : e.Text.ToString()), e.Status, e.Role == AgentRole.Tool && AcpToolKinds.RunsOutsideEditor(e.Kind)))];
     }
+
+    public AgentBoundary Boundary()
+    {
+        lock (_gate)
+        {
+            int commands = _entries.Count(e => e.Role == AgentRole.Tool && e.Kind == "execute");
+            int other = _entries.Count(e => e.Role == AgentRole.Tool && e.Kind != "execute" && AcpToolKinds.RunsOutsideEditor(e.Kind));
+            return new AgentBoundary(_reads, _proposals, _applied, commands, other);
+        }
+    }
+
+    private void ResetBoundary() => _reads = _proposals = _applied = 0;
 
     private void Add(AgentRole role, string text)
     {
@@ -107,10 +134,10 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
                     AppendMessage(u.Text);
                     break;
                 case AcpUpdateKind.ToolCall:
-                    _entries.Add(new Entry(AgentRole.Tool) { ToolId = u.ToolCallId, Title = u.Title ?? u.ToolKind ?? u.ToolCallId ?? "", Status = u.Status });
+                    _entries.Add(new Entry(AgentRole.Tool) { ToolId = u.ToolCallId, Title = u.Title ?? u.ToolKind ?? u.ToolCallId ?? "", Status = u.Status, Kind = u.ToolKind });
                     break;
                 case AcpUpdateKind.ToolCallUpdate:
-                    if (!UpdateTool(u.ToolCallId, u.Title, u.Status)) return;
+                    if (!UpdateTool(u.ToolCallId, u.Title, u.Status, u.ToolKind)) return;
                     break;
                 default:
                     return; // thoughts, plans and the rest are not shown yet
@@ -126,12 +153,13 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         else _entries.Add(new Entry(AgentRole.Agent, text ?? ""));
     }
 
-    private bool UpdateTool(string? id, string? title, string? status)
+    private bool UpdateTool(string? id, string? title, string? status, string? kind = null)
     {
         var tool = _entries.LastOrDefault(e => e.Role == AgentRole.Tool && e.ToolId == id);
         if (tool is null) return false;
         if (title is not null) tool.Title = title;
         if (status is not null) tool.Status = status;
+        if (kind is not null) tool.Kind = kind;
         return true;
     }
 
@@ -147,6 +175,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     {
         if (IsRunning) return false;
         lock (_gate) _entries.Clear();
+        ResetBoundary();
         HostWindow = window;
         AgentName = name;
         _adapter = null;
@@ -214,6 +243,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     {
         if (IsRunning) throw new InvalidOperationException("An agent is already running.");
         lock (_gate) _entries.Clear();
+        ResetBoundary();
         HostWindow = window;
         AgentName = name;
         _adapter = adapter;
@@ -221,9 +251,17 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         _stopping = false;
         State = AgentState.Starting;
         Changed?.Invoke();
+        using var starting = _starting = new CancellationTokenSource();
         try
         {
+            if (adapter is not null) await NoteVersionAsync(launch, adapter, starting.Token);
+            if (_stopping) return false;
             var client = await AcpClient.StartAsync(launch, PluginLimitsPlaceholders.Acp(), this);
+            if (_stopping)
+            {
+                await client.DisposeAsync();
+                return false;
+            }
             _client = client;
             client.Updated += OnUpdate;
             client.AgentExited += OnExited;
@@ -236,9 +274,21 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
             Add(AgentRole.Problem, () => Loc.Get(K.AgentStartFailed, ("agent", name), ("reason", e.Message)));
             return false;
         }
+        finally { _starting = null; }
         State = AgentState.Ready;
         Add(AgentRole.Note, () => Loc.Get(K.AgentStarted, ("agent", name)));
         return true;
+    }
+
+    /// <summary>Asks the program for its version and says in the conversation what it printed next to the version of the table. A program that prints none is only noted.</summary>
+    private async Task NoteVersionAsync(AcpLaunch launch, AcpAdapter adapter, CancellationToken cancellation)
+    {
+        var found = await AcpVersionProbe.ReadAsync(launch.Executable, adapter.VersionCheckArgs, launch.WorkingDirectory, TimeSpan.FromSeconds(PluginLimitsPlaceholders.AcpVersionCheckTimeoutSeconds), cancellation);
+        if (cancellation.IsCancellationRequested) return;
+        if (found.Version is { } version)
+            Add(AgentRole.Note, () => Loc.Get(adapter.VerifiedVersion == version ? K.AgentVersionVerified : K.AgentVersionUnverified, ("agent", adapter.Name), ("version", version), ("listed", adapter.ListedVersion)));
+        else
+            Add(AgentRole.Note, () => Loc.Get(K.AgentVersionUnknown, ("agent", adapter.Name), ("reason", found.Problem ?? "")));
     }
 
     private void OnExited(AcpExit exit)
@@ -256,6 +306,8 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         if (State == AgentState.None) return;
         _stopping = true;
         _turn?.Cancel();
+        try { _starting?.Cancel(); }
+        catch (ObjectDisposedException) { /* the start has just ended */ }
         UnshareAll();
         await DisposeClientAsync();
         bool wasRunning = IsRunning;
@@ -442,7 +494,10 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
                         w.WriteNumber("end", length);
                         w.WriteBoolean("snap", true);
                     }, cancellation).ConfigureAwait(false);
-                    return Slice(read.GetProperty("text").GetString()!, line, limit);
+                    var text = Slice(read.GetProperty("text").GetString()!, line, limit);
+                    Interlocked.Increment(ref _reads);
+                    Changed?.Invoke();
+                    return text;
                 }
                 catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict && attempt < 3) { /* the user typed meanwhile: read again */ }
             }
@@ -476,6 +531,12 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         if (!_plugins.Permissions.IsGranted(ClientId, DocumentPermissions.EditPropose, GrantScope.OfDocument(shared.Document.Id))) throw NotShared();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _turn?.Token ?? CancellationToken.None);
         var decision = await await Dispatcher.UIThread.InvokeAsync<Task<ProposalDecision?>>(() => ProposeAsync(shared, content, linked.Token));
+        if (decision is not null)
+        {
+            Interlocked.Increment(ref _proposals);
+            if (decision.Outcome == ProposalOutcome.Applied) Interlocked.Increment(ref _applied);
+            Changed?.Invoke();
+        }
         switch (decision?.Outcome)
         {
             case null or ProposalOutcome.Applied:
@@ -521,7 +582,10 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         var tool = toolCall.Title ?? toolCall.Kind ?? toolCall.Id ?? "?";
         var firstReject = options.ToList().FindIndex(o => o.IsReject);
         var buttons = options.Select((o, i) => new DialogButton(o.Name, IsDefault: i == firstReject)).Append(new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)).ToList();
-        var request = new ChoiceRequest(Loc.Get(K.AgentPermissionTitle, ("agent", AgentName)), Loc.Get(K.AgentPermissionMessage, ("agent", AgentName), ("tool", tool)), buttons);
+        var notes = new List<string>();
+        if (AcpToolKinds.RunsOutsideEditor(toolCall.Kind)) notes.Add(Loc.Get(K.AgentPermissionOutside));
+        if (options.Any(o => o.Kind.EndsWith("_always", StringComparison.Ordinal))) notes.Add(Loc.Get(K.AgentPermissionAlways));
+        var request = new ChoiceRequest(Loc.Get(K.AgentPermissionTitle, ("agent", AgentName)), Loc.Get(K.AgentPermissionMessage, ("agent", AgentName), ("tool", tool)), buttons, notes.Count > 0 ? notes : null);
         int answer = await await Dispatcher.UIThread.InvokeAsync<Task<int>>(() => _app.Dialogs.ChooseAsync(window, request, cancellation));
         return answer >= 0 && answer < options.Count ? new AcpPermissionChoice(options[answer].Id) : AcpPermissionChoice.Cancelled;
     }
