@@ -386,6 +386,67 @@ public class FileFlowTests : IDisposable
         Assert.Equal(["Ponechat", "Zavřít kartu"], ((InfoBar)tab.Bar!).Buttons.Select(b => (string?)b.Content));
     }
 
+    [AvaloniaFact]
+    public async Task A_file_written_with_exactly_the_text_of_an_edited_tab_makes_the_tab_clean_without_a_bar_and_keeps_its_undo()
+    {
+        var path = _temp.File("same.txt", "mine");
+        var tab = _w.OpenFile(path, null);
+        tab.Editor!.Document.Insert(4, "!");
+        Assert.True(tab.Doc.Doc.IsModified);
+
+        File.WriteAllText(path, "mine!"); // an agent that was shown the change writes it itself
+        tab.Doc.Doc.CheckExternalChange();
+        for (int i = 0; i < 80 && tab.Doc.Doc.IsModified; i++)
+        {
+            await Task.Delay(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Null(tab.Bar);
+        Assert.Equal("mine!", Text(tab));
+        Assert.True(tab.Doc.Doc.CanUndo);
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Empty(_dialogs.Asked); // no conflict question
+        Assert.Equal("mine!", File.ReadAllText(path));
+    }
+
+    [AvaloniaFact]
+    public async Task Save_of_an_edited_tab_whose_file_already_holds_its_text_asks_nothing()
+    {
+        var path = _temp.File("same2.txt", "mine");
+        var tab = _w.OpenFile(path, null);
+        tab.Editor!.Document.Insert(4, "!");
+        File.WriteAllText(path, "mine!");
+
+        Assert.True(await _w.SaveAsync(tab));
+
+        Assert.Empty(_dialogs.Asked);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal("mine!", File.ReadAllText(path));
+    }
+
+    [AvaloniaFact]
+    public async Task A_file_with_other_text_than_the_edited_tab_keeps_the_bar_and_the_conflict()
+    {
+        var path = _temp.File("other.txt", "mine");
+        var tab = _w.OpenFile(path, null);
+        tab.Editor!.Document.Insert(4, "!");
+        File.WriteAllText(path, "mine?"); // the same size, other text
+        tab.Doc.Doc.CheckExternalChange();
+        for (int i = 0; i < 40 && tab.Bar is null; i++)
+        {
+            await Task.Delay(25);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        Assert.IsType<InfoBar>(tab.Bar);
+        Assert.True(tab.Doc.Doc.IsModified);
+        _dialogs.Answers.Enqueue(2); // cancel the conflict dialog
+        Assert.False(await _w.SaveAsync(tab));
+        Assert.Equal(Loc.Get(K.ConflictTitle), _dialogs.Asked[^1].Title);
+    }
+
     // ---- compare ----
 
     [AvaloniaFact]

@@ -422,6 +422,31 @@ internal sealed partial class MainWindow
     private void OnExternalChange(OpenDocument od, ExternalChange change)
     {
         if (!_docs.Contains(od) || !string.Equals(change.Path, od.Path, PathComparison)) return;
+        _ = ResolveExternalChangeAsync(od, change);
+    }
+
+    /// <summary>
+    /// A file that now holds exactly what the tab holds (an agent wrote the change the user had accepted in the review) is the saved state: the tab turns clean and keeps its undo history,
+    /// and no bar appears. A task that is complete at once (the size differs, the common case) shows the bar without a pause.
+    /// </summary>
+    private async Task ResolveExternalChangeAsync(OpenDocument od, ExternalChange change)
+    {
+        if (change.Kind == ExternalChangeKind.Modified)
+        {
+            if (change.DocumentId != od.Doc.Id) return; // raised by a document that a reload has replaced since
+            if (await od.Doc.TryAdoptFileAsync(change))
+            {
+                if (_docs.Contains(od)) DismissBars(od);
+                return;
+            }
+            // a save, or the adoption for a newer check, may have made the document hold that file while it was compared
+            if (!_docs.Contains(od) || (od.Doc.Fingerprint is { HasHash: true } now && change.Actual is { HasHash: true } there && now.Sha256 == there.Sha256)) return;
+        }
+        ShowExternalChange(od, change);
+    }
+
+    private void ShowExternalChange(OpenDocument od, ExternalChange change)
+    {
         bool reviewable = change.Kind == ExternalChangeKind.Modified && od.Views.FirstOrDefault() is { } first && ReviewTarget(first);
         if (reviewable && _app.Workbench.Settings.GetBool("review.autoKeep"))
         {

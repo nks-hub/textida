@@ -698,6 +698,95 @@ public abstract partial class DocumentContractSuite
         Assert.Null(d.CheckExternalChange());
     }
 
+    /// <summary>Waits for a task on the test thread: a text document may be used only by the thread that made it, which an await could leave.</summary>
+    private static T Block<T>(Task<T> task) => task.GetAwaiter().GetResult();
+
+    [Fact]
+    public void AFileThatNowHoldsExactlyTheBytesOfTheDocumentBecomesTheSavedStateAndTheUndoHistoryStays()
+    {
+        using var dir = new TempDir();
+        string path = dir.File("f.txt");
+        File.WriteAllBytes(path, B(Digits));
+        using var d = OpenFile(path, TestFormat.Utf8);
+        d.Insert(0, B("mine "));
+        int saved = 0;
+        d.Saved += (_, _) => saved++;
+        if (!Overwrite(path, B("mine " + Digits))) return; // the OS refuses to change a mapped file
+        var change = d.CheckExternalChange()!;
+        Assert.Equal(ExternalChangeKind.Modified, change.Kind);
+
+        if (Factory.MapsFiles)
+        {
+            // the mapped file the pieces of the document read changed, so the document can no longer be read back and is never taken for a match
+            Assert.False(Block(d.TryAdoptFileAsync(change)));
+            Assert.True(d.IsModified);
+            return;
+        }
+
+        Assert.True(Block(d.TryAdoptFileAsync(change)));
+        Assert.False(d.IsModified);
+        Assert.Equal(1, saved);
+        Assert.Equal(change.Actual!.Sha256, d.Fingerprint!.Sha256);
+        Assert.Null(d.CheckExternalChange());
+        Assert.NotNull(d.Undo());
+        Assert.True(d.IsModified);
+        Assert.Equal(B(Digits), Bytes(d));
+        Assert.Equal(B("mine " + Digits), File.ReadAllBytes(path));
+    }
+
+    [Fact]
+    public void AFileWithOtherBytesThanTheDocumentIsNotAdoptedEvenWithTheSameSize()
+    {
+        using var dir = new TempDir();
+        string path = dir.File("f.txt");
+        File.WriteAllBytes(path, B(Digits));
+        using var d = OpenFile(path, TestFormat.Utf8);
+        d.Insert(0, B("mine "));
+        if (!Overwrite(path, B("MINE " + Digits))) return;
+        var change = d.CheckExternalChange()!;
+
+        Assert.False(Block(d.TryAdoptFileAsync(change)));
+        Assert.True(d.IsModified);
+        Assert.Equal(ExternalChangeKind.Modified, d.Save().Conflict!.Kind);
+        Assert.Equal(B("MINE " + Digits), File.ReadAllBytes(path));
+    }
+
+    [Fact]
+    public void ASaveFindsTheFileHoldingTheBytesOfTheDocumentAlreadyAndWritesNothing()
+    {
+        if (Factory.MapsFiles) return; // a mapped file that another program wrote cannot be read back (see above)
+        using var dir = new TempDir();
+        string path = dir.File("f.txt");
+        File.WriteAllBytes(path, B(Digits));
+        using var d = OpenFile(path, TestFormat.Utf8);
+        d.Insert(0, B("mine "));
+        Assert.True(Overwrite(path, B("mine " + Digits)));
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddHours(-2));
+        var stamp = File.GetLastWriteTimeUtc(path);
+
+        var result = d.Save();
+
+        Assert.True(result.Saved);
+        Assert.Null(result.Conflict);
+        Assert.False(d.IsModified);
+        Assert.Equal(stamp, File.GetLastWriteTimeUtc(path)); // nothing was written
+        Assert.DoesNotContain(Directory.GetFiles(dir.Path), p => p.EndsWith(".tmp"));
+        Assert.Null(d.CheckExternalChange());
+
+        d.Insert(0, B("again "));
+        Assert.True(Overwrite(path, B("again mine " + Digits)));
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddHours(-1));
+        stamp = File.GetLastWriteTimeUtc(path);
+
+        var later = Block(d.SaveAsync());
+
+        Assert.True(later.Saved);
+        Assert.Null(later.Conflict);
+        Assert.False(d.IsModified);
+        Assert.Equal(stamp, File.GetLastWriteTimeUtc(path));
+        Assert.Null(d.CheckExternalChange());
+    }
+
     [Fact]
     public void AChangeBetweenTheCheckAndTheWriteWithSameSizeAndTimeStillConflicts()
     {

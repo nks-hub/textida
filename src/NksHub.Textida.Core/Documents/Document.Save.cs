@@ -329,7 +329,8 @@ public sealed partial class Document
                 _editsDuringSave = true;
             }
             // an in-place save checks the file once, cheaply, before the blocks it overwrites; a new file checks before and after it is written
-            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } early) return new(false, early);
+            if (guard && plan.Mode == SaveMode.Stream && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } early)
+                return await AdoptOrConflictAsync(early, snapshot, streaming ? mark : null, ct);
             ct.ThrowIfCancellationRequested();
 
             string hash;
@@ -370,7 +371,7 @@ public sealed partial class Document
                     if (await Task.Run(CheckExternalChange, CancellationToken.None) is { } changed) return new(false, changed);
                     throw;
                 }
-                if (guard && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } late) return new(false, late);
+                if (guard && await Task.Run(() => CheckExternalChangeCore(ct), CancellationToken.None) is { } late) return await AdoptOrConflictAsync(late, snapshot!, streaming ? mark : null, ct);
                 ct.ThrowIfCancellationRequested();
                 _snapshot = null;
                 snapshot = null;
@@ -397,6 +398,14 @@ public sealed partial class Document
         }
     }
 
+    /// <summary>The conflict a running save found: when the file holds exactly the bytes of the snapshot being saved, it is the saved state and the save ends without a write.</summary>
+    private async Task<SaveResult> AdoptOrConflictAsync(ExternalChange change, IByteSnapshot snapshot, SaveMark? mark, CancellationToken ct)
+    {
+        if (await Task.Run(() => HashIfFileMatches(change, snapshot, ct), CancellationToken.None) is not { } match) return new(false, change);
+        CompleteSave(change.Path, match.Hash, match.Blocks, mark);
+        return new(true, null);
+    }
+
     /// <summary>Writes the snapshot to <paramref name="temp"/>; the new baseline is taken from the bytes written, not from the target afterwards.</summary>
     private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step, IProgress<SaveProgress>? progress, int intervalMs)
     {
@@ -409,8 +418,16 @@ public sealed partial class Document
             BufferSize = 0,
         });
         step?.Invoke("temp-writing", temp);
+        var written = CopyHashed(snapshot, fs, ct, progress, intervalMs);
+        fs.Flush(true);
+        return written;
+    }
+
+    /// <summary>Copies the snapshot to <paramref name="sink"/> and returns the hash and block digests of the bytes that went through; <see cref="Stream.Null"/> as sink only hashes.</summary>
+    private static (string Hash, OriginalBlockHashes Blocks) CopyHashed(IByteSnapshot snapshot, Stream sink, CancellationToken ct, IProgress<SaveProgress>? progress = null, int intervalMs = 0)
+    {
         var blocks = new OriginalBlockHashes();
-        var hashing = new HashingStream(fs, blocks);
+        var hashing = new HashingStream(sink, blocks);
         var buf = new byte[1 << 20];
         long total = snapshot.ByteLength;
         var clock = Stopwatch.StartNew();
@@ -428,8 +445,42 @@ public sealed partial class Document
                 nextReport = clock.ElapsedMilliseconds + intervalMs;
             }
         }
-        fs.Flush(true);
         return (hashing.Finish(), blocks);
+    }
+
+    /// <summary>
+    /// The hash and block digests of <paramref name="snapshot"/> when <paramref name="change"/> is an outside change that left the file holding exactly its bytes, else null.
+    /// Safe on any thread. A mapped file that changed cannot be read back (<see cref="SnapshotInvalidatedException"/>), so it is never taken for a match.
+    /// </summary>
+    private static (string Hash, OriginalBlockHashes Blocks)? HashIfFileMatches(ExternalChange change, IByteSnapshot snapshot, CancellationToken ct)
+    {
+        if (change.Kind != ExternalChangeKind.Modified || change.Actual is not { HasHash: true } actual || actual.Size != snapshot.ByteLength) return null;
+        try
+        {
+            var (hash, blocks) = CopyHashed(snapshot, Stream.Null, ct);
+            // the file may have moved on since the check read it
+            bool same = hash == actual.Sha256 && FileFingerprint.TryReadQuick(change.Path) is { } now && now.Size == actual.Size && now.LastWriteUtc == actual.LastWriteUtc;
+            return same ? (hash, blocks) : null;
+        }
+        catch (Exception e) when (e is IOException or ObjectDisposedException) { return null; }
+    }
+
+    /// <summary>
+    /// An outside change that left the file holding exactly the bytes the document holds is not a conflict: the file becomes the saved state (fingerprint, baseline and unsaved mark
+    /// follow it, the undo history stays, <see cref="Saved"/> is raised) and nothing is written. False when the file differs, the document moved on meanwhile, or a mapped file cannot be read back.
+    /// Call on the thread that owns the document; only the hashing of the bytes runs on the thread pool, so a large document does not block it. A document without unsaved changes
+    /// still holds the bytes it was loaded or saved with, which are not the ones the file changed to, so it is not compared at all.
+    /// </summary>
+    public async Task<bool> TryAdoptFileAsync(ExternalChange change, CancellationToken ct = default)
+    {
+        if (_disposed || _saving || !IsModified || change.Kind != ExternalChangeKind.Modified || change.Actual is not { HasHash: true } actual || actual.Size != ByteLength
+            || Fingerprint != change.Expected || FilePath is not { } path || !SamePath(path, change.Path)) return false;
+        long revision = _revision;
+        var snapshot = GetSnapshot();
+        var matched = await Task.Run(() => HashIfFileMatches(change, snapshot, ct), CancellationToken.None);
+        if (matched is not { } m || _disposed || _saving || _revision != revision || Fingerprint != change.Expected) return false;
+        CompleteSave(change.Path, m.Hash, m.Blocks);
+        return true;
     }
 
     /// <summary>Asks a running <see cref="SaveAsync"/> to stop; it does so before the data is committed.</summary>
