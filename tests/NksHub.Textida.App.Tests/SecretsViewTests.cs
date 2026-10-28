@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
+using Avalonia;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using AvaloniaEdit.Rendering;
 using NksHub.Textida.Accessibility;
@@ -449,6 +451,38 @@ public class SecretsViewTests : IDisposable
         await _w.Clipboard.SetTextAsync("before");
         await hex.CopyAsync(cut: false);
         Assert.Equal(HexEditor.ToHexText(Encoding.UTF8.GetBytes("API_KEY=hunter2")), await ClipboardAfterAsync(_w, "before"));
+    }
+
+    /// <summary>The grid as the screen gets it, as an encoded picture: two grids that look alike give the same bytes.</summary>
+    private static byte[] Picture(HexView hex)
+    {
+        hex.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        using var bitmap = new RenderTargetBitmap(new PixelSize((int)hex.Bounds.Width, (int)hex.Bounds.Height));
+        bitmap.Render(hex);
+        using var stream = new MemoryStream();
+        bitmap.Save(stream);
+        return stream.ToArray();
+    }
+
+    [AvaloniaFact]
+    public void The_hex_grid_draws_the_same_picture_for_any_hidden_value_and_another_one_once_the_values_are_shown()
+    {
+        // two files of the same layout that differ only in the value: while it is hidden nothing of the value may reach either column
+        var first = OpenHex("first.env", "API_KEY=hunter2\nPLAIN=x\n");
+        byte[] hiddenFirst = Picture(first.Hex!);
+        var second = OpenHex("second.env", "API_KEY=zq9!kw8\nPLAIN=x\n");
+        byte[] hiddenSecond = Picture(second.Hex!);
+        Assert.True(hiddenFirst.AsSpan().SequenceEqual(hiddenSecond), "a hidden value changed what the grid draws");
+
+        // shown, the pictures differ, so the comparison above can tell a leak from nothing
+        Assert.True(second.ToggleSecrets());
+        byte[] shownSecond = Picture(second.Hex!);
+        _w.SelectTab(first);
+        Assert.True(first.ToggleSecrets());
+        byte[] shownFirst = Picture(first.Hex!);
+        Assert.False(shownFirst.AsSpan().SequenceEqual(shownSecond));
+        Assert.False(shownFirst.AsSpan().SequenceEqual(hiddenFirst));
     }
 
     [AvaloniaFact]
