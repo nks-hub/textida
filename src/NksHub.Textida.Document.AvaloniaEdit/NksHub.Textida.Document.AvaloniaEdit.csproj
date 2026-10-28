@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
+    <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
 
 </Project>

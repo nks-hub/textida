@@ -487,9 +487,11 @@ public static class MultiEdit
             // one update block: the views react to the text view once, not once per caret
             long tApply = Core.TypingTrace.Begin();
             var update = text.RunUpdate();
+            var bypass = WeakEventBypass.Begin(text);
             try { result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey }); }
             finally
             {
+                bypass.Dispose();
                 Core.TypingTrace.End("multi.docApply", tApply);
                 long tEnd = Core.TypingTrace.Begin();
                 update.Dispose();
