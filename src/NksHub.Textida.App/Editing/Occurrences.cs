@@ -254,7 +254,8 @@ internal sealed class OccurrenceTracker : IDisposable
     private void OnTick(object? sender, EventArgs e)
     {
         if (Stopwatch.GetElapsedTime(_touched) < Debounce) return; // changed again meanwhile: wait for the next tick
-        _ = SettleAsync();
+        try { _ = SettleAsync(); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { Drop(); } // the text moved under the selection being read; the next change looks again
     }
 
     private void Drop()
