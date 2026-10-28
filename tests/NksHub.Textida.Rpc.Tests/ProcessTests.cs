@@ -18,7 +18,7 @@ public class ProcessTests
             await using var rpc = new JsonRpcDispatcher(proc.StandardOutput.BaseStream, proc.StandardInput.BaseStream, RpcProtocols.Plugin, limits, new DelegateHandler());
 
             var sends = Enumerable.Range(0, 40).Select(_ => rpc.NotifyAsync("sink", payload)).ToArray();
-            await Task.Delay(800);
+            // checked at once: 40 messages of this size cannot all be queued before the plugin has read any, and a pause here would let a slow machine wait out the plugin's sleep
             Assert.True(sends.Count(s => !s.IsCompleted) > 0, "the sender should be held back while the plugin does not read");
             Assert.True(rpc.QueuedOutgoingBytes <= size * 7 / 2);
 

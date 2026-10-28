@@ -23,11 +23,12 @@ public partial class DocumentApiTests
         public T Run<T>(Func<T> work) { lock (_gate) return work(); }
     }
 
+    /// <summary>A wall clock that moves only when the test moves it; the timers stay real. Snapshots then expire when a test says so, not when a loaded machine takes longer than their lifetime.</summary>
     sealed class ManualTime : TimeProvider
     {
-        DateTimeOffset _now = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        public override DateTimeOffset GetUtcNow() => _now;
-        public void Advance(TimeSpan by) => _now += by;
+        long _ticks = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero).UtcTicks;
+        public override DateTimeOffset GetUtcNow() => new(Interlocked.Read(ref _ticks), TimeSpan.Zero);
+        public void Advance(TimeSpan by) => Interlocked.Add(ref _ticks, by.Ticks);
     }
 
     sealed class RecordingProposals : IEditProposals
@@ -105,7 +106,7 @@ public partial class DocumentApiTests
                     return false;
                 }
                 return await host!.SendEventAsync(plugin, name, payload, paced: true);
-            }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time);
+            }, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct), time ?? new ManualTime());
             host = new PluginHost.PluginHost(PluginHostTests.Options(hostTune), route?.Invoke(() => host!, api, permissions, callLog) ?? api.HandleAsync, api);
             var doc = Document.FromBytes(content, factory ?? PagedBackendFactory.Instance, codec is null ? null : new DocumentOptions { Format = codec });
             api.Expose(doc, selections ?? (() => SelectionSet.Single(new TextSelection(1, 3))));

@@ -53,6 +53,7 @@ public abstract class PluginBase(string name, int apiVersion)
 
     private readonly Dictionary<string, CommandHandler> _commands = [];
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _tasks = new();
+    private readonly ConcurrentDictionary<string, byte> _earlyCancels = new();
 
     /// <summary>
     /// Registers a command. The plugin answers <see cref="CommandMethod"/> by itself: it reads the request, runs the handler of the command it names, and sends the
@@ -84,10 +85,27 @@ public abstract class PluginBase(string name, int apiVersion)
     protected async Task<PluginTask> StartTaskAsync(string title, CancellationToken cancellation, TimeSpan? reportEvery = null)
     {
         var started = await Rpc.RequestAsync(UiMethods.TaskStart, new TaskStartParams(title, Cancellable: true), SdkJson.Default.TaskStartParams, SdkJson.Default.TaskStartResult, cancellation).ConfigureAwait(false);
-        var source = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        _tasks[started.Task] = source;
-        return new PluginTask(Rpc, started.Task, source, reportEvery, id => _tasks.TryRemove(id, out _));
+        var source = TrackTask(started.Task, cancellation);
+        return new PluginTask(Rpc, started.Task, source, reportEvery, ForgetTask);
     }
+
+    private const int MaxEarlyCancels = 64;
+
+    /// <summary>
+    /// Makes the user's cancel of the task <paramref name="taskId"/> (which the editor started for this plugin with <c>ui/task/start</c>) cancel the returned source, which is also cancelled with <paramref name="cancellation"/>.
+    /// The editor shows the task and may send the cancel before the answer to the start has reached the plugin, so a cancel that came first is applied here.
+    /// </summary>
+    protected CancellationTokenSource TrackTask(string taskId, CancellationToken cancellation)
+    {
+        var source = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        _tasks[taskId] = source;
+        // the task is entered before the early cancels are looked at, and CancelTaskOf records before it looks at the tasks, so one of the two sees the other
+        if (_earlyCancels.TryRemove(taskId, out _)) source.Cancel();
+        return source;
+    }
+
+    /// <summary>Ends the tracking of a task started with <see cref="TrackTask"/>.</summary>
+    protected void ForgetTask(string taskId) => _tasks.TryRemove(taskId, out _);
 
     /// <summary>The state after a start or restart, as the editor sends it (open documents with revisions, lost events).</summary>
     protected virtual ValueTask OnResyncAsync(JsonElement state) => ValueTask.CompletedTask;
@@ -126,10 +144,15 @@ public abstract class PluginBase(string name, int apiVersion)
     /// <summary>The user cancelled a task of this plugin (the event <c>ui/taskCancelled</c>): its token is cancelled.</summary>
     private void CancelTaskOf(JsonElement eventPayload)
     {
-        if (eventPayload.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String && name.GetString() == UiEvents.TaskCancelled
-            && eventPayload.TryGetProperty("payload", out var payload) && payload.TryGetProperty("task", out var task) && task.ValueKind == JsonValueKind.String
-            && _tasks.TryGetValue(task.GetString()!, out var source))
+        if (!(eventPayload.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String && name.GetString() == UiEvents.TaskCancelled
+            && eventPayload.TryGetProperty("payload", out var payload) && payload.TryGetProperty("task", out var task) && task.ValueKind == JsonValueKind.String)) return;
+        string id = task.GetString()!;
+        // recorded first: a task that is entered in TrackTask after this line finds the cancel there
+        if (_earlyCancels.Count >= MaxEarlyCancels) _earlyCancels.Clear(); // cancels of tasks that were never entered here; bounded so they cannot pile up
+        _earlyCancels[id] = 0;
+        if (_tasks.TryGetValue(id, out var source))
         {
+            _earlyCancels.TryRemove(id, out _);
             try { source.Cancel(); }
             catch (ObjectDisposedException) { } // the task ended in the same moment
         }

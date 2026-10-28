@@ -508,7 +508,7 @@ internal static partial class PluginLimitsPlaceholders
         Limits = new RpcLimits(MaxMessageBytes: 4 << 20, MaxConcurrentIncoming: 8, MaxPendingOutgoing: 64, MaxResultItems: 100_000, MaxSessionBytes: 64L << 20, MaxOutgoingQueueBytes: 64L << 20),
         Restart = new RestartPolicy(MaxCrashes: 3, Window: TimeSpan.FromMinutes(5), BaseDelay: TimeSpan.FromSeconds(1), MaxDelay: TimeSpan.FromSeconds(30)),
         ApiVersion = NksHub.Textida.PluginSdk.PluginApi.Version,
-        HandshakeTimeout = TimeSpan.FromSeconds(10),
+        HandshakeTimeout = HandshakeTimeout,
         PingInterval = TimeSpan.FromSeconds(5),
         PingTimeout = TimeSpan.FromSeconds(5),
         MissedPingsBeforeKill = 3,
@@ -519,6 +519,9 @@ internal static partial class PluginLimitsPlaceholders
 
     /// <summary>Placeholder: entries kept in the plugin call log.</summary>
     public const int CallLogCapacity = 1000;
+
+    /// <summary>Placeholder: how long a started plugin process has to answer the handshake. Settable so tests on a loaded machine do not race the start of a process.</summary>
+    internal static TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>Placeholder: how long Tab waits for a plugin before it indents as without one. Settable so tests on a loaded machine do not race it.</summary>
     internal static TimeSpan TabTimeout { get; set; } = TimeSpan.FromMilliseconds(500);

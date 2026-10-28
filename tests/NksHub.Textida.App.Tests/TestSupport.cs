@@ -195,8 +195,11 @@ internal static class TestApp
     /// <summary>Points the static startup context at a throw-away profile (settings, journal and backups live in it) and builds the services of that run.</summary>
     public static App Prepare(TempDir temp, ScriptedDialogs? dialogs = null)
     {
-        App.Startup = new StartupContext(CommandLine.Parse(["--smoke"], temp.Path), new ProfileStore(temp.Path), "test", null);
+        // the channel names a machine-wide pipe and lock file, so a second test run on the same machine (another suite, another checkout) must not share it: the MCP server of one would answer the client of the other
+        App.Startup = new StartupContext(CommandLine.Parse(["--smoke"], temp.Path), new ProfileStore(temp.Path), "test-" + Environment.ProcessId, null);
         var app = (App)Application.Current!;
+        // a process start takes tens of seconds on an overloaded machine; the 10 s the product allows for the handshake would fail every test that waits for a plugin
+        PluginLimitsPlaceholders.HandshakeTimeout = TimeSpan.FromSeconds(60);
         app.Configure();
         app.Dialogs = dialogs ?? new ScriptedDialogs();
         return app;

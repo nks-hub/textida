@@ -22,8 +22,7 @@ public class ChildProcessTests : IDisposable
             catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
             process.Dispose();
         }
-        try { Directory.Delete(_folder, recursive: true); }
-        catch (IOException) { }
+        TestDir.Delete(_folder);
     }
 
     private static ProcessStartInfo Dotnet(string dll, params string[] args)

@@ -215,12 +215,24 @@ public sealed class SchemaLoaderTests : IDisposable
 
     // ---- the cache of the registry client (P8.7.3) ----
 
-    private RegistryClient Registry(long cacheBytes, int lifetimeSeconds, out NpmAdapter npm)
+    /// <summary>A clock that moves only when the test moves it, so a cache lifetime does not depend on how long a loaded machine takes between two calls.</summary>
+    private sealed class ManualClock : TimeProvider
+    {
+        private long _ticks;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => Interlocked.Read(ref _ticks);
+
+        public void Advance(TimeSpan by) => Interlocked.Add(ref _ticks, by.Ticks);
+    }
+
+    private RegistryClient Registry(long cacheBytes, int lifetimeSeconds, out NpmAdapter npm, TimeProvider? clock = null)
     {
         npm = new NpmAdapter();
         npm.Override(_stub.Url);
         Allow("npm");
-        var client = new RegistryClient(new RegistrySettings(Consent, 5000, 100_000, 20, 50, 65_536, cacheBytes, lifetimeSeconds));
+        var client = new RegistryClient(new RegistrySettings(Consent, 5000, 100_000, 20, 50, 65_536, cacheBytes, lifetimeSeconds), clock);
         _clients.Add(client);
         return client;
     }
@@ -261,12 +273,14 @@ public sealed class SchemaLoaderTests : IDisposable
     public async Task A_cached_answer_expires_after_its_lifetime_and_refresh_drops_it_at_any_time()
     {
         _stub.Serve("/a", "answer");
-        var client = Registry(0, 1, out var npm);
+        var clock = new ManualClock();
+        var client = Registry(0, 1, out var npm, clock);
         var url = npm.VersionsUrl("a");
 
         Assert.False((await client.GetAsync(npm, url)).Cached);
+        clock.Advance(TimeSpan.FromMilliseconds(900));
         Assert.True((await client.GetAsync(npm, url)).Cached);
-        await Task.Delay(1200);
+        clock.Advance(TimeSpan.FromMilliseconds(300));
         Assert.False((await client.GetAsync(npm, url)).Cached); // older than the lifetime
         Assert.Equal(2, client.Requests);
 

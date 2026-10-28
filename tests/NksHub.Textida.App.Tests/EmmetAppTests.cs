@@ -24,8 +24,8 @@ public class EmmetAppTests : IDisposable
 
     public EmmetAppTests()
     {
-        // Tab waits for the plugin process; a busy machine can miss 500 ms (the timeout path has its own test in DocumentApiTests.EarlyTools)
-        PluginLimitsPlaceholders.TabTimeout = TimeSpan.FromSeconds(10);
+        // the first Tab waits for the start of the plugin process, which takes tens of seconds on a machine that is overloaded (the timeout path has its own test in DocumentApiTests.EarlyTools)
+        PluginLimitsPlaceholders.TabTimeout = TimeSpan.FromSeconds(60);
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
         _w.Width = 1000;
