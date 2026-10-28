@@ -124,6 +124,24 @@ public class NetworkConsentTests
         await AssertOnlyAsync(rig, "wiki.example.test:80");
     }
 
+    [AvaloniaTheory]
+    [InlineData(RemoteProtocol.Sftp, 22)]
+    [InlineData(RemoteProtocol.Ftps, 21)]
+    public async Task A_remote_connection_the_user_opens_asks_the_proxy_for_its_server_and_the_name_of_the_server_is_not_resolved_here(RemoteProtocol protocol, int port)
+    {
+        using var rig = new NetworkRig();
+        var connection = new RemoteConnection { Name = "demo", Protocol = protocol, Host = "files.example.test", UserName = "user" };
+        rig.Secrets.Set(connection.SecretKey, "remote-secret");
+        rig.Net.AllowLoopback(rig.Net.Sinkhole.Port, "network proxy of the policy");
+
+        await using (var client = rig.App.Remote.CreateClient(connection, DenyUnknownServers.Instance))
+            await Assert.ThrowsAnyAsync<Exception>(() => client.ConnectAsync(default)); // the sinkhole turns the tunnel down
+        var report = await rig.Net.FinishAsync();
+
+        Assert.True(report.Forbidden.Count == 0, "A remote connection went around the proxy:\n" + report);
+        Assert.Equal([$"files.example.test:{port}"], rig.Net.Sinkhole.Targets.Distinct());
+    }
+
     /// <param name="viaDialog">The proxy is saved through File, Remote Files, Network Proxy; otherwise the policy file is written by something else and only its timestamp tells.</param>
     [AvaloniaTheory]
     [InlineData(true)]
