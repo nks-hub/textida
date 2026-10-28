@@ -31,7 +31,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.IsDirty => Bool(tab?.Doc.Doc.IsModified == true),
             ContextKeys.HasFolder => Bool(window.HasFolder),
             ContextKeys.FileSelected => Bool(window.HasFileSelection),
-            ContextKeys.MultipleCarets => Bool(tab?.Surface?.IsMulti == true),
+            ContextKeys.MultipleCarets => Bool(tab?.Surface?.IsMulti == true || tab?.Paged?.IsMulti == true),
             _ => null,
         };
     }

@@ -360,6 +360,9 @@ public static class K
     public const string PagedLineTooLong = "paged.lineTooLong";
     public const string PagedPasteTooLarge = "paged.pasteTooLarge";
     public const string PagedPasteEncoding = "paged.pasteEncoding";
+    public const string PagedCaretsLimit = "paged.caretsLimit";
+    public const string PagedOccurrenceTooLong = "paged.occurrenceTooLong";
+    public const string PagedMultiPasteTooLarge = "paged.multiPasteTooLarge";
     public const string A11yMainMenu = "a11y.menu.main";
     public const string A11yTabs = "a11y.tabs";
     public const string A11yEditor = "a11y.editor";

@@ -108,12 +108,21 @@ internal static class AppCommands
             return CommandOutcome.Handled;
         });
         On("nks.edit.selectLine", w => w.SelectLine());
-        Surface("nks.edit.addNextOccurrence", s => s.AddNextOccurrence());
-        Surface("nks.edit.skipOccurrence", s => s.SkipOccurrence());
-        Surface("nks.edit.selectAllOccurrences", s => s.SelectAllOccurrences());
-        Surface("nks.edit.addCaretAbove", s => s.AddCaretVertical(-1));
-        Surface("nks.edit.addCaretBelow", s => s.AddCaretVertical(1));
-        Surface("nks.edit.clearCarets", s => s.ClearCarets());
+        // the caret commands work in the text editor and in the paged view of a large file, under the same names
+        void CaretCommand(string id, Action<EditorSurface> surface, Func<PagedTextView, Task> paged) =>
+            On(id, w =>
+            {
+                if (w.ActiveEditor is { } s) { surface(s); return CommandOutcome.Handled; }
+                if (w.Active is not { TableShown: false, Paged: { } p }) return CommandOutcome.NotHandled;
+                _ = paged(p);
+                return CommandOutcome.Handled;
+            });
+        CaretCommand("nks.edit.addNextOccurrence", s => s.AddNextOccurrence(), p => p.AddNextOccurrenceAsync());
+        CaretCommand("nks.edit.skipOccurrence", s => s.SkipOccurrence(), p => p.SkipOccurrenceAsync());
+        CaretCommand("nks.edit.selectAllOccurrences", s => s.SelectAllOccurrences(), p => p.SelectAllOccurrencesAsync());
+        CaretCommand("nks.edit.addCaretAbove", s => s.AddCaretVertical(-1), p => { p.AddCaretVertical(-1); return Task.CompletedTask; });
+        CaretCommand("nks.edit.addCaretBelow", s => s.AddCaretVertical(1), p => { p.AddCaretVertical(1); return Task.CompletedTask; });
+        CaretCommand("nks.edit.clearCarets", s => s.ClearCarets(), p => { p.ClearCarets(); return Task.CompletedTask; });
         Surface("nks.edit.selectToMark", s => s.MarkOrSelectToMark());
         On("nks.edit.toggleBlockSelect", w => w.ToggleBlockSelect());
         On("nks.edit.clipboardHistory", w => w.ShowClipboardHistory());
