@@ -53,7 +53,8 @@ public class FileLocksTests : IDisposable
     public void SharingLockOfAnotherProgramOpensReadOnly()
     {
         var locks = new FileLocks(Lockdir, "A");
-        using (new FileStream(File1, FileMode.Open, FileAccess.Read, FileShare.Read))
+        // Windows enforces FileShare.Read against writers; elsewhere .NET takes a shared flock for it, and only FileShare.None (an exclusive flock) refuses a second open
+        using (new FileStream(File1, FileMode.Open, FileAccess.Read, OperatingSystem.IsWindows() ? FileShare.Read : FileShare.None))
         {
             using var r = locks.Acquire(File1);
             Assert.Equal(LockState.ReadOnlyLockedByProcess, r.State);

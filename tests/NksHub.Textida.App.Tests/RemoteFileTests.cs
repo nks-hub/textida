@@ -410,7 +410,8 @@ public class LockedFileTests : IDisposable
     public async Task A_file_another_program_forbids_writing_to_opens_read_only_with_the_reason_and_cannot_be_saved()
     {
         string path = _temp.File("locked.txt", "content");
-        using var other = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        // Windows enforces FileShare.Read against writers; elsewhere only FileShare.None (an exclusive flock) refuses a second open
+        using var other = new FileStream(path, FileMode.Open, FileAccess.Read, OperatingSystem.IsWindows() ? FileShare.Read : FileShare.None);
 
         var tab = _w.OpenFile(path, null);
 
@@ -419,6 +420,7 @@ public class LockedFileTests : IDisposable
         Assert.Equal(Loc.Get(K.LockSystem, ("title", tab.Title)), ((InfoBar)tab.Bar!).Message);
         Assert.False(await _w.SaveAsync(tab));
         Assert.Equal(Loc.Get(K.LockSaveRefused), _w.StatusMessageText);
+        other.Dispose(); // an exclusive flock would refuse the read below
         Assert.Equal("content", File.ReadAllText(path));
     }
 
