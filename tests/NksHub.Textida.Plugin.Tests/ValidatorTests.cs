@@ -134,12 +134,17 @@ public class ValidatorTests
         var bytes = new byte[(1 << 20) + 64];
         System.Text.Encoding.Unicode.GetBytes("document/readText").CopyTo(bytes, (1 << 20) - 10); // cut by the end of the first chunk
         System.Text.Encoding.UTF8.GetBytes("edit/apply").CopyTo(bytes, 100);
+        // a NativeAOT program for macOS: the last byte of a string literal (the zero high byte of its last character) belongs to what follows it
+        var net = System.Text.Encoding.Unicode.GetBytes("net/request");
+        net.CopyTo(bytes, 5000);
+        bytes[5000 + net.Length - 1] = 0x59;
         File.WriteAllBytes(Path.Combine(folder, "program.bin"), bytes);
 
         var report = await PluginValidator.ValidateAsync(folder, Options());
 
         Assert.True(Has(report, FindingSeverity.Info, "permissions", "'document.read' is declared"));
         Assert.True(Has(report, FindingSeverity.Error, "permissions", "edit/apply"));
+        Assert.True(Has(report, FindingSeverity.Error, "permissions", "net/request"));
     }
 
     [Fact]

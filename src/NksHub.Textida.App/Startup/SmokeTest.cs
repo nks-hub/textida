@@ -1,9 +1,14 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.PluginHost;
 
 namespace NksHub.Textida.App.Startup;
 
@@ -18,6 +23,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     private const string Sample = "smoke";
     private const string Lines = "a\nb\nc";
     private readonly List<string> _log = [];
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     public async Task RunAsync()
     {
@@ -62,6 +68,9 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             expected[1] = 0x72;
             Check(saved.SequenceEqual(expected), "the saved file differs from the original only in the edited byte");
             Check(!opened.Doc.Doc.IsModified, "the tab is clean after saving");
+
+            await CheckBundledPluginsAsync(temp);
+            await CheckDataPackageAsync(temp);
 
             // a file above the switch size opens in the paged mode and takes a typed character, undo and save
             app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
@@ -129,6 +138,160 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         {
             GC.KeepAlive(watchdog);
         }
+    }
+
+    private static string Digits(string text) => new(text.Where(char.IsAsciiDigit).ToArray());
+
+    /// <summary>
+    /// Runs a command of the editor on the tab, which has to hold the keyboard focus (the commands are enabled for a focused editor only). The command returns at once and the plugin answers
+    /// later; waits until no plugin command runs on the UI side any more.
+    /// </summary>
+    private async Task RunPluginCommandAsync(DocTab tab, string command)
+    {
+        for (int i = 0; i < 60 && !tab.Editor!.TextArea.IsFocused; i++)
+        {
+            tab.Editor.TextArea.Focus();
+            await Task.Delay(50);
+        }
+        Check(tab.Editor!.TextArea.IsFocused, $"the editor of the tab has the focus for {command}");
+        var outcome = await app.Workbench.Commands.ExecuteAsync(command, new ShellContext(window, forMenu: false));
+        Check(outcome == NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, $"{command} is handled");
+        for (int i = 0; i < 200 && app.Plugins.IsBusy; i++) await Task.Delay(50);
+        Check(!app.Plugins.IsBusy, $"{command} ends");
+        await NextFrameAsync();
+    }
+
+    /// <summary>Waits for a notice bar that matches; a failure names the bars that were there.</summary>
+    private async Task CheckNoticeAsync(Func<string, bool> match, string what)
+    {
+        for (int i = 0; i < 100 && !window.Notices.Any(n => match(n.Message)); i++) await Task.Delay(50);
+        Check(window.Notices.Any(n => match(n.Message)), $"{what} (notices: {string.Join(" | ", window.Notices.Select(n => n.Message))})");
+    }
+
+    /// <summary>
+    /// P3b.5.3, P8b.2.3: the built-in plugins sit next to the published program and start as processes of this app. The JSON formatter changes only the selected range of a Windows-1250 file with
+    /// three kinds of line ending and refuses a text over its limit, the text tools count a document, the code explorer outlines Markdown.
+    /// </summary>
+    private async Task CheckBundledPluginsAsync(string temp)
+    {
+        foreach (var (id, _) in PluginServices.BuiltIns)
+        {
+            var problem = await app.Plugins.StartPluginAsync(id);
+            Check(problem is null && app.Plugins.StatusOf(id)?.State == PluginState.Running, $"the bundled plugin {id} runs as a process ({problem})");
+        }
+
+        const string json = "{\"a\":[1,2],\"b\":\"ž\"}", head = "Příliš\r\n", tail = "\nkonec\r";
+        var file = Path.Combine(temp, "mixed.json");
+        byte[] original = TextCodec.Cp1250.Encode(head + json + tail);
+        await File.WriteAllBytesAsync(file, original);
+        var tab = window.OpenFile(file, null);
+        await NextFrameAsync();
+        tab.Editor!.Select(head.Length, json.Length);
+        await RunPluginCommandAsync(tab, "nks.edit.formatJson");
+        var formatted = tab.Editor.Document.Text;
+        Check(formatted.StartsWith(head + "{", StringComparison.Ordinal) && formatted.EndsWith("}" + tail, StringComparison.Ordinal) && formatted.Length > original.Length, "the JSON plugin formats the selected range only");
+        Check(formatted[head.Length..^tail.Length].Contains('\n') && JsonNode.DeepEquals(JsonNode.Parse(formatted[head.Length..^tail.Length]), JsonNode.Parse(json)), "the formatted range holds the same JSON");
+        Check(await window.SaveAsync(tab), "the formatted file is saved");
+        var saved = await File.ReadAllBytesAsync(file);
+        var headBytes = TextCodec.Cp1250.Encode(head);
+        var tailBytes = TextCodec.Cp1250.Encode(tail);
+        Check(saved.AsSpan(0, headBytes.Length).SequenceEqual(headBytes) && saved.AsSpan(saved.Length - tailBytes.Length).SequenceEqual(tailBytes) && saved.Contains((byte)0x9E) && !saved.Contains((byte)0xC5),
+            "the bytes outside the range and the code page of the file are kept");
+        window.Undo();
+        Check(tab.Editor.Document.Text == head + json + tail, "one undo takes the formatting back");
+        var restart = await app.Plugins.RestartPluginAsync(PluginServices.JsonPluginId);
+        Check(restart is null && app.Plugins.StatusOf(PluginServices.JsonPluginId)?.State == PluginState.Running && tab.Editor.Document.Text == head + json + tail, $"a restart of the JSON plugin repeats no write ({restart})");
+        tab.Editor.Select(head.Length, json.Length);
+        await RunPluginCommandAsync(tab, "nks.edit.formatJson");
+        Check(tab.Editor.Document.Text == formatted, "the restarted plugin formats the same way");
+        window.CloseTab(tab);
+
+        var bigText = "[\n" + string.Concat(Enumerable.Repeat(string.Concat(Enumerable.Repeat("1,", 50)) + "\n", 10_400)) + "1]"; // 1 MiB and a little more, in 10 401 lines
+        var bigFile = Path.Combine(temp, "toolarge.json");
+        await File.WriteAllTextAsync(bigFile, bigText);
+        var big = window.OpenFile(bigFile, null);
+        await NextFrameAsync();
+        Check(big.Surface is not null, "a JSON text of 1 MiB opens as text");
+        await RunPluginCommandAsync(big, "nks.edit.formatJson");
+        Check(big.Editor!.Document.TextLength == bigText.Length, "a text over the limit of the formatter is left alone");
+        await CheckNoticeAsync(m => Digits(m).Contains("1048576", StringComparison.Ordinal) && Digits(m).Contains(bigText.Length.ToString(), StringComparison.Ordinal), "the notice names the size and the limit");
+        window.CloseTab(big);
+
+        var statsFile = Path.Combine(temp, "stats.txt");
+        await File.WriteAllTextAsync(statsFile, "ab cd\r\nef\n");
+        var stats = window.OpenFile(statsFile, null);
+        await NextFrameAsync();
+        Check(await app.Plugins.RunTextToolAsync(window, stats, "text.stats"), "the statistics start");
+        await CheckNoticeAsync(m => Digits(m).StartsWith("1010335", StringComparison.Ordinal), "the text tools count 10 bytes, 10 characters, 3 words, 3 lines and 5 characters in the longest");
+        window.CloseTab(stats);
+
+        var outlineFile = Path.Combine(temp, "outline.md");
+        await File.WriteAllTextAsync(outlineFile, "# Title\n## Part\ntext\n");
+        var outline = window.OpenFile(outlineFile, null);
+        await NextFrameAsync();
+        Check(await app.Plugins.IndexSymbolsAsync(window, outline, reveal: false), "the Markdown outline is read");
+        var symbols = app.Plugins.TabSymbols(outline, out bool current);
+        Check(current && symbols.Select(s => s.Name).SequenceEqual(["Title", "Part"]), "the headings are the symbols of the current revision");
+        window.CloseTab(outline);
+    }
+
+    /// <summary>
+    /// P8b.2.3: a data package (a clip, a converter and a grammar) is installed from a ZIP, works without a process and is uninstalled; the own clip of the user, the other package
+    /// and the files of the profile stay as they were.
+    /// </summary>
+    private async Task CheckDataPackageAsync(string temp)
+    {
+        var manager = app.Plugins.Manager;
+        Check(app.Clips.AddUserClip("Mine", "my own text", out _, out var detail) == SaveClipResult.Saved, $"an own clip is saved ({detail})");
+        var userClips = await File.ReadAllBytesAsync(app.Clips.UserManifestPath);
+
+        string Zip(string id, string contributes, params (string Name, string Text)[] files)
+        {
+            var path = Path.Combine(temp, id + ".zip");
+            using var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+            void Add(string name, string text)
+            {
+                using var writer = new StreamWriter(zip.CreateEntry(name).Open(), new UTF8Encoding(false));
+                writer.Write(text);
+            }
+            Add("nkspad-plugin.json", $"{{\"schemaVersion\":1,\"id\":\"{id}\",\"name\":\"{id}\",\"version\":\"1.0.0\",\"api\":{{\"min\":1,\"max\":1}},\"permissions\":[],\"contributes\":{{{contributes}}}}}");
+            foreach (var (name, text) in files) Add(name, text);
+            return path;
+        }
+
+        async Task InstallAsync(string zip)
+        {
+            var package = manager.Prepare(zip);
+            await manager.CommitAsync(package, package.NewPermissions);
+            app.Plugins.SyncInstalled(package.Id);
+            app.ReloadClips();
+        }
+
+        await InstallAsync(Zip("smoke.keep", "\"clips\":[{\"id\":\"keep\",\"title\":\"Keep\",\"text\":\"kept\"}]"));
+        await InstallAsync(Zip("smoke.data",
+            "\"clips\":[{\"id\":\"hi\",\"title\":\"Hi\",\"text\":\"hi\"}],\"converters\":[{\"id\":\"up\",\"title\":\"Up\",\"rules\":[{\"find\":\"a\",\"replace\":\"b\"}]}],\"grammars\":[\"lang.json\"]",
+            ("lang.json", "{\"formatVersion\":1,\"id\":\"smoke-lang\",\"name\":\"Smoke\",\"extensions\":[\".smkl\"],\"comments\":{\"line\":\"#\"},\"rules\":[{\"match\":\"#.*\",\"token\":\"comment\"}]}")));
+        Check(app.Clips.Problems.Count == 0, $"the library reads both packages ({string.Join("; ", app.Clips.Problems)})");
+        Check(app.Clips.FindClip("smoke.data", "hi") is not null && app.Clips.FindConverter("smoke.data", "up") is not null && LanguageModes.ForPath("x.smkl").Id == "smoke-lang", "the package brings a clip, a converter and a grammar");
+
+        var tab = window.NewDocument();
+        tab.Editor!.Document.Text = "a-a";
+        tab.Editor.CaretOffset = 3;
+        Check(window.RunDataCommand("smoke.data", "up", "converter") == NksHub.Textida.Workbench.Commands.CommandOutcome.Handled && tab.Editor.Document.Text == "b-b", "the converter of the package converts the text");
+        tab.Editor.Select(3, 0); // the converter left its result selected
+        window.RunDataCommand("smoke.data", "hi", "clip");
+        for (int i = 0; i < 100 && tab.Editor.Document.Text == "b-b"; i++) await Task.Delay(50);
+        Check(tab.Editor.Document.Text == "b-bhi", $"the clip of the package is inserted at the caret (text '{tab.Editor.Document.Text}')");
+
+        await manager.UninstallAsync("smoke.data");
+        app.Plugins.SyncInstalled("smoke.data");
+        app.ReloadClips();
+        Check(!Directory.Exists(Path.Combine(manager.Root, "smoke.data")) && Directory.Exists(Path.Combine(manager.Root, "smoke.keep")), "only the folder of the uninstalled package is gone");
+        Check(app.Clips.FindClip("smoke.data", "hi") is null && app.Clips.FindConverter("smoke.data", "up") is null && LanguageModes.ForPath("x.smkl").Id == LanguageModes.PlainId, "its clip, converter and grammar are gone");
+        Check(app.Clips.FindClip("smoke.keep", "keep") is not null && app.Clips.FindClip(ClipLibrary.UserPluginId, "mine") is not null, "the other package and the own clip of the user are still there");
+        Check((await File.ReadAllBytesAsync(app.Clips.UserManifestPath)).SequenceEqual(userClips), "the file with the own clips of the user is byte for byte what it was");
+        Check(tab.Editor.Document.Text == "b-bhi", "the open document is not touched by the uninstall");
+        window.CloseTab(tab);
     }
 
     /// <summary>The file panel on a real folder, Go to Anything, the related file, a rename that carries an open document along, and the system recycle bin.</summary>
@@ -236,7 +399,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     private void Check(bool condition, string what)
     {
         if (!condition) throw new InvalidOperationException(what);
-        _log.Add("ok:" + what.Replace(' ', '_'));
+        _log.Add("ok:" + what.Replace(' ', '_') + "@" + _clock.ElapsedMilliseconds);
     }
 
     private Task NextFrameAsync()

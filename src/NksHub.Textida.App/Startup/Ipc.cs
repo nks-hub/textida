@@ -241,12 +241,13 @@ public sealed class IpcServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _cts.CancelAsync();
+        // no continuation goes back to the caller: the editor ends the server on its UI thread and blocks it until the end
+        await _cts.CancelAsync().ConfigureAwait(false);
         _listener?.Dispose();
-        try { await _loop; } catch (OperationCanceledException) { }
+        try { await _loop.ConfigureAwait(false); } catch (OperationCanceledException) { }
         Task[] pending;
         lock (_inflight) pending = [.. _inflight];
-        await Task.WhenAny(Task.WhenAll(pending), Task.Delay(TimeSpan.FromSeconds(2))); // let waiting clients get their reply before the process ends
+        await Task.WhenAny(Task.WhenAll(pending), Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false); // let waiting clients get their reply before the process ends
         if (_listener is not null) try { File.Delete(IpcEndpoint.SocketPath(_channel)); } catch (IOException) { }
         _cts.Dispose();
     }
