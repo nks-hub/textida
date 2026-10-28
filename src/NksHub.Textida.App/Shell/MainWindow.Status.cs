@@ -92,8 +92,12 @@ internal sealed partial class MainWindow
         Core.TypingTrace.End("win.updateStatus", t);
     }
 
+    /// <summary>The stamp of the paged view when the status line was written last, and the tab it was written for; null when the last write was for anything else.</summary>
+    private (DocTab Tab, PagedTextView.StatusStamp Stamp)? _pagedStatus;
+
     private void UpdateStatusCore()
     {
+        _pagedStatus = null;
         long part = Core.TypingTrace.Begin();
         CheckJournalHealth();
         Core.TypingTrace.End("win.status.journalHealth", part);
@@ -137,6 +141,7 @@ internal sealed partial class MainWindow
         }
         else
         {
+            _pagedStatus = (tab, tab.Paged!.CurrentStatus);
             var (line, column) = tab.CaretPosition();
             position = tab.Paged!.LinesExact && tab.Paged.CaretLineColumn() is not null
                 ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))

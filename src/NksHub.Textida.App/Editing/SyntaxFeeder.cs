@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Threading;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Syntax;
@@ -129,8 +130,44 @@ internal sealed class SyntaxFeeder : IDisposable
         // a limit takes away from the margin around the screen, never from the screen: the part on screen is colored whatever it says
         long rowsCap = Math.Min(MaxRows, Math.Max(_rowLimit, 2 * rows));
         int columnsCap = Math.Min(MaxColumns, Math.Max(_columnLimit, 2 * width));
+        var before = _wanted;
         _wanted = new(start, (int)Math.Min(rowsCap, last + rows - start + 1), column, Math.Min(columnsCap, lastColumn + width - column));
+        // a jump to lines that share nothing with the last request is colored at once when it comes after a quiet time, and a jump that follows another one closely
+        // (dragging the minimap makes dozens of them a second) once the jumps have stopped: each would run a slice of the grammar from the nearest checkpoint on the UI thread,
+        // and the lines in between are on screen for one frame
+        if (DefersJumps && before.First >= 0 && _session is not null && (_wanted.First >= before.First + before.Count || _wanted.First + _wanted.Count <= before.First))
+        {
+            long now = Stopwatch.GetTimestamp();
+            bool close = _lastJump != 0 && Stopwatch.GetElapsedTime(_lastJump, now) < TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds);
+            _lastJump = now;
+            if (close)
+            {
+                _jumpTimer ??= NewJumpTimer();
+                _jumpTimer.Stop();
+                _jumpTimer.Start();
+                return;
+            }
+        }
+        _jumpTimer?.Stop();
         Run();
+    }
+
+    private long _lastJump;
+
+    private DispatcherTimer? _jumpTimer;
+
+    /// <summary>A request for lines that share nothing with the last one, and comes within <see cref="PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds"/> of a jump before it, waits until the jumps stop; set by the view of a large file, where a jump starts a walk from a checkpoint.</summary>
+    public bool DefersJumps { get; set; }
+
+    private DispatcherTimer NewJumpTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (!_disposed) Run();
+        };
+        return timer;
     }
 
     private void OnSourceChanged()
@@ -336,6 +373,7 @@ internal sealed class SyntaxFeeder : IDisposable
         if (_disposed) return;
         _disposed = true;
         _settleTimer?.Stop();
+        _jumpTimer?.Stop();
         _doc.LanguageChanged -= OnSourceChanged;
         _doc.Replaced -= OnSourceChanged;
         Release();

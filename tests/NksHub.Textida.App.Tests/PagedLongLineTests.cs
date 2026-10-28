@@ -403,6 +403,8 @@ public class PagedLongLineTests : IDisposable
         paged.GoToOffset(5_000_000);
         await Eventually(() => !paged.CaretMovePending);
         Assert.True(document.ColumnPointCount >= 4, $"{document.ColumnPointCount} points after the walk to the caret");
+        paged.ScrollToColumn(0); // the draw then reads no far window of the line, which would note points of its own
+        Draw();
 
         // the undo comes from outside the view: the caret keeps its offset, which is far from the points that the edit before it dropped
         using var gate = new ManualResetEventSlim();

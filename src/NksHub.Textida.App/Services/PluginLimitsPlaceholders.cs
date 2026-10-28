@@ -120,6 +120,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: bytes the paged view looks at, forward from the start of a line or back from an offset, to find the end or the start of one line of a place beyond the line index (a detour); a line longer than this is cut at that length into view lines, and the line numbers there are estimates anyway. The first draw after a jump reads this much for each line on screen. A multiple of 4.</summary>
     public const long PagedDetourLineScanBytes = 256L << 10;
 
+    /// <summary>Placeholder, OPEN: milliseconds within which a second jump of the paged view to lines far from the ones it showed is not colored at once but after the jumps stop (the first jump after a quiet time is colored at once); dragging the minimap makes dozens of jumps a second and each would run a slice of the grammar on the UI thread. The owner has not decided it.</summary>
+    public const int SyntaxJumpSettleMilliseconds = 60;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 

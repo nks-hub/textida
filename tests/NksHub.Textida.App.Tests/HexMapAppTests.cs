@@ -332,9 +332,13 @@ public class HexMapAppTests : IDisposable
         }
         using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write)) stream.SetLength(length);
 
+        NksHub.Textida.Core.TypingTrace.Reset();
+        NksHub.Textida.Core.TypingTrace.Enabled = true;
         var clock = Stopwatch.StartNew();
         var hex = _w.OpenHex(path, null).Hex!;
         double opened = clock.Elapsed.TotalMilliseconds;
+        NksHub.Textida.Core.TypingTrace.Enabled = false;
+        _output.WriteLine("50 GiB hex, spans of the open:\n" + NksHub.Textida.Core.TypingTrace.Summary());
         _w.UpdateLayout();
         PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
         _output.WriteLine($"50 GiB hex: open {opened:0} ms, map {clock.Elapsed.TotalMilliseconds:0} ms");

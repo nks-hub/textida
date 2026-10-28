@@ -446,7 +446,7 @@ public class LineIndexTests
         {
             doc.Source.File.BeginBlockCount();
             Assert.True(doc.TryGetLineOfOffset(offset, out long line));
-            Assert.InRange(doc.Source.File.BlocksTouched, 0, 4);
+            Assert.InRange(doc.Source.File.BlocksTouched, 0, 6); // a search through the starts of lines reads a block for each of its twenty steps
             Assert.True(doc.TryGetLineStart(line, out long start) && start <= offset);
             if (doc.TryGetLineStart(line + 1, out long next)) Assert.True(offset < next);
         }

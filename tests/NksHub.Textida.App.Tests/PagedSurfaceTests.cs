@@ -608,7 +608,7 @@ public class PagedSurfaceTests : IDisposable
         var file = PagedOf(tab).Source.File;
         Assert.True(file.Length > 40L << 20);
 
-        paged.GoToOffset(starts[editedRow] + 1);
+        paged.GoToOffset(starts[editedRow] + 2); // behind the first letter, which is two bytes
         TestApp.Type(_w, "Q"); // the next rows are one byte further on, and the tree has three pieces
         Assert.True(tab.Doc.Doc.IsModified);
 
@@ -656,10 +656,11 @@ public class PagedSurfaceTests : IDisposable
             long caret = 20L * Mib + 1000;
             file.BeginBlockCount();
             paged.GoToOffset(caret);
+            int jumped = file.BlocksTouched;
             _w.UpdateLayout();
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB");
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB ({jumped} before the draw)");
             Assert.False(paged.LinesExact);
             Assert.Equal(caret, paged.CaretOffset);
 

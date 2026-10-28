@@ -103,6 +103,7 @@ internal sealed partial class PagedTextView : Grid
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
             line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
         Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
+        Syntax.DefersJumps = true;
         _glide = new Glide(() => _bar.Value, value => _bar.Value = value);
         _bar.ValueChanged += (_, _) =>
         {
@@ -272,6 +273,19 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>Bytes of the mapped file read since its pages were last given back (the block cache, P3.1.9); the measurement mode logs it.</summary>
     internal long MappedResidentBytes => Paged.Source.File.ResidentEstimate;
+
+    /// <summary>What the status line shows of this view: the caret, the revision, how far the line index has come and whether its numbers are exact, the number of carets, and the first line on screen while the caret has no line number.</summary>
+    internal readonly record struct StatusStamp(long Caret, long Revision, long Lines, bool Complete, bool Exact, int Carets, long Top);
+
+    /// <summary>The stamp of now. A scroll step leaves it as it was, so the status line need not be written again.</summary>
+    internal StatusStamp CurrentStatus
+    {
+        get
+        {
+            var (lines, complete) = Doc.LineIndexState;
+            return new(_caret, Doc.Revision, lines, complete, LinesExact, CaretCount, CanLocate(_caret) ? -1 : TopLine);
+        }
+    }
 
     /// <summary>Zero-based line and UTF-16 column of the caret; null while the line index is not complete.</summary>
     public (long Line, long Column)? CaretLineColumn() =>
