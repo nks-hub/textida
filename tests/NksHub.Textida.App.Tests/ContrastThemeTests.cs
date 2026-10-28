@@ -59,7 +59,7 @@ public class ContrastThemeTests : IDisposable
     {
         var palette = Colors(theme).Brushes;
         double Ratio(string text, string fill) => ContrastColors.Ratio(palette[text], palette[fill]);
-        string[] fills = ["Bg0", "Bg1", "BgEditor", "ChromeBg", "TabRowBg", "TabBg", "InfoBg", "WarnBg", "BgHover", "TabHoverBg", "CurrentLine", "Highlight", "BracketMatch", "SelectionBg", "DiffAdded", "DiffRemoved"];
+        string[] fills = ["Bg0", "Bg1", "BgEditor", "ChromeBg", "TabRowBg", "TabBg", "InfoBg", "WarnBg", "BgHover", "TabHoverBg", "CurrentLine", "Highlight", "BracketMatch", "OccurrenceBg", "SelectionBg", "DiffAdded", "DiffRemoved"];
         foreach (var text in new[] { "Fg", "EditorFg", "FgMuted", "LineNumbers" })
             foreach (var fill in fills)
                 Assert.True(Ratio(text, fill) >= 4.5, $"{theme}: {text} on {fill} is {Ratio(text, fill):0.0} : 1");

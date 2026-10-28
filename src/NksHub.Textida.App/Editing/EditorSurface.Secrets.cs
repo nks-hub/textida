@@ -75,6 +75,7 @@ internal sealed partial class EditorSurface
         if (_secretMask is not null) _secretMask.Shown = null;
         Options.EnableTextDragDrop = !SecretsHidden; // dragging a selection out would carry the plain text
         TextArea.TextView.Redraw();
+        _occ?.Touch(); // the other occurrences of a value must not show where it is hidden
         _contentChanged?.Invoke();
         SecretsViewChanged?.Invoke();
     }

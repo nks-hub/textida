@@ -73,6 +73,8 @@ internal sealed record ContrastColors(Color Window, Color WindowText, Color Gray
         ["InfoBg"] = Window, ["WarnBg"] = Window,
         ["BgHover"] = Soft(0.2), ["TabHoverBg"] = Soft(0.2), ["CurrentLine"] = Soft(0.12),
         ["Highlight"] = Soft(0.3), ["BracketMatch"] = Soft(0.3), ["DiffRemoved"] = Soft(0.3), ["DiffAdded"] = Soft(0.3),
+        // the other occurrences of the selection: a lighter fill than the selection, always with an outline of the text colour, so they differ from it by shape and not by colour alone
+        ["OccurrenceBg"] = Soft(0.2), ["OccurrenceBorder"] = WindowText,
         ["Border"] = WindowText, ["Fg"] = WindowText, ["FgMuted"] = WindowText, ["EditorFg"] = WindowText, ["LineNumbers"] = WindowText,
         ["Accent"] = HotLight, ["AccentFg"] = Window, ["Danger"] = HotLight, ["Good"] = HotLight,
         ["AccentSoft"] = Highlight, ["SelectedFg"] = HighlightText, ["SelectionBg"] = Soft(0.45),

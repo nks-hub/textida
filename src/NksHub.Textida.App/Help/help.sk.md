@@ -333,6 +333,7 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 2. Ctrl+L vyberie riadok vrátane konca riadka. Opakované Ctrl+L pridá ďalší riadok.
 3. Shift+Alt+šípka doprava rozšíri výber: najprv slovo, potom obsah zátvoriek okolo neho, potom aj zátvorky, ďalšie zátvorky, celé riadky a nakoniec celý text.
 - Pri viacerých kurzoroch vyberie každý kurzor svoj riadok.
+- Ak vyberiete text na jednom riadku, ostatné miesta s rovnakým textom sa na obrazovke zvýraznia, označia sa pri posuvníku a v minimape a stavový riadok ich spočíta. Mení to nastavenie Zvýrazniť ďalšie výskyty výberu, Výskyty: len celé slová, Výskyty: rozlišovať veľkosť písmen, Výskyty: slovo pod kurzorom a Výskyty: najkratší výber. Výber len z medzier, z viacerých riadkov alebo s viacerými kurzormi sa nehľadá; vo veľkom súbore v stránkovanom režime sa hľadá len v časti na obrazovke.
 
 ## [edit.lines] Práca s riadkami
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment

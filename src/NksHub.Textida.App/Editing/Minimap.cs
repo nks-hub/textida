@@ -40,13 +40,25 @@ internal interface IMinimapHost
 
     /// <summary>The document is a large file: when it is many screens long, the map shows samples spread over the whole file instead of the surroundings of the viewport.</summary>
     bool Sampled => false;
+
+    /// <summary>Zero-based lines that hold another occurrence of the selected text, ascending; empty when none are marked.</summary>
+    IReadOnlyList<long> OccurrenceLines => [];
+
+    /// <summary>Raised when <see cref="OccurrenceLines"/> changed.</summary>
+    event Action? OccurrencesChanged
+    {
+        add { }
+        remove { }
+    }
 }
 
+/// <summary>What a mark in the strip stands for; in a row of the strip the higher value wins.</summary>
 internal enum MinimapMarkKind : byte
 {
-    Match = 1,
-    Warning = 2,
-    Error = 3,
+    Occurrence = 1,
+    Match = 2,
+    Warning = 3,
+    Error = 4,
 }
 
 /// <summary>A line to mark in the narrow strip at the right edge of the minimap, which covers the whole file.</summary>
@@ -239,6 +251,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _attached = true;
         _host.MapChanged += OnMapChanged;
         _host.ContentChanged += Invalidate;
+        _host.OccurrencesChanged += OnOccurrencesChanged;
         _doc.Doc.Changed += OnDocumentChanged;
         _doc.Replaced += Invalidate;
         _doc.LanguageChanged += Invalidate;
@@ -260,6 +273,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _attached = false;
         _host.MapChanged -= OnMapChanged;
         _host.ContentChanged -= Invalidate;
+        _host.OccurrencesChanged -= OnOccurrencesChanged;
         _doc.Doc.Changed -= OnDocumentChanged;
         _doc.Replaced -= Invalidate;
         _doc.LanguageChanged -= Invalidate;
@@ -278,6 +292,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
     {
         _kindColors.Clear();
         Invalidate();
+    }
+
+    /// <summary>The other occurrences of the selection changed: only the strip at the right edge is drawn again.</summary>
+    private void OnOccurrencesChanged()
+    {
+        _marksStamp++;
+        InvalidateVisual();
     }
 
     private void OnMapChanged()
@@ -539,24 +560,28 @@ internal sealed unsafe class Minimap : Control, IDisposable
             context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.45), new Rect(x, y, laneWidth, Math.Max(3, count * (double)height / lines)));
         }
         DrawHeat(context, x, laneWidth, height);
-        if (_marks.Length == 0 && _filterMarks.Length == 0) return;
+        var occurrences = _host.OccurrenceLines;
+        if (_marks.Length == 0 && _filterMarks.Length == 0 && occurrences.Count == 0) return;
         if (_laneKey != (height, lines, _marksStamp))
         {
             _laneKey = (height, lines, _marksStamp);
             _lane = new byte[height];
-            foreach (var mark in _marks.Concat(_filterMarks))
+            void Put(long line, MinimapMarkKind kind)
             {
-                if (mark.Line < 0 || mark.Line >= lines) continue;
-                int row = (int)Math.Min(height - 1, mark.Line * (long)height / lines);
-                if ((byte)mark.Kind > _lane[row]) _lane[row] = (byte)mark.Kind;
+                if (line < 0 || line >= lines) return;
+                int row = (int)Math.Min(height - 1, line * height / lines);
+                if ((byte)kind > _lane[row]) _lane[row] = (byte)kind;
             }
+            foreach (long line in occurrences) Put(line, MinimapMarkKind.Occurrence);
+            foreach (var mark in _marks.Concat(_filterMarks)) Put(mark.Line, mark.Kind);
         }
+        var occurrenceBrush = new ImmutableSolidColorBrush(Resource("OccurrenceBorder", Color.Parse("#3B82F6")));
         for (int y = 0; y < height;)
         {
             byte kind = _lane[y];
             int end = y + 1;
             while (end < height && _lane[end] == kind) end++;
-            if (kind != 0) context.FillRectangle(MarkBrush((MinimapMarkKind)kind), new Rect(x, Math.Max(0, y - 1), laneWidth, end - y + 2));
+            if (kind != 0) context.FillRectangle(kind == (byte)MinimapMarkKind.Occurrence ? occurrenceBrush : MarkBrush((MinimapMarkKind)kind), new Rect(x, Math.Max(0, y - 1), laneWidth, end - y + 2));
             y = end;
         }
     }

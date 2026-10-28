@@ -121,6 +121,7 @@ internal sealed partial class PagedTextView : Grid
             if (Doc.LineIndexState.Complete) _indexTimer.Stop();
             RaiseViewChanged();
         };
+        InitOccurrences();
     }
 
     private void RepaintLog()
@@ -133,6 +134,7 @@ internal sealed partial class PagedTextView : Grid
     public event Action? ViewChanged;
     private void RaiseViewChanged()
     {
+        NoteOccurrenceState();
         long t = TypingTrace.Begin();
         _inputClient.CaretChanged();
         TypingTrace.End("paged.raise.inputClient", t);
@@ -253,6 +255,7 @@ internal sealed partial class PagedTextView : Grid
         _lines.Clear();
         _mapBlock = (-1, 0, []);
         _canvas.InvalidateVisual();
+        _occ?.Touch(); // the other occurrences of a value must not show where it is hidden
         RaiseViewChanged();
     }
 
@@ -288,6 +291,7 @@ internal sealed partial class PagedTextView : Grid
         _truncatedColumns = -1; // the next draw sets the sideways range again: the cell width or the room for the line end mark may have changed
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
+        _occ?.Touch(); // the switches of the occurrences may have changed
     }
 
     /// <summary>Creates the invisible native control that publishes this surface to UI Automation; the caller puts it into the visual tree next to the view.</summary>
@@ -312,6 +316,7 @@ internal sealed partial class PagedTextView : Grid
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
         if (_others is not null) ResyncCarets();
+        _occ?.Touch();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -333,6 +338,7 @@ internal sealed partial class PagedTextView : Grid
         CancelWindows();
         CancelFarMove();
         _searchCts?.Cancel();
+        _occ?.Suspend();
     }
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
@@ -1998,7 +2004,7 @@ internal sealed partial class PagedTextView : Grid
         }
     }
 
-    private sealed class LinesSurface(PagedTextView owner) : Control
+    private sealed partial class LinesSurface(PagedTextView owner) : Control
     {
         private double _lineHeight = 18;
         private double _digitWidth = 8;
@@ -2210,6 +2216,8 @@ internal sealed partial class PagedTextView : Grid
             var options = owner._options;
             var levels = owner._doc.IsLog ? owner._doc.LogLevels : null;
             var selection = Brush("SelectionBg", Brushes.LightBlue);
+            var occurrences = BeginOccurrences(Brush);
+            long occurrenceOwn = owner._occ?.Target?.Own ?? -1;
             var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);
             context.FillRectangle(back, new Rect(Bounds.Size));
             long lines = owner.LineCount;
@@ -2253,6 +2261,7 @@ internal sealed partial class PagedTextView : Grid
                     }
                     else if (owner.HasSelection) _lineSelections.Add(new TextSelection(owner._anchor, owner._caret));
                     if (options.CurrentLine && caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
+                    if (occurrences is not null) DrawOccurrences(context, view, y, occurrences, occurrenceOwn);
                     foreach (var s in _lineSelections)
                         if (!s.IsEmpty) DrawSelection(context, view, y, selection, s.Start, s.End);
                     string shown = options.ShowWhitespace ? view.Marked : view.Display;
@@ -2341,6 +2350,7 @@ internal sealed partial class PagedTextView : Grid
                     Dispatcher.UIThread.Post(owner.UpdateSideways);
                 }
             }
+            DrawOccurrenceStrip(context);
             for (int i = 0; options.LineNumbers && i < VisibleLines + 1; i++)
             {
                 long line = top + i;

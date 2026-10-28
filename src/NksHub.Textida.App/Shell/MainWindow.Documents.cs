@@ -149,6 +149,8 @@ internal sealed partial class MainWindow
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
+            surface.OccurrencesChanged += () => { if (tab == Active) UpdateStatus(); };
+            surface.Occurrences.Announce += scan => { if (tab == Active && scan.Describe() is { } text) Announce(text); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;
             surface.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);
             surface.SnippetChoicesRequested += choices => { if (tab == Active) ShowSnippetChoices(surface, choices); };
@@ -165,6 +167,8 @@ internal sealed partial class MainWindow
         else if (tab.Custom is not MarkdownPreview)
         {
             tab.Paged!.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
+            tab.Paged.OccurrencesChanged += () => { if (tab == Active) UpdateStatus(); };
+            tab.Paged.Occurrences.Announce += scan => { if (tab == Active && scan.Describe() is { } text) Announce(text); };
             tab.Paged.Refused += SetStatusMessage;
             tab.Paged.Copied += RememberCopy;
             tab.Paged.StackTraceClicked += link => _ = OpenStackLinkAsync(tab, link);

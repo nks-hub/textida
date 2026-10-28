@@ -333,6 +333,7 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 2. Ctrl+L vybere řádek včetně konce řádku. Opakované Ctrl+L přidá další řádek.
 3. Shift+Alt+šipka vpravo rozšíří výběr: nejdřív slovo, pak obsah závorek kolem něj, pak i závorky, další závorky, celé řádky a nakonec celý text.
 - S více kurzory vybere každý kurzor svůj řádek.
+- Vyberete-li text na jednom řádku, ostatní místa se stejným textem se na obrazovce zvýrazní, označí se u posuvníku a v minimapě a stavový řádek je spočítá. Mění to nastavení Zvýraznit další výskyty výběru, Výskyty: jen celá slova, Výskyty: rozlišovat velikost písmen, Výskyty: slovo pod kurzorem a Výskyty: nejkratší výběr. Výběr jen z mezer, z více řádků nebo s více kurzory se nehledá; ve velkém souboru ve stránkovaném režimu se hledá jen v části na obrazovce.
 
 ## [edit.lines] Práce s řádky
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment

@@ -43,8 +43,12 @@ internal sealed record EditorOptions(
     int CaretBlinkMs = EditorOptions.DefaultCaretBlinkMs,
     bool SmoothScrolling = false,
     int HighlightMaxLines = SyntaxFeeder.MaxRows,
-    int HighlightMaxColumns = SyntaxFeeder.MaxColumns)
+    int HighlightMaxColumns = SyntaxFeeder.MaxColumns,
+    OccurrenceOptions? Occurrences = null)
 {
+    /// <summary>The settings of the highlight of other occurrences of the selection.</summary>
+    public OccurrenceOptions Occurrence => Occurrences ?? OccurrenceOptions.Default;
+
     /// <summary>The blink time of the text cursor of AvaloniaEdit, which the editor leaves alone as long as the setting <c>advanced.caretBlinkMilliseconds</c> is this.</summary>
     public const int DefaultCaretBlinkMs = 500;
 
@@ -116,7 +120,8 @@ internal sealed record EditorOptions(
             CaretBlinkMs: (int)s.GetInt("advanced.caretBlinkMilliseconds"),
             SmoothScrolling: s.GetBool("advanced.smoothScrolling"),
             HighlightMaxLines: (int)s.GetInt("advanced.highlightMaxLines"),
-            HighlightMaxColumns: (int)s.GetInt("advanced.highlightMaxColumns"));
+            HighlightMaxColumns: (int)s.GetInt("advanced.highlightMaxColumns"),
+            Occurrences: OccurrenceOptions.From(s));
     }
 }
 

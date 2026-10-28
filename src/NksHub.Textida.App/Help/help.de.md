@@ -333,6 +333,7 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 2. Strg+L wählt die Zeile samt Zeilenende aus. Ein weiteres Strg+L fügt die nächste Zeile hinzu.
 3. Umschalt+Alt+Pfeil rechts erweitert die Auswahl: erst das Wort, dann den Inhalt der Klammern darum, dann die Klammern selbst, das nächste Klammerpaar, die ganzen Zeilen und zuletzt den ganzen Text.
 - Bei mehreren Cursorn nimmt jeder Cursor seine eigene Zeile.
+- Wählen Sie Text in einer Zeile aus, werden die anderen Stellen mit demselben Text auf dem Bildschirm hervorgehoben, neben der Bildlaufleiste und in der Minimap markiert und in der Statusleiste gezählt. Das ändern die Einstellungen Weitere Vorkommen der Auswahl hervorheben, Vorkommen: nur ganze Wörter, Vorkommen: Groß- und Kleinschreibung beachten, Vorkommen: Wort unter dem Cursor und Vorkommen: kürzeste Auswahl. Eine Auswahl nur aus Leerzeichen, über mehrere Zeilen oder mit mehreren Cursorn wird nicht gesucht; in einer großen Datei im Seitenmodus nur im sichtbaren Teil.
 
 ## [edit.lines] Arbeiten mit Zeilen
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment

@@ -28,6 +28,8 @@
                     <SolidColorBrush x:Key="Highlight">#99FFD866</SolidColorBrush>
                     <SolidColorBrush x:Key="CurrentLine">#F1F4F8</SolidColorBrush>
                     <SolidColorBrush x:Key="BracketMatch">#D3DAE3</SolidColorBrush>
+                    <SolidColorBrush x:Key="OccurrenceBg">#4D3B82F6</SolidColorBrush>
+                    <SolidColorBrush x:Key="OccurrenceBorder">#993B82F6</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectionBg">#3D0F7B6C</SolidColorBrush>
                     <SolidColorBrush x:Key="InfoBg">#E8F1EF</SolidColorBrush>
                     <SolidColorBrush x:Key="WarnBg">#FFF4D6</SolidColorBrush>
@@ -72,6 +74,8 @@
                     <SolidColorBrush x:Key="Highlight">#80B38A00</SolidColorBrush>
                     <SolidColorBrush x:Key="CurrentLine">#25272B</SolidColorBrush>
                     <SolidColorBrush x:Key="BracketMatch">#454B53</SolidColorBrush>
+                    <SolidColorBrush x:Key="OccurrenceBg">#663B82F6</SolidColorBrush>
+                    <SolidColorBrush x:Key="OccurrenceBorder">#B36EA8FF</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectionBg">#553DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="InfoBg">#26322F</SolidColorBrush>
                     <SolidColorBrush x:Key="WarnBg">#40361A</SolidColorBrush>
