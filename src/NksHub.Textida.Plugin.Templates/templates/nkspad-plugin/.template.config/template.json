@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "NKS Hub",
+  "classifications": [ "Textida", "Plugin" ],
+  "identity": "NksHub.Textida.Plugin.Template",
+  "name": "Textida plugin",
+  "shortName": "nkspad-plugin",
+  "description": "A plugin for the Textida editor in C#: a NativeAOT program on the plugin SDK with a command that edits the document, a manifest, and a test project that replays editor events against it.",
+  "tags": { "language": "C#", "type": "solution" },
+  "sourceName": "NkspadPlugin",
+  "preferNameDirectory": true,
+  "symbols": {
+    "pluginId": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "The id of the plugin: dot-separated lower case segments, such as acme.formatter. It may not start with nks.",
+      "defaultValue": "example.nkspad-plugin",
+      "replaces": "example.nkspad-plugin"
+    },
+    "sdkVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "The version of the packages NksHub.Textida.Plugin.Sdk and NksHub.Textida.Plugin.TestHost.",
+      "defaultValue": "0.1.0",
+      "replaces": "SDK_VERSION"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "NkspadPlugin/NkspadPlugin.csproj" },
+    { "path": "NkspadPlugin.Tests/NkspadPlugin.Tests.csproj" }
+  ]
+}

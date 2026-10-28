@@ -17,10 +17,21 @@
     <Description>A Textida editor without a window for tests of plugins: the real document, UI, network and secret APIs of the editor over in-memory documents, and a replay of recorded editor events against a plugin.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>textida;plugin;test</PackageTags>
+    <!-- the services of the editor it runs ship inside this package: they are projects of this repository and have no package of their own -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);BundleEditorServices</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.Plugin.Sdk\NksHub.Textida.Plugin.Sdk.csproj" />
+    <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" PrivateAssets="all" />
   </ItemGroup>
+
+  <Target Name="BundleEditorServices" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <_EditorServices Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" Condition="'%(Extension)' == '.dll' And ('%(Filename)' == 'NksHub.Textida.PluginHost' Or '%(Filename)' == 'NksHub.Textida.Workbench' Or '%(Filename)' == 'NksHub.Textida.Core')" />
+      <BuildOutputInPackage Include="@(_EditorServices)" />
+      <BuildOutputInPackage Include="@(_EditorServices->'%(RootDir)%(Directory)%(Filename).xml')" Condition="Exists('%(_EditorServices.RootDir)%(_EditorServices.Directory)%(_EditorServices.Filename).xml')" />
+    </ItemGroup>
+  </Target>
 
 </Project>

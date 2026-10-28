@@ -33,14 +33,17 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="ERRORS.md" Pack="true" PackagePath="\" />
     <None Include="build\NksHub.Textida.Plugin.Sdk.props" Pack="true" PackagePath="build\" />
     <!-- made by the schema option of textida-plugin-validate from the types the editor reads the manifest into; a test keeps the file and the types equal -->
     <None Include="schemas\nkspad-plugin.schema.json" Pack="true" PackagePath="schemas\" />
   </ItemGroup>
 
-  <Target Name="BundleConnectionLayer">
+  <Target Name="BundleConnectionLayer" DependsOnTargets="ResolveReferences">
     <ItemGroup>
-      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'NksHub.Textida.Rpc' And ('%(Extension)' == '.dll' Or '%(Extension)' == '.xml')" />
+      <_ConnectionLayer Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" Condition="'%(Filename)%(Extension)' == 'NksHub.Textida.Rpc.dll'" />
+      <BuildOutputInPackage Include="@(_ConnectionLayer)" />
+      <BuildOutputInPackage Include="@(_ConnectionLayer->'%(RootDir)%(Directory)%(Filename).xml')" Condition="Exists('%(_ConnectionLayer.RootDir)%(_ConnectionLayer.Directory)%(_ConnectionLayer.Filename).xml')" />
     </ItemGroup>
   </Target>
 

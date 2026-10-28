@@ -60,6 +60,22 @@ public class PublicApiTests
         Assert.Equal(all.Count, all.Distinct().Count());
     }
 
+    [Fact]
+    public void Every_error_code_of_the_plugin_api_is_described_in_the_error_file_with_a_way_back()
+    {
+        var rows = File.ReadAllLines(Path.Combine(T.RepoRoot(), "src", "NksHub.Textida.Plugin.Sdk", "ERRORS.md")).Where(l => l.StartsWith("| -")).Select(l => l.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)).ToList();
+
+        foreach (var type in new[] { typeof(DocumentErrorCodes), typeof(UiErrorCodes), typeof(RpcErrorCodes) })
+            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral))
+            {
+                var code = ((int)field.GetRawConstantValue()!).ToString();
+                var row = Assert.Single(rows, r => r[0] == code);
+                Assert.Equal(4, row.Length); // code, name, when, what to do
+                Assert.Equal(field.Name, row[1]);
+                Assert.False(string.IsNullOrWhiteSpace(row[2]) || string.IsNullOrWhiteSpace(row[3]), $"{field.Name} has no description or no way back");
+            }
+    }
+
     private static List<int> Constants(Type type) =>
         [.. type.GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral).Select(f => (int)f.GetRawConstantValue()!)];
 }
