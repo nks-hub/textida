@@ -173,7 +173,7 @@ public class SnippetParserTests
     public void A_transform_that_runs_too_long_stops_the_snippet_with_a_limit_error()
     {
         var limits = new SnippetLimits(8, 1000, TimeSpan.FromMilliseconds(10));
-        var e = Assert.Throws<SnippetLimitException>(() => SnippetParser.Parse("${V/(x+x+)+y/!/}", n => new string('x', 60), "\n", limits));
+        var e = Assert.Throws<SnippetLimitException>(() => SnippetParser.Parse("${V/^(x+)+$/!/}", n => new string('x', 60) + "!", "\n", limits));
         Assert.Contains("too long", e.Message);
     }
 

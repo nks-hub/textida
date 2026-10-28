@@ -203,7 +203,7 @@ public class ClipTests : IDisposable
     public void A_clip_with_a_transform_that_runs_too_long_is_refused_with_a_message_and_writes_nothing()
     {
         Install("acme", Manifest("""
-            "clips":[{"id":"slow","title":"Slow","text":"${1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx} ${1/(x+x+)+y/!/}"}]
+            "clips":[{"id":"slow","title":"Slow","text":"${1:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx!} ${1/^(x+)+$/_/}"}]
             """));
         var tab = Open("keep");
         tab.Editor!.CaretOffset = 4;
