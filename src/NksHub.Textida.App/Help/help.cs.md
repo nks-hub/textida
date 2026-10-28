@@ -956,6 +956,23 @@ Dvě hex mřížky vedle sebe, které se posouvají společně, s rozdíly podba
 - Seznam končí na 1 000 000 rozdílech (okno to řekne); dva nesouvisející soubory by jinak zaplnily paměť.
 - Dvě revize souboru z místní historie se v hexu porovnat nedají. Porovnat v místní historii porovnává text (téma Místní historie).
 
+## [hex.access] Hex: klávesnice a čtečka obrazovky
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Vše v hexu jde ovládat klávesnicí. Toto téma uvádí, co není zřejmé, a co dostane čtečka obrazovky. Ověřeno je přes přístupnostní strom programu, s NVDA ani VoiceOverem samotným zatím ne.
+### Klávesnice
+- Šipky se posouvají o bajt nebo řádek, Ctrl+Left a Ctrl+Right o skupinu, PageUp a PageDown o obrazovku, Home a End v rámci řádku, Ctrl+Home a Ctrl+End po celém souboru. Shift rozšiřuje výběr. Ctrl+A vybere vše.
+- Tab přepíná mezi sloupcem bajtů a sloupcem znaků a zůstává v mřížce (totéž z palety dělá Hex: přepnout mezi sloupcem hex a sloupcem znaků). F6 opustí mřížku a přejde na další část okna, Shift+F6 vrací. V panelu vedle mřížky se Tab pohybuje mezi jeho ovládacími prvky a Esc vrací do mřížky.
+- Ctrl+G přejde na offset. Hex: vybrat po offset (Ctrl+K a pak Ctrl+A) vybere bajty od kurzoru po offset: +0x100 vybere 256 bajtů, end vybere do konce souboru. Ctrl+F hledá bajty a F3 pokračuje.
+- Klávesa Insert přepíná mezi přepisem a vkládáním (na macOS ⌥⌘I). Každá akce hexu je v paletě příkazů (Ctrl+Shift+P) a, pokud ji má, i v nabídce.
+- Panely se otevírají z klávesnice: Inspektor dat klávesami Ctrl+K a pak Ctrl+I, záložky Ctrl+K a pak Ctrl+B, šablona struktury Ctrl+J, mapa souboru Ctrl+K a pak Ctrl+G. Ctrl+K a pak Ctrl+F dá klávesnici na mapu: šipky nahoru a dolů posunou kurzor o obrazovku, Page Up a Page Down o desetinu souboru, Home a End na konce, Esc zpět do mřížky.
+### Čtečka obrazovky
+- Mřížka je jeden upravitelný prvek. Jeho hodnotou je bajt pod kurzorem: offset, bajt hexadecimálně, jeho hodnota dekadicky a znak; výběr přidá svou délku a první a poslední offset, bajt změněný od posledního uložení se označí jako změněný. Popis uvádí řádek, pozici v řádku, sloupec a režim úprav.
+- Skrytá hodnota souboru .env se čte jako skrytá hodnota, nikdy jako bajty.
+- Změna režimu nebo sloupce, výsledek hledání a úprava odmítnutá, protože pohled je jen pro čtení, se oznámí, aniž by se hnula klávesnice.
+- Mapa je posuvník, jehož hodnotou je místo mřížky v souboru v procentech. Popis říká, co buňky ukazují a kolik shod, záložek a změněných míst mapa označuje.
+### Vysoký kontrast
+- Změněné bajty jsou podbarvené a podtržené, záložka má nad sebou proužek a mapa si ponechává rámeček. Ve vysokém kontrastu se druhy bajtů liší nejen barvou: 00 je podtržená, FF tučná a řídicí bajt kurzívou.
+
 ## [tools.run] Nástroje: spuštění externího programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spouštění nástrojů, Spustit nástroj nabídne nástroje zapsané v souboru tools.json ve složce profilu. Poslední řádek ten soubor otevře; poprvé do něj zapíše prázdný, který doplníte.

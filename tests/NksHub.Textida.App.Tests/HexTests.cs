@@ -686,7 +686,7 @@ public class HexTests : IDisposable
         Assert.Equal("offset 0x00000003, bajt 00, hodnota 0, znak řídicí znak", peer.Value);
         Press(Key.Right, RawInputModifiers.Shift);
         Press(Key.Right, RawInputModifiers.Shift);
-        Assert.EndsWith("vybrány 2 bajty", peer.Value);
+        Assert.EndsWith("vybrány 2 bajty od 0x00000003 do 0x00000004", peer.Value);
         TestApp.Type(_w, "1");
         Assert.EndsWith("změněno", peer.Value);
         Loc.SetLanguage("en");

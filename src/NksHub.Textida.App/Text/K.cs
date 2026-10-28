@@ -529,6 +529,11 @@ public static class K
     public const string HexA11yInvalid = "hex.a11y.invalid";
     public const string HexA11ySpace = "hex.a11y.space";
     public const string HexA11yHidden = "hex.a11y.hidden";
+    public const string HexA11yRange = "hex.a11y.range";
+    public const string HexA11yPosition = "hex.a11y.position";
+    public const string HexA11yColumnHex = "hex.a11y.columnHex";
+    public const string HexA11yColumnText = "hex.a11y.columnText";
+    public const string HexReadOnly = "hex.readOnly";
     public const string HexEndOfFile = "hex.endOfFile";
     public const string HexNotEncodable = "hex.notEncodable";
     public const string HexBusy = "hex.busy";
@@ -583,6 +588,7 @@ public static class K
     public const string HexBarOpen = "hex.bar.open";
     public const string HexBarKeep = "hex.bar.keep";
     public const string HexGotoTitle = "hex.goto.title";
+    public const string HexSelectToTitle = "hex.selectTo.title";
     public const string HexGotoLabel = "hex.goto.label";
     public const string HexGotoPreview = "hex.goto.preview";
     public const string HexGotoPreviewEnd = "hex.goto.previewEnd";
@@ -628,6 +634,7 @@ public static class K
     public const string HexBmType = "hex.bm.type";
     public const string HexBmTypeNone = "hex.bm.typeNone";
     public const string HexMapA11y = "hex.map.a11y";
+    public const string HexMapHelp = "hex.map.help";
     public const string HexMapEntropy = "hex.map.entropy";
     public const string HexMapClass = "hex.map.class";
     public const string HexStatsTitle = "hex.stats.title";

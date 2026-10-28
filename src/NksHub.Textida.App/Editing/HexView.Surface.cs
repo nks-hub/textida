@@ -15,6 +15,24 @@ internal sealed partial class HexView
 {
     internal readonly record struct Hit(long Offset, HexColumn Column);
 
+    /// <summary>How a byte class is told in high contrast, where its colour is the text colour: 00 is underlined, FF bold, a control byte italic.</summary>
+    internal enum HexCue : byte { None, Zero, Control, Full }
+
+    internal static HexCue ByteCue(byte b) => b == 0 ? HexCue.Zero : b == 0xFF ? HexCue.Full : b < 0x20 || b == 0x7F ? HexCue.Control : HexCue.None;
+
+    /// <summary>The brush that tints changed bytes. In high contrast the accent tint is the colour of the selection, which the text does not read on; the highlight tint is one it does.</summary>
+    internal static string ChangedTintKey(bool highContrast) => highContrast ? "Highlight" : "AccentSoft";
+
+    private static void ApplyCue(FormattedText text, HexCue cue, int start, int length)
+    {
+        switch (cue)
+        {
+            case HexCue.Zero: text.SetTextDecorations(TextDecorations.Underline, start, length); break;
+            case HexCue.Control: text.SetFontStyle(FontStyle.Italic, start, length); break;
+            case HexCue.Full: text.SetFontWeight(FontWeight.Bold, start, length); break;
+        }
+    }
+
     /// <summary>Draws the grid. All geometry is in character cells of the monospace font, so the three columns line up whatever the font is.</summary>
     private sealed class HexSurface(HexView owner) : Control
     {
@@ -28,6 +46,9 @@ internal sealed partial class HexView
 
         public long RenderedAt { get; private set; }
         public double RenderMs { get; private set; }
+
+        /// <summary>Runs of bytes that got a style cue in the last frame (see <see cref="ByteCue"/>); none outside high contrast. For tests.</summary>
+        public int CueRuns { get; private set; }
         private (long Revision, long Caret, long Anchor, long Top, int Mode, int Nibble) _drawn = (-1, -1, -1, -1, -1, -1);
 
         public HexSurface Self => this;
@@ -174,7 +195,9 @@ internal sealed partial class HexView
             var muted = Brush("FgMuted", Brushes.Gray);
             var dim = Brush("LineNumbers", Brushes.Gray);
             var accent = Brush("Accent", Brushes.Teal);
-            var soft = Brush("AccentSoft", Brushes.LightGray);
+            bool contrast = HighContrast;
+            CueRuns = 0;
+            var soft = Brush(ChangedTintKey(contrast), Brushes.LightGray);
             var selection = Brush("SelectionBg", Brushes.LightBlue);
             var currentRow = Brush("CurrentLine", Brushes.Transparent);
             var danger = Brush("Danger", Brushes.Red);
@@ -242,7 +265,7 @@ internal sealed partial class HexView
                     var tint = BookmarkBrush(b.Color, 0x44, highlight);
                     int a = (int)Math.Max(0, b.Range.Start - rowOffset), z = (int)Math.Min(n, b.Range.End - rowOffset);
                     Mark(context, tint, y, a, z);
-                    var bar = BookmarkBrush(b.Color, 0xFF, highlight);
+                    var bar = contrast ? fore : BookmarkBrush(b.Color, 0xFF, highlight); // the colour of a region may not read on the window colour of the system
                     context.FillRectangle(bar, new Rect(HexX(a) - _cw * 0.5, y, HexX(z - 1) + 2 * _cw - HexX(a) + _cw * 0.5 + 1, 2));
                     context.FillRectangle(bar, new Rect(_charLeft + a * _cw, y, (z - a) * _cw, 2));
                 }
@@ -292,17 +315,27 @@ internal sealed partial class HexView
                     // one span per run of bytes with the same colour: a row of zeros is one span, not one per byte
                     int runStart = 0;
                     IBrush? runBrush = null;
+                    var runCue = HexCue.None;
                     for (int col = 0; col <= n; col++)
                     {
                         IBrush? brush = null;
+                        var cue = HexCue.None;
                         if (col < n)
                         {
                             byte b = buf[rowOffset - bufStart + col];
-                            brush = hidden is not null && hiddenCells[col] || b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
-                            if (ReferenceEquals(brush, runBrush)) continue;
+                            bool masked = hidden is not null && hiddenCells[col];
+                            brush = masked || b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
+                            if (contrast && !masked) cue = ByteCue(b);
+                            if (ReferenceEquals(brush, runBrush) && cue == runCue) continue;
                         }
-                        if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], _hexChar[col - 1] + 2 - _hexChar[runStart]);
-                        (runStart, runBrush) = (col, brush);
+                        int runLength = col > 0 ? _hexChar[col - 1] + 2 - _hexChar[runStart] : 0;
+                        if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], runLength);
+                        if (runCue != HexCue.None)
+                        {
+                            ApplyCue(hex, runCue, _hexChar[runStart], runLength);
+                            CueRuns++;
+                        }
+                        (runStart, runBrush, runCue) = (col, brush, cue);
                     }
                     context.DrawText(hex, new Point(_hexLeft, y + 1));
 

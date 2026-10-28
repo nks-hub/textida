@@ -14,6 +14,15 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>Gives the keyboard to the map (shown first when it is hidden); Up, Down, Page Up, Page Down, Home and End move the caret through the file, Esc goes back to the grid.</summary>
+    internal CommandOutcome FocusHexMinimap()
+    {
+        if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;
+        if (!hex.Minimap.IsVisible) hex.SetMinimapVisible(true);
+        hex.Minimap.Focus(Avalonia.Input.NavigationMethod.Tab);
+        return CommandOutcome.Handled;
+    }
+
     /// <summary>Switches the cells of the map between the entropy and the kind of byte, and says which it is now.</summary>
     internal CommandOutcome CycleHexMapMode()
     {

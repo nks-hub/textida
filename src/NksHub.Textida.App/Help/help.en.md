@@ -956,6 +956,23 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 - The list stops at 1,000,000 differences (the window says so); two unrelated files would otherwise fill the memory.
 - Two revisions of a file from the local history cannot be compared in hex. Compare in the local history compares text (topic Local history).
 
+## [hex.access] Hex: keyboard and screen reader
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Everything in hex can be done from the keyboard. This topic lists what is not obvious and what a screen reader gets. It has been tested through the accessibility tree of the program, not yet with NVDA or VoiceOver themselves.
+### Keyboard
+- Arrows move by a byte or a row, Ctrl+Left and Ctrl+Right by a group, PageUp and PageDown by a screen, Home and End within the row, Ctrl+Home and Ctrl+End through the file. Shift extends the selection. Ctrl+A selects everything.
+- Tab switches between the byte column and the character column and stays in the grid (Hex: Switch Between Hex and Character Column does the same from the palette). F6 leaves the grid for the next part of the window, Shift+F6 goes back. In a panel beside the grid Tab moves between its controls and Esc returns to the grid.
+- Ctrl+G goes to an offset. Hex: Select to Offset (Ctrl+K then Ctrl+A) selects from the caret to an offset: +0x100 selects 256 bytes, end selects to the end of the file. Ctrl+F finds bytes and F3 goes on.
+- The Insert key switches between overwrite and insert (⌥⌘I on macOS). Every hex action is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu.
+- The panels open from the keyboard: Data Inspector with Ctrl+K then Ctrl+I, Bookmarks with Ctrl+K then Ctrl+B, Structure Template with Ctrl+J, File Map with Ctrl+K then Ctrl+G. Ctrl+K then Ctrl+F puts the keyboard on the map: Up and Down move the caret by a screen, Page Up and Page Down by a tenth of the file, Home and End to the ends, Esc back to the grid.
+### Screen reader
+- The grid is one editable element. Its value is the byte under the caret: the offset, the byte in hexadecimal, its value in decimal and the character; a selection adds its length and its first and last offset, a byte changed since the last save says changed. Its description gives the row, the position in the row, the column and the editing mode.
+- A hidden value of a .env file is read as a hidden value, never as bytes.
+- A change of the mode or the column, the result of a search and an edit that was refused because the view is read-only are announced without the keyboard moving.
+- The map is a slider whose value is the place of the grid in the file in percent. Its description says what the cells show and how many matches, bookmarks and changed places it marks.
+### High contrast
+- Changed bytes are tinted and underlined, a bookmark has a bar over it and the map keeps its frame. In high contrast the byte classes are told by more than colour: 00 is underlined, FF is bold and a control byte is italic.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Running Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.

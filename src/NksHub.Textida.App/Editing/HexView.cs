@@ -142,6 +142,9 @@ internal sealed partial class HexView : Grid
     /// <summary>Raised with a localised sentence when an edit was refused or something else needs saying.</summary>
     public event Action<string>? Refused;
 
+    /// <summary>Raised with a localised sentence for a screen reader when the mode or the column changed; the status bar shows both anyway, so it is not a message.</summary>
+    public event Action<string>? Announced;
+
     /// <summary>The background run (checksum, export) that Esc cancels; null when none runs.</summary>
     internal CancellationTokenSource? Job { get; set; }
 
@@ -159,6 +162,7 @@ internal sealed partial class HexView : Grid
     public int VisibleRows => Math.Max(1, _canvas.VisibleRows);
     internal long RenderedAt => _canvas.RenderedAt;
     internal double RenderMs => _canvas.RenderMs;
+    internal int CueRuns => _canvas.CueRuns;
     internal void Redraw() => _canvas.InvalidateVisual();
 
     internal Document Document => Doc;
@@ -182,7 +186,13 @@ internal sealed partial class HexView : Grid
 
     private long TotalRows => Math.Max(1, (Doc.ByteLength + _bytesPerRow) / _bytesPerRow);
 
+    /// <summary>The rows of the grid, the last one being the row of the end of the file; what the scroll bar counts.</summary>
+    internal long RowCount => TotalRows;
+
     protected override AutomationPeer OnCreateAutomationPeer() => new HexAutomationPeer(this);
+
+    /// <summary>The system asks for high contrast: the grid then tells byte classes and changes apart by more than colour (see <see cref="ByteCue"/>).</summary>
+    internal static bool HighContrast => Application.Current is App { Contrast.IsOn: true };
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -190,6 +200,7 @@ internal sealed partial class HexView : Grid
         Doc.Changed += OnDocChanged;
         Doc.Saved += OnSaved;
         Marks.Changed += OnMarksChanged;
+        if (Application.Current is App app) app.Contrast.Changed += OnContrastChanged;
         _watch.Start();
         UpdateScrollRange();
     }
@@ -200,7 +211,14 @@ internal sealed partial class HexView : Grid
         Doc.Changed -= OnDocChanged;
         Doc.Saved -= OnSaved;
         Marks.Changed -= OnMarksChanged;
+        if (Application.Current is App app) app.Contrast.Changed -= OnContrastChanged;
         _watch.Stop();
+    }
+
+    private void OnContrastChanged()
+    {
+        _canvas.InvalidateVisual();
+        Minimap.InvalidateVisual();
     }
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
@@ -402,7 +420,13 @@ internal sealed partial class HexView : Grid
         if (!Editor.Insert) Editor.MoveTo(Math.Min(Editor.Caret, Math.Max(0, Doc.ByteLength - 1)), extend: Editor.HasSelection);
         _canvas.InvalidateVisual();
         RaiseViewChanged();
+        Announced?.Invoke(ModeText());
     }
+
+    /// <summary>"Edit mode: INSERT" or "Edit mode: OVERWRITE", the way the status bar names the mode for a screen reader.</summary>
+    internal string ModeText() => Loc.Get(K.HexModeA11y, ("value", Loc.Get(Insert ? K.HexModeInsert : K.HexModeOverwrite)));
+
+    internal string ColumnText() => Loc.Get(Editor.Column == HexColumn.Hex ? K.HexA11yColumnHex : K.HexA11yColumnText);
 
     public void ToggleColumn()
     {
@@ -410,6 +434,7 @@ internal sealed partial class HexView : Grid
         Editor.BreakRun();
         _canvas.InvalidateVisual();
         RaiseViewChanged();
+        Announced?.Invoke(ColumnText());
     }
 
     internal static IReadOnlyList<int> Sizes => RowSizes;
@@ -525,13 +550,21 @@ internal sealed partial class HexView : Grid
 
     internal void Do(HexResult result) => Report(result);
 
-    public void TypeNibble(int digit) { if (!ReadOnly) Report(Editor.TypeNibble(digit)); }
+    /// <summary>Says that the view is read-only, and returns true, when it is; a refused edit is then heard instead of doing nothing.</summary>
+    private bool RefusesEdit()
+    {
+        if (!ReadOnly) return false;
+        Refused?.Invoke(Loc.Get(K.HexReadOnly));
+        return true;
+    }
 
-    public void TypeText(string text) { if (!ReadOnly) Report(Editor.TypeText(text)); }
+    public void TypeNibble(int digit) { if (!RefusesEdit()) Report(Editor.TypeNibble(digit)); }
+
+    public void TypeText(string text) { if (!RefusesEdit()) Report(Editor.TypeText(text)); }
 
     public async Task DeleteAsync(bool backspace)
     {
-        if (ReadOnly) return;
+        if (RefusesEdit()) return;
         var result = backspace ? Editor.Backspace(DeleteMode.Ask) : Editor.Delete(DeleteMode.Ask);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
@@ -546,7 +579,7 @@ internal sealed partial class HexView : Grid
 
     public void UndoRedo(bool redo)
     {
-        if (ReadOnly) return;
+        if (RefusesEdit()) return;
         if (redo ? Doc.RedoBlockedBySave : Doc.UndoBlockedBySave) { Refused?.Invoke(Loc.Get(K.HexBusy)); return; }
         if (!(redo ? Editor.Redo() : Editor.Undo())) return;
         Reveal(Editor.Caret);
@@ -582,7 +615,7 @@ internal sealed partial class HexView : Grid
     /// <summary>Pastes bytes: the exact bytes of another hex view, else hex text, else (in the character column) text in the charset.</summary>
     public async Task PasteAsync()
     {
-        if (ReadOnly) return;
+        if (RefusesEdit()) return;
         if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
         byte[]? bytes = null;
         if (await clipboard.TryGetDataAsync() is { } data)
@@ -607,7 +640,7 @@ internal sealed partial class HexView : Grid
     /// <summary>Pastes bytes already made from the clipboard (or from a form of it); a block longer than the rest of the file asks what to do.</summary>
     public async Task PasteBytesAsync(byte[] bytes)
     {
-        if (ReadOnly) return;
+        if (RefusesEdit()) return;
         var result = Editor.Paste(bytes);
         if (result is { Applied: false, Issue: HexIssue.NeedsChoice })
         {
@@ -685,6 +718,12 @@ internal sealed partial class HexView : Grid
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        // a key that rises from a panel beside the grid (the inspector, the bookmarks, the map) is that panel's: Tab must leave it, not switch the column
+        if (!ReferenceEquals(e.Source, this))
+        {
+            base.OnKeyDown(e);
+            return;
+        }
         bool command = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         int page = Math.Max(1, VisibleRows - 1) * _bytesPerRow;
