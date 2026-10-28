@@ -23,7 +23,7 @@ public static class TranscriptParser
 {
     private static readonly HashSet<string> FileTools = ["Edit", "Write", "NotebookEdit", "Read"];
 
-    private static string? Str(JsonElement e, string name) =>
+    internal static string? Str(JsonElement e, string name) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
 
     internal static string Cut(string text, int max)
@@ -39,7 +39,7 @@ public static class TranscriptParser
         return true;
     }
 
-    private static string Preview(string text, int max)
+    internal static string Preview(string text, int max)
     {
         var flat = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         return Cut(flat, max);
@@ -52,7 +52,7 @@ public static class TranscriptParser
     {
         preview = "";
         if (root.ValueKind != JsonValueKind.Object) return TranscriptKind.Invalid;
-        if (!root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object) return TranscriptKind.Other;
+        if (!root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object) return CodexTranscript.Classify(root, previewChars, out preview);
         switch (Str(message, "role"))
         {
             case "assistant":
@@ -87,12 +87,15 @@ public static class TranscriptParser
             var reader = new Utf8JsonReader(prefix, isFinalBlock: false, default);
             if (!reader.Read()) return TranscriptKind.Other;
             if (reader.TokenType != JsonTokenType.StartObject) return TranscriptKind.Invalid;
+            bool responseItem = false;
             while (reader.Read())
             {
                 if (reader.TokenType != JsonTokenType.PropertyName) return TranscriptKind.Other;
-                bool message = reader.ValueTextEquals("message"u8);
+                bool message = reader.ValueTextEquals("message"u8), type = reader.ValueTextEquals("type"u8), payload = reader.ValueTextEquals("payload"u8);
                 if (!reader.Read()) return TranscriptKind.Other;
                 if (message && reader.TokenType == JsonTokenType.StartObject) return MessagePrefix(ref reader, prefix, previewChars, out preview);
+                if (type && reader.TokenType == JsonTokenType.String) responseItem = reader.ValueTextEquals("response_item"u8);
+                if (payload && responseItem && reader.TokenType == JsonTokenType.StartObject) return CodexTranscript.PayloadPrefix(ref reader);
                 if (!reader.TrySkip()) return TranscriptKind.Other;
             }
         }
@@ -179,18 +182,23 @@ public static class TranscriptParser
             Raw(line, rawText, ctx, into);
             return;
         }
-        var content = root.GetProperty("message").TryGetProperty("content", out var c) ? c : default;
+        if (!root.TryGetProperty("message", out var message))
+        {
+            CodexTranscript.Read(line, root, ctx, into, rawText);
+            return;
+        }
+        var content = message.TryGetProperty("content", out var c) ? c : default;
         if (kind == TranscriptKind.Assistant) AssistantContent(line, content, ctx, into);
         else UserContent(line, content, ctx, into);
     }
 
-    private static void Raw(long line, Func<string> text, TranscriptContext ctx, TurnContent? into)
+    internal static void Raw(long line, Func<string> text, TranscriptContext ctx, TurnContent? into)
     {
         if (into is null) return;
         into.Rows.Add(new TranscriptRow(line, TranscriptRowKind.Raw, Cut(ctx.Masker.Mask(text()), ctx.Limits.MaxRowChars)));
     }
 
-    private static void Add(TurnContent? into, long line, TranscriptRowKind kind, string text, TranscriptContext ctx, string? path = null, string? tool = null) =>
+    internal static void Add(TurnContent? into, long line, TranscriptRowKind kind, string text, TranscriptContext ctx, string? path = null, string? tool = null) =>
         into?.Rows.Add(new TranscriptRow(line, kind, Cut(text, ctx.Limits.MaxRowChars), path, tool));
 
     // Without rows to fill (into is null) only the calls and results that decide what a secrets file shows are read; the rest of a line costs nothing.

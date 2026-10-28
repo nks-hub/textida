@@ -13,12 +13,13 @@ public class LogFollowTests
         private byte[] _bytes = [];
         public long BytesRead;
         public long Identity = 1;
+        public long Stamp;
         public bool Exists = true;
 
         public void Append(string text) => _bytes = [.. _bytes, .. Encoding.UTF8.GetBytes(text)];
         public void Set(string text) => _bytes = Encoding.UTF8.GetBytes(text);
         public byte[] Bytes => _bytes;
-        public LogSourceState? Probe() => Exists ? new LogSourceState(_bytes.Length, Identity) : null;
+        public LogSourceState? Probe() => Exists ? new LogSourceState(_bytes.Length, Identity, Stamp) : null;
 
         public int Read(long offset, Span<byte> destination)
         {
@@ -31,7 +32,7 @@ public class LogFollowTests
 
     private static readonly LogFilter Errors = new([LogLevel.Error]);
 
-    private static LogFollower Follow(ILogSource source, LogFilter? filter = null) => new(source, TextCodec.Utf8, LogLevelRules.Default, filter ?? Errors);
+    private static LogFollower Follow(ILogSource source, LogFilter? filter = null, int maxMatches = int.MaxValue) => new(source, TextCodec.Utf8, LogLevelRules.Default, filter ?? Errors, maxMatches);
 
     /// <summary>Starts of the lines the filter keeps, found by walking the whole text.</summary>
     private static long[] Naive(byte[] bytes, Func<string, bool> keep)
@@ -68,8 +69,8 @@ public class LogFollowTests
             log.BytesRead = 0;
             update = follower.Poll();
             Assert.Equal(LogFollowChange.None, update.Change);
-            // the added bytes and the head used to recognise the file; nothing of the 100 KiB before
-            Assert.True(log.BytesRead <= Encoding.UTF8.GetByteCount(added) + LogFollower.HeadBytes, log.BytesRead.ToString());
+            // the added bytes and the head and tail samples checked and the new tail sample kept; nothing of the 100 KiB before
+            Assert.True(log.BytesRead <= Encoding.UTF8.GetByteCount(added) + 3 * LogFollower.HeadBytes, log.BytesRead.ToString());
             Assert.Equal(Naive(log.Bytes, IsError), follower.Matches());
         }
 
@@ -187,6 +188,93 @@ public class LogFollowTests
         Assert.Equal([11L], follower.Matches());
     }
 
+    private static string Banner => string.Concat(Enumerable.Range(0, 300).Select(i => $"# banner line {i} of the log header\n"));
+
+    [Fact]
+    public void A_longer_file_with_the_same_start_and_no_identity_is_rotation_when_the_bytes_before_the_offset_differ()
+    {
+        var log = new MemoryLog { Identity = 0 }; // the platform gives no file identity, as outside Windows
+        log.Append(Banner + string.Concat(Enumerable.Range(0, 400).Select(i => $"2026-01-01 {(i % 50 == 0 ? "ERROR" : "INFO")} old #{i}\n")));
+        Assert.True(Banner.Length > 2 * LogFollower.HeadBytes);
+        var follower = Follow(log).Tap(f => f.Poll());
+        Assert.Equal(8, follower.MatchCount);
+
+        log.Set(Banner + string.Concat(Enumerable.Range(0, 900).Select(i => $"2026-02-02 {(i % 300 == 0 ? "ERROR" : "INFO")} new #{i}\n")));
+        Assert.True(log.Bytes.Length > follower.Consumed);
+        var update = follower.Poll();
+
+        Assert.Equal(LogFollowChange.Rotated, update.Change);
+        Assert.Equal(8, update.Invalidated);
+        Assert.Equal(3, follower.MatchCount);
+        Assert.Equal(Naive(log.Bytes, IsError), follower.Matches());
+        Assert.Equal(log.Bytes.Length, follower.Consumed);
+    }
+
+    [Fact]
+    public void A_file_of_the_same_length_and_start_is_rotation_only_when_its_write_time_moved_and_the_bytes_differ()
+    {
+        var log = new MemoryLog { Identity = 0, Stamp = 10 };
+        log.Append(Banner + "2026-01-01 ERROR old\n");
+        var follower = Follow(log).Tap(f => f.Poll());
+        log.BytesRead = 0;
+
+        Assert.Equal(LogFollowChange.None, follower.Poll().Change);
+        Assert.Equal(0, log.BytesRead); // nothing moved: the file is not read at all
+
+        log.Stamp = 11; // touched, bytes unchanged
+        Assert.Equal(LogFollowChange.None, follower.Poll().Change);
+        Assert.Equal([Banner.Length + 0L], follower.Matches());
+
+        log.Set(Banner + "2026-02-02 ERROR new\n");
+        log.Stamp = 12;
+        var update = follower.Poll();
+        Assert.Equal(LogFollowChange.Rotated, update.Change);
+        Assert.Equal(1, update.Invalidated);
+        Assert.Equal(Naive(log.Bytes, IsError), follower.Matches());
+    }
+
+    [Fact]
+    public void Only_the_newest_matches_are_kept_up_to_the_bound_and_the_dropped_ones_are_counted()
+    {
+        var log = new MemoryLog();
+        const int bound = 100;
+        log.Append(string.Concat(Enumerable.Range(0, 1000).Select(i => $"ERROR failure #{i}\n")));
+        var follower = Follow(log, maxMatches: bound);
+
+        var update = follower.Poll();
+        long kept = follower.MatchCount;
+        Assert.InRange(kept, bound * 3 / 4, bound);
+        Assert.Equal(1000, update.NewMatches); // found, whether still kept or not
+        Assert.Equal(1000 - kept, update.Dropped);
+        Assert.Equal(update.Dropped, follower.Dropped);
+        Assert.Equal(Naive(log.Bytes, IsError).TakeLast((int)kept), follower.Matches());
+        Assert.Equal(Enumerable.Range(1000 - (int)kept, (int)kept).Select(i => (long)i), follower.MatchLines().Select(m => m.Line));
+        Assert.Equal(follower.Matches()[0], follower.Next(0)); // a search from the start finds the oldest match that is still there
+
+        log.Append(string.Concat(Enumerable.Range(1000, 500).Select(i => $"ERROR failure #{i}\n")));
+        update = follower.Poll();
+        Assert.InRange(follower.MatchCount, bound * 3 / 4, bound);
+        Assert.Equal(1500 - follower.MatchCount, follower.Dropped);
+        Assert.Equal(follower.Dropped - (1000 - kept), update.Dropped);
+        Assert.Equal(Naive(log.Bytes, IsError).TakeLast((int)follower.MatchCount), follower.Matches());
+
+        log.Set("ERROR new file\n"); // truncated: the old matches and their count are gone
+        Assert.Equal(LogFollowChange.Truncated, follower.Poll().Change);
+        Assert.Equal(0, follower.Dropped);
+        Assert.Equal([0L], follower.Matches());
+    }
+
+    [Fact]
+    public void A_bound_of_one_keeps_the_last_match_and_a_bound_below_one_is_refused()
+    {
+        var log = new MemoryLog();
+        log.Append("ERROR a\nERROR b\nERROR c\n");
+        var follower = Follow(log, maxMatches: 1).Tap(f => f.Poll());
+        Assert.Equal([16L], follower.Matches());
+        Assert.Equal(2, follower.Dropped);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Follow(log, maxMatches: 0));
+    }
+
     [Fact]
     public void A_cancelled_poll_goes_on_where_it_stopped()
     {
@@ -224,6 +312,24 @@ public class LogFollowTests
         Assert.Equal(LogFollowChange.Rotated, update.Change);
         Assert.Equal([0L], follower.Matches());
         File.Delete(rotated);
+    }
+
+    [Fact]
+    public void A_real_file_reports_its_write_time_as_the_stamp_and_a_rewrite_with_equal_length_and_start_is_rotation()
+    {
+        string banner = Banner;
+        using var temp = new TempFile(Encoding.UTF8.GetBytes(banner + "2026-01-01 ERROR old\n"));
+        var source = new FileLogSource(temp.Path);
+        var follower = Follow(source).Tap(f => f.Poll());
+        long stamp = source.Probe()!.Value.Stamp;
+        Assert.Equal(File.GetLastWriteTimeUtc(temp.Path).Ticks, stamp);
+
+        File.WriteAllText(temp.Path, banner + "2026-02-02 ERROR new\n");
+        File.SetLastWriteTimeUtc(temp.Path, new DateTime(stamp, DateTimeKind.Utc).AddMinutes(1));
+        var update = follower.Poll();
+        // on Windows the identity is the creation time, which a rewrite in place does not move; the bytes before the offset tell the file apart
+        Assert.Equal(LogFollowChange.Rotated, update.Change);
+        Assert.Equal([banner.Length + 0L], follower.Matches());
     }
 
     [Fact]
@@ -351,7 +457,7 @@ public class LogFollowTests
         var update = follower.Poll();
         Assert.Equal(LogFollowChange.None, update.Change);
         Assert.Equal(full - half, update.BytesRead);
-        Assert.InRange(log.BytesRead, full - half, full - half + LogFollower.HeadBytes);
+        Assert.InRange(log.BytesRead, full - half, full - half + 3 * LogFollower.HeadBytes);
         Assert.Equal(new long[] { 5, 4_000_000, 8_388_607, 8_388_608, 12_000_000, lines - 1 }.Select(n => n * 64), follower.Matches());
         Assert.Equal(full, follower.Consumed);
     }

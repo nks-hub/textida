@@ -25,12 +25,39 @@ public sealed class TranscriptIndex : IDisposable
         public bool Continued { get; } = continued;
     }
 
+    /// <summary>
+    /// Values in blocks of a fixed size. A growing list doubles its array, which holds up to twice the memory the index counts and puts the old and the new array in memory together;
+    /// here the memory grows by one block at a time and <see cref="GrowthBytes"/> says before an <see cref="Add"/> what it will cost.
+    /// </summary>
+    private sealed class Blocks<T>(int itemBytes)
+    {
+        private const int Shift = 10, Size = 1 << Shift;
+        private readonly List<T[]> _blocks = [];
+
+        public int Count { get; private set; }
+
+        /// <summary>Memory the next <see cref="Add"/> allocates: a whole block when the last one is full, else nothing.</summary>
+        public long GrowthBytes => (Count & (Size - 1)) == 0 ? (long)Size * itemBytes + IntPtr.Size : 0;
+
+        public T this[int index] => _blocks[index >> Shift][index & (Size - 1)];
+
+        public void Add(T value)
+        {
+            if ((Count & (Size - 1)) == 0) _blocks.Add(new T[Size]);
+            _blocks[^1][Count & (Size - 1)] = value;
+            Count++;
+        }
+    }
+
+    /// <summary>Memory counted for a turn: the object, its slot in the list and the characters of its title.</summary>
+    private static long TurnBytes(string preview) => 56 + preview.Length * 2L;
+
     private static ReadOnlySpan<byte> Utf8Bom => [0xEF, 0xBB, 0xBF];
 
     private readonly SafeFileHandle _handle;
     private readonly object _gate = new();
-    private readonly List<long> _starts = [];
-    private readonly List<byte> _kinds = [];
+    private readonly Blocks<long> _starts = new(sizeof(long));
+    private readonly Blocks<byte> _kinds = new(sizeof(byte));
     private readonly List<TurnBuilder> _turns = [];
     private TurnBuilder? _open;
     private int _prompts;
@@ -156,22 +183,25 @@ public sealed class TranscriptIndex : IDisposable
 
         lock (_gate)
         {
-            _starts.Add(start);
-            _kinds.Add((byte)kind);
-            _end = end;
-            _bytes += 9;
-            if (!blank)
+            bool opensTurn = !blank && (kind == TranscriptKind.UserPrompt || _open is null || _open.Count >= Limits.MaxLinesPerTurn);
+            long cost = _starts.GrowthBytes + _kinds.GrowthBytes + (opensTurn ? TurnBytes(kind == TranscriptKind.UserPrompt ? preview : "") : 0);
+            if (_bytes + cost > Limits.IndexMaxBytes)
             {
-                if (kind == TranscriptKind.UserPrompt) StartTurn(number, ++_prompts, preview, false);
-                else if (_open is null) StartTurn(number, 0, "", false);
-                else if (_open.Count >= Limits.MaxLinesPerTurn) StartTurn(number, _open.Number, "", true);
-            }
-            if (_open is not null) _open.Count = number - _open.First + 1;
-            if (_bytes > Limits.IndexMaxBytes)
-            {
+                // the line is not registered: the index never holds more than its limit
                 _truncated = true;
                 return false;
             }
+            _bytes += cost;
+            _starts.Add(start);
+            _kinds.Add((byte)kind);
+            _end = end;
+            if (opensTurn)
+            {
+                if (kind == TranscriptKind.UserPrompt) StartTurn(number, ++_prompts, preview, false);
+                else if (_open is null) StartTurn(number, 0, "", false);
+                else StartTurn(number, _open.Number, "", true);
+            }
+            if (_open is not null) _open.Count = number - _open.First + 1;
         }
         return true;
     }
@@ -180,7 +210,6 @@ public sealed class TranscriptIndex : IDisposable
     {
         _open = new TurnBuilder(number, first, preview, continued);
         _turns.Add(_open);
-        _bytes += 48 + preview.Length * 2L;
     }
 
     // ---- the turns ----
@@ -198,6 +227,12 @@ public sealed class TranscriptIndex : IDisposable
     public TranscriptKind KindOf(long line)
     {
         lock (_gate) return (TranscriptKind)_kinds[(int)line];
+    }
+
+    /// <summary>The offset in the file where a line starts (after the byte order mark for the first line it is still the start of the file).</summary>
+    public long StartOf(long line)
+    {
+        lock (_gate) return _starts[(int)line];
     }
 
     /// <summary>The number of the turn a line belongs to, or -1 for a line before the first turn.</summary>

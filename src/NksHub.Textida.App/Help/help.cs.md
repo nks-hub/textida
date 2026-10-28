@@ -436,17 +436,17 @@ commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 - Formát data a času není platný: důvod. Nic se nevložilo. Opravte nastavení Formát data a času: musí to být vlastní formát .NET, třeba yyyy-MM-dd HH:mm.
 
 ## [edit.macro] Makra
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.cursorPageUp, nks.edit.cursorPageUpSelect, nks.edit.cursorPageDown, nks.edit.cursorPageDownSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Nástroje, Makra, Nahrát makro, spustí nahrávání. Pracujte příkazy a psaním. Nástroje, Makra, Zastavit nahrávání makra, ho ukončí.
 2. Nástroje, Makra, Přehrát poslední makro, ho znovu přehraje nad aktuálními výběry a kurzory.
 3. Nástroje, Makra, Uložit poslední makro jako, ho uloží pod názvem do složky macros v profilu. Nástroje, Makra, Spustit uložené makro, ukáže uložená makra a přehraje vybrané.
 4. Nástroje, Makra, Přejmenovat uložené makro, ukáže uložená makra a vybrané přejmenuje; název, který už má jiné makro, se odmítne. Nástroje, Makra, Smazat uložené makro, se zeptá a vybrané smaže natřvalo.
 - Makro si pamatuje příkazy, ne klávesy: Duplikovat řádek, velikost písmen, Přidat další výskyt a podobné, Vyjmout, Kopírovat, Vložit, a napsaný text. Při více kurzorech udělá totéž jako ruční postup.
-- Při nahrávání se jako příkazy zaznamenají i šipky, Home, End, Ctrl+Home, Ctrl+End, Ctrl se šipkami (se Shiftem i bez), Backspace a Delete. Posouvají a mažou u všech kurzorů.
+- Při nahrávání se jako příkazy zaznamenají i šipky, Home, End, Ctrl+Home, Ctrl+End, Ctrl se šipkami (se Shiftem i bez), Page Up, Page Down (se Shiftem i bez), Backspace a Delete. Posouvají a mažou u všech kurzorů, kromě Page Up a Page Down: ty posouvají jeden kurzor, jako klávesy bez makra. Stránka je tolik řádků, kolik editor ukazuje při přehrání makra, takže makro s Page Down se v menším okně posune méně.
 - Najít další a Najít předchozí (F3, Shift+F3, Enter v liště hledání) si s krokem uloží hledaný text z lišty hledání, takže makro najde tentýž text i při pozdějším přehrání. Lištu hledání otevřete a hledaný text napište před začátkem nahrávání; bez hledaného textu se krok nenahraje.
 - Nahradit a Vše v liště nahrazování (příkazy Nahradit další a Nahradit vše) si s krokem uloží celou lištu: hledaný text, přepínače a náhradu. Makro před krokem lištu nastaví na tyto hodnoty, takže výsledek nezávisí na tom, co lišta ukazovala předtím. Se zapnutým Výběrem krok pracuje s výběrem, který makro má v okamžiku kroku. Bez hledaného textu se krok nenahraje.
 - Přehrání je jeden krok Zpět. Když krok neproběhne, makro se tam zastaví a stavový řádek krok pojmenuje; co proběhlo předtím, zůstává jedním krokem Zpět.
-- Při nahrávání se příkaz, který makro nemůže přehrát, odmítne a stavový řádek to řekne: vše s dialogem, příkazy se soubory, otevření lišty hledání. Nahrávání pokračuje. Kliknutí myší, Page Up a Page Down se nenahrávají.
+- Při nahrávání se příkaz, který makro nemůže přehrát, odmítne a stavový řádek to řekne: vše s dialogem, příkazy se soubory, otevření lišty hledání. Nahrávání pokračuje. Kliknutí myší se nenahrávají.
 - Přehrání potřebuje upravitelný textový dokument. Import maker PSPadu není k dispozici.
 - Výchozí zkratky jsou zástupné (OPEN, zatím nerozhodnuto): Ctrl+K Ctrl+R nahrává, Ctrl+K Ctrl+Shift+R zastaví, Ctrl+K Ctrl+P přehraje poslední makro; na macOS ⌘ místo Ctrl. Vaše vlastní zkratky v nastavení mají přednost.
 - Soubor uloženého makra větší než 1 MB (zástupný limit, OPEN) se nečte; seznam ho ohlásí jako poškozený.
@@ -1091,7 +1091,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 2. Opakovat poslední cíl Makefile spustí naposledy spuštěný cíl znovu.
 3. Běh jde přes spouštěč nástrojů: příkaz se ukáže a poprvé se potvrzuje, výstup jde do karty Úlohy, Zastavit ukončí make i vše, co spustil.
 4. Řádek výstupu, který jmenuje soubor a řádek (main.c:12:5: error, Makefile:7:), otevře to místo klikem nebo Enterem. Rekurzivní make hlásí „Entering directory“ a „Leaving directory“; relativní název souboru za takovým řádkem se hledá v té složce.
-- Make musí být nainstalovaný a v PATH, nebo uvedený v nastavení Program make (třeba mingw32-make). Zvláštní cíle (.PHONY), vzorová pravidla a názvy s proměnnou či zástupným znakem se nevypisují. Potvrzení se váže na příkaz, ne na obsah Makefile, protože spustit Makefile znamená spustit, co říká.
+- Make musí být nainstalovaný a v PATH, nebo uvedený v nastavení Program make (třeba mingw32-make). Zvláštní cíle (.PHONY), vzorová pravidla a názvy s proměnnou či zástupným znakem se nevypisují. Potvrzení se váže na příkaz a na obsah Makefile na disku (v otázce je začátek jeho SHA-256): když se soubor změní, otázka přijde znovu a starý souhlas platí zase, když se bajty vrátí k původním. Soubory, které Makefile vkládá, se nehlídají, ani změna po položení otázky. Text neuložené karty není to, co make spustí.
 
 ## [packages.registry] Manifesty balíčků: názvy, verze a značka novější verze
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
@@ -1184,9 +1184,9 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 3. Log: pohledy vypíše uložené pohledy. Vybraný nastaví pravidla úrovní, filtr a pozici kurzoru a jednou přečte soubor, aby našel vyhovující řádky. Byl-li pohled uložen pro jiný soubor, pozice se nepoužije.
 4. Log: další shoda pohledu a Log: předchozí shoda pohledu skáčou mezi řádky, které filtr ponechal. Když soubor roste, zkoumají se jen přibylé řádky; dřív přečtená část se znovu nečte. Poslední řádek bez konce řádku se vezme, až když skončí.
 5. Když jiný program log zkrátí nebo ho vymění (rotace: soubor se přejmenuje a pod starým jménem vznikne nový), řekne to stavový řádek, dřívější shody se zahodí a čtení začne znovu od začátku nového obsahu. Chybějící soubor se ohlásí jednou a čeká se na něj.
-- Rotace se pozná podle prvních 4096 bajtů souboru a ve Windows i podle času vzniku. Nový soubor, který začíná stejnými bajty a není kratší než starý, se od něj nerozliší; vyměněný soubor stejné délky se stejným časem a bajty se nepozná.
+- Rotace se pozná podle prvních 4096 bajtů souboru, podle 4096 bajtů těsně před dosud přečteným místem a ve Windows i podle času vzniku. Nový soubor, který začíná stejnými bajty a není kratší než starý, se pozná podle bajtů před přečteným místem, takže to funguje i v macOS a Linuxu. Vyměněný soubor stejné délky se prohlédne znovu jen tehdy, když se změnil čas posledního zápisu. Nový soubor, který má všechny bajty až po přečtené místo stejné, se nepozná.
 - Soubor se kontroluje jednou za sekundu. Tato hodnota ani 4096 bajtů nejsou rozhodnuté hodnoty.
-- Shody se drží v paměti bez horní meze.
+- V paměti se drží nejvýš 1 000 000 shod pohledu (hodnota je placeholder, není rozhodnutá). Nad ni se nejstarší shody zahodí, až na tři čtvrtiny meze, a stavový řádek řekne kolik; nejnovější zůstanou pro Další a Předchozí shodu.
 - Log: zapamatovat pohled se ptá i na text ke zvýraznění (regulární výraz; prázdné nezvýrazní nic). Po použití pohledu mají shody výrazu v každém řádku pozadí, v editoru i ve stránkovaném režimu. Hledá se jen v prvních 8192 znacích řádku a řádek, jehož hledání trvá příliš dlouho (hodnota je placeholder, není rozhodnutá), zůstane bez značky.
 
 ## [export.highlight] Export a kopie se zvýrazněním
@@ -1800,14 +1800,14 @@ Upravuje hooky Claude Code (settings.json, settings.local.json, hooks.json plugi
 
 ## [tools.transcript] Přepisy agentů
 commands: nks.agent.transcript
-Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude/projects) jako seznam tahů. Je jen pro čtení: do souboru se nikdy nezapisuje a nic se nikam neposílá.
+Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude/projects, u Codexu ve složce ~/.codex/sessions) jako seznam tahů. Je jen pro čtení: do souboru se nikdy nezapisuje a nic se nikam neposílá.
 1. Zvolte Nástroje, Agent, Otevřít přepis agenta... a vyberte soubor, nebo soubor .jsonl nejdřív otevřete v kartě a příkaz spusťte. Okno vypisuje tahy, zatímco se soubor indexuje; soubor o mnoha gigabajtech se otevře hned a seznam roste, jak index vzniká.
 2. Vyberte tah a uvidíte zadání, odpovědi, volání nástrojů s řádky, které změnila (červeně a zeleně), a výsledky. Záhlaví ukazuje řádky tahu a odhad jeho tokenů.
 3. Hledání prochází celý přepis, i když se ještě indexuje, a vypíše nalezené řádky. Vyberte nález a skočíte na jeho tah a řádek. Řádek příliš dlouhý na přečtení celý se neprohledává; stavový řádek říká, kolik jich bylo přeskočeno.
 4. Soubory v tomto tahu uvádí soubory, které agent četl, zapsal nebo upravil; Otevřít soubor otevře vybraný v editoru. Otevřít surový řádek otevře řádek za vybranou řádkou jako dokument, který nejde uložit.
-- Záznamy, které nejsou zpráva uživatele, odpověď ani volání nástroje, a bloky, které čtečka nezná, se ukážou jako surový JSON. Čte se jen to, co definuje veřejná dokumentace Messages API a Agent SDK, protože Claude Code uvádí, že formát jeho souboru je interní a mezi verzemi se mění. Soubor Codexu se ukáže jako surový JSON, protože jeho formát veřejná dokumentace nedefinuje.
-- Hodnoty souborů .env jsou skryté (téma Skryté hodnoty) v řádcích, v surových řádcích, v názvech tahů i v nálezech. Editor se je učí z tajných souborů otevřených karet a otevřené složky a z přepisu samotného, když agent takový soubor čte. Hodnotu, kterou přepis ukáže dřív, než ji poprvé přečte, už v tom, co se ukázalo, skrýt nejde.
-- Řádek delší než limit se určí podle začátku a ukáže se zkrácený. Limity velikosti a paměť indexu jsou předběžné.
+- Záznamy, které nejsou zpráva uživatele, odpověď ani volání nástroje, a bloky, které čtečka nezná, se ukážou jako surový JSON. Soubor Claude Code se čte jen podle toho, co definuje veřejná dokumentace Messages API a Agent SDK, protože Claude Code uvádí, že formát jeho souboru je interní a mezi verzemi se mění. Formát souboru Codexu nemá žádnou textovou dokumentaci; jeho řádky se čtou podle open-source definic protokolu Codexu, a to jen řádky typu response_item: zprávy (bloky input_text a output_text), shrnutí uvažování, volání funkcí, volání shellu a volání vlastních nástrojů jako apply_patch a jejich výstupy. Události, údaje o relaci a kontexty tahů v souboru Codexu se ukážou jako surový JSON. Tah začíná zprávou uživatele, takže pokyny, které Codex sám přidává jako zprávy uživatele, tvoří tahy samy o sobě, a soubory tahu jsou ty, které jmenují značky volání apply_patch.
+- Hodnoty souborů .env jsou skryté (téma Skryté hodnoty) v řádcích, v surových řádcích, v názvech tahů i v nálezech. Editor se je učí z tajných souborů otevřených karet a otevřené složky a z přepisu samotného, když agent takový soubor čte. Hodnotu, kterou přepis ukáže dřív, než ji poprvé přečte, už v tom, co se ukázalo, skrýt nejde. V souboru Codexu se volání počítá za čtení nebo zápis tajného souboru, když ho jmenuje kterýkoli text jeho argumentů, a hodnota se skryje i v argumentech pozdějšího volání, kde je JSON zapsaný uvnitř JSONu.
+- Řádek delší než limit se určí podle začátku a ukáže se zkrácený. Index nikdy nedrží víc než svůj limit paměti: řádek, který by se nevešel, se nezapíše a stavový řádek řekne, že seznam je useknutý. Limity velikosti a paměť indexu jsou předběžné.
 
 ## [tools.tokens] Odhad tokenů
 commands: nks.agent.tokens
@@ -1858,7 +1858,7 @@ Jen Windows, v nainstalované Textidě (složka vytvořená přes Setup.ps1). Te
 - Není žádná předchozí verze, na kterou by se šlo vrátit. Předchozí verze existuje jen po aktualizaci.
 
 ## [review.external] Kontrola změn zvenku
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty bez neuložených úprav, panel nabídne Zkontrolovat změny.
 1. Zvolte Zkontrolovat změny. Karta převezme nový obsah, dřívější obsah zůstane v místní historii a po dobu kontroly se nesmaže a karta Výsledky hledání vypíše změny po řádcích.
 2. Zaškrtněte změny, které chcete ponechat. Nezaškrtnuté, nebo celý soubor s nezaškrtnutým polem, se po volbě Použít vrátí na dřívější obsah.
@@ -1868,3 +1868,6 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 - Pokud během kontroly v kartě píšete, změny se ukážou znovu z nového textu.
 - Soubory s tajnými hodnotami (.env) a soubory s neuloženými úpravami zůstávají u staršího panelu: Znovu načíst, Ponechat moje, Porovnat.
 - S volbou Ponechat změny zvenku bez kontroly v nastavení karta převezme nový obsah hned. Ve výchozím stavu je vypnuta.
+- Sledují se i soubory otevřené složky, které žádná karta neukazuje. Když takový soubor změní jiný program a místní historie má jeho dřívější obsah (soubor se tu jednou otevřel nebo uložil), tento obsah se uchová jako základ a soubor čeká na kontrolu. Soubor a Zkontrolovat změny zvenku ve složce vypíše čekající soubory; vybraný se otevře se štítkem a změnami po úsecích, jako výše. Čekající soubory přežijí restart.
+- Sledování vynechá .git, .codegraph, co ignorují soubory .gitignore a .ignore ve složce (ignorovaná složka vezme s sebou svůj obsah) a přepisy agentů (složku projects pod .claude* a složku sessions pod .codex*). Vynechá také soubory s tajnými hodnotami (.env), soubory příliš velké pro kartu, binární soubory, soubory, jejichž nový obsah historie už zná, soubory, které vytvořil jiný program (nemají dřívější obsah), a soubory, které editor zapsal sám, několik sekund po Nahradit v souborech nebo po dávce kódování.
+- Naráz čeká nejvýš 200 souborů a jedno prohlédnutí zahrne nejvýš 500 souborů; stavový řádek řekne, když se mez dosáhne. Tyto meze, půl sekundy před prohlédnutím změněného souboru a několik sekund po vlastních zápisech editoru nejsou rozhodnuté hodnoty.

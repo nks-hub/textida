@@ -45,8 +45,11 @@ public sealed class TranscriptMasker(int minValueLength)
             var needles = new List<string>(_needles.Length + 2);
             needles.AddRange(_needles);
             needles.Add(value);
+            // written as it is, as JSON text inside a line, and as JSON text inside the JSON text of a call (the arguments of a Codex function call are a string of JSON)
             string escaped = JsonEncodedText.Encode(value, Relaxed).ToString();
             if (escaped != value) needles.Add(escaped);
+            string twice = JsonEncodedText.Encode(escaped, Relaxed).ToString();
+            if (twice != escaped) needles.Add(twice);
             needles.Sort((a, b) => b.Length.CompareTo(a.Length));
             _needles = [.. needles];
         }

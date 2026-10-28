@@ -120,6 +120,7 @@ internal sealed partial class MainWindow
     {
         _fileTree?.Dispose();
         _fileTree = null;
+        StopFolderReview();
         InvalidateWorkspaceIndex();
     }
 

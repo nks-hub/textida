@@ -542,6 +542,8 @@ internal sealed partial class EditorSurface
         ("nks.edit.cursorLineEnd", KeyStep.LineEnd, false), ("nks.edit.cursorLineEndSelect", KeyStep.LineEnd, true),
         ("nks.edit.cursorDocumentStart", KeyStep.DocumentStart, false), ("nks.edit.cursorDocumentStartSelect", KeyStep.DocumentStart, true),
         ("nks.edit.cursorDocumentEnd", KeyStep.DocumentEnd, false), ("nks.edit.cursorDocumentEndSelect", KeyStep.DocumentEnd, true),
+        ("nks.edit.cursorPageUp", KeyStep.PageUp, false), ("nks.edit.cursorPageUpSelect", KeyStep.PageUp, true),
+        ("nks.edit.cursorPageDown", KeyStep.PageDown, false), ("nks.edit.cursorPageDownSelect", KeyStep.PageDown, true),
         ("nks.edit.deleteLeft", KeyStep.DeleteLeft, false), ("nks.edit.deleteRight", KeyStep.DeleteRight, false),
         ("nks.edit.deleteWordLeft", KeyStep.DeleteWordLeft, false), ("nks.edit.deleteWordRight", KeyStep.DeleteWordRight, false),
     ];
@@ -575,6 +577,8 @@ internal sealed partial class EditorSurface
             Key.Down when command => KeyStep.DocumentEnd,
             Key.Home when plain => KeyStep.LineStart,
             Key.End when plain => KeyStep.LineEnd,
+            Key.PageUp when plain => KeyStep.PageUp,
+            Key.PageDown when plain => KeyStep.PageDown,
             Key.Home when word && !mac => KeyStep.DocumentStart,
             Key.End when word && !mac => KeyStep.DocumentEnd,
             Key.Back when plain && !shift => KeyStep.DeleteLeft,
@@ -609,6 +613,13 @@ internal sealed partial class EditorSurface
         }
         if (step is KeyStep.LineStart or KeyStep.LineEnd && Settings.EnhancedHomeEnd)
             return MoveCarets(step == KeyStep.LineStart ? CaretMove.LineStartEnhanced : CaretMove.LineEndEnhanced, extend);
+        if (step is KeyStep.PageUp or KeyStep.PageDown)
+        {
+            if (IsMulti) ClearCarets(); // the page keys move one caret only
+            return RunAreaCommand(step == KeyStep.PageUp
+                ? extend ? EditingCommands.SelectUpByPage : EditingCommands.MoveUpByPage
+                : extend ? EditingCommands.SelectDownByPage : EditingCommands.MoveDownByPage);
+        }
         if (IsMulti)
         {
             if (step is KeyStep.Up or KeyStep.Down) return MoveVertically(step == KeyStep.Up ? -1 : 1, extend);
@@ -813,4 +824,4 @@ internal sealed partial class EditorSurface
 }
 
 /// <summary>A caret move or a deletion of the keyboard (<see cref="EditorSurface.StepCommands"/>); the deletions come last.</summary>
-internal enum KeyStep { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, DocumentStart, DocumentEnd, DeleteLeft, DeleteRight, DeleteWordLeft, DeleteWordRight }
+internal enum KeyStep { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, DocumentStart, DocumentEnd, PageUp, PageDown, DeleteLeft, DeleteRight, DeleteWordLeft, DeleteWordRight }

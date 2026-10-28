@@ -2191,6 +2191,12 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.review.folder",
+      "title": "cmd.review.folder",
+      "category": "cat.file",
+      "enablement": "hasFolder"
+    },
+    {
       "id": "nks.review.next",
       "title": "cmd.review.next",
       "category": "cat.file",
@@ -2534,6 +2540,38 @@
     {
       "id": "nks.edit.cursorDocumentEndSelect",
       "title": "cmd.edit.cursorDocumentEndSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageUp",
+      "title": "cmd.edit.cursorPageUp",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageUpSelect",
+      "title": "cmd.edit.cursorPageUpSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDown",
+      "title": "cmd.edit.cursorPageDown",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDownSelect",
+      "title": "cmd.edit.cursorPageDownSelect",
       "category": "cat.edit",
       "when": "editorFocus",
       "macro": true,
@@ -4762,6 +4800,12 @@
       "command": "nks.review.open",
       "group": "2_disk",
       "order": 75
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.folder",
+      "group": "2_disk",
+      "order": 76
     },
     {
       "menu": "tools",

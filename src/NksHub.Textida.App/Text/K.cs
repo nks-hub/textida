@@ -1050,6 +1050,7 @@ public static class K
     public const string LogFollowRotated = "log.follow.rotated";
     public const string LogFollowReading = "log.follow.reading";
     public const string LogFollowError = "log.follow.error";
+    public const string LogFollowCapped = "log.follow.capped";
     public const string LogViewSaveTitle = "log.view.save.title";
     public const string LogViewNameLabel = "log.view.name";
     public const string LogViewFilterLabel = "log.view.filter";
@@ -1623,6 +1624,14 @@ public static class K
     public const string ReviewAutoKept = "review.autoKept";
     public const string ReviewSame = "review.same";
     public const string ReviewBusy = "review.busy";
+    public const string ReviewFolderNoFolder = "review.folder.noFolder";
+    public const string ReviewFolderNone = "review.folder.none";
+    public const string ReviewFolderWaiting = "review.folder.waiting";
+    public const string ReviewFolderFull = "review.folder.full";
+    public const string ReviewFolderDropped = "review.folder.dropped";
+    public const string ReviewFolderWatermark = "review.folder.watermark";
+    public const string ReviewFolderDetail = "review.folder.detail";
+    public const string A11yReviewFolder = "a11y.review.folder";
     public const string MacroRecording = "macro.recording";
     public const string MacroStopped = "macro.stopped";
     public const string MacroStoppedEmpty = "macro.stoppedEmpty";
@@ -1656,6 +1665,7 @@ public static class K
     public const string MacroDeleteFailed = "macro.deleteFailed";
     public const string ToolConfirmForeign = "tool.confirm.foreign";
     public const string ToolConfirmSource = "tool.confirm.source";
+    public const string ToolConfirmPinned = "tool.confirm.pinned";
     public const string ToolEditTitle = "tool.edit.title";
     public const string ToolEditList = "tool.edit.list";
     public const string ToolEditNew = "tool.edit.new";
