@@ -841,6 +841,44 @@ public class MultiCaretEditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_bypass_tells_a_view_only_about_the_changes_that_touch_its_lines()
+    {
+        var tab = Open(string.Concat(Enumerable.Range(0, 300).Select(i => $"line {i}\n")));
+        var d = tab.Editor!.Document;
+        tab.Editor.ScrollToLine(150);
+        var view = tab.Editor.TextArea.TextView;
+        (int From, int To) Visible()
+        {
+            _w.UpdateLayout();
+            view.EnsureVisualLines();
+            var last = view.VisualLines[^1].LastDocumentLine;
+            return (view.VisualLines[0].FirstDocumentLine.Offset, last.Offset + last.TotalLength);
+        }
+        var visible = Visible();
+        Assert.True(view.IsMeasureValid && view.VisualLinesValid);
+
+        using (WeakEventBypass.Begin(d, visible)) d.Insert(d.TextLength, "x"); // behind its lines: it hears nothing and has nothing to redo
+        Assert.True(view.IsMeasureValid && view.VisualLinesValid);
+
+        using (var bypass = WeakEventBypass.Begin(d, visible)) // before its lines: it hears nothing but is asked once for a new measure, its lines stay
+        {
+            Assert.True(bypass.Active);
+            d.Insert(d.GetLineByNumber(5).Offset, "y");
+            d.Insert(d.GetLineByNumber(3).Offset, "y");
+            Assert.True(view.IsMeasureValid);
+        }
+        Assert.False(view.IsMeasureValid);
+        Assert.True(view.VisualLinesValid);
+
+        visible = Visible();
+        using (WeakEventBypass.Begin(d, visible)) d.Insert(view.VisualLines[2].FirstDocumentLine.Offset + 1, "z"); // in a line: the view redraws it
+        Assert.False(view.VisualLinesValid);
+        _w.UpdateLayout();
+        view.EnsureVisualLines();
+        Assert.Contains("z", d.GetText(view.VisualLines[2].FirstDocumentLine));
+    }
+
+    [AvaloniaFact]
     public void Typing_at_many_carets_leaves_the_carets_of_the_area_and_the_text_in_step()
     {
         var tab = Open("abc\nabc\nabc");

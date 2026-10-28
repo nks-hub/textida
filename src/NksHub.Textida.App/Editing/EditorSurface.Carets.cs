@@ -338,11 +338,20 @@ internal sealed partial class EditorSurface
         return $"carets-{kind}#{_runId}";
     }
 
+    /// <summary>The offsets from the start of the first visible line to the end of the last one; null while the lines are not laid out.</summary>
+    private (int From, int To)? VisibleRange()
+    {
+        var view = TextArea.TextView;
+        if (!view.VisualLinesValid || view.VisualLines is not { Count: > 0 } lines) return null;
+        var last = lines[^1].LastDocumentLine;
+        return (lines[0].FirstDocumentLine.Offset, last.Offset + last.TotalLength);
+    }
+
     private bool Run(List<Planned> plan, Carets before, string? kind)
     {
         if (Doc.TextBackend is not { } backend || IsReadOnly) return false;
         long t = Core.TypingTrace.Begin();
-        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before));
+        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before), VisibleRange());
         Core.TypingTrace.End("carets.multiEditApply", t);
         if (!result.Edit.Applied) return false;
         t = Core.TypingTrace.Begin();
