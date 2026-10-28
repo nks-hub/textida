@@ -387,6 +387,31 @@ public class PagedLongLineTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_column_of_a_caret_that_an_undo_left_far_from_every_known_point_is_counted_on_the_pool()
+    {
+        var (tab, paged) = OpenFarLine(new string('a', FarLine));
+        var document = ((PagedBackend)tab.Doc.Doc.Backend).Paged;
+        paged.GoToOffset(100);
+        TestApp.Type(_w, "x");
+        paged.GoToOffset(5_000_000);
+        await Eventually(() => !paged.CaretMovePending);
+        Assert.True(document.ColumnPointCount >= 4, $"{document.ColumnPointCount} points after the walk to the caret");
+
+        // the undo comes from outside the view: the caret keeps its offset, which is far from the points that the edit before it dropped
+        using var gate = new ManualResetEventSlim();
+        paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
+        Assert.NotNull(tab.Doc.Doc.Undo());
+        var meanwhile = paged.CaretLineColumn();
+        Draw();
+        Assert.NotNull(meanwhile);
+        Assert.True(document.ColumnPointCount <= 1, $"the UI thread counted the columns of the caret ({document.ColumnPointCount} points)");
+
+        gate.Set();
+        await Eventually(() => document.ColumnPointCount >= 4);
+        await Eventually(() => paged.CaretLineColumn() is { Column: 5_000_000 });
+    }
+
+    [AvaloniaFact]
     public async Task Go_to_a_far_column_of_a_long_line_waits_for_the_count_too()
     {
         var (_, paged) = OpenFarLine(new string('a', FarLine));

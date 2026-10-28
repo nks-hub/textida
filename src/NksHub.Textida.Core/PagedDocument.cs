@@ -169,6 +169,10 @@ public sealed class PagedDocument : IPagedTextSource
     public long IndexedBytes => IsModified ? (LineIndexState.Complete ? ByteLength : 0) : _source.IndexedBytes;
 
     private void OnSourceProgress(object? sender, EventArgs e) => IndexProgress?.Invoke(this, e);
+
+    /// <summary>Column points noted for the current text, for tests: a count on one thread adds some.</summary>
+    internal int ColumnPointCount => (IsModified ? _editedColumns : _source.Columns).PointCount;
+
     public bool TryGetLineStart(long line, out long byteOffset)
     {
         byteOffset = 0;

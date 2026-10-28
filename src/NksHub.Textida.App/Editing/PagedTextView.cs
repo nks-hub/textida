@@ -935,10 +935,29 @@ internal sealed partial class PagedTextView : Grid
     {
         ForgetColumns();
         if (_columnMemo.TryGetValue(offset, out long known)) return known;
+        if (offset > line.Start && !_farResume && OffsetIsFar(line, offset)) return ColumnOnThePool(line, offset);
         long trace = TypingTrace.Begin();
         long column = offset <= line.Start ? 0 : Paged.ColumnOf(line.Start, offset);
         TypingTrace.End("paged.columnOf", trace);
         return _columnMemo[offset] = column;
+    }
+
+    /// <summary>
+    /// The column of an offset that lies far from every known point of its long line, asked for by the draw or the status line: the caret an undo, a redo or a change from
+    /// another source left behind has no points near it any more, because the edit dropped those after it. The count would hold the UI thread for the whole line (a 100 MiB
+    /// line is a hundred milliseconds and more), so it runs on the pool, like the count of a far move, and the view redraws when it ends. Until then the code units before
+    /// the offset stand for its columns (exact for single-byte text, never fewer than the true columns). A far move that waits already is not replaced.
+    /// </summary>
+    private long ColumnOnThePool(LineView line, long offset)
+    {
+        if (_farMove is null)
+            StartFarWalk(line.Start, offset, null, () =>
+            {
+                ColumnOfOffset(line, offset); // the points the walk kept are near now: this finds the column and remembers it
+                _canvas.InvalidateVisual();
+                RaiseViewChanged();
+            });
+        return (offset - line.Start) / Doc.Codec.Alignment;
     }
 
     /// <summary>Byte offset of a UTF-16 column of the truncated line <paramref name="line"/>; the end of the line when it is shorter.</summary>
