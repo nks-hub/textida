@@ -351,7 +351,7 @@ public static class TomlDataReader
 
         private string Hex(int digits)
         {
-            if (_i + digits > s.Length || !int.TryParse(s.AsSpan(_i, digits), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var code) || code is < 0 or > 0x10FFFF)
+            if (_i + digits > s.Length || !int.TryParse(s.AsSpan(_i, digits), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var code) || code is < 0 or > 0x10FFFF or (>= 0xD800 and <= 0xDFFF))
                 throw Fail("A bad \\u escape.", digits);
             _i += digits;
             return char.ConvertFromUtf32(code);

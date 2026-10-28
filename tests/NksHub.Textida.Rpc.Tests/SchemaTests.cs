@@ -96,6 +96,11 @@ public class SchemaTests
         Assert.True(n.Get("t")!.Get("u")!.Get("v")!.Items[2].Get("k")!.Bool);
         Assert.False(TomlDataReader.TryParse("a = {b = 1}\n[a.c]\n", 8, out _, out _));
         Assert.False(TomlDataReader.TryParse("a = [[[[1]]]]", 3, out _, out _));
+        Assert.False(TomlDataReader.TryParse("a = \"\\uD800\"\n", 8, out _, out var surrogate)); // not a scalar value: a syntax error, never an exception
+        Assert.Contains("\\u", surrogate!.Message);
+        Assert.False(TomlDataReader.TryParse("a = \"\\U00110000\"\n", 8, out _, out _));
+        Assert.True(TomlDataReader.TryParse("a = \"\\U0001F600\"\n", 8, out var emoji, out _));
+        Assert.Equal("\U0001F600", emoji!.Get("a")!.Text);
     }
 
     [Fact]
