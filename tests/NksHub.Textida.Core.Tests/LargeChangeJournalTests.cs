@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Tests;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -519,7 +520,7 @@ public sealed class LargeChangeJournalTests : IDisposable
     [Trait("Category", "Large")]
     public async Task A_multi_GiB_document_with_large_edits_and_a_streaming_save_recovers_after_a_crash()
     {
-        const long big = 3L << 30;
+        long big = HugeText.SizePast(2L << 30, 3L << 30); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
         string path = Data;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         LargeText.WriteFile(path, big);
@@ -588,9 +589,9 @@ public sealed class LargeChangeJournalTests : IDisposable
 
     [Fact]
     [Trait("Category", "Large")]
-    public void Killing_the_process_during_a_save_of_a_3_GiB_document_recovers_the_edits_and_leaves_the_original_whole()
+    public void Killing_the_process_during_a_save_of_a_document_over_2_GiB_recovers_the_edits_and_leaves_the_original_whole()
     {
-        var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", (3L << 30).ToString(),
+        var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", HugeText.SizePast(2L << 30, 3L << 30).ToString(),
             "--points", "journal-flushed,mid-write,temp-written,mid-swap,after-swap,saved,cancel");
         Assert.Contains("failures 0", output);
     }

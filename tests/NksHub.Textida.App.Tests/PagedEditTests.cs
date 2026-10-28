@@ -12,6 +12,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Tests;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -907,7 +908,7 @@ public class PagedEditTests : IDisposable
     public void Typing_during_the_save_of_a_multi_GiB_file_stays_within_the_limits()
     {
         string path = Path.Combine(_temp.Path, "huge.log");
-        long length = WriteRows(path, 3L << 30);
+        long length = WriteRows(path, HugeText.SizePast(2L << 30, 3L << 30)); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
         var tab = _w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
         tab.Paged!.Focus();
@@ -930,7 +931,7 @@ public class PagedEditTests : IDisposable
 
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)], p99 = times[(int)(times.Count * 0.99)];
-        _output.WriteLine($"Typing during a 3 GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
+        _output.WriteLine($"Typing during a {length / 1073741824.0:0.0##} GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} keystrokes fitted in the save");
         Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms during the save");
         Assert.True(p99 <= Core.PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");

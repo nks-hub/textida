@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Hex;
+using NksHub.Textida.Tests;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -446,13 +447,18 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         Assert.Equal(expected, NaiveZip(d.GetSnapshot()));
     }
 
-    // ---- the 10 GiB gate ----
+    // ---- the gate on a file past 2 GiB ----
 
+    /// <summary>
+    /// The streamed save of a length change writes the whole file as real bytes, so the file is 2 GiB and 4 MiB (the third zip and the insert lie behind the 2^31 mark) and 10 GiB with
+    /// <c>TEXTIDA_HUGE=1</c> (behind the 2^32 mark).
+    /// </summary>
     [Fact]
     [Trait("Category", "Perf")]
-    public async Task Ten_gibibyte_file_overwrite_insert_undo_redo_save_and_search_agree_with_an_independent_pass()
+    public async Task A_file_past_2_GiB_overwrite_insert_undo_redo_save_and_search_agree_with_an_independent_pass()
     {
-        const long length = 10L << 30;
+        long length = HugeText.SizePast(2L << 30, 10L << 30);
+        long mark = length > 4L << 30 ? 4L << 30 : 2L << 30;
         using var file = new TempFile();
         if (OperatingSystem.IsWindows())
         {
@@ -462,7 +468,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
             process.WaitForExit();
             Assert.Equal(0, process.ExitCode);
         }
-        long[] zips = [0, (1 << 20) - 2, (4L << 30) + 1, length - 4];
+        long[] zips = [0, (1 << 20) - 2, mark + 1, length - 4];
         using (var stream = new FileStream(file.Path, FileMode.Open, FileAccess.Write))
         {
             stream.SetLength(length);
@@ -472,11 +478,11 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         var d = Open(file.Path);
         try
         {
-            await TenGibiByteScenario(d, file.Path, length, zips, pattern);
+            await BigFileScenario(d, file.Path, length, zips, pattern);
         }
         finally
         {
-            // the streamed save made a fully allocated 10 GiB file: it must not outlive the test
+            // the streamed save made a fully allocated file of the whole length: it must not outlive the test
             d.Dispose();
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -488,7 +494,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         }
     }
 
-    private async Task TenGibiByteScenario(Doc d, string path, long length, long[] zips, BytePattern pattern)
+    private async Task BigFileScenario(Doc d, string path, long length, long[] zips, BytePattern pattern)
     {
         var phase = Stopwatch.StartNew();
         void Lap(string name) { output.WriteLine($"{name}: {phase.Elapsed.TotalSeconds:F1} s"); phase.Restart(); }
@@ -497,7 +503,7 @@ public class HexSaveTests(Xunit.Abstractions.ITestOutputHelper output)
         // jump to end-512, overwrite 4 bytes, insert 1 byte lower in the file, undo and redo
         long at = OffsetExpression.Evaluate("end-512", new OffsetContext(d.ByteLength, 0, 0, null));
         Assert.Equal(length - 512, at);
-        long insertAt = (6L << 30) - 1;
+        long insertAt = zips[2] + (length - zips[2]) / 2; // behind the mark, in front of the last zip
         byte[] patch = [0x50, 0x4B, 0x07, 0x04];
         byte[] inserted = [0x55];
         Assert.True(d.Replace(new(at, at + 4), patch, Raw).Applied);
