@@ -275,7 +275,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         Check(app.Clips.FindClip("smoke.data", "hi") is not null && app.Clips.FindConverter("smoke.data", "up") is not null && LanguageModes.ForPath("x.smkl").Id == "smoke-lang", "the package brings a clip, a converter and a grammar");
 
         var tab = window.NewDocument();
-        tab.Editor!.Document.Text = "a-a";
+        tab.Editor!.Document.Insert(0, "a-a");
         tab.Editor.CaretOffset = 3;
         Check(window.RunDataCommand("smoke.data", "up", "converter") == NksHub.Textida.Workbench.Commands.CommandOutcome.Handled && tab.Editor.Document.Text == "b-b", "the converter of the package converts the text");
         tab.Editor.Select(3, 0); // the converter left its result selected
