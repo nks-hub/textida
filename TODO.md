@@ -1021,7 +1021,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
     - napojení rendereru běžné i stránkované plochy
     - gramatiky MVP a snapshot testy podle případů z `09` kap. 12
     - checkpointy stavu z P3.2.3
-  - **Stav 26. 10. 2026:** hotovo: barvy v běžném editoru i stránkované ploše z jednoho `SyntaxFeeder`, palety D5, ruční volba jazyka přežije reload; gramatiky MVP včetně C#, Razor (`.cshtml`, `.razor`), `.sln` a `.csproj`/`.props` (XML) se snapshot testy tokenů; NEON, Latte, Razor a `.sln` se v editoru barví podle přípony (dřív chyběly v seznamu jazyků). Win11lite2 27. 10.: `Typing_in_a_highlighted_one_mebibyte_file_stays_within_33_ms_at_p95` prošel. Razor: výrazy uvnitř hodnot atributů HTML a uvnitř `<script>` se nebarví jako Razor.
+  - **Stav 26. 10. 2026:** hotovo: barvy v běžném editoru i stránkované ploše z jednoho `SyntaxFeeder`, palety D5, ruční volba jazyka přežije reload; gramatiky MVP včetně C#, Razor (`.cshtml`, `.razor`), `.sln` a `.csproj`/`.props` (XML) se snapshot testy tokenů; NEON, Latte, Razor a `.sln` se v editoru barví podle přípony (dřív chyběly v seznamu jazyků). referenční Windows VM 27. 10.: `Typing_in_a_highlighted_one_mebibyte_file_stays_within_33_ms_at_p95` prošel. Razor: výrazy uvnitř hodnot atributů HTML a uvnitř `<script>` se nebarví jako Razor.
   - **Hotovo, když:** psaní v souboru 1 MiB se zvýrazněním má vstup → prezentace p95 ≤ 33 ms (cíl, který TextMate nesplnil); snapshot testy tokenů všech gramatik MVP procházejí; ruční volba jazyka přežije reload.
   - **Závisí na:** P2.7.1, P3.2.3
   - **Odhad:** bez odhadu
