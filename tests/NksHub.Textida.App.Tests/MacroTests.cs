@@ -369,6 +369,26 @@ public class MacroTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_selection_scope_the_bar_kept_from_an_earlier_run_does_not_decide_where_the_macro_replaces()
+    {
+        var ctx = new ShellContext(_w, forMenu: true);
+        const string text = "foo\nfoo\nfoo\n";
+        var tab = OpenDocument(text, new Sel(4, 7));
+        await SetBarAsync("foo", "bar", inSelection: true);
+        Reselect(tab, new Sel(4, 7));
+        Run("nks.macro.record");
+        Assert.Equal(CommandOutcome.Handled, await Registry.ExecuteAsync("nks.search.replaceAll", ctx));
+        Run("nks.macro.stop");
+        Assert.Equal("foo\nbar\nfoo\n", tab.Editor!.Document.Text);
+        Run("nks.edit.undo");
+        Assert.Equal(text, tab.Editor.Document.Text);
+
+        Reselect(tab, new Sel(8, 11)); // the bar still holds the scope of the line before
+        await _w.PlayMacroAsync(Registry.LastMacro);
+        Assert.Equal("foo\nfoo\nbar\n", tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public async Task A_saved_replace_step_runs_with_the_find_bar_closed()
     {
         var ctx = new ShellContext(_w, forMenu: true);
