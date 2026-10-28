@@ -196,7 +196,12 @@ public static class HugeScenario
             while (Volatile.Read(ref readyAt) < 0 && !proc.HasExited && clock.Elapsed < TimeSpan.FromMinutes(20)) Thread.Sleep(50);
             if (Volatile.Read(ref readyAt) < 0) return "the child never became ready: " + errors.Result;
             report.AppendLine($"[{point}] the child opened the document and was ready after {clock.Elapsed.TotalSeconds:F0} s");
-            if (!trigger.Wait(TimeSpan.FromMinutes(25))) return "the kill trigger never came";
+            clock.Restart();
+            while (!trigger.Wait(500))
+            {
+                if (proc.HasExited) return "the child ended by itself: " + errors.Result;
+                if (clock.Elapsed > TimeSpan.FromMinutes(25)) return "the kill trigger never came";
+            }
             Thread.Sleep(new Random(point.Length * 31).Next(0, 250)); // the kill lands somewhere in the edit after the trigger
             killAt = Now();
             if (!proc.HasExited) proc.Kill(true);
