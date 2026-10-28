@@ -17,10 +17,17 @@ public partial class DocumentationTests
     [GeneratedRegex("```csharp\\r?\\n(.*?)```", RegexOptions.Singleline)]
     private static partial Regex CSharpBlock();
 
-    private static Assembly Compile(string markdownFile)
+    private static readonly string[] Documents =
+    [
+        Path.Combine("src", "NksHub.Textida.Plugin.Sdk", "README.md"),
+        Path.Combine("src", "NksHub.Textida.Plugin.TestHost", "README.md"),
+    ];
+
+    /// <summary>Builds the C# examples of the documents of the SDK packages into one assembly; they refer to each other.</summary>
+    private static Assembly Compile()
     {
-        var blocks = CSharpBlock().Matches(File.ReadAllText(markdownFile)).Select(m => m.Groups[1].Value).ToList();
-        Assert.NotEmpty(blocks);
+        var blocks = Documents.SelectMany(file => CSharpBlock().Matches(File.ReadAllText(Path.Combine(T.RepoRoot(), file))).Select(m => m.Groups[1].Value)).ToList();
+        Assert.Equal(2, blocks.Count);
         var trees = new[] { ImplicitUsings }.Concat(blocks).Select(code => CSharpSyntaxTree.ParseText(code)).ToList();
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("docs-" + Guid.NewGuid().ToString("N"), trees, references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
@@ -33,7 +40,7 @@ public partial class DocumentationTests
     [Fact]
     public async Task The_example_of_the_sdk_readme_compiles_and_a_command_of_it_runs_on_the_test_host()
     {
-        var assembly = Compile(Path.Combine(T.RepoRoot(), "src", "NksHub.Textida.Plugin.Sdk", "README.md"));
+        var assembly = Compile();
         var plugin = (PluginBase)Activator.CreateInstance(assembly.GetType("Docs.CountPlugin", throwOnError: true)!)!;
         await using var editor = await TestEditor.StartAsync(plugin, new TestEditorOptions { Grants = [DocumentPermissions.Read] });
         var document = editor.OpenDocument("a.txt", "héllo\n");
@@ -45,9 +52,20 @@ public partial class DocumentationTests
     }
 
     [Fact]
+    public async Task The_example_of_the_test_host_readme_compiles_and_runs()
+    {
+        var assembly = Compile();
+        var run = assembly.GetType("Docs.Tests.CountExample", throwOnError: true)!.GetMethod("RunAsync")!;
+
+        var notice = await (Task<string>)run.Invoke(null, null)!;
+
+        Assert.Equal("12 characters", notice);
+    }
+
+    [Fact]
     public async Task The_example_of_the_readme_needs_the_permission_the_readme_says_it_needs()
     {
-        var assembly = Compile(Path.Combine(T.RepoRoot(), "src", "NksHub.Textida.Plugin.Sdk", "README.md"));
+        var assembly = Compile();
         var plugin = (PluginBase)Activator.CreateInstance(assembly.GetType("Docs.CountPlugin", throwOnError: true)!)!;
         await using var editor = await TestEditor.StartAsync(plugin);
         var document = editor.OpenDocument("a.txt", "abc");

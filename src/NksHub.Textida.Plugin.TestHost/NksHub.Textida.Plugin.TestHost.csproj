@@ -17,6 +17,7 @@
     <Description>A Textida editor without a window for tests of plugins: the real document, UI, network and secret APIs of the editor over in-memory documents, and a replay of recorded editor events against a plugin.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>textida;plugin;test</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- the services of the editor it runs ship inside this package: they are projects of this repository and have no package of their own -->
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);BundleEditorServices</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
@@ -24,6 +25,10 @@
   <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.Plugin.Sdk\NksHub.Textida.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <Target Name="BundleEditorServices" DependsOnTargets="ResolveReferences">

@@ -17,6 +17,7 @@
     <Description>Checks a plugin folder of the Textida editor: the manifest, the range of the plugin API, the permissions declared and used, the size of the folder, whether the plugin is a NativeAOT program free of reflection, and the handshake of the running plugin.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>textida;plugin;validator</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +27,10 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.PluginSdk.Analyzers\NksHub.Textida.PluginSdk.Analyzers.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
