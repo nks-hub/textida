@@ -113,7 +113,8 @@ Připojení si pamatuje server, uživatele a protokol. Heslo je v systémové kl
 - Běžná volba je FTPS a SFTP. Prosté FTP posílá heslo i soubory nešifrovaně a použije se, až když ho pro dané připojení výslovně povolíte.
 - Při prvním připojení program ukáže identitu serveru (klíč SSH nebo certifikát TLS) a zeptá se, zda jí věříte. Porovnejte ji s tou, kterou vám dal správce serveru.
 - Změní-li se identita serveru, kterému jste uvěřili, program se nepřipojí, dokud novou nepotvrdíte. Než to uděláte, přečtěte si varování.
-- Ukládání hesla funguje ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu systémová klíčenka zatím podporovaná není a program to řekne, místo aby heslo uložil jinam.
+- Heslo se ukládá do systémového úložiště: ve Windows do Správce přihlašovacích údajů, v macOS do Klíčenky (Keychain), v Linuxu do Secret Service přes libsecret (například GNOME Keyring nebo KWallet). Chybí-li toto úložiště, program to řekne, místo aby heslo uložil jinam. Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému.
+- ssh-rsa: některé staré servery SFTP berou klíč RSA, nebo ukazují svůj klíč serveru, jen se slabým podpisem SHA-1 zvaným ssh-rsa. Program ho sám nikdy nenabídne. Odmítne-li takový server připojení, vyberte připojení a pak Starý podpis RSA (ssh-rsa), přečtěte si varování a povolte ho jen pro toto připojení. Výstup Vzdálené před každým takovým připojením varuje; vypněte ho, jakmile se server aktualizuje.
 
 ## [remote.open] Otevřít vzdálený soubor
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Lišta nad textem říká, zda je kopie shodná se serverem. Editor sám funguje bez připojení.
 - Vzdálený soubor, který už kopii má, se otevře z kopie, včetně změn, které jste ještě neposlali. Verze ze serveru se nikdy nestáhne přes vaši práci.
 - Záznam přenosů je na kartě Vzdálené v okně výstupu.
+- Stahování ukazuje procenta ve stavovém řádku a ve výstupu Vzdálené. Zrušit přenos ho zastaví. Co už dorazilo, zůstává a další otevření nebo znovunačtení stejné verze ze serveru naváže na tomto bajtu. Změnila-li se mezitím velikost nebo čas souboru na serveru, rozpracovaná část se zahodí a stahuje se znovu. Přeruší-li se spojení, program stahování několikrát zopakuje s rostoucími pauzami.
 
 ## [remote.upload] Nahrát na server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
 - Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
+- Stavový řádek ukazuje procenta nahrávání a výstup Vzdálené řádek za každou desetinu (krok je zatím provizorní). Procenta počítají bajty, které převzalo spojení, takže mohou být o kousek před serverem.
 
 ## [remote.cancel] Zrušit přenos
 commands: nks.remote.cancel
-Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání se zastaví, server si ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání.
+Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání nebo stahování se zastaví. Po nahrávání si server ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání. Po stahování zůstane, co už dorazilo, a další stažení stejné verze ze serveru naváže na tomto místě.
 
 ## [remote.check] Zkontrolovat verzi na serveru
 commands: nks.remote.check
@@ -476,7 +479,7 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Nástroje, Struktura a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
-5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje.
+5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje. Osnova ukazuje stejnou položku tučně a čtečka obrazovky ji pojmenuje „aktuální položka“. Značka není výběr a nebere vám klávesnici; jde za kurzorem a při obnově osnovy zůstane u své položky.
 - Čte se podle jednoduchých pravidel jazyka, bez jazykového serveru a bez indexu projektu. Kromě jazyků níže: JavaScript a TypeScript (třídy, rozhraní, výčty, funkce, šipkové funkce, metody), Python (třídy, funkce, metody podle odsazení), Rust (moduly, struktury, výčty, traity, bloky impl, funkce, makra), Dart (třídy, mixiny, výčty, rozšíření, funkce, metody), C a C++ (jmenné prostory, struktury, třídy, výčty, funkce, makra), Bash (funkce), CMake (funkce, makra, cíle), Makefile (cíle, `define`), Meson (cíle, testy, podadresáře). Klíče YAML a JSON dává osnova klíčů. HTML (nadpisy, prvky s `id`, `main`, `nav`, `section` a podobné), PHP (jmenné prostory, třídy, rozhraní, traity, výčty, funkce, metody), CSS (pravidla a @-pravidla), C# (jmenné prostory, typy, metody, konstruktory, vlastnosti), Markdown (nadpisy `#`).
 - Komentáře a řetězce se nečtou. Co pravidla nepoznají, se přeskočí.
 - Soubor větší než limit pluginu nebo s víc symboly, než osnova unese, se zobrazí zkrácený a zpráva to řekne. Velký soubor ve stránkovaném zobrazení se čte na pozadí od začátku až po limit; skok na symbol posune stránkované zobrazení na jeho místo.
@@ -635,7 +638,7 @@ commands: nks.view.toggleSecrets
 - V textovém editoru se po najetí ukazatelem myši na hodnotu ukáže jen ta jedna.
 - Text souboru se nemění: uložení zapíše stejné bajty.
 - Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav, ve výsledcích hledání a v exportech s formátováním (HTML, RTF). Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
-- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram a panel struktury vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá.
+- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram, panel struktury, mapa bajtů a kontrolní součet vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá. Náhledy Nahradit a neuložených změn ukazují u rozsahu, který se hodnoty dotýká, hvězdičky.
 - Ve stránkovaném režimu čtečka obrazovky čte za každý znak skryté hodnoty odrážku. Řádek delší než 16 KiB, který hodnotu obsahuje, skryje vše za svou první částí.
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
 - Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.
@@ -838,8 +841,8 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 - Vyjmout, Kopírovat a Vložit pracují s bajty; mezi dvěma hexy se přenesou přesně.
 
 ## [hex.find] Hex: hledání a skok na offset
-- Ctrl+F otevře okno Hledat bajty. Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, nebo číslo s typem (0x1F40 i32).
-- F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
+- Ctrl+F otevře vyhledávací lištu v režimu bajtů (označená Hex, bez přepínačů pro text). Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, číslo s typem (0x1F40 i32) nebo regulární výraz mezi lomítky. Při psaní počítadlo říká, jak dlouhá shoda může být, nebo proč je zadání odmítnuto. Enter najde další shodu, Shift+Enter předchozí, Esc lištu zavře. Přepnutí na kartu, která není hex (nebo naopak), lištu zavře. Ctrl+H dál otevírá okna nahrazení.
+- F3 a Shift+F3 najdou další a předchozí shodu, s lištou otevřenou i zavřenou. Stavový řádek i počítadlo lišty napíšou Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
 - Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
@@ -953,6 +956,23 @@ Dvě hex mřížky vedle sebe, které se posouvají společně, s rozdíly podba
 - Seznam končí na 1 000 000 rozdílech (okno to řekne); dva nesouvisející soubory by jinak zaplnily paměť.
 - Dvě revize souboru z místní historie se v hexu porovnat nedají. Porovnat v místní historii porovnává text (téma Místní historie).
 
+## [hex.access] Hex: klávesnice a čtečka obrazovky
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Vše v hexu jde ovládat klávesnicí. Toto téma uvádí, co není zřejmé, a co dostane čtečka obrazovky. Ověřeno je přes přístupnostní strom programu, s NVDA ani VoiceOverem samotným zatím ne.
+### Klávesnice
+- Šipky se posouvají o bajt nebo řádek, Ctrl+Left a Ctrl+Right o skupinu, PageUp a PageDown o obrazovku, Home a End v rámci řádku, Ctrl+Home a Ctrl+End po celém souboru. Shift rozšiřuje výběr. Ctrl+A vybere vše.
+- Tab přepíná mezi sloupcem bajtů a sloupcem znaků a zůstává v mřížce (totéž z palety dělá Hex: přepnout mezi sloupcem hex a sloupcem znaků). F6 opustí mřížku a přejde na další část okna, Shift+F6 vrací. V panelu vedle mřížky se Tab pohybuje mezi jeho ovládacími prvky a Esc vrací do mřížky.
+- Ctrl+G přejde na offset. Hex: vybrat po offset (Ctrl+K a pak Ctrl+A) vybere bajty od kurzoru po offset: +0x100 vybere 256 bajtů, end vybere do konce souboru. Ctrl+F hledá bajty a F3 pokračuje.
+- Klávesa Insert přepíná mezi přepisem a vkládáním (na macOS ⌥⌘I). Každá akce hexu je v paletě příkazů (Ctrl+Shift+P) a, pokud ji má, i v nabídce.
+- Panely se otevírají z klávesnice: Inspektor dat klávesami Ctrl+K a pak Ctrl+I, záložky Ctrl+K a pak Ctrl+B, šablona struktury Ctrl+J, mapa souboru Ctrl+K a pak Ctrl+G. Ctrl+K a pak Ctrl+F dá klávesnici na mapu: šipky nahoru a dolů posunou kurzor o obrazovku, Page Up a Page Down o desetinu souboru, Home a End na konce, Esc zpět do mřížky.
+### Čtečka obrazovky
+- Mřížka je jeden upravitelný prvek. Jeho hodnotou je bajt pod kurzorem: offset, bajt hexadecimálně, jeho hodnota dekadicky a znak; výběr přidá svou délku a první a poslední offset, bajt změněný od posledního uložení se označí jako změněný. Popis uvádí řádek, pozici v řádku, sloupec a režim úprav.
+- Skrytá hodnota souboru .env se čte jako skrytá hodnota, nikdy jako bajty.
+- Změna režimu nebo sloupce, výsledek hledání a úprava odmítnutá, protože pohled je jen pro čtení, se oznámí, aniž by se hnula klávesnice.
+- Mapa je posuvník, jehož hodnotou je místo mřížky v souboru v procentech. Popis říká, co buňky ukazují a kolik shod, záložek a změněných míst mapa označuje.
+### Vysoký kontrast
+- Změněné bajty jsou podbarvené a podtržené, záložka má nad sebou proužek a mapa si ponechává rámeček. Ve vysokém kontrastu se druhy bajtů liší nejen barvou: 00 je podtržená, FF tučná a řídicí bajt kurzívou.
+
 ## [tools.run] Nástroje: spuštění externího programu
 commands: nks.tools.run, nks.tools.stop
 1. Nástroje, Spouštění nástrojů, Spustit nástroj nabídne nástroje zapsané v souboru tools.json ve složce profilu. Poslední řádek ten soubor otevře; poprvé do něj zapíše prázdný, který doplníte.
@@ -1006,7 +1026,8 @@ commands: nks.schemas.allow
 3. Schémata package.json, Cargo.toml, workflow GitHubu a souborů agentů jsou součástí editoru. Schéma jiného známého souboru a schéma, které soubor pojmenuje adresou, se stáhne až po vašem souhlasu. Do té doby stavový řádek říká „stažení není povoleno“ a Nástroje, Balíčky, Povolit stažení schématu ukáže server a zeptá se jednou pro každý server. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy. Schéma, které soubor pojmenuje cestou, se čte z disku a souhlas nepotřebuje.
 4. Stažené schéma se ukládá do tohoto počítače, nejvýše do limitu velikosti (nejstarší se mažou první), a dokud je čerstvé, použije se bez dotazu. Když server neodpoví, použije se uložená kopie a stavový řádek to říká. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde.
 5. Syntaktická chyba v souboru JSON, JSONC, TOML nebo YAML se podtrhne i tehdy, když žádné schéma neplatí. YAML s kotvami, tagy nebo složitými klíči se číst nedá: takový soubor se nekontroluje a stavový řádek to říká.
-- Rozumí se podmnožině JSON Schema: typy, enum, required, properties, items, oneOf, anyOf, allOf, if/then, místní $ref a pattern. Odkazy na jiné soubory nebo adresy uvnitř schématu se přeskakují. Limity velikosti, doba života uložených kopií a čekací doby jsou prozatímní.
+6. Vlastní pravidla: nastavení Mapování schémat (Nastavení, hledejte „schéma“) přiřazuje souborům schémata. Zapište MASKA=SCHÉMA, oddělené středníky nebo zalomením řádku, například *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASKA je název souboru, konec cesty nebo složka s /**. SCHÉMA je id známého schématu, adresa nebo cesta k souboru; koncovka as json, jsonc, toml, yaml nebo markdown určuje, jak se soubor čte. První vyhovující pravidlo má přednost před schématy, která editor zná; před pravidlem vyhrává jen $schema zapsané v souboru. Pravidlo zapsané jinak se přeskočí a stavový řádek ho jmenuje. Změna se na otevřené soubory projeví hned.
+- Rozumí se podmnožině JSON Schema: typy, enum, required, properties, items, oneOf, anyOf, allOf, if/then, $ref a pattern. $ref může pojmenovat jiný soubor schématu v tomto počítači (od souboru schématu) nebo adresu; adresa se stáhne až po vašem souhlasu s jejím serverem, jak je psáno výše, a schéma, které přišlo ze sítě, nikdy nečte soubor. Dokument se čte jednou, takže odkazy do kruhu skončí; délka řetězu dokumentů i jejich počet jsou omezené. Odkaz, který nejde sledovat, nic nepožaduje; chybí-li jen souhlas se serverem, stavový řádek říká „stažení není povoleno“. Kotvy (#název) se nesledují. Limity velikosti, doba života uložených kopií a čekací doby jsou prozatímní.
 
 ## [packages.scripts] Skripty balíčku: npm a Composer
 commands: nks.packages.script
@@ -1222,10 +1243,10 @@ Při nepovedené operaci se souborem je nad dokumentem lišta Operace selhala a 
 
 ## [errors.remote] Chybová hlášení: vzdálené soubory a zdroje
 Hlášení o vzdáleném souboru nebo zdroji se objeví ve stavovém řádku, v liště nad textem nebo v dialogu. Každý řádek cituje hlášení a říká, co dělat.
-- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy).
+- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy). Odmítá-li starý server SFTP klíč, nebo s ním nemáte společný klíčový algoritmus, viz Starý podpis RSA (ssh-rsa) v tématu Vzdálená připojení.
 - POZOR: identita serveru server není ta, které jste dříve uvěřili. Program se nepřipojí, dokud novou identitu nepotvrdíte. Zeptejte se správce serveru, zda server nebyl přeinstalován, a připojte se jen tehdy, když víte, proč se změnila (téma Vzdálená připojení).
 - Port musí být číslo od 1 do 65535. Napište celé číslo od 1 do 65535, nebo nechte pole prázdné a použije se obvyklý port protokolu.
-- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo úložiště přihlašovacích údajů (funguje jen ve Windows, téma Co tato verze neumí). Opravte to a uložte znovu.
+- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo systémové úložiště přihlašovacích údajů (téma Co tato verze neumí). Opravte to a uložte znovu.
 - cesta na serveru neexistuje. Zkontrolujte cestu. Cesta ke složce ukáže její obsah, takže k souboru můžete dojít od /.
 - Soubor cesta nelze otevřít: důvod. Nic se neotevřelo. Odstraňte důvod (oprávnění na serveru, přerušené připojení) a otevřete soubor znovu.
 - Nahrání souboru název selhalo: důvod. Server si ponechává předchozí verzi, vaše změny zůstávají uložené tady. Odstraňte důvod a zvolte znovu Nahrát na server; částečně odeslaný soubor se doplní (téma Nahrát na server).
@@ -1298,7 +1319,8 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 - Jazykový server pracuje jen s textovými dokumenty, ne s velkými soubory zobrazenými po stránkách. Soubor ve stránkovaném režimu se jazykovému serveru nikdy nepředá (téma Velké soubory (stránkovaný režim)).
 - Jazykový server pro jazyk nebyl nalezen: program. Nainstalujte server tak, aby se jeho program našel v PATH (téma Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika).
 - Jazykový server pro jazyk se nepodařilo spustit: důvod. Přečtěte si důvod, odstraňte ho a spusťte příkaz té skupiny znovu.
-- Jazykový server pro jazyk neočekávaně skončil (podrobnost). Spusťte libovolný příkaz té skupiny znovu: server se spustí a dostane otevřené dokumenty znovu.
+- Jazykový server pro jazyk neočekávaně skončil (podrobnost). Editor ho spustí znovu sám. Když oznámení říká, že to vzdal, spusťte libovolný příkaz té skupiny znovu: server se spustí a dostane otevřené dokumenty znovu.
+- Jazykový server pro jazyk se ani po počet pokusech nepodařilo udržet spuštěný. Editor ho už sám nespouští. Spusťte libovolný příkaz té skupiny a zkusí to znovu.
 - Program git se nepodařilo spustit: důvod. Program git musí být nainstalovaný a nalezený v PATH (téma Git: stav, porovnání a příprava úseku).
 - Soubor není v repozitáři Git. Otevřete soubor z repozitáře Git.
 - Index souboru soubor se změnil od posledního načtení (jiným programem). Nic se nezapsalo. Zkontrolujte změny a připravte úsek znovu.
@@ -1307,7 +1329,7 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 ## [limits] Co tato verze neumí
 Nápověda popisuje jen to, co tato verze umí. Tyto věci v ní nejsou a tady je, co dělat místo nich:
 - Aktualizace: program se sám aktualizuje jen ve Windows, v nainstalované Textidě (téma Aktualizace a návrat na předchozí verzi). V macOS a Linuxu novou verzi nainstalujete sami. Sestavení bez adresy aktualizací a podpisového klíče nové verze nehledá a řekne to.
-- Uložená hesla: úložiště přihlašovacích údajů funguje jen ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
+- Uložená hesla: Windows (Správce přihlašovacích údajů), macOS (Klíčenka) a Linux (Secret Service přes libsecret). Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému. Chybí-li systémové úložiště, program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
 - Pluginy: plugin je program, který běží s právy vašeho uživatele. Jeho oprávnění jsou záznam toho, co jste povolili, ne izolace, a podpisy pluginů se nekontrolují (téma Správce pluginů: instalace, aktualizace, návrat a odebrání pluginů). Instalujte jen pluginy, kterým věříte.
 - Asistenti: most /ide a agent přes ACP nejsou ověřené se skutečnými programy (témata Most /ide pro Claude Code a Agent přes ACP). Připojení, které nejde, program ohlásí s důvodem ve stavovém řádku nebo ve výstupu Úlohy.
 - Velké soubory: úpravy ve stránkovaném režimu jsou omezené (téma Velké soubory (stránkovaný režim)). Jazykový server, formátování a většina příkazů, které mění text, tam nefungují. Bajty souboru jakékoli velikosti změníte v hexu.
@@ -1419,7 +1441,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
 commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
-1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně.
+1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně. Sleduje se každý repozitář, který má otevřený soubor, i když jsou otevřené soubory z více repozitářů; sledování repozitáře skončí, když se zavře jeho poslední otevřený soubor. Stavový řádek ukazuje repozitář posledního příkazu Git nebo poslední změny zvenku; panel zůstává u repozitáře posledního stavu souborů.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
 4. Když se index mezitím změnil jiným programem, nic se nezapíše. Plugin index načte znovu a oznámí konflikt; zkontrolujte změny a příkaz zopakujte.
@@ -1442,7 +1464,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Jazykový server: přejít na definici skočí na definici slova pod kurzorem, i do jiného souboru. Jazykový server: najít odkazy vypíše všechna místa v panelu vlevo; Enter nebo dvojklik na položku ji otevře.
 3. Jazykový server: přejmenovat symbol se zeptá na nový název slova pod kurzorem. Změny serveru ve všech souborech, včetně vytvoření, přejmenování a smazání souborů, které žádá, se ukážou společně v náhledu změn; co přijmete, se použije jako jeden krok. Nový soubor se ukáže prvními řádky jako přidaný text. Karta otevřeného souboru se při přejmenování přesune s ním; karta smazaného souboru se zavře, a má-li neuložené změny, editor se zeptá, zda ji zavřít, nebo nechat otevřenou. Soubor otevřený v jiné kartě musí být také spuštěný prvním příkazem, jinak se přejmenování odmítne celé.
 4. Ctrl+J (Úpravy, Vložit, Doplnit slovo nebo klip) nabídne i to, co běžící server nabízí u kurzoru. Výběr takové položky provede ve stejném kroku Zpět i další změny, které server žádá, třeba přidání importu. Odpověď, která přijde po změně textu, se nezobrazí.
-5. Když server skončí sám, upozornění to oznámí a podtržení, která nakreslil, zmizí. Jazykový server: restartovat (nebo jiný příkaz této skupiny) ho spustí znovu a předá mu všechny otevřené dokumenty tak, jak jsou teď. Jazykový server: zastavit ho vypne. Restart i zastavení platí pro server projektu, do kterého patří aktuální dokument; servery jiných projektů běží dál.
+5. Když server skončí sám, upozornění to oznámí a podtržení, která nakreslil, zmizí. Editor ho pak spustí znovu sám, po čekání, které je s každým pokusem delší, a předá mu všechny otevřené dokumenty tak, jak jsou teď. Po několika pokusech za sebou to vzdá a upozornění to oznámí; server, který před koncem nějakou dobu běžel, dostane pokusy zpět. Jazykový server: restartovat (nebo jiný příkaz této skupiny) ho spustí hned, i když to editor vzdal. Jazykový server: zastavit ho vypne a zruší čekající spuštění. Restart i zastavení platí pro server projektu, do kterého patří aktuální dokument; servery jiných projektů běží dál.
 - Editor žádný server sám nespouští: dokud nezvolíte první příkaz této skupiny, nic neběží a server o souboru nic neví.
 - Velké soubory zobrazené po stránkách a soubory nad limitem velikosti se serveru nikdy nepředají.
 - Server se hledá podle názvu v PATH. Když se nenajde, upozornění pojmenuje program, který se hledal.
@@ -1456,7 +1478,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 3. Při instalaci pluginu editor oprávnění ukáže a čeká na vaši odpověď. Bez něj se server nikdy nespustí.
 4. Server používají příkazy skupiny Jazykový server pro každý dokument, jehož jazyk je uvedený nebo jehož jméno souboru odpovídá masce. Server z pluginu má přednost před serverem dodaným s editorem.
 - Pro jeden jazyk, složku projektu a nastavení serveru (program, argumenty, prostředí a `initializationOptions`) běží jeden proces serveru, společný všem otevřeným dokumentům projektu. Dokument, který odpovídá jen maskou, obsluhuje server jako první jazyk ze seznamu.
-- Když program chybí nebo se nespustí, jedno oznámení ho jmenuje a úpravy pokračují. Když skončí sám, spusťte libovolný příkaz skupiny a spustí se znovu.
+- Když program chybí nebo se nespustí, jedno oznámení ho jmenuje a úpravy pokračují. Když skončí sám, editor ho spustí znovu, jak popisuje téma Jazykový server; když to vzdal, spusťte libovolný příkaz skupiny.
 - Server bez otevřeného dokumentu svého projektu se po čase zastaví a další příkaz ho spustí znovu. Servery jiných projektů běží dál.
 - Když se server zeptá na nastavení (`workspace/configuration`), dostane tu část `initializationOptions`, kterou pojmenuje požadovaná sekce: `a.b` je objekt `b` uvnitř `a`, dotaz bez sekce dostane celý objekt. Na vše ostatní se odpoví `null`.
 - Manifest s chybným záznamem se odmítne celý, i s důvodem.
@@ -1505,7 +1527,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Soubor CSV nebo TSV lze zobrazit jako tabulku: jeden řádek souboru je jeden řádek tabulky, jedno pole je jedna buňka. Je to týž dokument jako v textovém zobrazení, se stejnou historií Zpět; nic se nepřevádí a úprava buňky změní jen bajty té buňky.
 1. Ctrl+K a pak Ctrl+T (nabídka Zobrazení, Přepnout tabulku a text) přepíná mezi tabulkou a textem. Soubor .tsv nebo .tab se dělí podle tabulátorů, ostatní soubory podle čárek.
-2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona).
+2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona). Buňka v uvozovkách se zalomením řádku patří ke svému řádku a řádek utržený koncem prozkoumané části dlouhého souboru se vynechá.
 - Velký soubor se otevře hned: řádky se počítají na pozadí a rozsah posuvníku roste, jak se soubor čte. Než se dojde na konec, stavový řádek ukazuje počet řádků s plusem, například 12+.
 - Šipky, Tab, PageUp a PageDown, Home a End (v rámci řádku), Ctrl+Home a Ctrl+End přesouvají aktuální buňku; Shift rozšiřuje výběr. Klepnutí na záhlaví sloupce vybere sloupec, klepnutí na číslo řádku vybere řádek.
 - Buňka v uvozovkách může obsahovat zalomení řádku; tabulka ukáže její první řádek a značku ↵.
@@ -1620,7 +1642,7 @@ Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agent
 4. Volba Připojit slouží k použití serveru. Seznam ukáže jeho nástroje a zdroje dat. Zdroj dat se otevře v nové kartě jen pro čtení. U nástroje se zeptá na argumenty jako objekt JSON (při psaní se ukazuje schéma nástroje) a pak samostatná otázka ukáže server, nástroj, argumenty a to, zda server uvádí, že nástroj jen čte. Nic se neodešle, dokud nestisknete Zavolat; výchozí tlačítko je Zrušit. Odpověď se otevře v nové kartě jen pro čtení a výstup Úlohy zaznamená, že nástroj byl zavolán a kolik znaků měly argumenty, ne argumenty samotné.
 5. Volba Převést záznam pro jiného agenta otevře záznam ve formátu toho agenta v nové kartě. Úryvek se nejdřív zkontroluje podle toho formátu. Hodnoty proměnných a hlaviček jsou nahrazené ***, doplňte je, než úryvek vložíte do souboru toho agenta.
 - ${NAME} v příkazu, argumentu, proměnné, adrese nebo hlavičce se nahradí z prostředí Textidy, ${NAME:-text} dá výchozí hodnotu. Jméno, které tam není, se hledá ve Správci pověření Windows pod textida:mcp:env:NAME. Jméno, které není ani tam, se vyžádá (psaní je skryté) a uloží se do Správce pověření a nikam jinam; když úložiště pověření není dostupné, hodnota se použije jen pro toto spojení. Zrušení otázky nic nespustí.
-- Server s adresou dostává klíče v hlavičkách, proto musí mít adresu https://, pokud není na tomto počítači. Textida mluví Streamable HTTP (MCP 2025-11-25); starší přenos s odděleným kanálem událostí (typ sse z MCP 2024-11-05) se nepodporuje. Platí síťový proxy programu. Klíč, který server odmítne (HTTP 401 nebo 403), se zapomene ve Správci pověření a jednou se zeptá znovu; klíč z prostředí nebo zapsaný přímo v konfiguračním souboru Textida nemění a zpráva to řekne. npx a npm se spouštějí jako node se skriptem zástupce Node.js, takže mezi editorem a serverem nestojí cmd.exe. Jiný dávkový soubor se spouští přes cmd.exe.
+- Server s adresou dostává klíče v hlavičkách, proto musí mít adresu https://, pokud není na tomto počítači. Textida mluví Streamable HTTP (MCP 2025-11-25). Záznam typu sse se připojí starším přenosem s odděleným kanálem událostí (MCP 2024-11-05): Textida otevře adresu jako proud událostí a zprávy posílá na adresu, kterou tam server uvede a která musí být na stejném počítači jako proud. Stejně se zkusí adresa bez typu, jejíž server odmítne první zprávu stavem HTTP 4xx jiným než 401 a 403. Platí síťový proxy programu. Klíč, který server odmítne (HTTP 401 nebo 403), se zapomene ve Správci pověření a jednou se zeptá znovu; klíč z prostředí nebo zapsaný přímo v konfiguračním souboru Textida nemění a zpráva to řekne. npx a npm se spouštějí jako node se skriptem zástupce Node.js, takže mezi editorem a serverem nestojí cmd.exe. Jiný dávkový soubor se spouští přes cmd.exe.
 - Meze (zatím provizorní): odpověď nebo zdroj dat delší než 262144 znaků se ořízne a stavový řádek řekne, jak dlouhý byl. Seznam, volání nebo čtení, které trvá déle než 120 sekund, skončí zprávou a server se vyzve, aby požadavek zastavil. Program, který skončí nebo je zastaven, se ohlásí s kódem ukončení a posledními řádky chybového výstupu a seznam se zavře.
 - Tajné hodnoty jsou skryté v seznamu, v okně, ve výstupu i v úryvcích, také když se objeví uvnitř argumentu nebo v chybovém výstupu programu. Hodnoty kratší než 4 znaky se v textu nehledají.
 

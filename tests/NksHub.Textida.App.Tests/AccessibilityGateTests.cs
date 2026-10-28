@@ -490,6 +490,70 @@ public class AccessibilityGateTests : IDisposable
         }
     }
 
+    // ---- hex ----
+
+    [AvaloniaFact]
+    public void Every_action_of_the_hex_view_is_a_command_in_the_palette_and_a_menu_and_every_part_of_it_takes_the_keyboard_and_gives_it_back()
+    {
+        var wb = _app.Workbench;
+        var bin = _w.OpenFile(_temp.Bytes("blob.bin", [.. Enumerable.Range(0, 255).Select(i => (byte)i)]), null);
+        Assert.True(_w.SetHex(bin.Doc, true));
+        var tab = bin.Doc.Views.First(v => v.Hex is not null);
+        var hex = tab.Hex!;
+        _w.SelectTab(tab);
+        Tick();
+
+        // go to an offset, select a range, switch the column, insert and overwrite, the inspector, the structure, bookmarks, the map and the comparison
+        string[] named = ["nks.search.gotoLine", "nks.hex.selectTo", "nks.hex.toggleColumn", "nks.hex.toggleInsert", "nks.hex.inspector", "nks.hex.template", "nks.hex.bookmarks.panel", "nks.hex.minimap.focus", "nks.hex.compare.file", "nks.hex.compare.saved"];
+        var commands = wb.Commands.Commands.ToDictionary(c => c.Id, StringComparer.Ordinal);
+        Assert.All(named, id => Assert.Contains(id, commands.Keys));
+
+        // all of them, in all four languages, in the palette (not hidden) and in a menu; the sizes of a row are the items of the layout menu
+        var inMenu = CommandIds(_w.MenuModel).ToHashSet(StringComparer.Ordinal);
+        var hexCommands = commands.Values.Where(c => c.Id.StartsWith("nks.hex.", StringComparison.Ordinal)).Concat(named.Select(id => commands[id])).DistinctBy(c => c.Id).ToList();
+        Assert.True(hexCommands.Count >= 30, $"only {hexCommands.Count} hex commands");
+        foreach (var command in hexCommands)
+        {
+            Assert.False(command.Hidden, command.Id + " is hidden from the palette");
+            Assert.True(wb.Commands.HasHandler(command.Id), command.Id + " does nothing");
+            if (command.Id.StartsWith("nks.hex.", StringComparison.Ordinal) && !command.Id.StartsWith("nks.hex.bytesPerRow", StringComparison.Ordinal))
+                Assert.True(inMenu.Contains(command.Id), command.Id + " is in no menu");
+            foreach (var lang in A11yAudit.Languages) Assert.True(StringTable.LoadBuiltin(lang).HasOwn(command.TitleKey), $"{lang}: {command.Id} has no title");
+        }
+
+        // the Insert key has no twin on the Mac keyboard, so the mode has a key of its own there
+        var bindings = JsonNode.Parse(File.ReadAllText(Path.Combine(Repo.Root, "src", "NksHub.Textida.Workbench", "Resources", "builtin.contributions.json")))!["keybindings"]!.AsArray();
+        var insert = bindings.Single(b => (string?)b!["command"] == "nks.hex.toggleInsert")!;
+        Assert.Equal("insert", (string?)insert["key"]);
+        Assert.False(string.IsNullOrEmpty((string?)insert["mac"]) || (string?)insert["mac"] == "insert");
+
+        // each part takes the keyboard from its command and Esc gives it back to the grid
+        (string Command, Func<Avalonia.Controls.Control> Part)[] parts =
+        [
+            ("nks.hex.inspector", () => hex.Inspector),
+            ("nks.hex.bookmarks.panel", () => hex.BookmarkList),
+            ("nks.hex.template", () => hex.Structure),
+            ("nks.hex.minimap.focus", () => hex.Minimap),
+        ];
+        foreach (var (id, part) in parts)
+        {
+            hex.Focus();
+            Tick();
+            Assert.Equal(CommandOutcome.Handled, Run(id));
+            Tick();
+            Assert.True(part().IsKeyboardFocusWithin, id + ": the keyboard did not arrive");
+            TestApp.Press(_w, Key.Escape);
+            Tick();
+            Assert.Same(hex, _w.FocusManager!.GetFocusedElement());
+        }
+
+        // the map is a control the keyboard reaches, so the walk of the hex tab above names it too
+        var (name, role) = A11yAudit.Read(hex.Minimap);
+        Assert.Equal(AutomationControlType.Slider, role);
+        Assert.Empty(A11yAudit.Problems(new A11yAudit.Item("hex map", name, role), A11yAudit.Keys(), Data));
+        Assert.Contains(A11yAudit.Collect(_w), item => item.Control.StartsWith("HexMinimap", StringComparison.Ordinal));
+    }
+
     // ---- focus goes back after a dialog ----
 
     [AvaloniaFact]

@@ -113,7 +113,8 @@ A connection holds the server, the user and the protocol. The password is kept i
 - FTPS and SFTP are the normal choices. Plain FTP sends the password and the files unencrypted and is used only after you allow it for that connection.
 - The first time you connect, the program shows the identity of the server (an SSH host key or a TLS certificate) and asks you to trust it. Compare it with the one the server administrator gave you.
 - If the identity of a server you trusted changes, the program does not connect until you confirm the new one. Read the warning before you do.
-- Saving a password works on Windows (Credential Manager). On macOS and Linux the credential store is not supported yet, and the program says so instead of keeping the password anywhere else.
+- A password is saved in the credential store of the system: Credential Manager on Windows, the Keychain on macOS, the Secret Service (through libsecret, for example GNOME Keyring or KWallet) on Linux. If that store is missing, the program says so instead of keeping the password anywhere else. The macOS and Linux stores have not been tried on a real system yet.
+- ssh-rsa: some old SFTP servers accept an RSA key, or show their host key, only with the weak SHA-1 signature called ssh-rsa. The program never offers it by itself. If such a server refuses the connection, choose the connection and then Old RSA Signature (ssh-rsa), read the warning and allow it for that connection only. The Remote output warns at every connection that allows it; turn it off as soon as the server is updated.
 
 ## [remote.open] Open a remote file
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - The bar above the text says whether the copy is the same as on the server. The editor itself works without a connection.
 - Opening a remote file that already has a copy shows the copy, including changes you did not send yet. The server version is never fetched over your work.
 - The log of the transfers is in the Remote tab of the output window.
+- A download shows its percent in the status bar and in the Remote output. Cancel Transfer stops it. What has arrived is kept, and the next open or reload of the same server version continues at that byte. If the size or the time of the file on the server changed meanwhile, the partial file is dropped and the download starts again. When the connection is lost, the program repeats the download a few times with growing pauses.
 
 ## [remote.upload] Upload to the server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
 - Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
 - When the connection is lost during an upload, the program tries again a few times with growing pauses. Every try checks the server version again first, and a partly sent temporary file is continued where it stopped after its content was compared with your file. If the server refuses the rename that puts the file in place, the old file is set aside, the new one is moved in, and the old one is restored if that fails.
+- The status bar shows the percent of the upload, and the Remote output a line for every tenth of it (the step is provisional). The percent counts the bytes the connection has taken, so it can run a little ahead of the server.
 
 ## [remote.cancel] Cancel the transfer
 commands: nks.remote.cancel
-Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
+Choose File and then Remote Files and then Cancel Transfer. The running upload or download stops. After an upload the server keeps its previous version, and a partly sent temporary file is continued by the next upload. After a download, what has arrived is kept, and the next download of the same server version continues there.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
@@ -476,7 +479,7 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Tools, Structure and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
 3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
 4. If the plugin process stops, the outline is read again once it is back.
-5. While a file has an outline, the status bar names the symbol the caret is in, with its parents (for example `Class › method`); it follows the caret and is hidden while the outline is outdated.
+5. While a file has an outline, the status bar names the symbol the caret is in, with its parents (for example `Class › method`); it follows the caret and is hidden while the outline is outdated. The outline shows the same item in bold, and a screen reader names it "current item". The mark is no selection and does not take the keyboard from you; it moves with the caret and stays on its item while the outline is refreshed.
 - It is read with simple rules of the language, without a language server and without a project index. Besides the languages below: JavaScript and TypeScript (classes, interfaces, enums, functions, arrow functions, methods), Python (classes, functions, methods by indentation), Rust (modules, structs, enums, traits, impl blocks, functions, macros), Dart (classes, mixins, enums, extensions, functions, methods), C and C++ (namespaces, structs, classes, enums, functions, macros), Bash (functions), CMake (functions, macros, targets), Makefile (targets, `define`), Meson (targets, tests, subdirs). Keys of YAML and JSON come from the key outline. HTML (headings, elements with an `id`, `main`, `nav`, `section` and similar), PHP (namespaces, classes, interfaces, traits, enums, functions, methods), CSS (rules and at-rules), C# (namespaces, types, methods, constructors, properties), Markdown (`#` headings).
 - Comments and strings are not read. What the rules do not recognise is skipped.
 - A file larger than the limit of the plugin, or with more symbols than the outline holds, is shown cut short and the message says so. A large file opened in the paged view is read in the background from its start up to the limit; a jump to a symbol scrolls the paged view to it.
@@ -635,7 +638,7 @@ commands: nks.view.toggleSecrets
 - In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
 - Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
-- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram and the structure panel see `*` for those bytes, and the status line says the value is hidden.
+- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram, the structure panel, the byte map and the checksum see `*` for those bytes, and the status line says the value is hidden. The previews of Replace and of the unsaved changes show stars for a range that touches a value.
 - In paged mode a screen reader reads a bullet for each character of a hidden value. A line longer than 16 KiB hides everything beyond its first part when it holds a value.
 - A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
 - The setting Secret files holds the name masks of the files whose values are hidden, separated by semicolons (`*` stands for any text). Its default list is provisional.
@@ -838,8 +841,8 @@ Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It r
 - Cut, Copy and Paste work with bytes; between two hex views they transfer exactly.
 
 ## [hex.find] Hex: finding and go to offset
-- Ctrl+F opens the Find bytes window. Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, or a number with a type (0x1F40 i32).
-- F3 and Shift+F3 find the next and previous match. The status bar says Match 1 of 4, or At least N matches when the search hit its limit.
+- Ctrl+F opens the find bar in byte mode (marked Hex, without the text switches). Enter bytes in hexadecimal (50 4B ?? 04, ?? is any byte), text in quotes, a number with a type (0x1F40 i32) or a regular expression between slashes. While you type, the counter says how long a match may be, or why the entry is refused. Enter finds the next match, Shift+Enter the previous one, Esc closes the bar. Switching to a tab that is not hex (or the other way) closes the bar. Ctrl+H still opens the replace windows.
+- F3 and Shift+F3 find the next and previous match, with the bar open or closed. The status bar and the counter of the bar say Match 1 of 4, or At least N matches when the search hit its limit.
 - Ctrl+G opens Go to offset. Notation: 0x1F40, +0x100 (from the caret), end-512, 50%, 4K, sel (start of the selection), val (the four-byte value under the caret).
 - Not found: there is no match. Invalid pattern or Invalid expression: correct the entry. The offset lies outside the file: enter a smaller value. The file changed on disk meanwhile, the search result was dropped: repeat the search.
 - The wildcard *: 50 4B * 04 stands for 0 to N bytes between 4B and 04. N is the setting Longest wildcard * in hex search; while it is 0 (not chosen) the built-in default of 256 bytes is used. *{2,8} writes a range of your own and needs no setting.
@@ -953,6 +956,23 @@ Two hex grids side by side, scrolling together, with the differences tinted and 
 - The list stops at 1,000,000 differences (the window says so); two unrelated files would otherwise fill the memory.
 - Two revisions of a file from the local history cannot be compared in hex. Compare in the local history compares text (topic Local history).
 
+## [hex.access] Hex: keyboard and screen reader
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Everything in hex can be done from the keyboard. This topic lists what is not obvious and what a screen reader gets. It has been tested through the accessibility tree of the program, not yet with NVDA or VoiceOver themselves.
+### Keyboard
+- Arrows move by a byte or a row, Ctrl+Left and Ctrl+Right by a group, PageUp and PageDown by a screen, Home and End within the row, Ctrl+Home and Ctrl+End through the file. Shift extends the selection. Ctrl+A selects everything.
+- Tab switches between the byte column and the character column and stays in the grid (Hex: Switch Between Hex and Character Column does the same from the palette). F6 leaves the grid for the next part of the window, Shift+F6 goes back. In a panel beside the grid Tab moves between its controls and Esc returns to the grid.
+- Ctrl+G goes to an offset. Hex: Select to Offset (Ctrl+K then Ctrl+A) selects from the caret to an offset: +0x100 selects 256 bytes, end selects to the end of the file. Ctrl+F finds bytes and F3 goes on.
+- The Insert key switches between overwrite and insert (⌥⌘I on macOS). Every hex action is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu.
+- The panels open from the keyboard: Data Inspector with Ctrl+K then Ctrl+I, Bookmarks with Ctrl+K then Ctrl+B, Structure Template with Ctrl+J, File Map with Ctrl+K then Ctrl+G. Ctrl+K then Ctrl+F puts the keyboard on the map: Up and Down move the caret by a screen, Page Up and Page Down by a tenth of the file, Home and End to the ends, Esc back to the grid.
+### Screen reader
+- The grid is one editable element. Its value is the byte under the caret: the offset, the byte in hexadecimal, its value in decimal and the character; a selection adds its length and its first and last offset, a byte changed since the last save says changed. Its description gives the row, the position in the row, the column and the editing mode.
+- A hidden value of a .env file is read as a hidden value, never as bytes.
+- A change of the mode or the column, the result of a search and an edit that was refused because the view is read-only are announced without the keyboard moving.
+- The map is a slider whose value is the place of the grid in the file in percent. Its description says what the cells show and how many matches, bookmarks and changed places it marks.
+### High contrast
+- Changed bytes are tinted and underlined, a bookmark has a bar over it and the map keeps its frame. In high contrast the byte classes are told by more than colour: 00 is underlined, FF is bold and a control byte is italic.
+
 ## [tools.run] Tools: run an external program
 commands: nks.tools.run, nks.tools.stop
 1. Tools, then Running Tools, then Run Tool lists the tools written in the file tools.json in the profile folder. The last row opens that file; the first time it writes an empty one for you to fill in.
@@ -1006,7 +1026,8 @@ commands: nks.schemas.allow
 3. The schemas of package.json, Cargo.toml, GitHub workflows and the agent files come with the editor. The schema of any other known file, and a schema a file names by an address, is downloaded only after you agree. Until then the status bar says "download not allowed", and Tools, Packages, Allow Schema Download shows the server and asks once for each server. Forbid Registry Lookups and Schema Downloads takes every consent back. A schema a file names by a path is read from disk and needs no consent.
 4. A downloaded schema is kept on this computer up to a size limit (the oldest are deleted first) and used again without a request while it is recent. When the server does not answer, the saved copy is used and the status bar says so. The network proxy of the Network Proxy command is used; a proxy with a user name cannot be used.
 5. A syntax error in a JSON, JSONC, TOML or YAML file is underlined even when no schema applies. YAML with anchors, tags or complex keys cannot be read: such a file is not checked, and the status bar says so.
-- A subset of JSON Schema is understood: types, enum, required, properties, items, oneOf, anyOf, allOf, if/then, local $ref and pattern. References to other files or addresses inside a schema are ignored. The size limits, the life of the saved copies and the waiting times are provisional.
+6. Your own rules: the setting Schema mappings (Settings, search "schema") maps files to schemas. Write MASK=SCHEMA, separated by semicolons or line breaks, for example *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address or a file path; the ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas the editor knows; only a $schema written in the file wins over a rule. A rule written differently is skipped and named in the status bar. A change applies to the open files at once.
+- A subset of JSON Schema is understood: types, enum, required, properties, items, oneOf, anyOf, allOf, if/then, $ref and pattern. A $ref may name another schema file on this computer (relative to the schema file) or an address; an address is downloaded only after you agree to its server, as above, and a schema that came from the network never reads a file. A document is read once, so references that lead in a circle end; the length of the chain of documents and their number are limited. A reference that cannot be followed asks nothing; if only the consent for a server is missing, the status bar says "download not allowed". Anchors (#name) are not followed. The size limits, the life of the saved copies and the waiting times are provisional.
 
 ## [packages.scripts] Package scripts: npm and Composer
 commands: nks.packages.script
@@ -1222,10 +1243,10 @@ When an operation on a file fails, a bar above the document says The operation f
 
 ## [errors.remote] Error messages: remote files and sources
 A message about a remote file or a source appears in the status bar, in the bar above the text or in a dialog. Each line quotes the message and says what to do.
-- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy).
+- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy). If an old SFTP server refuses a key or shares no key algorithm, see Old RSA Signature (ssh-rsa) in the topic Remote connections.
 - WARNING: the identity of host is not the one you trusted before. The program does not connect until you confirm the new identity. Ask the server administrator whether the server was reinstalled, and connect only if you know why it changed (topic Remote connections).
 - The port must be a number from 1 to 65535. Type a whole number from 1 to 65535, or leave the box empty and the usual port of the protocol is used.
-- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store (it works on Windows only, topic What this version cannot do). Fix it and save again.
+- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store of the system (topic What this version cannot do). Fix it and save again.
 - path does not exist on the server. Check the path. A path to a folder shows its content, so you can browse from / to the file.
 - Cannot open path: reason. Nothing was opened. Fix the reason (a permission on the server, a lost connection) and open the file again.
 - Upload of title failed: reason. The server keeps its previous version; your changes stay saved here. Fix the reason and choose Upload to Server again; a partly sent file is continued (topic Upload to the server).
@@ -1298,7 +1319,8 @@ These messages come from programs the editor starts for you. They appear in the 
 - A language server works with text documents only, not with large files shown in pages. A file in paged mode never goes to a language server (topic Large files (paged mode)).
 - No language server for language was found: program. Install the server so that its program is found on the PATH (topic Language server: definition, references, rename, completion and diagnostics).
 - The language server for language could not be started: reason. Read the reason, fix it and run a command of the group again.
-- The language server for language stopped unexpectedly (detail). Run any command of the group again: the server starts and gets the open documents again.
+- The language server for language stopped unexpectedly (detail). The editor starts it again by itself. If a notice says it gave up, run any command of the group again: the server starts and gets the open documents again.
+- The language server for language could not be kept running after number attempts. The editor does not start it by itself any more. Run any command of the group to try again.
 - Git could not be started: reason. The git program has to be installed and found on the PATH (topic Git: status, compare and stage a hunk).
 - The file is not in a Git repository. Open a file from a Git repository.
 - The index of file changed since it was last read (by another program). Nothing was written. Check the changes and stage the hunk again.
@@ -1307,7 +1329,7 @@ These messages come from programs the editor starts for you. They appear in the 
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it, and this is what to do instead:
 - Updates: the program updates itself only on Windows, in the installed Textida (topic Updates and return to the previous version). On macOS and Linux you install a new version yourself. A build without an update address and a signing key cannot look for updates and says so.
-- Saved passwords: the credential store works on Windows only (Credential Manager). On macOS and Linux the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
+- Saved passwords: Windows (Credential Manager), macOS (Keychain) and Linux (Secret Service through libsecret). The macOS and Linux stores have not been tried on a real system yet. Where the store of the system is missing, the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
 - Plugins: a plugin is a program that runs with your user rights. Its permissions record what you allowed, they are not a sandbox, and the signatures of plugins are not checked (topic Plugin manager: install, update, roll back and remove plugins). Install only plugins you trust.
 - Assistants: the /ide bridge and the agent over ACP have not been verified against the real programs (topics The /ide bridge for Claude Code and Agent over ACP). A connection that does not work is reported with its reason in the status bar or the Tasks output.
 - Large files: editing in paged mode is limited (topic Large files (paged mode)). A language server, formatting and most commands that change text do not work there. To change the bytes of a file of any size, open it in hex.
@@ -1419,7 +1441,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 
 ## [tools.git] Git: status, compare and stage a hunk
 commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
-1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. The panel and the status bar refresh by themselves shortly after the last change made from outside.
+1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. The panel and the status bar refresh by themselves shortly after the last change made from outside. Every repository that has an open file is watched, also when files of several repositories are open; the watch of a repository ends when its last open file is closed. The status bar shows the repository of the last Git command or of the last change from outside; the panel stays with the repository of the last file status.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
 4. If another program changed the index in the meantime, nothing is written. The plugin reads the index again and reports a conflict; check the changes and repeat the command.
@@ -1442,7 +1464,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
 3. Language Server: Rename Symbol asks for the new name of the word at the caret. The server's changes in all files, with the creating, renaming and deleting of files it asks for, are shown together in the change review; what you accept is applied as one step. A new file is shown with its first lines as added text. The tab of an open file moves with the file when it is renamed; the tab of a deleted file is closed, and when it has unsaved changes the editor asks whether to close it or keep it open. A file that is open in another tab must have been started with the first command too, otherwise the rename is refused as a whole.
 4. Ctrl+J (Edit, Insert, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
-5. If the server stops by itself, a notice says so and the underlines it drew disappear. Language Server: Restart (or any other command of this group) starts it again and hands it every open document as it is now. Language Server: Stop shuts it down. Restart and Stop act on the server of the project the current document belongs to; the servers of other projects keep running.
+5. If the server stops by itself, a notice says so and the underlines it drew disappear. The editor then starts it again by itself, after a wait that gets longer with each attempt, and hands it every open document as it is now. After a few attempts in a row it gives up and a notice says so; a server that ran for a while before it stopped gets its attempts back. Language Server: Restart (or any other command of this group) starts it at once, also after the editor gave up. Language Server: Stop shuts it down and cancels a start that is waiting. Restart and Stop act on the server of the project the current document belongs to; the servers of other projects keep running.
 - The editor does not start a server on its own: nothing runs until the first command of this group, and a server is not told about a file until then.
 - Large files shown in pages and files over the size limit never go to a server.
 - The server is looked up by name on the PATH. If it is not found, a notice names the program that was looked for.
@@ -1456,7 +1478,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 3. When you install the plugin, the editor shows the permission and waits for your answer. Without it the server is never started.
 4. The server is used by the Language Server commands for every document whose language is listed or whose file name matches a glob. A server of a plugin is chosen before the one that comes with the editor.
 - One server process runs per language, project folder and server setup (program, arguments, environment and `initializationOptions`) and is shared by all open documents of that project. A document that matches only by glob is served for the first language of the server.
-- If the program is missing or cannot start, one notice names it and editing goes on. If it stops by itself, run any command of the group to start it again.
+- If the program is missing or cannot start, one notice names it and editing goes on. If it stops by itself, the editor starts it again as described in the topic Language server; after it gave up, run any command of the group.
 - A server with no open document of its project is stopped after a time and started again by the next command. The servers of other projects keep running.
 - When the server asks for settings (`workspace/configuration`), it gets the part of `initializationOptions` that the requested section names: `a.b` is the object `b` inside `a`, and a request without a section gets the whole object. Anything else is answered with `null`.
 - A manifest with a wrong entry is refused as a whole, with the reason.
@@ -1505,7 +1527,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
 1. Ctrl+K then Ctrl+T (View menu, Table, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
-2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first lines of the file (the extension decides when they are unclear).
+2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first rows of the file (the extension decides when they are unclear). A cell in double quotes that holds line breaks counts as part of its row, and a row cut off by the end of the examined part of a long file is left out.
 - A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
 - Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
 - A quoted cell may hold line breaks; the table shows its first line and the mark ↵.
@@ -1620,7 +1642,7 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 4. Choose Connect to use the server. A list shows its tools and its resources. A resource opens in a new read-only tab. A tool asks for its arguments as a JSON object (while you type, the schema of the tool is shown), and then a question of its own shows the server, the tool, the arguments and whether the server says the tool only reads. Nothing is sent before you press Call; Cancel is the default button. The answer opens in a new read-only tab, and the Tasks output records that the tool was called and how many characters the arguments had, not the arguments themselves.
 5. Choose Convert the entry to another agent to get the entry in the format of that agent in a new tab. The snippet is checked against that format first. Values of variables and headers are replaced by ***, so fill them in before you paste the snippet into the file of that agent.
 - ${NAME} in a command, an argument, a variable, an address or a header is replaced from the environment of Textida, ${NAME:-text} gives a default. A name that is not set there is looked up in the Windows Credential Manager under textida:mcp:env:NAME. A name that is in neither is asked for, with the typing hidden, and kept in the Credential Manager and nowhere else; if the credential store is unavailable the value is used for this connection only. Cancelling the question starts nothing.
-- A server at an address gets keys in its headers, so the address must be https:// unless it is on this computer. Textida speaks Streamable HTTP (MCP 2025-11-25); the older transport with a separate event channel (type sse of MCP 2024-11-05) is not supported. The network proxy of the program applies. A key the server refuses (HTTP 401 or 403) is dropped from the Credential Manager and asked for again once; a key that comes from the environment or is written in the configuration file is not changed by Textida, and the message says so. npx and npm are started as node with the script of the Node.js shim, so no cmd.exe stands between the editor and the server. Any other batch file is started through cmd.exe.
+- A server at an address gets keys in its headers, so the address must be https:// unless it is on this computer. Textida speaks Streamable HTTP (MCP 2025-11-25). An entry of type sse is connected over the older transport with a separate event channel (MCP 2024-11-05): Textida opens the address as an event stream and sends its messages to the address the server names there, which must be on the same host as the stream. An address without a type whose server refuses the first message with an HTTP 4xx status other than 401 and 403 is tried that way as well. The network proxy of the program applies. A key the server refuses (HTTP 401 or 403) is dropped from the Credential Manager and asked for again once; a key that comes from the environment or is written in the configuration file is not changed by Textida, and the message says so. npx and npm are started as node with the script of the Node.js shim, so no cmd.exe stands between the editor and the server. Any other batch file is started through cmd.exe.
 - Limits (provisional): an answer or a resource longer than 262144 characters is cut, and the status bar says how long it was. A list, a call or a read that takes longer than 120 seconds ends with a message, and the server is told to stop that request. A program that exits or is stopped is reported with its exit code and the last lines of its standard error, and the list closes.
 - Secrets are hidden in the list, the dialog, the output and the snippets, also where one appears inside an argument or in the error output of the program. Values shorter than 4 characters are not searched for in text.
 

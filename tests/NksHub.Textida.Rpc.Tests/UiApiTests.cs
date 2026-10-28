@@ -12,6 +12,7 @@ public class UiApiTests
     {
         public readonly List<PanelModel> Panels = [];
         public readonly List<string> Removed = [];
+        public readonly List<(string Panel, string? Item)> Currents = [];
         public readonly List<StatusModel?> Statuses = [];
         public readonly List<(NoticeLevel Level, string Message)> Notices = [];
         public readonly List<TaskModel> Started = [];
@@ -25,6 +26,7 @@ public class UiApiTests
 
         public void SetPanel(string pluginId, PanelModel panel) { lock (Panels) Panels.Add(panel); }
         public void RemovePanel(string pluginId, string panelId) { lock (Removed) Removed.Add(panelId); }
+        public void SetCurrentItem(string pluginId, string panelId, string? itemId) { lock (Currents) Currents.Add((panelId, itemId)); }
         public void SetStatus(string pluginId, StatusModel? status) { lock (Statuses) Statuses.Add(status); }
         public Task<string?> PickAsync(string pluginId, QuickPickRequest request, CancellationToken ct) { Picks.Add(request); return Task.FromResult(Pick(request)); }
         public Task<string?> InputAsync(string pluginId, InputRequest request, CancellationToken ct) => Task.FromResult(Input(request));
@@ -129,6 +131,35 @@ public class UiApiTests
         await rig.CallAsync(UiMethods.PanelSet, "{\"panel\":\"two\"," + Header + "\"kind\":\"list\",\"items\":[]}");
         await rig.ErrorAsync(UiMethods.PanelSet, "{\"panel\":\"three\"," + Header + "\"kind\":\"list\",\"items\":[]}", UiErrorCodes.QuotaExceeded);
         await rig.CallAsync(UiMethods.PanelSet, "{\"panel\":\"one\"," + Header + "\"kind\":\"list\",\"items\":[]}"); // replacing is not a new panel
+    }
+
+    [Fact]
+    public async Task A_panel_names_its_current_item_and_moves_the_mark_without_sending_the_items_again()
+    {
+        await using var rig = await Rig.CreateAsync();
+        const string Items = "\"items\":[{\"id\":\"a\",\"label\":\"A\",\"children\":[{\"id\":\"b\",\"label\":\"B\"}]},{\"id\":\"c\",\"label\":\"C\"}]";
+        await rig.CallAsync(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"T\",\"kind\":\"tree\"," + Items + "}");
+        await rig.CallAsync(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"T\",\"kind\":\"tree\",\"current\":\"b\"," + Items + "}");
+        Assert.Equal([null, "b"], rig.Ui.Panels.Select(p => p.Current));
+
+        // the mark moves, and goes, with the panel staying as it is
+        Assert.True((await rig.CallAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":\"c\"}")).GetProperty("ok").GetBoolean());
+        await rig.CallAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":null}");
+        await rig.CallAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\"}");
+        Assert.Equal([("outline", "c"), ("outline", null), ("outline", null)], rig.Ui.Currents);
+        Assert.Equal(2, rig.Ui.Panels.Count);
+
+        // an item or a panel the plugin does not have is refused, and nothing is drawn
+        await rig.ErrorAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":\"missing\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(UiMethods.PanelCurrent, "{\"panel\":\"nope\",\"current\":\"a\"}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(UiMethods.PanelSet, "{\"panel\":\"x\",\"title\":\"T\",\"kind\":\"list\",\"current\":\"z\",\"items\":[{\"id\":\"a\",\"label\":\"A\"}]}", RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":7}", RpcErrorCodes.InvalidParams);
+        Assert.Equal(3, rig.Ui.Currents.Count);
+        Assert.Equal(2, rig.Ui.Panels.Count);
+
+        // a panel that was removed has no current item to move
+        await rig.CallAsync(UiMethods.PanelRemove, "{\"panel\":\"outline\"}");
+        await rig.ErrorAsync(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":\"a\"}", RpcErrorCodes.InvalidParams);
     }
 
     [Fact]

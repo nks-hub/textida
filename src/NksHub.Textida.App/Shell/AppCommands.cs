@@ -358,6 +358,8 @@ internal static class AppCommands
         On("nks.table.clearFilter", w => w.TableCommand(t => t.ApplyFilter("", t.Column)));
         On("nks.table.copyAs", w => { w.ShowTableCopyAsMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.toggleInsert", w => w.HexCommand(h => h.ToggleInsert()));
+        On("nks.hex.toggleColumn", w => w.HexCommand(h => h.ToggleColumn()));
+        On("nks.hex.selectTo", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.GoToOffsetAsync(hex, select: true); return CommandOutcome.Handled; });
         On("nks.hex.inspector", w => w.ToggleInspector());
         On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.layout", w => { w.ShowHexLayoutMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
@@ -372,6 +374,7 @@ internal static class AppCommands
         On("nks.hex.checksum", w => w.HexChecksumMenu());
         On("nks.hex.minimap", w => w.ToggleHexMinimap());
         On("nks.hex.minimap.mode", w => w.CycleHexMapMode());
+        On("nks.hex.minimap.focus", w => w.FocusHexMinimap());
         On("nks.hex.statistics", w => w.ToggleHexStatistics());
         On("nks.hex.template", w => w.ToggleHexTemplate());
         On("nks.hex.template.open", w => w.OpenHexTemplateFile());

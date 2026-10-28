@@ -30,6 +30,8 @@ internal sealed partial class MainWindow
     private CancellationTokenSource? _hexFindCts;
     private ByteQuery? _hexPattern;
     private string _hexQuery = "";
+    private bool _hexFresh;
+    private string _textQuery = "";
     private string _hexReplacement = "";
 
     internal HexView? ActiveHex => Active?.Hex;
@@ -63,6 +65,7 @@ internal sealed partial class MainWindow
     {
         hex.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
         hex.Refused += SetStatusMessage;
+        hex.Announced += text => Announce(text);
         hex.Choose = async (title, message, labels) => await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(title, message,
             [.. labels.Select((label, i) => new DialogButton(label, IsDefault: i == 0, IsCancel: i == labels.Count - 1))]));
         hex.TemplateHost = _app.HexTemplates;
@@ -372,7 +375,7 @@ internal sealed partial class MainWindow
     // ---- go to offset ----
 
     /// <summary>The target of a go-to expression, or the sentence that says why there is none; the preview and the jump share it.</summary>
-    internal static (long? Target, string? Problem) ResolveOffset(HexView hex, string expression)
+    internal static (long? Target, string? Problem) ResolveOffset(HexView hex, string expression, bool select = false)
     {
         var doc = hex.Editor.Document;
         Span<byte> four = stackalloc byte[4];
@@ -386,7 +389,7 @@ internal sealed partial class MainWindow
         try
         {
             long target = OffsetExpression.Evaluate(expression, new OffsetContext(doc.ByteLength, hex.Caret, selection, value));
-            if (target < 0 || target > doc.ByteLength || (target == doc.ByteLength && !hex.Insert && doc.ByteLength > 0))
+            if (target < 0 || target > doc.ByteLength || (target == doc.ByteLength && !select && !hex.Insert && doc.ByteLength > 0)) // a selection may end at the end of the file
                 return (null, Loc.Get(K.HexGotoOutside, ("size", doc.ByteLength)));
             return (target, null);
         }
@@ -397,10 +400,10 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>What Ctrl+G would do with the expression typed so far: the offset it reaches and the byte there, or why it does not.</summary>
-    internal static string PreviewOffset(HexView hex, string expression)
+    internal static string PreviewOffset(HexView hex, string expression, bool select = false)
     {
         if (string.IsNullOrWhiteSpace(expression)) return "";
-        var (target, problem) = ResolveOffset(hex, expression);
+        var (target, problem) = ResolveOffset(hex, expression, select);
         if (target is not { } at) return problem!;
         string offset = hex.OffsetText(at), decimalText = at.ToString(CultureInfo.InvariantCulture);
         if (at >= hex.Editor.Document.ByteLength) return Loc.Get(K.HexGotoPreviewEnd, ("offset", offset), ("decimal", decimalText));
@@ -408,18 +411,19 @@ internal sealed partial class MainWindow
         return Loc.Get(K.HexGotoPreview, ("offset", offset), ("decimal", decimalText), ("value", info.Hidden ? Loc.Get(K.SecretHiddenValue) : $"{info.Value:X2}"));
     }
 
-    internal async Task GoToOffsetAsync(HexView hex)
+    /// <summary>Asks for an offset and moves the caret there; with <paramref name="select"/> the caret goes there from where it is and the bytes in between are selected (<c>+0x100</c> selects 256 bytes).</summary>
+    internal async Task GoToOffsetAsync(HexView hex, bool select = false)
     {
-        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "", text => PreviewOffset(hex, text));
+        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(select ? K.HexSelectToTitle : K.HexGotoTitle), Loc.Get(K.HexGotoLabel), "", text => PreviewOffset(hex, text, select));
         if (answer is null) return;
-        var (target, problem) = ResolveOffset(hex, answer);
+        var (target, problem) = ResolveOffset(hex, answer, select);
         if (target is not { } at)
         {
             SetStatusMessage(problem!);
             return;
         }
         RecordJump();
-        hex.MoveTo(at);
+        hex.MoveTo(at, extend: select);
         hex.CenterIfOutside(at);
         hex.Focus();
     }
@@ -458,18 +462,51 @@ internal sealed partial class MainWindow
         catch (Exception e) when (e is FormatException or OverflowException or ArgumentException) { return Loc.Get(K.HexFindInvalid, ("reason", e.Message)); }
     }
 
-    internal async Task FindBytesAsync(HexView hex)
+    /// <summary>
+    /// Ctrl+F in a hex view: the find bar becomes the byte search (<see cref="FindBar.HexMode"/>). The query is the one of the last search; the line under it says how long a match may be, or why the query
+    /// is refused, as the user types. Enter and Shift+Enter (or F3 and Shift+F3) find the next and the previous match.
+    /// </summary>
+    internal void OpenHexFind(HexView hex)
     {
-        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.HexFindTitle), Loc.Get(K.HexFindLabel), _hexQuery, text => PreviewHexQuery(hex, text));
-        if (string.IsNullOrWhiteSpace(answer)) return;
-        try { _hexPattern = ParseHexQuery(answer, hex.Charset, WildcardMax); }
-        catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
+        bool wasOpen = _find.IsVisible && _find.HexMode;
+        if (!_find.HexMode) _textQuery = _find.FindBox.Text ?? ""; // the field is the byte query while this bar is open
+        CancelFind();
+        ShowFindMarks(null, null);
+        DropScope();
+        _find.Open(files: false, replace: false, hex: true);
+        if (!wasOpen) SetFindText(_hexQuery);
+        _find.FindBox.Focus();
+        _find.FindBox.SelectAll();
+        ApplyHexQuery(hex, _find.FindBox.Text ?? "");
+    }
+
+    /// <summary>Takes the query of the bar as the pattern of the byte search and shows its length range; a query that is refused leaves no pattern, so a step does not search for the one before it.</summary>
+    private void ApplyHexQuery(HexView hex, string text)
+    {
+        _hexFresh = true;
+        _hexQuery = text;
+        _hexPattern = null;
+        if (string.IsNullOrWhiteSpace(text))
         {
-            SetStatusMessage(Loc.Get(K.HexFindInvalid, ("reason", e.Message)));
+            _find.ShowCount("");
             return;
         }
-        _hexQuery = answer;
-        await HexFindStepAsync(hex, forward: true, fromCaret: true);
+        try
+        {
+            _hexPattern = ParseHexQuery(text, hex.Charset, WildcardMax);
+            _find.ShowCount(Loc.Get(K.HexFindPreview, ("min", _hexPattern.MinLength), ("max", _hexPattern.MaxLength)));
+        }
+        catch (Exception e) when (e is FormatException or OverflowException or ArgumentException)
+        {
+            _find.ShowCount(Loc.Get(K.HexFindInvalid, ("reason", e.Message)), error: true);
+        }
+    }
+
+    /// <summary>The outcome of a byte search: in the status bar, and in the counter of the bar when it is the byte search.</summary>
+    private void SayHexFind(string text)
+    {
+        SetStatusMessage(text);
+        if (_find.IsVisible && _find.HexMode && text.Length > 0) _find.ShowCount(text);
     }
 
     /// <summary>
@@ -536,7 +573,7 @@ internal sealed partial class MainWindow
         if (within is not null) message += " " + Loc.Get(K.HexReplaceInSelection);
         if (plan.ChangesLength) message += "\n" + Loc.Get(K.HexReplaceLength, ("delta", plan.LengthDelta), ("old", report.SizeBefore), ("new", report.SizeAfter));
         var request = new ChoiceRequest(Loc.Get(K.HexReplaceTitle), message,
-            [new DialogButton(Loc.Get(K.HexReplaceApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(doc, report));
+            [new DialogButton(Loc.Get(K.HexReplaceApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(doc, report, hex));
         if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
         report.Confirm();
         var result = ByteReplace.Apply(doc, plan);
@@ -563,7 +600,8 @@ internal sealed partial class MainWindow
     {
         if (_hexPattern is not { } pattern)
         {
-            await FindBytesAsync(hex);
+            if (!_find.IsVisible || !_find.HexMode) OpenHexFind(hex);
+            else _find.FindBox.Focus(); // the bar already says why there is nothing to search for
             return;
         }
         _hexFindCts?.Cancel();
@@ -571,14 +609,14 @@ internal sealed partial class MainWindow
         var doc = hex.Editor.Document;
         var snapshot = doc.GetSnapshot();
         long from = hex.Editor.HasSelection && !fromCaret ? (forward ? hex.Editor.Selection.Start + 1 : hex.Editor.Selection.Start) : (forward ? hex.Caret + (fromCaret ? 0 : 1) : hex.Caret);
-        SetStatusMessage(Loc.Get(K.HexFindRunning));
+        SayHexFind(Loc.Get(K.HexFindRunning));
         try
         {
             var found = await Task.Run(() => FindFrom(snapshot, pattern, from, forward, cts.Token), CancellationToken.None);
             if (cts.IsCancellationRequested) return;
             if (found is null)
             {
-                SetStatusMessage(Loc.Get(K.HexFindNone));
+                SayHexFind(Loc.Get(K.HexFindNone));
                 return;
             }
             RecordJump();
@@ -590,7 +628,7 @@ internal sealed partial class MainWindow
             int index = 0;
             hex.Minimap.Matches = [.. total.Matches.Select(m => m.Start)];
             for (int i = 0; i < total.Matches.Count; i++) if (total.Matches[i].Start == found.Value.Start) { index = i + 1; break; }
-            SetStatusMessage(total.LimitReached
+            SayHexFind(total.LimitReached
                 ? Loc.Get(K.HexFindLimit, ("n", total.Matches.Count))
                 : Loc.Get(K.HexFindCount, ("index", index), ("total", total.Matches.Count)));
         }
@@ -599,7 +637,7 @@ internal sealed partial class MainWindow
         {
             // the file changed under the snapshot: drop the result and let the document's own check tell the user
             hex.FileChangedBehind();
-            SetStatusMessage(Loc.Get(K.HexFindStale));
+            SayHexFind(Loc.Get(K.HexFindStale));
         }
     }
 
@@ -754,7 +792,7 @@ internal sealed partial class MainWindow
             : Loc.Get(K.HexChangesStream, ("old", original), ("new", doc.ByteLength));
         if (!doc.IsModified) message = Loc.Get(K.HexChangesNone);
         var request = new ChoiceRequest(Loc.Get(K.HexChangesTitle), message,
-            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], InspectionDetails(doc, report));
+            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], InspectionDetails(doc, report, tab.Hex));
         if (await _app.Dialogs.ChooseAsync(this, request) == 0 && doc.IsModified) await SaveAsync(tab);
     }
 }

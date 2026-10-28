@@ -5,6 +5,8 @@ public static class UiMethods
 {
     public const string PanelSet = "ui/panel/set";
     public const string PanelRemove = "ui/panel/remove";
+    /// <summary>Moves the mark of the current item of a panel that is shown, without sending its items again (params: <c>panel</c>, <c>current</c>, an item id or null for none).</summary>
+    public const string PanelCurrent = "ui/panel/current";
     public const string StatusSet = "ui/status/set";
     public const string StatusClear = "ui/status/clear";
     public const string QuickPick = "ui/quickPick";
@@ -40,7 +42,8 @@ public enum NoticeLevel { Info, Warning, Error }
 public sealed record PanelItem(string Id, string Label, string? Detail, IReadOnlyList<PanelItem> Children);
 
 /// <param name="Reveal">The editor shows the panel at once, not only when the user opens it.</param>
-public sealed record PanelModel(string Id, string Title, PanelKind Kind, IReadOnlyList<PanelItem> Items, bool Reveal);
+/// <param name="Current">The id of the item the plugin marks as the current one (the symbol the caret is in, say), or null. The editor draws it in bold and names it so for a screen reader; it is no selection and takes no focus.</param>
+public sealed record PanelModel(string Id, string Title, PanelKind Kind, IReadOnlyList<PanelItem> Items, bool Reveal, string? Current = null);
 
 public sealed record StatusModel(string Text, string? Tooltip);
 
@@ -66,6 +69,8 @@ public interface IPluginUi
 {
     void SetPanel(string pluginId, PanelModel panel);
     void RemovePanel(string pluginId, string panelId);
+    /// <summary>Moves the mark of the current item of a panel that is shown (<see cref="PanelModel.Current"/>) without replacing its items; null takes it away. Nothing happens for a panel that is not shown.</summary>
+    void SetCurrentItem(string pluginId, string panelId, string? itemId);
     /// <summary>At most one status item per plugin; null removes it.</summary>
     void SetStatus(string pluginId, StatusModel? status);
     /// <summary>The id of the chosen item, or null.</summary>

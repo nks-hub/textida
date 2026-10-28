@@ -27,6 +27,25 @@ public class CsvTableTests
     public void Delimiter_is_detected_from_the_first_lines(string text, char expected) =>
         Assert.Equal(expected, CsvDialect.Detect(text, CsvDialect.Csv).Delimiter);
 
+    [Theory]
+    [InlineData("id;note;n\r\n1;\"first line\r\nsecond, line, with, commas\";5\r\n2;\"x\";6\r\n3;\"a\r\nb\";7\r\n", ';', false)]
+    [InlineData("a\tb\n1\t\"x\ny\ty\"\n2\t\"p\nq\"\n", '\t', false)]
+    [InlineData("a;b\n5\" pipe;2\n3;4\n", ';', false)] // a quote in the middle of a field is a character of it, not the start of a quoted field
+    [InlineData("id,note\n1,\"x\"\n2,\"y\"\n3,\"long text; with; many; semicolons;\nstill inside; the; cell", ',', true)] // the sample ends inside a quoted cell
+    [InlineData("a|b|c\n1|2|3\n4|5", '|', true)] // the last row of a cut sample is not complete
+    public void A_cell_with_line_breaks_is_one_row_when_the_delimiter_is_detected(string text, char expected, bool truncated)
+    {
+        var fallback = expected == ',' ? CsvDialect.Tsv : CsvDialect.Csv; // never the fallback itself, so the detection is what answers
+        Assert.Equal(expected, CsvDialect.Detect(text, fallback, truncated: truncated).Delimiter);
+    }
+
+    [Fact]
+    public void A_last_row_that_is_cut_counts_when_the_text_is_whole()
+    {
+        Assert.Equal(',', CsvDialect.Detect("a|b|c\n1|2|3\n4|5", CsvDialect.Csv).Delimiter); // 2 of 3 rows agree: no winner, the fallback stays
+        Assert.Equal('|', CsvDialect.Detect("a|b|c\n1|2|3\n4|5|6", CsvDialect.Csv).Delimiter);
+    }
+
     [Fact]
     public void Quotes_delimiters_and_multiline_cells_are_read()
     {

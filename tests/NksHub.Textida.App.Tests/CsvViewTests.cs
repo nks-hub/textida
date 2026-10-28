@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Csv;
@@ -114,6 +115,20 @@ public class CsvViewTests : IDisposable
         Assert.Null(view.Table.Header());
         Assert.Equal(2, view.DataRowCount);
         Assert.NotNull(_w.ShowTableDialectMenu());
+    }
+
+    [AvaloniaFact]
+    public void The_delimiter_is_detected_from_rows_whose_cells_hold_line_breaks_even_when_the_sample_ends_inside_one()
+    {
+        var text = new StringBuilder("id;note;n\r\n");
+        for (int i = 0; text.Length < 100_000; i++) text.Append(i).Append(";\"first line\r\nsecond, line, with, commas\";").Append(i).Append("\r\n");
+        var tab = OpenCsv(text.ToString());
+        Assert.True(tab.Doc.Doc.ByteLength > PluginLimitsPlaceholders.CsvDetectSampleBytes);
+        Assert.Equal(';', tab.Doc.TableDialect.Delimiter);
+
+        var view = ShowTable(tab);
+        Assert.Equal(["id", "note", "n"], view.Table.Header());
+        Assert.Equal("first line\r\nsecond, line, with, commas", view.CellText(0, 1));
     }
 
     [AvaloniaFact]

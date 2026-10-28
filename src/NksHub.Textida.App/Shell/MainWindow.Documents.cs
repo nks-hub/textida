@@ -130,7 +130,7 @@ internal sealed partial class MainWindow
         AttachEditorMenu(tab);
         group.Add(tab, index);
         _activeGroup = group;
-        if (od.Lock is not null || od.IsVirtual) ApplyLock(od);
+        if (od.Lock is not null || od.IsVirtual || od.UserReadOnly) ApplyLock(od);
         if (od.RemoteCopy is not null && !od.LockedReadOnly) ShowRemoteBarOffline(tab);
         OnActiveTabChanged();
         _app.SessionChanged();

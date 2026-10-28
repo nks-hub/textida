@@ -131,6 +131,26 @@ public class GitPluginTests
             return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
+        readonly List<Document> _opened = [];
+
+        /// <summary>Another open file, shown to plugins like the first one (of another repository, say).</summary>
+        public Document Open(string path)
+        {
+            var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+            Docs.Expose(doc, () => SelectionSet.Single(new TextSelection(0, 0)));
+            _opened.Add(doc);
+            return doc;
+        }
+
+        /// <summary>A command for the file <paramref name="path"/> that <paramref name="doc"/> shows; the answer's status.</summary>
+        public async Task<string> RunForAsync(Document doc, string path, string command)
+        {
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"path\":{JsonSerializer.Serialize(path)}}}";
+            return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
+        }
+
+        public int StatusCount() { lock (Ui.Statuses) return Ui.Statuses.Count; }
+
         public byte[] TreeBytes() => Doc.GetSnapshot().ReadBytes(new ByteRange(0, Doc.ByteLength));
 
         /// <summary>The latest panel and status the plugin sent; read under the lock the recording UI writes under.</summary>
@@ -149,6 +169,7 @@ public class GitPluginTests
             await Host.DisposeAsync();
             await Docs.DisposeAsync();
             Doc.Dispose();
+            foreach (var doc in _opened) doc.Dispose();
         }
     }
 
@@ -848,6 +869,58 @@ public class GitPluginTests
 
         repo.Run("checkout", "-q", "-b", "side"); // and switches the branch: only HEAD changes
         await WaitUntilAsync(() => rig.LatestStatus()!.Text.StartsWith("side "));
+    }
+
+    [Fact]
+    public async Task Every_repository_with_an_open_file_is_watched_and_the_watch_ends_with_its_last_file()
+    {
+        using var one = new Repo(("a.txt", "a\n"), ("a2.txt", "a2\n"));
+        using var two = new Repo(("b.txt", "b\n"));
+        await using var rig = await Rig.CreateAsync(one.PathOf("a.txt"), watchMs: 150);
+        var inTwo = rig.Open(two.PathOf("b.txt"));
+        // the panel ends up on the second repository; before, only the last one asked was watched
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        Assert.Equal("status", await rig.RunForAsync(inTwo, two.PathOf("b.txt"), GitPlugin.StatusCommand));
+        Assert.Equal("Git: " + Path.GetFileName(two.Dir), rig.LatestPanel()!.Title);
+
+        one.Write("a.txt", "x\n");
+        one.Write("a2.txt", "y\n");
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~2")); // the first repository, which is not the one of the panel
+        Assert.Equal("Git: " + Path.GetFileName(two.Dir), rig.LatestPanel()!.Title);
+
+        // its only open file closes (twice: a second notice is harmless): nobody looks at the repository any more
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand));
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand));
+        await Task.Delay(700); // a refresh that was already on its way is over
+        int shown = rig.StatusCount();
+        one.Write("a.txt", "z\n");
+        await Task.Delay(1500);
+        Assert.Equal(shown, rig.StatusCount());
+
+        two.Write("b.txt", "b2\n"); // the second one is still watched
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~1"));
+        Assert.Contains(rig.LatestPanel()!.Items, i => i.Label == "b.txt");
+    }
+
+    [Fact]
+    public async Task A_repository_stays_watched_while_any_of_its_files_is_open()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("b.txt", "b\n"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), watchMs: 150);
+        var second = rig.Open(repo.PathOf("b.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        Assert.Equal("hunks", await rig.RunForAsync(second, repo.PathOf("b.txt"), GitPlugin.HunksCommand)); // the look of the gutter keeps the watch as well
+
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand)); // one of the two files
+        repo.Write("b.txt", "b2\n");
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~1"));
+
+        Assert.Equal("closed", await rig.RunForAsync(second, repo.PathOf("b.txt"), GitPlugin.ClosedCommand)); // the last one
+        await Task.Delay(700); // a refresh that was already on its way is over
+        int shown = rig.StatusCount();
+        repo.Write("a.txt", "a2\n");
+        await Task.Delay(1500);
+        Assert.Equal(shown, rig.StatusCount());
     }
 
     [Fact]

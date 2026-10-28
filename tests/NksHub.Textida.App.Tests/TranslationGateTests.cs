@@ -52,6 +52,7 @@ public class TranslationGateTests
         ["table.copyAs.sql"] = "cs sk de",
         ["table.copyAs.json"] = "cs sk de",
         ["panel.output.remote"] = "de",
+        ["remote.sshRsa.title"] = "cs sk de", // the name of an SSH signature algorithm
         ["compare.side.revisionBare"] = "de",
         ["source.compare.remote"] = "de",
         ["ide.status.connected"] = "cs sk de",

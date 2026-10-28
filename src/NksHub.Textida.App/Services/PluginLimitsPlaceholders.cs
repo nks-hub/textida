@@ -20,11 +20,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
-    /// <summary>Placeholder, OPEN: how many times an upload is repeated after the connection was lost (each repeat checks the server version again and continues a partial temporary file).</summary>
+    /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 
-    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload; every further repeat waits twice as long.</summary>
+    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload or download; every further repeat waits twice as long.</summary>
     public const int RemoteRetryBaseDelayMilliseconds = 2000;
+
+    /// <summary>Placeholder, OPEN: a transfer writes a line to the Remote output each time its progress passes a multiple of this many percent (the status bar shows every whole percent).</summary>
+    public const int RemoteProgressLogStepPercent = 10;
 
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
@@ -293,6 +296,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: time one <c>pattern</c> of a schema may take on one value before it counts as not matching.</summary>
     public const int SchemaRegexTimeoutMilliseconds = 200;
 
+    /// <summary>Placeholder, OPEN: longest chain of schema documents a <c>$ref</c> may lead through, counted from the schema of the file; 0 would follow no reference to another document. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDepth = 4;
+
+    /// <summary>Placeholder, OPEN: most other schema documents (files or downloads) the references of one schema may pull in together. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDocuments = 16;
+
     /// <summary>Placeholder: largest file handed to a language server; a larger one never starts one. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
     public const int LspMaxBytes = 1 << 20;
 
@@ -311,8 +320,20 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a language server's standard error kept for the report of its end.</summary>
     public const int LspStderrLines = 20;
 
-    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it; a crashed server is not restarted by itself, the next command starts it.</summary>
+    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it.</summary>
     public const int LspIdleStopMilliseconds = 300_000;
+
+    /// <summary>Placeholder, OPEN: how many times in a row a language server that ended unexpectedly is started again by itself before the editor gives up and leaves it to the next command; 0 never starts it by itself. The owner has not decided it.</summary>
+    public const int LspRestartMaxAttempts = 3;
+
+    /// <summary>Placeholder, OPEN: milliseconds before the first automatic start of a language server that ended unexpectedly; every further start waits twice as long, up to <see cref="LspRestartMaxDelayMilliseconds"/>. The owner has not decided it.</summary>
+    public const int LspRestartBaseDelayMilliseconds = 1000;
+
+    /// <summary>Placeholder, OPEN: longest wait between two automatic starts of a language server. The owner has not decided it.</summary>
+    public const int LspRestartMaxDelayMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: milliseconds a language server must have run before it ended for the next crash to count as a first one again. The owner has not decided it.</summary>
+    public const int LspRestartStableMilliseconds = 60_000;
 
     /// <summary>Placeholder: folders searched upwards for the project root of a document for a language server, the folder of the file being the first. OPEN: the owner has not decided it.</summary>
     public const int LspRootSearchLevels = 16;

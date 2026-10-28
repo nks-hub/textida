@@ -65,7 +65,7 @@ public class LspPluginTests
 
         /// <param name="declared">The server is not in the catalog (it is empty) but sent with each command, as the editor does for a server of a plugin manifest.</param>
         public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
-            bool declared = false, int idleStopMs = 0, string? initializationOptions = null)
+            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -110,9 +110,12 @@ public class LspPluginTests
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
             Assert.True(File.Exists(dll), dll);
-            host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost,
+            List<string> pluginArguments =
                 [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", "20000", "--request-timeout-ms", "10000", "--stop-timeout-ms", "3000", "--max-locations", "50",
-                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"], ["onCommand:lsp"]));
+                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
+            if (restart is { } r)
+                pluginArguments.AddRange(["--restart-max-attempts", r.Attempts.ToString(), "--restart-base-delay-ms", r.BaseMs.ToString(), "--restart-max-delay-ms", r.MaxMs.ToString(), "--restart-stable-ms", r.StableMs.ToString()]);
+            host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost, pluginArguments, ["onCommand:lsp"]));
             await host.ActivateAsync("onCommand:lsp");
             return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools, Launch = launch };
         }
@@ -604,6 +607,109 @@ public class LspPluginTests
         var second = rig.Add("idle2.fake", "y\n");
         Assert.Equal("ok", (await rig.RunAsync(second, LspPlugin.StartCommand)).GetProperty("status").GetString());
         Assert.Equal(2, Processes(rig));
+    }
+
+    // ---- P8.5.2: a server that ended unexpectedly is started again by the plugin ----
+
+    static bool Told(Rig rig, string text) { lock (rig.Ui.Notices) return rig.Ui.Notices.Any(n => n.Message.Contains(text)); }
+
+    [Fact]
+    public async Task A_server_that_falls_is_started_again_by_itself_and_gets_every_open_document_as_it_is_now()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, restart: (3, 400, 800, 60_000));
+        var first = rig.Add("one.fake", "é one ERROR\n");
+        var second = rig.Add("two.fake", "two\n");
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+        await T.Until(() => rig.DiagnosticsOf(first).Count == 1);
+
+        await rig.Edit(first, 0, 0, "FALLONCE "); // the first server falls on this text, the next one does not
+        await T.Until(() => Told(rig, "stopped unexpectedly") && Told(rig, "starts again in 1 s"));
+        Assert.Empty(rig.DiagnosticsOf(first)); // what the dead server said is no longer true
+
+        // while the server is away both documents change; nobody tells anyone to start it
+        await rig.Edit(first, 0, Bytes("FALLONCE "), "");
+        await rig.Edit(second, Bytes("two"), Bytes("two"), " 😀 changed");
+
+        await T.Until(() => Told(rig, "was started again and has 2 open documents"));
+        Assert.Equal(2, Processes(rig));
+        Assert.Equal(Rig.TextOf(first), await rig.ServerTextAsync(first));
+        Assert.Equal(Rig.TextOf(second), await rig.ServerTextAsync(second));
+        await T.Until(() => rig.DiagnosticsOf(first).Count == 1); // the new server found the ERROR again
+
+        Assert.Equal("ok", (await rig.RunAsync(first, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        Assert.Equal(2, Processes(rig)); // the command found the server running
+    }
+
+    [Fact]
+    public async Task A_server_that_keeps_falling_is_started_a_limited_number_of_times_with_a_growing_wait_and_then_left_to_the_next_command()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, restart: (3, 300, 600, 60_000));
+        var doc = rig.Add("loop.fake", "x\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        await rig.Edit(doc, 0, 0, "CRASH "); // every server that gets this text falls
+        await T.Until(() => Told(rig, "could not be kept running after 3 attempts"));
+        await Task.Delay(1500);
+        Assert.Equal(4, Processes(rig)); // the first one and three automatic starts, no more
+
+        // a start waits at least as long as it was set to (300, then 600, then the longest wait 600), the timestamps of the files being rough
+        var starts = Directory.GetFiles(rig.Dump, "process-*").Select(File.GetCreationTimeUtc).Order().ToList();
+        long[] waits = [300, 600, 600];
+        for (int i = 0; i < waits.Length; i++) Assert.True((starts[i + 1] - starts[i]).TotalMilliseconds >= waits[i] - 100, $"wait {i}: {(starts[i + 1] - starts[i]).TotalMilliseconds} ms");
+
+        // the user is not locked out: the next command starts the server, and the count of attempts begins again
+        await rig.Edit(doc, 0, Bytes("CRASH "), "");
+        Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        Assert.Equal(5, Processes(rig));
+        Assert.Equal("x\n", await rig.ServerTextAsync(doc));
+    }
+
+    [Fact]
+    public async Task A_server_that_ran_longer_than_the_stable_time_before_it_fell_gets_its_attempts_back()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, restart: (1, 200, 200, 1200));
+        var doc = rig.Add("steady.fake", "x\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        await rig.Edit(doc, 0, 0, "FALLONCE ");
+        await T.Until(() => Processes(rig) == 2); // the one start that is allowed
+        await T.Until(() => Servers(rig).Count(s => s.Events.Count == 1) == 2); // and it got the document
+        await Task.Delay(1600); // longer than the stable time
+
+        File.Delete(Path.Combine(rig.Dump, "fell-once"));
+        await rig.Edit(doc, 0, 0, "more ");
+        await T.Until(() => Processes(rig) == 3, 20_000); // without the attempts back, the plugin would have given up
+        Assert.False(Told(rig, "could not be kept running"));
+    }
+
+    [Fact]
+    public async Task A_server_the_user_stops_while_the_plugin_waits_to_start_it_again_stays_off()
+    {
+        await using var rig = await Rig.CreateAsync(declared: true, restart: (3, 1000, 1000, 60_000));
+        var doc = rig.Add("off.fake", "x\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        await rig.Edit(doc, 0, 0, "FALLONCE ");
+        await T.Until(() => Told(rig, "starts again in 1 s"));
+
+        Assert.Equal("stopped", (await rig.RunAsync(doc, LspPlugin.StopCommand)).GetProperty("status").GetString());
+
+        await Task.Delay(2500);
+        Assert.Equal(1, Processes(rig));
+    }
+
+    [Fact]
+    public async Task The_plugin_with_a_number_of_restarts_but_without_the_waits_exits_with_two()
+    {
+        var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
+        var info = new System.Diagnostics.ProcessStartInfo(T.DotnetHost) { RedirectStandardInput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var a in new[] { dll, "--max-bytes", "1000", "--start-timeout-ms", "1000", "--request-timeout-ms", "1000", "--stop-timeout-ms", "1000", "--max-locations", "5", "--stderr-lines", "5",
+                     "--max-message-chars", "50", "--max-diagnostics", "5", "--restart-max-attempts", "2" }) info.ArgumentList.Add(a);
+        using var process = System.Diagnostics.Process.Start(info)!;
+        process.StandardInput.Close();
+        await process.WaitForExitAsync();
+        Assert.Equal(2, process.ExitCode);
+        Assert.Contains("--restart-base-delay-ms", await process.StandardError.ReadToEndAsync());
     }
 
     // ---- P8.5.1: one server per project ----

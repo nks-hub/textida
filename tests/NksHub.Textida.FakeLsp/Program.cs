@@ -4,7 +4,7 @@
 // and NAME.stats with "opens=N incremental=N full=N"; process-PID per started process holding "root=<rootUri>", "cwd=<working folder>", "configuration=yes|no" (whether the client announced workspace.configuration) and one "open <uri>" or "close <uri>" line per document event,
 // and init-options.json with the initializationOptions it got), --external FILE (a file on disk that definitions may point into),
 // --config SECTIONS (after "initialized" ask the client for workspace/configuration with these comma separated sections, "*" for an item without one, and write the answer to config-answer.json).
-// Behaviour: a text containing CRASH ends the process with exit code 3; every ERROR is published as a diagnostic (with the version it was found in);
+// Behaviour: a text containing CRASH ends the process with exit code 3, a text containing FALLONCE does so once (while the file "fell-once" is not in the dump folder); every ERROR is published as a diagnostic (with the version it was found in);
 // a definition of a word is the first "def WORD" in the open documents, then in the external file; references are the whole-word occurrences in the document;
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
 // rename of a word changes its whole-word occurrences in every open document (documentChanges with the version the server holds); with --fileops it also creates
@@ -136,6 +136,11 @@ void Changed(string uri, long version, string text)
         File.WriteAllText(Path.Combine(dump, name + ".version"), version.ToString());
     }
     if (text.Contains("CRASH")) Environment.Exit(3);
+    if (text.Contains("FALLONCE") && dump is not null && !File.Exists(Path.Combine(dump, "fell-once")))
+    {
+        File.WriteAllText(Path.Combine(dump, "fell-once"), "");
+        Environment.Exit(3);
+    }
     var items = new List<string>();
     for (int at = text.IndexOf("ERROR", StringComparison.Ordinal); at >= 0; at = text.IndexOf("ERROR", at + 5, StringComparison.Ordinal))
         items.Add($"{{\"range\":{Range(text, at, at + 5)},\"severity\":1,\"code\":\"E1\",\"message\":\"found ERROR\"}}");

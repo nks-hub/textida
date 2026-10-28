@@ -17,7 +17,12 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <param name="MaxDiagnostics">Diagnostics published per document; the rest is dropped.</param>
 /// <param name="IdleStopMs">Time a server keeps running after the last document of its project was closed; 0 keeps it until the plugin ends.</param>
 /// <param name="RootSearchLevels">Folders searched upwards for the project root of a document, the folder of the file being the first; 1 takes the folder of the file.</param>
-public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0, int RootSearchLevels = 1);
+/// <param name="RestartMaxAttempts">Starts in a row the plugin makes by itself after a server ended unexpectedly; 0 never restarts a server by itself.</param>
+/// <param name="RestartBaseDelayMs">Wait before the first automatic start; every further one waits twice as long.</param>
+/// <param name="RestartMaxDelayMs">Longest wait between two automatic starts.</param>
+/// <param name="RestartStableMs">A server that ran this long before it ended counts as healthy: the next crash is a first one again.</param>
+public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0, int RootSearchLevels = 1,
+    int RestartMaxAttempts = 0, int RestartBaseDelayMs = 0, int RestartMaxDelayMs = 0, int RestartStableMs = 0);
 
 public sealed class ServerStartException(string message) : Exception(message);
 

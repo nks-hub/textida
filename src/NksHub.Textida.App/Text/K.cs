@@ -368,6 +368,9 @@ public static class K
     public const string A11yWorkspace = "a11y.workspace";
     public const string A11yGroupsSplitter = "a11y.groups.splitter";
     public const string FindWatermark = "find.watermark";
+    public const string FindHexWatermark = "find.hexWatermark";
+    public const string FindHexMode = "find.hexMode";
+    public const string A11yFindHexInput = "a11y.find.hexInput";
     public const string FindReplaceWatermark = "find.replaceWatermark";
     public const string FindFolderWatermark = "find.folderWatermark";
     public const string FindCase = "find.case";
@@ -529,6 +532,11 @@ public static class K
     public const string HexA11yInvalid = "hex.a11y.invalid";
     public const string HexA11ySpace = "hex.a11y.space";
     public const string HexA11yHidden = "hex.a11y.hidden";
+    public const string HexA11yRange = "hex.a11y.range";
+    public const string HexA11yPosition = "hex.a11y.position";
+    public const string HexA11yColumnHex = "hex.a11y.columnHex";
+    public const string HexA11yColumnText = "hex.a11y.columnText";
+    public const string HexReadOnly = "hex.readOnly";
     public const string HexEndOfFile = "hex.endOfFile";
     public const string HexNotEncodable = "hex.notEncodable";
     public const string HexBusy = "hex.busy";
@@ -583,6 +591,7 @@ public static class K
     public const string HexBarOpen = "hex.bar.open";
     public const string HexBarKeep = "hex.bar.keep";
     public const string HexGotoTitle = "hex.goto.title";
+    public const string HexSelectToTitle = "hex.selectTo.title";
     public const string HexGotoLabel = "hex.goto.label";
     public const string HexGotoPreview = "hex.goto.preview";
     public const string HexGotoPreviewEnd = "hex.goto.previewEnd";
@@ -590,6 +599,7 @@ public static class K
     public const string HexGotoInvalid = "hex.goto.invalid";
     public const string HexGotoOutside = "hex.goto.outside";
     public const string HexFindTitle = "hex.find.title";
+    public const string HexSumMasked = "hex.sum.masked";
     public const string HexFindLabel = "hex.find.label";
     public const string HexFindNone = "hex.find.none";
     public const string HexFindCount = "hex.find.count";
@@ -628,6 +638,7 @@ public static class K
     public const string HexBmType = "hex.bm.type";
     public const string HexBmTypeNone = "hex.bm.typeNone";
     public const string HexMapA11y = "hex.map.a11y";
+    public const string HexMapHelp = "hex.map.help";
     public const string HexMapEntropy = "hex.map.entropy";
     public const string HexMapClass = "hex.map.class";
     public const string HexStatsTitle = "hex.stats.title";
@@ -793,6 +804,7 @@ public static class K
     public const string HexSumCopied = "hex.sum.copied";
     public const string PluginPanelClose = "plugin.panel.close";
     public const string A11yPluginPanel = "a11y.plugin.panel";
+    public const string A11yPluginCurrentItem = "a11y.plugin.currentItem";
     public const string PluginTaskCancel = "plugin.task.cancel";
     public const string A11yPluginTaskCancel = "a11y.plugin.task.cancel";
     public const string A11yPluginTask = "a11y.plugin.task";
@@ -931,6 +943,7 @@ public static class K
     public const string SchemaTipConsent = "schema.tipConsent";
     public const string SchemaNotFile = "schema.notFile";
     public const string SchemaNothingToAllow = "schema.nothingToAllow";
+    public const string SchemaMappingRejected = "schema.mappingRejected";
     public const string SchemaConsentTitle = "schema.consent.title";
     public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";
@@ -1252,6 +1265,23 @@ public static class K
     public const string RemoteNoTransfer = "remote.noTransfer";
     public const string RemoteLogUploading = "remote.log.uploading";
     public const string RemoteLogReplacing = "remote.log.replacing";
+    public const string RemoteLogDownloading = "remote.log.downloading";
+    public const string RemoteLogResumingDownload = "remote.log.resumingDownload";
+    public const string RemoteLogPartialRemoved = "remote.log.partialRemoved";
+    public const string RemoteLogProgress = "remote.log.progress";
+    public const string RemoteProgressUploading = "remote.progress.uploading";
+    public const string RemoteProgressDownloading = "remote.progress.downloading";
+    public const string RemoteDownloadCancelled = "remote.downloadCancelled";
+    public const string RemoteActionSshRsa = "remote.action.sshRsa";
+    public const string RemoteSshRsaTitle = "remote.sshRsa.title";
+    public const string RemoteSshRsaWarning = "remote.sshRsa.warning";
+    public const string RemoteSshRsaAllowedNow = "remote.sshRsa.allowedNow";
+    public const string RemoteSshRsaAllow = "remote.sshRsa.allow";
+    public const string RemoteSshRsaForbid = "remote.sshRsa.forbid";
+    public const string RemoteSshRsaSaved = "remote.sshRsa.saved";
+    public const string RemoteSshRsaRemoved = "remote.sshRsa.removed";
+    public const string RemoteSshRsaHint = "remote.sshRsa.hint";
+    public const string RemoteLogSshRsa = "remote.log.sshRsa";
     public const string RemoteOpenTitle = "remote.open.title";
     public const string RemoteOpenPrompt = "remote.open.prompt";
     public const string RemoteNotFound = "remote.notFound";

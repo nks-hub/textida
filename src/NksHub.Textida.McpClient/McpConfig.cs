@@ -443,8 +443,8 @@ public static class McpConfig
     }
 
     /// <summary>
-    /// What it takes to connect to a server that is reached by an address: the address and the headers with their variables filled in. An address that would send headers without
-    /// encryption to another computer (plain <c>http://</c>) is refused.
+    /// What it takes to connect to a server that is reached by an address: the address and the headers with their variables filled in, and whether the entry says <c>sse</c> (the older
+    /// HTTP+SSE transport). An address that would send headers without encryption to another computer (plain <c>http://</c>) is refused.
     /// </summary>
     public static McpRemote BuildRemote(McpServerEntry entry, Func<string, string?> variables)
     {
@@ -461,7 +461,7 @@ public static class McpConfig
         if (url.UserInfo.IndexOf(':') is var colon and >= 0) secrets.Add(url.UserInfo[(colon + 1)..]);
         foreach (var pair in url.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
             if (pair.IndexOf('=') is var eq and >= 0) secrets.Add(pair[(eq + 1)..]);
-        return new McpRemote(url, headers, [.. secrets.Where(s => s.Length > 0)]);
+        return new McpRemote(url, headers, [.. secrets.Where(s => s.Length > 0)], string.Equals(entry.RemoteType, "sse", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>The first <c>${NAME}</c> (one without a default) in the command, arguments, folder, address, variables or headers of the entry that <paramref name="variables"/> has no value for; null when all are known.</summary>

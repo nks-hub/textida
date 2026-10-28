@@ -16,6 +16,12 @@ public interface IRemoteClient : IAsyncDisposable
 
     Task DownloadAsync(string path, Stream destination, CancellationToken cancellation);
 
+    /// <summary>
+    /// Continues a broken download: writes the bytes of <paramref name="path"/> from <paramref name="offset"/> to the end into <paramref name="destination"/>, which already
+    /// holds the first <paramref name="offset"/> bytes and is positioned after them. <see cref="RemoteTransfer"/> has checked that the server file is still the one the first bytes came from.
+    /// </summary>
+    Task ResumeDownloadAsync(string path, Stream destination, long offset, CancellationToken cancellation);
+
     /// <summary>Writes the stream to <paramref name="path"/>, replacing whatever is there. Not atomic; <see cref="RemoteTransfer"/> builds the safe variant.</summary>
     Task UploadAsync(string path, Stream source, CancellationToken cancellation);
 

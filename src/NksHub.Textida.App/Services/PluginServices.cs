@@ -6,6 +6,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Secrets;
@@ -46,6 +47,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private const string GitActivation = "onCommand:git";
     /// <summary>The panel of the Git status; its items are the full paths of the files, a click opens the file.</summary>
     public const string GitStatusPanel = "git:status";
+    /// <summary>The command that tells the Git plugin a document is closed, so it can stop watching a repository.</summary>
+    public const string GitClosedCommand = "git.closed";
     public const string WikiPluginId = "textida.wiki";
     /// <summary>The activation event of every plugin that serves file sources: they register their scheme when they start, which the open-from-source command asks for first.</summary>
     public const string SourceActivation = "onSource";
@@ -128,6 +131,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _exitHook = (_, _) => _host.KillAll();
         AppDomain.CurrentDomain.ProcessExit += _exitHook;
         app.Workbench.SettingChanged += OnSettingChanged;
+        SyncSchemaMappings(report: false);
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped or PluginState.Inactive)
@@ -154,7 +158,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
              "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
              "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
-             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString()],
+             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString(),
+             "--schema-ref-depth", PluginLimitsPlaceholders.SchemaRefMaxDepth.ToString(), "--schema-ref-documents", PluginLimitsPlaceholders.SchemaRefMaxDocuments.ToString(),
+             "--schema-mappings", SchemaMappingsPath],
             [JsonActivation], folder));
 
         // the text tools read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text; only inserting an expression result writes
@@ -244,7 +250,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
-             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString()],
+             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
+             "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
+             "--restart-max-delay-ms", PluginLimitsPlaceholders.LspRestartMaxDelayMilliseconds.ToString(), "--restart-stable-ms", PluginLimitsPlaceholders.LspRestartStableMilliseconds.ToString()],
             [LspActivation], lspFolder));
 
         Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,
@@ -290,6 +298,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>A setting of a plugin changed: a running process hears it as the event <c>settings.changed</c> with all its values; a stopped one gets them at its next start.</summary>
     private void OnSettingChanged(string key)
     {
+        if (key == SchemaMappingsSetting) SyncSchemaMappings(report: true);
         if (_app.Workbench.PluginOfSetting(key) is not { } id) return;
         RefreshSettings(id);
         if (_host.IsRegistered(id) && _pluginSettings.TryGetValue(id, out var values)) _ = _host.SendEventAsync(id, "settings.changed", Encoding.UTF8.GetBytes(values.GetRawText()));
@@ -738,7 +747,10 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private DocTab? _symbolWanted;
     private bool _symbolShown;
 
-    /// <summary>Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents), while the tab has an outline.</summary>
+    /// <summary>
+    /// Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents) and the outline marks it as its current item,
+    /// while the tab has an outline.
+    /// </summary>
     public void TrackSymbol(DocTab? tab)
     {
         if (tab is null || !_outlineWanted.Contains(tab.Doc.Doc.Id) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId)
@@ -754,7 +766,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             _symbolTimer.Tick += (_, _) =>
             {
                 _symbolTimer.Stop();
-                if (_symbolWanted is { } wanted) ShowSymbol(SymbolPathAtCaret(wanted));
+                if (_symbolWanted is { } wanted) FollowSymbol(wanted);
             };
         }
         _symbolTimer.Stop();
@@ -774,16 +786,34 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         Ui.SetStatus(CodeExplorerPluginId, new StatusModel(path, Loc.Get(K.SymbolPathTip)));
     }
 
-    /// <summary>The symbol the caret is in or after, with its parents, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
-    private string? SymbolPathAtCaret(DocTab tab)
+    private static long? CaretOf(DocTab tab) => tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
+
+    /// <summary>The symbol the caret is in or after (the last one that starts at or before it); null when there is none.</summary>
+    private static SymbolInfo? SymbolAt(IReadOnlyList<SymbolInfo> symbols, long caret)
     {
-        long? caret = tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
-        var symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
-        if (caret is not { } at || !current) return null;
         SymbolInfo? found = null;
         foreach (var s in symbols)
-            if (s.Range.Start <= at && (found is null || s.Range.Start >= found.Range.Start)) found = s;
-        if (found is null) return null;
+            if (s.Range.Start <= caret && (found is null || s.Range.Start >= found.Range.Start)) found = s;
+        return found;
+    }
+
+    /// <summary>The symbol the caret is in or after, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
+    private SymbolInfo? SymbolAtCaret(DocTab tab, out IReadOnlyList<SymbolInfo> symbols)
+    {
+        symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
+        return CaretOf(tab) is { } at && current ? SymbolAt(symbols, at) : null;
+    }
+
+    /// <summary>The status bar names the symbol the caret is in, with its parents, and the outline of the document marks it as its current item.</summary>
+    private void FollowSymbol(DocTab tab)
+    {
+        var found = SymbolAtCaret(tab, out var symbols);
+        ShowSymbol(found is null ? null : SymbolPath(found, symbols));
+        Ui.SetCurrentItem(CodeExplorerPluginId, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), found?.Id);
+    }
+
+    private static string SymbolPath(SymbolInfo found, IReadOnlyList<SymbolInfo> symbols)
+    {
         var byId = symbols.ToDictionary(s => s.Id);
         var parts = new List<string> { found.Name };
         for (var parent = found.ParentId; parent is not null && byId.TryGetValue(parent, out var p) && parts.Count < 8; parent = p.ParentId)
@@ -955,8 +985,24 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _outlineWanted.Remove(document.Id);
         _schemaChecked.Remove(document.Id);
         _activatedFor.RemoveWhere(x => x.Document == document.Id);
+        ReleaseGitWatch(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
+    }
+
+    /// <summary>
+    /// The last tab of a document closed: tells the Git plugin, if it runs, which stops watching the repository of the file when no other open file of it is left. A command that is still
+    /// running on the document is waited for first, so that it cannot start the watch again afterwards.
+    /// </summary>
+    private void ReleaseGitWatch(Guid document)
+    {
+        if (!_host.IsRegistered(GitPluginId) || _host.GetState(GitPluginId) != PluginState.Running) return;
+        var running = _running.TryGetValue(document, out var run) ? run.Done.Task : Task.CompletedTask;
+        _ = running.ContinueWith(async _ =>
+        {
+            try { await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes($"{{\"command\":\"{GitClosedCommand}\",\"document\":\"{document}\",\"revision\":0}}")); }
+            catch (Exception e) when (e is PluginUnavailableException or PluginCrashedException or NksHub.Textida.Rpc.RpcException or IOException or TimeoutException) { /* the plugin is gone: its watches went with it */ }
+        }, TaskScheduler.Default);
     }
 
     // ---- early tools: outline, reveal, snippets, Tab ----
@@ -985,7 +1031,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             ? [.. list.Select(s => new PanelItem(s.Id, s.Name, s.Kind.Length == 0 ? null : s.Kind, Level(s.Id)))]
             : [];
         var title = Loc.Get(current ? K.PluginSymbolsTitle : K.PluginSymbolsOutdated);
-        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline)));
+        // a new set of the code outline, also the outdated one carried over an edit, keeps the mark of the item the caret is in
+        string? caretItem = set.PluginId == CodeExplorerPluginId && TabOf(set.Document) is { } found && CaretOf(found.Tab) is { } at ? SymbolAt(set.Symbols, at)?.Id : null;
+        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline), Current: caretItem));
     });
 
     public void SymbolsCleared(string pluginId, Guid document) => OnUi(() =>
@@ -1056,7 +1104,32 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     // ---- language services: diagnostics and completion from plugins, the schema check of the JSON plugin ----
 
-    /// <summary>A text tab of a JSON, JSONC, TOML or YAML file, or of a Markdown file with frontmatter that has a profile, which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
+    private const string SchemaMappingsSetting = "schema.mappings";
+
+    private static volatile string[] s_mappedMasks = [];
+
+    private string SchemaMappingsPath => Path.Combine(_app.ProfileDirectory, "schema-mappings.txt");
+
+    /// <summary>
+    /// Keeps the text of the setting <c>schema.mappings</c> in the file the JSON plugin reads its rules from (it reads the file again when it changes) and remembers the masks, so a file the user mapped to a schema
+    /// is checked whatever its extension. A rule that is not written as <c>MASK=SCHEMA</c> is left out and named in the status line when <paramref name="report"/>.
+    /// </summary>
+    private void SyncSchemaMappings(bool report)
+    {
+        var text = _app.Workbench.Settings.GetString(SchemaMappingsSetting);
+        s_mappedMasks = [.. SchemaMappingText.Parse(text, out var rejected).Select(e => e.Glob)];
+        try
+        {
+            Directory.CreateDirectory(_app.ProfileDirectory);
+            var temp = SchemaMappingsPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            File.WriteAllText(temp, text, new UTF8Encoding(false));
+            File.Move(temp, SchemaMappingsPath, overwrite: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the plugin keeps the rules it has */ }
+        if (report && rejected.Count > 0) _app.ActiveWindow?.SetStatusMessage(Loc.Get(K.SchemaMappingRejected, ("entry", rejected[0])));
+    }
+
+    /// <summary>A text tab of a JSON, JSONC, TOML or YAML file, of a Markdown file with frontmatter that has a profile, or of a file the user mapped to a schema (setting <c>schema.mappings</c>), which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
     internal static bool IsSchemaFile(DocTab tab) =>
         tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && IsSchemaPath(path);
 
@@ -1067,6 +1140,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>Markdown is only checked where the plugin has a frontmatter profile: <c>SKILL.md</c>, <c>agents/*.md</c>, <c>rules/*.md</c>, <c>.claude/rules</c> and <c>.mdc</c>.</summary>
     internal static bool IsSchemaPath(string path)
     {
+        if (s_mappedMasks.Any(mask => Glob.IsMatch(mask, path))) return true;
         var extension = Path.GetExtension(path).ToLowerInvariant();
         if (extension is ".json" or ".jsonc" or ".toml" or ".yaml" or ".yml" or ".mdc") return true;
         if (extension != ".md") return false;

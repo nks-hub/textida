@@ -96,10 +96,11 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
 
     private AsyncFtpClient Client => _client ?? throw new RemoteException(RemoteError.ConnectionLost, "Not connected.");
 
-    private static async Task<T> Guard<T>(Func<Task<T>> action)
+    private static async Task<T> Guard<T>(Func<Task<T>> action, CancellationToken cancellation = default)
     {
         // on the pool: the libraries are not written for a caller with a synchronization context (the UI thread)
         try { return await Task.Run(action).ConfigureAwait(false); }
+        catch (Exception) when (cancellation.IsCancellationRequested) { throw new OperationCanceledException(cancellation); } // a cancelled transfer fails in many ways; none of them is a lost connection
         catch (Exception e) when (e is FtpException or IOException or SocketException or TimeoutException or ObjectDisposedException)
         {
             if (e is FtpCommandException c && c.CompletionCode is { Length: > 0 } code && code[0] == '5') throw new RemoteException(RemoteError.Failed, e.Message, e);
@@ -107,7 +108,8 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         }
     }
 
-    private static async Task Guard(Func<Task> action) => await Guard(async () => { await action().ConfigureAwait(false); return 0; }).ConfigureAwait(false);
+    private static async Task Guard(Func<Task> action, CancellationToken cancellation = default) =>
+        await Guard(async () => { await action().ConfigureAwait(false); return 0; }, cancellation).ConfigureAwait(false);
 
     public Task<RemoteStat?> StatAsync(string path, CancellationToken cancellation) => Guard(async () =>
     {
@@ -117,24 +119,32 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         return (RemoteStat?)new RemoteStat(item.Size, modified, item.Type == FtpObjectType.Directory);
     });
 
-    public Task DownloadAsync(string path, Stream destination, CancellationToken cancellation) => Guard(async () =>
+    public Task DownloadAsync(string path, Stream destination, CancellationToken cancellation) => ReadAsync(path, destination, 0, cancellation);
+
+    // REST makes the server start RETR at the offset; the destination already holds the bytes before it.
+    public Task ResumeDownloadAsync(string path, Stream destination, long offset, CancellationToken cancellation) => ReadAsync(path, destination, offset, cancellation);
+
+    private Task ReadAsync(string path, Stream destination, long offset, CancellationToken cancellation) => Guard(async () =>
     {
-        if (!await Client.DownloadStream(destination, path, 0, null, cancellation).ConfigureAwait(false))
-            throw new RemoteException(RemoteError.Failed, $"The download of '{path}' failed.");
-    });
+        bool done = await Client.DownloadStream(destination, path, offset, null, cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested(); // the library reports a cancel as a failed download
+        if (!done) throw new RemoteException(RemoteError.Failed, $"The download of '{path}' failed.");
+    }, cancellation);
 
     public Task UploadAsync(string path, Stream source, CancellationToken cancellation) => Guard(async () =>
     {
         var status = await Client.UploadStream(source, path, FtpRemoteExists.Overwrite, false, null, cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested();
         if (status != FtpStatus.Success) throw new RemoteException(RemoteError.Failed, $"The upload of '{path}' failed.");
-    });
+    }, cancellation);
 
     // FluentFTP asks the server for the size of the partial file and continues the source from there.
     public Task ResumeUploadAsync(string path, Stream source, long offset, CancellationToken cancellation) => Guard(async () =>
     {
         var status = await Client.UploadStream(source, path, FtpRemoteExists.Resume, false, null, cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested();
         if (status != FtpStatus.Success) throw new RemoteException(RemoteError.Failed, $"The upload of '{path}' failed.");
-    });
+    }, cancellation);
 
     public Task RenameAsync(string from, string to, CancellationToken cancellation) => Guard(async () =>
     {
