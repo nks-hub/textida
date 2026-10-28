@@ -113,7 +113,8 @@ Připojení si pamatuje server, uživatele a protokol. Heslo je v systémové kl
 - Běžná volba je FTPS a SFTP. Prosté FTP posílá heslo i soubory nešifrovaně a použije se, až když ho pro dané připojení výslovně povolíte.
 - Při prvním připojení program ukáže identitu serveru (klíč SSH nebo certifikát TLS) a zeptá se, zda jí věříte. Porovnejte ji s tou, kterou vám dal správce serveru.
 - Změní-li se identita serveru, kterému jste uvěřili, program se nepřipojí, dokud novou nepotvrdíte. Než to uděláte, přečtěte si varování.
-- Ukládání hesla funguje ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu systémová klíčenka zatím podporovaná není a program to řekne, místo aby heslo uložil jinam.
+- Heslo se ukládá do systémového úložiště: ve Windows do Správce přihlašovacích údajů, v macOS do Klíčenky (Keychain), v Linuxu do Secret Service přes libsecret (například GNOME Keyring nebo KWallet). Chybí-li toto úložiště, program to řekne, místo aby heslo uložil jinam. Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému.
+- ssh-rsa: některé staré servery SFTP berou klíč RSA, nebo ukazují svůj klíč serveru, jen se slabým podpisem SHA-1 zvaným ssh-rsa. Program ho sám nikdy nenabídne. Odmítne-li takový server připojení, vyberte připojení a pak Starý podpis RSA (ssh-rsa), přečtěte si varování a povolte ho jen pro toto připojení. Výstup Vzdálené před každým takovým připojením varuje; vypněte ho, jakmile se server aktualizuje.
 
 ## [remote.open] Otevřít vzdálený soubor
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Lišta nad textem říká, zda je kopie shodná se serverem. Editor sám funguje bez připojení.
 - Vzdálený soubor, který už kopii má, se otevře z kopie, včetně změn, které jste ještě neposlali. Verze ze serveru se nikdy nestáhne přes vaši práci.
 - Záznam přenosů je na kartě Vzdálené v okně výstupu.
+- Stahování ukazuje procenta ve stavovém řádku a ve výstupu Vzdálené. Zrušit přenos ho zastaví. Co už dorazilo, zůstává a další otevření nebo znovunačtení stejné verze ze serveru naváže na tomto bajtu. Změnila-li se mezitím velikost nebo čas souboru na serveru, rozpracovaná část se zahodí a stahuje se znovu. Přeruší-li se spojení, program stahování několikrát zopakuje s rostoucími pauzami.
 
 ## [remote.upload] Nahrát na server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
 - Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
+- Stavový řádek ukazuje procenta nahrávání a výstup Vzdálené řádek za každou desetinu (krok je zatím provizorní). Procenta počítají bajty, které převzalo spojení, takže mohou být o kousek před serverem.
 
 ## [remote.cancel] Zrušit přenos
 commands: nks.remote.cancel
-Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání se zastaví, server si ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání.
+Zvolte Soubor a pak Vzdálené soubory a pak Zrušit přenos. Běžící nahrávání nebo stahování se zastaví. Po nahrávání si server ponechá předchozí verzi a částečně poslaný dočasný soubor doplní další nahrávání. Po stahování zůstane, co už dorazilo, a další stažení stejné verze ze serveru naváže na tomto místě.
 
 ## [remote.check] Zkontrolovat verzi na serveru
 commands: nks.remote.check
@@ -1222,10 +1225,10 @@ Při nepovedené operaci se souborem je nad dokumentem lišta Operace selhala a 
 
 ## [errors.remote] Chybová hlášení: vzdálené soubory a zdroje
 Hlášení o vzdáleném souboru nebo zdroji se objeví ve stavovém řádku, v liště nad textem nebo v dialogu. Každý řádek cituje hlášení a říká, co dělat.
-- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy).
+- Nelze se připojit k název: důvod. Zkontrolujte jméno serveru, port, uživatele, heslo nebo klíč i svou síť. Používáte-li proxy, zkontrolujte i ji (téma Síťová proxy). Odmítá-li starý server SFTP klíč, nebo s ním nemáte společný klíčový algoritmus, viz Starý podpis RSA (ssh-rsa) v tématu Vzdálená připojení.
 - POZOR: identita serveru server není ta, které jste dříve uvěřili. Program se nepřipojí, dokud novou identitu nepotvrdíte. Zeptejte se správce serveru, zda server nebyl přeinstalován, a připojte se jen tehdy, když víte, proč se změnila (téma Vzdálená připojení).
 - Port musí být číslo od 1 do 65535. Napište celé číslo od 1 do 65535, nebo nechte pole prázdné a použije se obvyklý port protokolu.
-- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo úložiště přihlašovacích údajů (funguje jen ve Windows, téma Co tato verze neumí). Opravte to a uložte znovu.
+- Připojení se neuložilo: důvod. Důvod říká, co selhalo: složka profilu (oprávnění, místo na disku) nebo systémové úložiště přihlašovacích údajů (téma Co tato verze neumí). Opravte to a uložte znovu.
 - cesta na serveru neexistuje. Zkontrolujte cestu. Cesta ke složce ukáže její obsah, takže k souboru můžete dojít od /.
 - Soubor cesta nelze otevřít: důvod. Nic se neotevřelo. Odstraňte důvod (oprávnění na serveru, přerušené připojení) a otevřete soubor znovu.
 - Nahrání souboru název selhalo: důvod. Server si ponechává předchozí verzi, vaše změny zůstávají uložené tady. Odstraňte důvod a zvolte znovu Nahrát na server; částečně odeslaný soubor se doplní (téma Nahrát na server).
@@ -1307,7 +1310,7 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 ## [limits] Co tato verze neumí
 Nápověda popisuje jen to, co tato verze umí. Tyto věci v ní nejsou a tady je, co dělat místo nich:
 - Aktualizace: program se sám aktualizuje jen ve Windows, v nainstalované Textidě (téma Aktualizace a návrat na předchozí verzi). V macOS a Linuxu novou verzi nainstalujete sami. Sestavení bez adresy aktualizací a podpisového klíče nové verze nehledá a řekne to.
-- Uložená hesla: úložiště přihlašovacích údajů funguje jen ve Windows (Správce přihlašovacích údajů). V macOS a Linuxu program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
+- Uložená hesla: Windows (Správce přihlašovacích údajů), macOS (Klíčenka) a Linux (Secret Service přes libsecret). Úložiště pro macOS a Linux zatím nikdo nevyzkoušel na skutečném systému. Chybí-li systémové úložiště, program heslo nikam neukládá a ptá se na ně při každém připojení (téma Vzdálená připojení).
 - Pluginy: plugin je program, který běží s právy vašeho uživatele. Jeho oprávnění jsou záznam toho, co jste povolili, ne izolace, a podpisy pluginů se nekontrolují (téma Správce pluginů: instalace, aktualizace, návrat a odebrání pluginů). Instalujte jen pluginy, kterým věříte.
 - Asistenti: most /ide a agent přes ACP nejsou ověřené se skutečnými programy (témata Most /ide pro Claude Code a Agent přes ACP). Připojení, které nejde, program ohlásí s důvodem ve stavovém řádku nebo ve výstupu Úlohy.
 - Velké soubory: úpravy ve stránkovaném režimu jsou omezené (téma Velké soubory (stránkovaný režim)). Jazykový server, formátování a většina příkazů, které mění text, tam nefungují. Bajty souboru jakékoli velikosti změníte v hexu.

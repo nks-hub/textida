@@ -373,6 +373,72 @@ public class RemoteFileTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Opening_a_larger_file_logs_the_steps_and_the_percent_of_the_download_in_the_remote_output()
+    {
+        string text = string.Concat(Enumerable.Repeat("a line of the remote text\n", 30_000));
+        File.WriteAllText(Path.Combine(_server.Path, "big.txt"), text);
+        long size = new FileInfo(Path.Combine(_server.Path, "big.txt")).Length;
+        await StartServerAndSaveConnectionAsync(trusted: true);
+
+        var tab = await OpenRemoteAsync("/big.txt");
+
+        var lines = _app.Output.Read(OutputChannel.Remote).Select(l => l.Text).ToList();
+        Assert.Equal(size, new FileInfo(tab.Path!).Length);
+        Assert.Contains(Loc.Get(K.RemoteLogDownloading, ("bytes", size), ("path", "/big.txt")), lines);
+        Assert.Contains(Loc.Get(K.RemoteLogProgress, ("path", "/big.txt"), ("percent", 0), ("done", 0), ("total", size)), lines);
+        Assert.Contains(Loc.Get(K.RemoteLogProgress, ("path", "/big.txt"), ("percent", 100), ("done", size), ("total", size)), lines);
+        Assert.True(lines.Count(l => l.StartsWith("/big.txt: ", StringComparison.Ordinal)) >= 3, string.Join(" | ", lines));
+        Assert.DoesNotContain("100 %", _w.StatusMessageText); // the progress text does not stay in the status bar after the download
+    }
+
+    [AvaloniaFact]
+    public async Task The_ssh_rsa_setting_is_off_for_a_new_connection_and_is_turned_on_and_off_after_a_warning_for_one_connection_only()
+    {
+        var old = new RemoteConnection { Name = "Old box", Protocol = RemoteProtocol.Sftp, Host = "192.0.2.10", UserName = "u" };
+        var ftps = new RemoteConnection { Name = "Plain box", Protocol = RemoteProtocol.Ftps, Host = "192.0.2.11", UserName = "u" };
+        _app.Remote.Connections.Add(old, null, _secrets);
+        _app.Remote.Connections.Add(ftps, null, _secrets);
+        Assert.All(_app.Remote.Connections.Load(), c => Assert.False(c.AllowSshRsaSha1));
+
+        async Task ChooseConnectionAsync(string name)
+        {
+            _w.ShowConnections();
+            await Until(() => _w.QuickResults.Count > 0, "the list of connections");
+            _w.QuickResults.Single(r => r.Title == name).Run();
+        }
+
+        // Open, Set Password, Old RSA Signature, Delete, Cancel: the third button; the warning offers Allow and Cancel (Cancel is the default)
+        _dialogs.Answers.Enqueue(2);
+        _dialogs.Answers.Enqueue(0);
+        await ChooseConnectionAsync("Old box");
+        await Until(() => _app.Remote.Connections.Load().Single(c => c.Name == "Old box").AllowSshRsaSha1, "the setting to be saved");
+
+        Assert.Equal(Loc.Get(K.RemoteActionSshRsa), _dialogs.Asked[0].Buttons[2].Label);
+        Assert.Equal(Loc.Get(K.RemoteSshRsaWarning, ("name", "Old box")), _dialogs.Asked[1].Message);
+        Assert.Equal([Loc.Get(K.RemoteSshRsaAllow), Loc.Get(K.DialogCancel)], _dialogs.Asked[1].Buttons.Select(b => b.Label));
+        Assert.True(_dialogs.Asked[1].Buttons[1].IsDefault);
+        Assert.Equal(Loc.Get(K.RemoteSshRsaSaved, ("name", "Old box")), _w.StatusMessageText);
+        Assert.False(_app.Remote.Connections.Load().Single(c => c.Name == "Plain box").AllowSshRsaSha1);
+
+        // the list says it, and the next question offers to take it back
+        _dialogs.Answers.Enqueue(2);
+        _dialogs.Answers.Enqueue(0);
+        _w.ShowConnections();
+        await Until(() => _w.QuickResults.Count > 0, "the list of connections");
+        Assert.Contains("ssh-rsa (SHA-1)", _w.QuickResults.Single(r => r.Title == "Old box").Detail);
+        _w.QuickResults.Single(r => r.Title == "Old box").Run();
+        await Until(() => !_app.Remote.Connections.Load().Single(c => c.Name == "Old box").AllowSshRsaSha1, "the setting to be taken back");
+        Assert.Equal(Loc.Get(K.RemoteSshRsaAllowedNow, ("name", "Old box")), _dialogs.Asked[3].Message);
+        Assert.Equal(Loc.Get(K.RemoteSshRsaForbid), _dialogs.Asked[3].Buttons[0].Label);
+
+        // an FTPS connection has no such setting
+        _dialogs.Answers.Enqueue(3);
+        await ChooseConnectionAsync("Plain box");
+        await Until(() => _dialogs.Asked.Count == 5, "the questions about the connection");
+        Assert.DoesNotContain(_dialogs.Asked[4].Buttons, b => b.Label == Loc.Get(K.RemoteActionSshRsa));
+    }
+
+    [AvaloniaFact]
     public async Task Remote_commands_say_so_when_the_tab_is_not_a_remote_file()
     {
         _w.NewDocument();

@@ -113,7 +113,8 @@ Pripojenie si pamätá server, používateľa a protokol. Heslo je v systémovej
 - Bežná voľba je FTPS a SFTP. Obyčajné FTP posiela heslo aj súbory nešifrovane a použije sa, až keď ho pre dané pripojenie výslovne povolíte.
 - Pri prvom pripojení program ukáže identitu servera (kľúč SSH alebo certifikát TLS) a opýta sa, či jej veríte. Porovnajte ju s tou, ktorú vám dal správca servera.
 - Ak sa zmení identita servera, ktorému ste uverili, program sa nepripojí, kým novú nepotvrdíte. Skôr než to urobíte, prečítajte si varovanie.
-- Ukladanie hesla funguje vo Windows (Správca poverení). V macOS a Linuxe systémová kľúčenka zatiaľ nie je podporovaná a program to povie, namiesto aby heslo uložil inam.
+- Heslo sa ukladá do systémového úložiska: vo Windows do Správcu poverení, v macOS do Kľúčenky (Keychain), v Linuxe do Secret Service cez libsecret (napríklad GNOME Keyring alebo KWallet). Ak toto úložisko chýba, program to povie, namiesto aby heslo uložil inam. Úložiská pre macOS a Linux zatiaľ nikto nevyskúšal na skutočnom systéme.
+- ssh-rsa: niektoré staré servery SFTP berú kľúč RSA, alebo ukazujú svoj kľúč servera, len so slabým podpisom SHA-1 zvaným ssh-rsa. Program ho sám nikdy neponúkne. Ak takýto server pripojenie odmietne, vyberte pripojenie a potom Starý podpis RSA (ssh-rsa), prečítajte si varovanie a povoľte ho len pre toto pripojenie. Výstup Vzdialené pred každým takým pripojením varuje; vypnite ho, hneď ako sa server aktualizuje.
 
 ## [remote.open] Otvoriť vzdialený súbor
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Lišta nad textom hovorí, či je kópia zhodná so serverom. Editor sám funguje bez pripojenia.
 - Vzdialený súbor, ktorý už kópiu má, sa otvorí z kópie, vrátane zmien, ktoré ste ešte neposlali. Verzia zo servera sa nikdy nestiahne cez vašu prácu.
 - Záznam prenosov je na karte Vzdialené v okne výstupu.
+- Sťahovanie ukazuje percentá v stavovom riadku a vo výstupe Vzdialené. Zrušiť prenos ho zastaví. To, čo už dorazilo, zostáva a ďalšie otvorenie alebo opätovné načítanie rovnakej verzie zo servera naviaže na tomto bajte. Ak sa medzitým zmenila veľkosť alebo čas súboru na serveri, rozpracovaná časť sa zahodí a sťahuje sa znova. Ak sa spojenie preruší, program sťahovanie niekoľkokrát zopakuje s rastúcimi pauzami.
 
 ## [remote.upload] Nahrať na server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - Nastavenie Kontrola verzie na serveri určuje, ako sa zmena pozná: stat porovnáva veľkosť a čas zmeny, content vždy stiahne súbor zo servera a porovná ho; pozná aj zmenu v rovnakej sekunde a s rovnakou veľkosťou.
 - Medza: kontrola a výmena sú dva kroky, pretože FTP ani SFTP nemajú podmienený zápis. Zmena, ktorú niekto urobí v tom poslednom okamihu, sa nespozná. Kontrola beží až po dokončenom nahraní, takže ten okamih je krátky.
 - Ak sa spojenie počas nahrávania preruší, program to niekoľkokrát zopakuje s rastúcimi pauzami. Každý pokus najprv znova skontroluje verziu na serveri a čiastočne poslaný dočasný súbor sa doplní od miesta prerušenia, až keď sa jeho obsah zhoduje s vaším súborom. Ak server odmietne premenovanie, ktorým sa súbor dáva na miesto, starý súbor sa odloží, nový sa presunie a pri zlyhaní sa starý vráti.
+- Stavový riadok ukazuje percentá nahrávania a výstup Vzdialené riadok za každú desatinu (krok je zatiaľ provizórny). Percentá počítajú bajty, ktoré prevzalo spojenie, takže môžu byť o kúsok pred serverom.
 
 ## [remote.cancel] Zrušiť prenos
 commands: nks.remote.cancel
-Zvoľte Súbor a potom Vzdialené súbory a potom Zrušiť prenos. Bežiace nahrávanie sa zastaví, server si ponechá predchádzajúcu verziu a čiastočne poslaný dočasný súbor doplní ďalšie nahrávanie.
+Zvoľte Súbor a potom Vzdialené súbory a potom Zrušiť prenos. Bežiace nahrávanie alebo sťahovanie sa zastaví. Po nahrávaní si server ponechá predchádzajúcu verziu a čiastočne poslaný dočasný súbor doplní ďalšie nahrávanie. Po sťahovaní zostane, čo už dorazilo, a ďalšie stiahnutie rovnakej verzie zo servera naviaže na tomto mieste.
 
 ## [remote.check] Skontrolovať verziu na serveri
 commands: nks.remote.check
@@ -1222,10 +1225,10 @@ Pri nepodarenej operácii so súborom je nad dokumentom lišta Operácia zlyhala
 
 ## [errors.remote] Chybové hlásenia: vzdialené súbory a zdroje
 Hlásenie o vzdialenom súbore alebo zdroji sa objaví v stavovom riadku, v lište nad textom alebo v dialógu. Každý riadok cituje hlásenie a hovorí, čo robiť.
-- Nie je možné sa pripojiť k názov: dôvod. Skontrolujte názov servera, port, používateľa, heslo alebo kľúč aj svoju sieť. Ak používate proxy, skontrolujte aj ju (téma Sieťový proxy).
+- Nie je možné sa pripojiť k názov: dôvod. Skontrolujte názov servera, port, používateľa, heslo alebo kľúč aj svoju sieť. Ak používate proxy, skontrolujte aj ju (téma Sieťový proxy). Ak starý server SFTP odmieta kľúč, alebo s ním nemáte spoločný kľúčový algoritmus, pozri Starý podpis RSA (ssh-rsa) v téme Vzdialené pripojenia.
 - POZOR: identita servera server nie je tá, ktorej ste predtým uverili. Program sa nepripojí, kým novú identitu nepotvrdíte. Opýtajte sa správcu servera, či server nebol preinštalovaný, a pripojte sa len vtedy, keď viete, prečo sa zmenila (téma Vzdialené pripojenia).
 - Port musí byť číslo od 1 do 65535. Napíšte celé číslo od 1 do 65535, alebo nechajte pole prázdne a použije sa obvyklý port protokolu.
-- Pripojenie sa neuložilo: dôvod. Dôvod hovorí, čo zlyhalo: priečinok profilu (oprávnenia, miesto na disku) alebo úložisko prihlasovacích údajov (funguje len vo Windows, téma Čo táto verzia nevie). Opravte to a uložte znova.
+- Pripojenie sa neuložilo: dôvod. Dôvod hovorí, čo zlyhalo: priečinok profilu (oprávnenia, miesto na disku) alebo systémové úložisko prihlasovacích údajov (téma Čo táto verzia nevie). Opravte to a uložte znova.
 - cesta na serveri neexistuje. Skontrolujte cestu. Cesta k priečinku ukáže jeho obsah, takže k súboru môžete prejsť od /.
 - Súbor cesta nie je možné otvoriť: dôvod. Nič sa neotvorilo. Odstráňte dôvod (oprávnenie na serveri, prerušené pripojenie) a otvorte súbor znova.
 - Nahranie súboru názov zlyhalo: dôvod. Server si ponecháva predchádzajúcu verziu, vaše zmeny zostávajú uložené tu. Odstráňte dôvod a zvoľte znova Nahrať na server; čiastočne odoslaný súbor sa doplní (téma Nahrať na server).
@@ -1307,7 +1310,7 @@ Tieto hlásenia pochádzajú z programov, ktoré editor spúšťa za vás. Objav
 ## [limits] Čo táto verzia nevie
 Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej nie sú a tu je, čo robiť namiesto nich:
 - Aktualizácie: program sa sám aktualizuje len vo Windows, v nainštalovanom Textida (téma Aktualizácie a návrat na predchádzajúcu verziu). V macOS a Linuxe novú verziu nainštalujete sami. Zostavenie bez adresy aktualizácií a podpisového kľúča nové verzie nehľadá a povie to.
-- Uložené heslá: úložisko prihlasovacích údajov funguje len vo Windows (Správca poverení). V macOS a Linuxe program heslo nikam neukladá a pýta si ho pri každom pripojení (téma Vzdialené pripojenia).
+- Uložené heslá: Windows (Správca poverení), macOS (Kľúčenka) a Linux (Secret Service cez libsecret). Úložiská pre macOS a Linux zatiaľ nikto nevyskúšal na skutočnom systéme. Ak systémové úložisko chýba, program heslo nikam neukladá a pýta si ho pri každom pripojení (téma Vzdialené pripojenia).
 - Pluginy: plugin je program, ktorý beží s právami vášho používateľa. Jeho oprávnenia sú záznam toho, čo ste povolili, nie izolácia, a podpisy pluginov sa nekontrolujú (téma Správca pluginov: inštalácia, aktualizácia, návrat a odobratie pluginov). Inštalujte len pluginy, ktorým dôverujete.
 - Asistenti: most /ide a agent cez ACP nie sú overené so skutočnými programami (témy Most /ide pre Claude Code a Agent cez ACP). Pripojenie, ktoré nejde, program ohlási s dôvodom v stavovom riadku alebo vo výstupe Úlohy.
 - Veľké súbory: úpravy v stránkovanom režime sú obmedzené (téma Veľké súbory (stránkovaný režim)). Jazykový server, formátovanie a väčšina príkazov, ktoré menia text, tam nefungujú. Bajty súboru akejkoľvek veľkosti zmeníte v hexe.

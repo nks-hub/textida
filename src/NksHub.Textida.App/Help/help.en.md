@@ -113,7 +113,8 @@ A connection holds the server, the user and the protocol. The password is kept i
 - FTPS and SFTP are the normal choices. Plain FTP sends the password and the files unencrypted and is used only after you allow it for that connection.
 - The first time you connect, the program shows the identity of the server (an SSH host key or a TLS certificate) and asks you to trust it. Compare it with the one the server administrator gave you.
 - If the identity of a server you trusted changes, the program does not connect until you confirm the new one. Read the warning before you do.
-- Saving a password works on Windows (Credential Manager). On macOS and Linux the credential store is not supported yet, and the program says so instead of keeping the password anywhere else.
+- A password is saved in the credential store of the system: Credential Manager on Windows, the Keychain on macOS, the Secret Service (through libsecret, for example GNOME Keyring or KWallet) on Linux. If that store is missing, the program says so instead of keeping the password anywhere else. The macOS and Linux stores have not been tried on a real system yet.
+- ssh-rsa: some old SFTP servers accept an RSA key, or show their host key, only with the weak SHA-1 signature called ssh-rsa. The program never offers it by itself. If such a server refuses the connection, choose the connection and then Old RSA Signature (ssh-rsa), read the warning and allow it for that connection only. The Remote output warns at every connection that allows it; turn it off as soon as the server is updated.
 
 ## [remote.open] Open a remote file
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - The bar above the text says whether the copy is the same as on the server. The editor itself works without a connection.
 - Opening a remote file that already has a copy shows the copy, including changes you did not send yet. The server version is never fetched over your work.
 - The log of the transfers is in the Remote tab of the output window.
+- A download shows its percent in the status bar and in the Remote output. Cancel Transfer stops it. What has arrived is kept, and the next open or reload of the same server version continues at that byte. If the size or the time of the file on the server changed meanwhile, the partial file is dropped and the download starts again. When the connection is lost, the program repeats the download a few times with growing pauses.
 
 ## [remote.upload] Upload to the server
 commands: nks.remote.upload
@@ -132,10 +134,11 @@ commands: nks.remote.upload
 - The setting Check of the server version chooses how a change is recognised: stat compares size and modification time, content always fetches the server file and compares it, and also notices a change within the same second and size.
 - Limit: the check and the replacement are two steps, because FTP and SFTP have no conditional write. A change someone makes in that last moment is not noticed. The check runs after the upload is complete, so the moment is short.
 - When the connection is lost during an upload, the program tries again a few times with growing pauses. Every try checks the server version again first, and a partly sent temporary file is continued where it stopped after its content was compared with your file. If the server refuses the rename that puts the file in place, the old file is set aside, the new one is moved in, and the old one is restored if that fails.
+- The status bar shows the percent of the upload, and the Remote output a line for every tenth of it (the step is provisional). The percent counts the bytes the connection has taken, so it can run a little ahead of the server.
 
 ## [remote.cancel] Cancel the transfer
 commands: nks.remote.cancel
-Choose File and then Remote Files and then Cancel Transfer. The running upload stops, the server keeps its previous version, and a partly sent temporary file is continued by the next upload.
+Choose File and then Remote Files and then Cancel Transfer. The running upload or download stops. After an upload the server keeps its previous version, and a partly sent temporary file is continued by the next upload. After a download, what has arrived is kept, and the next download of the same server version continues there.
 
 ## [remote.check] Check the server version
 commands: nks.remote.check
@@ -1222,10 +1225,10 @@ When an operation on a file fails, a bar above the document says The operation f
 
 ## [errors.remote] Error messages: remote files and sources
 A message about a remote file or a source appears in the status bar, in the bar above the text or in a dialog. Each line quotes the message and says what to do.
-- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy).
+- Cannot connect to name: reason. Check the host name, the port, the user, the password or key, and your network. If you use a proxy, check it too (topic Network proxy). If an old SFTP server refuses a key or shares no key algorithm, see Old RSA Signature (ssh-rsa) in the topic Remote connections.
 - WARNING: the identity of host is not the one you trusted before. The program does not connect until you confirm the new identity. Ask the server administrator whether the server was reinstalled, and connect only if you know why it changed (topic Remote connections).
 - The port must be a number from 1 to 65535. Type a whole number from 1 to 65535, or leave the box empty and the usual port of the protocol is used.
-- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store (it works on Windows only, topic What this version cannot do). Fix it and save again.
+- The connection was not saved: reason. The reason says what failed: the profile folder (permissions, disk space) or the credential store of the system (topic What this version cannot do). Fix it and save again.
 - path does not exist on the server. Check the path. A path to a folder shows its content, so you can browse from / to the file.
 - Cannot open path: reason. Nothing was opened. Fix the reason (a permission on the server, a lost connection) and open the file again.
 - Upload of title failed: reason. The server keeps its previous version; your changes stay saved here. Fix the reason and choose Upload to Server again; a partly sent file is continued (topic Upload to the server).
@@ -1307,7 +1310,7 @@ These messages come from programs the editor starts for you. They appear in the 
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it, and this is what to do instead:
 - Updates: the program updates itself only on Windows, in the installed Textida (topic Updates and return to the previous version). On macOS and Linux you install a new version yourself. A build without an update address and a signing key cannot look for updates and says so.
-- Saved passwords: the credential store works on Windows only (Credential Manager). On macOS and Linux the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
+- Saved passwords: Windows (Credential Manager), macOS (Keychain) and Linux (Secret Service through libsecret). The macOS and Linux stores have not been tried on a real system yet. Where the store of the system is missing, the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
 - Plugins: a plugin is a program that runs with your user rights. Its permissions record what you allowed, they are not a sandbox, and the signatures of plugins are not checked (topic Plugin manager: install, update, roll back and remove plugins). Install only plugins you trust.
 - Assistants: the /ide bridge and the agent over ACP have not been verified against the real programs (topics The /ide bridge for Claude Code and Agent over ACP). A connection that does not work is reported with its reason in the status bar or the Tasks output.
 - Large files: editing in paged mode is limited (topic Large files (paged mode)). A language server, formatting and most commands that change text do not work there. To change the bytes of a file of any size, open it in hex.

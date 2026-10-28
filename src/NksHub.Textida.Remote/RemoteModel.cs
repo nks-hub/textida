@@ -52,6 +52,11 @@ public sealed record RemoteConnection
     public SftpAuth Auth { get; init; } = SftpAuth.Password;
     /// <summary>Path of a private key file (SFTP with <see cref="SftpAuth.PrivateKey"/>); its passphrase is in the credential store.</summary>
     public string? PrivateKeyPath { get; init; }
+    /// <summary>
+    /// The user allowed the SHA-1 signature of RSA keys (<c>ssh-rsa</c>) for this connection, for an old server that offers nothing else. It is weak: without this flag the SHA-1 signature is neither
+    /// offered for the login key nor accepted for the server's host key. SFTP only.
+    /// </summary>
+    public bool AllowSshRsaSha1 { get; init; }
 
     public FtpsMode FtpsMode { get; init; } = FtpsMode.Explicit;
     /// <summary>The user chose to allow unencrypted FTP for this connection. Without it <see cref="RemoteProtocol.Ftp"/> is refused.</summary>
@@ -87,6 +92,7 @@ public sealed record RemoteConnection
             Bad("Plain FTP sends the password and the files unencrypted. Choose FTPS or SFTP, or allow plain FTP explicitly for this connection.");
         if (Protocol != RemoteProtocol.Sftp && Auth == SftpAuth.PrivateKey) Bad("Key authentication is available for SFTP only.");
         if (Protocol == RemoteProtocol.Sftp && Auth == SftpAuth.PrivateKey && string.IsNullOrWhiteSpace(PrivateKeyPath)) Bad("Key authentication needs a private key file.");
+        if (AllowSshRsaSha1 && Protocol != RemoteProtocol.Sftp) Bad("The ssh-rsa (SHA-1) signature applies to SFTP only.");
         if (Protocol != RemoteProtocol.Ftps && FtpsMode != FtpsMode.Explicit) Bad("The implicit TLS mode is available for FTPS only.");
         if (Proxy.Type != ProxyType.None && (string.IsNullOrWhiteSpace(Proxy.Host) || Proxy.Port is <= 0 or > 65535)) Bad("The proxy needs a host and a port.");
         if (Proxy.Type == ProxyType.Socks4 && Protocol != RemoteProtocol.Sftp)
@@ -103,6 +109,8 @@ public enum RemoteError
     /// <summary>The server identity is not trusted (unknown, or different from the stored one) and nobody confirmed it.</summary>
     UntrustedServer,
     ConnectionFailed,
+    /// <summary>SFTP: the server and the editor have no key algorithm in common, as with an old server that offers only the SHA-1 <c>ssh-rsa</c> (see <see cref="RemoteConnection.AllowSshRsaSha1"/>).</summary>
+    NoCommonAlgorithm,
     ConnectionLost,
     NotFound,
     /// <summary>The file on the server is not the version the local copy was made from.</summary>
