@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 
-namespace NksHub.Textida.App.Services;
+namespace NksHub.Textida.Install;
 
 /// <summary>
 /// The Explorer context menu entry and the optional file associations of one user, written under <c>HKCU\Software\Classes</c> (<paramref name="classes"/>; tests pass a key of their own).
@@ -10,7 +10,7 @@ namespace NksHub.Textida.App.Services;
 /// Associations are added to <c>OpenWithProgids</c> of the extension: Textida shows in "Open with" and the user makes it the default in Windows, the way Windows 10 and 11 allow.
 /// </summary>
 [SupportedOSPlatform("windows")]
-internal sealed partial class ShellIntegration(RegistryKey classes, string exePath)
+public sealed partial class ShellIntegration(RegistryKey classes, string exePath)
 {
     /// <summary>Working name (P3.7.6); the final name replaces this one constant and so every key below.</summary>
     public const string ProductName = "Textida";
@@ -20,12 +20,6 @@ internal sealed partial class ShellIntegration(RegistryKey classes, string exePa
     /// <summary>Extensions the user can pick from; none is associated until chosen.</summary>
     public static readonly IReadOnlyList<string> Extensions =
         [".txt", ".log", ".md", ".json", ".xml", ".html", ".css", ".js", ".ts", ".yml", ".yaml", ".ini", ".cfg", ".csv", ".sql", ".php", ".py", ".cs", ".sh", ".bat"];
-
-    /// <summary>Test seam: the key that stands in for <c>HKCU\Software\Classes</c> in the commands of the window.</summary>
-    internal static Func<RegistryKey>? ClassesOverride { get; set; }
-
-    /// <summary>Test seam: the program path that Explorer is given, because the test host is not Textida.exe.</summary>
-    internal static string? ExeOverride { get; set; }
 
     private const string MenuPath = @"*\shell\" + ProductName;
 

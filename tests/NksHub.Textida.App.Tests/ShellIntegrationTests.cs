@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Microsoft.Win32;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.Install;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Commands;
 
@@ -30,8 +31,8 @@ public class ShellIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        ShellIntegration.ClassesOverride = null;
-        ShellIntegration.ExeOverride = null;
+        ShellHost.LocationsOverride = null;
+        ShellHost.ExeOverride = null;
         _root?.Dispose();
         if (OperatingSystem.IsWindows()) Registry.CurrentUser.DeleteSubKeyTree(_path, throwOnMissingSubKey: false);
         _temp.Dispose();
@@ -155,8 +156,8 @@ public class ShellIntegrationTests : IDisposable
         try
         {
             var w = app.CreateWindow(null);
-            ShellIntegration.ClassesOverride = () => _root!.CreateSubKey("Classes");
-            ShellIntegration.ExeOverride = Exe;
+            ShellHost.LocationsOverride = new SystemLocations { OpenClasses = () => _root!.CreateSubKey("Classes"), NotifyExplorer = false };
+            ShellHost.ExeOverride = Exe;
             var shell = new ShellIntegration(_root!.CreateSubKey("Classes"), Exe);
 
             await app.Workbench.Commands.ExecuteAsync("nks.tools.shellMenuAdd", new ShellContext(w, forMenu: false)).AsTask();

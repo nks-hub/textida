@@ -48,8 +48,8 @@ public static partial class Program
         if (!OperatingSystem.IsWindows()) return 0;
         try
         {
-            using var classes = Services.ShellIntegration.OpenUserClasses();
-            new Services.ShellIntegration(classes, "").RemoveAll();
+            using var classes = Install.ShellIntegration.OpenUserClasses();
+            new Install.ShellIntegration(classes, "").RemoveAll();
             return 0;
         }
         catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException or IOException)
