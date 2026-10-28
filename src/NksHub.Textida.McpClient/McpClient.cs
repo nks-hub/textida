@@ -141,19 +141,17 @@ public sealed class McpClient : IAsyncDisposable
     private readonly McpHttpTransport? _http;
     private readonly Queue<string> _tail = new();
     private readonly TaskCompletionSource<McpServerExit> _exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly Action<string>? _onStderr;
     private JsonRpcDispatcher _rpc = null!;
     private Task _stderrPump = Task.CompletedTask, _watch = Task.CompletedTask;
     private volatile bool _disposing;
     private bool _modern;
 
-    private McpClient(Func<string, string> mask, McpClientOptions options, Process? process, McpHttpTransport? http, Action<string>? onStderr)
+    private McpClient(Func<string, string> mask, McpClientOptions options, Process? process, McpHttpTransport? http)
     {
         _mask = mask;
         _options = options;
         _process = process;
         _http = http;
-        _onStderr = onStderr;
     }
 
     /// <summary>The protocol era in use: <see cref="ModernVersion"/> or <see cref="LegacyVersion"/>.</summary>
@@ -192,8 +190,9 @@ public sealed class McpClient : IAsyncDisposable
             process.Dispose();
             throw new McpClientException(launch.Mask(e.Message));
         }
-        var client = new McpClient(launch.Mask, options, process, null, onStderr);
-        client._stderrPump = Task.Run(client.PumpStderrAsync);
+        ProcessLaunch.Track(process);
+        var client = new McpClient(launch.Mask, options, process, null);
+        client._stderrPump = Task.Run(() => StderrPump.RunAsync(process.StandardError, client._tail, options.StderrTailLines, onStderr, launch.Mask));
         client._rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Mcp, options.Limits, new Handler());
         client._watch = client.WatchAsync();
         return await client.FinishStartAsync(ct).ConfigureAwait(false);
@@ -207,7 +206,7 @@ public sealed class McpClient : IAsyncDisposable
     public static async Task<McpClient> StartRemoteAsync(McpRemote remote, McpClientOptions options, HttpClient http, CancellationToken ct = default)
     {
         var transport = new McpHttpTransport(remote, http, options.Limits.MaxMessageBytes, options.ExitGrace);
-        var client = new McpClient(remote.Mask, options, null, transport, null);
+        var client = new McpClient(remote.Mask, options, null, transport);
         client._rpc = new JsonRpcDispatcher(transport.Input, transport.Output, RpcProtocols.Mcp, options.Limits, new Handler());
         client._watch = client.WatchAsync();
         return await client.FinishStartAsync(ct).ConfigureAwait(false);
@@ -424,25 +423,6 @@ public sealed class McpClient : IAsyncDisposable
         catch (RpcTimeoutException) { throw new McpTimeoutException(timeout); }
         catch (RpcException e) when (e.Code == McpHttpTransport.AuthErrorCode) { throw new McpAuthException(e.Message); }
         catch (RpcException e) when (e.Code == McpHttpTransport.FailedErrorCode) { throw new McpClientException(e.Message); }
-    }
-
-    private async Task PumpStderrAsync()
-    {
-        try
-        {
-            while (await _process!.StandardError.ReadLineAsync().ConfigureAwait(false) is { } raw)
-            {
-                var line = _mask(raw);
-                lock (_tail)
-                {
-                    _tail.Enqueue(line);
-                    while (_tail.Count > _options.StderrTailLines) _tail.Dequeue();
-                }
-                try { _onStderr?.Invoke(line); }
-                catch (Exception) { /* a failing log sink must not stop the pump: the pipe would fill and block the server */ }
-            }
-        }
-        catch (Exception e) when (e is IOException or ObjectDisposedException or InvalidOperationException) { }
     }
 
     private async Task WatchAsync()

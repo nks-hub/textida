@@ -127,7 +127,6 @@ public sealed class AcpClient : IAsyncDisposable
     private readonly Process _process;
     private readonly Queue<string> _tail = new();
     private readonly TaskCompletionSource<AcpExit> _exit = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly Action<string>? _onStderr;
     private readonly List<CancellationTokenSource> _permissions = [];
     private JsonRpcDispatcher _rpc = null!;
     private Task _stderrPump = Task.CompletedTask, _watch = Task.CompletedTask;
@@ -136,12 +135,11 @@ public sealed class AcpClient : IAsyncDisposable
     private int _waiting;
     private long _lastActivity = Environment.TickCount64;
 
-    private AcpClient(AcpOptions options, IAcpHost host, Process process, Action<string>? onStderr)
+    private AcpClient(AcpOptions options, IAcpHost host, Process process)
     {
         _options = options;
         _host = host;
         _process = process;
-        _onStderr = onStderr;
     }
 
     public AcpAgentInfo? Agent { get; private set; }
@@ -175,8 +173,9 @@ public sealed class AcpClient : IAsyncDisposable
             process.Dispose();
             throw new AcpException(e.Message);
         }
-        var client = new AcpClient(options, host, process, onStderr);
-        client._stderrPump = Task.Run(client.PumpStderrAsync);
+        ProcessLaunch.Track(process);
+        var client = new AcpClient(options, host, process);
+        client._stderrPump = Task.Run(() => StderrPump.RunAsync(process.StandardError, client._tail, options.StderrTailLines, onStderr));
         client._rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Acp, options.Limits, new Handler(client));
         client._watch = client.WatchAsync();
         try
@@ -329,24 +328,6 @@ public sealed class AcpClient : IAsyncDisposable
     {
         try { return await call().ConfigureAwait(false); }
         catch (RpcConnectionClosedException) { throw new AcpAgentExitedException(await _exit.Task.ConfigureAwait(false)); }
-    }
-
-    private async Task PumpStderrAsync()
-    {
-        try
-        {
-            while (await _process.StandardError.ReadLineAsync().ConfigureAwait(false) is { } line)
-            {
-                lock (_tail)
-                {
-                    _tail.Enqueue(line);
-                    while (_tail.Count > _options.StderrTailLines) _tail.Dequeue();
-                }
-                try { _onStderr?.Invoke(line); }
-                catch (Exception) { /* a failing log sink must not stop the pump: the pipe would fill and block the agent */ }
-            }
-        }
-        catch (Exception e) when (e is IOException or ObjectDisposedException or InvalidOperationException) { }
     }
 
     private async Task WatchAsync()

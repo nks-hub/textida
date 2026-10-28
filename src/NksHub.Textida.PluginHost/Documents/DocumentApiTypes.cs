@@ -197,7 +197,7 @@ public static class DocumentPermissions
     public const string LanguageServer = "language.server";
 }
 
-/// <summary>JSON-RPC error codes of the document API (implementation-defined range -32000..-32099; <c>error.data</c> carries details).</summary>
+/// <summary>JSON-RPC error codes of the document API (implementation-defined range -32020..-32049; <c>error.data</c> carries details).</summary>
 public static class DocumentErrorCodes
 {
     /// <summary>The revision is not the current one (data: <c>reason</c>, <c>currentRevision</c>), or the change log cannot map a position unambiguously.</summary>

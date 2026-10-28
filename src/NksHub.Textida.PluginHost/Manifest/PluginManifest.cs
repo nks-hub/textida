@@ -48,7 +48,10 @@ public sealed class PluginMain
     /// <summary>Working directory relative to the plugin folder; defaults to the folder.</summary>
     public string? Cwd { get; set; }
 
-    /// <summary><c>onCommand:id</c>, <c>onLanguage:id</c>, <c>onFileType:.ext</c>, <c>onPanel:id</c>. Defaults to <c>onCommand</c> for every contributed command.</summary>
+    /// <summary>
+    /// <c>onCommand:id</c>, <c>onLanguage:id</c>, <c>onFileType:.ext</c>, <c>onPanel:id</c>, <c>workspaceContains:glob</c> (a file under an open folder matches the glob) and <c>onStartup</c> (the editor has started).
+    /// Defaults to <c>onCommand</c> for every contributed command.
+    /// </summary>
     public List<string>? ActivationEvents { get; set; }
 }
 

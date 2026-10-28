@@ -26,7 +26,7 @@ namespace NksHub.Textida.App.Services;
 /// The plugin side of the app: the host, the document API, the UI API and the built-in plugins. Nothing starts a process until a command needs it.
 /// Limits come from <see cref="PluginLimitsPlaceholders"/> only.
 /// </summary>
-internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumentOwnerThread, IEditorTools, IAsyncDisposable
+internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, IDocumentOwnerThread, IEditorTools, IAsyncDisposable
 {
     public const string JsonPluginId = "textida.json";
     private const string JsonActivation = "onCommand:json";
@@ -118,12 +118,19 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         Ui.Api = UiApi;
         var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
         Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimitsPlaceholders.Network(), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host() with { SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null },
+        _host = new Host(PluginLimitsPlaceholders.Host() with
+            {
+                SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null,
+                HoldsEditorState = id => Documents.HoldsState(id) || UiApi.HoldsState(id),
+            },
             PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync), ("net/", Network.HandleAsync)), Documents);
+        // whatever way the process ends, no plugin process is left behind
+        _exitHook = (_, _) => _host.KillAll();
+        AppDomain.CurrentDomain.ProcessExit += _exitHook;
         app.Workbench.SettingChanged += OnSettingChanged;
         _host.StateChanged += (id, state) =>
         {
-            if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped)
+            if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped or PluginState.Inactive)
                 Dispatcher.UIThread.Post(() =>
                 {
                     UiApi.PluginEnded(id);
@@ -480,15 +487,17 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         window.ShowNotice("plugin.crash:" + info.PluginId, CrashMessage(info), [(Loc.Get(K.PluginCrashLog), () => window.ShowOutput(OutputChannel.Tasks))], warning: true);
     }
 
+    internal static string CrashReasonText(PluginEndReason reason) => Loc.Get(reason switch
+    {
+        PluginEndReason.Unresponsive => K.PluginCrashUnresponsive,
+        PluginEndReason.ProtocolViolation => K.PluginCrashProtocol,
+        PluginEndReason.HandshakeFailed => K.PluginCrashStart,
+        _ => K.PluginCrashExited,
+    });
+
     internal static string CrashMessage(PluginCrashInfo info)
     {
-        var reason = Loc.Get(info.Reason switch
-        {
-            PluginEndReason.Unresponsive => K.PluginCrashUnresponsive,
-            PluginEndReason.ProtocolViolation => K.PluginCrashProtocol,
-            PluginEndReason.HandshakeFailed => K.PluginCrashStart,
-            _ => K.PluginCrashExited,
-        });
+        var reason = CrashReasonText(info.Reason);
         return info.NextRestartIn is { } delay
             ? Loc.Get(K.PluginCrashRestart, ("name", info.DisplayName), ("reason", reason), ("seconds", (int)Math.Ceiling(delay.TotalSeconds)))
             : Loc.Get(K.PluginCrashDisabled, ("name", info.DisplayName), ("reason", reason));
@@ -941,6 +950,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         Acp.Closed(document);
         _outlineWanted.Remove(document.Id);
         _schemaChecked.Remove(document.Id);
+        _activatedFor.RemoveWhere(x => x.Document == document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
         if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
     }
@@ -1335,6 +1345,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
         await Acp.DisposeAsync();
         await Mcp.DisposeAsync();
         await _host.DisposeAsync();
+        AppDomain.CurrentDomain.ProcessExit -= _exitHook;
         await Documents.DisposeAsync();
     }
 }
