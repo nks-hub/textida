@@ -136,7 +136,7 @@ public class SyntaxStreamingStateTests
     private static SyntaxWindow Complete(StreamingSyntaxSession session, long line, int count, long column, int columns)
     {
         var elapsed = Stopwatch.StartNew();
-        while (elapsed.Elapsed < TimeSpan.FromSeconds(30))
+        while (elapsed.Elapsed < TimeSpan.FromMinutes(3)) // CPU-bound and deterministic: the wall clock grows with the load, so this only guards against a hang
         {
             var result = session.TokenizeWindow(line, count, column, columns, TimeSpan.FromMilliseconds(5));
             if (result.Status != SyntaxViewportStatus.Pending)

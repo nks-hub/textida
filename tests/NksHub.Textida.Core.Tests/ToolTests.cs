@@ -8,10 +8,7 @@ public sealed class ToolTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-tool-").FullName;
 
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
-    }
+    public void Dispose() => TestDir.Delete(_dir);
 
     private static string Dotnet => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
 
@@ -156,7 +153,8 @@ public sealed class ToolTests : IDisposable
         if (!OperatingSystem.IsWindows()) return;
         var (failed, _) = await Run(Resolve(new ToolSpec("t", EchoBatch(), ["a", "--exit", "7"])));
         Assert.Equal(new ToolResult(ToolEnd.Exited, 7), failed);
-        var (slow, lines) = await Run(Resolve(new ToolSpec("t", EchoBatch(), ["--sleep"], null, TimeSpan.FromMilliseconds(3000))));
+        // the limit runs from the launch and must outlast cmd.exe and the .NET start of a loaded machine, or "started" is never printed
+        var (slow, lines) = await Run(Resolve(new ToolSpec("t", EchoBatch(), ["--sleep"], null, TimeSpan.FromMilliseconds(15000))));
         Assert.Equal(ToolEnd.TimedOut, slow.End);
         Assert.Contains("started", lines);
     }
@@ -249,7 +247,7 @@ public sealed class ToolTests : IDisposable
     [Fact]
     public async Task Running_over_the_time_limit_ends_the_process_and_says_so()
     {
-        var tool = Resolve(Echo(["--sleep"], TimeSpan.FromMilliseconds(700)));
+        var tool = Resolve(Echo(["--sleep"], TimeSpan.FromSeconds(10))); // the limit runs from the launch and must outlast the .NET start of a loaded machine, or "started" is never printed
         var started = DateTime.UtcNow;
         var (result, lines) = await Run(tool);
         Assert.Equal(ToolEnd.TimedOut, result.End);

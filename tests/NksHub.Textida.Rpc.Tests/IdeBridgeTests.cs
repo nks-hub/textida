@@ -960,7 +960,10 @@ public class IdeBridgeTests
         Assert.Null(plain.EndText);
 
         var dotted = Path.Combine(open.Rig.Root, "src", "..", "src", "inside.txt"); // the editor is given the path in its plain form
-        await agent.ToolAsync("openFile", JsonSerializer.Serialize(new { filePath = dotted, preview = true, startText = "function hello", endText = "}", selectToEndOfLine = true, makeFrontmost = true }));
+        // in front, the answer is the same line of text as before; only a tab opened behind the others is described in JSON
+        var (secondIsError, secondText) = await agent.ToolTextAsync("openFile", JsonSerializer.Serialize(new { filePath = dotted, preview = true, startText = "function hello", endText = "}", selectToEndOfLine = true, makeFrontmost = true }));
+        Assert.False(secondIsError, secondText);
+        Assert.Equal("Opened file: " + inside, secondText);
         var full = open.Opened[1];
         Assert.Equal(inside, full.Path);
         Assert.True(full.Preview);

@@ -213,11 +213,13 @@ type NksHub.Textida.PluginSdk.PluginBase : abstract class
   const CommandMethod : string = "command/execute"
   ctor protected(string name, int apiVersion)
   method protected DocumentOf(NksHub.Textida.PluginSdk.CommandContext command) : NksHub.Textida.PluginSdk.DocumentClient
+  method protected ForgetTask(string taskId) : void
   method protected NotifyAsync(NksHub.Textida.PluginHost.Ui.NoticeLevel level, string message, System.Threading.CancellationToken cancellation = null) : System.Threading.Tasks.Task
   method protected On(string method, NksHub.Textida.PluginSdk.RequestHandler handler) : void
   method protected On<TRequest, TResult>(string method, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TRequest> request, System.Text.Json.Serialization.Metadata.JsonTypeInfo<TResult> result, System.Func<TRequest, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TResult>> handler) : void
   method protected OnCommand(string command, NksHub.Textida.PluginSdk.CommandHandler handler) : void
   method protected StartTaskAsync(string title, System.Threading.CancellationToken cancellation, System.Nullable<System.TimeSpan> reportEvery = null) : System.Threading.Tasks.Task<NksHub.Textida.PluginSdk.PluginTask>
+  method protected TrackTask(string taskId, System.Threading.CancellationToken cancellation) : System.Threading.CancellationTokenSource
   method protected virtual OnEventAsync(System.Text.Json.JsonElement eventPayload) : System.Threading.Tasks.ValueTask
   method protected virtual OnResyncAsync(System.Text.Json.JsonElement state) : System.Threading.Tasks.ValueTask
   property protected IdleStop : bool { get; }

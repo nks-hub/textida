@@ -259,7 +259,7 @@ public class LongLineColumnTests
         byte[] bytes = [0xFF, 0xFE, .. Encoding.Unicode.GetBytes(line + "\nnext")];
         using var f = new TempFile(bytes);
         using var doc = PagedDocument.Open(f.Path, new MappedFileSourceOptions { Codec = Core.Encodings.TextCodec.Utf16LEBom });
-        for (int i = 0; i < 200 && !doc.LineIndexState.Complete; i++) Thread.Sleep(10);
+        Wait.Until(() => doc.LineIndexState.Complete, "the line index of the file");
         long Offset(int col) => 2 + 2L * col;
 
         foreach (int col in new[] { 0, 7, 1_000_000, 1_200_001, line.Length })
@@ -307,8 +307,7 @@ public class LongLineColumnTests
         string line = LongLine(300_000) + "😀";
         using var f = new TempFile(Encoding.UTF8.GetBytes(line + "\nnext"));
         using var backend = PagedBackend.FromFile(f.Path, NksHub.Textida.Core.Encodings.TextCodec.Utf8);
-        for (int i = 0; i < 200 && !backend.LineIndexState.Complete; i++) Thread.Sleep(10);
-        Assert.True(backend.LineIndexState.Complete);
+        Wait.Until(() => backend.LineIndexState.Complete, "the line index of the file");
 
         backend.Replace(ByteOffset(line, 2_000_000), 0, "ZZ"u8);
         string edited = line.Insert(2_000_000, "ZZ");

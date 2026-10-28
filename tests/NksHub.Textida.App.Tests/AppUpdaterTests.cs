@@ -37,7 +37,7 @@ internal sealed class FeedServer : IDisposable
             {
                 HttpListenerContext context;
                 try { context = await _listener.GetContextAsync(); }
-                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException) { return; }
+                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
                 try
                 {
                     lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
@@ -45,8 +45,7 @@ internal sealed class FeedServer : IDisposable
                     else context.Response.StatusCode = 404;
                     context.Response.Close();
                 }
-                // a client that cuts the download off, or the end of the test closing the listener under a response that is still being written
-                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException) { }
+                catch (Exception e) when (e is HttpListenerException or IOException or ObjectDisposedException) { } // the client hung up: an updater cuts off a download that passes its signed size
             }
         });
     }
