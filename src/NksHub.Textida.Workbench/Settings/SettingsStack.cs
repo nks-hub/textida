@@ -24,6 +24,11 @@ public sealed class SettingsStack(SettingsRegistry registry)
 
     public SettingsRegistry Registry => registry;
 
+    private long _version;
+
+    /// <summary>Changes whenever a layer is set or removed, so a value computed from the stack stays good while this number does.</summary>
+    public long Version => Volatile.Read(ref _version);
+
     /// <summary>Sets or removes (null) the values of a layer. Language layers need a language id.</summary>
     public void SetLayer(SettingSource source, JsonObject? values, string? language = null, string? name = null)
     {
@@ -46,6 +51,8 @@ public sealed class SettingsStack(SettingsRegistry registry)
         {
             _layers[slot] = new Layer((JsonObject)values.DeepClone(), name);
         }
+
+        Interlocked.Increment(ref _version); // after the change: a value stamped with the old number is dropped as soon as the layer is in place
     }
 
     /// <summary>Resolves a key for an optional language. Returns null for keys that are not defined.</summary>

@@ -58,12 +58,21 @@ internal sealed partial class MainWindow : Window
     /// <summary>The same for a document: its <c>.editorconfig</c> layer goes into the settings stack first, so every value carries its source; an indentation set there beats the one detected from the content.</summary>
     internal EditorOptions OptionsFor(OpenDocument od)
     {
-        od.SetGlobalSqlDialect(_app.Workbench.Settings.GetString("sql.dialect"));
-        EditorConfigSettings.Apply(_app.Workbench.Settings, od.EditorConfig);
-        var options = EditorOptions.From(_app.Workbench.Settings, od.Language.Id);
+        var settings = _app.Workbench.Settings;
+        // reading some fifty settings through the layers takes a while and the status bar asks on every caret move and scroll step: the last answer stands while nothing it was made from changed
+        if (_optionsMemo is { } memo && ReferenceEquals(memo.Doc, od) && memo.Version == settings.Version && ReferenceEquals(memo.Config, od.EditorConfig) && memo.Language == od.Language.Id && Equals(memo.Indent, od.IndentOverride))
+            return memo.Options;
+        od.SetGlobalSqlDialect(settings.GetString("sql.dialect"));
+        EditorConfigSettings.Apply(settings, od.EditorConfig);
+        var options = EditorOptions.From(settings, od.Language.Id);
         bool configIndent = od.EditorConfig.Properties.Keys.Any(k => k is "indent_style" or "indent_size" or "tab_width");
-        return od.IndentOverride is { } indent && !configIndent ? options.WithIndent(indent) : options;
+        if (od.IndentOverride is { } indent && !configIndent) options = options.WithIndent(indent);
+        _optionsMemo = (od, settings.Version, od.EditorConfig, od.Language.Id, od.IndentOverride, options);
+        return options;
     }
+
+    /// <summary>The last result of <see cref="OptionsFor(OpenDocument)"/> with what it was made from; the number of the settings is read after the editorconfig layer was put in, which is a change of its own.</summary>
+    private (OpenDocument Doc, long Version, EditorConfigResult Config, string Language, NksHub.Textida.AvaloniaEditAdapter.IndentSettings? Indent, EditorOptions Options)? _optionsMemo;
 
     /// <summary>Text of the menu groups currently shown, for tests and accessibility checks.</summary>
     public IReadOnlyList<string> MenuHeaders => _menuModel.Select(g => g.Label).ToList();
