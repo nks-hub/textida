@@ -70,17 +70,17 @@ public class PseudoLocalizationTests : IDisposable
         Loc.UseTransformed(language, text => Lengthen(text, factor));
     }
 
-    private static void Layout(Visual root)
+    internal static void Layout(Visual root)
     {
         if (root is Layoutable layoutable) layoutable.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
         if (root is Layoutable again) again.UpdateLayout();
     }
 
-    private static string Shorten(string text) => text.Length <= 70 ? text : text[..67] + "...";
+    internal static string Shorten(string text) => text.Length <= 70 ? text : text[..67] + "...";
 
     /// <summary>Why the label does not show all of its text, or null.</summary>
-    private static string? Problem(TextBlock block, string text, Visual root)
+    internal static string? Problem(TextBlock block, string text, Visual root)
     {
         var padding = block.Padding;
         double width = block.Bounds.Width - padding.Left - padding.Right;
@@ -111,7 +111,7 @@ public class PseudoLocalizationTests : IDisposable
     /// Whether anything of the label reaches the screen. The one exception to "every label is measured" is by design: the 1 px live region the window announces to a screen reader with
     /// (opacity 0) holds the text of every notice and palette choice and cannot show it; a label drawn at full opacity is never skipped.
     /// </summary>
-    private static bool IsDrawn(TextBlock block) => block.GetSelfAndVisualAncestors().All(v => v.Opacity > 0);
+    internal static bool IsDrawn(TextBlock block) => block.GetSelfAndVisualAncestors().All(v => v.Opacity > 0);
 
     /// <summary>Lays out <paramref name="root"/> and measures every visible label that shows a marked text.</summary>
     private void Look(string surface, Visual root)
