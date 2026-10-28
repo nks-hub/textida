@@ -22,6 +22,7 @@ using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
+using TextSelection = NksHub.Textida.Core.Documents.TextSelection;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -31,7 +32,7 @@ namespace NksHub.Textida.App.Editing;
 /// offset and each visible line is decoded with a character map between UTF-16 columns and bytes.
 /// </summary>
 /// <remarks>
-/// shortcut: one selection only (no extra carets, no block mode); a line longer than <see cref="MaxLineBytes"/> shows its first part
+/// shortcut: no block mode (several carets are in PagedTextView.Carets.cs); a line longer than <see cref="MaxLineBytes"/> shows its first part
 /// and is edited through the bytes around the caret (the caret column and the selection come from the column index of the document, never from decoding the line); its columns beyond that part are shown through a bar that counts fixed cells (the line length in characters bounds the range once a read has reached the end of the line, its bytes before; a window starts at the cell of its first column and is measured inside, and gets its tokens once the feeder has scanned the line up to it); saving blocks the UI thread. Product quality is the paged surface of P3.1.10.
 /// </remarks>
 internal sealed partial class PagedTextView : Grid
@@ -263,6 +264,7 @@ internal sealed partial class PagedTextView : Grid
         _doc.LogHighlightChanged += RepaintLog;
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
+        if (_others is not null) ResyncCarets();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -282,6 +284,7 @@ internal sealed partial class PagedTextView : Grid
         _indexCts = null;
         _indexing.Clear();
         CancelWindows();
+        _searchCts?.Cancel();
     }
 
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
@@ -290,8 +293,12 @@ internal sealed partial class PagedTextView : Grid
         _preedit = "";
         if (!_own)
         {
-            _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
-            _anchor = -1;
+            if (_others is not null) FollowExternalChange(e.Change);
+            else
+            {
+                _caret = Math.Clamp(_caret, Doc.BomLength, Doc.ByteLength);
+                _anchor = -1;
+            }
         }
         UpdateScrollRange();
         _canvas.InvalidateVisual();
@@ -465,8 +472,9 @@ internal sealed partial class PagedTextView : Grid
         return d.BaseLine + Math.Max(0, i >= 0 ? i : ~i - 1);
     }
 
-    private void EnterDetour(long offset)
+    private void EnterDetour(long offset, bool keepSelection = false)
     {
+        if (!keepSelection) DropOthers();
         long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
         var sample = new byte[(int)Math.Min(Doc.ByteLength, 64 * 1024)];
         long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length);
@@ -481,10 +489,13 @@ internal sealed partial class PagedTextView : Grid
         _detour = new Detour(start, baseLine, perLine);
         _lines.Clear();
         _lineMemo = (-1, -1, 0);
-        _anchor = -1;
         _wanted = -1;
         _typingKey = null;
-        _caret = offset;
+        if (!keepSelection)
+        {
+            _anchor = -1;
+            _caret = offset;
+        }
         UpdateScrollRange();
         _bar.Value = DetourLineOf(_detour, offset);
         Reveal();
@@ -852,12 +863,18 @@ internal sealed partial class PagedTextView : Grid
     }
 
     /// <summary>UTF-16 column of the caret in the line shown by <paramref name="view"/>.</summary>
-    private long CaretColumn(LineView view) => view.Truncated ? ColumnOfOffset(view, _caret) : view.Map.CharIndexOf(_caret - view.Start);
+    private long CaretColumn(LineView view) => ColumnAt(view, _caret);
+
+    /// <summary>UTF-16 column of a byte offset in the line shown by <paramref name="view"/>.</summary>
+    private long ColumnAt(LineView view, long offset) => view.Truncated ? ColumnOfOffset(view, offset) : view.Map.CharIndexOf(offset - view.Start);
 
     // ---- moving ----
 
     private void MoveTo(long caret, long? line = null, bool keepWanted = false)
     {
+        DropOthers(); // a move of one caret ends the several
+        _wholeWord = false;
+        _caretStamp++;
         if (!_extend) _anchor = -1;
         else if (_anchor < 0) _anchor = _caret;
         _caret = caret;
@@ -1037,8 +1054,7 @@ internal sealed partial class PagedTextView : Grid
     private bool CanEdit(out Site site)
     {
         site = default;
-        if (ReadOnlyReason is { } locked) { Refused?.Invoke(locked); return false; }
-        if (!Indexed) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
+        if (!CanEditDocument()) return false;
         if (CaretSite() is not { } c) { Refused?.Invoke(Loc.Get(K.PagedIndexing)); return false; }
         site = c;
         return true;
@@ -1100,7 +1116,9 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Types text at the caret. A character the encoding cannot hold is refused, not replaced behind the user's back.</summary>
     public bool InsertText(string text, bool typing = true)
     {
-        if (text.Length == 0 || !CanEdit(out var site)) return false;
+        if (text.Length == 0) return false;
+        if (IsMulti) return InsertAtCarets(text, typing);
+        if (!CanEdit(out var site)) return false;
         byte[] bytes;
         try { bytes = Doc.Codec.Encode(text); }
         catch (UnrepresentableCharactersException)
@@ -1133,6 +1151,11 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     public async Task CopyAsync(bool cut)
     {
+        if (IsMulti)
+        {
+            await CopyAtCaretsAsync(cut);
+            return;
+        }
         if (!HasSelection || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard || cut && !CanEdit(out _)) return;
         var range = SelectionRange;
         if (range.Length > CopyLimitBytes)
@@ -1167,8 +1190,11 @@ internal sealed partial class PagedTextView : Grid
         if (await clipboard.TryGetTextAsync() is { Length: > 0 } text) PasteText(text);
     }
 
-    internal bool PasteText(string text) =>
-        InsertText(AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, _doc.NewLine(_options.ConfiguredEol)), typing: false);
+    internal bool PasteText(string text)
+    {
+        text = AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, _doc.NewLine(_options.ConfiguredEol));
+        return IsMulti ? PasteAtCarets(text) : InsertText(text, typing: false);
+    }
 
     public void SelectAll()
     {
@@ -1189,6 +1215,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void Backspace()
     {
+        if (IsMulti) { DeleteAtCarets(backwards: true); return; }
         if (HasSelection) { DeleteSelection(); return; }
         if (!CanEdit(out var site)) return;
         var (line, view) = (site.Line, site.View);
@@ -1204,6 +1231,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void DeleteForward()
     {
+        if (IsMulti) { DeleteAtCarets(backwards: false); return; }
         if (HasSelection) { DeleteSelection(); return; }
         if (!CanEdit(out var site)) return;
         var (line, view) = (site.Line, site.View);
@@ -1216,6 +1244,7 @@ internal sealed partial class PagedTextView : Grid
 
     private void Tab()
     {
+        if (IsMulti) { TabAtCarets(); return; }
         if (!CanEdit(out var site)) return;
         int size = Math.Max(1, _options.InsertSpaces ? _options.IndentSize : _options.TabSize);
         int column = site.Long ? (int)Math.Min(site.Column, int.MaxValue / 2) : site.View.DisplayAt[site.View.Map.CharIndexOf(_caret - site.View.Start)];
@@ -1240,6 +1269,14 @@ internal sealed partial class PagedTextView : Grid
         long target = result.Selections.Count > 0 ? result.Selections[0].Start
             : changes.Count > 0 && changes[^1].Edits.Count > 0 ? changes[^1].Edits[0].Start + changes[^1].Edits[0].Inserted : _caret;
         UpdateScrollRange();
+        if (result.Selections.Count > 1)
+        {
+            // the step was made at several carets: undo gives back all of them, the primary one last
+            SetCarets(CaretsOf(result.Selections, Doc));
+            RevealPrimary();
+            RaiseViewChanged();
+            return;
+        }
         MoveTo(Math.Clamp(target, Doc.BomLength, Doc.ByteLength));
     }
 
@@ -1285,6 +1322,13 @@ internal sealed partial class PagedTextView : Grid
             StackTraceClicked?.Invoke(link);
             return;
         }
+        if (e.KeyModifiers == KeyModifiers.Alt)
+        {
+            // Alt+click adds a caret where it lands, or removes the one that is there
+            if (OffsetAt(e.GetPosition(_canvas)) is { } at) AddOrRemoveCaretAt(at.Offset);
+            e.Handled = true;
+            return;
+        }
         Place(e.GetPosition(_canvas), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
         _dragFrom = _caret;
         e.Pointer.Capture(this);
@@ -1307,16 +1351,23 @@ internal sealed partial class PagedTextView : Grid
         e.Pointer.Capture(null);
     }
 
-    private void Place(Point point, bool extend)
+    /// <summary>The line and the byte offset under a point of the text area; null while the line is not known yet.</summary>
+    private (long Offset, long Line)? OffsetAt(Point point)
     {
         long line = Math.Clamp(TopLine + (long)Math.Floor(point.Y / _canvas.LineHeight), 0, LineCount - 1);
-        if (GetLine(line) is not { } view) return;
+        if (GetLine(line) is not { } view) return null;
         double x = point.X - _canvas.TextLeft + _hScroll;
         long to = view.Truncated && x / _canvas.CharWidth >= view.Display.Length
             ? OffsetOfColumn(view, _canvas.ColumnAtX(view, x))
             : view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, x));
+        return (to, line);
+    }
+
+    private void Place(Point point, bool extend)
+    {
+        if (OffsetAt(point) is not { } at) return;
         _extend = extend;
-        try { MoveTo(to, line); }
+        try { MoveTo(at.Offset, at.Line); }
         finally { _extend = false; }
     }
 
@@ -1326,6 +1377,11 @@ internal sealed partial class PagedTextView : Grid
         _extend = e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key is Key.Left or Key.Right or Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End;
         try
         {
+        if (IsMulti && MultiKey(e, command))
+        {
+            e.Handled = true;
+            return;
+        }
         switch (e.Key)
         {
             case Key.Left: Left(); break;
@@ -1546,6 +1602,13 @@ internal sealed partial class PagedTextView : Grid
         private double _digitWidth = 8;
         private double _gutter = 40;
         private bool _fixedPitch = true;
+        // reused by every draw: the selections and carets on the line being drawn, the caret rectangles of the screen, and where a composition is shown in the line
+        private readonly List<TextSelection> _lineSelections = [];
+        private readonly List<(Rect Rect, bool Primary)> _carets = [];
+        private readonly List<int> _composed = [];
+
+        /// <summary>Carets the last draw put on screen with several carets (all of them, not only the primary one); a test counts them.</summary>
+        public int DrawnCarets => _carets.Count;
 
         public int VisibleLines => (int)Math.Ceiling(Math.Max(0, Bounds.Height) / _lineHeight);
         public double LineHeight => _lineHeight;
@@ -1564,10 +1627,14 @@ internal sealed partial class PagedTextView : Grid
         public Rect CaretRect()
         {
             if (owner.CaretLine() is not { } c || c.Line < owner.TopLine || c.Line > owner.TopLine + VisibleLines) return default;
-            double x = TextLeft - owner._hScroll + XOfColumn(c.View, owner.CaretColumn(c.View));
-            if (owner._preedit.Length > 0) x += Format(owner._preedit, Brushes.Black).WidthIncludingTrailingWhitespace;
-            return new Rect(x, (c.Line - owner.TopLine) * _lineHeight, 1.5, _lineHeight);
+            return CaretRectOn(c.Line, c.View, owner._caret, owner._preedit.Length > 0 ? PreeditWidth : 0);
         }
+
+        private double PreeditWidth => Format(owner._preedit, Brushes.Black).WidthIncludingTrailingWhitespace;
+
+        /// <summary>The caret at a byte offset of the line <paramref name="line"/> shown by <paramref name="view"/>, moved right by <paramref name="shift"/> (the compositions drawn before it).</summary>
+        private Rect CaretRectOn(long line, LineView view, long offset, double shift) =>
+            new(TextLeft - owner._hScroll + XOfColumn(view, owner.ColumnAt(view, offset)) + shift, (line - owner.TopLine) * _lineHeight, 1.5, _lineHeight);
 
         /// <summary>
         /// Horizontal position of a UTF-16 column: measured inside the decoded part of the line; beyond it measured inside the window kept for the line,
@@ -1646,9 +1713,8 @@ internal sealed partial class PagedTextView : Grid
         }
 
         /// <summary>Fills the part of the selection that lies in <paramref name="window"/>, the columns from column <paramref name="column"/> of a truncated line drawn at <paramref name="x"/>.</summary>
-        private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, string window, IBrush brush)
+        private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, string window, IBrush brush, long from, long to)
         {
-            var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
             if (to <= view.Start || from > view.Start + view.ByteLength) return;
             long windowStart = owner.OffsetOfColumn(view, column), windowEnd = owner.OffsetOfColumn(view, column + window.Length);
             if (to <= windowStart || from >= windowEnd) return;
@@ -1688,14 +1754,25 @@ internal sealed partial class PagedTextView : Grid
             }
         }
 
-        private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush)
+        private void DrawSelection(DrawingContext context, LineView view, double y, IBrush brush, long from, long to)
         {
-            var (from, to) = (owner.SelectionRange.Start, owner.SelectionRange.End);
             long textEnd = view.Start + view.Map.ByteOffsetOf(view.Map.Text.Length);
             if (to <= view.Start || from > textEnd) return;
             int a = from <= view.Start ? 0 : view.Map.CharIndexOf(from - view.Start), b = to >= textEnd ? view.Map.Text.Length : view.Map.CharIndexOf(to - view.Start);
             double x1 = XOf(view, a), x2 = XOf(view, b) + (to > textEnd ? _digitWidth : 0);
             if (x2 > x1) context.FillRectangle(brush, new Rect(TextLeft - owner._hScroll + x1, y, x2 - x1, _lineHeight));
+        }
+
+        /// <summary>Index of the first selection that ends at or after <paramref name="offset"/>; the selections are sorted and do not overlap.</summary>
+        private static int FirstEndingAtOrAfter(IReadOnlyList<TextSelection> items, long offset)
+        {
+            int lo = 0, hi = items.Count;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (items[mid].End < offset) lo = mid + 1; else hi = mid;
+            }
+            return lo;
         }
 
         /// <summary>Dims the space and tab marks of <paramref name="shown"/>, so they stand back from the text.</summary>
@@ -1739,6 +1816,11 @@ internal sealed partial class PagedTextView : Grid
             _gutter = options.LineNumbers ? (digits + 1) * _digitWidth + 14 : owner._doc.Bookmarks.HasAny ? 14 : 0;
             long top = owner.TopLine;
             var caretLine = owner.CaretLine();
+            // with several carets only those on screen are looked at: the selections are sorted, so a pointer follows the lines down
+            var multi = owner.IsMulti ? owner.AllCarets() : null;
+            int walk = -1;
+            double composedWidth = owner._preedit.Length > 0 ? PreeditWidth : 0;
+            _carets.Clear();
             using (context.PushClip(new Rect(_gutter, 0, Math.Max(0, Bounds.Width - _gutter), Bounds.Height)))
             {
                 if (options.RightMargin > 0)
@@ -1752,8 +1834,25 @@ internal sealed partial class PagedTextView : Grid
                     long line = top + i;
                     if (owner.GetLine(line) is not { } view) break;
                     double y = i * _lineHeight;
+                    long lineEnd = view.Start + view.ByteLength;
+                    _lineSelections.Clear();
+                    if (multi is not null)
+                    {
+                        if (walk < 0) walk = FirstEndingAtOrAfter(multi.Items, view.Start);
+                        while (walk < multi.Count && multi.Items[walk].End < view.Start) walk++;
+                        int onLine = 0;
+                        for (int k = walk; k < multi.Count && multi.Items[k].Start <= lineEnd; k++)
+                        {
+                            var s = multi.Items[k];
+                            _lineSelections.Add(s);
+                            // a composition shown at each caret pushes the carets behind it to the right
+                            if (s.Caret >= view.Start && s.Caret <= lineEnd) _carets.Add((CaretRectOn(line, view, s.Caret, ++onLine * composedWidth), s.Caret == owner._caret));
+                        }
+                    }
+                    else if (owner.HasSelection) _lineSelections.Add(new TextSelection(owner._anchor, owner._caret));
                     if (options.CurrentLine && caretLine is { } cl && cl.Line == line) context.FillRectangle(current, new Rect(_gutter, y, Bounds.Width, _lineHeight));
-                    if (owner.HasSelection) DrawSelection(context, view, y, selection);
+                    foreach (var s in _lineSelections)
+                        if (!s.IsEmpty) DrawSelection(context, view, y, selection, s.Start, s.End);
                     string shown = options.ShowWhitespace ? view.Marked : view.Display;
                     if (view.Truncated)
                     {
@@ -1766,7 +1865,8 @@ internal sealed partial class PagedTextView : Grid
                             else if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
                             else
                             {
-                                if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window, selection);
+                                foreach (var s in _lineSelections)
+                                    if (!s.IsEmpty) DrawWindowSelection(context, view, y, x, column, window, selection, s.Start, s.End);
                                 string drawn = options.ShowWhitespace ? window.Replace(' ', '·').Replace('\t', '→') : window.Replace('\t', ' ');
                                 var windowText = Format(drawn, fore);
                                 if (owner._tokens.TryGetValue(line, out var windowTokens)) ColorWindow(windowText, windowTokens, column, window.Length, palette);
@@ -1778,12 +1878,18 @@ internal sealed partial class PagedTextView : Grid
                             continue;
                         }
                     }
-                    int insertAt = -1, insertLength = 0;
-                    if (owner._preedit.Length > 0 && caretLine is { } pl && pl.Line == line)
+                    // the composition of the input method is shown at the caret, or at every caret that is on this line
+                    _composed.Clear();
+                    int insertLength = owner._preedit.Length;
+                    if (insertLength > 0)
                     {
-                        insertAt = view.DisplayAt[view.Map.CharIndexOf(owner._caret - view.Start)];
-                        insertLength = owner._preedit.Length;
-                        shown = shown.Insert(insertAt, owner._preedit);
+                        if (multi is not null)
+                        {
+                            foreach (var s in _lineSelections)
+                                if (s.Caret >= view.Start && s.Caret <= lineEnd) _composed.Add(view.DisplayAt[view.Map.CharIndexOf(s.Caret - view.Start)]);
+                        }
+                        else if (caretLine is { } pl && pl.Line == line) _composed.Add(view.DisplayAt[view.Map.CharIndexOf(owner._caret - view.Start)]);
+                        for (int k = _composed.Count - 1; k >= 0; k--) shown = shown.Insert(_composed[k], owner._preedit);
                     }
                     bool dimmed = levels is not null && owner.FoldCriteria is { } fold && !LogFold.KeepsAlone(view.Map.Text, levels, fold);
                     var text = Format(shown, dimmed ? dim : fore);
@@ -1792,15 +1898,19 @@ internal sealed partial class PagedTextView : Grid
                         foreach (var token in tokens)
                         {
                             int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
-                            if (insertLength > 0)
+                            if (_composed.Count > 0)
                             {
-                                if (from >= insertAt) from += insertLength;
-                                if (to > insertAt) to += insertLength;
+                                (int start, int end) = (from, to);
+                                foreach (int at in _composed)
+                                {
+                                    if (start >= at) from += insertLength;
+                                    if (end > at) to += insertLength;
+                                }
                             }
                             if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
                         }
-                    if (view.HidesAnsi && insertLength == 0) DrawAnsi(context, text, view, y);
-                    if (insertLength > 0) text.SetTextDecorations(TextDecorations.Underline, insertAt, insertLength);
+                    if (view.HidesAnsi && _composed.Count == 0) DrawAnsi(context, text, view, y);
+                    for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);
                     if (options.ShowWhitespace) DimMarks(text, shown, dim);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
                     {
@@ -1814,7 +1924,15 @@ internal sealed partial class PagedTextView : Grid
                     context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
                     if (options.ShowLineEndings && !view.Truncated) DrawLineEnding(context, line, TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length), y, dim);
                 }
-                if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
+                if (multi is not null)
+                {
+                    foreach (var (rect, primary) in _carets)
+                    {
+                        if (primary) context.FillRectangle(fore, rect);
+                        else using (context.PushOpacity(0.7)) context.FillRectangle(fore, rect);
+                    }
+                }
+                else if (CaretRect() is { Height: > 0 } caretRect) context.FillRectangle(fore, caretRect);
                 if (widest != owner._truncatedColumns)
                 {
                     owner._truncatedColumns = widest;

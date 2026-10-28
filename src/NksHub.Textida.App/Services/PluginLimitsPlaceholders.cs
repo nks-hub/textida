@@ -61,6 +61,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
     public const long PagedCopyMaxBytes = 256L << 20;
 
+    /// <summary>Placeholder, OPEN: most carets (selections) a large file in the paged view takes; Add Next Occurrence, Select All Occurrences, Add Caret Above and Below and Alt+click stop there and the status bar says so. The owner has not decided it.</summary>
+    public const int PagedMaxCarets = 1000;
+
+    /// <summary>Placeholder, OPEN: longest selection of a large file in the paged view, in bytes, whose other occurrences Add Next Occurrence and Select All Occurrences look for; a longer one is refused with a message. The owner has not decided it.</summary>
+    public const int PagedOccurrenceMaxBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: most bytes a paste inserts over all carets of a large file in the paged view together (the text times the number of carets); a larger paste is refused with a message and the document stays as it was. The owner has not decided it.</summary>
+    public const long PagedMultiPasteMaxBytes = 64L << 20;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 

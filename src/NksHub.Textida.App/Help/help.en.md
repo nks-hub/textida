@@ -488,6 +488,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 - The status bar shows the number of carets.
 - Alt+drag with the mouse creates a caret on every line or a block selection, depending on the setting Alt+drag.
 - With an input method (Japanese, Chinese, Korean) the text being composed is shown underlined at every caret. When you confirm it, it is written at all of them as one Undo step; Esc cancels it and keeps the carets.
+- A large file in paged mode has multiple carets too, with the same keys and at most 1000 of them (topic Large files). Alt+drag does not work there.
 
 ## [edit.mark] Mark and select to mark
 commands: nks.edit.selectToMark
@@ -1139,13 +1140,14 @@ The status bar then shows Large file, its size and the revision.
 ### What works
 - Moving with the arrows, PageUp, PageDown, Home, End, and Ctrl+Home and Ctrl+End. Go to a line, a percentage or a byte (Ctrl+G).
 - Typing, deleting (Backspace and Delete), Enter and Tab at the caret. Undo and Redo. Save.
+- Multiple carets: Ctrl+D, Ctrl+K then Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+Up arrow and Ctrl+Alt+Down arrow, Alt+click and Esc work as in the text editor (topic Multiple carets). The arrows, Home and End move all carets. Typing, Backspace, Delete, Enter, Tab, Cut, Copy, Paste and Undo act on all of them as one step. Only the carets on the screen are drawn. A large file takes at most 1000 carets (a provisional limit); beyond that the status bar says so.
 - Save (Ctrl+S) runs in the background: the window stays usable, the status bar shows how many percent of the new file are written, and Esc cancels the save before the data is committed (the file stays unchanged). You can keep typing meanwhile: the file gets the text as it was when you pressed Save, your later edits stay unsaved, and the tab shows them as unsaved changes. Undo and Redo work during the save and after it. A save that only overwrites bytes of the same length writes just those bytes and takes no edits for its short time. A file larger than 1 GiB (a provisional limit) is saved without a copy of the old version in the backup folder; the old file stays untouched until the new one is complete.
 - Find (Ctrl+F). Find in Files.
 - Selecting (Shift with the arrows, the mouse, Ctrl+A), Copy, Cut and Paste. A selection larger than the copy limit (256 MiB, a provisional value) is not copied and the status bar says so. A long selection is read in the background, and a cut deletes only if the text has not changed meanwhile.
 - A line longer than 16 KiB scrolls sideways with the bar below the text. A far part of the line shows … for a moment, until it is read. Its colors appear once the program has read the line up to there.
 - A line of tens or hundreds of MiB is edited in place: typing, Backspace, Delete, Enter, Tab, paste, selecting and Undo read only the text around the caret, never the whole line, so the memory does not grow with the length of the line. The first move of the caret into a far part of such a line still has to count the characters up to it, which takes a moment; the program remembers the count for the next moves.
 ### What does not work
-- Block selection, multiple carets.
+- Block selection and Alt+drag.
 - Commands for lines, indentation, letter case, replacing.
 - Go to Matching Bracket, word wrap.
 - Converting and rereading the encoding, unifying line endings, normalization.
@@ -1155,6 +1157,9 @@ The status bar then shows Large file, its size and the revision.
 - The character cannot be written in the file encoding: type another character.
 - The selection is larger than the copy limit: select less; the clipboard stays as it was.
 - The edit is too large to be undone: remove or insert less text at once; the document does not change.
+- A large file takes at most 1000 carets; no more were added: choose fewer places; the carets stay as they were.
+- The selection is too long to look for its other occurrences: select a shorter text (the limit is a provisional 64 KiB).
+- The text for all carets would be over the limit: paste less text or use fewer carets; the document does not change.
 - A large file in an encoding cannot be opened yet: the file does not open; the program cannot read other encodings in a large file yet.
 - The file is being saved, try again when the save ends: you tried something while a save that overwrites bytes in place was running, or reloaded the file during any save.
 - Closing the tab or the window during a save waits for the end of the save; Esc cancels the save.
